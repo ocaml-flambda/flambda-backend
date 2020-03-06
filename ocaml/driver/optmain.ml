@@ -77,7 +77,7 @@ let main () =
       | None ->
         fatal "Please specify at most one of -pack, -a, -shared, -c, \
              -output-obj";
-      | Some ((P.Parsing | P.Typing | P.Scheduling) as p) ->
+      | Some ((P.Parsing | P.Typing | P.Scheduling | P.Emit) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf fatal
           "Options -i and -stop-after (%s) \

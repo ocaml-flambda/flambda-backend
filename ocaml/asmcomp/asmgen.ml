@@ -218,14 +218,15 @@ type middle_end =
   -> Lambda.program
   -> Clambda.with_constants
 
+let asm_filename output_prefix =
+    if !keep_asm_file || !Emitaux.binary_backend_available
+    then output_prefix ^ ext_asm
+    else Filename.temp_file "camlasm" ext_asm
+
 let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       ~ppf_dump (program : Lambda.program) =
-  let asm_filename =
-    if !keep_asm_file || !Emitaux.binary_backend_available
-    then prefixname ^ ext_asm
-    else Filename.temp_file "camlasm" ext_asm
-  in
-  compile_unit ~output_prefix:prefixname ~asm_filename ~keep_asm:!keep_asm_file
+  compile_unit ~output_prefix:prefixname
+    ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
     (fun () ->
       Ident.Set.iter Compilenv.require_global program.required_globals;
@@ -233,6 +234,24 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
       end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
+
+let linear_gen_implementation filename =
+  let open Linear_format in
+  let linear_unit_info, _ = restore filename in
+  let emit_item = function
+    | Data dl -> emit_data dl
+    | Func f -> emit_fundecl f
+  in
+  emit_begin_assembly ();
+  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
+  emit_end_assembly ()
+
+let compile_implementation_linear output_prefix ~progname =
+  compile_unit ~output_prefix
+    ~asm_filename:(asm_filename output_prefix) ~keep_asm:!keep_asm_file
+    ~obj_filename:(output_prefix ^ ext_obj)
+    (fun () ->
+      linear_gen_implementation progname)
 
 (* Error report *)
 

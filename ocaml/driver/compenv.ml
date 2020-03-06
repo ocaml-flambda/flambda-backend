@@ -96,6 +96,15 @@ let module_of_filename inputfile outputprefix =
   name
 ;;
 
+(* Check that start_from pass is before stop_after *)
+let check_pass_order () =
+  match !start_from, !stop_after with
+  | None, _ | _, None -> ()
+  | Some start, Some stop ->
+    if Compiler_pass.compare stop start < 0 then
+      fatal "When using \"-stop-after <last>\" and \"-start-from <first>\", \
+             <first> last must be before <last>"
+
 type filename = string
 
 type readenv_position =
@@ -188,6 +197,30 @@ let check_bool ppf name s =
     Printf.ksprintf (print_error ppf)
       "bad value %s for %s" s name;
     false
+
+let decode_compiler_pass ppf v ~name ~filter =
+  let module P = Clflags.Compiler_pass in
+  let passes = P.available_pass_names ~filter ~native:!native_code in
+  begin match List.find_opt (String.equal v) passes with
+  | None ->
+    Printf.ksprintf (print_error ppf)
+      "bad value %s for option \"%s\" (expected one of: %s)"
+      v name (String.concat ", " passes);
+    None
+  | Some v -> P.of_string v
+  end
+
+let set_compiler_pass ppf ~name v flag ~filter =
+  match decode_compiler_pass ppf v ~name ~filter with
+  | None -> ()
+  | Some pass ->
+    match !flag with
+    | None -> flag := Some pass
+    | Some p ->
+      if not (p = pass) then begin
+        Printf.ksprintf (print_error ppf)
+          "Please specify at most one %s <pass>." name
+      end
 
 (* 'can-discard=' specifies which arguments can be discarded without warning
    because they are not understood by some versions of OCaml. *)
@@ -432,36 +465,19 @@ let read_one_param ppf position name v =
      profile_columns := if check_bool ppf name v then if_on else []
 
   | "stop-after" ->
-    let module P = Clflags.Compiler_pass in
-    let passes = P.available_pass_names
-                   ~filter:(fun _ -> true)
-                   ~native:!native_code in
-    begin match List.find_opt (String.equal v) passes with
-    | None ->
-        Printf.ksprintf (print_error ppf)
-          "bad value %s for option \"stop-after\" (expected one of: %s)"
-          v (String.concat ", " passes)
-    | Some v ->
-        let pass = Option.get (P.of_string v)  in
-        Clflags.stop_after := Some pass
-    end
+    set_compiler_pass ppf v ~name Clflags.stop_after ~filter:(fun _ -> true)
 
   | "save-ir-after" ->
     if !native_code then begin
-      let module P = Clflags.Compiler_pass in
-      let passes = P.available_pass_names
-                     ~filter:P.can_save_ir_after
-                     ~native:!native_code in
-      begin match List.find_opt (String.equal v) passes with
-      | None ->
-          Printf.ksprintf (print_error ppf)
-            "bad value %s for option \"save-ir-after\" (expected one of: %s)"
-            v (String.concat ", " passes)
-      | Some v ->
-          let pass = Option.get (P.of_string v)  in
-          set_save_ir_after pass true
-      end
+      let filter = Clflags.Compiler_pass.can_save_ir_after in
+      match decode_compiler_pass ppf v ~name ~filter with
+      | None -> ()
+      | Some pass -> set_save_ir_after pass true
     end
+
+  | "start-from" ->
+    let filter = Clflags.Compiler_pass.can_start_from in
+    set_compiler_pass ppf v ~name Clflags.start_from ~filter
 
   | _ ->
     if not (List.mem name !can_discard) then begin
@@ -470,6 +486,7 @@ let read_one_param ppf position name v =
         "Warning: discarding value of variable %S in OCAMLPARAM\n%!"
         name
     end
+
 
 let read_OCAMLPARAM ppf position =
   try
@@ -607,14 +624,32 @@ type deferred_action =
 let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
+let check_ir name =
+  match Clflags.Compiler_ir.extract_extension_with_pass name with
+  | None -> false
+  | Some (Linear, _) ->
+    if not (should_start_from Compiler_pass.Emit) then begin
+      match !start_from with
+      | None ->
+          raise (Arg.Bad ("Format of the input file " ^ name ^
+                          " requires -start-from emit."))
+      | Some _ ->
+          raise (Arg.Bad ("Format of the input file " ^ name ^
+                          " is incompatible with -start-from <pass>."))
+    end;
+    true
+
 let process_action
     (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+  let impl name =
+    readenv ppf (Before_compile name);
+    let opref = output_prefix name in
+    implementation ~source_file:name ~output_prefix:opref;
+    objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+  in
   match action with
   | ProcessImplementation name ->
-      readenv ppf (Before_compile name);
-      let opref = output_prefix name in
-      implementation ~source_file:name ~output_prefix:opref;
-      objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
+      impl name
   | ProcessInterface name ->
       readenv ppf (Before_compile name);
       let opref = output_prefix name in
@@ -640,6 +675,8 @@ let process_action
         ccobjs := name :: !ccobjs
       else if not !native_code && Filename.check_suffix name Config.ext_dll then
         dllibs := name :: !dllibs
+      else if check_ir name then
+        impl name
       else
         raise(Arg.Bad("don't know what to do with " ^ name))
 
@@ -691,6 +728,7 @@ let process_deferred_actions env =
     fatal "Option -a cannot be used with .cmxa input files.";
   List.iter (process_action env) (List.rev !deferred_actions);
   output_name := final_output_name;
+  check_pass_order ();
   stop_early :=
     !compile_only ||
     !print_types ||

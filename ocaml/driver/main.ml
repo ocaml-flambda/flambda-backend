@@ -66,7 +66,7 @@ let main () =
            are  incompatible with -pack, -a, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
-      | Some P.Scheduling -> assert false (* native only *)
+      | Some (P.Scheduling | P.Emit)-> assert false (* native only *)
     end;
     if !make_archive then begin
       Compmisc.init_path ();
