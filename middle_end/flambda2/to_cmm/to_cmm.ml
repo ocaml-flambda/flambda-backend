@@ -419,7 +419,7 @@ let unary_primitive env dbg f arg =
         (C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, C.string_length arg dbg
   | Int_as_pointer -> None, C.int_as_pointer arg dbg
-  | Opaque_identity -> None, arg
+  | Opaque_identity -> None, C.opaque arg dbg
   | Int_arith (kind, op) -> None, unary_int_arith_primitive env dbg kind op arg
   | Float_arith op -> None, unary_float_arith_primitive env dbg op arg
   | Num_conv { src; dst } -> arithmetic_conversion dbg src dst arg
