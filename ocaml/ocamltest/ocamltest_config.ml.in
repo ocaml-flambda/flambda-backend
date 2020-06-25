@@ -86,3 +86,5 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let has_instrumented_runtime = %%RUNTIMEI%%
 
 let naked_pointers = %%NAKED_POINTERS%%
+
+let probes = %%PROBES%%

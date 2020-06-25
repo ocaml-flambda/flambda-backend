@@ -157,6 +157,7 @@ AC_SUBST([flambda_invariants])
 AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
 AC_SUBST([function_sections])
+AC_SUBST([probes])
 AC_SUBST([afl])
 AC_SUBST([force_safe_string])
 AC_SUBST([default_safe_string])
@@ -1802,6 +1803,17 @@ AS_IF([test x"$enable_function_sections" = "xno"],
       [AC_MSG_ERROR([Function sections are not supported.])],
       [AC_MSG_NOTICE([Disabling function sections.])])],
     [])])
+
+AS_CASE([$arch],
+  [amd64],
+    [AS_CASE([$target],
+      [*-cygwin*|*-mingw*|*-windows],[probes=false],
+      [*],[probes=true])],
+  [*],[probes=false])
+
+AS_IF([test x"$probes" = "xfalse"],
+  [AC_MSG_NOTICE([Disabling tracing probes: no support on $target.])],
+  [])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],
