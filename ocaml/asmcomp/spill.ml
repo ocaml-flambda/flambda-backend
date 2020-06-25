@@ -307,6 +307,7 @@ let rec spill i finally =
       let before =
         match i.desc with
           Iop(Icall_ind) | Iop(Icall_imm _) | Iop(Iextcall _) | Iop(Ialloc _)
+        | Iop (Iprobe _)
         | Iop(Iintop (Icheckbound)) | Iop(Iintop_imm(Icheckbound, _)) ->
             Reg.Set.union before1 !spill_at_raise
         | _ ->

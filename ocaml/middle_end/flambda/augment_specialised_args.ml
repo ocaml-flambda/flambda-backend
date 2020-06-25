@@ -470,6 +470,7 @@ module Make (T : S) = struct
           dbg = Debuginfo.none;
           inline = Default_inline;
           specialise = Default_specialise;
+          probe = None;
         }
       in
       Variable.Map.fold (fun new_inner_var definition (wrapper_body, benefit) ->

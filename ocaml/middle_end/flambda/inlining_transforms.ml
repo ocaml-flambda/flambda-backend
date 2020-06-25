@@ -45,10 +45,10 @@ let fold_over_projections_of_vars_bound_by_closure ~closure_id_being_applied
     bound_variables
     init
 
-let set_inline_attribute_on_all_apply body inline specialise =
+let set_inline_attribute_on_all_apply body inline specialise probe =
   Flambda_iterators.map_toplevel_expr (function
-      | Apply apply -> Apply { apply with inline; specialise }
-      | expr -> expr)
+    | Apply apply -> Apply { apply with inline; specialise; probe }
+    | expr -> expr)
     body
 
 (** Assign fresh names for a function's parameters and rewrite the body to
@@ -92,6 +92,7 @@ let inline_by_copying_function_body ~env ~r
       ~lhs_of_application
       ~(inline_requested : Lambda.inline_attribute)
       ~(specialise_requested : Lambda.specialise_attribute)
+      ~(probe_requested : Lambda.probe)
       ~closure_id_being_applied
       ~(function_decl : A.function_declaration)
       ~(function_body : A.function_body)
@@ -115,14 +116,15 @@ let inline_by_copying_function_body ~env ~r
       Lambda.equal_specialise_attribute specialise_requested Default_specialise
     in
     if function_body.stub
-    && ((not default_inline) || (not default_specialise)) then
+    && ((not default_inline) || (not default_specialise) ||
+        Option.is_some probe_requested) then
       (* When the function inlined function is a stub, the annotation
          is reported to the function applications inside the stub.
          This allows reporting the annotation to the application the
          original programmer really intended: the stub is not visible
          in the source. *)
       set_inline_attribute_on_all_apply body
-        inline_requested specialise_requested
+        inline_requested specialise_requested probe_requested
     else
       body
   in
@@ -581,12 +583,18 @@ let update_projections ~state projections =
       { spec_to with projection })
     projections
 
+(* CR-soon mshinwell: Somewhere there should be a description about
+   the specialisation of probe handlers.  This file is probably a
+   reasonable place, with a short comment citing this file to be added
+   in [Translcore] where [Always_specialise] is set. *)
+
 let inline_by_copying_function_declaration
     ~(env : Inline_and_simplify_aux.Env.t)
     ~(r : Inline_and_simplify_aux.Result.t)
     ~(function_decls : A.function_declarations)
     ~(lhs_of_application : Variable.t)
     ~(inline_requested : Lambda.inline_attribute)
+    ~(probe_requested: Lambda.probe)
     ~(closure_id_being_applied : Closure_id.t)
     ~(function_decl : A.function_declaration)
     ~(args : Variable.t list)
@@ -654,7 +662,9 @@ let inline_by_copying_function_declaration
       in
       let apply : Flambda.apply =
         { func = closure_var; args; kind = Direct closure_id; dbg;
-          inline = inline_requested; specialise = Default_specialise; }
+          inline = inline_requested; specialise = Default_specialise;
+          probe = probe_requested;
+        }
       in
       let body =
         Flambda.create_let

@@ -126,6 +126,10 @@ val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Ident.t list
 val add_required_global: Ident.t -> unit
 
+val reset_probes: unit -> unit
+val add_probe: string -> unit
+val has_probe: string -> bool
+
 val has_local_constraints: t -> bool
 
 (* Mark definitions as used *)
