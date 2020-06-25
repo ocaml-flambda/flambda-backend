@@ -61,6 +61,8 @@ type operation =
   | Ispecific of Arch.specific_operation
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
+  | Iprobe of { name: string; handler_code_sym: string; }
+  | Iprobe_is_enabled of { name: string }
 
 type instruction =
   { desc: instruction_desc;
@@ -159,5 +161,6 @@ let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
+  | Iprobe _
   | Ialloc _ -> true
   | _ -> false
