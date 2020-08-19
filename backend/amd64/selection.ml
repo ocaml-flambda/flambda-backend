@@ -120,6 +120,19 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
+  | Icompf cond ->
+    (* CR gyorsh: make this optimization as a separate PR. *)
+      (* We need to temporarily store the result of the comparison in a
+         float register, but we don't want to clobber any of the inputs
+         if they would still be live after this operation -- so we
+         add a fresh register as both an input and output. We don't use
+         [destroyed_at_oper], because that forces us to choose a fixed
+         register, which makes it more likely an extra mov would be added
+         to transfer the argument to the fixed register. *)
+      let treg = Reg.create Float in
+      let _,is_swapped = float_cond_and_need_swap cond in
+      (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
+    , [| res.(0); treg |]
   | Ispecific Irdpmc ->
   (* For rdpmc instruction, the argument must be in ecx
      and the result is in edx (high) and eax (low).

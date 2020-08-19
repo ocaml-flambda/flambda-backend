@@ -561,6 +561,7 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
+  | (Ccmpf comp, _) -> (Icompf comp, args)
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
   | (Caddf, _) -> (Iaddf, args)
@@ -756,12 +757,6 @@ method emit_expr (env:environment) exp =
           set_traps_for_raise env;
           None
       end
-  | Cop(Ccmpf _, _, dbg) ->
-      self#emit_expr env
-        (Cifthenelse (exp,
-          dbg, Cconst_int (1, dbg),
-          dbg, Cconst_int (0, dbg),
-          dbg))
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None

@@ -373,6 +373,8 @@ let max_register_pressure = function
     if fp then [| 11; 16 |] else [| 12; 16 |]
   | Istore(Single, _, _) ->
     if fp then [| 12; 15 |] else [| 13; 15 |]
+  | Icompf _ ->
+    if fp then [| 12; 15 |] else [| 13; 15 |]
   | Iintop(Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
   | Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr
