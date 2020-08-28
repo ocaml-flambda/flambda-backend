@@ -532,6 +532,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Ibswap { bitwidth = Sixteen } )) -> 2
     | Lop (Ispecific (Ibswap { bitwidth = (Thirtytwo | Sixtyfour) })) -> 1
     | Lop (Ispecific Imove32) -> 1
+    | Lop (Ispecific (Isignext _)) -> 1
     | Lop (Iname_for_debugger _) -> 0
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
       fatal_error ("Probes not supported.")
@@ -905,6 +906,8 @@ let emit_instr i =
         | Sixtyfour ->
             `	rev	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
         end
+    | Lop(Ispecific(Isignext size)) ->
+        `	sbfm	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #0, #{emit_int (size - 1)}\n`
     | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
         fatal_error ("Probes not supported.")
