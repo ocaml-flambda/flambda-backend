@@ -14,7 +14,25 @@
 
 (library
  (name str)
- (modes byte)
+ (wrapped false)
+ (modes byte native)
  (flags (:standard -nostdlib))
  (libraries stdlib)
- (c_names strstubs))
+ (foreign_stubs (language c) (names strstubs)))
+
+(install
+  (files
+    .str.objs/native/str.cmx
+    libstr_stubs.a
+    libstr_stubs_native.a
+    (dllstr_stubs.so as stublibs/dllstr_stubs.so)
+    str.cmxa
+    str.a
+    str.cmxs
+    str.cma
+    str.mli
+    .str.objs/byte/str.cmi
+    .str.objs/byte/str.cmti
+  )
+  (section lib)
+  (package ocaml))

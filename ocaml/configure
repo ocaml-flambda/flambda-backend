@@ -754,6 +754,7 @@ flexdll_chain
 default_safe_string
 force_safe_string
 afl
+probes
 function_sections
 flat_float_array
 windows_unicode
@@ -2856,6 +2857,7 @@ VERSION=4.11.2+dev0-2020-08-31
 
 
  # TODO: rename this variable
+
 
 
 
@@ -16973,6 +16975,27 @@ else
 $as_echo "$as_me: Disabling function sections." >&6;}
 fi
 fi
+fi
+
+case $arch in #(
+  amd64) :
+    case $target in #(
+  *-cygwin*|*-mingw*|*-windows) :
+    probes=false ;; #(
+  *) :
+    probes=true ;; #(
+  *) :
+     ;;
+esac ;; #(
+  *) :
+    probes=false ;; #(
+  *) :
+     ;;
+esac
+
+if test x"$probes" = "xfalse"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: Disabling tracing probes: no support on $target." >&5
+$as_echo "$as_me: Disabling tracing probes: no support on $target." >&6;}
 fi
 
 if test x"$with_afl" = "xyes"; then :

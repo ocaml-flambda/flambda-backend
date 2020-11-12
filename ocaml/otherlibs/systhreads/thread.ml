@@ -44,11 +44,11 @@ let create fn arg =
 (* Thread.kill is currently not implemented due to problems with
    cleanup handlers on several platforms *)
 
-let kill th = invalid_arg "Thread.kill: not implemented"
+let kill _th = invalid_arg "Thread.kill: not implemented"
 
 (* Preemption *)
 
-let preempt signal = yield()
+let preempt _signal = yield()
 
 (* Initialization of the scheduler *)
 
@@ -73,8 +73,8 @@ let () =
 
 let delay = Unix.sleepf
 
-let wait_read fd = ()
-let wait_write fd = ()
+let wait_read _fd = ()
+let wait_write _fd = ()
 
 let wait_timed_read fd d =
   match Unix.select [fd] [] [] d with ([], _, _) -> false | (_, _, _) -> true

@@ -1,0 +1,66 @@
+prefix=@prefix@
+stage1_prefix=@stage1_prefix@
+stage2_prefix=@stage2_prefix@
+middle_end=@middle_end@
+dune=@dune@
+
+.PHONY: all stage1 stage2 install clean
+
+.DEFAULT_GOAL := build
+
+# How do we get the equivalent of "set -u" for the "rm -rf"...?
+
+# We need to ensure that the ocaml/ directory is correctly configured
+# especially when running incremental builds.  For example if we have just
+# built stage2 and are now going back to stage1 again, we need to
+# reconfigure, so that --prefix is set correctly.  We deal with this problem
+# by a trick involving caching the config.status files, which enable us to
+# immediately recreate the correct [configure] actions (e.g. writing
+# ocaml/Makefile.config).  (N.B. ocaml-stage1-config.status is written by
+# the configure script.)
+
+# This should use build contexts instead of --build-dir.
+stage1: ocaml-stage1-config.status
+	cp ocaml-stage1-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	$(dune) build --profile=release --build-dir=_build1 --verbose @install
+
+ocaml-stage2-config.status: stage1 Makefile
+	(cd ocaml && \
+    ../ocaml-stage1-config.status && \
+    ./configure -C \
+      $$(grep CONFIGURE_ARGS Makefile.config | sed 's/^[A-Z_ ]*=//') \
+      --prefix=$(prefix) && \
+    cp config.status ../ocaml-stage2-config.status)
+
+stage2: ocaml-stage2-config.status
+	cp ocaml-stage2-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	PATH=$(stage1_prefix)/bin:$$PATH \
+      $(dune) build --profile=release --build-dir=_build2 --verbose @install
+
+build: stage2
+
+install:
+	rm -rf $(prefix)
+	mkdir -p $(prefix)
+	# macOS mustn't have -L, Linux must have
+	cp -Lrv $(stage2_prefix)/bin $(prefix)
+	cp -Lrv $(stage2_prefix)/lib $(prefix)
+	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
+	rm -f $(prefix)/bin/flambda_backend.main
+	rm -f $(prefix)/bin/flambda_backend.main_native
+	rm -rf $(prefix)/lib/ocaml-variants
+	rm -rf $(prefix)/lib/stublibs
+	rm -f $(prefix)/lib/ocaml/META
+	rm -f $(prefix)/lib/ocaml/dune-package
+	rm -f $(prefix)/lib/ocaml/compiler-libs/*.cmo
+	cp $(prefix)/lib/ocaml/compiler-libs/topdirs.cmi $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/topdirs.mli $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/topdirs.cmt $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/topdirs.cmti $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmi $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.mli $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmt $(prefix)/lib/ocaml
+	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmti $(prefix)/lib/ocaml
+	# only .cmo files should be: main, optmain, topstart.

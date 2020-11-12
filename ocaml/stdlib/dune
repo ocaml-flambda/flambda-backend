@@ -34,3 +34,614 @@
    (with-stdout-to %{targets}
      (bash
        "sed -e \"s|%%VERSION%%|`sed -e 1q %{version} | tr -d '\r'`|\" %{p}"))))
+
+(rule
+  (targets camlheader camlheaderd camlheaderi camlheader_ur)
+  (deps Makefile StdlibModules .depend)
+  (action (run make %{targets})))
+
+(install
+  (files
+    camlheader
+    camlheaderd
+    camlheaderi
+    camlheader_ur
+
+    stdlib.a
+    stdlib.cma
+    stdlib.cmxa
+    .stdlib.objs/byte/stdlib.cmi
+    .stdlib.objs/byte/stdlib.cmt
+    .stdlib.objs/byte/stdlib.cmti
+
+    arg.ml
+    arg.mli
+    array.ml
+    array.mli
+    arrayLabels.ml
+    arrayLabels.mli
+    bigarray.ml
+    bigarray.mli
+    bool.ml
+    bool.mli
+    buffer.ml
+    buffer.mli
+    bytes.ml
+    bytes.mli
+    bytesLabels.ml
+    bytesLabels.mli
+    callback.ml
+    callback.mli
+    camlinternalFormat.ml
+    camlinternalFormat.mli
+    camlinternalFormatBasics.ml
+    camlinternalFormatBasics.mli
+    camlinternalLazy.ml
+    camlinternalLazy.mli
+    camlinternalMod.ml
+    camlinternalMod.mli
+    camlinternalOO.ml
+    camlinternalOO.mli
+    char.ml
+    char.mli
+    complex.ml
+    complex.mli
+    digest.ml
+    digest.mli
+    ephemeron.ml
+    ephemeron.mli
+    filename.ml
+    filename.mli
+    float.ml
+    float.mli
+    format.ml
+    format.mli
+    fun.ml
+    fun.mli
+    gc.ml
+    gc.mli
+    genlex.ml
+    genlex.mli
+    hashtbl.ml
+    hashtbl.mli
+    int.ml
+    int.mli
+    int32.ml
+    int32.mli
+    int64.ml
+    int64.mli
+    lazy.ml
+    lazy.mli
+    lexing.ml
+    lexing.mli
+    list.ml
+    list.mli
+    listLabels.ml
+    listLabels.mli
+    map.ml
+    map.mli
+    marshal.ml
+    marshal.mli
+    moreLabels.ml
+    moreLabels.mli
+    nativeint.ml
+    nativeint.mli
+    obj.ml
+    obj.mli
+    oo.ml
+    oo.mli
+    option.ml
+    option.mli
+    parsing.ml
+    parsing.mli
+    pervasives.ml
+    printexc.ml
+    printexc.mli
+    printf.ml
+    printf.mli
+    queue.ml
+    queue.mli
+    random.ml
+    random.mli
+    result.ml
+    result.mli
+    scanf.ml
+    scanf.mli
+    seq.ml
+    seq.mli
+    set.ml
+    set.mli
+    spacetime.ml
+    spacetime.mli
+    stack.ml
+    stack.mli
+    stdLabels.ml
+    stdLabels.mli
+    std_exit.ml
+    stdlib.ml
+    stdlib.mli
+    stream.ml
+    stream.mli
+    string.ml
+    string.mli
+    stringLabels.ml
+    stringLabels.mli
+    sys.mli
+    uchar.ml
+    uchar.mli
+    unit.ml
+    unit.mli
+    weak.ml
+    weak.mli
+
+    ; dune builds e.g. stdlib__Arg.cm* whereas the Makefiles produce
+    ; stdlib__arg.cm*.
+
+    .stdlib.objs/byte/stdlib__Arg.cmi
+    .stdlib.objs/byte/stdlib__Arg.cmt
+    .stdlib.objs/byte/stdlib__Arg.cmti
+    .stdlib.objs/byte/stdlib__Array.cmi
+    .stdlib.objs/byte/stdlib__Array.cmt
+    .stdlib.objs/byte/stdlib__Array.cmti
+    .stdlib.objs/byte/stdlib__ArrayLabels.cmi
+    .stdlib.objs/byte/stdlib__ArrayLabels.cmt
+    .stdlib.objs/byte/stdlib__ArrayLabels.cmti
+    .stdlib.objs/byte/stdlib__Bigarray.cmi
+    .stdlib.objs/byte/stdlib__Bigarray.cmt
+    .stdlib.objs/byte/stdlib__Bigarray.cmti
+    .stdlib.objs/byte/stdlib__Bool.cmi
+    .stdlib.objs/byte/stdlib__Bool.cmt
+    .stdlib.objs/byte/stdlib__Bool.cmti
+    .stdlib.objs/byte/stdlib__Buffer.cmi
+    .stdlib.objs/byte/stdlib__Buffer.cmt
+    .stdlib.objs/byte/stdlib__Buffer.cmti
+    .stdlib.objs/byte/stdlib__Bytes.cmi
+    .stdlib.objs/byte/stdlib__Bytes.cmt
+    .stdlib.objs/byte/stdlib__Bytes.cmti
+    .stdlib.objs/byte/stdlib__BytesLabels.cmi
+    .stdlib.objs/byte/stdlib__BytesLabels.cmt
+    .stdlib.objs/byte/stdlib__BytesLabels.cmti
+    .stdlib.objs/byte/stdlib__Callback.cmi
+    .stdlib.objs/byte/stdlib__Callback.cmt
+    .stdlib.objs/byte/stdlib__Callback.cmti
+    .stdlib.objs/byte/stdlib__Char.cmi
+    .stdlib.objs/byte/stdlib__Char.cmt
+    .stdlib.objs/byte/stdlib__Char.cmti
+    .stdlib.objs/byte/stdlib__Complex.cmi
+    .stdlib.objs/byte/stdlib__Complex.cmt
+    .stdlib.objs/byte/stdlib__Complex.cmti
+    .stdlib.objs/byte/stdlib__Digest.cmi
+    .stdlib.objs/byte/stdlib__Digest.cmt
+    .stdlib.objs/byte/stdlib__Digest.cmti
+    .stdlib.objs/byte/stdlib__Ephemeron.cmi
+    .stdlib.objs/byte/stdlib__Ephemeron.cmt
+    .stdlib.objs/byte/stdlib__Ephemeron.cmti
+    .stdlib.objs/byte/stdlib__Filename.cmi
+    .stdlib.objs/byte/stdlib__Filename.cmt
+    .stdlib.objs/byte/stdlib__Filename.cmti
+    .stdlib.objs/byte/stdlib__Float.cmi
+    .stdlib.objs/byte/stdlib__Float.cmt
+    .stdlib.objs/byte/stdlib__Float.cmti
+    .stdlib.objs/byte/stdlib__Format.cmi
+    .stdlib.objs/byte/stdlib__Format.cmt
+    .stdlib.objs/byte/stdlib__Format.cmti
+    .stdlib.objs/byte/stdlib__Fun.cmi
+    .stdlib.objs/byte/stdlib__Fun.cmt
+    .stdlib.objs/byte/stdlib__Fun.cmti
+    .stdlib.objs/byte/stdlib__Gc.cmi
+    .stdlib.objs/byte/stdlib__Gc.cmt
+    .stdlib.objs/byte/stdlib__Gc.cmti
+    .stdlib.objs/byte/stdlib__Genlex.cmi
+    .stdlib.objs/byte/stdlib__Genlex.cmt
+    .stdlib.objs/byte/stdlib__Genlex.cmti
+    .stdlib.objs/byte/stdlib__Hashtbl.cmi
+    .stdlib.objs/byte/stdlib__Hashtbl.cmt
+    .stdlib.objs/byte/stdlib__Hashtbl.cmti
+    .stdlib.objs/byte/stdlib__Int.cmi
+    .stdlib.objs/byte/stdlib__Int.cmt
+    .stdlib.objs/byte/stdlib__Int.cmti
+    .stdlib.objs/byte/stdlib__Int32.cmi
+    .stdlib.objs/byte/stdlib__Int32.cmt
+    .stdlib.objs/byte/stdlib__Int32.cmti
+    .stdlib.objs/byte/stdlib__Int64.cmi
+    .stdlib.objs/byte/stdlib__Int64.cmt
+    .stdlib.objs/byte/stdlib__Int64.cmti
+    .stdlib.objs/byte/stdlib__Lazy.cmi
+    .stdlib.objs/byte/stdlib__Lazy.cmt
+    .stdlib.objs/byte/stdlib__Lazy.cmti
+    .stdlib.objs/byte/stdlib__Lexing.cmi
+    .stdlib.objs/byte/stdlib__Lexing.cmt
+    .stdlib.objs/byte/stdlib__Lexing.cmti
+    .stdlib.objs/byte/stdlib__List.cmi
+    .stdlib.objs/byte/stdlib__List.cmt
+    .stdlib.objs/byte/stdlib__List.cmti
+    .stdlib.objs/byte/stdlib__ListLabels.cmi
+    .stdlib.objs/byte/stdlib__ListLabels.cmt
+    .stdlib.objs/byte/stdlib__ListLabels.cmti
+    .stdlib.objs/byte/stdlib__Map.cmi
+    .stdlib.objs/byte/stdlib__Map.cmt
+    .stdlib.objs/byte/stdlib__Map.cmti
+    .stdlib.objs/byte/stdlib__Marshal.cmi
+    .stdlib.objs/byte/stdlib__Marshal.cmt
+    .stdlib.objs/byte/stdlib__Marshal.cmti
+    .stdlib.objs/byte/stdlib__MoreLabels.cmi
+    .stdlib.objs/byte/stdlib__MoreLabels.cmt
+    .stdlib.objs/byte/stdlib__MoreLabels.cmti
+    .stdlib.objs/byte/stdlib__Nativeint.cmi
+    .stdlib.objs/byte/stdlib__Nativeint.cmt
+    .stdlib.objs/byte/stdlib__Nativeint.cmti
+    .stdlib.objs/byte/stdlib__Obj.cmi
+    .stdlib.objs/byte/stdlib__Obj.cmt
+    .stdlib.objs/byte/stdlib__Obj.cmti
+    .stdlib.objs/byte/stdlib__Oo.cmi
+    .stdlib.objs/byte/stdlib__Oo.cmt
+    .stdlib.objs/byte/stdlib__Oo.cmti
+    .stdlib.objs/byte/stdlib__Option.cmi
+    .stdlib.objs/byte/stdlib__Option.cmt
+    .stdlib.objs/byte/stdlib__Option.cmti
+    .stdlib.objs/byte/stdlib__Parsing.cmi
+    .stdlib.objs/byte/stdlib__Parsing.cmt
+    .stdlib.objs/byte/stdlib__Parsing.cmti
+    .stdlib.objs/byte/stdlib__Pervasives.cmi
+    .stdlib.objs/byte/stdlib__Pervasives.cmt
+    .stdlib.objs/byte/stdlib__Printexc.cmi
+    .stdlib.objs/byte/stdlib__Printexc.cmt
+    .stdlib.objs/byte/stdlib__Printexc.cmti
+    .stdlib.objs/byte/stdlib__Printf.cmi
+    .stdlib.objs/byte/stdlib__Printf.cmt
+    .stdlib.objs/byte/stdlib__Printf.cmti
+    .stdlib.objs/byte/stdlib__Queue.cmi
+    .stdlib.objs/byte/stdlib__Queue.cmt
+    .stdlib.objs/byte/stdlib__Queue.cmti
+    .stdlib.objs/byte/stdlib__Random.cmi
+    .stdlib.objs/byte/stdlib__Random.cmt
+    .stdlib.objs/byte/stdlib__Random.cmti
+    .stdlib.objs/byte/stdlib__Result.cmi
+    .stdlib.objs/byte/stdlib__Result.cmt
+    .stdlib.objs/byte/stdlib__Result.cmti
+    .stdlib.objs/byte/stdlib__Scanf.cmi
+    .stdlib.objs/byte/stdlib__Scanf.cmt
+    .stdlib.objs/byte/stdlib__Scanf.cmti
+    .stdlib.objs/byte/stdlib__Seq.cmi
+    .stdlib.objs/byte/stdlib__Seq.cmt
+    .stdlib.objs/byte/stdlib__Seq.cmti
+    .stdlib.objs/byte/stdlib__Set.cmi
+    .stdlib.objs/byte/stdlib__Set.cmt
+    .stdlib.objs/byte/stdlib__Set.cmti
+    .stdlib.objs/byte/stdlib__Spacetime.cmi
+    .stdlib.objs/byte/stdlib__Spacetime.cmt
+    .stdlib.objs/byte/stdlib__Spacetime.cmti
+    .stdlib.objs/byte/stdlib__Stack.cmi
+    .stdlib.objs/byte/stdlib__Stack.cmt
+    .stdlib.objs/byte/stdlib__Stack.cmti
+    .stdlib.objs/byte/stdlib__StdLabels.cmi
+    .stdlib.objs/byte/stdlib__StdLabels.cmt
+    .stdlib.objs/byte/stdlib__StdLabels.cmti
+    .stdlib.objs/byte/stdlib__Stream.cmi
+    .stdlib.objs/byte/stdlib__Stream.cmt
+    .stdlib.objs/byte/stdlib__Stream.cmti
+    .stdlib.objs/byte/stdlib__String.cmi
+    .stdlib.objs/byte/stdlib__String.cmt
+    .stdlib.objs/byte/stdlib__String.cmti
+    .stdlib.objs/byte/stdlib__StringLabels.cmi
+    .stdlib.objs/byte/stdlib__StringLabels.cmt
+    .stdlib.objs/byte/stdlib__StringLabels.cmti
+    .stdlib.objs/byte/stdlib__Sys.cmi
+    .stdlib.objs/byte/stdlib__Sys.cmt
+    .stdlib.objs/byte/stdlib__Sys.cmti
+    .stdlib.objs/byte/stdlib__Uchar.cmi
+    .stdlib.objs/byte/stdlib__Uchar.cmt
+    .stdlib.objs/byte/stdlib__Uchar.cmti
+    .stdlib.objs/byte/stdlib__Unit.cmi
+    .stdlib.objs/byte/stdlib__Unit.cmt
+    .stdlib.objs/byte/stdlib__Unit.cmti
+    .stdlib.objs/byte/stdlib__Weak.cmi
+    .stdlib.objs/byte/stdlib__Weak.cmt
+    .stdlib.objs/byte/stdlib__Weak.cmti
+
+;    (.stdlib.objs/byte/stdlib__Arg.cmi as stdlib__arg.cmi)
+;    (.stdlib.objs/byte/stdlib__Arg.cmt as stdlib__arg.cmt)
+;    (.stdlib.objs/byte/stdlib__Arg.cmti as stdlib__arg.cmti)
+;    (.stdlib.objs/byte/stdlib__Array.cmi as stdlib__array.cmi)
+;    (.stdlib.objs/byte/stdlib__Array.cmt as stdlib__array.cmt)
+;    (.stdlib.objs/byte/stdlib__Array.cmti as stdlib__array.cmti)
+;    (.stdlib.objs/byte/stdlib__ArrayLabels.cmi as stdlib__arrayLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__ArrayLabels.cmt as stdlib__arrayLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__ArrayLabels.cmti as stdlib__arrayLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Bigarray.cmi as stdlib__bigarray.cmi)
+;    (.stdlib.objs/byte/stdlib__Bigarray.cmt as stdlib__bigarray.cmt)
+;    (.stdlib.objs/byte/stdlib__Bigarray.cmti as stdlib__bigarray.cmti)
+;    (.stdlib.objs/byte/stdlib__Bool.cmi as stdlib__bool.cmi)
+;    (.stdlib.objs/byte/stdlib__Bool.cmt as stdlib__bool.cmt)
+;    (.stdlib.objs/byte/stdlib__Bool.cmti as stdlib__bool.cmti)
+;    (.stdlib.objs/byte/stdlib__Buffer.cmi as stdlib__buffer.cmi)
+;    (.stdlib.objs/byte/stdlib__Buffer.cmt as stdlib__buffer.cmt)
+;    (.stdlib.objs/byte/stdlib__Buffer.cmti as stdlib__buffer.cmti)
+;    (.stdlib.objs/byte/stdlib__Bytes.cmi as stdlib__bytes.cmi)
+;    (.stdlib.objs/byte/stdlib__Bytes.cmt as stdlib__bytes.cmt)
+;    (.stdlib.objs/byte/stdlib__Bytes.cmti as stdlib__bytes.cmti)
+;    (.stdlib.objs/byte/stdlib__BytesLabels.cmi as stdlib__bytesLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__BytesLabels.cmt as stdlib__bytesLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__BytesLabels.cmti as stdlib__bytesLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Callback.cmi as stdlib__callback.cmi)
+;    (.stdlib.objs/byte/stdlib__Callback.cmt as stdlib__callback.cmt)
+;    (.stdlib.objs/byte/stdlib__Callback.cmti as stdlib__callback.cmti)
+;    (.stdlib.objs/byte/stdlib__Char.cmi as stdlib__char.cmi)
+;    (.stdlib.objs/byte/stdlib__Char.cmt as stdlib__char.cmt)
+;    (.stdlib.objs/byte/stdlib__Char.cmti as stdlib__char.cmti)
+;    (.stdlib.objs/byte/stdlib__Complex.cmi as stdlib__complex.cmi)
+;    (.stdlib.objs/byte/stdlib__Complex.cmt as stdlib__complex.cmt)
+;    (.stdlib.objs/byte/stdlib__Complex.cmti as stdlib__complex.cmti)
+;    (.stdlib.objs/byte/stdlib__Digest.cmi as stdlib__digest.cmi)
+;    (.stdlib.objs/byte/stdlib__Digest.cmt as stdlib__digest.cmt)
+;    (.stdlib.objs/byte/stdlib__Digest.cmti as stdlib__digest.cmti)
+;    (.stdlib.objs/byte/stdlib__Ephemeron.cmi as stdlib__ephemeron.cmi)
+;    (.stdlib.objs/byte/stdlib__Ephemeron.cmt as stdlib__ephemeron.cmt)
+;    (.stdlib.objs/byte/stdlib__Ephemeron.cmti as stdlib__ephemeron.cmti)
+;    (.stdlib.objs/byte/stdlib__Filename.cmi as stdlib__filename.cmi)
+;    (.stdlib.objs/byte/stdlib__Filename.cmt as stdlib__filename.cmt)
+;    (.stdlib.objs/byte/stdlib__Filename.cmti as stdlib__filename.cmti)
+;    (.stdlib.objs/byte/stdlib__Float.cmi as stdlib__float.cmi)
+;    (.stdlib.objs/byte/stdlib__Float.cmt as stdlib__float.cmt)
+;    (.stdlib.objs/byte/stdlib__Float.cmti as stdlib__float.cmti)
+;    (.stdlib.objs/byte/stdlib__Format.cmi as stdlib__format.cmi)
+;    (.stdlib.objs/byte/stdlib__Format.cmt as stdlib__format.cmt)
+;    (.stdlib.objs/byte/stdlib__Format.cmti as stdlib__format.cmti)
+;    (.stdlib.objs/byte/stdlib__Fun.cmi as stdlib__fun.cmi)
+;    (.stdlib.objs/byte/stdlib__Fun.cmt as stdlib__fun.cmt)
+;    (.stdlib.objs/byte/stdlib__Fun.cmti as stdlib__fun.cmti)
+;    (.stdlib.objs/byte/stdlib__Gc.cmi as stdlib__gc.cmi)
+;    (.stdlib.objs/byte/stdlib__Gc.cmt as stdlib__gc.cmt)
+;    (.stdlib.objs/byte/stdlib__Gc.cmti as stdlib__gc.cmti)
+;    (.stdlib.objs/byte/stdlib__Genlex.cmi as stdlib__genlex.cmi)
+;    (.stdlib.objs/byte/stdlib__Genlex.cmt as stdlib__genlex.cmt)
+;    (.stdlib.objs/byte/stdlib__Genlex.cmti as stdlib__genlex.cmti)
+;    (.stdlib.objs/byte/stdlib__Hashtbl.cmi as stdlib__hashtbl.cmi)
+;    (.stdlib.objs/byte/stdlib__Hashtbl.cmt as stdlib__hashtbl.cmt)
+;    (.stdlib.objs/byte/stdlib__Hashtbl.cmti as stdlib__hashtbl.cmti)
+;    (.stdlib.objs/byte/stdlib__Int.cmi as stdlib__int.cmi)
+;    (.stdlib.objs/byte/stdlib__Int.cmt as stdlib__int.cmt)
+;    (.stdlib.objs/byte/stdlib__Int.cmti as stdlib__int.cmti)
+;    (.stdlib.objs/byte/stdlib__Int32.cmi as stdlib__int32.cmi)
+;    (.stdlib.objs/byte/stdlib__Int32.cmt as stdlib__int32.cmt)
+;    (.stdlib.objs/byte/stdlib__Int32.cmti as stdlib__int32.cmti)
+;    (.stdlib.objs/byte/stdlib__Int64.cmi as stdlib__int64.cmi)
+;    (.stdlib.objs/byte/stdlib__Int64.cmt as stdlib__int64.cmt)
+;    (.stdlib.objs/byte/stdlib__Int64.cmti as stdlib__int64.cmti)
+;    (.stdlib.objs/byte/stdlib__Lazy.cmi as stdlib__lazy.cmi)
+;    (.stdlib.objs/byte/stdlib__Lazy.cmt as stdlib__lazy.cmt)
+;    (.stdlib.objs/byte/stdlib__Lazy.cmti as stdlib__lazy.cmti)
+;    (.stdlib.objs/byte/stdlib__Lexing.cmi as stdlib__lexing.cmi)
+;    (.stdlib.objs/byte/stdlib__Lexing.cmt as stdlib__lexing.cmt)
+;    (.stdlib.objs/byte/stdlib__Lexing.cmti as stdlib__lexing.cmti)
+;    (.stdlib.objs/byte/stdlib__List.cmi as stdlib__list.cmi)
+;    (.stdlib.objs/byte/stdlib__List.cmt as stdlib__list.cmt)
+;    (.stdlib.objs/byte/stdlib__List.cmti as stdlib__list.cmti)
+;    (.stdlib.objs/byte/stdlib__ListLabels.cmi as stdlib__listLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__ListLabels.cmt as stdlib__listLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__ListLabels.cmti as stdlib__listLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Map.cmi as stdlib__map.cmi)
+;    (.stdlib.objs/byte/stdlib__Map.cmt as stdlib__map.cmt)
+;    (.stdlib.objs/byte/stdlib__Map.cmti as stdlib__map.cmti)
+;    (.stdlib.objs/byte/stdlib__Marshal.cmi as stdlib__marshal.cmi)
+;    (.stdlib.objs/byte/stdlib__Marshal.cmt as stdlib__marshal.cmt)
+;    (.stdlib.objs/byte/stdlib__Marshal.cmti as stdlib__marshal.cmti)
+;    (.stdlib.objs/byte/stdlib__MoreLabels.cmi as stdlib__moreLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__MoreLabels.cmt as stdlib__moreLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__MoreLabels.cmti as stdlib__moreLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Nativeint.cmi as stdlib__nativeint.cmi)
+;    (.stdlib.objs/byte/stdlib__Nativeint.cmt as stdlib__nativeint.cmt)
+;    (.stdlib.objs/byte/stdlib__Nativeint.cmti as stdlib__nativeint.cmti)
+;    (.stdlib.objs/byte/stdlib__Obj.cmi as stdlib__obj.cmi)
+;    (.stdlib.objs/byte/stdlib__Obj.cmt as stdlib__obj.cmt)
+;    (.stdlib.objs/byte/stdlib__Obj.cmti as stdlib__obj.cmti)
+;    (.stdlib.objs/byte/stdlib__Oo.cmi as stdlib__oo.cmi)
+;    (.stdlib.objs/byte/stdlib__Oo.cmt as stdlib__oo.cmt)
+;    (.stdlib.objs/byte/stdlib__Oo.cmti as stdlib__oo.cmti)
+;    (.stdlib.objs/byte/stdlib__Option.cmi as stdlib__option.cmi)
+;    (.stdlib.objs/byte/stdlib__Option.cmt as stdlib__option.cmt)
+;    (.stdlib.objs/byte/stdlib__Option.cmti as stdlib__option.cmti)
+;    (.stdlib.objs/byte/stdlib__Parsing.cmi as stdlib__parsing.cmi)
+;    (.stdlib.objs/byte/stdlib__Parsing.cmt as stdlib__parsing.cmt)
+;    (.stdlib.objs/byte/stdlib__Parsing.cmti as stdlib__parsing.cmti)
+;    (.stdlib.objs/byte/stdlib__Pervasives.cmi as stdlib__pervasives.cmi)
+;    (.stdlib.objs/byte/stdlib__Pervasives.cmt as stdlib__pervasives.cmt)
+;    (.stdlib.objs/byte/stdlib__Printexc.cmi as stdlib__printexc.cmi)
+;    (.stdlib.objs/byte/stdlib__Printexc.cmt as stdlib__printexc.cmt)
+;    (.stdlib.objs/byte/stdlib__Printexc.cmti as stdlib__printexc.cmti)
+;    (.stdlib.objs/byte/stdlib__Printf.cmi as stdlib__printf.cmi)
+;    (.stdlib.objs/byte/stdlib__Printf.cmt as stdlib__printf.cmt)
+;    (.stdlib.objs/byte/stdlib__Printf.cmti as stdlib__printf.cmti)
+;    (.stdlib.objs/byte/stdlib__Queue.cmi as stdlib__queue.cmi)
+;    (.stdlib.objs/byte/stdlib__Queue.cmt as stdlib__queue.cmt)
+;    (.stdlib.objs/byte/stdlib__Queue.cmti as stdlib__queue.cmti)
+;    (.stdlib.objs/byte/stdlib__Random.cmi as stdlib__random.cmi)
+;    (.stdlib.objs/byte/stdlib__Random.cmt as stdlib__random.cmt)
+;    (.stdlib.objs/byte/stdlib__Random.cmti as stdlib__random.cmti)
+;    (.stdlib.objs/byte/stdlib__Result.cmi as stdlib__result.cmi)
+;    (.stdlib.objs/byte/stdlib__Result.cmt as stdlib__result.cmt)
+;    (.stdlib.objs/byte/stdlib__Result.cmti as stdlib__result.cmti)
+;    (.stdlib.objs/byte/stdlib__Scanf.cmi as stdlib__scanf.cmi)
+;    (.stdlib.objs/byte/stdlib__Scanf.cmt as stdlib__scanf.cmt)
+;    (.stdlib.objs/byte/stdlib__Scanf.cmti as stdlib__scanf.cmti)
+;    (.stdlib.objs/byte/stdlib__Seq.cmi as stdlib__seq.cmi)
+;    (.stdlib.objs/byte/stdlib__Seq.cmt as stdlib__seq.cmt)
+;    (.stdlib.objs/byte/stdlib__Seq.cmti as stdlib__seq.cmti)
+;    (.stdlib.objs/byte/stdlib__Set.cmi as stdlib__set.cmi)
+;    (.stdlib.objs/byte/stdlib__Set.cmt as stdlib__set.cmt)
+;    (.stdlib.objs/byte/stdlib__Set.cmti as stdlib__set.cmti)
+;    (.stdlib.objs/byte/stdlib__Spacetime.cmi as stdlib__spacetime.cmi)
+;    (.stdlib.objs/byte/stdlib__Spacetime.cmt as stdlib__spacetime.cmt)
+;    (.stdlib.objs/byte/stdlib__Spacetime.cmti as stdlib__spacetime.cmti)
+;    (.stdlib.objs/byte/stdlib__Stack.cmi as stdlib__stack.cmi)
+;    (.stdlib.objs/byte/stdlib__Stack.cmt as stdlib__stack.cmt)
+;    (.stdlib.objs/byte/stdlib__Stack.cmti as stdlib__stack.cmti)
+;    (.stdlib.objs/byte/stdlib__StdLabels.cmi as stdlib__stdLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__StdLabels.cmt as stdlib__stdLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__StdLabels.cmti as stdlib__stdLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Stream.cmi as stdlib__stream.cmi)
+;    (.stdlib.objs/byte/stdlib__Stream.cmt as stdlib__stream.cmt)
+;    (.stdlib.objs/byte/stdlib__Stream.cmti as stdlib__stream.cmti)
+;    (.stdlib.objs/byte/stdlib__String.cmi as stdlib__string.cmi)
+;    (.stdlib.objs/byte/stdlib__String.cmt as stdlib__string.cmt)
+;    (.stdlib.objs/byte/stdlib__String.cmti as stdlib__string.cmti)
+;    (.stdlib.objs/byte/stdlib__StringLabels.cmi as stdlib__stringLabels.cmi)
+;    (.stdlib.objs/byte/stdlib__StringLabels.cmt as stdlib__stringLabels.cmt)
+;    (.stdlib.objs/byte/stdlib__StringLabels.cmti as stdlib__stringLabels.cmti)
+;    (.stdlib.objs/byte/stdlib__Sys.cmi as stdlib__sys.cmi)
+;    (.stdlib.objs/byte/stdlib__Sys.cmt as stdlib__sys.cmt)
+;    (.stdlib.objs/byte/stdlib__Sys.cmti as stdlib__sys.cmti)
+;    (.stdlib.objs/byte/stdlib__Uchar.cmi as stdlib__uchar.cmi)
+;    (.stdlib.objs/byte/stdlib__Uchar.cmt as stdlib__uchar.cmt)
+;    (.stdlib.objs/byte/stdlib__Uchar.cmti as stdlib__uchar.cmti)
+;    (.stdlib.objs/byte/stdlib__Unit.cmi as stdlib__unit.cmi)
+;    (.stdlib.objs/byte/stdlib__Unit.cmt as stdlib__unit.cmt)
+;    (.stdlib.objs/byte/stdlib__Unit.cmti as stdlib__unit.cmti)
+;    (.stdlib.objs/byte/stdlib__Weak.cmi as stdlib__weak.cmi)
+;    (.stdlib.objs/byte/stdlib__Weak.cmt as stdlib__weak.cmt)
+;    (.stdlib.objs/byte/stdlib__Weak.cmti as stdlib__weak.cmti)
+
+    .stdlib.objs/native/stdlib.cmx
+
+    .stdlib.objs/byte/camlinternalMod.cmi
+    .stdlib.objs/byte/camlinternalFormatBasics.cmi
+    .stdlib.objs/byte/camlinternalLazy.cmi
+    .stdlib.objs/byte/camlinternalOO.cmi
+    .stdlib.objs/byte/camlinternalFormat.cmi
+
+    .stdlib.objs/byte/camlinternalMod.cmt
+    .stdlib.objs/byte/camlinternalFormatBasics.cmt
+    .stdlib.objs/byte/camlinternalLazy.cmt
+    .stdlib.objs/byte/camlinternalOO.cmt
+    .stdlib.objs/byte/camlinternalFormat.cmt
+
+    .stdlib.objs/byte/camlinternalMod.cmti
+    .stdlib.objs/byte/camlinternalFormatBasics.cmti
+    .stdlib.objs/byte/camlinternalLazy.cmti
+    .stdlib.objs/byte/camlinternalOO.cmti
+    .stdlib.objs/byte/camlinternalFormat.cmti
+
+    .stdlib.objs/native/camlinternalMod.cmx
+    .stdlib.objs/native/camlinternalFormatBasics.cmx
+    .stdlib.objs/native/camlinternalLazy.cmx
+    .stdlib.objs/native/camlinternalOO.cmx
+    .stdlib.objs/native/camlinternalFormat.cmx
+
+    .stdlib.objs/byte/std_exit.cmi
+    .stdlib.objs/byte/std_exit.cmo
+    .stdlib.objs/byte/std_exit.cmt
+    .stdlib.objs/native/std_exit.o
+    .stdlib.objs/native/std_exit.cmx
+
+    .stdlib.objs/native/stdlib__Sys.cmx
+    .stdlib.objs/native/stdlib__Hashtbl.cmx
+    .stdlib.objs/native/stdlib__Filename.cmx
+    .stdlib.objs/native/stdlib__Queue.cmx
+    .stdlib.objs/native/stdlib__StdLabels.cmx
+    .stdlib.objs/native/stdlib__Weak.cmx
+    .stdlib.objs/native/stdlib__Float.cmx
+    .stdlib.objs/native/stdlib__Pervasives.cmx
+    .stdlib.objs/native/stdlib__Fun.cmx
+    .stdlib.objs/native/stdlib__Bigarray.cmx
+    .stdlib.objs/native/stdlib__Array.cmx
+    .stdlib.objs/native/stdlib__Int32.cmx
+    .stdlib.objs/native/stdlib__Lexing.cmx
+    .stdlib.objs/native/stdlib__ArrayLabels.cmx
+    .stdlib.objs/native/stdlib__Obj.cmx
+    .stdlib.objs/native/stdlib__Result.cmx
+    .stdlib.objs/native/stdlib__Map.cmx
+    .stdlib.objs/native/stdlib__Char.cmx
+    .stdlib.objs/native/stdlib__Stream.cmx
+    .stdlib.objs/native/stdlib__Printexc.cmx
+    .stdlib.objs/native/stdlib__Lazy.cmx
+    .stdlib.objs/native/stdlib__Parsing.cmx
+    .stdlib.objs/native/stdlib__Option.cmx
+    .stdlib.objs/native/stdlib__Uchar.cmx
+    .stdlib.objs/native/stdlib__Buffer.cmx
+    .stdlib.objs/native/stdlib__StringLabels.cmx
+    .stdlib.objs/native/stdlib__Ephemeron.cmx
+    .stdlib.objs/native/stdlib__String.cmx
+    .stdlib.objs/native/stdlib__Spacetime.cmx
+    .stdlib.objs/native/stdlib__Nativeint.cmx
+    .stdlib.objs/native/stdlib__Set.cmx
+    .stdlib.objs/native/stdlib__ListLabels.cmx
+    .stdlib.objs/native/stdlib__Bool.cmx
+    .stdlib.objs/native/stdlib__Gc.cmx
+    .stdlib.objs/native/stdlib__Seq.cmx
+    .stdlib.objs/native/stdlib__Random.cmx
+    .stdlib.objs/native/stdlib__Int.cmx
+    .stdlib.objs/native/stdlib__Int64.cmx
+    .stdlib.objs/native/stdlib__Scanf.cmx
+    .stdlib.objs/native/stdlib__Printf.cmx
+    .stdlib.objs/native/stdlib__Complex.cmx
+    .stdlib.objs/native/stdlib__Stack.cmx
+    .stdlib.objs/native/stdlib__Bytes.cmx
+    .stdlib.objs/native/stdlib__MoreLabels.cmx
+    .stdlib.objs/native/stdlib__Genlex.cmx
+    .stdlib.objs/native/stdlib__Oo.cmx
+    .stdlib.objs/native/stdlib__Format.cmx
+    .stdlib.objs/native/stdlib__Unit.cmx
+    .stdlib.objs/native/stdlib__List.cmx
+    .stdlib.objs/native/stdlib__Arg.cmx
+    .stdlib.objs/native/stdlib__Callback.cmx
+    .stdlib.objs/native/stdlib__Marshal.cmx
+    .stdlib.objs/native/stdlib__BytesLabels.cmx
+    .stdlib.objs/native/stdlib__Digest.cmx
+
+;    (.stdlib.objs/native/stdlib__Sys.cmx as stdlib__sys.cmx)
+;    (.stdlib.objs/native/stdlib__Hashtbl.cmx as stdlib__hashtbl.cmx)
+;    (.stdlib.objs/native/stdlib__Filename.cmx as stdlib__filename.cmx)
+;    (.stdlib.objs/native/stdlib__Queue.cmx as stdlib__queue.cmx)
+;    (.stdlib.objs/native/stdlib__StdLabels.cmx as stdlib__stdLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Weak.cmx as stdlib__weak.cmx)
+;    (.stdlib.objs/native/stdlib__Float.cmx as stdlib__float.cmx)
+;    (.stdlib.objs/native/stdlib__Pervasives.cmx as stdlib__pervasives.cmx)
+;    (.stdlib.objs/native/stdlib__Fun.cmx as stdlib__fun.cmx)
+;    (.stdlib.objs/native/stdlib__Bigarray.cmx as stdlib__bigarray.cmx)
+;    (.stdlib.objs/native/stdlib__Array.cmx as stdlib__array.cmx)
+;    (.stdlib.objs/native/stdlib__Int32.cmx as stdlib__int32.cmx)
+;    (.stdlib.objs/native/stdlib__Lexing.cmx as stdlib__lexing.cmx)
+;    (.stdlib.objs/native/stdlib__ArrayLabels.cmx as stdlib__arrayLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Obj.cmx as stdlib__obj.cmx)
+;    (.stdlib.objs/native/stdlib__Result.cmx as stdlib__result.cmx)
+;    (.stdlib.objs/native/stdlib__Map.cmx as stdlib__map.cmx)
+;    (.stdlib.objs/native/stdlib__Char.cmx as stdlib__char.cmx)
+;    (.stdlib.objs/native/stdlib__Stream.cmx as stdlib__stream.cmx)
+;    (.stdlib.objs/native/stdlib__Printexc.cmx as stdlib__printexc.cmx)
+;    (.stdlib.objs/native/stdlib__Lazy.cmx as stdlib__lazy.cmx)
+;    (.stdlib.objs/native/stdlib__Parsing.cmx as stdlib__parsing.cmx)
+;    (.stdlib.objs/native/stdlib__Option.cmx as stdlib__option.cmx)
+;    (.stdlib.objs/native/stdlib__Uchar.cmx as stdlib__uchar.cmx)
+;    (.stdlib.objs/native/stdlib__Buffer.cmx as stdlib__buffer.cmx)
+;    (.stdlib.objs/native/stdlib__StringLabels.cmx as stdlib__stringLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Ephemeron.cmx as stdlib__ephemeron.cmx)
+;    (.stdlib.objs/native/stdlib__String.cmx as stdlib__string.cmx)
+;    (.stdlib.objs/native/stdlib__Spacetime.cmx as stdlib__spacetime.cmx)
+;    (.stdlib.objs/native/stdlib__Nativeint.cmx as stdlib__nativeint.cmx)
+;    (.stdlib.objs/native/stdlib__Set.cmx as stdlib__set.cmx)
+;    (.stdlib.objs/native/stdlib__ListLabels.cmx as stdlib__listLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Bool.cmx as stdlib__bool.cmx)
+;    (.stdlib.objs/native/stdlib__Gc.cmx as stdlib__gc.cmx)
+;    (.stdlib.objs/native/stdlib__Seq.cmx as stdlib__seq.cmx)
+;    (.stdlib.objs/native/stdlib__Random.cmx as stdlib__random.cmx)
+;    (.stdlib.objs/native/stdlib__Int.cmx as stdlib__int.cmx)
+;    (.stdlib.objs/native/stdlib__Int64.cmx as stdlib__int64.cmx)
+;    (.stdlib.objs/native/stdlib__Scanf.cmx as stdlib__scanf.cmx)
+;    (.stdlib.objs/native/stdlib__Printf.cmx as stdlib__printf.cmx)
+;    (.stdlib.objs/native/stdlib__Complex.cmx as stdlib__complex.cmx)
+;    (.stdlib.objs/native/stdlib__Stack.cmx as stdlib__stack.cmx)
+;    (.stdlib.objs/native/stdlib__Bytes.cmx as stdlib__bytes.cmx)
+;    (.stdlib.objs/native/stdlib__MoreLabels.cmx as stdlib__moreLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Genlex.cmx as stdlib__genlex.cmx)
+;    (.stdlib.objs/native/stdlib__Oo.cmx as stdlib__oo.cmx)
+;    (.stdlib.objs/native/stdlib__Format.cmx as stdlib__format.cmx)
+;    (.stdlib.objs/native/stdlib__Unit.cmx as stdlib__unit.cmx)
+;    (.stdlib.objs/native/stdlib__List.cmx as stdlib__list.cmx)
+;    (.stdlib.objs/native/stdlib__Arg.cmx as stdlib__arg.cmx)
+;    (.stdlib.objs/native/stdlib__Callback.cmx as stdlib__callback.cmx)
+;    (.stdlib.objs/native/stdlib__Marshal.cmx as stdlib__marshal.cmx)
+;    (.stdlib.objs/native/stdlib__BytesLabels.cmx as stdlib__bytesLabels.cmx)
+;    (.stdlib.objs/native/stdlib__Digest.cmx as stdlib__digest.cmx)
+  )
+  (section lib)
+  (package ocaml))

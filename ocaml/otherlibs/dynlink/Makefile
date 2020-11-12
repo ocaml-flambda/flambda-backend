@@ -213,14 +213,7 @@ dynlink.cma: $(OBJS)
 	$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I byte -o $@ $^
 
 dynlink.cmxa: $(NATOBJS)
-	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I native \
-	            -o $@ $^
-# As for all other .cmxa files, ensure that the .cmx files are in the same
-# directory. If this were omitted, ocamldoc in particular will fail to build
-# with a -opaque warning. Note that installopt refers to $(NATOBJS) so doesn't
-# require this file to exist, hence its inclusion in the recipe for dynlink.cmxa
-# rather than as a dependency elsewhere.
-	cp native/dynlink.cmx dynlink.cmx
+	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
 
 # Since there is no .mli for [Dynlink_platform_intf], we need to be
 # careful that compilation of the .cmx file does not write the .cmi file again,
@@ -262,7 +255,7 @@ partialclean:
 clean: partialclean
 	rm -f *.a *.lib *.o *.obj *.so *.dll dynlink_platform_intf.mli \
 	      $(LOCAL_SRC)/*.ml $(LOCAL_SRC)/*.mli $(LOCAL_SRC)/Makefile \
-	      $(LOCAL_SRC)/.depend byte/dynlink.mli native/dynlink.mli
+	      $(LOCAL_SRC)/.depend
 
 .PHONY: beforedepend
 beforedepend: dynlink_platform_intf.mli
@@ -274,9 +267,7 @@ depend:
 else
 DEPEND_DUMMY_FILES=\
   native/dynlink_compilerlibs.ml \
-  byte/dynlink_compilerlibs.mli \
-  byte/dynlink.mli \
-  native/dynlink.mli
+  byte/dynlink_compilerlibs.mli
 
 depend: beforedepend
 	touch $(DEPEND_DUMMY_FILES)

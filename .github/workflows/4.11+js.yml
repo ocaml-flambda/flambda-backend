@@ -1,0 +1,108 @@
+name: 4.11+js
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    env:
+      J: "8"
+
+    steps:
+    - name: Checkout the repo
+      uses: actions/checkout@master
+      with:
+        path: 'flambda_backend'
+
+    - name: Cache stage0 compiler install directory
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ${{ github.workspace }}/_install0
+        key: ${{ matrix.os }}-cache-install0
+
+    - name: Checkout OCaml 4.11 (stage0 compiler)
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml/ocaml'
+        path: 'stage0'
+        ref: '4.11'
+
+    - name: Build and install stage0 compiler
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: stage0
+      run: |
+        ./configure --prefix=$GITHUB_WORKSPACE/_install0
+        make -j $J world.opt
+        make install
+
+    - name: Checkout dune github repo
+      uses: actions/checkout@master
+      with:
+        repository: 'ocaml-flambda/dune'
+        ref: 'special_dune'
+        path: 'dune'
+
+    - name: Build dune
+      working-directory: dune
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make release
+
+    - name: Run autoconf for Flambda backend
+      working-directory: flambda_backend
+      run: |
+        autoconf
+
+    - name: Configure Flambda backend (Closure mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH ./configure \
+          --prefix=$GITHUB_WORKSPACE/_install \
+          --enable-middle-end=closure \
+          --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
+
+    - name: Build Flambda backend (Closure mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make
+
+    - name: Install Flambda backend (Closure mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make install
+
+    - name: Clean and remove installation
+      working-directory: flambda_backend
+      run: |
+        git reset --hard
+        git clean -dfx
+        rm -rf $GITHUB_WORKSPACE/_install
+
+    - name: Run autoconf for Flambda backend
+      working-directory: flambda_backend
+      run: |
+        autoconf
+
+    - name: Configure Flambda backend (Flambda mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH ./configure \
+          --prefix=$GITHUB_WORKSPACE/_install \
+          --enable-middle-end=flambda \
+          --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
+
+    - name: Build Flambda backend (Flambda mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make
+
+    - name: Install Flambda backend (Flambda mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make install
