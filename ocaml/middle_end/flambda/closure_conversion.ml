@@ -87,6 +87,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
         dbg = Debuginfo.none;
         inline = Default_inline;
         specialise = Default_specialise;
+        probe = None;
       })
   in
   let _, body =
@@ -226,8 +227,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let set_of_closures_var set_of_closures
       (name_expr (Project_closure (project_closure)) ~name)
+
   | Lapply { ap_func; ap_args; ap_loc; ap_should_be_tailcall = _;
-        ap_inlined; ap_specialised; } ->
+             ap_inlined; ap_specialised; ap_probe; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
       ~name:Names.apply_arg
@@ -242,7 +244,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               dbg = Debuginfo.from_location ap_loc;
               inline = ap_inlined;
               specialise = ap_specialised;
+              probe = ap_probe;
             })))
+
   | Lletrec (defs, body) ->
     let env =
       List.fold_right (fun (id,  _) env ->
@@ -425,6 +429,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            operators. *)
         ap_inlined = Default_inline;
         ap_specialised = Default_specialise;
+        ap_probe = None;
       }
     in
     close t env (Lambda.Lapply apply)

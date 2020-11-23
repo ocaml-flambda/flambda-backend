@@ -138,6 +138,24 @@ let name t =
 
 let first_virtual_reg_stamp = ref (-1)
 
+let is_stack t =
+  match t.loc with
+  | Stack _ -> true
+  | _ -> false
+
+let is_reg t =
+  match t.loc with
+  | Reg _ -> true
+  | _ -> false
+
+let size_of_contents_in_bytes t =
+  match t.typ with
+  | Float -> Arch.size_float
+  | Addr ->
+    assert (Arch.size_addr = Arch.size_int);
+    Arch.size_addr
+  | Int | Val -> Arch.size_int
+
 let reset() =
   (* When reset() is called for the first time, the current stamp reflects
      all hard pseudo-registers that have been allocated by Proc, so

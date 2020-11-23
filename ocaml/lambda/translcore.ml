@@ -43,6 +43,16 @@ let transl_object =
   ref (fun ~scopes:_ _id _s _cl -> assert false :
        scopes:scopes -> Ident.t -> string list -> class_expr -> lambda)
 
+(* Probe handlers are generated from %probe as closed functions
+   during transl_exp and immediately lifted to top level. *)
+let probe_handlers = ref []
+let clear_probe_handlers () = probe_handlers := []
+let declare_probe_handlers lam =
+  List.fold_left (fun acc (funcid, func) ->
+      Llet(Strict, Pgenval, funcid, func, acc))
+    lam
+    !probe_handlers
+
 (* Compile an exception/extension definition *)
 
 let prim_fresh_oo_id =
@@ -460,7 +470,9 @@ and transl_exp0 ~scopes e =
                Lprim(Pfield 0, [transl_class_path loc e.exp_env cl], loc);
              ap_args=[lambda_unit];
              ap_inlined=Default_inline;
-             ap_specialised=Default_specialise}
+             ap_specialised=Default_specialise;
+             ap_probe=None;
+            }
   | Texp_instvar(path_self, path, _) ->
       let loc = of_location ~scopes e.exp_loc in
       let self = transl_value_path loc e.exp_env path_self in
@@ -481,7 +493,9 @@ and transl_exp0 ~scopes e =
                   ap_func=Translobj.oo_prim "copy";
                   ap_args=[self];
                   ap_inlined=Default_inline;
-                  ap_specialised=Default_specialise},
+                  ap_specialised=Default_specialise;
+                  ap_probe=None
+                 },
            List.fold_right
              (fun (path, _, expr) rem ->
                let var = transl_value_path loc e.exp_env path in
@@ -596,6 +610,64 @@ and transl_exp0 ~scopes e =
           Llet(pure, Pgenval, oid,
                !transl_module ~scopes Tcoerce_none None od.open_expr, body)
       end
+  | Texp_probe {name; handler=exp} ->
+    if !Clflags.native_code && !Clflags.probes then begin
+      let lam = transl_exp ~scopes exp in
+      let map =
+        Ident.Set.fold (fun v acc -> Ident.Map.add v (Ident.rename v) acc)
+          (free_variables lam)
+          Ident.Map.empty
+      in
+      let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
+      let body = Lambda.rename map lam in
+      let attr =
+        { inline = Never_inline;
+          specialise = Always_specialise;
+          local = Never_local;
+          is_a_functor = false;
+          stub = false;
+        } in
+      let funcid = Ident.create_local ("probe_handler_" ^ name) in
+      let handler =
+        let scopes = enter_value_definition ~scopes funcid in
+        { kind = Curried;
+          params = List.map (fun v -> v, Pgenval) param_idents;
+          return = Pgenval;
+          body;
+          loc = of_location ~scopes exp.exp_loc;
+          attr;
+        }
+      in
+      let app =
+        { ap_func = Lvar funcid;
+          ap_args = List.map (fun id -> Lvar id) arg_idents;
+          ap_loc = of_location e.exp_loc ~scopes;
+          ap_should_be_tailcall = false;
+          ap_inlined = Never_inline;
+          ap_specialised = Always_specialise;
+          ap_probe = Some {name};
+        }
+      in
+      begin match Config.flambda with
+      | true ->
+          Llet(Strict, Pgenval, funcid, Lfunction handler, Lapply app)
+      | false ->
+        (* Needs to be lifted to top level manually here,
+           because functions that contain other function declarations
+           are not inlined by Closure. For example, adding a probe into
+           the body of function foo will prevent foo from being inlined
+           into another function. *)
+        probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
+        Lapply app
+      end
+    end else begin
+      lambda_unit
+    end
+  | Texp_probe_is_enabled {name} ->
+    if !Clflags.native_code && !Clflags.probes then
+      Lprim(Pprobe_is_enabled {name}, [], of_location ~scopes e.exp_loc)
+    else
+      lambda_unit
 
 and pure_module m =
   match m.mod_desc with
@@ -649,7 +721,8 @@ and transl_tupled_cases ~scopes patl_expr_list =
     patl_expr_list
 
 and transl_apply ~scopes ?(should_be_tailcall=false) ?(inlined = Default_inline)
-      ?(specialised = Default_specialise) lam sargs loc =
+      ?(specialised = Default_specialise)
+      lam sargs loc =
   let lapply funct args =
     match funct with
       Lsend(k, lmet, lobj, largs, _) ->
@@ -664,7 +737,9 @@ and transl_apply ~scopes ?(should_be_tailcall=false) ?(inlined = Default_inline)
                 ap_func=lexp;
                 ap_args=args;
                 ap_inlined=inlined;
-                ap_specialised=specialised;}
+                ap_specialised=specialised;
+                ap_probe=None
+               }
   in
   let rec build_apply lam args = function
       (None, optional) :: l ->
@@ -1078,7 +1153,9 @@ and transl_letop ~scopes loc env let_ ands param case partial =
                     ap_func = op;
                     ap_args=[Lvar left_id; Lvar right_id];
                     ap_inlined=Default_inline;
-                    ap_specialised=Default_specialise})
+                    ap_specialised=Default_specialise;
+                    ap_probe=None;
+                   })
         in
         bind Strict left_id prev_lam (loop lam rest)
   in
@@ -1104,7 +1181,9 @@ and transl_letop ~scopes loc env let_ ands param case partial =
          ap_func = op;
          ap_args=[exp; func];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None;
+        }
 
 (* Wrapper for class compilation *)
 

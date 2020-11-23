@@ -56,3 +56,7 @@ val transl_module :
 val transl_object :
       (scopes:scopes -> Ident.t -> string list ->
        class_expr -> lambda) ref
+
+(* Declarations to be wrapped around the entire body *)
+val clear_probe_handlers : unit -> unit
+val declare_probe_handlers : lambda -> lambda

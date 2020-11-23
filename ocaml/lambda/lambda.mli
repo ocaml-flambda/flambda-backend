@@ -152,6 +152,8 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
+  (* Statically-defined probes *)
+  | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -211,6 +213,9 @@ type inline_attribute =
   | Default_inline (* no [@inline] attribute *)
 
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
+
+type probe_desc = { name: string }
+type probe = probe_desc option
 
 type specialise_attribute =
   | Always_specialise (* [@specialise] or [@specialise always] *)
@@ -298,7 +303,9 @@ and lambda_apply =
     ap_loc : scoped_location;
     ap_should_be_tailcall : bool;       (* true if [@tailcall] was specified *)
     ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)
-    ap_specialised : specialise_attribute; }
+    ap_specialised : specialise_attribute;
+    ap_probe : probe;
+  }
 
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)

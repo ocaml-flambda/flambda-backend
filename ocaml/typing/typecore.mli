@@ -180,6 +180,12 @@ type error =
   | Unrefuted_pattern of Typedtree.pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
+  | Probe_format
+  | Probe_name_too_long of string
+  | Probe_name_format of string
+  | Probe_name_undefined of string
+  (* CR-soon mshinwell: Use an inlined record *)
+  | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat

@@ -234,6 +234,9 @@ val function_sections : bool
 (** Whether the compiler was configured to generate
     each function in a separate section *)
 
+val probes : bool
+(** Whether the target supports tracing probes *)
+
 val windows_unicode: bool
 (** Whether Windows Unicode runtime is enabled *)
 

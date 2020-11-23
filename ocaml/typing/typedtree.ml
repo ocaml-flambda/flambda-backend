@@ -146,6 +146,8 @@ and expression_desc =
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
   | Texp_open of open_declaration * expression
+  | Texp_probe of { name:string; handler:expression; }
+  | Texp_probe_is_enabled of { name:string }
 
 and meth =
     Tmeth_name of string

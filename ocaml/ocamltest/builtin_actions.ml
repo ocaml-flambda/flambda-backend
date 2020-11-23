@@ -187,6 +187,12 @@ let function_sections = make
      "Target supports function sections"
      "Target does not support function sections")
 
+let probes = make
+  "probes"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.probes)
+     "Target supports probes"
+     "Target does not support probes")
+
 let has_symlink = make
   "has_symlink"
   (Actions_helpers.pass_or_skip (Sys.has_symlink () )
@@ -257,4 +263,5 @@ let _ =
     arch_i386;
     arch_power;
     function_sections;
+    probes;
   ]

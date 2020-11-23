@@ -1066,6 +1066,11 @@ let find_hash_type path env =
   | Papply _ ->
       raise Not_found
 
+let probes = ref String.Set.empty
+let reset_probes () = probes := String.Set.empty
+let add_probe name = probes := String.Set.add name !probes
+let has_probe name = String.Set.mem name !probes
+
 let required_globals = ref []
 let reset_required_globals () = required_globals := []
 let get_required_globals () = !required_globals
@@ -1887,7 +1892,6 @@ let add_module ?arg id presence mty env =
 let add_local_type path info env =
   { env with
     local_constraints = Path.Map.add path info env.local_constraints }
-
 
 (* Insertion of bindings by name *)
 

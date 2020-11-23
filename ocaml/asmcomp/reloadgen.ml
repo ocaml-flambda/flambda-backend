@@ -70,6 +70,11 @@ method reload_operation op arg res =
       | _ ->
           (arg, res)
       end
+  | Iprobe _ ->
+    (* No constraints on where the arguments reside,
+       so that the presence of a probe does not affect
+       register allocation of the rest of the code. *)
+    (arg, res)
   | _ ->
       (self#makeregs arg, self#makeregs res)
 
