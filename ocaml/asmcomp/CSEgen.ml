@@ -223,7 +223,7 @@ method class_of_operation op =
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ -> Op_pure
   | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
-  | Iextcall _ -> assert false                 (* treated specially *)
+  | Iextcall _ | Iprobe _ -> assert false      (* treated specially *)
   | Istackoffset _ -> Op_other
   | Iload(_,_) -> Op_load
   | Istore(_,_,asg) -> Op_store asg
@@ -236,6 +236,7 @@ method class_of_operation op =
   | Ifloatofint | Iintoffloat -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_pure
+  | Iprobe_is_enabled _ -> Op_other
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 
@@ -263,8 +264,8 @@ method private cse n i =
          as to the argument reg. *)
       let n1 = set_move n i.arg.(0) i.res.(0) in
       {i with next = self#cse n1 i.next}
-  | Iop (Icall_ind _ | Icall_imm _ | Iextcall _) ->
-      (* For function calls, we should at least forget:
+  | Iop (Icall_ind _ | Icall_imm _ | Iextcall _ | Iprobe _) ->
+      (* For function calls and probes, we should at least forget:
          - equations involving memory loads, since the callee can
            perform arbitrary memory stores;
          - equations involving arithmetic operations that can

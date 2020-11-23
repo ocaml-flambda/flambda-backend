@@ -502,7 +502,43 @@ let expression sub exp =
                                  (Exp.construct ~loc (map_loc sub lid) None)
                              ])
     | Texp_open (od, exp) ->
-        Pexp_open (sub.open_declaration sub od, sub.expr sub exp)
+      Pexp_open (sub.open_declaration sub od, sub.expr sub exp)
+    | Texp_probe {name; handler} ->
+        Pexp_extension
+          ({ txt = "ocaml.probe"; loc}
+          , PStr ([
+              { pstr_desc=
+                  Pstr_eval
+                    ( { pexp_desc=(Pexp_apply (
+                        { pexp_desc=(Pexp_constant
+                                       (Pconst_string(name,loc,None)))
+                        ; pexp_loc=loc
+                        ; pexp_loc_stack =[]
+                        ; pexp_attributes=[]
+                        }
+                      , [Nolabel, sub.expr sub handler]))
+                      ; pexp_loc=loc
+                      ; pexp_loc_stack =[]
+                      ; pexp_attributes=[]
+                      }
+                    , [])
+              ; pstr_loc = loc
+              }]))
+    | Texp_probe_is_enabled {name} ->
+        Pexp_extension
+          ({ txt = "ocaml.probe_is_enabled"; loc}
+          , PStr([
+               { pstr_desc=
+                   Pstr_eval
+                     ( { pexp_desc=(Pexp_constant
+                                      (Pconst_string(name,loc,None)))
+                       ; pexp_loc=loc
+                       ; pexp_loc_stack =[]
+                       ; pexp_attributes=[]
+                       }
+                     , [])
+               ; pstr_loc = loc
+               }]))
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs desc)

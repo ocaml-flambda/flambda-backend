@@ -94,6 +94,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       dbg = fun_decl.dbg;
       inline = Default_inline;
       specialise = Default_specialise;
+      probe = None;
     }
   in
   let function_decl =

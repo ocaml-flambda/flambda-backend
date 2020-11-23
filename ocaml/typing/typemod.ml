@@ -2457,6 +2457,7 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr scope =
 
 let type_toplevel_phrase env s =
   Env.reset_required_globals ();
+  Env.reset_probes ();
   let (str, sg, to_remove_from_sg, env) =
     type_structure ~toplevel:true false None env s Location.none in
   (str, sg, to_remove_from_sg, env)
@@ -2635,6 +2636,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
       Env.reset_required_globals ();
+      Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
         Warnings.parse_options false "-32-34-37-38-60";
       let (str, sg, names, finalenv) =

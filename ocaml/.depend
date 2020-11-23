@@ -2422,15 +2422,19 @@ asmcomp/emit.cmo : \
     asmcomp/x86_gas.cmi \
     asmcomp/x86_dsl.cmi \
     asmcomp/x86_ast.cmi \
+    utils/warnings.cmi \
     asmcomp/reg.cmi \
     asmcomp/proc.cmi \
+    asmcomp/printmach.cmi \
     utils/numbers.cmi \
     utils/misc.cmi \
     asmcomp/mach.cmi \
+    parsing/location.cmi \
     asmcomp/linear.cmi \
     lambda/lambda.cmi \
     asmcomp/emitaux.cmi \
     utils/domainstate.cmi \
+    lambda/debuginfo.cmi \
     utils/config.cmi \
     middle_end/compilenv.cmi \
     asmcomp/cmm.cmi \
@@ -2444,15 +2448,19 @@ asmcomp/emit.cmx : \
     asmcomp/x86_gas.cmx \
     asmcomp/x86_dsl.cmx \
     asmcomp/x86_ast.cmi \
+    utils/warnings.cmx \
     asmcomp/reg.cmx \
     asmcomp/proc.cmx \
+    asmcomp/printmach.cmx \
     utils/numbers.cmx \
     utils/misc.cmx \
     asmcomp/mach.cmx \
+    parsing/location.cmx \
     asmcomp/linear.cmx \
     lambda/lambda.cmx \
     asmcomp/emitaux.cmx \
     utils/domainstate.cmx \
+    lambda/debuginfo.cmx \
     utils/config.cmx \
     middle_end/compilenv.cmx \
     asmcomp/cmm.cmx \
@@ -2704,10 +2712,12 @@ asmcomp/proc.cmi : \
 asmcomp/reg.cmo : \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
+    asmcomp/arch.cmo \
     asmcomp/reg.cmi
 asmcomp/reg.cmx : \
     asmcomp/cmm.cmx \
     middle_end/backend_var.cmx \
+    asmcomp/arch.cmx \
     asmcomp/reg.cmi
 asmcomp/reg.cmi : \
     asmcomp/cmm.cmi \

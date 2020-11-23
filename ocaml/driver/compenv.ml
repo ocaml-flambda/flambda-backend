@@ -256,6 +256,7 @@ let read_one_param ppf position name v =
   | "slash" -> set "slash" [ force_slash ] v (* for ocamldep *)
   | "keep-docs" -> set "keep-docs" [ Clflags.keep_docs ] v
   | "keep-locs" -> set "keep-locs" [ Clflags.keep_locs ] v
+  | "probes" -> set "probes" [ Clflags.probes ] v
 
   | "compact" -> clear "compact" [ optimize_for_speed ] v
   | "no-app-funct" -> clear "no-app-funct" [ applicative_functors ] v

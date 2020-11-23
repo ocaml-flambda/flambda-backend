@@ -115,3 +115,7 @@ val function_sections : bool
 
 val has_instrumented_runtime : bool
 (** Whether the instrumented runtime is available *)
+
+val probes : bool
+(** Whether the target supports tracing probes *)
+

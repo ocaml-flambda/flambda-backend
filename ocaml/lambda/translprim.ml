@@ -764,6 +764,7 @@ let lambda_primitive_needs_event_after = function
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
+  | Pprobe_is_enabled _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

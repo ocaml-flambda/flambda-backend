@@ -131,7 +131,8 @@ and apply_coercion_result loc strict funct params args cc_res =
                            ap_func=Lvar id;
                            ap_args=List.rev args;
                            ap_inlined=Default_inline;
-                           ap_specialised=Default_specialise})})
+                           ap_specialised=Default_specialise;
+                           ap_probe=None})})
 
 and wrap_id_pos_list loc id_pos_list get_field lam =
   let fv = free_variables lam in
@@ -363,7 +364,8 @@ let eval_rec_bindings bindings cont =
                   ap_func=mod_prim "init_mod";
                   ap_args=[loc; shape];
                   ap_inlined=Default_inline;
-                  ap_specialised=Default_specialise},
+                  ap_specialised=Default_specialise;
+                  ap_probe=None},
            bind_inits rem)
   and bind_strict = function
     [] ->
@@ -386,7 +388,8 @@ let eval_rec_bindings bindings cont =
                        ap_func=mod_prim "update_mod";
                        ap_args=[shape; Lvar id; rhs];
                        ap_inlined=Default_inline;
-                       ap_specialised=Default_specialise},
+                       ap_specialised=Default_specialise;
+                       ap_probe=None},
                 patch_forwards rem)
   in
     bind_inits bindings
@@ -517,7 +520,8 @@ and transl_module ~scopes cc rootpath mexp =
                 ap_func=transl_module ~scopes Tcoerce_none None funct;
                 ap_args=[transl_module ~scopes ccarg None arg];
                 ap_inlined=inlined_attribute;
-                ap_specialised=Default_specialise})
+                ap_specialised=Default_specialise;
+                ap_probe=None})
   | Tmod_constraint(arg, _, _, ccarg) ->
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
@@ -793,12 +797,15 @@ let transl_implementation_flambda module_name (str, cc) =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
+  Translcore.clear_probe_handlers ();
   let module_id = Ident.create_persistent module_name in
   let scopes = [Sc_module_definition module_name] in
   let body, size =
-    Translobj.transl_label_init
-      (fun () -> transl_struct ~scopes Loc_unknown [] cc
-                   (global_path module_id) str)
+    Translobj.transl_label_init (fun () ->
+      let body, size =
+        transl_struct ~scopes Loc_unknown [] cc
+          (global_path module_id) str in
+      Translcore.declare_probe_handlers body, size)
   in
   { module_ident = module_id;
     main_module_block_size = size;
@@ -1352,16 +1359,21 @@ let build_ident_map restr idlist more_ids =
 let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
   reset_labels ();
   primitive_declarations := [];
+  Translcore.clear_probe_handlers ();
   Translprim.clear_used_primitives ();
   let module_id = Ident.create_persistent module_name in
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
-  let f = function
-    | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
+  let f str =
+    let expr =
+      match str with
+      | [ { str_desc = Tstr_eval (expr, _attrs) } ] when topl ->
         assert (size = 0);
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes expr)
-    | str -> transl_store_structure ~scopes module_id map prims aliases str
+      | str -> transl_store_structure ~scopes module_id map prims aliases str
+    in
+    Translcore.declare_probe_handlers expr
   in
   transl_store_label_init module_id size f str
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
@@ -1409,7 +1421,8 @@ let toploop_getvalue id =
          ap_args=[Lconst(Const_base(
              Const_string (toplevel_name id, Location.none,None)))];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None}
 
 let toploop_setvalue id lam =
   Lapply{ap_should_be_tailcall=false;
@@ -1421,7 +1434,8 @@ let toploop_setvalue id lam =
              Const_string (toplevel_name id, Location.none, None)));
                   lam];
          ap_inlined=Default_inline;
-         ap_specialised=Default_specialise}
+         ap_specialised=Default_specialise;
+         ap_probe=None}
 
 let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 
@@ -1535,10 +1549,14 @@ let transl_toplevel_item ~scopes item =
 
 let transl_toplevel_item_and_close ~scopes itm =
   close_toplevel_term
-    (transl_label_init (fun () -> transl_toplevel_item ~scopes itm, ()))
+    (transl_label_init
+       (fun () ->
+          let expr = transl_toplevel_item ~scopes itm
+          in Translcore.declare_probe_handlers expr, ()))
 
 let transl_toplevel_definition str =
   reset_labels ();
+  Translcore.clear_probe_handlers ();
   Translprim.clear_used_primitives ();
   make_sequence (transl_toplevel_item_and_close ~scopes:[]) str.str_items
 
