@@ -34,6 +34,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
                | "caml_nativeint_format" | "caml_int64_format" ) } ->
       No_effects, No_coeffects
   | Pccall _ -> Arbitrary_effects, Has_coeffects
+  | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects
   | Pnot
   | Pnegint

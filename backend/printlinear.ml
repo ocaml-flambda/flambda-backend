@@ -30,7 +30,7 @@ let instr ppf i =
       fprintf ppf "prologue"
   | Lop op ->
       begin match op with
-      | Ialloc _ | Icall_ind _ | Icall_imm _ | Iextcall _ ->
+      | Ialloc _ | Icall_ind _ | Icall_imm _ | Iextcall _ | Iprobe _ ->
           fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
       | _ -> ()
       end;

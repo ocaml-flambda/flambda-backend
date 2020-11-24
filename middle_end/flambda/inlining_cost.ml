@@ -56,6 +56,7 @@ let prim_size (prim : Clambda_primitives.primitive) args =
   | Psequand | Psequor ->
     Misc.fatal_error "Psequand and Psequor are not allowed in Prim \
         expressions; translate out instead (cf. closure_conversion.ml)"
+  | Pprobe_is_enabled _ -> 4 (* Similar to Pgetglobal and comparison *)
   (* CR-soon mshinwell: This match must be made exhaustive.
      mshinwell: Let's do this when we have the new size computation. *)
   | _ -> 2 (* arithmetic and comparisons *)
@@ -73,11 +74,14 @@ let lambda_smaller' lam ~than:threshold =
     if !size > threshold then raise Exit;
     match lam with
     | Var _ -> ()
-    | Apply ({ func = _; args = _; kind = direct }) ->
+    | Apply ({ func = _; args = _; probe = None; kind = direct }) ->
       let call_cost =
         match direct with Indirect -> 6 | Direct _ -> direct_call_size
       in
       size := !size + call_cost
+    | Apply {probe=Some _} -> ()
+    (* Do not affect inlining decision.
+       Actual cost is either 1, 5 or 6 bytes, depending on their kind. *)
     | Assign _ -> incr size
     | Send _ -> size := !size + 8
     | Proved_unreachable -> ()

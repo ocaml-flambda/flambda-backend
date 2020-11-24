@@ -165,6 +165,9 @@ let operation op arg ppf res =
       reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
+  | Iprobe {name;handler_code_sym} ->
+    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+  | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
 
 let rec instr ppf i =
   if !Clflags.dump_live then begin

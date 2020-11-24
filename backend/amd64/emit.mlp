@@ -98,6 +98,25 @@ let slot_offset loc cl =
       else !stack_offset + (num_stack_slots.(0) + n) * 8
   | Outgoing n -> n
 
+let emit_stack_offset n =
+  if n < 0
+  then I.add (int (-n)) rsp
+  else if n > 0
+  then I.sub (int n) rsp;
+  if n <> 0
+  then cfi_adjust_cfa_offset n;
+  stack_offset := !stack_offset + n
+
+let push r =
+  I.push r;
+  cfi_adjust_cfa_offset 8;
+  stack_offset := !stack_offset + 8
+
+let pop r =
+  I.pop r;
+  cfi_adjust_cfa_offset (-8);
+  stack_offset := !stack_offset - 8
+
 (* Symbols *)
 
 let symbol_prefix = if system = S_macosx then "_" else ""
@@ -227,6 +246,7 @@ let arg16 i n = emit_subreg reg_low_16_name WORD i.arg.(n)
 let arg32 i n = emit_subreg reg_low_32_name DWORD i.arg.(n)
 let arg64 i n = reg64 i.arg.(n)
 
+let res8 i n = emit_subreg reg_low_8_name BYTE i.res.(n)
 let res16 i n = emit_subreg reg_low_16_name WORD i.res.(n)
 let res32 i n = emit_subreg reg_low_32_name DWORD i.res.(n)
 
@@ -490,6 +510,33 @@ let emit_global_label s =
   D.global lbl;
   _label lbl
 
+let move (src : Reg.t) (dst : Reg.t) =
+  if src.loc <> dst.loc then
+    begin match src.typ, src.loc, dst.loc with
+    | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
+    | Float, _, _ -> I.movsd (reg src) (reg dst)
+    | _ -> I.mov (reg src) (reg dst)
+    end
+
+let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
+  assert (src.typ = dst.typ);
+  if (src.loc <> dst.loc) then begin
+    match src.typ with
+    | Int | Val ->
+      (* Not calling move because r15 is not in int_reg_name. *)
+      I.mov (reg src) r15;
+      I.mov r15 (reg dst)
+    | Float | Addr ->
+      Misc.fatal_errorf
+        "Unexpected register type for stack to stack move: from %s to %s\n"
+        (Reg.name src) (Reg.name dst)
+  end
+
+let move_allowing_stack_to_stack src dst =
+  match Reg.is_stack src, Reg.is_stack dst with
+  | true, true -> stack_to_stack_move src dst
+  | _ -> move src dst
+
 (* Output .text section directive, or named .text.caml.<name> if enabled and
    supported on the target system. *)
 
@@ -510,12 +557,95 @@ let emit_named_text_section func_name =
     end
   else D.text ()
 
-(* Output the assembly code for an instruction *)
-
 (* Name of current function *)
 let function_name = ref ""
 (* Entry point for tail recursive calls *)
 let tailrec_entry_point = ref 0
+
+(* Emit tracing probes *)
+
+type probe =
+  {
+    stack_offset: int;
+    num_stack_slots: int array;
+    (* Record frame info held in the corresponding mutable variables. *)
+    probe_label: label;
+    (* Probe site, recorded in .note.stapsdt section
+       for enabling and disabling the probes  *)
+    probe_insn: Linear.instruction;
+    (* Iprobe instruction, recorded at probe site and used for emitting
+       the notes and the wrapper code at the end of the compilation unit. *)
+  }
+
+let probe_handler_wrapper_name probe_label =
+  let w = Printf.sprintf "probe_wrapper_%d" probe_label in
+  Compilenv.make_symbol (Some w)
+  |> emit_symbol
+
+let probes = ref []
+
+let probe_semaphores = ref String.Map.empty
+
+let reset_probes () =
+  probes := [];
+  probe_semaphores := String.Map.empty
+
+let find_or_add_semaphore name =
+  match String.Map.find_opt name !probe_semaphores with
+  | Some label -> label
+  | None ->
+    let sym = Compilenv.make_symbol (Some ("semaphore_"^name)) in
+    probe_semaphores := String.Map.add name sym !probe_semaphores;
+    sym
+
+let emit_call_probe_handler_wrapper i ~probe_label =
+  assert !frame_required;
+  let wrap_label = probe_handler_wrapper_name probe_label in
+  (* We emit a cmp instruction that is effectively a nop:
+     it only sets flags that are not read anywhere.
+     To enable the probe, cmp is replaced with call
+     by changing the first byte of the encoding from 3d to e8.
+     The operand of the call is a displacement relative to
+     the next instruction. Hence, the immediate operand
+     of cmp is set up to have that value. *)
+  if !Clflags.pic_code then begin
+    (* Manually emit encoding of cmp and an explicit relocation on it
+       as needed for a call instruction, to ensure a correct
+       result, instead of relying on an assembler that might choose a different
+       encoding which produces an incorrect relocation and changes the meaning
+       of the program. *)
+    (* Emit the required encoding of "cmp $0, %eax" directly, using .byte *)
+    D.byte (Const 0x3dL);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    D.byte (Const 0L);
+    (* Emit the relocation for the call target *)
+    (* [rel_size] is the number of bytes taken by the operand of cmp/call
+       that needs to be relocated. It is used to form reloc's offset.
+       [rel_offset_from_next] is the distance from the start of the relocated
+       bytes to the start to the next instruction after the call.
+       It used to form reloc's expr for call's operand (see above).
+       [rel_size] is equal to [rel_offset_from_next] because
+       the relocated operand is the last one and arch is little endian. *)
+    let rel_size = 4L in
+    let rel_offset_from_next = 4L in
+    D.reloc ~offset:(ConstSub (ConstThis, Const rel_size))
+      ~name:R_X86_64_PLT32
+      ~expr:(ConstSub (ConstLabel wrap_label,
+                       Const rel_offset_from_next));
+  end else begin
+    (* Emit absolute value, no relocation.
+       The immediate operand of cmp is the offset of the wrapper
+       from the current instruction's address "."
+       minus the length of the current instruction, which is 5,
+       and the wrapper is emitted at the end of the compilation unit. *)
+    I.cmp (sym (Printf.sprintf "%s - . - 5" wrap_label)) eax
+  end;
+  (* Live registers are saved by the probe wrapper,
+     so they are not recorded as gc roots at the probe site. *)
+  let stack_live = Reg.Set.filter Reg.is_stack i.live in
+  record_frame stack_live (Dbg_other i.dbg)
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -538,13 +668,7 @@ let emit_instr fallthrough i =
       end;
     end
   | Lop(Imove | Ispill | Ireload) ->
-      let src = i.arg.(0) and dst = i.res.(0) in
-      if src.loc <> dst.loc then
-        begin match src.typ, src.loc, dst.loc with
-        | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-        | Float, _, _ -> I.movsd (reg src) (reg dst)
-        | _ -> I.mov (reg src) (reg dst)
-        end
+      move i.arg.(0) i.res.(0)
   | Lop(Iconst_int n) ->
       if n = 0n then begin
         match i.res.(0).loc with
@@ -626,13 +750,7 @@ let emit_instr fallthrough i =
         end
       end
   | Lop(Istackoffset n) ->
-      if n < 0
-      then I.add (int (-n)) rsp
-      else if n > 0
-      then I.sub (int n) rsp;
-      if n <> 0
-      then cfi_adjust_cfa_offset n;
-      stack_offset := !stack_offset + n
+      emit_stack_offset n
   | Lop(Iload(chunk, addr)) ->
       let dest = res i 0 in
       begin match chunk with
@@ -797,6 +915,35 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
   | Lop (Iname_for_debugger _) -> ()
+  | Lop (Iprobe _) ->
+    let probe_label = new_label () in
+    let probe =
+      { probe_label;
+        probe_insn = i;
+        stack_offset = !stack_offset;
+        num_stack_slots = Array.copy num_stack_slots;
+      }
+    in
+    probes := probe :: !probes;
+    def_label probe_label;
+    I.nop (); (* for uprobes and usdt probes as well *)
+    (* A probe site does not directly call the probe handler.  There is an
+       intervening wrapper that deals with getting the arguments to the probe
+       in the correct place and managing the spilling/reloading of live
+       registers.  See [emit_probe_handler_wrapper] below. *)
+    emit_call_probe_handler_wrapper i ~probe_label
+  | Lop (Iprobe_is_enabled { name; }) ->
+    let semaphore_sym = find_or_add_semaphore name in
+    (* Load unsigned 2-byte integer value of the semaphore.
+       According to the documentation [1],
+       semaphores are of type unsigned short.
+       [1] https://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation
+    *)
+    I.mov (addressing (Ibased(semaphore_sym, 0)) WORD i 0) (res16 i 0);
+    (* If the semaphore is 0, then the result is 0, otherwise 1. *)
+    I.cmp (int 0) (res16 i 0);
+    I.set (cond (Iunsigned Cne)) (res8 i 0);
+    I.movzx (res8 i 0) (res i 0)
   | Lreloadretaddr ->
       ()
   | Lreturn ->
@@ -934,6 +1081,16 @@ let rec emit_all fallthrough i =
 
 let all_functions = ref []
 
+let emit_function_type_and_size fun_name =
+  match system with
+  | S_gnu | S_linux ->
+    D.type_ (emit_symbol fun_name) "@function";
+    D.size (emit_symbol fun_name)
+      (ConstSub (
+         ConstThis,
+         ConstLabel (emit_symbol fun_name)))
+  | _ -> ()
+
 (* Emission of a function declaration *)
 
 let fundecl fundecl =
@@ -974,15 +1131,7 @@ let fundecl fundecl =
     end;
   end;
   cfi_endproc ();
-  begin match system with
-  | S_gnu | S_linux ->
-      D.type_ (emit_symbol fundecl.fun_name) "@function";
-      D.size (emit_symbol fundecl.fun_name)
-        (ConstSub (
-            ConstThis,
-            ConstLabel (emit_symbol fundecl.fun_name)))
-  | _ -> ()
-  end
+  emit_function_type_and_size fundecl.fun_name
 
 (* Emission of data *)
 
@@ -1011,6 +1160,7 @@ let begin_assembly() =
   X86_proc.reset_asm_code ();
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
+  reset_probes ();
   float_constants := [];
   all_functions := [];
   used_labels := Int.Set.empty;
@@ -1090,6 +1240,262 @@ let emit_spacetime_shapes () =
   D.qword (Const 0L);
   D.comment "End of Spacetime shapes."
 
+let make_stack_loc ~offset i (r : Reg.t) =
+  (* Use "Outgoing" stack locations, instead of "Local",
+     because [slot_offset] emits (Outgoing n) directly
+     as offset [n] from the stack pointer,
+     rather than a calculation relative to the stack frame,
+     which is incorrect for naked floats (arising from live variables, not
+     probe arguments) in the wrapper's frame. *)
+  let loc = Stack (Outgoing (offset + (8*i))) in
+  (* Manufacture stack entry with this register's type *)
+  Reg.at_location r.typ loc
+
+(* CR mshinwell: Not now, but after code review, it would be better to
+   move this code so it's contiguous with the other probe code above. *)
+
+(* Calls to probe handler wrappers do not follow the standard calling
+   convention for OCaml.  Instead, all registers are callee saved: the wrapper
+   saves and restores all registers that are live across its (unique) call site.
+
+   There is one wrapper per probe site in the code.  Probe wrappers can never
+   be called from anywhere except their unique probe site, since they make
+   assumptions about the layout of their caller's stack frame.  Probe wrappers
+   create their own stack frames; these will be elided in OCaml backtraces
+   but may be displayed in platform debuggers such as gdb.
+
+   The current strategy for argument passing to a probe handler is to spill
+   all arguments of the probe, plus all live registers, to stack and then
+   reload the arguments into locations expected by the handler.
+   This is gratuitously inefficient but easier to reason about correctness.
+   This problem is a variation of the "sequentialization of a parallel
+   assignment" problem, which admits an optimal and efficient solution.
+
+   The stack layout of the wrapper, before the call to the handler, is as
+   follows:
+   |     ...    |
+   |------------|<-- %rsp at probe site, 16-byte aligned by caller
+   | ret        |
+   |------------|
+   | fp         | only present when Config.with_frame_pointers is true
+   |------------|
+   | live       | saved live registers
+   |------------|
+   | r15        | spill to use as a temporary for stack to stack move [2]
+   |------------|
+   | tmp        | spilled reg and stack arguments of the wrapper
+   |------------|<-- 16-byte aligned [1]
+   | stack args | arguments passed to handler on the stack (size in loc_offset)
+   |------------|<-- %rsp at the call from wrapper to handler, 16-byte aligned
+
+   [1] To ensure that the stack before the call from the wrapper to the handler
+   is 16-byte aligned, we align this explicitly. It is a little wasteful,
+   but reuses the calculation made by [Proc.loc_arguments].
+
+   [2] Stack to stack moves are only used for probe arguments, which must be
+   valid OCaml values and not naked floats, because probes are treated like
+   calls.
+   Therefore, for now, we do not need a temporary register of type float.
+   This assumption might no longer hold in the presence of unboxed types.
+*)
+
+let emit_probe_handler_wrapper p =
+  let wrap_label = probe_handler_wrapper_name p.probe_label in
+  let probe_name, handler_code_sym =
+    match p.probe_insn.desc with
+    | Lop (Iprobe { name; handler_code_sym; }) -> name, handler_code_sym
+    | _ -> assert false
+  in
+  (* Restore stack frame info as it was at the probe site, so we can easily
+     refer to slots in the corresponding frame.  (As per the comment above,
+     recall that the wrapper does however have its own frame.) *)
+  frame_required := true;
+  stack_offset := p.stack_offset;
+  for i = 0 to Proc.num_register_classes - 1 do
+    num_stack_slots.(i) <- p.num_stack_slots.(i);
+  done;
+  (* Account for the return address that is now pushed on the stack. *)
+  stack_offset := !stack_offset + 8;
+  (* Emit function entry code *)
+  D.comment (Printf.sprintf "probe %s %s" probe_name handler_code_sym);
+  emit_named_text_section wrap_label;
+  D.align 16;
+  _label wrap_label;
+  cfi_startproc ();
+  if fp then begin
+    push rbp;
+    I.mov rsp rbp;
+  end;
+  (* Prepare to call the handler: calculate and allocate stack space.
+     The calculations are simplified using the following property. *)
+  assert (size_addr = 8 && size_int = 8 && size_float = 8);
+  (* Compute the size of stack slots for all live hard registers. *)
+  let live =
+    Reg.Set.elements p.probe_insn.live
+    |> List.filter Reg.is_reg
+    |> Array.of_list
+  in
+  let live_offset = 8 * (Array.length live) in
+  (* Compute the size of stack slots for spilling all arguments of the probe. *)
+  let aux_offset = 8 (* for saving r15 *) in
+  let tmp_offset = 8 * (Array.length p.probe_insn.arg) in
+  let loc_args, loc_offset = Proc.loc_arguments p.probe_insn.arg in
+  (* Ensure the stack is aligned.
+     Assuming that the stack at the probe site is 16-byte aligned,
+     [loc_arguments] ensures that [loc_offset] is 16-byte aligned.
+     All temporaries are 8 bytes long, the return address is already pushed,
+     and optionally the frame pointer is already pushed on the stack. *)
+  let wrapper_frame_size k = 8 + (if fp then 8 else 0) + k in
+  let k = live_offset + aux_offset + tmp_offset + loc_offset in
+  assert (k mod 8 = 0);
+  let padding = if ((wrapper_frame_size k) mod 16) = 0 then 0 else 8 in
+  let n = k + padding in
+  (* Allocate stack space *)
+  emit_stack_offset n;
+  (* Save all live hard registers *)
+  let offset = aux_offset + tmp_offset + loc_offset in
+  let saved_live = Array.mapi (make_stack_loc ~offset) live in
+  Array.iteri (fun i reg -> move reg saved_live.(i)) live;
+  (* Spill r15 to free it to be used as a temporary register for stack to
+     stack copying. *)
+  let offset = tmp_offset + loc_offset in
+  let saved_r15 = make_stack_loc 0 (Reg.dummy) ~offset in
+  I.mov r15 (reg saved_r15);
+  (* Spill all arguments of the probe.  Some of these may already be on the
+     stack, in which case a temporary is used for the move. *)
+  let tmp = Array.mapi (make_stack_loc ~offset:loc_offset) p.probe_insn.arg in
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack reg (tmp.(i)))
+    p.probe_insn.arg;
+  (* Load probe arguments to correct locations for the handler *)
+  Array.iteri (fun i reg -> move_allowing_stack_to_stack tmp.(i) reg) loc_args;
+  (* Reload spilled registers used as temporaries *)
+  I.mov (reg saved_r15) r15;
+  (* Emit call to handler *)
+  add_used_symbol handler_code_sym;
+  emit_call handler_code_sym;
+  (* Record a frame description for the wrapper *)
+  let label = new_label () in
+  let live_offset =
+    Array.fold_right (fun (r:Reg.t) acc ->
+      match r.loc with
+      | Stack (Outgoing k) ->
+        (match r.typ with
+        | Val -> k::acc
+        | Int | Float -> acc
+        | Addr -> Misc.fatal_error ("bad GC root " ^ Reg.name r))
+      | _ -> assert false)
+    saved_live
+    []
+  in
+  record_frame_descr ~label ~frame_size:(wrapper_frame_size n) ~live_offset
+    (Dbg_other Debuginfo.none);
+  def_label label;
+  (* After the probe handler has finished executing, restore all live registers
+     and free stack space. *)
+  Array.iteri (fun i reg -> move saved_live.(i) reg) live;
+  emit_stack_offset (-n);
+  if fp then begin
+    pop rbp
+  end;
+  I.ret ();
+  cfi_endproc ();
+  emit_function_type_and_size wrap_label
+
+let emit_probe_notes0 () =
+  begin match system with
+  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
+  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
+    D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
+  | S_macosx -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]
+  end;
+  let stap_arg arg =
+    let arg_name =
+      match arg.loc with
+      | Stack s ->
+        Printf.sprintf "%d(%%rsp)" (slot_offset s (register_class arg))
+      | Reg reg -> Proc.register_name reg
+      | Unknown ->
+        Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
+          Printmach.reg arg
+    in
+    Printf.sprintf "%d@%s" (Reg.size_of_contents_in_bytes arg) arg_name
+  in
+  let describe_one_probe p =
+    let probe_name =
+      match p.probe_insn.desc with
+      | Lop (Iprobe { name; _; }) -> name
+      | _ -> assert false
+    in
+    let args =
+      Array.fold_right (fun arg acc -> (stap_arg arg)::acc)
+        p.probe_insn.arg
+        []
+      |> String.concat " "
+    in
+    let semaphore_label = emit_symbol (find_or_add_semaphore probe_name) in
+    D.align 4;
+    let a = new_label() in
+    let b = new_label() in
+    let c = new_label() in
+    let d = new_label() in
+    D.long (ConstSub (ConstLabel (emit_label b),
+      ConstLabel(emit_label a)));
+    D.long (ConstSub (ConstLabel (emit_label d),
+      ConstLabel (emit_label c)));
+    D.long (const_32 3l);
+    def_label a;
+    D.bytes "stapsdt\000";
+    def_label b;
+    D.align 4;
+    def_label c;
+    D.qword (ConstLabel (emit_label p.probe_label));
+    begin match system with
+    | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
+    | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
+      D.qword (ConstLabel "_.stapsdt.base")
+    | S_macosx ->
+      (* CR-soon gyorsh: emit dtrace format on mac  *)
+      D.qword (const 0)
+    end;
+    D.qword (ConstLabel semaphore_label);
+    D.bytes "ocaml\000";
+    D.bytes (probe_name ^ "\000");
+    D.bytes (args ^ "\000");
+    def_label d;
+    D.align 4;
+  in
+  List.iter describe_one_probe !probes;
+  begin match system with
+  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
+  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
+    D.section [".stapsdt.base"] (Some "aG")
+      ["\"progbits\""; ".stapsdt.base"; "comdat"];
+    D.weak "_.stapsdt.base";
+    D.hidden "_.stapsdt.base";
+    D.label "_.stapsdt.base";
+    D.space 1;
+    D.size "_.stapsdt.base" (const 1)
+  | S_macosx -> ()
+  end;
+  begin match system with
+  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
+  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
+    D.section [".probes"] (Some "wa") ["\"progbits\""];
+  | S_macosx -> D.section ["__TEXT";"__probes"] None ["regular"]
+  end;
+  D.align 2;
+  String.Map.iter (fun _ label ->
+      D.global label;
+      _label label;
+      D.word (const 0);
+      add_def_symbol label)
+    !probe_semaphores
+
+let emit_probe_notes () =
+  match !probes with
+  | [] -> ()
+  | _ -> emit_probe_notes0 ()
+
 let end_assembly() =
   if !float_constants <> [] then begin
     begin match system with
@@ -1100,6 +1506,9 @@ let end_assembly() =
     end;
     List.iter (fun (cst,lbl) -> emit_float_constant cst lbl) !float_constants
   end;
+
+  (* Emit probe handler wrappers *)
+  List.iter emit_probe_handler_wrapper !probes;
 
   emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
   if system = S_macosx then I.nop ();
@@ -1153,6 +1562,8 @@ let end_assembly() =
   if Config.spacetime then begin
     emit_spacetime_shapes ()
   end;
+
+  emit_probe_notes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)

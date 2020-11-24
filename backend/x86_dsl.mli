@@ -79,6 +79,8 @@ module D : sig
   val extrn: string -> data_type -> unit
   val file: file_num:int -> file_name:string -> unit
   val global: string -> unit
+  val hidden: string -> unit
+  val weak: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
   val loc: file_num:int -> line:int -> col:int -> unit
@@ -87,6 +89,7 @@ module D : sig
   val model: string -> unit
   val private_extern: string -> unit
   val qword: constant -> unit
+  val reloc: offset:constant -> name:reloc_type -> expr:constant -> unit
   val section: string list -> string option -> string list -> unit
   val setvar: string * constant -> unit
   val size: string -> constant -> unit

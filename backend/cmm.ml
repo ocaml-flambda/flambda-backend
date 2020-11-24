@@ -141,6 +141,8 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
+  | Cprobe of { name: string; handler_code_sym: string; }
+  | Cprobe_is_enabled of { name: string }
 
 type expression =
     Cconst_int of int * Debuginfo.t

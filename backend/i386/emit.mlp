@@ -806,6 +806,7 @@ let emit_instr fallthrough i =
         I.fxch st1;
       emit_floatspecial s
   | Lop (Iname_for_debugger _) -> ()
+  | Lop (Iprobe _ |Iprobe_is_enabled _) -> assert false
   | Lreloadretaddr ->
       ()
   | Lreturn ->
