@@ -944,7 +944,11 @@ let emit_instr fallthrough i =
        semaphores are of type unsigned short.
        [1] https://sourceware.org/systemtap/wiki/UserSpaceProbeImplementation
     *)
-    I.mov (addressing (Ibased(semaphore_sym, 0)) WORD i 0) (res16 i 0);
+    (* OCaml has it's own semaphore, in addition to system tap,
+       to control ocaml probe handlers independently from stap probe handlers.
+       It is placed immediately after stap semaphore, and is the same
+       size - hence offset 2. *)
+    I.mov (addressing (Ibased(semaphore_sym, 2)) WORD i 0) (res16 i 0);
     (* If the semaphore is 0, then the result is 0, otherwise 1. *)
     I.cmp (int 0) (res16 i 0);
     I.set (cond (Iunsigned Cne)) (res8 i 0);
@@ -1450,7 +1454,8 @@ let emit_probe_notes0 () =
   String.Map.iter (fun _ label ->
       D.global label;
       _label label;
-      D.word (const 0);
+      D.word (const 0); (* for systemtap probes *)
+      D.word (const 0); (* for ocaml probes *)
       add_def_symbol label)
     !probe_semaphores
 
