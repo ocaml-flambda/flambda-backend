@@ -559,7 +559,7 @@ let find_or_add_semaphore name =
   match String.Map.find_opt name !probe_semaphores with
   | Some label -> label
   | None ->
-    let sym = Compilenv.make_symbol (Some ("semaphore_"^name)) in
+    let sym = "caml_probes_semaphore_"^name in
     probe_semaphores := String.Map.add name sym !probe_semaphores;
     sym
 
@@ -1452,7 +1452,8 @@ let emit_probe_notes0 () =
   end;
   D.align 2;
   String.Map.iter (fun _ label ->
-      D.global label;
+      D.weak label;
+      D.hidden label;
       _label label;
       D.word (const 0); (* for systemtap probes *)
       D.word (const 0); (* for ocaml probes *)
