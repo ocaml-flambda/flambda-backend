@@ -18,7 +18,7 @@
 (copy_files driver/flambda_backend_main.ml{,i})
 
 (copy_files file_formats/cmx_format.mli)
-(copy_files file_formats/linear_format.mli)
+(copy_files file_formats/linear_format.ml{,i})
 
 (copy_files middle_end/*.ml{,i})
 (copy_files middle_end/closure/*.ml{,i})
@@ -41,7 +41,6 @@
     cmx_format
     cmxs_format
     inlining_decision_intf
-    linear_format
     simplify_boxed_integer_ops_intf
     x86_ast)
   (modules
@@ -297,6 +296,12 @@
     (compute_ranges.mli as compiler-libs/compute_ranges.mli)
     (opterrors.mli as compiler-libs/opterrors.mli)
     (optcompile.mli as compiler-libs/optcompile.mli)
+
+    (.ocamloptcomp.objs/byte/linear_format.cmi as compiler-libs/linear_format.cmi)
+    (.ocamloptcomp.objs/byte/linear_format.cmo as compiler-libs/linear_format.cmo)
+    (.ocamloptcomp.objs/byte/linear_format.cmt as compiler-libs/linear_format.cmt)
+    (.ocamloptcomp.objs/byte/linear_format.cmti as compiler-libs/linear_format.cmti)
+    (.ocamloptcomp.objs/native/linear_format.cmx as compiler-libs/linear_format.cmx)
 
     (.ocamloptcomp.objs/byte/afl_instrument.cmi as compiler-libs/afl_instrument.cmi)
     (.ocamloptcomp.objs/byte/afl_instrument.cmo as compiler-libs/afl_instrument.cmo)
