@@ -73,7 +73,6 @@ val cfi_endproc : unit -> unit
 val cfi_adjust_cfa_offset : int -> unit
 val cfi_offset : reg:int -> offset:int -> unit
 
-
 val binary_backend_available: bool ref
     (** Is a binary backend available.  If yes, we don't need
         to generate the textual assembly file (unless the user
@@ -81,6 +80,7 @@ val binary_backend_available: bool ref
 
 val create_asm_file: bool ref
     (** Are we actually generating the textual assembly file? *)
+
 
 (** Clear global state and compact the heap, so that an external program
     (such as the assembler or linker) may have more memory available to it.
@@ -96,3 +96,10 @@ val create_asm_file: bool ref
     state, since the fewer live words there are after GC, the smaller the new
     heap can be. *)
 val reduce_heap_size : reset:(unit -> unit) -> unit
+
+type error =
+  | Stack_frame_too_large of int
+
+exception Error of error
+val report_error: Format.formatter -> error -> unit
+
