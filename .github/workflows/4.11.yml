@@ -1,4 +1,4 @@
-name: 4.11+js
+name: 4.11
 
 on: [push, pull_request]
 
@@ -72,6 +72,11 @@ jobs:
       run: |
         PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make
 
+    - name: Run upstream testsuite (Closure mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest
+
     - name: Install Flambda backend (Closure mode)
       working-directory: flambda_backend
       run: |
@@ -101,6 +106,11 @@ jobs:
       working-directory: flambda_backend
       run: |
         PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make
+
+    - name: Run upstream testsuite (Flambda mode)
+      working-directory: flambda_backend
+      run: |
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest
 
     - name: Install Flambda backend (Flambda mode)
       working-directory: flambda_backend

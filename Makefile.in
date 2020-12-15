@@ -4,7 +4,7 @@ stage2_prefix=@stage2_prefix@
 middle_end=@middle_end@
 dune=@dune@
 
-.PHONY: all stage1 stage2 install clean
+.PHONY: all stage1 stage2 install clean runtest
 
 .DEFAULT_GOAL := build
 
@@ -23,6 +23,33 @@ dune=@dune@
 stage1: ocaml-stage1-config.status
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
+	# We need to augment dune's substitutions so this part isn't so difficult.
+	# We use /bin/echo to avoid builtin variants of "echo" which don't
+	# accept "-n".
+	# Unfortunately if there are no NATDYNLINKOPS, we need to provide a
+	# harmless option, otherwise dune will provide '' on the command line to
+	# ocamlopt which causes an error.
+	cat ocaml/Makefile.config \
+	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-g/' \
+	  | grep '^NATDYNLINKOPTS=' \
+	  | sed 's/^[^=]*=\(.*\)/-ccopt\n"\1"/' \
+      > ocaml/otherlibs/dynlink/natdynlinkops
+	cat ocaml/otherlibs/dynlink/natdynlinkops \
+		| sed 's/^/"/' | sed 's/$$/"/' \
+		| xargs \
+		| sed 's/^/(/' | sed 's/$$/)/' \
+		> ocaml/ocamlbytecomp_library_flags.sexp
+	/bin/echo -n $$(cat ocaml/Makefile.config \
+	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-bin-annot/' \
+	  | grep '^NATDYNLINKOPTS=' \
+	  | sed 's/^[^=]*=\(.*\)/\1/') \
+      > ocaml/otherlibs/dynlink/natdynlinkops2
+	if [ "$$(cat ocaml/otherlibs/dynlink/natdynlinkops2)" != "-bin-annot" ]; \
+	then \
+	  /bin/echo -n "-ccopt" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+    else \
+	  /bin/echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
+	fi
 	$(dune) build --profile=release --build-dir=_build1 --verbose @install
 
 ocaml-stage2-config.status: stage1 Makefile
@@ -44,9 +71,8 @@ build: stage2
 install:
 	rm -rf $(prefix)
 	mkdir -p $(prefix)
-	# macOS mustn't have -L, Linux must have
-	cp -Lrv $(stage2_prefix)/bin $(prefix)
-	cp -Lrv $(stage2_prefix)/lib $(prefix)
+	cp -rv $(stage2_prefix)/bin $(prefix)
+	cp -rv $(stage2_prefix)/lib $(prefix)
 	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
 	rm -f $(prefix)/bin/flambda_backend.main
 	rm -f $(prefix)/bin/flambda_backend.main_native
@@ -64,3 +90,138 @@ install:
 	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmt $(prefix)/lib/ocaml
 	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmti $(prefix)/lib/ocaml
 	# only .cmo files should be: main, optmain, topstart.
+
+# stage2 is expected to have been built before runtest.
+# We need some way of identifying what state the build tree is currently in
+# perhaps (ready for stage1 or stage2)?
+runtest:
+	rm -rf _runtest
+	mkdir _runtest
+	cp -a ocaml/testsuite _runtest/testsuite
+	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
+	(cd _runtest && ln -s ../ocaml/Makefile.config Makefile.config)
+	cp _build2/install/default/bin/* _runtest/
+	# There seems to be an assumption that ocamlc/ocamlopt/ocamllex are
+	# bytecode...
+	cp -f _build2/install/default/bin/ocamlc.byte _runtest/ocamlc
+	cp -f _build2/install/default/bin/ocamlopt.byte _runtest/ocamlopt
+	mkdir _runtest/lex
+	mv _runtest/ocamllex.byte _runtest/lex/ocamllex
+	mkdir _runtest/yacc
+	mv _runtest/ocamlyacc _runtest/yacc/
+	(cd _runtest && ln -s ../_build2/default/ocaml/runtime runtime)
+	(cd _runtest && ln -s ../_build2/install/default/lib/ocaml stdlib)
+	# compilerlibs
+	mkdir _runtest/compilerlibs
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.cma \
+	  _runtest/compilerlibs
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.a \
+	  _runtest/compilerlibs
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmxa \
+	  _runtest/compilerlibs
+	mkdir _runtest/toplevel
+	cp _build2/default/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \
+	  _runtest/toplevel/
+	# Various directories are put on the -I paths by tools/Makefile;
+	# utils/ is one such, so we just dump the .cm* files in there for
+	# various things.
+	mkdir _runtest/utils
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmi \
+	  _runtest/utils
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmo \
+	  _runtest/utils
+	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmx \
+	  _runtest/utils
+	cp _build2/install/default/lib/ocaml/*.cmi _runtest/utils
+	cp _build2/install/default/lib/ocaml/*.cma _runtest/utils
+	cp _build2/install/default/lib/ocaml/*.a _runtest/utils
+	cp _build2/install/default/lib/ocaml/*.cmxa _runtest/utils
+	cp _build2/default/ocaml/.ocamlcommon.objs/native/config.o _runtest/utils
+	# Suppress linker errors about -I directories not existing.
+	for dir in asmcomp bytecomp driver file_formats lambda middle_end \
+      parsing typing; do ln -s utils _runtest/$$dir; done
+	# dynlink
+	mkdir -p _runtest/otherlibs/dynlink
+	cp _build2/install/default/lib/ocaml/dynlink* \
+      _runtest/otherlibs/dynlink
+	# str
+	mkdir -p _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/stublibs/dllstr_stubs.so \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/str*.cmi \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/libstr*.a \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/str*.cma \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/str*.cmxa \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/str*.a \
+	  _runtest/otherlibs/str
+	cp _build2/install/default/lib/ocaml/str*.cmx \
+	  _runtest/otherlibs/str
+	# unix
+	mkdir -p _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/stublibs/dllunix_stubs.so \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/unix*.cmi \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/libunix*.a \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/unix*.cma \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/unix*.cmxa \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/unix*.a \
+	  _runtest/otherlibs/unix
+	cp _build2/install/default/lib/ocaml/unix*.cmx \
+	  _runtest/otherlibs/unix
+	# systhreads
+	mkdir -p _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/stublibs/dllthreads_stubs.so \
+	  _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/threads/*.cmi \
+	  _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/threads/*.cma \
+	  _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/threads/*.a \
+	  _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/threads/*.cmxa \
+	  _runtest/otherlibs/systhreads
+	cp _build2/install/default/lib/ocaml/threads/*.cmx \
+	  _runtest/otherlibs/systhreads
+	# ocamldebug
+	mkdir _runtest/debugger
+	mv _runtest/ocamldebug _runtest/debugger
+	cp _build2/default/ocaml/debugger/.main.eobjs/byte/*.cm* _runtest/debugger
+	# The ast_invariants test needs VERSION to be present.  In fact ideally
+	# we should have all the source files in _runtest too for this test, but
+	# for the moment we accept it being a weaker check.  We're not working
+	# on parts of the compiler that deal with the AST anyway in this repo.
+	touch _runtest/VERSION
+	# tools
+	mkdir _runtest/tools
+	cp _build2/default/ocaml/tools/ocamlmklib_byte.bc _runtest/tools/ocamlmklib
+	cp _build2/default/ocaml/tools/ocamlobjinfo_byte.bc \
+      _runtest/tools/ocamlobjinfo
+	cp ./_build2/install/default/lib/ocaml/objinfo_helper _runtest/tools
+	# ocamltest itself
+	mkdir _runtest/ocamltest
+	# This is deliberately run without a PATH setting so that the system
+	# compiler is used, in case the new one is broken.  As such, we use the
+	# stage1 build dir, not that from stage2.
+	# This might be causing a spurious rebuild of the runtime
+	$(dune) build --profile=release --build-dir=_build1 --verbose \
+	  ocaml/tools/cmpbyt.bc
+	$(dune) build --profile=release --build-dir=_build1 --verbose \
+	  ocaml/ocamltest/ocamltest.byte
+	cp _build1/default/ocaml/tools/cmpbyt.bc _runtest/tools/cmpbyt
+	# We should build the native ocamltest too.
+	cp _build1/default/ocaml/ocamltest/ocamltest.byte \
+      _runtest/ocamltest/ocamltest
+	# need otherlibs/unix/, toplevel/ and tools/
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; cd _runtest/testsuite \
+      && if $$(which parallel > /dev/null 2>&1); \
+         then make parallel; \
+         else make all; \
+         fi)

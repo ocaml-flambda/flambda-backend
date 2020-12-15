@@ -57,6 +57,13 @@
   (section bin)
   (package ocaml))
 
+(executable
+  (name cmpbyt)
+  (modes byte)
+  (modules cmpbyt)
+  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (libraries ocamlcommon ocamlbytecomp))
+
 (library
   (name ocamlmklib_common)
   (modes byte native)

@@ -31,7 +31,9 @@
  (name ocamltest_core_and_plugin)
  (modes byte)
  (wrapped false)
- (flags (:standard -nostdlib))
+ ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
+ ; has top-level side effects.
+ (flags (:standard -nostdlib -linkall))
  (libraries ocamlcommon stdlib)
  (modules (:standard \ options main))
  (foreign_stubs (language c) (names run_unix run_stubs ocamltest_stdlib_stubs)
@@ -45,8 +47,9 @@
 (executable
  (name main)
  (modes byte)
- (flags (:standard -nostdlib))
+ (flags (:standard -principal -nostdlib
+   -cclib "-I%{project_root}/ocaml/runtime"))
  (modules options main)
- (libraries ocamltest_core_and_plugin runtime stdlib))
+ (libraries ocamltest_core_and_plugin stdlib runtime_byte))
 
 (rule (copy main.exe ocamltest.byte))

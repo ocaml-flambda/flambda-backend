@@ -40,6 +40,9 @@
   (deps Makefile StdlibModules .depend)
   (action (run make %{targets})))
 
+; Can we make dune stop lowercasing module names when mangling names?
+; Fewer checksum discrepancies would result.
+
 (install
   (files
     camlheader

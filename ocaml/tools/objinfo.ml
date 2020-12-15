@@ -69,7 +69,7 @@ let print_cmo_infos cu =
   List.iter print_name_crc cu.cu_imports;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_globals;
-  printf "\nUses unsafe features: ";
+  printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"
     | l  ->

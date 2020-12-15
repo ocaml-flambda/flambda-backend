@@ -35,6 +35,9 @@ val compile_implementation
   -> Lambda.program
   -> unit
 
+val compile_implementation_linear :
+    string -> progname:string -> unit
+
 val compile_phrase :
     ppf_dump:Format.formatter -> Cmm.phrase -> unit
 
@@ -42,7 +45,10 @@ type error = Assembler_error of string
 exception Error of error
 val report_error: Format.formatter -> error -> unit
 
-
-val compile_unit:
-  string(*asm file*) -> bool(*keep asm*) ->
-  string(*obj file*) -> (unit -> unit) -> unit
+val compile_unit
+   : output_prefix:string
+   -> asm_filename:string
+   -> keep_asm:bool
+   -> obj_filename:string
+   -> (unit -> unit)
+   -> unit

@@ -86,7 +86,9 @@
  (wrapped false)
  (flags (:standard -principal -nostdlib))
  (libraries stdlib ocamlcommon)
- (library_flags -ccopt -Wl,-E) ;; XXX this is Linux-specific
+ ; The bytecode system needs export-dynamic capabilities analogous to those
+ ; required for natdynlink.
+ (library_flags (:include ocamlbytecomp_library_flags.sexp))
  (modules
     ;; bytecomp/
     bytegen bytelibrarian bytelink bytepackager emitcode printinstr

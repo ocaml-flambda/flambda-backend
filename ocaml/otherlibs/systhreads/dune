@@ -24,9 +24,8 @@
     threadUnix)
   (flags :standard \ -strict-sequence)
   (libraries stdlib unix)
-  ; We should make sure this -linkall is sufficient; why exactly is it
-  ; needed?
   (library_flags -cclib -lpthread -linkall)
+  (c_library_flags -lpthread)
   (foreign_stubs
     (language c)
     (names st_stubs_byte)
