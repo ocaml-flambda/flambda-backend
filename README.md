@@ -23,6 +23,6 @@ $ make install
 
 Note that `make install` completely overwrites the given `--prefix` directory.
 
-Prior to `make install` you can do `make runtest` to run the upstream testsuite.
+Prior to `make install` you can do `make runtest` to run the upstream testsuite.  The testsuite runs much faster if you install GNU parallel.  This is likely already present on Linux machines.  On macOS, install Homebrew, then `brew install parallel`.
 
 You can also specify `--enable-middle-end=flambda`.
