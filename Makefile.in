@@ -71,8 +71,19 @@ build: stage2
 install:
 	rm -rf $(prefix)
 	mkdir -p $(prefix)
-	cp -rv $(stage2_prefix)/bin $(prefix)
-	cp -rv $(stage2_prefix)/lib $(prefix)
+	# Work out how to tidy this up...
+	if [ "$$(uname)" = "Darwin" ]; then \
+      cp -rv $(stage2_prefix)/bin $(prefix); \
+    fi
+	if [ "$$(uname)" != "Darwin" ]; then \
+      cp -Lrv $(stage2_prefix)/bin $(prefix); \
+    fi
+	if [ "$$(uname)" = "Darwin" ]; then \
+      cp -rv $(stage2_prefix)/lib $(prefix); \
+    fi
+	if [ "$$(uname)" != "Darwin" ]; then \
+      cp -Lrv $(stage2_prefix)/lib $(prefix); \
+    fi
 	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
 	rm -f $(prefix)/bin/flambda_backend.main
 	rm -f $(prefix)/bin/flambda_backend.main_native
