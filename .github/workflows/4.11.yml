@@ -75,7 +75,7 @@ jobs:
     - name: Run upstream testsuite (Closure mode)
       working-directory: flambda_backend
       run: |
-        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest-upstream
 
     - name: Install Flambda backend (Closure mode)
       working-directory: flambda_backend
@@ -110,7 +110,7 @@ jobs:
     - name: Run upstream testsuite (Flambda mode)
       working-directory: flambda_backend
       run: |
-        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest
+        PATH=$GITHUB_WORKSPACE/_install0/bin:$PATH make runtest-upstream
 
     - name: Install Flambda backend (Flambda mode)
       working-directory: flambda_backend

@@ -1,0 +1,10 @@
+(cram
+  (applies_to :whole_subtree)
+  (deps
+    ../flambda_backend_main_native.exe
+    (glob_files ../ocaml/stdlib/.stdlib.objs/byte/*.cmi)
+    (glob_files ../ocaml/stdlib/.stdlib.objs/native/*.cmx)
+    ../ocaml/stdlib/stdlib.cmxa
+    ../ocaml/stdlib/std_exit.cmx
+  )
+)

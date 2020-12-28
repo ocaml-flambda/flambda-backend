@@ -1,10 +1,18 @@
+#**************************************************************************
+#*                                                                        *
+#*                 The Flambda backend project for OCaml                  *
+#*                                                                        *
+#*   Copyright 2020 Jane Street Group LLC                                 *
+#*                                                                        *
+#**************************************************************************
+
 prefix=@prefix@
 stage1_prefix=@stage1_prefix@
 stage2_prefix=@stage2_prefix@
 middle_end=@middle_end@
 dune=@dune@
 
-.PHONY: all stage1 stage2 install clean runtest
+.PHONY: all stage1 stage2 install clean runtest runtest-upstream
 
 .DEFAULT_GOAL := build
 
@@ -102,9 +110,17 @@ install:
 	cp $(prefix)/lib/ocaml/compiler-libs/opttopdirs.cmti $(prefix)/lib/ocaml
 	# only .cmo files should be: main, optmain, topstart.
 
-# stage2 is expected to have been built before runtest.
+# stage2 is expected to have been built before runtest / runtest-upstream.
 # We need some way of identifying what state the build tree is currently in
 # perhaps (ready for stage1 or stage2)?
+
+runtest:
+	# It's a shame that dune needs the stage1 compiler on the path here.
+	# Ideally that would be inaccessible within tests (to prevent mistakes
+	# such as running "ocamlopt" rather than one of the stage2 binaries).
+	PATH=$(stage1_prefix)/bin:$$PATH \
+      $(dune) runtest --profile=release --build-dir=_build2 --verbose
+
 runtest-upstream:
 	rm -rf _runtest
 	mkdir _runtest
