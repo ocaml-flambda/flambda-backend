@@ -23,11 +23,11 @@ $ make install
 
 Note that `make install` completely overwrites the given `--prefix` directory.
 
-Prior to `make install` you can do `make runtest` to run the upstream testsuite.  The testsuite runs much faster if you install GNU parallel.  This is likely already present on Linux machines.  On macOS, install Homebrew, then `brew install parallel`.
+Prior to `make install` you can do `make runtest-upstream` to run the upstream testsuite.  The testsuite runs much faster if you install GNU parallel.  This is likely already present on Linux machines.  On macOS, install Homebrew, then `brew install parallel`.
 
 You can also specify `--enable-middle-end=flambda`.
 
-To rebuild after making changes, you can just type `make` (then `make runtest` and/or `make install` as required).  If you start a new shell (e.g. after a machine reboot) you first need to ensure your OPAM environment is set up correctly.  For example:
+To rebuild after making changes, you can just type `make` (then `make runtest-upstream` and/or `make install` as required).  If you start a new shell (e.g. after a machine reboot) you first need to ensure your OPAM environment is set up correctly.  For example:
 ```
 $ opam switch 4.11.1
 $ eval $(opam env)

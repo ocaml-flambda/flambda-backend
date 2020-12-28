@@ -1,0 +1,6 @@
+(cram
+ (applies_to :whole_subtree)
+ (deps
+   ../flambda_backend_main_native.exe
+   ../stdlib/*.cm*
+ ))

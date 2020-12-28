@@ -105,7 +105,7 @@ install:
 # stage2 is expected to have been built before runtest.
 # We need some way of identifying what state the build tree is currently in
 # perhaps (ready for stage1 or stage2)?
-runtest:
+runtest-upstream:
 	rm -rf _runtest
 	mkdir _runtest
 	cp -a ocaml/testsuite _runtest/testsuite
