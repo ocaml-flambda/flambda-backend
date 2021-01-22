@@ -71,7 +71,7 @@ let log
   = ref []
 
 let record_decision decision ~closure_stack =
-  if !Clflags.inlining_report then begin
+  if !Clflags.inlining_report || !Clflags.inlining_report_bin then begin
     match closure_stack with
     | []
     | Closure_stack.Closure _ :: _
@@ -115,6 +115,12 @@ module Inlining_report = struct
     { decision: Inlining_stats_types.Decision.t option;
       inlined: t option;
       specialised: t option; }
+
+  type metadata = {
+    compilation_unit : Compilation_unit.t;
+  }
+
+  type report = [ `Flambda1_1_0_0 of metadata * t ]
 
   let empty_call =
     { decision = None;
@@ -238,15 +244,28 @@ module Inlining_report = struct
 
 end
 
-let really_save_then_forget_decisions ~output_prefix =
-  let report = Inlining_report.build !log in
-  let out_channel = open_out (output_prefix ^ ".inlining.org") in
-  let ppf = Format.formatter_of_out_channel out_channel in
-  Inlining_report.print ppf report;
-  close_out out_channel;
-  log := []
-
 let save_then_forget_decisions ~output_prefix =
-  if !Clflags.inlining_report then begin
-    really_save_then_forget_decisions ~output_prefix
-  end
+  Misc.try_finally
+    ~always:(fun () -> log := [])
+    ~exceptionally:(fun () ->
+        Format.eprintf "WARNING: inlining report output failed")
+    (fun () ->
+       let t = lazy (Inlining_report.build !log) in
+       if !Clflags.inlining_report then begin
+         let out_channel = open_out (output_prefix ^ ".inlining.org") in
+         let ppf = Format.formatter_of_out_channel out_channel in
+         Inlining_report.print ppf (Lazy.force t);
+         close_out out_channel;
+       end;
+       if !Clflags.inlining_report_bin then begin
+         let ch = open_out_bin (output_prefix ^ ".inlining") in
+         let metadata : Inlining_report.metadata = {
+           compilation_unit = Compilation_unit.get_current_exn ();
+         } in
+         let report : Inlining_report.report =
+           `Flambda1_1_0_0 (metadata, Lazy.force t)
+         in
+         Marshal.to_channel ch report [];
+         close_out ch
+       end
+    )
