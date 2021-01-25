@@ -159,6 +159,7 @@ val native_code : bool ref
 val default_inline_threshold : float
 val inline_threshold : Float_arg_helper.parsed ref
 val inlining_report : bool ref
+val inlining_report_bin : bool ref
 val simplify_rounds : int option ref
 val default_simplify_rounds : int ref
 val rounds : unit -> int

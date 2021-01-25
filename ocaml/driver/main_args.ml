@@ -190,8 +190,13 @@ let mk_inline_toplevel f =
 ;;
 
 let mk_inlining_report f =
-  "-inlining-report", Arg.Unit f, " Emit `.<round>.inlining' file(s) (one per \
-      round) showing the inliner's decisions"
+  "-inlining-report", Arg.Unit f, " Emit `.<round>.inlining.org' file(s) (one \
+      per round) showing the inliner's decisions, in a human readable format"
+;;
+
+let mk_inlining_report_bin f =
+  "-inlining-report-bin", Arg.Unit f, " Emit `.<round>.inlining' file(s) (one per \
+      round) showing the inliner's decisions, in a binary format"
 ;;
 
 let mk_dump_pass f =
@@ -1082,6 +1087,7 @@ module type Optcommon_options = sig
   val _inline : string -> unit
   val _inline_toplevel : string -> unit
   val _inlining_report : unit -> unit
+  val _inlining_report_bin : unit -> unit
   val _dump_pass : string -> unit
   val _inline_max_depth : string -> unit
   val _rounds : int -> unit
@@ -1394,6 +1400,7 @@ struct
     mk_inline_indirect_cost F._inline_indirect_cost;
     mk_inline_lifting_benefit F._inline_lifting_benefit;
     mk_inlining_report F._inlining_report;
+    mk_inlining_report_bin F._inlining_report_bin;
     mk_insn_sched F._insn_sched;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1522,6 +1529,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
     mk_inlining_report F._inlining_report;
+    mk_inlining_report_bin F._inlining_report_bin;
     mk_rounds F._rounds;
     mk_inline_max_unroll F._inline_max_unroll;
     mk_classic_inlining F._classic_inlining;
@@ -1834,6 +1842,7 @@ module Default = struct
         "Syntax: -inline-toplevel <n> | <round>=<n>[,...]"
         inline_toplevel_threshold
     let _inlining_report () = inlining_report := true
+    let _inlining_report_bin () = inlining_report_bin := true
     let _insn_sched = set insn_sched
     let _no_insn_sched = clear insn_sched
     let _linscan = set use_linscan
