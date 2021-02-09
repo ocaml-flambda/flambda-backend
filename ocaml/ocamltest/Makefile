@@ -129,8 +129,8 @@ ocaml_plugin := \
   ocaml_backends.mli ocaml_backends.ml \
   ocaml_filetypes.mli ocaml_filetypes.ml \
   ocaml_variables.mli ocaml_variables.ml \
-  ocaml_modifiers.mli ocaml_modifiers.ml \
   ocaml_directories.mli ocaml_directories.ml \
+  ocaml_modifiers.mli ocaml_modifiers.ml \
   ocaml_files.mli ocaml_files.ml \
   ocaml_flags.mli ocaml_flags.ml \
   ocaml_commands.mli ocaml_commands.ml \

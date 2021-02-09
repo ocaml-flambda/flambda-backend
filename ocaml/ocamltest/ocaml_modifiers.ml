@@ -68,7 +68,8 @@ let make_module_modifier unit_name directory =
 ]
 
 let compiler_subdir subdir =
-  Filename.make_path (Ocamltest_config.ocamlsrcdir :: subdir)
+  (* CR mshinwell: upstream this change *)
+  Filename.make_path (Ocaml_directories.srcdir :: subdir)
 
 let config =
 [
