@@ -264,3 +264,8 @@ _build
 /yacc/ocamlyacc
 /yacc/version.h
 /yacc/.gdb_history
+
+/otherlibs/dynlink/natdynlinkops
+/otherlibs/dynlink/natdynlinkops1
+/otherlibs/dynlink/natdynlinkops2
+

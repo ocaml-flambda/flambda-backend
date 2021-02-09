@@ -209,13 +209,13 @@
 (rule
   (targets dynlink.cma)
   (deps dynlink_internal.cma)
-  ;; XXX the -Wl,-E is Linux-specific
   (action
     (run %{ocamlc}
       -nostdlib
       -g -a
+      %{read:natdynlinkops1}
+      %{read:natdynlinkops2}
       -o dynlink.cma
-      -ccopt -Wl,-E
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Binutils.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Local_store.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Build_path_prefix_map.cmo
@@ -271,13 +271,13 @@
 (rule
   (targets dynlink.cmxa dynlink.a)
   (deps dynlink_internal.cmxa)
-  ;; XXX the -Wl,-E is Linux-specific
   (action
     (run %{ocamlopt}
       -nostdlib
       -g -a
+      %{read:natdynlinkops1}
+      %{read:natdynlinkops2}
       -o dynlink.cmxa
-      -ccopt -Wl,-E
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Binutils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Local_store.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Build_path_prefix_map.cmx
