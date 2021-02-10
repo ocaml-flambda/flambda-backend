@@ -2,9 +2,9 @@
 ;*                                                                        *
 ;*                                 OCaml                                  *
 ;*                                                                        *
-;*                     Thomas Refis, Jane Street Europe                   *
+;*                    Mark Shinwell, Jane Street Europe                   *
 ;*                                                                        *
-;*   Copyright 2018 Jane Street Group LLC                                 *
+;*   Copyright 2020 Jane Street Group LLC                                 *
 ;*                                                                        *
 ;*   All rights reserved.  This file is distributed under the terms of    *
 ;*   the GNU Lesser General Public License version 2.1, with the          *
@@ -13,30 +13,36 @@
 ;**************************************************************************
 
 (library
- (name str)
+ (name raw_spacetime_lib)
  (wrapped false)
  (modes byte native)
  (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
  (library_flags (:standard -linkall))
- (libraries stdlib)
- (foreign_stubs (language c) (names strstubs)))
+ (foreign_stubs
+   (language c)
+   (names spacetime_offline)
+   (flags -I %{project_root}/ocaml/runtime))
+ (libraries stdlib))
 
 (install
   (files
-    .str.objs/native/str.cmx
-    libstr_stubs.a
-    libstr_stubs_native.a
-    (dllstr_stubs.so as stublibs/dllstr_stubs.so)
-    str.cmxa
-    str.a
-    str.cmxs
-    str.cma
-    str.mli
-    .str.objs/byte/str.cmi
-    .str.objs/byte/str.cmti
+    .raw_spacetime_lib.objs/native/raw_spacetime_lib.cmx
+    raw_spacetime_lib.cmxa
+    raw_spacetime_lib.a
+    raw_spacetime_lib.cmxs
+    raw_spacetime_lib.cma
+    raw_spacetime_lib.mli
+
+    libraw_spacetime_lib_stubs.a
+    libraw_spacetime_lib_stubs_native.a
+    (dllraw_spacetime_lib_stubs.so as
+      stublibs/dllraw_spacetime_lib_stubs.so)
+
+    .raw_spacetime_lib.objs/byte/raw_spacetime_lib.cmi
+    .raw_spacetime_lib.objs/byte/raw_spacetime_lib.cmti
   )
   (section lib)
   (package ocaml))

@@ -2,9 +2,9 @@
 ;*                                                                        *
 ;*                                 OCaml                                  *
 ;*                                                                        *
-;*                     Thomas Refis, Jane Street Europe                   *
+;*                    Mark Shinwell, Jane Street Europe                   *
 ;*                                                                        *
-;*   Copyright 2018 Jane Street Group LLC                                 *
+;*   Copyright 2020 Jane Street Group LLC                                 *
 ;*                                                                        *
 ;*   All rights reserved.  This file is distributed under the terms of    *
 ;*   the GNU Lesser General Public License version 2.1, with the          *
@@ -12,19 +12,27 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(ocamllex debugger_lexer)
-(ocamlyacc debugger_parser)
-
-(executable
-  (name main)
-  (modes byte)
-  (flags (:standard -principal -w -9
-    -nostdlib -cclib "-I ../runtime" -cclib "-L ../runtime" -cclib -lcamlrun))
-  (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
-  (modules_without_implementation parser_aux)
-  (libraries ocamlcommon ocamltoplevel stdlib unix dynlink_internal))
+(library
+ (name bigarray)
+ (wrapped false)
+ (modes byte native)
+ (flags (
+   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -warn-error A -bin-annot -safe-string -strict-formats
+ ))
+ (library_flags (:standard -linkall))
+ (libraries stdlib))
 
 (install
-  (files (main.bc as ocamldebug))
-  (section bin)
+  (files
+    .bigarray.objs/native/bigarray.cmx
+    bigarray.cmxa
+    bigarray.a
+    bigarray.cmxs
+    bigarray.cma
+    .bigarray.objs/byte/bigarray.cmi
+    .bigarray.objs/byte/bigarray.cmti
+    bigarray.mli
+  )
+  (section lib)
   (package ocaml))
