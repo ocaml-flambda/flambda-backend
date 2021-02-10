@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Facilities for printing exceptions and inspecting current call stack. *)
 
 type t = exn = ..

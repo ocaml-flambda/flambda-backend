@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** @deprecated Use {!Stdlib} *)
 
 external raise : exn -> 'a = "%raise"

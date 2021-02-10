@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* NOTE: If this file is hashtbl.mli, do not edit it directly! Instead,
    edit templates/hashtbl.template.mli and run tools/sync_stdlib_docs *)
 

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 module type SeededS = sig
   include Hashtbl.SeededS
   val clean: 'a t -> unit

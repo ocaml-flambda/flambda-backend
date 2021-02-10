@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** System interface.
 
   Every function in this module raises [Sys_error] with an

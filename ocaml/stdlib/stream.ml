@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 type 'a t = 'a cell option
 and 'a cell = { mutable count : int; mutable data : 'a data }
 and 'a data =

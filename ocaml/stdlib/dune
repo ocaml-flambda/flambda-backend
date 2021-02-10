@@ -20,7 +20,6 @@
    (modules_before_stdlib
      camlinternalFormatBasics
      camlinternalAtomic))
- (flags (:standard -w -9 -nolabels))
  (preprocess
    (per_module
      ((action

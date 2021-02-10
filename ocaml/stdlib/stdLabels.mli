@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Standard labeled libraries.
 
    This meta-module provides versions of the {!Array}, {!Bytes},
@@ -29,6 +31,8 @@
    ]}
 
 *)
+
+[@@@ocaml.nolabels]
 
 module Array = ArrayLabels
 module Bytes = BytesLabels
