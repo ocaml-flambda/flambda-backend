@@ -17,8 +17,6 @@
 
 LIBNAME=unix
 
-EXTRACAMLFLAGS=-nolabels
-
 # dllunix.so particularly requires libm for modf symbols
 LDOPTS=$(NATIVECCLIBS)
 
