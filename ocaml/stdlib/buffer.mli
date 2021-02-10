@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Extensible buffers.
 
    This module implements buffers that automatically expand
@@ -29,6 +31,8 @@
 ]}
 
 *)
+
+[@@@ocaml.warning "A"]
 
 type t
 (** The abstract type of buffers. *)

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* NOTE:
    If this file is bytesLabels.mli, run tools/sync_stdlib_docs after editing it
    to generate bytes.mli.
@@ -53,6 +55,8 @@
    @since 4.02.0
 
    *)
+
+[@@@ocaml.nolabels]
 
 external length : bytes -> int = "%bytes_length"
 (** Return the length (number of bytes) of the argument. *)

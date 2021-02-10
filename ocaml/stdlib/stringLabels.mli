@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* NOTE:
    If this file is stringLabels.mli, run tools/sync_stdlib_docs after editing
    it to generate string.mli.
@@ -76,6 +78,8 @@ v}
     The labeled version of this module can be used as described in the
     {!StdLabels} module.
 *)
+
+[@@@ocaml.nolabels]
 
 (** {1:strings Strings} *)
 

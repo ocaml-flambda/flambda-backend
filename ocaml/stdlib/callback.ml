@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Registering OCaml values with the C runtime for later callbacks *)
 
 external register_named_value : string -> Obj.t -> unit

@@ -13,6 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [StringLabels]: labelled String module *)
+
+[@@@ocaml.nolabels]
 
 include String

@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Memory management control and statistics; finalised values. *)
 
 type stat =

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Marshaling of data structures.
 
    This module provides functions to encode arbitrary data structures

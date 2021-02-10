@@ -13,12 +13,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* A pretty-printing facility and definition of formatters for 'parallel'
    (i.e. unrelated or independent) pretty-printing on multiple out channels. *)
 
 (*
    The pretty-printing engine internal data structures.
 *)
+
+[@@@ocaml.warning "Ae"]
 
 let id x = x
 

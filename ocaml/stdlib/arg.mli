@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Parsing of command line arguments.
 
    This module provides a general mechanism for extracting options and

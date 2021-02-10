@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* An alias for the type of lists. *)
 type 'a t = 'a list = [] | (::) of 'a * 'a list
 

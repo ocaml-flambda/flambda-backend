@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 let copy = CamlinternalOO.copy
 external id : < .. > -> int = "%field1"
 let new_method = CamlinternalOO.public_method_label

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* NOTE:
    If this file is arrayLabels.mli, run tools/sync_stdlib_docs after editing it
    to generate array.mli.
