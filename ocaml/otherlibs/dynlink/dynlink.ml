@@ -183,7 +183,95 @@ module Bytecode = struct
     close_in ic
 end
 
-include DC.Make (Bytecode)
+module B = DC.Make (Bytecode)
+
+type global_map = {
+  name : string;
+  crc_intf : Digest.t option;
+  crc_impl : Digest.t option;
+  syms : string list
+}
+
+module Native = struct
+  type handle
+
+  (* mshinwell: We need something better than caml_sys_exit *)
+  external ndl_open : string -> bool -> handle * Cmxs_format.dynheader
+    = "caml_sys_exit" "caml_natdynlink_open"
+  external ndl_run : handle -> string -> unit
+    = "caml_sys_exit" "caml_natdynlink_run"
+  external ndl_getmap : unit -> global_map list
+    = "caml_sys_exit" "caml_natdynlink_getmap"
+  external ndl_globals_inited : unit -> int
+    = "caml_sys_exit" "caml_natdynlink_globals_inited"
+  external ndl_loadsym : string -> Obj.t
+    = "caml_sys_exit" "caml_natdynlink_loadsym"
+
+  module Unit_header = struct
+    type t = Cmxs_format.dynunit
+
+    let name (t : t) = t.dynu_name
+    let crc (t : t) = Some t.dynu_crc
+
+    let interface_imports (t : t) = t.dynu_imports_cmi
+    let implementation_imports (t : t) = t.dynu_imports_cmx
+
+    let defined_symbols (t : t) = t.dynu_defines
+    let unsafe_module _t = false
+  end
+
+  let init () = ()
+
+  let is_native = true
+  let adapt_filename f = Filename.chop_extension f ^ ".cmxs"
+
+  let num_globals_inited () = ndl_globals_inited ()
+
+  let fold_initial_units ~init ~f =
+    let rank = ref 0 in
+    List.fold_left (fun acc { name; crc_intf; crc_impl; syms; } ->
+        rank := !rank + List.length syms;
+        let implementation =
+          match crc_impl with
+          | None -> None
+          | Some _ as crco -> Some (crco, DT.Check_inited !rank)
+        in
+        f acc ~comp_unit:name ~interface:crc_intf
+            ~implementation ~defined_symbols:syms)
+      init
+      (ndl_getmap ())
+
+  let run_shared_startup handle =
+    ndl_run handle "_shared_startup"
+
+  let run handle ~unit_header ~priv:_ =
+    List.iter (fun cu ->
+        try ndl_run handle cu
+        with exn ->
+          Printexc.raise_with_backtrace
+            (DT.Error (Library's_module_initializers_failed exn))
+            (Printexc.get_raw_backtrace ()))
+      (Unit_header.defined_symbols unit_header)
+
+  let load ~filename ~priv =
+    let handle, header =
+      try ndl_open filename (not priv)
+      with exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
+    in
+    if header.dynu_magic <> Config.cmxs_magic_number then begin
+      raise (DT.Error (Not_a_bytecode_file filename))
+    end;
+    handle, header.dynu_units
+
+  let unsafe_get_global_value ~bytecode_or_asm_symbol =
+    match ndl_loadsym bytecode_or_asm_symbol with
+    | exception _ -> None
+    | obj -> Some obj
+
+  let finish _handle = ()
+end
+
+module N = DC.Make (Native)
 
 type linking_error = DT.linking_error =
   | Undefined_global of string
@@ -205,3 +293,52 @@ type error = DT.error =
 
 exception Error = DT.Error
 let error_message = DT.error_message
+
+let is_native =
+  match Sys.backend_type with
+  | Native -> true
+  | Bytecode | Other _ -> false
+
+let loadfile file =
+  if is_native then N.loadfile file
+  else B.loadfile file
+
+let loadfile_private file =
+  if is_native then N.loadfile_private file
+  else B.loadfile_private file
+
+let unsafe_get_global_value ~bytecode_or_asm_symbol =
+  if is_native then N.unsafe_get_global_value ~bytecode_or_asm_symbol
+  else B.unsafe_get_global_value ~bytecode_or_asm_symbol
+
+let adapt_filename file =
+  if is_native then N.adapt_filename file
+  else B.adapt_filename file
+
+let set_allowed_units units =
+  if is_native then N.set_allowed_units units
+  else B.set_allowed_units units
+
+let allow_only units =
+  if is_native then N.allow_only units
+  else B.allow_only units
+
+let prohibit units =
+  if is_native then N.prohibit units
+  else B.prohibit units
+
+let main_program_units units =
+  if is_native then N.main_program_units units
+  else B.main_program_units units
+
+let public_dynamically_loaded_units units =
+  if is_native then N.public_dynamically_loaded_units units
+  else B.public_dynamically_loaded_units units
+
+let all_units () =
+  if is_native then N.all_units ()
+  else B.all_units ()
+
+let allow_unsafe_modules allow =
+  if is_native then N.allow_unsafe_modules allow
+  else B.allow_unsafe_modules allow
