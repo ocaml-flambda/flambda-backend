@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 type t = bool = false | true
 
 external not : bool -> bool = "%boolnot"

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Pseudo-random number generators (PRNG). *)
 
 (** {1 Basic functions} *)

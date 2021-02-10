@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.warning "Ae"]
+[@@@ocaml.inline "9"]
+
 open CamlinternalFormatBasics
 open CamlinternalFormat
 

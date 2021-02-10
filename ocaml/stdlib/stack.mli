@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Last-in first-out stacks.
 
    This module implements stacks (LIFOs), with in-place modification.

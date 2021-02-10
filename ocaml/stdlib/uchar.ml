@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 external format_int : string -> int -> string = "caml_format_int"
 
 let err_no_pred = "U+0000 has no predecessor"

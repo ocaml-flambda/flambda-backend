@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 type 'a t = { mutable c : 'a list; mutable len : int; }
 
 exception Empty

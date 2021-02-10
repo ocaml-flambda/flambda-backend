@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 external spacetime_enabled : unit -> bool
   = "caml_spacetime_enabled" [@@noalloc]
 

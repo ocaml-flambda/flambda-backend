@@ -13,6 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [ListLabels]: labelled List module *)
+
+[@@@ocaml.nolabels]
 
 include List

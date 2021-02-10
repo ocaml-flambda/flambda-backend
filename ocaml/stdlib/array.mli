@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 type 'a t = 'a array
 (** An alias for the type of arrays. *)
 

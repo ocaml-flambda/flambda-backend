@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Profiling of a program's space behaviour over time.
     Currently only supported on x86-64 platforms running 64-bit code.
 

@@ -13,7 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* No comments, OCaml stdlib internal use only. *)
+
+[@@@ocaml.warning "Ae"]
 
 open CamlinternalFormatBasics
 

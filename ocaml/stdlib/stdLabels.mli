@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Standard labeled libraries.
 
    This meta-module provides labelized version of the {!Array},
@@ -22,6 +24,8 @@
    in [arrayLabels.mli], [bytesLabels.mli], [listLabels.mli]
    and [stringLabels.mli].
 *)
+
+[@@@ocaml.nolabels]
 
 module Array = ArrayLabels
 module Bytes = BytesLabels

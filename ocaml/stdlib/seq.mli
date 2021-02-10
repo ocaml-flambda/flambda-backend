@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [Seq]: functional iterators *)
 
 (** {1 Functional Iterators} *)

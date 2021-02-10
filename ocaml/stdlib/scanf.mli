@@ -13,7 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Formatted input functions. *)
+
+[@@@ocaml.warning "Ae"]
 
 (** {1 Introduction} *)
 

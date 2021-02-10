@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Hash tables and hash functions.
 
    Hash tables are hashed association tables, with in-place modification.

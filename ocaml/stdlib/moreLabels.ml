@@ -13,7 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [MoreLabels]: meta-module for compatibility labelled libraries *)
+
+[@@@ocaml.nolabels]
 
 module Hashtbl = Hashtbl
 

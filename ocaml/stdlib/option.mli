@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Option values.
 
     Option values explicitly indicate the presence or absence of a value.

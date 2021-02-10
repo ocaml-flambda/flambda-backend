@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 type stat = {
   minor_words : float;
   promoted_words : float;

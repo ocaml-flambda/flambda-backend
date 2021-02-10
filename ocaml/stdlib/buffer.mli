@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Extensible buffers.
 
    This module implements buffers that automatically expand
@@ -20,6 +22,8 @@
    in quasi-linear time (instead of quadratic time when strings are
    concatenated pairwise).
 *)
+
+[@@@ocaml.warning "A"]
 
 type t
 (** The abstract type of buffers. *)

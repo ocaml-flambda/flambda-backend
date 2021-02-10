@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Result values.
 
     Result values handle computation results and errors in an explicit

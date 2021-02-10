@@ -13,6 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [ArrayLabels]: labelled Array module *)
+
+[@@@ocaml.nolabels]
 
 include Array

@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** {1 Floating-point arithmetic}
 
     OCaml's floating-point numbers follow the

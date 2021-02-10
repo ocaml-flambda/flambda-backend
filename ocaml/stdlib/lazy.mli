@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Deferred computations. *)
 
 type 'a t = 'a CamlinternalLazy.t

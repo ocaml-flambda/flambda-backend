@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Module [Nativeint]: processor-native integers *)
 
 external neg: nativeint -> nativeint = "%nativeint_neg"

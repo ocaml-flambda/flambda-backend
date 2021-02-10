@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Extra labeled libraries.
 
    This meta-module provides labelized version of the {!Hashtbl},
@@ -22,6 +24,8 @@
    porting from previous versions of OCaml.
    The contents of this module are subject to change.
 *)
+
+[@@@ocaml.nolabels]
 
 module Hashtbl : sig
   type ('a, 'b) t = ('a, 'b) Hashtbl.t

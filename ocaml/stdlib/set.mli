@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Sets over ordered types.
 
    This module implements the set data structure, given a total ordering

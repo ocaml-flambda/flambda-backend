@@ -13,6 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.nolabels]
+
 type 'a t = 'a list = [] | (::) of 'a * 'a list (**)
 (** An alias for the type of lists.
  *)

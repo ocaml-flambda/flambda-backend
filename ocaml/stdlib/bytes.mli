@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Byte sequence operations.
 
    A byte sequence is a mutable data structure that contains a
