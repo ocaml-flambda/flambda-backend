@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.inline 0]
+[@@@ocaml.afl_inst_ratio 0]
+
 open Obj
 
 (**** Object representation ****)

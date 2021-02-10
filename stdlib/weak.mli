@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Arrays of weak pointers and hash sets of weak pointers. *)
 
 

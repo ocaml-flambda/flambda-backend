@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Functional iterators.
 
     The type ['a Seq.t] is a {b delayed list}, i.e. a list where some

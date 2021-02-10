@@ -13,6 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.nolabels]
+
 (* NOTE:
    If this file is listLabels.mli, run tools/sync_stdlib_docs after editing it
    to generate list.mli.

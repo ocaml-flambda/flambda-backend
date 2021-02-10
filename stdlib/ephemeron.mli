@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Ephemerons and weak hash tables.
 
     Ephemerons and weak hash tables are useful when one wants to cache

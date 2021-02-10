@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Integer values.
 
     Integers are {!Sys.int_size} bits wide and use two's complement

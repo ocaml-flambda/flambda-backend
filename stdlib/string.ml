@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* String operations, based on byte sequence operations *)
 
 (* WARNING: Some functions in this file are duplicated in bytes.ml for

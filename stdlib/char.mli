@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (** Character operations. *)
 
 external code : char -> int = "%identity"

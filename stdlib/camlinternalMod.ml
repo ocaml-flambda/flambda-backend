@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 external make_forward : Obj.t -> Obj.t -> unit = "caml_obj_make_forward"
 
 type shape =

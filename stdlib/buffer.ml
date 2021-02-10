@@ -13,7 +13,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
 (* Extensible buffers *)
+
+[@@@ocaml.inline 3]
+[@@@ocaml.warning "A"]
 
 type t =
  {mutable buffer : bytes;
