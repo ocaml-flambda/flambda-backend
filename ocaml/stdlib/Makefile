@@ -40,9 +40,6 @@ include StdlibModules
 OBJS=$(addsuffix .cmo,$(STDLIB_MODULES))
 OTHERS=$(filter-out camlinternalFormatBasics.cmo stdlib.cmo,$(OBJS))
 
-PREFIXED_OBJS=$(filter stdlib__%.cmo,$(OBJS))
-UNPREFIXED_OBJS=$(PREFIXED_OBJS:stdlib__%.cmo=%)
-
 .PHONY: all
 all: stdlib.cma std_exit.cmo camlheader target_camlheader camlheader_ur
 
@@ -208,21 +205,21 @@ export AWK
 %.cmi: %.mli
 	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
 
-stdlib__%.cmi: %.mli
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -o $@ -c $<
+stdlib__%.cmi:
+	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -o $@ -c $(filter %.mli, $^)
 
 %.cmo: %.ml
 	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -c $<
 
-stdlib__%.cmo: %.ml
-	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -o $@ -c $<
+stdlib__%.cmo:
+	$(CAMLC) $(COMPFLAGS) $(shell ./Compflags $@) -o $@ -c $(filter %.ml, $^)
 
 %.cmx: %.ml
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) -c $<
 
-stdlib__%.cmx: %.ml
+stdlib__%.cmx:
 	$(CAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) $(shell ./Compflags $@) \
-	           -o $@ -c $<
+                  -o $@ -c $(filter %.ml, $^)
 
 # Dependencies on the compiler
 COMPILER_DEPS=$(filter-out -use-prims $(CAMLRUN), $(CAMLC))
@@ -246,6 +243,11 @@ include .depend
 EMPTY :=
 SPACE := $(EMPTY) $(EMPTY)
 
+RAW_OBJS=$(addsuffix .cmo,$(STDLIB_DEP_MODULES))
+PREFIXED_OBJS=$(filter stdlib__%.cmo,$(RAW_OBJS))
+UNPREFIXED_OBJS=$(PREFIXED_OBJS:stdlib__%.cmo=%)
+UNPREFIXED_OBJS_DISJUNCTION=${subst ${SPACE},|,${UNPREFIXED_OBJS}}
+
 .PHONY: depend
 depend:
 	$(CAMLDEP) $(DEPFLAGS) $(filter-out stdlib.%,$(wildcard *.mli *.ml)) \
@@ -253,6 +255,7 @@ depend:
 	$(CAMLDEP) $(DEPFLAGS) -pp "$(AWK) -f ./remove_module_aliases.awk" \
 	  stdlib.ml stdlib.mli >> .depend.tmp
 	sed -Ee \
-	  's#(^| )(${subst ${SPACE},|,${UNPREFIXED_OBJS}})[.]#\1stdlib__\2.#g' \
+	   's#(^| )(${UNPREFIXED_OBJS_DISJUNCTION})[.]#\1stdlib__\u\2.#g' \
+	-e 's/^stdlib__(.)(.*)(\.[^i]*)(i?) :/stdlib__\1\2\3\4 : \l\1\2.ml\4/' \
 	  .depend.tmp > .depend
 	rm -f .depend.tmp
