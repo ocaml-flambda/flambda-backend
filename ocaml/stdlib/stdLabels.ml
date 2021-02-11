@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [StdLabels]: meta-module for labelled libraries *)
 
 [@@@ocaml.nolabels]

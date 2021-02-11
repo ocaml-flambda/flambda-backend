@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [Nativeint]: processor-native integers *)
 
 external neg: nativeint -> nativeint = "%nativeint_neg"

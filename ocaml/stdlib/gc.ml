@@ -16,6 +16,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type stat = {
   minor_words : float;
   promoted_words : float;

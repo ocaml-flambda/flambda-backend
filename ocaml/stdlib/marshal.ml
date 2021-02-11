@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type extern_flags =
     No_sharing
   | Closures

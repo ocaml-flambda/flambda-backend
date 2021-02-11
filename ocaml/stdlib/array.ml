@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* An alias for the type of arrays. *)
 type 'a t = 'a array
 
