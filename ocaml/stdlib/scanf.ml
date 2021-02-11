@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 [@@@ocaml.warning "Ae"]
 [@@@ocaml.inline "9"]
 

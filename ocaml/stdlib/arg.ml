@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type key = string
 type doc = string
 type usage_msg = string

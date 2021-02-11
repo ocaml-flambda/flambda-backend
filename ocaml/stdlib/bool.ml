@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type t = bool = false | true
 
 external not : bool -> bool = "%boolnot"

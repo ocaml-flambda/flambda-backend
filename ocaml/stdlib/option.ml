@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type 'a t = 'a option = None | Some of 'a
 
 let none = None

@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type ('a, 'e) t = ('a, 'e) result = Ok of 'a | Error of 'e
 
 let ok v = Ok v

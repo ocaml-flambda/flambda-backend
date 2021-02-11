@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [Bigarray]: large, multi-dimensional, numerical arrays *)
 
 (* These types in must be kept in sync with the tables in

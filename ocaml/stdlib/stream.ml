@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 type 'a t = 'a cell option
 and 'a cell = { mutable count : int; mutable data : 'a data }
 and 'a data =

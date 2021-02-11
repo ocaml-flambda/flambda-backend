@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Complex numbers *)
 
 type t = { re: float; im: float }

@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Ensure that [at_exit] functions are called at the end of every program *)
 
 let _ = do_at_exit()

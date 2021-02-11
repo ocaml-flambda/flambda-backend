@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* A pretty-printing facility and definition of formatters for 'parallel'
    (i.e. unrelated or independent) pretty-printing on multiple out channels. *)
 

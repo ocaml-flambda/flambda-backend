@@ -14,6 +14,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 external spacetime_enabled : unit -> bool
   = "caml_spacetime_enabled" [@@noalloc]
 

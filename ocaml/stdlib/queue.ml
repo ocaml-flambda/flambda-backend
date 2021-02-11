@@ -16,6 +16,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 exception Empty
 
 type 'a cell =

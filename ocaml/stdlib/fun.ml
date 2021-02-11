@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 external id : 'a -> 'a = "%identity"
 let const c _ = c
 let flip f x y = f y x
