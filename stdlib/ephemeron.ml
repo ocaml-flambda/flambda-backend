@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 module type SeededS = sig
   include Hashtbl.SeededS
   val clean: 'a t -> unit

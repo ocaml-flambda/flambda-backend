@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Hash tables *)
 
 (* We do dynamic hashing, and resize the table and rehash the elements

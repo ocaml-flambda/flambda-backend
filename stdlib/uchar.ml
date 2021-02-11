@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 external format_int : string -> int -> string = "caml_format_int"
 
 let err_no_pred = "U+0000 has no predecessor"

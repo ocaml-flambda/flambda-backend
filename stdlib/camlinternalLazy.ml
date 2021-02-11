@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Internals of forcing lazy values. *)
 
 [@@@ocaml.afl_inst_ratio 0]

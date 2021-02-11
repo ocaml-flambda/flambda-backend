@@ -14,6 +14,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (** @deprecated Use {!Stdlib} *)
 
 external raise : exn -> 'a = "%raise"
