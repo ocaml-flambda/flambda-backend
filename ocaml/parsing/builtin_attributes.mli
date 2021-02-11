@@ -30,6 +30,7 @@
     - ocaml.nolabels
     - ocaml.inline
     - ocaml.afl_inst_ratio
+    - ocaml.flambda_o3
 
     {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
