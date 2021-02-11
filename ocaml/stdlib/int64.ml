@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [Int64]: 64-bit integers *)
 
 external neg : int64 -> int64 = "%int64_neg"

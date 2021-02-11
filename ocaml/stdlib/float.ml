@@ -16,6 +16,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 [@@@ocaml.nolabels]
 
 external neg : float -> float = "%negfloat"

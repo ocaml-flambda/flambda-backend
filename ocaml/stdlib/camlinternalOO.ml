@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 [@@@ocaml.inline 0]
 [@@@ocaml.afl_inst_ratio 0]
 

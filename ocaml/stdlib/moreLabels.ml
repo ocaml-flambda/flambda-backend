@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [MoreLabels]: meta-module for compatibility labelled libraries *)
 
 [@@@ocaml.nolabels]

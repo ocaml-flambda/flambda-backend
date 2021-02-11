@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 external make_forward : Obj.t -> Obj.t -> unit = "caml_obj_make_forward"
 
 type shape =

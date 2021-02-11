@@ -15,6 +15,8 @@
 
 open! Stdlib
 
+[@@@ocaml.flambda_o3]
+
 (* Module [ArrayLabels]: labelled Array module *)
 
 [@@@ocaml.nolabels]
