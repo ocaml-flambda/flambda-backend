@@ -319,7 +319,16 @@ let clflags_attribute_without_payload attr ~name clflags_ref =
     | Some () -> clflags_ref := true
     | None -> ()
   end
-  
+
+let clflags_attribute_without_payload' attr ~name ~f =
+  if String.equal attr.attr_name.txt name
+    || String.equal attr.attr_name.txt ("ocaml." ^ name)
+  then begin
+    match parse_empty_payload attr with
+    | Some () -> f ()
+    | None -> ()
+  end
+
 let clflags_attribute_with_int_payload attr ~name clflags_ref =
   if String.equal attr.attr_name.txt name
     || String.equal attr.attr_name.txt ("ocaml." ^ name)
@@ -332,6 +341,14 @@ let clflags_attribute_with_int_payload attr ~name clflags_ref =
 let nolabels_attribute attr =
   clflags_attribute_without_payload attr
     ~name:"nolabels" Clflags.classic
+
+let flambda_o3_attribute attr =
+  clflags_attribute_without_payload' attr
+    ~name:"flambda_o3"
+    ~f:(fun () ->
+      if Config.flambda then begin
+        Clflags.use_inlining_arguments_set Clflags.o3_arguments
+      end)
 
 let inline_attribute attr =
   if String.equal attr.attr_name.txt "inline"
@@ -363,4 +380,5 @@ let parse_standard_implementation_attributes attr =
   warning_attribute attr;
   nolabels_attribute attr;
   inline_attribute attr;
-  afl_inst_ratio_attribute attr
+  afl_inst_ratio_attribute attr;
+  flambda_o3_attribute attr
