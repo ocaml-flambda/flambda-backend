@@ -12,7 +12,6 @@
    m32
    no_naked_pointers
    flambda
-   spacetime
    no_flat_float_array
    ))
  )
