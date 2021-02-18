@@ -992,9 +992,6 @@ AS_IF([test -z "$PARTIALLD"],
     [PACKLD="$DIRECT_LD -r -o \$(EMPTY)"])],
   [PACKLD="$PARTIALLD -o \$(EMPTY)"])
 
-AS_IF([test $arch != "none" && $arch64 ],
-  [otherlibraries="$otherlibraries raw_spacetime_lib"])
-
 # Disable PIE at link time when ocamlopt does not produce position-independent
 # code and the system produces PIE executables by default and demands PIC
 # object files to do so.

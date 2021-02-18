@@ -165,7 +165,6 @@ INSTALL_BYTECODE_PROGRAMS=@install_bytecode_programs@
 #       dynlink           Dynamic linking (bytecode and native)
 #       (win32)unix       Unix system calls
 #       str               Regular expressions and high-level string processing
-#       raw_spacetime_lib Parsing of spacetime traces
 #       systhreads        Same as threads, requires POSIX threads
 OTHERLIBRARIES=@otherlibraries@
 
