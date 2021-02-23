@@ -5,6 +5,7 @@
   supports_no_install_bytecode_programs
   supports_no_install_source_artifacts
   uses_autoconf
+  is_flambda_backend
   ))
  (features (
    normal
