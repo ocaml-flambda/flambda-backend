@@ -1,0 +1,55 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*   Derived from the work of:                                            *
+#*                 Damien Doligez, projet Gallium, INRIA                  *
+#*                                                                        *
+#*   Copyright 2015 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+*.o
+*.a
+*.so
+*.obj
+*.lib
+*.dll
+*.la
+*.cm[ioxat]
+*.cmx[as]
+*.cmti
+*.annot
+*.exe
+*.exe.manifest
+.DS_Store
+*.out
+*.out.dSYM
+*.swp
+_ocamltest
+_ocamltestd
+*.odoc
+.merlin
+
+_build/
+_build0/
+_build1/
+_build2/
+.rsync-output
+.rsync-output-compare
+_compare/
+_runtest/
+_stage2_configure/
+autom4te.cache
+
+Makefile
+config.log
+config.status
+configure
+configure_opts
+ocaml-stage1-config.status
+ocaml-stage2-config.status

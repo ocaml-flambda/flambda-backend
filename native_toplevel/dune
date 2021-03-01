@@ -19,7 +19,6 @@
  (modes native)
  (wrapped false)
  (flags (:standard -principal -nostdlib -w -9))
- (library_flags -linkall)
  (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp
    dynlink_internal)
  (modules genprintval_native opttoploop opttopdirs opttopmain))
@@ -28,6 +27,23 @@
   (targets genprintval_native.ml)
   (deps %{project_root}/ocaml/toplevel/genprintval.ml)
   (action (copy %{deps} %{targets})))
+
+(executable
+ (name opttopstart)
+ (modes native)
+ (flags (:standard -principal -nostdlib))
+ (libraries
+   ocamlopttoplevel
+   stdlib
+   runtime_native)
+ (modules opttopstart))
+
+(install
+  (files
+    (opttopstart.exe as ocamlnat)
+  )
+  (section bin)
+  (package ocaml))
 
 (install
   (files
