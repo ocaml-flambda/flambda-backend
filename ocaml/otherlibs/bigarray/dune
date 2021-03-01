@@ -20,6 +20,7 @@
    -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
+ (ocamlopt_flags (:standard -function-sections))
  (library_flags (:standard -linkall))
  (libraries stdlib))
 
