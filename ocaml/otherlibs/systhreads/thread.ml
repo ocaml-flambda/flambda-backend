@@ -16,6 +16,8 @@
 
 (* User-level threads *)
 
+[@@@ocaml.flambda_o3]
+
 type t
 
 external thread_initialize : unit -> unit = "caml_thread_initialize"
