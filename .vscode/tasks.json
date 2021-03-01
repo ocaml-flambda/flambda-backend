@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build & install Flambda backend",
+			"type": "shell",
+			"command": "opam exec --switch=4.11.1 make install",
+			"group": "build",
+			"problemMatcher": [
+				"$ocamlc"
+			]
+		}
+
+		{
+			"type": "dune",
+			"problemMatcher": [
+				"$ocamlc"
+			],
+			"group": "build",
+			"label": "dune: build /dune"
+		}
+	]
+}
