@@ -1875,6 +1875,12 @@ bytecomp/bytesections.cmx : \
     utils/config.cmx \
     bytecomp/bytesections.cmi
 bytecomp/bytesections.cmi :
+bytecomp/debug_event.cmi : \
+    typing/types.cmi \
+    typing/subst.cmi \
+    parsing/location.cmi \
+    typing/ident.cmi \
+    typing/env.cmi
 bytecomp/dll.cmo : \
     utils/misc.cmi \
     utils/config.cmi \
@@ -1932,6 +1938,7 @@ bytecomp/instruct.cmo : \
     lambda/lambda.cmi \
     typing/ident.cmi \
     typing/env.cmi \
+    bytecomp/debug_event.cmi \
     bytecomp/instruct.cmi
 bytecomp/instruct.cmx : \
     typing/types.cmx \
@@ -1940,6 +1947,7 @@ bytecomp/instruct.cmx : \
     lambda/lambda.cmx \
     typing/ident.cmx \
     typing/env.cmx \
+    bytecomp/debug_event.cmi \
     bytecomp/instruct.cmi
 bytecomp/instruct.cmi : \
     typing/types.cmi \
@@ -1947,15 +1955,16 @@ bytecomp/instruct.cmi : \
     parsing/location.cmi \
     lambda/lambda.cmi \
     typing/ident.cmi \
-    typing/env.cmi
+    typing/env.cmi \
+    bytecomp/debug_event.cmi
 bytecomp/meta.cmo : \
-    bytecomp/instruct.cmi \
+    bytecomp/debug_event.cmi \
     bytecomp/meta.cmi
 bytecomp/meta.cmx : \
-    bytecomp/instruct.cmx \
+    bytecomp/debug_event.cmi \
     bytecomp/meta.cmi
 bytecomp/meta.cmi : \
-    bytecomp/instruct.cmi
+    bytecomp/debug_event.cmi
 bytecomp/opcodes.cmo : \
     bytecomp/opcodes.cmi
 bytecomp/opcodes.cmx : \

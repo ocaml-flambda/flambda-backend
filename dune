@@ -71,14 +71,12 @@
    translattribute translclass translcore translmod translobj translprim
 
    ;; bytecomp/
-   meta opcodes bytesections dll symtable
+   debug_event meta opcodes bytesections dll symtable
 
    ;; some of COMP
    pparse main_args compenv compmisc makedepend compile_common
    ; manual update: mli only files
    cmo_format
-   ; manual update: this is required.
-   instruct
  ))
 
 (library
@@ -89,6 +87,7 @@
  (modules
     ;; bytecomp/
     bytegen bytelibrarian bytelink bytepackager emitcode printinstr
+    instruct
 
     ;; driver/
     errors compile
