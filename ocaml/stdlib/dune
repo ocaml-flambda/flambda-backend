@@ -25,6 +25,7 @@
      -g -warn-error A -bin-annot -nostdlib
      -safe-string -strict-formats
  ))
+ (ocamlopt_flags (:standard -function-sections))
  (preprocess
    (per_module
      ((action
