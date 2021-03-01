@@ -19,6 +19,7 @@
  (modes native)
  (wrapped false)
  (flags (:standard -principal -nostdlib -w -9))
+ (ocamlopt_flags (:standard -function-sections))
  (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp
    dynlink_internal)
  (modules genprintval_native opttoploop opttopdirs opttopmain))
