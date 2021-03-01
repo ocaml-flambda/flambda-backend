@@ -16,6 +16,7 @@
   (wrapped false)
   (modes byte native)
   (flags (:standard -principal -nostdlib))
+  (ocamlopt_flags (:standard -function-sections))
   (libraries stdlib)
   (modules
     common
