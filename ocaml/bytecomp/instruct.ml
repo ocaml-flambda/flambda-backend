@@ -15,35 +15,35 @@
 
 open Lambda
 
-type compilation_env =
+type compilation_env = Debug_event.compilation_env =
   { ce_stack: int Ident.tbl;
     ce_heap: int Ident.tbl;
     ce_rec: int Ident.tbl }
 
-type debug_event =
-  { mutable ev_pos: int;                (* Position in bytecode *)
-    ev_module: string;                  (* Name of defining module *)
-    ev_loc: Location.t;                 (* Location in source file *)
-    ev_kind: debug_event_kind;          (* Before/after event *)
-    ev_defname: string;                 (* Enclosing definition *)
-    ev_info: debug_event_info;          (* Extra information *)
-    ev_typenv: Env.summary;             (* Typing environment *)
-    ev_typsubst: Subst.t;               (* Substitution over types *)
-    ev_compenv: compilation_env;        (* Compilation environment *)
-    ev_stacksize: int;                  (* Size of stack frame *)
-    ev_repr: debug_event_repr }         (* Position of the representative *)
+type debug_event = Debug_event.debug_event =
+  { mutable ev_pos: int;
+    ev_module: string;
+    ev_loc: Location.t;
+    ev_kind: debug_event_kind;
+    ev_defname: string;
+    ev_info: debug_event_info;
+    ev_typenv: Env.summary;
+    ev_typsubst: Subst.t;
+    ev_compenv: compilation_env;
+    ev_stacksize: int;
+    ev_repr: debug_event_repr }
 
-and debug_event_kind =
+and debug_event_kind = Debug_event.debug_event_kind =
     Event_before
   | Event_after of Types.type_expr
   | Event_pseudo
 
-and debug_event_info =
+and debug_event_info = Debug_event.debug_event_info =
     Event_function
   | Event_return of int
   | Event_other
 
-and debug_event_repr =
+and debug_event_repr = Debug_event.debug_event_repr =
     Event_none
   | Event_parent of int ref
   | Event_child of int ref
