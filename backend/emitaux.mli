@@ -32,11 +32,13 @@ val emit_float32_directive: string -> int32 -> unit
 
 val reset : unit -> unit
 val reset_debug_info: unit -> unit
-val emit_debug_info: Debuginfo.t -> unit
+val emit_debug_info: ?discriminator:int -> Debuginfo.t -> unit
 val emit_debug_info_gen :
+  ?discriminator:int ->
   Debuginfo.t ->
   (file_num:int -> file_name:string -> unit) ->
-  (file_num:int -> line:int -> col:int -> unit) -> unit
+  (file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit) ->
+  unit
 
 type frame_debuginfo =
   | Dbg_alloc of Debuginfo.alloc_dbginfo

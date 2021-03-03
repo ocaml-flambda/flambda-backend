@@ -222,7 +222,7 @@ type asm_line =
   | Cfi_startproc
   | File of int * string (* (file_num, file_name) *)
   | Indirect_symbol of string
-  | Loc of int * int * int (* (file_num, line, col) *)
+  | Loc of { file_num:int; line:int; col:int; discriminator: int option }
   | Private_extern of string
   | Set of string * constant
   | Size of string * constant
