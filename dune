@@ -86,7 +86,7 @@
     CSE CSEgen deadcode emit emitaux interf interval linear linearize linscan
     liveness mach printcmm printlinear printmach proc reg reload reloadgen
     schedgen scheduling selectgen selection spacetime_profiling spill split
-    strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc
+    strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc fdo_info
 
     ;; file_formats/
     linear_format
@@ -286,6 +286,7 @@
     (compute_ranges.mli as compiler-libs/compute_ranges.mli)
     (opterrors.mli as compiler-libs/opterrors.mli)
     (optcompile.mli as compiler-libs/optcompile.mli)
+    (fdo_info.mli as compiler-libs/fdo_info.mli)
 
     (.ocamloptcomp.objs/byte/linear_format.cmi as compiler-libs/linear_format.cmi)
     (.ocamloptcomp.objs/byte/linear_format.cmo as compiler-libs/linear_format.cmo)
@@ -499,6 +500,10 @@
     (.ocamloptcomp.objs/byte/x86_proc.cmo as compiler-libs/x86_proc.cmo)
     (.ocamloptcomp.objs/byte/x86_proc.cmt as compiler-libs/x86_proc.cmt)
     (.ocamloptcomp.objs/byte/x86_proc.cmti as compiler-libs/x86_proc.cmti)
+    (.ocamloptcomp.objs/byte/fdo_info.cmi as compiler-libs/fdo_info.cmi)
+    (.ocamloptcomp.objs/byte/fdo_info.cmo as compiler-libs/fdo_info.cmo)
+    (.ocamloptcomp.objs/byte/fdo_info.cmt as compiler-libs/fdo_info.cmt)
+    (.ocamloptcomp.objs/byte/fdo_info.cmti as compiler-libs/fdo_info.cmti)
     (.ocamloptcomp.objs/native/afl_instrument.cmx as compiler-libs/afl_instrument.cmx)
     (.ocamloptcomp.objs/native/arch.cmx as compiler-libs/arch.cmx)
     (.ocamloptcomp.objs/native/asmgen.cmx as compiler-libs/asmgen.cmx)
@@ -551,6 +556,7 @@
     (.ocamloptcomp.objs/native/x86_gas.cmx as compiler-libs/x86_gas.cmx)
     (.ocamloptcomp.objs/native/x86_masm.cmx as compiler-libs/x86_masm.cmx)
     (.ocamloptcomp.objs/native/x86_proc.cmx as compiler-libs/x86_proc.cmx)
+    (.ocamloptcomp.objs/native/fdo_info.cmx as compiler-libs/fdo_info.cmx)
   ))
 
 (install
