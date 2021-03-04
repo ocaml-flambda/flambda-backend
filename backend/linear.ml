@@ -23,6 +23,7 @@ type instruction =
     arg: Reg.t array;
     res: Reg.t array;
     dbg: Debuginfo.t;
+    fdo: Fdo_info.t;
     live: Reg.Set.t }
 
 and instruction_desc =
@@ -82,10 +83,11 @@ let rec end_instr =
     arg = [||];
     res = [||];
     dbg = Debuginfo.none;
+    fdo = Fdo_info.none;
     live = Reg.Set.empty }
 
 (* Cons an instruction (live, debug empty) *)
 
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
-    dbg = Debuginfo.none; live = Reg.Set.empty }
+    dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty }
