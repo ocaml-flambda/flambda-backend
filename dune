@@ -11,23 +11,23 @@
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
-(copy_files backend/*.ml{,i})
-(copy_files backend/debug/*.ml{,i})
+(copy_files# backend/*.ml{,i})
+(copy_files# backend/debug/*.ml{,i})
 
 (copy_files# driver/optcompile.ml{,i})
 (copy_files# driver/flambda_backend_main.ml{,i})
 (copy_files# driver/optmaindriver.ml{,i})
 
-(copy_files file_formats/cmx_format.mli)
-(copy_files file_formats/linear_format.ml{,i})
+(copy_files# file_formats/cmx_format.mli)
+(copy_files# file_formats/linear_format.ml{,i})
 
-(copy_files middle_end/*.ml{,i})
-(copy_files middle_end/closure/*.ml{,i})
-(copy_files middle_end/flambda/*.ml{,i})
-(copy_files middle_end/flambda/base_types/*.ml{,i})
+(copy_files# middle_end/*.ml{,i})
+(copy_files# middle_end/closure/*.ml{,i})
+(copy_files# middle_end/flambda/*.ml{,i})
+(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
-(copy_files ocaml/driver/opterrors.ml{,i})
-(copy_files ocaml/file_formats/cmxs_format.mli)
+(copy_files# ocaml/driver/opterrors.ml{,i})
+(copy_files# ocaml/file_formats/cmxs_format.mli)
 
 (library
   (name ocamloptcomp)
