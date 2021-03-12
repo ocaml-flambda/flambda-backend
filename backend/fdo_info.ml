@@ -11,7 +11,19 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-type t = int option
+
+type info =
+  {
+    dbg: Debuginfo.t;
+    discriminator: int;
+  }
+
+type t = info option
 include (Stdlib.Option : module type of Stdlib.Option
   with type 'a t := 'a Stdlib.Option.t)
-let create = some
+let create ~dbg ~discriminator =
+  Some
+    {
+      dbg;
+      discriminator;
+    }
