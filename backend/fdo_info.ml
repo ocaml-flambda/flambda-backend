@@ -17,10 +17,9 @@ type info =
     dbg: Debuginfo.t;
     discriminator: int;
   }
-
 type t = info option
-include (Stdlib.Option : module type of Stdlib.Option
-  with type 'a t := 'a Stdlib.Option.t)
+let none = None
+let is_none = Option.is_none
 let create ~dbg ~discriminator =
   Some
     {
