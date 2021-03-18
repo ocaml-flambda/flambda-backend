@@ -39,7 +39,7 @@
    -w -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
- (ocamlopt_flags (:standard -function-sections))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags -linkall)
  (libraries stdlib)
  (modules_without_implementation
@@ -88,7 +88,7 @@
    -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
    -warn-error A -bin-annot -safe-string -strict-formats
  ))
- (ocamlopt_flags (:standard -function-sections))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries stdlib ocamlcommon)
  (modules
     ;; bytecomp/

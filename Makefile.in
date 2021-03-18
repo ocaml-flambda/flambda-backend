@@ -67,6 +67,15 @@ stage1: ocaml-stage1-config.status stage0 \
 	  rm -f ocamllex && \
 	  ln -s ocamllex.opt ocamllex)
 
+ifeq "$(FUNCTION_SECTIONS)" "true"
+OCAMLOPT_FLAGS_SEXP="(:standard -function-sections)"
+else
+OCAMLOPT_FLAGS_SEXP="(:standard)"
+endif
+
+ocamlopt_flags.sexp:
+	echo $(OCAMLOPT_FLAGS_SEXP) > ocamlopt_flags.sexp
+
 # CR mshinwell: We should add targets that don't use --profile=release, for
 # speed, and also ensuring that warnings are errors.  We should also consider
 # adding a new Dune profile that is like "release" but has warnings as errors.
@@ -75,7 +84,7 @@ stage1: ocaml-stage1-config.status stage0 \
 # itself, including the stdlib, otherlibs, compilerlibs, etc.  The result is
 # equivalent to having done "make world.opt && make ocamlnat" upstream.
 .PHONY: stage2
-stage2: ocaml-stage2-config.status stage1
+stage2: ocaml-stage2-config.status stage1 ocamlopt_flags.sexp
 	cp ocaml-stage2-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage1_prefix)/bin:$$PATH \
