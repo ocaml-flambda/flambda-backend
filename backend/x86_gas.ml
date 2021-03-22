@@ -290,8 +290,10 @@ let print_line b = function
   | Indirect_symbol s -> bprintf b "\t.indirect_symbol %s" s
   | Loc { file_num; line; col; discriminator } ->
       (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
+      (* If we don't set the optional column field, debug_line program
+         gets the column value from the previous .loc directive. *)
       if col >= 0 then bprintf b "\t.loc\t%d\t%d\t%d" file_num line col
-      else bprintf b "\t.loc\t%d\t%d" file_num line;
+      else bprintf b "\t.loc\t%d\t%d\t0" file_num line;
       begin match discriminator with
       | None -> ()
       | Some k -> bprintf b "\tdiscriminator %d" k
