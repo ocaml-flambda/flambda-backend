@@ -11,12 +11,31 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** Currently, [Fdo_info] holds low-level location information that
-    identifies instructions in the intermediate representation,
-    for the purpose of mapping execution profiles directly back
-    to them, instead of a source location. *)
-type t = private int option
+(** [Fdo_info] identifies instructions in low-level intermediate representation
+    for the purpose of mapping execution counters directly back
+    to them, instead of source locations.
+
+    [Fdo_info] is added to Linear by ocamlfdo tool,
+    and then emitted by the compiler as a discriminator on .loc directive.
+    By default, the compiler uses [dbg] field of [Linear.instruction]
+    to emit .loc directives.
+    There are a couple of obstacles to using [dbg] field for FDO directly:
+    1) [Debuginfo.item] does not have a field for discriminators.
+       Adding it requires changes to the upstream part of the compiler,
+       which is unmodified in flambda-backend.
+    2) Many instructions do not have any associated Debuginfo,
+       which is required to output .loc directives. To address it,
+       ocamlfdo infers the missing ones, using the semantics of debug_line.
+       The inferred information cannot be stored in [dbg] field,
+       because [dbg] fields is also used for emitting frametable's debug info
+       entries required for backtraces. FDO info should not affect backtraces.
+*)
+type info = private
+  {
+    dbg: Debuginfo.t;
+    discriminator: int;
+  }
+type t = info option
 val none : t
 val is_none : t -> bool
-val create : int -> t
-val get : t  -> int
+val create : dbg:Debuginfo.t -> discriminator:int -> t

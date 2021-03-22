@@ -93,7 +93,8 @@ module D = struct
   let weak s = directive (Weak s)
   let indirect_symbol s = directive (Indirect_symbol s)
   let label ?(typ = NONE) s = directive (NewLabel (s, typ))
-  let loc ~file_num ~line ~col = directive (Loc (file_num, line, col))
+  let loc ~file_num ~line ~col ?discriminator () =
+    directive (Loc { file_num; line; col; discriminator })
   let long cst = directive (Long cst)
   let mode386 () = directive Mode386
   let model name = directive (Model name)
