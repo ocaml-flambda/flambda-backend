@@ -676,6 +676,39 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
   }
 }
 
+struct region_stack {
+  value* base;
+  struct region_stack* next;
+};
+
+CAMLexport intnat caml_local_region_begin()
+{
+  return Caml_state->local_sp;
+}
+
+CAMLexport void caml_local_region_end(intnat reg)
+{
+  Caml_state->local_sp = reg;
+}
+
+void caml_local_realloc(void)
+{
+  intnat new_wsize;
+  struct region_stack* stk;
+  value* stkbase;
+  if (Caml_state->local_top == NULL) {
+    new_wsize = 2 * Max_young_wosize;
+  } else {
+    CAMLassert((value*)Caml_state->local_top + Caml_state->local_limit == Caml_state->local_top->base);
+    new_wsize = -Caml_state->local_limit * 2;
+  }
+  stkbase = caml_stat_alloc(new_wsize * sizeof(value) + sizeof(struct region_stack));
+  stk = (struct region_stack*)(stkbase + new_wsize);
+  stk->base = stkbase;
+  stk->next = Caml_state->local_top;
+  Caml_state->local_top = stk;
+  Caml_state->local_limit = -new_wsize;
+}
 
 /* Global memory pool.
 

@@ -120,7 +120,8 @@ let operation d = function
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
-  | Calloc -> "alloc" ^ location d
+  | Calloc Alloc_heap -> "alloc" ^ location d
+  | Calloc Alloc_local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
@@ -156,6 +157,8 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
+  | Cbeginregion -> "beginregion" ^ location d
+  | Cendregion -> "endregion" ^ location d
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

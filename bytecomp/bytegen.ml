@@ -130,7 +130,8 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
-  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
+  | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer
+  | Pendregion ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -779,7 +780,7 @@ let rec comp_expr env exp sz cont =
         | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
       in
       comp_args env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _), args, loc) ->
+  | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kmakeblock(List.length args, tag) :: cont)
   | Lprim(Pfloatfield n, args, loc) ->
@@ -988,6 +989,8 @@ let rec comp_expr env exp sz cont =
           comp_expr env lam sz cont
       end
   | Lifused (_, exp) ->
+      comp_expr env exp sz cont
+  | Lbeginregion (_, exp) ->
       comp_expr env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.

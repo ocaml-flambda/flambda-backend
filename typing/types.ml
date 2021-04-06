@@ -476,3 +476,5 @@ let signature_item_id = function
   | Sig_class (id, _, _, _)
   | Sig_class_type (id, _, _, _)
     -> id
+
+type alloc_mode = Alloc_heap | Alloc_local (* FIXME *)

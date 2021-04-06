@@ -152,7 +152,7 @@ and operation =
     Capply of machtype
   | Cextcall of string * machtype * exttype list * bool
   | Cload of memory_chunk * Asttypes.mutable_flag
-  | Calloc
+  | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -165,6 +165,8 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
+  | Cbeginregion
+  | Cendregion
 
 type expression =
     Cconst_int of int * Debuginfo.t

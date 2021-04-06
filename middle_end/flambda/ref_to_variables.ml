@@ -91,7 +91,7 @@ let variables_containing_ref (flam:Flambda.t) =
   let aux (flam : Flambda.t) =
     match flam with
     | Let { var;
-            defining_expr = Prim(Pmakeblock(0, Asttypes.Mutable, _), l, _);
+            defining_expr = Prim(Pmakeblock(0, Asttypes.Mutable, _, _), l, _);
           } ->
       map := Variable.Map.add var (List.length l) !map
     | _ -> ()
@@ -127,7 +127,7 @@ let eliminate_ref_of_expr flam =
     let aux (flam : Flambda.t) : Flambda.t =
       match flam with
       | Let { var;
-              defining_expr = Prim(Pmakeblock(0, Asttypes.Mutable, shape), l,_);
+              defining_expr = Prim(Pmakeblock(0, Asttypes.Mutable, shape, _mode), l,_);
               body }
         when convertible_variable var ->
         let shape = match shape with

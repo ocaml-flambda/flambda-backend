@@ -90,6 +90,8 @@ let rec eliminate_ref id = function
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
       Lifused(v, eliminate_ref id e)
+  | Lbeginregion (r, e) ->
+      Lbeginregion(r, eliminate_ref id e)
 
 (* Simplification of exits *)
 
@@ -165,6 +167,7 @@ let simplify_exits lam =
   | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
   | Lifused(_v, l) -> count l
+  | Lbeginregion (_r, l) -> count l
 
   and count_default sw = match sw.sw_failaction with
   | None -> ()
@@ -247,8 +250,8 @@ let simplify_exits lam =
         (* Simplify Obj.with_tag *)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
         [Lconst (Const_base (Const_int tag));
-         Lprim (Pmakeblock (_, mut, shape), fields, loc)] ->
-         Lprim (Pmakeblock(tag, mut, shape), fields, loc)
+         Lprim (Pmakeblock (_, mut, shape, mode), fields, loc)] ->
+         Lprim (Pmakeblock(tag, mut, shape, mode), fields, loc)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
         [Lconst (Const_base (Const_int tag));
          Lconst (Const_block (_, fields))] ->
@@ -324,6 +327,7 @@ let simplify_exits lam =
       Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) -> Lifused (v,simplif l)
+  | Lbeginregion (r, l) -> Lbeginregion (r, simplif l)
   in
   simplif lam
 
@@ -466,6 +470,8 @@ let simplify_lets lam =
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
+  | Lbeginregion (r, l) ->
+      count (bind_var bv r) l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
@@ -535,7 +541,7 @@ let simplify_lets lam =
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
   | Llet(Strict, kind, v,
-         Lprim(Pmakeblock(0, Mutable, kind_ref) as prim, [linit], loc), lbody)
+         Lprim(Pmakeblock(0, Mutable, kind_ref, _mode) as prim, [linit], loc), lbody)
     when optimize ->
       let slinit = simplif linit in
       let slbody = simplif lbody in
@@ -598,6 +604,7 @@ let simplify_lets lam =
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
+  | Lbeginregion (r, l) -> Lbeginregion (r, simplif l)
   in
   simplif lam
 
@@ -688,6 +695,8 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->
       emit_tail_infos is_tail lam
+  | Lbeginregion (_, lam) ->
+      emit_tail_infos false lam (* FIXME is_tail *)
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
 and list_emit_tail_infos is_tail =

@@ -235,6 +235,8 @@ and lam ppf = function
       fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind lam obj lam met args largs
   | Uunreachable ->
       fprintf ppf "unreachable"
+  | Ubeginregion (r, e) ->
+      fprintf ppf "@[<2>(region@ %a@ %a)@]" VP.print r lam e
 
 and sequence ppf ulam = match ulam with
   | Usequence(l1, l2) ->

@@ -85,6 +85,7 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attribute list) list;
     exp_type: type_expr;
+    exp_mode: alloc_mode;
     exp_env: Env.t;
     exp_attributes: attribute list;
    }

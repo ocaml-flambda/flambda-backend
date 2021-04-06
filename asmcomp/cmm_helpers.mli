@@ -299,7 +299,8 @@ val call_cached_method :
 (** Allocations *)
 
 (** Allocate a block of regular values with the given tag *)
-val make_alloc : Debuginfo.t -> int -> expression list -> expression
+val make_alloc :
+  ?mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc : Debuginfo.t -> int -> expression list -> expression

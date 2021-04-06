@@ -314,6 +314,9 @@ and expression i ppf x =
                       expression_extra i ppf extra attrs; i+1)
       (i+1) x.exp_extra
   in
+  if x.exp_mode <> Types.Alloc_heap then
+    line i ppf "alloc_mode %s\n"
+      (match x.exp_mode with Alloc_heap -> "heap" | Alloc_local -> "local");
   match x.exp_desc with
   | Texp_ident (li,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;

@@ -619,7 +619,7 @@ let emit_instr fallthrough i =
       | Double | Double_u ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)
       end
-  | Lop(Ialloc { bytes = n; dbginfo }) ->
+  | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
       assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
       if !fastcode_flag then begin
         I.sub (int n) r15;
@@ -649,6 +649,20 @@ let emit_instr fallthrough i =
         def_label label;
         I.lea (mem64 NONE 8 R15) (res i 0)
       end
+  | Lop(Ialloc { bytes = n; dbginfo=_; mode = Alloc_local }) ->
+      assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
+      let r = res i 0 in
+      I.mov (domain_field Domainstate.Domain_local_sp) r;
+      I.sub (int n) r;
+      (* FIXME: before or after check? Calling conv w/ realloc *)
+      I.mov r (domain_field Domainstate.Domain_local_sp);
+      I.cmp (domain_field Domainstate.Domain_local_limit) r;
+      let lbl_ok = new_label () in
+      I.j GE (label lbl_ok);
+      emit_call "caml_call_local_realloc";
+      def_label lbl_ok;
+      I.add (domain_field Domainstate.Domain_local_top) r;
+      I.add (int 8) r;
   | Lop(Iintop(Icomp cmp)) ->
       I.cmp (arg i 1) (arg i 0);
       I.set (cond cmp) al;
@@ -724,6 +738,10 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
+  | Lop(Ispecific(Iregionbegin)) ->
+      I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
+  | Lop(Ispecific(Iregionend)) ->
+      I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Iname_for_debugger _) -> ()
   | Lreloadretaddr ->
       ()

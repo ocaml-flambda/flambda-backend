@@ -584,3 +584,5 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+
+type alloc_mode = Alloc_heap | Alloc_local (* FIXME *)

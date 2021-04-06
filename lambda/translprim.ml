@@ -126,8 +126,8 @@ let primitives_table =
     "%field0", Primitive ((Pfield 0), 1);
     "%field1", Primitive ((Pfield 1), 1);
     "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
-    "%makeblock", Primitive ((Pmakeblock(0, Immutable, None)), 1);
-    "%makemutable", Primitive ((Pmakeblock(0, Mutable, None)), 1);
+    "%makeblock", Primitive ((Pmakeblock(0, Immutable, None, Alloc_heap)), 1);
+    "%makemutable", Primitive ((Pmakeblock(0, Mutable, None, Alloc_heap)), 1);
     "%raise", Raise Raise_regular;
     "%reraise", Raise Raise_reraise;
     "%raise_notrace", Raise Raise_notrace;
@@ -461,10 +461,11 @@ let specialize_primitive env ty ~has_constant_constructor prim =
       | Pbigarray_unknown, Pbigarray_unknown_layout -> None
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
     end
-  | Primitive (Pmakeblock(tag, mut, None), arity), fields -> begin
+  | Primitive (Pmakeblock(tag, mut, None, mode), arity), fields -> begin
       let shape = List.map (Typeopt.value_kind env) fields in
       let useful = List.exists (fun knd -> knd <> Pgenval) shape in
-      if useful then Some (Primitive (Pmakeblock(tag, mut, Some shape), arity))
+      if useful then
+        Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
     end
   | Comparison(comp, Compare_generic), p1 :: _ ->
@@ -684,7 +685,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       lambda_of_loc kind loc
   | Loc kind, [arg] ->
       let lam = lambda_of_loc kind loc in
-      Lprim(Pmakeblock(0, Immutable, None), [lam; arg], loc)
+      Lprim(Pmakeblock(0, Immutable, None, Alloc_heap), [lam; arg], loc)
   | Send, [obj; meth] ->
       Lsend(Public, meth, obj, [], loc)
   | Send_self, [obj; meth] ->
@@ -769,7 +770,8 @@ let lambda_primitive_needs_event_after = function
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
-  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque -> false
+  | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque
+  | Pendregion -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function

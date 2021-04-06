@@ -445,6 +445,100 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_allocN))
 
+
+
+FUNCTION(G(caml_call_local_realloc))
+        CFI_STARTPROC
+    /* Touch the stack to trigger a recoverable segfault
+       if insufficient space remains */
+        subq    $(STACK_PROBE_SIZE), %rsp; CFI_ADJUST(STACK_PROBE_SIZE);
+        movq    %r11, 0(%rsp)
+        addq    $(STACK_PROBE_SIZE), %rsp; CFI_ADJUST(-STACK_PROBE_SIZE);
+    /* Build array of registers, save it into Caml_state->gc_regs */
+#ifdef WITH_FRAME_POINTERS
+        ENTER_FUNCTION          ;
+#else
+        pushq   %rbp; CFI_ADJUST(8);
+#endif
+        pushq   %r11; CFI_ADJUST (8);
+        pushq   %r10; CFI_ADJUST (8);
+        pushq   %r13; CFI_ADJUST (8);
+        pushq   %r12; CFI_ADJUST (8);
+        pushq   %r9; CFI_ADJUST (8);
+        pushq   %r8; CFI_ADJUST (8);
+        pushq   %rcx; CFI_ADJUST (8);
+        pushq   %rdx; CFI_ADJUST (8);
+        pushq   %rsi; CFI_ADJUST (8);
+        pushq   %rdi; CFI_ADJUST (8);
+        pushq   %rbx; CFI_ADJUST (8);
+        pushq   %rax; CFI_ADJUST (8);
+        movq    %rsp, Caml_state(gc_regs)
+    /* Save young_ptr */
+        movq    %r15, Caml_state(young_ptr)
+    /* Save floating-point registers */
+        subq    $(16*8), %rsp; CFI_ADJUST (16*8);
+        movsd   %xmm0, 0*8(%rsp)
+        movsd   %xmm1, 1*8(%rsp)
+        movsd   %xmm2, 2*8(%rsp)
+        movsd   %xmm3, 3*8(%rsp)
+        movsd   %xmm4, 4*8(%rsp)
+        movsd   %xmm5, 5*8(%rsp)
+        movsd   %xmm6, 6*8(%rsp)
+        movsd   %xmm7, 7*8(%rsp)
+        movsd   %xmm8, 8*8(%rsp)
+        movsd   %xmm9, 9*8(%rsp)
+        movsd   %xmm10, 10*8(%rsp)
+        movsd   %xmm11, 11*8(%rsp)
+        movsd   %xmm12, 12*8(%rsp)
+        movsd   %xmm13, 13*8(%rsp)
+        movsd   %xmm14, 14*8(%rsp)
+        movsd   %xmm15, 15*8(%rsp)
+    /* Call the garbage collector */
+        PREPARE_FOR_C_CALL
+        call    GCALL(caml_local_realloc)
+        CLEANUP_AFTER_C_CALL
+    /* Restore young_ptr */
+        movq    Caml_state(young_ptr), %r15
+    /* Restore all regs used by the code generator */
+        movsd   0*8(%rsp), %xmm0
+        movsd   1*8(%rsp), %xmm1
+        movsd   2*8(%rsp), %xmm2
+        movsd   3*8(%rsp), %xmm3
+        movsd   4*8(%rsp), %xmm4
+        movsd   5*8(%rsp), %xmm5
+        movsd   6*8(%rsp), %xmm6
+        movsd   7*8(%rsp), %xmm7
+        movsd   8*8(%rsp), %xmm8
+        movsd   9*8(%rsp), %xmm9
+        movsd   10*8(%rsp), %xmm10
+        movsd   11*8(%rsp), %xmm11
+        movsd   12*8(%rsp), %xmm12
+        movsd   13*8(%rsp), %xmm13
+        movsd   14*8(%rsp), %xmm14
+        movsd   15*8(%rsp), %xmm15
+        addq    $(16*8), %rsp; CFI_ADJUST(-16*8)
+        popq    %rax; CFI_ADJUST(-8)
+        popq    %rbx; CFI_ADJUST(-8)
+        popq    %rdi; CFI_ADJUST(-8)
+        popq    %rsi; CFI_ADJUST(-8)
+        popq    %rdx; CFI_ADJUST(-8)
+        popq    %rcx; CFI_ADJUST(-8)
+        popq    %r8; CFI_ADJUST(-8)
+        popq    %r9; CFI_ADJUST(-8)
+        popq    %r12; CFI_ADJUST(-8)
+        popq    %r13; CFI_ADJUST(-8)
+        popq    %r10; CFI_ADJUST(-8)
+        popq    %r11; CFI_ADJUST(-8)
+#ifdef WITH_FRAME_POINTERS
+        LEAVE_FUNCTION
+#else
+        popq    %rbp; CFI_ADJUST(-8);
+#endif
+    /* Return to caller */
+        ret
+CFI_ENDPROC
+ENDFUNCTION(G(caml_call_local_realloc))
+
 /* Call a C function from OCaml */
 
 FUNCTION(G(caml_c_call))

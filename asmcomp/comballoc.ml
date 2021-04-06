@@ -22,35 +22,50 @@ type pending_alloc =
     dbginfos: Debuginfo.alloc_dbginfo;   (* debug info for each pending alloc *)
     totalsz: int }                    (* amount to be allocated in this block *)
 
-type allocation_state =
+type mode_allocation_state =
     No_alloc
   | Pending_alloc of pending_alloc
+
+type allocation_state =
+  { heap: mode_allocation_state; local: mode_allocation_state }
+
+let get_mode (m : Lambda.alloc_mode) s =
+  match m with
+  | Alloc_heap -> s.heap
+  | Alloc_local -> s.local
+
+let set_mode (m : Lambda.alloc_mode) s x =
+  match m with
+  | Alloc_heap -> { s with heap = x }
+  | Alloc_local -> { s with local = x }
 
 let rec combine i allocstate =
   match i.desc with
     Iend | Ireturn | Iexit _ | Iraise _ ->
       (i, allocstate)
-  | Iop(Ialloc { bytes = sz; dbginfo; _ }) ->
+  | Iop(Ialloc { bytes = sz; dbginfo; mode }) ->
       assert (List.length dbginfo = 1);
-      begin match allocstate with
+      begin match get_mode mode allocstate with
       | Pending_alloc {reg; dbginfos; totalsz}
           when totalsz + sz <= (Config.max_young_wosize + 1) * Arch.size_addr ->
           let (next, state) =
            combine i.next
-             (Pending_alloc { reg = i.res.(0);
-                              dbginfos = dbginfo @ dbginfos;
-                              totalsz = totalsz + sz }) in
+             (set_mode mode allocstate
+                (Pending_alloc { reg = i.res.(0);
+                                 dbginfos = dbginfo @ dbginfos;
+                                 totalsz = totalsz + sz })) in
          (instr_cons_debug (Iop(Iintop_imm(Iadd, -sz)))
             [| reg |] i.res i.dbg next,
            state)
       | No_alloc | Pending_alloc _ ->
          let (next, state) =
            combine i.next
-             (Pending_alloc { reg = i.res.(0);
-                              dbginfos = dbginfo;
-                              totalsz = sz }) in
+             (set_mode mode allocstate
+                (Pending_alloc { reg = i.res.(0);
+                                 dbginfos = dbginfo;
+                                 totalsz = sz })) in
          let totalsz, dbginfo =
-           match state with
+           match get_mode mode state with
            | No_alloc -> assert false
            | Pending_alloc { totalsz; dbginfos; _ } -> totalsz, dbginfos in
          let next =
@@ -59,7 +74,7 @@ let rec combine i allocstate =
            else instr_cons_debug (Iop(Iintop_imm(Iadd, offset))) i.res
                 i.res i.dbg next
          in
-         (instr_cons_debug (Iop(Ialloc {bytes = totalsz; dbginfo; }))
+         (instr_cons_debug (Iop(Ialloc {bytes = totalsz; dbginfo; mode}))
           i.arg i.res i.dbg next, allocstate)
       end
   | Iop(Icall_ind | Icall_imm _ | Iextcall _ |
@@ -95,7 +110,7 @@ let rec combine i allocstate =
       (instr_cons (Itrywith(newbody, newhandler)) i.arg i.res newnext, s')
 
 and combine_restart i =
-  let (newi, _) = combine i No_alloc in newi
+  let (newi, _) = combine i {local=No_alloc; heap=No_alloc} in newi
 
 let fundecl f =
   {f with fun_body = combine_restart f.fun_body}
