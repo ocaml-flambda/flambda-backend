@@ -1476,10 +1476,10 @@ and transl_signature env sg =
               :: trem
             in
             typedtree, sg, final_env
-        | Psig_attribute x ->
-            Builtin_attributes.warning_attribute x;
+        | Psig_attribute attr ->
+            Builtin_attributes.parse_standard_interface_attributes attr;
             let (trem,rem, final_env) = transl_sig env srem in
-            mksig (Tsig_attribute x) env loc :: trem, rem, final_env
+            mksig (Tsig_attribute attr) env loc :: trem, rem, final_env
         | Psig_extension (ext, _attrs) ->
             raise (Error_forward (Builtin_attributes.error_of_extension ext))
   in
@@ -2418,9 +2418,9 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
         Tstr_include incl, sg, new_env
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
-    | Pstr_attribute x ->
-        Builtin_attributes.warning_attribute x;
-        Tstr_attribute x, [], env
+    | Pstr_attribute attr ->
+        Builtin_attributes.parse_standard_implementation_attributes attr;
+        Tstr_attribute attr, [], env
   in
   let rec type_struct env sstr =
     match sstr with

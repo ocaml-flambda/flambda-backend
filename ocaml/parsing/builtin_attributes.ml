@@ -20,9 +20,18 @@ let string_of_cst = function
   | Pconst_string(s, _, _) -> Some s
   | _ -> None
 
+let int_of_cst = function
+  | Pconst_integer(i, None) -> Some (int_of_string i)
+  | _ -> None
+
 let string_of_payload = function
   | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_constant c},_)}] ->
       string_of_cst c
+  | _ -> None
+
+let int_of_payload = function
+  | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_constant c},_)}] ->
+      int_of_cst c
   | _ -> None
 
 let string_of_opt_payload p =
@@ -285,3 +294,73 @@ let has_unboxed attr =
 
 let has_boxed attr =
   List.exists (check ["ocaml.boxed"; "boxed"]) attr
+
+let parse_empty_payload attr =
+  match attr.attr_payload with
+  | PStr [] -> Some ()
+  | _ ->
+    warn_payload attr.attr_loc attr.attr_name.txt
+      "No attribute payload was expected";
+    None
+
+let parse_int_payload attr =
+  match int_of_payload attr.attr_payload with
+  | Some i -> Some i
+  | None ->
+    warn_payload attr.attr_loc attr.attr_name.txt
+      "A constant payload of type int was expected";
+    None
+
+let clflags_attribute_without_payload attr ~name clflags_ref =
+  if String.equal attr.attr_name.txt name
+    || String.equal attr.attr_name.txt ("ocaml." ^ name)
+  then begin
+    match parse_empty_payload attr with
+    | Some () -> clflags_ref := true
+    | None -> ()
+  end
+  
+let clflags_attribute_with_int_payload attr ~name clflags_ref =
+  if String.equal attr.attr_name.txt name
+    || String.equal attr.attr_name.txt ("ocaml." ^ name)
+  then begin
+    match parse_int_payload attr with
+    | Some i -> clflags_ref := i
+    | None -> ()
+  end
+  
+let nolabels_attribute attr =
+  clflags_attribute_without_payload attr
+    ~name:"nolabels" Clflags.classic
+
+let inline_attribute attr =
+  if String.equal attr.attr_name.txt "inline"
+    || String.equal attr.attr_name.txt "ocaml.inline"
+  then begin
+    let err_msg =
+      "Either specify an integer, or the form accepted by '-inline' in quotes"
+    in
+    match string_of_payload attr.attr_payload with
+    | Some s ->
+      Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
+    | None ->
+      match int_of_payload attr.attr_payload with
+      | Some i ->
+        let s = string_of_int i in
+        Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
+      | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg
+  end
+  
+let afl_inst_ratio_attribute attr =
+  clflags_attribute_with_int_payload attr
+    ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
+
+let parse_standard_interface_attributes attr =
+  warning_attribute attr;
+  nolabels_attribute attr
+
+let parse_standard_implementation_attributes attr =
+  warning_attribute attr;
+  nolabels_attribute attr;
+  inline_attribute attr;
+  afl_inst_ratio_attribute attr
