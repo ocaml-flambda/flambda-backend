@@ -1,0 +1,6 @@
+(library
+   (name flambda_backend_driver)
+   (modes byte native)
+   (flags (:standard -principal -nostdlib))
+   (libraries stdlib ocamloptcomp)
+   (modules optcompile))

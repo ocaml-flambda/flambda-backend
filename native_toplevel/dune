@@ -1,0 +1,48 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                     Thomas Refis, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2018 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+; This should probably be done using a virtual lib for e.g. Genprintval
+
+(library
+ (name ocamlopttoplevel)
+ (modes native)
+ (wrapped false)
+ (flags (:standard -principal -nostdlib -w -9))
+ (library_flags -linkall)
+ (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp
+   dynlink_internal)
+ (modules genprintval_native opttoploop opttopdirs opttopmain))
+
+(rule
+  (targets genprintval_native.ml)
+  (deps %{project_root}/ocaml/toplevel/genprintval.ml)
+  (action (copy %{deps} %{targets})))
+
+(install
+  (files
+    (ocamlopttoplevel.a as compiler-libs/ocamlopttoplevel.a)
+    (ocamlopttoplevel.cmxa as compiler-libs/ocamlopttoplevel.cmxa)
+    (opttopdirs.mli as compiler-libs/opttopdirs.mli)
+    (.ocamlopttoplevel.objs/byte/opttopdirs.cmi as compiler-libs/opttopdirs.cmi)
+    (.ocamlopttoplevel.objs/byte/opttopdirs.cmt as compiler-libs/opttopdirs.cmt)
+    (.ocamlopttoplevel.objs/byte/opttopdirs.cmti as compiler-libs/opttopdirs.cmti)
+    (opttoploop.mli as compiler-libs/opttoploop.mli)
+    (.ocamlopttoplevel.objs/byte/opttoploop.cmi as compiler-libs/opttoploop.cmi)
+    (.ocamlopttoplevel.objs/byte/opttoploop.cmt as compiler-libs/opttoploop.cmt)
+    (.ocamlopttoplevel.objs/byte/opttoploop.cmti as compiler-libs/opttoploop.cmti)
+    (opttopmain.mli as compiler-libs/opttopmain.mli)
+  )
+  (section lib)
+  (package ocaml))
+
