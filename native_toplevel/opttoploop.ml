@@ -24,6 +24,8 @@ open Typedtree
 open Outcometree
 open Ast_helper
 
+module Genprintval = Genprintval_native
+
 type res = Ok of Obj.t | Err of string
 type evaluation_outcome = Result of Obj.t | Exception of exn
 
