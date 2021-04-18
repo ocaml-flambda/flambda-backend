@@ -230,10 +230,22 @@ let print_specific_operation printreg op ppf arg =
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
 
+(* Are we using the Windows 64-bit ABI? *)
 let win64 =
   match Config.system with
   | "win64" | "mingw64" | "cygwin" -> true
   | _                   -> false
+
+(* Specific operations that are pure *)
+
+let operation_is_pure = function
+  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32 -> true
+  | Ifloatarithmem _ | Ifloatsqrtf _ -> true
+  | _ -> false
+
+(* Specific operations that can raise *)
+
+let operation_can_raise _ = false
 
 open X86_ast
 
