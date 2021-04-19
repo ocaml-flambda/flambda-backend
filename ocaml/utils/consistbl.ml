@@ -60,6 +60,11 @@ end) = struct
 
   let source tbl name = snd (Module_name.Tbl.find tbl name)
 
+  let find t name =
+    match Module_name.Tbl.find t name with
+    | exception Not_found -> None
+    | (crc, _) -> Some crc
+
   let extract l tbl =
     let l = List.sort_uniq Module_name.compare l in
     List.fold_left
