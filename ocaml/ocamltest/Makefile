@@ -250,7 +250,7 @@ ocamltest.opt$(EXE): $(deps_opt) $(native_modules)
 %.ml: %.mll
 	$(ocamllex) $(OCAMLLEX_FLAGS) $<
 
-ocamltest_unix.ml: ocamltest_unix_$(ocamltest_unix).ml
+ocamltest_unix.ml: ocamltest_unix.$(ocamltest_unix).ml
 	echo '# 1 "$^"' > $@
 	cat $^ >> $@
 
