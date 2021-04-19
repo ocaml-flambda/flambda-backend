@@ -37,21 +37,21 @@ exception Error of error
 
 (* Consistency check between interfaces and implementations *)
 
-module Cmi_consistbl = Consistbl.Make (Misc.Stdlib.String)
+module Cmi_consistbl = Consistbl.Make (String)
 let crc_interfaces = Cmi_consistbl.create ()
-let interfaces = ref ([] : string list)
+let interfaces = String.Tbl.create 100
 
-module Cmx_consistbl = Consistbl.Make (Misc.Stdlib.String)
+module Cmx_consistbl = Consistbl.Make (String)
 let crc_implementations = Cmx_consistbl.create ()
 let implementations = ref ([] : string list)
-let implementations_defined = ref ([] : (string * string) list)
+let implementations_defined = String.Tbl.create 100
 let cmx_required = ref ([] : string list)
 
 let check_consistency file_name unit crc =
   begin try
     List.iter
       (fun (name, crco) ->
-        interfaces := name :: !interfaces;
+        String.Tbl.add interfaces name ();
         match crco with
           None -> ()
         | Some crc ->
@@ -85,19 +85,22 @@ let check_consistency file_name unit crc =
     raise(Error(Inconsistent_implementation(name, user, auth)))
   end;
   begin try
-    let source = List.assoc unit.ui_name !implementations_defined in
+    let source = String.Tbl.find implementations_defined unit.ui_name in
     raise (Error(Multiple_definition(unit.ui_name, file_name, source)))
   with Not_found -> ()
   end;
   implementations := unit.ui_name :: !implementations;
   Cmx_consistbl.set crc_implementations unit.ui_name crc file_name;
-  implementations_defined :=
-    (unit.ui_name, file_name) :: !implementations_defined;
+  String.Tbl.add implementations_defined unit.ui_name file_name;
   if unit.ui_symbol <> unit.ui_name then
     cmx_required := unit.ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
-  Cmi_consistbl.extract !interfaces crc_interfaces
+  String.Tbl.fold (fun name () crcs ->
+      (name, Cmi_consistbl.find crc_interfaces name) :: crcs)
+    interfaces
+    []
+
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
 
@@ -229,20 +232,25 @@ let force_linking_of_startup ~ppf_dump =
   Asmgen.compile_phrase ~ppf_dump
     (Cmm.Cdata ([Cmm.Csymbol_address "caml_startup"]))
 
-let make_globals_map units_list ~crc_interfaces =
-  let crc_interfaces = String.Tbl.of_seq (List.to_seq crc_interfaces) in
+let make_globals_map units_list =
+  (* The order in which entries appear in the globals map does not matter
+     (see the natdynlink code).
+     We can corrupt [interfaces] since it won't be used again until the next
+     compilation. *)
   let defined =
     List.map (fun (unit, _, impl_crc) ->
-        let intf_crc = String.Tbl.find crc_interfaces unit.ui_name in
-        String.Tbl.remove crc_interfaces unit.ui_name;
+        let intf_crc = Cmi_consistbl.find crc_interfaces unit.ui_name in
+        String.Tbl.remove interfaces unit.ui_name;
         (unit.ui_name, intf_crc, Some impl_crc, unit.ui_defines))
       units_list
   in
-  String.Tbl.fold (fun name intf acc ->
-      (name, intf, None, []) :: acc)
-    crc_interfaces defined
+  String.Tbl.fold (fun name () globals_map ->
+      let intf_crc = Cmi_consistbl.find crc_interfaces name in
+      (name, intf_crc, None, []) :: globals_map)
+    interfaces
+    defined
 
-let make_startup_file ~ppf_dump units_list ~crc_interfaces =
+let make_startup_file ~ppf_dump units_list =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup";
@@ -257,7 +265,7 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
     (fun i name -> compile_phrase (Cmm_helpers.predef_exception i name))
     Runtimedef.builtin_exceptions;
   compile_phrase (Cmm_helpers.global_table name_list);
-  let globals_map = make_globals_map units_list ~crc_interfaces in
+  let globals_map = make_globals_map units_list in
   compile_phrase (Cmm_helpers.globals_map globals_map);
   compile_phrase(Cmm_helpers.data_segment_table ("_startup" :: name_list));
   if !Clflags.function_sections then
@@ -366,7 +374,6 @@ let link ~ppf_dump objfiles output_name =
     List.iter
       (fun (info, file_name, crc) -> check_consistency file_name info crc)
       units_tolink;
-    let crc_interfaces = extract_crc_interfaces () in
     Clflags.ccobjs := !Clflags.ccobjs @ !lib_ccobjs;
     Clflags.all_ccopts := !lib_ccopts @ !Clflags.all_ccopts;
                                                  (* put user's opts first *)
@@ -378,7 +385,7 @@ let link ~ppf_dump objfiles output_name =
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
-      (fun () -> make_startup_file ~ppf_dump units_tolink ~crc_interfaces);
+      (fun () -> make_startup_file ~ppf_dump units_tolink);
     Misc.try_finally
       (fun () ->
          call_linker (List.map object_file_name objfiles)
@@ -455,9 +462,9 @@ let () =
 let reset () =
   Cmi_consistbl.clear crc_interfaces;
   Cmx_consistbl.clear crc_implementations;
-  implementations_defined := [];
+  String.Tbl.reset implementations_defined;
   cmx_required := [];
-  interfaces := [];
+  String.Tbl.reset interfaces;
   implementations := [];
   lib_ccobjs := [];
   lib_ccopts := []
