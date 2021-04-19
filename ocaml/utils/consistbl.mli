@@ -57,6 +57,8 @@ end) : sig
            if the latter has an associated CRC in [tbl].
            Raise [Not_found] otherwise. *)
 
+  val find: t -> Module_name.t -> Digest.t option
+
   val extract: Module_name.t list -> t -> (Module_name.t * Digest.t option) list
         (* [extract tbl names] returns an associative list mapping each string
            in [names] to the CRC associated with it in [tbl]. If no CRC is
