@@ -39,7 +39,7 @@ exception Error of error
 
 module Cmi_consistbl = Consistbl.Make (String)
 let crc_interfaces = Cmi_consistbl.create ()
-let interfaces = ref String.Set.empty
+let interfaces = String.Tbl.create 100
 
 module Cmx_consistbl = Consistbl.Make (String)
 let crc_implementations = Cmx_consistbl.create ()
@@ -51,7 +51,7 @@ let check_consistency file_name unit crc =
   begin try
     List.iter
       (fun (name, crco) ->
-        interfaces := String.Set.add name !interfaces;
+        String.Tbl.add interfaces name ();
         match crco with
           None -> ()
         | Some crc ->
@@ -96,7 +96,11 @@ let check_consistency file_name unit crc =
     cmx_required := unit.ui_name :: !cmx_required
 
 let extract_crc_interfaces () =
-  Cmi_consistbl.extract (String.Set.elements !interfaces) crc_interfaces
+  String.Tbl.fold (fun name () crcs ->
+      (name, Cmi_consistbl.find crc_interfaces name) :: crcs)
+    interfaces
+    []
+
 let extract_crc_implementations () =
   Cmx_consistbl.extract !implementations crc_implementations
 
@@ -232,20 +236,19 @@ let force_linking_of_startup ~ppf_dump =
 let make_globals_map units_list =
   (* The order in which entries appear in the globals map does not matter
      (see the natdynlink code).
-     Note that [!interfaces] can contain duplicates.
-     We can corrupt [!interfaces] since it won't be used again until the next
+     We can corrupt [interfaces] since it won't be used again until the next
      compilation. *)
   let defined =
     List.map (fun (unit, _, impl_crc) ->
         let intf_crc = Cmi_consistbl.find crc_interfaces unit.ui_name in
-        interfaces := String.Set.remove unit.ui_name !interfaces;
+        String.Tbl.remove interfaces unit.ui_name;
         (unit.ui_name, intf_crc, Some impl_crc, unit.ui_defines))
       units_list
   in
-  String.Set.fold (fun name globals_map ->
+  String.Tbl.fold (fun name () globals_map ->
       let intf_crc = Cmi_consistbl.find crc_interfaces name in
       (name, intf_crc, None, []) :: globals_map)
-    !interfaces
+    interfaces
     defined
 
 let make_startup_file ~ppf_dump units_list =
@@ -470,7 +473,7 @@ let reset () =
   Cmx_consistbl.clear crc_implementations;
   String.Tbl.reset implementations_defined;
   cmx_required := [];
-  interfaces := String.Set.empty;
+  String.Tbl.reset interfaces;
   implementations := [];
   lib_ccobjs := [];
   lib_ccopts := []
