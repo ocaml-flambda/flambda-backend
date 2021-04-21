@@ -67,23 +67,11 @@ end) = struct
 
   let extract l tbl =
     let l = List.sort_uniq Module_name.compare l in
-    List.fold_left
-      (fun assc name ->
-         try
-           let (crc, _) = Module_name.Tbl.find tbl name in
-             (name, Some crc) :: assc
-         with Not_found ->
-           (name, None) :: assc)
-      [] l
+    List.fold_left (fun assc name -> (name, find tbl name) :: assc) [] l
 
   let extract_map mod_names tbl =
     Module_name.Set.fold
-      (fun name result ->
-         try
-           let (crc, _) = Module_name.Tbl.find tbl name in
-           Module_name.Map.add name (Some crc) result
-         with Not_found ->
-           Module_name.Map.add name None result)
+      (fun name result -> Module_name.Map.add name (find tbl name) result)
       mod_names
       Module_name.Map.empty
 
