@@ -135,7 +135,7 @@ method is_immediate_natint n = n <= 0x7FFFFFFFn && n >= -0x80000000n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall (fn, _, _, _), args, _)
+  | Cop(Cextcall { name = fn; }, args, _)
     when List.mem fn inline_ops ->
       (* inlined ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -144,7 +144,7 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall(fn, _, _, _), args, _)
+  | Cop(Cextcall { name = fn; }, args, _)
     when List.mem fn inline_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
@@ -201,7 +201,7 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
-  | Cextcall("sqrt", _, false, _) ->
+  | Cextcall { name = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
@@ -221,12 +221,12 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
       end
-  | Cextcall("caml_bswap16_direct", _, _, _) ->
+  | Cextcall { name = "caml_bswap16_direct"; } ->
       (Ispecific (Ibswap 16), args)
-  | Cextcall("caml_int32_direct_bswap", _, _, _) ->
+  | Cextcall { name = "caml_int32_direct_bswap"; } ->
       (Ispecific (Ibswap 32), args)
-  | Cextcall("caml_int64_direct_bswap", _, _, _)
-  | Cextcall("caml_nativeint_direct_bswap", _, _, _) ->
+  | Cextcall { name = "caml_int64_direct_bswap"; }
+  | Cextcall { name = "caml_nativeint_direct_bswap"; } ->
       (Ispecific (Ibswap 64), args)
   (* AMD64 does not support immediate operands for multiply high signed *)
   | Cmulhi ->
