@@ -87,6 +87,9 @@ val cur_label: unit -> label
 
 type rec_flag = Nonrecursive | Recursive
 
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+
 type phantom_defining_expr =
   (* CR-soon mshinwell: Convert this to [Targetint.OCaml.t] (or whatever the
      representation of "target-width OCaml integers of type [int]"
@@ -133,6 +136,9 @@ and operation =
       { name: string;
         ret: machtype;
         alloc: bool;
+        builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
         label_after: label option;
         (** If specified, the given label will be placed immediately after the
             call (at the same place as any frame descriptor would reference). *)

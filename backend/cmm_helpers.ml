@@ -728,10 +728,16 @@ let float_array_ref arr ofs dbg =
 
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall { name = "caml_modify"; ret = typ_void; alloc = false;
+                 builtin = false;
+                 effects = Arbitrary_effects;
+                 coeffects = Has_coeffects;
                  label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let addr_array_initialize arr ofs newval dbg =
   Cop(Cextcall { name = "caml_initialize";
+                 builtin = false;
+                 effects = Arbitrary_effects;
+                 coeffects = Has_coeffects;
                  ret = typ_void; alloc = false; label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
@@ -769,6 +775,9 @@ let bigstring_length ba dbg =
 let lookup_tag obj tag dbg =
   bind "tag" tag (fun tag ->
     Cop(Cextcall { name = "caml_get_public_method"; ret = typ_val;
+                   builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    alloc = false; label_after = None },
         [obj; tag],
         dbg))
@@ -800,6 +809,9 @@ let make_alloc_generic set_fn dbg tag wordsize args =
                           fill_fields (idx + 2) el) in
     Clet(VP.create id,
          Cop(Cextcall { name = "caml_alloc"; ret = typ_val; alloc = true;
+                        builtin = false;
+                        effects = Arbitrary_effects;
+                        coeffects = Has_coeffects;
                         label_after = None },
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
          fill_fields 1 args)
@@ -808,6 +820,9 @@ let make_alloc_generic set_fn dbg tag wordsize args =
 let make_alloc dbg tag args =
   let addr_array_init arr ofs newval dbg =
     Cop(Cextcall { name = "caml_initialize"; ret = typ_void; alloc = false;
+                   builtin = false;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
                    label_after = None },
         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
   in
@@ -2147,12 +2162,18 @@ let bbswap bi arg dbg =
     | Pint64 -> "int64"
   in
   Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
+                 builtin = false;
+                 effects = Arbitrary_effects;
+                 coeffects = Has_coeffects;
                  ret = typ_int; alloc = false; label_after = None; },
       [arg],
       dbg)
 
 let bswap16 arg dbg =
   (Cop(Cextcall { name = "caml_bswap16_direct";
+                  builtin = false;
+                  effects = Arbitrary_effects;
+                  coeffects = Has_coeffects;
                   ret = typ_int; alloc = false; label_after = None; },
        [arg],
        dbg))
@@ -2180,6 +2201,9 @@ let setfield n ptr init arg1 arg2 dbg =
   | Caml_modify ->
       return_unit dbg (Cop(Cextcall { name = "caml_modify";
                                       ret = typ_void; alloc = false;
+                                      builtin = false;
+                                      effects = Arbitrary_effects;
+                                      coeffects = Has_coeffects;
                                       label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
@@ -2187,6 +2211,9 @@ let setfield n ptr init arg1 arg2 dbg =
   | Caml_initialize ->
       return_unit dbg (Cop(Cextcall { name = "caml_initialize";
                                       ret = typ_void; alloc = false;
+                                      builtin = false;
+                                      effects = Arbitrary_effects;
+                                      coeffects = Has_coeffects;
                                       label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
