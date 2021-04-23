@@ -218,7 +218,11 @@ expr:
   | LPAREN APPLY location expr exprlist machtype RPAREN
                 { Cop(Capply $6, $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
-               {Cop(Cextcall {name=$3; ret=$5; alloc=false; ty_args=[];},
+               {Cop(Cextcall {name=$3; ret=$5; alloc=false;
+                              builtin=false;
+                              effects=Arbitrary_effects;
+                              coeffects=Has_coeffects;
+                              ty_args=[];},
                      List.rev $4, debuginfo ())}
   | LPAREN ALLOC exprlist RPAREN { Cop(Calloc, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }

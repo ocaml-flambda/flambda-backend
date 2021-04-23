@@ -126,6 +126,9 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+
 type phantom_defining_expr =
   | Cphantom_const_int of Targetint.t
   | Cphantom_const_symbol of string
@@ -151,10 +154,13 @@ type memory_chunk =
 and operation =
     Capply of machtype
   | Cextcall of
-      { name : string; 
-        ret : machtype;
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
         ty_args : exttype list;
-        alloc : bool;
       }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
