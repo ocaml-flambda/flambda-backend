@@ -150,7 +150,12 @@ type memory_chunk =
 
 and operation =
     Capply of machtype
-  | Cextcall of string * machtype * exttype list * bool
+  | Cextcall of
+      { name : string; 
+        ret : machtype;
+        ty_args : exttype list;
+        alloc : bool;
+      }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
