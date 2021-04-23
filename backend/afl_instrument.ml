@@ -104,6 +104,9 @@ let instrument_initialiser c dbg =
   with_afl_logging
     (Csequence
        (Cop (Cextcall { name = "caml_setup_afl";
+                        builtin = false;
+                        effects = Arbitrary_effects;
+                        coeffects = Has_coeffects;
                         ret = typ_int; alloc = false; label_after = None; },
              [Cconst_int (0, dbg ())],
              dbg ()),
