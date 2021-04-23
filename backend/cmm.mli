@@ -98,6 +98,9 @@ val cur_label: unit -> label
 
 type rec_flag = Nonrecursive | Recursive
 
+type effects = No_effects | Arbitrary_effects
+type coeffects = No_coeffects | Has_coeffects
+
 type phantom_defining_expr =
   (* CR-soon mshinwell: Convert this to [Targetint.OCaml.t] (or whatever the
      representation of "target-width OCaml integers of type [int]"
@@ -141,14 +144,17 @@ type memory_chunk =
 and operation =
     Capply of machtype
   | Cextcall of
-    { name : string;
-      ret : machtype;
-      ty_args : exttype list;
-      alloc : bool;
-    }
-    (** The [machtype] is the machine type of the result.
-        The [exttype list] describes the unboxing types of the arguments.
-        An empty list means "all arguments are machine words [XInt]". *)
+      { name: string;
+        ret: machtype;
+        alloc: bool;
+        builtin: bool;
+        effects: effects;
+        coeffects: coeffects;
+        ty_args : exttype list;
+      }
+      (** The [machtype] is the machine type of the result.
+          The [exttype list] describes the unboxing types of the arguments.
+          An empty list means "all arguments are machine words [XInt]". *)
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
