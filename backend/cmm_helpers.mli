@@ -575,6 +575,12 @@ val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
 
+(** [cextcall prim args dbg type_of_result] returns Cextcall operation
+    that corresponds to [prim]. If [prim] is a C builtin supported on the
+    target, returns [Cmm.operation] variant for [prim]'s intrinsics. *)
+val cextcall : Primitive.description -> expression list -> Debuginfo.t ->
+  machtype -> exttype list -> expression
+
 (** Generic Cmm fragments *)
 
 (** Generate generic functions *)
