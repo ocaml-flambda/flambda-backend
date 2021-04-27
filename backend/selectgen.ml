@@ -66,7 +66,7 @@ let env_empty = {
 
 let oper_result_type = function
     Capply ty -> ty
-  | Cextcall(_s, ty, _alloc, _) -> ty
+  | Cextcall { ret = ty; } -> ty
   | Cload (c, _) ->
       begin match c with
       | Word_val -> typ_val
@@ -451,7 +451,7 @@ method select_operation op args _dbg =
   | (Capply _, _) ->
     let label_after = Cmm.new_label () in
     (Icall_ind { label_after; }, args)
-  | (Cextcall(func, _ty, alloc, label_after), _) ->
+  | (Cextcall { name = func; alloc; label_after; }, _) ->
     let label_after =
       match label_after with
       | None -> Cmm.new_label ()

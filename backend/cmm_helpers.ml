@@ -604,8 +604,8 @@ let rec remove_unit = function
       Clet(id, c1, remove_unit c2)
   | Cop(Capply _mty, args, dbg) ->
       Cop(Capply typ_void, args, dbg)
-  | Cop(Cextcall(proc, _mty, alloc, label_after), args, dbg) ->
-      Cop(Cextcall(proc, typ_void, alloc, label_after), args, dbg)
+  | Cop(Cextcall c, args, dbg) ->
+      Cop(Cextcall {c with ret = typ_void}, args, dbg)
   | Cexit (_,_) as c -> c
   | Ctuple [] as c -> c
   | c -> Csequence(c, Ctuple [])
@@ -727,10 +727,12 @@ let float_array_ref arr ofs dbg =
   box_float dbg (unboxed_float_array_ref arr ofs dbg)
 
 let addr_array_set arr ofs newval dbg =
-  Cop(Cextcall("caml_modify", typ_void, false, None),
+  Cop(Cextcall { name = "caml_modify"; ret = typ_void; alloc = false;
+                 label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let addr_array_initialize arr ofs newval dbg =
-  Cop(Cextcall("caml_initialize", typ_void, false, None),
+  Cop(Cextcall { name = "caml_initialize";
+                 ret = typ_void; alloc = false; label_after = None},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Lambda.Assignment),
@@ -766,7 +768,8 @@ let bigstring_length ba dbg =
 
 let lookup_tag obj tag dbg =
   bind "tag" tag (fun tag ->
-    Cop(Cextcall("caml_get_public_method", typ_val, false, None),
+    Cop(Cextcall { name = "caml_get_public_method"; ret = typ_val;
+                   alloc = false; label_after = None },
         [obj; tag],
         dbg))
 
@@ -796,14 +799,16 @@ let make_alloc_generic set_fn dbg tag wordsize args =
     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
                           fill_fields (idx + 2) el) in
     Clet(VP.create id,
-         Cop(Cextcall("caml_alloc", typ_val, true, None),
+         Cop(Cextcall { name = "caml_alloc"; ret = typ_val; alloc = true;
+                        label_after = None },
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
          fill_fields 1 args)
   end
 
 let make_alloc dbg tag args =
   let addr_array_init arr ofs newval dbg =
-    Cop(Cextcall("caml_initialize", typ_void, false, None),
+    Cop(Cextcall { name = "caml_initialize"; ret = typ_void; alloc = false;
+                   label_after = None },
         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
   in
   make_alloc_generic addr_array_init dbg tag (List.length args) args
@@ -2141,13 +2146,14 @@ let bbswap bi arg dbg =
     | Pint32 -> "int32"
     | Pint64 -> "int64"
   in
-  Cop(Cextcall(Printf.sprintf "caml_%s_direct_bswap" prim,
-               typ_int, false, None),
+  Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
+                 ret = typ_int; alloc = false; label_after = None; },
       [arg],
       dbg)
 
 let bswap16 arg dbg =
-  (Cop(Cextcall("caml_bswap16_direct", typ_int, false, None),
+  (Cop(Cextcall { name = "caml_bswap16_direct";
+                  ret = typ_int; alloc = false; label_after = None; },
        [arg],
        dbg))
 
@@ -2172,12 +2178,16 @@ let assignment_kind
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
   | Caml_modify ->
-      return_unit dbg (Cop(Cextcall("caml_modify", typ_void, false, None),
+      return_unit dbg (Cop(Cextcall { name = "caml_modify";
+                                      ret = typ_void; alloc = false;
+                                      label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
                       dbg))
   | Caml_initialize ->
-      return_unit dbg (Cop(Cextcall("caml_initialize", typ_void, false, None),
+      return_unit dbg (Cop(Cextcall { name = "caml_initialize";
+                                      ret = typ_void; alloc = false;
+                                      label_after = None },
                       [field_address arg1 n dbg;
                        arg2],
                       dbg))
