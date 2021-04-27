@@ -33,6 +33,25 @@ let for_primitive (prim : Clambda_primitives.primitive) =
                ( "caml_format_float" | "caml_format_int" | "caml_int32_format"
                | "caml_nativeint_format" | "caml_int64_format" ) } ->
       No_effects, No_coeffects
+  | Pccall { prim_builtin = true; prim_effects; prim_coeffects } ->
+      (* Built-in primitives are the only ones where the effects and coeffects
+         of external calls are allowed to be anything other than "has arbitrary
+         effects and coeffects".  It is the responsibility of the user to
+         ensure that effect and coeffect annotations for builtin primitives
+         (on the "external" declarations) correctly match the code in the
+         backend, which also makes effect/coeffect judgements. *)
+      let effects =
+        match prim_effects with
+        | No_effects -> No_effects
+        | Only_generative_effects -> Only_generative_effects
+        | Arbitrary_effects -> Arbitrary_effects
+      in
+      let coeffects =
+        match prim_coeffects with
+        | No_coeffects -> No_coeffects
+        | Has_coeffects -> Has_coeffects
+      in
+      effects, coeffects
   | Pccall _ -> Arbitrary_effects, Has_coeffects
   | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects
