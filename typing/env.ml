@@ -212,6 +212,8 @@ module TycompTbl =
   end
 
 
+type empty = |
+
 module IdTbl =
   struct
     (** This module is used to store all kinds of components except
@@ -220,15 +222,15 @@ module IdTbl =
         bindings between each of them. *)
 
 
-    type ('a, 'b) t = {
+    type ('lock, 'a, 'b) t = {
       current: 'a Ident.tbl;
-      (** Local bindings since the last open *)
+      (** Local bindings since the last open or lock *)
 
-      layer: ('a, 'b) layer;
+      layer: ('lock, 'a, 'b) layer;
       (** Symbolic representation of the last (innermost) open, if any. *)
     }
 
-    and ('a, 'b) layer =
+    and ('lock, 'a, 'b) layer =
       | Open of {
           root: Path.t;
           (** The path of the opened module, to be prefixed in front of
@@ -243,13 +245,18 @@ module IdTbl =
               "open".  This is used to detect unused "opens".  The
               arguments are used to detect shadowing. *)
 
-          next: ('a, 'b) t;
+          next: ('lock, 'a, 'b) t;
           (** The table before opening the module. *)
         }
 
       | Map of {
           f: ('a -> 'a);
-          next: ('a, 'b) t;
+          next: ('lock, 'a, 'b) t;
+        }
+
+      | Lock of {
+          mode: 'lock;
+          next: ('lock, 'a, 'b) t;
         }
 
       | Nothing
@@ -273,6 +280,10 @@ module IdTbl =
         layer = Open {using; root; components; next};
       }
 
+    let add_lock mode next =
+      (* FIXME optimisation: shared lock on shared ctx should be no-op *)
+      { current = Ident.empty; layer = Lock {mode; next} }
+
     let map f next =
       {
         current = Ident.empty;
@@ -285,37 +296,49 @@ module IdTbl =
         begin match tbl.layer with
         | Open {next; _} -> find_same id next
         | Map {f; next} -> f (find_same id next)
+        | Lock {mode=_; next} -> find_same id next
         | Nothing -> raise exn
         end
 
-    let rec find_name wrap ~mark name tbl =
+    let rec find_name_and_locks wrap ~mark name tbl macc =
       try
         let (id, desc) = Ident.find_name name tbl.current in
-        Pident id, desc
+        Pident id, macc, desc
       with Not_found as exn ->
         begin match tbl.layer with
         | Open {using; root; next; components} ->
             begin try
               let descr = wrap (NameMap.find name components) in
-              let res = Pdot (root, name), descr in
+              let res = Pdot (root, name), macc, descr in
               if mark then begin match using with
               | None -> ()
               | Some f -> begin
-                  match find_name wrap ~mark:false name next with
+                  match find_name_and_locks wrap ~mark:false name next macc with
                   | exception Not_found -> f name None
-                  | _, descr' -> f name (Some (descr', descr))
+                  | _, _, descr' -> f name (Some (descr', descr))
                 end
               end;
               res
             with Not_found ->
-              find_name wrap ~mark name next
+              find_name_and_locks wrap ~mark name next macc
             end
         | Map {f; next} ->
-            let (p, desc) =  find_name wrap ~mark name next in
-            p, f desc
+            let (p, macc, desc) =
+              find_name_and_locks wrap ~mark name next macc in
+            p, macc, f desc
+        | Lock {mode; next} ->
+            find_name_and_locks wrap ~mark name next (mode :: macc)
         | Nothing ->
             raise exn
         end
+
+    let find_name_and_modes wrap ~mark name tbl =
+      find_name_and_locks wrap ~mark name tbl []
+
+    let find_name wrap ~mark name tbl =
+      let (id, ([] : empty list), desc) =
+        find_name_and_modes wrap ~mark name tbl in
+      id, desc
 
     let rec find_all wrap name tbl =
       List.map
@@ -333,6 +356,8 @@ module IdTbl =
       | Map {f; next} ->
           List.map (fun (p, desc) -> (p, f desc))
             (find_all wrap name next)
+      | Lock {mode=_;next} ->
+          find_all wrap name next
 
     let rec fold_name wrap f tbl acc =
       let acc =
@@ -354,11 +379,13 @@ module IdTbl =
           |> fold_name wrap
                (fun name (path, desc) -> f name (path, g desc))
                next
+      | Lock {mode=_; next} ->
+          fold_name wrap f next acc
 
     let rec local_keys tbl acc =
       let acc = Ident.fold_all (fun k _ accu -> k::accu) tbl.current acc in
       match tbl.layer with
-      | Open {next; _ } | Map {next; _} -> local_keys next acc
+      | Open {next; _ } | Map {next; _} | Lock {next; _} -> local_keys next acc
       | Nothing -> acc
 
 
@@ -375,6 +402,8 @@ module IdTbl =
           iter wrap f next
       | Map {f=g; next} ->
           iter wrap (fun id (path, desc) -> f id (path, g desc)) next
+      | Lock {mode=_; next} ->
+          iter wrap f next
       | Nothing -> ()
 
     let diff_keys tbl1 tbl2 =
@@ -394,14 +423,14 @@ type type_descriptions =
 let in_signature_flag = 0x01
 
 type t = {
-  values: (value_entry, value_data) IdTbl.t;
+  values: (alloc_mode, value_entry, value_data) IdTbl.t;
   constrs: constructor_data TycompTbl.t;
   labels: label_data TycompTbl.t;
-  types: (type_data, type_data) IdTbl.t;
-  modules: (module_entry, module_data) IdTbl.t;
-  modtypes: (modtype_data, modtype_data) IdTbl.t;
-  classes: (class_data, class_data) IdTbl.t;
-  cltypes: (cltype_data, cltype_data) IdTbl.t;
+  types: (empty, type_data, type_data) IdTbl.t;
+  modules: (empty, module_entry, module_data) IdTbl.t;
+  modtypes: (empty, modtype_data, modtype_data) IdTbl.t;
+  classes: (empty, class_data, class_data) IdTbl.t;
+  cltypes: (empty, cltype_data, cltype_data) IdTbl.t;
   functor_args: unit Ident.tbl;
   summary: summary;
   local_constraints: type_declaration Path.Map.t;
@@ -465,7 +494,8 @@ and address_lazy = (address_unforced, address) EnvLazy.t
 
 and value_data =
   { vda_description : value_description;
-    vda_address : address_lazy }
+    vda_address : address_lazy;
+    vda_mode : alloc_mode }
 
 and value_entry =
   | Val_bound of value_data
@@ -534,6 +564,8 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
+  | Local_value_escapes of Longident.t
+  | Local_value_used_in_closure of Longident.t
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -1544,7 +1576,9 @@ let rec components_of_module_maker
               | Val_prim _ -> EnvLazy.create_failed Not_found
               | _ -> next_address ()
             in
-            let vda = { vda_description = decl'; vda_address = addr } in
+            let vda = { vda_description = decl';
+                        vda_address = addr;
+                        vda_mode = Alloc_heap } in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
             let fresh_decl =
@@ -1692,12 +1726,12 @@ and check_value_name name loc =
         error (Illegal_value_name(loc, name))
     done
 
-and store_value ?check id addr decl env =
+and store_value ?check mode id addr decl env =
   check_value_name (Ident.name id) decl.val_loc;
   Option.iter
     (fun f -> check_usage decl.val_loc id decl.val_uid f !value_declarations)
     check;
-  let vda = { vda_description = decl; vda_address = addr } in
+  let vda = { vda_description = decl; vda_address = addr; vda_mode = mode } in
   { env with
     values = IdTbl.add id (Val_bound vda) env.values;
     summary = Env_value(env.summary, id, decl) }
@@ -1878,9 +1912,9 @@ let add_functor_arg id env =
    functor_args = Ident.add id () env.functor_args;
    summary = Env_functor_arg (env.summary, id)}
 
-let add_value ?check id desc env =
+let add_value ?check ?(mode = Alloc_heap) id desc env =
   let addr = value_declaration_address env id desc in
-  store_value ?check id addr desc env
+  store_value ?check mode id addr desc env
 
 let add_type ~check id info env =
   store_type ~check id info env
@@ -1925,7 +1959,7 @@ let add_local_type path info env =
 let enter_value ?check name desc env =
   let id = Ident.create_local name in
   let addr = value_declaration_address env id desc in
-  let env = store_value ?check id addr desc env in
+  let env = store_value ?check Alloc_heap id addr desc env in
   (id, env)
 
 let enter_type ~scope name info env =
@@ -1961,6 +1995,9 @@ let enter_cltype ~scope name desc env =
 
 let enter_module ~scope ?arg s presence mty env =
   enter_module_declaration ~scope ?arg s presence (md mty) env
+
+let add_lock mode env =
+  { env with values = IdTbl.add_lock mode env.values }
 
 (* Insertion of all components of a signature *)
 
@@ -2377,12 +2414,22 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
         end
     end
 
-let lookup_ident_value ~errors ~use ~loc name env =
-  match IdTbl.find_name wrap_value ~mark:use name env.values with
-  | (path, Val_bound vda) ->
+let constrain_modes ~errors ~loc env id vmode locks mode =
+  let constrain m n err =
+    match Alloc_mode.constrain m n with
+    | Ok () -> ()
+    | Error () -> may_lookup_error errors loc env err in
+  constrain vmode mode (Local_value_escapes id);
+  locks |> List.iter (fun l ->
+    constrain vmode l (Local_value_used_in_closure id))
+
+let lookup_ident_value ~errors ~use ~loc name mode env =
+  match IdTbl.find_name_and_modes wrap_value ~mark:use name env.values with
+  | (path, locks, Val_bound vda) ->
+      constrain_modes ~errors ~loc env (Lident name) vda.vda_mode locks mode;
       use_value ~use ~loc path vda;
       path, vda.vda_description
-  | (_, Val_unbound reason) ->
+  | (_, _, Val_unbound reason) ->
       report_value_unbound ~errors ~loc env reason (Lident name)
   | exception Not_found ->
       may_lookup_error errors loc env (Unbound_value (Lident name, No_hint))
@@ -2613,9 +2660,9 @@ let lookup_module_path ~errors ~use ~loc ~load lid env : Path.t =
       check_functor_appl ~errors ~loc env p1 f arg p2 md2;
       Papply(p1, p2)
 
-let lookup_value ~errors ~use ~loc lid env =
+let lookup_value ~errors ~use ~loc lid mode env =
   match lid with
-  | Lident s -> lookup_ident_value ~errors ~use ~loc s env
+  | Lident s -> lookup_ident_value ~errors ~use ~loc s mode env
   | Ldot(l, s) -> lookup_dot_value ~errors ~use ~loc l s env
   | Lapply _ -> assert false
 
@@ -2701,7 +2748,7 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  lookup_value ~errors:false ~use:false ~loc lid env
+  lookup_value ~errors:false ~use:false ~loc lid Alloc_mode.max_mode env
 
 let find_type_by_name lid env =
   let loc = Location.(in_file !input_name) in
@@ -2776,8 +2823,10 @@ let lookup_all_labels_from_type ?(use=true) ~loc ty_path env =
   lookup_all_labels_from_type ~use ~loc ty_path env
 
 let lookup_instance_variable ?(use=true) ~loc name env =
-  match IdTbl.find_name wrap_value ~mark:use name env.values with
-  | (path, Val_bound vda) -> begin
+  match IdTbl.find_name_and_modes wrap_value ~mark:use name env.values with
+  | (path, locks, Val_bound vda) -> begin
+      constrain_modes ~errors:true ~loc env (Lident name)
+        vda.vda_mode locks Alloc_heap;
       let desc = vda.vda_description in
       match desc.val_kind with
       | Val_ivar(mut, cl_num) ->
@@ -2786,13 +2835,13 @@ let lookup_instance_variable ?(use=true) ~loc name env =
       | _ ->
           lookup_error loc env (Not_an_instance_variable name)
     end
-  | (_, Val_unbound Val_unbound_instance_variable) ->
+  | (_, _, Val_unbound Val_unbound_instance_variable) ->
       lookup_error loc env (Masked_instance_variable (Lident name))
-  | (_, Val_unbound Val_unbound_self) ->
+  | (_, _, Val_unbound Val_unbound_self) ->
       lookup_error loc env (Not_an_instance_variable name)
-  | (_, Val_unbound Val_unbound_ancestor) ->
+  | (_, _, Val_unbound Val_unbound_ancestor) ->
       lookup_error loc env (Not_an_instance_variable name)
-  | (_, Val_unbound Val_unbound_ghost_recursive _) ->
+  | (_, _, Val_unbound Val_unbound_ghost_recursive _) ->
       lookup_error loc env (Unbound_instance_variable name)
   | exception Not_found ->
       lookup_error loc env (Unbound_instance_variable name)
@@ -2811,7 +2860,7 @@ let bound_module name env =
       end
 
 let bound wrap proj name env =
-  match IdTbl.find_name wrap ~mark:false name (proj env) with
+  match IdTbl.find_name_and_modes wrap ~mark:false name (proj env) with
   | _ -> true
   | exception Not_found -> false
 
@@ -3196,6 +3245,15 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf
         "The module %a is an alias for module %a, which %s"
         !print_longident lid !print_path p cause
+  | Local_value_escapes lid ->
+      fprintf ppf
+        "@[The value %a is local, so cannot be used here as it might escape@]"
+        !print_longident lid
+  | Local_value_used_in_closure lid ->
+      fprintf ppf
+        "@[The value %a is local, so cannot be used \
+           inside a closure that might escape@]"
+        !print_longident lid
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

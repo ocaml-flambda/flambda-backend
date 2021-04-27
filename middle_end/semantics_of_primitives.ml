@@ -21,9 +21,11 @@ type coeffects = No_coeffects | Has_coeffects
 
 let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
-  | Pmakeblock _
+  | Pmakeblock (_, _, _, Lambda.Alloc_heap)
   | Pmakearray (_, Mutable) -> Only_generative_effects, No_coeffects
   | Pmakearray (_, Immutable) -> No_effects, No_coeffects
+  | Pmakeblock (_, _, _, Lambda.Alloc_local) ->
+     Only_generative_effects, Has_coeffects
   | Pduparray (_, Immutable) ->
       No_effects, No_coeffects  (* Pduparray (_, Immutable) is allowed only on
                                    immutable arrays. *)

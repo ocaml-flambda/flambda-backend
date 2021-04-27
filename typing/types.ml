@@ -477,4 +477,19 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-type alloc_mode = Alloc_heap | Alloc_local (* FIXME *)
+type alloc_mode = Alloc_heap | Alloc_local
+
+module Alloc_mode = struct
+  type t = alloc_mode = Alloc_heap | Alloc_local
+
+  let min_mode = Alloc_heap
+  let is_min = function Alloc_heap -> true | _ -> false
+
+  let max_mode = Alloc_local
+  let is_max = function Alloc_local -> true | _ -> false
+
+  let constrain a b =
+    match a, b with
+    | Alloc_heap, _ | _, Alloc_local -> Ok ()
+    | Alloc_local, Alloc_heap -> Error ()
+end

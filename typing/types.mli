@@ -585,4 +585,17 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-type alloc_mode = Alloc_heap | Alloc_local (* FIXME *)
+type alloc_mode = Alloc_heap | Alloc_local
+
+module Alloc_mode : sig
+  type t = alloc_mode = Alloc_heap | Alloc_local
+  
+  val min_mode : t
+  val is_min : t -> bool
+
+  val max_mode : t
+  val is_max : t -> bool
+
+  val constrain : t -> t -> (unit, unit) result
+end
+

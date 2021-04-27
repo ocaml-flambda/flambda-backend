@@ -174,9 +174,9 @@
 (executable
  (name main)
  (modes byte)
- (flags (:standard -principal -nostdlib))
+ (flags (:standard -principal -nostdlib -ccopt -Iruntime))
  (libraries ocamlbytecomp ocamlcommon runtime stdlib)
- (modules main))
+ (modules maindriver main))
 
 (rule
  (copy main.exe ocamlc.byte))
