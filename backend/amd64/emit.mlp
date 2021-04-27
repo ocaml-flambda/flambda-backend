@@ -869,7 +869,7 @@ let emit_instr fallthrough i =
       instr_for_intop op cl (res i 0)
   | Lop(Iintop Imulh) ->
       I.imul (arg i 1) None
-  | Lop(Iintop op) ->
+  | Lop(Iintop ((Iadd|Isub|Imul|Iand|Ior|Ixor) as op)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
@@ -920,6 +920,43 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
+  | Lop(Iintop(Iclz { arg_is_non_zero; })) ->
+      (* CR gyorsh: can we do it at selection?
+         mshinwell: We need to address this and the similar CRs below.
+         My feeling is that we should try to do this earlier, based on
+         previous experience with similar things, but maybe the change
+         should be left for later.  Let's discuss. *)
+      if arg_is_non_zero then begin
+        (* No need to handle that bsr is undefined on 0 input. *)
+        I.bsr (arg i 0) (res i 0);
+        (* We need (63 - result_of_bsr), which can be done with xor. *)
+        I.xor (int 63) (res i 0)
+      end else begin
+        let lbl_z = new_label () in
+        let lbl_nz = new_label () in
+        I.bsr (arg i 0) (res i 0);
+        I.je (label lbl_z);
+        I.xor (int 63) (res i 0);
+        I.jmp (label lbl_nz);
+        def_label lbl_z;
+        I.mov (int 64) (res i 0);
+        def_label lbl_nz
+      end
+  | Lop(Iintop(Ictz { arg_is_non_zero; })) ->
+    (* CR gyorsh: can we do it at selection? *)
+    if arg_is_non_zero then begin
+      (* No need to handle that bsf is undefined on 0 input. *)
+      I.bsf (arg i 0) (res i 0)
+    end else begin
+      let lbl_nz = new_label () in
+      I.bsf (arg i 0) (res i 0);
+      I.jne (label lbl_nz);
+      I.mov (int 64) (res i 0);
+      def_label lbl_nz
+    end
+  | Lop(Iintop Ipopcnt) ->
+      assert (!popcnt_support);
+      I.popcnt (arg i 0) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _) ->
     let probe_label = new_label () in
