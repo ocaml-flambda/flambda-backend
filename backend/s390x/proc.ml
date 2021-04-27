@@ -241,3 +241,15 @@ let assemble_file infile outfile =
                  " -o " ^ Filename.quote outfile ^ " " ^ Filename.quote infile)
 
 let init () = ()
+
+let operation_supported = function
+  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf
+  | Cfloatofint | Cintoffloat | Ccmpf _
+  | Craise _
+  | Ccheckbound
+  | Cprobe _ | Cprobe_is_enabled _
+    -> true
