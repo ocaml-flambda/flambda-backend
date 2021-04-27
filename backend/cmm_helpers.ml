@@ -2532,6 +2532,20 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+
+(* [cextcall] is called from [Cmmgen.transl_ccall] *)
+let cextcall (prim : Primitive.description) args dbg ret =
+  let name = Primitive.native_name prim in
+  let default = Cop(Cextcall { name; ret;
+                               builtin = prim.prim_c_builtin;
+                               effects = Arbitrary_effects;
+                               coeffects = Has_coeffects;
+                               alloc = prim.prim_alloc;
+                               label_after = None},
+                    args, dbg)
+  in
+  default
+
 (* Symbols *)
 
 let cdefine_symbol (symb, (global: Cmmgen_state.is_global)) =
