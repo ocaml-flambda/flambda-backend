@@ -1359,8 +1359,6 @@ and transl_letrec env bindings cont =
                          builtin = false;
                          effects = Arbitrary_effects;
                          coeffects = Has_coeffects;
-                         (* CR gyorsh: should this be no_(co)effects?
-                            why was it [alloc=false]? *)
                          alloc = false; label_after = None },
               [Cvar (VP.var id); transl env exp], dbg) in
         Csequence(op, fill_blocks rem)

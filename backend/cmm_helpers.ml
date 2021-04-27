@@ -2155,6 +2155,10 @@ let arraylength kind arg dbg =
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
 
+(* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
+   to Arbitrary_effects and Has_coeffects, resp.
+   Check if this can be improved (e.g., bswap). *)
+
 let bbswap bi arg dbg =
   let prim = match (bi : Primitive.boxed_integer) with
     | Pnativeint -> "nativeint"
