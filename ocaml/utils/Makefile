@@ -114,6 +114,7 @@ config.ml: config.mlp $(ROOTDIR)/Makefile.config Makefile
 	    $(call SUBST,PROBES) \
 	    $(call SUBST,CC_HAS_DEBUG_PREFIX_MAP) \
 	    $(call SUBST,AS_HAS_DEBUG_PREFIX_MAP) \
+	    $(call SUBST,POPCNT_SUPPORT) \
 	    $< > $@
 
 # Test for the substitution functions above

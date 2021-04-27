@@ -169,6 +169,10 @@ AC_SUBST([flexlink_flags])
 AC_SUBST([PACKLD])
 AC_SUBST([stdlib_manpages])
 
+# Check support for certain architecture-specific instructions.
+# Used to enable the corresponding intrinsics.
+AC_SUBST([popcnt_support])
+
 ## Generated files
 
 AC_CONFIG_FILES([Makefile.common])
@@ -1855,6 +1859,37 @@ AS_CASE([$arch],
 AS_IF([test x"$probes" = "xfalse"],
   [AC_MSG_NOTICE([Disabling tracing probes: no support on $target.])],
   [])
+
+# Check support for certain architecture-specific instructions.
+# Used to enable the corresponding intrinsics.
+popcnt_support=false
+
+AC_ARG_ENABLE([check-cpu-support],
+  [AS_HELP_STRING([--disable-check-cpu-support],
+    [do not check for cpu support for intrinsics])],
+  [],
+  [check_cpu_support=auto])
+
+AS_IF([test x"$enable_check_cpu_support" = "xno"],
+  [AC_MSG_WARN([Not checking CPU support for intrinsics.
+                    Using default settings might lead to miscompilation.
+                    You must disable unsupported intrinsics at compile time,
+                    using target-specific command-line options
+                    (for example: -fno-lzcnt -fno-popcnt).])],
+  [AS_CASE([$arch],
+    [amd64],
+      [OCAML_CPU_SUPPORTS_POPCNT
+       AS_IF([test "$popcnt_support" = "true"],
+       [],
+       [AC_MSG_ERROR([CPU does not support the default intrinsics.
+                  To skip the check, use --disable-check-cpu-support.
+                  You must disable unsupported intrinsics at compile time,
+                  using target-specific command-line options
+                  (for example: -fno-popcnt).
+                  If you don't, it might lead to miscompilation.])])
+      ],
+    [*],[])])
+
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],

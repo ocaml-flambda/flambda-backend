@@ -13,13 +13,21 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* POPCNT instruction is not available prior to Nehalem. *)
+let popcnt_support = ref Config.popcnt_support
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
   [ "-fPIC", Arg.Set Clflags.pic_code,
       " Generate position-independent machine code (default)";
     "-fno-PIC", Arg.Clear Clflags.pic_code,
-      " Generate position-dependent machine code" ]
+      " Generate position-dependent machine code";
+    "-fpopcnt", Arg.Set popcnt_support,
+      " Use POPCNT instruction (not available prior to Nehalem).";
+    "-fno-popcnt", Arg.Clear popcnt_support,
+      " Do not use POPCNT instruction";
+  ]
 
 (* Specific operations for the AMD64 processor *)
 

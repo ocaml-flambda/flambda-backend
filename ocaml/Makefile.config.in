@@ -248,6 +248,7 @@ PROBES=@probes@
 AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
 
+POPCNT_SUPPORT=@popcnt_support@
 
 ### Native command to build ocamlrun.exe
 

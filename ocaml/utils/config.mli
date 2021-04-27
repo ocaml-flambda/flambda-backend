@@ -254,3 +254,6 @@ val print_config : out_channel -> unit
 
 val config_var : string -> string option
 (** the configuration value of a variable, if it exists *)
+
+(** Support for architecture-specific instructions. *)
+val popcnt_support : bool

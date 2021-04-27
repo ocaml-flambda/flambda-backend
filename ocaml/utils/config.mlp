@@ -243,3 +243,5 @@ let config_var x =
         | Bool b -> string_of_bool b
       in
       Some s
+
+let popcnt_support = %%POPCNT_SUPPORT%%
