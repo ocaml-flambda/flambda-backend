@@ -123,6 +123,9 @@ val tag_int : expression -> Debuginfo.t -> expression
 (** Integer untagging. [untag_int x = (x asr 1)] *)
 val untag_int : expression -> Debuginfo.t -> expression
 
+(** Clear the most significant bit of an untagged int. *)
+val clear_sign_bit : expression -> Debuginfo.t -> expression
+
 (** Specific division operations for boxed integers *)
 val safe_div_bi :
   Lambda.is_safe ->
