@@ -1354,6 +1354,7 @@ let int64_native_prim name arity ~alloc =
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
+    ~c_builtin:false
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 

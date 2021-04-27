@@ -29,6 +29,12 @@ type description = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
+    prim_c_builtin: bool;
+    (* When [prim_c_builtin] is true, the native compiler is allowed to rewrite
+       calls to the external C function that implements this primitive,
+       based on its name [prim_name], into a predetermined instruction sequence.
+       [prim_c_builtin] is ignored on compiler primitives
+       whose name [prim_name] starts with %. *)
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
     prim_native_repr_args: native_repr list;
     prim_native_repr_res: native_repr }
@@ -44,6 +50,7 @@ val simple
 val make
   :  name:string
   -> alloc:bool
+  -> c_builtin:bool
   -> native_name:string
   -> native_repr_args: native_repr list
   -> native_repr_res: native_repr
