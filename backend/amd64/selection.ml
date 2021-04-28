@@ -96,6 +96,7 @@ let pseudoregs_for_operation op arg res =
       ([| rax |], [| rax |])
   (* For imulq, first arg must be in rax, rax is clobbered, and result is in
      rdx. *)
+  | Ispecific (Ibswap _) -> assert false
   | Iintop(Imulh) ->
       ([| rax; arg.(1) |], [| rdx |])
   | Ispecific(Ifloatarithmem(_,_)) ->
@@ -112,8 +113,30 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
+  | Ispecific Irdtsc ->
+  (* For rdtsc instruction, the result is in edx (high) and eax (low).
+     Make it simple and force the result in rdx and rax clobbered. *)
+    ([| |], [| rdx |])
+  | Ispecific Irdpmc ->
+  (* For rdpmc instruction, the argument must be in ecx
+     and the result is in edx (high) and eax (low).
+     Make it simple and force the argument in rcx, the result in rdx,
+     and rax clobbered *)
+    ([| rcx |], [| rdx |])
+  | Ispecific Icrc32q ->
+    (* arg.(0) and res.(0) must be the same *)
+    ([|res.(0); arg.(1)|], res)
   (* Other instructions are regular *)
-  | _ -> raise Use_default
+  | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound _)
+  | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound _
+                |Ipopcnt|Iclz _|Ictz _), _)
+  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _)
+  | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
+  | Iconst_symbol _|Icall_ind _|Icall_imm _|Itailcall_ind _|Itailcall_imm _
+  | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
+  | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> raise Use_default
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
@@ -210,7 +233,37 @@ method! select_operation op args dbg =
          (Ispecific Isqrtf, [arg])
      | _ ->
          assert false
-     end
+    end
+  (* CR mshinwell for mshinwell: Re-read this case after first round of
+     review *)
+  | Cextcall { name; builtin = true; ret; label_after } ->
+    (* XCR mshinwell: The standard in this file is unfortunately two more
+       spaces of indentation for match cases; let's follow that for
+       consistency.
+
+       gyorsh: fixed.
+    *)
+    (* XCR mshinwell: Let's please remove the tuple brackets on these return
+       values; they aren't needed, and tend to clutter.  This is quite
+       complicated to look at as it is...
+
+       gyorsh: fixed in the new code.
+       Should I also fix it in the rest of the function, or leave it as is?
+    *)
+    (* XCR mshinwell: Can we check [ret] in all of these cases?  It's presumably
+       uniquely defined in each case.
+
+       gyorsh: ah, that's a great idea! added.
+    *)
+      begin match name, ret with
+      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
+      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
+      | ("caml_int64_crc_unboxed", [|Int|]
+        | "caml_int_crc_untagged", [|Int|]) when !Arch.crc32_support ->
+          Ispecific Icrc32q, args
+      | _ ->
+        super#select_operation op args dbg
+      end
   (* Recognize store instructions *)
   | Cstore ((Word_int|Word_val as chunk), _init) ->
       begin match args with

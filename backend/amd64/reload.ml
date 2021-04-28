@@ -46,6 +46,9 @@ open Mach
      Iintoffloat                R       S
      Ispecific(Ilea)            R       R       R
      Ispecific(Ifloatarithmem)  R       R       R
+     Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
+     Ispecific(Irdtsc)          R                   (and Res = rdx)
+     Ispecific(Irdpmc)          R       R           (and Res = rdx, Arg1 = rcx)
 
    Conditional branches:
      Iinttest                           S       R
@@ -86,6 +89,42 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
+  (* CR mshinwell for mshinwell: re-read the next three cases once
+     comments addressed *)
+  | Ispecific (Irdtsc | Irdpmc) ->
+    (* XCR mshinwell: The table in the comment needs updating for this
+       operation and the next one below *)
+    (* XCR mshinwell: I don't think this [force] function is needed.  I'm not
+       clear on the exact details, but these cases are very similar to
+       Iintop (Idiv | Imod | Imulh) -- see selection.ml and the comment above
+       which says "already forced in regs". *)
+    (* XCR mshinwell: Same as previous case. *)
+    (* Irdtsc: res(0) already forced in reg.
+       Irdpmc: res(0) and arg(0) already forced in regs. *)
+      (arg, res)
+  | Ispecific Icrc32q ->
+    (* First argument and result must be in the same register.
+       Second argument can be either in a register or on stack. *)
+    (* XCR mshinwell: I think something is missing in selection.ml here.
+       Look for example at the Iintop Imulf case.  That has a case in
+       selection.ml to ensure that the register constraint is satisfied.
+       I suspect that if we add a similar case in [pseudoregs_for_operation]
+       for Icrc32q, then [first_arg_and_res_overlap] will always be [true]
+       here.  The following code should then be much more straightforward.
+       I think the way to think about the distinction between selection.ml
+       and this file is that the former should establish any necessary
+       hard register or equality constraints; and this file only needs to deal
+       with fixing things up if an operand or result that has to be in
+       a register has thus far been assigned to the stack.
+       (In the case of selection.ml establishing a hard register constraint,
+       the allocator presumably never changes that, which is why e.g. in the
+       two cases above for the timestamp counters we shouldn't need any kind
+       of forcing function here.)
+
+      gretay: fixed, thank you for explaining it!*)
+      if stackp arg.(0)
+      then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
+      else (arg, res)
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
@@ -97,7 +136,22 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
-  | _ -> (* Other operations: all args and results in registers *)
+  (* XCR mshinwell: Since we're here, let's please turn this into an
+     exhaustive match.  (Maybe you could make a separate patch to do that.)
+     This will increase confidence that we haven't missed any cases as we
+     add intrinsics.  Please also do the same for pseudoregs_for_operation in
+     selection.ml.
+
+     gyorsh: done. do you mean as a separate patch upstream?  *)
+  | Iintop (Ipopcnt | Iclz _| Ictz _)
+  | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
+               | Istore_int (_, _, _)
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Ibswap _| Ifloatsqrtf _)
+  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind _|Icall_imm _
+  | Itailcall_ind _|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
+  | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> (* Other operations: all args and results in registers *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =
