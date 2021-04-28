@@ -199,6 +199,8 @@ let print_instr b = function
   | POP arg -> i1 b "pop" arg
   | POPCNT (arg1, arg2) -> i2 b "popcnt" arg1 arg2
   | PUSH arg -> i1 b "push" arg
+  | RDTSC  -> i0 b "rdtsc"
+  | RDPMC -> i0 b "rdpmc"
   | RET -> i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2 b "sal" arg1 arg2

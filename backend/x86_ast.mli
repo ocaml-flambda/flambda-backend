@@ -172,6 +172,8 @@ type instruction =
   | POP of arg
   | POPCNT of arg * arg
   | PUSH of arg
+  | RDTSC
+  | RDPMC
   | RET
   | ROUNDSD of rounding * arg * arg
   | SAL of arg * arg

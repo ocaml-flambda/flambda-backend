@@ -183,6 +183,8 @@ module I : sig
   val pop: arg -> unit
   val popcnt : arg -> arg -> unit
   val push: arg -> unit
+  val rdtsc: unit -> unit
+  val rdpmc: unit -> unit
   val ret: unit -> unit
   val sal: arg -> arg -> unit
   val sar: arg -> arg -> unit
