@@ -2908,13 +2908,24 @@ let transl_builtin name args dbg =
     prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
 
+let transl_effects (e : Primitive.effects) : Cmm.effects =
+  match e with
+  | No_effects -> No_effects
+  | Only_generative_effects
+  | Arbitrary_effects -> Arbitrary_effects
+
+let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
+  match ce with
+  | No_coeffects -> No_coeffects
+  | Has_coeffects -> Has_coeffects
+
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
 let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
   let name = Primitive.native_name prim in
   let default = Cop(Cextcall { func = name; ty = ret;
                                builtin = prim.prim_c_builtin;
-                               effects = Arbitrary_effects;
-                               coeffects = Has_coeffects;
+                               effects = transl_effects prim.prim_effects;
+                               coeffects = transl_coeffects prim.prim_coeffects;
                                alloc = prim.prim_alloc;
                                returns;
                                ty_args },
