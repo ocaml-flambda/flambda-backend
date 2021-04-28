@@ -173,6 +173,8 @@ let close_c_call acc ~let_bound_var
        prim_arity;
        prim_alloc;
        prim_c_builtin;
+       prim_effects = _;
+       prim_coeffects = _;
        prim_native_name;
        prim_native_repr_args;
        prim_native_repr_res
