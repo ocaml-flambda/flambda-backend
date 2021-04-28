@@ -108,6 +108,7 @@ type instruction =
   | CMP of arg * arg
   | COMISD of arg * arg
   | CQO
+  | CRC32 of arg * arg
   | CVTSD2SI of arg * arg
   | CVTSD2SS of arg * arg
   | CVTSI2SD of arg * arg

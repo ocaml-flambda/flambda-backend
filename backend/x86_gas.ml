@@ -131,6 +131,7 @@ let print_instr b = function
   | CMP (arg1, arg2) -> i2_s b "cmp" arg1 arg2
   | COMISD (arg1, arg2) -> i2 b "comisd" arg1 arg2
   | CQO ->  i0 b "cqto"
+  | CRC32 (arg1, arg2) -> i2_s b "crc32" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b ("cvtsi2sd" ^ suf arg1) arg1 arg2

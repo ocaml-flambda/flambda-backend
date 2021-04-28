@@ -122,6 +122,7 @@ module I = struct
   let cmp x y = emit (CMP (x, y))
   let comisd x y = emit (COMISD (x, y))
   let cqo () = emit CQO
+  let crc32 x y = emit (CRC32 (x, y))
   let cvtsd2ss x y = emit (CVTSD2SS (x, y))
   let cvtsi2sd x y = emit (CVTSI2SD (x, y))
   let cvtss2sd x y = emit (CVTSS2SD (x, y))
