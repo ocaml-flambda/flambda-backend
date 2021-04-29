@@ -49,6 +49,16 @@ type addressing_mode =
   | Iscaled of int * int                (* reg * scale + displ *)
   | Iindexed2scaled of int * int        (* reg + reg * scale + displ *)
 
+(* XCR mshinwell: rename to prefetch_locality_hint or something?  (I left a
+   similar CR elsewhere; it would be worth ensuring the names match.) *)
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
+type prefetch_info = {
+  is_write: bool;
+  locality: prefetch_temporal_locality_hint;
+  addr: addressing_mode;
+}
+
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
@@ -66,6 +76,11 @@ type specific_operation =
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)
+  | Iprefetch of                       (* memory prefetching hint *)
+      { is_write: bool;
+        locality: prefetch_temporal_locality_hint;
+        addr: addressing_mode;
+      }
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -104,6 +119,13 @@ let num_args_addressing = function
   | Iindexed2scaled _ -> 2
 
 (* Printing operations and addressing modes *)
+
+let string_of_prefetch_temporal_locality_hint = function
+  | Nonlocal -> "nonlocal" (* XCR mshinwell: same comment as in the Cmm part
+                              gyorsh: fixed. *)
+  | Low -> "low"
+  | Moderate -> "moderate"
+  | High -> "high"
 
 let print_addressing printreg addr ppf arg =
   match addr with
@@ -159,6 +181,10 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Icrc32q ->
       fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Iprefetch { is_write; locality; } ->
+      fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
+        is_write (string_of_prefetch_temporal_locality_hint locality)
+        printreg arg.(0)
 
 let win64 =
   match Config.system with
