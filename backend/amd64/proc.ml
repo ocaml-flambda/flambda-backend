@@ -441,6 +441,7 @@ let init () =
 
 let operation_supported = function
   | Cpopcnt -> !popcnt_support
+  | Cprefetch _
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
