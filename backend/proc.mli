@@ -84,3 +84,9 @@ val assemble_file: string -> string -> int
 
 (* Called before translating a fundecl. *)
 val init : unit -> unit
+
+(** [operation_supported op] returns true when [op]
+    can be implemented directly with a hardware instruction.
+    Used in Cmmgen when converting [@@builtin] external calls
+    to primitive operations. *)
+val operation_supported : Cmm.operation -> bool
