@@ -2226,14 +2226,14 @@ let clz bi arg dbg =
 let ctz bi arg dbg =
   let arg = make_unsigned_int bi arg dbg in
   if bi = Primitive.Pint32 && size_int = 8 then begin
-    let op = Cctz { arg_is_non_zero = false; } in
-    if_operation_supported_bi bi op ~f:(fun () ->
-      Cop(op, [arg], dbg))
-  end else begin
     let op = Cctz { arg_is_non_zero = true; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       (* Set bit 32 *)
-      Cop(op, [Cop(Cor, [arg; Cconst_int(0x100000000, dbg)], dbg)], dbg))
+      Cop(op, [Cop(Cor, [arg; Cconst_natint(0x100000000n, dbg)], dbg)], dbg))
+  end else begin
+    let op = Cctz { arg_is_non_zero = false; } in
+    if_operation_supported_bi bi op ~f:(fun () ->
+      Cop(op, [arg], dbg))
   end
 
 let popcnt bi arg dbg =
