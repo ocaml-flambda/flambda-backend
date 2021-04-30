@@ -2654,6 +2654,11 @@ let transl_builtin name args dbg =
   (* CR gyorsh for mshinwell: I'm adding the intrinsics for
      count_leading_zeros2 and count_set_bits2 functions from the library,
      looks like I forgot to implement them in the compiler. *)
+  | "caml_int_clz_untagged" ->
+    let op = Cclz { arg_is_non_zero = false; } in
+    if_operation_supported op ~f:(fun () ->
+      let arg = clear_sign_bit (one_arg name args) dbg in
+      Cop(Caddi, [Cop(op, [arg], dbg); Cconst_int (-1,dbg)], dbg))
   | "caml_int64_clz_unboxed" -> clz Pint64 (one_arg name args) dbg
   | "caml_int32_clz_unboxed" -> clz Pint32 (one_arg name args) dbg
   | "caml_nativeint_clz_unboxed" -> clz Pnativeint (one_arg name args) dbg
