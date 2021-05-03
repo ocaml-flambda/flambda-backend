@@ -2567,6 +2567,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+let two_args name args =
+  match args with
+  | [arg1; arg2] -> arg1, arg2
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 2 arguments for %s" name
+
 let one_arg name args =
   match args with
   | [arg] -> arg
