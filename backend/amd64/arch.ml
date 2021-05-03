@@ -13,8 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* POPCNT instruction is not available prior to Nehalem. *)
-let popcnt_support = ref Config.popcnt_support
+(* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
+let popcnt_support = ref true
 
 (* Machine-specific command-line options *)
 
