@@ -149,6 +149,7 @@ let oper_result_type = function
       end
   | Calloc -> typ_val
   | Cstore (_c, _) -> typ_void
+  | Cprefetch _ -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
     Cclz _ | Cctz _ | Cpopcnt |
@@ -401,6 +402,7 @@ method is_simple_expr = function
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Cprobe _
       | Cprobe_is_enabled _ -> false
+      | Cprefetch _ -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
@@ -443,6 +445,8 @@ method effects_of exp =
       | Capply _ | Cextcall _ | Cprobe _ -> EC.arbitrary
       | Calloc -> EC.none
       | Cstore _ -> EC.effect_only Effect.Arbitrary
+      | Cprefetch _ -> EC.join (EC.effect_only Effect.Arbitrary)
+                               (EC.coeffect_only Coeffect.Arbitrary)
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
