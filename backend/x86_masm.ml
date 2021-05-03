@@ -202,7 +202,7 @@ let print_instr b = function
   | OR (arg1, arg2) -> i2 b "or" arg1 arg2
   | POP arg -> i1 b "pop" arg
   | POPCNT (arg1, arg2) -> i2 b "popcnt" arg1 arg2
-  | PREFETCH (is_write, locality, arg1) ->
+  | PREFETCH (is_write, hint, arg1) ->
     (match is_write, hint with
       (* XCR mshinwell: Exhaustive match again please *)
      | true, T0 -> i1 b "prefetchw" arg1
