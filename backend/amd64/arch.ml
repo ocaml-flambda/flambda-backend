@@ -21,6 +21,13 @@ let popcnt_support = ref true
 (* CRC32 requires SSE 4.2 support *)
 let crc32_support = ref true
 
+(* PREFETCHW instruction is not available on processors
+   based on Haswell or earlier microarchitectures. *)
+let prefetchw_support = ref true
+
+(* PREFETCHWT1 is Intel Xeon Phi only. *)
+let prefetchwt1_support = ref false
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -36,6 +43,14 @@ let command_line_options =
       " Use CRC32 instructions (requires SSE4.2 support)";
     "-fno-crc32", Arg.Clear crc32_support,
       " Do not emit CRC32 instructions";
+    "-fprefetchw", Arg.Set prefetchw_support,
+      " Use PREFETCHW instructions (not available on Haswell and earlier)";
+    "-fno-prefetchw", Arg.Clear prefetchw_support,
+      " Do not use PREFETCHW instructions";
+    "-fprefetchwt1", Arg.Set prefetchwt1_support,
+      " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
+    "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
+      " Do not use PREFETCHWT1 instructions";
   ]
 
 (* Specific operations for the AMD64 processor *)

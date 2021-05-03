@@ -155,6 +155,14 @@ let pseudoregs_for_operation op arg res =
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
     -> raise Use_default
 
+let select_locality (l : Cmm.prefetch_temporal_locality_hint)
+  : Arch.prefetch_temporal_locality_hint =
+  match l with
+  | Nonlocal -> Nonlocal
+  | Low -> Low
+  | Moderate -> Moderate
+  | High -> High
+
 let one_arg name args =
   match args with
   | [arg] -> arg
@@ -316,10 +324,14 @@ method! select_operation op args dbg =
         then false
         else is_write
       in
+      let locality : Arch.prefetch_temporal_locality_hint =
+        match select_locality locality with
+        | Moderate when is_write && not !prefetchwt1_support -> High
+        | l -> l
+      in
       (* XCR mshinwell: List.hd again *)
       let addr, eloc = self#select_addressing Word_int
                          (one_arg "prefetch" args) in
-      let locality = select_locality locality in
       Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   | _ -> super#select_operation op args dbg
 
