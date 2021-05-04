@@ -317,6 +317,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Iprefetch _
+                 | Ilzcnt | Itzcnt | Ibsr _
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
@@ -393,6 +394,7 @@ let max_register_pressure =
   | Istackoffset _ | Iload (_, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ilzcnt | Itzcnt | Ibsr _
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
@@ -415,6 +417,7 @@ let op_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
+  | Ispecific(Ilzcnt | Itzcnt | Ibsr _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _

@@ -860,6 +860,20 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
+  | Lop(Ispecific(Ibsr { arg_is_non_zero; })) ->
+    if arg_is_non_zero then begin
+      (* No need to handle that bsr is undefined on 0 input. *)
+      I.bsr (arg i 0) (res i 0);
+    end else begin
+      let lbl_z = new_label () in
+      let lbl_nz = new_label () in
+      I.bsr (arg i 0) (res i 0);
+      I.je (label lbl_z);
+      I.jmp (label lbl_nz);
+      def_label lbl_z;
+      I.mov (int (-1)) (res i 0);
+      def_label lbl_nz
+    end
   | Lop(Iintop(Iclz { arg_is_non_zero; })) ->
       (* CR-someday gyorsh: can we do it at selection?
          mshinwell: We need to address this and the similar CRs below.
@@ -898,6 +912,12 @@ let emit_instr fallthrough i =
   | Lop(Iintop Ipopcnt) ->
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
+  | Lop(Ispecific Ilzcnt) ->
+      assert (!lzcnt_support);
+      I.lzcnt (arg i 0) (res i 0)
+  | Lop(Ispecific Itzcnt) ->
+      assert (!tzcnt_support);
+      I.tzcnt (arg i 0) (res i 0)
   | Lop(Ispecific Irdtsc) ->
     I.rdtsc ();
     let rdx = Reg64 RDX in

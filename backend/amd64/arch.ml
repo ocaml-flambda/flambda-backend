@@ -28,6 +28,17 @@ let prefetchw_support = ref true
 (* PREFETCHWT1 is Intel Xeon Phi only. *)
 let prefetchwt1_support = ref false
 
+(* LZCNT and TZCNT instructions are not available on prior to Haswell.
+
+   Important:
+   LZCNT assembles to BSR on architectures prior to Haswell.
+   TZCNT assembles to BSF on architectures prior to Haswell.
+   Code that uses LZCNT or TZCNT will run on older Intels and
+   silently produce wrong results.
+*)
+let lzcnt_support = ref false  (* ABM or LZCNT cpuid feature flag *)
+let tzcnt_support = ref false  (* BMI1 cpuid feature flag *)
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -52,6 +63,20 @@ let command_line_options =
       " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
     "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
       " Do not use PREFETCHWT1 instructions (default)";
+    "-flzcnt", Arg.Set lzcnt_support,
+      " Use LZCNT instruction to count leading zeros. \n\
+       LZCNT instruction is not available on Intel Architectures prior to Haswell.\n\
+       Important: code that uses LZCNT will run on older Intels and silently produce\n\
+       wrong results, because LZCNT assembles to BSR.";
+    "-fno-lzcnt", Arg.Clear lzcnt_support,
+      " Do not use LZCNT instruction to count leading zeros";
+    "-ftzcnt", Arg.Set tzcnt_support,
+      " Use TZCNT instruction to count leading zeros. \n\
+       \   TZCNT instruction is not available on Intel Architectures prior to Haswell.\n\
+       \   Important: code that uses TZCNT will run on older Intels and silently produce\n\
+       \   wrong results, because TZCNT assembles to BSF.";
+    "-fno-tzcnt", Arg.Clear tzcnt_support,
+      " Do not use TZCNT instruction to count leading zeros";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -95,6 +120,9 @@ type specific_operation =
         locality: prefetch_temporal_locality_hint;
         addr: addressing_mode;
       }
+  | Ibsr of { arg_is_non_zero : bool } (* bit scan reverse instruction *)
+  | Ilzcnt                             (* count leading zeros instruction *)
+  | Itzcnt                             (* count trailing zeros instruction *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -198,6 +226,12 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
+  | Ilzcnt ->
+      fprintf ppf "lzcnt %a" printreg arg.(0)
+  | Itzcnt ->
+      fprintf ppf "tzcnt %a" printreg arg.(0)
+  | Ibsr { arg_is_non_zero; } ->
+      fprintf ppf "bsr arg_is_non_zero=%b %a" arg_is_non_zero printreg arg.(0)
 
 let win64 =
   match Config.system with

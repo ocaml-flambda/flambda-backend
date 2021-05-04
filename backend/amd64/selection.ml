@@ -147,6 +147,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
+              |Ilzcnt|Itzcnt|Ibsr _
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
@@ -167,6 +168,36 @@ let one_arg name args =
   | [arg] -> arg
   | _ ->
     Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
+
+(* Set the most significant bit of an untagged int. *)
+let set_sign_bit arg dbg =
+  let mask = Nativeint.shift_left 1n ((size_int * 8) - 1) in
+  Cop(Cor, [arg; Cconst_natint (mask, dbg)], dbg)
+
+(* Untagging of a negative value shifts in an extra bit. The following
+   code clears the shifted sign bit of an untagged int.
+   This straightline code is faster on most targets than conditional code
+   for checking whether the argument is negative. *)
+let clear_sign_bit arg dbg =
+  let mask =
+    Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1))
+  in
+  Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+
+let subtract_one_from_result op args dbg =
+  let op =
+    match op with
+    | Cextcall p ->
+      assert p.builtin;
+      (* Names that start with '*' are internal to Selection on this target.
+         They work around the limitation of [select_operation] that
+         keeps [args] as Cmm terms even after translating
+         the operation itself to Mach. *)
+      let func = "*"^ p.func in
+      Cop(Cextcall { p with func; builtin = true }, args, dbg)
+    | _ -> assert false
+  in
+  Iintop_imm (Isub, 1), [op]
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
@@ -278,6 +309,38 @@ method! select_operation op args dbg =
       | ("caml_int64_crc_unboxed", [|Int|]
         | "caml_int_crc_untagged", [|Int|]) when !Arch.crc32_support ->
           Ispecific Icrc32q, args
+      | ("caml_int_lzcnt_tagged_to_untagged" , [|Int|]
+        | "caml_int64_lzcnt_unboxed", [|Int|]
+        | "caml_nativeint_lzcnt_unboxed", [|Int|]) when !lzcnt_support ->
+        (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
+           below?  If this extcall should have always been caught in the Cmm
+           stage, this should be a fatal error.
+
+           It's not exactly the same.
+           We have a special intrinsic to emit lzcnt instruction directly,
+           whereas Cclz emits an instruction sequence using bsr. *)
+        Ispecific Ilzcnt, args
+      | "*caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+        let arg = (clear_sign_bit (one_arg func args) dbg) in
+        Ispecific Ilzcnt, [arg]
+      | "caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+        subtract_one_from_result op args dbg
+      | "caml_int_tzcnt_untagged" , [|Int|] when !tzcnt_support ->
+        let arg = (set_sign_bit (one_arg func args) dbg) in
+        Ispecific Itzcnt, [arg]
+      | ("caml_int64_tzcnt_unboxed", [|Int|]
+        | "caml_nativeint_tzcnt_unboxed", [|Int|]) when !tzcnt_support ->
+        Ispecific Itzcnt, args
+      | "*caml_int_bsr_tagged_to_untagged", [|Int|] ->
+        Ispecific (Ibsr {arg_is_non_zero=true}), args
+      | "caml_int_bsr_tagged_to_untagged", [|Int|] ->
+        subtract_one_from_result op args dbg
+      | "caml_int_bsr_untagged", [|Int|] ->
+        let arg = (clear_sign_bit (one_arg func args) dbg) in
+        Ispecific (Ibsr {arg_is_non_zero=false}), [arg]
+      | ("caml_int64_bsr_unboxed", [|Int|]
+        | "caml_nativeint_bsr_unboxed", [|Int|]) ->
+        Ispecific (Ibsr {arg_is_non_zero=false}), args
       | _ ->
         super#select_operation op args dbg
       end

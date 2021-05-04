@@ -172,6 +172,7 @@ module I : sig
   val jne: arg -> unit
   val jp: arg -> unit
   val lea: arg -> arg -> unit
+  val lzcnt : arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
   val movd: arg -> arg -> unit
@@ -199,6 +200,7 @@ module I : sig
   val sub: arg -> arg -> unit
   val subsd: arg -> arg -> unit
   val test: arg -> arg -> unit
+  val tzcnt : arg -> arg -> unit
   val ucomisd: arg -> arg -> unit
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit

@@ -190,6 +190,7 @@ let print_instr b = function
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
   | LEAVE -> i0 b "leave"
+  | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
   | MOV ((Imm n as arg1), (Reg64 _ as arg2))
     when not (n <= 0x7FFF_FFFFL && n >= -0x8000_0000L) ->
       i2 b "movabsq" arg1 arg2
@@ -229,6 +230,7 @@ let print_instr b = function
   | SUB (arg1, arg2) -> i2_s b "sub" arg1 arg2
   | SUBSD (arg1, arg2) -> i2 b "subsd" arg1 arg2
   | TEST (arg1, arg2) -> i2_s b "test" arg1 arg2
+  | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
   | UCOMISD (arg1, arg2) -> i2 b "ucomisd" arg1 arg2
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
