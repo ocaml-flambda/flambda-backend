@@ -54,3 +54,4 @@ configure_opts
 ocaml-stage1-config.status
 ocaml-stage2-config.status
 ocamlopt_flags.sexp
+cflags.sexp

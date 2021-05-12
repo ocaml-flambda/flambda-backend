@@ -58,7 +58,8 @@ stage0: _build0/config.status
 # This code should use build contexts instead of --build-dir.
 .PHONY: stage1
 stage1: ocaml-stage1-config.status stage0 \
-          ocaml/otherlibs/dynlink/natdynlinkops2
+          ocaml/otherlibs/dynlink/natdynlinkops2 \
+	  flags.sexp
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
@@ -66,15 +67,6 @@ stage1: ocaml-stage1-config.status stage0 \
 	(cd _build1/install/default/bin && \
 	  rm -f ocamllex && \
 	  ln -s ocamllex.opt ocamllex)
-
-ifeq "$(FUNCTION_SECTIONS)" "true"
-OCAMLOPT_FLAGS_SEXP="(:standard -function-sections)"
-else
-OCAMLOPT_FLAGS_SEXP="(:standard)"
-endif
-
-ocamlopt_flags.sexp:
-	echo $(OCAMLOPT_FLAGS_SEXP) > ocamlopt_flags.sexp
 
 # CR mshinwell: We should add targets that don't use --profile=release, for
 # speed, and also ensuring that warnings are errors.  We should also consider
@@ -84,7 +76,7 @@ ocamlopt_flags.sexp:
 # itself, including the stdlib, otherlibs, compilerlibs, etc.  The result is
 # equivalent to having done "make world.opt && make ocamlnat" upstream.
 .PHONY: stage2
-stage2: ocaml-stage2-config.status stage1 ocamlopt_flags.sexp
+stage2: ocaml-stage2-config.status stage1
 	cp ocaml-stage2-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage1_prefix)/bin:$$PATH \
@@ -97,7 +89,8 @@ stage2: ocaml-stage2-config.status stage1 ocamlopt_flags.sexp
 # in the middle end and backend.
 .PHONY: hacking
 hacking: ocaml-stage1-config.status stage0 \
-          ocaml/otherlibs/dynlink/natdynlinkops2
+          ocaml/otherlibs/dynlink/natdynlinkops2 \
+	  flags.sexp
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
@@ -171,6 +164,39 @@ ocaml/otherlibs/dynlink/natdynlinkops2: ocaml-stage1-config.status
 	else \
 	  /bin/echo -n "-bin-annot" > ocaml/otherlibs/dynlink/natdynlinkops1; \
 	fi
+
+
+# Extract compilation flags from Makefile.config of stage1
+# and write them to a file that dune can use in stage1 and stage2.
+# CR gyorsh: do we need a separate rule for stage2?
+# or can the file be reused?
+
+.PHONY: flags.sexp
+flags.sexp: ocamlopt_flags.sexp cflags.sexp
+
+
+ocamlopt_flags.sexp: ocaml-stage1-config.status
+	cp ocaml-stage1-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	grep -q '^FUNCTION_SECTIONS=true' ocaml/Makefile.config; \
+	if [ $$? -eq 0 ] ; then \
+	  /bin/echo -n "(:standard -function-sections)" > ocamlopt_flags.sexp; \
+	else \
+	  /bin/echo -n "(:standard)" > ocamlopt_flags.sexp; \
+	fi
+
+# CR gyorsh: how to redirect output of a shell command to a variable
+# and then print its value?
+cflags.sexp: ocaml-stage1-config.status
+	cp ocaml-stage1-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	/bin/echo -n "(" > cflags.sexp;
+	/bin/echo -n $$(grep "^OC_CFLAGS=" ocaml/Makefile.config \
+		  	| sed 's/^OC_CFLAGS=//') >> cflags.sexp;
+	/bin/echo -n " " >> cflags.sexp;
+	/bin/echo -n $$(grep "^OC_CPPFLAGS=" ocaml/Makefile.config \
+		  	| sed 's/^OC_CPPFLAGS=//') >> cflags.sexp;
+	/bin/echo -n ")" >> cflags.sexp;
 
 # Most of the installation tree is correctly set up by dune, but we need to
 # copy it to the final destination, and rearrange a few things to match
