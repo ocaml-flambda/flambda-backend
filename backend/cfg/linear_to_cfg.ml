@@ -361,7 +361,7 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
       if not (Linear_utils.defines_label i.next) then
         Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
           Printlinear.instr
-          { i with next = Linear.end_instr } );
+          ({ i with next = Linear.end_instr } : L.instruction));
   block.terminator <- create_instruction desc ~trap_depth i;
   if can_raise_terminator desc then record_exn t block traps;
   register_block t block traps

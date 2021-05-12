@@ -108,7 +108,7 @@ module Make (D : D) = struct
     | Unknown -> raise Unresolved
 
   let rec print_h h =
-    match !h with
+    match (!h : handler) with
     | Label l -> Printf.printf "%s" (D.to_string l)
     | Link h' ->
         Printf.printf "=";
@@ -142,20 +142,20 @@ module Make (D : D) = struct
       "Malformed trap stack: mismatched pop/push trap handlers."
 
   let link_h ~(src : h) ~(dst : h) =
-    assert (!src = Unknown);
+    assert (!src = (Unknown : handler));
     (* check that there is no path from dst to src. it guarantees that the
        link from src to dst that we install is not going to close a cycle,
        which will cause non-termination of other operations on the stack. *)
     let rec loop cur =
       if cur == src then Misc.fatal_error "Trap_stack.unify created a cycle.";
-      match !cur with
+      match (!cur : handler) with
       | Unknown -> ()
       | Label _ -> ()
       | Link h -> loop h
     in
     loop dst;
     (* create a link from src to dst. *)
-    src := Link dst
+    src := (Link dst : handler)
 
   let rec unify_h (h1 : h) (h2 : h) =
     match (!h1, !h2) with
