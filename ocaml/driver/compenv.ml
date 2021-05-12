@@ -376,6 +376,8 @@ let read_one_param ppf position name v =
       set "flambda-invariants" [ flambda_invariant_checks ] v
   | "linscan" ->
       set "linscan" [ use_linscan ] v
+  | "ocamlcfg" ->
+      set "ocamlcfg" [ use_ocamlcfg ] v
   | "insn-sched" -> set "insn-sched" [ insn_sched ] v
   | "no-insn-sched" -> clear "insn-sched" [ insn_sched ] v
 
