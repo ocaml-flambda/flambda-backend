@@ -12,6 +12,7 @@
 ; same for the moment.
 
 (copy_files# backend/*.ml{,i})
+(copy_files# backend/cfg/*.ml{,i})
 (copy_files# backend/debug/*.ml{,i})
 
 (copy_files# driver/optcompile.ml{,i})
@@ -87,6 +88,10 @@
     liveness mach printcmm printlinear printmach proc reg reload reloadgen
     schedgen scheduling selectgen selection spacetime_profiling spill split
     strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc fdo_info
+
+    cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
+    eliminate_dead_blocks eliminate_fallthrough_blocks extra_debug label
+    linear_to_cfg linear_utils ocamlcfg simplify_terminator trap_stack
 
     ;; file_formats/
     linear_format
