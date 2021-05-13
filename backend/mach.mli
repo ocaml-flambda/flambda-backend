@@ -22,6 +22,9 @@ type integer_comparison =
 type integer_operation =
     Iadd | Isub | Imul | Imulh | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+  | Iclz of { arg_is_non_zero: bool; }
+  | Ictz of { arg_is_non_zero: bool; }
+  | Ipopcnt
   | Icomp of integer_comparison
   | Icheckbound
 
