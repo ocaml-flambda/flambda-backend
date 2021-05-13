@@ -1,1 +1,5 @@
-(dirs bin src test trace_ocamlopt)
+;; This is edited to omit everything except src so it doesn't break
+;; the build, in a way that leads to less merge conflicts when
+;; updating memtrace compared to deleting those directories in
+;; the git subtree.
+(dirs src)
