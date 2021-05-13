@@ -112,6 +112,7 @@
  (link_deps (file ocaml/stdlib/camlheader) (file ocaml/runtime/libcamlrun.a))
  (libraries
    flambda_backend_driver
+   memtrace
    ocamloptcomp
    ocamlcommon
    stdlib)
@@ -127,6 +128,7 @@
  (flags (:standard -principal -nostdlib))
  (libraries
    flambda_backend_driver
+   memtrace
    ocamloptcomp
    ocamlcommon
    stdlib
