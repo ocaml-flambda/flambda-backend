@@ -16,6 +16,9 @@
 (* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
 let popcnt_support = ref true
 
+(* CRC32 requires SSE 4.2 support *)
+let crc32_support = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -27,6 +30,10 @@ let command_line_options =
       " Use POPCNT instruction (not available prior to Nehalem)";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use POPCNT instruction";
+    "-fcrc32", Arg.Set crc32_support,
+      " Use CRC32 instructions (requires SSE4.2 support)";
+    "-fno-crc32", Arg.Clear crc32_support,
+      " Do not emit CRC32 instructions";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -54,6 +61,9 @@ type specific_operation =
                                           extension *)
   | Izextend32                         (* 32 to 64 bit conversion with zero
                                           extension *)
+  | Irdtsc                             (* read timestamp *)
+  | Irdpmc                             (* read performance counter *)
+  | Icrc32q                            (* compute crc *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -143,6 +153,12 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Izextend32 ->
       fprintf ppf "zextend32 %a" printreg arg.(0)
+  | Irdtsc ->
+      fprintf ppf "rdtsc"
+  | Irdpmc ->
+      fprintf ppf "rdpmc %a" printreg arg.(0)
+  | Icrc32q ->
+      fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
 
 let win64 =
   match Config.system with
