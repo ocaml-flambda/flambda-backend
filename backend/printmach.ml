@@ -89,6 +89,9 @@ let intop = function
   | Ilsl -> " << "
   | Ilsr -> " >>u "
   | Iasr -> " >>s "
+  | Iclz { arg_is_non_zero; } -> Printf.sprintf " clz %B" arg_is_non_zero
+  | Ictz { arg_is_non_zero; } -> Printf.sprintf " ctz %B" arg_is_non_zero
+  | Ipopcnt -> " popcnt "
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> Printf.sprintf "check > "
 
