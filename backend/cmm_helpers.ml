@@ -2183,6 +2183,41 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
+let if_operation_supported op ~f =
+  match Proc.operation_supported op with
+  | true -> Some (f ())
+  | false -> None
+
+let if_operation_supported_bi bi op ~f =
+  if bi = Primitive.Pint64 && size_int = 4 then None
+  else if_operation_supported op ~f
+
+let clz bi arg dbg =
+  let op = Cclz { arg_is_non_zero = false; } in
+  if_operation_supported_bi bi op ~f:(fun () ->
+    let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
+    if bi = Primitive.Pint32 && size_int = 8 then
+      Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
+    else
+      res)
+
+let ctz bi arg dbg =
+  let arg = make_unsigned_int bi arg dbg in
+  if bi = Primitive.Pint32 && size_int = 8 then begin
+    let op = Cctz { arg_is_non_zero = true; } in
+    if_operation_supported_bi bi op ~f:(fun () ->
+      (* Set bit 32 *)
+      Cop(op, [Cop(Cor, [arg; Cconst_natint(0x1_0000_0000n, dbg)], dbg)], dbg))
+  end else begin
+    let op = Cctz { arg_is_non_zero = false; } in
+    if_operation_supported_bi bi op ~f:(fun () ->
+      Cop(op, [arg], dbg))
+  end
+
+let popcnt bi arg dbg =
+  if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
+    Cop(Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* let pfield_computed = addr_array_ref *)
@@ -2532,6 +2567,93 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 1 argument for %s" name
+
+(* Untagging of a negative value shifts in an extra bit. The following
+   code clears the shifted sign bit of an untagged int.
+   This straightline code is faster on most targets than conditional code
+   for checking whether the argument is negative. *)
+let clear_sign_bit arg dbg =
+  let mask =
+    Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1))
+  in
+  Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+
+(** [transl_builtin prim args dbg] returns None if the built-in [prim]
+    is not supported, otherwise it constructs and returns the corresponding
+    Cmm expression.
+    The names of builtins below correspond to the native code names associated
+    with "external" declarations in the stand-alone library [ocaml_intrinsics].
+    For situations such as where the Cmm code below returns e.g. an untagged
+    integer, we exploit the generic mechanism on "external" to deal with the
+    tagging before the result is returned to the user.
+*)
+let transl_builtin name args dbg =
+  match name with
+  | "caml_int_clz_tagged_to_untagged" ->
+    (* The tag does not change the number of leading zeros.
+       The advantage of keeping the tag is it guarantees that, on x86-64,
+       the input to the BSR instruction is nonzero. *)
+    let op = Cclz { arg_is_non_zero = true; } in
+    if_operation_supported op ~f:(fun () -> Cop(op, args, dbg))
+  | "caml_int_clz_untagged_to_untagged" ->
+    let op = Cclz { arg_is_non_zero = false; } in
+    if_operation_supported op ~f:(fun () ->
+      let arg = clear_sign_bit (one_arg name args) dbg in
+      Cop(Caddi, [Cop(op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
+  | "caml_int64_clz_unboxed_to_untagged" -> clz Pint64 (one_arg name args) dbg
+  | "caml_int32_clz_unboxed_to_untagged" -> clz Pint32 (one_arg name args) dbg
+  | "caml_nativeint_clz_unboxed_to_untagged" ->
+    clz Pnativeint (one_arg name args) dbg
+  | "caml_int_popcnt_tagged_to_untagged" ->
+    if_operation_supported Cpopcnt ~f:(fun () ->
+      (* Having the argument tagged saves a shift, but there is one extra "set"
+         bit, which is accounted for by the (-1) below. *)
+      Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
+  | "caml_int_popcnt_untagged_to_untagged" ->
+    (* This code is expected to be faster than [popcnt(tagged_x) - 1]
+       when the untagged argument is already available from a previous
+       computation. *)
+    if_operation_supported Cpopcnt ~f:(fun () ->
+      let arg = clear_sign_bit (one_arg name args) dbg in
+      Cop(Cpopcnt, [arg], dbg))
+  | "caml_int64_popcnt_unboxed_to_untagged" ->
+    popcnt Pint64 (one_arg name args) dbg
+  | "caml_int32_popcnt_unboxed_to_untagged" ->
+    popcnt Pint32 (one_arg name args) dbg
+  | "caml_nativeint_popcnt_unboxed_to_untagged" ->
+    popcnt Pnativeint (one_arg name args) dbg
+  | "caml_int_ctz_untagged_to_untagged" ->
+    (* Assuming a 64-bit x86-64 target:
+
+       Setting the top bit of the input for the BSF instruction ensures the
+       input is nonzero without affecting the result.
+
+       The expression [x lor (1 lsl 63)] sets the top bit of x.  The constant
+       [1 lsl 63] can be precomputed statically:
+         Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
+
+       However, the encoding of this OR instruction with the large static
+       constant is 10 bytes long, on x86-64. Instead, we emit a shift
+       operation, whose corresponding instruction is 1 byte shorter. This will
+       not require an extra register, unless both the argument and result of
+       the BSF instruction are in the same register. *)
+    let op = Cctz { arg_is_non_zero = true; } in
+    if_operation_supported op ~f:(fun () ->
+      let c =
+        Cop(Clsl, [Cconst_int (1, dbg);
+                   Cconst_int ((size_int*8) - 1, dbg)], dbg)
+      in
+      Cop(op, [Cop(Cor, [one_arg name args; c], dbg)], dbg))
+  | "caml_int32_ctz_unboxed_to_untagged" -> ctz Pint32 (one_arg name args) dbg
+  | "caml_int64_ctz_unboxed_to_untagged" -> ctz Pint64 (one_arg name args) dbg
+  | "caml_nativeint_ctz_unboxed_to_untagged" ->
+    ctz Pnativeint (one_arg name args) dbg
+  | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
 let cextcall (prim : Primitive.description) args dbg ret =
@@ -2544,7 +2666,12 @@ let cextcall (prim : Primitive.description) args dbg ret =
                                label_after = None},
                     args, dbg)
   in
-  default
+  if prim.prim_c_builtin then
+    match transl_builtin name args dbg with
+    | Some op -> op
+    | None -> default
+  else
+    default
 
 (* Symbols *)
 

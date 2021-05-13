@@ -126,6 +126,9 @@ let operation d = function
   | Clsl -> "<<"
   | Clsr -> ">>u"
   | Casr -> ">>s"
+  | Cclz { arg_is_non_zero; } -> Printf.sprintf "clz %B" arg_is_non_zero
+  | Cctz { arg_is_non_zero; } -> Printf.sprintf "ctz %B" arg_is_non_zero
+  | Cpopcnt -> "popcnt"
   | Ccmpi c -> integer_comparison c
   | Caddv -> "+v"
   | Cadda -> "+a"
