@@ -312,6 +312,7 @@ let destroyed_at_oper = function
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
+  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax |]
   | _ ->
     if fp then
 (* prevent any use of the frame pointer ! *)

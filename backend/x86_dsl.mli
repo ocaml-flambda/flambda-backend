@@ -115,6 +115,7 @@ module I : sig
   val cmp: arg -> arg -> unit
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
+  val crc32 : arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit
@@ -183,6 +184,8 @@ module I : sig
   val pop: arg -> unit
   val popcnt : arg -> arg -> unit
   val push: arg -> unit
+  val rdtsc: unit -> unit
+  val rdpmc: unit -> unit
   val ret: unit -> unit
   val sal: arg -> arg -> unit
   val sar: arg -> arg -> unit

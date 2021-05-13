@@ -886,6 +886,26 @@ let emit_instr fallthrough i =
   | Lop(Iintop Ipopcnt) ->
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
+  | Lop(Ispecific Irdtsc) ->
+    assert (reg64 i.res.(0) = RDX);
+    I.rdtsc ();
+    (* The instruction fills in the low 32 bits of the result registers. *)
+    (* Combine edx and eax into a single 64-bit result in rdx. *)
+    I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
+    (* On processors that support the Intel 64 architecture,
+       the high-order 32 bits of each of RAX and RDX are cleared. *)
+    I.or_ rax (res i 0) (* combine high and low into rdx *)
+  | Lop(Ispecific Irdpmc) ->
+    assert ((arg64 i 0 = RCX) && (reg64 i.res.(0) = RDX));
+    I.rdpmc ();
+    (* The instruction fills in the low 32 bits of the result registers. *)
+    (* Combine edx and eax into a single 64-bit result in rdx. *)
+    I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
+    I.mov eax eax; (* zero-extend eax *)
+    I.or_ rax (res i 0) (* combine high and low into rdx *)
+  | Lop (Ispecific Icrc32q) ->
+    assert (arg i 0 = res i 0);
+    I.crc32 (arg i 1) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _) ->
     let probe_label = new_label () in

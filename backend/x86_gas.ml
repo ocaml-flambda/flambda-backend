@@ -131,6 +131,7 @@ let print_instr b = function
   | CMP (arg1, arg2) -> i2_s b "cmp" arg1 arg2
   | COMISD (arg1, arg2) -> i2 b "comisd" arg1 arg2
   | CQO ->  i0 b "cqto"
+  | CRC32 (arg1, arg2) -> i2_s b "crc32" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b ("cvtsi2sd" ^ suf arg1) arg1 arg2
@@ -207,6 +208,8 @@ let print_instr b = function
   | POP  arg -> i1_s b "pop" arg
   | POPCNT (arg1, arg2) -> i2_s b "popcnt" arg1 arg2
   | PUSH arg -> i1_s b "push" arg
+  | RDTSC -> i0 b "rdtsc"
+  | RDPMC -> i0 b "rdpmc"
   | RET ->  i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2_s b "sal" arg1 arg2
