@@ -234,27 +234,7 @@ method! select_operation op args dbg =
      | _ ->
          assert false
     end
-  (* CR mshinwell for mshinwell: Re-read this case after first round of
-     review *)
   | Cextcall { name; builtin = true; ret; label_after } ->
-    (* XCR mshinwell: The standard in this file is unfortunately two more
-       spaces of indentation for match cases; let's follow that for
-       consistency.
-
-       gyorsh: fixed.
-    *)
-    (* XCR mshinwell: Let's please remove the tuple brackets on these return
-       values; they aren't needed, and tend to clutter.  This is quite
-       complicated to look at as it is...
-
-       gyorsh: fixed in the new code.
-       Should I also fix it in the rest of the function, or leave it as is?
-    *)
-    (* XCR mshinwell: Can we check [ret] in all of these cases?  It's presumably
-       uniquely defined in each case.
-
-       gyorsh: ah, that's a great idea! added.
-    *)
       begin match name, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
       | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args

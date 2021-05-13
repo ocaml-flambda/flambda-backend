@@ -959,25 +959,11 @@ let emit_instr fallthrough i =
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
   | Lop(Ispecific Irdtsc) ->
-    (* XCR mshinwell: Instead of the above comment, let's write assertions to
-       ensure that the constraints have been satisfied.  Likewise for any other
-       intrinsic cases below with hard register constraints. *)
     assert (reg64 i.res.(0) = RDX);
     I.rdtsc ();
     (* The instruction fills in the low 32 bits of the result registers. *)
     (* Combine edx and eax into a single 64-bit result in rdx. *)
     I.sal (int 32) (res i 0); (* shift edx to the high part of rdx *)
-    (* XCR mshinwell: Why is this sign extension needed?  (same below).
-
-       gyorsh: it looks wrong, thanks for catching it!
-       I think it was supposed to be zero extend.
-       For rdtsc it is not needed for this target
-       (see comment added below), even though gcc still generates it -
-       as a simple mov (not movzxd) on 32 bit registers, which zeros
-       the high bits of the corresponding 64-bit registers.
-       For rdpmc, it is still needed, I think, so I fixed it below
-       to movzx. Maybe "mov eax eax" would be better: faster and smaller code.
-    *)
     (* On processors that support the Intel 64 architecture,
        the high-order 32 bits of each of RAX and RDX are cleared. *)
     I.or_ rax (res i 0) (* combine high and low into rdx *)
@@ -991,7 +977,6 @@ let emit_instr fallthrough i =
     I.or_ rax (res i 0) (* combine high and low into rdx *)
   | Lop (Ispecific Icrc32q) ->
     assert (arg i 0 = res i 0);
-    (* XCR mshinwell: write an assertion, not a comment! *)
     I.crc32 (arg i 1) (res i 0)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _) ->
