@@ -46,6 +46,9 @@ open Mach
      Iintoffloat                R       S
      Ispecific(Ilea)            R       R       R
      Ispecific(Ifloatarithmem)  R       R       R
+     Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
+     Ispecific(Irdtsc)          R                   (and Res = rdx)
+     Ispecific(Irdpmc)          R       R           (and Res = rdx, Arg1 = rcx)
 
    Conditional branches:
      Iinttest                           S       R
@@ -86,6 +89,16 @@ method! reload_operation op arg res =
       if stackp arg.(0)
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
+  | Ispecific (Irdtsc | Irdpmc) ->
+    (* Irdtsc: res(0) already forced in reg.
+       Irdpmc: res(0) and arg(0) already forced in regs. *)
+      (arg, res)
+  | Ispecific Icrc32q ->
+    (* First argument and result must be in the same register.
+       Second argument can be either in a register or on stack. *)
+      if stackp arg.(0)
+      then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
+      else (arg, res)
   | Ifloatofint | Iintoffloat ->
       (* Result must be in register, but argument can be on stack *)
       (arg, (if stackp res.(0) then [| self#makereg res.(0) |] else res))
@@ -97,7 +110,15 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
-  | _ -> (* Other operations: all args and results in registers *)
+  | Iintop (Ipopcnt | Iclz _| Ictz _)
+  | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
+               | Istore_int (_, _, _)
+               | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Ibswap _| Ifloatsqrtf _)
+  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind _|Icall_imm _
+  | Itailcall_ind _|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
+  | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+    -> (* Other operations: all args and results in registers *)
       super#reload_operation op arg res
 
 method! reload_test tst arg =

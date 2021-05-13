@@ -332,6 +332,7 @@ let destroyed_at_oper = function
       [| loc_spacetime_node_hole |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
+  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax |]
   | _ ->
     if fp then
 (* prevent any use of the frame pointer ! *)

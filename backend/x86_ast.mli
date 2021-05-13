@@ -108,6 +108,7 @@ type instruction =
   | CMP of arg * arg
   | COMISD of arg * arg
   | CQO
+  | CRC32 of arg * arg
   | CVTSD2SI of arg * arg
   | CVTSD2SS of arg * arg
   | CVTSI2SD of arg * arg
@@ -172,6 +173,8 @@ type instruction =
   | POP of arg
   | POPCNT of arg * arg
   | PUSH of arg
+  | RDTSC
+  | RDPMC
   | RET
   | ROUNDSD of rounding * arg * arg
   | SAL of arg * arg
