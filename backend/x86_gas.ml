@@ -122,6 +122,8 @@ let print_instr b = function
   | ADDSD (arg1, arg2) -> i2 b "addsd" arg1 arg2
   | AND (arg1, arg2) -> i2_s b "and" arg1 arg2
   | ANDPD (arg1, arg2) -> i2 b "andpd" arg1 arg2
+  | BSF (arg1, arg2) -> i2_s b "bsf" arg1 arg2
+  | BSR (arg1, arg2) -> i2_s b "bsr" arg1 arg2
   | BSWAP arg -> i1 b "bswap" arg
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cltd"
@@ -203,6 +205,7 @@ let print_instr b = function
   | NOP -> i0 b "nop"
   | OR (arg1, arg2) -> i2_s b "or" arg1 arg2
   | POP  arg -> i1_s b "pop" arg
+  | POPCNT (arg1, arg2) -> i2_s b "popcnt" arg1 arg2
   | PUSH arg -> i1_s b "push" arg
   | RET ->  i0 b "ret"
   | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2

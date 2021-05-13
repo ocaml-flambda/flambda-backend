@@ -99,6 +99,8 @@ type instruction =
   | ADDSD of arg * arg
   | AND of arg * arg
   | ANDPD of arg * arg
+  | BSF of arg * arg
+  | BSR of arg * arg
   | BSWAP of arg
   | CALL of arg
   | CDQ
@@ -168,6 +170,7 @@ type instruction =
   | NOP
   | OR of arg * arg
   | POP of arg
+  | POPCNT of arg * arg
   | PUSH of arg
   | RET
   | ROUNDSD of rounding * arg * arg
