@@ -24,7 +24,7 @@ let command_line_options =
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
     "-fpopcnt", Arg.Set popcnt_support,
-      " Use POPCNT instruction (not available prior to Nehalem).";
+      " Use POPCNT instruction (not available prior to Nehalem)";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use POPCNT instruction";
   ]

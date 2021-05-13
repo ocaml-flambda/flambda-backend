@@ -2183,15 +2183,6 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
-(* Untagging of a negative value shifts in an extra bit. The following code
-   clears the shifted sign bit of the an untagged int.
-   This straightline code is faster on most targets than conditional code
-   for checking whether the argument is negative. *)
-let clear_sign_bit arg dbg =
-  let mask = Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1)) in
-  Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
-
-(* XCR mshinwell: Maybe rename to [if_operation_supported]? *)
 let if_operation_supported op ~f =
   match Proc.operation_supported op with
   | true -> Some (f ())
@@ -2205,19 +2196,6 @@ let clz bi arg dbg =
   let op = Cclz { arg_is_non_zero = false; } in
   if_operation_supported_bi bi op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
-    (* XCR mshinwell: Use an exhaustive match on [bi]
-
-       gyorsh: I'm happy to make the change here, but why only here?
-       This condition is used many times in this file,
-       without an exhaustive match.
-    *)
-    (* XCR mshinwell: Please ensure there are test cases that cover this case
-
-       gyorsh: I change the name of the subfeature that
-       tests the new compiler in jane to upgrade-compiler-intrinsics
-       to ensure that all tests in the library
-       are run with the new compiler on 32-bit targets and other configurations.
-    *)
     if bi = Primitive.Pint32 && size_int = 8 then
       Cop(Caddi, [res; Cconst_int (-32, dbg)], dbg)
     else
@@ -2229,7 +2207,7 @@ let ctz bi arg dbg =
     let op = Cctz { arg_is_non_zero = true; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       (* Set bit 32 *)
-      Cop(op, [Cop(Cor, [arg; Cconst_natint(0x100000000n, dbg)], dbg)], dbg))
+      Cop(op, [Cop(Cor, [arg; Cconst_natint(0x1_0000_0000n, dbg)], dbg)], dbg))
   end else begin
     let op = Cctz { arg_is_non_zero = false; } in
     if_operation_supported_bi bi op ~f:(fun () ->
@@ -2385,12 +2363,6 @@ let bigstring_load size unsafe arg1 arg2 dbg =
           (bigstring_length ba dbg)
           idx
           (unaligned_load size ba_data idx dbg)))))
-
-let one_arg name args =
-  match args with
-  | [arg] -> arg
-  | _ ->
-    Misc.fatal_errorf "Cmm_helpers: expected exactly 1 argument for %s" name
 
 let arrayref_unsafe kind arg1 arg2 dbg =
   match (kind : Lambda.array_kind) with
@@ -2595,140 +2567,92 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 1 argument for %s" name
+
+(* Untagging of a negative value shifts in an extra bit. The following
+   code clears the shifted sign bit of an untagged int.
+   This straightline code is faster on most targets than conditional code
+   for checking whether the argument is negative. *)
+let clear_sign_bit arg dbg =
+  let mask =
+    Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1))
+  in
+  Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+
 (** [transl_builtin prim args dbg] returns None if the built-in [prim]
-   is not supported, otherwise constructs and returns the corresponding
-   Cmm expression.
-   The names of builtins below correspond to the native code names associated
-   with "external" functions declared in the stand-alone library
-   [ocaml_intrinsics].
-   See the library to determine whether the arguments and result of each builtin
-   are tagged / boxed or not. The common mechanism for handling this
-   is implemented in [Cmmgen.transl_ccall], in the same way other external calls
-   are handled.
+    is not supported, otherwise it constructs and returns the corresponding
+    Cmm expression.
+    The names of builtins below correspond to the native code names associated
+    with "external" declarations in the stand-alone library [ocaml_intrinsics].
+    For situations such as where the Cmm code below returns e.g. an untagged
+    integer, we exploit the generic mechanism on "external" to deal with the
+    tagging before the result is returned to the user.
 *)
 let transl_builtin name args dbg =
   match name with
   | "caml_int_clz_tagged_to_untagged" ->
-    (* Takes tagged int and returns untagged int.
-       The tag does not change the number of leading zeros. *)
-    (* XCR mshinwell: I don't understand what's going on here.  In the [clz]
-       function above there is no [tag_int] after the [Cclz] operation.  There
-       is also a subtraction of 32 in the 32-bit-int-on-64-bit-platform case.
-       That subtraction operates on tagged integers, which implies [Cclz]
-       must return a tagged integer -- yet here, it appears to be returning
-       an untagged one...
-
-
-       gyorsh: The intention here is to return untagged int,
-       and then cmmgen can tag it as part of the common mechanism for
-       handling args and result of "external" declarations
-       in [Cmmgen.transl_ccall]. It is possible to have tagged argument
-       and untagged result to native C stub, and that's what happens here.
-       The argument here is tagged and that is intentional:
-       the result of clz on untagged int
-       is the same as the result of "clz of tagged int" minus 1.
-       The advantage of keeping the tag is it guarantees that
-       the input to BSR instruction is not zero.
-
-       The argument in [clz] is unboxed, and the result is untagged,
-       so the subtraction of 32 in the case you mention operates on
-       untagged integers too.
-    *)
+    (* The tag does not change the number of leading zeros.
+       The advantage of keeping the tag is it guarantees that, on x86-64,
+       the input to the BSR instruction is nonzero. *)
     let op = Cclz { arg_is_non_zero = true; } in
     if_operation_supported op ~f:(fun () -> Cop(op, args, dbg))
-  (* XCR mshinwell: We shouldn't just use [List.hd] as it could throw an
-     unhelpful exception.  I think a helper function is needed, similarly
-     to the one added for pairs of arguments, above.
-
-     gyorsh: fixed. replaced all (List.hd args) with "one_arg" function.
-  *)
-  (* XCR mshinwell: Let's document whether all of these return tagged or
-     untagged integers too.
-
-     gyorsh: The "external" declarations in the library document it. I'd
-     rather have just one copy of this documentation.
-     I'm adding a comment before
-     [transl_builitin] that points to the library. Hopefully,
-     the comment clarifies other confusion.
-  *)
-  (* CR gyorsh for mshinwell: I'm adding the intrinsics for
-     count_leading_zeros2 and count_set_bits2 functions from the library,
-     looks like I forgot to implement them in the compiler. *)
-  | "caml_int_clz_untagged" ->
+  | "caml_int_clz_untagged_to_untagged" ->
     let op = Cclz { arg_is_non_zero = false; } in
     if_operation_supported op ~f:(fun () ->
       let arg = clear_sign_bit (one_arg name args) dbg in
-      Cop(Caddi, [Cop(op, [arg], dbg); Cconst_int (-1,dbg)], dbg))
-  | "caml_int64_clz_unboxed" -> clz Pint64 (one_arg name args) dbg
-  | "caml_int32_clz_unboxed" -> clz Pint32 (one_arg name args) dbg
-  | "caml_nativeint_clz_unboxed" -> clz Pnativeint (one_arg name args) dbg
+      Cop(Caddi, [Cop(op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
+  | "caml_int64_clz_unboxed_to_untagged" -> clz Pint64 (one_arg name args) dbg
+  | "caml_int32_clz_unboxed_to_untagged" -> clz Pint32 (one_arg name args) dbg
+  | "caml_nativeint_clz_unboxed_to_untagged" ->
+    clz Pnativeint (one_arg name args) dbg
   | "caml_int_popcnt_tagged_to_untagged" ->
     if_operation_supported Cpopcnt ~f:(fun () ->
-      (* CR mshinwell: Presumably this calculation is for untagging; if so
-         we should use [untag_int] instead.
-
-         gyorsh: The argument is tagged, and that is intentional, it
-         saves a shift, but there is one extra "set" bit, which is accounted for
-         by the (-1) below.
-      *)
+      (* Having the argument tagged saves a shift, but there is one extra "set"
+         bit, which is accounted for by the (-1) below. *)
       Cop(Caddi, [Cop(Cpopcnt, args, dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_int_popcnt_untagged" ->
-    (* Both argument and result are untagged.
-       This code is expected to be faster than [popcnt(tagged_x) - 1]
-       when the untagged argument is already available from a previous computation.
-    *)
+  | "caml_int_popcnt_untagged_to_untagged" ->
+    (* This code is expected to be faster than [popcnt(tagged_x) - 1]
+       when the untagged argument is already available from a previous
+       computation. *)
     if_operation_supported Cpopcnt ~f:(fun () ->
       let arg = clear_sign_bit (one_arg name args) dbg in
       Cop(Cpopcnt, [arg], dbg))
-  | "caml_int64_popcnt_unboxed" -> popcnt Pint64 (one_arg name args) dbg
-  | "caml_int32_popcnt_unboxed" -> popcnt Pint32 (one_arg name args) dbg
-  | "caml_nativeint_popcnt_unboxed" ->
+  | "caml_int64_popcnt_unboxed_to_untagged" ->
+    popcnt Pint64 (one_arg name args) dbg
+  | "caml_int32_popcnt_unboxed_to_untagged" ->
+    popcnt Pint32 (one_arg name args) dbg
+  | "caml_nativeint_popcnt_unboxed_to_untagged" ->
     popcnt Pnativeint (one_arg name args) dbg
-  | "caml_int_ctz_untagged" ->
-    (* CR mshinwell: It's hard to follow what the argument and return types
-       of these intrinsics are.  Maybe we could establish a standard naming
-       scheme that names both the argument and result types at all times?
-       Also I think we should use proper names rather than abbreviations
-       for the names, both to avoid confusion, and to avoid platform-specific
-       names in code that is supposed to be generic.
-       Combining both of these suggestions would yield names like:
-       caml_count_trailing_zeroes_untagged_int_to_untagged_int
+  | "caml_int_ctz_untagged_to_untagged" ->
+    (* Assuming a 64-bit x86-64 target:
 
-       gyorsh: yes, I like the explicit pattern <arg>_to_<res>, but lets
-       keep ctz and clz and popcnt in the names, they are common enough,
-       and easy to search for, and much shorter.
-    *)
-    (* Takes untagged int and returns untagged int.
-       Setting the top bit does not change the result of 63 bit operation,
-       and guarantees the input is non-zero, which is required because
-       [bsf] instruction is not defined on input 0. *)
-    (* XCR mshinwell: This should explain why it's beneficial for the input
-       to be guaranteed not to be zero *)
-    (* XCR mshinwell: This needs some more explanation.  Maybe augment the
-       commented-out line with some explanatory text (presuming that this
-       is the code that emits this extra byte)? *)
-        (*
-       The expression [x lor (1 lsl 63)] sets the top bit of x.
-       [1 lsl 64] is a constant 64-bit value with the top bit 1
-       and all other bits are 0. The constant can be precomputed statically:
+       Setting the top bit of the input for the BSF instruction ensures the
+       input is nonzero without affecting the result.
 
-       Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
+       The expression [x lor (1 lsl 63)] sets the top bit of x.  The constant
+       [1 lsl 63] can be precomputed statically:
+         Cconst_natint ((Nativeint.shift_left 1n 63), dbg)
 
        However, the encoding of this OR instruction with the large static
-       constant is 10 bytes long. Instead, we emit a shift instruction,
-       which is 1 byte shorter. This will not require an extra register,
-           unless both argument and result of bsf are in the same register. *)
-    let op = Cctz {arg_is_non_zero=true} in
-    if_operation_supported op ~f:(fun ()->
-      let c = Cop(Clsl, [Cconst_natint (1n, dbg);
-                         Cconst_int (((size_int*8)-1), dbg)], dbg) in
-      Cop (op,
-        (* XCR mshinwell: As per comment elsewhere, don't use List.hd, as it
-           might produce an unhelpful exception. *)
-           [Cop(Cor, [one_arg name args; c], dbg)], dbg))
-  | "caml_int32_ctz_unboxed" -> ctz Pint32 (one_arg name args) dbg
-  | "caml_int64_ctz_unboxed" -> ctz Pint64 (one_arg name args) dbg
-  | "caml_nativeint_ctz_unboxed" -> ctz Pnativeint (one_arg name args) dbg
+       constant is 10 bytes long, on x86-64. Instead, we emit a shift
+       operation, whose corresponding instruction is 1 byte shorter. This will
+       not require an extra register, unless both the argument and result of
+       the BSF instruction are in the same register. *)
+    let op = Cctz { arg_is_non_zero = true; } in
+    if_operation_supported op ~f:(fun () ->
+      let c =
+        Cop(Clsl, [Cconst_int (1, dbg);
+                   Cconst_int ((size_int*8) - 1, dbg)], dbg)
+      in
+      Cop(op, [Cop(Cor, [one_arg name args; c], dbg)], dbg))
+  | "caml_int32_ctz_unboxed_to_untagged" -> ctz Pint32 (one_arg name args) dbg
+  | "caml_int64_ctz_unboxed_to_untagged" -> ctz Pint64 (one_arg name args) dbg
+  | "caml_nativeint_ctz_unboxed_to_untagged" ->
+    ctz Pnativeint (one_arg name args) dbg
   | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
