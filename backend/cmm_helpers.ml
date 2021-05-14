@@ -2661,24 +2661,6 @@ let transl_builtin name args dbg =
     ctz Pnativeint (one_arg name args) dbg
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer_unboxed" ->
-    (* XCR mshinwell: The "_unboxed" is confusing here; there are no
-       int32/int64/nativeint/float values involved.  I think it would be
-       better to add a comment in this file explaining:
-       - native pointers are handled in Cmm as unboxed nativeints
-       - Ext pointers are handled as [...]
-
-       gyorsh: added comments.
-       The argument or the result are unboxed nativeint values.
-    *)
-    (* XCR mshinwell: If this is the same as %int_as_pointer, why is this
-       case needed?
-
-       gyorsh: int_as_pointer returns a naked pointer as int.
-       The intrinsic returns nativeint so it has a different return type
-       from %int_as_pointer, but the native code implementation
-       on unboxed types is the same.
-       Unboxing or args and boxing of result is done in cmmgen.
-    *)
     Some(int_as_pointer (one_arg name args) dbg)
   | "caml_native_pointer_load_value_unboxed" ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
@@ -2707,20 +2689,6 @@ let transl_builtin name args dbg =
     Some(Cop(Cstore (Word_int, Assignment), [p; arg2], dbg))
   | "caml_ext_pointer_load_float_unboxed" ->
     let p = int_as_pointer (one_arg name args) dbg in
-    (* XCR mshinwell: Is this definitely meant to be Double_u instead of
-       Double?  It might be worth checking what the code generation difference
-       is.  I presume the one requiring alignment might be faster; maybe we
-       should expose both?
-       Same comment for the next (store) case.
-
-       gyorsh: There is no difference in code generation on amd64 target
-       (in amd64/selection.ml select_addressing ignores "chunk" argument,
-       and Double and Double_u are treated the same.)
-       In cmm_helpers, unboxed floats and unboxed float array accesses
-       use Double_u. Selectgen uses Double_u for stores.
-       I thought it would be better to match them.
-       Leo's patch PR9910 also uses Double_u for these operations..
-    *)
     Some(Cop(Cload (Double_u, Mutable), [p], dbg))
   | "caml_ext_pointer_store_float_unboxed" ->
     let arg1, arg2 = two_args name args in
