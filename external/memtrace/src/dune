@@ -1,0 +1,4 @@
+(library
+ (name memtrace)
+ (libraries unix threads))
+
