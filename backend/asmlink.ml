@@ -51,7 +51,7 @@ let check_consistency file_name unit crc =
   begin try
     List.iter
       (fun (name, crco) ->
-        String.Tbl.add interfaces name ();
+        String.Tbl.replace interfaces name ();
         match crco with
           None -> ()
         | Some crc ->
@@ -91,7 +91,7 @@ let check_consistency file_name unit crc =
   end;
   implementations := unit.ui_name :: !implementations;
   Cmx_consistbl.set crc_implementations unit.ui_name crc file_name;
-  String.Tbl.add implementations_defined unit.ui_name file_name;
+  String.Tbl.replace implementations_defined unit.ui_name file_name;
   if unit.ui_symbol <> unit.ui_name then
     cmx_required := unit.ui_name :: !cmx_required
 
