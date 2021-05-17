@@ -861,6 +861,10 @@ let emit_instr fallthrough i =
       let lbl = bound_error_label ?label:label_after_error i.dbg ~spacetime in
       I.cmp (int n) (arg i 0);
       I.jbe (label lbl)
+  | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
+      I.and_ (int n) (res32 i 0)
+  | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
+      I.xor (res32 i 0) (res32 i 0)
   | Lop(Iintop(Idiv | Imod)) ->
       I.cqo ();
       I.idiv (arg i 1)
@@ -874,9 +878,9 @@ let emit_instr fallthrough i =
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
+  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) when not !fastcode_flag ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
+  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) when not !fastcode_flag ->
       I.dec (res i 0)
   | Lop(Iintop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
