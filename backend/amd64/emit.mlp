@@ -861,11 +861,8 @@ let emit_instr fallthrough i =
       let lbl = bound_error_label ?label:label_after_error i.dbg ~spacetime in
       I.cmp (int n) (arg i 0);
       I.jbe (label lbl)
-  | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF ->
-      begin match i.res.(0).loc with
-      | Reg _ -> I.and_ (int n) (res32 i 0)
-      | _     -> I.and_ (int n) (res i 0)
-      end
+  | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
+      I.and_ (int n) (res32 i 0)
   | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc ->
       begin match i.res.(0).loc with
       | Reg _ -> I.xor (res32 i 0) (res32 i 0)
