@@ -1,0 +1,4 @@
+(executable
+ (name ocamlopt)
+ (enabled_if false) ; TODO: fix compilation for mainline ocamlc
+ (libraries memtrace compiler-libs.optcomp))
