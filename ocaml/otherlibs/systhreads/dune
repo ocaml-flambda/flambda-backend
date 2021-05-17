@@ -22,7 +22,7 @@
     mutex
     thread)
   (flags -w +33..39 -warn-error A -g -bin-annot -safe-string)
-  (ocamlopt_flags (:standard -function-sections))
+  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
   (libraries stdlib unix)
   (library_flags -linkall)
   (c_library_flags -lpthread)
