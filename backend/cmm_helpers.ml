@@ -2567,6 +2567,12 @@ let bigstring_set size unsafe arg1 arg2 arg3 dbg =
             check_bound unsafe size dbg (bigstring_length ba dbg)
               idx (unaligned_set size ba_data idx newval dbg))))))
 
+let two_args name args =
+  match args with
+  | [arg1; arg2] -> arg1, arg2
+  | _ ->
+    Misc.fatal_errorf "Cmm_helpers: expected exactly 2 arguments for %s" name
+
 let one_arg name args =
   match args with
   | [arg] -> arg
@@ -2582,6 +2588,15 @@ let clear_sign_bit arg dbg =
     Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1))
   in
   Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+
+let ext_pointer_load chunk name args dbg =
+  let p = int_as_pointer (one_arg name args) dbg in
+  Some(Cop(Cload (chunk, Mutable), [p], dbg))
+
+let ext_pointer_store chunk name args dbg =
+  let arg1, arg2 = two_args name args in
+  let p = int_as_pointer arg1 dbg in
+  Some(Cop(Cstore (chunk, Assignment), [p; arg2], dbg))
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim]
     is not supported, otherwise it constructs and returns the corresponding
@@ -2653,6 +2668,46 @@ let transl_builtin name args dbg =
   | "caml_int64_ctz_unboxed_to_untagged" -> ctz Pint64 (one_arg name args) dbg
   | "caml_nativeint_ctz_unboxed_to_untagged" ->
     ctz Pnativeint (one_arg name args) dbg
+  (* Native_pointer: handled as unboxed nativeint *)
+  | "caml_ext_pointer_as_native_pointer" ->
+    Some(int_as_pointer (one_arg name args) dbg)
+  | "caml_native_pointer_load_immediate"
+  | "caml_native_pointer_load_unboxed_nativeint" ->
+    Some(Cop(Cload (Word_int, Mutable), args, dbg))
+  | "caml_native_pointer_store_immediate"
+  | "caml_native_pointer_store_unboxed_nativeint" ->
+    Some(Cop(Cstore (Word_int, Assignment), args, dbg))
+  | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
+    Some(Cop(Cload (Word_int, Mutable), args, dbg))
+  | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
+    Some(Cop(Cstore (Word_int, Assignment), args, dbg))
+  | "caml_native_pointer_load_unboxed_int32" ->
+    Some(Cop(Cload (Thirtytwo_signed, Mutable), args, dbg))
+  | "caml_native_pointer_store_unboxed_int32" ->
+    Some(Cop(Cstore (Thirtytwo_signed, Assignment), args, dbg))
+  | "caml_native_pointer_load_unboxed_float" ->
+    Some(Cop(Cload (Double_u, Mutable), args, dbg))
+  | "caml_native_pointer_store_unboxed_float" ->
+    Some(Cop(Cstore (Double_u, Assignment), args, dbg))
+  (* Ext_pointer: handled as tagged int *)
+  | "caml_ext_pointer_load_immediate"
+  | "caml_ext_pointer_load_unboxed_nativeint" ->
+    ext_pointer_load Word_int name args dbg
+  | "caml_ext_pointer_store_immediate"
+  | "caml_ext_pointer_store_unboxed_nativeint" ->
+    ext_pointer_store Word_int name args dbg
+  | "caml_ext_pointer_load_unboxed_int64" when size_int = 8 ->
+    ext_pointer_load Word_int name args dbg
+  | "caml_ext_pointer_store_unboxed_int64" when size_int = 8 ->
+    ext_pointer_store Word_int name args dbg
+  | "caml_ext_pointer_load_unboxed_int32" ->
+    ext_pointer_load Thirtytwo_signed name args dbg
+  | "caml_ext_pointer_store_unboxed_int32" ->
+    ext_pointer_store Thirtytwo_signed name args dbg
+  | "caml_ext_pointer_load_unboxed_float" ->
+    ext_pointer_load Double_u name args dbg
+  | "caml_ext_pointer_store_unboxed_float" ->
+    ext_pointer_store Double_u name args dbg
   | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
