@@ -2692,7 +2692,7 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_store_unboxed_float" ->
     Some(Cop(Cstore (Double_u, Assignment), args, dbg))
   (* Ext_pointer: handled as tagged int *)
-  | "caml_ext_pointer_unsafe_load_immediate" ->
+  | "caml_ext_pointer_load_immediate" ->
     ext_pointer_load Word_val name args dbg
   | "caml_ext_pointer_store_immediate" ->
     ext_pointer_store Word_val name args dbg
