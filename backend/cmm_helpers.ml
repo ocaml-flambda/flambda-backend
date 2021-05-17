@@ -2671,15 +2671,13 @@ let transl_builtin name args dbg =
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some(int_as_pointer (one_arg name args) dbg)
-  | "caml_native_pointer_load_immediate" ->
-    Some(Cop(Cload (Word_val, Mutable), args, dbg))
-  | "caml_native_pointer_store_immediate" ->
-    Some(Cop(Cstore (Word_val, Assignment), args, dbg))
+  | "caml_native_pointer_load_immediate"
   | "caml_native_pointer_load_unboxed_nativeint" ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
+  | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
     Some(Cop(Cstore (Word_int, Assignment), args, dbg))
-  | "caml_native_pointer_load_unboxed_int64" when (size_int = 8) ->
+  | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
     Some(Cop(Cstore (Word_int, Assignment), args, dbg))
@@ -2692,12 +2690,10 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_store_unboxed_float" ->
     Some(Cop(Cstore (Double_u, Assignment), args, dbg))
   (* Ext_pointer: handled as tagged int *)
-  | "caml_ext_pointer_load_immediate" ->
-    ext_pointer_load Word_val name args dbg
-  | "caml_ext_pointer_store_immediate" ->
-    ext_pointer_store Word_val name args dbg
+  | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->
     ext_pointer_load Word_int name args dbg
+  | "caml_ext_pointer_store_immediate"
   | "caml_ext_pointer_store_unboxed_nativeint" ->
     ext_pointer_store Word_int name args dbg
   | "caml_ext_pointer_load_unboxed_int64" when size_int = 8 ->
