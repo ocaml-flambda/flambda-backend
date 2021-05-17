@@ -35,7 +35,10 @@
    shutdown signals sleep socket socketaddr socketpair sockopt stat strofaddr
    symlink termios time times truncate umask unixsupport unlink utimes wait
    write spawn)
-   (flags -I %{project_root}/ocaml/runtime)
+   (flags ((:include %{project_root}/oc_cflags.sexp)
+           (:include %{project_root}/sharedlib_cflags.sexp)
+           (:include %{project_root}/oc_cppflags.sexp)))
+   (include_dirs %{project_root}/ocaml/runtime)
  ))
 
 (install

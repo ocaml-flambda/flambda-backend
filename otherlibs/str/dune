@@ -23,7 +23,11 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  (libraries stdlib)
- (foreign_stubs (language c) (names strstubs)))
+ (foreign_stubs (language c) (names strstubs)
+  (flags ((:include %{project_root}/oc_cflags.sexp)
+          (:include %{project_root}/sharedlib_cflags.sexp)
+          (:include %{project_root}/oc_cppflags.sexp)))
+  (include_dirs %{project_root}/ocaml/runtime)))
 
 (install
   (files
