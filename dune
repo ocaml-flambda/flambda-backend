@@ -36,7 +36,7 @@
   ; We should change the code so this "-open" can be removed.
   ; Likewise fix occurrences of warning 9.
   (flags (:standard -principal -nostdlib -w -9))
-  (ocamlopt_flags (:standard -function-sections))
+  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
   (modules_without_implementation
     backend_intf
     cmx_format
