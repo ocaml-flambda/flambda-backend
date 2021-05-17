@@ -169,10 +169,7 @@ ocaml/otherlibs/dynlink/natdynlinkops2: ocaml-stage1-config.status
 # Extract compilation flags from Makefile.config of stage1
 # and write them to a file that dune can use in stage1 and stage2.
 .PHONY: flags.sexp
-flags.sexp: ocamlopt_flags.sexp oc_cflags.sexp oc_cppflags.sexp \
-            sharedlib_cflags.sexp
-
-ocamlopt_flags.sexp: ocaml-stage1-config.status
+flags.sexp: ocaml-stage1-config.status
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	grep -q '^FUNCTION_SECTIONS=true' ocaml/Makefile.config; \
@@ -181,22 +178,10 @@ ocamlopt_flags.sexp: ocaml-stage1-config.status
 	else \
 	  /bin/echo -n "(:standard)" > ocamlopt_flags.sexp; \
 	fi
-
-oc_cflags.sexp: ocaml-stage1-config.status
-	cp ocaml-stage1-config.status ocaml/config.status
-	(cd ocaml && ./config.status)
 	/bin/echo -n "( $$(grep "^OC_CFLAGS=" ocaml/Makefile.config \
 		  	| sed 's/^OC_CFLAGS=//') )" > oc_cflags.sexp
-
-oc_cppflags.sexp: ocaml-stage1-config.status
-	cp ocaml-stage1-config.status ocaml/config.status
-	(cd ocaml && ./config.status)
 	/bin/echo -n "( $$(grep "^OC_CPPFLAGS=" ocaml/Makefile.config \
 		| sed 's/^OC_CPPFLAGS=//') )" > oc_cppflags.sexp
-
-sharedlib_cflags.sexp: ocaml-stage1-config.status
-	cp ocaml-stage1-config.status ocaml/config.status
-	(cd ocaml && ./config.status)
 	/bin/echo -n "( $$(grep "^SHAREDLIB_CFLAGS=" ocaml/Makefile.config \
 		| sed 's/^SHAREDLIB_CFLAGS=//') )" > sharedlib_cflags.sexp
 
