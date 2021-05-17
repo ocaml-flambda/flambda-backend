@@ -30,13 +30,18 @@
     (language c)
     (names st_stubs_byte)
     (mode byte)
-    (flags -DCAML_NAME_SPACE)
+    (flags ((:include %{project_root}/oc_cflags.sexp)
+            (:include %{project_root}/sharedlib_cflags.sexp)
+            (:include %{project_root}/oc_cppflags.sexp)))
     (include_dirs %{project_root}/ocaml/runtime))
   (foreign_stubs
     (language c)
     (names st_stubs_native)
     (mode native)
-    (flags -DNATIVE_CODE -DCAML_NAME_SPACE)
+    (flags ((-DNATIVE_CODE)
+            (:include %{project_root}/oc_cflags.sexp)
+            (:include %{project_root}/sharedlib_cflags.sexp)
+            (:include %{project_root}/oc_cppflags.sexp)))
     (include_dirs %{project_root}/ocaml/runtime)))
 
 (rule
