@@ -104,6 +104,7 @@ module S = struct
       arg : Reg.t array;
       res : Reg.t array;
       dbg : Debuginfo.t;
+      fdo : Fdo_info.t;
       live : Reg.Set.t;
       trap_depth : int;
       id : int

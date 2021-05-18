@@ -20,12 +20,14 @@ type basic_block =
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;
+    fun_dbg : Debuginfo.t;
     entry_label : Label.t;
     mutable fun_tailrec_entry_point_label : Label.t
   }
 
-let create ~fun_name ~fun_tailrec_entry_point_label =
+let create ~fun_name ~fun_tailrec_entry_point_label ~fun_dbg =
   { fun_name;
+    fun_dbg;
     entry_label = 1;
     blocks = Label.Tbl.create 31;
     fun_tailrec_entry_point_label
@@ -174,6 +176,9 @@ let intop (op : Mach.integer_operation) =
   | Ilsl -> " << "
   | Ilsr -> " >>u "
   | Iasr -> " >>s "
+  | Ipopcnt -> " pop "
+  | Iclz _ -> " clz "
+  | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
   | Icheckbound _ -> assert false
 

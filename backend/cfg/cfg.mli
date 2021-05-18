@@ -52,6 +52,7 @@ type basic_block =
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
     fun_name : string;  (** Function name, used for printing messages *)
+    fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
     mutable fun_tailrec_entry_point_label : Label.t
@@ -59,7 +60,8 @@ type t = private
             Otherwise, the [Prologue] falls through to this label. *)
   }
 
-val create : fun_name:string -> fun_tailrec_entry_point_label:Label.t -> t
+val create : fun_name:string -> fun_tailrec_entry_point_label:Label.t ->
+  fun_dbg:Debuginfo.t -> t
 
 val fun_name : t -> string
 

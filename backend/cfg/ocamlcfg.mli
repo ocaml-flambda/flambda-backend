@@ -77,7 +77,7 @@ module Cfg_with_layout : sig
 end
 
 module Passes : sig
-  val add_extra_debug : Cfg.t -> file:string -> unit
+  val add_extra_debug : Cfg_with_layout.t -> unit
 
   val simplify_terminators : Cfg.t -> unit
 end
