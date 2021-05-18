@@ -268,7 +268,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
                   let test =
                     match imm with
                     | None -> Mach.Iinttest comp
-                    | Some n -> Iinttest_imm (comp, n)
+                    | Some n -> Mach.Iinttest_imm (comp, n)
                   in
                   L.Lcondbranch (test, lbl) :: acc)
                 cond_successor_labels init
@@ -350,7 +350,7 @@ let run cfg_with_layout =
         in
         adjust_trap_depth body block ~prev_block
     in
-    next := { label; insn }
+    next := { Linear_utils.label; insn }
   done;
   !next.insn
 
