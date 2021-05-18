@@ -134,6 +134,13 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ (fun (fd : Linear.fundecl) ->
+      if !use_ocamlcfg then begin
+        let cfg = Ocamlcfg.Cfg_with_layout.of_linear fd ~preserve_orig_labels:true in
+        let fun_body = Ocamlcfg.Cfg_with_layout.to_linear cfg in
+        { fd with Linear.fun_body; }
+      end else
+        fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear
