@@ -2207,7 +2207,8 @@ let ctz bi arg dbg =
     let op = Cctz { arg_is_non_zero = true; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       (* Set bit 32 *)
-      Cop(op, [Cop(Cor, [arg; Cconst_natint(0x1_0000_0000n, dbg)], dbg)], dbg))
+      let mask = Nativeint.shift_left 1n 32 in
+      Cop(op, [Cop(Cor, [arg; Cconst_natint(mask, dbg)], dbg)], dbg))
   end else begin
     let op = Cctz { arg_is_non_zero = false; } in
     if_operation_supported_bi bi op ~f:(fun () ->
