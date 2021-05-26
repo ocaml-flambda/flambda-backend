@@ -2067,15 +2067,18 @@ asmcomp/CSEgen.cmo : \
     asmcomp/proc.cmi \
     asmcomp/mach.cmi \
     asmcomp/cmm.cmi \
+    parsing/asttypes.cmi \
     asmcomp/CSEgen.cmi
 asmcomp/CSEgen.cmx : \
     asmcomp/reg.cmx \
     asmcomp/proc.cmx \
     asmcomp/mach.cmx \
     asmcomp/cmm.cmx \
+    parsing/asttypes.cmi \
     asmcomp/CSEgen.cmi
 asmcomp/CSEgen.cmi : \
-    asmcomp/mach.cmi
+    asmcomp/mach.cmi \
+    parsing/asttypes.cmi
 asmcomp/afl_instrument.cmo : \
     lambda/lambda.cmi \
     asmcomp/cmm.cmi \
@@ -2693,6 +2696,7 @@ asmcomp/mach.cmo : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
+    parsing/asttypes.cmi \
     asmcomp/arch.cmo \
     asmcomp/mach.cmi
 asmcomp/mach.cmx : \
@@ -2703,6 +2707,7 @@ asmcomp/mach.cmx : \
     lambda/debuginfo.cmx \
     asmcomp/cmm.cmx \
     middle_end/backend_var.cmx \
+    parsing/asttypes.cmi \
     asmcomp/arch.cmx \
     asmcomp/mach.cmi
 asmcomp/mach.cmi : \
@@ -2712,6 +2717,7 @@ asmcomp/mach.cmi : \
     lambda/debuginfo.cmi \
     asmcomp/cmm.cmi \
     middle_end/backend_var.cmi \
+    parsing/asttypes.cmi \
     asmcomp/arch.cmo
 asmcomp/printcmm.cmo : \
     utils/targetint.cmi \
