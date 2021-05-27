@@ -1,0 +1,55 @@
+(executables (names test trace copy geom_sampler) (libraries memtrace))
+
+(rule
+  (alias runtest)
+  (action (run ./test.exe)))
+
+(rule
+  (alias runtest)
+  (action (run ./trace.exe)))
+
+(rule (action (with-stdout-to geom_sampler.out (run ./geom_sampler.exe))))
+
+(rule
+  (alias runtest)
+  (action (diff geom_sampler.expected geom_sampler.out)))
+
+(rule
+ (targets ocamlopt.ctf.copy)
+ (deps copy.exe ocamlopt.ctf)
+ (action
+  (run ./copy.exe ocamlopt.ctf ocamlopt.ctf.copy)))
+
+(rule
+ (targets ocamlopt.ctf.txt)
+ (deps ../bin/dump_trace.exe ocamlopt.ctf)
+ (action (with-stdout-to ./ocamlopt.ctf.txt (run ../bin/dump_trace.exe ocamlopt.ctf))))
+
+(rule
+ (targets ocamlopt.ctf.copy.txt)
+ (deps ../bin/dump_trace.exe ocamlopt.ctf.copy)
+ (action (with-stdout-to ./ocamlopt.ctf.copy.txt (run ../bin/dump_trace.exe ocamlopt.ctf.copy))))
+
+; This test checks that copying does not change the contents.
+; It should always pass.
+
+(rule
+ (alias runtest)
+ (deps ocamlopt.ctf.txt ocamlopt.ctf.copy.txt)
+ (action (diff ocamlopt.ctf.txt ocamlopt.ctf.copy.txt)))
+
+; This test checks that copying leaves the file bit-for-bit the same.
+; It will fail whenever the binary format changes.
+; If you changed the format on purpose, just copy ocamlopt.ctf.copy to ocamlopt.ctf
+
+; Note that we don't guarantee that a 32-bit build can read a capture from a
+; 64-bit build. In particular, >32-bit object identifiers get truncated. Thus we
+; don't expect bit-for-bit accuracy on 32-bit systems. We still do the textual
+; diff above to be sure that readers and writers are consistent.
+
+(rule
+ (alias runtest)
+ (enabled_if (= 64 %{ocaml-config:word_size}))
+ (deps ocamlopt.ctf ocamlopt.ctf.copy)
+ (action (run cmp ocamlopt.ctf ocamlopt.ctf.copy)))
+
