@@ -131,7 +131,6 @@ type memory_chunk =
   | Word_val
   | Single
   | Double
-  | Double_u
 
 and operation =
     Capply of machtype
