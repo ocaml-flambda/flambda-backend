@@ -274,10 +274,12 @@ runtest-upstream:
 	mkdir -p _runtest/otherlibs/dynlink
 	cp _build2/install/default/lib/ocaml/dynlink* \
 	  _runtest/otherlibs/dynlink
+	# stublibs
+	mkdir -p _runtest/lib/ocaml/stublibs/
+	cp _build2/install/default/lib/ocaml/stublibs/*.so \
+	  _runtest/lib/ocaml/stublibs
 	# str
 	mkdir -p _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/stublibs/dllstr_stubs.so \
-	  _runtest/otherlibs/str
 	cp _build2/install/default/lib/ocaml/str*.cmi \
 	  _runtest/otherlibs/str
 	cp _build2/install/default/lib/ocaml/libstr*.a \
@@ -292,8 +294,6 @@ runtest-upstream:
 	  _runtest/otherlibs/str
 	# unix
 	mkdir -p _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/stublibs/dllunix_stubs.so \
-	  _runtest/otherlibs/unix
 	cp _build2/install/default/lib/ocaml/unix*.cmi \
 	  _runtest/otherlibs/unix
 	cp _build2/install/default/lib/ocaml/libunix*.a \
@@ -308,8 +308,6 @@ runtest-upstream:
 	  _runtest/otherlibs/unix
 	# systhreads
 	mkdir -p _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/stublibs/dllthreads_stubs.so \
-	  _runtest/otherlibs/systhreads
 	cp _build2/install/default/lib/ocaml/threads/*.cmi \
 	  _runtest/otherlibs/systhreads
 	cp _build2/install/default/lib/ocaml/threads/*.cma \
@@ -354,7 +352,9 @@ runtest-upstream:
 	# We should build the native ocamltest too.
 	cp _build1/default/ocaml/ocamltest/ocamltest.byte \
 	  _runtest/ocamltest/ocamltest
-	(export OCAMLSRCDIR=$$(pwd)/_runtest; cd _runtest/testsuite \
+	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
+	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 cd _runtest/testsuite \
 	  && if $$(which parallel > /dev/null 2>&1); \
              then make parallel; \
              else make all; \
