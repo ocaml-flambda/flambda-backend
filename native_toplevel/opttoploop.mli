@@ -161,3 +161,28 @@ val override_sys_argv : string array -> unit
    This is called by [run_script] so that [Sys.argv] represents
    "script.ml args..." instead of the full command line:
    "ocamlrun unix.cma ... script.ml args...". *)
+
+(* JIT hook *)
+
+type res = Ok of Obj.t | Err of string
+
+type evaluation_outcome = Result of Obj.t | Exception of exn
+
+module Jit : sig
+  type t =
+    {
+      load : Format.formatter -> Lambda.program -> evaluation_outcome;
+      lookup_symbol : string -> Obj.t option;
+    }
+end
+
+val register_jit : Jit.t -> unit
+
+val default_lookup : string -> Obj.t option
+
+(* Required for experimentation *)
+
+val need_symbol : string -> bool
+val backend : (module Backend_intf.S)
+val phrase_name : string ref
+val dll_run : string -> string -> evaluation_outcome
