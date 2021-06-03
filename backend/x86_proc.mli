@@ -86,4 +86,5 @@ val use_plt : bool
 
 (** Support for plumbing a binary code emitter *)
 
+val internal_assembler : (asm_program -> string -> unit) option ref
 val register_internal_assembler: (asm_program -> string -> unit) -> unit
