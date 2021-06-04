@@ -48,8 +48,8 @@ open Mach
      Ispecific(Ilea)            R       R       R
      Ispecific(Ifloatarithmem)  R       R       R
      Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
-     Ispecific(Irdtsc)          R                   (and Res = rdx)
-     Ispecific(Irdpmc)          R       R           (and Res = rdx, Arg1 = rcx)
+     Ispecific(Irdtsc)          R
+     Ispecific(Irdpmc)          R       R           (Arg1 = rcx)
 
    Conditional branches:
      Iinttest                           S       R
@@ -91,9 +91,11 @@ method! reload_operation op arg res =
       then (let r = self#makereg arg.(0) in ([|r; arg.(1)|], [|r|]))
       else (arg, res)
   | Ispecific (Irdtsc | Irdpmc) ->
-    (* Irdtsc: res(0) already forced in reg.
-       Irdpmc: res(0) and arg(0) already forced in regs. *)
-      (arg, res)
+      (* Irdtsc: result must be in register.
+         Irdpmc: result must be in register, arg.(0) already forced in reg. *)
+      if stackp res.(0)
+      then (let r = self#makereg res.(0) in (arg, [|r|]))
+      else (arg, res)
   | Ispecific Icrc32q ->
     (* First argument and result must be in the same register.
        Second argument can be either in a register or on stack. *)

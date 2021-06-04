@@ -891,7 +891,6 @@ let emit_instr fallthrough i =
       assert (!popcnt_support);
       I.popcnt (arg i 0) (res i 0)
   | Lop(Ispecific Irdtsc) ->
-    assert (reg64 i.res.(0) = RAX);
     I.rdtsc ();
     let rdx = Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
@@ -899,15 +898,21 @@ let emit_instr fallthrough i =
     I.sal (int 32) rdx; (* shift edx to the high part of rdx *)
     (* On processors that support the Intel 64 architecture,
        the high-order 32 bits of each of RAX and RDX are cleared. *)
-    I.or_ rdx (res i 0) (* combine high and low into rax *)
+    (match reg64 i.res.(0) with
+     | RAX -> I.or_ rdx (res i 0) (* combine high and low into rax *)
+     | RDX -> I.or_ rax (res i 0) (* combine high and low into rdx *)
+     | _ ->
+       (* combine high and low into res *)
+       I.mov rax (res i 0);
+       I.or_ rdx (res i 0))
   | Lop(Ispecific Irdpmc) ->
-    assert ((arg64 i 0 = RCX) && (reg64 i.res.(0) = RAX));
+    assert (arg64 i 0 = RCX);
     I.rdpmc ();
     let rdx = Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
     (* Combine edx and eax into a single 64-bit result in rdx. *)
     I.sal (int 32) rdx; (* shift edx to the high part of rdx *)
-    I.mov eax eax; (* zero-extend eax *)
+    I.mov eax (res i 0); (* zero-extend eax *)
     I.or_ rdx (res i 0) (* combine high and low into rax *)
   | Lop (Ispecific Icrc32q) ->
     assert (arg i 0 = res i 0);

@@ -120,16 +120,11 @@ let pseudoregs_for_operation op arg res =
       ([| rax; rcx |], [| rax |])
   | Iintop(Imod) ->
       ([| rax; rcx |], [| rdx |])
-  | Ispecific Irdtsc ->
-  (* For rdtsc instruction, the result is in edx (high) and eax (low).
-     Make it simple and force the result in rax and rdx clobbered. *)
-    ([| |], [| rax |])
   | Ispecific Irdpmc ->
   (* For rdpmc instruction, the argument must be in ecx
      and the result is in edx (high) and eax (low).
-     Make it simple and force the argument in rcx, the result in rax,
-     and rdx clobbered *)
-    ([| rcx |], [| rax |])
+     Make it simple and force the argument in rcx, and rax and rdx clobbered *)
+    ([| rcx |], res)
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
