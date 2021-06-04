@@ -333,7 +333,7 @@ let destroyed_at_oper = function
       [| loc_spacetime_node_hole |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
-  | Iop(Ispecific(Irdtsc | Irdpmc)) -> [| rax |]
+  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rdx |]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
