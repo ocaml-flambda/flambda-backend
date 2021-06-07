@@ -13,6 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+4"]
 
 (* Description of the AMD64 processor *)
 
@@ -332,8 +333,26 @@ let destroyed_at_oper = function
       [| loc_spacetime_node_hole |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
-  | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax |]
-  | _ ->
+  | Iop(Ispecific(Irdtsc | Irdpmc)) -> [| rax |]
+  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
+                 | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
+  | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+              | Ipopcnt | Iclz _ | Ictz _ | Icheckbound _))
+  | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl
+                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
+                   | Icheckbound _),_))
+  | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+               | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
+               | Double | Double_u), _, _))
+  | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+       | Ifloatofint | Iintoffloat
+       | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+       | Itailcall_ind _ | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
+       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _)
+  | Iend | Ireturn | Iifthenelse (_, _, _) | Icatch (_, _, _)
+  | Iexit _ | Iraise _
+    ->
     if fp then
 (* prevent any use of the frame pointer ! *)
       [| rbp |]
@@ -350,7 +369,14 @@ let destroyed_at_reloadretaddr = [| |]
 
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
-  | _ -> if fp then 10 else 11
+  | Ialloc _ | Imove | Ispill | Ireload
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+  | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
+  | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
+  | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
+  | Iprobe _ | Iprobe_is_enabled _
+    -> if fp then 10 else 11
 
 let max_register_pressure = function
     Iextcall _ ->
@@ -367,7 +393,24 @@ let max_register_pressure = function
     if fp then [| 11; 16 |] else [| 12; 16 |]
   | Istore(Single, _, _) ->
     if fp then [| 12; 15 |] else [| 13; 15 |]
-  | _ -> if fp then [| 12; 16 |] else [| 13; 16 |]
+  | Iintop(Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+           | Ipopcnt|Iclz _| Ictz _|Icheckbound _)
+  | Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr
+                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound _), _)
+  | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
+            | Double | Double_u),
+            _, _)
+  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
+  | Istackoffset _ | Iload (_, _)
+  | Ispecific(Ilea _ | Isextend32 | Izextend32
+             | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
+  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+    -> if fp then [| 12; 16 |] else [| 13; 16 |]
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)
@@ -376,10 +419,19 @@ let op_is_pure = function
   | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound _) | Iintop_imm(Icheckbound _, _) -> false
-  | Ispecific(Ilea _|Isextend32|Izextend32) -> true
-  | Ispecific _ -> false
+  | Ispecific(Ilea _ | Isextend32 | Izextend32) -> true
+  | Ispecific(Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false
   | Iprobe _ | Iprobe_is_enabled _-> false
-  | _ -> true
+  | Iintop(Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
+  | Iintop_imm((Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
+  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iload (_, _) | Iname_for_debugger _
+    -> true
 
 (* Layout of the stack frame *)
 

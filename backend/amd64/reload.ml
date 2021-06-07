@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+4"]
 
 open Cmm
 open Reg
@@ -60,7 +61,7 @@ open Mach
 let stackp r =
   match r.loc with
     Stack _ -> true
-  | _ -> false
+  | Reg _ | Unknown -> false
 
 class reload = object (self)
 
@@ -139,7 +140,11 @@ method! reload_test tst arg =
       if stackp arg.(0)
       then [| self#makereg arg.(0); arg.(1) |]
       else arg
-  | _ ->
+  | Iinttest_imm (_, _)
+  | Itruetest
+  | Ifalsetest
+  | Ioddtest
+  | Ieventest ->
       (* The argument(s) can be either in register or on stack *)
       arg
 

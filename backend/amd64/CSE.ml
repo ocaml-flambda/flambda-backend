@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+4"]
 
 (* CSE for the AMD64 *)
 
@@ -35,7 +36,13 @@ method! class_of_operation op =
     | Irdtsc | Irdpmc -> Op_other
     | Icrc32q -> Op_pure
     end
-  | _ -> super#class_of_operation op
+  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _ | Iextcall _
+  | Istackoffset _ | Iload _ | Istore _ | Ialloc _
+  | Iintop _ | Iintop_imm _
+  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+    -> super#class_of_operation op
 
 end
 
