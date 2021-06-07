@@ -76,6 +76,16 @@ let intcomp = function
 let floatcomp c =
     Printf.sprintf " %sf " (Printcmm.float_comparison c)
 
+let is_unary_op = function
+  | Iclz _
+  | Ictz _
+  | Ipopcnt -> true
+  | Iadd | Isub | Imul | Imulh | Idiv | Imod
+  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+  | Icomp _
+  | Icheckbound _
+    -> false
+
 let intop = function
   | Iadd -> " + "
   | Isub -> " - "
@@ -89,9 +99,9 @@ let intop = function
   | Ilsl -> " << "
   | Ilsr -> " >>u "
   | Iasr -> " >>s "
-  | Iclz { arg_is_non_zero; } -> Printf.sprintf " clz %B" arg_is_non_zero
-  | Ictz { arg_is_non_zero; } -> Printf.sprintf " ctz %B" arg_is_non_zero
-  | Ipopcnt -> " popcnt "
+  | Iclz { arg_is_non_zero; } -> Printf.sprintf "clz %B " arg_is_non_zero
+  | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
+  | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
   | Icheckbound { label_after_error; spacetime_index; } ->
     if not Config.spacetime then " check > "
@@ -149,7 +159,14 @@ let operation op arg ppf res =
     if Config.spacetime then begin
       fprintf ppf "(spacetime node = %a)" reg arg.(0)
     end
-  | Iintop(op) -> fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
+  | Iintop(op) ->
+      if is_unary_op op then begin
+        assert (Array.length arg = 1);
+        fprintf ppf "%s%a" (intop op) reg arg.(0)
+      end else begin
+        assert (Array.length arg = 2);
+        fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
+      end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
