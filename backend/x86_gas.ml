@@ -207,6 +207,14 @@ let print_instr b = function
   | OR (arg1, arg2) -> i2_s b "or" arg1 arg2
   | POP  arg -> i1_s b "pop" arg
   | POPCNT (arg1, arg2) -> i2_s b "popcnt" arg1 arg2
+  | PREFETCH (is_write, hint, arg1) ->
+    (match is_write, hint with
+     | true, T0 -> i1 b "prefetchw" arg1
+     (* XCR mshinwell: Make this match exhaustive, it might save time in the
+        future *)
+     | true, (T1|T2|Nta) -> i1 b "prefetchwt1" arg1
+     | false, (T0|T1|T2|Nta) ->
+       i1 b ("prefetch" ^ string_of_prefetch_temporal_locality_hint hint) arg1)
   | PUSH arg -> i1_s b "push" arg
   | RDTSC -> i0 b "rdtsc"
   | RDPMC -> i0 b "rdpmc"

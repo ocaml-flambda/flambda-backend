@@ -72,6 +72,18 @@ let chunk = function
   | Double -> "float64"
   | Double_u -> "float64u"
 
+let temporal_locality = function
+  (* XCR mshinwell: It's probably better to have this print "not_at_all" to
+     avoid confusion
+
+     gyorsh: fixed.
+  *)
+  | Nonlocal -> "nonlocal"
+  | Low -> "low"
+  | Moderate -> "moderate"
+  | High -> "high"
+
+
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
   | Cphantom_const_int i -> Targetint.print ppf i
@@ -147,6 +159,9 @@ let operation d = function
   | Cprobe { name; handler_code_sym } ->
     Printf.sprintf "probe[%s %s]" name handler_code_sym
   | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
+  | Cprefetch { is_write; locality; } ->
+    Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
+      is_write (temporal_locality locality)
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

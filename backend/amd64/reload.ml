@@ -114,6 +114,7 @@ method! reload_operation op arg res =
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
+               | Iprefetch _
                | Ibswap _| Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind _|Icall_imm _
   | Itailcall_ind _|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)

@@ -111,6 +111,8 @@ let new_label() = incr label_counter; !label_counter
 
 type rec_flag = Nonrecursive | Recursive
 
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
@@ -157,6 +159,7 @@ and operation =
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
   | Ccmpi of integer_comparison
   | Caddv | Cadda
   | Ccmpa of integer_comparison

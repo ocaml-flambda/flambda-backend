@@ -190,6 +190,7 @@ module I = struct
   let or_ x y = emit (OR (x, y))
   let pop x = emit (POP x)
   let popcnt x y = emit (POPCNT (x, y))
+  let prefetch is_write locality x = emit (PREFETCH (is_write, locality, x))
   let push x = emit (PUSH x)
   let rdtsc () = emit (RDTSC)
   let rdpmc () = emit (RDPMC)

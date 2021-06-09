@@ -34,6 +34,7 @@ method! class_of_operation op =
     | Ibswap _ | Isqrtf -> super#class_of_operation op
     | Irdtsc | Irdpmc -> Op_other
     | Icrc32q -> Op_pure
+    | Iprefetch _ -> Op_other
     end
   | _ -> super#class_of_operation op
 

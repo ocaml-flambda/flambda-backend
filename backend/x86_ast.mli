@@ -76,6 +76,8 @@ type addr =
       (if scale = 0, idx is ignored and base must be None)
   *)
 
+type prefetch_temporal_locality_hint = Nta | T1 | T2 | T0
+
 type arg =
   | Imm of int64
   (** Operand is an immediate constant integer *)
@@ -172,6 +174,7 @@ type instruction =
   | OR of arg * arg
   | POP of arg
   | POPCNT of arg * arg
+  | PREFETCH of bool * prefetch_temporal_locality_hint * arg
   | PUSH of arg
   | RDTSC
   | RDPMC

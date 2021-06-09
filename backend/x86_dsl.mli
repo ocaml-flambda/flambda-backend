@@ -183,6 +183,7 @@ module I : sig
   val or_: arg -> arg -> unit
   val pop: arg -> unit
   val popcnt : arg -> arg -> unit
+  val prefetch : bool -> prefetch_temporal_locality_hint -> arg -> unit
   val push: arg -> unit
   val rdtsc: unit -> unit
   val rdpmc: unit -> unit

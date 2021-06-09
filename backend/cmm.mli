@@ -87,6 +87,10 @@ val cur_label: unit -> label
 
 type rec_flag = Nonrecursive | Recursive
 
+(* XCR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
+   this refers to. *)
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
 type effects = No_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
@@ -151,6 +155,7 @@ and operation =
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
+  | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
