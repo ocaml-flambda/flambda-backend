@@ -43,9 +43,8 @@ let disconnect cfg_with_layout label =
     (* CR-someday gyorsh: if trap handlers can be eliminated, remove this
        label from block.exn of other blocks. *)
     Misc.fatal_error "Removing trap handler blocks is not supported";
-  let successors = C.successor_labels ~normal:true ~exn:true cfg block in
   let has_predecessors = not (Label.Set.is_empty block.predecessors) in
-  let n = Label.Set.cardinal successors in
+  let n = Label.Set.cardinal (C.successor_labels ~normal:true ~exn:false cfg block) in
   let has_more_than_one_successor = n > 1 in
   if !C.verbose then Printf.printf "Disconnect %d in %s\n" label cfg.fun_name;
   if has_more_than_one_successor && has_predecessors then
@@ -56,6 +55,7 @@ let disconnect cfg_with_layout label =
        least one predecessor"
       Label.print label;
   (* Update successor blocks. *)
+  let successors = C.successor_labels ~normal:true ~exn:true cfg block in
   Label.Set.iter
     (fun succ ->
       let succ_block = C.get_block_exn cfg succ in
