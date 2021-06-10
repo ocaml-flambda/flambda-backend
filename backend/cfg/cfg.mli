@@ -85,7 +85,7 @@ type t = private
             Otherwise, the [Prologue] falls through to this label. *)
   }
 
-val create : fun_name:string -> fun_tailrec_entry_point_label:Label.t ->
+val create : fun_name:string -> fun_tailrec_entry_point_label:Label.t option ->
   fun_dbg:Debuginfo.t -> t
 
 val fun_name : t -> string

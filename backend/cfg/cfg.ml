@@ -55,7 +55,7 @@ let create ~fun_name ~fun_tailrec_entry_point_label ~fun_dbg =
     fun_dbg;
     entry_label = 1;
     blocks = Label.Tbl.create 31;
-    fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label
+    fun_tailrec_entry_point_label
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label

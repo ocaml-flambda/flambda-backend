@@ -138,7 +138,9 @@ let compile_fundecl ~ppf_dump fd_cmm =
       if !use_ocamlcfg then begin
         let cfg = Ocamlcfg.Cfg_with_layout.of_linear fd ~preserve_orig_labels:true in
         let fun_body = Ocamlcfg.Cfg_with_layout.to_linear cfg in
-        { fd with Linear.fun_body; }
+        let fun_tailrec_entry_point_label =
+          Ocamlcfg.Cfg.fun_tailrec_entry_point_label (Ocamlcfg.Cfg_with_layout.cfg cfg) in
+        { fd with Linear.fun_body; fun_tailrec_entry_point_label }
       end else
         fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl

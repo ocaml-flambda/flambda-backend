@@ -384,7 +384,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
   (* create a fake cfg just for printing these blocks *)
   let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
   let fun_name = "_fun_start_" in
-  let fun_tailrec_entry_point_label = 0 in
+  let fun_tailrec_entry_point_label = Some 0 in
   let cfg = Cfg.create ~fun_name ~fun_tailrec_entry_point_label
               ~fun_dbg:Debuginfo.none in
   List.iter
