@@ -93,7 +93,7 @@
     ;; asmcomp/cfg
     cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
     eliminate_dead_blocks eliminate_fallthrough_blocks extra_debug label
-    linear_to_cfg linear_utils ocamlcfg simplify_terminator trap_stack
+    linear_to_cfg linear_utils simplify_terminator trap_stack
 
     ;; file_formats/
     linear_format
@@ -306,7 +306,6 @@
     (label.mli as compiler-libs/label.mli)
     (linear_to_cfg.mli as compiler-libs/linear_to_cfg.mli)
     (linear_utils.mli as compiler-libs/linear_utils.mli)
-    (ocamlcfg.mli as compiler-libs/ocamlcfg.mli)
     (simplify_terminator.mli as compiler-libs/simplify_terminator.mli)
     (trap_stack.mli as compiler-libs/trap_stack.mli)
 
@@ -569,10 +568,6 @@
     (.ocamloptcomp.objs/byte/linear_utils.cmo as compiler-libs/linear_utils.cmo)
     (.ocamloptcomp.objs/byte/linear_utils.cmt as compiler-libs/linear_utils.cmt)
     (.ocamloptcomp.objs/byte/linear_utils.cmti as compiler-libs/linear_utils.cmti)
-    (.ocamloptcomp.objs/byte/ocamlcfg.cmi as compiler-libs/ocamlcfg.cmi)
-    (.ocamloptcomp.objs/byte/ocamlcfg.cmo as compiler-libs/ocamlcfg.cmo)
-    (.ocamloptcomp.objs/byte/ocamlcfg.cmt as compiler-libs/ocamlcfg.cmt)
-    (.ocamloptcomp.objs/byte/ocamlcfg.cmti as compiler-libs/ocamlcfg.cmti)
     (.ocamloptcomp.objs/byte/simplify_terminator.cmi as compiler-libs/simplify_terminator.cmi)
     (.ocamloptcomp.objs/byte/simplify_terminator.cmo as compiler-libs/simplify_terminator.cmo)
     (.ocamloptcomp.objs/byte/simplify_terminator.cmt as compiler-libs/simplify_terminator.cmt)
@@ -646,7 +641,6 @@
     (.ocamloptcomp.objs/native/label.cmx as compiler-libs/label.cmx)
     (.ocamloptcomp.objs/native/linear_to_cfg.cmx as compiler-libs/linear_to_cfg.cmx)
     (.ocamloptcomp.objs/native/linear_utils.cmx as compiler-libs/linear_utils.cmx)
-    (.ocamloptcomp.objs/native/ocamlcfg.cmx as compiler-libs/ocamlcfg.cmx)
     (.ocamloptcomp.objs/native/simplify_terminator.cmx as compiler-libs/simplify_terminator.cmx)
     (.ocamloptcomp.objs/native/trap_stack.cmx as compiler-libs/trap_stack.cmx)
   ))
