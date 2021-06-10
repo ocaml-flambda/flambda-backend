@@ -47,7 +47,7 @@ type t =
     fun_name : string;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
-    mutable fun_tailrec_entry_point_label : Label.t
+    mutable fun_tailrec_entry_point_label : Label.t  option
   }
 
 let create ~fun_name ~fun_tailrec_entry_point_label ~fun_dbg =
@@ -55,14 +55,18 @@ let create ~fun_name ~fun_tailrec_entry_point_label ~fun_dbg =
     fun_dbg;
     entry_label = 1;
     blocks = Label.Tbl.create 31;
-    fun_tailrec_entry_point_label
+    fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label
 
 let successor_labels_normal t ti =
   match ti.desc with
-  | Tailcall (Self _) -> Label.Set.singleton t.fun_tailrec_entry_point_label
+  | Tailcall (Self _) ->
+    begin match t.fun_tailrec_entry_point_label with
+    | None -> Label.Set.empty
+    | Some label -> Label.Set.singleton label
+    end
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall (Func _) -> Label.Set.empty
   | Never -> Label.Set.empty
@@ -138,7 +142,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
              t.fun_tailrec_entry_point_label and the tailrec entry point
              block has as its predecessors *all* the "tailcall self" blocks. *)
           t.fun_tailrec_entry_point_label <-
-            f t.fun_tailrec_entry_point_label;
+            Option.map f t.fun_tailrec_entry_point_label;
           block.terminator.desc
       | Return | Raise _ | Tailcall (Func _) -> block.terminator.desc
     in
@@ -165,10 +169,14 @@ let entry_label t = t.entry_label
 let fun_tailrec_entry_point_label t = t.fun_tailrec_entry_point_label
 
 let set_fun_tailrec_entry_point_label t label =
-  if not (mem_block t label) then
-    Misc.fatal_errorf
-      "Cfg.set_fun_tailrec_entry_point_label: \n\
-       label %d not found in the cfg" label;
+  begin match label with
+  | None -> ()
+  | Some label ->
+    if not (mem_block t label) then
+      Misc.fatal_errorf
+        "Cfg.set_fun_tailrec_entry_point_label: \n\
+         label %d not found in the cfg" label;
+  end;
   t.fun_tailrec_entry_point_label <- label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks

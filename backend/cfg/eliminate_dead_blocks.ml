@@ -64,7 +64,13 @@ let rec eliminate_dead_blocks cfg_with_layout =
       Printf.printf "\n" );
     (* Termination: the number of remaining blocks is strictly smaller in
        each recursive call. *)
-    eliminate_dead_blocks cfg_with_layout )
+    eliminate_dead_blocks cfg_with_layout;
+    begin match cfg.fun_tailrec_entry_point_label with
+    | None -> ()
+    | Some label ->
+      if List.exists (Label.equal label) found_dead then
+        Cfg.set_fun_tailrec_entry_point_label cfg None
+    end)
   else
     (* check that no blocks are left that are marked as dead *)
     C.iter_blocks cfg ~f:(fun label block ->

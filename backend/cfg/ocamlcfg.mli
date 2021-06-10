@@ -65,7 +65,7 @@ module Cfg : sig
 
   val entry_label : t -> Label.t
 
-  val fun_tailrec_entry_point_label : t -> Label.t
+  val fun_tailrec_entry_point_label : t -> Label.t option
 end
 
 module Cfg_with_layout : sig

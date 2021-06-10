@@ -71,7 +71,13 @@ let rec disconnect_fallthrough_blocks cfg_with_layout =
     if !C.verbose then
       Printf.printf "%s: disconnected fallthrough blocks: %d\n" cfg.fun_name
         len;
-    disconnect_fallthrough_blocks cfg_with_layout )
+    disconnect_fallthrough_blocks cfg_with_layout;
+    begin match cfg.fun_tailrec_entry_point_label with
+    | None -> ()
+    | Some label ->
+      if List.exists (Label.equal label) found then
+        Cfg.set_fun_tailrec_entry_point_label cfg None
+    end)
 
 let run cfg_with_layout =
   let cfg = CL.cfg cfg_with_layout in
