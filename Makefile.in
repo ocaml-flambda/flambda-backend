@@ -178,12 +178,16 @@ flags.sexp: ocaml-stage1-config.status
 	else \
 	  /bin/echo -n "(:standard)" > ocamlopt_flags.sexp; \
 	fi
-	/bin/echo -n "( $$(grep "^OC_CFLAGS=" ocaml/Makefile.config \
-		  	| sed 's/^OC_CFLAGS=//') )" > oc_cflags.sexp
-	/bin/echo -n "( $$(grep "^OC_CPPFLAGS=" ocaml/Makefile.config \
-		| sed 's/^OC_CPPFLAGS=//') )" > oc_cppflags.sexp
-	/bin/echo -n "( $$(grep "^SHAREDLIB_CFLAGS=" ocaml/Makefile.config \
-		| sed 's/^SHAREDLIB_CFLAGS=//') )" > sharedlib_cflags.sexp
+	# note: it looks like the use of "$(...)" with a command spanning over
+	# two lines triggers a bug in GNU make 3.81, that will as a consequence
+	# change the file name. It also looks like the bug is not triggered by
+	# "`...`".
+	/bin/echo -n "( `grep \"^OC_CFLAGS=\" ocaml/Makefile.config \
+		  	| sed 's/^OC_CFLAGS=//'` )" > oc_cflags.sexp
+	/bin/echo -n "( `grep \"^OC_CPPFLAGS=\" ocaml/Makefile.config \
+		| sed 's/^OC_CPPFLAGS=//'` )" > oc_cppflags.sexp
+	/bin/echo -n "( `grep \"^SHAREDLIB_CFLAGS=\" ocaml/Makefile.config \
+		| sed 's/^SHAREDLIB_CFLAGS=//'` )" > sharedlib_cflags.sexp
 
 # Most of the installation tree is correctly set up by dune, but we need to
 # copy it to the final destination, and rearrange a few things to match
