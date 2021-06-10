@@ -136,8 +136,8 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ (fun (fd : Linear.fundecl) ->
       if !use_ocamlcfg then begin
-        let cfg = Ocamlcfg.Cfg_with_layout.of_linear fd ~preserve_orig_labels:true in
-        let fun_body = Ocamlcfg.Cfg_with_layout.to_linear cfg in
+        let cfg = Linear_to_cfg.run fd ~preserve_orig_labels:true in
+        let fun_body = Cfg_to_linear.run cfg in
         { fd with Linear.fun_body; }
       end else
         fd)
