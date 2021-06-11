@@ -42,17 +42,20 @@ let rec select_addr exp =
   | Cop(Clsl, [arg; Cconst_int((1|2|3 as shift), _)], _) ->
       begin match select_addr arg with
         (Alinear e, n) -> (Ascale(e, 1 lsl shift), n lsl shift)
-      | _ -> (Alinear exp, 0)
+      | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
+        -> (Alinear exp, 0)
       end
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _) ->
       begin match select_addr arg with
         (Alinear e, n) -> (Ascale(e, mult), n * mult)
-      | _ -> (Alinear exp, 0)
+      | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
+        -> (Alinear exp, 0)
       end
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
       begin match select_addr arg with
         (Alinear e, n) -> (Ascale(e, mult), n * mult)
-      | _ -> (Alinear exp, 0)
+      | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
+        -> (Alinear exp, 0)
       end
   | Cop((Caddi | Caddv | Cadda), [arg1; arg2], _) ->
       begin match (select_addr arg1, select_addr arg2) with
@@ -66,7 +69,11 @@ let rec select_addr exp =
               (Ascaledadd(arg1, e2, scale), n2)
         | ((Ascale(e1, scale), n1), _) ->
               (Ascaledadd(arg2, e1, scale), n1)
-        | _ ->
+        | ((Alinear _, _),
+           ((Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _))
+        | (((Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _),
+           ((Asymbol _ | Alinear _ | Aadd (_, _) | Ascaledadd (_, _, _)), _))
+          ->
               (Aadd(arg1, arg2), 0)
       end
   | arg ->
@@ -203,7 +210,13 @@ method! select_store is_assign addr exp =
       (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
   | (Cconst_natint (n, _dbg)) when is_immediate_natint n ->
       (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
-  | _ ->
+  | Cconst_int _
+  | Cconst_natint (_, _) | Cconst_float (_, _) | Cconst_symbol (_, _)
+  | Cvar _ | Clet (_, _, _) | Clet_mut (_, _, _, _) | Cphantom_let (_, _, _)
+  | Cassign (_, _) | Ctuple _ | Cop (_, _, _) | Csequence (_, _)
+  | Cifthenelse (_, _, _, _, _, _) | Cswitch (_, _, _, _) | Ccatch (_, _, _)
+  | Cexit (_, _) | Ctrywith (_, _, _, _)
+    ->
       super#select_store is_assign addr exp
 
 method! select_operation op args dbg =
@@ -213,7 +226,8 @@ method! select_operation op args dbg =
       begin match self#select_addressing Word_int (Cop(op, args, dbg)) with
         (Iindexed _, _)
       | (Iindexed2 0, _) -> super#select_operation op args dbg
-      | (addr, arg) -> (Ispecific(Ilea addr), [arg])
+      | ((Iindexed2 _ | Iscaled _ | Iindexed2scaled _ | Ibased _) as addr,
+         arg) -> (Ispecific(Ilea addr), [arg])
       end
   (* Recognize float arithmetic with memory. *)
   | Caddf ->
