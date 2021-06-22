@@ -179,7 +179,7 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         [L.Lop (Itailcall_ind { label_after })]
     | Tailcall (Func (Direct { func_symbol; label_after })) ->
         [L.Lop (Itailcall_imm { func = func_symbol; label_after })]
-    | Tailcall (Self { label_after }) ->
+    | Tailcall (Self { destination = _; label_after }) ->
         [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg; label_after })]
     | Switch labels -> [L.Lswitch labels]
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
@@ -385,8 +385,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
   let fun_name = "_fun_start_" in
   let fun_tailrec_entry_point_label = 0 in
-  let cfg = Cfg.create ~fun_name ~fun_tailrec_entry_point_label
-              ~fun_dbg:Debuginfo.none in
+  let cfg = Cfg.create ~fun_name ~fun_dbg:Debuginfo.none in
   List.iter
     (fun (block : Cfg.basic_block) ->
        Label.Tbl.add cfg.blocks block.start block)

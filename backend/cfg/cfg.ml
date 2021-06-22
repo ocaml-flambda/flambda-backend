@@ -47,22 +47,20 @@ type t =
     fun_name : string;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
-    mutable fun_tailrec_entry_point_label : Label.t
   }
 
-let create ~fun_name ~fun_tailrec_entry_point_label ~fun_dbg =
+let create ~fun_name ~fun_dbg =
   { fun_name;
     fun_dbg;
     entry_label = 1;
     blocks = Label.Tbl.create 31;
-    fun_tailrec_entry_point_label
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label
 
-let successor_labels_normal t ti =
+let successor_labels_normal ti =
   match ti.desc with
-  | Tailcall (Self _) -> Label.Set.singleton t.fun_tailrec_entry_point_label
+  | Tailcall (Self { destination; _ }) -> Label.Set.singleton destination
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall (Func _) -> Label.Set.empty
   | Never -> Label.Set.empty
@@ -75,13 +73,13 @@ let successor_labels_normal t ti =
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
       Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
 
-let successor_labels t ~normal ~exn block =
+let successor_labels ~normal ~exn block =
   match (normal, exn) with
   | false, false -> Label.Set.empty
-  | true, false -> successor_labels_normal t block.terminator
+  | true, false -> successor_labels_normal block.terminator
   | false, true -> block.exns
   | true, true ->
-      Label.Set.union block.exns (successor_labels_normal t block.terminator)
+      Label.Set.union block.exns (successor_labels_normal block.terminator)
 
 let predecessor_labels block = Label.Set.elements block.predecessors
 
@@ -110,37 +108,13 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Float_test { lt; eq; gt; uo } ->
           Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
-      | Tailcall (Self _) ->
-          (* CR-someday gyorsh: If there is no [Tailcall Self] then we won't
-             affect [t.fun_tailrec_entry_point_label]. Maybe this case should
-             do nothing and [fun_tailrec_entry_point_label] should
-             unilaterally be updated earlier in this function? *)
-          (* CR-someday gyorsh: Move replace_successor_labels back to
-             disconnect_block.ml ?
-
-             Changing t.fun_tailrec_entry_point_label has effect on other
-             blocks, it's not local to the [block] that is passed as argument
-             to [replace_successor_labels].
-
-             Suppose that there are two "Tailcall Self" sites in the
-             function, say blocks L1 and L2 both have Tailcall Self as their
-             terminator. Then, if we call replace_successor_labels on L1 but
-             not on L2 we get an inconsistent CFG, as there is only one
-             tailrec entry point.
-
-             How do we guarantee that all other blocks that refer to
-             t.fun_tailrec_entry_point_label are updated?
-
-             [replace_successor_labels] is only used in eliminate
-             fallthrough, where it is called on all predecessors of a block
-             that is a fallthrough block. If a predecessor block terminates
-             with tailcall self, then its successor is the block at
-             t.fun_tailrec_entry_point_label and the tailrec entry point
-             block has as its predecessors *all* the "tailcall self" blocks. *)
-          t.fun_tailrec_entry_point_label <-
-            f t.fun_tailrec_entry_point_label;
-          block.terminator.desc
-      | Return | Raise _ | Tailcall (Func _) -> block.terminator.desc
+      | Tailcall (Self { destination; label_after; }) ->
+        Tailcall (Self { destination = f destination; label_after = f label_after; })
+      | Tailcall (Func (Indirect { label_after; })) ->
+        Tailcall (Func (Indirect { label_after = f label_after; }))
+      | Tailcall (Func (Direct { func_symbol; label_after; })) ->
+        Tailcall (Func (Direct { func_symbol; label_after = f label_after; }))
+      | Return | Raise _  -> block.terminator.desc
     in
     block.terminator <- { block.terminator with desc }
 
@@ -161,15 +135,6 @@ let get_block_exn t label =
 let fun_name t = t.fun_name
 
 let entry_label t = t.entry_label
-
-let fun_tailrec_entry_point_label t = t.fun_tailrec_entry_point_label
-
-let set_fun_tailrec_entry_point_label t label =
-  if not (mem_block t label) then
-    Misc.fatal_errorf
-      "Cfg.set_fun_tailrec_entry_point_label: \n\
-       label %d not found in the cfg" label;
-  t.fun_tailrec_entry_point_label <- label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 

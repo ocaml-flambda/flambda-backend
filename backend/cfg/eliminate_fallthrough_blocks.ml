@@ -39,7 +39,7 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
        can raise and has a single successor. *)
   then None
   else
-    let successors = C.successor_labels ~normal:true ~exn:false cfg block in
+    let successors = C.successor_labels ~normal:true ~exn:false block in
     if Label.Set.cardinal successors = 1 then
       let target_label = Label.Set.min_elt successors in
       if Label.equal target_label block.start then None (* self-loop *)
