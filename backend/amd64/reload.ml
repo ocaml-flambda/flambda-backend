@@ -116,6 +116,7 @@ method! reload_operation op arg res =
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
+               | Ilzcnt | Itzcnt | Ibsr _
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
                | Ibswap _| Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind _|Icall_imm _

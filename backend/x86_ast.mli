@@ -158,6 +158,7 @@ type instruction =
   | JMP of arg
   | LEA of arg * arg
   | LEAVE
+  | LZCNT of arg * arg
   | MOV of arg * arg
   | MOVAPD of arg * arg
   | MOVLPD of arg * arg
@@ -185,6 +186,7 @@ type instruction =
   | SUB of arg * arg
   | SUBSD of arg * arg
   | TEST of arg * arg
+  | TZCNT of arg * arg
   | UCOMISD of arg * arg
   | XCHG of arg * arg
   | XOR of arg * arg

@@ -133,12 +133,34 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound _
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
+              |Ilzcnt|Itzcnt|Ibsr _
               |Ioffset_loc (_, _)|Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind _|Icall_imm _|Itailcall_ind _|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
     -> raise Use_default
+
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
+
+let subtract_one_from_result op args dbg =
+  let op =
+    match op with
+    | Cextcall p ->
+      assert p.builtin;
+      (* Names that start with '*' are internal to Selection on this target.
+         They work around the limitation of [select_operation] that
+         keeps [args] as Cmm terms even after translating
+         the operation itself to Mach. *)
+      let name = "*"^ p.name in
+      Cop(Cextcall { p with name; builtin = true }, args, dbg)
+    | _ -> assert false
+  in
+  Iintop_imm (Isub, 1), [op]
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
@@ -251,6 +273,38 @@ method! select_operation op args dbg =
       | ("caml_int64_crc_unboxed", [|Int|]
         | "caml_int_crc_untagged", [|Int|]) when !Arch.crc32_support ->
           Ispecific Icrc32q, args
+      | ("caml_int_lzcnt_tagged_to_untagged" , [|Int|]
+        | "caml_int64_lzcnt_unboxed", [|Int|]
+        | "caml_nativeint_lzcnt_unboxed", [|Int|]) when !lzcnt_support ->
+        (* XCR mshinwell: This appears to be a duplicate of the [Cclz] case
+           below?  If this extcall should have always been caught in the Cmm
+           stage, this should be a fatal error.
+
+           It's not exactly the same.
+           We have a special intrinsic to emit lzcnt instruction directly,
+           whereas Cclz emits an instruction sequence using bsr. *)
+        Ispecific Ilzcnt, args
+      | "*caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+        let arg = (Cmm_helpers.clear_sign_bit (one_arg name args) dbg) in
+        Ispecific Ilzcnt, [arg]
+      | "caml_int_lzcnt_untagged", [|Int|] when !lzcnt_support ->
+        subtract_one_from_result op args dbg
+      | "caml_int_tzcnt_untagged" , [|Int|] when !tzcnt_support ->
+        let arg = (Cmm_helpers.set_sign_bit (one_arg name args) dbg) in
+        Ispecific Itzcnt, [arg]
+      | ("caml_int64_tzcnt_unboxed", [|Int|]
+        | "caml_nativeint_tzcnt_unboxed", [|Int|]) when !tzcnt_support ->
+        Ispecific Itzcnt, args
+      | "*caml_int_bsr_tagged_to_untagged", [|Int|] ->
+        Ispecific (Ibsr {arg_is_non_zero=true}), args
+      | "caml_int_bsr_tagged_to_untagged", [|Int|] ->
+        subtract_one_from_result op args dbg
+      | "caml_int_bsr_untagged", [|Int|] ->
+        let arg = (Cmm_helpers.clear_sign_bit (one_arg name args) dbg) in
+        Ispecific (Ibsr {arg_is_non_zero=false}), [arg]
+      | ("caml_int64_bsr_unboxed", [|Int|]
+        | "caml_nativeint_bsr_unboxed", [|Int|]) ->
+        Ispecific (Ibsr {arg_is_non_zero=false}), args
       | _ ->
         super#select_operation op args dbg
       end

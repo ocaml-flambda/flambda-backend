@@ -20,6 +20,23 @@ let popcnt_support = ref true
 (* CRC32 requires SSE 4.2 support *)
 let crc32_support = ref true
 
+(* XCR mshinwell: This potentially major caveat should probably go in the help
+   text of the relevant option below.
+
+   gyorsh: done.
+*)
+
+(* LZCNT and TZCNT instructions are not available on prior to Haswell.
+
+   Important:
+   LZCNT assembles to BSR on architectures prior to Haswell.
+   TZCNT assembles to BSF on architectures prior to Haswell.
+   Code that uses LZCNT or TZCNT will run on older Intels and
+   silently produce wrong results.
+*)
+let lzcnt_support = ref false  (* ABM or LZCNT cpuid feature flag *)
+let tzcnt_support = ref false  (* BMI1 cpuid feature flag *)
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -35,6 +52,20 @@ let command_line_options =
       " Use CRC32 instructions (requires SSE4.2 support)";
     "-fno-crc32", Arg.Clear crc32_support,
       " Do not emit CRC32 instructions";
+    "-flzcnt", Arg.Set lzcnt_support,
+      " Use LZCNT instruction to count leading zeros. \n\
+       LZCNT instruction is not available on Intel Architectures prior to Haswell.\n\
+       Important: code that uses LZCNT will run on older Intels and silently produce\n\
+       wrong results, because LZCNT assembles to BSR.";
+    "-fno-lzcnt", Arg.Clear lzcnt_support,
+      " Do not use LZCNT instruction to count leading zeros";
+    "-ftzcnt", Arg.Set tzcnt_support,
+      " Use TZCNT instruction to count leading zeros. \n\
+       \   TZCNT instruction is not available on Intel Architectures prior to Haswell.\n\
+       \   Important: code that uses TZCNT will run on older Intels and silently produce\n\
+       \   wrong results, because TZCNT assembles to BSF.";
+    "-fno-tzcnt", Arg.Clear tzcnt_support,
+      " Do not use TZCNT instruction to count leading zeros";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -65,6 +96,9 @@ type specific_operation =
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)
+  | Ibsr of { arg_is_non_zero : bool } (* bit scan reverse instruction *)
+  | Ilzcnt                             (* count leading zeros instruction *)
+  | Itzcnt                             (* count trailing zeros instruction *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -160,6 +194,12 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Icrc32q ->
       fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Ilzcnt ->
+      fprintf ppf "lzcnt %a" printreg arg.(0)
+  | Itzcnt ->
+      fprintf ppf "tzcnt %a" printreg arg.(0)
+  | Ibsr { arg_is_non_zero; } ->
+      fprintf ppf "bsr arg_is_non_zero=%b %a" arg_is_non_zero printreg arg.(0)
 
 let win64 =
   match Config.system with

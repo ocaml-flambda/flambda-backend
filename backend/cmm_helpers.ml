@@ -2590,6 +2590,10 @@ let clear_sign_bit arg dbg =
   in
   Cop(Cand, [arg; Cconst_natint (mask, dbg)], dbg)
 
+let set_sign_bit arg dbg =
+  let mask = Nativeint.shift_left 1n ((size_int * 8) - 1) in
+  Cop(Cor, [arg; Cconst_natint (mask, dbg)], dbg)
+
 let ext_pointer_load chunk name args dbg =
   let p = int_as_pointer (one_arg name args) dbg in
   Some(Cop(Cload (chunk, Mutable), [p], dbg))
