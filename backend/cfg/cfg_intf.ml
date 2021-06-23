@@ -36,7 +36,7 @@ module S = struct
         { func_symbol : string; }
 
   type tail_call_operation =
-    | Self
+    | Self of { destination : Label.t; }
     | Func of func_call_operation
 
   type prim_call_operation =

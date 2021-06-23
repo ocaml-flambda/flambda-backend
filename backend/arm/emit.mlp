@@ -277,7 +277,7 @@ let output_epilogue f =
 (* Name of current function *)
 let function_name = ref ""
 (* Entry point for tail recursive calls *)
-let tailrec_entry_point = ref 0
+let tailrec_entry_point = ref None
 (* Pending floating-point literals *)
 let float_literals = ref ([] : (int64 * label) list)
 (* Pending relative references to the global offset table *)
@@ -470,7 +470,9 @@ let emit_instr i =
           0
         end
       in
-      `{emit_label !tailrec_entry_point}:\n`;
+      (match !tailrec_entry_point with
+      | None -> Misc.fatal_error "jump to missing tailrec entry point"
+      | Some tailrec_entry_point -> `{emit_label tailrec_entry_point}:\n`);
       num_instrs
     | Lop(Imove | Ispill | Ireload) ->
         let src = i.arg.(0) and dst = i.res.(0) in
@@ -555,7 +557,9 @@ let emit_instr i =
         end
     | Lop(Itailcall_imm { func; }) ->
         if func = !function_name then begin
-          `	b	{emit_label !tailrec_entry_point}\n`; 1
+          (match !tailrec_entry_point with
+          | None -> Misc.fatal_error "jump to missing tailrec entry point"
+          | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`); 1
         end else begin
           output_epilogue begin fun () ->
             if !contains_calls then

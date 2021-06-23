@@ -54,7 +54,7 @@ type fundecl =
     fun_body: instruction;
     fun_fast: bool;
     fun_dbg : Debuginfo.t;
-    fun_tailrec_entry_point_label : label;
+    fun_tailrec_entry_point_label : label option;
     fun_contains_calls: bool;
     fun_num_stack_slots: int array;
     fun_frame_required: bool;

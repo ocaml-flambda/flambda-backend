@@ -80,24 +80,18 @@ type t = private
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
-    mutable fun_tailrec_entry_point_label : Label.t
-        (** When a [Prologue] is absent, this is the same as [entry_label].
-            Otherwise, the [Prologue] falls through to this label. *)
   }
 
-val create : fun_name:string -> fun_tailrec_entry_point_label:Label.t ->
-  fun_dbg:Debuginfo.t -> t
+val create : fun_name:string -> fun_dbg:Debuginfo.t -> t
 
 val fun_name : t -> string
 
 val entry_label : t -> Label.t
 
-val fun_tailrec_entry_point_label : t -> Label.t
-
 val predecessor_labels : basic_block -> Label.t list
 
 val successor_labels :
-  t -> normal:bool -> exn:bool -> basic_block -> Label.Set.t
+  normal:bool -> exn:bool -> basic_block -> Label.Set.t
 (** [exn] does not account for exceptional flow from the block that goes
     outside of the function. *)
 
@@ -116,8 +110,6 @@ val remove_block_exn : t -> Label.t -> unit
 val get_block : t -> Label.t -> basic_block option
 
 val get_block_exn : t -> Label.t -> basic_block
-
-val set_fun_tailrec_entry_point_label : t -> Label.t -> unit
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 

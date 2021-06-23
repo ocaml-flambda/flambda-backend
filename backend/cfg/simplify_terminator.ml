@@ -87,18 +87,18 @@ let simplify_switch (block : C.basic_block) labels =
    order. Also, for linear to cfg and back will be harder to generate exactly
    the same layout. Also, how do we map execution counts about branches onto
    this terminator? *)
-let block cfg (block : C.basic_block) =
+let block (block : C.basic_block) =
   match block.terminator.desc with
   | Always _ -> ()
   | Never ->
       Misc.fatal_errorf "Cannot simplify terminator: Never (in block %d)"
         block.start
   | Parity_test _ | Truth_test _ | Int_test _ | Float_test _ ->
-      let labels = C.successor_labels cfg ~normal:true ~exn:false block in
+      let labels = C.successor_labels ~normal:true ~exn:false block in
       if Label.Set.cardinal labels = 1 then
         let l = Label.Set.min_elt labels in
         block.terminator <- { block.terminator with desc = Always l }
   | Switch labels -> simplify_switch block labels
-  | Tailcall (Self | Func _) | Raise _ | Return -> ()
+  | Tailcall (Self _ | Func _) | Raise _ | Return -> ()
 
-let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block cfg b)
+let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block b)

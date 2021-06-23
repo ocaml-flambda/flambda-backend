@@ -133,7 +133,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ioffset_loc (_, _)|Ifloatsqrtf _)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _

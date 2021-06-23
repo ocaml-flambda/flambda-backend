@@ -67,10 +67,11 @@ type t =
             resolved unless they are unreachable. *)
     mutable next_linear_id : int;
         (** Each Linear.instruction gets an id. *)
+    tailrec_label : Label.t option;
   }
 
 let entry_id = 1
-let create cfg =
+let create cfg ~tailrec_label =
   { cfg;
     layout = [];
     new_labels = Label.Set.empty;
@@ -80,6 +81,7 @@ let create cfg =
     interproc_handler = -1;
     unresolved_traps_to_pop = [];
     next_linear_id = entry_id;
+    tailrec_label;
   }
 
 (* CR-someday gyorsh: implement CFG traversal *)
@@ -195,7 +197,7 @@ let register_block t (block : C.basic_block) traps =
   (* Update trap stacks of normal successor blocks. *)
   Label.Set.iter
     (fun label -> record_traps t label traps)
-    (C.successor_labels t.cfg ~normal:true ~exn:false block);
+    (C.successor_labels ~normal:true ~exn:false block);
   (* Update trap stacks of exns successors. For each trap stack [s] in
      [t.exns]: The handler is the block identified by the label on the top of
      [s]. The trap stack of the handler must be the same as (pop [s]). The
@@ -213,7 +215,7 @@ let can_raise_terminator (i : C.terminator) =
   | Raise _ | Tailcall (Func _) -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return
-  | Tailcall Self ->
+  | Tailcall (Self _) ->
       false
 
 let check_traps t label (block : C.basic_block) =
@@ -324,7 +326,7 @@ let check_and_register_traps t =
 let register_predecessors_for_all_blocks t =
   Label.Tbl.iter
     (fun label block ->
-      let targets = C.successor_labels ~normal:true ~exn:true t.cfg block in
+      let targets = C.successor_labels ~normal:true ~exn:true block in
       Label.Set.iter
         (fun target ->
           let target_block = Label.Tbl.find t.cfg.blocks target in
@@ -454,7 +456,7 @@ let to_basic (mop : Mach.operation) : C.basic =
 
 (** [traps] represents the trap stack, with head being the top. [trap_depths]
     is the depth of the trap stack. *)
-let rec create_blocks t (i : L.instruction) (block : C.basic_block)
+let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     ~trap_depth ~traps =
   (* [traps] is constructed incrementally, because Ladjust_trap does not give
      enough information to compute it upfront, but trap_depth is directly
@@ -601,7 +603,9 @@ let rec create_blocks t (i : L.instruction) (block : C.basic_block)
       | Itailcall_imm { func = func_symbol; } ->
           let desc =
             if String.equal func_symbol (C.fun_name t.cfg) then
-              C.Tailcall Self
+              match t.tailrec_label with
+              | None -> Misc.fatal_error "tail call to missing tailrec entry point"
+              | Some destination -> C.Tailcall (Self { destination })
             else C.Tailcall (Func (Direct { func_symbol }))
           in
           add_terminator t block i desc ~trap_depth ~traps;
@@ -625,9 +629,8 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =
     let cfg =
       Cfg.create ~fun_name:f.fun_name ~fun_dbg:f.fun_dbg
-        ~fun_tailrec_entry_point_label:f.fun_tailrec_entry_point_label
     in
-    create cfg
+    create cfg ~tailrec_label:f.fun_tailrec_entry_point_label
   in
   (* CR-someday gyorsh: label of the function entry must not conflict with
      existing labels. Relies on the invariant: Cmm.new_label() is int > 99.
@@ -641,7 +644,8 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
   let entry_block =
     create_empty_block t t.cfg.entry_label ~trap_depth ~traps
   in
-  create_blocks t f.fun_body entry_block ~trap_depth ~traps;
+  create_blocks t f.fun_body entry_block
+     ~trap_depth ~traps;
   (* Register predecessors now rather than during cfg construction, because
      of forward jumps: the blocks do not exist when the jump that reference
      them is processed. *)
