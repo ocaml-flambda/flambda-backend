@@ -38,7 +38,7 @@ module S = struct
         }
 
   type tail_call_operation =
-    | Self of { label_after : Label.t }
+    | Self of { destination : Label.t; label_after : Label.t }
     | Func of func_call_operation
 
   type prim_call_operation =

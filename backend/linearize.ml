@@ -334,7 +334,7 @@ let fundecl f =
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
     fun_dbg  = f.Mach.fun_dbg;
     fun_spacetime_shape = f.Mach.fun_spacetime_shape;
-    fun_tailrec_entry_point_label;
+    fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label;
     fun_contains_calls = contains_calls;
     fun_num_stack_slots = f.Mach.fun_num_stack_slots;
     fun_frame_required = Proc.frame_required f;

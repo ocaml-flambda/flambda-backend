@@ -81,10 +81,10 @@ let print t oc msg =
     Label.Set.iter (Printf.fprintf oc " %d") block.predecessors;
     Printf.fprintf oc "\nsuccessors:";
     Label.Set.iter (Printf.fprintf oc " %d")
-      (Cfg.successor_labels ~normal:true ~exn:false t.cfg block);
+      (Cfg.successor_labels ~normal:true ~exn:false block);
     Printf.fprintf oc "\nexn-successors:";
     Label.Set.iter (Printf.fprintf oc " %d")
-      (Cfg.successor_labels ~normal:false ~exn:true t.cfg block)
+      (Cfg.successor_labels ~normal:false ~exn:true block)
   in
   List.iter print_block t.layout
 
@@ -127,13 +127,13 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
       (fun l ->
         Printf.fprintf oc "%s->%s[%s]\n" (name label) (name l)
           (annotate_succ label l))
-      (Cfg.successor_labels ~normal:true ~exn:false t.cfg block);
+      (Cfg.successor_labels ~normal:true ~exn:false block);
     if show_exn then (
       Label.Set.iter
         (fun l ->
           Printf.fprintf oc "%s->%s [style=dashed %s]\n" (name label)
             (name l) (annotate_succ label l))
-        (Cfg.successor_labels ~normal:false ~exn:true t.cfg block);
+        (Cfg.successor_labels ~normal:false ~exn:true block);
       if block.can_raise_interproc then
         Printf.fprintf oc "%s->%s [style=dashed]\n" (name label)
           "placeholder" )

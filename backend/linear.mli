@@ -55,7 +55,7 @@ type fundecl =
     fun_fast: bool;
     fun_dbg : Debuginfo.t;
     fun_spacetime_shape : Mach.spacetime_shape option;
-    fun_tailrec_entry_point_label : label;
+    fun_tailrec_entry_point_label : label option;
     fun_contains_calls: bool;
     fun_num_stack_slots: int array;
     fun_frame_required: bool;

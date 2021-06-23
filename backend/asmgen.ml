@@ -137,8 +137,8 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ (fun (fd : Linear.fundecl) ->
       if !use_ocamlcfg then begin
         let cfg = Linear_to_cfg.run fd ~preserve_orig_labels:true in
-        let fun_body = Cfg_to_linear.run cfg in
-        { fd with Linear.fun_body; }
+        let fun_body, fun_tailrec_entry_point_label = Cfg_to_linear.run cfg in
+        { fd with Linear.fun_body; fun_tailrec_entry_point_label; }
       end else
         fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
