@@ -359,9 +359,7 @@ let run cfg_with_layout =
       (match !tailrec_label, terminator_tailrec_label with
        | (Some _ | None), None -> ()
        | None, Some _ -> tailrec_label := terminator_tailrec_label
-       | Some old_trl, Some new_trl ->
-         assert (Label.equal old_trl new_trl);
-         tailrec_label := terminator_tailrec_label);
+       | Some old_trl, Some new_trl -> assert (Label.equal old_trl new_trl));
       List.fold_left
         (fun next i -> basic_to_linear i ~next)
         terminator (List.rev block.body)
@@ -391,7 +389,6 @@ let print_assembly (blocks : Cfg.basic_block list) =
   (* create a fake cfg just for printing these blocks *)
   let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
   let fun_name = "_fun_start_" in
-  
   let cfg = Cfg.create ~fun_name ~fun_dbg:Debuginfo.none in
   List.iter
     (fun (block : Cfg.basic_block) ->
@@ -401,8 +398,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
     Cfg_with_layout.create cfg ~layout ~new_labels:Label.Set.empty
       ~preserve_orig_labels:true
   in
-  let fun_body, tailrec_label = run cl in
-  let fun_tailrec_entry_point_label = Option.value tailrec_label ~default:0 in
+  let fun_body, fun_tailrec_entry_point_label = run cl in
   let fundecl =
     { Linear.fun_name;
       fun_body;

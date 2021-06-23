@@ -109,11 +109,9 @@ let replace_successor_labels t ~normal ~exn block ~f =
           Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall (Self { destination; label_after; }) ->
-        Tailcall (Self { destination = f destination; label_after = f label_after; })
-      | Tailcall (Func (Indirect { label_after; })) ->
-        Tailcall (Func (Indirect { label_after = f label_after; }))
-      | Tailcall (Func (Direct { func_symbol; label_after; })) ->
-        Tailcall (Func (Direct { func_symbol; label_after = f label_after; }))
+        Tailcall (Self { destination = f destination; label_after; })
+      | Tailcall (Func (Indirect _))
+      | Tailcall (Func (Direct _))
       | Return | Raise _  -> block.terminator.desc
     in
     block.terminator <- { block.terminator with desc }
