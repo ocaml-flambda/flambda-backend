@@ -264,7 +264,7 @@ let name_for_specific = function
 let function_name = ref ""
 
 (* Entry point for tail recursive calls *)
-let tailrec_entry_point = ref 0
+let tailrec_entry_point = ref None
 
 (* Output the assembly code for an instruction *)
 
@@ -324,7 +324,9 @@ let emit_instr i =
       `	jr	{emit_reg i.arg.(0)}\n`
   | Lop(Itailcall_imm {func; label_after = _}) ->
       if func = !function_name then begin
-        `	j	{emit_label !tailrec_entry_point}\n`
+        match !tailrec_entry_point with
+        | None -> Misc.fatal_error "jump to missing tailrec entry point"
+        | Some tailrec_entry_point -> `	j	{emit_label tailrec_entry_point}\n`
       end else begin
         let n = frame_size() in
         if !contains_calls then reload_ra n;

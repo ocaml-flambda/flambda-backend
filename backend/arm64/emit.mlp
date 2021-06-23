@@ -304,7 +304,7 @@ let output_epilogue f =
 (* Name of current function *)
 let function_name = ref ""
 (* Entry point for tail recursive calls *)
-let tailrec_entry_point = ref 0
+let tailrec_entry_point = ref None
 (* Pending floating-point literals *)
 let float_literals = ref ([] : (int64 * label) list)
 
@@ -630,7 +630,9 @@ let emit_instr i =
         output_epilogue (fun () -> `	br	{emit_reg i.arg.(0)}\n`)
     | Lop(Itailcall_imm { func; label_after = _; }) ->
         if func = !function_name then
-          `	b	{emit_label !tailrec_entry_point}\n`
+          match !tailrec_entry_point with
+          | None -> Misc.fatal_error "jump to missing tailrec entry point"
+          | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
         else
           output_epilogue (fun () -> `	b	{emit_symbol func}\n`)
     | Lop(Iextcall { func; alloc = false; label_after = _; }) ->
