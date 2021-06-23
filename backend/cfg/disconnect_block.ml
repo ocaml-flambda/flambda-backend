@@ -70,7 +70,7 @@ let disconnect cfg_with_layout label =
        let succ_block = C.get_block_exn cfg succ in
        assert (Label.Set.mem label succ_block.predecessors);
        succ_block.predecessors <- Label.Set.remove label succ_block.predecessors)
-    (C.successor_labels ~normal:false ~exn:true cfg block);
+    (C.successor_labels ~normal:false ~exn:true block);
   (* Update predecessor blocks. *)
   if n = 1 then
     let target_label = Label.Set.min_elt successors in
