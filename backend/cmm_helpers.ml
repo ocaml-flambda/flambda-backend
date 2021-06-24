@@ -2687,9 +2687,9 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_store_unboxed_int32" ->
     Some(Cop(Cstore (Thirtytwo_signed, Assignment), args, dbg))
   | "caml_native_pointer_load_unboxed_float" ->
-    Some(Cop(Cload (Double_u, Mutable), args, dbg))
+    Some(Cop(Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
-    Some(Cop(Cstore (Double_u, Assignment), args, dbg))
+    Some(Cop(Cstore (Double, Assignment), args, dbg))
   (* Ext_pointer: handled as tagged int *)
   | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->
@@ -2706,9 +2706,9 @@ let transl_builtin name args dbg =
   | "caml_ext_pointer_store_unboxed_int32" ->
     ext_pointer_store Thirtytwo_signed name args dbg
   | "caml_ext_pointer_load_unboxed_float" ->
-    ext_pointer_load Double_u name args dbg
+    ext_pointer_load Double name args dbg
   | "caml_ext_pointer_store_unboxed_float" ->
-    ext_pointer_store Double_u name args dbg
+    ext_pointer_store Double name args dbg
   | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
