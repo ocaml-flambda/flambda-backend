@@ -190,7 +190,10 @@ val target : string
 (** Whether the compiler is a cross-compiler *)
 
 val flambda : bool
-(** Whether the compiler was configured for flambda *)
+(** Whether the compiler was configured for Flambda 1 *)
+
+val flambda2 : bool
+(** Whether the compiler was configured for Flambda 2 *)
 
 val with_flambda_invariants : bool
 (** Whether the invariants checks for flambda are enabled *)
