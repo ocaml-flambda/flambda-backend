@@ -7414,3 +7414,8 @@ let test = function
 
 let test = function
   | (`A | `B) as x | `C -> ()
+
+(* Punning of labelled function argument with type constraint *)
+let g y =
+  let f ~y = y + 1 in
+  f ~(y:int)
