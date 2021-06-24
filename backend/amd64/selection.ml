@@ -133,7 +133,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _ |Irdtsc)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
@@ -235,7 +235,7 @@ method! select_operation op args dbg =
       self#select_floatarith false Idivf Ifloatdiv args
   | Cextcall { name = "sqrt"; alloc = false; } ->
      begin match args with
-       [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
+       [Cop(Cload ((Double as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
          (Ispecific(Ifloatsqrtf addr), [arg])
      | [arg] ->
@@ -293,11 +293,11 @@ method! select_operation op args dbg =
 
 method select_floatarith commutative regular_op mem_op args =
   match args with
-    [arg1; Cop(Cload ((Double|Double_u as chunk), _), [loc2], _)] ->
+    [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
       let (addr, arg2) = self#select_addressing chunk loc2 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
                  [arg1; arg2])
-  | [Cop(Cload ((Double|Double_u as chunk), _), [loc1], _); arg2]
+  | [Cop(Cload ((Double as chunk), _), [loc1], _); arg2]
         when commutative ->
       let (addr, arg1) = self#select_addressing chunk loc1 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
