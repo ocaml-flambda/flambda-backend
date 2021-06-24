@@ -344,7 +344,7 @@ let destroyed_at_oper = function
                    | Icheckbound _),_))
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double | Double_u), _, _))
+               | Double ), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
        | Ifloatofint | Iintoffloat
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
@@ -399,7 +399,7 @@ let max_register_pressure = function
                 | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound _), _)
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double | Double_u),
+            | Double ),
             _, _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
