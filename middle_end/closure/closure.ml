@@ -900,6 +900,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         | Const_pointer n -> Uconst_ptr n
         | Const_block (tag, fields) ->
             str (Uconst_block (tag, List.map transl fields))
+        | Const_float_block sl ->
+            (* CR mshinwell: Add [Uconst_float_block]? *)
+            str (Uconst_float_array (List.map float_of_string sl))
         | Const_float_array sl ->
             (* constant float arrays are really immutable *)
             str (Uconst_float_array (List.map float_of_string sl))

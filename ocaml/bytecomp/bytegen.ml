@@ -112,7 +112,8 @@ let preserve_tailcall_for_prim = function
     Pidentity | Popaque | Pdirapply | Prevapply | Psequor | Psequand ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
-  | Pmakeblock _ | Pfield _ | Pfield_computed | Psetfield _
+  | Pmakeblock _ | Pmakefloatblock _
+  | Pfield _ | Pfield_computed | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
@@ -210,7 +211,8 @@ let rec size_of_lambda env = function
   | Lprim(Pmakeblock _, args, _) -> RHS_block (List.length args)
   | Lprim (Pmakearray ((Paddrarray|Pintarray), _), args, _) ->
       RHS_block (List.length args)
-  | Lprim (Pmakearray (Pfloatarray, _), args, _) ->
+  | Lprim (Pmakearray (Pfloatarray, _), args, _)
+  | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
   | Lprim (Pmakearray (Pgenarray, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
@@ -734,6 +736,9 @@ let rec comp_expr env exp sz cont =
         (Kpush::
          Kconst (Const_base (Const_int n))::
          Kaddint::cont)
+  | Lprim (Pmakefloatblock _mut, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args env args sz (Kmakefloatblock (List.length args) :: cont)
   | Lprim(Pmakearray (kind, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with

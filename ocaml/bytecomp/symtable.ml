@@ -231,7 +231,7 @@ let rec transl_const = function
         (fun c -> Obj.set_field block !pos (transl_const c); incr pos)
         fields;
       block
-  | Const_float_array fields ->
+  | Const_float_block fields | Const_float_array fields ->
       let res = Array.Floatarray.create (List.length fields) in
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
