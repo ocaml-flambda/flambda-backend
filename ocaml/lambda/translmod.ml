@@ -217,7 +217,7 @@ let record_primitive = function
    upstreamed.  At that point this helper can move into that module. *)
 
 let preallocate_letrec ~bindings ~body =
-  assert Config.flambda2;
+  assert (Clflags.is_flambda2 ());
   let caml_update_dummy_prim =
     Primitive.simple ~name:"caml_update_dummy" ~arity:2 ~alloc:true
   in
@@ -739,7 +739,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             transl_structure ~scopes loc (List.rev_append ids fields)
               cc rootpath final_env rem
           in
-          if Config.flambda2 then
+          if Clflags.is_flambda2 () then
             preallocate_letrec ~bindings:class_bindings ~body, size
           else
             let class_bindings =
@@ -1193,7 +1193,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             let (ids, class_bindings) = transl_class_bindings ~scopes cl_list in
             let body = store_idents Loc_unknown ids in
             let lam =
-              if Config.flambda2 then
+              if Clflags.is_flambda2 () then
                 preallocate_letrec
                   ~bindings:class_bindings
                   ~body
@@ -1570,7 +1570,7 @@ let transl_toplevel_item ~scopes item =
       let (ids, class_bindings) = transl_class_bindings ~scopes cl_list in
       List.iter set_toplevel_unique_name ids;
       let body = make_sequence toploop_setvalue_id ids in
-      if Config.flambda2 then
+      if Clflags.is_flambda2 () then
         preallocate_letrec ~bindings:class_bindings ~body
       else
         let class_bindings =

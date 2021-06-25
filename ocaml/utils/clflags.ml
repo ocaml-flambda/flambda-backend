@@ -546,6 +546,10 @@ let set_save_ir_after pass enabled =
   in
   save_ir_after := new_passes
 
+
+let is_flambda2 () =
+  Config.flambda2 && !native_code
+
 module String = Misc.Stdlib.String
 
 let arg_spec = ref []
