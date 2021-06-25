@@ -231,6 +231,11 @@ runtest-upstream:
 	rm -rf _runtest
 	mkdir _runtest
 	cp -a ocaml/testsuite _runtest/testsuite
+	# replace backend-specific testsuite/tools with their new versions
+	rm _runtest/testsuite/tools/*
+	cp -a testsuite/tools/* _runtest/testsuite/tools/
+	(cd _runtest/testsuite/tools && \
+	  	ln -s ../../../ocaml/testsuite/tools/Makefile Makefile)
 	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
 	(cd _runtest && ln -s ../ocaml/Makefile.config Makefile.config)
 	cp _build2/install/default/bin/* _runtest/
