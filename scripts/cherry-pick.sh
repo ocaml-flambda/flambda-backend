@@ -64,6 +64,11 @@ else
     done
 fi
 
+if [ -z "${rev+x}" ]; then
+    echo "Missing REVISION"
+    usage
+fi
+
 # check that git status is empty
 if [[ -n $(git status -s) ]] ; then
     echo "Git status is not empty"
