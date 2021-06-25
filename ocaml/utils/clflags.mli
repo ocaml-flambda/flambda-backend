@@ -268,6 +268,8 @@ val should_save_ir_after : Compiler_pass.t -> bool
 val start_from : Compiler_pass.t option ref
 val should_start_from : Compiler_pass.t -> bool
 
+val is_flambda2 : unit -> bool
+
 val arg_spec : (string * Arg.spec * string) list ref
 
 (* [add_arguments __LOC__ args] will add the arguments from [args] at
