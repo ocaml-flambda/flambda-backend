@@ -51,6 +51,7 @@ type primitive =
   | Psetglobal of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape
+  | Pmakefloatblock of mutable_flag
   | Pfield of int
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -212,6 +213,7 @@ type structured_constant =
   | Const_block of int * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
+  | Const_float_block of string list
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
