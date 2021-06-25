@@ -120,7 +120,9 @@ let rec call_alarm arec =
   end
 
 
-let create_alarm f =
+(* We use [@inline never] to ensure [arec] is never statically allocated
+   (which would prevent installation of the finaliser). *)
+let [@inline never] create_alarm f =
   let arec = { active = ref true; f = f } in
   finalise call_alarm arec;
   arec.active
