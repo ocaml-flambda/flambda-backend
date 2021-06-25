@@ -74,6 +74,7 @@ let mkdll, mkexe, mkmaindll =
     "%%MKDLL%%", "%%MKEXE%%", "%%MKMAINDLL%%"
 
 let flambda = %%FLAMBDA%%
+let flambda2 = false
 let with_flambda_invariants = %%WITH_FLAMBDA_INVARIANTS%%
 let safe_string = %%FORCE_SAFE_STRING%%
 let default_safe_string = %%DEFAULT_SAFE_STRING%%
