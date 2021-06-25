@@ -551,6 +551,9 @@ let should_start_from pass =
     let cur = Compiler_pass.rank pass in
     start = cur
 
+let is_flambda2 () =
+  Config.flambda2 && !native_code
+
 module String = Misc.Stdlib.String
 
 let arg_spec = ref []
