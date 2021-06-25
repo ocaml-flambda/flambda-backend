@@ -187,6 +187,9 @@ let prerr_inter i = Printf.fprintf stderr
   and get_low cases i =
     let r,_,_ = cases.(i) in
     r
+  and get_high cases i =
+    let _,r,_ = cases.(i) in
+    r
 
   type ctests = {
     mutable n : int ;
@@ -660,9 +663,14 @@ let rec pkey chan  = function
           and right = {s with cases=right} in
 
           if i=1 && (lim+ctx.off)=1 && get_low cases 0+ctx.off=0 then
-            Arg.make_if
-              ctx.arg
-              (c_test ctx right) (c_test ctx left)
+            if lcases = 2 && get_high cases 1+ctx.off = 1 then
+              Arg.make_if
+                ctx.arg
+                (c_test ctx right) (c_test ctx left)
+            else
+              make_if_ne
+                ctx.arg 0
+                (c_test ctx right) (c_test ctx left)
           else if less_tests cright cleft then
             make_if_lt
               ctx.arg (lim+ctx.off)
