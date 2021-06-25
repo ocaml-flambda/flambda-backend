@@ -141,7 +141,7 @@ let rec declare_const t (const : Lambda.structured_constant)
   | Const_immstring c ->
     register_const t (Allocated_const (Immutable_string c))
       Names.const_immstring
-  | Const_float_array c ->
+  | Const_float_array c | Const_float_block c ->
     register_const t
       (Allocated_const (Immutable_float_array (List.map float_of_string c)))
       Names.const_float_array
