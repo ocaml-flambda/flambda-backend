@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # To be run from the root of the Flambda backend repo.
 # Cherry pick a commit from upstream repo and apply it to flambda-backend repo.
@@ -75,11 +75,13 @@ if [[ -n $(git status -s) ]] ; then
     exit 2
 fi
 
+dir="."
+subtree="."
 patches=()
 format_patch () {
 
     temp=$(mktemp -d)
-    mkdir -p $temp
+    mkdir -p "$temp"
     if [ "$dir" = "." ] ; then
         relative=""
     else
@@ -88,7 +90,7 @@ format_patch () {
     files="$files :!Changes :!boot"
     patchfile=$(git format-patch -p $relative \
                     --src-prefix=a/$subtree/ --dst-prefix=b/$subtree/ \
-                    -o $temp $rev -1 -- $files)
+                    -o "$temp" "$rev" -1 -- "$files")
     if [ -s "$patchfile" ]; then
         # patch file is not empty
         echo "$patchfile"
@@ -114,7 +116,7 @@ apply_patches () {
             git add .
             git commit --amend --no-edit
         fi
-        temp=`dirname $patchfile`
+        temp=$(dirname "$patchfile")
         rm "$patchfile"
         rmdir "$temp"
     done
