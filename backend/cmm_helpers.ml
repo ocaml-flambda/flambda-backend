@@ -612,7 +612,7 @@ let rec remove_unit = function
   | Cop(Capply _mty, args, dbg) ->
       Cop(Capply typ_void, args, dbg)
   | Cop(Cextcall c, args, dbg) ->
-      Cop(Cextcall {c with ret = typ_void; }, args, dbg)
+      Cop(Cextcall {c with ty = typ_void; }, args, dbg)
   | Cexit (_,_,_) as c -> c
   | Ctuple [] as c -> c
   | c -> Csequence(c, Ctuple [])
@@ -734,18 +734,20 @@ let float_array_ref arr ofs dbg =
   box_float dbg (unboxed_float_array_ref arr ofs dbg)
 
 let addr_array_set arr ofs newval dbg =
-  Cop(Cextcall { name = "caml_modify"; ret = typ_void; alloc = false;
+  Cop(Cextcall { func = "caml_modify"; ty = typ_void; alloc = false;
                  builtin = false;
+                 returns = true;
                  effects = Arbitrary_effects;
                  coeffects = Has_coeffects;
                  ty_args = []},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let addr_array_initialize arr ofs newval dbg =
-  Cop(Cextcall { name = "caml_initialize";
+  Cop(Cextcall { func = "caml_initialize";
                  builtin = false;
+                 returns = true;
                  effects = Arbitrary_effects;
                  coeffects = Has_coeffects;
-                 ret = typ_void; alloc = false; ty_args = []},
+                 ty = typ_void; alloc = false; ty_args = []},
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Lambda.Assignment),
@@ -781,8 +783,9 @@ let bigstring_length ba dbg =
 
 let lookup_tag obj tag dbg =
   bind "tag" tag (fun tag ->
-    Cop(Cextcall { name = "caml_get_public_method"; ret = typ_val;
+    Cop(Cextcall { func = "caml_get_public_method"; ty = typ_val;
                    builtin = false;
+                   returns = true;
                    effects = Arbitrary_effects;
                    coeffects = Has_coeffects;
                    alloc = false; ty_args = [] },
@@ -815,8 +818,9 @@ let make_alloc_generic set_fn dbg tag wordsize args =
     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
                           fill_fields (idx + 2) el) in
     Clet(VP.create id,
-         Cop(Cextcall { name = "caml_alloc"; ret = typ_val; alloc = true;
+         Cop(Cextcall { func = "caml_alloc"; ty = typ_val; alloc = true;
                         builtin = false;
+                        returns = true;
                         effects = Arbitrary_effects;
                         coeffects = Has_coeffects;
                         ty_args = [] },
@@ -826,8 +830,9 @@ let make_alloc_generic set_fn dbg tag wordsize args =
 
 let make_alloc dbg tag args =
   let addr_array_init arr ofs newval dbg =
-    Cop(Cextcall { name = "caml_initialize"; ret = typ_void; alloc = false;
+    Cop(Cextcall { func = "caml_initialize"; ty = typ_void; alloc = false;
                    builtin = false;
+                   returns = true;
                    effects = Arbitrary_effects;
                    coeffects = Has_coeffects;
                    ty_args = [] },
@@ -2177,20 +2182,22 @@ let bbswap bi arg dbg =
     | Pint32 -> "int32", XInt32
     | Pint64 -> "int64", XInt64
   in
-  Cop(Cextcall { name = Printf.sprintf "caml_%s_direct_bswap" prim;
+  Cop(Cextcall { func = Printf.sprintf "caml_%s_direct_bswap" prim;
                  builtin = false;
+                 returns = true;
                  effects = Arbitrary_effects;
                  coeffects = Has_coeffects;
-                 ret = typ_int; alloc = false; ty_args = [tyarg]; },
+                 ty = typ_int; alloc = false; ty_args = [tyarg]; },
       [arg],
       dbg)
 
 let bswap16 arg dbg =
-  (Cop(Cextcall { name = "caml_bswap16_direct";
+  (Cop(Cextcall { func = "caml_bswap16_direct";
                   builtin = false;
+                  returns = true;
                   effects = Arbitrary_effects;
                   coeffects = Has_coeffects;
-                  ret = typ_int; alloc = false; ty_args = []; },
+                  ty = typ_int; alloc = false; ty_args = []; },
        [arg],
        dbg))
 
@@ -2251,9 +2258,10 @@ let assignment_kind
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
   | Caml_modify ->
-      return_unit dbg (Cop(Cextcall { name = "caml_modify";
-                                      ret = typ_void; alloc = false;
+      return_unit dbg (Cop(Cextcall { func = "caml_modify";
+                                      ty = typ_void; alloc = false;
                                       builtin = false;
+                                      returns = true;
                                       effects = Arbitrary_effects;
                                       coeffects = Has_coeffects;
                                       ty_args = [] },
@@ -2261,9 +2269,10 @@ let setfield n ptr init arg1 arg2 dbg =
                        arg2],
                       dbg))
   | Caml_initialize ->
-      return_unit dbg (Cop(Cextcall { name = "caml_initialize";
-                                      ret = typ_void; alloc = false;
+      return_unit dbg (Cop(Cextcall { func = "caml_initialize";
+                                      ty = typ_void; alloc = false;
                                       builtin = false;
+                                      returns = true;
                                       effects = Arbitrary_effects;
                                       coeffects = Has_coeffects;
                                       ty_args = [] },
@@ -2723,13 +2732,14 @@ let transl_builtin name args dbg =
   | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
-let cextcall (prim : Primitive.description) args dbg ret ty_args =
+let cextcall (prim : Primitive.description) args dbg ret ty_args returns =
   let name = Primitive.native_name prim in
-  let default = Cop(Cextcall { name; ret;
+  let default = Cop(Cextcall { func = name; ty = ret;
                                builtin = prim.prim_c_builtin;
                                effects = Arbitrary_effects;
                                coeffects = Has_coeffects;
                                alloc = prim.prim_alloc;
+                               returns;
                                ty_args },
                     args, dbg)
   in

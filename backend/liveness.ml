@@ -73,6 +73,9 @@ let rec live env i finally =
         let across_after = Reg.diff_set_array after i.res in
         let across =
           match op with
+          | Iextcall { returns = false; _ } ->
+              (* extcalls that never return can raise an exception *)
+              env.at_raise
           | Icall_ind | Icall_imm _ | Iextcall _ | Ialloc _
           | Iprobe _
           | Iintop (Icheckbound) | Iintop_imm(Icheckbound, _) ->

@@ -103,11 +103,12 @@ let instrument_initialiser c dbg =
      calls *)
   with_afl_logging
     (Csequence
-       (Cop (Cextcall { name = "caml_setup_afl";
+       (Cop (Cextcall { func = "caml_setup_afl";
                         builtin = false;
+                        returns = true;
                         effects = Arbitrary_effects;
                         coeffects = Has_coeffects;
-                        ret = typ_int; alloc = false; ty_args = []; },
+                        ty = typ_int; alloc = false; ty_args = []; },
              [Cconst_int (0, dbg ())],
              dbg ()),
         c))

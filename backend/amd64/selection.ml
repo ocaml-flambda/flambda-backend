@@ -165,7 +165,7 @@ method is_immediate_test _cmp n = is_immediate n
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall { name = fn; }, args, _)
+  | Cop(Cextcall { func = fn; }, args, _)
     when List.mem fn inline_ops ->
       (* inlined ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -174,7 +174,7 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall { name = fn; }, args, _)
+  | Cop(Cextcall { func = fn; }, args, _)
     when List.mem fn inline_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
@@ -224,7 +224,7 @@ method! select_operation op args dbg =
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
-  | Cextcall { name = "sqrt"; alloc = false; } ->
+  | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload ((Double|Double_u as chunk), _), [loc], _dbg)] ->
          let (addr, arg) = self#select_addressing chunk loc in
@@ -234,8 +234,8 @@ method! select_operation op args dbg =
      | _ ->
          assert false
     end
-  | Cextcall { name; builtin = true; ret; ty_args = _; } ->
-      begin match name, ret with
+  | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
+      begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
       | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
       | ("caml_int64_crc_unboxed", [|Int|]
@@ -254,12 +254,12 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
       end
-  | Cextcall { name = "caml_bswap16_direct"; } ->
+  | Cextcall { func = "caml_bswap16_direct"; } ->
       (Ispecific (Ibswap 16), args)
-  | Cextcall { name = "caml_int32_direct_bswap"; } ->
+  | Cextcall { func = "caml_int32_direct_bswap"; } ->
       (Ispecific (Ibswap 32), args)
-  | Cextcall { name = "caml_int64_direct_bswap"; }
-  | Cextcall { name = "caml_nativeint_direct_bswap"; } ->
+  | Cextcall { func = "caml_int64_direct_bswap"; }
+  | Cextcall { func = "caml_nativeint_direct_bswap"; } ->
       (Ispecific (Ibswap 64), args)
   (* Recognize sign extension *)
   | Casr ->

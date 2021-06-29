@@ -43,6 +43,7 @@ module S = struct
     | External of
         { func_symbol : string;
           alloc : bool;
+          returns : bool;
           ty_res : Cmm.machtype; 
           ty_args : Cmm.exttype list
         }

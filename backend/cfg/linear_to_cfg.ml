@@ -398,8 +398,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Icall_ind -> Call (F Indirect)
   | Icall_imm { func; } ->
       Call (F (Direct { func_symbol = func; }))
-  | Iextcall { func; alloc; ty_args; ty_res; } ->
-      Call (P (External { func_symbol = func; alloc; ty_args; ty_res }))
+  | Iextcall { func; alloc; ty_args; ty_res; returns; } ->
+      Call (P (External { func_symbol = func; alloc; ty_args; ty_res; returns }))
   | Iintop Icheckbound ->
       Call
         (P
