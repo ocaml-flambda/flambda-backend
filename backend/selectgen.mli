@@ -54,6 +54,7 @@ module Effect_and_coeffect : sig
 
   val effect_only : Effect.t -> t
   val coeffect_only : Coeffect.t -> t
+  val effect_and_coeffect : Effect.t -> Coeffect.t -> t
 
   val join : t -> t -> t
   val join_list_map : 'a list -> ('a -> t) -> t
