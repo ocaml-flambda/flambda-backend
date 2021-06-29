@@ -356,6 +356,8 @@ module Acc = struct
 
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
+      declared_static_sets_of_closures :
+        (Symbol.t Closure_id.Lmap.t * Flambda.Set_of_closures.t) list;
       shareable_constants : Symbol.t Static_const.Map.t;
       code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
@@ -380,6 +382,7 @@ module Acc = struct
 
   let create ~symbol_for_global ~closure_offsets =
     { declared_symbols = [];
+      declared_static_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
@@ -393,6 +396,8 @@ module Acc = struct
 
   let declared_symbols t = t.declared_symbols
 
+  let declared_static_sets_of_closures t = t.declared_static_sets_of_closures
+
   let shareable_constants t = t.shareable_constants
 
   let code t = t.code
@@ -404,6 +409,12 @@ module Acc = struct
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     { t with declared_symbols }
+
+  let add_declared_set_of_closures ~symbols ~set_of_closures t =
+    { t with
+      declared_static_sets_of_closures =
+        (symbols, set_of_closures) :: t.declared_static_sets_of_closures
+    }
 
   let add_shareable_constant ~symbol ~constant t =
     let shareable_constants =
