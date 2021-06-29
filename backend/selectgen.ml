@@ -24,13 +24,18 @@ module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+type trap_stack_info =
+  | Unreachable
+  | Reachable of trap_stack
+
 type environment =
   { vars : (Reg.t array
             * Backend_var.Provenance.t option
             * Asttypes.mutable_flag) V.Map.t;
-    static_exceptions : Reg.t array list Int.Map.t;
+    static_exceptions : (Reg.t array list * trap_stack_info ref) Int.Map.t;
     (** Which registers must be populated when jumping to the given
         handler. *)
+    trap_stack : trap_stack;
   }
 
 let env_add ?(mut=Asttypes.Immutable) var regs env =
@@ -39,7 +44,8 @@ let env_add ?(mut=Asttypes.Immutable) var regs env =
   { env with vars = V.Map.add var (regs, provenance, mut) env.vars }
 
 let env_add_static_exception id v env =
-  { env with static_exceptions = Int.Map.add id v env.static_exceptions }
+  let r = ref Unreachable in
+  { env with static_exceptions = Int.Map.add id (v, r) env.static_exceptions }, r
 
 let env_find id env =
   let regs, _provenance, _mut = V.Map.find id env.vars in
@@ -57,9 +63,75 @@ let env_find_mut id env =
 let env_find_static_exception id env =
   Int.Map.find id env.static_exceptions
 
+let env_enter_trywith env kind =
+  match kind with
+  | Regular -> { env with trap_stack = Generic_trap env.trap_stack; }
+  | Delayed id -> let env, _ = env_add_static_exception id [] env in env
+
+let env_set_trap_stack env trap_stack =
+  { env with trap_stack; }
+
+let rec combine_traps trap_stack = function
+  | [] -> trap_stack
+  | (Push t) :: l -> combine_traps (Specific_trap (t, trap_stack)) l
+  | Pop :: l ->
+      begin match trap_stack with
+      | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
+      | Generic_trap ts | Specific_trap (_, ts) -> combine_traps ts l
+      end
+
+let print_traps ppf traps =
+  let rec print_traps ppf = function
+    | Uncaught -> Format.fprintf ppf "T"
+    | Generic_trap ts -> Format.fprintf ppf "_::%a" print_traps ts
+    | Specific_trap (lbl, ts) -> Format.fprintf ppf "%d::%a" lbl print_traps ts
+  in
+  Format.fprintf ppf "(%a)" print_traps traps
+
+let set_traps nfail traps_ref base_traps exit_traps =
+  let traps = combine_traps base_traps exit_traps in
+  match !traps_ref with
+  | Unreachable ->
+    (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
+    traps_ref := Reachable traps
+  | Reachable prev_traps ->
+      if prev_traps <> traps then
+        Misc.fatal_errorf "Mismatching trap stacks for continuation %d@.\
+                           Previous traps: %a@.\
+                           New traps: %a"
+          nfail
+          print_traps prev_traps
+          print_traps traps
+      else ()
+
+let set_traps_for_raise env =
+  let ts = env.trap_stack in
+  match ts with
+  | Uncaught
+  | Generic_trap _ -> ()
+  | Specific_trap (lbl, _) ->
+    begin match env_find_static_exception lbl env with
+    | (_, traps_ref) -> set_traps lbl traps_ref ts [Pop]
+    | exception Not_found -> Misc.fatal_errorf "Trap %d not registered in env" lbl
+    end
+
+let trap_stack_is_empty env =
+  match env.trap_stack with
+  | Uncaught -> true
+  | Generic_trap _ | Specific_trap _ -> false
+
+let pop_all_traps env =
+  let rec pop_all acc = function
+    | Uncaught -> acc
+    | Generic_trap t
+    | Specific_trap (_, t) -> pop_all (Cmm.Pop :: acc) t
+  in
+  pop_all [] env.trap_stack
+
 let env_empty = {
   vars = V.Map.empty;
   static_exceptions = Int.Map.empty;
+  trap_stack = Uncaught;
 }
 
 (* Infer the type of the result of an operation *)
@@ -679,6 +751,7 @@ method emit_expr (env:environment) exp =
           let rd = [|Proc.loc_exn_bucket|] in
           self#insert env (Iop Imove) r1 rd;
           self#insert_debug env  (Iraise k) dbg rd [||];
+          set_traps_for_raise env;
           None
       end
   | Cop(Ccmpf _, _, dbg) ->
@@ -704,6 +777,7 @@ method emit_expr (env:environment) exp =
               self#insert_debug env (Iop new_op) dbg
                           (Array.append [|r1.(0)|] loc_arg) loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
+              set_traps_for_raise env;
               Some rd
           | Icall_imm _ ->
               let r1 = self#emit_tuple env new_args in
@@ -713,6 +787,7 @@ method emit_expr (env:environment) exp =
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
+              set_traps_for_raise env;
               Some rd
           | Iextcall { ty_args; _} ->
               let (loc_arg, stack_ofs) =
@@ -722,6 +797,7 @@ method emit_expr (env:environment) exp =
                 self#insert_op_debug env new_op dbg
                   loc_arg (Proc.loc_external_results (Reg.typv rd)) in
               self#insert_move_results env loc_res rd stack_ofs;
+              set_traps_for_raise env;
               Some rd
           | Ialloc { bytes = _; } ->
               let rd = self#regs_for typ_val in
@@ -733,6 +809,7 @@ method emit_expr (env:environment) exp =
               in
               self#insert_debug env (Iop op) dbg [||] rd;
               self#emit_stores env new_args rd;
+              set_traps_for_raise env;
               Some rd
           | op ->
               let r1 = self#emit_tuple env new_args in
@@ -782,61 +859,130 @@ method emit_expr (env:environment) exp =
             (nfail, ids, rs, e2, dbg))
           handlers
       in
-      let env =
+      let env, handlers_map =
         (* Since the handlers may be recursive, and called from the body,
            the same environment is used for translating both the handlers and
            the body. *)
-        List.fold_left (fun env (nfail, _ids, rs, _e2, _dbg) ->
-            env_add_static_exception nfail rs env)
-          env handlers
+        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg) ->
+            let env, r = env_add_static_exception nfail rs env in
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg)) map)
+          (env, Int.Map.empty) handlers
       in
       let (r_body, s_body) = self#emit_sequence env body in
-      let translate_one_handler (nfail, ids, rs, e2, _dbg) =
+      let translate_one_handler nfail (traps_info, (ids, rs, e2, _dbg)) =
         assert(List.length ids = List.length rs);
+        let trap_stack =
+          match !traps_info with
+          | Unreachable -> assert false
+          | Reachable t -> t
+        in
         let new_env =
           List.fold_left (fun env ((id, _typ), r) -> env_add id r env)
-            env (List.combine ids rs)
+            (env_set_trap_stack env trap_stack) (List.combine ids rs)
         in
         let (r, s) = self#emit_sequence new_env e2 in
-        (nfail, (r, s))
+        ((nfail, trap_stack), (r, s))
       in
-      let l = List.map translate_one_handler handlers in
+      let rec build_all_reachable_handlers ~already_built ~not_built =
+        let not_built, to_build =
+          Int.Map.partition (fun _n (r, _) -> !r = Unreachable) not_built
+        in
+        if Int.Map.is_empty to_build then already_built
+        else begin
+          let already_built =
+            Int.Map.fold
+              (fun nfail handler already_built ->
+                 (translate_one_handler nfail handler) :: already_built)
+              to_build already_built
+          in
+          build_all_reachable_handlers ~already_built ~not_built
+        end
+      in
+      let l =
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
       let r = join_array env a in
-      let aux (nfail, (_r, s)) = (nfail, s#extract) in
-      self#insert env (Icatch (rec_flag, List.map aux l, s_body#extract))
+      let aux ((nfail, ts), (_r, s)) = (nfail, ts, s#extract) in
+      let final_trap_stack =
+        match r_body with
+        | Some _ -> env.trap_stack
+        | None ->
+          (* The body never returns, so the trap stack at the end of the catch
+             is the one from the handlers *)
+          begin match l with
+          | [] -> (* This whole catch never returns *)
+            env.trap_stack
+          | ((_, ts), (_, _)) :: tl ->
+            assert (List.for_all (fun ((_, ts'), (_, _)) -> ts = ts') tl);
+            ts
+          end
+      in
+      self#insert env
+        (Icatch (rec_flag, final_trap_stack, List.map aux l, s_body#extract))
         [||] [||];
       r
-  | Cexit (nfail,args) ->
+  | Cexit (lbl,args,traps) ->
       begin match self#emit_parts_list env args with
         None -> None
       | Some (simple_list, ext_env) ->
-          let src = self#emit_tuple ext_env simple_list in
-          let dest_args =
-            try env_find_static_exception nfail env
-            with Not_found ->
-              Misc.fatal_error ("Selection.emit_expr: unbound label "^
-                                Stdlib.Int.to_string nfail)
-          in
-          (* Intermediate registers to handle cases where some
-             registers from src are present in dest *)
-          let tmp_regs = Reg.createv_like src in
-          (* Ccatch registers must not contain out of heap pointers *)
-          Array.iter (fun reg -> assert(reg.typ <> Addr)) src;
-          self#insert_moves env src tmp_regs ;
-          self#insert_moves env tmp_regs (Array.concat dest_args) ;
-          self#insert env (Iexit nfail) [||] [||];
-          None
+          begin match lbl with
+          | Lbl nfail ->
+              let src = self#emit_tuple ext_env simple_list in
+              let dest_args, trap_stack =
+                try env_find_static_exception nfail env
+                with Not_found ->
+                  Misc.fatal_error ("Selection.emit_expr: unbound label "^
+                                    Stdlib.Int.to_string nfail)
+              in
+              (* Intermediate registers to handle cases where some
+                 registers from src are present in dest *)
+              let tmp_regs = Reg.createv_like src in
+              (* Ccatch registers must not contain out of heap pointers *)
+              Array.iter (fun reg -> assert(reg.typ <> Addr)) src;
+              self#insert_moves env src tmp_regs ;
+              self#insert_moves env tmp_regs (Array.concat dest_args) ;
+              self#insert env (Iexit (nfail, traps)) [||] [||];
+              set_traps nfail trap_stack env.trap_stack traps;
+              None
+          | Return_lbl ->
+              begin match simple_list with
+              | [expr] -> self#emit_return ext_env expr traps; None
+              | [] ->
+                  Misc.fatal_error
+                    "Selection.emit_expr: Return without arguments"
+              | _ :: _ :: _ ->
+                   Misc.fatal_error
+                     "Selection.emit_expr: Return with too many arguments"
+              end
+          end
       end
-  | Ctrywith(e1, v, e2, _dbg) ->
-      let (r1, s1) = self#emit_sequence env e1 in
+  | Ctrywith(e1, kind, v, e2, _dbg) ->
+      let env_body = env_enter_trywith env kind in
+      let (r1, s1) = self#emit_sequence env_body e1 in
       let rv = self#regs_for typ_val in
-      let (r2, s2) = self#emit_sequence (env_add v rv env) e2 in
+      let env_handler =
+        let env = env_add v rv env in
+        match kind with
+        | Regular -> env
+        | Delayed lbl ->
+          begin match env_find_static_exception lbl env_body with
+          | (_, { contents = Reachable ts; }) ->
+            env_set_trap_stack env ts
+          | (_, { contents = Unreachable; }) ->
+            Misc.fatal_errorf "Selection.emit_expr: Unreachable exception handler %d" lbl
+          | exception Not_found ->
+            Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
+          end
+      in
+      let (r2, s2) = self#emit_sequence env_handler e2 in
       let r = join env r1 s1 r2 s2 in
       self#insert env
-        (Itrywith(s1#extract,
-                  instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                             (s2#extract)))
+        (Itrywith(s1#extract, kind,
+                  (env_handler.trap_stack,
+                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                              (s2#extract))))
         [||] [||];
       r
 
@@ -1013,13 +1159,13 @@ method emit_stores env data regs_addr =
 
 (* Same, but in tail position *)
 
-method private emit_return (env:environment) exp =
+method private emit_return (env:environment) exp (traps:trap_action list) =
   match self#emit_expr env exp with
     None -> ()
   | Some r ->
       let loc = Proc.loc_results (Reg.typv r) in
       self#insert_moves env r loc;
-      self#insert env Ireturn loc [||]
+      self#insert env (Ireturn traps) loc [||]
 
 method emit_tail (env:environment) exp =
   match exp with
@@ -1045,7 +1191,7 @@ method emit_tail (env:environment) exp =
               let r1 = self#emit_tuple env new_args in
               let rarg = Array.sub r1 1 (Array.length r1 - 1) in
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
-              if stack_ofs = 0 then begin
+              if stack_ofs = 0 && trap_stack_is_empty env then begin
                 let call = Iop (Itailcall_ind) in
                 self#insert_moves env rarg loc_arg;
                 self#insert_debug env call dbg
@@ -1056,17 +1202,18 @@ method emit_tail (env:environment) exp =
                 self#insert_move_args env rarg loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg
                             (Array.append [|r1.(0)|] loc_arg) loc_res;
+                set_traps_for_raise env;
                 self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||];
-                self#insert env Ireturn loc_res [||]
+                self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
               end
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
-              if stack_ofs = 0 then begin
+              if stack_ofs = 0 && trap_stack_is_empty env then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
                 self#insert_debug env call dbg loc_arg [||];
-              end else if func = !current_function_name then begin
+              end else if func = !current_function_name && trap_stack_is_empty env then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
                 self#insert_moves env r1 loc_arg';
@@ -1076,8 +1223,9 @@ method emit_tail (env:environment) exp =
                 let loc_res = Proc.loc_results (Reg.typv rd) in
                 self#insert_move_args env r1 loc_arg stack_ofs;
                 self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
+                set_traps_for_raise env;
                 self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||];
-                self#insert env Ireturn loc_res [||]
+                self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
               end
           | _ -> Misc.fatal_error "Selection.emit_tail"
       end
@@ -1118,43 +1266,79 @@ method emit_tail (env:environment) exp =
                 ids in
             (nfail, ids, rs, e2, dbg))
           handlers in
-      let env =
-        List.fold_left (fun env (nfail, _ids, rs, _e2, _dbg) ->
-            env_add_static_exception nfail rs env)
-          env handlers in
+      let env, handlers_map =
+        List.fold_left (fun (env, map) (nfail, ids, rs, e2, dbg) ->
+            let env, r = env_add_static_exception nfail rs env in
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg)) map)
+          (env, Int.Map.empty) handlers in
       let s_body = self#emit_tail_sequence env e1 in
-      let aux (nfail, ids, rs, e2, _dbg) =
+      let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg)) =
         assert(List.length ids = List.length rs);
+        let trap_stack =
+          match !trap_info with
+          | Unreachable -> assert false
+          | Reachable t -> t
+        in
         let new_env =
           List.fold_left
             (fun env ((id, _typ),r) -> env_add id r env)
-            env (List.combine ids rs) in
-        nfail, self#emit_tail_sequence new_env e2
+            (env_set_trap_stack env trap_stack) (List.combine ids rs)
+        in
+        nfail, trap_stack, self#emit_tail_sequence new_env e2
       in
-      self#insert env (Icatch(rec_flag, List.map aux handlers, s_body))
+      let rec build_all_reachable_handlers ~already_built ~not_built =
+        let not_built, to_build =
+          Int.Map.partition (fun _n (r, _) -> !r = Unreachable) not_built
+        in
+        if Int.Map.is_empty to_build then already_built
+        else begin
+          let already_built =
+            Int.Map.fold
+              (fun nfail handler already_built ->
+                 (translate_one_handler nfail handler) :: already_built)
+              to_build already_built
+          in
+          build_all_reachable_handlers ~already_built ~not_built
+        end
+      in
+      let new_handlers =
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      in
+      (* The final trap stack doesn't matter, as it's not reachable. *)
+      self#insert env (Icatch(rec_flag, env.trap_stack, new_handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, v, e2, _dbg) ->
-      let (opt_r1, s1) = self#emit_sequence env e1 in
+  | Ctrywith(e1, kind, v, e2, _dbg) ->
+      let env_body = env_enter_trywith env kind in
+      let s1 = self#emit_tail_sequence env_body e1 in
       let rv = self#regs_for typ_val in
-      let s2 = self#emit_tail_sequence (env_add v rv env) e2 in
+      let env_handler =
+        let env = env_add v rv env in
+        match kind with
+        | Regular -> env
+        | Delayed lbl ->
+          begin match env_find_static_exception lbl env_body with
+            | (_, { contents = Reachable ts; }) ->
+              env_set_trap_stack env ts
+            | (_, { contents = Unreachable; }) ->
+              Misc.fatal_errorf "Selection.emit_expr: Unreachable exception handler %d" lbl
+            | exception Not_found ->
+              Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
+          end
+      in
+      let s2 = self#emit_tail_sequence env_handler e2 in
       self#insert env
-        (Itrywith(s1#extract,
-                  instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv s2))
-        [||] [||];
-      begin match opt_r1 with
-        None -> ()
-      | Some r1 ->
-          let loc = Proc.loc_results (Reg.typv r1) in
-          self#insert_moves env r1 loc;
-          self#insert env Ireturn loc [||]
-      end
+        (Itrywith(s1, kind,
+                  (env_handler.trap_stack,
+                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv s2)))
+        [||] [||]
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cvar _
   | Cassign _
   | Ctuple _
   | Cexit _ ->
-    self#emit_return env exp
+    self#emit_return env exp (pop_all_traps env)
 
 method private emit_tail_sequence env exp =
   let s = {< instr_seq = dummy_instr >} in

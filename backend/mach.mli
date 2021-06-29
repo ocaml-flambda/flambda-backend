@@ -15,6 +15,14 @@
 
 (* Representation of machine code by sequences of pseudoinstructions *)
 
+type trap_stack =
+  | Uncaught
+  (** Exceptions escape the current function *)
+  | Generic_trap of trap_stack
+  (** Current handler is a regular Trywith *)
+  | Specific_trap of Cmm.trywith_shared_label * trap_stack
+  (** Current handler is a delayed/shared Trywith *)
+
 type integer_comparison =
     Isigned of Cmm.integer_comparison
   | Iunsigned of Cmm.integer_comparison
@@ -88,12 +96,12 @@ type instruction =
 and instruction_desc =
     Iend
   | Iop of operation
-  | Ireturn
+  | Ireturn of Cmm.trap_action list
   | Iifthenelse of test * instruction * instruction
   | Iswitch of int array * instruction array
-  | Icatch of Cmm.rec_flag * (int * instruction) list * instruction
-  | Iexit of int
-  | Itrywith of instruction * instruction
+  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction) list * instruction
+  | Iexit of int * Cmm.trap_action list
+  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =

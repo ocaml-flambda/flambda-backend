@@ -7,6 +7,6 @@ arguments = "-DFLOAT_CATCH -DFUN=catch_try_float main.c"
 (function "catch_try_float" (b:float)
   (+f 10.0
   (catch
-    (try (exit lbl 100.0)
+    (try (exit(1) lbl 100.0)
      with var 456.0)
    with (lbl x:float) (+f x 1000.0))))

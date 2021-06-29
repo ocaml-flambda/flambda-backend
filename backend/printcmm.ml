@@ -114,6 +114,28 @@ let location d =
   if not !Clflags.locations then ""
   else Debuginfo.to_string d
 
+let exit_label ppf = function
+  | Return_lbl -> fprintf ppf "*return*"
+  | Lbl lbl -> fprintf ppf "%d" lbl
+
+let trap_action ppf ta =
+  match ta with
+  | Push i -> fprintf ppf "push(%d)" i
+  | Pop -> fprintf ppf "pop"
+
+let trap_action_list ppf traps =
+  match traps with
+  | [] -> ()
+  | t :: rest ->
+      fprintf ppf "<%a" trap_action t;
+      List.iter (fun t -> fprintf ppf " %a" trap_action t) rest;
+      fprintf ppf ">"
+
+let trywith_kind ppf kind =
+  match kind with
+  | Regular -> ()
+  | Delayed i -> fprintf ppf "<delayed %d>" i
+
 let operation d = function
   | Capply _ty -> "app" ^ location d
   | Cextcall { name = lbl; _ } ->
@@ -264,13 +286,13 @@ let rec expr ppf = function
         rec_flag flag
         sequence e1
         print_handlers handlers
-  | Cexit (i, el) ->
-      fprintf ppf "@[<2>(exit %d" i;
+  | Cexit (i, el, traps) ->
+      fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, id, e2, _dbg) ->
-      fprintf ppf "@[<2>(try@ %a@;<1 -2>with@ %a@ %a)@]"
-             sequence e1 VP.print id sequence e2
+  | Ctrywith(e1, kind, id, e2, _dbg) ->
+      fprintf ppf "@[<2>(try%a@ %a@;<1 -2>with@ %a@ %a)@]"
+             trywith_kind kind sequence e1 VP.print id sequence e2
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

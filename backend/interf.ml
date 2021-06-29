@@ -86,7 +86,7 @@ let build_graph fundecl =
     if Array.length destroyed > 0 then add_interf_set destroyed i.live;
     match i.desc with
       Iend -> ()
-    | Ireturn -> ()
+    | Ireturn _ -> ()
     | Iop(Imove | Ispill | Ireload) ->
         add_interf_move i.arg.(0) i.res.(0) i.live;
         interf i.next
@@ -105,13 +105,13 @@ let build_graph fundecl =
           interf cases.(i)
         done;
         interf i.next
-    | Icatch(_rec_flag, handlers, body) ->
+    | Icatch(_rec_flag, _ts, handlers, body) ->
         interf body;
-        List.iter (fun (_, handler) -> interf handler) handlers;
+        List.iter (fun (_, _, handler) -> interf handler) handlers;
         interf i.next
     | Iexit _ ->
         ()
-    | Itrywith(body, handler) ->
+    | Itrywith(body, _kind, (_ts, handler)) ->
         add_interf_set Proc.destroyed_at_raise handler.live;
         interf body; interf handler; interf i.next
     | Iraise _ -> () in
@@ -152,7 +152,7 @@ let build_graph fundecl =
     add_spill_cost weight i.res;
     match i.desc with
       Iend -> ()
-    | Ireturn -> ()
+    | Ireturn _ -> ()
     | Iop(Imove) ->
         add_mutual_pref weight i.arg.(0) i.res.(0);
         prefer weight i.next
@@ -175,7 +175,7 @@ let build_graph fundecl =
           prefer weight cases.(i)
         done;
         prefer weight i.next
-    | Icatch(rec_flag, handlers, body) ->
+    | Icatch(rec_flag, _ts, handlers, body) ->
         prefer weight body;
         let weight_h =
           match rec_flag with
@@ -184,11 +184,11 @@ let build_graph fundecl =
               if weight < 1000 then 8 * weight else weight
           | Cmm.Nonrecursive ->
               weight in
-        List.iter (fun (_nfail, handler) -> prefer weight_h handler) handlers;
+        List.iter (fun (_nfail, _ts, handler) -> prefer weight_h handler) handlers;
         prefer weight i.next
     | Iexit _ ->
         ()
-    | Itrywith(body, handler) ->
+    | Itrywith(body, _kind, (_ts, handler)) ->
         prefer weight body; prefer weight handler; prefer weight i.next
     | Iraise _ -> ()
   in

@@ -28,7 +28,7 @@ type allocation_state =
 
 let rec combine i allocstate =
   match i.desc with
-    Iend | Ireturn | Iexit _ | Iraise _ ->
+    Iend | Ireturn _ | Iexit _ | Iraise _ ->
       (i, allocstate)
   | Iop(Ialloc { bytes = sz; dbginfo; _ }) ->
       assert (List.length dbginfo = 1);
@@ -81,18 +81,22 @@ let rec combine i allocstate =
       let newnext = combine_restart i.next in
       (instr_cons (Iswitch(table, newcases)) i.arg i.res newnext,
        allocstate)
-  | Icatch(rec_flag, handlers, body) ->
+  | Icatch(rec_flag, ts, handlers, body) ->
       let (newbody, s') = combine body allocstate in
       let newhandlers =
-        List.map (fun (io, handler) -> io, combine_restart handler) handlers in
+        List.map
+          (fun (io, ts, handler) -> io, ts, combine_restart handler)
+          handlers
+      in
       let newnext = combine_restart i.next in
-      (instr_cons (Icatch(rec_flag, newhandlers, newbody))
+      (instr_cons (Icatch(rec_flag, ts, newhandlers, newbody))
          i.arg i.res newnext, s')
-  | Itrywith(body, handler) ->
+  | Itrywith(body, kind, (ts, handler)) ->
       let (newbody, s') = combine body allocstate in
       let newhandler = combine_restart handler in
       let newnext = combine_restart i.next in
-      (instr_cons (Itrywith(newbody, newhandler)) i.arg i.res newnext, s')
+      (instr_cons (Itrywith(newbody, kind, (ts, newhandler)))
+         i.arg i.res newnext, s')
 
 and combine_restart i =
   let (newi, _) = combine i No_alloc in newi
