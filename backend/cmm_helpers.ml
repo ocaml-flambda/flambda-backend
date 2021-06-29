@@ -1367,9 +1367,14 @@ let default_prim name =
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
+  let effects, coeffects =
+    if alloc
+    then Primitive.Arbitrary_effects, Primitive.No_coeffects
+    else Primitive.No_effects, Primitive.No_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
     ~c_builtin:false
+    ~effects ~coeffects
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
@@ -2711,13 +2716,24 @@ let transl_builtin name args dbg =
     ext_pointer_store Double name args dbg
   | _ -> None
 
+let transl_effects (e : Primitive.effects) : Cmm.effects =
+  match e with
+  | No_effects -> No_effects
+  | Only_generative_effects
+  | Arbitrary_effects -> Arbitrary_effects
+
+let transl_coeffects (ce : Primitive.coeffects) : Cmm.coeffects =
+  match ce with
+  | No_coeffects -> No_coeffects
+  | Has_coeffects -> Has_coeffects
+
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)
 let cextcall (prim : Primitive.description) args dbg ret =
   let name = Primitive.native_name prim in
   let default = Cop(Cextcall { name; ret;
                                builtin = prim.prim_c_builtin;
-                               effects = Arbitrary_effects;
-                               coeffects = Has_coeffects;
+                               effects = transl_effects prim.prim_effects;
+                               coeffects = transl_coeffects prim.prim_coeffects;
                                alloc = prim.prim_alloc;
                                label_after = None},
                     args, dbg)
