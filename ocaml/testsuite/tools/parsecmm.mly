@@ -37,7 +37,7 @@ let make_switch n selector caselist =
   let index = Array.make n 0 in
   let casev = Array.of_list caselist in
   let dbg = Debuginfo.none in
-  let actv = Array.make (Array.length casev) (Cexit(0,[],[]), dbg) in
+  let actv = Array.make (Array.length casev) (Cexit(Cmm.Lbl 0,[],[]), dbg) in
   for i = 0 to Array.length casev - 1 do
     let (posl, e) = casev.(i) in
     List.iter (fun pos -> index.(pos) <- i) posl;
@@ -244,20 +244,20 @@ expr:
           match $3 with
             Cconst_int (x, _) when x <> 0 -> $4
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
-                             (Cexit(lbl0,[],[])),
+                             (Cexit(Cmm.Lbl lbl0,[],[])),
                              debuginfo ()) in
         Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
           Ccatch(Recursive,
-            [lbl1, [], Csequence(body, Cexit(lbl1, [], [])), debuginfo ()],
-            Cexit(lbl1, [], []))) }
+            [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo ()],
+            Cexit(Cmm.Lbl lbl1, [], []))) }
   | LPAREN EXIT traps IDENT exprlist RPAREN
-    { Cexit(find_label $4, List.rev $5, $3) }
+    { Cexit(Cmm.Lbl (find_label $4), List.rev $5, $3) }
   | LPAREN CATCH sequence WITH catch_handlers RPAREN
     { let handlers = $5 in
       List.iter (fun (_, l, _, _) ->
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
       Ccatch(Recursive, handlers, $3) }
-  | EXIT        { Cexit(0,[],[]) }
+  | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
   | LPAREN TRY sequence WITH bind_ident sequence RPAREN
                 { unbind_ident $5; Ctrywith($3, Regular, $5, $6, debuginfo ()) }
   | LPAREN VAL expr expr RPAREN
