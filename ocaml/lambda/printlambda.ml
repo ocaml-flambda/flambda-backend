@@ -174,6 +174,11 @@ let float_comparison ppf = function
   | CFge -> fprintf ppf ">=."
   | CFnge -> fprintf ppf "!>=."
 
+let field_read_semantics ppf sem =
+  match sem with
+  | Reads_agree -> ()
+  | Reads_vary -> fprintf ppf "_mut"
+
 let primitive ppf = function
   | Pidentity -> fprintf ppf "id"
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
@@ -185,12 +190,18 @@ let primitive ppf = function
   | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
   | Pmakeblock(tag, Immutable, shape) ->
       fprintf ppf "makeblock %i%a" tag block_shape shape
+  | Pmakeblock(tag, Immutable_unique, shape) ->
+      fprintf ppf "makeblock_unique %i%a" tag block_shape shape
   | Pmakeblock(tag, Mutable, shape) ->
       fprintf ppf "makemutable %i%a" tag block_shape shape
   | Pmakefloatblock Immutable -> fprintf ppf "makefloatblock Immutable"
+  | Pmakefloatblock Immutable_unique ->
+    fprintf ppf "makefloatblock Immutable_unique"
   | Pmakefloatblock Mutable -> fprintf ppf "makefloatblock Mutable"
-  | Pfield n -> fprintf ppf "field %i" n
-  | Pfield_computed -> fprintf ppf "field_computed"
+  | Pfield (n, sem) ->
+      fprintf ppf "field%a %i" field_read_semantics sem n
+  | Pfield_computed sem ->
+      fprintf ppf "field_computed%a" field_read_semantics sem
   | Psetfield(n, ptr, init) ->
       let instr =
         match ptr with
@@ -217,7 +228,8 @@ let primitive ppf = function
         | Assignment -> ""
       in
       fprintf ppf "setfield_%s%s_computed" instr init
-  | Pfloatfield n -> fprintf ppf "floatfield %i" n
+  | Pfloatfield (n, sem) ->
+      fprintf ppf "floatfield%a %i" field_read_semantics sem n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -273,8 +285,12 @@ let primitive ppf = function
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
   | Pmakearray (k, Mutable) -> fprintf ppf "makearray[%s]" (array_kind k)
   | Pmakearray (k, Immutable) -> fprintf ppf "makearray_imm[%s]" (array_kind k)
+  | Pmakearray (k, Immutable_unique) ->
+      fprintf ppf "makearray_unique[%s]" (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
+  | Pduparray (k, Immutable_unique) ->
+      fprintf ppf "duparray_unique[%s]" (array_kind k)
   | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
   | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
   | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
@@ -387,7 +403,7 @@ let name_of_primitive = function
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pfield _ -> "Pfield"
-  | Pfield_computed -> "Pfield_computed"
+  | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
   | Psetfield_computed _ -> "Psetfield_computed"
   | Pfloatfield _ -> "Pfloatfield"
