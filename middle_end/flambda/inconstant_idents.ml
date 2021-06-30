@@ -335,15 +335,16 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
        makeblock(Mutable) can be a 'constant' if it is allocated at
        toplevel: if this expression is evaluated only once.
     *)
-    | Prim (Pmakeblock (_tag, Asttypes.Immutable, _value_kind), args,
-            _dbg) ->
+    | Prim (Pmakeblock (_tag, (Immutable | Immutable_unique), _value_kind),
+            args, _dbg) ->
       mark_vars args curr
 (*  (* CR-someday pchambart: If global mutables are allowed: *)
     | Prim(Lambda.Pmakeblock(_tag, Asttypes.Mutable), args, _dbg, _)
       when toplevel ->
       List.iter (mark_loop ~toplevel curr) args
 *)
-    | Prim (Pmakearray (Pfloatarray, Immutable), args, _) ->
+    | Prim (Pmakearray (Pfloatarray, (Immutable | Immutable_unique)),
+            args, _) ->
       mark_vars args curr
     | Prim (Pmakearray (Pfloatarray, Mutable), args, _) ->
       (* CR-someday pchambart: Toplevel float arrays could always be
@@ -356,7 +357,8 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       *)
       if toplevel then mark_vars args curr
       else mark_curr curr
-    | Prim (Pduparray (Pfloatarray, Immutable), [arg], _) ->
+    | Prim (Pduparray (Pfloatarray, (Immutable | Immutable_unique)),
+            [arg], _) ->
       mark_var arg curr
     | Prim (Pduparray (Pfloatarray, Mutable), [arg], _) ->
       if toplevel then mark_var arg curr

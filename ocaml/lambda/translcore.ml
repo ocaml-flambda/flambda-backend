@@ -87,7 +87,7 @@ let transl_extension_constructor ~scopes env path ext =
   let loc = of_location ~scopes ext.ext_loc in
   match ext.ext_kind with
     Text_decl _ ->
-      Lprim (Pmakeblock (Obj.object_tag, Immutable, None),
+      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -1060,8 +1060,8 @@ and transl_record ~scopes loc env fields repres opt_init_expr =
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
-    let mut =
-      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Mutable) fields
+    let mut : Lambda.mutable_flag =
+      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Asttypes.Mutable) fields
       then Mutable
       else Immutable in
     let lam =
