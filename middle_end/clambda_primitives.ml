@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type mutable_flag = Asttypes.mutable_flag
+type mutable_flag = Lambda.mutable_flag
 
 type immediate_or_pointer = Lambda.immediate_or_pointer
 

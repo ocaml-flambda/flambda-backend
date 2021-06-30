@@ -17,6 +17,9 @@
 
 open Asttypes
 
+(* Overriding Asttypes.mutable_flag *)
+type mutable_flag = Immutable | Immutable_unique | Mutable
+
 type compile_time_constant =
   | Big_endian
   | Word_size
@@ -45,6 +48,10 @@ type is_safe =
   | Safe
   | Unsafe
 
+type field_read_semantics =
+  | Reads_agree
+  | Reads_vary
+
 type primitive =
   | Pidentity
   | Pbytes_to_string
@@ -58,11 +65,11 @@ type primitive =
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape
   | Pmakefloatblock of mutable_flag
-  | Pfield of int
-  | Pfield_computed
+  | Pfield of int * field_read_semantics
+  | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int
+  | Pfloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
@@ -464,3 +471,10 @@ val merge_inline_attributes
   -> inline_attribute option
 
 val reset: unit -> unit
+
+(** Helpers for module block accesses.
+    Module accesses are always immutable, except in translobj where the
+    method cache is stored in a mutable module field.
+*)
+val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
+val mod_setfield: int -> primitive

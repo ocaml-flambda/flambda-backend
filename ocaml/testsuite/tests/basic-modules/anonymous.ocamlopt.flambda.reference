@@ -17,6 +17,11 @@
           (ignore
             (let (*match* = (setfield_ptr 0 s "Hello World!")) (makeblock 0)))
           (let
+<<<<<<< HEAD
             (drop = (function param : int 0)
              *match* = (apply drop (field 0 s)))
+=======
+            (drop = (function param 0)
+             *match* = (apply drop (field_mut 0 s)))
+>>>>>>> e5fda4e694... Mutability on field reads; Immutable_unique
             (makeblock 0 A B f s drop)))))))

@@ -23,8 +23,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock _
   | Pmakearray (_, Mutable) -> Only_generative_effects, No_coeffects
-  | Pmakearray (_, Immutable) -> No_effects, No_coeffects
-  | Pduparray (_, Immutable) ->
+  | Pmakearray (_, (Immutable | Immutable_unique)) -> No_effects, No_coeffects
+  | Pduparray (_, (Immutable | Immutable_unique)) ->
       No_effects, No_coeffects  (* Pduparray (_, Immutable) is allowed only on
                                    immutable arrays. *)
   | Pduparray (_, Mutable) | Pduprecord _ ->

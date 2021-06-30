@@ -108,14 +108,14 @@ let invert_then_else = function
 
 let mut_from_env env ptr =
   match env.environment_param with
-  | None -> Mutable
+  | None -> Asttypes.Mutable
   | Some environment_param ->
     match ptr with
     | Cvar ptr ->
       (* Loads from the current function's closure are immutable. *)
-      if V.same environment_param ptr then Immutable
-      else Mutable
-    | _ -> Mutable
+      if V.same environment_param ptr then Asttypes.Immutable
+      else Asttypes.Mutable
+    | _ -> Asttypes.Mutable
 
 let get_field env ptr n dbg =
   let mut = mut_from_env env ptr in
@@ -1160,7 +1160,7 @@ and transl_let env str kind id exp body =
       (* N.B. [body] must still be traversed even if [exp] will never return:
          there may be constant closures inside that need lifting out. *)
       begin match str, kind with
-      | Immutable, _ -> Clet(id, cexp, transl env body)
+      | (Immutable | Immutable_unique), _ -> Clet(id, cexp, transl env body)
       | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl env body)
       | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl env body)
       end
@@ -1171,7 +1171,7 @@ and transl_let env str kind id exp body =
       let body =
         transl (add_unboxed_id (VP.var id) unboxed_id boxed_number env) body in
       begin match str, boxed_number with
-      | Immutable, _ -> Clet (v, cexp, body)
+      | (Immutable | Immutable_unique), _ -> Clet (v, cexp, body)
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
 

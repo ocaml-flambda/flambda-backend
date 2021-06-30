@@ -326,7 +326,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock
   | Pmakefloatblock _ -> pmakefloatblock
   | Pfield _ -> pfield
-  | Pfield_computed -> pfield_computed
+  | Pfield_computed _ -> pfield_computed
   | Psetfield _ -> psetfield
   | Psetfield_computed _ -> psetfield_computed
   | Pfloatfield _ -> pfloatfield
@@ -434,7 +434,7 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pmakeblock _ -> pmakeblock_arg
   | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pfield _ -> pfield_arg
-  | Pfield_computed -> pfield_computed_arg
+  | Pfield_computed _ -> pfield_computed_arg
   | Psetfield _ -> psetfield_arg
   | Psetfield_computed _ -> psetfield_computed_arg
   | Pfloatfield _ -> pfloatfield_arg
