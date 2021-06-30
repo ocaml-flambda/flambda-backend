@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+type mutable_flag = Immutable | Immutable_unique | Mutable
+
 type compile_time_constant =
   | Big_endian
   | Word_size
