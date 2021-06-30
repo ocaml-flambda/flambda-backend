@@ -57,16 +57,20 @@ stage0: _build0/config.status
 #
 # This code should use build contexts instead of --build-dir.
 .PHONY: stage1
-stage1: ocaml-stage1-config.status stage0 \
+stage1: mount-ocaml-stage1-config.status stage0 \
           ocaml/otherlibs/dynlink/natdynlinkops2 \
 	  flags.sexp
-	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  $(dune) build --profile=release --build-dir=_build1 @install
 	(cd _build1/install/default/bin && \
 	  rm -f ocamllex && \
 	  ln -s ocamllex.opt ocamllex)
+
+# Ensures parallel processes don't attempt to copy /stage0
+.PHONY: mount-ocaml-stage1-config.status
+mount-ocaml-stage1-config.status:
+	cp ocaml-stage1-config.status ocaml/config.status
 
 # CR mshinwell: We should add targets that don't use --profile=release, for
 # speed, and also ensuring that warnings are errors.  We should also consider
@@ -88,10 +92,9 @@ stage2: ocaml-stage2-config.status stage1
 # features, especially large ones that take a long time to get to compile,
 # in the middle end and backend.
 .PHONY: hacking
-hacking: ocaml-stage1-config.status stage0 \
+hacking: mount-ocaml-stage1-config.status stage0 \
           ocaml/otherlibs/dynlink/natdynlinkops2 \
 	  flags.sexp
-	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  $(dune) build -w --profile=release --build-dir=_build1 @install
@@ -144,8 +147,7 @@ ocaml-stage2-config.status: ocaml/configure.ac
 # will provide '' on the command line to ocamlopt which causes an
 # error.
 # CR mshinwell: This should be moved into the upstream dune build system.
-ocaml/otherlibs/dynlink/natdynlinkops2: ocaml-stage1-config.status
-	cp ocaml-stage1-config.status ocaml/config.status
+ocaml/otherlibs/dynlink/natdynlinkops2: mount-ocaml-stage1-config.status
 	(cd ocaml && ./config.status)
 	cat ocaml/Makefile.config \
 	  | sed 's/^NATDYNLINKOPTS=$$/NATDYNLINKOPTS=-g/' \
@@ -169,8 +171,7 @@ ocaml/otherlibs/dynlink/natdynlinkops2: ocaml-stage1-config.status
 # Extract compilation flags from Makefile.config of stage1
 # and write them to a file that dune can use in stage1 and stage2.
 .PHONY: flags.sexp
-flags.sexp: ocaml-stage1-config.status
-	cp ocaml-stage1-config.status ocaml/config.status
+flags.sexp: mount-ocaml-stage1-config.status
 	(cd ocaml && ./config.status)
 	grep -q '^FUNCTION_SECTIONS=true' ocaml/Makefile.config; \
 	if [ $$? -eq 0 ] ; then \
