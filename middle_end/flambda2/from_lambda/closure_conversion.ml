@@ -33,6 +33,10 @@ module LC = Lambda_conversions
 module P = Flambda_primitive
 module VB = Bound_var
 
+type close_functions_result =
+  | Lifted of (Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
+  | Dynamic of Set_of_closures.t * Code.t Value_approximation.t Closure_id.Map.t
+
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
@@ -41,23 +45,14 @@ let symbol_for_ident acc env id =
   let symbol = Env.symbol_for_global env id in
   use_of_symbol_as_simple acc symbol
 
-let register_set_of_closures_as_symbols acc set_of_closures approximations :
-    Acc.t * Symbol.t Closure_id.Lmap.t =
-  let symbols =
-    Set_of_closures.function_decls set_of_closures
-    |> Function_declarations.funs_in_order
-    |> Closure_id.Lmap.mapi (fun closure_id _ ->
-           let symbol =
-             Symbol.create
-               (Compilation_unit.get_current_exn ())
-               (Linkage_name.create
-                  (Variable.unique_name (Closure_id.unwrap closure_id)))
-           in
-           let approx = Closure_id.Map.find closure_id approximations in
-           symbol, approx)
+let declare_symbol_for_closure_ident env ident closure_id : Env.t * Symbol.t =
+  let symbol =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create (Closure_id.to_string closure_id))
   in
-  let acc = Acc.add_declared_set_of_closures ~symbols ~set_of_closures acc in
-  acc, Closure_id.Lmap.map fst symbols
+  let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
+  env, symbol
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
@@ -1090,7 +1085,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
         untag ~body
       |> Expr_with_acc.create_let
 
-let close_one_function acc ~external_env ~by_closure_id decl
+let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
     ~var_within_closures_from_idents ~closure_ids_from_idents
     function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
@@ -1135,33 +1130,44 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~from:(Rec_info_expr.var my_depth)
       ~to_:(Rec_info_expr.var next_depth)
   in
+  if has_lifted_closure
+     && not (Variable.Map.is_empty var_within_closures_to_bind)
+  then
+    Misc.fatal_errorf
+      "Variables found in closure when trying to lift %a in \
+       [Closure_conversion]."
+      Ident.print our_let_rec_ident;
   (* CR mshinwell: Remove "project_closure" names *)
   let project_closure_to_bind, simples_for_project_closure =
-    List.fold_left
-      (fun (to_bind, simples_for_idents) function_decl ->
-        let let_rec_ident = Function_decl.let_rec_ident function_decl in
-        let to_bind, var =
-          if Ident.same our_let_rec_ident let_rec_ident && is_curried
-          then
-            (* When the function being compiled is tupled, my_closure points to
-               the curried version but let_rec_ident is called with tuple
-               arguments, so the correct closure to bind is the one in the
-               closure_ids_from_idents map. *)
-            to_bind, my_closure
-            (* my_closure is already bound *)
-          else
-            let variable =
-              Variable.create_with_same_name_as_ident let_rec_ident
-            in
-            let closure_id =
-              Ident.Map.find let_rec_ident closure_ids_from_idents
-            in
-            Variable.Map.add variable closure_id to_bind, variable
-        in
-        let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
-        to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
-      (Variable.Map.empty, Ident.Map.empty)
-      (Function_decls.to_list function_declarations)
+    if has_lifted_closure
+    then (* No projection needed *)
+      Variable.Map.empty, Ident.Map.empty
+    else
+      List.fold_left
+        (fun (to_bind, simples_for_idents) function_decl ->
+          let let_rec_ident = Function_decl.let_rec_ident function_decl in
+          let to_bind, var =
+            if Ident.same our_let_rec_ident let_rec_ident && is_curried
+            then
+              (* When the function being compiled is tupled, my_closure points
+                 to the curried version but let_rec_ident is called with tuple
+                 arguments, so the correct closure to bind is the one in the
+                 closure_ids_from_idents map. *)
+              to_bind, my_closure
+              (* my_closure is already bound *)
+            else
+              let variable =
+                Variable.create_with_same_name_as_ident let_rec_ident
+              in
+              let closure_id =
+                Ident.Map.find let_rec_ident closure_ids_from_idents
+              in
+              Variable.Map.add variable closure_id to_bind, variable
+          in
+          let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
+          to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
+        (Variable.Map.empty, Ident.Map.empty)
+        (Function_decls.to_list function_declarations)
   in
   let closure_env_without_parameters =
     let empty_env = Env.clear_local_bindings external_env in
@@ -1383,6 +1389,7 @@ let close_functions acc external_env function_declarations =
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
+  let can_be_lifted = Ident.Map.is_empty var_within_closures_from_idents in
   let func_decl_list = Function_decls.to_list function_declarations in
   let closure_ids_from_idents =
     List.fold_left
@@ -1392,12 +1399,26 @@ let close_functions acc external_env function_declarations =
         Ident.Map.add id closure_id map)
       Ident.Map.empty func_decl_list
   in
+  let external_env, symbol_map =
+    if can_be_lifted
+    then
+      Ident.Map.fold
+        (fun ident closure_id (env, symbol_map) ->
+          let env, symbol =
+            declare_symbol_for_closure_ident env ident closure_id
+          in
+          env, Closure_id.Map.add closure_id symbol symbol_map)
+        closure_ids_from_idents
+        (external_env, Closure_id.Map.empty)
+    else external_env, Closure_id.Map.empty
+  in
   let acc, approximations =
     List.fold_left
       (fun (acc, by_closure_id) function_decl ->
         let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
               close_one_function acc ~external_env ~by_closure_id function_decl
+                ~has_lifted_closure:can_be_lifted
                 ~var_within_closures_from_idents ~closure_ids_from_idents
                 function_declarations)
         in
@@ -1415,6 +1436,12 @@ let close_functions acc external_env function_declarations =
         approximations []
     in
     Closure_id.Lmap.of_list (List.rev funs)
+  in
+  let approximations =
+    Closure_id.Map.map
+      (fun (code_id, code) ->
+        Value_approximation.Closure_approximation (code_id, code))
+      approximations
   in
   let function_decls = Function_declarations.create funs in
   let closure_elements =
@@ -1435,7 +1462,18 @@ let close_functions acc external_env function_declarations =
   let acc =
     Acc.add_set_of_closures_offsets ~is_phantom:false acc set_of_closures
   in
-  acc, set_of_closures, approximations
+  if can_be_lifted
+  then
+    let symbols =
+      Closure_id.Lmap.mapi
+        (fun closure_id _ ->
+          ( Closure_id.Map.find closure_id symbol_map,
+            Closure_id.Map.find closure_id approximations ))
+        funs
+    in
+    let acc = Acc.add_declared_set_of_closures ~symbols ~set_of_closures acc in
+    acc, Lifted symbols
+  else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) =
@@ -1481,50 +1519,16 @@ let close_let_rec acc env ~function_declarations
     | None ->
       Misc.fatal_error "let-rec group of [lfunction] declarations is empty"
   in
-  let acc, set_of_closures, approximations =
+  let acc, closed_functions =
     close_functions acc env
       (Function_decls.create function_declarations alloc_mode)
   in
-  let approximations =
-    Closure_id.Map.map
-      (fun (code_id, code) ->
-        Value_approximation.Closure_approximation (code_id, code))
-      approximations
-  in
-  (* CR mshinwell: We should maybe have something more elegant here *)
-  let generated_closures =
-    Closure_id.Set.diff
-      (Closure_id.Map.keys
-         (Function_declarations.funs
-            (Set_of_closures.function_decls set_of_closures)))
-      (Closure_id.Map.keys closure_vars)
-  in
-  let closure_vars_map =
-    Closure_id.Set.fold
-      (fun closure_id closure_vars ->
-        let closure_var =
-          VB.create (Variable.create "generated") Name_mode.normal
-        in
-        Closure_id.Map.add closure_id closure_var closure_vars)
-      generated_closures closure_vars
-  in
-  let closure_vars =
-    List.map
-      (fun (closure_id, _) -> Closure_id.Map.find closure_id closure_vars_map)
-      (Function_declarations.funs_in_order
-         (Set_of_closures.function_decls set_of_closures)
-      |> Closure_id.Lmap.bindings)
-  in
-  if Set_of_closures.environment_doesn't_mention_variables set_of_closures
-  then
-    let acc, symbols =
-      register_set_of_closures_as_symbols acc set_of_closures approximations
-    in
+  match closed_functions with
+  | Lifted symbols ->
     let env =
       Closure_id.Lmap.fold
-        (fun closure_id symbol env ->
+        (fun closure_id (symbol, approx) env ->
           let ident = Closure_id.Map.find closure_id ident_map in
-          let approx = Closure_id.Map.find closure_id approximations in
           let env =
             Env.add_simple_to_substitute env ident (Simple.symbol symbol)
           in
@@ -1532,7 +1536,31 @@ let close_let_rec acc env ~function_declarations
         symbols env
     in
     body acc env
-  else
+  | Dynamic (set_of_closures, approximations) ->
+    (* CR mshinwell: We should maybe have something more elegant here *)
+    let generated_closures =
+      Closure_id.Set.diff
+        (Closure_id.Map.keys
+           (Function_declarations.funs
+              (Set_of_closures.function_decls set_of_closures)))
+        (Closure_id.Map.keys closure_vars)
+    in
+    let closure_vars_map =
+      Closure_id.Set.fold
+        (fun closure_id closure_vars ->
+          let closure_var =
+            VB.create (Variable.create "generated") Name_mode.normal
+          in
+          Closure_id.Map.add closure_id closure_var closure_vars)
+        generated_closures closure_vars
+    in
+    let closure_vars =
+      List.map
+        (fun (closure_id, _) -> Closure_id.Map.find closure_id closure_vars_map)
+        (Function_declarations.funs_in_order
+           (Set_of_closures.function_decls set_of_closures)
+        |> Closure_id.Lmap.bindings)
+    in
     let env =
       Closure_id.Map.fold
         (fun closure_id var env ->
