@@ -166,13 +166,14 @@ type memory_chunk =
 and operation =
     Capply of machtype
   | Cextcall of
-      { name: string;
-        ret: machtype;
+      { func: string;
+        ty: machtype;
+        ty_args : exttype list;
         alloc: bool;
         builtin: bool;
+        returns: bool;
         effects: effects;
         coeffects: coeffects;
-        ty_args : exttype list;
       }
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
