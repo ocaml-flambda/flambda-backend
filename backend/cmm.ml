@@ -109,6 +109,10 @@ let negate_float_comparison = Lambda.negate_float_comparison
 let swap_float_comparison = Lambda.swap_float_comparison
 type label = int
 
+type exit_label =
+  | Return_lbl
+  | Lbl of label
+
 let init_label = 99
 
 let label_counter = ref init_label
@@ -137,6 +141,16 @@ type phantom_defining_expr =
   | Cphantom_read_field of { var : Backend_var.t; field : int; }
   | Cphantom_read_symbol_field of { sym : string; field : int; }
   | Cphantom_block of { tag : int; fields : Backend_var.t list; }
+
+type trywith_shared_label = int
+
+type trap_action =
+  | Push of trywith_shared_label
+  | Pop
+
+type trywith_kind =
+  | Regular
+  | Delayed of trywith_shared_label
 
 type memory_chunk =
     Byte_unsigned
@@ -202,12 +216,12 @@ type expression =
       * Debuginfo.t
   | Ccatch of
       rec_flag
-        * (int * (Backend_var.With_provenance.t * machtype) list
+        * (label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
         * expression
-  | Cexit of int * expression list
-  | Ctrywith of expression * Backend_var.With_provenance.t * expression
-      * Debuginfo.t
+  | Cexit of exit_label * expression list * trap_action list
+  | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
+      * expression * Debuginfo.t
 
 type codegen_option =
   | Reduce_code_size
@@ -263,7 +277,7 @@ let iter_shallow_tail f = function
       List.iter (fun (_, _, h, _dbg) -> f h) handlers;
       f body;
       true
-  | Ctrywith(e1, _id, e2, _dbg) ->
+  | Ctrywith(e1, _kind, _id, e2, _dbg) ->
       f e1;
       f e2;
       true
@@ -301,8 +315,8 @@ let rec map_tail f = function
   | Ccatch(rec_flag, handlers, body) ->
       let map_h (n, ids, handler, dbg) = (n, ids, map_tail f handler, dbg) in
       Ccatch(rec_flag, List.map map_h handlers, map_tail f body)
-  | Ctrywith(e1, id, e2, dbg) ->
-      Ctrywith(map_tail f e1, id, map_tail f e2, dbg)
+  | Ctrywith(e1, kind, id, e2, dbg) ->
+      Ctrywith(map_tail f e1, kind, id, map_tail f e2, dbg)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
   | Cconst_int _
@@ -337,10 +351,10 @@ let map_shallow f = function
   | Ccatch (rf, hl, body) ->
       let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
       Ccatch (rf, List.map map_h hl, f body)
-  | Cexit (n, el) ->
-      Cexit (n, List.map f el)
-  | Ctrywith (e1, id, e2, dbg) ->
-      Ctrywith (f e1, id, f e2, dbg)
+  | Cexit (n, el, traps) ->
+      Cexit (n, List.map f el, traps)
+  | Ctrywith (e1, kind, id, e2, dbg) ->
+      Ctrywith (f e1, kind, id, f e2, dbg)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

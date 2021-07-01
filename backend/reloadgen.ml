@@ -87,7 +87,7 @@ method private reload i =
        already at the correct position (e.g. on stack for some arguments).
        However, something needs to be done for the function pointer in
        indirect calls. *)
-    Iend | Ireturn | Iop(Itailcall_imm _) | Iraise _ -> i
+    Iend | Ireturn _ | Iop(Itailcall_imm _) | Iraise _ -> i
   | Iop(Itailcall_ind) ->
       let newarg = self#makereg1 i.arg in
       insert_moves i.arg newarg
@@ -115,18 +115,18 @@ method private reload i =
       insert_moves i.arg newarg
         (instr_cons (Iswitch(index, Array.map (self#reload) cases)) newarg [||]
           (self#reload i.next))
-  | Icatch(rec_flag, handlers, body) ->
+  | Icatch(rec_flag, ts, handlers, body) ->
       let new_handlers = List.map
-          (fun (nfail, handler) -> nfail, self#reload handler)
+          (fun (nfail, ts, handler) -> nfail, ts, self#reload handler)
           handlers in
       instr_cons
-        (Icatch(rec_flag, new_handlers, self#reload body)) [||] [||]
+        (Icatch(rec_flag, ts, new_handlers, self#reload body)) [||] [||]
         (self#reload i.next)
-  | Iexit i ->
-      instr_cons (Iexit i) [||] [||] dummy_instr
-  | Itrywith(body, handler) ->
-      instr_cons (Itrywith(self#reload body, self#reload handler)) [||] [||]
-        (self#reload i.next)
+  | Iexit (i, traps) ->
+      instr_cons (Iexit (i, traps)) [||] [||] dummy_instr
+  | Itrywith(body, kind, (ts, handler)) ->
+      instr_cons (Itrywith(self#reload body, kind, (ts, self#reload handler)))
+        [||] [||] (self#reload i.next)
 
 method fundecl f num_stack_slots =
   redo_regalloc <- false;

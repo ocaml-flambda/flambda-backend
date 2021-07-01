@@ -197,8 +197,8 @@ let rec instr ppf i =
   | Iend -> ()
   | Iop op ->
       operation op i.arg ppf i.res
-  | Ireturn ->
-      fprintf ppf "return %a" regs i.arg
+  | Ireturn traps ->
+      fprintf ppf "return%a %a" Printcmm.trap_action_list traps regs i.arg
   | Iifthenelse(tst, ifso, ifnot) ->
       fprintf ppf "@[<v 2>if %a then@,%a" (test tst) i.arg instr ifso;
       begin match ifnot.desc with
@@ -216,10 +216,11 @@ let rec instr ppf i =
         fprintf ppf "@]@,%a@]" instr cases.(i)
       done;
       fprintf ppf "@,endswitch"
-  | Icatch(flag, handlers, body) ->
+  | Icatch(flag, _ts, handlers, body) ->
       fprintf ppf "@[<v 2>catch%a@,%a@;<0 -2>with"
         Printcmm.rec_flag flag instr body;
-      let h (nfail, handler) =
+      let h (nfail, _trap_stack, handler) =
+        (* CR vlaviron: print the trap stacks ? *)
         fprintf ppf "(%d)@,%a@;" nfail instr handler in
       let rec aux = function
         | [] -> ()
@@ -231,11 +232,11 @@ let rec instr ppf i =
       in
       aux handlers;
       fprintf ppf "@;<0 -2>endcatch@]"
-  | Iexit i ->
-      fprintf ppf "exit(%d)" i
-  | Itrywith(body, handler) ->
-      fprintf ppf "@[<v 2>try@,%a@;<0 -2>with@,%a@;<0 -2>endtry@]"
-             instr body instr handler
+  | Iexit (i, traps) ->
+      fprintf ppf "exit%a(%d)" Printcmm.trap_action_list traps i
+  | Itrywith(body, kind, (_ts, handler)) ->
+      fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with@,%a@;<0 -2>endtry@]"
+             Printcmm.trywith_kind kind instr body instr handler
   | Iraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   end;
