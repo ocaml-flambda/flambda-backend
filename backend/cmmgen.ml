@@ -788,14 +788,8 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
-  wrap_result
-    (Cop(Cextcall { name = Primitive.native_name prim;
-                    builtin = false;
-                    effects = Arbitrary_effects;
-                    coeffects = Has_coeffects;
-                    ret = typ_res; alloc = prim.prim_alloc;
-                    ty_args = typ_args },
-     args, dbg))
+  let op = cextcall prim args dbg typ_res typ_args in
+  wrap_result op
 
 and transl_prim_1 env p arg dbg =
   match p with
