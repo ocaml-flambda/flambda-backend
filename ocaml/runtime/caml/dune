@@ -12,7 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-
 (rule
  (targets jumptbl.h)
  (mode    fallback)
@@ -43,6 +42,7 @@
     (backtrace_prim.h as caml/backtrace_prim.h)
     (bigarray.h as caml/bigarray.h)
     (callback.h as caml/callback.h)
+    (codefrag.h as caml/codefrag.h)
     (compact.h as caml/compact.h)
     (compare.h as caml/compare.h)
     (compatibility.h as caml/compatibility.h)
@@ -85,6 +85,7 @@
     (roots.h as caml/roots.h)
     (s.h as caml/s.h)
     (signals.h as caml/signals.h)
+    (skiplist.h as caml/skiplist.h)
     (signals_machdep.h as caml/signals_machdep.h)
     (stack.h as caml/stack.h)
     (stacks.h as caml/stacks.h)
