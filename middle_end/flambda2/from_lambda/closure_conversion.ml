@@ -41,19 +41,23 @@ let symbol_for_ident acc env id =
   let symbol = Env.symbol_for_global env id in
   use_of_symbol_as_simple acc symbol
 
-let register_set_of_closures_as_symbols acc set_of_closures :
+let register_set_of_closures_as_symbols acc set_of_closures approximations :
     Acc.t * Symbol.t Closure_id.Lmap.t =
   let symbols =
     Set_of_closures.function_decls set_of_closures
     |> Function_declarations.funs_in_order
     |> Closure_id.Lmap.mapi (fun closure_id _ ->
-           Symbol.create
-             (Compilation_unit.get_current_exn ())
-             (Linkage_name.create
-                (Variable.unique_name (Closure_id.unwrap closure_id))))
+           let symbol =
+             Symbol.create
+               (Compilation_unit.get_current_exn ())
+               (Linkage_name.create
+                  (Variable.unique_name (Closure_id.unwrap closure_id)))
+           in
+           let approx = Closure_id.Map.find closure_id approximations in
+           symbol, approx)
   in
   let acc = Acc.add_declared_set_of_closures ~symbols ~set_of_closures acc in
-  acc, symbols
+  acc, Closure_id.Lmap.map fst symbols
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
@@ -1481,6 +1485,12 @@ let close_let_rec acc env ~function_declarations
     close_functions acc env
       (Function_decls.create function_declarations alloc_mode)
   in
+  let approximations =
+    Closure_id.Map.map
+      (fun (code_id, code) ->
+        Value_approximation.Closure_approximation (code_id, code))
+      approximations
+  in
   (* CR mshinwell: We should maybe have something more elegant here *)
   let generated_closures =
     Closure_id.Set.diff
@@ -1508,7 +1518,7 @@ let close_let_rec acc env ~function_declarations
   if Set_of_closures.environment_doesn't_mention_variables set_of_closures
   then
     let acc, symbols =
-      register_set_of_closures_as_symbols acc set_of_closures
+      register_set_of_closures_as_symbols acc set_of_closures approximations
     in
     let env =
       Closure_id.Lmap.fold
@@ -1518,7 +1528,7 @@ let close_let_rec acc env ~function_declarations
           let env =
             Env.add_simple_to_substitute env ident (Simple.symbol symbol)
           in
-          Env.add_closure_approximation env (Name.symbol symbol) approx)
+          Env.add_value_approximation env (Name.symbol symbol) approx)
         symbols env
     in
     body acc env
@@ -1527,7 +1537,7 @@ let close_let_rec acc env ~function_declarations
       Closure_id.Map.fold
         (fun closure_id var env ->
           let approx = Closure_id.Map.find closure_id approximations in
-          Env.add_closure_approximation env (Name.var (VB.var var)) approx)
+          Env.add_value_approximation env (Name.var (VB.var var)) approx)
         closure_vars_map env
     in
     let acc, body = body acc env in
@@ -1537,43 +1547,89 @@ let close_let_rec acc env ~function_declarations
       named ~body
     |> Expr_with_acc.create_let
 
-module SCC = Strongly_connected_components_flambda2.Make (Code_id)
+module CIS = Code_id_or_symbol
+module GroupMap = Numbers.Int.Map
+module SCC = Strongly_connected_components_flambda2.Make (Numbers.Int)
 
-let bind_code all_code acc body =
-  let graph =
-    Code_id.Map.map
-      (fun code ->
-        Code_id.Set.filter
-          (fun sym ->
-            Code_id.in_compilation_unit sym
-              (Compilation_unit.get_current_exn ()))
-          (Name_occurrences.code_ids (Code.free_names code)))
+let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
+  let fresh_group_id =
+    let i = ref 0 in
+    fun () ->
+      let n = !i in
+      incr i;
+      n
+  in
+  let group_to_bound_consts, symbol_to_groups =
+    Code_id.Map.fold
+      (fun code_id code (g2c, s2g) ->
+        let id = fresh_group_id () in
+        let bound = Bound_symbols.Pattern.code code_id in
+        let const = Static_const_or_code.create_code code in
+        ( GroupMap.add id (bound, const) g2c,
+          CIS.Map.add (CIS.create_code_id code_id) id s2g ))
       all_code
+      (GroupMap.empty, CIS.Map.empty)
+  in
+  let group_to_bound_consts, symbol_to_groups =
+    List.fold_left
+      (fun (g2c, s2g) (symbols, set_of_closures) ->
+        let id = fresh_group_id () in
+        let symbols = Closure_id.Lmap.map fst symbols in
+        let bound = Bound_symbols.Pattern.set_of_closures symbols in
+        let const =
+          Static_const_or_code.create_static_const
+            (Set_of_closures set_of_closures)
+        in
+        ( GroupMap.add id (bound, const) g2c,
+          Closure_id.Lmap.fold
+            (fun _closure_id symbol s2g ->
+              CIS.Map.add (CIS.create_symbol symbol) id s2g)
+            symbols s2g ))
+      (group_to_bound_consts, symbol_to_groups)
+      sets_of_closures
+  in
+  let graph =
+    GroupMap.map
+      (fun (_bound, const) ->
+        let free_names = Static_const_or_code.free_names const in
+        let deps =
+          Code_id.Set.fold
+            (fun code_id deps ->
+              match
+                CIS.Map.find (CIS.create_code_id code_id) symbol_to_groups
+              with
+              | exception Not_found -> deps
+              | id -> Numbers.Int.Set.add id deps)
+            (Name_occurrences.code_ids free_names)
+            Numbers.Int.Set.empty
+        in
+        Symbol.Set.fold
+          (fun symbol deps ->
+            match CIS.Map.find (CIS.create_symbol symbol) symbol_to_groups with
+            | exception Not_found -> deps
+            | id -> Numbers.Int.Set.add id deps)
+          (Name_occurrences.symbols free_names)
+          deps)
+      group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
-      let code_ids =
+      let group_ids =
         match component with
-        | No_loop code_id -> [code_id]
-        | Has_loop code_ids -> code_ids
+        | No_loop group_id -> [group_id]
+        | Has_loop group_ids -> group_ids
       in
       let bound_symbols, static_consts =
         List.fold_left
-          (fun (bound_symbols, static_consts) code_id ->
-            let bound_symbols =
-              Bound_symbols.Pattern.code code_id :: bound_symbols
-            in
-            let code =
-              try Code_id.Map.find code_id all_code
+          (fun (bound_symbols, static_consts) group_id ->
+            let bound_symbol, static_const =
+              try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
-                Misc.fatal_errorf "Unbound code ID %a" Code_id.print code_id
+                Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            let static_consts =
-              Static_const_or_code.create_code code :: static_consts
-            in
-            bound_symbols, static_consts)
-          ([], []) code_ids
+            bound_symbol :: bound_symbols, static_const :: static_consts)
+          ([], []) group_ids
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -1676,26 +1732,10 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     | _ -> Value_approximation.Value_unknown
   in
   let acc, body =
-    List.fold_left
-      (fun (acc, body) (symbols, set_of_closures) ->
-        let bound_symbols =
-          Bound_symbols.singleton
-            (Bound_symbols.Pattern.set_of_closures symbols)
-        in
-        let defining_expr =
-          Named.create_static_consts
-            (Static_const_group.create
-               [ Static_const_or_code.create_static_const
-                   (Set_of_closures set_of_closures) ])
-        in
-        Let_with_acc.create acc
-          (Bound_pattern.symbols bound_symbols)
-          defining_expr ~body
-        |> Expr_with_acc.create_let)
-      (acc, body)
+    bind_code_and_sets_of_closures (Acc.code acc)
       (Acc.declared_static_sets_of_closures acc)
+      acc body
   in
-  let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
      lifted constants not in the scope of any other [Let_symbol] binding get put
      into the term and not dropped. Adding this extra binding, which will
@@ -1712,13 +1752,20 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       acc
   in
   let symbols_approximations =
+    let symbol_approxs =
+      List.fold_left
+        (fun sa (symbol, _) ->
+          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
+        (Symbol.Map.singleton module_symbol module_block_approximation)
+        (Acc.declared_symbols acc)
+    in
     List.fold_left
-      (fun sa (symbol, _) ->
-        (* CR Keryan: for now only constants are lifted. It will need refinement
-           with the lifting of closed functions *)
-        Symbol.Map.add symbol Value_approximation.Value_unknown sa)
-      (Symbol.Map.singleton module_symbol module_block_approximation)
-      (Acc.declared_symbols acc)
+      (fun sa (closure_map, _) ->
+        Closure_id.Lmap.fold
+          (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
+          closure_map sa)
+      symbol_approxs
+      (Acc.declared_static_sets_of_closures acc)
   in
   let acc, body =
     List.fold_left

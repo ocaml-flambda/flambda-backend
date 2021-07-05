@@ -357,7 +357,9 @@ module Acc = struct
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       declared_static_sets_of_closures :
-        (Symbol.t Closure_id.Lmap.t * Flambda.Set_of_closures.t) list;
+        ((Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
+        * Flambda.Set_of_closures.t)
+        list;
       shareable_constants : Symbol.t Static_const.Map.t;
       code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
