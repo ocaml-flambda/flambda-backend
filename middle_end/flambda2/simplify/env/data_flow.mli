@@ -48,14 +48,35 @@ val exit_continuation : Continuation.t -> t -> t
 (** Pop the current top of the stack. Used when exiting the current
     continuation handler. *)
 
-val record_binding
+val record_var_binding
    : Variable.t
   -> Name_occurrences.t
   -> generate_phantom_lets:bool
   -> t
   -> t
-(** Add a binding from the current handler. This enables the analysis to have
-    a fine-grained analysis of dependencies. *)
+(** Add a variable binding from the current handler. *)
+
+val record_symbol_binding
+   : Symbol.t
+  -> Name_occurrences.t
+  -> t
+  -> t
+(** Add a symbol binding from the current handler. *)
+
+val record_code_id_binding
+   : Code_id.t
+  -> Name_occurrences.t
+  -> t
+  -> t
+(** Add a code id binding from the current handler. *)
+
+val record_closure_element_binding
+   : Name.t
+  -> Var_within_closure.t
+  -> Name_occurrences.t
+  -> t
+  -> t
+(** Add a closure elemnt binding from the current handler. *)
 
 val add_used_in_current_handler : Name_occurrences.t -> t -> t
 (** Add name occurrences used in the body of the current continuation's
@@ -77,16 +98,33 @@ val add_extra_params_and_args :
 
 (* {2 Analysis} *)
 
+module Reachable_code_ids : sig
+
+  type t = {
+    live_code_ids : Code_id.Set.t;
+    (** The set of code ids live/reachable. *)
+    ancestors_of_live_code_id : Code_id.Set.t;
+    (** The set of code ids that are ancestors of at least one live code id. *)
+  }
+
+  val print : Format.formatter -> t -> unit
+
+end
+
 type result = private {
-  required_variables : Variable.Set.t;
+  required_names : Name.Set.t;
   (** The set of all variables that are in fact used to compute the
       returned value of the function being analyzed. *)
+  reachable_code_ids : Reachable_code_ids.t;
 }
 (** The result of an analysis of the uses of variables in continuations. *)
 
 val analyze
    : return_continuation:Continuation.t
   -> exn_continuation:Continuation.t
+  -> code_age_relation:Code_age_relation.t
+  -> used_closure_vars:Name_occurrences.t Or_unknown.t
   -> t
   -> result
 (** Analyze the uses. *)
+

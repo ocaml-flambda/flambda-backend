@@ -29,6 +29,8 @@ val empty : t
 
 val add : t -> newer:Code_id.t -> older:Code_id.t -> t
 
+val get_older_version_of : t -> Code_id.t -> Code_id.t option
+
 (** [meet] calculates which of the given pieces of code is newer, or
     identifies that the pieces of code are unrelated. *)
 val meet

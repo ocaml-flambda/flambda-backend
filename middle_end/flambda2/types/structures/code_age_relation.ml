@@ -23,6 +23,8 @@ let print ppf t = Code_id.Map.print Code_id.print ppf t
 
 let empty = Code_id.Map.empty
 
+let get_older_version_of t code_id = Code_id.Map.find_opt code_id t
+
 (* CR mshinwell: There should be a well-formedness check during [add], otherwise
    the functions below may not work correctly. *)
 

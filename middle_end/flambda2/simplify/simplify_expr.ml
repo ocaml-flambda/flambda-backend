@@ -62,9 +62,25 @@ and simplify_toplevel dacc expr ~return_continuation
         )
       in
       let data_flow = DA.data_flow dacc in
-      let { required_variables; } : Data_flow.result =
-        Data_flow.analyze data_flow ~return_continuation
+      let code_age_relation, used_closure_vars =
+        match DE.closure_info (DA.denv dacc) with
+        | Closure _ ->
+          Code_age_relation.empty, Or_unknown.Unknown
+        | Not_in_a_closure ->
+          DA.code_age_relation dacc, Or_unknown.Known (DA.used_closure_vars dacc)
+        | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> assert false
+      in
+      (* Format.eprintf "*** Data_flow@\n%a@." Data_flow.print data_flow; *)
+      let { required_names; reachable_code_ids; } : Data_flow.result =
+        Data_flow.analyze data_flow
+          ~code_age_relation ~used_closure_vars ~return_continuation
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+      in
+      let reachable_code_ids =
+        match DE.closure_info (DA.denv dacc) with
+        | Closure _ -> Or_unknown.Unknown
+        | Not_in_a_closure -> Or_unknown.Known reachable_code_ids
+        | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> assert false
       in
       let uenv =
         UE.add_return_continuation UE.empty return_continuation
@@ -73,7 +89,7 @@ and simplify_toplevel dacc expr ~return_continuation
       let uenv =
         UE.add_exn_continuation uenv exn_continuation exn_cont_scope
       in
-      let uacc = UA.create ~required_variables uenv dacc in
+      let uacc = UA.create ~required_names ~reachable_code_ids uenv dacc in
       rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
   (* We don't check occurrences of variables or symbols here because the check
