@@ -30,7 +30,6 @@ external magic : 'a -> 'b = "%identity"
 external is_int : t -> bool = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
-external set_tag : t -> int -> unit = "caml_obj_set_tag"
 external size : t -> int = "%obj_size"
 external reachable_words : t -> int = "caml_obj_reachable_words"
 external field : t -> int -> t = "%obj_field"
@@ -47,7 +46,6 @@ external set_raw_field : t -> int -> raw_data -> unit
 
 external new_block : int -> int -> t = "caml_obj_block"
 external dup : t -> t = "caml_obj_dup"
-external truncate : t -> int -> unit = "caml_obj_truncate"
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
 external with_tag : int -> t -> t = "caml_obj_with_tag"
 
