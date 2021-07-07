@@ -22,12 +22,52 @@ type liveness_env =
   { at_exit : (int * Reg.Set.t) list;
     at_raise : Reg.Set.t;
     last_regular_trywith_handler : Reg.Set.t;
+    free_conts_for_handlers : Numbers.Int.Set.t Numbers.Int.Map.t;
   }
 
-let initial_env =
+let initial_env fundecl =
   { at_exit = [];
     at_raise = Reg.Set.empty;
     last_regular_trywith_handler = Reg.Set.empty;
+    free_conts_for_handlers = Mach.free_conts_for_handlers fundecl;
+  }
+
+let env_subset env1 env2 =
+  List.for_all2 (fun (nfail1, live_regs1) (nfail2, live_regs2) ->
+      nfail1 = nfail2 && Reg.Set.subset live_regs1 live_regs2)
+    env1.at_exit
+    env2.at_exit
+  && Reg.Set.subset env1.at_raise env2.at_raise
+  && Reg.Set.subset env1.last_regular_trywith_handler
+       env2.last_regular_trywith_handler
+
+type cache_entry =
+  { restricted_env : liveness_env;  (* last used environment,
+                                       restricted to the live conts *)
+    at_join : Reg.Set.t;            (* last used set at join *)
+    before_handler : Reg.Set.t;    (* last computed result *)
+}
+
+(*
+let print_cache ppf entry =
+  let pr = Printmach.regset in
+  Format.fprintf ppf "@[<v 2>at_join: @[%a@]@,at_exit: @[%a@]@,at_raise: @[%a@]@,trywith: @[%a@]@,result: @[%a@]@]"
+    pr entry.at_join
+    (Format.pp_print_list (fun ppf (n, regs) -> Format.fprintf ppf "%d -> %a" n pr regs)) entry.restricted_env.at_exit
+    pr entry.restricted_env.at_raise
+    pr entry.restricted_env.last_regular_trywith_handler
+    pr entry.before_handler
+*)
+
+let fixpoint_cache : cache_entry Numbers.Int.Map.t ref =
+ ref Numbers.Int.Map.empty
+
+let reset_cache () = fixpoint_cache := Numbers.Int.Map.empty
+
+let restrict_env env conts =
+  { env with at_exit =
+               List.filter (fun (n, _) -> Numbers.Int.Set.mem n conts)
+                 env.at_exit;
   }
 
 let find_live_at_exit env k =
@@ -111,7 +151,28 @@ let rec live env i finally =
       let aux env (nfail, ts, handler) (nfail', before_handler) =
         assert(nfail = nfail');
         let env = env_from_trap_stack env ts in
-        let before_handler' = live env handler at_join in
+        let free_conts = Numbers.Int.Map.find nfail env.free_conts_for_handlers in
+        let before_handler', restricted_env, do_update =
+          match Numbers.Int.Map.find nfail !fixpoint_cache with
+          | exception Not_found ->
+            let restricted_env = restrict_env env free_conts in
+            live env handler at_join, restricted_env, true
+          | cache ->
+            let restricted_env = restrict_env env free_conts in
+            if env_subset restricted_env cache.restricted_env
+            && Reg.Set.equal at_join cache.at_join
+            then cache.before_handler, cache.restricted_env, false
+            else live env handler at_join, restricted_env, true
+        in
+        if do_update then begin
+          let cache_entry =
+            { restricted_env;
+              at_join;
+              before_handler = before_handler';
+            }
+          in
+          fixpoint_cache := Numbers.Int.Map.add nfail cache_entry !fixpoint_cache
+        end;
         nfail, Reg.Set.union before_handler before_handler'
       in
       let aux_equal (nfail, before_handler) (nfail', before_handler') =
@@ -152,11 +213,11 @@ let rec live env i finally =
       let env =
         match kind with
         | Regular ->
-          { env with at_raise = live_at_raise;
-                     last_regular_trywith_handler = live_at_raise;
-          }
+            { env with at_raise = live_at_raise;
+                       last_regular_trywith_handler = live_at_raise;
+            }
         | Delayed nfail ->
-          { env with at_exit = (nfail, live_at_raise) :: env.at_exit; }
+            { env with at_exit = (nfail, live_at_raise) :: env.at_exit; }
       in
       let before_body = live env body at_join in
       i.live <- before_body;
@@ -166,7 +227,8 @@ let rec live env i finally =
       Reg.add_set_array env.at_raise i.arg
 
 let fundecl f =
-  let initially_live = live initial_env f.fun_body Reg.Set.empty in
+  reset_cache ();
+  let initially_live = live (initial_env f) f.fun_body Reg.Set.empty in
   (* Sanity check: only function parameters can be live at entrypoint *)
   let wrong_live = Reg.Set.diff initially_live (Reg.set_of_array f.fun_args) in
   if not (Reg.Set.is_empty wrong_live) then begin

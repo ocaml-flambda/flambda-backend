@@ -179,3 +179,53 @@ let operation_can_raise op =
   | Iprobe _
   | Ialloc _ -> true
   | _ -> false
+
+let free_conts_for_handlers fundecl =
+  let module S = Numbers.Int.Set in
+  let module M = Numbers.Int.Map in
+  let acc = ref M.empty in
+  let rec free_conts i =
+    match i.desc with
+    | Iend -> S.empty
+    | desc ->
+      let next_conts = free_conts i.next in
+      match desc with
+      | Iend -> assert false
+      | Iop _ -> next_conts
+      | Ireturn _ -> next_conts
+      | Iifthenelse (_, then_, else_) ->
+        S.union next_conts (S.union (free_conts then_) (free_conts else_))
+      | Iswitch (_, cases) ->
+        Array.fold_left (fun conts instr -> S.union conts (free_conts instr))
+          next_conts cases
+      | Icatch (_rec_flag, _ts, handlers, body) ->
+        let conts = S.union next_conts (free_conts body) in
+        let conts =
+          List.fold_left (fun conts (nfail, ts, i) ->
+            let rec add_exn_conts conts = function
+              | Uncaught -> conts
+              | Generic_trap ts -> add_exn_conts conts ts
+              | Specific_trap (nfail, ts) -> add_exn_conts (S.add nfail conts) ts
+            in
+            let free = add_exn_conts (free_conts i) ts in
+            acc := M.add nfail free !acc;
+            S.union conts free)
+            conts handlers
+        in
+        List.fold_left (fun conts (nfail, _ts, _i) ->
+          S.remove nfail conts)
+          conts handlers
+      | Iexit (nfail, _) -> S.add nfail next_conts
+      | Itrywith (body, kind, (_ts, handler)) ->
+        let conts =
+          S.union next_conts (S.union (free_conts body) (free_conts handler))
+        in
+        begin match kind with
+        | Regular -> conts
+        | Delayed nfail -> S.remove nfail conts
+        end
+      | Iraise _ -> next_conts
+  in
+  let free = free_conts fundecl.fun_body in
+  assert(S.is_empty free);
+  !acc

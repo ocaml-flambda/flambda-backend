@@ -125,3 +125,5 @@ val instr_cons_debug:
 val instr_iter: (instruction -> unit) -> instruction -> unit
 
 val operation_can_raise : operation -> bool
+
+val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
