@@ -36,7 +36,6 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
         ~lifted_constants_from_body:(UA.lifted_constants uacc)
         ~put_bindings_around_body:(fun uacc ~body -> body, uacc)
         ~body:handler
-        ~critical_deps_of_bindings:(KP.List.free_names params)
   in
   let free_names = UA.name_occurrences uacc in
   let cost_metrics = UA.cost_metrics uacc in

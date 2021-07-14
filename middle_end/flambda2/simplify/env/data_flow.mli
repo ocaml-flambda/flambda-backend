@@ -103,7 +103,7 @@ module Reachable_code_ids : sig
   type t = {
     live_code_ids : Code_id.Set.t;
     (** The set of code ids live/reachable. *)
-    ancestors_of_live_code_id : Code_id.Set.t;
+    ancestors_of_live_code_ids : Code_id.Set.t;
     (** The set of code ids that are ancestors of at least one live code id. *)
   }
 

@@ -62,25 +62,24 @@ and simplify_toplevel dacc expr ~return_continuation
         )
       in
       let data_flow = DA.data_flow dacc in
+      let closure_info = DE.closure_info (DA.denv dacc) in
       let code_age_relation, used_closure_vars =
-        match DE.closure_info (DA.denv dacc) with
-        | Closure _ ->
+        match Closure_info.in_or_out_of_closure closure_info with
+        | In_a_closure ->
           Code_age_relation.empty, Or_unknown.Unknown
         | Not_in_a_closure ->
-          DA.code_age_relation dacc, Or_unknown.Known (DA.used_closure_vars dacc)
-        | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> assert false
+          DA.code_age_relation dacc,
+          Or_unknown.Known (DA.used_closure_vars dacc)
       in
-      (* Format.eprintf "*** Data_flow@\n%a@." Data_flow.print data_flow; *)
       let { required_names; reachable_code_ids; } : Data_flow.result =
         Data_flow.analyze data_flow
           ~code_age_relation ~used_closure_vars ~return_continuation
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       in
-      let reachable_code_ids =
-        match DE.closure_info (DA.denv dacc) with
-        | Closure _ -> Or_unknown.Unknown
-        | Not_in_a_closure -> Or_unknown.Known reachable_code_ids
-        | In_a_set_of_closures_but_not_yet_in_a_specific_closure -> assert false
+      let reachable_code_ids : _ Or_unknown.t =
+        match Closure_info.in_or_out_of_closure closure_info with
+        | In_a_closure -> Unknown
+        | Not_in_a_closure -> Known reachable_code_ids
       in
       let uenv =
         UE.add_return_continuation UE.empty return_continuation

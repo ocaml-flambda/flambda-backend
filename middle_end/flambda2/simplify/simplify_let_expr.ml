@@ -24,26 +24,28 @@ let rebuild_let simplify_named_result
       ~body uacc ~after_rebuild =
   let lifted_constants_from_defining_expr =
     match Closure_info.in_or_out_of_closure closure_info with
-    | In_a_closure -> lifted_constants_from_defining_expr
+    | In_a_closure ->
+      (* See the comment in [simplify_let], below; this case is analogous. *)
+      lifted_constants_from_defining_expr
     | Not_in_a_closure ->
       (* CR gbury: do only if we are actually rebuilding terms *)
       LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
         ~f:(fun acc lifted_constant ->
           let bound = LC.bound_symbols lifted_constant in
-          let code_id_live =
+          let code_ids_live =
             match UA.reachable_code_ids uacc with
             | Unknown -> Bound_symbols.binds_code bound
-            | Known { live_code_ids = _; ancestors_of_live_code_id; } ->
+            | Known { live_code_ids = _; ancestors_of_live_code_ids; } ->
               not (Code_id.Set.intersection_is_empty
                     (Bound_symbols.code_being_defined bound)
-                    ancestors_of_live_code_id)
+                    ancestors_of_live_code_ids)
           in
-          let symbol_live =
+          let symbols_live =
             not (Name.Set.intersection_is_empty
                   (Name.set_of_symbol_set (Bound_symbols.being_defined bound))
                   (UA.required_names uacc))
           in
-          if symbol_live || code_id_live then LCS.add acc lifted_constant
+          if symbols_live || code_ids_live then LCS.add acc lifted_constant
           else acc)
   in
   let lifted_constants_from_defining_expr =
@@ -85,13 +87,6 @@ let rebuild_let simplify_named_result
     (* The let binding was removed. *)
     after_rebuild body uacc
   else
-    let critical_deps_of_bindings =
-      ListLabels.fold_left bindings
-        ~init:Name_occurrences.empty
-        ~f:(fun critical_deps { Simplify_named_result.let_bound; _ } ->
-          Name_occurrences.union (Bindable_let_bound.free_names let_bound)
-            critical_deps)
-    in
     let body, uacc =
       EB.place_lifted_constants uacc
         ~lifted_constants_from_defining_expr
@@ -101,7 +96,6 @@ let rebuild_let simplify_named_result
             EB.make_new_let_bindings uacc ~bindings_outermost_first:bindings
               ~body)
         ~body
-        ~critical_deps_of_bindings
     in
     after_rebuild body uacc
 
@@ -119,7 +113,7 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
         ~simplify_toplevel
     in
     let dacc = Simplify_named_result.dacc simplify_named_result in
-    (* First accumulate variable usage information. *)
+    (* First accumulate variable, symbol and code ID usage information. *)
     (* CR gbury/pchambart : in the case of an invalid, we currently
        over-approximate the uses. In case of an invalid, we might want to
        instead flush the uses of the current control flow branch (but this
@@ -140,23 +134,25 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
                closures -- so we don't need to do anything here. *)
             data_flow
           | Not_in_a_closure ->
+            let module D = LC.Definition in
             LCS.fold (DA.get_lifted_constants dacc)
               ~init:data_flow ~f:(fun data_flow lifted_constant ->
                 ListLabels.fold_left (LC.definitions lifted_constant)
                   ~init:data_flow ~f:(fun data_flow definition ->
-                    match LC.Definition.descr definition with
+                    match D.descr definition with
                     | Code code_id ->
-                      let free_names = LC.Definition.free_names definition in
-                      Data_flow.record_code_id_binding code_id free_names
-                        data_flow
+                      Data_flow.record_code_id_binding code_id
+                        (D.free_names definition) data_flow
                     | Block_like { symbol; _ } ->
-                      let free_names = LC.Definition.free_names definition in
-                      Data_flow.record_symbol_binding symbol free_names
-                        data_flow
+                      Data_flow.record_symbol_binding symbol
+                        (D.free_names definition) data_flow
                     | Set_of_closures { closure_symbols_with_types; _ } ->
-                      let expr = LC.Definition.defining_expr definition in
+                      let expr = D.defining_expr definition in
                       match Rebuilt_static_const.to_const expr with
-                      | Some (Set_of_closures set_of_closures) ->
+                      | Some const ->
+                        let set_of_closures =
+                          Static_const.must_be_set_of_closures const
+                        in
                         let free_names =
                           Function_declarations.free_names
                             (Set_of_closures.function_decls set_of_closures)
@@ -165,36 +161,23 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
                           Set_of_closures.closure_elements set_of_closures
                         in
                         Closure_id.Lmap.fold (fun _ (symbol, _) data_flow ->
-                          let data_flow =
-                            Data_flow.record_symbol_binding symbol free_names
-                              data_flow
-                          in
-                          Var_within_closure.Map.fold
-                            (fun closure_var simple data_flow ->
-                              Data_flow.record_closure_element_binding
-                                (Name.symbol symbol) closure_var
-                                (Simple.free_names simple) data_flow)
-                            closure_elements data_flow
-                        ) closure_symbols_with_types data_flow
-                      | Some (
-                        Code _
-                        | Block _
-                        | Boxed_float _
-                        | Boxed_int32 _
-                        | Boxed_int64 _
-                        | Boxed_nativeint _
-                        | Immutable_float_block _
-                        | Immutable_float_array _
-                        | Mutable_string _
-                        | Immutable_string _)
+                            let data_flow =
+                              Data_flow.record_symbol_binding symbol free_names
+                                data_flow
+                            in
+                            Var_within_closure.Map.fold
+                              (fun closure_var simple data_flow ->
+                                Data_flow.record_closure_element_binding
+                                  (Name.symbol symbol) closure_var
+                                  (Simple.free_names simple) data_flow)
+                              closure_elements data_flow)
+                          closure_symbols_with_types data_flow
                       | None ->
-                        let free_names = LC.Definition.free_names definition in
+                        let free_names = D.free_names definition in
                         Closure_id.Lmap.fold (fun _ (symbol, _) data_flow ->
-                          Data_flow.record_symbol_binding symbol free_names
-                            data_flow
-                        ) closure_symbols_with_types data_flow
-                  )
-              )
+                            Data_flow.record_symbol_binding symbol free_names
+                            data_flow)
+                          closure_symbols_with_types data_flow))
         in
         ListLabels.fold_left
           (Simplify_named_result.bindings_to_place_in_any_order

@@ -21,16 +21,16 @@ module Reachable_code_ids = struct
 
   type t = {
     live_code_ids : Code_id.Set.t;
-    ancestors_of_live_code_id : Code_id.Set.t;
+    ancestors_of_live_code_ids : Code_id.Set.t;
   }
 
-  let print ppf { live_code_ids; ancestors_of_live_code_id; } =
+  let print ppf { live_code_ids; ancestors_of_live_code_ids; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(live_code_ids@ %a)@]@ \
-        @[<hov 1>(ancestors_of_live_code_id@ %a)@]\
+        @[<hov 1>(ancestors_of_live_code_ids@ %a)@]\
       )@]"
       Code_id.Set.print live_code_ids
-      Code_id.Set.print ancestors_of_live_code_id
+      Code_id.Set.print ancestors_of_live_code_ids
 
 end
 
@@ -319,7 +319,7 @@ module Dependency_graph = struct
           { required_names = name_enqueued;
             reachable_code_ids = {
               live_code_ids = code_id_enqueued;
-              ancestors_of_live_code_id = older_enqueued;
+              ancestors_of_live_code_ids = older_enqueued;
             }; }
         else
           reachable_code_ids t

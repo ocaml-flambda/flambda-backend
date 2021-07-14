@@ -353,11 +353,9 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
       Code_id.Set.fold (fun bound_code_id result ->
         let can_make_deleted =
           match UA.reachable_code_ids uacc with
-          | Unknown ->
-            false
-          | Known { live_code_ids; ancestors_of_live_code_id = _; } ->
-            let b = not (Code_id.Set.mem bound_code_id live_code_ids) in
-            b
+          | Unknown -> false
+          | Known { live_code_ids; ancestors_of_live_code_ids = _; } ->
+            not (Code_id.Set.mem bound_code_id live_code_ids)
         in
         if can_make_deleted then Code_id.Set.add bound_code_id result
         else result)
@@ -391,7 +389,7 @@ let remove_unused_closure_vars uacc static_const =
       let closure_vars = Set_of_closures.closure_elements set_of_closures in
       let closure_elements =
         Var_within_closure.Map.filter (fun closure_var _ ->
-          Name_occurrences.mem_closure_var name_occurrences closure_var)
+            Name_occurrences.mem_closure_var name_occurrences closure_var)
           closure_vars
       in
       Set_of_closures.create (Set_of_closures.function_decls set_of_closures)
@@ -504,7 +502,7 @@ let create_let_symbols uacc lifted_constant ~body =
 
 let place_lifted_constants uacc
       ~lifted_constants_from_defining_expr ~lifted_constants_from_body
-      ~put_bindings_around_body ~body ~critical_deps_of_bindings:_ =
+      ~put_bindings_around_body ~body =
   (* Lifted constants are placed as soon as they reach toplevel. *)
   let uacc = UA.with_lifted_constants uacc LCS.empty in
   (* Place constants whose definitions must go at the current binding. *)
@@ -561,7 +559,7 @@ type rewrite_use_result =
   | Expr of (
        apply_cont_to_expr:(Apply_cont.t
          -> (RE.t * Cost_metrics.t * Name_occurrences.t))
-      -> RE.t * Cost_metrics.t * Name_occurrences.t)
+    -> RE.t * Cost_metrics.t * Name_occurrences.t)
 
 let no_rewrite apply_cont = Apply_cont apply_cont
 

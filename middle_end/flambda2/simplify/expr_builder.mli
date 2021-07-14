@@ -68,7 +68,6 @@ val place_lifted_constants
          -> body:Rebuilt_expr.t
          -> Rebuilt_expr.t * Upwards_acc.t)
   -> body:Rebuilt_expr.t
-  -> critical_deps_of_bindings:Name_occurrences.t
   -> Rebuilt_expr.t * Upwards_acc.t
 
 (** Create a [Switch] expression, save that zero-arm switches are converted
