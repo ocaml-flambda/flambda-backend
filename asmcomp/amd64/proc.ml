@@ -357,6 +357,7 @@ let op_is_pure = function
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) -> false
   | Ispecific(Ilea _|Isextend32|Izextend32) -> true
   | Ispecific _ -> false
+  | Ibeginregion | Iendregion -> false
   | _ -> true
 
 (* Layout of the stack frame *)

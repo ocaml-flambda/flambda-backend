@@ -347,7 +347,6 @@ let primitive ppf = function
   | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
-  | Pendregion -> fprintf ppf "endregion"
 
 let name_of_primitive = function
   | Pidentity -> "Pidentity"
@@ -454,7 +453,6 @@ let name_of_primitive = function
   | Pbbswap _ -> "Pbbswap"
   | Pint_as_pointer -> "Pint_as_pointer"
   | Popaque -> "Popaque"
-  | Pendregion -> "Pendregion"
 
 let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   if is_a_functor then
@@ -528,19 +526,22 @@ let rec lam ppf = function
             fprintf ppf ")" in
       fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
         function_attribute attr return_kind return lam body
-  | Llet(str, k, id, arg, body) ->
+  | (Llet _ | Lregion(Llet _)) as expr ->
       let kind = function
           Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
       in
-      let rec letbody = function
-        | Llet(str, k, id, arg, body) ->
-            fprintf ppf "@ @[<2>%a =%s%a@ %a@]"
+      let rec letbody ~sp = function
+        | Llet(str, k, id, arg, body)
+        | Lregion(Llet(str, k, id, arg, body)) as expr ->
+            if sp then fprintf ppf "@ ";
+            let reg = match expr with Lregion _ -> true | _ -> false in
+            fprintf ppf "@[<2>%s%a =%s%a@ %a@]"
+              (if reg then "region " else "")
               Ident.print id (kind str) value_kind k lam arg;
-            letbody body
+            letbody ~sp:true body
         | expr -> expr in
-      fprintf ppf "@[<2>(let@ @[<hv 1>(@[<2>%a =%s%a@ %a@]"
-        Ident.print id (kind str) value_kind k lam arg;
-      let expr = letbody body in
+      fprintf ppf "@[<2>(let@ @[<hv 1>(";
+      let expr = letbody ~sp:false expr in
       fprintf ppf ")@]@ %a)@]" lam expr
   | Lletrec(id_arg_list, body) ->
       let bindings ppf id_arg_list =
@@ -661,8 +662,8 @@ let rec lam ppf = function
       end
   | Lifused(id, expr) ->
       fprintf ppf "@[<2>(ifused@ %a@ %a)@]" Ident.print id lam expr
-  | Lbeginregion (id, expr) ->
-      fprintf ppf "@[<2>(region@ %a@ %a)@]" Ident.print id lam expr
+  | Lregion expr ->
+      fprintf ppf "@[<2>(region@ %a)@]" lam expr
 
 and sequence ppf = function
   | Lsequence(l1, l2) ->

@@ -3496,7 +3496,7 @@ let rec map_return f = function
   | ( Lvar _ | Lconst _ | Lapply _ | Lfunction _ | Lsend _ | Lprim _ | Lwhile _
     | Lfor _ | Lassign _ | Lifused _ ) as l ->
       f l
-  | Lbeginregion (r, l) -> Lbeginregion (r, map_return f l)
+  | Lregion l -> Lregion (map_return f l)
 
 (* The 'opt' reference indicates if the optimization is worthy.
 

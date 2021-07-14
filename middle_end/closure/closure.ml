@@ -99,7 +99,7 @@ let occurs_var var u =
     | Usend(_, met, obj, args, _) ->
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
-    | Ubeginregion (_,e) -> occurs e
+    | Uregion e -> occurs e
   and occurs_array a =
     try
       for i = 0 to Array.length a - 1 do
@@ -206,7 +206,7 @@ let lambda_smaller lam threshold =
         size := !size + 8;
         lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
-    | Ubeginregion (_,e) ->
+    | Uregion e ->
         size := !size + 4;
         lambda_size e
   and lambda_list_size l = List.iter lambda_size l
@@ -699,10 +699,8 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
             List.map (substitute loc st sb rn) ul, dbg)
   | Uunreachable ->
       Uunreachable
-  | Ubeginregion (r,e) ->
-      let r' = VP.rename r in
-      Ubeginregion (r', substitute loc st
-                          (V.Map.add (VP.var r) (Uvar (VP.var r')) sb) rn e)
+  | Uregion e ->
+      Uregion (substitute loc st sb rn e)
 
 type env = {
   backend : (module Backend_intf.S);
@@ -1200,9 +1198,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       close env lam
   | Lifused _ ->
       assert false
-  | Lbeginregion (id, lam) ->
+  | Lregion lam ->
       let ulam, approx = close env lam in
-      Ubeginregion (VP.create id, ulam), approx
+      Uregion ulam, approx
 
 and close_list env = function
     [] -> []
@@ -1487,7 +1485,7 @@ let collect_exported_structured_constants a =
     | Uassign (_, u) -> ulam u
     | Usend (_, u1, u2, ul, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
-    | Ubeginregion (_, u) -> ulam u
+    | Uregion u -> ulam u
   in
   approx a
 

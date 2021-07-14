@@ -754,9 +754,9 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
-  | Lop(Ispecific(Iregionbegin)) ->
+  | Lop(Ibeginregion) ->
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
-  | Lop(Ispecific(Iregionend)) ->
+  | Lop(Iendregion) ->
       I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Iname_for_debugger _) -> ()
   | Lreloadretaddr ->

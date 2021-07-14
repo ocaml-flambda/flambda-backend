@@ -165,8 +165,6 @@ and operation =
   | Ccmpf of float_comparison
   | Craise of Lambda.raise_kind
   | Ccheckbound
-  | Cbeginregion
-  | Cendregion
 
 type expression =
     Cconst_int of int * Debuginfo.t
@@ -195,6 +193,7 @@ type expression =
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
+  | Cregion of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -254,6 +253,9 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
+  | Cregion e ->
+      f e;
+      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
   | Cconst_int _
@@ -290,6 +292,8 @@ let rec map_tail f = function
       Ccatch(rec_flag, List.map map_h handlers, map_tail f body)
   | Ctrywith(e1, id, e2, dbg) ->
       Ctrywith(map_tail f e1, id, map_tail f e2, dbg)
+  | Cregion e ->
+      Cregion(map_tail f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
   | Cconst_int _
@@ -301,6 +305,41 @@ let rec map_tail f = function
   | Ctuple _
   | Cop _ as c ->
       f c
+
+let iter_shallow f = function
+  | Clet (_id, e1, e2) ->
+      f e1; f e2
+  | Clet_mut (_id, _kind, e1, e2) ->
+      f e1; f e2
+  | Cphantom_let (_id, _de, e) ->
+      f e
+  | Cassign (_id, e) ->
+      f e
+  | Ctuple el ->
+      List.iter f el
+  | Cop (_op, el, _dbg) ->
+      List.iter f el
+  | Csequence (e1, e2) ->
+      f e1; f e2
+  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+      f cond; f ifso; f ifnot
+  | Cswitch (_e, _ia, ea, _dbg) ->
+      Array.iter (fun (e, _) -> f e) ea
+  | Ccatch (_rf, hl, body) ->
+      let iter_h (_n, _ids, handler, _dbg) = f handler in
+      List.iter iter_h hl; f body
+  | Cexit (_n, el) ->
+      List.iter f el
+  | Ctrywith (e1, _id, e2, _dbg) ->
+      f e1; f e2
+  | Cregion e ->
+      f e
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float _
+  | Cconst_symbol _
+  | Cvar _ ->
+      ()
 
 let map_shallow f = function
   | Clet (id, e1, e2) ->
@@ -328,6 +367,8 @@ let map_shallow f = function
       Cexit (n, List.map f el)
   | Ctrywith (e1, id, e2, dbg) ->
       Ctrywith (f e1, id, f e2, dbg)
+  | Cregion e ->
+      Cregion (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

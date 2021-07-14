@@ -156,8 +156,6 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
-  (* Freeing of locally-allocated data *)
-  | Pendregion
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -294,7 +292,7 @@ type lambda =
   | Lsend of meth_kind * lambda * lambda * lambda list * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lbeginregion of Ident.t * lambda
+  | Lregion of lambda
 
 and lfunction =
   { kind: function_kind;

@@ -135,7 +135,6 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Psequor ->
       (* Removed by [Closure_conversion] in the flambda pipeline. *)
       No_effects, No_coeffects
-  | Pendregion -> Arbitrary_effects, Has_coeffects
 
 type return_type =
   | Float

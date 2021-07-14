@@ -69,6 +69,7 @@ type operation =
         (b) If [is_assignment] is [true], any information about other [Reg.t]s
             that have been previously deemed to hold the value of that
             identifier is forgotten. *)
+  | Ibeginregion | Iendregion
 
 type instruction =
   { desc: instruction_desc;

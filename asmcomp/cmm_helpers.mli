@@ -576,6 +576,9 @@ val send :
   Lambda.meth_kind -> expression -> expression -> expression list ->
   Debuginfo.t -> expression
 
+(** Construct [Cregion e], eliding some useless regions *)
+val region : expression -> expression
+
 (** Generic Cmm fragments *)
 
 (** Generate generic functions *)

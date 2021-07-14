@@ -231,7 +231,7 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
       ignore_debuginfo dbg
     | Uunreachable ->
       ()
-    | Ubeginregion (_r, e) ->
+    | Uregion e ->
       loop ~depth e
   in
   loop ~depth:0 clam;
@@ -449,9 +449,9 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_debuginfo dbg
     | Uunreachable ->
       let_stack := []
-    | Ubeginregion (_r, e) ->
+    | Uregion e ->
       let_stack := [];
-      loop e  (* FIXME is this correct? *)
+      loop e
   in
   loop clam;
   !can_move
@@ -595,9 +595,9 @@ let rec substitute_let_moveable is_let_moveable env (clam : Clambda.ulambda)
     Usend (kind, e1, e2, args, dbg)
   | Uunreachable ->
     Uunreachable
-  | Ubeginregion (r, e) ->
+  | Uregion e ->
     let e = substitute_let_moveable is_let_moveable env e in
-    Ubeginregion (r, e)
+    Uregion (e)
 
 and substitute_let_moveable_list is_let_moveable env clams =
   List.map (substitute_let_moveable is_let_moveable env) clams
@@ -822,9 +822,9 @@ let rec un_anf_and_moveable var_info env (clam : Clambda.ulambda)
     Usend (kind, e1, e2, args, dbg), Fixed
   | Uunreachable ->
     Uunreachable, Fixed
-  | Ubeginregion (r, e) ->
+  | Uregion e ->
     let e = un_anf var_info env e in
-    Ubeginregion (r, e), Fixed
+    Uregion e, Fixed
 
 and un_anf var_info env clam : Clambda.ulambda =
   let clam, _moveable = un_anf_and_moveable var_info env clam in

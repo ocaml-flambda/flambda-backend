@@ -90,8 +90,8 @@ let rec eliminate_ref id = function
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
       Lifused(v, eliminate_ref id e)
-  | Lbeginregion (r, e) ->
-      Lbeginregion(r, eliminate_ref id e)
+  | Lregion e ->
+      Lregion(eliminate_ref id e)
 
 (* Simplification of exits *)
 
@@ -167,7 +167,7 @@ let simplify_exits lam =
   | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
   | Lifused(_v, l) -> count l
-  | Lbeginregion (_r, l) -> count l
+  | Lregion l -> count l
 
   and count_default sw = match sw.sw_failaction with
   | None -> ()
@@ -327,7 +327,7 @@ let simplify_exits lam =
       Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) -> Lifused (v,simplif l)
-  | Lbeginregion (r, l) -> Lbeginregion (r, simplif l)
+  | Lregion l -> Lregion (simplif l)
   in
   simplif lam
 
@@ -470,8 +470,8 @@ let simplify_lets lam =
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
-  | Lbeginregion (r, l) ->
-      count (bind_var bv r) l
+  | Lregion l ->
+      count bv l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
@@ -604,7 +604,7 @@ let simplify_lets lam =
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
-  | Lbeginregion (r, l) -> Lbeginregion (r, simplif l)
+  | Lregion l -> Lregion (simplif l)
   in
   simplif lam
 
@@ -695,8 +695,8 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->
       emit_tail_infos is_tail lam
-  | Lbeginregion (_, lam) ->
-      emit_tail_infos false lam (* FIXME is_tail *)
+  | Lregion lam ->
+      emit_tail_infos false lam
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
 and list_emit_tail_infos is_tail =

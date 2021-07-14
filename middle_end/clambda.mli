@@ -84,7 +84,7 @@ and ulambda =
   | Uassign of Backend_var.t * ulambda
   | Usend of meth_kind * ulambda * ulambda * ulambda list * Debuginfo.t
   | Uunreachable
-  | Ubeginregion of Backend_var.With_provenance.t * ulambda
+  | Uregion of ulambda
 
 and ufunction = {
   label  : function_label;

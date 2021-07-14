@@ -172,7 +172,6 @@ let psubfloat = "Psubfloat"
 let psubint = "Psubint"
 let pxorbint = "Pxorbint"
 let pxorint = "Pxorint"
-let pendregion = "Pendregion"
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -278,7 +277,6 @@ let psubfloat_arg = "Psubfloat_arg"
 let psubint_arg = "Psubint_arg"
 let pxorbint_arg = "Pxorbint_arg"
 let pxorint_arg = "Pxorint_arg"
-let pendregion_arg = "Pendregion_arg"
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -416,7 +414,6 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
-  | Pendregion -> pendregion
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -523,4 +520,3 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
-  | Pendregion -> pendregion_arg

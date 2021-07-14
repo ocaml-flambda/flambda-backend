@@ -1772,6 +1772,24 @@ let cache_public_method meths tag cache dbg =
     Csequence(Cop (Cstore (Word_int, Assignment), [cache; Cvar tagged], dbg),
               Cvar tagged)))))
 
+let region e =
+  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
+  let rec check_local_allocs = function
+    | Cregion _ ->
+       (* Assume any already-existing Cregion contains a local alloc.
+          This prevents O(n^2) behaviour with many nested regions *)
+       raise Exit
+    | Cop (Calloc Alloc_local, _, _)
+    | Cop ((Cextcall _ | Capply _), _, _) ->
+       raise Exit
+    | e ->
+       iter_shallow check_local_allocs e
+  in
+  match check_local_allocs e with
+  | () -> e
+  | exception Exit -> Cregion e
+
+
 (* CR mshinwell: These will be filled in by later pull requests. *)
 let placeholder_dbg () = Debuginfo.none
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none

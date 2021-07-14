@@ -223,55 +223,10 @@ let transl_ident loc env ty path desc =
       transl_value_path loc env path
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
-(* [e] must not have free Lstaticraise *)
-let make_region e =
-  let r = Ident.create_local "region" in
-  let res = Ident.create_local "res" in
-  let op_end =
-    Lprim (Pendregion, [Lvar r], Debuginfo.Scoped_location.Loc_unknown) in
-  let rec endregion = function
-    | (Lvar _ | Lconst _ | Lfunction _) as l ->
-       Lsequence (op_end, l)
-    | Llet (str, kind, id, lam, body) ->
-       Llet (str, kind, id, lam, endregion body)
-    | Lletrec (defs, body) ->
-       Lletrec (defs, endregion body)
-    | Lswitch (arg, sw, dbg) ->
-       let sw =
-         {sw with
-           sw_consts = List.map (fun (i,l) -> i, endregion l) sw.sw_consts;
-           sw_blocks = List.map (fun (i,l) -> i, endregion l) sw.sw_blocks } in
-       Lswitch (arg, sw, dbg)
-    | Lstringswitch (arg, sw, d,  dbg) ->
-       let sw = List.map (fun (s, l) -> s, endregion l) sw in
-       let d = Option.map endregion d in
-       Lstringswitch (arg, sw, d, dbg)
-    | Lifthenelse (e, t, f) ->
-       Lifthenelse (e, endregion t, endregion f)
-    | Lsequence (a, b) ->
-       Lsequence (a, endregion b)
-    | Levent (l, ev) ->
-       Levent (endregion l, ev)
-    | Lifused (id, l) ->
-       Lifused (id, endregion l)
-
-    | Lbeginregion (r', l) ->
-       (* Fuse regions *)
-       Llet (Alias, Pintval, r', Lvar r, l)
-
-    | (Lassign _ | Lwhile _ | Lfor _) as e ->
-       Lsequence(e, op_end)
-
-    | ((Lapply _| Lstaticraise _ | Lstaticcatch _ | Ltrywith _) as e) (* FIXME *)
-    | ((Lprim _ | Lsend _) as e) ->
-       Llet(Strict, Pgenval, res, e, Lsequence (op_end, Lvar res))
-  in
-  Lbeginregion(r, endregion e)
-
 let maybe_region parent_mode (children : Lambda.alloc_mode list) e =
   if parent_mode = Lambda.Alloc_heap &&
        List.exists (fun (m : Lambda.alloc_mode) -> m = Alloc_local) children then
-    make_region e
+    Lregion e
   else
     e
 

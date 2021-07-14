@@ -147,8 +147,6 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
-  (* Freeing of locally-allocated data *)
-  | Pendregion
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -310,7 +308,7 @@ type lambda =
   | Lsend of meth_kind * lambda * lambda * lambda list * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
-  | Lbeginregion of Ident.t * lambda
+  | Lregion of lambda
 
 and lfunction =
   { kind: function_kind;
@@ -439,7 +437,7 @@ let make_key e =
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
     | Lletrec _|Lfunction _
     | Lfor _ | Lwhile _
-    | Lbeginregion _
+    | Lregion _
 (* Beware: (PR#6412) the event argument to Levent
    may include cyclic structure of type Type.typexpr *)
     | Levent _  ->
@@ -536,8 +534,8 @@ let shallow_iter ~tail ~non_tail:f = function
       tail e
   | Lifused (_v, e) ->
       tail e
-  | Lbeginregion (_r, e) ->
-      f e (* FIXME tail? *)
+  | Lregion e ->
+      f e
 
 let iter_head_constructor f l =
   shallow_iter ~tail:f ~non_tail:f l
@@ -615,8 +613,8 @@ let rec free_variables = function
   | Lifused (_v, e) ->
       (* Shouldn't v be considered a free variable ? *)
       free_variables e
-  | Lbeginregion (r, e) ->
-      Ident.Set.remove r (free_variables e)
+  | Lregion e ->
+      free_variables e
 
 and free_variables_list set exprs =
   List.fold_left (fun set expr -> Ident.Set.union (free_variables expr) set)
@@ -803,9 +801,8 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lifused (id, e) ->
         let id = try Ident.Map.find id l with Not_found -> id in
         Lifused (id, subst s l e)
-    | Lbeginregion (r, e) ->
-        let r' = if not freshen_bound_variables then r else Ident.rename r in
-        Lbeginregion (r', subst s (Ident.Map.add r r' l) e)
+    | Lregion e ->
+        Lregion (subst s l e)
   and subst_list s l li = List.map (subst s l) li
   and subst_decl s l (id, exp) = (id, subst s l exp)
   and subst_case s l (key, case) = (key, subst s l case)
@@ -889,8 +886,8 @@ let shallow_map f = function
       Levent (f l, ev)
   | Lifused (v, e) ->
       Lifused (v, f e)
-  | Lbeginregion (r, e) ->
-      Lbeginregion (r, f e)
+  | Lregion e ->
+      Lregion (f e)
 
 let map f =
   let rec g lam = f (shallow_map g lam) in

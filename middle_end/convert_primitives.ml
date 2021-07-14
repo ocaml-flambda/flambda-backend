@@ -140,7 +140,6 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbswap16 -> Pbswap16
   | Pint_as_pointer -> Pint_as_pointer
   | Popaque -> Popaque
-  | Pendregion -> Pendregion
 
   | Pbytes_to_string
   | Pbytes_of_string

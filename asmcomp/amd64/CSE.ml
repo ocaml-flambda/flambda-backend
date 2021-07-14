@@ -29,8 +29,6 @@ method! class_of_operation op =
     begin match spec with
     | Ilea _ | Isextend32 | Izextend32 -> Op_pure
     | Istore_int(_, _, is_asg) -> Op_store is_asg
-    | Iregionbegin -> Op_load
-    | Iregionend -> Op_store true
     | Ioffset_loc(_, _) -> Op_store true
     | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
     | Ibswap _ | Isqrtf -> super#class_of_operation op
