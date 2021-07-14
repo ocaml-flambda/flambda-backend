@@ -39,8 +39,6 @@ module Definition : sig
 
   type t
 
-  val print : Format.formatter -> t -> unit
-
   val descr : t -> descr
 
   val defining_expr : t -> Rebuilt_static_const.t

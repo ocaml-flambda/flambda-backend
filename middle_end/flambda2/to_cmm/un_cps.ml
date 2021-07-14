@@ -692,7 +692,6 @@ and let_expr env res t =
         let e = Let.defining_expr t in
         begin match bindable_let_bound, e with
         (* Correct cases *)
-        | Singleton _, Rec_info _ -> expr env res body
         | Singleton v, Simple s ->
           let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s
         | Singleton v, Prim (p, dbg) ->
@@ -703,6 +702,9 @@ and let_expr env res t =
             ~num_normal_occurrences_of_bound_vars soc
         | Symbols { bound_symbols; }, Static_consts consts ->
           let_symbol env res bound_symbols consts body
+        | Singleton _, Rec_info _ ->
+          (* Erase *)
+          expr env res body
         (* Error cases *)
         | Singleton _, (Set_of_closures _ | Static_consts _) ->
           Misc.fatal_errorf
