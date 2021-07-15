@@ -269,6 +269,7 @@ let rec available_regs (instr : M.instruction)
            (see suggestions from @chambart on GPR#856). *)
         let aux (nfail, ts, handler) (nfail', avail_at_top_of_handler) =
           assert (nfail = nfail');
+          current_trap_stack := ts;
           available_regs handler ~avail_before:avail_at_top_of_handler
         in
         let aux_equal (nfail, avail_before_handler)
