@@ -38,7 +38,7 @@ let append a b =
 
 let rec deadcode i =
   match i.desc with
-  | Iend | Ireturn | Iop(Itailcall_ind) | Iop(Itailcall_imm _) | Iraise _ ->
+  | Iend | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) | Iraise _ ->
       let regs = Reg.add_set_array i.live i.arg in
       { i; regs; exits = Int.Set.empty; }
   | Iop op ->
@@ -74,10 +74,15 @@ let rec deadcode i =
         exits = Array.fold_left
                   (fun acc c -> Int.Set.union acc c.exits) s.exits dc;
       }
-  | Icatch(rec_flag, handlers, body) ->
+  | Icatch(rec_flag, ts, handlers, body) ->
     let body' = deadcode body in
     let s = deadcode i.next in
-    let handlers' = Int.Map.map deadcode (Int.Map.of_list handlers) in
+    let handlers' =
+      List.fold_left
+        (fun map (nfail, ts, handler) ->
+           Int.Map.add nfail (ts, deadcode handler) map)
+        Int.Map.empty handlers
+    in
     (* Previous passes guarantee that indexes of handlers are unique
        across the entire function and Iexit instructions refer
        to the correctly scoped handlers.
@@ -89,8 +94,8 @@ let rec deadcode i =
         let live_exits = Int.Set.add nfail live_exits in
         match Int.Map.find_opt nfail handlers' with
         | None -> (live_exits, used_handlers)
-        | Some handler ->
-          let used_handlers = (nfail, handler) :: used_handlers in
+        | Some (ts, handler) ->
+          let used_handlers = (nfail, ts, handler) :: used_handlers in
           match rec_flag with
           | Cmm.Nonrecursive -> (live_exits, used_handlers)
           | Cmm.Recursive ->
@@ -100,14 +105,17 @@ let rec deadcode i =
       Int.Set.fold add_live body'.exits (Int.Set.empty, [])
     in
     (* Remove exits that are going out of scope. *)
-    let used_handler_indexes = Int.Set.of_list (List.map fst used_handlers) in
+    let used_handler_indexes =
+      List.fold_left (fun acc (n, _, _) -> Int.Set.add n acc)
+        Int.Set.empty used_handlers
+    in
     let live_exits = Int.Set.diff live_exits used_handler_indexes in
     (* For non-recursive catch, live exits referenced in handlers are free. *)
     let live_exits =
       match rec_flag with
       | Cmm.Recursive -> live_exits
       | Cmm.Nonrecursive ->
-        List.fold_left (fun exits (_,h) -> Int.Set.union h.exits exits)
+        List.fold_left (fun exits (_,_,h) -> Int.Set.union h.exits exits)
           live_exits
           used_handlers
     in
@@ -119,19 +127,21 @@ let rec deadcode i =
         exits;
       }
     | _ ->
-      let handlers = List.map (fun (n,h) -> (n,h.i)) used_handlers in
-      { i = { i with desc = Icatch(rec_flag, handlers, body'.i); next = s.i };
+      let handlers = List.map (fun (n,ts,h) -> (n,ts,h.i)) used_handlers in
+      { i = { i with desc = Icatch(rec_flag, ts, handlers, body'.i);
+                     next = s.i };
         regs = i.live;
         exits;
       }
     end
-  | Iexit nfail ->
+  | Iexit (nfail, _traps) ->
       { i;  regs = i.live; exits = Int.Set.singleton nfail; }
-  | Itrywith(body, handler) ->
+  | Itrywith(body, kind, (ts, handler)) ->
       let body' = deadcode body in
       let handler' = deadcode handler in
       let s = deadcode i.next in
-      { i = {i with desc = Itrywith(body'.i, handler'.i); next = s.i};
+      { i = {i with desc = Itrywith(body'.i, kind, (ts, handler'.i));
+                    next = s.i};
         regs = i.live;
         exits = Int.Set.union s.exits
                   (Int.Set.union body'.exits handler'.exits);

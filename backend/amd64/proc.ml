@@ -330,7 +330,7 @@ let destroyed_at_oper = function
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _)
-  | Iend | Ireturn | Iifthenelse (_, _, _) | Icatch (_, _, _)
+  | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
     ->
     if fp then

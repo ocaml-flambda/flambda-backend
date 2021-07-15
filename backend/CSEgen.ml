@@ -213,6 +213,17 @@ let insert_move srcs dsts i =
          let i1 = array_fold2 insert_single_move i tmps dsts in
          array_fold2 insert_single_move i1 srcs tmps
 
+let rec split3 = function
+    [] -> ([], [], [])
+  | (x,y,z)::l ->
+    let (rx, ry, rz) = split3 l in (x::rx, y::ry, z::rz)
+
+let rec combine3 l1 l2 l3 =
+  match (l1, l2, l3) with
+    ([], [], []) -> []
+  | (a1::l1, a2::l2, a3::l3) -> (a1, a2, a3) :: combine3 l1 l2 l3
+  | (_, _, _) -> invalid_arg "combine3"
+
 class cse_generic = object (self)
 
 (* Default classification of operations.  Can be overridden in
@@ -256,7 +267,7 @@ method private kill_loads n =
 
 method private cse n i k =
   match i.desc with
-  | Iend | Ireturn | Iop(Itailcall_ind) | Iop(Itailcall_imm _)
+  | Iend | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _)
   | Iexit _ | Iraise _ ->
       k i
   | Iop (Imove | Ispill | Ireload) ->
@@ -352,18 +363,18 @@ method private cse n i k =
       self#cse_array n1 cases (fun cases ->
         self#cse empty_numbering i.next (fun next ->
           k { i with desc = Iswitch(index, cases); next; }))
-  | Icatch(rec_flag, handlers, body) ->
-      let nfail, handler_code = List.split handlers in
+  | Icatch(rec_flag, ts, handlers, body) ->
+      let nfail, t, handler_code = split3 handlers in
       self#cse_list empty_numbering handler_code (fun handler_code ->
-        let handlers = List.combine nfail handler_code in
+        let handlers = combine3 nfail t handler_code in
         self#cse n body (fun body ->
           self#cse empty_numbering i.next (fun next ->
-            k { i with desc = Icatch(rec_flag, handlers, body); next; })))
-  | Itrywith(body, handler) ->
+            k { i with desc = Icatch(rec_flag, ts, handlers, body); next; })))
+  | Itrywith(body, kind, (ts, handler)) ->
       self#cse n body (fun body ->
         self#cse empty_numbering handler (fun handler ->
           self#cse empty_numbering i.next (fun next ->
-            k { i with desc = Itrywith(body, handler); next; })))
+            k { i with desc = Itrywith(body, kind, (ts, handler)); next; })))
 
 method private cse_array n is k =
   self#cse_list n (Array.to_list is) (fun is -> k (Array.of_list is))

@@ -26,9 +26,39 @@ module V = Backend_var
    handlers collected in [avail_at_exit].) *)
 let avail_at_exit = Hashtbl.create 42
 let avail_at_raise = ref RAS.Unreachable
+let current_trap_stack = ref M.Uncaught
+
+let augment_availability_at_exit nfail avail_before =
+  let avail_at_top_of_handler =
+    match Hashtbl.find avail_at_exit nfail with
+    | exception Not_found ->
+      Misc.fatal_errorf "Iexit %d not in scope of Icatch" nfail
+    | avail_at_top_of_handler -> avail_at_top_of_handler
+  in
+  let avail_at_top_of_handler =
+    RAS.inter avail_at_top_of_handler avail_before
+  in
+  Hashtbl.replace avail_at_exit nfail avail_at_top_of_handler
 
 let augment_availability_at_raise avail =
-  avail_at_raise := RAS.inter avail !avail_at_raise
+  match !current_trap_stack with
+  | Uncaught | Generic_trap _ ->
+    avail_at_raise := RAS.inter avail !avail_at_raise
+  | Specific_trap (label, _) ->
+    augment_availability_at_exit label avail
+
+let setup_avail_at_raise kind =
+  match (kind : Cmm.trywith_kind) with
+  | Regular ->
+    let res = !avail_at_raise in
+    avail_at_raise := RAS.Unreachable;
+    res
+  | Delayed _ -> !avail_at_raise (* This result will not be used *)
+
+let restore_avail_at_raise kind saved_avail_at_raise =
+  match (kind : Cmm.trywith_kind) with
+  | Regular -> avail_at_raise := saved_avail_at_raise
+  | Delayed _ -> ()
 
 let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
   match avail_before with
@@ -94,7 +124,7 @@ let rec available_regs (instr : M.instruction)
     | Ok avail_before ->
       match instr.desc with
       | Iend -> None, ok avail_before
-      | Ireturn -> None, unreachable
+      | Ireturn _ -> None, unreachable
       | Iop (Itailcall_ind) | Iop (Itailcall_imm _) ->
         Some (ok Reg_with_debug_info.Set.empty), unreachable
       | Iop (Iname_for_debugger { ident; which_parameter; provenance;
@@ -225,8 +255,8 @@ let rec available_regs (instr : M.instruction)
         Some (ok avail_across), ok avail_after
       | Iifthenelse (_, ifso, ifnot) -> join [ifso; ifnot] ~avail_before
       | Iswitch (_, cases) -> join (Array.to_list cases) ~avail_before
-      | Icatch (recursive, handlers, body) ->
-        List.iter (fun (nfail, _handler) ->
+      | Icatch (recursive, ts, handlers, body) ->
+        List.iter (fun (nfail, _ts, _handler) ->
             (* In case there are nested [Icatch] expressions with the same
                handler numbers, we rely on the [Hashtbl] shadowing
                semantics. *)
@@ -237,13 +267,15 @@ let rec available_regs (instr : M.instruction)
         in
         (* CR-someday mshinwell: Consider potential efficiency speedups
            (see suggestions from @chambart on GPR#856). *)
-        let aux (nfail, handler) (nfail', avail_at_top_of_handler) =
+        let aux (nfail, ts, handler) (nfail', avail_at_top_of_handler) =
           assert (nfail = nfail');
+          current_trap_stack := ts;
           available_regs handler ~avail_before:avail_at_top_of_handler
         in
         let aux_equal (nfail, avail_before_handler)
               (nfail', avail_before_handler') =
           assert (nfail = nfail');
+          current_trap_stack := ts;
           RAS.equal avail_before_handler avail_before_handler'
         in
         let rec fixpoint avail_at_top_of_handlers =
@@ -251,7 +283,7 @@ let rec available_regs (instr : M.instruction)
             List.map2 aux handlers avail_at_top_of_handlers
           in
           let avail_at_top_of_handlers' =
-            List.map (fun (nfail, _handler) ->
+            List.map (fun (nfail, _ts, _handler) ->
                 match Hashtbl.find avail_at_exit nfail with
                 | exception Not_found -> assert false  (* see above *)
                 | avail_at_top_of_handler -> nfail, avail_at_top_of_handler)
@@ -266,16 +298,17 @@ let rec available_regs (instr : M.instruction)
             else fixpoint avail_at_top_of_handlers'
         in
         let init_avail_at_top_of_handlers =
-          List.map (fun (nfail, _handler) ->
+          List.map (fun (nfail, _ts, _handler) ->
               match Hashtbl.find avail_at_exit nfail with
               | exception Not_found -> assert false  (* see above *)
               | avail_at_top_of_handler -> nfail, avail_at_top_of_handler)
             handlers
         in
         let avail_after_handlers = fixpoint init_avail_at_top_of_handlers in
-        List.iter (fun (nfail, _handler) ->
+        List.iter (fun (nfail, _ts, _handler) ->
             Hashtbl.remove avail_at_exit nfail)
           handlers;
+        current_trap_stack := ts;
         let avail_after =
           List.fold_left (fun avail_at_join avail_after_handler ->
               RAS.inter avail_at_join avail_after_handler)
@@ -283,26 +316,21 @@ let rec available_regs (instr : M.instruction)
             avail_after_handlers
         in
         None, avail_after
-      | Iexit nfail ->
+      | Iexit (nfail, _traps) ->
         let avail_before = ok avail_before in
-        let avail_at_top_of_handler =
-          match Hashtbl.find avail_at_exit nfail with
-          | exception Not_found ->  (* also see top of [Icatch] clause above *)
-            Misc.fatal_errorf "Iexit %d not in scope of Icatch" nfail
-          | avail_at_top_of_handler -> avail_at_top_of_handler
-        in
-        let avail_at_top_of_handler =
-          RAS.inter avail_at_top_of_handler avail_before
-        in
-        Hashtbl.replace avail_at_exit nfail avail_at_top_of_handler;
+        augment_availability_at_exit nfail avail_before;
         None, unreachable
-      | Itrywith (body, handler) ->
-        let saved_avail_at_raise = !avail_at_raise in
-        avail_at_raise := unreachable;
+      | Itrywith (body, kind, (ts, handler)) ->
+        let saved_avail_at_raise = setup_avail_at_raise kind in
         let avail_before = ok avail_before in
         let after_body = available_regs body ~avail_before in
         let avail_before_handler =
-          match !avail_at_raise with
+          let with_exn_bucket =
+            match kind with
+            | Regular -> !avail_at_raise
+            | Delayed nfail -> Hashtbl.find avail_at_exit nfail
+          in
+          match (with_exn_bucket : RAS.t) with
           | Unreachable -> unreachable
           | Ok avail_at_raise ->
             let without_exn_bucket =
@@ -314,11 +342,14 @@ let rec available_regs (instr : M.instruction)
             in
             ok with_anonymous_exn_bucket
         in
-        avail_at_raise := saved_avail_at_raise;
+        restore_avail_at_raise kind saved_avail_at_raise;
+        let saved_trap_stack = !current_trap_stack in
+        current_trap_stack := ts;
         let avail_after =
           RAS.inter after_body
             (available_regs handler ~avail_before:avail_before_handler)
         in
+        current_trap_stack := saved_trap_stack;
         None, avail_after
       | Iraise _ ->
         let avail_before = ok avail_before in
@@ -344,6 +375,7 @@ let fundecl (f : M.fundecl) =
   if !Clflags.debug && !Clflags.debug_runavail then begin
     assert (Hashtbl.length avail_at_exit = 0);
     avail_at_raise := RAS.Unreachable;
+    current_trap_stack := M.Uncaught;
     let fun_args = R.set_of_array f.fun_args in
     let avail_before = RAS.Ok (RD.Set.without_debug_info fun_args) in
     ignore ((available_regs f.fun_body ~avail_before) : RAS.t);

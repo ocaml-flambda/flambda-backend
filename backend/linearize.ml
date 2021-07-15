@@ -60,9 +60,23 @@ let rec adjust_trap_depth delta_traps next =
   match next.desc with
   | Ladjust_trap_depth { delta_traps = k } ->
     adjust_trap_depth (delta_traps + k) next.next
+  | Llabel lbl ->
+    let next = adjust_trap_depth delta_traps next.next in
+    cons_instr (Llabel lbl) next
+  | Lbranch lbl ->
+    let next = adjust_trap_depth delta_traps next.next in
+    cons_instr (Lbranch lbl) next
   | _ ->
     if delta_traps = 0 then next
     else cons_instr (Ladjust_trap_depth { delta_traps }) next
+
+let delta_traps stack_before stack_after =
+  let rec stack_depth acc stack =
+    match (stack : Mach.trap_stack) with
+    | Uncaught -> acc
+    | Generic_trap t | Specific_trap (_, t) -> stack_depth (succ acc) t
+  in
+  (stack_depth 0 stack_after) - (stack_depth 0 stack_before)
 
 (* Discard all instructions up to the next label.
    This function is to be called before adding a non-terminating
@@ -108,88 +122,111 @@ let add_branch lbl n =
   else
     discard_dead_code n
 
-let try_depth = ref 0
+type linear_env =
+  { trap_stack : Mach.trap_stack;
+    (** The current trap stack *)
+    exit_label : (int * label) list;
+    (** Association list: exit handler -> handler label *)
+  }
 
-(* Association list: exit handler -> (handler label, try-nesting factor) *)
+let initial_env =
+  { trap_stack = Uncaught;
+    exit_label = [];
+  }
 
-let exit_label = ref []
-
-let find_exit_label_try_depth k =
+let find_exit_label env k =
   try
-    List.assoc k !exit_label
+    List.assoc k env.exit_label
   with
   | Not_found -> Misc.fatal_error "Linearize.find_exit_label"
 
-let find_exit_label k =
-  let (label, t) = find_exit_label_try_depth k in
-  assert(t = !try_depth);
-  label
-
-let is_next_catch n = match !exit_label with
-| (n0,(_,t))::_  when n0=n && t = !try_depth -> true
+let is_next_catch env n = match env.exit_label with
+  | (n0,_)::_  when n0=n -> true
 | _ -> false
 
-let local_exit k =
-  snd (find_exit_label_try_depth k) = !try_depth
+let rec add_traps env i traps =
+  match traps with
+  | [] -> i
+  | Cmm.Pop :: traps ->
+    add_traps env (cons_instr Lpoptrap i) traps
+  | Cmm.Push handler :: traps ->
+    let lbl_handler = find_exit_label env handler in
+    add_traps env (cons_instr (Lpushtrap { lbl_handler; }) i) traps
+
+let delta_traps_diff traps =
+  let delta =
+    List.fold_left
+      (fun delta trap ->
+         match trap with
+         | Cmm.Pop -> delta - 1
+         | Cmm.Push _ -> delta + 1)
+      0 traps in
+  -delta
 
 (* Linearize an instruction [i]: add it in front of the continuation [n] *)
 let linear i n contains_calls =
-  let rec linear i n =
+  let rec linear env i n =
     match i.Mach.desc with
       Iend -> n
     | Iop(Itailcall_ind | Itailcall_imm _ as op) ->
-        copy_instr (Lop op) i (discard_dead_code n)
+        (* note: there cannot be deadcode in n *)
+        copy_instr (Lop op) i (linear env i.Mach.next n)
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
-        linear i.Mach.next n
+        linear env i.Mach.next n
     | Iop op ->
-        copy_instr (Lop op) i (linear i.Mach.next n)
-    | Ireturn ->
+        copy_instr (Lop op) i (linear env i.Mach.next n)
+    | Ireturn traps ->
+        let n = adjust_trap_depth (delta_traps_diff traps) n in
         let n1 = copy_instr Lreturn i (discard_dead_code n) in
-        if contains_calls
-        then cons_instr Lreloadretaddr n1
-        else n1
+        let n2 =
+          if contains_calls
+          then cons_instr Lreloadretaddr n1
+          else n1
+        in
+        add_traps env n2 traps
     | Iifthenelse(test, ifso, ifnot) ->
-        let n1 = linear i.Mach.next n in
+      let n1 = linear env i.Mach.next n in
         begin match (ifso.Mach.desc, ifnot.Mach.desc, n1.desc) with
           Iend, _, Lbranch lbl ->
-            copy_instr (Lcondbranch(test, lbl)) i (linear ifnot n1)
+          copy_instr (Lcondbranch(test, lbl)) i (linear env ifnot n1)
         | _, Iend, Lbranch lbl ->
-            copy_instr (Lcondbranch(invert_test test, lbl)) i (linear ifso n1)
-        | Iexit nfail1, Iexit nfail2, _
-              when is_next_catch nfail1 && local_exit nfail2 ->
-            let lbl2 = find_exit_label nfail2 in
+            copy_instr (Lcondbranch(invert_test test, lbl)) i
+              (linear env ifso n1)
+        | Iexit (nfail1, []), Iexit (nfail2, []), _
+            when is_next_catch env nfail1 ->
+            let lbl2 = find_exit_label env nfail2 in
             copy_instr
-              (Lcondbranch (invert_test test, lbl2)) i (linear ifso n1)
-        | Iexit nfail, _, _ when local_exit nfail ->
-            let n2 = linear ifnot n1
-            and lbl = find_exit_label nfail in
+              (Lcondbranch (invert_test test, lbl2)) i (linear env ifso n1)
+        | Iexit (nfail, []), _, _ ->
+            let n2 = linear env ifnot n1
+            and lbl = find_exit_label env nfail in
             copy_instr (Lcondbranch(test, lbl)) i n2
-        | _,  Iexit nfail, _ when local_exit nfail ->
-            let n2 = linear ifso n1 in
-            let lbl = find_exit_label nfail in
+        | _,  Iexit (nfail, []), _ ->
+            let n2 = linear env ifso n1 in
+            let lbl = find_exit_label env nfail in
             copy_instr (Lcondbranch(invert_test test, lbl)) i n2
         | Iend, _, _ ->
             let (lbl_end, n2) = get_label n1 in
-            copy_instr (Lcondbranch(test, lbl_end)) i (linear ifnot n2)
+            copy_instr (Lcondbranch(test, lbl_end)) i (linear env ifnot n2)
         | _,  Iend, _ ->
             let (lbl_end, n2) = get_label n1 in
             copy_instr (Lcondbranch(invert_test test, lbl_end)) i
-                       (linear ifso n2)
+                       (linear env ifso n2)
         | _, _, _ ->
           (* Should attempt branch prediction here *)
             let (lbl_end, n2) = get_label n1 in
-            let (lbl_else, nelse) = get_label (linear ifnot n2) in
+            let (lbl_else, nelse) = get_label (linear env ifnot n2) in
             copy_instr (Lcondbranch(invert_test test, lbl_else)) i
-              (linear ifso (add_branch lbl_end nelse))
+              (linear env ifso (add_branch lbl_end nelse))
         end
     | Iswitch(index, cases) ->
         let lbl_cases = Array.make (Array.length cases) 0 in
-        let (lbl_end, n1) = get_label(linear i.Mach.next n) in
+        let (lbl_end, n1) = get_label(linear env i.Mach.next n) in
         let n2 = ref (discard_dead_code n1) in
         for i = Array.length cases - 1 downto 0 do
           let (lbl_case, ncase) =
-                  get_label(linear cases.(i) (add_branch lbl_end !n2)) in
+                  get_label(linear env cases.(i) (add_branch lbl_end !n2)) in
           lbl_cases.(i) <- lbl_case;
           n2 := discard_dead_code ncase
         done;
@@ -204,59 +241,78 @@ let linear i n contains_calls =
                      i !n2
         end else
           copy_instr (Lswitch(Array.map (fun n -> lbl_cases.(n)) index)) i !n2
-    | Icatch(_rec_flag, handlers, body) ->
-        let (lbl_end, n1) = get_label(linear i.Mach.next n) in
+    | Icatch(_rec_flag, ts_next, handlers, body) ->
+        let n0 = adjust_trap_depth (delta_traps ts_next env.trap_stack) n in
+        let env_next = { env with trap_stack = ts_next; } in
+        let (lbl_end, n1) = get_label(linear env_next i.Mach.next n0) in
         (* CR mshinwell for pchambart:
            1. rename "io"
            2. Make sure the test cases cover the "Iend" cases too *)
-        let labels_at_entry_to_handlers = List.map (fun (_nfail, handler) ->
+        let labels_at_entry_to_handlers = List.map (fun (_n, _ts, handler) ->
             match handler.Mach.desc with
             | Iend -> lbl_end
             | _ -> Cmm.new_label ())
             handlers in
         let exit_label_add = List.map2
-            (fun (nfail, _) lbl -> (nfail, (lbl, !try_depth)))
+            (fun (nfail, _ts, _) lbl -> (nfail, lbl))
             handlers labels_at_entry_to_handlers in
-        let previous_exit_label = !exit_label in
-        exit_label := exit_label_add @ !exit_label;
-        let n2 = List.fold_left2 (fun n (_nfail, handler) lbl_handler ->
+        let env = { env with exit_label = exit_label_add @ env.exit_label; } in
+        let (n2, ts_n2) =
+          List.fold_left2 (fun (n, ts_next) (_nfail, ts, handler) lbl_handler ->
             match handler.Mach.desc with
-            | Iend -> n
-            | _ -> cons_instr (Llabel lbl_handler)
-                     (linear handler (add_branch lbl_end n)))
-            n1 handlers labels_at_entry_to_handlers
+            | Iend -> n, ts_next
+            | _ ->
+                let delta = delta_traps ts ts_next in
+                let n = adjust_trap_depth delta n in
+                let env = { env with trap_stack = ts; } in
+                let n =
+                  cons_instr (Llabel lbl_handler)
+                    (linear env handler (add_branch lbl_end n))
+                in
+                n, ts)
+            (n1, ts_next) handlers labels_at_entry_to_handlers
         in
-        let n3 = linear body (add_branch lbl_end n2) in
-        exit_label := previous_exit_label;
+        let n2 = adjust_trap_depth (delta_traps env.trap_stack ts_n2) n2 in
+        let n3 = linear env body (add_branch lbl_end n2) in
         n3
-    | Iexit nfail ->
-        let lbl, t = find_exit_label_try_depth nfail in
+    | Iexit (nfail, traps) ->
+        let lbl = find_exit_label env nfail in
         assert (i.Mach.next.desc = Mach.Iend);
-        let delta_traps = !try_depth - t in
-        let n1 = adjust_trap_depth delta_traps n in
-        let rec loop i tt =
-          if t = tt then i
-          else loop (cons_instr Lpoptrap i) (tt - 1)
-        in
-        loop (add_branch lbl n1) !try_depth
-    | Itrywith(body, handler) ->
-        let (lbl_join, n1) = get_label (linear i.Mach.next n) in
+        let n1 = adjust_trap_depth (delta_traps_diff traps) n in
+        add_traps env (add_branch lbl n1) traps
+    | Itrywith(body, Regular, (ts, handler)) ->
+        let (lbl_join, n1) = get_label (linear env i.Mach.next n) in
+        assert (Mach.equal_trap_stack ts env.trap_stack);
         let (lbl_handler, n2) =
-          get_label (cons_instr Lentertrap (linear handler n1))
+          get_label (cons_instr Lentertrap (linear env handler n1))
         in
-        incr try_depth;
+        let env_body =
+          { env with trap_stack = Mach.Generic_trap env.trap_stack; }
+        in
         assert (i.Mach.arg = [| |]);
         let n3 = cons_instr (Lpushtrap { lbl_handler; })
-                   (linear body
+                   (linear env_body body
                       (cons_instr
                          Lpoptrap
                          (add_branch lbl_join n2))) in
-        decr try_depth;
         n3
-
+    | Itrywith(body, Delayed nfail, (ts, handler)) ->
+        let (lbl_join, n1) = get_label (linear env i.Mach.next n) in
+        let delta = delta_traps ts env.trap_stack in
+        let n1' = adjust_trap_depth delta n1 in
+        let env_handler = { env with trap_stack = ts; } in
+        let (lbl_handler, n2) =
+          get_label (cons_instr Lentertrap (linear env_handler handler n1'))
+        in
+        let n2' = adjust_trap_depth (-delta) n2 in
+        let env_body =
+          {env with exit_label = (nfail, lbl_handler) :: env.exit_label; }
+        in
+        let n3 = linear env_body body (add_branch lbl_join n2') in
+        n3
     | Iraise k ->
         copy_instr (Lraise k) i (discard_dead_code n)
-  in linear i n
+  in linear initial_env i n
 
 let add_prologue first_insn prologue_required =
   (* The prologue needs to come after any [Iname_for_debugger] operations that
