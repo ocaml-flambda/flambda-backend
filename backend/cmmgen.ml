@@ -113,11 +113,7 @@ let mk_traps env nfail =
   if handler_depth = env.trywith_depth then []
   else begin
     assert (handler_depth <= env.trywith_depth);
-    let rec build_pops n =
-      if n = 0 then []
-      else Pop :: (build_pops (n - 1))
-    in
-    build_pops (env.trywith_depth - handler_depth)
+    List.init (env.trywith_depth - handler_depth) (fun _ -> Pop)
   end
 
 (* Description of the "then" and "else" continuations in [transl_if]. If
