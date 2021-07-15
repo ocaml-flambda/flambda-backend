@@ -34,13 +34,14 @@ open Mach
      Iload                      R       R       R
      Istore                             R       R
      Iintop(Icomp)              R       R       S
-                            or  S       S       R
+                            or  R       S       R
      Iintop(Imul|Idiv|Imod)     R       R       S
      Iintop(Imulh)              R       R       S
      Iintop(shift)              S       S       R
      Iintop(others)             R       R       S
                             or  S       S       R
      Iintop_imm(Iadd, n)/lea    R       R
+     Iintop_imm(Icomp _)        R       S
      Iintop_imm(others)         S       S
      Inegf...Idivf              R       R       S
      Ifloatofint                R       S
@@ -69,8 +70,17 @@ inherit Reloadgen.reload_generic as super
 
 method! reload_operation op arg res =
   match op with
-  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icomp _|Icheckbound) ->
+  | Iintop(Iadd|Isub|Iand|Ior|Ixor|Icheckbound) ->
       (* One of the two arguments can reside in the stack, but not both *)
+      if stackp arg.(0) && stackp arg.(1)
+      then ([|arg.(0); self#makereg arg.(1)|], res)
+      else (arg, res)
+  | Iintop (Icomp _) ->
+      (* One of the two arguments can reside in the stack, but not both.
+         The result must be in a register. *)
+      let res =
+        if stackp res.(0) then [| self#makereg res.(0) |] else res
+      in
       if stackp arg.(0) && stackp arg.(1)
       then ([|arg.(0); self#makereg arg.(1)|], res)
       else (arg, res)
@@ -78,6 +88,13 @@ method! reload_operation op arg res =
       (* This add will be turned into a lea; args and results must be
          in registers *)
       super#reload_operation op arg res
+  | Iintop_imm (Icomp _, _) ->
+      (* The argument(s) can be either in register or on stack.
+         The result must be in a register. *)
+      let res =
+        if stackp res.(0) then [| self#makereg res.(0) |] else res
+      in
+      arg, res
   | Iintop(Imulh | Idiv | Imod | Ilsl | Ilsr | Iasr)
   | Iintop_imm(_, _) ->
       (* The argument(s) and results can be either in register or on stack *)
