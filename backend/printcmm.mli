@@ -24,6 +24,8 @@ val exttype : formatter -> Cmm.exttype -> unit
 val extcall_signature : formatter -> Cmm.machtype * Cmm.exttype list -> unit
 val integer_comparison : Cmm.integer_comparison -> string
 val float_comparison : Cmm.float_comparison -> string
+val trap_action_list : formatter -> Cmm.trap_action list -> unit
+val trywith_kind : formatter -> Cmm.trywith_kind -> unit
 val chunk : Cmm.memory_chunk -> string
 val operation : Debuginfo.t -> Cmm.operation -> string
 val expression : formatter -> Cmm.expression -> unit

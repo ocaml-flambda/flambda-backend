@@ -15,6 +15,11 @@
 
 (* Representation of machine code by sequences of pseudoinstructions *)
 
+type trap_stack =
+  | Uncaught
+  | Generic_trap of trap_stack
+  | Specific_trap of Cmm.trywith_shared_label * trap_stack
+
 type integer_comparison =
     Isigned of Cmm.integer_comparison
   | Iunsigned of Cmm.integer_comparison
@@ -81,12 +86,12 @@ type instruction =
 and instruction_desc =
     Iend
   | Iop of operation
-  | Ireturn
+  | Ireturn of Cmm.trap_action list
   | Iifthenelse of test * instruction * instruction
   | Iswitch of int array * instruction array
-  | Icatch of Cmm.rec_flag * (int * instruction) list * instruction
-  | Iexit of int
-  | Itrywith of instruction * instruction
+  | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction) list * instruction
+  | Iexit of int * Cmm.trap_action list
+  | Itrywith of instruction * Cmm.trywith_kind * (trap_stack * instruction)
   | Iraise of Lambda.raise_kind
 
 type fundecl =
@@ -141,7 +146,7 @@ let rec instr_iter f i =
       f i;
       match i.desc with
         Iend -> ()
-      | Ireturn | Iop Itailcall_ind | Iop(Itailcall_imm _) -> ()
+      | Ireturn _ | Iop Itailcall_ind | Iop(Itailcall_imm _) -> ()
       | Iifthenelse(_tst, ifso, ifnot) ->
           instr_iter f ifso; instr_iter f ifnot; instr_iter f i.next
       | Iswitch(_index, cases) ->
@@ -149,16 +154,23 @@ let rec instr_iter f i =
             instr_iter f cases.(i)
           done;
           instr_iter f i.next
-      | Icatch(_, handlers, body) ->
+      | Icatch(_, _ts, handlers, body) ->
           instr_iter f body;
-          List.iter (fun (_n, handler) -> instr_iter f handler) handlers;
+          List.iter (fun (_n, _ts, handler) -> instr_iter f handler) handlers;
           instr_iter f i.next
       | Iexit _ -> ()
-      | Itrywith(body, handler) ->
+      | Itrywith(body, _kind, (_ts, handler)) ->
           instr_iter f body; instr_iter f handler; instr_iter f i.next
       | Iraise _ -> ()
-      | _ ->
-          instr_iter f i.next
+      | Iop (Imove | Ispill | Ireload
+            | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+            | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+            | Iload _ | Istore _ | Ialloc _
+            | Iintop _ | Iintop_imm _
+            | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+            | Ifloatofint | Iintoffloat
+            | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _) ->
+        instr_iter f i.next
 
 let operation_can_raise op =
   match op with
@@ -167,3 +179,13 @@ let operation_can_raise op =
   | Iprobe _
   | Ialloc _ -> true
   | _ -> false
+
+let rec equal_trap_stack ts1 ts2 =
+  match ts1, ts2 with
+  | Uncaught, Uncaught -> true
+  | Generic_trap ts1, Generic_trap ts2 -> equal_trap_stack ts1 ts2
+  | Specific_trap (lbl1, ts1), Specific_trap (lbl2, ts2) ->
+    Int.equal lbl1 lbl2 && equal_trap_stack ts1 ts2
+  | Uncaught, (Generic_trap _ | Specific_trap _)
+  | Generic_trap _, (Uncaught | Specific_trap _)
+  | Specific_trap _, (Uncaught | Generic_trap _) -> false

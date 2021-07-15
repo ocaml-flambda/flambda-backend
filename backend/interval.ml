@@ -136,7 +136,7 @@ let build_intervals fd =
     | Iop _ ->
         insert_destroyed_at_oper intervals i !pos;
         walk_instruction i.next
-    | Ireturn ->
+    | Ireturn _ ->
         insert_destroyed_at_oper intervals i !pos;
         walk_instruction i.next
     | Iifthenelse(_, ifso, ifnot) ->
@@ -148,15 +148,15 @@ let build_intervals fd =
         insert_destroyed_at_oper intervals i !pos;
         Array.iter walk_instruction cases;
         walk_instruction i.next
-    | Icatch(_, handlers, body) ->
+    | Icatch(_, _ts, handlers, body) ->
         insert_destroyed_at_oper intervals i !pos;
-        List.iter (fun (_, i) -> walk_instruction i) handlers;
+        List.iter (fun (_, _, i) -> walk_instruction i) handlers;
         walk_instruction body;
         walk_instruction i.next
     | Iexit _ ->
         insert_destroyed_at_oper intervals i !pos;
         walk_instruction i.next
-    | Itrywith(body, handler) ->
+    | Itrywith(body, _kind, (_ts, handler)) ->
         insert_destroyed_at_oper intervals i !pos;
         walk_instruction body;
         insert_destroyed_at_raise intervals !pos;

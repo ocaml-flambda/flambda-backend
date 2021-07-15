@@ -60,8 +60,8 @@ and instrument = function
   | Cifthenelse (cond, t_dbg, t, f_dbg, f, dbg) ->
      Cifthenelse (instrument cond, t_dbg, with_afl_logging t t_dbg,
        f_dbg, with_afl_logging f f_dbg, dbg)
-  | Ctrywith (e, ex, handler, dbg) ->
-     Ctrywith (instrument e, ex, with_afl_logging handler dbg, dbg)
+  | Ctrywith (e, kind, ex, handler, dbg) ->
+     Ctrywith (instrument e, kind, ex, with_afl_logging handler dbg, dbg)
   | Cswitch (e, cases, handlers, dbg) ->
      let handlers =
        Array.map (fun (handler, handler_dbg) ->
@@ -87,7 +87,7 @@ and instrument = function
          cases
      in
      Ccatch (isrec, cases, instrument body)
-  | Cexit (ex, args) -> Cexit (ex, List.map instrument args)
+  | Cexit (ex, args, traps) -> Cexit (ex, List.map instrument args, traps)
 
   (* these are base cases and have no logging *)
   | Cconst_int _ | Cconst_natint _ | Cconst_float _

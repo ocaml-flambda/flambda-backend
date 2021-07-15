@@ -43,6 +43,8 @@ type env = {
   unboxed_ids : (V.t * boxed_number) V.tbl;
   notify_catch : (Cmm.expression list -> unit) IntMap.t;
   environment_param : V.t option;
+  trywith_depth : int;
+  catch_trywith_depths : int IntMap.t;
 }
 
 (* notify_catch associates to each catch handler a callback
@@ -65,6 +67,8 @@ let empty_env =
     unboxed_ids = V.empty;
     notify_catch = IntMap.empty;
     environment_param = None;
+    trywith_depth = 0;
+    catch_trywith_depths = IntMap.empty;
   }
 
 let create_env ~environment_param =
@@ -83,13 +87,34 @@ let add_unboxed_id id unboxed_id bn env =
 
 let add_notify_catch n f env =
   { env with
-    notify_catch = IntMap.add n f env.notify_catch
+    notify_catch = IntMap.add n f env.notify_catch;
   }
 
 let notify_catch i env l =
   match IntMap.find_opt i env.notify_catch with
   | Some f -> f l
   | None -> ()
+
+let incr_depth env =
+  { env with trywith_depth = succ env.trywith_depth; }
+
+let enter_catch_body env nfail =
+  { env with
+    catch_trywith_depths =
+      IntMap.add nfail env.trywith_depth env.catch_trywith_depths;
+  }
+
+let mk_traps env nfail =
+  let handler_depth =
+    match IntMap.find_opt nfail env.catch_trywith_depths with
+    | None -> Misc.fatal_errorf "Cmmgen.mk_traps: Unknown handler %d" nfail
+    | Some d -> d
+  in
+  if handler_depth = env.trywith_depth then []
+  else begin
+    assert (handler_depth <= env.trywith_depth);
+    List.init (env.trywith_depth - handler_depth) (fun _ -> Pop)
+  end
 
 (* Description of the "then" and "else" continuations in [transl_if]. If
    the "then" continuation is true and the "else" continuation is false then
@@ -602,16 +627,19 @@ let rec transl env e =
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
       notify_catch nfail env cargs;
-      Cexit (nfail, cargs)
+      let traps = mk_traps env nfail in
+      Cexit (Lbl nfail, cargs, traps)
   | Ucatch(nfail, [], body, handler) ->
       let dbg = Debuginfo.none in
-      make_catch nfail (transl env body) (transl env handler) dbg
+      let env_body = enter_catch_body env nfail in
+      make_catch nfail (transl env_body body) (transl env handler) dbg
   | Ucatch(nfail, ids, body, handler) ->
       let dbg = Debuginfo.none in
       transl_catch env nfail ids body handler dbg
   | Utrywith(body, exn, handler) ->
       let dbg = Debuginfo.none in
-      Ctrywith(transl env body, exn, transl env handler, dbg)
+      let new_body = transl (incr_depth env) body in
+      Ctrywith(new_body, Regular, exn, transl env handler, dbg)
   | Uifthenelse(cond, ifso, ifnot) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
@@ -628,7 +656,7 @@ let rec transl env e =
            (raise_num, [],
             create_loop(transl_if env Unknown dbg cond
                     dbg (remove_unit(transl env body))
-                    dbg (Cexit (raise_num,[])))
+                    dbg (Cexit (Lbl raise_num,[],[])))
               dbg,
             Ctuple [],
             dbg))
@@ -647,7 +675,7 @@ let rec transl env e =
                  Cifthenelse
                    (Cop(Ccmpi tst, [Cvar (VP.var id); high], dbg),
                     dbg,
-                    Cexit (raise_num, []),
+                    Cexit (Lbl raise_num, [], []),
                     dbg,
                     create_loop
                       (Csequence
@@ -660,7 +688,7 @@ let rec transl env e =
                              Cifthenelse
                                (Cop(Ccmpi Ceq, [Cvar (VP.var id_prev); high],
                                   dbg),
-                                dbg, Cexit (raise_num,[]),
+                                dbg, Cexit (Lbl raise_num,[],[]),
                                 dbg, Ctuple [],
                                 dbg)))))
                       dbg,
@@ -697,7 +725,7 @@ and transl_catch env nfail ids body handler dbg =
       )
       ids args
   in
-  let env_body = add_notify_catch nfail report env in
+  let env_body = enter_catch_body (add_notify_catch nfail report env) nfail in
   let body = transl env_body body in
   let new_env, rewrite, ids =
     List.fold_right
@@ -725,8 +753,8 @@ and transl_catch env nfail ids body handler dbg =
       (* Rewrite the body to unbox the call sites *)
       let rec aux e =
         match Cmm.map_shallow aux e with
-        | Cexit (n, el) when n = nfail ->
-            Cexit (new_nfail, List.map2 (fun f e -> f e) rewrite el)
+        | Cexit (Lbl n, el, traps) when n = nfail ->
+            Cexit (Lbl new_nfail, List.map2 (fun f e -> f e) rewrite el, traps)
         | c -> c
       in
       aux body
@@ -1179,12 +1207,12 @@ and transl_let env str kind id exp body =
       end
 
 and make_catch ncatch body handler dbg = match body with
-| Cexit (nexit,[]) when nexit=ncatch -> handler
+| Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
 | _ ->  ccatch (ncatch, [], body, handler, dbg)
 
 and is_shareable_cont exp =
   match exp with
-  | Cexit (_,[]) -> true
+  | Cexit (_,[],[]) -> true
   | _ -> false
 
 and make_shareable_cont dbg mk exp =
@@ -1193,7 +1221,7 @@ and make_shareable_cont dbg mk exp =
     let nfail = next_raise_count () in
     make_catch
       nfail
-      (mk (Cexit (nfail,[])))
+      (mk (Cexit (Lbl nfail,[],[])))
       exp
       dbg
   end

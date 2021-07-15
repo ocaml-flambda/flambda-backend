@@ -7,6 +7,6 @@ arguments = "-DINT_INT -DFUN=catch_exit main.c"
 (function "catch_exit" (b:int)
   (+ 33
   (catch
-    (try (exit lbl 12)
+    (try (exit(1) lbl 12)
      with var 456)
    with (lbl x:val) (+ x 789))))
