@@ -125,3 +125,5 @@ val instr_cons_debug:
 val instr_iter: (instruction -> unit) -> instruction -> unit
 
 val operation_can_raise : operation -> bool
+
+val equal_trap_stack : trap_stack -> trap_stack -> bool

@@ -181,6 +181,7 @@ camlinternalMod.cmo : \
     stdlib__Nativeint.cmi \
     camlinternalOO.cmi \
     stdlib__Array.cmi \
+    stdlib__Lazy.cmi \
     camlinternalMod.cmi
 camlinternalMod.cmx : \
     stdlib__Sys.cmx \
@@ -189,6 +190,7 @@ camlinternalMod.cmx : \
     stdlib__Nativeint.cmx \
     camlinternalOO.cmx \
     stdlib__Array.cmx \
+    stdlib__Lazy.cmx \
     camlinternalMod.cmi
 camlinternalMod.cmi : \
     stdlib.cmi \
