@@ -71,4 +71,4 @@ val close_program :
   program:(Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) ->
   prog_return_cont:Continuation.t ->
   exn_continuation:Continuation.t ->
-  Flambda_unit.t
+  Flambda_unit.t * Exported_code.t

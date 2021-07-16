@@ -23,4 +23,4 @@ val lambda_to_flambda :
   module_ident:Ident.t ->
   module_block_size_in_words:int ->
   Lambda.lambda ->
-  Flambda_unit.t
+  Flambda_unit.t * Exported_code.t
