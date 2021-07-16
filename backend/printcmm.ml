@@ -52,7 +52,12 @@ let extcall_signature ppf (ty_res, ty_args) =
       exttype ppf ty_arg1;
       List.iter (fun ty -> fprintf ppf ",%a" exttype ty) ty_args
   end;
-  fprintf ppf "->%a" machtype ty_res
+  begin match ty_res with
+  | None ->
+      fprintf ppf "->."
+  | Some ty_res ->
+      fprintf ppf "->%a" machtype ty_res
+  end
 
 let integer_comparison = function
   | Ceq -> "=="
@@ -137,7 +142,7 @@ let trywith_kind ppf kind =
 
 let operation d = function
   | Capply _ty -> "app" ^ location d
-  | Cextcall { name = lbl; _ } ->
+  | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
@@ -246,8 +251,9 @@ let rec expr ppf = function
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
       | Capply mty -> fprintf ppf "@ %a" machtype mty
-      | Cextcall { ret; ty_args; alloc = _; name = _; } -> 
-        fprintf ppf "@ %a" extcall_signature (ret, ty_args)
+      | Cextcall { ty; ty_args; alloc = _; func = _; returns; } ->
+        let ty = if returns then Some ty else None in
+        fprintf ppf "@ %a" extcall_signature (ty, ty_args)
       | _ -> ()
       end;
       fprintf ppf ")@]"
