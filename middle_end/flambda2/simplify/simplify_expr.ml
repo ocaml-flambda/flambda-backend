@@ -82,10 +82,10 @@ and simplify_toplevel dacc expr ~return_continuation
           ~code_age_relation ~used_closure_vars ~return_continuation
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       in
-      (** The code_id part of the data_flow analysis is correct
-          only at toplevel where all the code_ids are, so when in a closure,
-          we state the the live code ids are unknown, which will prevent any
-          from being mistakenly deleted. *)
+      (* The code_id part of the data_flow analysis is correct
+         only at toplevel where all the code_ids are, so when in a closure,
+         we state the the live code ids are unknown, which will prevent any
+         from being mistakenly deleted. *)
       let reachable_code_ids : _ Or_unknown.t =
         match Closure_info.in_or_out_of_closure closure_info with
         | In_a_closure -> Unknown
