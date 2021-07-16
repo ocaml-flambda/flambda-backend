@@ -63,6 +63,12 @@ and simplify_toplevel dacc expr ~return_continuation
       in
       let data_flow = DA.data_flow dacc in
       let closure_info = DE.closure_info (DA.denv dacc) in
+      (* The code_age_relation and used closure_vars are only correct
+         at toplevel, and they are only necessary to compute the live
+         code ids, which are only used when simplifying at the toplevel.
+         So if we are in a closure, we use empty/dummy values for the
+         code_age_relation and used_closure_vars, and in return we
+         do not use the reachable_code_id part of the data_flow analysis. *)
       let code_age_relation, used_closure_vars =
         match Closure_info.in_or_out_of_closure closure_info with
         | In_a_closure ->
@@ -76,6 +82,10 @@ and simplify_toplevel dacc expr ~return_continuation
           ~code_age_relation ~used_closure_vars ~return_continuation
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       in
+      (** The code_id part of the data_flow analysis is correct
+          only at toplevel where all the code_ids are, so when in a closure,
+          we state the the live code ids are unknown, which will prevent any
+          from being mistakenly deleted. *)
       let reachable_code_ids : _ Or_unknown.t =
         match Closure_info.in_or_out_of_closure closure_info with
         | In_a_closure -> Unknown
