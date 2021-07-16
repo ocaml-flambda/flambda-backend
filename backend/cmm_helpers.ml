@@ -2216,7 +2216,8 @@ let ctz ~arg_is_non_zero bi arg dbg =
   let arg = make_unsigned_int bi arg dbg in
   if bi = Primitive.Pint32 && size_int = 8 then begin
     (* regardless of the value of the argument [arg_is_non_zero],
-       always set the corresponding field to [true]. *)
+       always set the corresponding field to [true],
+       because we make it non-zero below by setting bit 32. *)
     let op = Cctz { arg_is_non_zero = true; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       (* Set bit 32 *)
