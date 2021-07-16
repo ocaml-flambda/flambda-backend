@@ -351,9 +351,6 @@ let rec available_regs (instr : M.instruction)
         in
         current_trap_stack := saved_trap_stack;
         None, avail_after
-      | Itrywith (_body, Delayed _nfail, _handler) ->
-          (* TODO: handle correctly *)
-          assert false
       | Iraise _ ->
         let avail_before = ok avail_before in
         augment_availability_at_raise avail_before;
