@@ -280,6 +280,13 @@ let mk_not dbg cmm =
       (* 1 -> 3, 3 -> 1 *)
       Cop(Csubi, [Cconst_int (4, dbg); c], dbg)
 
+let mk_compare_ints_untagged dbg a1 a2 =
+  bind "int_cmp" a1 (fun a1 ->
+    bind "int_cmp" a2 (fun a2 ->
+      let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
+      sub_int op1 op2 dbg))
+
 let mk_compare_ints dbg a1 a2 =
   match (a1,a2) with
   | Cconst_int (c1, _), Cconst_int (c2, _) ->
@@ -290,13 +297,26 @@ let mk_compare_ints dbg a1 a2 =
      int_const dbg Nativeint.(compare (of_int c1) c2)
   | Cconst_natint (c1, _), Cconst_int (c2, _) ->
      int_const dbg Nativeint.(compare c1 (of_int c2))
-  | a1, a2 -> begin
-      bind "int_cmp" a1 (fun a1 ->
-        bind "int_cmp" a2 (fun a2 ->
-          let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
-          let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
-          tag_int(sub_int op1 op2 dbg) dbg))
-    end
+  | a1, a2 -> tag_int (mk_compare_ints_untagged dbg a1 a2) dbg
+
+let mk_compare_floats_untagged dbg a1 a2 =
+  bind "float_cmp" a1 (fun a1 ->
+    bind "float_cmp" a2 (fun a2 ->
+      let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
+      let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
+      let op3 = Cop(Ccmpf(CFeq), [a1; a1], dbg) in
+      let op4 = Cop(Ccmpf(CFeq), [a2; a2], dbg) in
+      (* If both operands a1 and a2 are not NaN, then op3 = op4 = 1,
+         and the result is op1 - op2.
+         If at least one of the operands is NaN,
+         then op1 = op2 = 0, and the result is op3 - op4,
+         which orders NaN before other values.
+         To detect if the operand is NaN, we use the property:
+         for all x, NaN is not equal to x, even if x is NaN.
+         Therefore, op3 is 0 if and only if a1 is NaN,
+         and op4 is 0 if and only if a2 is NaN.
+         See also caml_float_compare_unboxed in runtime/floats.c  *)
+      add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
 
 let mk_compare_floats dbg a1 a2 =
   bind "float_cmp" a1 (fun a1 ->
@@ -756,6 +776,17 @@ let float_array_set arr ofs newval dbg =
   Cop(Cstore (Double, Lambda.Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
+(* Get the field of a block given a possibly inconstant index *)
+
+let get_field_computed imm_or_ptr mut ~block ~index dbg =
+  let kind =
+    match imm_or_ptr with
+    | Lambda.Immediate -> Word_int
+    | Lambda.Pointer -> Word_val
+  in
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop (Cload (kind, mut), [field_address], dbg)
+
 (* String length *)
 
 (* Length of string block *)
@@ -809,6 +840,8 @@ let call_cached_method obj tag cache pos args dbg =
 (* Allocation *)
 
 let make_alloc_generic set_fn dbg tag wordsize args =
+  (* allocs of size 0 must be statically allocated else the Gc will bug *)
+  assert (List.compare_length_with args 0 > 0);
   if wordsize <= Config.max_young_wosize then
     Cop(Calloc, Cconst_natint(block_header tag wordsize, dbg) :: args, dbg)
   else begin
@@ -865,7 +898,7 @@ let curry_function_sym n =
 
 (* Big arrays *)
 
-let bigarray_elt_size : Lambda.bigarray_kind -> int = function
+let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
     Pbigarray_unknown -> assert false
   | Pbigarray_float32 -> 4
   | Pbigarray_float64 -> 8
@@ -932,7 +965,7 @@ let bigarray_indexing unsafe elt_kind layout b args dbg =
         ba_indexing 5 1
           (List.map (fun idx -> sub_int idx (Cconst_int (2, dbg)) dbg) args)
   and elt_size =
-    bigarray_elt_size elt_kind in
+    bigarray_elt_size_in_bytes elt_kind in
   (* [array_indexing] can simplify the given expressions *)
   array_indexing ~typ:Addr (Misc.log2 elt_size)
                  (Cop(Cload (Word_int, Mutable),
@@ -958,7 +991,7 @@ let bigarray_get unsafe elt_kind layout b args dbg =
     match (elt_kind : Lambda.bigarray_kind) with
       Pbigarray_complex32 | Pbigarray_complex64 ->
         let kind = bigarray_word_kind elt_kind in
-        let sz = bigarray_elt_size elt_kind / 2 in
+        let sz = bigarray_elt_size_in_bytes elt_kind / 2 in
         bind "addr"
           (bigarray_indexing unsafe elt_kind layout b args dbg) (fun addr ->
             bind "reval"
@@ -977,7 +1010,7 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
     match (elt_kind : Lambda.bigarray_kind) with
       Pbigarray_complex32 | Pbigarray_complex64 ->
         let kind = bigarray_word_kind elt_kind in
-        let sz = bigarray_elt_size elt_kind / 2 in
+        let sz = bigarray_elt_size_in_bytes elt_kind / 2 in
         bind "newval" newval (fun newv ->
         bind "addr" (bigarray_indexing unsafe elt_kind layout b args dbg)
           (fun addr ->

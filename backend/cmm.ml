@@ -44,6 +44,10 @@ let typ_float = [|Float|]
   error will result.)
 *)
 
+exception Incompatible_types of machtype_component * machtype_component
+(** Raised by comparison and upper/lower bounds functions on machtype_components
+    to denote machtype_components that cannot be compared. *)
+
 let lub_component comp1 comp2 =
   match comp1, comp2 with
   | Int, Int -> Int
@@ -58,8 +62,25 @@ let lub_component comp1 comp2 =
   | Float, Float -> Float
   | (Int | Addr | Val), Float
   | Float, (Int | Addr | Val) ->
-    (* Float unboxing code must be sure to avoid this case. *)
-    assert false
+      (* Float unboxing code must be sure to avoid this case. *)
+      raise (Incompatible_types (comp1, comp2))
+
+let glb_component comp1 comp2 =
+  match comp1, comp2 with
+  | Int, Int -> Int
+  | Int, Val -> Int
+  | Int, Addr -> Int
+  | Val, Int -> Int
+  | Val, Val -> Val
+  | Val, Addr -> Val
+  | Addr, Int -> Int
+  | Addr, Addr -> Addr
+  | Addr, Val -> Val
+  | Float, Float -> Float
+  | (Int | Addr | Val), Float
+  | Float, (Int | Addr | Val) ->
+      (* Float unboxing code must be sure to avoid this case. *)
+      raise (Incompatible_types (comp1, comp2))
 
 let ge_component comp1 comp2 =
   match comp1, comp2 with
@@ -75,7 +96,7 @@ let ge_component comp1 comp2 =
   | Float, Float -> true
   | (Int | Addr | Val), Float
   | Float, (Int | Addr | Val) ->
-    assert false
+      raise (Incompatible_types (comp1, comp2))
 
 type exttype =
   | XInt
