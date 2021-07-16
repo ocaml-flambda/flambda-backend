@@ -46,8 +46,8 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
   | Call (F (Indirect)) -> Lop (Icall_ind)
   | Call (F (Direct { func_symbol; })) ->
       Lop (Icall_imm { func = func_symbol; })
-  | Call (P (External { func_symbol; alloc; ty_args; ty_res; })) ->
-      Lop (Iextcall { func = func_symbol; alloc; ty_args; ty_res; })
+  | Call (P (External { func_symbol; alloc; ty_args; ty_res; returns; })) ->
+      Lop (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns; })
   | Call
       (P
         (Checkbound { immediate = None; }))

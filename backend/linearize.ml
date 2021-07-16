@@ -168,7 +168,8 @@ let linear i n contains_calls =
   let rec linear env i n =
     match i.Mach.desc with
       Iend -> n
-    | Iop(Itailcall_ind | Itailcall_imm _ as op) ->
+    | Iop(Itailcall_ind | Itailcall_imm _ as op)
+    | Iop((Iextcall { returns = false; _ }) as op) ->
         (* note: there cannot be deadcode in n *)
         copy_instr (Lop op) i (linear env i.Mach.next n)
     | Iop(Imove | Ireload | Ispill)

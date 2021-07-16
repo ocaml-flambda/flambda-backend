@@ -579,7 +579,7 @@ val send :
     that corresponds to [prim]. If [prim] is a C builtin supported on the
     target, returns [Cmm.operation] variant for [prim]'s intrinsics. *)
 val cextcall : Primitive.description -> expression list -> Debuginfo.t ->
-  machtype -> exttype list -> expression
+  machtype -> exttype list -> bool -> expression
 
 (** Generic Cmm fragments *)
 

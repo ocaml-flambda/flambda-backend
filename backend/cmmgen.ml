@@ -764,11 +764,12 @@ and transl_catch env nfail ids body handler dbg =
 and transl_make_array dbg env kind args =
   match kind with
   | Pgenarray ->
-      Cop(Cextcall { name = "caml_make_array";
+      Cop(Cextcall { func = "caml_make_array";
                      builtin = false;
+                     returns = true;
                      effects = Arbitrary_effects;
                      coeffects = Has_coeffects;
-                     ret = typ_val; alloc = true; ty_args = []},
+                     ty = typ_val; alloc = true; ty_args = []},
           [make_alloc dbg 0 (List.map (transl env) args)], dbg)
   | Paddrarray | Pintarray ->
       make_alloc dbg 0 (List.map (transl env) args)
@@ -816,7 +817,7 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
-  let op = cextcall prim args dbg typ_res typ_args in
+  let op = cextcall prim args dbg typ_res typ_args true in
   wrap_result op
 
 and transl_prim_1 env p arg dbg =
@@ -1359,8 +1360,9 @@ and transl_letrec env bindings cont =
       bindings
   in
   let op_alloc prim args =
-    Cop(Cextcall { name = prim; ret = typ_val; alloc = true;
+    Cop(Cextcall { func = prim; ty = typ_val; alloc = true;
                    builtin = false;
+                   returns = true;
                    effects = Arbitrary_effects;
                    coeffects = Has_coeffects;
                    ty_args = [] },
@@ -1390,8 +1392,9 @@ and transl_letrec env bindings cont =
     | [] -> cont
     | (id, exp, (RHS_block _ | RHS_infix _ | RHS_floatblock _)) :: rem ->
         let op =
-          Cop(Cextcall { name = "caml_update_dummy"; ret = typ_void;
+          Cop(Cextcall { func = "caml_update_dummy"; ty = typ_void;
                          builtin = false;
+                         returns = true;
                          effects = Arbitrary_effects;
                          coeffects = Has_coeffects;
                          alloc = false; ty_args = [] },
