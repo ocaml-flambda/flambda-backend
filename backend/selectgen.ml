@@ -965,29 +965,36 @@ method emit_expr (env:environment) exp =
       let env_body = env_enter_trywith env kind in
       let (r1, s1) = self#emit_sequence env_body e1 in
       let rv = self#regs_for typ_val in
-      let env_handler =
-        let env = env_add v rv env in
-        match kind with
-        | Regular -> env
-        | Delayed lbl ->
-          begin match env_find_static_exception lbl env_body with
-          | (_, { contents = Reachable ts; }) ->
-            env_set_trap_stack env ts
-          | (_, { contents = Unreachable; }) ->
-            Misc.fatal_errorf "Selection.emit_expr: Unreachable exception handler %d" lbl
-          | exception Not_found ->
-            Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
-          end
+      let with_handler env_handler e2 =
+        let (r2, s2) = self#emit_sequence env_handler e2 in
+        let r = join env r1 s1 r2 s2 in
+        self#insert env
+          (Itrywith(s1#extract, kind,
+                    (env_handler.trap_stack,
+                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                       (s2#extract))))
+          [||] [||];
+        r
       in
-      let (r2, s2) = self#emit_sequence env_handler e2 in
-      let r = join env r1 s1 r2 s2 in
-      self#insert env
-        (Itrywith(s1#extract, kind,
-                  (env_handler.trap_stack,
-                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                              (s2#extract))))
-        [||] [||];
-      r
+      let env = env_add v rv env in
+      match kind with
+      | Regular -> with_handler env e2
+      | Delayed lbl ->
+        begin match env_find_static_exception lbl env_body with
+        | (_, { contents = Reachable ts; }) ->
+          with_handler (env_set_trap_stack env ts) e2
+        | (_, { contents = Unreachable; }) ->
+          let unreachable =
+            Cmm.(Cop ((Cload (Word_int, Mutable)),
+                      [Cconst_int (0, Debuginfo.none)],
+                      Debuginfo.none))
+          in
+          with_handler env unreachable
+          (* Misc.fatal_errorf "Selection.emit_expr: \
+           *                    Unreachable exception handler %d" lbl *)
+        | exception Not_found ->
+          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
+        end
 
 method private emit_sequence (env:environment) exp =
   let s = {< instr_seq = dummy_instr >} in
@@ -1315,26 +1322,34 @@ method emit_tail (env:environment) exp =
       let env_body = env_enter_trywith env kind in
       let s1 = self#emit_tail_sequence env_body e1 in
       let rv = self#regs_for typ_val in
-      let env_handler =
-        let env = env_add v rv env in
-        match kind with
-        | Regular -> env
-        | Delayed lbl ->
-          begin match env_find_static_exception lbl env_body with
-            | (_, { contents = Reachable ts; }) ->
-              env_set_trap_stack env ts
-            | (_, { contents = Unreachable; }) ->
-              Misc.fatal_errorf "Selection.emit_expr: Unreachable exception handler %d" lbl
-            | exception Not_found ->
-              Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
-          end
+      let with_handler env_handler e2 =
+        let s2 = self#emit_tail_sequence env_handler e2 in
+        self#insert env
+          (Itrywith(s1, kind,
+                    (env_handler.trap_stack,
+                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv s2)))
+          [||] [||]
       in
-      let s2 = self#emit_tail_sequence env_handler e2 in
-      self#insert env
-        (Itrywith(s1, kind,
-                  (env_handler.trap_stack,
-                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv s2)))
-        [||] [||]
+      let env = env_add v rv env in
+      begin match kind with
+      | Regular -> with_handler env e2
+      | Delayed lbl ->
+        begin match env_find_static_exception lbl env_body with
+        | (_, { contents = Reachable ts; }) ->
+          with_handler (env_set_trap_stack env ts) e2
+        | (_, { contents = Unreachable; }) ->
+          let unreachable =
+            Cmm.(Cop ((Cload (Word_int, Mutable)),
+                      [Cconst_int (0, Debuginfo.none)],
+                      Debuginfo.none))
+          in
+          with_handler env unreachable
+        (* Misc.fatal_errorf "Selection.emit_expr: \
+           Unreachable exception handler %d" lbl *)
+        | exception Not_found ->
+          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" lbl
+        end
+      end
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cvar _
