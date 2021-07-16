@@ -112,7 +112,7 @@ let pattern_match_pair t1 t2 ~f =
         Error Pattern_match_pair_error.Parameter_lists_have_different_lengths))
 
 let print_using_where_with_cache (recursive : Recursive.t) ~cache ppf k
-      ({ abst = _; is_exn_handler; } as t) ~first =
+      ({ abst = _; is_exn_handler; } as t) occurrences ~first =
   let fprintf = Format.fprintf in
   if not first then begin
     fprintf ppf "@ "
@@ -133,8 +133,9 @@ let print_using_where_with_cache (recursive : Recursive.t) ~cache ppf k
     if List.length params > 0 then begin
       fprintf ppf " %a" Kinded_parameter.List.print params
     end;
-    fprintf ppf "@<0>%s:@<0>%s@ %a"
+    fprintf ppf "@<0>%s #%a:@<0>%s@ %a"
       (Flambda_colours.elide ())
+      (Or_unknown.print Num_occurrences.print) occurrences
       (Flambda_colours.normal ())
       (Expr.print_with_cache ~cache) handler;
     fprintf ppf "@]")
