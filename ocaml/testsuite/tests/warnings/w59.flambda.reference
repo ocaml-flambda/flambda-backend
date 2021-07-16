@@ -1,23 +1,23 @@
 File "w59.ml", line 51, characters 2-43:
-51 |   set_field (repr o) 0 (repr 3);
+51 |   set_field (Obj.repr o) 0 (Obj.repr 3);
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 59 [flambda-assignment-to-non-mutable-value]: A potential assignment to a non-mutable value was detected 
 in this source file.  Such assignments may generate incorrect code 
 when using Flambda.
 File "w59.ml", line 52, characters 2-43:
-52 |   set_field (repr p) 0 (repr 3);
+52 |   set_field (Obj.repr p) 0 (Obj.repr 3);
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 59 [flambda-assignment-to-non-mutable-value]: A potential assignment to a non-mutable value was detected 
 in this source file.  Such assignments may generate incorrect code 
 when using Flambda.
 File "w59.ml", line 53, characters 2-43:
-53 |   set_field (repr q) 0 (repr 3);
+53 |   set_field (Obj.repr q) 0 (Obj.repr 3);
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 59 [flambda-assignment-to-non-mutable-value]: A potential assignment to a non-mutable value was detected 
 in this source file.  Such assignments may generate incorrect code 
 when using Flambda.
 File "w59.ml", line 54, characters 2-43:
-54 |   set_field (repr r) 0 (repr 3)
+54 |   set_field (Obj.repr r) 0 (Obj.repr 3)
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 59 [flambda-assignment-to-non-mutable-value]: A potential assignment to a non-mutable value was detected 
 in this source file.  Such assignments may generate incorrect code 
