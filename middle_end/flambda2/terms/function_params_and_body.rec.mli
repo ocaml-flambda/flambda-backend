@@ -88,6 +88,8 @@ val pattern_match_pair :
     'a) ->
   'a
 
+val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
+
 val params_arity : t -> Flambda_arity.t
 
 val debuginfo : t -> Debuginfo.t

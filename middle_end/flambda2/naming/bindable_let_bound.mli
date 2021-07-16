@@ -50,6 +50,8 @@ val must_be_set_of_closures : t -> Var_in_binding_pos.t list
 
 val must_be_symbols : t -> symbols
 
+val may_be_symbols : t -> symbols option
+
 val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t
@@ -62,3 +64,11 @@ val fold_all_bound_vars :
 val all_bound_vars : t -> Var_in_binding_pos.Set.t
 
 val all_bound_vars' : t -> Variable.Set.t
+
+val fold_all_bound_names :
+  t ->
+  init:'a ->
+  var:('a -> Var_in_binding_pos.t -> 'a) ->
+  symbol:('a -> Symbol.t -> 'a) ->
+  code_id:('a -> Code_id.t -> 'a) ->
+  'a

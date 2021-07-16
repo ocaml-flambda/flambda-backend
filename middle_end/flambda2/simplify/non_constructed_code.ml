@@ -21,6 +21,8 @@ include
     (struct
       include Unit
 
+      let free_names_of_body _ = Or_unknown.Unknown
+
       let all_ids_for_export _ = Ids_for_export.empty
 
       let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
