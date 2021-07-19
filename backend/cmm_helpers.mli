@@ -158,9 +158,15 @@ val mk_if_then_else :
 (** Boolean negation *)
 val mk_not : Debuginfo.t -> expression -> expression
 
-(** Integer and float comparison that returns int not bool *)
+(** Integer and float comparison that returns int not bool.
+    The untagged versions do not tag the result and do not optimise
+    known-constant cases. *)
 val mk_compare_ints : Debuginfo.t -> expression -> expression -> expression
 val mk_compare_floats : Debuginfo.t -> expression -> expression -> expression
+val mk_compare_ints_untagged :
+  Debuginfo.t -> expression -> expression -> expression
+val mk_compare_floats_untagged :
+  Debuginfo.t -> expression -> expression -> expression
 
 (** Loop construction (while true do expr done).
     Used to be represented as Cloop. *)
@@ -197,6 +203,16 @@ val field_address : expression -> int -> Debuginfo.t -> expression
     [n]th field of the block pointed to by [ptr] *)
 val get_field_gen :
   Asttypes.mutable_flag -> expression -> int -> Debuginfo.t -> expression
+
+(** Get the field of the given [block] whose index is specified by the
+    Cmm expresson [index] (in words). *)
+val get_field_computed
+   : Lambda.immediate_or_pointer
+  -> Asttypes.mutable_flag
+  -> block:expression
+  -> index:expression
+  -> Debuginfo.t
+  -> expression
 
 (** [set_field ptr n newval init dbg] returns an expression for setting the
     [n]th field of the block pointed to by [ptr] to [newval] *)
@@ -330,6 +346,14 @@ val apply_function_sym : int -> string
 val curry_function_sym : int -> string
 
 (** Bigarrays *)
+
+(** Returns the size (in number of bytes) of a single element contained
+    in a bigarray. *)
+val bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int
+
+(** Returns the memory chunk corresponding to the kind of elements stored
+    in a bigarray. *)
+val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
 (** [bigarray_get unsafe kind layout b args dbg]
     - unsafe : if true, do not insert bound checks
