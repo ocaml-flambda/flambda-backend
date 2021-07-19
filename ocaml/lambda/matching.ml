@@ -2744,9 +2744,10 @@ let combine_constructor loc arg pat_env cstr partial ctx def
             match
               (cstr.cstr_consts, cstr.cstr_nonconsts, consts, nonconsts)
             with
-            | 1, 1, [ (0, act1) ], [ (0, act2) ] ->
+            | 1, 1, [ (0, act1) ], [ (0, act2) ]
+              when not (Clflags.is_flambda2 ()) ->
                 (* Typically, match on lists, will avoid isint primitive in that
-              case *)
+                   case *)
                 Lifthenelse (arg, act2, act1)
             | n, 0, _, [] ->
                 (* The type defines constant constructors only *)

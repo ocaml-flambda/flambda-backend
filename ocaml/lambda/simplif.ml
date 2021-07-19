@@ -706,7 +706,22 @@ and list_emit_tail_infos is_tail =
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
   let rec aux map = function
     | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
-        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+        (not (Clflags.is_flambda2 ()))
+          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+          && not (List.mem_assoc optparam map)
+      ->
+        let wrapper_body, inner = aux ((optparam, id) :: map) rest in
+        Llet(Strict, k, id, def, wrapper_body), inner
+    | Llet(Strict, k, id,
+        (Lswitch(Lvar optparam,
+           {sw_numconsts = 1;
+            sw_consts = [_];
+            sw_numblocks = 1;
+            sw_blocks = [_];
+            sw_failaction = None}, _dbg)
+         as def), rest) when
+        Clflags.is_flambda2 ()
+          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) rest in
