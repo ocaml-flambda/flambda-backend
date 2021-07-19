@@ -55,28 +55,13 @@ val typ_addr: machtype
 val typ_int: machtype
 val typ_float: machtype
 
-(** Exception raised by comparison and upper/lower bounds functions on
-    machtype_components to denote machtype_components that cannot be
-    compared, such as floats and integer components. *)
-exception Incompatible_types of machtype_component * machtype_component
-
-(** Least upper bound of two [machtype_component]s.
-    @raise Incompatible_types *)
 val lub_component
    : machtype_component
   -> machtype_component
   -> machtype_component
 
-(** Greatest lower bound of two [machtype_component]s.
-    @raise Incompatible_types *)
-val glb_component
-   : machtype_component
-  -> machtype_component
-  -> machtype_component
-
 (** Returns [true] iff the first supplied [machtype_component] is greater than
-    or equal to the second under the relation used by [lub_component].
-    @raise Incompatible_types *)
+    or equal to the second under the relation used by [lub_component]. *)
 val ge_component
    : machtype_component
   -> machtype_component
