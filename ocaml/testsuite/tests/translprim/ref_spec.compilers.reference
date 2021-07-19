@@ -17,7 +17,7 @@
          cst_rec = (makemutable 0 0a 0a)
          gen_rec = (makemutable 0 0a 0a)
          flt_rec = (makemutable 0 (*,float) 0a 0.)
-         flt_rec' = (makearray[float] 0. 0.))
+         flt_rec' = (makefloatblock Mutable 0. 0.))
         (seq (setfield_imm 1 int_rec 2) (setfield_imm 1 var_rec 66a)
           (setfield_ptr 1 vargen_rec [0: 66 0])
           (setfield_ptr 1 vargen_rec 67a) (setfield_imm 1 cst_rec 1a)

@@ -104,6 +104,10 @@ let rec print_struct_const = function
           List.iter (fun a -> printf ", "; print_struct_const a) al;
           printf ")"
       end
+  | Const_float_block a ->
+      printf "[|b ";
+      List.iter (fun f -> print_float f; printf "; ") a;
+      printf "|]"
   | Const_float_array a ->
       printf "[|";
       List.iter (fun f -> print_float f; printf "; ") a;
