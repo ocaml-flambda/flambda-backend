@@ -153,6 +153,16 @@ let rec add_traps env i traps =
     let lbl_handler = find_exit_label env handler in
     add_traps env (cons_instr (Lpushtrap { lbl_handler; }) i) traps
 
+let delta_traps_diff traps =
+  let delta =
+    List.fold_left
+      (fun delta trap ->
+         match trap with
+         | Cmm.Pop -> delta - 1
+         | Cmm.Push _ -> delta + 1)
+      0 traps in
+  -delta
+
 (* Linearize an instruction [i]: add it in front of the continuation [n] *)
 let linear i n contains_calls =
   let rec linear env i n =
@@ -160,6 +170,7 @@ let linear i n contains_calls =
       Iend -> n
     | Iop(Itailcall_ind | Itailcall_imm _ as op)
     | Iop((Iextcall { returns = false; _ }) as op) ->
+        (* note: there cannot be deadcode in n *)
         copy_instr (Lop op) i (linear env i.Mach.next n)
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
@@ -167,15 +178,7 @@ let linear i n contains_calls =
     | Iop op ->
         copy_instr (Lop op) i (linear env i.Mach.next n)
     | Ireturn traps ->
-        let delta_traps =
-          List.fold_left
-            (fun delta trap ->
-               match trap with
-               | Cmm.Pop -> delta - 1
-               | Cmm.Push _ -> delta + 1)
-            0 traps
-        in
-        let n = adjust_trap_depth (-delta_traps) n in
+        let n = adjust_trap_depth (delta_traps_diff traps) n in
         let n1 = copy_instr Lreturn i (discard_dead_code n) in
         let n2 =
           if contains_calls
@@ -276,19 +279,11 @@ let linear i n contains_calls =
     | Iexit (nfail, traps) ->
         let lbl = find_exit_label env nfail in
         assert (i.Mach.next.desc = Mach.Iend);
-        let delta_traps =
-          List.fold_left
-            (fun delta trap ->
-               match trap with
-               | Cmm.Pop -> delta - 1
-               | Cmm.Push _ -> delta + 1)
-            0 traps
-        in
-        let n1 = adjust_trap_depth (-delta_traps) n in
+        let n1 = adjust_trap_depth (delta_traps_diff traps) n in
         add_traps env (add_branch lbl n1) traps
     | Itrywith(body, Regular, (ts, handler)) ->
         let (lbl_join, n1) = get_label (linear env i.Mach.next n) in
-        assert (ts = env.trap_stack);
+        assert (Mach.equal_trap_stack ts env.trap_stack);
         let (lbl_handler, n2) =
           get_label (cons_instr Lentertrap (linear env handler n1))
         in
