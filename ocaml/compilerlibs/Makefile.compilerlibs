@@ -62,6 +62,7 @@ TYPING=typing/ident.cmo typing/path.cmo \
   typing/typedecl_properties.cmo typing/typedecl_variance.cmo \
   typing/typedecl_unboxed.cmo typing/typedecl_immediacy.cmo \
   typing/typedecl_separability.cmo \
+  lambda/debuginfo.cmo lambda/lambda.cmo \
   typing/typedecl.cmo typing/typeopt.cmo \
   typing/rec_check.cmo typing/typecore.cmo typing/typeclass.cmo \
   typing/typemod.cmo
@@ -69,8 +70,7 @@ TYPING_CMI=\
   typing/annot.cmi \
   typing/outcometree.cmi
 
-LAMBDA=lambda/debuginfo.cmo \
-  lambda/lambda.cmo lambda/printlambda.cmo \
+LAMBDA=lambda/printlambda.cmo \
   lambda/switch.cmo lambda/matching.cmo \
   lambda/translobj.cmo lambda/translattribute.cmo \
   lambda/translprim.cmo lambda/translcore.cmo \
