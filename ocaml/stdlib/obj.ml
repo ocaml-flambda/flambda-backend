@@ -30,10 +30,18 @@ external magic : 'a -> 'b = "%identity"
 external is_int : t -> bool = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
+(* For Flambda 2 there is a strict distinction between arrays and other
+   blocks.  %obj_size and %obj_field may only be used on blocks.  As such
+   they are protected here using [Sys.opaque_identity], since this
+   restriction is likely not respected by callees of this module. *)
 external size : t -> int = "%obj_size"
+let [@inline always] size t = size (Sys.opaque_identity t)
 external reachable_words : t -> int = "caml_obj_reachable_words"
 external field : t -> int -> t = "%obj_field"
+let [@inline always] field t = field (Sys.opaque_identity t)
 external set_field : t -> int -> t -> unit = "%obj_set_field"
+let [@inline always] set_field t index new_value =
+  set_field (Sys.opaque_identity t) index new_value
 external floatarray_get : floatarray -> int -> float = "caml_floatarray_get"
 external floatarray_set :
     floatarray -> int -> float -> unit = "caml_floatarray_set"
