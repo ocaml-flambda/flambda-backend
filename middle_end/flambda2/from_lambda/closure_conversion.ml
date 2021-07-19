@@ -721,6 +721,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let dbg = Debuginfo.from_location loc in
   let params = Function_decl.params decl in
   let return = Function_decl.return decl in
+  let return_continuation = Function_decl.return_continuation decl in
   let recursive = Function_decl.recursive decl in
   let my_closure = Variable.create "my_closure" in
   let closure_id = Function_decl.closure_id decl in
@@ -908,9 +909,14 @@ let close_one_function acc ~external_env ~by_closure_id decl
     then Never_inline
     else LC.inline_attribute (Function_decl.inline decl)
   in
+  let acc =
+    Acc.remove_continuation_from_free_names return_continuation acc
+    |> Acc.remove_continuation_from_free_names
+         (Exn_continuation.exn_handler exn_continuation)
+  in
   let params_and_body =
     Function_params_and_body.create
-      ~return_continuation:(Function_decl.return_continuation decl)
+      ~return_continuation
       exn_continuation params ~dbg ~body ~my_closure ~my_depth
       ~free_names_of_body:Unknown
   in
@@ -924,7 +930,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
     Code.create
       code_id
       ~params_and_body:
-        (Present (params_and_body, Acc.free_names_of_current_function acc))
+        (Present (params_and_body, Acc.free_names acc))
       ~params_arity
       ~result_arity:[LC.value_kind return]
       ~stub
@@ -978,18 +984,22 @@ let close_functions acc external_env function_declarations =
       Ident.Map.empty
       func_decl_list
   in
-  let acc, funs =
-    List.fold_left (fun (acc, by_closure_id) function_decl ->
+  let acc, funs, free_names =
+    List.fold_left (fun (acc, by_closure_id, free_names) function_decl ->
         let _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
             close_one_function acc ~external_env ~by_closure_id function_decl
               ~var_within_closures_from_idents ~closure_ids_from_idents
               function_declarations)
         in
-        acc, expr)
-      (acc, Closure_id.Map.empty)
+        let free_names =
+          Name_occurrences.union free_names (Acc.free_names acc)
+        in
+        acc, expr, free_names)
+      (acc, Closure_id.Map.empty, Acc.free_names acc)
       func_decl_list
   in
+  let acc = Acc.with_free_names free_names acc in
   (* CR lmaurer: funs has arbitrary order (ultimately coming from
      function_declarations) *)
   let funs =

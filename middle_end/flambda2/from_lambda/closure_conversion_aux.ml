@@ -202,8 +202,7 @@ module Acc = struct
     declared_symbols : (Symbol.t * Flambda.Static_const.t) list;
     shareable_constants : Symbol.t Flambda.Static_const.Map.t;
     code : Flambda.Code.t Code_id.Map.t;
-    free_names_of_current_function : Name_occurrences.t;
-    free_continuations : Name_occurrences.t;
+    free_names : Name_occurrences.t;
     cost_metrics : Flambda.Cost_metrics.t;
     seen_a_function : bool;
   }
@@ -221,8 +220,7 @@ module Acc = struct
     declared_symbols = [];
     shareable_constants = Flambda.Static_const.Map.empty;
     code = Code_id.Map.empty;
-    free_names_of_current_function = Name_occurrences.empty;
-    free_continuations = Name_occurrences.empty;
+    free_names = Name_occurrences.empty;
     cost_metrics = Flambda.Cost_metrics.zero;
     seen_a_function = false;
   }
@@ -230,8 +228,7 @@ module Acc = struct
   let declared_symbols t = t.declared_symbols
   let shareable_constants t = t.shareable_constants
   let code t = t.code
-  let free_names_of_current_function t = t.free_names_of_current_function
-  let free_continuations t = t.free_continuations
+  let free_names t = t.free_names
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
@@ -246,28 +243,38 @@ module Acc = struct
   let add_code ~code_id ~code t =
     { t with code = Code_id.Map.add code_id code t.code; }
 
+  let add_free_names free_names t =
+    { t with free_names = Name_occurrences.union free_names t.free_names; }
+
   let add_symbol_to_free_names ~symbol t =
     { t with
-      free_names_of_current_function =
-        Name_occurrences.add_symbol t.free_names_of_current_function
+      free_names =
+        Name_occurrences.add_symbol t.free_names
           symbol Name_mode.normal;
     }
+
   let add_closure_var_to_free_names ~closure_var t =
     { t with
-      free_names_of_current_function =
-        Name_occurrences.add_closure_var t.free_names_of_current_function
+      free_names =
+        Name_occurrences.add_closure_var t.free_names
           closure_var Name_mode.normal;
     }
 
-  let add_continuation_occurrence ~cont ~has_traps t =
+  let add_continuation_to_free_names ~cont ~has_traps t =
     { t with
-      free_continuations =
-        Name_occurrences.add_continuation t.free_continuations
+      free_names =
+        Name_occurrences.add_continuation t.free_names
           cont ~has_traps;
     }
 
+  let remove_continuation_from_free_names cont t =
+    { t with
+      free_names =
+        Name_occurrences.remove_continuation t.free_names cont;
+    }
+
   let with_free_names free_names t =
-    { t with free_names_of_current_function = free_names; }
+    { t with free_names; }
 
   let measure_cost_metrics acc ~f =
     let saved_cost_metrics = cost_metrics acc in
@@ -402,10 +409,10 @@ module Expr_with_acc = struct
     let acc = match Apply.continuation apply with
       | Never_returns -> acc
       | Return cont ->
-          Acc.add_continuation_occurrence ~cont ~has_traps:false acc
+          Acc.add_continuation_to_free_names ~cont ~has_traps:false acc
     in
     let acc =
-      Acc.add_continuation_occurrence
+      Acc.add_continuation_to_free_names
         ~cont:(Exn_continuation.exn_handler (Apply.exn_continuation apply))
         ~has_traps:false acc
     in
@@ -438,7 +445,7 @@ end
 module Apply_cont_with_acc = struct
   let create acc ?trap_action cont ~args ~dbg =
     let acc =
-      Acc.add_continuation_occurrence ~cont
+      Acc.add_continuation_to_free_names ~cont
         ~has_traps:(match trap_action with
             | None -> false
             | _ -> true)
@@ -493,17 +500,22 @@ end
 module Let_cont_with_acc = struct
   let create_non_recursive acc cont handler
         ~body ~cost_metrics_of_handler =
-    let free_conts = Acc.free_continuations acc in
+    let free_conts = Acc.free_names acc in
     let acc =
       Acc.increment_metrics
         (Cost_metrics.increase_due_to_let_cont_non_recursive
            ~cost_metrics_of_handler)
         acc
     in
-    acc,
-    (* This function only uses continuations of [free_names_of_body] *)
-    Let_cont.create_non_recursive cont handler ~body
-      ~free_names_of_body:(Known free_conts)
+    let acc = Acc.remove_continuation_from_free_names cont acc in
+    match Name_occurrences.count_continuation free_conts cont with
+    | Zero when not (Continuation_handler.is_exn_handler handler) ->
+      acc, body
+    | _ ->
+      acc,
+      (* This function only uses continuations of [free_names_of_body] *)
+      Let_cont.create_non_recursive cont handler ~body
+        ~free_names_of_body:(Known free_conts)
 
   let create_recursive acc handlers ~body ~cost_metrics_of_handlers =
     let acc =
@@ -511,6 +523,11 @@ module Let_cont_with_acc = struct
         (Cost_metrics.increase_due_to_let_cont_recursive
            ~cost_metrics_of_handlers)
         acc
+    in
+    let acc =
+      Continuation.Map.fold (fun cont _ acc ->
+          Acc.remove_continuation_from_free_names cont acc)
+        handlers acc
     in
     acc, Let_cont.create_recursive handlers ~body
 end
