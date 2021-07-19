@@ -265,12 +265,14 @@ void caml_oldify_local_roots (void)
       glob_block = *glob;
       start = 0;
       CAMLassert (Is_block (glob_block));
-      if (Tag_val (glob_block) == Infix_tag)
-        glob_block -= Infix_offset_val (glob_block);
-      if (Tag_val (glob_block) == Closure_tag)
-        start = Start_env_closinfo (Closinfo_val (glob_block));
-      for (j = start; j < Wosize_val (glob_block); j++)
-        Oldify (&Field (glob_block, j));
+      if (Tag_val (glob_block) < No_scan_tag) {
+        if (Tag_val (glob_block) == Infix_tag)
+          glob_block -= Infix_offset_val (glob_block);
+        if (Tag_val (glob_block) == Closure_tag)
+          start = Start_env_closinfo (Closinfo_val (glob_block));
+        for (j = start; j < Wosize_val (glob_block); j++)
+          Oldify (&Field (glob_block, j));
+      }
     }
   }
   caml_globals_scanned = caml_globals_inited;
@@ -281,12 +283,14 @@ void caml_oldify_local_roots (void)
       glob_block = *glob;
       start = 0;
       CAMLassert (Is_block (glob_block));
-      if (Tag_val (glob_block) == Infix_tag)
-        glob_block -= Infix_offset_val (glob_block);
-      if (Tag_val (glob_block) == Closure_tag)
-        start = Start_env_closinfo (Closinfo_val (glob_block));
-      for (j = start; j < Wosize_val (glob_block); j++) {
-        Oldify (&Field (glob_block, j));
+      if (Tag_val (glob_block) < No_scan_tag) {
+        if (Tag_val (glob_block) == Infix_tag)
+          glob_block -= Infix_offset_val (glob_block);
+        if (Tag_val (glob_block) == Closure_tag)
+          start = Start_env_closinfo (Closinfo_val (glob_block));
+        for (j = start; j < Wosize_val (glob_block); j++) {
+          Oldify (&Field (glob_block, j));
+        }
       }
     }
   }
@@ -391,19 +395,21 @@ intnat caml_darken_all_roots_slice (intnat work)
       glob_block = *glob;
       start = 0;
       CAMLassert (Is_block (glob_block));
-      if (Tag_val (glob_block) == Infix_tag)
-        glob_block -= Infix_offset_val (glob_block);
-      if (Tag_val (glob_block) == Closure_tag)
-        start = Start_env_closinfo (Closinfo_val (glob_block));
-      for (j = start; j < Wosize_val (glob_block); j++) {
-        caml_darken (Field (glob_block, j), &Field (glob_block, j));
-        -- remaining_work;
-        if (remaining_work == 0){
-          roots_count += work;
-          do_resume = 1;
-          goto suspend;
+      if (Tag_val (glob_block) < No_scan_tag) {
+        if (Tag_val (glob_block) == Infix_tag)
+          glob_block -= Infix_offset_val (glob_block);
+        if (Tag_val (glob_block) == Closure_tag)
+          start = Start_env_closinfo (Closinfo_val (glob_block));
+        for (j = start; j < Wosize_val (glob_block); j++) {
+          caml_darken (Field (glob_block, j), &Field (glob_block, j));
+          -- remaining_work;
+          if (remaining_work == 0){
+            roots_count += work;
+            do_resume = 1;
+            goto suspend;
+          }
+        resume: ;
         }
-      resume: ;
       }
     }
   }
@@ -436,12 +442,14 @@ void caml_do_roots (scanning_action f, int do_globals)
          glob_block = *glob;
          start = 0;
          CAMLassert (Is_block (glob_block));
-         if (Tag_val (glob_block) == Infix_tag)
-           glob_block -= Infix_offset_val (glob_block);
-         if (Tag_val (glob_block) == Closure_tag)
-           start = Start_env_closinfo (Closinfo_val (glob_block));
-         for (j = start; j < Wosize_val (glob_block); j++)
-           f (Field (glob_block, j), &Field (glob_block, j));
+         if (Tag_val (glob_block) < No_scan_tag) {
+           if (Tag_val (glob_block) == Infix_tag)
+             glob_block -= Infix_offset_val (glob_block);
+           if (Tag_val (glob_block) == Closure_tag)
+             start = Start_env_closinfo (Closinfo_val (glob_block));
+           for (j = start; j < Wosize_val (glob_block); j++)
+             f (Field (glob_block, j), &Field (glob_block, j));
+         }
       }
     }
   }
@@ -451,12 +459,14 @@ void caml_do_roots (scanning_action f, int do_globals)
       glob_block = *glob;
       start = 0;
       CAMLassert (Is_block (glob_block));
-      if (Tag_val (glob_block) == Infix_tag)
-        glob_block -= Infix_offset_val (glob_block);
-      if (Tag_val (glob_block) == Closure_tag)
-        start = Start_env_closinfo (Closinfo_val (glob_block));
-      for (j = start; j < Wosize_val (glob_block); j++) {
-        f (Field (glob_block, j), &Field (glob_block, j));
+      if (Tag_val (glob_block) < No_scan_tag) {
+        if (Tag_val (glob_block) == Infix_tag)
+          glob_block -= Infix_offset_val (glob_block);
+        if (Tag_val (glob_block) == Closure_tag)
+          start = Start_env_closinfo (Closinfo_val (glob_block));
+        for (j = start; j < Wosize_val (glob_block); j++) {
+          f (Field (glob_block, j), &Field (glob_block, j));
+        }
       }
     }
   }
