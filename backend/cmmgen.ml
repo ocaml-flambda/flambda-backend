@@ -113,11 +113,7 @@ let mk_traps env nfail =
   if handler_depth = env.trywith_depth then []
   else begin
     assert (handler_depth <= env.trywith_depth);
-    let rec build_pops n =
-      if n = 0 then []
-      else Pop :: (build_pops (n - 1))
-    in
-    build_pops (env.trywith_depth - handler_depth)
+    List.init (env.trywith_depth - handler_depth) (fun _ -> Pop)
   end
 
 (* Description of the "then" and "else" continuations in [transl_if]. If
@@ -821,15 +817,8 @@ and transl_ccall env prim args dbg =
     | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
-  wrap_result
-    (Cop(Cextcall { func = Primitive.native_name prim;
-                    builtin = false;
-                    returns = true;
-                    effects = Arbitrary_effects;
-                    coeffects = Has_coeffects;
-                    ty = typ_res; alloc = prim.prim_alloc;
-                    ty_args = typ_args },
-     args, dbg))
+  let op = cextcall prim args dbg typ_res typ_args true in
+  wrap_result op
 
 and transl_prim_1 env p arg dbg =
   match p with

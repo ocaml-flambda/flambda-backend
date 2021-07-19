@@ -229,3 +229,13 @@ let free_conts_for_handlers fundecl =
   let free = free_conts fundecl.fun_body in
   assert(S.is_empty free);
   !acc
+
+let rec equal_trap_stack ts1 ts2 =
+  match ts1, ts2 with
+  | Uncaught, Uncaught -> true
+  | Generic_trap ts1, Generic_trap ts2 -> equal_trap_stack ts1 ts2
+  | Specific_trap (lbl1, ts1), Specific_trap (lbl2, ts2) ->
+    Int.equal lbl1 lbl2 && equal_trap_stack ts1 ts2
+  | Uncaught, (Generic_trap _ | Specific_trap _)
+  | Generic_trap _, (Uncaught | Specific_trap _)
+  | Specific_trap _, (Uncaught | Generic_trap _) -> false

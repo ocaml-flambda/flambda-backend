@@ -21,7 +21,7 @@ val rec_flag : formatter -> Cmm.rec_flag -> unit
 val machtype_component : formatter -> Cmm.machtype_component -> unit
 val machtype : formatter -> Cmm.machtype -> unit
 val exttype : formatter -> Cmm.exttype -> unit
-val extcall_signature : formatter -> Cmm.machtype * Cmm.exttype list -> unit
+val extcall_signature : formatter -> Cmm.machtype option * Cmm.exttype list -> unit
 val integer_comparison : Cmm.integer_comparison -> string
 val float_comparison : Cmm.float_comparison -> string
 val trap_action_list : formatter -> Cmm.trap_action list -> unit
