@@ -58,7 +58,8 @@ let lub_component comp1 comp2 =
   | Float, Float -> Float
   | (Int | Addr | Val), Float
   | Float, (Int | Addr | Val) ->
-      assert false
+    (* Float unboxing code must be sure to avoid this case. *)
+    assert false
 
 let ge_component comp1 comp2 =
   match comp1, comp2 with
@@ -74,7 +75,7 @@ let ge_component comp1 comp2 =
   | Float, Float -> true
   | (Int | Addr | Val), Float
   | Float, (Int | Addr | Val) ->
-      assert false
+    assert false
 
 type exttype =
   | XInt
