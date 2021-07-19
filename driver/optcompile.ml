@@ -95,6 +95,8 @@ let implementation ~backend ~start_from ~source_file ~output_prefix =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
     then flambda info backend typed
+    else if Config.flambda2
+    then Misc.fatal_error "Flambda 2 coming soon!"
     else clambda info backend typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->

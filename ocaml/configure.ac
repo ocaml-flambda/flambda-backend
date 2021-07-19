@@ -153,6 +153,7 @@ AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([frame_pointers])
 AC_SUBST([flambda])
+AC_SUBST([flambda2])
 AC_SUBST([flambda_invariants])
 AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
@@ -304,11 +305,15 @@ AC_ARG_ENABLE([native-compiler],
 
 AC_ARG_ENABLE([flambda],
   [AS_HELP_STRING([--enable-flambda],
-    [enable flambda optimizations])])
+    [enable the Flambda 1 middle end])])
 
 AC_ARG_ENABLE([flambda-invariants],
   [AS_HELP_STRING([--enable-flambda-invariants],
     [enable invariants checks in flambda])])
+
+AC_ARG_ENABLE([flambda2],
+  [AS_HELP_STRING([--enable-flambda2],
+    [enable the Flambda 2 middle end])])
 
 AC_ARG_WITH([target-bindir],
   [AS_HELP_STRING([--with-target-bindir],
@@ -1764,11 +1769,23 @@ AS_CASE([$enable_ocamltest,AC_PACKAGE_VERSION],
 
 AS_IF([test x"$enable_flambda" = "xyes"],
   [flambda=true
-  AS_IF([test x"$enable_flambda_invariants" = "xyes"],
-    [flambda_invariants=true],
-    [flambda_invariants=false])],
+   flambda2=false
+   AS_IF([test x"$enable_flambda2" = "xyes"],
+     [AC_MSG_ERROR([please enable only one of Flambda 1 and Flambda 2])],
+     [AS_IF([test x"$enable_flambda_invariants" = "xyes"],
+       [flambda_invariants=true],
+       [flambda_invariants=false])])],
   [flambda=false
-  flambda_invariants=false])
+   flambda_invariants=false])
+
+AS_IF([test x"$enable_flambda2" = "xyes"],
+  [flambda2=true
+   flambda=false
+   AS_IF([test x"$enable_flambda_invariants" = "xyes"],
+     [flambda_invariants=true],
+     [flambda_invariants=false])],
+  [flambda2=false
+   flambda_invariants=false])
 
 AS_IF([test x"$enable_flat_float_array" = "xno"],
   [flat_float_array=false],

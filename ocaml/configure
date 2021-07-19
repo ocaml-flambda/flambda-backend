@@ -706,6 +706,7 @@ function_sections
 flat_float_array
 windows_unicode
 flambda_invariants
+flambda2
 flambda
 frame_pointers
 profinfo_width
@@ -801,7 +802,6 @@ infodir
 docdir
 oldincludedir
 includedir
-runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -846,6 +846,7 @@ enable_installing_bytecode_programs
 enable_native_compiler
 enable_flambda
 enable_flambda_invariants
+enable_flambda2
 with_target_bindir
 enable_reserved_header_bits
 enable_stdlib_manpages
@@ -917,7 +918,6 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
-runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1170,15 +1170,6 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
-  -runstatedir | --runstatedir | --runstatedi | --runstated \
-  | --runstate | --runstat | --runsta | --runst | --runs \
-  | --run | --ru | --r)
-    ac_prev=runstatedir ;;
-  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
-  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
-  | --run=* | --ru=* | --r=*)
-    runstatedir=$ac_optarg ;;
-
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1316,7 +1307,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir runstatedir
+		libdir localedir mandir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1469,7 +1460,6 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
-  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1529,9 +1519,10 @@ Optional Features:
                           also install the bytecode versions of programs
   --disable-native-compiler
                           do not build the native compiler
-  --enable-flambda        enable flambda optimizations
+  --enable-flambda        enable the Flambda 1 middle end
   --enable-flambda-invariants
                           enable invariants checks in flambda
+  --enable-flambda2       enable the Flambda 2 middle end
   --enable-reserved-header-bits=BITS
                           reserve BITS (between 0 and 31) bits in block
                           headers for profiling info
@@ -2886,6 +2877,7 @@ VERSION=4.12.1+dev0-2021-02-24
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.build_config"
@@ -3181,6 +3173,12 @@ fi
 # Check whether --enable-flambda-invariants was given.
 if test "${enable_flambda_invariants+set}" = set; then :
   enableval=$enable_flambda_invariants;
+fi
+
+
+# Check whether --enable-flambda2 was given.
+if test "${enable_flambda2+set}" = set; then :
+  enableval=$enable_flambda2;
 fi
 
 
@@ -16896,14 +16894,32 @@ esac
 
 if test x"$enable_flambda" = "xyes"; then :
   flambda=true
+   flambda2=false
+   if test x"$enable_flambda2" = "xyes"; then :
+  as_fn_error $? "please enable only one of Flambda 1 and Flambda 2" "$LINENO" 5
+else
   if test x"$enable_flambda_invariants" = "xyes"; then :
   flambda_invariants=true
 else
   flambda_invariants=false
 fi
+fi
 else
   flambda=false
+   flambda_invariants=false
+fi
+
+if test x"$enable_flambda2" = "xyes"; then :
+  flambda2=true
+   flambda=false
+   if test x"$enable_flambda_invariants" = "xyes"; then :
+  flambda_invariants=true
+else
   flambda_invariants=false
+fi
+else
+  flambda2=false
+   flambda_invariants=false
 fi
 
 if test x"$enable_flat_float_array" = "xno"; then :

@@ -28,12 +28,13 @@ AC_MSG_NOTICE([Using dune executable: $dune])
 
 AC_ARG_ENABLE([middle-end],
   [AS_HELP_STRING([--enable-middle-end],
-    [Select which middle end to use: closure or flambda])],
+    [Select which middle end to use: closure, flambda or flambda2])],
   [AS_CASE([$enable_middle_end],
     [closure], [middle_end=closure middle_end_arg=--disable-flambda],
     [flambda], [middle_end=flambda middle_end_arg=--enable-flambda],
-    [*],       [AC_MSG_ERROR([Bad middle end (not closure or flambda)])])],
-  [AC_MSG_ERROR([--enable-middle-end=closure|flambda must be provided])])
+    [flambda2], [middle_end=flambda middle_end_arg=--enable-flambda2],
+    [*], [AC_MSG_ERROR([Bad middle end (not closure, flambda or flambda2)])])],
+  [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
 stage0_prefix=$ac_abs_confdir/_build0/_install
 stage1_prefix=$ac_abs_confdir/_build1/install/default
