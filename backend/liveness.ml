@@ -213,11 +213,11 @@ let rec live env i finally =
       let env =
         match kind with
         | Regular ->
-            { env with at_raise = live_at_raise;
-                       last_regular_trywith_handler = live_at_raise;
-            }
+          { env with at_raise = live_at_raise;
+                     last_regular_trywith_handler = live_at_raise;
+          }
         | Delayed nfail ->
-            { env with at_exit = (nfail, live_at_raise) :: env.at_exit; }
+          { env with at_exit = (nfail, live_at_raise) :: env.at_exit; }
       in
       let before_body = live env body at_join in
       i.live <- before_body;
