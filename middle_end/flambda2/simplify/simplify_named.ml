@@ -49,7 +49,8 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
        of the primitive, so we can directly read off whether they are
        symbols or constants, as needed. *)
     match prim with
-    | Nullary Optimised_out _ -> None
+    | Nullary Optimised_out _
+    | Nullary Probe_is_enabled _ -> None
     | Unary (Project_var { project_from; var; }, _)
         when can_record_proj ->
       begin match args with

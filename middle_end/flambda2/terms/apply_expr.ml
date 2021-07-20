@@ -71,16 +71,18 @@ type t = {
   dbg : Debuginfo.t;
   inline : Inline_attribute.t;
   inlining_state : Inlining_state.t;
+  probe_name : string option;
 }
 
 let print ppf { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inline; inlining_state; } =
+      dbg; inline; inlining_state; probe_name; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>(inline@ %a)@]@ \
-      @[<hov 1>(inlining_state@ %a)@]\
+      @[<hov 1>(inlining_state@ %a)@]@ \
+      @[<hov 1>(probe_name@ %a)@]\
       )@]"
     Simple.print callee
     Result_continuation.print continuation
@@ -92,6 +94,11 @@ let print ppf { callee; continuation; exn_continuation; args; call_kind;
     (Flambda_colours.normal ())
     Inline_attribute.print inline
     Inlining_state.print inlining_state
+    (fun ppf probe_name ->
+      match probe_name with
+      | None -> Format.pp_print_string ppf "()"
+      | Some probe_name -> Format.pp_print_string ppf probe_name)
+    probe_name
 
 let print_with_cache ~cache:_ ppf t = print ppf t
 
@@ -104,6 +111,7 @@ let invariant env
         dbg;
         inline;
         inlining_state;
+        probe_name = _;
       } as t) =
     let unbound_continuation cont reason =
       Misc.fatal_errorf "Unbound continuation %a in %s: %a"
@@ -212,7 +220,7 @@ let invariant env
     end
 
 let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inline
-      ~inlining_state =
+      ~inlining_state ~probe_name =
   (* CR mshinwell: We should still be able to check some of the invariant
      properties now.  (We can't do them all as we don't have the
      environment.) *)
@@ -224,6 +232,7 @@ let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inline
     dbg;
     inline;
     inlining_state;
+    probe_name;
   }
 
 let callee t = t.callee
@@ -244,6 +253,7 @@ let free_names
         dbg = _;
         inline = _;
         inlining_state = _;
+        probe_name = _;
       } =
   Name_occurrences.union_list [
     Simple.free_names callee;
@@ -262,6 +272,7 @@ let apply_renaming
          dbg;
          inline;
          inlining_state;
+         probe_name;
       } as t)
       perm =
   let continuation' =
@@ -289,6 +300,7 @@ let apply_renaming
       dbg;
       inline;
       inlining_state;
+      probe_name;
     }
 
 let all_ids_for_export
@@ -300,6 +312,7 @@ let all_ids_for_export
         dbg = _;
         inline = _;
         inlining_state = _;
+        probe_name = _;
       } =
   let callee_ids = (Ids_for_export.from_simple callee) in
   let callee_and_args_ids =
@@ -345,3 +358,5 @@ let with_continuation_callee_and_args t continuation ~callee ~args =
   }
 let inlining_arguments t =
   inlining_state t |> Inlining_state.arguments
+
+let probe_name t = t.probe_name

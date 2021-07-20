@@ -193,7 +193,8 @@ type nullary_primitive =
   (** Used for phantom bindings for which there is not enough information
       remaining to build a meaningful value.
       Can only be used in a phantom let-binding. *)
-
+  | Probe_is_enabled of { name : string; }
+  (** Returns a boolean saying whether the given tracing probe is enabled. *)
 
 (** Untagged binary integer arithmetic operations.
 

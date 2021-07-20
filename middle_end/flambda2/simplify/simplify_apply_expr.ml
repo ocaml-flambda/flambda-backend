@@ -315,6 +315,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           dbg
           ~inline:Default_inline
           ~inlining_state:(Apply.inlining_state apply)
+          ~probe_name:None
       in
       let cost_metrics =
         Cost_metrics.from_size (Code_size.apply full_application)
@@ -788,6 +789,7 @@ let simplify_apply_shared dacc apply =
       (DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply))
       ~inline:(Apply.inline apply)
       ~inlining_state
+      ~probe_name:(Apply.probe_name apply)
   in
   dacc, callee_ty, apply, arg_types
 

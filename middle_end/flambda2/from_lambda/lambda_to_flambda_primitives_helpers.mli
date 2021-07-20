@@ -22,6 +22,7 @@ type failure =
 
 type expr_primitive =
   | Simple of Simple.t
+  | Nullary of Flambda_primitive.nullary_primitive
   | Unary of Flambda_primitive.unary_primitive * simple_or_prim
   | Binary of Flambda_primitive.binary_primitive
       * simple_or_prim * simple_or_prim

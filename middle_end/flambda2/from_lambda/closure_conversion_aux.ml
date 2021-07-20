@@ -58,6 +58,7 @@ module IR = struct
     tailcall : Lambda.tailcall_attribute;
     inlined : Lambda.inline_attribute;
     specialised : Lambda.specialise_attribute;
+    probe : Lambda.probe;
   }
 
   type switch = {

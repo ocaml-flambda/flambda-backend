@@ -494,6 +494,7 @@ and subst_apply env apply =
     dbg
     ~inline
     ~inlining_state
+    ~probe_name:None
   |> Expr.create_apply
 and subst_apply_cont env apply_cont =
   let trap_action = Apply_cont_expr.trap_action apply_cont in
@@ -1105,6 +1106,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
         (Apply.dbg apply1)
         ~inline:(Apply.inline apply1)
         ~inlining_state:(Apply.inlining_state apply1)
+        ~probe_name:None
       |> Expr.create_apply
     }
 ;;
