@@ -142,13 +142,18 @@ let fresh_or_existing_var_within_closure env ({ Fexpr.txt = name; _ } as id) =
   | None -> fresh_var_within_closure env id
   | Some var_within_closure -> var_within_closure
 
+let print_scoped_location ppf loc =
+  match (loc : Lambda.scoped_location) with
+  | Loc_unknown -> Format.pp_print_string ppf "Unknown"
+  | Loc_known { loc; _ } -> Location.print_loc ppf loc
+
 let declare_symbol (env:env) ({ Fexpr.txt = cu, name; loc } as symbol) =
   if Option.is_some cu then
     Misc.fatal_errorf "Cannot declare non-local symbol %a: %a"
-      Print_fexpr.symbol symbol Lambda.print_scoped_location loc
+      Print_fexpr.symbol symbol print_scoped_location loc
   else if SM.mem name env.symbols then
     Misc.fatal_errorf "Redefinition of symbol %a: %a"
-      Print_fexpr.symbol symbol Lambda.print_scoped_location loc
+      Print_fexpr.symbol symbol print_scoped_location loc
   else
     let cunit =
       match cu with
@@ -172,7 +177,7 @@ let find_with ~descr ~find map { Fexpr.txt = name; loc } =
   match find name map with
   | None ->
     Misc.fatal_errorf "Unbound %s %s: %a"
-      descr name Lambda.print_scoped_location loc
+      descr name print_scoped_location loc
   | Some a ->
     a
 
@@ -320,7 +325,7 @@ let rec simple env (s:Fexpr.simple) : Simple.t =
       match VM.find_opt v env.variables with
       | None ->
         Misc.fatal_errorf "Unbound variable %s : %a" v
-          Lambda.print_scoped_location loc
+          print_scoped_location loc
       | Some var ->
         Simple.var var
     end
@@ -338,7 +343,7 @@ let name env (s:Fexpr.name) : Name.t =
       match VM.find_opt v env.variables with
       | None ->
         Misc.fatal_errorf "Unbound variable %s : %a" v
-          Lambda.print_scoped_location loc
+          print_scoped_location loc
       | Some var ->
         Name.var var
     end
@@ -541,7 +546,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           (var, binding)
         | { var = { txt = _; loc }; _ } ->
           Misc.fatal_errorf "Cannot use 'and' with non-closure: %a"
-            Lambda.print_scoped_location loc
+            print_scoped_location loc
       in
       let vars_and_closure_bindings =
         List.map binding_to_var_and_closure_binding bindings
@@ -915,6 +920,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               arity ret_arity |> Flambda_arity.With_subkinds.to_arity
             in
             Call_kind.c_call ~alloc ~param_arity ~return_arity
+              ~is_c_builtin:false
           | None
           | Some { params_arity = None; ret_arity = _ } ->
             Misc.fatal_errorf "Must specify arities for C call"
@@ -942,6 +948,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         (Debuginfo.none)
         ~inline
         ~inlining_state
+        ~probe_name:None
     in
     Flambda.Expr.create_apply apply
 
