@@ -56,7 +56,9 @@ let env_find_mut id env =
   begin match mut with
   | Asttypes.Mutable -> ()
   | Asttypes.Immutable ->
-    Misc.fatal_error "Selectgen.env_find_mut: not mutable"
+    Misc.fatal_errorf
+      "Selectgen.env_find_mut: %a is not mutable"
+      V.print id
   end;
   regs
 
