@@ -171,7 +171,15 @@ let find_simples acc env ids =
     acc
     ids
 
-let close_c_call acc ~let_bound_var (prim : Primitive.description)
+let close_c_call acc ~let_bound_var
+      ({ prim_name;
+         prim_arity;
+         prim_alloc;
+         prim_c_builtin;
+         prim_native_name;
+         prim_native_repr_args;
+         prim_native_repr_res;
+       } : Primitive.description)
       ~(args : Simple.t list) exn_continuation dbg
       (k : Acc.t -> Named.t option -> Acc.t * Expr_with_acc.t)
   : Acc.t * Expr_with_acc.t =
@@ -192,20 +200,20 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
     | _ -> Continuation.create (), true
   in
   let param_arity =
-    List.map LC.kind_of_primitive_native_repr prim.prim_native_repr_args
+    List.map LC.kind_of_primitive_native_repr prim_native_repr_args
   in
   let return_kind =
-    LC.kind_of_primitive_native_repr prim.prim_native_repr_res
+    LC.kind_of_primitive_native_repr prim_native_repr_res
   in
   let return_arity = [return_kind] in
   let call_kind =
-    Call_kind.c_call ~alloc:prim.prim_alloc ~param_arity ~return_arity
-      ~is_c_builtin:prim.prim_c_builtin
+    Call_kind.c_call ~alloc:prim_alloc ~param_arity ~return_arity
+      ~is_c_builtin:prim_c_builtin
   in
   let call_symbol =
     let prim_name =
-      if String.equal prim.prim_native_name "" then prim.prim_name
-      else prim.prim_native_name
+      if String.equal prim_native_name "" then prim_name
+      else prim_native_name
     in
     (* CR mshinwell: fix "extern" mess (see Un_cps) *)
     Symbol.create (Compilation_unit.external_symbols ())
@@ -213,7 +221,7 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
   in
   let call args =
     (* Some C primitives have implementations within Flambda itself. *)
-    match prim.prim_native_name with
+    match prim_native_name with
     | "caml_int64_float_of_bits_unboxed"
       (* There is only one case where this operation is not the identity:
          on 32-bit pre-EABI ARM platforms.  It is very unlikely anyone would
@@ -226,10 +234,10 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
         | Sixty_four -> true
         end
       ->
-      if prim.prim_arity <> 1 then
-        Misc.fatal_errorf "Expected arity one for %s" prim.prim_native_name
+      if prim_arity <> 1 then
+        Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
-        begin match prim.prim_native_repr_args, prim.prim_native_repr_res with
+        begin match prim_native_repr_args, prim_native_repr_res with
         | [Unboxed_integer Pint64], Unboxed_float ->
           begin match args with
           | [arg] ->
@@ -250,11 +258,11 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
               ~free_names_of_body:(Known (Apply_cont.free_names return_result))
             |> Expr_with_acc.create_let
           | [] | _::_ ->
-            Misc.fatal_errorf "Expected one arg for %s" prim.prim_native_name
+            Misc.fatal_errorf "Expected one arg for %s" prim_native_name
           end
         | _, _ ->
           Misc.fatal_errorf "Wrong argument and/or result kind(s) for %s"
-            prim.prim_native_name
+            prim_native_name
         end
     | _ ->
       let acc, callee = use_of_symbol_as_simple acc call_symbol in
@@ -304,7 +312,7 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
              |> Expr_with_acc.create_let))
       call
       args
-      prim.prim_native_repr_args
+      prim_native_repr_args
       []
   in
   let box_unboxed_returns acc ~let_bound_var ~box_return_value body =
@@ -351,7 +359,7 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
       acc
   in
   let box_return_value =
-    match prim.prim_native_repr_res with
+    match prim_native_repr_res with
     | Same_as_ocaml_repr -> None
     | Unboxed_float -> Some (P.Box_number Naked_float)
     | Unboxed_integer Pnativeint -> Some (P.Box_number Naked_nativeint)
