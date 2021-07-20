@@ -123,6 +123,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
   | Pmakearray(_, _) when is_empty approxs ->
     Prim (Pmakeblock(0, Asttypes.Immutable, Some []), [], dbg),
     A.value_block (Tag.create_exn 0) [||], C.Benefit.zero
+  (* CR mshinwell: Work out what to do here with [Pmakefloatblock] *)
   | Pmakearray (Pfloatarray, Mutable) ->
       let approx =
         A.value_mutable_float_array ~size:(List.length args)
