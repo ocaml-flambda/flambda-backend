@@ -2,7 +2,7 @@
 (* This generated code requires the following version of CamlinternalMenhirLib: *)
 
 let () =
-  CamlinternalMenhirLib.StaticVersion.require_20200211
+  CamlinternalMenhirLib.StaticVersion.require_20190924
 
 module MenhirBasics = struct
   
