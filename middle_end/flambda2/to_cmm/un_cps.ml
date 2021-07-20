@@ -376,12 +376,23 @@ let binary_float_comp_primitive_yielding_int _env dbg x y =
 
 (* Primitives *)
 
+let nullary_primitive _env dbg prim : _ * Cmm.expression =
+  match (prim : Flambda_primitive.nullary_primitive) with
+  | Optimised_out _ ->
+    Misc.fatal_errorf "TODO: phantom let-bindings in un_cps"
+  | Probe_is_enabled { name; } ->
+    None, Cop (Cprobe_is_enabled { name; }, [], dbg)
+
 let unary_primitive env dbg f arg =
   match (f : Flambda_primitive.unary_primitive) with
   | Duplicate_array _ ->
-    None, C.extcall ~alloc:true ~returns:true ~ty_args:[] "caml_obj_dup" typ_val [arg]
+    None,
+      C.extcall ~alloc:true ~returns:true ~is_c_builtin:false
+        ~ty_args:[] "caml_obj_dup" typ_val [arg]
   | Duplicate_block _ ->
-    None, C.extcall ~alloc:true ~returns:true ~ty_args:[] "caml_obj_dup" typ_val [arg]
+    None,
+      C.extcall ~alloc:true ~returns:true ~is_c_builtin:false
+        ~ty_args:[] "caml_obj_dup" typ_val [arg]
   | Is_int ->
     None, C.and_ ~dbg arg (C.int ~dbg 1)
   | Get_tag ->
@@ -410,7 +421,7 @@ let unary_primitive env dbg f arg =
        the backend.  It isn't the identity as there may need to be a move
        between different register kinds (e.g. integer to XMM registers
        on x86-64). *)
-    None, C.extcall ~alloc:false ~returns:true
+    None, C.extcall ~alloc:false ~returns:true ~is_c_builtin:false
       ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
       "caml_int64_float_of_bits_unboxed"
       typ_float
@@ -499,8 +510,9 @@ let arg_list env l =
    given to [Env.inline_variable]. *)
 let prim env dbg p =
   match (p : Flambda_primitive.t) with
-  | Nullary Optimised_out _ ->
-    Misc.fatal_errorf "TODO: phantom let-bindings in un_cps"
+  | Nullary prim ->
+    let extra, res = nullary_primitive env dbg prim in
+    res, extra, env, Ece.pure
   | Unary (f, x) ->
     let x, env, eff = simple env x in
     let extra, res = unary_primitive env dbg f x in
@@ -913,6 +925,15 @@ and apply_call env e =
   let args = Apply_expr.args e in
   let dbg = Apply_expr.dbg e in
   let effs = Ece.all in
+  let fail_if_probe apply =
+    match Apply.probe_name apply with
+    | None -> ()
+    | Some _ ->
+      Misc.fatal_errorf "[Apply] terms with a [probe_name] (i.e. that call a \
+          tracing probe) must always be direct applications of an OCaml \
+          function:@ %a"
+        Apply.print apply
+  in
   match Apply_expr.call_kind e with
   (* Effects from arguments are ignored since a function call will always be
      given arbitrary effects and coeffects. *)
@@ -941,15 +962,22 @@ and apply_call env e =
         args, env
     in
     let f_code = symbol (Code_id.code_symbol code_id) in
-    C.direct_call ~dbg ty (C.symbol f_code) args, env, effs
+    begin match Apply_expr.probe_name e with
+    | None -> C.direct_call ~dbg ty (C.symbol f_code) args, env, effs
+    | Some name ->
+      Cmm.Cop (Cprobe { name; handler_code_sym = f_code; }, args, dbg),
+        env, effs
+    end
   | Call_kind.Function
       Call_kind.Function_call.Indirect_unknown_arity ->
+    fail_if_probe e;
     let f, env, _ = simple env f in
     let args, env, _ = arg_list env args in
     C.indirect_call ~dbg typ_val f args, env, effs
   | Call_kind.Function
       Call_kind.Function_call.Indirect_known_arity
       { return_arity; param_arity; } ->
+    fail_if_probe e;
     if not (check_arity param_arity args) then
       Misc.fatal_errorf "Un_cps expects indirect_known_arity calls to be \
                          full applications in order to translate it"
@@ -963,7 +991,8 @@ and apply_call env e =
       in
       C.indirect_full_call ~dbg ty f args, env, effs
     end
-  | Call_kind.C_call { alloc; return_arity; param_arity; _ } ->
+  | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin; } ->
+    fail_if_probe e;
     let f = function_name f in
     (* CR vlaviron: temporary hack to recover the right symbol *)
     let len = String.length f in
@@ -975,8 +1004,10 @@ and apply_call env e =
     let ty = machtype_of_return_arity return_arity in
     let wrap = wrap_extcall_result return_arity in
     let ty_args = List.map C.exttype_of_kind param_arity in
-    wrap dbg (C.extcall ~dbg ~alloc ~returns ~ty_args f ty args), env, effs
+    wrap dbg (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args f ty args),
+      env, effs
   | Call_kind.Method { kind; obj; } ->
+    fail_if_probe e;
     let obj, env, _ = simple env obj in
     let meth, env, _ = simple env f in
     let kind = meth_kind kind in
@@ -1479,8 +1510,10 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
     | None -> () (* Either opaque was passed, or there is no need to export
                     offsets *)
     | Some cmx ->
-      let cmx = Flambda_cmx_format.with_exported_offsets cmx offsets in
-      Compilenv.set_global_info (Flambda (Some cmx))
+      let _cmx = Flambda_cmx_format.with_exported_offsets cmx offsets in
+      (* CR mshinwell: wire this in *)
+      Misc.fatal_error "To do"
+(*      Compilenv.set_global_info (Flambda (Some cmx)) *)
     end;
     let used_closure_vars = Flambda_unit.used_closure_vars unit in
     let dummy_k = Continuation.create () in

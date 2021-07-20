@@ -218,11 +218,20 @@ let load ?(dbg=Debuginfo.none) kind mut addr =
 let store ?(dbg=Debuginfo.none) kind init addr value =
   Cmm.Cop (Cmm.Cstore (kind, init), [addr; value], dbg)
 
-let extcall ?(dbg=Debuginfo.none) ~returns ~alloc ~ty_args name typ_res
+let extcall ?(dbg=Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args
+      name typ_res
   args =
   if not returns then assert (typ_res = Cmm.typ_void);
-  Cmm.Cop (Cextcall  { func = name; ty = typ_res;
-                       alloc; ty_args; returns; }, args, dbg)
+  Cmm.Cop (Cextcall {
+      func = name;
+      ty = typ_res;
+      alloc;
+      ty_args;
+      returns;
+      builtin = is_c_builtin;
+      effects = Arbitrary_effects;
+      coeffects = Has_coeffects;
+    }, args, dbg)
 
 
 (* Arithmetic helpers *)
@@ -268,7 +277,7 @@ let make_array ?(dbg=Debuginfo.none) kind args =
       begin match args with
       | [] -> static_atom ~dbg 0
       | _ ->
-          extcall ~dbg ~alloc:true ~returns:true ~ty_args:[]
+          extcall ~dbg ~alloc:true ~is_c_builtin:false ~returns:true ~ty_args:[]
             "caml_make_array" Cmm.typ_val
             [make_alloc dbg 0 args]
       end

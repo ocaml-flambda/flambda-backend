@@ -403,7 +403,8 @@ val indirect_full_call :
 
 val extcall :
   ?dbg:Debuginfo.t ->
-  returns:bool -> alloc:bool -> ty_args:Cmm.exttype list ->
+  returns:bool -> alloc:bool -> is_c_builtin:bool ->
+  ty_args:Cmm.exttype list ->
   string -> Cmm.machtype -> Cmm.expression list -> Cmm.expression
 (** Create a C function call. *)
 

@@ -138,7 +138,8 @@ let invariant env
       ignore (kind : Call_kind.method_kind);
       E.check_simple_is_bound_and_of_kind env obj K.value;
       E.check_simples_are_bound_and_of_kind env args K.value
-    | C_call { alloc = _; param_arity = _; return_arity = _; } ->
+    | C_call { alloc = _; param_arity = _; return_arity = _;
+        is_c_builtin = _; } ->
       (* CR mshinwell: Check exactly what Cmmgen can compile and then
          add further checks on [param_arity] and [return_arity] *)
       if not (Simple.is_symbol callee) then begin

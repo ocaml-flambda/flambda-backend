@@ -18,6 +18,15 @@
 
 open! Simplify_import
 
+let fail_if_probe apply =
+  match Apply.probe_name apply with
+  | None -> ()
+  | Some _ ->
+    Misc.fatal_errorf "[Apply] terms with a [probe_name] (i.e. that call a \
+        tracing probe) must always be direct applications of an OCaml \
+        function:@ %a"
+      Apply.print apply
+
 let warn_not_inlined_if_needed apply reason =
   match Apply.inline apply with
   | Hint_inline | Never_inline | Default_inline -> ()
@@ -196,6 +205,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   (* CR-someday mshinwell: Pierre noted that we might like a function to be
      inlined when applied to its first set of arguments, e.g. for some kind
      of type class like thing. *)
+  fail_if_probe apply;
   let args = Apply.args apply in
   let dbg = Apply.dbg apply in
   let apply_continuation =
@@ -450,6 +460,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
 
 let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity ~result_arity:_
       ~down_to_up ~coming_from_indirect =
+  fail_if_probe apply;
   let expr = Simplify_common.split_direct_over_application apply ~param_arity in
   simplify_expr dacc expr
     ~down_to_up:(fun dacc ~rebuild ->
@@ -472,6 +483,14 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
       ~callee's_closure_id ~result_arity ~recursive ~arg_types:_
       ~must_be_detupled function_decl_opt ~down_to_up =
+  begin match Apply.probe_name apply, Apply.inline apply with
+  | None, _
+  | Some _, Never_inline -> ()
+  | Some _, (Hint_inline | Unroll _ | Default_inline | Always_inline) ->
+    Misc.fatal_errorf "[Apply] terms with a [probe_name] (i.e. that call a \
+        tracing probe) must always be marked as [Never_inline]:@ %a"
+      Apply.print apply
+  end;
   let result_arity_of_application =
     Call_kind.return_arity (Apply.call_kind apply)
   in
@@ -557,6 +576,7 @@ let rebuild_function_call_where_callee's_type_unavailable apply call_kind
 
 let simplify_function_call_where_callee's_type_unavailable dacc apply
       (call : Call_kind.Function_call.t) ~args:_ ~arg_types ~down_to_up =
+  fail_if_probe apply;
   let cont =
     match Apply.continuation apply with
     | Never_returns ->
@@ -806,6 +826,7 @@ let rebuild_method_call apply ~use_id ~exn_cont_use_id uacc ~after_rebuild =
 
 let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
       ~down_to_up =
+  fail_if_probe apply;
   let callee_kind = T.kind callee_ty in
   if not (K.is_value callee_kind) then begin
     Misc.fatal_errorf "Method call with callee of wrong kind %a: %a"
@@ -871,6 +892,7 @@ let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
 
 let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
       ~return_arity ~arg_types ~down_to_up =
+  fail_if_probe apply;
   let callee_kind = T.kind callee_ty in
   if not (K.is_value callee_kind) then begin
     Misc.fatal_errorf "C callees must be of kind [value], not %a: %a"
@@ -946,6 +968,6 @@ let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   | Method { kind; obj; } ->
     simplify_method_call dacc apply ~callee_ty ~kind ~obj ~arg_types
       ~down_to_up
-  | C_call { alloc = _; param_arity; return_arity; } ->
+  | C_call { alloc = _; param_arity; return_arity; is_c_builtin = _; } ->
     simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
       ~return_arity ~arg_types ~down_to_up
