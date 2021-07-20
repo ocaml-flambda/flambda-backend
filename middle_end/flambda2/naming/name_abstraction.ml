@@ -125,7 +125,7 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
   let all_ids_for_export (name, term) =
     Ids_for_export.union (Bindable.all_ids_for_export name)
       (Term.all_ids_for_export term)
-end [@@@inline always]
+end [@@inline always]
 
 module Make_list (Bindable : Bindable.S) (Term : Term) = struct
   type t = Bindable.t list * Term.t
@@ -248,7 +248,7 @@ module Make_list (Bindable : Bindable.S) (Term : Term) = struct
         Ids_for_export.union ids (Bindable.all_ids_for_export name))
       term_ids
       names
-end [@@@inline always]
+end [@@inline always]
 
 module Make_map (Bindable : Bindable.S) (Term : Term) = struct
   type t = E : _ Bindable.Map.t * Term.t -> t
@@ -340,4 +340,4 @@ module Make_map (Bindable : Bindable.S) (Term : Term) = struct
       in
       let free_in_term = Term.free_names term in
       Name_occurrences.diff free_in_term in_binding_position
-end [@@@inline always]
+end [@@inline always]
