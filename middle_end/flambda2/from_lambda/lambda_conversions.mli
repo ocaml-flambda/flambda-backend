@@ -91,5 +91,5 @@ val convert_field_read_semantics
   -> Mutability.t
 
 val convert_lambda_block_size
-   : Lambda.block_size
+   : int
   -> Targetint_31_63.Imm.t Or_unknown.t

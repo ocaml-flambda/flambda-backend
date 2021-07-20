@@ -225,7 +225,5 @@ let convert_field_read_semantics (sem : L.field_read_semantics)
   | Reads_agree -> Immutable
   | Reads_vary -> Mutable
 
-let convert_lambda_block_size (size : L.block_size) : _ Or_unknown.t =
-  match size with
-  | Unknown -> Unknown
-  | Known size -> Known (Targetint_31_63.Imm.of_int size)
+let convert_lambda_block_size (size : int) : _ Or_unknown.t =
+  Known (Targetint_31_63.Imm.of_int size)
