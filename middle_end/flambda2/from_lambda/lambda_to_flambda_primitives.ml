@@ -1016,6 +1016,8 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
         Yielding_int_like_compare_functions),
       Prim (Unary (Unbox_number unboxing_kind, i1)),
       Prim (Unary (Unbox_number unboxing_kind, i2))))
+  | Pprobe_is_enabled { name; }, [] ->
+    tag_int (Nullary (Probe_is_enabled { name; }))
   | ( Pmodint Unsafe
     | Pdivbint { is_safe = Unsafe; size = _; }
     | Pmodbint { is_safe = Unsafe; size = _; }
@@ -1024,6 +1026,12 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
     Misc.fatal_errorf "Closure_conversion.convert_primitive: \
         Primitive %a (%a) shouldn't be here, either a bug in \
         [Closure_conversion] or the wrong number of arguments"
+      Printlambda.primitive prim
+      H.print_list_of_simple_or_prim args
+  | ( Pprobe_is_enabled _ ),
+    _::_ ->
+    Misc.fatal_errorf "Closure_conversion.convert_primitive: \
+        Wrong arity for nullary primitive %a (%a)"
       Printlambda.primitive prim
       H.print_list_of_simple_or_prim args
   | ( Pfield _ | Pnegint | Pnot | Poffsetint _ | Pintoffloat | Pfloatofint

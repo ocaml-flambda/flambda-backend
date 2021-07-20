@@ -407,6 +407,7 @@ let transform_primitive env (prim : L.primitive) args loc =
            operators. *)
         ap_inlined = Default_inline;
         ap_specialised = Default_specialise;
+        ap_probe = None;
       }
     in
     Transformed (L.Lapply apply)
@@ -706,7 +707,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbswap16
   | Pbbswap _
   | Pint_as_pointer
-  | Popaque -> false
+  | Popaque
+  | Pprobe_is_enabled _ -> false
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
           (k : Acc.t -> Env.t -> CCenv.t
@@ -723,7 +725,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     name_then_cps_non_tail acc env ccenv "const"
       (IR.Simple (Const const)) k k_exn
   | Lapply { ap_func; ap_args; ap_loc; ap_tailcall; ap_inlined;
-      ap_specialised; } ->
+      ap_specialised; ap_probe; } ->
     cps_non_tail_list acc env ccenv ap_args (fun acc env ccenv args ->
       cps_non_tail acc env ccenv ap_func (fun acc env ccenv func ->
         let result_var = Ident.create_local "apply_result" in
@@ -746,6 +748,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               tailcall = ap_tailcall;
               inlined = ap_inlined;
               specialised = ap_specialised;
+              probe = ap_probe;
             }
             in
             wrap_return_continuation acc env ccenv apply)
@@ -949,6 +952,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                 tailcall = Default_tailcall;
                 inlined = Default_inline;
                 specialised = Default_specialise;
+                probe = None;
               } in
               wrap_return_continuation acc env ccenv apply)
             ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
@@ -1085,6 +1089,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           tailcall = apply.ap_tailcall;
           inlined = apply.ap_inlined;
           specialised = apply.ap_specialised;
+          probe = apply.ap_probe;
         } in
         wrap_return_continuation acc env ccenv apply) k_exn) k_exn
   | Lfunction func ->
@@ -1293,6 +1298,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
             tailcall = Default_tailcall;
             inlined = Default_inline;
             specialised = Default_specialise;
+            probe = None;
           } in
           wrap_return_continuation acc env ccenv apply) k_exn) k_exn) k_exn
   | Lassign (being_assigned, new_value) ->

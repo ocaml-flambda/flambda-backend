@@ -551,13 +551,19 @@ type result_kind =
 
 type nullary_primitive =
   | Optimised_out of K.t
+  | Probe_is_enabled of { name : string; }
 
 let nullary_primitive_eligible_for_cse = function
-  | Optimised_out _ -> false
+  | Optimised_out _
+  | Probe_is_enabled _ -> false
 
 let compare_nullary_primitive p1 p2 =
   match p1, p2 with
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
+  | Probe_is_enabled { name = name1; }, Probe_is_enabled { name = name2; } ->
+    String.compare name1 name2
+  | Optimised_out _, Probe_is_enabled _ -> -1
+  | Probe_is_enabled _, Optimised_out _ -> 1
 
 let equal_nullary_primitive p1 p2 =
   compare_nullary_primitive p1 p2 = 0
@@ -568,20 +574,27 @@ let print_nullary_primitive ppf p =
     Format.fprintf ppf "@<0>%sOptimised_out@<0>%s"
       (Flambda_colours.elide ())
       (Flambda_colours.normal ())
+  | Probe_is_enabled { name; } ->
+    Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
   | Optimised_out k -> Singleton k
+  | Probe_is_enabled _ -> Singleton (K.naked_immediate)
 
 let effects_and_coeffects_of_nullary_primitive p =
   match p with
   | Optimised_out _ ->
     Effects.No_effects, Coeffects.No_coeffects
+  | Probe_is_enabled _ ->
+    (* This doesn't really have effects, but we want to make sure it never
+       gets moved around. *)
+    Effects.Arbitrary_effects, Coeffects.Has_coeffects
 
 let nullary_classify_for_printing p =
   match p with
-  | Optimised_out _ -> Neither
-
+  | Optimised_out _
+  | Probe_is_enabled _ -> Neither
 
 type unary_primitive =
   | Duplicate_block of {
@@ -1392,7 +1405,8 @@ type primitive_application = t
 let invariant env t =
   let module E = Invariant_env in
   match t with
-  | Nullary Optimised_out _ -> ()
+  | Nullary Optimised_out _
+  | Nullary Probe_is_enabled _ -> ()
   | Unary (prim, x0) ->
     let kind0 = arg_kind_of_unary_primitive prim in
     E.check_simple_is_bound_and_of_kind env x0 kind0;

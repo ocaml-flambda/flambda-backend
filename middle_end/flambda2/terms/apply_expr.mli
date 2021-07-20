@@ -48,6 +48,7 @@ val create
   -> Debuginfo.t
   -> inline:Inline_attribute.t
   -> inlining_state:Inlining_state.t
+  -> probe_name:string option
   -> t
 
 (** The function or method being applied. *)
@@ -97,3 +98,5 @@ val with_continuation_callee_and_args
 val inlining_state : t -> Inlining_state.t
 
 val inlining_arguments : t -> Inlining_arguments.t
+
+val probe_name : t -> string option

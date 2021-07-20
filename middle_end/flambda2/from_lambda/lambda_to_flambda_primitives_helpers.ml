@@ -53,6 +53,7 @@ type failure =
 
 type expr_primitive =
   | Simple of Simple.t
+  | Nullary of Flambda_primitive.nullary_primitive
   | Unary of P.unary_primitive * simple_or_prim
   | Binary of P.binary_primitive * simple_or_prim * simple_or_prim
   | Ternary of P.ternary_primitive * simple_or_prim * simple_or_prim
@@ -71,6 +72,7 @@ let rec print_expr_primitive ppf expr_primitive =
   let module W = Flambda_primitive.Without_args in
   match expr_primitive with
   | Simple simple -> Simple.print ppf simple
+  | Nullary prim -> W.print ppf (Nullary prim)
   | Unary (prim, _) -> W.print ppf (Unary prim)
   | Binary (prim, _, _) -> W.print ppf (Binary prim)
   | Ternary (prim, _, _, _) -> W.print ppf (Ternary prim)
@@ -155,7 +157,7 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
         let inline = Inline_attribute.Never_inline in
         let inlining_state = Inlining_state.default ~round:0 in
         Apply.create ~callee ~continuation exn_cont
-          ~args ~call_kind dbg ~inline ~inlining_state
+          ~args ~call_kind dbg ~inline ~inlining_state ~probe_name:None
       in
       Expr_with_acc.create_apply acc call
     end else begin
@@ -194,6 +196,9 @@ let rec bind_rec acc ~backend exn_cont
   match prim with
   | Simple simple ->
     let named = Named.create_simple simple in
+    cont acc named
+  | Nullary prim ->
+    let named = Named.create_prim (Nullary prim) dbg in
     cont acc named
   | Unary (prim, arg) ->
     let cont acc (arg : Simple.t) =

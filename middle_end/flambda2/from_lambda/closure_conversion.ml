@@ -267,6 +267,7 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
           dbg
           ~inline:Default_inline
           ~inlining_state:(Inlining_state.default ~round:0)
+          ~probe_name:None
       in
       Expr_with_acc.create_apply acc apply
   in
@@ -558,7 +559,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   end
 
 let close_apply acc env ({ kind; func; args; continuation; exn_continuation;
-      loc; tailcall = _; inlined; specialised = _; } : IR.apply)
+      loc; tailcall = _; inlined; specialised = _; probe; } : IR.apply)
   : Acc.t * Expr_with_acc.t =
   let acc, call_kind =
     match kind with
@@ -573,6 +574,11 @@ let close_apply acc env ({ kind; func; args; continuation; exn_continuation;
   in
   let callee = find_simple_from_id env func in
   let acc, args = find_simples acc env args in
+  let probe_name =
+    match probe with
+    | None -> None
+    | Some { name; } -> Some name
+  in
   let apply =
     Apply.create ~callee
       ~continuation:(Return continuation)
@@ -582,6 +588,7 @@ let close_apply acc env ({ kind; func; args; continuation; exn_continuation;
       (Debuginfo.from_location loc)
       ~inline:(LC.inline_attribute inlined)
       ~inlining_state:(Inlining_state.default ~round:0)
+      ~probe_name
   in
   Expr_with_acc.create_apply acc apply
 
