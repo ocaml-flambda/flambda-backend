@@ -119,6 +119,8 @@
  (libraries
    flambda_backend_driver
    memtrace
+   flambda2
+   flambda2_to_cmm
    ocamloptcomp
    ocamlcommon
    stdlib)
@@ -135,6 +137,8 @@
  (libraries
    flambda_backend_driver
    memtrace
+   flambda2
+   flambda2_to_cmm
    ocamloptcomp
    ocamlcommon
    stdlib

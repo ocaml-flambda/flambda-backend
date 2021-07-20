@@ -1,8 +1,8 @@
 (include_subdirs unqualified)
 
 (library
-  (name flambdadeps)
-  (wrapped false)
+  (name flambda2_compilenv_deps)
+  (wrapped true)
   (flags (:standard -principal -nostdlib))
   (libraries stdlib ocamlcommon ocamlbytecomp)
 )
