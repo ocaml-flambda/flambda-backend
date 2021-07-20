@@ -1389,7 +1389,10 @@ let close_functions acc external_env function_declarations =
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
-  let can_be_lifted = Ident.Map.is_empty var_within_closures_from_idents in
+  let can_be_lifted =
+    Ident.Map.is_empty var_within_closures_from_idents
+    && Flambda_features.classic_mode ()
+  in
   let func_decl_list = Function_decls.to_list function_declarations in
   let closure_ids_from_idents =
     List.fold_left
