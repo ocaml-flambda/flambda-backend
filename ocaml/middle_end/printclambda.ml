@@ -15,15 +15,14 @@
 
 
 open Format
-open Asttypes
 open Clambda
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
 let mutable_flag = function
-  | Mutable-> "[mut]"
-  | Immutable -> ""
+  | Lambda.Mutable-> "[mut]"
+  | Lambda.Immutable | Lambda.Immutable_unique -> ""
 
 let value_kind =
   let open Lambda in
