@@ -1,0 +1,34 @@
+let $camlTests10__first_const11 = Block 0 () in
+let code rec size(8) f_0 (param : imm tagged) my_closure my_depth -> k * k1
+                       : block =
+  let next_depth = rec_info (succ my_depth) in
+  let Pmakeblock =
+    %Block 0
+      (my_closure ~ depth my_depth -> next_depth,
+       my_closure ~ depth my_depth -> next_depth)
+  in
+  cont k (Pmakeblock)
+in
+(let f = closure f_0 @f in
+ let Pmakeblock = %Block 0 (f) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(1) (module_block, 0) in
+    let $camlTests10 = Block 0 (field_0) in
+    cont done ($camlTests10)
+===>
+let code rec size(8) f_0 deleted : imm tagged -> block in
+let $camlTests10__f_1 =
+  closure f_0_1 @f
+and code rec size(8) newer_version_of(f_0) f_0_1 (param : imm tagged)
+                                             my_closure my_depth -> k * k1
+                                             : block =
+  let Pmakeblock =
+    %Block 0
+      ($camlTests10__f_1 ~ depth my_depth -> succ my_depth,
+       $camlTests10__f_1 ~ depth my_depth -> succ my_depth)
+  in
+  cont k (Pmakeblock)
+in
+let $camlTests10 = Block 0 ($camlTests10__f_1) in
+cont done ($camlTests10)

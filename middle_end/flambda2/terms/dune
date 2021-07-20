@@ -1,0 +1,35 @@
+(rule
+  (targets flambda.ml)
+  (deps
+    rec_modules
+    template/flambda.templ.ml
+    code.rec.ml
+    code.rec.mli
+    cost_metrics.rec.ml
+    cost_metrics.rec.mli
+    continuation_handler.rec.ml
+    continuation_handler.rec.mli
+    continuation_handlers.rec.ml
+    continuation_handlers.rec.mli
+    expr.rec.ml
+    expr.rec.mli
+    function_params_and_body.rec.ml
+    function_params_and_body.rec.mli
+    let_cont_expr.rec.ml
+    let_cont_expr.rec.mli
+    let_expr.rec.ml
+    let_expr.rec.mli
+    named.rec.ml
+    named.rec.mli
+    non_recursive_let_cont_handler.rec.ml
+    non_recursive_let_cont_handler.rec.mli
+    recursive_let_cont_handlers.rec.ml
+    recursive_let_cont_handlers.rec.mli
+    static_const.rec.ml
+    static_const.rec.mli
+  )
+  (action (run ../scripts/assemble_rec_modules.sh
+               template/flambda.templ.ml
+               rec_modules
+               flambda.ml))
+)

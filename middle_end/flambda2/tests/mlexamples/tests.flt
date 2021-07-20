@@ -1,0 +1,112 @@
+let $camlTests__first_const53 = Block 0 () in
+let code size(93) f_1
+                    (c : imm tagged, m, n, x' : imm tagged, y' : imm tagged)
+                    my_closure my_depth -> k * k1 : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let to_inline = %project_var f.to_inline_0 my_closure in
+  (let prim = c < 0 in
+   let Pintcomp = %Tag_imm prim in
+   (let untagged = %untag_imm Pintcomp in
+    switch untagged
+      | 0 -> k3
+      | 1 -> k2 (x'))
+     where k3 =
+       let Paddint = x' + 1 in
+       cont k2 (Paddint))
+    where k2 (x : imm tagged) =
+      ((let prim = c < 0 in
+        let Pintcomp = %Tag_imm prim in
+        (let untagged = %untag_imm Pintcomp in
+         switch untagged
+           | 0 -> k3
+           | 1 -> k2 (y'))
+          where k3 =
+            let Paddint = y' + 1 in
+            cont k2 (Paddint))
+         where k2 (y : imm tagged) =
+           ((let prim = %is_int m in
+             let is_scrutinee_int = %Tag_imm prim in
+             let untagged = %untag_imm is_scrutinee_int in
+             switch untagged
+               | 0 -> k3
+               | 1 -> k4)
+              where k4 =
+                let untagged = %untag_imm m in
+                cont k (0)
+              where k3 =
+                let prim = %get_tag m in
+                let scrutinee_tag = %Tag_imm prim in
+                let untagged = %untag_imm scrutinee_tag in
+                cont k2
+              where k2 =
+                ((let prim = %is_int n in
+                  let is_scrutinee_int = %Tag_imm prim in
+                  let untagged = %untag_imm is_scrutinee_int in
+                  switch untagged
+                    | 0 -> k3
+                    | 1 -> k4)
+                   where k4 =
+                     let untagged = %untag_imm n in
+                     cont k (1)
+                   where k3 =
+                     let prim = %get_tag n in
+                     let scrutinee_tag = %Tag_imm prim in
+                     let untagged = %untag_imm scrutinee_tag in
+                     cont k2
+                   where k2 =
+                     let Pfield = %block_load 0 size(1) (n, 0) in
+                     let Pfield_1 = %block_load 0 size(1) (m, 0) in
+                     let Paddint = Pfield_1 + Pfield in
+                     let Paddint_1 = x + y in
+                     apply to_inline (Paddint_1, Paddint) -> k * k1)))
+in
+let code inline(always) size(1) to_inline_0 (_x, _y) my_closure my_depth -> k
+                                  * k1 : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  cont k (42)
+in
+(let to_inline = closure to_inline_0 @to_inline in
+ let f = closure f_1 @f with { to_inline_0 = to_inline } in
+ let Pmakeblock = %Block 0 (to_inline, f) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(2) (module_block, 0) in
+    let field_1 = %block_load 0 size(2) (module_block, 1) in
+    let $camlTests = Block 0 (field_0, field_1) in
+    cont done ($camlTests)
+===>
+let code size(93) f_1 deleted :
+                    imm tagged * val * val * imm tagged * imm tagged -> 
+                    imm tagged
+in
+let code inline(always) size(1) to_inline_0 deleted : val * val -> imm tagged
+in
+let code inline(always) size(1) newer_version_of(to_inline_0) to_inline_0_1
+                                                                (_x, _y)
+                                                                my_closure
+                                                                my_depth -> k
+                                                                * k1
+                                                                : imm tagged =
+  cont k (42)
+in
+let $camlTests__to_inline_2 = closure to_inline_0_1 @to_inline in
+let code size(22) newer_version_of(f_1) f_1_1
+                                          (c : imm tagged,
+                                           m,
+                                           n,
+                                           x' : imm tagged,
+                                           y' : imm tagged) my_closure
+                                          my_depth -> k * k1 : imm tagged =
+  (let prim = %is_int m in
+   switch prim
+     | 0 -> k2
+     | 1 -> k (0))
+    where k2 =
+      let prim = %is_int n in
+      switch prim
+        | 0 -> k (42)
+        | 1 -> k (1)
+in
+let $camlTests__f_3 = closure f_1_1 @f in
+let $camlTests = Block 0 ($camlTests__to_inline_2, $camlTests__f_3) in
+cont done ($camlTests)

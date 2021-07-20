@@ -1,0 +1,104 @@
+let $camlTests7__immstring9 = "Cow" in
+let $camlTests7__immstring12 = "Sheep" in
+let code size(37) f_0 (x : imm tagged, str) my_closure my_depth -> k * k1
+                    : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let prim = %string_length str in
+  let Pstringlength = %Tag_imm prim in
+  let prim_1 = %string_length str in
+  let Pstringlength_1 = %Tag_imm prim_1 in
+  let prim_2 = %string_length $camlTests7__immstring12 in
+  let Pstringlength_2 = %Tag_imm prim_2 in
+  let prim_3 = %string_length $camlTests7__immstring9 in
+  let Pstringlength_3 = %Tag_imm prim_3 in
+  let Paddint = x + Pstringlength_3 in
+  let Paddint_1 = Paddint + Pstringlength_2 in
+  let Paddint_2 = Paddint_1 + Pstringlength_1 in
+  let Paddint_3 = Paddint_2 + Pstringlength in
+  cont k (Paddint_3)
+in
+let code size(31) foo_1 (af : block, y : float boxed) my_closure my_depth
+                    -> k * k1 : float boxed =
+  let next_depth = rec_info (succ my_depth) in
+  let prim = %block_load float (af, 1) in
+  let Pfloatfield = %Box_float prim in
+  let prim_1 = %block_load float (af, 0) in
+  let Pfloatfield_1 = %Box_float prim_1 in
+  let prim_2 = %unbox_float Pfloatfield in
+  let prim_3 = %unbox_float Pfloatfield_1 in
+  let prim_4 = prim_3 *. prim_2 in
+  let x = %Box_float prim_4 in
+  let prim_5 = %unbox_float y in
+  let prim_6 = %unbox_float x in
+  let prim_7 = prim_6 +. prim_5 in
+  let Paddfloat = %Box_float prim_7 in
+  cont k (Paddfloat)
+in
+(let Pmakeblock = %Block 0 () in
+ cont k1 (Pmakeblock))
+  where k1 (String) =
+    let f = closure f_0 @f in
+    let foo = closure foo_1 @foo in
+    let Pmakeblock =
+      %Block 0
+        (String, $camlTests7__immstring9, $camlTests7__immstring12, f, foo)
+    in
+    cont k (Pmakeblock)
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(5) (module_block, 0) in
+    let field_1 = %block_load 0 size(5) (module_block, 1) in
+    let field_2 = %block_load 0 size(5) (module_block, 2) in
+    let field_3 = %block_load 0 size(5) (module_block, 3) in
+    let field_4 = %block_load 0 size(5) (module_block, 4) in
+    let $camlTests7 = Block 0 (field_0, field_1, field_2, field_3, field_4)
+    in
+    cont done ($camlTests7)
+===>
+let $camlTests7__immstring9 = "Cow" in
+let $camlTests7__immstring12 = "Sheep" in
+let code size(37) f_0 deleted : imm tagged * val -> imm tagged in
+let code size(31) foo_1 deleted : block * float boxed -> float boxed in
+let code size(18) newer_version_of(f_0) f_0_1 (x : imm tagged, str)
+                                          my_closure my_depth -> k * k1
+                                          : imm tagged =
+  let prim = %string_length str in
+  let Pstringlength = %Tag_imm prim in
+  let Pstringlength_1 = %Tag_imm prim in
+  let Paddint = x + 3 in
+  let Paddint_1 = Paddint + 5 in
+  let Paddint_2 = Paddint_1 + Pstringlength_1 in
+  let Paddint_3 = Paddint_2 + Pstringlength in
+  cont k (Paddint_3)
+in
+let $camlTests7__f_2 = closure f_0_1 @f in
+let code size(13) newer_version_of(foo_1) foo_1_1
+                                            (af : block, y : float boxed)
+                                            my_closure my_depth -> k * k1
+                                            : float boxed =
+  let prim = %block_load float (af, 1) in
+  let prim_1 = %block_load float (af, 0) in
+  let prim_2 = prim_1 *. prim in
+  let prim_3 = %unbox_float y in
+  let prim_4 = prim_2 +. prim_3 in
+  let Paddfloat = %Box_float prim_4 in
+  cont k (Paddfloat)
+in
+let $camlTests7__foo_3 = closure foo_1_1 @foo in
+let Pmakeblock = %Block 0 () in
+let String = Pmakeblock in
+let dominator_scoped
+  $camlTests7__Pmakeblock92 =
+  Block 0 (String,
+           $camlTests7__immstring9,
+           $camlTests7__immstring12,
+           $camlTests7__f_2,
+           $camlTests7__foo_3)
+in
+let $camlTests7 =
+  Block 0 (String,
+           $camlTests7__immstring9,
+           $camlTests7__immstring12,
+           $camlTests7__f_2,
+           $camlTests7__foo_3)
+in
+cont done ($camlTests7)

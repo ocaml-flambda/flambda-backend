@@ -1,0 +1,14 @@
+(executable
+ (name meet_test)
+ (modes native)
+ (flags (:standard -principal -nostdlib -cclib "-I ../../runtime"))
+ (libraries ocamloptcomp ocamloptcommon ocamlmiddleend flambda ocamlcommon runtimeopt stdlib)
+ (modules meet_test))
+
+(include_subdirs no)
+
+(alias
+  (name world)
+  (deps
+    meet_test.exe
+  ))

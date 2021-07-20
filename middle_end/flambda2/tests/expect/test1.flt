@@ -1,0 +1,9 @@
+let code f clo -> k * e = cont k (42) in
+let f = closure f in
+let $camlTest1 = Block 0 (f) in
+cont done ($camlTest1)
+===>
+let code f clo -> k * e = cont k (42) in
+let $F = closure f in
+let $camlTest1 = Block 0 ($F) in
+cont done ($camlTest1)

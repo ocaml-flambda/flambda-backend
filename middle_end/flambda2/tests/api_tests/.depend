@@ -1,0 +1,28 @@
+extension_meet.cmo : \
+    ../../middle_end/flambda/compilenv_deps/variable.cmi \
+    ../../utils/targetint.cmi \
+    ../../lambda/tag.cmi \
+    ../../middle_end/flambda/basic/simple.cmi \
+    ../../middle_end/flambda/compilenv_deps/reg_width_things.cmi \
+    ../../middle_end/flambda/naming/name_mode.cmi \
+    ../../middle_end/flambda/naming/name_in_binding_pos.cmi \
+    ../../middle_end/flambda/basic/name.cmi \
+    ../../middle_end/flambda/compilenv_deps/linkage_name.cmi \
+    ../../typing/ident.cmi \
+    ../../middle_end/flambda/types/flambda_type.cmi \
+    ../../middle_end/flambda/types/kinds/flambda_kind.cmi \
+    ../../middle_end/flambda/compilenv_deps/compilation_unit.cmi
+extension_meet.cmx : \
+    ../../middle_end/flambda/compilenv_deps/variable.cmx \
+    ../../utils/targetint.cmx \
+    ../../lambda/tag.cmx \
+    ../../middle_end/flambda/basic/simple.cmx \
+    ../../middle_end/flambda/compilenv_deps/reg_width_things.cmx \
+    ../../middle_end/flambda/naming/name_mode.cmx \
+    ../../middle_end/flambda/naming/name_in_binding_pos.cmx \
+    ../../middle_end/flambda/basic/name.cmx \
+    ../../middle_end/flambda/compilenv_deps/linkage_name.cmx \
+    ../../typing/ident.cmx \
+    ../../middle_end/flambda/types/flambda_type.cmx \
+    ../../middle_end/flambda/types/kinds/flambda_kind.cmx \
+    ../../middle_end/flambda/compilenv_deps/compilation_unit.cmx
