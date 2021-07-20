@@ -115,7 +115,7 @@ let rec static_float_array_updates symb env acc i = function
       | Const _ ->
           static_float_array_updates symb env acc (i + 1) r
       | Var var ->
-          let acc = make_update env Cmm.Double_u symb var i acc in
+          let acc = make_update env Cmm.Double symb var i acc in
           static_float_array_updates symb env acc (i + 1) r
       end
 
@@ -322,7 +322,7 @@ let static_const0 env r ~updates ~params_and_body
       let transl = Numeric_types.Float_by_bit_pattern.to_float in
       let r, updates =
         static_boxed_number
-          Cmm.Double_u env s default C.emit_float_constant transl v r updates
+          Cmm.Double env s default C.emit_float_constant transl v r updates
       in
       env, r, updates
   | Block_like s, Boxed_int32 v ->
