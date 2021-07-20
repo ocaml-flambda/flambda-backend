@@ -89,6 +89,7 @@ type t =
       alloc : bool;
       param_arity : Flambda_arity.t;
       return_arity : Flambda_arity.t;
+      is_c_builtin : bool;
     }
 
 let print ppf t =
@@ -98,9 +99,11 @@ let print ppf t =
     fprintf ppf "@[(Method %a : %a)@]"
       Simple.print obj
       print_method_kind kind
-  | C_call { alloc; param_arity; return_arity; } ->
-    fprintf ppf "@[(C (alloc %b) @<0>%s@<1>\u{2237}@<0>%s %a @<1>\u{2192} %a)@]"
+  | C_call { alloc; param_arity; return_arity; is_c_builtin; } ->
+    fprintf ppf "@[(C@ @[(alloc %b)@]@ @[(is_c_builtin %b)@]@ \
+        @<0>%s@<1>\u{2237}@<0>%s %a @<1>\u{2192} %a)@]"
       alloc
+      is_c_builtin
       (Flambda_colours.elide ())
       (Flambda_colours.normal ())
       Flambda_arity.print param_arity
@@ -113,7 +116,8 @@ let invariant0 t =
   match t with
   | Function call -> Function_call.invariant call
   | Method { kind = _; obj = _; } -> ()
-  | C_call { alloc = _; param_arity = _; return_arity = _; } ->
+  | C_call { alloc = _; param_arity = _; return_arity = _;
+             is_c_builtin = _; } ->
     (* CR gbury: these were removed because there didn't seem to be any problem
        with 0-arity c-calls
     check_arity param_arity;
@@ -137,8 +141,8 @@ let indirect_function_call_known_arity ~param_arity ~return_arity =
 
 let method_call kind ~obj = Method { kind; obj; }
 
-let c_call ~alloc ~param_arity ~return_arity =
-  let t = C_call { alloc; param_arity; return_arity; } in
+let c_call ~alloc ~param_arity ~return_arity ~is_c_builtin =
+  let t = C_call { alloc; param_arity; return_arity; is_c_builtin; } in
   invariant0 t;
   t
 
@@ -157,7 +161,8 @@ let free_names t =
       Name_mode.normal
   | Function Indirect_unknown_arity
   | Function (Indirect_known_arity { param_arity = _; return_arity = _; })
-  | C_call { alloc = _; param_arity = _; return_arity = _; } ->
+  | C_call { alloc = _; param_arity = _; return_arity = _;
+      is_c_builtin = _; } ->
     Name_occurrences.empty
   | Method { kind = _; obj; } ->
     Simple.pattern_match obj
@@ -173,7 +178,8 @@ let apply_renaming t perm =
     else Function (Direct { code_id = code_id'; closure_id; return_arity; })
   | Function Indirect_unknown_arity
   | Function (Indirect_known_arity { param_arity = _; return_arity = _; })
-  | C_call { alloc = _; param_arity = _; return_arity = _; } -> t
+  | C_call { alloc = _; param_arity = _; return_arity = _;
+      is_c_builtin = _; } -> t
   | Method { kind; obj; } ->
     let obj' = Simple.apply_renaming obj perm in
     if obj == obj' then t
@@ -189,7 +195,8 @@ let all_ids_for_export t =
     Ids_for_export.add_code_id Ids_for_export.empty code_id
   | Function Indirect_unknown_arity
   | Function (Indirect_known_arity { param_arity = _; return_arity = _; })
-  | C_call { alloc = _; param_arity = _; return_arity = _; } ->
+  | C_call { alloc = _; param_arity = _; return_arity = _;
+      is_c_builtin = _; } ->
     Ids_for_export.empty
   | Method { kind = _; obj; } ->
     Ids_for_export.from_simple obj
