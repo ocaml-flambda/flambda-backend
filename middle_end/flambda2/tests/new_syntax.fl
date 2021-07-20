@@ -1,0 +1,5 @@
+let code f (x) myclosure -> k1 * e : val = cont k1 (x)
+and $F = closure f
+in
+let $camlNew_syntax = Block 0 ($F) in
+cont done ($camlNew_syntax)

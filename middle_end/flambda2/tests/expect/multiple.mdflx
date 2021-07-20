@@ -1,0 +1,28 @@
+This is a test of the .mdflx system. It is only a test.
+```flexpect
+let i = 42 in
+let $camlMultiple = Block 0 (i) in
+cont done ($camlMultiple)
+===>
+let $camlMultiple = Block 0 (42) in
+cont done ($camlMultiple)
+```
+This is also only a test:
+```flexpect
+let i = 4 in
+let j = 8 in
+let k = i + j in
+let $camlMultiple = Block 0 (k) in
+cont done ($camlMultiple)
+===>
+let $camlMultiple = Block 0 (12) in
+cont done ($camlMultiple)
+```
+```flexpect
+let i = 4 in
+let $camlMultiple = Block 0 () in
+cont done ($camlMultiple)
+===>
+let $camlMultiple = Block 0 () in
+cont done ($camlMultiple)
+```

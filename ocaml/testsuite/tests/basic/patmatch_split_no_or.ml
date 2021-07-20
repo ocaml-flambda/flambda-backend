@@ -16,7 +16,7 @@ let last_is_anys = function
 [%%expect{|
 (let
   (last_is_anys/10 =
-     (function param/12 : int
+     (function param/12[0: [int], [int]] : int
        (catch
          (if (field 0 param/12) (if (field 1 param/12) (exit 1) 1)
            (if (field 1 param/12) (exit 1) 2))
@@ -33,7 +33,7 @@ let last_is_vars = function
 [%%expect{|
 (let
   (last_is_vars/17 =
-     (function param/21 : int
+     (function param/21[0: [int], [int]] : int
        (catch
          (if (field 0 param/21) (if (field 1 param/21) (exit 3) 1)
            (if (field 1 param/21) (exit 3) 2))
@@ -52,9 +52,9 @@ type t += A | B of unit | C of bool * int;;
 0
 type t = ..
 (let
-  (A/25 = (makeblock 248 "A" (caml_fresh_oo_id 0))
-   B/26 = (makeblock 248 "B" (caml_fresh_oo_id 0))
-   C/27 = (makeblock 248 "C" (caml_fresh_oo_id 0)))
+  (A/25 = (makeblock_unique 248 "A" (caml_fresh_oo_id 0))
+   B/26 = (makeblock_unique 248 "B" (caml_fresh_oo_id 0))
+   C/27 = (makeblock_unique 248 "C" (caml_fresh_oo_id 0)))
   (seq (apply (field 1 (global Toploop!)) "A/25" A/25)
     (apply (field 1 (global Toploop!)) "B/26" B/26)
     (apply (field 1 (global Toploop!)) "C/27" C/27)))
@@ -75,7 +75,7 @@ let f = function
    B/26 = (apply (field 0 (global Toploop!)) "B/26")
    A/25 = (apply (field 0 (global Toploop!)) "A/25")
    f/28 =
-     (function param/30 : int
+     (function param/30[0: *, [int], [int]] : int
        (let (*match*/31 =a (field 0 param/30))
          (catch
            (if (== *match*/31 A/25) (if (field 1 param/30) 1 (exit 8))

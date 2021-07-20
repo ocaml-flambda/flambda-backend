@@ -15,15 +15,14 @@
 
 
 open Format
-open Asttypes
 open Clambda
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
 let mutable_flag = function
-  | Mutable-> "[mut]"
-  | Immutable -> ""
+  | Lambda.Mutable-> "[mut]"
+  | Lambda.Immutable | Lambda.Immutable_unique -> ""
 
 let value_kind =
   let open Lambda in
@@ -34,6 +33,10 @@ let value_kind =
   | Pboxedintval Pnativeint -> ":nativeint"
   | Pboxedintval Pint32 -> ":int32"
   | Pboxedintval Pint64 -> ":int64"
+  | Pblock { tag; fields } ->
+    asprintf ":[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+         Printlambda.value_kind') fields
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x

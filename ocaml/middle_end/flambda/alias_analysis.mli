@@ -22,8 +22,8 @@ type allocation_point =
 
 type allocated_const =
   | Normal of Allocated_const.t
-  | Array of Lambda.array_kind * Asttypes.mutable_flag * Variable.t list
-  | Duplicate_array of Lambda.array_kind * Asttypes.mutable_flag * Variable.t
+  | Array of Lambda.array_kind * Lambda.mutable_flag * Variable.t list
+  | Duplicate_array of Lambda.array_kind * Lambda.mutable_flag * Variable.t
 
 type constant_defining_value =
   | Allocated_const of allocated_const

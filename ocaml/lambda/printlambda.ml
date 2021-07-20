@@ -59,23 +59,45 @@ let boxed_integer_name = function
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
-let value_kind ppf = function
+let rec value_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf "[int]"
   | Pfloatval -> fprintf ppf "[float]"
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pblock { tag; fields } ->
+    fprintf ppf "[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+        value_kind') fields
+
+and value_kind' ppf = function
+  | Pgenval -> fprintf ppf "*"
+  | Pintval -> fprintf ppf "[int]"
+  | Pfloatval -> fprintf ppf "[float]"
+  | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
+  | Pblock { tag; fields } ->
+    fprintf ppf "[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+        value_kind') fields
 
 let return_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf ": int@ "
   | Pfloatval -> fprintf ppf ": float@ "
   | Pboxedintval bi -> fprintf ppf ": %s@ " (boxed_integer_name bi)
+  | Pblock { tag; fields } ->
+    fprintf ppf ": [%d: %a]@ " tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+        value_kind') fields
 
-let field_kind = function
-  | Pgenval -> "*"
-  | Pintval -> "int"
-  | Pfloatval -> "float"
-  | Pboxedintval bi -> boxed_integer_name bi
+let field_kind ppf = function
+  | Pgenval -> pp_print_string ppf "*"
+  | Pintval -> pp_print_string ppf "int"
+  | Pfloatval -> pp_print_string ppf "float"
+  | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
+  | Pblock { tag; fields } ->
+    fprintf ppf "[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+        value_kind') fields
 
 let print_boxed_integer_conversion ppf bi1 bi2 =
   fprintf ppf "%s_of_%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
@@ -124,11 +146,11 @@ let block_shape ppf shape = match shape with
   | None | Some [] -> ()
   | Some l when List.for_all ((=) Pgenval) l -> ()
   | Some [elt] ->
-      Format.fprintf ppf " (%s)" (field_kind elt)
+      Format.fprintf ppf " (%a)" field_kind elt
   | Some (h :: t) ->
-      Format.fprintf ppf " (%s" (field_kind h);
+      Format.fprintf ppf " (%a" field_kind h;
       List.iter (fun elt ->
-          Format.fprintf ppf ",%s" (field_kind elt))
+          Format.fprintf ppf ",%a" field_kind elt)
         t;
       Format.fprintf ppf ")"
 
@@ -152,6 +174,11 @@ let float_comparison ppf = function
   | CFge -> fprintf ppf ">=."
   | CFnge -> fprintf ppf "!>=."
 
+let field_read_semantics ppf sem =
+  match sem with
+  | Reads_agree -> ()
+  | Reads_vary -> fprintf ppf "_mut"
+
 let primitive ppf = function
   | Pidentity -> fprintf ppf "id"
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
@@ -163,12 +190,18 @@ let primitive ppf = function
   | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
   | Pmakeblock(tag, Immutable, shape) ->
       fprintf ppf "makeblock %i%a" tag block_shape shape
+  | Pmakeblock(tag, Immutable_unique, shape) ->
+      fprintf ppf "makeblock_unique %i%a" tag block_shape shape
   | Pmakeblock(tag, Mutable, shape) ->
       fprintf ppf "makemutable %i%a" tag block_shape shape
   | Pmakefloatblock Immutable -> fprintf ppf "makefloatblock Immutable"
+  | Pmakefloatblock Immutable_unique ->
+    fprintf ppf "makefloatblock Immutable_unique"
   | Pmakefloatblock Mutable -> fprintf ppf "makefloatblock Mutable"
-  | Pfield n -> fprintf ppf "field %i" n
-  | Pfield_computed -> fprintf ppf "field_computed"
+  | Pfield (n, sem) ->
+      fprintf ppf "field%a %i" field_read_semantics sem n
+  | Pfield_computed sem ->
+      fprintf ppf "field_computed%a" field_read_semantics sem
   | Psetfield(n, ptr, init) ->
       let instr =
         match ptr with
@@ -195,7 +228,8 @@ let primitive ppf = function
         | Assignment -> ""
       in
       fprintf ppf "setfield_%s%s_computed" instr init
-  | Pfloatfield n -> fprintf ppf "floatfield %i" n
+  | Pfloatfield (n, sem) ->
+      fprintf ppf "floatfield%a %i" field_read_semantics sem n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -251,8 +285,12 @@ let primitive ppf = function
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
   | Pmakearray (k, Mutable) -> fprintf ppf "makearray[%s]" (array_kind k)
   | Pmakearray (k, Immutable) -> fprintf ppf "makearray_imm[%s]" (array_kind k)
+  | Pmakearray (k, Immutable_unique) ->
+      fprintf ppf "makearray_unique[%s]" (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
+  | Pduparray (k, Immutable_unique) ->
+      fprintf ppf "duparray_unique[%s]" (array_kind k)
   | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
   | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
   | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)
@@ -365,7 +403,7 @@ let name_of_primitive = function
   | Pmakeblock _ -> "Pmakeblock"
   | Pmakefloatblock _ -> "Pmakefloatblock"
   | Pfield _ -> "Pfield"
-  | Pfield_computed -> "Pfield_computed"
+  | Pfield_computed _ -> "Pfield_computed"
   | Psetfield _ -> "Psetfield"
   | Psetfield_computed _ -> "Psetfield_computed"
   | Pfloatfield _ -> "Pfloatfield"

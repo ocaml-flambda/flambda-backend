@@ -15,7 +15,6 @@
 
 
 open Format
-open Asttypes
 
 let boxed_integer_name = function
   | Lambda.Pnativeint -> "nativeint"
@@ -59,6 +58,8 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
       fprintf ppf "read_symbol %s" sym
   | Pmakeblock(tag, Immutable, shape) ->
       fprintf ppf "makeblock %i%a" tag Printlambda.block_shape shape
+  | Pmakeblock(tag, Immutable_unique, shape) ->
+      fprintf ppf "makeblock_unique %i%a" tag Printlambda.block_shape shape
   | Pmakeblock(tag, Mutable, shape) ->
       fprintf ppf "makemutable %i%a" tag Printlambda.block_shape shape
   | Pfield n -> fprintf ppf "field %i" n
@@ -146,8 +147,12 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
   | Pmakearray (k, Mutable) -> fprintf ppf "makearray[%s]" (array_kind k)
   | Pmakearray (k, Immutable) -> fprintf ppf "makearray_imm[%s]" (array_kind k)
+  | Pmakearray (k, Immutable_unique) ->
+    fprintf ppf "makearray_unique[%s]" (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
+  | Pduparray (k, Immutable_unique) ->
+    fprintf ppf "duparray_unique[%s]" (array_kind k)
   | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)
   | Parraysetu k -> fprintf ppf "array.unsafe_set[%s]" (array_kind k)
   | Parrayrefs k -> fprintf ppf "array.get[%s]" (array_kind k)

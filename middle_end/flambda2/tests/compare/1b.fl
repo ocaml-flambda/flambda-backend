@@ -1,0 +1,5 @@
+let code g (y) myclosure -> k2 * e2 : val = cont k2 (y)
+and $G = closure g
+in
+let $C = Block 0 ($G) in
+cont done ($C)

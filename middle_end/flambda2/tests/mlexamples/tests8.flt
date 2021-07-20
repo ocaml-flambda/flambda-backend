@@ -1,0 +1,141 @@
+let $camlTests8__first_const44 = Block 0 () in
+let code size(1) `anon-fn[tests8.ml:11,43--55]_3` (x) my_closure my_depth
+                   -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  cont k (x)
+in
+let code size(1) `anon-fn[tests8.ml:11,56--71]_2` (param : imm tagged)
+                   my_closure my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  cont k (0)
+in
+let code size(23) `anon-fn[tests8.ml:11,6--74]_1` (param : imm tagged)
+                    my_closure my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  let map_foo =
+    %project_var `anon-fn[tests8.ml:11,6--74]`.my_closure_0 my_closure
+  in
+  let `anon-fn[tests8.ml:11,56--71]` =
+    closure `anon-fn[tests8.ml:11,56--71]_2` @`anon-fn[tests8.ml:11,56--71]`
+  in
+  let `anon-fn[tests8.ml:11,43--55]` =
+    closure `anon-fn[tests8.ml:11,43--55]_3` @`anon-fn[tests8.ml:11,43--55]`
+  in
+  apply inline(never)
+    map_foo
+    (`anon-fn[tests8.ml:11,43--55]`, `anon-fn[tests8.ml:11,56--71]`, 0)
+    -> k * k1
+in
+let code rec size(74) map_foo_0 (f, seq, param : imm tagged) my_closure
+                        my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
+  apply seq (0) -> k2 * k1
+    where k2 (`*match*`) =
+      ((let prim = %is_int `*match*` in
+        let is_scrutinee_int = %Tag_imm prim in
+        let untagged = %untag_imm is_scrutinee_int in
+        switch untagged
+          | 0 -> k3
+          | 1 -> k4)
+         where k4 =
+           let untagged = %untag_imm `*match*` in
+           cont k (0)
+         where k3 =
+           let prim = %get_tag `*match*` in
+           let scrutinee_tag = %Tag_imm prim in
+           let untagged = %untag_imm scrutinee_tag in
+           cont k2
+         where k2 =
+           let `anon-fn[tests8.ml:11,6--74]` =
+             closure `anon-fn[tests8.ml:11,6--74]_1`
+               @`anon-fn[tests8.ml:11,6--74]`
+           with { my_closure_0 = my_closure ~ depth my_depth -> next_depth }
+           in
+           let Pfield = %block_load 0 size(2) (`*match*`, 0) in
+           (apply f (Pfield) -> k2 * k1
+              where k2 (apply_result) =
+                let Pmakeblock =
+                  %Block 0 (apply_result, `anon-fn[tests8.ml:11,6--74]`)
+                in
+                cont k (Pmakeblock)))
+in
+(let map_foo = closure map_foo_0 @map_foo in
+ let Pmakeblock = %Block 0 (map_foo) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(1) (module_block, 0) in
+    let $camlTests8 = Block 0 (field_0) in
+    cont done ($camlTests8)
+===>
+let code size(1) `anon-fn[tests8.ml:11,43--55]_3` deleted : val -> val in
+let code size(1) `anon-fn[tests8.ml:11,56--71]_2` deleted : imm tagged -> val
+in
+let code size(23) `anon-fn[tests8.ml:11,6--74]_1` deleted : imm tagged -> val
+in
+let code rec size(74) map_foo_0 deleted : val * val * imm tagged -> val in
+let code size(1) newer_version_of(`anon-fn[tests8.ml:11,56--71]_2`) `anon-fn[tests8.ml:11,56--71]_2_1`
+                                                                    (param :
+                                                                    imm tagged)
+                                                                    my_closure
+                                                                    my_depth
+                                                                    -> k * k1 =
+  cont k (0)
+in
+let $`camlTests8__anon-fn[tests8.ml:11,56--71]_5` =
+  closure `anon-fn[tests8.ml:11,56--71]_2_1` @`anon-fn[tests8.ml:11,56--71]`
+in
+let code size(1) newer_version_of(`anon-fn[tests8.ml:11,43--55]_3`) `anon-fn[tests8.ml:11,43--55]_3_1`
+                                                                    (x)
+                                                                    my_closure
+                                                                    my_depth
+                                                                    -> k * k1 =
+  cont k (x)
+in
+let $`camlTests8__anon-fn[tests8.ml:11,43--55]_6` =
+  closure `anon-fn[tests8.ml:11,43--55]_3_1` @`anon-fn[tests8.ml:11,43--55]`
+in
+let $camlTests8__map_foo_4 =
+  closure map_foo_0_1 @map_foo
+and code size(4) newer_version_of(`anon-fn[tests8.ml:11,6--74]_1`) `anon-fn[tests8.ml:11,6--74]_1_1`
+                                                                    (param :
+                                                                    imm tagged)
+                                                                    my_closure
+                                                                    my_depth
+                                                                    -> k * k1 =
+  apply direct(map_foo_0_1 @map_foo) inline(never)
+    $camlTests8__map_foo_4
+    ($`camlTests8__anon-fn[tests8.ml:11,43--55]_6`,
+     $`camlTests8__anon-fn[tests8.ml:11,56--71]_5`,
+     0)
+    -> k * k1
+and code rec size(44) newer_version_of(map_foo_0) map_foo_0_1
+                                                    (f,
+                                                     seq,
+                                                     param : imm tagged)
+                                                    my_closure my_depth -> k
+                                                    * k1 =
+  apply seq (0) -> k2 * k1
+    where k2 (`*match*`) =
+      ((let prim = %is_int `*match*` in
+        switch prim
+          | 0 -> k2
+          | 1 -> k (0))
+         where k2 =
+           let `anon-fn[tests8.ml:11,6--74]` =
+             closure `anon-fn[tests8.ml:11,6--74]_1_1`
+               @`anon-fn[tests8.ml:11,6--74]`
+           with {
+             my_closure_0 =
+               $camlTests8__map_foo_4 ~ depth my_depth -> succ my_depth
+           }
+           in
+           let Pfield = %block_load 0 size(2) (`*match*`, 0) in
+           (apply f (Pfield) -> k2 * k1
+              where k2 (apply_result) =
+                let Pmakeblock =
+                  %Block 0 (apply_result, `anon-fn[tests8.ml:11,6--74]`)
+                in
+                cont k (Pmakeblock)))
+in
+let $camlTests8 = Block 0 ($camlTests8__map_foo_4) in
+cont done ($camlTests8)
