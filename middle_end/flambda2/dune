@@ -1,0 +1,11 @@
+(include_subdirs unqualified)
+
+(library
+  (name flambda)
+  (wrapped false)
+  (flags (:standard -principal -nostdlib))
+  (ocamlopt_flags (:standard -O3))
+  (modules (:standard \ flambda_parser_in)) ; ignore inputs to sed
+  (modules_without_implementation flambda_backend_intf)
+  (libraries stdlib ocamlcommon ocamlbytecomp flambdadeps)
+)

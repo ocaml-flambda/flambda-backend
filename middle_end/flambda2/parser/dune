@@ -1,0 +1,70 @@
+; Using user actions rather than (ocamllex) and (menhir) because the Makefile
+; runs ocamllex and menhir from this directory rather than the workspace root,
+; meaning the generated source is annotated with the bare filename.
+
+; These rules are disabled by default because you need precisely the correct
+; version of Menhir installed. Comment out (mode fallback) and uncomment (mode
+; promote) in each stanza if you make changes to the Flambda
+; parser.
+
+(rule
+  (mode    fallback)
+  ;(mode    promote)
+  (target  flambda_lex.ml)
+  (deps    flambda_lex.mll)
+  (action  (run ocamllex -q %{deps})))
+
+(rule
+  (mode   fallback)
+  ;(mode   promote)
+  (target flambda_parser.ml)
+  (deps   flambda_parser_in.ml)
+  (action (with-stdin-from %{deps}
+            (with-stdout-to %{target}
+              (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+
+(rule
+  (mode   fallback)
+  ;(mode   promote)
+  (target flambda_parser.mli)
+  (deps   flambda_parser_in.mli)
+  (action (with-stdin-from %{deps}
+            (with-stdout-to %{target}
+              (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+
+(rule
+  (targets flambda_parser_in.ml
+           flambda_parser_in.mli)
+  (deps    flambda_parser.mly)
+  (action  (run menhir --table %{deps} --base flambda_parser_in)))
+
+; NOTE: flambda_parser.messages is massively out of date. No need to activate
+; this rule unless you've fixed it (thanks!).
+(rule
+  (mode   fallback)
+  ;(mode   promote)
+  (target flambda_parser_messages.ml)
+  (deps   flambda_parser.messages flambda_parser.mly)
+  (action (with-stdout-to %{target}
+            (run menhir --compile-errors %{deps}))))
+
+(alias (name list-errors))
+
+(rule
+  (alias  list-errors)
+  (target flambda_parser.new-messages)
+  (deps   flambda_parser.mly)
+  (mode   promote)
+  (action (with-stdout-to %{target}
+            (run menhir --list-errors %{deps}))))
+
+(alias (name check-errors))
+
+(rule
+  (alias  check-errors)
+  (deps   flambda_parser.mly
+          flambda_parser.messages
+          flambda_parser.new-messages)
+  (action (run menhir flambda_parser.mly
+            --compare-errors flambda_parser.messages
+            --compare-errors flambda_parser.new-messages)))
