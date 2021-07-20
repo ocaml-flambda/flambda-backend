@@ -280,12 +280,21 @@ type primitive_transform_result =
   | Primitive of L.primitive * L.lambda list * L.scoped_location
   | Transformed of L.lambda
 
+let print_compact_location ppf (loc : Location.t) =
+  if loc.loc_start.pos_fname = "//toplevel//" then ()
+  else begin
+    let (file, line, startchar) = Location.get_pos_info loc.loc_start in
+    let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_cnum + startchar in
+    Format.fprintf ppf "%a:%i" Location.print_filename file line;
+    if startchar >= 0 then Format.fprintf ppf ",%i--%i" startchar endchar
+  end
+
 let name_for_function (func : Lambda.lfunction) =
   (* Name anonymous functions by their source location, if known. *)
   match func.loc with
   | Loc_unknown -> "anon-fn"
   | Loc_known { loc; _ } ->
-    Format.asprintf "anon-fn[%a]" Location.print_compact loc
+    Format.asprintf "anon-fn[%a]" print_compact_location loc
 
 let extra_args_for_exn_continuation env exn_handler =
   let more_extra_args =
