@@ -200,6 +200,7 @@ let close_c_call acc ~let_bound_var (prim : Primitive.description)
   let return_arity = [return_kind] in
   let call_kind =
     Call_kind.c_call ~alloc:prim.prim_alloc ~param_arity ~return_arity
+      ~is_c_builtin:prim.prim_c_builtin
   in
   let call_symbol =
     let prim_name =

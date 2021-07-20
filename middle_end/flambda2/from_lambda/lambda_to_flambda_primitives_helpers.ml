@@ -143,10 +143,12 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
         let callee = Simple.symbol caml_ml_array_bound_error in
         let continuation = Apply.Result_continuation.Never_returns in
         let args = [] in
-        let call_kind = Call_kind.c_call
-                          ~alloc:false
-                          ~param_arity:[]
-                          ~return_arity:[]
+        let call_kind =
+          Call_kind.c_call
+            ~alloc:false
+            ~param_arity:[]
+            ~return_arity:[]
+            ~is_c_builtin:false
         in
         (* These inlining fields should not be used for C calls since
            they can't really be inlined anyway. *)

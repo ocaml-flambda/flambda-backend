@@ -50,6 +50,7 @@ type t = private
       alloc : bool;
       param_arity : Flambda_arity.t;
       return_arity : Flambda_arity.t;
+      is_c_builtin : bool;
     }
 
 include Expr_std.S with type t := t
@@ -75,6 +76,7 @@ val c_call
    : alloc:bool
   -> param_arity:Flambda_arity.t
   -> return_arity:Flambda_arity.t
+  -> is_c_builtin:bool
   -> t
 
 val return_arity : t -> Flambda_arity.With_subkinds.t
