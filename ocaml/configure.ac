@@ -1772,20 +1772,17 @@ AS_IF([test x"$enable_flambda" = "xyes"],
    flambda2=false
    AS_IF([test x"$enable_flambda2" = "xyes"],
      [AC_MSG_ERROR([please enable only one of Flambda 1 and Flambda 2])],
-     [AS_IF([test x"$enable_flambda_invariants" = "xyes"],
-       [flambda_invariants=true],
-       [flambda_invariants=false])])],
-  [flambda=false
-   flambda_invariants=false])
+     [])],
+  [flambda=false])
 
 AS_IF([test x"$enable_flambda2" = "xyes"],
   [flambda2=true
-   flambda=false
-   AS_IF([test x"$enable_flambda_invariants" = "xyes"],
-     [flambda_invariants=true],
-     [flambda_invariants=false])],
-  [flambda2=false
-   flambda_invariants=false])
+   flambda=false],
+  [flambda2=false])
+
+AS_IF([test x"$enable_flambda_invariants" = "xyes"],
+  [flambda_invariants=true],
+  [flambda_invariants=false])
 
 AS_IF([test x"$enable_flat_float_array" = "xno"],
   [flat_float_array=false],

@@ -16897,29 +16897,22 @@ if test x"$enable_flambda" = "xyes"; then :
    flambda2=false
    if test x"$enable_flambda2" = "xyes"; then :
   as_fn_error $? "please enable only one of Flambda 1 and Flambda 2" "$LINENO" 5
-else
-  if test x"$enable_flambda_invariants" = "xyes"; then :
-  flambda_invariants=true
-else
-  flambda_invariants=false
-fi
 fi
 else
   flambda=false
-   flambda_invariants=false
 fi
 
 if test x"$enable_flambda2" = "xyes"; then :
   flambda2=true
    flambda=false
-   if test x"$enable_flambda_invariants" = "xyes"; then :
+else
+  flambda2=false
+fi
+
+if test x"$enable_flambda_invariants" = "xyes"; then :
   flambda_invariants=true
 else
   flambda_invariants=false
-fi
-else
-  flambda2=false
-   flambda_invariants=false
 fi
 
 if test x"$enable_flat_float_array" = "xno"; then :
