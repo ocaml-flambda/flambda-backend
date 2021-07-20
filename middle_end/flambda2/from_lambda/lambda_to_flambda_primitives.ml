@@ -609,7 +609,7 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
            (Targetint_31_63.int (Targetint_31_63.Imm.of_int n)))
     in
     Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)
-  | Pfield ({ index; block_info = { tag; size; }; }, sem), [arg] ->
+  | Pfield (index, sem), [arg] ->
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
     if not (Targetint_31_63.is_non_negative imm) then begin
       Misc.fatal_errorf "Pfield with negative index %a"
@@ -617,10 +617,8 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
     end;
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = C.convert_field_read_semantics sem in
-    let tag = Tag.Scannable.create_exn tag in
-    let size = C.convert_lambda_block_size size in
     let block_access : P.Block_access_kind.t =
-      Values { tag = Known tag; size; field_kind = Any_value; }
+      Values { tag = Unknown; size = Unknown; field_kind = Any_value; }
     in
     Binary (Block_load (block_access, mutability), arg, Simple field)
   | Pfloatfield (field, sem), [arg] ->
@@ -632,15 +630,13 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
     in
     box_float
       (Binary (Block_load (block_access, mutability), arg, Simple field))
-  | Psetfield (fi, immediate_or_pointer, initialization_or_assignment),
+  | Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [block; value] ->
-    let { index; block_info = { tag; size; }; } : Lambda.field_info = fi in
     let field_kind = C.convert_block_access_field_kind immediate_or_pointer in
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
-    let size = C.convert_lambda_block_size size in
     let block_access : P.Block_access_kind.t =
-      Values { tag = Known (Tag.Scannable.create_exn tag); size; field_kind; }
+      Values { tag = Unknown; size = Unknown; field_kind; }
     in
     Ternary (Block_set (block_access,
          C.convert_init_or_assign initialization_or_assignment),

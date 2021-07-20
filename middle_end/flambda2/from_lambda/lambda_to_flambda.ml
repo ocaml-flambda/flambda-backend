@@ -417,11 +417,11 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Psetfield (_, _, _), [L.Lprim (Pgetglobal _, [], _); _] ->
     Misc.fatal_error "[Psetfield (Pgetglobal ...)] is \
       forbidden upon entry to the middle end"
-  | Pfield ({ index; _ }, _), _ when index < 0 ->
+  | Pfield (index, _), _ when index < 0 ->
     Misc.fatal_error "Pfield with negative field index"
   | Pfloatfield (i, _), _ when i < 0 ->
     Misc.fatal_error "Pfloatfield with negative field index"
-  | Psetfield ({ index; _ }, _, _), _ when index < 0 ->
+  | Psetfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Psetfield with negative field index"
   | Pmakeblock (tag, _, _), _
       when tag < 0 || tag >= Obj.no_scan_tag ->
@@ -1514,7 +1514,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
       : Acc.t * Expr_with_acc.t =
   let block_nums, sw_blocks = List.split switch.sw_blocks in
   let block_nums =
-    List.map (fun ({ sw_tag; _ } : L.lambda_switch_block_key) ->
+    List.map (fun sw_tag ->
         begin match Tag.Scannable.create sw_tag with
         | Some tag ->
           let tag' = Tag.Scannable.to_tag tag in
