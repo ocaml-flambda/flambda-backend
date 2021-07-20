@@ -471,7 +471,7 @@ end) = struct
     | t::ts -> union t (union_list ts)
 
   let disjoint _ _ = Misc.fatal_error "disjoint not yet implemented"
-end [@@@inline always]
+end [@@inline always]
 
 module Make_map (Key : sig
   val print : Format.formatter -> int -> unit
@@ -1184,4 +1184,4 @@ struct
     ignore inter_domains;
     ignore diff;
     ignore elements
-end [@@@inline always]
+end [@@inline always]
