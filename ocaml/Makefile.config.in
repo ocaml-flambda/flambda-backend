@@ -231,6 +231,7 @@ WITH_FPIC=@fpic@
 TARGET=@target@
 HOST=@host@
 FLAMBDA=@flambda@
+FLAMBDA2=@flambda2@
 WITH_FLAMBDA_INVARIANTS=@flambda_invariants@
 FORCE_SAFE_STRING=@force_safe_string@
 DEFAULT_SAFE_STRING=@default_safe_string@
