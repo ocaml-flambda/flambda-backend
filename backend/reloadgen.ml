@@ -81,56 +81,64 @@ method reload_operation op arg res =
 method reload_test _tst args =
   self#makeregs args
 
-method private reload i =
+method private reload i k =
   match i.desc with
     (* For function calls, returns, etc: the arguments and results are
        already at the correct position (e.g. on stack for some arguments).
        However, something needs to be done for the function pointer in
        indirect calls. *)
-    Iend | Ireturn _ | Iop(Itailcall_imm _) | Iraise _ -> i
+    Iend | Ireturn _ | Iop(Itailcall_imm _) | Iraise _ -> k i
   | Iop(Itailcall_ind) ->
       let newarg = self#makereg1 i.arg in
-      insert_moves i.arg newarg
-        {i with arg = newarg}
+      k (insert_moves i.arg newarg
+           {i with arg = newarg})
   | Iop(Icall_imm _ | Iextcall _) ->
-      {i with next = self#reload i.next}
+      self#reload i.next (fun next -> k {i with next; })
   | Iop(Icall_ind) ->
       let newarg = self#makereg1 i.arg in
-      insert_moves i.arg newarg
-        {i with arg = newarg; next = self#reload i.next}
+      self#reload i.next (fun next ->
+        k (insert_moves i.arg newarg
+             {i with arg = newarg; next; }))
   | Iop op ->
       let (newarg, newres) = self#reload_operation op i.arg i.res in
-      insert_moves i.arg newarg
-        {i with arg = newarg; res = newres; next =
-          (insert_moves newres i.res
-            (self#reload i.next))}
+      self#reload i.next (fun next ->
+        k (insert_moves i.arg newarg
+             {i with arg = newarg; res = newres;
+                     next = (insert_moves newres i.res next); }))
   | Iifthenelse(tst, ifso, ifnot) ->
       let newarg = self#reload_test tst i.arg in
-      insert_moves i.arg newarg
-        (instr_cons
-          (Iifthenelse(tst, self#reload ifso, self#reload ifnot)) newarg [||]
-          (self#reload i.next))
+      self#reload ifso (fun ifso ->
+        self#reload ifnot (fun ifnot ->
+          self#reload i.next (fun next ->
+            k (insert_moves i.arg newarg
+                 (instr_cons (Iifthenelse(tst, ifso, ifnot))
+                    newarg [||] next)))))
   | Iswitch(index, cases) ->
       let newarg = self#makeregs i.arg in
-      insert_moves i.arg newarg
-        (instr_cons (Iswitch(index, Array.map (self#reload) cases)) newarg [||]
-          (self#reload i.next))
+      let cases = Array.map (fun case -> self#reload case Fun.id) cases in
+      self#reload i.next (fun next ->
+        k (insert_moves i.arg newarg
+             (instr_cons (Iswitch(index, cases)) newarg [||] next)))
   | Icatch(rec_flag, ts, handlers, body) ->
       let new_handlers = List.map
-          (fun (nfail, ts, handler) -> nfail, ts, self#reload handler)
+          (fun (nfail, ts, handler) -> nfail, ts, self#reload handler Fun.id)
           handlers in
-      instr_cons
-        (Icatch(rec_flag, ts, new_handlers, self#reload body)) [||] [||]
-        (self#reload i.next)
+      self#reload body (fun body ->
+        self#reload i.next (fun next ->
+          k (instr_cons (Icatch(rec_flag, ts, new_handlers, body))
+               [||] [||] next)))
   | Iexit (i, traps) ->
-      instr_cons (Iexit (i, traps)) [||] [||] dummy_instr
+      k (instr_cons (Iexit (i, traps)) [||] [||] dummy_instr)
   | Itrywith(body, kind, (ts, handler)) ->
-      instr_cons (Itrywith(self#reload body, kind, (ts, self#reload handler)))
-        [||] [||] (self#reload i.next)
+      self#reload body (fun body ->
+        self#reload handler (fun handler ->
+          self#reload i.next (fun next ->
+            k (instr_cons (Itrywith(body, kind, (ts, handler)))
+                 [||] [||] next))))
 
 method fundecl f num_stack_slots =
   redo_regalloc <- false;
-  let new_body = self#reload f.fun_body in
+  let new_body = self#reload f.fun_body Fun.id in
   ({fun_name = f.fun_name; fun_args = f.fun_args;
     fun_body = new_body; fun_codegen_options = f.fun_codegen_options;
     fun_dbg  = f.fun_dbg;
