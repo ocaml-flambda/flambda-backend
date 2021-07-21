@@ -2243,8 +2243,8 @@ let if_operation_supported_bi bi op ~f =
   if bi = Primitive.Pint64 && size_int = 4 then None
   else if_operation_supported op ~f
 
-let clz bi arg dbg =
-  let op = Cclz { arg_is_non_zero = false; } in
+let clz ~arg_is_non_zero bi arg dbg =
+  let op = Cclz { arg_is_non_zero; } in
   if_operation_supported_bi bi op ~f:(fun () ->
     let res = Cop(op, [make_unsigned_int bi arg dbg], dbg) in
     if bi = Primitive.Pint32 && size_int = 8 then
@@ -2252,16 +2252,19 @@ let clz bi arg dbg =
     else
       res)
 
-let ctz bi arg dbg =
+let ctz ~arg_is_non_zero bi arg dbg =
   let arg = make_unsigned_int bi arg dbg in
   if bi = Primitive.Pint32 && size_int = 8 then begin
+    (* regardless of the value of the argument [arg_is_non_zero],
+       always set the corresponding field to [true],
+       because we make it non-zero below by setting bit 32. *)
     let op = Cctz { arg_is_non_zero = true; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       (* Set bit 32 *)
       let mask = Nativeint.shift_left 1n 32 in
       Cop(op, [Cop(Cor, [arg; Cconst_natint(mask, dbg)], dbg)], dbg))
   end else begin
-    let op = Cctz { arg_is_non_zero = false; } in
+    let op = Cctz { arg_is_non_zero; } in
     if_operation_supported_bi bi op ~f:(fun () ->
       Cop(op, [arg], dbg))
   end
@@ -2674,10 +2677,18 @@ let transl_builtin name args dbg =
     if_operation_supported op ~f:(fun () ->
       let arg = clear_sign_bit (one_arg name args) dbg in
       Cop(Caddi, [Cop(op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
-  | "caml_int64_clz_unboxed_to_untagged" -> clz Pint64 (one_arg name args) dbg
-  | "caml_int32_clz_unboxed_to_untagged" -> clz Pint32 (one_arg name args) dbg
+  | "caml_int64_clz_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
+  | "caml_int32_clz_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
   | "caml_nativeint_clz_unboxed_to_untagged" ->
-    clz Pnativeint (one_arg name args) dbg
+    clz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
+  | "caml_int64_clz_nonzero_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
+  | "caml_int32_clz_nonzero_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
+  | "caml_nativeint_clz_nonzero_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
   | "caml_int_popcnt_tagged_to_untagged" ->
     if_operation_supported Cpopcnt ~f:(fun () ->
       (* Having the argument tagged saves a shift, but there is one extra "set"
@@ -2718,10 +2729,18 @@ let transl_builtin name args dbg =
                    Cconst_int ((size_int*8) - 1, dbg)], dbg)
       in
       Cop(op, [Cop(Cor, [one_arg name args; c], dbg)], dbg))
-  | "caml_int32_ctz_unboxed_to_untagged" -> ctz Pint32 (one_arg name args) dbg
-  | "caml_int64_ctz_unboxed_to_untagged" -> ctz Pint64 (one_arg name args) dbg
+  | "caml_int32_ctz_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
+  | "caml_int64_ctz_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
   | "caml_nativeint_ctz_unboxed_to_untagged" ->
-    ctz Pnativeint (one_arg name args) dbg
+    ctz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
+  | "caml_int32_ctz_nonzero_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
+  | "caml_int64_ctz_nonzero_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
+  | "caml_nativeint_ctz_nonzero_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some(int_as_pointer (one_arg name args) dbg)
