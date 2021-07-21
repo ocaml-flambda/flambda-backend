@@ -95,6 +95,13 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
+val get_global_info' : Ident.t -> Cmx_format.export_info option
+        (* Middle-end-agnostic means of getting the export info found in the
+           .cmx file of the given unit. *)
+
+val flambda2_set_export_info : Flambda2.Flambda_cmx_format.t -> unit
+        (* Set the export information for the current unit (Flambda 2 only). *)
+
 val need_curry_fun: int -> unit
 val need_apply_fun: int -> unit
 val need_send_fun: int -> unit

@@ -16,33 +16,17 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-(* XXX This shouldn't be needed once the Symbol refactoring is in; then we
-   can use the same Compilation unit and Symbol types for both Flambda 1 and 2.
-*)
-
-(** Knowledge that the middle end needs about the backend. *)
+(** Knowledge that the Flambda 2 middle end needs about the backend. *)
 
 module type S = sig
   (** Compute the symbol for the given identifier. *)
   val symbol_for_global' : (Ident.t -> Symbol.t)
-
-(*
-  (** If the given approximation is that of a symbol (Value_symbol) or an
-      external (Value_extern), attempt to find a more informative
-      approximation from a previously-written compilation artifact.  In the
-      native code backend, for example, this might consult a .cmx file. *)
-  val really_import_approx : Simple_value_approx.t -> Simple_value_approx.t
-*)
 
   val all_predefined_exception_symbols : Symbol.Set.t
 
   val division_by_zero : Symbol.t
 
   val invalid_argument : Symbol.t
-
-(*
-  val import_symbol : Symbol.t -> Simple_value_approx.t
-*)
 
   val closure_symbol : Closure_id.t -> Symbol.t
 
@@ -60,5 +44,7 @@ module type S = sig
   val max_sensible_number_of_arguments : int
 
   val set_global_info : Flambda_cmx_format.t -> unit
-  val get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option
+  val get_global_info
+     : Flambda2_compilenv_deps.Compilation_unit.t
+    -> Flambda_cmx_format.t option
 end
