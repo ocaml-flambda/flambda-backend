@@ -293,7 +293,7 @@ let translate_definition_and_resolve_alias inconstants
     ~(backend : (module Backend_intf.S))
     : Flambda.constant_defining_value option =
   let resolve_float_array_involving_variables
-        ~(mutability : Asttypes.mutable_flag) ~vars =
+        ~(mutability : Lambda.mutable_flag) ~vars =
     (* Resolve an [Allocated_const] of the form:
         [Array (Pfloatarray, _, _)]
        (which references its contents via variables; it does not contain
@@ -326,7 +326,7 @@ let translate_definition_and_resolve_alias inconstants
     in
     let const : Allocated_const.t =
       match mutability with
-      | Immutable -> Immutable_float_array floats
+      | Immutable | Immutable_unique -> Immutable_float_array floats
       | Mutable -> Float_array floats
     in
     Some (Flambda.Allocated_const const)
@@ -432,7 +432,7 @@ let translate_definition_and_resolve_alias inconstants
     | Allocated_const (Normal (Immutable_float_array floats)) ->
       let const : Allocated_const.t =
         match mutability with
-        | Immutable -> Immutable_float_array floats
+        | Immutable | Immutable_unique -> Immutable_float_array floats
         | Mutable -> Float_array floats
       in
       Some (Flambda.Allocated_const const)

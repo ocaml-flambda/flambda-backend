@@ -63,7 +63,8 @@ let mkappl (func, args) =
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
 
-let lfield v i = Lprim(Pfield i, [Lvar v], Loc_unknown)
+let lfield v i =
+  Lprim(Pfield (i, Reads_vary), [Lvar v], Loc_unknown)
 
 let transl_label l = share (Const_immstring l)
 
@@ -134,7 +135,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       let env =
         match envs with None -> []
         | Some envs ->
-            [Lprim(Pfield (List.length inh_init + 1),
+            [Lprim(Pfield (List.length inh_init + 1, Reads_vary),
                    [Lvar envs],
                    Loc_unknown)]
       in
@@ -272,6 +273,8 @@ let rec index a = function
 
 let bind_id_as_val (id, _) = ("", id)
 
+let class_field i = Pfield (i, Reads_vary)
+
 let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
   match cl.cl_desc with
   | Tcl_ident _ ->
@@ -279,8 +282,8 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
       | (_, path_lam, obj_init)::inh_init ->
           (inh_init,
            Llet (Strict, Pgenval, obj_init,
-                 mkappl(Lprim(Pfield 1, [path_lam], Loc_unknown), Lvar cla ::
-                        if top then [Lprim(Pfield 3, [path_lam], Loc_unknown)]
+                 mkappl(Lprim(class_field 1, [path_lam], Loc_unknown), Lvar cla ::
+                        if top then [Lprim(class_field 3, [path_lam], Loc_unknown)]
                         else []),
                  bind_super cla super cl_init))
       | _ ->
@@ -553,7 +556,7 @@ let rec builtin_meths self env env2 body =
     | p when const_path p -> "const", [p]
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
-    | Lprim(Pfield n, [Lvar e], _) when Ident.same e env ->
+    | Lprim(Pfield (n, _), [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
     | Lsend(Self, met, Lvar s, [], _) when List.mem s self ->
         "meth", [met]
@@ -735,7 +738,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           [lfunction ((self, Pgenval) :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, Pgenval, env,
-                   Lprim(Pfield_computed,
+                   Lprim(Pfield_computed Reads_vary,
                          [Lvar self; Lvar env2],
                          Loc_unknown),
                    body'))]
@@ -849,7 +852,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           Loc_unknown)
   and linh_envs =
     List.map
-      (fun (_, path_lam, _) -> Lprim(Pfield 3, [path_lam], Loc_unknown))
+      (fun (_, path_lam, _) -> Lprim(class_field 3, [path_lam], Loc_unknown))
       (List.rev inh_init)
   in
   let make_envs lam =
@@ -869,7 +872,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let inh_keys =
     List.map
-      (fun (_, path_lam, _) -> Lprim(Pfield 1, [path_lam], Loc_unknown))
+      (fun (_, path_lam, _) ->
+        Lprim(class_field 1, [path_lam], Loc_unknown))
       inh_paths
   in
   let lclass lam =

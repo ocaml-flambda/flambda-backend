@@ -52,9 +52,9 @@ type t += A | B of unit | C of bool * int;;
 0
 type t = ..
 (let
-  (A/25 = (makeblock 248 "A" (caml_fresh_oo_id 0))
-   B/26 = (makeblock 248 "B" (caml_fresh_oo_id 0))
-   C/27 = (makeblock 248 "C" (caml_fresh_oo_id 0)))
+  (A/25 = (makeblock_unique 248 "A" (caml_fresh_oo_id 0))
+   B/26 = (makeblock_unique 248 "B" (caml_fresh_oo_id 0))
+   C/27 = (makeblock_unique 248 "C" (caml_fresh_oo_id 0)))
   (seq (apply (field 1 (global Toploop!)) "A/25" A/25)
     (apply (field 1 (global Toploop!)) "B/26" B/26)
     (apply (field 1 (global Toploop!)) "C/27" C/27)))
