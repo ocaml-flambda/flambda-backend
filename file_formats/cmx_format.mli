@@ -33,7 +33,8 @@ open Misc
 
 type export_info =
   | Clambda of Clambda.value_approximation
-  | Flambda of Export_info.t
+  | Flambda1 of Export_info.t
+  | Flambda2 of Flambda2.Flambda_cmx_format.t option
 
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)

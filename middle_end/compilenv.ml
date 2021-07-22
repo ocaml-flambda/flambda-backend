@@ -72,7 +72,9 @@ let merged_environment = ref Export_info.empty
 
 let default_ui_export_info =
   if Config.flambda then
-    Cmx_format.Flambda Export_info.empty
+    Cmx_format.Flambda1 Export_info.empty
+  else if Config.flambda2 then
+    Cmx_format.Flambda2 None
   else
     Cmx_format.Clambda Value_unknown
 
@@ -223,7 +225,7 @@ let cache_unit_info ui =
 let get_clambda_approx ui =
   assert(not Config.flambda);
   match ui.ui_export_info with
-  | Flambda _ -> assert false
+  | Flambda1 _ | Flambda2 _ -> assert false
   | Clambda approx -> approx
 
 let toplevel_approx :
@@ -287,12 +289,12 @@ let set_global_approx approx =
 let get_flambda_export_info ui =
   assert(Config.flambda);
   match ui.ui_export_info with
-  | Clambda _ -> assert false
-  | Flambda ei -> ei
+  | Clambda _ | Flambda2 _ -> assert false
+  | Flambda1 ei -> ei
 
 let set_export_info export_info =
   assert(Config.flambda);
-  current_unit.ui_export_info <- Flambda export_info
+  current_unit.ui_export_info <- Flambda1 export_info
 
 let approx_for_global comp_unit =
   let id = Compilation_unit.get_persistent_ident comp_unit in

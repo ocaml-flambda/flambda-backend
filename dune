@@ -108,7 +108,7 @@
     ; The driver should be in here too, but is not at present.  This might
     ; be tricky because it has a different name...
   )
-  (libraries ocamlcommon stdlib))
+  (libraries ocamlcommon stdlib flambda2))
 
 (executable
  (name flambda_backend_main)
