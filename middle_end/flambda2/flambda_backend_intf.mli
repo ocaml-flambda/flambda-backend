@@ -28,8 +28,6 @@ module type S = sig
 
   val invalid_argument : Symbol.t
 
-  val closure_symbol : Closure_id.t -> Symbol.t
-
   (** The natural size of an integer on the target architecture
       (cf. [Arch.size_int] in the native code backend). *)
   val size_int : int

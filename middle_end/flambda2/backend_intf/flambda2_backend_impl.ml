@@ -62,8 +62,6 @@ let symbol_for_global' ?comp_unit id =
       comp_unit
       (Linkage_name.create (Compilenv.symbol_for_global id))
 
-let closure_symbol _ = failwith "Not yet implemented"
-
 let find_predef_exn name =
   let matches ident = String.equal (Ident.name ident) name in
   match List.find matches Predef.all_predef_exns with
