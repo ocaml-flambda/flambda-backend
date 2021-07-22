@@ -125,6 +125,8 @@ let primitives_table =
     "%loc_FUNCTION", Loc Loc_FUNCTION;
     "%field0", Primitive ((Pfield (0, Reads_vary)), 1);
     "%field1", Primitive ((Pfield (1, Reads_vary)), 1);
+    "%field0_immut", Primitive ((Pfield (0, Reads_agree)), 1);
+    "%field1_immut", Primitive ((Pfield (1, Reads_agree)), 1);
     "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
     "%makeblock", Primitive ((Pmakeblock(0, Immutable, None)), 1);
     "%makemutable", Primitive ((Pmakeblock(0, Mutable, None)), 1);

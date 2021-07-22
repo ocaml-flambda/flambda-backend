@@ -228,8 +228,8 @@ external ignore : 'a -> unit = "%ignore"
 
 (* Pair operations *)
 
-external fst : 'a * 'b -> 'a = "%field0"
-external snd : 'a * 'b -> 'b = "%field1"
+external fst : 'a * 'b -> 'a = "%field0_immut"
+external snd : 'a * 'b -> 'b = "%field1_immut"
 
 (* References *)
 
