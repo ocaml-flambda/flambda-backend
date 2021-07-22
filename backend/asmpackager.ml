@@ -153,13 +153,13 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
 let get_export_info ui =
   assert(Config.flambda);
   match ui.ui_export_info with
-  | Clambda _ -> assert false
-  | Flambda info -> info
+  | Clambda _ | Flambda2 _ -> assert false
+  | Flambda1 info -> info
 
 let get_approx ui =
   assert(not Config.flambda);
   match ui.ui_export_info with
-  | Flambda _ -> assert false
+  | Flambda1 _ | Flambda2 _ -> assert false
   | Clambda info -> info
 
 let build_package_cmx members cmxfile =
@@ -189,7 +189,7 @@ let build_package_cmx members cmxfile =
       List.map (fun info ->
           { info with
             ui_export_info =
-              Flambda
+              Flambda1
                 (Export_info_for_pack.import_for_pack ~pack_units
                    ~pack:(Compilenv.current_unit ())
                    (get_export_info info)) })
@@ -208,7 +208,7 @@ let build_package_cmx members cmxfile =
              (get_export_info ui))
           units
       in
-      Flambda ui_export_info
+      Flambda1 ui_export_info
     else
       Clambda (get_approx ui)
   in
