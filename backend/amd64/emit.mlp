@@ -1483,6 +1483,51 @@ let emit_probe_notes probes =
   | [], true -> ()
   | _ -> emit_probe_notes0 probes
 
+let emit_dummy_probe_sites () =
+  let semaphores_without_probes =
+    List.fold_left (fun acc probe ->
+      String.Map.remove probe.probe_name acc)
+      !probe_semaphores !probes in
+  if (String.Map.is_empty semaphores_without_probes) then []
+  else begin
+    let fun_name = Compilenv.make_symbol (Some "___dummy_probes") in
+
+    (* start the function (as in fundecl) *)
+    emit_named_text_section fun_name;
+    D.align 16;
+    add_def_symbol fun_name;
+    D.global (emit_symbol fun_name);
+    D.label (emit_symbol fun_name);
+    cfi_startproc ();
+
+    (* emit dummy probe sites: labeled NOP only for stapsdt probes to work,
+       but no calls to probe wrapper because there is no ocaml probe handler. *)
+    let dummy_probes =
+      String.Map.fold (fun probe_name _label acc ->
+        let probe_label = new_label () in
+        def_label probe_label;
+        I.nop (); (* for uprobes and usdt probes as well *)
+        let probe = { probe_name;
+                      probe_label;
+                      probe_arg = [||];
+                      probe_live = Reg.Set.empty;
+                      probe_handler_code_sym = None;
+                      (* the following fields are unused for dummy probes,
+                         which have no ocaml handler and do not call
+                         probe wrappers. *)
+                      probe_stack_offset = !stack_offset;
+                      probe_num_stack_slots = num_stack_slots;
+                    }
+        in
+        probe :: acc)
+        semaphores_without_probes []
+    in
+    I.ret ();
+    (* end the function (as in fundecl) *)
+    cfi_endproc ();
+    emit_function_type_and_size fun_name;
+    dummy_probes
+  end
 
 let end_assembly() =
   if !float_constants <> [] then begin
@@ -1498,6 +1543,9 @@ let end_assembly() =
 
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
+
+  (* Emit dummy probes for semaphores without probes in this compilation unit. *)
+  let dummy_probes = emit_dummy_probe_sites () in
 
   emit_named_text_section (Compilenv.make_symbol (Some "code_end"));
   if system = S_macosx then I.nop ();
@@ -1548,7 +1596,7 @@ let end_assembly() =
     D.size frametable (ConstSub (ConstThis, ConstLabel frametable))
   end;
 
-  emit_probe_notes ();
+  emit_probe_notes (dummy_probes @ !probes);
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
