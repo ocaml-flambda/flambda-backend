@@ -1,4 +1,4 @@
-name: 4.12
+name: main
 
 on: [push, pull_request]
 
