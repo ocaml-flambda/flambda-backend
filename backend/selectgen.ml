@@ -813,6 +813,12 @@ method emit_expr (env:environment) exp =
               self#emit_stores env new_args rd;
               set_traps_for_raise env;
               Some rd
+          | Iprobe _ ->
+              let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
+              let rd = self#insert_op_debug env new_op dbg r1 rd in
+              set_traps_for_raise env;
+              Some rd
           | op ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
