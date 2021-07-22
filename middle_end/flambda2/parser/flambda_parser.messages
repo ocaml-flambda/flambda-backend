@@ -1,0 +1,816 @@
+# CR-soon lmaurer: This is all painfully out-of-date. Notably, the maintenance
+# burden of a messages file for a large grammar is ... substantial. As of this
+# writing, there should be 175 messages in this file.
+
+flambda_unit: KWD_APPLY SYMBOL LPAREN RPAREN KWD_WITH
+##
+## Ends in an error in state: 174.
+##
+## expr -> KWD_APPLY name simple_args . MINUSGREATER continuation exn_continuation [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY name simple_args
+##
+
+Expected -> followed by a continuation.
+Example of an application:
+  apply f (arg1 arg2) -> cont * exn_cont
+
+flambda_unit: KWD_APPLY SYMBOL MINUSGREATER IDENT KWD_WITH
+##
+## Ends in an error in state: 176.
+##
+## expr -> KWD_APPLY name simple_args MINUSGREATER continuation . exn_continuation [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY name simple_args MINUSGREATER continuation
+##
+
+Expected * followed by an exception continuation.
+Example of an application: 
+  apply f (arg1 arg2) -> cont * exn_cont
+
+flambda_unit: KWD_APPLY SYMBOL MINUSGREATER KWD_WITH
+##
+## Ends in an error in state: 175.
+##
+## expr -> KWD_APPLY name simple_args MINUSGREATER . continuation exn_continuation [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY name simple_args MINUSGREATER
+##
+
+Expected a continuation.
+Example of an application:
+  apply f (arg1 arg2) -> cont * exn_cont
+
+flambda_unit: KWD_APPLY SYMBOL KWD_WITH
+##
+## Ends in an error in state: 173.
+##
+## expr -> KWD_APPLY name . simple_args MINUSGREATER continuation exn_continuation [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY name
+##
+
+Expected an argument list in parentheses, or -> followed by a continuation.
+Examples of applications:
+  apply f -> cont * exn_cont
+  apply f () -> cont * exn_cont
+  apply f (arg1 arg2) -> cont * exn_cont
+
+flambda_unit: KWD_APPLY KWD_WITH
+##
+## Ends in an error in state: 170.
+##
+## expr -> KWD_APPLY . name simple_args MINUSGREATER continuation exn_continuation [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_APPLY
+##
+
+Expected the name of a function to apply.
+Example of an application:
+  apply f (arg1 arg2) -> cont * exn_cont
+
+flambda_unit: KWD_CLOSURE KWD_WITH
+##
+## Ends in an error in state: 79.
+##
+## closure -> KWD_CLOSURE . code_id [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CLOSURE
+##
+
+Expected a code id.
+Example of a closure:
+  closure f
+
+flambda_unit: KWD_CONT IDENT LPAREN SYMBOL KWD_WITH
+##
+## Ends in an error in state: 150.
+##
+## list(simple) -> simple . list(simple) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## simple
+##
+
+Expected a simple value (a symbol, variable, or literal).
+
+flambda_unit: KWD_CONT IDENT LPAREN KWD_WITH
+##
+## Ends in an error in state: 149.
+##
+## simple_args -> LPAREN . list(simple) RPAREN [ KWD_WITH RBRACE MINUSGREATER KWD_IN EOF COLON KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+Expected a simple value (a symbol, variable, or literal) as an argument to
+a continuation.
+Examples of continuation calls:
+  cont k
+  cont k ()
+  cont k (arg1 arg2)
+
+flambda_unit: KWD_CONT IDENT KWD_VAL
+##
+## Ends in an error in state: 148.
+##
+## expr -> KWD_CONT continuation . simple_args [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CONT continuation
+##
+
+Expected an argument list in parentheses, or end of file, or one of: with } in 
+Examples of continuation calls:
+  cont k
+  cont k ()
+  cont k (arg1 arg2)
+
+flambda_unit: KWD_CONT KWD_WITH
+##
+## Ends in an error in state: 147.
+##
+## expr -> KWD_CONT . continuation simple_args [ KWD_WITH RBRACE KWD_IN EOF KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CONT
+##
+
+Expected a continuation to call.
+Example of a continuation call:
+  cont k
+
+flambda_unit: KWD_LET KWD_CODE IDENT AT IDENT KWD_WITH
+##
+## Ends in an error in state: 115.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) . option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0)
+##
+
+Expected a new_version_of declaration, an argument list, or a closure argument.
+Examples of code definitions:
+  code f2 @closure_id newer_version_of f1 arg1 arg2 my_closure <var1 var2>
+    -> k * e : val * val = cont k (arg1 arg2)
+  code f2 my_closure -> k * e = cont k (arg1)
+
+flambda_unit: KWD_LET KWD_CODE IDENT AT KWD_WITH
+##
+## Ends in an error in state: 112.
+##
+## option(__anonymous_0) -> AT . closure_id [ KWD_NEWER_VERSION_OF LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## AT
+##
+
+Expected a closure id.
+Example of a code definition specifying a closure id:
+  code f @closure_id my_closure -> k * e = cont k arg1
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT COLON KWD_VAL MINUSGREATER
+##
+## Ends in an error in state: 144.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity . EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 141, spurious reduction of production separated_nonempty_list(STAR,kind) -> kind 
+## In state 139, spurious reduction of production kinds -> separated_nonempty_list(STAR,kind) 
+## In state 140, spurious reduction of production return_arity -> COLON kinds 
+##
+
+Expected = followed by an expression.
+Example of a code definition:
+  code f my_closure -> k : val = cont k (42)
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT EQUAL KWD_WITH
+##
+## Ends in an error in state: 145.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL . expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL
+##
+
+Expected an expression.
+Example of a code definition:
+  code f my_closure -> k = cont k (42)
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT STAR IDENT KWD_CODE
+##
+## Ends in an error in state: 135.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) . return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation)
+##
+
+Expected : followed by a return arity, or = followed by an expression.
+Examples of code definitions:
+  code f my_closure -> k * e = cont k (42)
+  code f my_closure -> k * e : () = cont k ()
+  code f my_closure -> k * e : val * val = cont k (23 42)
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT KWD_WITH
+##
+## Ends in an error in state: 134.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation . option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation
+##
+
+Expected * followed by a name for an exception continuation, or : followed by a
+return arity, or = followed by an expression. 
+Examples of code definitions:
+  code f my_closure -> k * e : () = cont k ()
+  code f my_closure -> k : val * val = cont k (23 42)
+  code f my_closure -> k = cont k (42)
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER KWD_WITH
+##
+## Ends in an error in state: 133.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER . continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER
+##
+
+Expected a name for a return continuation.
+Example of a code definition:
+  code f my_closure -> k : () = cont k ()
+
+flambda_unit: KWD_LET KWD_CODE IDENT IDENT KWD_WITH
+##
+## Ends in an error in state: 120.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable . kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable
+##
+
+Expected < followed by variables within a closure, or -> followed by a
+continuation.
+Examples of code definitions:
+  code f (arg) my_closure -> k : val = cont k (arg)
+  code f (arg1 (arg2 : imm)) my_closure -> k : val * imm = cont k (arg1 arg2)
+  code f my_closure <var1, (var2 : imm)> -> k : () = cont k ()
+
+
+flambda_unit: KWD_LET KWD_CODE IDENT LPAREN RPAREN KWD_HCF
+##
+## Ends in an error in state: 119.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args . variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args
+##
+
+Expected an identifier for a closure argument.
+Example of a code definition:
+  code f my_closure -> k : () = cont k ()
+
+flambda_unit: KWD_LET KWD_CODE IDENT KWD_NEWER_VERSION_OF IDENT KWD_HCF
+##
+## Ends in an error in state: 118.
+##
+## code_binding -> KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1) . kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id option(__anonymous_0) option(__anonymous_1)
+##
+
+Expected an argument list in parentheses or an identifier for a closure argument.
+Examples of code definitions:
+  code f2 newer_version_of f1 (arg1 arg2) my_closure -> k = cont k arg1
+  code f2 newer_version_of f1 my_closure -> k : () = cont k ()
+
+flambda_unit: KWD_LET KWD_CODE IDENT KWD_NEWER_VERSION_OF KWD_WITH
+##
+## Ends in an error in state: 116.
+##
+## option(__anonymous_1) -> KWD_NEWER_VERSION_OF . code_id [ LPAREN IDENT ]
+##
+## The known suffix of the stack is as follows:
+## KWD_NEWER_VERSION_OF
+##
+
+Expected a code id as an argument to newer_version_of.
+Example:
+  newer_version_of f0
+
+flambda_unit: KWD_LET KWD_CODE IDENT KWD_WITH
+##
+## Ends in an error in state: 111.
+##
+## code_binding -> KWD_CODE recursive code_id . option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive code_id
+##
+
+Expected a closure id declaration or a newer_version_of declaration or an
+argument list or an identifier for a closure argument.
+Example of a closure id declaration:
+  @ closure_id
+Example of a newer_version_of declaration:
+  newer_version_of code_id
+Examples of argument lists:
+  ()
+  (var1 (var2: imm))
+
+flambda_unit: KWD_LET KWD_CODE KWD_REC KWD_HCF
+##
+## Ends in an error in state: 110.
+##
+## code_binding -> KWD_CODE recursive . code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE recursive
+##
+
+Expected a code id.
+
+flambda_unit: KWD_LET KWD_CODE KWD_WITH
+##
+## Ends in an error in state: 109.
+##
+## code_binding -> KWD_CODE . recursive code_id option(__anonymous_0) option(__anonymous_1) kinded_args variable kinded_vars_within_closures MINUSGREATER continuation option(exn_continuation) return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_CODE
+##
+
+Expected rec or a code id.
+Examples of code definitions:
+  code f my_closure -> k : () = cont k ()
+  code rec f my_closure -> k : () = cont k ()
+
+flambda_unit: KWD_LET LPAREN KWD_WITH
+##
+## Ends in an error in state: 208.
+##
+## kinded_variable_opt -> LPAREN . variable_opt COLON kind RPAREN [ EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## LPAREN
+##
+
+Expected an identifier.
+Examples of kinded variable/argument declarations:
+  arg1
+  (arg2 : val)
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_BLOCK INT LPAREN SYMBOL KWD_WITH
+##
+## Ends in an error in state: 88.
+##
+## list(of_kind_value) -> of_kind_value . list(of_kind_value) [ RPAREN ]
+##
+## The known suffix of the stack is as follows:
+## of_kind_value
+##
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_BLOCK INT LPAREN KWD_WITH
+##
+## Ends in an error in state: 84.
+##
+## static_structure -> symbol EQUAL KWD_BLOCK tag LPAREN . list(of_kind_value) RPAREN [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## symbol EQUAL KWD_BLOCK tag LPAREN
+##
+
+Expected a simple value (variable, symbol, or literal).
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_BLOCK INT KWD_WITH
+##
+## Ends in an error in state: 83.
+##
+## static_structure -> symbol EQUAL KWD_BLOCK tag . LPAREN list(of_kind_value) RPAREN [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## symbol EQUAL KWD_BLOCK tag
+##
+
+Expected a list of simple values, in parentheses.
+Example:
+  (var1 Symbol2 42)
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_BLOCK KWD_WITH
+##
+## Ends in an error in state: 82.
+##
+## static_structure -> symbol EQUAL KWD_BLOCK . tag LPAREN list(of_kind_value) RPAREN [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## symbol EQUAL KWD_BLOCK
+##
+
+Expected a tag.
+Example of a block expression:
+  Block 2 (var1 Symbol2 42)
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT KWD_AND KWD_WITH
+##
+## Ends in an error in state: 205.
+##
+## separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding KWD_AND . separated_nonempty_list(AND,code_or_closure_binding) [ KWD_WITH KWD_IN KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## code_or_closure_binding KWD_AND
+##
+
+Expected "code" or "symbol".
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT KWD_END
+##
+## Ends in an error in state: 215.
+##
+## let_symbol -> KWD_LET symbol_bindings . KWD_IN expr [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET symbol_bindings
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 204, spurious reduction of production separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding 
+## In state 189, spurious reduction of production with_closure_elements_opt -> 
+## In state 201, spurious reduction of production segment_body -> separated_nonempty_list(AND,code_or_closure_binding) with_closure_elements_opt 
+## In state 224, spurious reduction of production segments -> segment_body 
+## In state 223, spurious reduction of production symbol_bindings -> segments 
+##
+
+Expected "and", "with", or "in".
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT KWD_IN KWD_WITH
+##
+## Ends in an error in state: 216.
+##
+## let_symbol -> KWD_LET symbol_bindings KWD_IN . expr [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET symbol_bindings KWD_IN
+##
+
+Expected an expression.
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT KWD_VAL
+##
+## Ends in an error in state: 204.
+##
+## separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding . [ KWD_WITH KWD_IN KWD_END ]
+## separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding . KWD_AND separated_nonempty_list(AND,code_or_closure_binding) [ KWD_WITH KWD_IN KWD_END ]
+##
+## The known suffix of the stack is as follows:
+## code_or_closure_binding
+##
+
+Expected "with", "in", "end", or "and".
+
+flambda_unit: KWD_LET SYMBOL EQUAL KWD_WITH
+##
+## Ends in an error in state: 78.
+##
+## static_closure_binding -> SYMBOL symbol EQUAL . closure [ KWD_WITH KWD_IN KWD_AND ]
+## static_structure -> symbol EQUAL . KWD_BLOCK tag LPAREN list(of_kind_value) RPAREN [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## SYMBOL symbol EQUAL
+##
+
+Expected a closure expression or a block expression.
+Example of a closure expression:
+  closure code_id
+Example of a block expression:
+  Block 2 (var1 Symbol2 42)
+
+flambda_unit: KWD_LET SYMBOL KWD_WITH
+##
+## Ends in an error in state: 77.
+##
+## static_closure_binding -> SYMBOL symbol . EQUAL closure [ KWD_WITH KWD_IN KWD_AND ]
+## static_structure -> symbol . EQUAL KWD_BLOCK tag LPAREN list(of_kind_value) RPAREN [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## SYMBOL symbol
+##
+
+Expected = followed by a closure expression or a block expression.
+Example of a closure expression:
+  closure code_id
+Example of a block expression:
+  Block 2 (var1 Symbol2 42)
+
+flambda_unit: KWD_LET KWD_WITH
+##
+## Ends in an error in state: 76.
+##
+## static_closure_binding -> SYMBOL . symbol EQUAL closure [ KWD_WITH KWD_IN KWD_AND ]
+## symbol_bindings -> SYMBOL . static_structure [ KWD_IN ]
+##
+## The known suffix of the stack is as follows:
+## SYMBOL
+##
+
+Expected a symbol.
+
+flambda_unit: KWD_LET KWD_WITH
+##
+## Ends in an error in state: 74.
+##
+## expr -> KWD_LET . let_ [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+## let_symbol -> KWD_LET . symbol_bindings KWD_IN expr [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_LET
+##
+
+Expected a definition.
+Examples of let expressions:
+  let x = 42 in cont k (x)
+  let code f (arg1) my_closure -> k : val * val = cont k (arg1 arg1)
+    and symbol F = closure f in ...
+
+flambda_unit: PRIM_OPAQUE KWD_WITH
+##
+## Ends in an error in state: 167.
+##
+## named -> unop . simple [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## unop
+##
+
+Expected a simple value (variable, symbol, or literal).
+
+flambda_unit: PRIM_PROJECT_VAR KWD_WITH
+##
+## Ends in an error in state: 41.
+##
+## unop -> PRIM_PROJECT_VAR . var_within_closure [ SYMBOL IDENT INT KWD_FLOAT ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_PROJECT_VAR
+##
+
+Expected a variable within a closure.
+
+flambda_unit: STAR IDENT KWD_AND
+##
+## Ends in an error in state: 6.
+##
+## flambda_unit -> continuation option(exn_continuation) . expr EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## continuation option(exn_continuation)
+##
+
+Expected a top-level expression.
+
+flambda_unit: STAR KWD_WITH
+##
+## Ends in an error in state: 4.
+##
+## exn_continuation -> STAR . continuation [ KWD_WITH KWD_UNREACHABLE SYMBOL KWD_SWITCH RBRACE PRIM_PROJECT_VAR PRIM_OPAQUE IDENT LETK KWD_LET INT KWD_IN KWD_HCF KWD_FLOAT EQUAL EOF KWD_END KWD_CONT COLON KWD_CLOSURE KWD_CCALL KWD_BLOCK KWD_APPLY KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## STAR
+##
+
+Expected an identifier for an exception continuation.
+
+flambda_unit: KWD_SWITCH KWD_FABRICATED
+##
+## Ends in an error in state: 21.
+##
+## expr -> KWD_SWITCH . simple LBRACE switch RBRACE [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH switch_sort
+##
+
+Expected a simple value (variable, symbol, or literal).
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE INT MINUSGREATER IDENT SEMICOLON KWD_WITH
+##
+## Ends in an error in state: 35.
+##
+## switch -> switch_case SEMICOLON . switch [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## switch_case SEMICOLON
+##
+
+Expected a switch case.
+Example of a switch case:
+  2 -> k2
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE INT MINUSGREATER IDENT KWD_WITH
+##
+## Ends in an error in state: 34.
+##
+## switch -> switch_case . [ RBRACE ]
+## switch -> switch_case . SEMICOLON switch [ RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## switch_case
+##
+
+Expected either ; and a switch case or } to end the list.
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE INT MINUSGREATER KWD_WITH
+##
+## Ends in an error in state: 32.
+##
+## switch_case -> tag MINUSGREATER . continuation [ SEMICOLON RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## tag MINUSGREATER
+##
+
+Expected the identifier of a continuation.
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE INT KWD_WITH
+##
+## Ends in an error in state: 31.
+##
+## switch_case -> tag . MINUSGREATER continuation [ SEMICOLON RBRACE ]
+##
+## The known suffix of the stack is as follows:
+## tag
+##
+
+Expected -> followed by the identifier of a continuation.
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE SEMICOLON KWD_WITH
+##
+## Ends in an error in state: 38.
+##
+## expr -> KWD_SWITCH simple LBRACE switch . RBRACE [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH simple LBRACE switch
+##
+
+Expected a swich case.
+Example of a switch case:
+  2 -> k2
+
+flambda_unit: KWD_SWITCH SYMBOL LBRACE KWD_WITH
+##
+## Ends in an error in state: 28.
+##
+## expr -> KWD_SWITCH simple LBRACE . switch RBRACE [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH simple LBRACE
+##
+
+Expected one or more switch cases, separated by semicolons, followed by }.
+Example of a switch statement:
+  switch x { 1 -> k1; 2 -> k2 }
+
+flambda_unit: KWD_SWITCH SYMBOL KWD_WITH
+##
+## Ends in an error in state: 27.
+##
+## expr -> KWD_SWITCH simple . LBRACE switch RBRACE [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## KWD_SWITCH simple
+##
+
+Expected one or more switch cases, separated by semicolons, surrounded by {}.
+Example:
+  { 1 -> k1; 2 -> k2 }
+
+flambda_unit: SYMBOL DOT LPAREN SYMBOL KWD_WITH
+##
+## Ends in an error in state: 176.
+##
+## binop -> simple DOT LPAREN simple . RPAREN [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple DOT LPAREN simple
+##
+
+Expected ).
+
+flambda_unit: SYMBOL DOT LPAREN KWD_WITH
+##
+## Ends in an error in state: 175.
+##
+## binop -> simple DOT LPAREN . simple RPAREN [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple DOT LPAREN
+##
+
+Expected a simple value (variable, symbol, or literal).
+
+flambda_unit: SYMBOL DOT KWD_WITH
+##
+## Ends in an error in state: 174.
+##
+## binop -> simple DOT . LPAREN simple RPAREN [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple DOT
+##
+
+Expected (.
+Example of a block load:
+  var.(2)
+
+flambda_unit: SYMBOL PLUSDOT KWD_WITH
+##
+## Ends in an error in state: 178.
+##
+## named -> simple infix_binop . simple [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple infix_binop
+##
+
+Expected a simple value (variable, symbol, or literal).
+
+flambda_unit: SYMBOL SEMICOLON KWD_WITH
+##
+## Ends in an error in state: 181.
+##
+## expr -> named SEMICOLON . expr [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## named SEMICOLON
+##
+
+Expected an expression.
+
+flambda_unit: SYMBOL KWD_VAL
+##
+## Ends in an error in state: 169.
+##
+## binop -> simple . DOT LPAREN simple RPAREN [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+## named -> simple . [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+## named -> simple . infix_binop simple [ KWD_WITH SEMICOLON KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## simple
+##
+flambda_unit: SYMBOL KWD_WITH
+##
+## Ends in an error in state: 180.
+##
+## expr -> named . SEMICOLON expr [ KWD_WITH RBRACE KWD_IN EOF KWD_END KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## named
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 169, spurious reduction of production named -> simple 
+##
+
+Expected an infix binary operator or one of: .( ; with in and 
+
+flambda_unit: KWD_UNREACHABLE KWD_WITH
+##
+## Ends in an error in state: 244.
+##
+## flambda_unit -> continuation option(exn_continuation) expr . EOF [ # ]
+##
+## The known suffix of the stack is as follows:
+## continuation option(exn_continuation) expr
+##
+
+Expected end of file.
+
+flambda_unit: KWD_WITH
+
+Expected an expression.

@@ -1,0 +1,69 @@
+let code rec eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven (i) clo
+    -> k * e =
+  let i_u = %untag_imm i in
+  switch i_u 
+    | 0 -> k1
+    | 1 -> k2
+  where
+    k1 = cont k (0)
+  where
+    k2 = (
+      let f =
+        %project_var
+          eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven.f clo 
+      in
+      apply f (i) -> k3 * e
+      where
+        k3 (x) = (
+          let odd = %select_closure (even -> odd) clo in
+          let i' = i - 1 in
+          apply odd (i') -> k4 * e
+          where
+            k4 (xs) =
+              let b = %Block 0 (x, xs) in
+              cont k (b)
+        )
+    )
+and code rec odd (i) cloooooooooooooooooooooooooooooooooooooooooooooooooooo
+    -> k * e =
+  let i_u = %untag_imm i in
+  switch i_u 
+    | 0 -> k1
+    | 1 -> k2
+  where
+    k1 = cont k (0)
+  where
+    k2 = (
+      let g =
+        %project_var odd.g
+          cloooooooooooooooooooooooooooooooooooooooooooooooooooo
+      in
+      apply g (i) -> k3 * e
+      where
+        k3 (x) = (
+          let even =
+            %select_closure (odd -> even)
+              cloooooooooooooooooooooooooooooooooooooooooooooooooooo
+          in
+          let i' = i - 1 in
+          apply even (i') -> k4 * e
+          where
+            k4 (xs) =
+              let b = %Block 0 (x, xs) in
+              cont k (b)
+        )
+    )
+in
+let code alternate (f, g, i) clo -> k * e =
+  let eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven =
+    closure eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven
+  and odd = closure odd
+  with { f = f; g = g; h = 4; i = 8; j = 15; k = 16; l = 23; m = 42; n = 4;
+         o = 8; p = 15; q = 16 }
+  in
+  apply eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven
+    (i) -> k * e
+and $Alternate = closure alternate
+in
+let $camlFormatting_test = Block 0 ($Alternate) in
+cont done ($camlFormatting_test)

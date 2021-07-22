@@ -1,0 +1,62 @@
+let $camlTests2__first_const18 = Block 0 () in
+let code rec size(26) f_0 (x : imm tagged) my_closure my_depth -> k * k1
+                        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let prim = x > 0 in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (42)
+     | 1 -> k2)
+    where k2 =
+      let Psubint = x - 1 in
+      (apply my_closure (Psubint) -> k2 * k1
+         where k2 (apply_result) =
+           let Paddint = 1 + apply_result in
+           cont k (Paddint))
+in
+(let f = closure f_0 @f in
+ apply unroll(10) f (5) -> k1 * error
+   where k1 (n : imm tagged) =
+     let Pmakeblock = %Block 0 (f, n) in
+     cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(2) (module_block, 0) in
+    let field_1 = %block_load 0 size(2) (module_block, 1) in
+    let $camlTests2 = Block 0 (field_0, field_1) in
+    cont done ($camlTests2)
+===>
+let code rec size(26) f_0 deleted : imm tagged -> imm tagged in
+let $camlTests2__f_1 =
+  closure f_0_1 @f
+and code rec size(22) newer_version_of(f_0) f_0_1 (x : imm tagged) my_closure
+                                              my_depth -> k * k1 : imm tagged =
+  let prim = x > 0 in
+  switch prim
+    | 0 -> k (42)
+    | 1 -> k2
+    where k2 =
+      let Psubint = x - 1 in
+      (apply direct(f_0_1 @f)
+         ($camlTests2__f_1 : _ -> imm tagged)
+         (Psubint)
+         -> k3 * k1
+         where k3 (param : imm tagged) =
+           cont k2 (param)
+         where k2 (apply_result) =
+           let Paddint = 1 + apply_result in
+           cont k (Paddint))
+in
+apply direct(f_0_1 @f) unroll(10)
+  ($camlTests2__f_1 : _ -> imm tagged)
+  (5)
+  -> k1 * error
+  where k1 (param : imm tagged) =
+    cont k (param)
+  where k (n : imm tagged) =
+    let dominator_scoped
+      $camlTests2__Pmakeblock37 =
+      Block 0 ($camlTests2__f_1, n)
+    in
+    let $camlTests2 = Block 0 ($camlTests2__f_1, n) in
+    cont done ($camlTests2)
