@@ -212,6 +212,8 @@ let configuration_variables =
   p "cmxs_magic_number" cmxs_magic_number;
   p "cmt_magic_number" cmt_magic_number;
   p "linear_magic_number" linear_magic_number;
+
+  p_bool "flambda_backend" true;
 ]
 
 let print_config_value oc = function
