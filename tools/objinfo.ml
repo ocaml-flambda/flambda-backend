@@ -145,7 +145,7 @@ let print_cmx_infos (ui, crc) =
       Format.fprintf Format.std_formatter "  %a@." Printclambda.approx approx
     end else
       Format.printf "Clambda unit@.";
-  | Flambda export ->
+  | Flambda1 export ->
     if not !no_approx || not !no_code then
       printf "Flambda export information:\n"
     else
@@ -167,6 +167,8 @@ let print_cmx_infos (ui, crc) =
     if not !no_code then
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
+  | Flambda2 _ ->
+    failwith "Flambda2 objinfo support not yet merged"
   end;
   let pr_funs _ fns =
     List.iter (fun arity -> printf " %d" arity) fns in
