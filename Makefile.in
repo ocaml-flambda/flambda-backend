@@ -342,9 +342,9 @@ runtest-upstream:
 	touch _runtest/VERSION
 	# tools
 	mkdir _runtest/tools
-	cp _build2/default/ocaml/tools/ocamlmklib_byte.bc \
+	cp _build2/default/tools/ocamlmklib_byte.bc \
 	  _runtest/tools/ocamlmklib
-	cp _build2/default/ocaml/tools/ocamlobjinfo_byte.bc \
+	cp _build2/default/tools/ocamlobjinfo_byte.bc \
 	  _runtest/tools/ocamlobjinfo
 	# ocamltest itself
 	mkdir _runtest/ocamltest
