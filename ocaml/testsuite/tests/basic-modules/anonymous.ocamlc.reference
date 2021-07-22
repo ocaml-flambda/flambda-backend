@@ -20,5 +20,5 @@
                 (makeblock 0)))
             (let
               (drop = (function param : int 0)
-               *match* = (apply drop (field 0 s)))
+               *match* = (apply drop (field_mut 0 s)))
               (makeblock 0 A B f s drop))))))))
