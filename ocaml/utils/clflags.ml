@@ -457,6 +457,55 @@ module Compiler_ir = struct
     end
 end
 
+module Flambda2 = struct
+  let join_points = ref true
+  let unbox_along_intra_function_control_flow = ref true
+  let backend_cse_at_toplevel = ref false
+  let cse_depth = ref 2
+
+  module Expert = struct
+    let code_id_and_symbol_scoping_checks = ref false
+    let fallback_inlining_heuristic = ref false
+    let inline_effects_in_cmm = ref false
+    let phantom_lets = ref true
+    let max_block_size_for_projections = ref None
+    let max_unboxing_depth = ref 3
+  end
+
+  module Debug = struct
+    let permute_every_name = ref false
+    let concrete_types_only_on_canonicals = ref false
+  end
+
+  let oclassic_flags () =
+    cse_depth := 2;
+    join_points := false;
+    unbox_along_intra_function_control_flow := true;
+    Expert.fallback_inlining_heuristic := true;
+    backend_cse_at_toplevel := false
+
+  let o1_flags () =
+    cse_depth := 2;
+    join_points := true;
+    unbox_along_intra_function_control_flow := true;
+    Expert.fallback_inlining_heuristic := false;
+    backend_cse_at_toplevel := false
+
+  let o2_flags () =
+    cse_depth := 2;
+    join_points := true;
+    unbox_along_intra_function_control_flow := true;
+    Expert.fallback_inlining_heuristic := false;
+    backend_cse_at_toplevel := false
+
+  let o3_flags () =
+    cse_depth := 2;
+    join_points := true;
+    unbox_along_intra_function_control_flow := true;
+    Expert.fallback_inlining_heuristic := false;
+    backend_cse_at_toplevel := false
+end
+
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct
   (* If you add a new pass, the following must be updated:

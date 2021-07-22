@@ -18,12 +18,12 @@ let flambda2_is_enabled () = Config.flambda
 
 (* CR mshinwell: wire this in *)
 
-let join_points () = true (* !Clflags.Flambda.join_points *)
-let unbox_along_intra_function_control_flow () = true
-  (* !Clflags.Flambda.unbox_along_intra_function_control_flow *)
-let backend_cse_at_toplevel () = false
-  (* !Clflags.Flambda.backend_cse_at_toplevel *)
-let cse_depth () = 0 (* !Clflags.Flambda.cse_depth *)
+let join_points () = !Clflags.Flambda2.join_points
+let unbox_along_intra_function_control_flow () =
+  !Clflags.Flambda2.unbox_along_intra_function_control_flow
+let backend_cse_at_toplevel () =
+  !Clflags.Flambda2.backend_cse_at_toplevel
+let cse_depth () = !Clflags.Flambda2.cse_depth
 
 let safe_string () = Config.safe_string
 let flat_float_array () = Config.flat_float_array
@@ -89,24 +89,23 @@ module Inlining = struct
 end
 
 module Debug = struct
-  let permute_every_name () = false
-    (* !Clflags.Flambda.Debug.permute_every_name *)
+  let permute_every_name () = !Clflags.Flambda2.Debug.permute_every_name
 
-  let concrete_types_only_on_canonicals () = false
-    (* !Clflags.Flambda.Debug.concrete_types_only_on_canonicals *)
+  let concrete_types_only_on_canonicals () =
+    !Clflags.Flambda2.Debug.concrete_types_only_on_canonicals
 end
 
 module Expert = struct
-  let code_id_and_symbol_scoping_checks () = false
-    (* !Clflags.Flambda.Expert.code_id_and_symbol_scoping_checks *)
-  let fallback_inlining_heuristic () = false
-    (* !Clflags.Flambda.Expert.fallback_inlining_heuristic *)
-  let inline_effects_in_cmm () = false
-    (* !Clflags.Flambda.Expert.inline_effects_in_cmm *)
-  let max_block_size_for_projections () = None
-    (* !Clflags.Flambda.Expert.max_block_size_for_projections *)
-  let phantom_lets () = true
-    (* !Clflags.Flambda.Expert.phantom_lets *)
-  let max_unboxing_depth () = 1
-    (* !Clflags.Flambda.Expert.max_unboxing_depth *)
+  let code_id_and_symbol_scoping_checks () =
+    !Clflags.Flambda2.Expert.code_id_and_symbol_scoping_checks
+  let fallback_inlining_heuristic () =
+    !Clflags.Flambda2.Expert.fallback_inlining_heuristic
+  let inline_effects_in_cmm () =
+    !Clflags.Flambda2.Expert.inline_effects_in_cmm
+  let max_block_size_for_projections () =
+    !Clflags.Flambda2.Expert.max_block_size_for_projections
+  let phantom_lets () =
+    !Clflags.Flambda2.Expert.phantom_lets
+  let max_unboxing_depth () =
+    !Clflags.Flambda2.Expert.max_unboxing_depth
 end
