@@ -1,0 +1,22 @@
+let w = 4 in
+let a = %Opaque 8 in
+let b : val = a in
+let $B = Block 0 (b) in
+let c : val = $B in
+let w : int32 = 15l in
+let d : int64 = 16L in
+let code twice0 deleted : val -> val in
+let code twice_lam (x) clo -> k * e =
+  let f = %project_var twice_lam.f clo in
+  let w : int64 = d in
+  apply f (x) -> k1 * e
+  where
+    k1 (y) = apply f (y) -> k * e
+in
+let code twice newer_version_of twice0 (f : val) clo -> k * e : val =
+  let twice_lam_clo = closure twice_lam with { f = f } in
+  cont k (twice_lam_clo)
+and $Twice = closure twice
+in
+let $camlNew_syntax_2 = Block 0 ($B, c, $Twice) in
+cont done ($camlNew_syntax_2)

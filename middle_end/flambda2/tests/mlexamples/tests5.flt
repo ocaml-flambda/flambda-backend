@@ -1,0 +1,71 @@
+let $camlTests5__first_const27 = Block 0 () in
+let code rec size(24) f_0 (x : imm tagged) my_closure my_depth -> k * k1
+                        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let g = %select_closure (f -> g) my_closure in
+  let prim = x < 4 in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (42)
+     | 1 -> k2)
+    where k2 =
+      let Psubint = x - 1 in
+      apply g (Psubint) -> k * k1
+in
+let code rec size(24) g_1 (y : imm tagged) my_closure my_depth -> k * k1
+                        : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
+  let f = %select_closure (g -> f) my_closure in
+  let prim = y > 3 in
+  let Pintcomp = %Tag_imm prim in
+  (let untagged = %untag_imm Pintcomp in
+   switch untagged
+     | 0 -> k (7)
+     | 1 -> k2)
+    where k2 =
+      let Psubint = y - 1 in
+      apply f (Psubint) -> k * k1
+in
+(let f = closure f_0 @f and g = closure g_1 @g in
+ let Pmakeblock = %Block 0 (f, g) in
+ cont k (Pmakeblock))
+  where k define_root_symbol (module_block) =
+    let field_0 = %block_load 0 size(2) (module_block, 0) in
+    let field_1 = %block_load 0 size(2) (module_block, 1) in
+    let $camlTests5 = Block 0 (field_0, field_1) in
+    cont done ($camlTests5)
+===>
+let code rec size(24) f_0 deleted : imm tagged -> imm tagged in
+let code rec size(24) g_1 deleted : imm tagged -> imm tagged in
+let $camlTests5__f_2 =
+  closure f_0_1 @f
+and $camlTests5__g_3 =
+  closure g_1_1 @g
+and code rec size(18) newer_version_of(g_1) g_1_1 (y : imm tagged) my_closure
+                                              my_depth -> k * k1 : imm tagged =
+  let prim = y > 3 in
+  switch prim
+    | 0 -> k (7)
+    | 1 -> k2
+    where k2 =
+      let Psubint = y - 1 in
+      apply direct(f_0_1 @f)
+        ($camlTests5__f_2 : _ -> imm tagged)
+        (Psubint)
+        -> k * k1
+and code rec size(18) newer_version_of(f_0) f_0_1 (x : imm tagged) my_closure
+                                              my_depth -> k * k1 : imm tagged =
+  let prim = x < 4 in
+  switch prim
+    | 0 -> k (42)
+    | 1 -> k2
+    where k2 =
+      let Psubint = x - 1 in
+      apply direct(g_1_1 @g)
+        ($camlTests5__g_3 : _ -> imm tagged)
+        (Psubint)
+        -> k * k1
+in
+let $camlTests5 = Block 0 ($camlTests5__f_2, $camlTests5__g_3) in
+cont done ($camlTests5)
