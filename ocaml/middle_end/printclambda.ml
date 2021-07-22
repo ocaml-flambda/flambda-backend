@@ -34,6 +34,10 @@ let value_kind =
   | Pboxedintval Pnativeint -> ":nativeint"
   | Pboxedintval Pint32 -> ":int32"
   | Pboxedintval Pint64 -> ":int64"
+  | Pblock { tag; fields } ->
+    asprintf ":[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+         Printlambda.value_kind') fields
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
