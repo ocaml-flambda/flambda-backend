@@ -2297,7 +2297,7 @@ module Default = struct
 
     let _flambda2_inline_indirect_call_cost spec =
       Float_arg_helper.parse spec
-        "Syntax: -flambda2-inline-indirect_call-cost <float> | \
+        "Syntax: -flambda2-inline-indirect-call-cost <float> | \
          <round>=<float>[,...]"
         Flambda2.Inlining.indirect_call_cost
 
