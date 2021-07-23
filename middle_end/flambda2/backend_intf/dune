@@ -1,9 +1,9 @@
 (include_subdirs no)
 
 (library
-  (name flambda2_backend_intf)
+  (name flambda2_backend_impl)
   (wrapped false)
   (flags (:standard -principal -nostdlib -open Flambda2))
   (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp
-             flambda2_compilenv_deps flambda2)
+    flambda2_compilenv_deps flambda2)
 )
