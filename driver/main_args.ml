@@ -1081,6 +1081,78 @@ let mk_no_flambda2_debug_concrete_types_only_on_canonicals f =
       Flambda2.Debug.Default.concrete_types_only_on_canonicals)
 ;;
 
+let mk_flambda2_inline_max_depth f =
+  "-flambda2-inline-max-depth", Arg.String f,
+  Printf.sprintf "<int>|<round>=<int>[,...]\n\
+      \     Maximum depth of search for inlining opportunities inside\n\
+      \     inlined functions (default %d) (Flambda 2 only)"
+    Clflags.Flambda2.Inlining.Default.max_depth
+;;
+
+let mk_flambda2_inline_cost arg descr ~default f =
+  Printf.sprintf "-flambda2-inline-%s-cost" arg,
+  Arg.String f,
+  Printf.sprintf "<float>|<round>=<float>[,...]\n\
+      \     The cost of not removing %s during inlining\n\
+      \     (default %.03f, higher = more costly) (Flambda 2 only)"
+    descr
+    default
+;;
+
+let mk_flambda2_inline_call_cost =
+  mk_flambda2_inline_cost "call" "a call"
+    ~default:Clflags.Flambda2.Inlining.Default.call_cost
+
+let mk_flambda2_inline_alloc_cost =
+  mk_flambda2_inline_cost "alloc" "an allocation"
+    ~default:Clflags.Flambda2.Inlining.Default.alloc_cost
+
+let mk_flambda2_inline_prim_cost =
+  mk_flambda2_inline_cost "prim" "a primitive"
+    ~default:Clflags.Flambda2.Inlining.Default.prim_cost
+
+let mk_flambda2_inline_branch_cost =
+  mk_flambda2_inline_cost "branch" "a conditional"
+    ~default:Clflags.Flambda2.Inlining.Default.branch_cost
+
+let mk_flambda2_inline_indirect_call_cost =
+  mk_flambda2_inline_cost "indirect" "an indirect call"
+    ~default:Clflags.Flambda2.Inlining.Default.indirect_call_cost
+
+let mk_flambda2_inline_poly_compare_cost =
+  mk_flambda2_inline_cost "poly-compare" "a polymorphic comparison"
+    ~default:Clflags.Flambda2.Inlining.Default.poly_compare_cost
+
+(* CR-someday mshinwell: We should have a check that the parameters provided by
+   the user are sensible, e.g. small_function_size <= large_function_size. *)
+
+let mk_flambda2_inline_small_function_size f =
+  "-flambda2-inline-small-function-size", Arg.String f,
+  Printf.sprintf "<int>|<round>=<int>[,...]\n\
+      \     Functions with a cost less than this will always be inlined\n\
+      \     unless an attribute instructs otherwise (default %d)\n\
+      \     (Flambda 2 only)"
+    Clflags.Flambda2.Inlining.Default.small_function_size
+;;
+
+let mk_flambda2_inline_large_function_size f =
+  "-flambda2-inline-large-function-size", Arg.String f,
+  Printf.sprintf "<int>|<round>=<int>[,...]\n\
+      \     Functions with a cost greater than this will never be inlined\n\
+      \     unless an attribute instructs otherwise (default %d); speculative\n\
+      \     inlining will be disabled if equal to the small function size\n\
+      \     (Flambda 2 only)"
+    Clflags.Flambda2.Inlining.Default.large_function_size
+;;
+
+let mk_flambda2_inline_threshold f =
+  "-flambda2-inline-threshold", Arg.String f,
+    Printf.sprintf "<float>|<round>=<float>[,...]\n\
+        \     Aggressiveness of inlining (default %.02f, higher numbers mean\n\
+        \     more aggressive) (Flambda 2 only)"
+      Clflags.Flambda2.Inlining.Default.threshold
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -1309,6 +1381,17 @@ module type Optcommon_options = sig
   val _no_flambda2_debug_permute_every_name : unit -> unit
   val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+
+  val _flambda2_inline_max_depth : string -> unit
+  val _flambda2_inline_call_cost : string -> unit
+  val _flambda2_inline_alloc_cost : string -> unit
+  val _flambda2_inline_prim_cost : string -> unit
+  val _flambda2_inline_branch_cost : string -> unit
+  val _flambda2_inline_indirect_call_cost : string -> unit
+  val _flambda2_inline_poly_compare_cost : string -> unit
+  val _flambda2_inline_small_function_size : string -> unit
+  val _flambda2_inline_large_function_size : string -> unit
+  val _flambda2_inline_threshold : string -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1682,6 +1765,19 @@ struct
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
       F._no_flambda2_debug_concrete_types_only_on_canonicals;
 
+    mk_flambda2_inline_max_depth F._flambda2_inline_max_depth;
+    mk_flambda2_inline_alloc_cost F._flambda2_inline_alloc_cost;
+    mk_flambda2_inline_branch_cost F._flambda2_inline_branch_cost;
+    mk_flambda2_inline_call_cost F._flambda2_inline_call_cost;
+    mk_flambda2_inline_prim_cost F._flambda2_inline_prim_cost;
+    mk_flambda2_inline_indirect_call_cost F._flambda2_inline_indirect_call_cost;
+    mk_flambda2_inline_poly_compare_cost F._flambda2_inline_poly_compare_cost;
+    mk_flambda2_inline_small_function_size
+      F._flambda2_inline_small_function_size;
+    mk_flambda2_inline_large_function_size
+      F._flambda2_inline_large_function_size;
+    mk_flambda2_inline_threshold F._flambda2_inline_threshold;
+
     mk_match_context_rows F._match_context_rows;
     mk_dno_unique_ids F._dno_unique_ids;
     mk_dunique_ids F._dunique_ids;
@@ -1837,6 +1933,19 @@ module Make_opttop_options (F : Opttop_options) = struct
       F._flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
       F._no_flambda2_debug_concrete_types_only_on_canonicals;
+
+    mk_flambda2_inline_max_depth F._flambda2_inline_max_depth;
+    mk_flambda2_inline_alloc_cost F._flambda2_inline_alloc_cost;
+    mk_flambda2_inline_branch_cost F._flambda2_inline_branch_cost;
+    mk_flambda2_inline_call_cost F._flambda2_inline_call_cost;
+    mk_flambda2_inline_prim_cost F._flambda2_inline_prim_cost;
+    mk_flambda2_inline_indirect_call_cost F._flambda2_inline_indirect_call_cost;
+    mk_flambda2_inline_poly_compare_cost F._flambda2_inline_poly_compare_cost;
+    mk_flambda2_inline_small_function_size
+      F._flambda2_inline_small_function_size;
+    mk_flambda2_inline_large_function_size
+      F._flambda2_inline_large_function_size;
+    mk_flambda2_inline_threshold F._flambda2_inline_threshold;
 
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
@@ -2160,6 +2269,60 @@ module Default = struct
       set Flambda2.Debug.concrete_types_only_on_canonicals
     let _no_flambda2_debug_concrete_types_only_on_canonicals =
       clear Flambda2.Debug.concrete_types_only_on_canonicals
+
+    let _flambda2_inline_max_depth spec =
+      Int_arg_helper.parse spec
+        "Syntax: -flambda2-inline-max-depth <int> | <round>=<int>[,...]"
+        Flambda2.Inlining.max_depth
+
+    let _flambda2_inline_alloc_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-alloc-cost <float> | <round>=<float>[,...]"
+        Flambda2.Inlining.alloc_cost
+
+    let _flambda2_inline_branch_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-branch-cost <float> | <round>=<float>[,...]"
+        Flambda2.Inlining.branch_cost
+
+    let _flambda2_inline_call_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-call-cost <float> | <round>=<float>[,...]"
+        Flambda2.Inlining.call_cost
+
+    let _flambda2_inline_prim_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-prim-cost <float> | <round>=<float>[,...]"
+        Flambda2.Inlining.prim_cost
+
+    let _flambda2_inline_indirect_call_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-indirect-call-cost <float> | \
+         <round>=<float>[,...]"
+        Flambda2.Inlining.indirect_call_cost
+
+    let _flambda2_inline_poly_compare_cost spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-poly-compare-cost <float> | \
+         <round>=<float>[,...]"
+        Flambda2.Inlining.poly_compare_cost
+
+    let _flambda2_inline_small_function_size spec =
+      Int_arg_helper.parse spec
+        "Syntax: -flambda2-inline-small-function-size <int> | \
+         <round>=<int>[,...]"
+        Flambda2.Inlining.small_function_size
+
+    let _flambda2_inline_large_function_size spec =
+      Int_arg_helper.parse spec
+        "Syntax: -flambda2-inline-large-function-size <int> | \
+         <round>=<int>[,...]"
+        Flambda2.Inlining.large_function_size
+
+    let _flambda2_inline_threshold spec =
+      Float_arg_helper.parse spec
+        "Syntax: -flambda2-inline-threshold <float> | <round>=<float>[,...]"
+        Flambda2.Inlining.threshold
   end
 
   module Compiler = struct

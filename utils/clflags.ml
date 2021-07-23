@@ -502,6 +502,43 @@ module Flambda2 = struct
       ref Default.concrete_types_only_on_canonicals
   end
 
+  module Inlining = struct
+    module Default = struct
+      let cost_divisor = 8.
+
+      let max_depth = 1
+
+      let call_cost = 5. /. cost_divisor
+      let alloc_cost = 7. /. cost_divisor
+      let prim_cost = 3. /. cost_divisor
+      let branch_cost = 5. /. cost_divisor
+      let indirect_call_cost = 4. /. cost_divisor
+      let poly_compare_cost = 10. /. cost_divisor
+
+      let small_function_size = 10
+      let large_function_size = 10
+
+      let threshold = 10.
+    end
+
+    module F = Float_arg_helper
+    module I = Int_arg_helper
+
+    let max_depth = ref (I.default Default.max_depth)
+
+    let call_cost = ref (F.default Default.call_cost)
+    let alloc_cost = ref (F.default Default.alloc_cost)
+    let prim_cost = ref (F.default Default.prim_cost)
+    let branch_cost = ref (F.default Default.branch_cost)
+    let indirect_call_cost = ref (F.default Default.indirect_call_cost)
+    let poly_compare_cost = ref (F.default Default.poly_compare_cost)
+
+    let small_function_size = ref (I.default Default.small_function_size)
+    let large_function_size = ref (I.default Default.large_function_size)
+
+    let threshold = ref (F.default Default.threshold)
+  end
+
   let oclassic_flags () =
     cse_depth := 2;
     join_points := false;
