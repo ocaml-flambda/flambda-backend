@@ -458,23 +458,48 @@ module Compiler_ir = struct
 end
 
 module Flambda2 = struct
-  let join_points = ref true
-  let unbox_along_intra_function_control_flow = ref true
-  let backend_cse_at_toplevel = ref false
-  let cse_depth = ref 2
+  module Default = struct
+    let join_points = true
+    let unbox_along_intra_function_control_flow = true
+    let backend_cse_at_toplevel = false
+    let cse_depth = 2
+  end
+
+  let join_points = ref Default.join_points
+  let unbox_along_intra_function_control_flow =
+    ref Default.unbox_along_intra_function_control_flow
+  let backend_cse_at_toplevel = ref Default.backend_cse_at_toplevel
+  let cse_depth = ref Default.cse_depth
 
   module Expert = struct
-    let code_id_and_symbol_scoping_checks = ref false
-    let fallback_inlining_heuristic = ref false
-    let inline_effects_in_cmm = ref false
-    let phantom_lets = ref true
-    let max_block_size_for_projections = ref None
-    let max_unboxing_depth = ref 3
+    module Default = struct
+      let code_id_and_symbol_scoping_checks = false
+      let fallback_inlining_heuristic = false
+      let inline_effects_in_cmm = false
+      let phantom_lets = true
+      let max_block_size_for_projections = None
+      let max_unboxing_depth = 3
+    end
+
+    let code_id_and_symbol_scoping_checks =
+      ref Default.code_id_and_symbol_scoping_checks
+    let fallback_inlining_heuristic = ref Default.fallback_inlining_heuristic
+    let inline_effects_in_cmm = ref Default.inline_effects_in_cmm
+    let phantom_lets = ref Default.phantom_lets
+    let max_block_size_for_projections =
+      ref Default.max_block_size_for_projections
+    let max_unboxing_depth = ref Default.max_unboxing_depth
   end
 
   module Debug = struct
-    let permute_every_name = ref false
-    let concrete_types_only_on_canonicals = ref false
+    module Default = struct
+      let permute_every_name = false
+      let concrete_types_only_on_canonicals = false
+    end
+
+    let permute_every_name = ref Default.permute_every_name
+    let concrete_types_only_on_canonicals =
+      ref Default.concrete_types_only_on_canonicals
   end
 
   let oclassic_flags () =

@@ -919,120 +919,161 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let format_default flag = if flag then " (default)" else ""
+let format_not_default flag = if flag then "" else " (default)"
+
+module Flambda2 = Clflags.Flambda2
+
 let mk_flambda2_join_points f =
-  "-flambda2-join-points", Arg.Unit f, " Propagate information from incoming \
-    edges at a join point (Flambda 2 only)"
+  "-flambda2-join-points", Arg.Unit f,
+  Printf.sprintf " Propagate information from incoming \
+      edges at a join point%s (Flambda 2 only)"
+    (format_default Flambda2.Default.join_points)
 ;;
 
 let mk_no_flambda2_join_points f =
-  "-no-flambda2-join-points", Arg.Unit f, " Propagate information only from \
-    the fork point to a join point (Flambda 2 only)"
+  "-no-flambda2-join-points", Arg.Unit f,
+  Printf.sprintf " Propagate information only from \
+      the fork point to a join point%s (Flambda 2 only)"
+    (format_not_default Flambda2.Default.join_points)
 ;;
 
 let mk_flambda2_unbox_along_intra_function_control_flow f =
   "-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
-    " Pass values within a function as unboxed where possible (Flambda 2 only)"
+  Printf.sprintf " Pass values within a function as unboxed where possible%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_no_flambda2_unbox_along_intra_function_control_flow f =
   "-no-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
-    " Pass values within a function in their normal representation \
-      (Flambda 2 only)"
-;;
-
-let mk_flambda2_cse_depth f =
-  "-flambda2-cse-depth", Arg.Int f,
-    " Depth threshold for eager tracking of CSE equations (default 2) \
-      (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
-  "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
-    " Perform checks on static scopes of code IDs and symbols during Un_cps \
-      (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
-  "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
-    " Perform checks on static scopes of code IDs and symbols during Un_cps \
-      (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_fallback_inlining_heuristic f =
-  "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
-    " Prevent inlining of functions whose bodies contain closures \
-      (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_expert_fallback_inlining_heuristic f =
-  "-no-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
-    " Allow inlining of functions whose bodies contain closures (default) \
-      (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_inline_effects_in_cmm f =
-  "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
-  " Allow inlining of effectful expressions in the produced cmm \
-    (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_expert_inline_effects_in_cmm f =
-  "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
-  " Prevent inlining of effectful expressions in the produced cmm (default) \
-    (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_phantom_lets f =
-  "-flambda2-expert-phantom-lets", Arg.Unit f,
-  " Generate phantom lets when -g is specified (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_expert_phantom_lets f =
-  "-no-flambda2-expert-phantom-lets", Arg.Unit f,
-  " Do not generate phantom lets even when -g is specified (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_max_block_size_for_projections f =
-  "-flambda2-expert-max-block-size-for-projections", Arg.Int f,
-  " Do not simplify projections from blocks if the block size exceeds \
-    this value (Flambda 2 only)"
-;;
-
-let mk_flambda2_expert_max_unboxing_depth f =
-  "-flambda2-expert-max-unboxing-depth", Arg.Int f,
-  " Do not unbox types deeper that this value (Flambda 2 only)"
-;;
-
-let mk_flambda2_debug_permute_every_name f =
-  "-flambda2-debug-permute-every-name", Arg.Unit f,
-    " Permute every name to check permutation works (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_debug_permute_every_name f =
-  "-no-flambda2-debug-permute-every-name", Arg.Unit f,
-    " Do not permute every name to check permutation works (Flambda 2 only)"
-;;
-
-let mk_flambda2_debug_concrete_types_only_on_canonicals f =
-  "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
-    " Check that concrete types are only assigned to canonical names \
-      (Flambda 2 only)"
-;;
-
-let mk_no_flambda2_debug_concrete_types_only_on_canonicals f =
-  "-no-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
-    " Do not check that concrete types are only assigned to canonical names \
-      (Flambda 2 only)"
+  Printf.sprintf " Pass values within a function in their normal \
+      representation%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_flambda2_backend_cse_at_toplevel f =
   "-flambda2-backend-cse-at-toplevel", Arg.Unit f,
-    " Apply the backend CSE pass to module initializers (Flambda 2 only)"
+  Printf.sprintf " Apply the backend CSE pass to module initializers%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Default.backend_cse_at_toplevel)
 ;;
 
 let mk_no_flambda2_backend_cse_at_toplevel f =
   "-no-flambda2-backend-cse-at-toplevel", Arg.Unit f,
-    " Do not apply the backend CSE pass to module initializers (Flambda 2 only)"
+  Printf.sprintf " Do not apply the backend CSE pass to module initializers%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Default.backend_cse_at_toplevel)
+;;
+
+let mk_flambda2_cse_depth f =
+  "-flambda2-cse-depth", Arg.Int f,
+  Printf.sprintf " Depth threshold for eager tracking of CSE equations \
+      (default %d) (Flambda 2 only)"
+    Flambda2.Default.cse_depth
+;;
+
+let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
+  "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
+  Printf.sprintf " Perform checks on static scopes of code IDs and symbols \
+      during Un_cps%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+;;
+
+let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
+  "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
+  Printf.sprintf " Do not perform checks on static scopes of code IDs and \
+      symbols during Un_cps%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+;;
+
+let mk_flambda2_expert_fallback_inlining_heuristic f =
+  "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
+  Printf.sprintf " Prevent inlining of functions whose bodies contain \
+      closures%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+;;
+
+let mk_no_flambda2_expert_fallback_inlining_heuristic f =
+  "-no-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
+  Printf.sprintf " Allow inlining of functions whose bodies contain \
+      closures%s (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+;;
+
+let mk_flambda2_expert_inline_effects_in_cmm f =
+  "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
+  Printf.sprintf " Allow inlining of effectful expressions in the produced \
+      Cmm code%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.inline_effects_in_cmm)
+;;
+
+let mk_no_flambda2_expert_inline_effects_in_cmm f =
+  "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
+  Printf.sprintf " Prevent inlining of effectful expressions in the produced \
+      Cmm code%s (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.inline_effects_in_cmm)
+;;
+
+let mk_flambda2_expert_phantom_lets f =
+  "-flambda2-expert-phantom-lets", Arg.Unit f,
+  Printf.sprintf " Generate phantom lets when -g is specified%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.phantom_lets)
+;;
+
+let mk_no_flambda2_expert_phantom_lets f =
+  "-no-flambda2-expert-phantom-lets", Arg.Unit f,
+  Printf.sprintf " Do not generate phantom lets even when -g is specified%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.phantom_lets)
+;;
+
+let mk_flambda2_expert_max_block_size_for_projections f =
+  "-flambda2-expert-max-block-size-for-projections", Arg.Int f,
+  Printf.sprintf " Do not simplify projections from blocks if the block size \
+      exceeds this value (default %s) (Flambda 2 only)"
+    (match Flambda2.Expert.Default.max_block_size_for_projections with
+     | None -> "not set"
+     | Some max -> string_of_int max)
+;;
+
+let mk_flambda2_expert_max_unboxing_depth f =
+  "-flambda2-expert-max-unboxing-depth", Arg.Int f,
+  Printf.sprintf " Do not unbox (nested) values deeper than this many levels \
+      (default %d) (Flambda 2 only)"
+    Flambda2.Expert.Default.max_unboxing_depth
+;;
+
+let mk_flambda2_debug_permute_every_name f =
+  "-flambda2-debug-permute-every-name", Arg.Unit f,
+  Printf.sprintf " Permute every name to test name permutation code%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Debug.Default.permute_every_name)
+;;
+
+let mk_no_flambda2_debug_permute_every_name f =
+  "-no-flambda2-debug-permute-every-name", Arg.Unit f,
+  Printf.sprintf " Do not permute every name to test name permutation code%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Debug.Default.permute_every_name)
+;;
+
+let mk_flambda2_debug_concrete_types_only_on_canonicals f =
+  "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
+  Printf.sprintf " Check that concrete types are only assigned to canonical \
+      names%s (Flambda 2 only)"
+    (format_default Flambda2.Debug.Default.concrete_types_only_on_canonicals)
+;;
+
+let mk_no_flambda2_debug_concrete_types_only_on_canonicals f =
+  "-no-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
+  Printf.sprintf " Do not check that concrete types are only assigned to \
+      canonical names%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Debug.Default.concrete_types_only_on_canonicals)
 ;;
 
 module type Common_options = sig
