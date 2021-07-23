@@ -2303,7 +2303,7 @@ module Default = struct
 
     let _flambda2_inline_poly_compare_cost spec =
       Float_arg_helper.parse spec
-        "Syntax: -flambda2-inline-poly_compare-cost <float> | \
+        "Syntax: -flambda2-inline-poly-compare-cost <float> | \
          <round>=<float>[,...]"
         Flambda2.Inlining.poly_compare_cost
 
