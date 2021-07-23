@@ -243,12 +243,25 @@ module Flambda2 : sig
     val unbox_along_intra_function_control_flow : bool
     val backend_cse_at_toplevel : bool
     val cse_depth : int
+    val treat_invalid_code_as_unreachable : bool
+
+    val unicode : bool
   end
 
   val join_points : bool ref
   val unbox_along_intra_function_control_flow : bool ref
   val backend_cse_at_toplevel : bool ref
   val cse_depth : int ref
+  val treat_invalid_code_as_unreachable : bool ref
+
+  val unicode : bool ref
+
+  module Dump : sig
+    val rawfexpr : bool ref
+    val fexpr : bool ref
+    val flexpect : bool ref
+    val closure_offsets : bool ref
+  end
 
   module Expert : sig
     module Default : sig
@@ -308,6 +321,8 @@ module Flambda2 : sig
     val large_function_size : Int_arg_helper.parsed ref
 
     val threshold : Float_arg_helper.parsed ref
+
+    val report_bin : bool ref
   end
 
   val oclassic_flags : unit -> unit
