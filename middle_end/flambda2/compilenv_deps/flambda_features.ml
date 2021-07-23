@@ -14,7 +14,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-let flambda2_is_enabled () = Config.flambda
+let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
 (* CR mshinwell: wire this in *)
 
