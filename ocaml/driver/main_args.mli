@@ -254,6 +254,16 @@ module type Optcommon_options = sig
   val _flambda2_inline_small_function_size : string -> unit
   val _flambda2_inline_large_function_size : string -> unit
   val _flambda2_inline_threshold : string -> unit
+
+  val _flambda2_inlining_report_bin : unit -> unit
+
+  val _flambda2_treat_invalid_code_as_unreachable : unit -> unit
+  val _no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
+
+  val _drawfexpr : unit -> unit
+  val _dfexpr : unit -> unit
+  val _dflexpect : unit -> unit
+  val _dclosure_offsets : unit -> unit
 end;;
 
 module type Optcomp_options = sig

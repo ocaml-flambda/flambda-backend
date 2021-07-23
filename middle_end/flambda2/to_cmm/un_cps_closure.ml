@@ -653,7 +653,7 @@ let compute_offsets env code unit =
   Flambda_unit.iter unit ~set_of_closures:aux;
   Misc.try_finally (fun () -> Greedy.finalize !state)
     ~always:(fun () ->
-      if Flambda_features.dump_offset () then
+      if Flambda_features.dump_closure_offsets () then
         Format.eprintf "%a@." Greedy.print !state
     )
 

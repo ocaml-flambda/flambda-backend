@@ -28,65 +28,43 @@ type t =
 let invariant _env _t = ()
 
 let print_with_cache ~cache ppf t =
-  if Flambda_features.dump_let_cont () then begin
-    (* Printing the same way as for [Let] is easier when debugging lifting
-       passes. *)
-    Misc.fatal_error "Needs re-enabling"
-(*
-    let rec let_cont_body (expr : Expr.t) =
-      match expr with
-      | Let_cont { body; handlers; } ->
-        fprintf ppf "@ @[<2>%a@]"
-          (Let_cont_handlers.print_with_cache ~cache) handlers;
-        let_cont_body body
-      | _ -> ul
-    in
-    fprintf ppf "@[<2>(%slet_cont%s@ @[<hv 1>(@[<2>%a@]"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
-      (Let_cont_handlers.print_with_cache ~cache) handlers;
-    let expr = let_cont_body body in
-    fprintf ppf ")@]@ %a)@]" (print_with_cache0 ~cache) expr
-*)
-  end else begin
-    let rec gather_let_conts let_conts let_cont =
-      match let_cont with
-      | Non_recursive { handler; num_free_occurrences = _;
-                        is_applied_with_traps = _; } ->
-        Non_recursive_let_cont_handler.pattern_match handler
-          ~f:(fun k ~(body : Expr.t) ->
-            let let_conts, body =
-              match Expr.descr body with
-              | Let_cont let_cont -> gather_let_conts let_conts let_cont
-              | _ -> let_conts, body
-            in
-            let handler = Non_recursive_let_cont_handler.handler handler in
-            (k, Recursive.Non_recursive, handler) :: let_conts, body)
-      | Recursive handlers ->
-        Recursive_let_cont_handlers.pattern_match handlers
-          ~f:(fun ~(body : Expr.t) handlers ->
-            let handlers = Continuation_handlers.to_map handlers in
-            let let_conts, body =
-              match Expr.descr body with
-              | Let_cont let_cont -> gather_let_conts let_conts let_cont
-              | _ -> let_conts, body
-            in
-            let new_let_conts =
-              List.map (fun (k, handler) -> k, Recursive.Recursive, handler)
-                (Continuation.Map.bindings handlers)
-            in
-            new_let_conts @ let_conts, body)
-    in
-    let let_conts, body = gather_let_conts [] t in
-    fprintf ppf "@[<v 1>(%a@;" (Expr.print_with_cache ~cache) body;
-    let first = ref true in
-    List.iter (fun (cont, recursive, handler) ->
-        Continuation_handler.print_using_where_with_cache recursive ~cache
-          ppf cont handler ~first:!first;
-        first := false)
-      (List.rev let_conts);
-    fprintf ppf ")@]"
-  end
+  let rec gather_let_conts let_conts let_cont =
+    match let_cont with
+    | Non_recursive { handler; num_free_occurrences = _;
+                      is_applied_with_traps = _; } ->
+      Non_recursive_let_cont_handler.pattern_match handler
+        ~f:(fun k ~(body : Expr.t) ->
+          let let_conts, body =
+            match Expr.descr body with
+            | Let_cont let_cont -> gather_let_conts let_conts let_cont
+            | _ -> let_conts, body
+          in
+          let handler = Non_recursive_let_cont_handler.handler handler in
+          (k, Recursive.Non_recursive, handler) :: let_conts, body)
+    | Recursive handlers ->
+      Recursive_let_cont_handlers.pattern_match handlers
+        ~f:(fun ~(body : Expr.t) handlers ->
+          let handlers = Continuation_handlers.to_map handlers in
+          let let_conts, body =
+            match Expr.descr body with
+            | Let_cont let_cont -> gather_let_conts let_conts let_cont
+            | _ -> let_conts, body
+          in
+          let new_let_conts =
+            List.map (fun (k, handler) -> k, Recursive.Recursive, handler)
+              (Continuation.Map.bindings handlers)
+          in
+          new_let_conts @ let_conts, body)
+  in
+  let let_conts, body = gather_let_conts [] t in
+  fprintf ppf "@[<v 1>(%a@;" (Expr.print_with_cache ~cache) body;
+  let first = ref true in
+  List.iter (fun (cont, recursive, handler) ->
+      Continuation_handler.print_using_where_with_cache recursive ~cache
+        ppf cont handler ~first:!first;
+      first := false)
+    (List.rev let_conts);
+  fprintf ppf ")@]"
 
 let print ppf t =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t

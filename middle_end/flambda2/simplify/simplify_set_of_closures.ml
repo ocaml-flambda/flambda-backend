@@ -515,21 +515,19 @@ let simplify_function context ~used_closure_vars ~shareable_constants
           end;
           params_and_body, dacc_after_body, free_names_of_code, uacc
         | exception Misc.Fatal_error ->
-          if Flambda_features.context_on_error () then begin
-            Format.eprintf "\n%sContext is:%s simplifying function \
-                with closure ID %a,@ params %a,@ return continuation %a,@ \
-                exn continuation %a,@ my_closure %a,@ body:@ %a@ \
-                with downwards accumulator:@ %a\n"
-              (Flambda_colours.error ())
-              (Flambda_colours.normal ())
-              Closure_id.print closure_id
-              Kinded_parameter.List.print params
-              Continuation.print return_continuation
-              Exn_continuation.print exn_continuation
-              Variable.print my_closure
-              Expr.print body
-              DA.print dacc
-          end;
+          Format.eprintf "\n%sContext is:%s simplifying function \
+              with closure ID %a,@ params %a,@ return continuation %a,@ \
+              exn continuation %a,@ my_closure %a,@ body:@ %a@ \
+              with downwards accumulator:@ %a\n"
+            (Flambda_colours.error ())
+            (Flambda_colours.normal ())
+            Closure_id.print closure_id
+            Kinded_parameter.List.print params
+            Continuation.print return_continuation
+            Exn_continuation.print exn_continuation
+            Variable.print my_closure
+            Expr.print body
+            DA.print dacc;
           reraise Misc.Fatal_error)
   in
   let cost_metrics = UA.cost_metrics uacc_after_upwards_traversal in

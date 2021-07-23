@@ -463,6 +463,8 @@ module Flambda2 = struct
     let unbox_along_intra_function_control_flow = true
     let backend_cse_at_toplevel = false
     let cse_depth = 2
+    let treat_invalid_code_as_unreachable = false
+    let unicode = true
   end
 
   let join_points = ref Default.join_points
@@ -470,6 +472,17 @@ module Flambda2 = struct
     ref Default.unbox_along_intra_function_control_flow
   let backend_cse_at_toplevel = ref Default.backend_cse_at_toplevel
   let cse_depth = ref Default.cse_depth
+  let treat_invalid_code_as_unreachable =
+    ref Default.treat_invalid_code_as_unreachable
+  let unicode = ref Default.unicode
+
+  module Dump = struct
+    let rawfexpr = ref false
+    let fexpr = ref false
+    let flexpect = ref false
+    let let_cont = ref false
+    let closure_offsets = ref false
+  end
 
   module Expert = struct
     module Default = struct
@@ -537,6 +550,8 @@ module Flambda2 = struct
     let large_function_size = ref (I.default Default.large_function_size)
 
     let threshold = ref (F.default Default.threshold)
+
+    let report_bin = ref false
   end
 
   let oclassic_flags () =

@@ -16,8 +16,6 @@
 
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
-(* CR mshinwell: wire this in *)
-
 let join_points () = !Clflags.Flambda2.join_points
 let unbox_along_intra_function_control_flow () =
   !Clflags.Flambda2.unbox_along_intra_function_control_flow
@@ -32,26 +30,24 @@ let debug () = !Clflags.debug
 let opaque () = !Clflags.opaque
 let float_const_prop () = !Clflags.float_const_prop
 let treat_invalid_code_as_unreachable () =
-  false (* !Clflags.treat_invalid_code_as_unreachable *)
+  !Clflags.Flambda2.treat_invalid_code_as_unreachable
 
 let optimize_for_speed () = !Clflags.optimize_for_speed
 
 let inlining_report () = !Clflags.inlining_report
-let inlining_report_bin () = false (* !Clflags.inlining_report_bin *)
+let inlining_report_bin () = !Clflags.Flambda2.Inlining.report_bin
 
 let colour () = !Clflags.color
-let unicode () = true (* !Clflags.flambda_unicode *)
+let unicode () = !Clflags.Flambda2.unicode
 
 let check_invariants () = !Clflags.flambda_invariant_checks
-let context_on_error () = true (* !Clflags.flambda_context_on_error *)
 
 let dump_rawflambda () = !Clflags.dump_rawflambda
 let dump_flambda () = !Clflags.dump_flambda
-let dump_rawfexpr () = false (* !Clflags.dump_rawfexpr *)
-let dump_fexpr () = false (* !Clflags.dump_fexpr *)
-let dump_flexpect () = false (* !Clflags.dump_flexpect *)
-let dump_let_cont () = false (* !Clflags.dump_let_cont *)
-let dump_offset () = false (* !Clflags.dump_offset *)
+let dump_rawfexpr () = !Clflags.Flambda2.Dump.rawfexpr
+let dump_fexpr () = !Clflags.Flambda2.Dump.fexpr
+let dump_flexpect () = !Clflags.Flambda2.Dump.flexpect
+let dump_closure_offsets () = !Clflags.Flambda2.Dump.closure_offsets
 
 module Inlining = struct
   module I = Clflags.Int_arg_helper
