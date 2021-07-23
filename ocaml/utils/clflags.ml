@@ -551,6 +551,80 @@ module Flambda2 = struct
     let threshold = ref (F.default Default.threshold)
 
     let report_bin = ref false
+
+    type inlining_arguments = {
+      max_depth : int option;
+      call_cost : float option;
+      alloc_cost : float option;
+      prim_cost : float option;
+      branch_cost : float option;
+      indirect_call_cost : float option;
+      poly_compare_cost : float option;
+      small_function_size : int option;
+      large_function_size : int option;
+      threshold : float option;
+    }
+
+    let use_inlining_arguments_set ?round (arg : inlining_arguments) =
+      let set_int = set_int_arg round in
+      let set_float = set_float_arg round in
+      set_int max_depth Default.max_depth arg.max_depth;
+      set_float call_cost Default.call_cost arg.call_cost;
+      set_float alloc_cost Default.alloc_cost arg.alloc_cost;
+      set_float prim_cost Default.prim_cost arg.prim_cost;
+      set_float branch_cost Default.branch_cost arg.branch_cost;
+      set_float indirect_call_cost
+        Default.indirect_call_cost arg.indirect_call_cost;
+      set_float poly_compare_cost
+        Default.poly_compare_cost arg.poly_compare_cost;
+      set_int small_function_size
+        Default.small_function_size arg.small_function_size;
+      set_int large_function_size
+        Default.large_function_size arg.large_function_size;
+      set_float threshold Default.threshold arg.threshold
+
+    let oclassic_arguments = {
+      max_depth = None;
+      call_cost = None;
+      alloc_cost = None;
+      prim_cost = None;
+      branch_cost = None;
+      indirect_call_cost = None;
+      poly_compare_cost = None;
+      (* We set the small and large function sizes to the same value here to
+         recover "classic mode" semantics (no speculative inlining). *)
+      small_function_size = Some Default.small_function_size;
+      large_function_size = Some Default.small_function_size;
+      (* [threshold] matches the current compiler's default.  (The factor of
+         8 in that default is accounted for by [cost_divisor], above.) *)
+      threshold = Some 10.;
+    }
+
+    let o2_arguments = {
+      max_depth = Some 2;
+      call_cost = Some (2.0 *. Default.call_cost);
+      alloc_cost = Some (2.0 *. Default.alloc_cost);
+      prim_cost = Some (2.0 *. Default.prim_cost);
+      branch_cost = Some (2.0 *. Default.branch_cost);
+      indirect_call_cost = Some (2.0 *. Default.indirect_call_cost);
+      poly_compare_cost = Some (2.0 *. Default.poly_compare_cost);
+      small_function_size = Some (2 * Default.small_function_size);
+      large_function_size = Some (4 * Default.large_function_size);
+      threshold = Some 25.;
+    }
+
+    let o3_arguments = {
+      max_depth = Some 3;
+      call_cost = Some (3.0 *. Default.call_cost);
+      alloc_cost = Some (3.0 *. Default.alloc_cost);
+      prim_cost = Some (3.0 *. Default.prim_cost);
+      branch_cost = Some (3.0 *. Default.branch_cost);
+      indirect_call_cost = Some (3.0 *. Default.indirect_call_cost);
+      poly_compare_cost = Some (3.0 *. Default.poly_compare_cost);
+      small_function_size = Some (3 * Default.small_function_size);
+      large_function_size = Some (8 * Default.large_function_size);
+      threshold = Some 50.;
+    }
   end
 
   let oclassic_flags () =
@@ -558,13 +632,6 @@ module Flambda2 = struct
     join_points := false;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := true;
-    backend_cse_at_toplevel := false
-
-  let o1_flags () =
-    cse_depth := 2;
-    join_points := true;
-    unbox_along_intra_function_control_flow := true;
-    Expert.fallback_inlining_heuristic := false;
     backend_cse_at_toplevel := false
 
   let o2_flags () =
@@ -581,6 +648,43 @@ module Flambda2 = struct
     Expert.fallback_inlining_heuristic := false;
     backend_cse_at_toplevel := false
 end
+
+let is_flambda2 () =
+  Config.flambda2 && !native_code
+
+let set_oclassic () =
+  if is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set
+      Flambda2.Inlining.oclassic_arguments;
+    Flambda2.oclassic_flags ()
+  end else begin
+    classic_inlining := true;
+    default_simplify_rounds := 1;
+    use_inlining_arguments_set classic_arguments;
+    unbox_free_vars_of_closures := false;
+    unbox_specialised_args := false
+  end
+
+let set_o2 () =
+  if is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
+    Flambda2.o2_flags ()
+  end else begin
+    default_simplify_rounds := 2;
+    use_inlining_arguments_set o2_arguments;
+    use_inlining_arguments_set ~round:0 o1_arguments
+  end
+
+let set_o3 () =
+  if is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
+    Flambda2.o3_flags ()
+  end else begin
+    default_simplify_rounds := 3;
+    use_inlining_arguments_set o3_arguments;
+    use_inlining_arguments_set ~round:1 o2_arguments;
+    use_inlining_arguments_set ~round:0 o1_arguments
+  end
 
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct
@@ -670,10 +774,6 @@ let set_save_ir_after pass enabled =
       other_passes
   in
   save_ir_after := new_passes
-
-
-let is_flambda2 () =
-  Config.flambda2 && !native_code
 
 module String = Misc.Stdlib.String
 

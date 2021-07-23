@@ -43,29 +43,6 @@ module Float_arg_helper : sig
   val get : key:int -> parsed -> float
 end
 
-type inlining_arguments = {
-  inline_call_cost : int option;
-  inline_alloc_cost : int option;
-  inline_prim_cost : int option;
-  inline_branch_cost : int option;
-  inline_indirect_cost : int option;
-  inline_lifting_benefit : int option;
-  inline_branch_factor : float option;
-  inline_max_depth : int option;
-  inline_max_unroll : int option;
-  inline_threshold : float option;
-  inline_toplevel_threshold : int option;
-}
-
-val classic_arguments : inlining_arguments
-val o1_arguments : inlining_arguments
-val o2_arguments : inlining_arguments
-val o3_arguments : inlining_arguments
-
-(** Set all the inlining arguments for a round.
-    The default is set if no round is provided. *)
-val use_inlining_arguments_set : ?round:int -> inlining_arguments -> unit
-
 val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
@@ -324,12 +301,11 @@ module Flambda2 : sig
 
     val report_bin : bool ref
   end
-
-  val oclassic_flags : unit -> unit
-  val o1_flags : unit -> unit
-  val o2_flags : unit -> unit
-  val o3_flags : unit -> unit
 end
+
+val set_oclassic : unit -> unit
+val set_o2 : unit -> unit
+val set_o3 : unit -> unit
 
 module Compiler_pass : sig
   type t = Parsing | Typing | Scheduling | Emit

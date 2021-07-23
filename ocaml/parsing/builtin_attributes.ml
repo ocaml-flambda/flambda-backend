@@ -337,7 +337,7 @@ let clflags_attribute_with_int_payload attr ~name clflags_ref =
     | Some i -> clflags_ref := i
     | None -> ()
   end
-  
+
 let nolabels_attribute attr =
   clflags_attribute_without_payload attr
     ~name:"nolabels" Clflags.classic
@@ -345,10 +345,7 @@ let nolabels_attribute attr =
 let flambda_o3_attribute attr =
   clflags_attribute_without_payload' attr
     ~name:"flambda_o3"
-    ~f:(fun () ->
-      if Config.flambda then begin
-        Clflags.use_inlining_arguments_set Clflags.o3_arguments
-      end)
+    ~f:(fun () -> if Config.flambda then Clflags.set_o3 ())
 
 let inline_attribute attr =
   if String.equal attr.attr_name.txt "inline"
@@ -367,7 +364,7 @@ let inline_attribute attr =
         Clflags.Float_arg_helper.parse s err_msg Clflags.inline_threshold
       | None -> warn_payload attr.attr_loc attr.attr_name.txt err_msg
   end
-  
+
 let afl_inst_ratio_attribute attr =
   clflags_attribute_with_int_payload attr
     ~name:"afl_inst_ratio" Clflags.afl_inst_ratio
