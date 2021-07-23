@@ -438,21 +438,19 @@ let static_consts env r ~params_and_body bound_symbols static_consts =
     let r = R.add_gc_roots r roots in
     static_consts0 env r ~params_and_body bound_symbols static_consts
   with Misc.Fatal_error as e ->
-    if Flambda_features.context_on_error () then begin
-      (* Create a new "let symbol" with a dummy body to better print the bound
-         symbols and static consts. *)
-      let dummy_body = Expr.create_invalid () in
-      let tmp_let_symbol =
-        Let.create (Bindable_let_bound.symbols bound_symbols Syntactic)
-          (Named.create_static_consts static_consts)
-          ~body:dummy_body
-          ~free_names_of_body:(Known Name_occurrences.empty)
-        |> Expr.create_let
-      in
-      Format.eprintf
-        "\n@[<v 0>%sContext is:%s translating `let symbol' to Cmm:@ %a@."
-        (Flambda_colours.error ())
-        (Flambda_colours.normal ())
-        Expr.print tmp_let_symbol
-    end;
+    (* Create a new "let symbol" with a dummy body to better print the bound
+        symbols and static consts. *)
+    let dummy_body = Expr.create_invalid () in
+    let tmp_let_symbol =
+      Let.create (Bindable_let_bound.symbols bound_symbols Syntactic)
+        (Named.create_static_consts static_consts)
+        ~body:dummy_body
+        ~free_names_of_body:(Known Name_occurrences.empty)
+      |> Expr.create_let
+    in
+    Format.eprintf
+      "\n@[<v 0>%sContext is:%s translating `let symbol' to Cmm:@ %a@."
+      (Flambda_colours.error ())
+      (Flambda_colours.normal ())
+      Expr.print tmp_let_symbol;
     raise e

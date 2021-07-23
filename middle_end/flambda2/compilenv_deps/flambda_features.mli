@@ -38,15 +38,13 @@ val colour : unit -> Misc.Color.setting option
 val unicode : unit -> bool
 
 val check_invariants : unit -> bool
-val context_on_error : unit -> bool
 
 val dump_rawflambda : unit -> bool
 val dump_flambda : unit -> bool
 val dump_rawfexpr : unit -> bool
 val dump_fexpr : unit -> bool
 val dump_flexpect : unit -> bool
-val dump_let_cont : unit -> bool
-val dump_offset : unit -> bool
+val dump_closure_offsets : unit -> bool
 
 module Inlining : sig
   val max_depth : round:int -> int
