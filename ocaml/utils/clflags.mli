@@ -237,6 +237,53 @@ val unboxed_types : bool ref
 val insn_sched : bool ref
 val insn_sched_default : bool
 
+module Flambda2 : sig
+  module Default : sig
+    val join_points : bool
+    val unbox_along_intra_function_control_flow : bool
+    val backend_cse_at_toplevel : bool
+    val cse_depth : int
+  end
+
+  val join_points : bool ref
+  val unbox_along_intra_function_control_flow : bool ref
+  val backend_cse_at_toplevel : bool ref
+  val cse_depth : int ref
+
+  module Expert : sig
+    module Default : sig
+      val code_id_and_symbol_scoping_checks : bool
+      val fallback_inlining_heuristic : bool
+      val inline_effects_in_cmm : bool
+      val phantom_lets : bool
+      val max_block_size_for_projections : int option
+      val max_unboxing_depth : int
+    end
+
+    val code_id_and_symbol_scoping_checks : bool ref
+    val fallback_inlining_heuristic : bool ref
+    val inline_effects_in_cmm : bool ref
+    val phantom_lets : bool ref
+    val max_block_size_for_projections : int option ref
+    val max_unboxing_depth : int ref
+  end
+
+  module Debug : sig
+    module Default : sig
+      val permute_every_name : bool
+      val concrete_types_only_on_canonicals : bool
+    end
+
+    val permute_every_name : bool ref
+    val concrete_types_only_on_canonicals : bool ref
+  end
+
+  val oclassic_flags : unit -> unit
+  val o1_flags : unit -> unit
+  val o2_flags : unit -> unit
+  val o3_flags : unit -> unit
+end
+
 module Compiler_pass : sig
   type t = Parsing | Typing | Scheduling | Emit
   val of_string : string -> t option

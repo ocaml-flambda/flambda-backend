@@ -919,6 +919,163 @@ let mk__ f =
   "<file>  Treat <file> as a file name (even if it starts with `-')"
 ;;
 
+let format_default flag = if flag then " (default)" else ""
+let format_not_default flag = if flag then "" else " (default)"
+
+module Flambda2 = Clflags.Flambda2
+
+let mk_flambda2_join_points f =
+  "-flambda2-join-points", Arg.Unit f,
+  Printf.sprintf " Propagate information from incoming \
+      edges at a join point%s (Flambda 2 only)"
+    (format_default Flambda2.Default.join_points)
+;;
+
+let mk_no_flambda2_join_points f =
+  "-no-flambda2-join-points", Arg.Unit f,
+  Printf.sprintf " Propagate information only from \
+      the fork point to a join point%s (Flambda 2 only)"
+    (format_not_default Flambda2.Default.join_points)
+;;
+
+let mk_flambda2_unbox_along_intra_function_control_flow f =
+  "-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
+  Printf.sprintf " Pass values within a function as unboxed where possible%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Default.unbox_along_intra_function_control_flow)
+;;
+
+let mk_no_flambda2_unbox_along_intra_function_control_flow f =
+  "-no-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
+  Printf.sprintf " Pass values within a function in their normal \
+      representation%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Default.unbox_along_intra_function_control_flow)
+;;
+
+let mk_flambda2_backend_cse_at_toplevel f =
+  "-flambda2-backend-cse-at-toplevel", Arg.Unit f,
+  Printf.sprintf " Apply the backend CSE pass to module initializers%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Default.backend_cse_at_toplevel)
+;;
+
+let mk_no_flambda2_backend_cse_at_toplevel f =
+  "-no-flambda2-backend-cse-at-toplevel", Arg.Unit f,
+  Printf.sprintf " Do not apply the backend CSE pass to module initializers%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Default.backend_cse_at_toplevel)
+;;
+
+let mk_flambda2_cse_depth f =
+  "-flambda2-cse-depth", Arg.Int f,
+  Printf.sprintf " Depth threshold for eager tracking of CSE equations \
+      (default %d) (Flambda 2 only)"
+    Flambda2.Default.cse_depth
+;;
+
+let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
+  "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
+  Printf.sprintf " Perform checks on static scopes of code IDs and symbols \
+      during Un_cps%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+;;
+
+let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
+  "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
+  Printf.sprintf " Do not perform checks on static scopes of code IDs and \
+      symbols during Un_cps%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+;;
+
+let mk_flambda2_expert_fallback_inlining_heuristic f =
+  "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
+  Printf.sprintf " Prevent inlining of functions whose bodies contain \
+      closures%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+;;
+
+let mk_no_flambda2_expert_fallback_inlining_heuristic f =
+  "-no-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
+  Printf.sprintf " Allow inlining of functions whose bodies contain \
+      closures%s (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+;;
+
+let mk_flambda2_expert_inline_effects_in_cmm f =
+  "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
+  Printf.sprintf " Allow inlining of effectful expressions in the produced \
+      Cmm code%s (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.inline_effects_in_cmm)
+;;
+
+let mk_no_flambda2_expert_inline_effects_in_cmm f =
+  "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
+  Printf.sprintf " Prevent inlining of effectful expressions in the produced \
+      Cmm code%s (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.inline_effects_in_cmm)
+;;
+
+let mk_flambda2_expert_phantom_lets f =
+  "-flambda2-expert-phantom-lets", Arg.Unit f,
+  Printf.sprintf " Generate phantom lets when -g is specified%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.phantom_lets)
+;;
+
+let mk_no_flambda2_expert_phantom_lets f =
+  "-no-flambda2-expert-phantom-lets", Arg.Unit f,
+  Printf.sprintf " Do not generate phantom lets even when -g is specified%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.phantom_lets)
+;;
+
+let mk_flambda2_expert_max_block_size_for_projections f =
+  "-flambda2-expert-max-block-size-for-projections", Arg.Int f,
+  Printf.sprintf " Do not simplify projections from blocks if the block size \
+      exceeds this value (default %s) (Flambda 2 only)"
+    (match Flambda2.Expert.Default.max_block_size_for_projections with
+     | None -> "not set"
+     | Some max -> string_of_int max)
+;;
+
+let mk_flambda2_expert_max_unboxing_depth f =
+  "-flambda2-expert-max-unboxing-depth", Arg.Int f,
+  Printf.sprintf " Do not unbox (nested) values deeper than this many levels \
+      (default %d) (Flambda 2 only)"
+    Flambda2.Expert.Default.max_unboxing_depth
+;;
+
+let mk_flambda2_debug_permute_every_name f =
+  "-flambda2-debug-permute-every-name", Arg.Unit f,
+  Printf.sprintf " Permute every name to test name permutation code%s \
+      (Flambda 2 only)"
+    (format_default Flambda2.Debug.Default.permute_every_name)
+;;
+
+let mk_no_flambda2_debug_permute_every_name f =
+  "-no-flambda2-debug-permute-every-name", Arg.Unit f,
+  Printf.sprintf " Do not permute every name to test name permutation code%s \
+      (Flambda 2 only)"
+    (format_not_default Flambda2.Debug.Default.permute_every_name)
+;;
+
+let mk_flambda2_debug_concrete_types_only_on_canonicals f =
+  "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
+  Printf.sprintf " Check that concrete types are only assigned to canonical \
+      names%s (Flambda 2 only)"
+    (format_default Flambda2.Debug.Default.concrete_types_only_on_canonicals)
+;;
+
+let mk_no_flambda2_debug_concrete_types_only_on_canonicals f =
+  "-no-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
+  Printf.sprintf " Do not check that concrete types are only assigned to \
+      canonical names%s (Flambda 2 only)"
+    (format_not_default
+      Flambda2.Debug.Default.concrete_types_only_on_canonicals)
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -1125,6 +1282,28 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
+
+  val _flambda2_join_points : unit -> unit
+  val _no_flambda2_join_points : unit -> unit
+  val _flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val _no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val _flambda2_backend_cse_at_toplevel : unit -> unit
+  val _no_flambda2_backend_cse_at_toplevel : unit -> unit
+  val _flambda2_cse_depth : int -> unit
+  val _flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val _no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val _flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val _no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val _flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val _no_flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val _flambda2_expert_phantom_lets : unit -> unit
+  val _no_flambda2_expert_phantom_lets : unit -> unit
+  val _flambda2_expert_max_block_size_for_projections : int -> unit
+  val _flambda2_expert_max_unboxing_depth : int -> unit
+  val _flambda2_debug_permute_every_name : unit -> unit
+  val _no_flambda2_debug_permute_every_name : unit -> unit
+  val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1459,6 +1638,45 @@ struct
     mk_where F._where;
     mk__ F.anonymous;
 
+    mk_flambda2_join_points F._flambda2_join_points;
+    mk_no_flambda2_join_points F._no_flambda2_join_points;
+    mk_flambda2_unbox_along_intra_function_control_flow
+      F._flambda2_unbox_along_intra_function_control_flow;
+    mk_no_flambda2_unbox_along_intra_function_control_flow
+      F._no_flambda2_unbox_along_intra_function_control_flow;
+    mk_flambda2_backend_cse_at_toplevel F._flambda2_backend_cse_at_toplevel;
+    mk_no_flambda2_backend_cse_at_toplevel
+      F._no_flambda2_backend_cse_at_toplevel;
+    mk_flambda2_cse_depth F._flambda2_cse_depth;
+    mk_flambda2_expert_code_id_and_symbol_scoping_checks
+      F._flambda2_expert_code_id_and_symbol_scoping_checks;
+    mk_no_flambda2_expert_code_id_and_symbol_scoping_checks
+      F._no_flambda2_expert_code_id_and_symbol_scoping_checks;
+    mk_flambda2_expert_fallback_inlining_heuristic
+      F._flambda2_expert_fallback_inlining_heuristic;
+    mk_no_flambda2_expert_fallback_inlining_heuristic
+      F._no_flambda2_expert_fallback_inlining_heuristic;
+    mk_flambda2_expert_inline_effects_in_cmm
+      F._flambda2_expert_inline_effects_in_cmm;
+    mk_no_flambda2_expert_inline_effects_in_cmm
+      F._no_flambda2_expert_inline_effects_in_cmm;
+    mk_flambda2_expert_phantom_lets
+      F._flambda2_expert_phantom_lets;
+    mk_no_flambda2_expert_phantom_lets
+      F._no_flambda2_expert_phantom_lets;
+    mk_flambda2_expert_max_block_size_for_projections
+      F._flambda2_expert_max_block_size_for_projections;
+    mk_flambda2_expert_max_unboxing_depth
+      F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_debug_permute_every_name
+      F._flambda2_debug_permute_every_name;
+    mk_no_flambda2_debug_permute_every_name
+      F._no_flambda2_debug_permute_every_name;
+    mk_flambda2_debug_concrete_types_only_on_canonicals
+      F._flambda2_debug_concrete_types_only_on_canonicals;
+    mk_no_flambda2_debug_concrete_types_only_on_canonicals
+      F._no_flambda2_debug_concrete_types_only_on_canonicals;
+
     mk_match_context_rows F._match_context_rows;
     mk_dno_unique_ids F._dno_unique_ids;
     mk_dunique_ids F._dunique_ids;
@@ -1575,6 +1793,45 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk__ F.anonymous;
     mk_color F._color;
     mk_error_style F._error_style;
+
+    mk_flambda2_join_points F._flambda2_join_points;
+    mk_no_flambda2_join_points F._no_flambda2_join_points;
+    mk_flambda2_unbox_along_intra_function_control_flow
+      F._flambda2_unbox_along_intra_function_control_flow;
+    mk_no_flambda2_unbox_along_intra_function_control_flow
+      F._no_flambda2_unbox_along_intra_function_control_flow;
+    mk_flambda2_backend_cse_at_toplevel F._flambda2_backend_cse_at_toplevel;
+    mk_no_flambda2_backend_cse_at_toplevel
+      F._no_flambda2_backend_cse_at_toplevel;
+    mk_flambda2_cse_depth F._flambda2_cse_depth;
+    mk_flambda2_expert_code_id_and_symbol_scoping_checks
+      F._flambda2_expert_code_id_and_symbol_scoping_checks;
+    mk_no_flambda2_expert_code_id_and_symbol_scoping_checks
+      F._no_flambda2_expert_code_id_and_symbol_scoping_checks;
+    mk_flambda2_expert_fallback_inlining_heuristic
+      F._flambda2_expert_fallback_inlining_heuristic;
+    mk_no_flambda2_expert_fallback_inlining_heuristic
+      F._no_flambda2_expert_fallback_inlining_heuristic;
+    mk_flambda2_expert_inline_effects_in_cmm
+      F._flambda2_expert_inline_effects_in_cmm;
+    mk_no_flambda2_expert_inline_effects_in_cmm
+      F._no_flambda2_expert_inline_effects_in_cmm;
+    mk_flambda2_expert_phantom_lets
+      F._flambda2_expert_phantom_lets;
+    mk_no_flambda2_expert_phantom_lets
+      F._no_flambda2_expert_phantom_lets;
+    mk_flambda2_expert_max_block_size_for_projections
+      F._flambda2_expert_max_block_size_for_projections;
+    mk_flambda2_expert_max_unboxing_depth
+      F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_debug_permute_every_name
+      F._flambda2_debug_permute_every_name;
+    mk_no_flambda2_debug_permute_every_name
+      F._no_flambda2_debug_permute_every_name;
+    mk_flambda2_debug_concrete_types_only_on_canonicals
+      F._flambda2_debug_concrete_types_only_on_canonicals;
+    mk_no_flambda2_debug_concrete_types_only_on_canonicals
+      F._no_flambda2_debug_concrete_types_only_on_canonicals;
 
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
@@ -1858,6 +2115,46 @@ module Default = struct
     let _unbox_closures = set unbox_closures
     let _unbox_closures_factor f = unbox_closures_factor := f
     let _verbose = set verbose
+
+    let _flambda2_join_points = set Flambda2.join_points
+    let _no_flambda2_join_points = clear Flambda2.join_points
+    let _flambda2_unbox_along_intra_function_control_flow =
+      set Flambda2.unbox_along_intra_function_control_flow
+    let _no_flambda2_unbox_along_intra_function_control_flow =
+      clear Flambda2.unbox_along_intra_function_control_flow
+    let _flambda2_backend_cse_at_toplevel =
+      set Flambda2.backend_cse_at_toplevel
+    let _no_flambda2_backend_cse_at_toplevel =
+      clear Flambda2.backend_cse_at_toplevel
+    let _flambda2_cse_depth n = Flambda2.cse_depth := n
+    let _flambda2_expert_code_id_and_symbol_scoping_checks =
+      set Flambda2.Expert.code_id_and_symbol_scoping_checks
+    let _no_flambda2_expert_code_id_and_symbol_scoping_checks =
+      clear Flambda2.Expert.code_id_and_symbol_scoping_checks
+    let _flambda2_expert_fallback_inlining_heuristic =
+      set Flambda2.Expert.fallback_inlining_heuristic
+    let _no_flambda2_expert_fallback_inlining_heuristic =
+      clear Flambda2.Expert.fallback_inlining_heuristic
+    let _flambda2_expert_inline_effects_in_cmm =
+      set Flambda2.Expert.inline_effects_in_cmm
+    let _no_flambda2_expert_inline_effects_in_cmm =
+      clear Flambda2.Expert.inline_effects_in_cmm
+    let _flambda2_expert_phantom_lets =
+      set Flambda2.Expert.phantom_lets
+    let _no_flambda2_expert_phantom_lets =
+      clear Flambda2.Expert.phantom_lets
+    let _flambda2_expert_max_block_size_for_projections size =
+      Flambda2.Expert.max_block_size_for_projections := Some size
+    let _flambda2_expert_max_unboxing_depth depth =
+      Flambda2.Expert.max_unboxing_depth := depth
+    let _flambda2_debug_permute_every_name =
+      set Flambda2.Debug.permute_every_name
+    let _no_flambda2_debug_permute_every_name =
+      clear Flambda2.Debug.permute_every_name
+    let _flambda2_debug_concrete_types_only_on_canonicals =
+      set Flambda2.Debug.concrete_types_only_on_canonicals
+    let _no_flambda2_debug_concrete_types_only_on_canonicals =
+      clear Flambda2.Debug.concrete_types_only_on_canonicals
   end
 
   module Compiler = struct
