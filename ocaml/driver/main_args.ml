@@ -2214,7 +2214,7 @@ module Default = struct
   module Native = struct
     let _S = set keep_asm_file
     let _clambda_checks () = clambda_checks := true
-    let _classic_inlining () = classic_inlining := true
+    let _classic_inlining () = set_oclassic ()
     let _compact = clear optimize_for_speed
     let _dalloc = set dump_regalloc
     let _davail () = dump_avail := true
@@ -2300,15 +2300,8 @@ module Default = struct
        collected, then checked all at once for illegal combinations, and then
        transformed into the settings of the individual parameters.
     *)
-    let _o2 () =
-      default_simplify_rounds := 2;
-      use_inlining_arguments_set o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    let _o3 () =
-      default_simplify_rounds := 3;
-      use_inlining_arguments_set o3_arguments;
-      use_inlining_arguments_set ~round:1 o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
+    let _o2 () = Clflags.set_o2 ()
+    let _o3 () = Clflags.set_o3 ()
     let _remove_unused_arguments = set remove_unused_arguments
     let _rounds n = simplify_rounds := (Some n)
     let _unbox_closures = set unbox_closures
