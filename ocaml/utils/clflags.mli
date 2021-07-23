@@ -260,7 +260,6 @@ module Flambda2 : sig
     val rawfexpr : bool ref
     val fexpr : bool ref
     val flexpect : bool ref
-    val let_cont : bool ref
     val closure_offsets : bool ref
   end
 
