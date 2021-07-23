@@ -76,6 +76,9 @@ let mkdll, mkexe, mkmaindll =
 let flambda = %%FLAMBDA%%
 let flambda2 = %%FLAMBDA2%%
 let with_flambda_invariants = %%WITH_FLAMBDA_INVARIANTS%%
+
+let flambda_backend = true
+
 let safe_string = %%FORCE_SAFE_STRING%%
 let default_safe_string = %%DEFAULT_SAFE_STRING%%
 let windows_unicode = %%WINDOWS_UNICODE%% != 0
@@ -193,6 +196,7 @@ let configuration_variables =
   p "host" host;
   p "target" target;
   p_bool "flambda" flambda;
+  p_bool "flambda2" flambda2;
   p_bool "safe_string" safe_string;
   p_bool "default_safe_string" default_safe_string;
   p_bool "flat_float_array" flat_float_array;
@@ -212,6 +216,9 @@ let configuration_variables =
   p "cmxs_magic_number" cmxs_magic_number;
   p "cmt_magic_number" cmt_magic_number;
   p "linear_magic_number" linear_magic_number;
+
+  p_bool "flambda_backend" flambda_backend;
+  p_bool "probes" probes;
 ]
 
 let print_config_value oc = function
