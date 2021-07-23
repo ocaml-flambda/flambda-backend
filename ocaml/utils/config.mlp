@@ -215,7 +215,7 @@ let configuration_variables =
   p "linear_magic_number" linear_magic_number;
 
   p_bool "flambda_backend" true;
-  p_bool "probes" true;
+  p_bool "probes" probes;
 ]
 
 let print_config_value oc = function
