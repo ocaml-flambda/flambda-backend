@@ -337,23 +337,9 @@ let read_one_param ppf position name v =
     Int_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'inline-max-depth'"
       inline_max_depth
-
-  | "Oclassic" ->
-      set "Oclassic" [ classic_inlining ] v
-  | "O2" ->
-    if check_bool ppf "O2" v then begin
-      default_simplify_rounds := 2;
-      use_inlining_arguments_set o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    end
-
-  | "O3" ->
-    if check_bool ppf "O3" v then begin
-      default_simplify_rounds := 3;
-      use_inlining_arguments_set o3_arguments;
-      use_inlining_arguments_set ~round:1 o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    end
+  | "Oclassic" -> if check_bool ppf "Oclassic" v then Clflags.set_oclassic ()
+  | "O2" -> if check_bool ppf "O2" v then Clflags.set_o2 ()
+  | "O3" -> if check_bool ppf "O3" v then Clflags.set_o3 ()
   | "unbox-closures" ->
       set "unbox-closures" [ unbox_closures ] v
   | "unbox-closures-factor" ->
