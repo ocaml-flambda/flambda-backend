@@ -76,6 +76,9 @@ let mkdll, mkexe, mkmaindll =
 let flambda = %%FLAMBDA%%
 let flambda2 = %%FLAMBDA2%%
 let with_flambda_invariants = %%WITH_FLAMBDA_INVARIANTS%%
+
+let flambda_backend = true
+
 let safe_string = %%FORCE_SAFE_STRING%%
 let default_safe_string = %%DEFAULT_SAFE_STRING%%
 let windows_unicode = %%WINDOWS_UNICODE%% != 0
