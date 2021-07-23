@@ -203,11 +203,9 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let end_gen_implementation ?toplevel ~ppf_dump
-    (clambda : Clambda.with_constants) =
+let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
   emit_begin_assembly ();
-  clambda
-  ++ Profile.record "cmm" Cmmgen.compunit
+  make_cmm ()
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
@@ -223,6 +221,10 @@ let end_gen_implementation ?toplevel ~ppf_dump
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
   emit_end_assembly ()
+
+let end_gen_implementation ?toplevel ~ppf_dump clambda =
+  end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
+    Profile.record "cmm" Cmmgen.compunit clambda)
 
 type middle_end =
      backend:(module Backend_intf.S)
@@ -248,6 +250,32 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
       end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
+
+type middle_end_flambda2 =
+     ppf_dump:Format.formatter
+  -> prefixname:string
+  -> backend:(module Flambda2__Flambda_backend_intf.S)
+  -> filename:string
+  -> module_ident:Ident.t
+  -> module_block_size_in_words:int
+  -> module_initializer:Lambda.lambda
+  -> Flambda2__Flambda_middle_end.middle_end_result
+
+let compile_implementation_flambda2 ?toplevel ~backend ~filename ~prefixname
+    ~size:module_block_size_in_words ~module_ident ~module_initializer
+    ~(middle_end : middle_end_flambda2) ~flambda2_to_cmm ~ppf_dump
+    ~required_globals () =
+  compile_unit ~output_prefix:prefixname
+    ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
+    ~obj_filename:(prefixname ^ ext_obj)
+    (fun () ->
+      Ident.Set.iter Compilenv.require_global required_globals;
+      let middle_end_result =
+        middle_end ~backend ~module_block_size_in_words ~filename ~prefixname
+          ~ppf_dump ~module_ident ~module_initializer
+      in
+      let cmm_phrases = flambda2_to_cmm middle_end_result in
+      end_gen_implementation0 ?toplevel ~ppf_dump (fun () -> cmm_phrases))
 
 let linear_gen_implementation filename =
   let open Linear_format in
