@@ -31,6 +31,32 @@ let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
+let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
+  typed
+  |> Profile.(record transl)
+      (Translmod.transl_implementation_flambda i.module_name)
+  |> Profile.(record generate)
+    (fun {Lambda.module_ident; main_module_block_size;
+          required_globals; code } ->
+    ((module_ident, main_module_block_size), code)
+    |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
+    |>> Simplif.simplify_lambda
+    |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+    |> (fun ((module_ident, main_module_block_size), code) ->
+      Asmgen.compile_implementation_flambda2
+        ~backend:flambda2_backend
+        ~filename:i.source_file
+        ~prefixname:i.output_prefix
+        ~size:main_module_block_size
+        ~module_ident
+        ~module_initializer:code
+        ~middle_end:Flambda2.Flambda_middle_end.middle_end
+        ~flambda2_to_cmm
+        ~ppf_dump:i.ppf_dump
+        ~required_globals
+        ());
+      Compilenv.save_unit_info (cmx i))
+
 let flambda i backend typed =
   typed
   |> Profile.(record transl)
@@ -84,13 +110,14 @@ let emit i =
   Compilenv.reset ?packname:!Clflags.for_package i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
-let implementation ~backend ~start_from ~source_file ~output_prefix =
+let implementation ~backend ~flambda2_backend ~flambda2_to_cmm
+      ~start_from ~source_file ~output_prefix =
   let backend info typed =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
     then flambda info backend typed
     else if Config.flambda2
-    then Misc.fatal_error "Flambda 2 coming soon!"
+    then flambda2 info ~flambda2_backend ~flambda2_to_cmm typed
     else clambda info backend typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
