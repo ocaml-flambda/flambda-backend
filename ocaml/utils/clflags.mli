@@ -278,6 +278,38 @@ module Flambda2 : sig
     val concrete_types_only_on_canonicals : bool ref
   end
 
+  module Inlining : sig
+    module Default : sig
+      val max_depth : int
+
+      val call_cost : float
+      val alloc_cost : float
+      val prim_cost : float
+      val branch_cost : float
+      val indirect_call_cost : float
+      val poly_compare_cost : float
+
+      val small_function_size : int
+      val large_function_size : int
+
+      val threshold : float
+    end
+
+    val max_depth : Int_arg_helper.parsed ref
+
+    val call_cost : Float_arg_helper.parsed ref
+    val alloc_cost : Float_arg_helper.parsed ref
+    val prim_cost : Float_arg_helper.parsed ref
+    val branch_cost : Float_arg_helper.parsed ref
+    val indirect_call_cost : Float_arg_helper.parsed ref
+    val poly_compare_cost : Float_arg_helper.parsed ref
+
+    val small_function_size : Int_arg_helper.parsed ref
+    val large_function_size : Int_arg_helper.parsed ref
+
+    val threshold : Float_arg_helper.parsed ref
+  end
+
   val oclassic_flags : unit -> unit
   val o1_flags : unit -> unit
   val o2_flags : unit -> unit
