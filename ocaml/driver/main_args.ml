@@ -1094,7 +1094,7 @@ let mk_flambda2_inline_cost arg descr ~default f =
   Arg.String f,
   Printf.sprintf "<float>|<round>=<float>[,...]\n\
       \     The cost of not removing %s during inlining\n\
-      \     (default %f, higher = more costly) (Flambda 2 only)"
+      \     (default %.03f, higher = more costly) (Flambda 2 only)"
     descr
     default
 ;;
