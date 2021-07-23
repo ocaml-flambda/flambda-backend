@@ -243,6 +243,17 @@ module type Optcommon_options = sig
   val _no_flambda2_debug_permute_every_name : unit -> unit
   val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+
+  val _flambda2_inline_max_depth : string -> unit
+  val _flambda2_inline_call_cost : string -> unit
+  val _flambda2_inline_alloc_cost : string -> unit
+  val _flambda2_inline_prim_cost : string -> unit
+  val _flambda2_inline_branch_cost : string -> unit
+  val _flambda2_inline_indirect_call_cost : string -> unit
+  val _flambda2_inline_poly_compare_cost : string -> unit
+  val _flambda2_inline_small_function_size : string -> unit
+  val _flambda2_inline_large_function_size : string -> unit
+  val _flambda2_inline_threshold : string -> unit
 end;;
 
 module type Optcomp_options = sig

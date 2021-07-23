@@ -58,34 +58,34 @@ module Inlining = struct
   module F = Clflags.Float_arg_helper
 
   let max_depth ~round =
-    I.get ~key:round !Clflags.inline_max_depth
+    I.get ~key:round !Clflags.Flambda2.Inlining.max_depth
 
-  let call_cost ~round:_ = 1.0
-(*    F.get ~key:round !Clflags.inline_call_cost *)
+  let call_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.call_cost
 
-  let alloc_cost ~round:_ = 1.0
-(*     F.get ~key:round !Clflags.inline_alloc_cost *)
+  let alloc_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.alloc_cost
 
-  let prim_cost ~round:_ = 1.0
-(*    F.get ~key:round !Clflags.inline_prim_cost *)
+  let prim_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.prim_cost
 
-  let branch_cost ~round:_ = 1.0
-(*    F.get ~key:round !Clflags.inline_branch_cost *)
+  let branch_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.branch_cost
 
-  let indirect_call_cost ~round:_ = 1.0
-(*    F.get ~key:round !Clflags.inline_indirect_call_cost *)
+  let indirect_call_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.indirect_call_cost
 
-  let poly_compare_cost ~round:_ = 1.0
-(*    F.get ~key:round !Clflags.inline_poly_compare_cost *)
+  let poly_compare_cost ~round =
+    F.get ~key:round !Clflags.Flambda2.Inlining.poly_compare_cost
 
-  let small_function_size ~round:_ = 1
-(*    I.get ~key:round !Clflags.inline_small_function_size *)
+  let small_function_size ~round =
+    I.get ~key:round !Clflags.Flambda2.Inlining.small_function_size
 
-  let large_function_size ~round:_ = 10
-(*    I.get ~key:round !Clflags.inline_large_function_size *)
+  let large_function_size ~round =
+    I.get ~key:round !Clflags.Flambda2.Inlining.large_function_size
 
   let threshold ~round =
-    F.get ~key:round !Clflags.inline_threshold
+    F.get ~key:round !Clflags.Flambda2.Inlining.threshold
 end
 
 module Debug = struct
