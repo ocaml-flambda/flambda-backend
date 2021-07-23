@@ -217,6 +217,11 @@ let get_global_info global_ident = (
   end
 )
 
+let get_global_info' id =
+  match get_global_info id with
+  | None -> None
+  | Some ui -> Some ui.ui_export_info
+
 let cache_unit_info ui =
   Hashtbl.add global_infos_table ui.ui_name (Some ui)
 
@@ -295,6 +300,10 @@ let get_flambda_export_info ui =
 let set_export_info export_info =
   assert(Config.flambda);
   current_unit.ui_export_info <- Flambda1 export_info
+
+let flambda2_set_export_info export_info =
+  assert(Config.flambda2);
+  current_unit.ui_export_info <- Flambda2 (Some export_info)
 
 let approx_for_global comp_unit =
   let id = Compilation_unit.get_persistent_ident comp_unit in

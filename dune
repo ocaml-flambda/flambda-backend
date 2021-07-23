@@ -121,6 +121,7 @@
    memtrace
    flambda2
    flambda2_to_cmm
+   flambda2_backend_intf
    ocamloptcomp
    ocamlcommon
    stdlib)
@@ -139,6 +140,7 @@
    memtrace
    flambda2
    flambda2_to_cmm
+   flambda2_backend_intf
    ocamloptcomp
    ocamlcommon
    stdlib
