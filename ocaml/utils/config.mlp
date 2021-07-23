@@ -193,6 +193,7 @@ let configuration_variables =
   p "host" host;
   p "target" target;
   p_bool "flambda" flambda;
+  p_bool "flambda2" flambda2;
   p_bool "safe_string" safe_string;
   p_bool "default_safe_string" default_safe_string;
   p_bool "flat_float_array" flat_float_array;
@@ -214,6 +215,7 @@ let configuration_variables =
   p "linear_magic_number" linear_magic_number;
 
   p_bool "flambda_backend" true;
+  p_bool "probes" true;
 ]
 
 let print_config_value oc = function
