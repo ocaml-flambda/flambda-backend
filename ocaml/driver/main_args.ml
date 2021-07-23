@@ -1175,6 +1175,11 @@ let mk_flambda2_inlining_report_bin f =
     \     in binary format (Flambda 2 only)"
 ;;
 
+let mk_flambda2_unicode f =
+  "-flambda2-unicode", Arg.Unit f, " Use Unicode output when printing\n\
+    \     Flambda 2 code"
+;;
+
 let mk_drawfexpr f =
   "-drawfexpr", Arg.Unit f, " Like -drawflambda but outputs fexpr language\n\
     \     (Flambda 2 only)"
@@ -1435,6 +1440,8 @@ module type Optcommon_options = sig
   val _flambda2_inline_threshold : string -> unit
 
   val _flambda2_inlining_report_bin : unit -> unit
+
+  val _flambda2_unicode : unit -> unit
 
   val _flambda2_treat_invalid_code_as_unreachable : unit -> unit
   val _no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
@@ -1831,6 +1838,8 @@ struct
 
     mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
 
+    mk_flambda2_unicode F._flambda2_unicode;
+
     mk_flambda2_treat_invalid_code_as_unreachable
       F._flambda2_treat_invalid_code_as_unreachable;
     mk_no_flambda2_treat_invalid_code_as_unreachable
@@ -2010,6 +2019,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_flambda2_inline_threshold F._flambda2_inline_threshold;
 
     mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
+
+    mk_flambda2_unicode F._flambda2_unicode;
 
     mk_flambda2_treat_invalid_code_as_unreachable
       F._flambda2_treat_invalid_code_as_unreachable;
@@ -2399,6 +2410,8 @@ module Default = struct
         Flambda2.Inlining.threshold
 
     let _flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
+
+    let _flambda2_unicode = set Flambda2.unicode
 
     let _flambda2_treat_invalid_code_as_unreachable =
       set Flambda2.treat_invalid_code_as_unreachable

@@ -257,6 +257,8 @@ module type Optcommon_options = sig
 
   val _flambda2_inlining_report_bin : unit -> unit
 
+  val _flambda2_unicode : unit -> unit
+
   val _flambda2_treat_invalid_code_as_unreachable : unit -> unit
   val _no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
 
