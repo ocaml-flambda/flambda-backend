@@ -35,6 +35,37 @@ val compile_implementation
   -> Lambda.program
   -> unit
 
+(** The type of converters from Lambda to Flambda 2 programs. *)
+type middle_end_flambda2 =
+     ppf_dump:Format.formatter
+  -> prefixname:string
+  -> backend:(module Flambda2__Flambda_backend_intf.S)
+  -> filename:string
+  -> module_ident:Ident.t
+  -> module_block_size_in_words:int
+  -> module_initializer:Lambda.lambda
+  -> Flambda2__Flambda_middle_end.middle_end_result
+
+(** Compile an implementation from Lambda using Flambda 2.
+    The Flambda 2 middle end does not use the Clambda language nor the
+    Cmmgen pass.  Instead it emits Cmm directly. *)
+val compile_implementation_flambda2
+   : ?toplevel:(string -> bool)
+  -> backend:(module Flambda2__Flambda_backend_intf.S)
+  -> filename:string
+  -> prefixname:string
+  -> size:int
+  -> module_ident:Ident.t
+  -> module_initializer:Lambda.lambda
+  -> middle_end:middle_end_flambda2
+  -> flambda2_to_cmm:(
+         Flambda2__Flambda_middle_end.middle_end_result
+      -> Cmm.phrase list)
+  -> ppf_dump:Format.formatter
+  -> required_globals:Ident.Set.t
+  -> unit
+  -> unit
+
 val compile_implementation_linear :
     string -> progname:string -> unit
 
