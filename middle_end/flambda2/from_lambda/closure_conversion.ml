@@ -817,16 +817,14 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let acc, body =
     try body acc closure_env
     with Misc.Fatal_error -> begin
-      if Flambda_features.context_on_error () then begin
-        Format.eprintf "\n%sContext is:%s closure converting \
-          function@ with [our_let_rec_ident] %a (closure ID %a)"(* @ \ *)
-          (* and body:@ %a *)
-          (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          Ident.print our_let_rec_ident
-          Closure_id.print closure_id
-          (* print body *)
-      end;
+      Format.eprintf "\n%sContext is:%s closure converting \
+        function@ with [our_let_rec_ident] %a (closure ID %a)"(* @ \ *)
+        (* and body:@ %a *)
+        (Flambda_colours.error ())
+        (Flambda_colours.normal ())
+        Ident.print our_let_rec_ident
+        Closure_id.print closure_id;
+        (* print body *)
       reraise Misc.Fatal_error
     end
   in

@@ -180,7 +180,7 @@ let mk_inline_toplevel f =
 
 let mk_inlining_report f =
   "-inlining-report", Arg.Unit f, " Emit `.<round>.inlining' file(s) (one per \
-      round) showing the inliner's decisions"
+      round) showing the inliner's decisions (Flambda 1 and 2)"
 ;;
 
 let mk_dump_pass f =
@@ -764,30 +764,30 @@ let mk_dclambda f =
 ;;
 
 let mk_dflambda f =
-  "-dflambda", Arg.Unit f, " Print Flambda terms"
+  "-dflambda", Arg.Unit f, " Print Flambda (1 or 2) terms on exit from Flambda"
 ;;
 
 let mk_drawflambda f =
-  "-drawflambda", Arg.Unit f, " Print Flambda terms after closure conversion"
+  "-drawflambda", Arg.Unit f, " Print Flambda terms after closure conversion\n\
+  \     (for Flambda 2, after [Lambda_to_flambda])"
 ;;
 
 let mk_dflambda_invariants f =
-  "-dflambda-invariants", Arg.Unit f, " Check Flambda invariants \
-      around each pass"
+  "-dflambda-invariants", Arg.Unit f, " Check Flambda (1 and 2) invariants"
 ;;
 
 let mk_dflambda_no_invariants f =
-  "-dflambda-no-invariants", Arg.Unit f, " Do not Check Flambda invariants \
-      around each pass"
+  "-dflambda-no-invariants", Arg.Unit f, " Do not check Flambda (1 and 2) \
+      invariants"
 ;;
 
 let mk_dflambda_let f =
-  "-dflambda-let", Arg.Int f, "<stamp>  Print when the given Flambda [Let] \
+  "-dflambda-let", Arg.Int f, "<stamp>  Print when the given Flambda 1 [Let] \
       is created"
 ;;
 
 let mk_dflambda_verbose f =
-  "-dflambda-verbose", Arg.Unit f, " Print Flambda terms including around \
+  "-dflambda-verbose", Arg.Unit f, " Print Flambda 1 terms including around \
       each pass"
 ;;
 
@@ -1151,6 +1151,52 @@ let mk_flambda2_inline_threshold f =
         \     Aggressiveness of inlining (default %.02f, higher numbers mean\n\
         \     more aggressive) (Flambda 2 only)"
       Clflags.Flambda2.Inlining.Default.threshold
+
+let mk_flambda2_treat_invalid_code_as_unreachable f =
+  "-flambda2-treat-invalid-code-as-unreachable", Arg.Unit f,
+  Printf.sprintf " Treat code deemed as\n\
+      \     invalid by the Flambda 2 type system as unreachable, thus causing\n\
+      \     it (and potentially calling code) to be deleted%s\n\
+      \     (Flambda 2 only)"
+    (format_default Flambda2.Default.treat_invalid_code_as_unreachable)
+;;
+
+let mk_no_flambda2_treat_invalid_code_as_unreachable f =
+  "-no-flambda2-treat-invalid-code-as-unreachable", Arg.Unit f,
+  Printf.sprintf " Do not treat code deemed as\n\
+      \     invalid by the Flambda 2 type system as unreachable, instead\n\
+      \     replacing it by a trap (which currently causes a segfault)%s\n\
+      \     (Flambda 2 only)"
+    (format_not_default Flambda2.Default.treat_invalid_code_as_unreachable)
+;;
+
+let mk_flambda2_inlining_report_bin f =
+  "-flambda2-inlining-report-bin", Arg.Unit f, " Write inlining report\n\
+    \     in binary format (Flambda 2 only)"
+;;
+
+let mk_flambda2_unicode f =
+  "-flambda2-unicode", Arg.Unit f, " Use Unicode output when printing\n\
+    \     Flambda 2 code"
+;;
+
+let mk_drawfexpr f =
+  "-drawfexpr", Arg.Unit f, " Like -drawflambda but outputs fexpr language\n\
+    \     (Flambda 2 only)"
+;;
+
+let mk_dfexpr f =
+  "-dfexpr", Arg.Unit f, " Like -dflambda but outputs fexpr language\n\
+    \     (Flambda 2 only)"
+;;
+
+let mk_dflexpect f =
+  "-dflexpect", Arg.Unit f, " Like -dflambda but outputs a .flt file\n\
+    \     whose basename matches that of the input .ml file (Flambda 2 only)"
+;;
+
+let mk_dclosure_offsets f =
+  "-dclosure-offsets", Arg.Unit f, " Dump closure offsets (Flambda 2 only)"
 ;;
 
 module type Common_options = sig
@@ -1392,6 +1438,18 @@ module type Optcommon_options = sig
   val _flambda2_inline_small_function_size : string -> unit
   val _flambda2_inline_large_function_size : string -> unit
   val _flambda2_inline_threshold : string -> unit
+
+  val _flambda2_inlining_report_bin : unit -> unit
+
+  val _flambda2_unicode : unit -> unit
+
+  val _flambda2_treat_invalid_code_as_unreachable : unit -> unit
+  val _no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
+
+  val _drawfexpr : unit -> unit
+  val _dfexpr : unit -> unit
+  val _dflexpect : unit -> unit
+  val _dclosure_offsets : unit -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1778,6 +1836,15 @@ struct
       F._flambda2_inline_large_function_size;
     mk_flambda2_inline_threshold F._flambda2_inline_threshold;
 
+    mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
+
+    mk_flambda2_unicode F._flambda2_unicode;
+
+    mk_flambda2_treat_invalid_code_as_unreachable
+      F._flambda2_treat_invalid_code_as_unreachable;
+    mk_no_flambda2_treat_invalid_code_as_unreachable
+      F._no_flambda2_treat_invalid_code_as_unreachable;
+
     mk_match_context_rows F._match_context_rows;
     mk_dno_unique_ids F._dno_unique_ids;
     mk_dunique_ids F._dunique_ids;
@@ -1796,6 +1863,10 @@ struct
     mk_dflambda_no_invariants F._dflambda_no_invariants;
     mk_dflambda_let F._dflambda_let;
     mk_dflambda_verbose F._dflambda_verbose;
+    mk_drawfexpr F._drawfexpr;
+    mk_dfexpr F._dfexpr;
+    mk_dflexpect F._dflexpect;
+    mk_dclosure_offsets F._dclosure_offsets;
     mk_dcmm F._dcmm;
     mk_dsel F._dsel;
     mk_dcombine F._dcombine;
@@ -1946,6 +2017,20 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_flambda2_inline_large_function_size
       F._flambda2_inline_large_function_size;
     mk_flambda2_inline_threshold F._flambda2_inline_threshold;
+
+    mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
+
+    mk_flambda2_unicode F._flambda2_unicode;
+
+    mk_flambda2_treat_invalid_code_as_unreachable
+      F._flambda2_treat_invalid_code_as_unreachable;
+    mk_no_flambda2_treat_invalid_code_as_unreachable
+      F._no_flambda2_treat_invalid_code_as_unreachable;
+
+    mk_drawfexpr F._drawfexpr;
+    mk_dfexpr F._dfexpr;
+    mk_dflexpect F._dflexpect;
+    mk_dclosure_offsets F._dclosure_offsets;
 
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
@@ -2323,6 +2408,20 @@ module Default = struct
       Float_arg_helper.parse spec
         "Syntax: -flambda2-inline-threshold <float> | <round>=<float>[,...]"
         Flambda2.Inlining.threshold
+
+    let _flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
+
+    let _flambda2_unicode = set Flambda2.unicode
+
+    let _flambda2_treat_invalid_code_as_unreachable =
+      set Flambda2.treat_invalid_code_as_unreachable
+    let _no_flambda2_treat_invalid_code_as_unreachable =
+      clear Flambda2.treat_invalid_code_as_unreachable
+
+    let _drawfexpr = set Flambda2.Dump.rawfexpr
+    let _dfexpr = set Flambda2.Dump.fexpr
+    let _dflexpect = set Flambda2.Dump.flexpect
+    let _dclosure_offsets = set Flambda2.Dump.closure_offsets
   end
 
   module Compiler = struct

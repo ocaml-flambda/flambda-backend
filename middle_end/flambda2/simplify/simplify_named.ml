@@ -238,15 +238,13 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
         Simplify_static_const.simplify_static_consts dacc bound_symbols
           static_consts ~simplify_toplevel
       with Misc.Fatal_error -> begin
-        if Flambda_features.context_on_error () then begin
-          Format.eprintf "\n%sContext is:%s simplifying 'let symbol' binding \
-                            of@ %a@ with downwards accumulator:@ %a\n"
-            (Flambda_colours.error ())
-            (Flambda_colours.normal ())
-            Bound_symbols.print bound_symbols
-            DA.print dacc
-          end;
-          reraise Misc.Fatal_error
+        Format.eprintf "\n%sContext is:%s simplifying 'let symbol' binding \
+                          of@ %a@ with downwards accumulator:@ %a\n"
+          (Flambda_colours.error ())
+          (Flambda_colours.normal ())
+          Bound_symbols.print bound_symbols
+          DA.print dacc;
+        reraise Misc.Fatal_error
       end
     in
     let dacc, lifted_constants =
@@ -399,14 +397,12 @@ let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
     in
     simplified_named, removed_operations named simplified_named
   with Misc.Fatal_error -> begin
-    if Flambda_features.context_on_error () then begin
-      Format.eprintf "\n%sContext is:%s simplifying [Let] binding@ %a =@ %a@ \
-          with downwards accumulator:@ %a\n"
-        (Flambda_colours.error ())
-        (Flambda_colours.normal ())
-        Bindable_let_bound.print bindable_let_bound
-        Named.print named
-        DA.print dacc
-    end;
+    Format.eprintf "\n%sContext is:%s simplifying [Let] binding@ %a =@ %a@ \
+        with downwards accumulator:@ %a\n"
+      (Flambda_colours.error ())
+      (Flambda_colours.normal ())
+      Bindable_let_bound.print bindable_let_bound
+      Named.print named
+      DA.print dacc;
     reraise Misc.Fatal_error
   end
