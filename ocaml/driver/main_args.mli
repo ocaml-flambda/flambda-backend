@@ -221,6 +221,28 @@ module type Optcommon_options = sig
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
+
+  val _flambda2_join_points : unit -> unit
+  val _no_flambda2_join_points : unit -> unit
+  val _flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val _no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val _flambda2_backend_cse_at_toplevel : unit -> unit
+  val _no_flambda2_backend_cse_at_toplevel : unit -> unit
+  val _flambda2_cse_depth : int -> unit
+  val _flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val _no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val _flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val _no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val _flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val _no_flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val _flambda2_expert_phantom_lets : unit -> unit
+  val _no_flambda2_expert_phantom_lets : unit -> unit
+  val _flambda2_expert_max_block_size_for_projections : int -> unit
+  val _flambda2_expert_max_unboxing_depth : int -> unit
+  val _flambda2_debug_permute_every_name : unit -> unit
+  val _no_flambda2_debug_permute_every_name : unit -> unit
+  val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 end;;
 
 module type Optcomp_options = sig
