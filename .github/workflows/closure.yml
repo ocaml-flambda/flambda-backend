@@ -1,4 +1,4 @@
-name: main
+name: closure
 
 on: [push, pull_request]
 
@@ -67,25 +67,5 @@ jobs:
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
     - name: Build, install and test Flambda backend (Closure mode)
-      working-directory: flambda_backend
-      run: make -j $J ci
-
-    - name: Clean Flambda backend tree
-      working-directory: flambda_backend
-      run: git clean -dfx
-
-    - name: Run autoconf for Flambda backend
-      working-directory: flambda_backend
-      run: autoconf
-
-    - name: Configure Flambda backend (Flambda mode)
-      working-directory: flambda_backend
-      run: |
-        ./configure \
-          --prefix=$GITHUB_WORKSPACE/_install \
-          --enable-middle-end=flambda \
-          --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
-
-    - name: Build, install and test Flambda backend (Flambda mode)
       working-directory: flambda_backend
       run: make -j $J ci
