@@ -981,10 +981,10 @@ module Magic_number = struct
     | "Caml1999I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
-    | "Caml1999y" -> Some (Cmx {flambda = true})
-    | "Caml1999Y" -> Some (Cmx {flambda = false})
-    | "Caml1999z" -> Some (Cmxa {flambda = true})
-    | "Caml1999Z" -> Some (Cmxa {flambda = false})
+    | "Caml2021y" -> Some (Cmx {flambda = true})
+    | "Caml2021Y" -> Some (Cmx {flambda = false})
+    | "Caml2021z" -> Some (Cmxa {flambda = true})
+    | "Caml2021Z" -> Some (Cmxa {flambda = false})
 
     (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
        between the introduction of those magic numbers and October 2017
