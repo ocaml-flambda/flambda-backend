@@ -1904,7 +1904,9 @@ let inline_lazy_force arg loc =
         ap_specialised = Default_specialise;
         ap_probe=None;
       }
-  else if !Clflags.native_code then
+  else if !Clflags.native_code && not (Clflags.is_flambda2 ()) then
+    (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
+       caml_obj_tag and the switch on arbitrary tags *)
     (* Lswitch generates compact and efficient native code *)
     inline_lazy_force_switch arg loc
   else
