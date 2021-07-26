@@ -78,6 +78,11 @@ eval 'for option in '$ac_configure_args'; do echo $option; done' \
 # example).
 cat $temp | tr '\n' '\0' > configure_opts
 
+# For stage0 when Flambda 2 is enabled, the stage0 compiler is
+# configured in Closure mode.
+# We use "." instead of "\x00" since the latter may not work on non-GNU sed.
+cat configure_opts | sed 's/^--enable-flambda2.//g' > configure_opts_stage0
+
 rm -f $temp
 
 AC_CONFIG_FILES([Makefile])
