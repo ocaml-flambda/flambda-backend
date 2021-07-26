@@ -1009,12 +1009,12 @@ module Magic_number = struct
     | Cma -> "Caml1999A"
     | Cmx config ->
        if config.flambda
-       then "Caml1999y"
-       else "Caml1999Y"
+       then "Caml2021y"
+       else "Caml2021Y"
     | Cmxa config ->
        if config.flambda
-       then "Caml1999z"
-       else "Caml1999Z"
+       then "Caml2021z"
+       else "Caml2021Z"
     | Cmxs -> "Caml1999D"
     | Cmt -> "Caml1999T"
     | Ast_impl -> "Caml1999M"
