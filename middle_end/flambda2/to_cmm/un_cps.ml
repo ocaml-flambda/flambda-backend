@@ -1510,7 +1510,7 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
     | None -> () (* Either opaque was passed, or there is no need to export
                     offsets *)
     | Some cmx ->
-      let _cmx = Flambda_cmx_format.with_exported_offsets cmx offsets in
+      let cmx = Flambda_cmx_format.with_exported_offsets cmx offsets in
       Compilenv.flambda2_set_export_info cmx
     end;
     let used_closure_vars = Flambda_unit.used_closure_vars unit in
