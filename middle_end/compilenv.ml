@@ -142,6 +142,8 @@ let reset ?packname name =
       (current_unit_linkage_name ())
   in
   Compilation_unit.set_current compilation_unit;
+  (* The Flambda 2 current compilation unit must be set separately
+     since a different set of types are used. *)
   let module Compilation_unit = Flambda2_compilenv_deps.Compilation_unit in
   let module Linkage_name = Flambda2_compilenv_deps.Linkage_name in
   let compilation_unit =
