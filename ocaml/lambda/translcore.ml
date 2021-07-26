@@ -667,7 +667,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           ap_probe = Some {name};
         }
       in
-      begin match Config.flambda with
+      begin match Config.flambda || Config.flambda2 with
       | true ->
           Llet(Strict, Pgenval, funcid, Lfunction handler, Lapply app)
       | false ->
