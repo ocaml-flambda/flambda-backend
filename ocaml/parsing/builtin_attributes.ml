@@ -345,7 +345,7 @@ let nolabels_attribute attr =
 let flambda_o3_attribute attr =
   clflags_attribute_without_payload' attr
     ~name:"flambda_o3"
-    ~f:(fun () -> if Config.flambda then Clflags.set_o3 ())
+    ~f:(fun () -> if Config.flambda || Config.flambda2 then Clflags.set_o3 ())
 
 let inline_attribute attr =
   if String.equal attr.attr_name.txt "inline"
