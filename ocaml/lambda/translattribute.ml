@@ -23,7 +23,7 @@ let is_inline_attribute = function
 
 let is_inlined_attribute = function
   | {txt=("inlined"|"ocaml.inlined")} -> true
-  | {txt=("unrolled"|"ocaml.unrolled")} when Config.flambda -> true
+  | {txt=("unrolled"|"ocaml.unrolled")} when Config.flambda || Config.flambda2 -> true
   | _ -> false
 
 let is_specialise_attribute = function
