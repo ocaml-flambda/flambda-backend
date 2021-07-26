@@ -54,7 +54,7 @@ let main argv ppf ~flambda2_backend ~flambda2_to_cmm =
     begin try
       Compenv.process_deferred_actions
         (ppf,
-         Optcompile.implementation ~backend,
+         Optcompile.implementation ~backend ~flambda2_backend ~flambda2_to_cmm,
          Optcompile.interface,
          ".cmx",
          ".cmxa");
