@@ -176,6 +176,7 @@ let () =
   check_noalloc "unbox only if useful" unbox_only_if_useful;
   check_noalloc "ignore useless args" ignore_useless_args;
 
+  (* CR xclerc for lukemaurer: enable these test for both flambda 1 and 2. *)
   if Config.flambda then begin
     check_noalloc "float and int32 record" unbox_record;
     check_noalloc "eliminate intermediate immutable float record"
