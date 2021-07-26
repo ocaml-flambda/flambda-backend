@@ -259,7 +259,7 @@ runtest-upstream:
 	  _runtest/compilerlibs
 	cp _build2/default/middle_end/flambda2/flambda2.cma \
 	  _runtest/compilerlibs
-	cp _build2/default/middle_end/flambda2/backend_intf/flambda2_backend_intf.cma \
+	cp _build2/default/middle_end/flambda2/backend_intf/flambda2_backend_impl.cma \
 	  _runtest/compilerlibs
 	mkdir _runtest/toplevel
 	cp _build2/default/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \
