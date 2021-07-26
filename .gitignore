@@ -46,14 +46,14 @@ _runtest/
 _stage2_configure/
 autom4te.cache
 
-Makefile
-config.log
-config.status
-configure
-configure_opts
-ocaml-stage1-config.status
-ocaml-stage2-config.status
-ocamlopt_flags.sexp
-oc_cflags.sexp
-oc_cppflags.sexp
-sharedlib_cflags.sexp
+/Makefile
+/config.log
+/config.status
+/configure
+/configure_opts
+/ocaml-stage1-config.status
+/ocaml-stage2-config.status
+/ocamlopt_flags.sexp
+/oc_cflags.sexp
+/oc_cppflags.sexp
+/sharedlib_cflags.sexp
