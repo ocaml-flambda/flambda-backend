@@ -18,4 +18,11 @@
 
    NB: Due to internal state in the compiler, calling [main] twice during
    the same process is unsupported. *)
-val main : string array -> Format.formatter -> int
+val main
+   : string array
+  -> Format.formatter
+  -> flambda2_backend:(module Flambda2__Flambda_backend_intf.S)
+  -> flambda2_to_cmm:(
+        Flambda2__Flambda_middle_end.middle_end_result
+     -> Cmm.phrase list)
+  -> int
