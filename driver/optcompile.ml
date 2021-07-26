@@ -31,7 +31,7 @@ let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
-let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
+let flambda_and_flambda2 i typed ~compile_implementation =
   typed
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
@@ -43,6 +43,14 @@ let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
     |>> Simplif.simplify_lambda
     |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
     |> (fun ((module_ident, main_module_block_size), code) ->
+      compile_implementation ~module_ident ~main_module_block_size ~code
+        ~required_globals;
+      Compilenv.save_unit_info (cmx i)))
+
+let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
+  flambda_and_flambda2 i typed
+    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
+          ~required_globals ->
       Asmgen.compile_implementation_flambda2
         ~backend:flambda2_backend
         ~filename:i.source_file
@@ -54,21 +62,12 @@ let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
         ~flambda2_to_cmm
         ~ppf_dump:i.ppf_dump
         ~required_globals
-        ());
-      Compilenv.save_unit_info (cmx i))
+        ())
 
 let flambda i backend typed =
-  typed
-  |> Profile.(record transl)
-      (Translmod.transl_implementation_flambda i.module_name)
-  |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
-    |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
-    |>> Simplif.simplify_lambda
-    |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
+  flambda_and_flambda2 i typed
+    ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
+          ~required_globals ->
       let program : Lambda.program =
         { Lambda.
           module_ident;
@@ -83,8 +82,7 @@ let flambda i backend typed =
         ~prefixname:i.output_prefix
         ~middle_end:Flambda_middle_end.lambda_to_clambda
         ~ppf_dump:i.ppf_dump
-        program);
-    Compilenv.save_unit_info (cmx i))
+        program)
 
 let clambda i backend typed =
   Clflags.set_oclassic ();
