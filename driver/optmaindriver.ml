@@ -31,12 +31,14 @@ module Backend = struct
     (* The "-1" is to allow for a potential closure environment parameter. *)
     Proc.max_arguments_for_tailcalls - 1
 end
+
 let backend = (module Backend : Backend_intf.S)
 
 let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
 module Options = Main_args.Make_optcomp_options (Main_args.Default.Optmain)
-let main argv ppf =
+
+let main argv ppf ~flambda2_backend ~flambda2_to_cmm =
   native_code := true;
   match
     Compenv.readenv ppf Before_args;
@@ -95,7 +97,8 @@ let main argv ppf =
       let target = Compenv.extract_output !output_name in
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
         Asmpackager.package_files ~ppf_dump (Compmisc.initial_env ())
-          (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend);
+          (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend
+          ~flambda2_backend ~flambda2_to_cmm);
       Warnings.check_fatal ();
     end
     else if !shared then begin

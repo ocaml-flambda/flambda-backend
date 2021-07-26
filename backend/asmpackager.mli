@@ -22,6 +22,10 @@ val package_files
   -> string list
   -> string
   -> backend:(module Backend_intf.S)
+  -> flambda2_backend:(module Flambda2__Flambda_backend_intf.S)
+  -> flambda2_to_cmm:(
+        Flambda2__Flambda_middle_end.middle_end_result
+     -> Cmm.phrase list)
   -> unit
 
 type error =
