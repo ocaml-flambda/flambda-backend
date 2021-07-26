@@ -51,6 +51,7 @@ autom4te.cache
 /config.status
 /configure
 /configure_opts
+/configure_opts_stage0
 /ocaml-stage1-config.status
 /ocaml-stage2-config.status
 /ocamlopt_flags.sexp

@@ -49,7 +49,7 @@ stage0: _build0/config.status
 # done "make ocamlopt" upstream.  For testing with a broken middle or backend,
 # e.g. if the stdlib doesn't compile, you can stop here and run
 # _build1/default/flambda_backend_main.exe.
-# 
+#
 # At this point we don't yet have a standard library and a set of otherlibs
 # whose .cmx files are compatible with this new compiler.  Neither are the
 # Flambda backend compiler, or the compilerlibs that form it, built with the
@@ -97,13 +97,14 @@ hacking: ocaml-stage1-config.status stage0 \
 # The stage0 configure step configures the tree to build pretty much the
 # bare minimum that we need for building stage1.
 # Currently the middle end for stage0 will match the selected middle end
-# for the Flambda backend compiler.
+# for the Flambda backend compiler, except when using Flambda 2, when it
+# will be Closure (see configure.ac).
 _build0/config.status: ocaml/configure.ac
 	rm -rf _build0
 	mkdir _build0
 	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build0
 	(cd _build0 && \
-	  cat ../configure_opts | xargs -0 ./configure -C \
+	  cat ../configure_opts_stage0 | xargs -0 ./configure -C \
 	    --prefix=@stage0_prefix@ \
 	    --disable-ocamldoc \
 	    --disable-ocamltest \
