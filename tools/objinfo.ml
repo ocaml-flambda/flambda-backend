@@ -167,8 +167,12 @@ let print_cmx_infos (ui, crc) =
     if not !no_code then
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
-  | Flambda2 _ ->
-    failwith "Flambda2 objinfo support not yet merged"
+  | Flambda2 None ->
+    printf "This is an Flambda 2 object with no export info\n"
+  | Flambda2 (Some cmx) ->
+    printf "This is an Flambda 2 object\n";
+    flush stdout;
+    Format.printf "%a\n%!" Flambda2.Flambda_cmx_format.print cmx
   end;
   let pr_funs _ fns =
     List.iter (fun arity -> printf " %d" arity) fns in
