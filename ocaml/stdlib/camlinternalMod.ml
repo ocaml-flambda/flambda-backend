@@ -61,7 +61,7 @@ and init_mod_block loc comps =
   done;
   modu
 
-let init_mod loc shape =
+let [@inline never] init_mod loc shape =
   match shape with
   | Module comps ->
      Obj.repr (init_mod_block loc comps)
@@ -88,7 +88,7 @@ and update_mod_block comps o n =
     update_mod_field o i comps.(i) (Obj.field n i)
   done
 
-let update_mod shape o n =
+let [@inline never] update_mod shape o n =
   match shape with
   | Module comps ->
      update_mod_block comps o n
