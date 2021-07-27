@@ -367,12 +367,28 @@ runtest-upstream:
 	# We should build the native ocamltest too.
 	cp _build1/default/ocaml/ocamltest/ocamltest.byte \
 	  _runtest/ocamltest/ocamltest
+	grep -v '^#' testsuite/flambda2-test-list > _runtest/flambda2-test-list
+	if _build2/install/default/bin/ocamlopt.opt -config \
+	  | grep "flambda2: true" > /dev/null; \
+	then touch _runtest/is-flambda2; \
+	else rm -f _runtest/is-flambda2; \
+	fi
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 cd _runtest/testsuite \
 	  && if $$(which parallel > /dev/null 2>&1); \
-             then make parallel; \
-             else make all; \
+             then \
+               if [ -f ../is-flambda2 ]; then \
+                 make parallel-list FILE=$(pwd)/../flambda2-test-list; \
+	       else \
+                 make parallel; \
+               fi \
+             else \
+               if [ -f ../is-flambda2 ]; then \
+                 make list FILE=$(pwd)/../flambda2-test-list; \
+	       else \
+                 make all; \
+               fi \
              fi)
 
 # Compare the Flambda backend installation tree against the upstream one.
