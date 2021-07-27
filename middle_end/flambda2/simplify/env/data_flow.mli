@@ -56,6 +56,14 @@ val record_var_binding
   -> t
 (** Add a variable binding from the current handler. *)
 
+val record_symbol_projection
+   : Variable.t
+  -> Symbol.t
+  -> t
+  -> t
+(** Add a variable binding to the symbol.
+    Projections might get recorded multiple times. *)
+
 val record_symbol_binding
    : Symbol.t
   -> Name_occurrences.t
