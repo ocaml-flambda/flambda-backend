@@ -168,9 +168,9 @@ let print_cmx_infos (ui, crc) =
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
   | Flambda2 None ->
-    printf "This is an Flambda 2 object with no export info\n"
+    printf "Flambda 2 unit (with no export information)\n"
   | Flambda2 (Some cmx) ->
-    printf "This is an Flambda 2 object\n";
+    printf "Flambda 2 export information:\n";
     flush stdout;
     Format.printf "%a\n%!" Flambda2.Flambda_cmx_format.print cmx
   end;
