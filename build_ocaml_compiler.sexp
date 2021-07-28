@@ -4,6 +4,7 @@
   supports_instrumented_runtime
   supports_no_install_bytecode_programs
   supports_no_install_source_artifacts
+  supports_flambda2
   uses_autoconf
   is_flambda_backend
   ))
