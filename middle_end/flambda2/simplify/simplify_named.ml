@@ -398,11 +398,12 @@ let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
     simplified_named, removed_operations named simplified_named
   with Misc.Fatal_error -> begin
     Format.eprintf "\n%sContext is:%s simplifying [Let] binding@ %a =@ %a@ \
-        with downwards accumulator:@ %a\n"
+        with downwards accumulator:@ %a@ \nOriginal backtrace:\n%s"
       (Flambda_colours.error ())
       (Flambda_colours.normal ())
       Bindable_let_bound.print bindable_let_bound
       Named.print named
-      DA.print dacc;
+      DA.print dacc
+      (Printexc.raw_backtrace_to_string (Printexc.get_callstack 50));
     reraise Misc.Fatal_error
   end
