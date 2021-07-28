@@ -284,16 +284,6 @@ let add_equation_on_variable t var ty =
 
 let mem_name t name = TE.mem t.typing_env name
 
-let find_name t name =
-  match TE.find t.typing_env name None with
-  | exception Not_found ->
-    Misc.fatal_errorf "Unbound name %a in environment:@ %a"
-      Name.print name
-      print t
-  | ty -> ty
-
-let find_variable t var = find_name t (Name.var var)
-
 let mem_variable t var = TE.mem t.typing_env (Name.var var)
 
 let define_symbol t sym kind =
@@ -329,7 +319,7 @@ let add_equation_on_symbol t sym ty =
 
 let mem_symbol t sym = mem_name t (Name.symbol sym)
 
-let find_symbol t sym = find_name t (Name.symbol sym)
+let find_symbol t sym = TE.find (typing_env t) (Name.symbol sym) (Some K.value)
 
 let add_symbol_projection t var proj =
   { t with

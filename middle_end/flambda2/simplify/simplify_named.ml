@@ -196,7 +196,8 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
         && Name_mode.is_normal (Var_in_binding_pos.name_mode bound_var)
     in
     let defining_expr, dacc, ty =
-      Reification.try_to_reify dacc term ~bound_to:bound_var ~allow_lifting
+      Reification.try_to_reify dacc term ~bound_to:bound_var
+        ~kind_of_bound_to:kind ~allow_lifting
     in
     let defining_expr =
       if T.is_bottom (DA.typing_env dacc) ty then Simplified_named.invalid ()
