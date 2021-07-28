@@ -26,6 +26,14 @@ open! Simplify_import
    file tail recursive, although it probably isn't necessary, as
    excessive levels of nesting of functions seems unlikely. *)
 
+let find_code denv code_id =
+  match DE.find_code denv code_id with
+  | Some code -> code
+  | None ->
+    Misc.fatal_errorf "Cannot find imported code with code ID %a, which is \
+        needed to simplify a set of closures"
+      Code_id.print code_id
+
 let function_decl_type ~pass denv old_code_id code ?new_code_id rec_info =
   let code_id = Option.value new_code_id ~default:old_code_id in
   (* Slap the new code id (if any) on the old code, since we want to use the old
@@ -153,7 +161,7 @@ end = struct
                   Code_id.Map.find old_code_id
                     old_to_new_code_ids_all_sets
                 in
-                let code = DE.find_code denv old_code_id in
+                let code = find_code denv old_code_id in
                 let rec_info =
                   (* From inside their own bodies, every function in the set
                      currently being defined has an unknown recursion
@@ -235,7 +243,7 @@ end = struct
 
   let bind_existing_code_to_new_code_ids denv ~old_to_new_code_ids_all_sets =
     Code_id.Map.fold (fun old_code_id new_code_id denv ->
-        let code = DE.find_code denv old_code_id in
+        let code = find_code denv old_code_id in
         let code =
           code
           |> Code.with_newer_version_of (Some old_code_id)
@@ -401,7 +409,7 @@ type simplify_function_result = {
 let simplify_function context ~used_closure_vars ~shareable_constants
       closure_id code_id ~closure_bound_names_inside_function
       code_age_relation ~lifted_consts_prev_functions =
-  let code = DE.find_code (DA.denv (C.dacc_prior_to_sets context)) code_id in
+  let code = find_code (DA.denv (C.dacc_prior_to_sets context)) code_id in
   let params_and_body =
     Code.params_and_body_must_be_present code ~error_context:"Simplifying"
   in
@@ -864,7 +872,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     let named = Named.create_set_of_closures set_of_closures in
     let find_code_characteristics code_id =
       let env = Downwards_acc.denv dacc in
-      let code = Downwards_env.find_code env code_id in
+      let code = find_code env code_id in
       Cost_metrics.{
         cost_metrics = Code.cost_metrics code;
         params_arity = List.length (Code.params_arity code)

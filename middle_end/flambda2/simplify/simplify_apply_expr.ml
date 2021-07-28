@@ -46,10 +46,9 @@ let record_free_names_of_apply_as_used dacc apply =
     | Return k -> Data_flow.add_apply_result_cont k data_flow
   )
 
-let simplify_direct_tuple_application ~simplify_expr dacc apply code_id
-      ~down_to_up =
+let simplify_direct_tuple_application ~simplify_expr dacc apply
+      ~callee's_code ~down_to_up =
   let dbg = Apply.dbg apply in
-  let callee's_code = DE.find_code (DA.denv dacc) code_id in
   let param_arity = Code.params_arity callee's_code in
   let n = List.length param_arity in
   (* Split the tuple argument from other potential over application arguments *)
@@ -482,7 +481,7 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity ~res
 let simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
       ~callee's_closure_id ~result_arity ~recursive ~arg_types:_
-      ~must_be_detupled function_decl_opt ~down_to_up =
+      ~must_be_detupled function_decl_opt ~down_to_up ~type_unavailable =
   begin match Apply.probe_name apply, Apply.inline apply with
   | None, _
   | Some _, Never_inline -> ()
@@ -527,40 +526,42 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         ~return_arity:result_arity
     in
     let apply = Apply.with_call_kind apply call_kind in
-    if must_be_detupled then
-      simplify_direct_tuple_application ~simplify_expr dacc apply
-        callee's_code_id ~down_to_up
-    else begin
-      let args = Apply.args apply in
-      let provided_num_args = List.length args in
-      let callee's_code = DE.find_code (DA.denv dacc) callee's_code_id in
-      (* A function declaration with [is_tupled = true] must be treated
-         specially:
-         - Direct calls adopt the normal calling convention of the code's body,
-           i.e. that given by [Code.params_arity].
-         - Indirect calls adopt the calling convention consisting of a
-           single tuple argument, irrespective of what [Code.params_arity]
-           says. *)
-      let param_arity = Code.params_arity callee's_code in
-      let num_params = List.length param_arity in
-      if provided_num_args = num_params then
-        simplify_direct_full_application ~simplify_expr dacc apply
-          function_decl_opt ~callee's_code_id ~result_arity ~down_to_up
-          ~coming_from_indirect
-      else if provided_num_args > num_params then
-        simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
-          ~result_arity ~down_to_up ~coming_from_indirect
-      else if provided_num_args > 0 && provided_num_args < num_params then
-        simplify_direct_partial_application ~simplify_expr dacc apply
-          ~callee's_code_id ~callee's_closure_id ~param_arity ~result_arity
-          ~recursive ~down_to_up ~coming_from_indirect
-      else
-        Misc.fatal_errorf "Function with %d params when simplifying \
-                           direct OCaml function call with %d arguments: %a"
-          num_params
-          provided_num_args
-          Apply.print apply
-    end
+    match DE.find_code (DA.denv dacc) callee's_code_id with
+    | None -> type_unavailable ()
+    | Some callee's_code ->
+      if must_be_detupled then
+        simplify_direct_tuple_application ~simplify_expr dacc apply
+          ~callee's_code ~down_to_up
+      else begin
+        let args = Apply.args apply in
+        let provided_num_args = List.length args in
+        (* A function declaration with [is_tupled = true] must be treated
+           specially:
+           - Direct calls adopt the normal calling convention of the code's
+             body, i.e. that given by [Code.params_arity].
+           - Indirect calls adopt the calling convention consisting of a
+             single tuple argument, irrespective of what [Code.params_arity]
+             says. *)
+        let param_arity = Code.params_arity callee's_code in
+        let num_params = List.length param_arity in
+        if provided_num_args = num_params then
+          simplify_direct_full_application ~simplify_expr dacc apply
+            function_decl_opt ~callee's_code_id ~result_arity ~down_to_up
+            ~coming_from_indirect
+        else if provided_num_args > num_params then
+          simplify_direct_over_application ~simplify_expr dacc apply
+            ~param_arity ~result_arity ~down_to_up ~coming_from_indirect
+        else if provided_num_args > 0 && provided_num_args < num_params then
+          simplify_direct_partial_application ~simplify_expr dacc apply
+            ~callee's_code_id ~callee's_closure_id ~param_arity ~result_arity
+            ~recursive ~down_to_up ~coming_from_indirect
+        else
+          Misc.fatal_errorf "Function with %d params when simplifying \
+                            direct OCaml function call with %d arguments: %a"
+            num_params
+            provided_num_args
+            Apply.print apply
+      end
 
 let rebuild_function_call_where_callee's_type_unavailable apply call_kind
       ~use_id ~exn_cont_use_id uacc ~after_rebuild =
@@ -733,18 +734,22 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
         | Indirect_known_arity _ -> None
       in
       let callee's_code_id_from_type = I.code_id inlinable in
-      let callee's_code = DE.find_code denv callee's_code_id_from_type in
-      let must_be_detupled =
-        call_must_be_detupled (Code.is_tupled callee's_code)
-      in
-      simplify_direct_function_call ~simplify_expr dacc apply
-        ~callee's_code_id_from_type
-        ~callee's_code_id_from_call_kind ~callee's_closure_id ~arg_types
-        ~result_arity:(Code.result_arity callee's_code)
-        ~recursive:(Code.recursive callee's_code)
-        ~must_be_detupled
-        (Some inlinable)
-        ~down_to_up
+      begin match DE.find_code denv callee's_code_id_from_type with
+      | None -> type_unavailable ()
+      | Some callee's_code ->
+        let must_be_detupled =
+          call_must_be_detupled (Code.is_tupled callee's_code)
+        in
+        simplify_direct_function_call ~simplify_expr dacc apply
+          ~callee's_code_id_from_type
+          ~callee's_code_id_from_call_kind ~callee's_closure_id ~arg_types
+          ~result_arity:(Code.result_arity callee's_code)
+          ~recursive:(Code.recursive callee's_code)
+          ~must_be_detupled
+          (Some inlinable)
+          ~down_to_up
+          ~type_unavailable
+      end
     | Ok (Non_inlinable non_inlinable) ->
       let module N = T.Function_declaration_type.Non_inlinable in
       let callee's_code_id_from_type = N.code_id non_inlinable in
@@ -754,21 +759,23 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
         | Indirect_unknown_arity
         | Indirect_known_arity _ -> None
       in
-      let callee's_code_from_type =
-        DE.find_code denv callee's_code_id_from_type
-      in
-      let must_be_detupled =
-        call_must_be_detupled (Code.is_tupled callee's_code_from_type)
-      in
-      simplify_direct_function_call ~simplify_expr dacc apply
-        ~callee's_code_id_from_type
-        ~callee's_code_id_from_call_kind
-        ~callee's_closure_id ~arg_types
-        ~result_arity:(Code.result_arity callee's_code_from_type)
-        ~recursive:(Code.recursive callee's_code_from_type)
-        ~must_be_detupled
-        None
-        ~down_to_up
+      begin match DE.find_code denv callee's_code_id_from_type with
+      | None -> type_unavailable ()
+      | Some callee's_code_from_type ->
+        let must_be_detupled =
+          call_must_be_detupled (Code.is_tupled callee's_code_from_type)
+        in
+        simplify_direct_function_call ~simplify_expr dacc apply
+          ~callee's_code_id_from_type
+          ~callee's_code_id_from_call_kind
+          ~callee's_closure_id ~arg_types
+          ~result_arity:(Code.result_arity callee's_code_from_type)
+          ~recursive:(Code.recursive callee's_code_from_type)
+          ~must_be_detupled
+          None
+          ~down_to_up
+          ~type_unavailable
+      end
     | Bottom ->
       down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc =

@@ -192,11 +192,13 @@ let meet (env : Meet_env.t) (t1 : t) (t2 : t)
     let resolver = TE.code_age_relation_resolver typing_env in
     let check_other_things_and_return code_id rec_info extension
       : (t * TEE.t) Or_bottom.t =
-      let code = TE.find_code typing_env code_id in
-      let t, _inlining_decision =
-        create ~code ~rec_info
-      in
-      Ok (t, extension)
+      match TE.find_code typing_env code_id with
+      | None -> Ok (Ok (Non_inlinable { code_id; }), extension)
+      | Some code ->
+        let t, _inlining_decision =
+          create ~code ~rec_info
+        in
+        Ok (t, extension)
     in
     begin match
       Code_age_relation.meet target_code_age_rel ~resolver code_id1 code_id2
@@ -263,11 +265,13 @@ let join (env : Join_env.t) (t1 : t) (t2 : t) : t =
     let target_code_age_rel = TE.code_age_relation typing_env in
     let resolver = TE.code_age_relation_resolver typing_env in
     let check_other_things_and_return code_id rec_info : t =
-      let code = TE.find_code typing_env code_id in
-      let t, _inlining_decision =
-        create ~code ~rec_info
-      in
-      t
+      match TE.find_code typing_env code_id with
+      | None -> Ok (Non_inlinable { code_id; })
+      | Some code ->
+        let t, _inlining_decision =
+          create ~code ~rec_info
+        in
+        t
     in
     let code_age_rel1 =
       TE.code_age_relation (Join_env.left_join_env env)
