@@ -104,7 +104,7 @@ _build0/config.status: ocaml/configure.ac
 	mkdir _build0
 	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build0
 	(cd _build0 && \
-	  cat ../configure_opts_stage0 | xargs -0 ./configure -C \
+	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
 	    --prefix=@stage0_prefix@ \
 	    --disable-ocamldoc \
 	    --disable-ocamltest \
