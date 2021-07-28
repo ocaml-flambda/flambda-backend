@@ -93,8 +93,6 @@ val add_variable : t -> Var_in_binding_pos.t -> Flambda_type.t -> t
 
 val add_equation_on_variable : t -> Variable.t -> Flambda_type.t -> t
 
-val find_variable : t -> Variable.t -> Flambda_type.t
-
 val mem_variable : t -> Variable.t -> bool
 
 val add_symbol : t -> Symbol.t -> Flambda_type.t -> t
