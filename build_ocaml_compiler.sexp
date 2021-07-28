@@ -13,6 +13,7 @@
    m32
    no_naked_pointers
    flambda
+   flambda2
    no_flat_float_array
    ))
  )
