@@ -18,7 +18,9 @@
 
 module DA = Downwards_acc
 module DE = Downwards_env
+module K = Flambda_kind
 module T = Flambda_type
+module TE = T.Typing_env
 
 let compute_succ
       ~(depth : int Or_infinity.t)
@@ -62,7 +64,7 @@ let rec simplify_rec_info_expr0 denv orig ~on_unknown : Rec_info_expr.t =
   match (orig : Rec_info_expr.t) with
   | Const _ -> orig
   | Var dv ->
-    let ty = DE.find_variable denv dv in
+    let ty = TE.find (DE.typing_env denv) (Name.var dv) (Some K.rec_info) in
     begin match T.prove_rec_info (DE.typing_env denv) ty with
     | Proved rec_info_expr ->
       (* All bound names are fresh, so fine to use the same environment *)

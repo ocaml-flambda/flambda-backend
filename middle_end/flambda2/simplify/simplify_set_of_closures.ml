@@ -100,7 +100,7 @@ end = struct
   let previously_free_depth_variables t = t.previously_free_depth_variables
 
   let compute_closure_element_types_inside_function ~env_prior_to_sets
-        ~env_inside_function ~closure_element_types =
+        ~env_inside_function ~closure_element_types ~degraded_closure_vars =
     Var_within_closure.Map.fold
       (fun clos_var type_prior_to_sets
            (env_inside_function, types_inside_function) ->
@@ -110,6 +110,12 @@ end = struct
           TE.add_definition env_inside_function
             (Name_in_binding_pos.var var)
             K.value
+        in
+        let type_prior_to_sets =
+          (* See comment below about [degraded_closure_vars]. *)
+          if Var_within_closure.Set.mem clos_var degraded_closure_vars
+          then T.any_value ()
+          else type_prior_to_sets
         in
         let env_extension =
           T.make_suitable_for_environment type_prior_to_sets
@@ -262,23 +268,40 @@ end = struct
       |> DE.increment_continuation_scope_level_twice
       (* Even if we are not rebuilding terms we should always rebuild them
          for local functions. The type of a function is dependent on its
-	 term and not knowing it prohibits us from inlining it.*)
+       	 term and not knowing it prohibits us from inlining it. *)
       |> DE.set_rebuild_terms
     in
+    (* We collect a set of "degraded closure variables" whose types involve
+       imported variables from missing .cmx files.  Since we don't know the
+       kind of these variables, we can't run the code below that checks if
+       they might need binding as "never inline" depth variables.  Instead we
+       will treat the whole closure variable as having [Unknown] type. *)
+    let degraded_closure_vars = ref Var_within_closure.Set.empty in
     let free_depth_variables =
       List.concat_map (fun closure_element_types ->
-          List.map (fun ty ->
+          Var_within_closure.Map.mapi (fun closure_var ty ->
               let vars = TE.free_names_transitive (DE.typing_env denv) ty in
               Name_occurrences.fold_variables vars ~init:Variable.Set.empty
                 ~f:(fun free_depth_variables var ->
-                    let ty = DE.find_variable denv_inside_functions var in
-                    match T.kind ty with
-                    | Rec_info ->
-                      Variable.Set.add var free_depth_variables
-                    | Value | Naked_number _ | Fabricated ->
+                    let ty_opt =
+                      TE.find_or_missing (DE.typing_env denv_inside_functions)
+                        (Name.var var)
+                    in
+                    match ty_opt with
+                    | None ->
+                      degraded_closure_vars
+                        := Var_within_closure.Set.add closure_var
+                             !degraded_closure_vars;
                       free_depth_variables
+                    | Some ty ->
+                      match T.kind ty with
+                      | Rec_info ->
+                        Variable.Set.add var free_depth_variables
+                      | Value | Naked_number _ | Fabricated ->
+                        free_depth_variables
                   )
-            ) (closure_element_types |> Var_within_closure.Map.data)
+            ) closure_element_types
+          |> Var_within_closure.Map.data
         ) closure_element_types_all_sets
       |> Variable.Set.union_list
     in
@@ -313,6 +336,7 @@ end = struct
             compute_closure_element_types_inside_function
               ~env_prior_to_sets:(DE.typing_env denv)
               ~env_inside_function:env_inside_functions ~closure_element_types
+              ~degraded_closure_vars:!degraded_closure_vars
           in
           env_inside_functions,
             closure_element_types_inside_function
