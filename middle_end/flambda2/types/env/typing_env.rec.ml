@@ -656,6 +656,8 @@ let find_with_binding_time_and_mode' t name kind =
               Type_grammar.unknown kind, Binding_time.imported_variables,
                 Name_mode.in_types
             | None ->
+              Format.eprintf "missing cmx and kind, bt:\n%s\n%!"
+                (Printexc.raw_backtrace_to_string (Printexc.get_callstack 30));
               raise Missing_cmx_and_kind)
       | Some t ->
         match Name.Map.find name (names_to_types t) with
