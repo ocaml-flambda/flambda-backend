@@ -157,10 +157,8 @@ let find_code t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
-  | Present { code; calling_convention = _; } -> code
-  | Imported _ ->
-    Misc.fatal_errorf "Actual code for Code ID %a is missing"
-      Code_id.print code_id
+  | Present { code; calling_convention = _; } -> Some code
+  | Imported _ -> None
 
 let find_code_if_not_imported t code_id =
   match Code_id.Map.find code_id t with
