@@ -894,12 +894,12 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       k k_exn
   | Lstaticraise (static_exn, args) ->
     let continuation = Env.get_static_exn_continuation env static_exn in
-    let extra_args =
-      List.map (fun var : IR.simple -> Var var)
-        (Env.extra_args_for_continuation env continuation)
-    in
     cps_non_tail_list acc env ccenv args
       (fun acc env ccenv args ->
+         let extra_args =
+           List.map (fun var : IR.simple -> Var var)
+             (Env.extra_args_for_continuation env continuation)
+         in
          compile_staticfail acc env ccenv
            ~continuation ~args:(args @ extra_args)
       ) k_exn
@@ -1251,12 +1251,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       k k_exn
   | Lstaticraise (static_exn, args) ->
     let continuation = Env.get_static_exn_continuation env static_exn in
-    let extra_args =
-      List.map (fun var : IR.simple -> Var var)
-        (Env.extra_args_for_continuation env continuation)
-    in
     cps_non_tail_list acc env ccenv args
       (fun acc env ccenv args ->
+         let extra_args =
+           List.map (fun var : IR.simple -> Var var)
+             (Env.extra_args_for_continuation env continuation)
+         in
          compile_staticfail acc env ccenv
            ~continuation ~args:(args @ extra_args)
       ) k_exn
