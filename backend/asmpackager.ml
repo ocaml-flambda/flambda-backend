@@ -169,17 +169,26 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
 
 (* Make the .cmx file for the package *)
 
-let get_export_info ui =
+let get_export_info_flambda2 ui : Flambda2.Flambda_cmx_format.t option =
+  assert(Config.flambda2);
+  match ui.ui_export_info with
+  | Clambda _ -> assert false
+  | Flambda1 _ -> assert false
+  | Flambda2 info -> info
+
+let get_export_info_flambda1 ui : Export_info.t =
   assert(Config.flambda);
   match ui.ui_export_info with
-  | Clambda _ | Flambda2 _ -> assert false
-  | Flambda1 info -> info
+  | Clambda _ -> assert false
+  | Flambda1 (info : Export_info.t) -> info
+  | Flambda2 _ -> assert false
 
-let get_approx ui =
-  assert(not Config.flambda);
+let get_approx ui : Clambda.value_approximation =
+  assert(not (Config.flambda || Config.flambda2));
   match ui.ui_export_info with
-  | Flambda1 _ | Flambda2 _ -> assert false
   | Clambda info -> info
+  | Flambda1 _ -> assert false
+  | Flambda2 _ -> assert false
 
 let build_package_cmx members cmxfile =
   let unit_names =
@@ -196,22 +205,38 @@ let build_package_cmx members cmxfile =
       (fun m accu ->
         match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
       members [] in
-  let pack_units =
-    List.fold_left
-      (fun set info ->
-         let unit_id = Compilenv.unit_id_from_name info.ui_name in
-         Compilation_unit.Set.add
-           (Compilenv.unit_for_global unit_id) set)
-      Compilation_unit.Set.empty units in
-  let units =
+  let pack_units1 : Compilation_unit.Set.t lazy_t =
+    lazy (List.fold_left
+            (fun set info ->
+               let unit_id = Compilenv.unit_id_from_name info.ui_name in
+               Compilation_unit.Set.add
+                 (Compilenv.unit_for_global unit_id) set)
+            Compilation_unit.Set.empty units) in
+  let pack_units2 : Flambda2_compilenv_deps.Compilation_unit.Set.t lazy_t =
+    let unit_for_global ident : Flambda2_compilenv_deps.Compilation_unit.t =
+      let linkage_name : Flambda2_compilenv_deps.Linkage_name.t =
+        ident
+        |> Compilenv.unit_for_global
+        |> Compilation_unit.get_linkage_name
+        |> Linkage_name.to_string
+        |> Flambda2_compilenv_deps.Linkage_name.create in
+      Flambda2_compilenv_deps.Compilation_unit.create ident linkage_name in
+    let open Flambda2_compilenv_deps in
+    lazy (List.fold_left
+            (fun set info ->
+               let unit_id : Ident.t = Compilenv.unit_id_from_name info.ui_name in
+               Compilation_unit.Set.add
+                 (unit_for_global unit_id) set)
+            Compilation_unit.Set.empty units) in
+  let units : Cmx_format.unit_infos list =
     if Config.flambda then
       List.map (fun info ->
           { info with
             ui_export_info =
               Flambda1
-                (Export_info_for_pack.import_for_pack ~pack_units
+                (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units1)
                    ~pack:(Compilenv.current_unit ())
-                   (get_export_info info)) })
+                   (get_export_info_flambda1 info)) })
         units
     else
       units
@@ -221,13 +246,26 @@ let build_package_cmx members cmxfile =
     if Config.flambda then
       let ui_export_info =
         List.fold_left (fun acc info ->
-            Export_info.merge acc (get_export_info info))
-          (Export_info_for_pack.import_for_pack ~pack_units
+            Export_info.merge acc (get_export_info_flambda1 info))
+          (Export_info_for_pack.import_for_pack ~pack_units:(Lazy.force pack_units1)
              ~pack:(Compilenv.current_unit ())
-             (get_export_info ui))
+             (get_export_info_flambda1 ui))
           units
       in
       Flambda1 ui_export_info
+    else if Config.flambda2 then
+      let pack = Flambda2_compilenv_deps.Compilation_unit.get_current_exn () in
+      let flambda_export_info =
+        List.fold_left (fun acc info ->
+            Flambda2.Flambda_cmx_format.merge
+              (Flambda2.Flambda_cmx_format.update_for_pack ~pack_units:(Lazy.force pack_units2) ~pack
+                 (get_export_info_flambda2 info))
+              acc)
+          (Flambda2.Flambda_cmx_format.update_for_pack ~pack_units:(Lazy.force pack_units2) ~pack
+             (get_export_info_flambda2 ui))
+          units
+      in
+      Flambda2 flambda_export_info
     else
       Clambda (get_approx ui)
   in
