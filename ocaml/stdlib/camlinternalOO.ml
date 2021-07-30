@@ -23,6 +23,13 @@ open! Stdlib
 
 open Obj
 
+(* Prevent confusion between arrays and blocks *)
+module Array = struct
+  include Array
+  let unsafe_set t i v = unsafe_set (Sys.opaque_identity t) i v
+  let unsafe_get t i = unsafe_get (Sys.opaque_identity t) i
+end
+
 (**** Object representation ****)
 
 external set_id: 'a -> 'a = "caml_set_oo_id" [@@noalloc]
@@ -199,7 +206,7 @@ let get_method table label =
   with Not_found -> table.methods.(label)
 
 let to_list arr =
-  if arr == magic 0 then [] else Array.to_list arr
+  if arr == Sys.opaque_identity (magic 0) then [] else Array.to_list arr
 
 let narrow table vars virt_meths concr_meths =
   let vars = to_list vars
@@ -271,7 +278,7 @@ let new_variable table name =
     index
 
 let to_array arr =
-  if arr = Obj.magic 0 then [||] else arr
+  if arr = Sys.opaque_identity (Obj.magic 0) then [||] else arr
 
 let new_methods_variables table meths vals =
   let meths = to_array meths in
@@ -306,7 +313,7 @@ let get_key tags : item =
 *)
 
 let create_table public_methods =
-  if public_methods == magic 0 then new_table [||] else
+  if public_methods == Sys.opaque_identity (magic 0) then new_table [||] else
   (* [public_methods] must be in ascending order for bytecode *)
   let tags = Array.map public_method_label public_methods in
   let table = new_table tags in
@@ -429,7 +436,8 @@ let get_next = function
   | Cons tables -> tables.next
 
 let build_path n keys tables =
-  let res = Cons {key = Obj.magic 0; data = Empty; next = Empty} in
+  let obj_zero = Sys.opaque_identity (Obj.magic 0) in
+  let res = Cons {key = obj_zero; data = Empty; next = Empty} in
   let r = ref res in
   for i = 0 to n do
     r := Cons {key = keys.(i); data = !r; next = Empty}
@@ -518,7 +526,7 @@ let new_cache table =
     if n mod 2 = 0 || n > 2 + magic table.methods.(1) * 16 / Sys.word_size
     then n else new_method table
   in
-  table.methods.(n) <- Obj.magic 0;
+  table.methods.(n) <- Sys.opaque_identity (Obj.magic 0);
   n
 
 type impl =
