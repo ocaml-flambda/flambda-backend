@@ -36,7 +36,12 @@ let rec value_kind (vk : L.value_kind) =
   | Pboxedintval Pnativeint -> KS.boxed_nativeint
   | Pintval -> KS.tagged_immediate
   | Pblock { tag; fields } ->
-    KS.block (Tag.create_exn tag) (List.map value_kind fields)
+    (* If we have [Obj.double_array_tag] here, this is always an
+       all-float block, not an array. *)
+    if tag = Obj.double_array_tag then
+      KS.float_block ~num_fields:(List.length fields)
+    else
+      KS.block (Tag.create_exn tag) (List.map value_kind fields)
 
 let inline_attribute (attr : L.inline_attribute) : Inline_attribute.t =
   match attr with

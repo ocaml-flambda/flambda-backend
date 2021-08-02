@@ -376,6 +376,7 @@ module With_subkind = struct
       | Boxed_nativeint
       | Tagged_immediate
       | Block of { tag : Tag.t; fields : t list }
+      | Float_block of { num_fields : int; }
 
     include Container_types.Make (struct
       type nonrec t = t
@@ -402,10 +403,15 @@ module With_subkind = struct
           Format.fprintf ppf "@<0>%s=boxed_@<1>\u{2115}@<1>\u{2115}@<0>%s"
             colour (Flambda_colours.normal ())
         | Block { tag; fields } ->
-          Format.fprintf ppf "%s=Block{%a: %a}%s"
+          Format.fprintf ppf "@<0>%s=Block{%a: %a}@<0>%s"
             colour
             Tag.print tag
             (Format.pp_print_list ~pp_sep:Format.pp_print_space print) fields
+            (Flambda_colours.normal ())
+        | Float_block { num_fields; } ->
+          Format.fprintf ppf "@<0>%s=Float_block(%d)@<0>%s"
+            colour
+            num_fields
             (Flambda_colours.normal ())
 
       let compare = Stdlib.compare
@@ -436,7 +442,8 @@ module With_subkind = struct
       | Boxed_int64
       | Boxed_nativeint
       | Tagged_immediate
-      | Block _ ->
+      | Block _
+      | Float_block _ ->
         Misc.fatal_errorf "Only subkind %a is valid for kind %a"
           Subkind.print subkind
           print kind
@@ -458,11 +465,16 @@ module With_subkind = struct
   let boxed_nativeint = create value Boxed_nativeint
   let tagged_immediate = create value Tagged_immediate
   let rec_info = create rec_info Anything
+
   let block tag fields =
-    if List.exists (fun t -> not (equal t.kind Value)) fields then
-      Misc.fatal_error "Block with fields of kind not value";
+    if List.exists (fun t -> not (equal t.kind Value)) fields then begin
+      Misc.fatal_error "Block with fields of non-Value kind \
+        (use [Flambda_kind.With_subkind.float_block] for float records)"
+    end;
     let fields = List.map (fun t -> t.subkind) fields in
     create value (Block { tag; fields })
+
+  let float_block ~num_fields = create value (Float_block { num_fields; })
 
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =
     match naked_number_kind with
@@ -484,7 +496,7 @@ module With_subkind = struct
           Subkind.print subkind
       | (Naked_number _ | Fabricated | Rec_info),
         (Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-          | Tagged_immediate | Block _) ->
+          | Tagged_immediate | Block _ | Float_block _) ->
         assert false  (* see [create] *)
 
     let compare
@@ -512,6 +524,7 @@ module With_subkind = struct
     | Tagged_immediate
     | Rec_info
     | Block of { tag : Tag.t; fields : descr list }
+    | Float_block of { num_fields : int; }
 
   let rec subkind_descr (t : Subkind.t) : descr =
     match t with
@@ -523,6 +536,7 @@ module With_subkind = struct
     | Boxed_nativeint -> Boxed_nativeint
     | Block { tag; fields } ->
       Block { tag; fields = List.map subkind_descr fields }
+    | Float_block { num_fields; } -> Float_block { num_fields; }
 
   let descr t : descr =
     match t.kind with
@@ -548,9 +562,12 @@ module With_subkind = struct
       List.length fields1 = List.length fields2 &&
       List.for_all2 (fun d when_used_at -> compatible_descr d ~when_used_at)
         fields1 fields2
+    | Float_block { num_fields = num_fields1; },
+      Float_block { num_fields = num_fields2; } ->
+      num_fields1 = num_fields2
     (* Subkinds of [Value] may always be used at [Value], but not the
        converse: *)
-    | Block _, Any_value
+    | (Block _ | Float_block _), Any_value
     | Boxed_float, Any_value
     | Boxed_int32, Any_value
     | Boxed_int64, Any_value
@@ -558,7 +575,8 @@ module With_subkind = struct
     | Tagged_immediate, Any_value -> true
     (* All other combinations are incompatible. *)
     | (Any_value | Naked_number _ | Boxed_float | Boxed_int32 | Boxed_int64
-      | Boxed_nativeint | Tagged_immediate | Block _ | Rec_info), _ -> false
+      | Boxed_nativeint | Tagged_immediate | Block _ | Float_block _
+      | Rec_info), _ -> false
 
   let compatible t ~when_used_at =
     compatible_descr (descr t) ~when_used_at:(descr when_used_at)
@@ -571,5 +589,6 @@ module With_subkind = struct
     | Boxed_int64
     | Boxed_nativeint
     | Tagged_immediate
-    | Block _ -> true
+    | Block _
+    | Float_block _ -> true
 end

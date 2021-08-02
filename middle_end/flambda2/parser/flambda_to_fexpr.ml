@@ -377,6 +377,7 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
     | Block { tag; fields; } ->
       let fields = List.map convert fields in
       Block { tag; fields; }
+    | Float_block { num_fields; } -> Float_block { num_fields; }
     | Naked_number nnk -> Naked_number nnk
     | Boxed_float -> Boxed_float
     | Boxed_int32 -> Boxed_int32

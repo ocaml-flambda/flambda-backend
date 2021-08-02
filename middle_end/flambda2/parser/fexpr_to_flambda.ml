@@ -237,6 +237,7 @@ let rec value_kind_with_subkind (k : Fexpr.kind_with_subkind)
   | Any_value -> KWS.any_value
   | Block { tag; fields; } ->
     KWS.block tag (List.map value_kind_with_subkind fields)
+  | Float_block { num_fields; } -> KWS.float_block ~num_fields
   | Naked_number naked_number_kind ->
     begin
       match naked_number_kind with
