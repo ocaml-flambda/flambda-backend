@@ -35,7 +35,8 @@ print_newline ();;
 
 
 let b = Float_array.small_float_array 12
-let c = (Float_array.longer_float_array [@inlined]) 34
+(* CR xclerc for lmaurer: uncomment the `[@inlined]` annotation below. *)
+let c = (Float_array.longer_float_array (*[@inlined]*)) 34
 
 let print_array a =
   Array.iter (fun f ->
