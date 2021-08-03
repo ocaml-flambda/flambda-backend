@@ -47,7 +47,7 @@ let simplify_field_of_block dacc (field : Field_of_block.t) =
           field, ty)
 
 let simplify_or_variable dacc type_for_const
-      (or_variable : _ Or_variable.t) =
+      (or_variable : _ Or_variable.t) kind =
   let denv = DA.denv dacc in
   match or_variable with
   | Const const -> or_variable, type_for_const const
@@ -55,7 +55,7 @@ let simplify_or_variable dacc type_for_const
     (* CR mshinwell: This needs to check the type of the variable according
        to the various cases below. *)
     (* CR mshinwell: This should be calling [simplify_simple] *)
-    or_variable, DE.find_variable denv var
+    or_variable, TE.find (DE.typing_env denv) (Name.var var) (Some kind)
 
 let simplify_static_const_of_kind_value dacc
       (static_const : Static_const.t) ~result_sym
@@ -90,6 +90,7 @@ let simplify_static_const_of_kind_value dacc
   | Boxed_float or_var ->
     let or_var, ty =
       simplify_or_variable dacc (fun f -> T.this_boxed_float f) or_var
+        K.value
     in
     let dacc = bind_result_sym ty in
     Rebuilt_static_const.create_boxed_float (DA.are_rebuilding_terms dacc)
@@ -98,6 +99,7 @@ let simplify_static_const_of_kind_value dacc
   | Boxed_int32 or_var ->
     let or_var, ty =
       simplify_or_variable dacc (fun f -> T.this_boxed_int32 f) or_var
+        K.value
     in
     let dacc = bind_result_sym ty in
     Rebuilt_static_const.create_boxed_int32 (DA.are_rebuilding_terms dacc)
@@ -106,6 +108,7 @@ let simplify_static_const_of_kind_value dacc
   | Boxed_int64 or_var ->
     let or_var, ty =
       simplify_or_variable dacc (fun f -> T.this_boxed_int64 f) or_var
+        K.value
     in
     let dacc = bind_result_sym ty in
     Rebuilt_static_const.create_boxed_int64 (DA.are_rebuilding_terms dacc)
@@ -114,6 +117,7 @@ let simplify_static_const_of_kind_value dacc
   | Boxed_nativeint or_var ->
     let or_var, ty =
       simplify_or_variable dacc (fun f -> T.this_boxed_nativeint f) or_var
+        K.value
     in
     let dacc = bind_result_sym ty in
     Rebuilt_static_const.create_boxed_nativeint (DA.are_rebuilding_terms dacc)
@@ -122,7 +126,8 @@ let simplify_static_const_of_kind_value dacc
   | Immutable_float_block fields ->
     let fields_with_tys =
       List.map (fun field ->
-          simplify_or_variable dacc (fun f -> T.this_naked_float f) field)
+          simplify_or_variable dacc (fun f -> T.this_naked_float f) field
+            K.naked_float)
         fields
     in
     let fields, _field_tys = List.split fields_with_tys in
@@ -133,7 +138,8 @@ let simplify_static_const_of_kind_value dacc
   | Immutable_float_array fields ->
     let fields_with_tys =
       List.map (fun field ->
-          simplify_or_variable dacc (fun f -> T.this_naked_float f) field)
+          simplify_or_variable dacc (fun f -> T.this_naked_float f) field
+            K.naked_float)
         fields
     in
     let fields, _field_tys = List.split fields_with_tys in

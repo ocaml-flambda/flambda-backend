@@ -109,11 +109,14 @@ let lift dacc ty ~bound_to static_const =
   in
   Simplified_named.reachable term, dacc, var_ty
 
-let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~allow_lifting =
+let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
+      ~allow_lifting =
   let occ_kind = Var_in_binding_pos.name_mode bound_to in
   let bound_to = Var_in_binding_pos.var bound_to in
   let denv = DA.denv dacc in
-  let ty = DE.find_variable denv bound_to in
+  let ty =
+    TE.find (DE.typing_env denv) (Name.var bound_to) (Some kind_of_bound_to)
+  in
   match term with
   | Invalid _ ->
     let ty = T.bottom_like ty in
