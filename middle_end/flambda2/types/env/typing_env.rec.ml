@@ -1235,7 +1235,7 @@ let mem_code t id =
 let find_code t id =
   match Code_id.Map.find id t.all_code with
   | exception Not_found -> Exported_code.find_code (t.get_imported_code ()) id
-  | code -> code
+  | code -> Some code
 
 let code_age_relation t = t.code_age_relation
 

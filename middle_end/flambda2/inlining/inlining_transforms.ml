@@ -194,7 +194,14 @@ let inline dacc ~apply ~unroll_to function_decl =
   let apply_exn_continuation = Apply.exn_continuation apply in
   (* CR mshinwell: Add meet constraint to the return continuation *)
   let denv = DA.denv dacc in
-  let code = DE.find_code denv (I.code_id function_decl) in
+  let code =
+    match DE.find_code denv (I.code_id function_decl) with
+    | Some code -> code
+    | None ->
+      Misc.fatal_errorf "Cannot inline without the [Code.t] being available \
+          (this should have been caught earlier):@ %a"
+        Apply.print apply
+  in
   let rec_info =
     match T.prove_rec_info (DE.typing_env denv) (I.rec_info function_decl) with
     | Proved rec_info -> rec_info
