@@ -209,6 +209,10 @@ END {
         if (reran != 0){
             printf("  %3d test dir re-runs\n", reran);
         }
+        if (passed + skipped + failed + ignored + unexped + nresults == 0) {
+            printf("#### No tests at all; probably a mistake. \n\n");
+            exit 5;
+        }
         if (failed || unexped){
             printf("#### Something failed. Exiting with error status.\n\n");
             exit 4;
