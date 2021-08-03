@@ -939,7 +939,7 @@ module Magic_number = struct
     flambda : bool;
   }
   let native_obj_config = {
-    flambda = Config.flambda;
+    flambda = Config.flambda || Config.flambda2;
   }
 
   type version = int
