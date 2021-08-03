@@ -177,7 +177,7 @@ module Typing_env : sig
 
   val mem_code : t -> Code_id.t -> bool
 
-  val find_code : t -> Code_id.t -> Flambda.Code.t
+  val find_code : t -> Code_id.t -> Flambda.Code.t option
 
   val code_age_relation : t -> Code_age_relation.t
 

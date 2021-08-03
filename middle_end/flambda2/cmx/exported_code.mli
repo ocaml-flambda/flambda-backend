@@ -45,7 +45,7 @@ val merge : t -> t -> t
 
 val mem : Code_id.t -> t -> bool
 
-val find_code : t -> Code_id.t -> Flambda.Code.t
+val find_code : t -> Code_id.t -> Flambda.Code.t option
 
 val find_code_if_not_imported : t -> Code_id.t -> Flambda.Code.t option
 
