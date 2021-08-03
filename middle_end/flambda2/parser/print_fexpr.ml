@@ -144,6 +144,7 @@ let kind_with_subkind ppf (k : kind_with_subkind) =
   match k with
   | Any_value -> str "val"
   | Block _ -> str "block" (* CR mshinwell: improve this *)
+  | Float_block _ -> str "float_block"
   | Naked_number nnk -> naked_number_kind ppf nnk
   | Boxed_float -> str "float boxed"
   | Boxed_int32 -> str "int32 boxed"

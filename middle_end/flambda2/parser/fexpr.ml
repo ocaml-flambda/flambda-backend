@@ -99,6 +99,7 @@ type kind = (* can't alias because Flambda_kind.t is private *)
 type kind_with_subkind = (* can't alias for same reason as [kind] *)
   | Any_value
   | Block of { tag : Tag.t; fields : kind_with_subkind list }
+  | Float_block of { num_fields : int; }
   | Naked_number of naked_number_kind
   | Boxed_float
   | Boxed_int32
