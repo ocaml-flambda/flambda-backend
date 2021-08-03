@@ -80,15 +80,14 @@ let rec unknown_with_descr (descr : Flambda_kind.With_subkind.descr) =
   | Tagged_immediate -> any_tagged_immediate ()
   | Rec_info -> any_rec_info ()
   | Block { tag; fields } ->
-    let field_kind, fields =
-      if Tag.equal Tag.double_array_tag tag then
-        Flambda_kind.naked_float,
-        List.map (fun _ -> any_naked_float ()) fields
-      else
-        Flambda_kind.value,
-        List.map unknown_with_descr fields
-    in
-    immutable_block ~is_unique:false tag ~field_kind ~fields
+    assert (not (Tag.equal tag Tag.double_array_tag));
+    immutable_block ~is_unique:false tag
+      ~field_kind:Flambda_kind.value
+      ~fields:(List.map unknown_with_descr fields)
+  | Float_block { num_fields; } ->
+    immutable_block ~is_unique:false Tag.double_array_tag
+      ~field_kind:Flambda_kind.naked_float
+      ~fields:(List.init num_fields (fun _ -> any_naked_float ()))
 
 let unknown_with_subkind kind =
   unknown_with_descr (Flambda_kind.With_subkind.descr kind)
