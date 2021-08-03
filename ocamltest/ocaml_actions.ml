@@ -864,19 +864,26 @@ let compare_programs backend comparison_tool log env =
     (Result.pass_with_reason reason, env)
   end else really_compare_programs backend comparison_tool log env
 
-let make_bytecode_programs_comparison_tool =
+(* See CR in compare_bytecode_programs_code below.
+let _make_bytecode_programs_comparison_tool =
   let ocamlrun = Ocaml_files.ocamlrun in
   let cmpbyt = Ocaml_files.cmpbyt in
   let tool_name = ocamlrun ^ " " ^ cmpbyt in
-  Filecompare.make_comparison_tool tool_name ""
+  Filecompare.make_comparison_tool tool_name ""*)
 
 let native_programs_comparison_tool = Filecompare.default_comparison_tool
 
-let compare_bytecode_programs_code log env =
+let compare_bytecode_programs_code _log env : Result.t * Environments.t =
+  (* CR xclerc: consider re-enabling the test if it can be made robust enough.
+     Currently, ocamlc.byte and ocamlc.opt (flambda2) sometimes generate equivalent
+     cmi files whose contents differ because of sharing; the resulting difference
+     is propagated through digests to the bytecode executables.
   let bytecode_programs_comparison_tool =
     make_bytecode_programs_comparison_tool in
   compare_programs
     Ocaml_backends.Bytecode bytecode_programs_comparison_tool log env
+  *)
+  Result.pass_with_reason "comparing of bytecode programs is disabled", env
 
 let compare_bytecode_programs =
   native_action
