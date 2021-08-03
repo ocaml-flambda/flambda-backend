@@ -379,7 +379,7 @@ runtest-upstream:
 	  && if $$(which parallel > /dev/null 2>&1); \
              then \
                if [ -f ../is-flambda2 ]; then \
-                 make list-parallel FILE=$$(pwd)/../flambda2-test-list; \
+                 make parallel-list FILE=$$(pwd)/../flambda2-test-list; \
 	       else \
                  make parallel; \
                fi \
