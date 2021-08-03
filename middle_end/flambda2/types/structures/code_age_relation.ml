@@ -108,16 +108,21 @@ let has_at_most_one_newer_version t id =
       Exactly_one_newer_version newer
     | None -> More_than_one_newer_version
 
-let rec newer_versions_form_linear_chain t id ~all_code_ids_still_existing =
+let newer_versions_form_linear_chain t id ~all_code_ids_still_existing =
   if not (Code_id.Set.mem id all_code_ids_still_existing) then true
   else
     match has_at_most_one_newer_version t id with
     | No_newer_version -> true
-    | Exactly_one_newer_version id ->
-      newer_versions_form_linear_chain t id ~all_code_ids_still_existing
+    | Exactly_one_newer_version _ ->
+      (* It doesn't matter if the chain continues linearly then branches
+         after a subsequent code ID; any join won't get back as far as
+         the current code ID.  It's important to return [true] in this
+         case to avoid unsimplified code being used during simplification,
+         since it does not contain correct free name information. *)
+      true
     | More_than_one_newer_version -> false
 
-let rec newer_versions_form_linear_chain' t id
+let newer_versions_form_linear_chain' t id
       ~all_free_names_still_existing =
   if (not (Name_occurrences.mem_code_id all_free_names_still_existing id))
     && (not (Name_occurrences.mem_newer_version_of_code_id
@@ -126,8 +131,7 @@ let rec newer_versions_form_linear_chain' t id
   else
     match has_at_most_one_newer_version t id with
     | No_newer_version -> true
-    | Exactly_one_newer_version id ->
-      newer_versions_form_linear_chain' t id ~all_free_names_still_existing
+    | Exactly_one_newer_version _ -> true
     | More_than_one_newer_version -> false
 
 let union t1 t2 =
