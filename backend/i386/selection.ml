@@ -89,7 +89,7 @@ let rec float_needs = function
       let n1 = float_needs arg1 in
       let n2 = float_needs arg2 in
       if n1 = n2 then 1 + n1 else if n1 > n2 then n1 else n2
-  | Cop(Cextcall { name = fn }, args, _dbg)
+  | Cop(Cextcall { func = fn }, args, _dbg)
     when !fast_math && List.mem fn inline_float_ops ->
       begin match args with
         [arg] -> float_needs arg
@@ -168,7 +168,7 @@ method is_immediate_test _cmp _n = true
 
 method! is_simple_expr e =
   match e with
-  | Cop(Cextcall { name = fn; }, args, _)
+  | Cop(Cextcall { func = fn; }, args, _)
     when !fast_math && List.mem fn inline_float_ops ->
       (* inlined float ops are simple if their arguments are *)
       List.for_all self#is_simple_expr args
@@ -177,7 +177,7 @@ method! is_simple_expr e =
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall { name = fn; }, args, _)
+  | Cop(Cextcall { func = fn; }, args, _)
     when !fast_math && List.mem fn inline_float_ops ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | _ ->
@@ -239,7 +239,7 @@ method! select_operation op args dbg =
           super#select_operation op args dbg
       end
   (* Recognize inlined floating point operations *)
-  | Cextcall { name = fn; alloc = false; _ }
+  | Cextcall { func = fn; alloc = false; _ }
     when !fast_math && List.mem fn inline_float_ops ->
       (Ispecific(Ifloatspecial fn), args)
   (* Default *)
