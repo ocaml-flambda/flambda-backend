@@ -41,6 +41,8 @@ module Make (Index : Product_intf.Index) = struct
 
   let print_with_cache ~cache:_ ppf t = print ppf t
 
+  let fields_kind t = t.kind
+
   let create kind components_by_index =
     (* CR mshinwell: Check that the types are all of the same kind *)
     { components_by_index;
@@ -185,6 +187,8 @@ module Int_indexed = struct
       (Array.to_list t.fields)
 
   let print_with_cache ~cache:_ ppf t = print ppf t
+
+  let fields_kind t = t.kind
 
   let create_from_list kind tys = {
     kind;

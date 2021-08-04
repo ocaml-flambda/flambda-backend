@@ -50,6 +50,9 @@ struct
 
   type case = {
     maps_to : Maps_to.t;
+    (** kinds different than value are only allowed in cases with known tags.
+        Currently tag 254 must have fields of kind float and all other must have
+        fields of kind value. *)
     index : index;
     env_extension : TEE.t;
   }
@@ -279,6 +282,10 @@ struct
         | At_least i1', At_least i2' ->
           At_least (Index.inter i1' i2')
       in
+      let matching_kinds case1 case2 =
+        Flambda_kind.equal (Maps_to.fields_kind case1.maps_to)
+          (Maps_to.fields_kind case2.maps_to)
+      in
       let join_case env case1 case2 =
         let index = join_index case1.index case2.index in
         let maps_to = Maps_to.join env case1.maps_to case2.maps_to in
@@ -289,11 +296,12 @@ struct
         { maps_to; index; env_extension }
       in
       let join_knowns_tags case1 case2 : case option =
+        (* We assume that if tags are equals, the products will
+           contains values of the same kinds. *)
         match case1, case2 with
         | None, None -> None
         | Some case1, None -> begin
-            match other2 with
-            | Bottom ->
+            let only_case1 () =
               (* CF Type_descr.join_head_or_unknown_or_bottom,
                  we need to join those to ensure that free variables not
                  present in the target env are cleaned out of the types.
@@ -307,12 +315,19 @@ struct
               in
               let case1 = join_case env case1 case1 in
               Some case1
+            in
+            match other2 with
+            | Bottom ->
+              only_case1 ()
             | Ok other_case ->
-              Some (join_case env case1 other_case)
+              if matching_kinds case1 other_case then
+                Some (join_case env case1 other_case)
+              else
+                (* If kinds don't match, the tags can't match *)
+                only_case1 ()
           end
         | None, Some case2 -> begin
-            match other1 with
-            | Bottom ->
+            let only_case2 () =
               (* See at the other bottom case *)
               let env =
                 Join_env.create
@@ -322,8 +337,15 @@ struct
               in
               let case2 = join_case env case2 case2 in
               Some case2
+            in
+            match other1 with
+            | Bottom ->
+              only_case2 ()
             | Ok other_case ->
-              Some (join_case env other_case case2)
+              if matching_kinds other_case case2 then
+                Some (join_case env other_case case2)
+              else
+                only_case2 ()
           end
         | Some case1, Some case2 ->
           Some (join_case env case1 case2)
