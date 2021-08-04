@@ -247,9 +247,11 @@ module Int_indexed = struct
 
   let join env t1 t2 =
     if not (Flambda_kind.equal t1.kind t2.kind) then begin
+      failwith "mismatching kinds" (* XXX temporary *)
+        (*
       Misc.fatal_errorf "Product.Int_indexed.join between mismatching \
                          kinds %a and %a@."
-        Flambda_kind.print t1.kind Flambda_kind.print t2.kind
+        Flambda_kind.print t1.kind Flambda_kind.print t2.kind *)
     end;
     let fields1 = t1.fields in
     let fields2 = t2.fields in

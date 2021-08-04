@@ -340,7 +340,9 @@ let join_variant env
     Known (Blocks.join env b1 b2)
   in
   let blocks =
-    join_unknown blocks_join env blocks1 blocks2
+    try (* XXX temporary *)
+      join_unknown blocks_join env blocks1 blocks2
+    with (Failure _) -> Or_unknown.Unknown
   in
   let imms =
     join_unknown (T.join ?bound_name:None) env imms1 imms2
