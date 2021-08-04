@@ -20,7 +20,7 @@ open! Stdlib
 [@@@ocaml.afl_inst_ratio 0]
 
 let magic x = Sys.opaque_identity (Obj.magic x)
-let obj x = Sys.opaque_identity (Obj.obj x)
+let of_repr x = Sys.opaque_identity (Obj.obj x)
 
 let repr = Obj.repr
 let dup = Obj.dup
@@ -40,7 +40,7 @@ external set_id: 'a -> 'a = "caml_set_oo_id" [@@noalloc]
 (**** Object copy ****)
 
 let copy o =
-  let o = (obj (dup (repr o))) in
+  let o = (of_repr (dup (repr o))) in
   set_id o
 
 (**** Compression options ****)
@@ -136,7 +136,7 @@ let dummy_table =
 let table_count = ref 0
 
 (* dummy_met should be a pointer, so use an atom *)
-let dummy_met : item = obj (new_block 0 0)
+let dummy_met : item = of_repr (new_block 0 0)
 (* if debugging is needed, this could be a good idea: *)
 (* let dummy_met () = failwith "Undefined method" *)
 
@@ -368,18 +368,18 @@ let dummy_class loc =
 
 let create_object table =
   (* XXX Appel de [obj_block] | Call to [obj_block]  *)
-  let obj_ = new_block Obj.object_tag table.size in
+  let obj = new_block Obj.object_tag table.size in
   (* XXX Appel de [caml_modify] | Call to [caml_modify] *)
-  set_field obj_ 0 (repr table.methods);
-  obj (set_id obj_)
+  set_field obj 0 (repr table.methods);
+  of_repr (set_id obj)
 
 let create_object_opt obj_0 table =
   if (magic obj_0 : bool) then obj_0 else begin
     (* XXX Appel de [obj_block] | Call to [obj_block]  *)
-    let obj_ = new_block Obj.object_tag table.size in
+    let obj = new_block Obj.object_tag table.size in
     (* XXX Appel de [caml_modify] | Call to [caml_modify] *)
-    set_field obj_ 0 (repr table.methods);
-    obj (set_id obj_)
+    set_field obj 0 (repr table.methods);
+    of_repr (set_id obj)
   end
 
 let rec iter_f obj =
