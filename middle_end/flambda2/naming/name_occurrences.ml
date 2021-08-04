@@ -108,10 +108,12 @@ end = struct
       t land 0xfffff
 
     let num_occurrences_in_types t =
-      (t land 0xfffff_00000) lsr 20
+      (* The constant is computed to avoid problems when the host system
+         is 32 bit. *)
+      (t land (0xfffff lsl 20)) lsr 20
 
     let num_occurrences_phantom t =
-      (t land 0xfffff_00000_00000) lsr 40
+      (t land (0xfffff lsl 40)) lsr 40
 
     let encode_normal_occurrences num =
       assert (num >= 0 && num <= 0xfffff);  (* CR mshinwell: proper error *)
@@ -129,10 +131,10 @@ end = struct
       num land (lnot 0xfffff)
 
     let without_in_types_occurrences num =
-      num land (lnot 0xfffff_00000)
+      num land (lnot (0xfffff lsl 20))
 
     let without_phantom_occurrences num =
-      num land (lnot 0xfffff_00000_00000)
+      num land (lnot (0xfffff lsl 40))
 
     let to_map t =
       Kind.Map.empty
