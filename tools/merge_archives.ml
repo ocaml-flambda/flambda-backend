@@ -75,11 +75,7 @@ let merge_cmxa ~target ~archives =
   close_out chan
 
 let has_extension archive ~ext =
-  let ext = "." ^ ext in
-  let ext_len = String.length ext in
-  let archive_len = String.length archive in
-  archive_len > ext_len
-   && String.equal (String.sub archive (archive_len - ext_len) ext_len) ext
+  Filename.check_suffix archive ("." ^ ext)
 
 let syntax () =
   Printf.eprintf "syntax: %s TARGET-CMX-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"

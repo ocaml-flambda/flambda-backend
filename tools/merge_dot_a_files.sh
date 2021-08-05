@@ -29,6 +29,8 @@ fi
 files=$(mktemp)
 tempdir=$(mktemp -d)
 
+trap "rm -rf $tempdir $files" EXIT
+
 for archive in $archives; do
   archive=$(absolute_path $archive)
   ar t $archive | grep '\.o$' >> $files
@@ -38,7 +40,4 @@ done
 cd $tempdir
 rm -f $target
 
-ar r $target $(cat $files)
-
-rm -rf $tempdir
-rm -f $files
+ar rD $target $(cat $files)
