@@ -153,9 +153,9 @@
     %{targets}
     %{dep:middle_end/flambda2/compilenv_deps/flambda2_compilenv_deps.a}
     %{dep:middle_end/flambda2/flambda2.a}
+    %{dep:ocamloptcomp.a}
     %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
     %{dep:middle_end/flambda2/backend_intf/flambda2_backend_impl.a}
-    %{dep:ocamloptcomp.a}
   ))
 )
 
@@ -165,9 +165,9 @@
     %{targets}
     %{dep:middle_end/flambda2/compilenv_deps/flambda2_compilenv_deps.cmxa}
     %{dep:middle_end/flambda2/flambda2.cmxa}
+    %{dep:ocamloptcomp.cmxa}
     %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
     %{dep:middle_end/flambda2/backend_intf/flambda2_backend_impl.cmxa}
-    %{dep:ocamloptcomp.cmxa}
   ))
 )
 
