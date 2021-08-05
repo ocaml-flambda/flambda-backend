@@ -46,6 +46,8 @@ val function_decl_types : t -> Function_declaration_type.t Closure_id.Map.t
 
 val closure_var_types : t -> Type_grammar.t Var_within_closure.Map.t
 
+val fields_kind : t -> Flambda_kind.t
+
 include Type_structure_intf.S
   with type t := t
   with type flambda_type := Type_grammar.t

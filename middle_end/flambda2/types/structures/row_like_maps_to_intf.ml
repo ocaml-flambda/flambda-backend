@@ -28,6 +28,8 @@ module type S = sig
 
   type t
 
+  val fields_kind : t -> Flambda_kind.t
+
   include Type_structure_intf.S
     with type t := t
     with type flambda_type := flambda_type
