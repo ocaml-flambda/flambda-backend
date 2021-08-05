@@ -52,6 +52,5 @@
 (executable
   (name merge_archives)
   (modes native)
-  (flags -nostdlib)
   (modules merge_archives)
   (libraries ocamlcommon ocamlbytecomp ocamloptcomp runtime_native))
