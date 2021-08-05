@@ -41,6 +41,8 @@ module Make (Index : Product_intf.Index) = struct
 
   let print_with_cache ~cache:_ ppf t = print ppf t
 
+  let fields_kind t = t.kind
+
   let create kind components_by_index =
     (* CR mshinwell: Check that the types are all of the same kind *)
     { components_by_index;
@@ -186,6 +188,8 @@ module Int_indexed = struct
 
   let print_with_cache ~cache:_ ppf t = print ppf t
 
+  let fields_kind t = t.kind
+
   let create_from_list kind tys = {
     kind;
     fields = Array.of_list tys;
@@ -247,11 +251,9 @@ module Int_indexed = struct
 
   let join env t1 t2 =
     if not (Flambda_kind.equal t1.kind t2.kind) then begin
-      failwith "mismatching kinds" (* XXX temporary *)
-        (*
       Misc.fatal_errorf "Product.Int_indexed.join between mismatching \
                          kinds %a and %a@."
-        Flambda_kind.print t1.kind Flambda_kind.print t2.kind *)
+        Flambda_kind.print t1.kind Flambda_kind.print t2.kind
     end;
     let fields1 = t1.fields in
     let fields2 = t2.fields in

@@ -214,3 +214,5 @@ let map_closure_types
         closure_types;
         closure_var_types;
       })
+
+let fields_kind _ = Flambda_kind.value

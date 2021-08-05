@@ -37,6 +37,8 @@ module type S_base = sig
 
   val project : t -> Index.t -> flambda_type Or_unknown.t
 
+  val fields_kind : t -> Flambda_kind.t
+
   include Type_structure_intf.S
     with type t := t
     with type flambda_type := flambda_type
