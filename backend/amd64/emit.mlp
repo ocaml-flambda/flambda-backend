@@ -1443,7 +1443,7 @@ let emit_probe_notes0 probes =
       D.qword (const 0)
     end;
     D.qword (ConstLabel semaphore_label);
-    D.bytes "ocaml.1\000";
+    D.bytes "ocaml.2\000";
     D.bytes (p.probe_name ^ "\000");
     D.bytes (args ^ "\000");
     def_label d;
