@@ -364,9 +364,9 @@ and subst_static_consts env (g : Static_const.Group.t) =
   Static_const.Group.map g ~f:(subst_static_const env)
 and subst_bindable_let_bound env (blb : Bindable_let_bound.t) =
   match blb with
-  | Symbols { bound_symbols; scoping_rule } ->
+  | Symbols { bound_symbols } ->
     let bound_symbols = subst_bound_symbols env bound_symbols in
-    Bindable_let_bound.symbols bound_symbols scoping_rule
+    Bindable_let_bound.symbols bound_symbols
   | _ ->
     blb
 and subst_bound_symbols env bound_symbols =
@@ -1220,14 +1220,6 @@ and let_symbol_exprs env
   ((bound_symbols2 : Bindable_let_bound.symbols), static_consts2, body2)
     : Expr.t Comparison.t =
   let ok = ref true in
-  let scoping_rule1 = bound_symbols1.scoping_rule in
-  let scoping_rule2 = bound_symbols2.scoping_rule in
-  begin
-    match scoping_rule1, scoping_rule2 with
-    | Syntactic, Syntactic
-    | Dominator, Dominator -> ()
-    | _, _ -> ok := false
-  end;
   let bound_symbols1 = bound_symbols1.bound_symbols in
   let bound_symbols2 = bound_symbols2.bound_symbols in
   let bound_symbols1' : Bound_symbols.t =
@@ -1251,7 +1243,7 @@ and let_symbol_exprs env
     else
       let approximant =
         Let.create
-          (Bindable_let_bound.symbols bound_symbols1' scoping_rule1)
+          (Bindable_let_bound.symbols bound_symbols1')
           (Named.create_static_consts static_consts1')
           ~body:body1'
           ~free_names_of_body:Unknown

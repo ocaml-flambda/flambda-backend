@@ -599,8 +599,8 @@ and let_expr env le =
       dynamic_let_expr env [ var ] defining_expr body
     | Set_of_closures { closure_vars; _ } ->
       dynamic_let_expr env closure_vars defining_expr body
-    | Symbols { bound_symbols; scoping_rule } ->
-      static_let_expr env bound_symbols scoping_rule defining_expr body
+    | Symbols { bound_symbols } ->
+      static_let_expr env bound_symbols defining_expr body
   )
 and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body
       : Fexpr.expr =
@@ -632,7 +632,7 @@ and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body
       { Fexpr.var; defining_expr }
     ) vars defining_exprs in
   Let { bindings; closure_elements; body }
-and static_let_expr env bound_symbols scoping_rule defining_expr body
+and static_let_expr env bound_symbols defining_expr body
   : Fexpr.expr =
   let static_consts =
     match defining_expr with
@@ -757,11 +757,6 @@ and static_let_expr env bound_symbols scoping_rule defining_expr body
         Flambda.Static_const.print const
   in
   let bindings = List.map2 translate_const bound_symbols static_consts in
-  let scoping_rule =
-    match scoping_rule with
-    | Symbol_scoping_rule.Syntactic -> None
-    | Symbol_scoping_rule.Dominator -> Some Symbol_scoping_rule.Dominator
-  in
   let body = expr env body in
   (* If there's exactly one set of closures, make it implicit *)
   let only_set_of_closures =
@@ -781,7 +776,7 @@ and static_let_expr env bound_symbols scoping_rule defining_expr body
   in
   match only_set_of_closures with
   | None ->
-    Let_symbol { bindings; closure_elements = None; scoping_rule; body }
+    Let_symbol { bindings; closure_elements = None; body }
   | Some { bindings = _; elements = closure_elements } ->
     let bindings =
       List.concat_map (fun (binding : Fexpr.symbol_binding) ->
@@ -792,7 +787,7 @@ and static_let_expr env bound_symbols scoping_rule defining_expr body
           [ binding ]
       ) bindings
     in
-    Let_symbol { bindings; closure_elements; scoping_rule; body }
+    Let_symbol { bindings; closure_elements; body }
 
 and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
   match lc with

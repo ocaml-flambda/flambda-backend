@@ -46,7 +46,6 @@ let keyword_table =
     "deleted", KWD_DELETED;
     "depth", KWD_DEPTH;
     "direct", KWD_DIRECT;
-    "dominator_scoped", KWD_DOMINATOR_SCOPED;
     "done", KWD_DONE;
     "dynamic", KWD_DYNAMIC;
     "end", KWD_END;

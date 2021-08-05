@@ -50,8 +50,6 @@ val make_new_let_bindings
     free names of the [body]. *)
 val create_let_symbols
    : Upwards_acc.t
-  -> Symbol_scoping_rule.t
-  -> Code_age_relation.t
   -> Lifted_constant.t
   -> body:Rebuilt_expr.t
   -> Rebuilt_expr.t * Upwards_acc.t
@@ -63,7 +61,6 @@ val create_let_symbols
     free names of the [body]. *)
 val place_lifted_constants
    : Upwards_acc.t
-  -> Symbol_scoping_rule.t
   -> lifted_constants_from_defining_expr:Lifted_constant_state.t
   -> lifted_constants_from_body:Lifted_constant_state.t
   -> put_bindings_around_body:

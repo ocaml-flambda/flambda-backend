@@ -16,7 +16,6 @@
 
 type symbols = {
   bound_symbols : Bound_symbols.t;
-  scoping_rule : Symbol_scoping_rule.t;
 }
 
 type t =
@@ -40,13 +39,11 @@ include Container_types.Make (struct
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
           Var_in_binding_pos.print)
         closure_vars
-    | Symbols { bound_symbols; scoping_rule; } ->
+    | Symbols { bound_symbols } ->
       Format.fprintf ppf "@[<hov 1>\
-          @[(bound_symbols@ %a)@]@ \
-          @[(scoping_rule@ %a)@]\
+          @[(bound_symbols@ %a)@]\
           )@]"
         Bound_symbols.print bound_symbols
-        Symbol_scoping_rule.print scoping_rule
 
   (* The following would only be required if using
      [Name_abstraction.Make_map], which we don't with this module. *)
@@ -78,7 +75,7 @@ let free_names t =
           Name_mode.normal)
       Name_occurrences.empty
       closure_vars
-  | Symbols { bound_symbols; scoping_rule = _; } ->
+  | Symbols { bound_symbols; } ->
     Bound_symbols.free_names bound_symbols
 
 let rec map_sharing f l0 =
@@ -103,12 +100,12 @@ let apply_renaming t perm =
     in
     if closure_vars == closure_vars' then t
     else Set_of_closures { name_mode; closure_vars = closure_vars'; }
-  | Symbols { bound_symbols; scoping_rule; } ->
+  | Symbols { bound_symbols; } ->
     let bound_symbols' =
       Bound_symbols.apply_renaming bound_symbols perm
     in
     if bound_symbols == bound_symbols' then t
-    else Symbols { scoping_rule; bound_symbols = bound_symbols'; }
+    else Symbols { bound_symbols = bound_symbols'; }
 
 let all_ids_for_export t =
   match t with
@@ -120,7 +117,7 @@ let all_ids_for_export t =
         Ids_for_export.add_variable ids (Var_in_binding_pos.var var))
       Ids_for_export.empty
       closure_vars
-  | Symbols { bound_symbols; scoping_rule = _; } ->
+  | Symbols { bound_symbols; } ->
     Bound_symbols.all_ids_for_export bound_symbols
 
 let rename t =
@@ -194,8 +191,8 @@ let set_of_closures ~closure_vars =
         Var_in_binding_pos.print)
       closure_vars
 
-let symbols bound_symbols scoping_rule =
-  Symbols { bound_symbols; scoping_rule; }
+let symbols bound_symbols =
+  Symbols { bound_symbols; }
 
 let name_mode t =
   match t with
@@ -260,8 +257,3 @@ let all_bound_vars' t =
   | Set_of_closures { closure_vars; _ } ->
     Variable.Set.of_list (List.map Var_in_binding_pos.var closure_vars)
   | Symbols _ -> Variable.Set.empty
-
-let let_symbol_scoping_rule t =
-  match t with
-  | Singleton _ | Set_of_closures _ -> None
-  | Symbols { scoping_rule; _ } -> Some scoping_rule

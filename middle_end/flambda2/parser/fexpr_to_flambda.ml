@@ -656,7 +656,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~scrutinee:(simple env scrutinee)
         ~arms)
 
-  | Let_symbol { bindings; closure_elements; scoping_rule; body } ->
+  | Let_symbol { bindings; closure_elements; body } ->
     (* Desugar the abbreviated form for a single set of closures *)
     let found_explicit_set = ref false in
     let closures_in_implicit_set =
@@ -866,9 +866,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       List.map (static_const env) bindings
       |> Flambda.Static_const.Group.create
     in
-    let scoping_rule = scoping_rule |> Option.value ~default:Fexpr.Syntactic in
     let body = expr env body in
-    Flambda.Let.create (Bindable_let_bound.symbols bound_symbols scoping_rule)
+    Flambda.Let.create (Bindable_let_bound.symbols bound_symbols)
       (Flambda.Named.create_static_consts static_consts)
       ~body
       ~free_names_of_body:Unknown

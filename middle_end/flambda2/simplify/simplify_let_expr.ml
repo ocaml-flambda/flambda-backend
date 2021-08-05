@@ -18,9 +18,44 @@
 
 open! Simplify_import
 
-let rebuild_let symbol_scoping_rule simplify_named_result
+let rebuild_let simplify_named_result
       removed_operations ~lifted_constants_from_defining_expr
-      ~at_unit_toplevel ~body uacc ~after_rebuild =
+      ~at_unit_toplevel ~(closure_info:Closure_info.t)
+      ~body uacc ~after_rebuild =
+  let lifted_constants_from_defining_expr =
+    match closure_info with
+  | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+    assert false
+  | Closure _ ->
+    lifted_constants_from_defining_expr
+  | Not_in_a_closure -> begin
+      (* TODO: do only if we are actually rebuilding terms *)
+      LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
+        ~f:(fun acc lifted_constant ->
+          let bound = LC.bound_symbols lifted_constant in
+          let code_id_live =
+            match UA.reachable_code_ids uacc with
+            | Unknown ->
+              Bound_symbols.binds_code bound
+            | Known { live_code_ids = _; ancestors_of_live_code_id; } ->
+              not (Code_id.Set.intersection_is_empty
+                     (Bound_symbols.code_being_defined bound)
+                     ancestors_of_live_code_id)
+          in
+          let symbol_live =
+            not (Name.Set.intersection_is_empty
+                   (Name.set_of_symbol_set (Bound_symbols.being_defined bound))
+                   (UA.required_names uacc))
+          in
+          if symbol_live || code_id_live then
+            LCS.add acc lifted_constant
+          else
+            acc)
+    end
+  in
+  let lifted_constants_from_defining_expr =
+    Sort_lifted_constants.sort lifted_constants_from_defining_expr
+  in
   (* At this point, the free names in [uacc] are the free names of [body],
      plus all used closure vars seen in the whole compilation unit. *)
   let no_constants_from_defining_expr =
@@ -57,11 +92,6 @@ let rebuild_let symbol_scoping_rule simplify_named_result
     (* The let binding was removed. *)
     after_rebuild body uacc
   else
-    let scoping_rule =
-      (* We use [Dominator] scoping for any symbol bindings we place, as the
-         types of the symbols may have been used out of syntactic scope. *)
-      Option.value ~default:Symbol_scoping_rule.Dominator symbol_scoping_rule
-    in
     let critical_deps_of_bindings =
       ListLabels.fold_left bindings
         ~init:Name_occurrences.empty
@@ -71,7 +101,6 @@ let rebuild_let symbol_scoping_rule simplify_named_result
     in
     let body, uacc =
       EB.place_lifted_constants uacc
-        scoping_rule
         ~lifted_constants_from_defining_expr
         ~lifted_constants_from_body
         ~put_bindings_around_body:
@@ -86,9 +115,6 @@ let rebuild_let symbol_scoping_rule simplify_named_result
 let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
   let module L = Flambda.Let in
   L.pattern_match let_expr ~f:(fun bindable_let_bound ~body ->
-    let symbol_scoping_rule =
-      Bindable_let_bound.let_symbol_scoping_rule bindable_let_bound
-    in
     (* Remember then clear the lifted constants memory in [DA] so we can
        easily find out which constants are generated during simplification
        of the defining expression and the [body]. *)
@@ -112,18 +138,78 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
     let dacc =
       DA.map_data_flow dacc ~f:(fun data_flow ->
         let data_flow =
-          LCS.fold (DA.get_lifted_constants dacc)
-            ~init:data_flow ~f:(fun data_flow lifted_constant ->
-              Data_flow.add_used_in_current_handler
-                (LC.free_names_of_defining_exprs lifted_constant) data_flow)
+          match DE.closure_info (DA.denv dacc) with
+          | Closure _ ->
+            (* lifted constants defined in a closure appear twice when simplifying
+               terms: once at their "definition" in the source, and once when
+               we finish simplifying the closure and we continue the simplification
+               at toplevel. Thus, when we are inside a closure we don't need to record
+               those dependencies: indeed we need the dependencies at toplevel
+               where the lifted constants will be placed, but not in the closure,
+               so it's better to have those dependencies in the dataflow at toplevel
+               rather than the data_flow inside the closure. *)
+            data_flow
+          | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
+            assert false
+          | Not_in_a_closure ->
+            LCS.fold (DA.get_lifted_constants dacc)
+              ~init:data_flow ~f:(fun data_flow lifted_constant ->
+                ListLabels.fold_left (LC.definitions lifted_constant)
+                  ~init:data_flow ~f:(fun data_flow definition ->
+                    match LC.Definition.descr definition with
+                    | Code code_id ->
+                      let free_names = LC.Definition.free_names definition in
+                      Data_flow.record_code_id_binding code_id free_names data_flow
+                    | Block_like { symbol; _ } ->
+                      let free_names = LC.Definition.free_names definition in
+                      Data_flow.record_symbol_binding symbol free_names data_flow
+                    | Set_of_closures { closure_symbols_with_types; _ } ->
+                      let expr = LC.Definition.defining_expr definition in
+                      match Rebuilt_static_const.to_const expr with
+                      | Some (Set_of_closures set_of_closures) ->
+                        let free_names =
+                          Function_declarations.free_names
+                            (Set_of_closures.function_decls set_of_closures)
+                        in
+                        let closure_elements =
+                          Set_of_closures.closure_elements set_of_closures
+                        in
+                        Closure_id.Lmap.fold (fun _ (symbol, _) data_flow ->
+                          let data_flow =
+                            Data_flow.record_symbol_binding symbol free_names data_flow
+                          in
+                          Var_within_closure.Map.fold (fun closure_var simple data_flow ->
+                            Data_flow.record_closure_element_binding
+                              (Name.symbol symbol) closure_var
+                              (Simple.free_names simple) data_flow)
+                            closure_elements data_flow
+                        ) closure_symbols_with_types data_flow
+                      | Some (
+                        Code _
+                        | Block _
+                        | Boxed_float _
+                        | Boxed_int32 _
+                        | Boxed_int64 _
+                        | Boxed_nativeint _
+                        | Immutable_float_block _
+                        | Immutable_float_array _
+                        | Mutable_string _
+                        | Immutable_string _)
+                      | None ->
+                        let free_names = LC.Definition.free_names definition in
+                        Closure_id.Lmap.fold (fun _ (symbol, _) data_flow ->
+                          Data_flow.record_symbol_binding symbol free_names data_flow
+                        ) closure_symbols_with_types data_flow
+                  )
+              )
         in
         ListLabels.fold_left
           (Simplify_named_result.bindings_to_place_in_any_order
-            simplify_named_result)
+             simplify_named_result)
           ~init:data_flow
-          ~f:(fun acc (binding : Simplify_named_result.binding_to_place) ->
+          ~f:(fun data_flow (binding : Simplify_named_result.binding_to_place) ->
             match binding.simplified_defining_expr with
-            | Invalid _ -> acc
+            | Invalid _ -> data_flow
             | Reachable { free_names; named; cost_metrics = _; } ->
               let can_be_removed =
                 match named with
@@ -131,21 +217,26 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
                 | Prim (prim, _) -> P.at_most_generative_effects prim
               in
               if not can_be_removed then
-                Data_flow.add_used_in_current_handler free_names acc
+                Data_flow.add_used_in_current_handler free_names data_flow
               else
                 let generate_phantom_lets =
                   DE.generate_phantom_lets (DA.denv dacc)
                 in
+                (* TODO: use Bindable_let_bound.fold_all_bound_vars instead
+                   of a match here. *)
                 match binding.let_bound with
                 | Singleton v ->
-                  Data_flow.record_binding (VB.var v) free_names
-                    ~generate_phantom_lets acc
+                  Data_flow.record_var_binding (VB.var v) free_names
+                    ~generate_phantom_lets data_flow
                 | Set_of_closures { closure_vars; name_mode = _; } ->
-                  ListLabels.fold_left closure_vars ~init:acc ~f:(fun acc v ->
-                    Data_flow.record_binding (VB.var v) free_names
-                      ~generate_phantom_lets acc)
+                  ListLabels.fold_left closure_vars ~init:data_flow
+                    ~f:(fun data_flow v ->
+                      Data_flow.record_var_binding (VB.var v) free_names
+                        ~generate_phantom_lets data_flow)
                 | Symbols _ ->
-                  Data_flow.add_used_in_current_handler free_names acc))
+                  (* This cannot be reached, simplify_named does not return any symbol binding, they
+                     have all been moved to lifted_constants *)
+                  assert false))
     in
     (* Next remember any lifted constants that were generated during the
        simplification of the defining expression and sort them, since they
@@ -160,11 +251,10 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
        of the defining expression.  (Not even in the case of a
        [Set_of_closures] binding, since "let symbol" is disallowed under a
        lambda.) *)
-    let lifted_constants_from_defining_expr =
-      Sort_lifted_constants.sort (DA.get_lifted_constants dacc)
-    in
+    let lifted_constants_from_defining_expr = DA.get_lifted_constants dacc in
     let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
     let at_unit_toplevel = DE.at_unit_toplevel (DA.denv dacc) in
+    let closure_info = DE.closure_info (DA.denv dacc) in
     (* Simplify the body of the let-expression and make the new [Let] bindings
        around the simplified body.  [Simplify_named] will already have
        prepared [dacc] with the necessary bindings for the simplification of
@@ -173,6 +263,6 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
       ~down_to_up:(fun dacc ~rebuild:rebuild_body ->
         down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
           rebuild_body uacc ~after_rebuild:(fun body uacc ->
-            rebuild_let symbol_scoping_rule simplify_named_result
+            rebuild_let simplify_named_result
               removed_operations ~lifted_constants_from_defining_expr
-              ~at_unit_toplevel ~body uacc ~after_rebuild))))
+              ~at_unit_toplevel ~closure_info ~body uacc ~after_rebuild))))
