@@ -38,7 +38,7 @@ external size : t -> int = "%obj_size"
 let [@inline always] size t = size (Sys.opaque_identity t)
 external reachable_words : t -> int = "caml_obj_reachable_words"
 external field : t -> int -> t = "%obj_field"
-let [@inline always] field t = field (Sys.opaque_identity t)
+let [@inline always] field t index = field (Sys.opaque_identity t) index
 external set_field : t -> int -> t -> unit = "%obj_set_field"
 let [@inline always] set_field t index new_value =
   set_field (Sys.opaque_identity t) index new_value
