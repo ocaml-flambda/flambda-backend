@@ -360,23 +360,24 @@ let safe_register_pressure = function
   | Iprobe _ | Iprobe_is_enabled _
     -> if fp then 10 else 11
 
-let max_register_pressure = function
+let max_register_pressure =
+  let consumes ~int ~float =
+    if fp
+    then [| 12 - int; 16 - float |]
+    else [| 13 - int; 16 - float |]
+  in function
     Iextcall _ ->
-      if win64 then
-        if fp then [| 7; 10 |]  else [| 8; 10 |]
-        else
-        if fp then [| 3; 0 |] else  [| 4; 0 |]
+    if win64
+      then consumes ~int:5 ~float:6
+      else consumes ~int:9 ~float:16
   | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
-    if fp then [| 10; 16 |] else [| 11; 16 |]
+    consumes ~int:2 ~float:0
   | Ialloc _ ->
-    if fp then [| 11 - num_destroyed_by_plt_stub; 16 |]
-    else [| 12 - num_destroyed_by_plt_stub; 16 |]
+    consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
-    if fp then [| 11; 16 |] else [| 12; 16 |]
-  | Istore(Single, _, _) ->
-    if fp then [| 12; 15 |] else [| 13; 15 |]
-  | Icompf _ ->
-    if fp then [| 12; 15 |] else [| 13; 15 |]
+    consumes ~int:1 ~float:0
+  | Istore(Single, _, _) | Icompf _ ->
+    consumes ~int:0 ~float:1
   | Iintop(Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
   | Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr
@@ -394,7 +395,7 @@ let max_register_pressure = function
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
-    -> if fp then [| 12; 16 |] else [| 13; 16 |]
+    -> consumes ~int:0 ~float:0
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)
