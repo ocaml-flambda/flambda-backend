@@ -101,3 +101,8 @@ library, and then the compiler.
 - There are currently no compiler tests for different intrinics. It
   relies on the library tests to avoid duplication. Library tests use
   `Core`, but the library itself does not.
+
+## Dependencies
+
+- `opam install ppx_compare` for flambda2 tests
+
