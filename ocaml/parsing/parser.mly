@@ -2402,6 +2402,8 @@ comprehension_tail(bracket):
   | LBRACKET expr_semi_list error
       { unclosed "[" $loc($1) "]" $loc($3) }
   | comprehension_expr { $1 } 
+  | od=open_dot_declaration DOT comprehension_expr
+      { Pexp_open(od, mkexp ~loc:($loc($3)) $3) }
   | od=open_dot_declaration DOT LBRACKET expr_semi_list RBRACKET
       { let list_exp =
           (* TODO: review the location of list_exp *)
