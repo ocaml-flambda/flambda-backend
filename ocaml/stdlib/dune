@@ -379,7 +379,7 @@
     .stdlib.objs/byte/camlinternalOO.cmti
     .stdlib.objs/byte/camlinternalFormat.cmti
 
-    .stdlib.objs/byte/camlinternalComprehension.cmx
+    .stdlib.objs/native/camlinternalComprehension.cmx
     .stdlib.objs/native/camlinternalMod.cmx
     .stdlib.objs/native/camlinternalAtomic.cmx
     .stdlib.objs/native/camlinternalFormatBasics.cmx
