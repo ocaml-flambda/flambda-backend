@@ -387,6 +387,20 @@ let value_binding sub vb =
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
+  let map_comprehension comp_types=
+      (List.map (fun {clauses; guard}  ->
+        let clauses =
+          List.map (fun comp_type ->
+            match comp_type with
+            | From_to (_, p, e2, e3, dir) ->
+              Extensions.From_to(p, sub.expr sub e2, sub.expr sub e3, dir)
+            | In (p, e2) -> Extensions.In(sub.pat sub p, sub.expr sub e2)
+          ) clauses
+        in
+        ({clauses; guard=(Option.map (sub.expr sub) guard)}
+            : Extensions.comprehension )
+      ) comp_types)
+  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _) -> Pexp_ident (map_loc sub lid)
@@ -457,6 +471,16 @@ let expression sub exp =
         Pexp_sequence (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_while (exp1, exp2) ->
         Pexp_while (sub.expr sub exp1, sub.expr sub exp2)
+    | Texp_list_comprehension(exp1, type_comp) ->
+      Pexp_extension (
+      (Extensions.payload_of_extension_expr ~loc
+        (Extensions.Eexp_list_comprehension(
+          sub.expr sub exp1, map_comprehension type_comp))))
+    | Texp_arr_comprehension(exp1, type_comp) ->
+      Pexp_extension (
+        (Extensions.payload_of_extension_expr ~loc
+          (Extensions.Eexp_arr_comprehension(
+            sub.expr sub exp1, map_comprehension type_comp))))
     | Texp_for (_id, name, exp1, exp2, dir, exp3) ->
         Pexp_for (name,
           sub.expr sub exp1, sub.expr sub exp2,

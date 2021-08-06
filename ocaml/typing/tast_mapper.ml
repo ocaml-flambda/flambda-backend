@@ -240,6 +240,19 @@ let expr sub x =
   in
   let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
   let exp_env = sub.env sub x.exp_env in
+  let map_comprehension comp_types=
+      (List.map (fun {clauses; guard}  ->
+        let clauses =
+          List.map (fun comp_type ->
+            match comp_type with
+            | From_to (id, p, e2, e3, dir) ->
+              From_to(id, p, sub.expr sub e2, sub.expr sub e3, dir)
+            | In (p, e2) -> In(sub.pat sub p, sub.expr sub e2)
+          ) clauses
+        in
+        {clauses; guard=(Option.map (sub.expr sub) guard)}
+      ) comp_types)
+  in
   let exp_desc =
     match x.exp_desc with
     | Texp_ident _
@@ -310,6 +323,16 @@ let expr sub x =
           sub.expr sub exp1,
           sub.expr sub exp2
         )
+    | Texp_list_comprehension(e1, type_comp) ->
+        Texp_list_comprehension(
+          sub.expr sub e1,
+          map_comprehension type_comp
+        )
+    | Texp_arr_comprehension(e1, type_comp) ->
+      Texp_arr_comprehension(
+        sub.expr sub e1,
+        map_comprehension type_comp
+      )
     | Texp_for (id, p, exp1, exp2, dir, exp3) ->
         Texp_for (
           id,

@@ -719,6 +719,14 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
+let mk_extensions f =
+  "-extensions", Arg.String f, " list of extensions."
+;;
+
+let mk_standard f =
+  "-standard", Arg.Unit f, " distable all default extensions."
+;;
+
 let mk_dparsetree f =
   "-dparsetree", Arg.Unit f, " (undocumented)"
 ;;
@@ -1304,6 +1312,7 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+  val _extensions : string -> unit
 
 end
 
@@ -1355,6 +1364,7 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
+  val _standard : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array
@@ -1659,7 +1669,9 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
+    mk_standard F._standard;
     mk_dump_into_file F._dump_into_file;
+    mk_extensions F._extensions;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1723,6 +1735,7 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+    mk_extensions F._extensions;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1959,8 +1972,10 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
+    mk_standard F._standard;
     mk_dump_into_file F._dump_into_file;
     mk_dump_pass F._dump_pass;
+    mk_extensions F._extensions;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -2294,6 +2309,7 @@ module Default = struct
     let _unsafe = set unsafe
     let _warn_error s = Warnings.parse_options true s
     let _warn_help = Warnings.help_warnings
+    let _extensions s = add_extension s
   end
 
   module Native = struct
@@ -2533,6 +2549,7 @@ module Default = struct
     let _config_var = Misc.show_config_variable_and_exit
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
+    let _standard = set_standard
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _g = set debug

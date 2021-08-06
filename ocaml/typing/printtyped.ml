@@ -306,6 +306,23 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_newtype \"%s\"\n" s;
       attributes i ppf attrs;
 
+and comprehension i ppf comp_types=
+  List.iter (fun {clauses; guard}  ->
+    List.iter (fun comp_type ->
+      match comp_type with
+      (*Todo: What todo with the Parsetree.patttern?*)
+      | From_to (s, _, e2, e3, df) ->
+        line i ppf "From_to \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
+        expression i ppf e2;
+        expression i ppf e3
+      | In (p, e2) ->
+        line i ppf "In\n" ;
+        pattern i ppf p;
+        expression i ppf e2)
+    clauses;
+    Option.iter (expression i ppf) guard
+  ) comp_types
+
 and expression i ppf x =
   line i ppf "expression %a\n" fmt_location x.exp_loc;
   attributes i ppf x.exp_attributes;
@@ -381,6 +398,14 @@ and expression i ppf x =
       line i ppf "Texp_while\n";
       expression i ppf e1;
       expression i ppf e2;
+  | Texp_list_comprehension(e1, type_comp) ->
+    line i ppf "Texp_list_comprehension\n";
+    expression i ppf e1;
+    comprehension i ppf type_comp
+  | Texp_arr_comprehension(e1, type_comp) ->
+    line i ppf "Texp_arr_comprehension\n";
+    expression i ppf e1;
+    comprehension i ppf type_comp
   | Texp_for (s, _, e1, e2, df, e3) ->
       line i ppf "Texp_for \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
       expression i ppf e1;
