@@ -1,8 +1,7 @@
-# Hacking on Flambda backend project for OCaml
+# Hacking on the Flambda backend
 
 This page is intended to keep track of useful information for people who
 want to modify the Flambda backend.
-
 
 ## Rebuilding during dev work
 
@@ -27,7 +26,6 @@ built from the toplevel directory of the checkout.
 Any changes in `ocaml/asmcomp` and `ocaml/middle_end` directories
 should also be applied to the corresponding directories `backend` and
 `middle_end`.
-
 
 ## Running the compiler produced by "make hacking" on an example without the stdlib
 
