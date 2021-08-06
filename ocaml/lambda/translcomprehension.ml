@@ -353,6 +353,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
+    ap_probe=None;
   }, new_acc, mats
 
 let transl_list_comprehension body blocks ~scopes ~loc ~transl_exp  =
@@ -391,4 +392,5 @@ let transl_list_comprehension body blocks ~scopes ~loc ~transl_exp  =
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
+        ap_probe=None;
       })
