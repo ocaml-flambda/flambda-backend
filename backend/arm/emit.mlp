@@ -773,6 +773,7 @@ let emit_instr i =
             assert false
         end
     | Lop (Iname_for_debugger _) -> 0
+    | Lop (Iprobe _ |Iprobe_is_enabled _) -> assert false
     | Lreloadretaddr ->
         let n = frame_size() in
         `	ldr	lr, [sp, #{emit_int(n-4)}]\n`; 1
