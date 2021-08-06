@@ -309,10 +309,12 @@ parsing/docstrings.cmi : \
     parsing/location.cmi
 parsing/extensions.cmo : \
     parsing/parsetree.cmi \
+    parsing/location.cmi \
     parsing/asttypes.cmi \
     parsing/extensions.cmi
 parsing/extensions.cmx : \
     parsing/parsetree.cmi \
+    parsing/location.cmx \
     parsing/asttypes.cmi \
     parsing/extensions.cmi
 parsing/extensions.cmi : \
@@ -1297,6 +1299,7 @@ typing/typecore.cmi : \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
+    utils/clflags.cmi \
     parsing/asttypes.cmi
 typing/typedecl.cmo : \
     utils/warnings.cmi \
@@ -1731,6 +1734,7 @@ typing/untypeast.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    parsing/extensions.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
@@ -1742,6 +1746,7 @@ typing/untypeast.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
+    parsing/extensions.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
