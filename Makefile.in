@@ -62,6 +62,7 @@ stage1: ocaml-stage1-config.status stage0 \
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build --profile=release --build-dir=_build1 @install
 	(cd _build1/install/default/bin && \
 	  rm -f ocamllex && \
@@ -79,6 +80,7 @@ stage2: ocaml-stage2-config.status stage1
 	cp ocaml-stage2-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage1_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build --profile=release --build-dir=_build2 @install
 
 # This target is like a polling version of upstream "make ocamlopt" (based
@@ -92,7 +94,45 @@ hacking: ocaml-stage1-config.status stage0 \
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build -w --profile=release --build-dir=_build1 @install
+
+
+## Test compilation of backend-specific parts
+ARCHES=amd64 i386 arm arm64 power s390x riscv
+ARCH_SPECIFIC =\
+  backend/arch.ml backend/proc.ml backend/CSE.ml backend/selection.ml \
+  backend/scheduling.ml backend/reload.ml backend/emit.ml
+
+# This rule provides a quick way to check that machine-dependent
+# files compiles fine for a foreign architecture (passed as ARCH=xxx).
+# Based on stage1 target above.
+.PHONY: check_arch
+check_arch: ocaml-stage1-config.status stage0 \
+	config_files
+	cp ocaml-stage1-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	@echo "========= CHECKING backend/$(ARCH) =============="
+	@rm -f $(ARCH_SPECIFIC)
+	@rm -f backend/*.cm* backend/cfg/*.cm* backend/debug/*.cm*
+	PATH=$(stage0_prefix)/bin:$$PATH \
+	  $(dune) build --profile=release --build-dir=_build1 ocamloptcomp.cma
+	@rm -f $(ARCH_SPECIFIC)
+	@rm -f backend/*.cm* backend/cfg/*.cm* backend/debug/*.cm*
+
+.PHONY: check_all_arches
+check_all_arches: ocaml-stage1-config.status stage0 \
+	config_files
+	cp ocaml-stage1-config.status ocaml/config.status
+	(cd ocaml && ./config.status)
+	@if $$(grep '^ARCH64=true' ocaml/Makefile.config > /dev/null) ; \
+	then \
+		for i in $(ARCHES); do \
+		   $(MAKE) --no-print-directory check_arch ARCH=$$i || exit 1; \
+		done; \
+	else \
+		echo "Architecture tests are disabled on 32-bit platforms." ;\
+	fi
 
 # The stage0 configure step configures the tree to build pretty much the
 # bare minimum that we need for building stage1.
@@ -220,6 +260,7 @@ runtest:
 	# Ideally that would be inaccessible within tests (to prevent mistakes
 	# such as running "ocamlopt" rather than one of the stage2 binaries).
 	PATH=$(stage1_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) runtest --profile=release --build-dir=_build2
 
 # The following horror will be removed when work to allow the testsuite to
@@ -358,9 +399,11 @@ runtest-upstream:
 	# stage2.
 	# This might be causing a spurious rebuild of the runtime
 	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build --profile=release --build-dir=_build1 \
 	  ocaml/tools/cmpbyt.bc
 	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build --profile=release --build-dir=_build1 \
 	  ocaml/ocamltest/ocamltest.byte
 	cp _build1/default/ocaml/tools/cmpbyt.bc _runtest/tools/cmpbyt
