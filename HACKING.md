@@ -1,7 +1,7 @@
 # Hacking on Flambda backend project for OCaml
 
 This page is intended to keep track of useful information for people who
-want to modify Flambda backend.
+want to modify the Flambda backend.
 
 
 ## Rebuilding during dev work
@@ -12,7 +12,8 @@ There is a special target `make hacking` which starts Dune in polling mode.  The
 performed here is equivalent to `make ocamlopt` in the upstream distribution: it rebuilds the
 compiler itself, but doesn't rebuild the stdlib or anything else with the new compiler.
 This target is likely what you want for development of large features in the middle end or
-backend.  Rebuild times for this target should be very fast.
+backend.  Rebuild times for this target should be very fast.  (`make hacking` can be
+run directly after `configure`, there is no need to do a full `make` first.)
 
 The aim is to minimise patches against the upstream compiler (the
 contents of the ocaml/ subdirectory), but you can configure and build
@@ -28,11 +29,38 @@ should also be applied to the corresponding directories `backend` and
 `middle_end`.
 
 
+## Running the compiler produced by "make hacking" on an example without the stdlib
+
+For small examples that don't need the stdlib or any other library provided by the
+compiler distribution, it suffices to have run `make hacking`, followed by
+something like:
+```
+./_build1/default/flambda_backend_main_native.exe -nostdlib -nopervasives -c test.ml
+```
+(The `flambda_backend_main_native.exe` executable is the one that ends up as `ocamlopt.opt` in
+the installation directory.)
+
+## Getting the compilation command for a stdlib file
+
+For example because you need to get the `-dflambda` output because of a bug.
+```
+rm -f _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
+PATH=<FLAMBDA_BACKEND>/_build1/install/default/bin:$PATH <DUNE> build --profile=release --build-dir=_build2 --verbose _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
+```
+where `<FLAMBDA_BACKEND>` is the path to your clone and `<DUNE>` is the path to the dune provided to `configure`.
+
 ## How to add a new intrinsic to the compiler
 
-- Follow the step below to first update
-  [ocaml_intrinsics]https://github.com/janestreet/ocaml_intrinsics
-  library, and then the compler.
+The Flambda backend has a means of replacing calls to external functions
+with inline instruction sequences.  This can be used to implement
+"intrinsic" operations that typically correspond to very few (often one)
+machine instruction.  The external functions, typically written in C,
+can still be provided for portability.
+
+Follow the steps below to first update the
+[ocaml_intrinsics](https://github.com/janestreet/ocaml_intrinsics)
+library, and then the compiler.
+  
 - Choose existing .ml file or add a new one.
 - Add `external` declaration of the function with two C stubs:
   for bytecode and native implementations.
