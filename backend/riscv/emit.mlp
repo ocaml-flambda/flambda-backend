@@ -444,6 +444,7 @@ let emit_instr i =
       `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
   | Lop (Iname_for_debugger _) ->
       ()
+  | Lop (Iprobe _|Iprobe_is_enabled _) -> assert false
   | Lreloadretaddr ->
       let n = frame_size () in
       reload_ra n
