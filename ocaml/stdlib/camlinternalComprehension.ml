@@ -1,3 +1,5 @@
+open! Stdlib
+
 let rev = List.rev;;
 
 let map_cons f l acc =
