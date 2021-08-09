@@ -66,6 +66,6 @@ jobs:
           --enable-middle-end=closure \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build all targets (Closure mode)
+    - name: Build check_all_arches (Closure mode)
       working-directory: flambda_backend
       run: make -j $J check_all_arches
