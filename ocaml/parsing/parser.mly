@@ -2329,9 +2329,13 @@ comprehension_tail(bracket):
 
 %inline comprehension_expr:
 | LBRACKET expr comprehension_tail(RBRACKET)
-      { Pexp_extension( Extensions.payload_of_extension_expr ~loc:(make_loc $sloc) (Eexp_list_comprehension($2, $3))) }
+      { Pexp_extension(
+          Extensions.payload_of_extension_expr 
+            ~loc:(make_loc $sloc) (Eexp_list_comprehension($2, $3))) }
 | LBRACKETBAR expr comprehension_tail(BARRBRACKET)
-      { Pexp_extension( Extensions.payload_of_extension_expr ~loc:(make_loc $sloc) (Eexp_arr_comprehension($2, $3))) }
+      { Pexp_extension(
+          Extensions.payload_of_extension_expr 
+            ~loc:(make_loc $sloc) (Eexp_arr_comprehension($2, $3))) }
 ;
 
 %inline simple_expr_:
