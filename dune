@@ -8,6 +8,11 @@
 ;*                                                                        *
 ;**************************************************************************
 
+; set warning as error in release profile
+(env
+  (release
+    (flags (:standard -warn-error +A))))
+
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
