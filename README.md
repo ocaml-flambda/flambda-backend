@@ -31,7 +31,8 @@ in; you have to run `autoconf`.  For example:
 $ autoconf
 $ ./configure --prefix=/path/to/install/dir --enable-middle-end=closure --with-dune=$DUNE_DIR/dune.exe
 ```
-You can also specify `--enable-middle-end=flambda`.
+You can also specify `--enable-middle-end=flambda` or `--enable-middle-end=flambda2`.  (The Flambda 2
+compiler is not yet ready for production use.)
 
 ## Building and installing
 
