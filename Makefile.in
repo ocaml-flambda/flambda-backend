@@ -113,19 +113,17 @@ check_arch: ocaml-stage1-config.status stage0 \
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	@echo "========= CHECKING backend/$(ARCH) =============="
-	@rm -f $(ARCH_SPECIFIC)
-	@rm -f backend/*.cm* backend/cfg/*.cm* backend/debug/*.cm*
+	rm -f $(ARCH_SPECIFIC)
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  $(dune) build --profile=release --build-dir=_build1 ocamloptcomp.cma
-	@rm -f $(ARCH_SPECIFIC)
-	@rm -f backend/*.cm* backend/cfg/*.cm* backend/debug/*.cm*
+	rm -f $(ARCH_SPECIFIC)
 
 .PHONY: check_all_arches
 check_all_arches: ocaml-stage1-config.status stage0 \
 	config_files
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
-	@if $$(grep '^ARCH64=true' ocaml/Makefile.config > /dev/null) ; \
+	if $$(grep '^ARCH64=true' ocaml/Makefile.config > /dev/null) ; \
 	then \
 		for i in $(ARCHES); do \
 		   $(MAKE) --no-print-directory check_arch ARCH=$$i || exit 1; \
