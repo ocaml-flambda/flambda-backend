@@ -333,6 +333,11 @@ libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
 %.npic.$(O): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 %.npic.$(D): OC_CPPFLAGS += $(OC_NATIVE_CPPFLAGS)
 
+# The major GC performs better with this flag on Intel processors
+# This is a workaround for an Intel CPU bug:
+# https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
+major_gc.%: OC_CFLAGS += $(INTEL_JCC_BUG_CFLAGS)
+
 # Compilation of C files
 
 # The COMPILE_C_FILE macro below receives as argument the pattern
