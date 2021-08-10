@@ -44,7 +44,7 @@ module S = struct
         { func_symbol : string;
           alloc : bool;
           returns : bool;
-          ty_res : Cmm.machtype; 
+          ty_res : Cmm.machtype;
           ty_args : Cmm.exttype list
         }
     | Alloc of
@@ -72,6 +72,7 @@ module S = struct
     | Subf
     | Mulf
     | Divf
+    | Compf of Mach.float_comparison  (* CR gyorsh: can merge with float_test? *)
     | Floatofint
     | Intoffloat
     | Probe of

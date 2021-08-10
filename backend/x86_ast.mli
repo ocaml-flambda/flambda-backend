@@ -25,6 +25,16 @@ type condition =
   | S | NS     (* sign *)
   | P | NP     (* parity *)
 
+type float_condition =
+  | EQf
+  | LTf
+  | LEf
+  | UNORDf
+  | NEQf
+  | NLTf
+  | NLEf
+  | ORDf
+
 type rounding =
   | RoundUp
   | RoundDown
@@ -106,6 +116,7 @@ type instruction =
   | CDQ
   | CMOV of condition * arg * arg
   | CMP of arg * arg
+  | CMPSD of float_condition * arg * arg
   | COMISD of arg * arg
   | CQO
   | CRC32 of arg * arg
@@ -160,6 +171,7 @@ type instruction =
   | LEAVE
   | MOV of arg * arg
   | MOVAPD of arg * arg
+  | MOVD of arg * arg
   | MOVLPD of arg * arg
   | MOVSD of arg * arg
   | MOVSS of arg * arg

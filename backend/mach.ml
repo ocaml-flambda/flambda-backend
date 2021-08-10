@@ -64,6 +64,7 @@ type operation =
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo; }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
+  | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat
   | Ispecific of Arch.specific_operation
@@ -168,6 +169,7 @@ let rec instr_iter f i =
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+            | Icompf _
             | Ifloatofint | Iintoffloat
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _) ->
         instr_iter f i.next

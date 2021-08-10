@@ -188,6 +188,7 @@ let print_op oc = function
   | Subf -> Printf.fprintf oc "subf"
   | Mulf -> Printf.fprintf oc "mulf"
   | Divf -> Printf.fprintf oc "divf"
+  | Compf _ -> Printf.fprintf oc "compf"
   | Floatofint -> Printf.fprintf oc "floattoint"
   | Intoffloat -> Printf.fprintf oc "intoffloat"
   | Specific _ -> Printf.fprintf oc "specific"

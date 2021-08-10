@@ -444,6 +444,7 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Isubf -> Op Subf
   | Imulf -> Op Mulf
   | Idivf -> Op Divf
+  | Icompf c -> Op (Compf c)
   | Ifloatofint -> Op Floatofint
   | Iintoffloat -> Op Intoffloat
   | Ispecific op -> Op (Specific op)
@@ -612,6 +613,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
           create_blocks t i.next block ~trap_depth ~traps
       | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf
       | Idivf | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _
+      | Icompf _
       | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
       | Istackoffset _
       | Iload (_, _)
