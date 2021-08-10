@@ -326,6 +326,7 @@ let destroyed_at_oper = function
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double ), _, _))
   | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+       | Icompf _
        | Ifloatofint | Iintoffloat
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
@@ -351,6 +352,7 @@ let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Imove | Ispill | Ireload
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
+  | Icompf _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
@@ -372,6 +374,8 @@ let max_register_pressure = function
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     if fp then [| 11; 16 |] else [| 12; 16 |]
   | Istore(Single, _, _) ->
+    if fp then [| 12; 15 |] else [| 13; 15 |]
+  | Icompf _ ->
     if fp then [| 12; 15 |] else [| 13; 15 |]
   | Iintop(Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
@@ -409,6 +413,7 @@ let op_is_pure = function
   | Iintop_imm((Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _) | Iname_for_debugger _
     -> true

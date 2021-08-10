@@ -82,6 +82,7 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
         | Subf -> Isubf
         | Mulf -> Imulf
         | Divf -> Idivf
+        | Compf c -> Icompf c
         | Floatofint -> Ifloatofint
         | Intoffloat -> Iintoffloat
         | Probe { name; handler_code_sym } ->
