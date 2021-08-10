@@ -535,6 +535,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Ibswap _)) -> 1
     | Lop (Ispecific Imove32) -> 1
     | Lop (Iname_for_debugger _) -> 0
+    | Lop (Iprobe _ | Iprobe_is_enabled _) ->
+      fatal_error ("Probes not supported.")
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size ()
     | Llabel _ -> 0
@@ -883,6 +885,8 @@ let emit_instr i =
             assert false
         end
     | Lop (Iname_for_debugger _) -> ()
+    | Lop (Iprobe _ | Iprobe_is_enabled _) ->
+        fatal_error ("Probes not supported.")
     | Lreloadretaddr ->
         ()
     | Lreturn ->
