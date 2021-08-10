@@ -87,7 +87,6 @@ format_patch () {
     else
         relative="--relative=$dir"
     fi
-    files="$files :!Changes :!boot"
     patchfile=$(git format-patch -p $relative \
                     --src-prefix=a/$subtree/ --dst-prefix=b/$subtree/ \
                     -o "$temp" "$rev" -1 -- "$files")
@@ -123,7 +122,7 @@ apply_patches () {
 }
 
 if [ "$ocamlonly" = true ] || [ "$everywhere" = true ] ; then
-    subtree="ocaml" dir="." files="." format_patch
+    subtree="ocaml" dir="." files=":!Changes :!boot" format_patch
     if [ "$everywhere" = true ] ; then
         subtree="backend" dir="asmcomp" files="." format_patch
         subtree="middle_end" dir="middle_end" files="." format_patch
@@ -136,7 +135,7 @@ elif [ "$across" = true ] ; then
 else
     subtree="backend" dir="asmcomp" files="." format_patch
     subtree="middle_end" dir="middle_end" files="." format_patch
-    subtree="ocaml" dir="." files=":!asmcomp :!middle_end" format_patch
+    subtree="ocaml" dir="." files=":!Changes :!boot :!asmcomp :!middle_end" format_patch
 fi
 
 apply_patches
