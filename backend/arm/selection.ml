@@ -115,25 +115,25 @@ method is_immediate_test _op n =
 
 method! is_simple_expr = function
   (* inlined floating-point ops are simple if their arguments are *)
-  | Cop(Cextcall { name = "sqrt"; }, args, _) when !fpu >= VFPv2 ->
+  | Cop(Cextcall { func = "sqrt"; }, args, _) when !fpu >= VFPv2 ->
       List.for_all self#is_simple_expr args
   (* inlined byte-swap ops are simple if their arguments are *)
-  | Cop(Cextcall { name = "caml_bswap16_direct"; }, args, _)
+  | Cop(Cextcall { func = "caml_bswap16_direct"; }, args, _)
     when !arch >= ARMv6T2 ->
       List.for_all self#is_simple_expr args
-  | Cop(Cextcall { name = "caml_int32_direct_bswap"; }, args, _)
+  | Cop(Cextcall { func = "caml_int32_direct_bswap"; }, args, _)
     when !arch >= ARMv6 ->
       List.for_all self#is_simple_expr args
   | e -> super#is_simple_expr e
 
 method! effects_of e =
   match e with
-  | Cop(Cextcall { name = "sqrt"; }, args, _) when !fpu >= VFPv2 ->
+  | Cop(Cextcall { func = "sqrt"; }, args, _) when !fpu >= VFPv2 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | Cop(Cextcall { name = "caml_bswap16_direct"; }, args, _)
+  | Cop(Cextcall { func = "caml_bswap16_direct"; }, args, _)
     when !arch >= ARMv6T2 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
-  | Cop(Cextcall { name = "caml_int32_direct_bswap"; }, args, _)
+  | Cop(Cextcall { func = "caml_int32_direct_bswap"; }, args, _)
     when !arch >= ARMv6 ->
       Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
   | e -> super#effects_of e
@@ -188,7 +188,7 @@ method select_shift_arith op dbg arithop arithrevop args =
       end
 
 method private iextcall func ty_res ty_args =
-  Iextcall { func; ty_res; ty_args; alloc = false; }
+  Iextcall { func; ty_res; ty_args; alloc = false; returns = true }
 
 method! select_operation op args dbg =
   match (op, args) with
@@ -224,10 +224,10 @@ method! select_operation op args dbg =
       (* See above for fix up of return register *)
       (self#iextcall "__aeabi_idivmod" typ_int [], args)
   (* Recognize 16-bit bswap instruction (ARMv6T2 because we need movt) *)
-  | (Cextcall { name = "caml_bswap16_direct" }, args) when !arch >= ARMv6T2 ->
+  | (Cextcall { func = "caml_bswap16_direct" }, args) when !arch >= ARMv6T2 ->
       (Ispecific(Ibswap 16), args)
   (* Recognize 32-bit bswap instructions (ARMv6 and above) *)
-  | (Cextcall { name = "caml_int32_direct_bswap" }, args)
+  | (Cextcall { func = "caml_int32_direct_bswap" }, args)
     when !arch >= ARMv6 ->
       (Ispecific(Ibswap 32), args)
   (* Turn floating-point operations into runtime ABI calls for softfp *)
@@ -265,19 +265,23 @@ method private select_operation_softfp op args dbg =
         | CFnge -> Ceq, "__aeabi_dcmpge"
       in
       (Iintop_imm(Icomp(Iunsigned comp), 0),
-       [Cop(Cextcall { name = func; ret = typ_int; alloc = false;
-                              builtin = false;
-                              effects = Arbitrary_effects;
-                              coeffects = Has_coeffects;
-                              ty_args = [XFloat;XFloat]), args, dbg)])
+       [Cop(Cextcall { func; ty = typ_int; alloc = false;
+                       builtin = false;
+                       returns = true;
+                       effects = Arbitrary_effects;
+                       coeffects = Has_coeffects;
+                       ty_args = [XFloat;XFloat]}, args, dbg)])
   (* Add coercions around loads and stores of 32-bit floats *)
   | (Cload (Single, mut), args) ->
       (self#iextcall "__aeabi_f2d" typ_float [XInt],
         [Cop(Cload (Word_int, mut), args, dbg)])
   | (Cstore (Single, init), [arg1; arg2]) ->
       let arg2' =
-        Cop(Cextcall { name = "__aeabi_d2f"; ret = typ_int; alloc = false;
-                       ty_args = [XFloat] }, [arg2], dbg) in
+        Cop(Cextcall { func = "__aeabi_d2f"; ty = typ_int; alloc = false;
+                       builtin = false;
+                       effects = Arbitrary_effects;
+                       coeffects = Has_coeffects;
+                       ty_args = [XFloat]; returns = true }, [arg2], dbg) in
       self#select_operation (Cstore (Word_int, init)) [arg1; arg2'] dbg
   (* Other operations are regular *)
   | (op, args) -> super#select_operation op args dbg
@@ -302,7 +306,10 @@ method private select_operation_vfpv3 op args dbg =
   | (Csubf, [Cop(Cmulf, args, _); arg]) ->
       (Ispecific Imulsubf, arg :: args)
   (* Recognize floating-point square root *)
-  | (Cextcall { name = "sqrt" ;  alloc = false; ty_args = _; ret = _}, args) ->
+  | (Cextcall { func = "sqrt" ;  alloc = false; ty_args = _; ty = _;
+                returns = true; builtin = false;
+                effects = Arbitrary_effects; coeffects = Has_coeffects;
+              }, args) ->
       (Ispecific Isqrtf, args)
   (* Other operations are regular *)
   | (op, args) -> super#select_operation op args dbg
