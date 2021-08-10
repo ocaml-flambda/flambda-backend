@@ -66,7 +66,7 @@ and type_desc =
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
-  | Tarrow of arg_label * type_expr * type_expr * commutable
+  | Tarrow of arrow_desc * type_expr * type_expr * commutable
   (** [Tarrow (Nolabel,      e1, e2, c)] ==> [e1    -> e2]
       [Tarrow (Labelled "l", e1, e2, c)] ==> [l:e1  -> e2]
       [Tarrow (Optional "l", e1, e2, c)] ==> [?l:e1 -> e2]
@@ -128,6 +128,11 @@ and type_desc =
 
   | Tpackage of Path.t * Longident.t list * type_expr list
   (** Type of a first-class module (a.k.a package). *)
+
+and arrow_desc =
+  arg_label * alloc_mode * alloc_mode
+
+and alloc_mode = Alloc_heap | Alloc_local
 
 (** [  `X | `Y ]       (row_closed = true)
     [< `X | `Y ]       (row_closed = true)
@@ -585,9 +590,8 @@ val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
 
-type alloc_mode = Alloc_heap | Alloc_local
-
 module Alloc_mode : sig
+  (* Modes are ordered so that Alloc_heap is a submode of Alloc_local *)
   type t = alloc_mode = Alloc_heap | Alloc_local
   
   val min_mode : t
@@ -596,6 +600,8 @@ module Alloc_mode : sig
   val max_mode : t
   val is_max : t -> bool
 
-  val constrain : t -> t -> (unit, unit) result
+  val submode : t -> t -> (unit, unit) result
+
+  val join : t list -> t
 end
 

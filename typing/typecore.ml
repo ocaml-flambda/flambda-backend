@@ -129,6 +129,9 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
+  | Local_argument_escapes
+  | Local_return_value_escapes
+  | Local_value_escapes
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -244,20 +247,20 @@ let constant_or_raise env loc cst =
 let type_option ty =
   newty (Tconstr(Predef.path_option,[ty], ref Mnil))
 
-let mkexp exp_desc exp_type exp_loc exp_env =
-  { exp_desc; exp_type; exp_mode = Alloc_heap; 
+let mkexp exp_desc exp_type exp_mode exp_loc exp_env =
+  { exp_desc; exp_type; exp_mode;
     exp_loc; exp_env; exp_extra = []; exp_attributes = [] }
 
-let option_none env ty loc =
+let option_none env ty mode loc =
   let lid = Longident.Lident "None" in
   let cnone = Env.find_ident_constructor Predef.ident_none env in
-  mkexp (Texp_construct(mknoloc lid, cnone, [])) ty loc env
+  mkexp (Texp_construct(mknoloc lid, cnone, [])) ty mode loc env
 
-let option_some env texp =
+let option_some env texp mode =
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
   mkexp ( Texp_construct(mknoloc lid , csome, [texp]) )
-    (type_option texp.exp_type) texp.exp_loc texp.exp_env
+    (type_option texp.exp_type) mode texp.exp_loc texp.exp_env
 
 let extract_option_type env ty =
   match expand_head env ty with {desc = Tconstr(path, [ty], _)}
@@ -1941,7 +1944,7 @@ let type_pattern category ~lev ~alloc_mode env spat expected_ty =
   (pat, !new_env, get_ref pattern_force, pvs, unpacks)
 
 let type_pattern_list
-    category no_existentials env mode spatl expected_tys allow
+    category no_existentials env spatl expected_tys allow
   =
   reset_pattern allow;
   let new_env = ref env in
@@ -1949,7 +1952,12 @@ let type_pattern_list
     let mode : Alloc_mode.t =
       if List.exists (fun a -> a.attr_name.txt = "stack") attrs
       then Alloc_local
-      else mode in
+      else Alloc_heap in
+    if no_existentials = At_toplevel then begin
+      match Types.Alloc_mode.submode mode Alloc_heap with
+      | Ok () -> ()
+      | Error _ -> raise (Error(pat.ppat_loc, env, Local_value_escapes))
+    end;
     Builtin_attributes.warning_scope ~ppwarning:false attrs
       (fun () ->
          mode,
@@ -2241,11 +2249,13 @@ let is_prim ~name funct =
   | _ -> false
 (* Approximate the type of an expression, for better recursion *)
 
+(* FIXME: these need better modes, to allow moded recursive functions *)
 let rec approx_type env sty =
   match sty.ptyp_desc with
     Ptyp_arrow (p, _, sty) ->
       let ty1 = if is_optional p then type_option (newvar ()) else newvar () in
-      newty (Tarrow (p, ty1, approx_type env sty, Cok))
+      let ret = approx_type env sty in
+      newty (Tarrow ((p,Alloc_heap,Alloc_heap), ty1, ret, Cok))
   | Ptyp_tuple args ->
       newty (Ttuple (List.map (approx_type env) args))
   | Ptyp_constr (lid, ctl) ->
@@ -2259,14 +2269,17 @@ let rec approx_type env sty =
       approx_type env sty
   | _ -> newvar ()
 
+(* FIXME: these need better modes, to allow moded recursive functions *)
 let rec type_approx env sexp =
   match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx env e
   | Pexp_fun (p, _, _, e) ->
       let ty = if is_optional p then type_option (newvar ()) else newvar () in
-      newty (Tarrow(p, ty, type_approx env e, Cok))
+      let ret = type_approx env e in
+      newty (Tarrow((p,Alloc_heap,Alloc_heap), ty, ret, Cok))
   | Pexp_function ({pc_rhs=e}::_) ->
-      newty (Tarrow(Nolabel, newvar (), type_approx env e, Cok))
+      let ret = type_approx env e in
+      newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap), newvar (), ret, Cok))
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx env e
   | Pexp_try (e, _) -> type_approx env e
   | Pexp_tuple l -> newty (Ttuple(List.map (type_approx env) l))
@@ -2299,7 +2312,7 @@ let rec list_labels_aux env visited ls ty_fun =
   if List.memq ty visited then
     List.rev ls, false
   else match ty.desc with
-    Tarrow (l, _, ty_res, _) ->
+    Tarrow ((l,_,_), _, ty_res, _) ->
       list_labels_aux env (ty::visited) (l::ls) ty_res
   | _ ->
       List.rev ls, is_Tvar ty
@@ -2686,7 +2699,7 @@ and type_expect_
         else if List.compare_length_with spat_sexp_list 1 > 0 then In_group
         else With_attributes in
       let (pat_exp_list, new_env, unpacks) =
-        type_let existential_context env mode rec_flag spat_sexp_list true in
+        type_let existential_context env rec_flag spat_sexp_list true in
       let body =
         type_unpacks new_env mode unpacks sbody ty_expected_explained in
       let () =
@@ -2745,7 +2758,7 @@ and type_expect_
       assert (sargs <> []);
       begin_def (); (* one more level for non-returning functions *)
       if !Clflags.principal then begin_def ();
-      let funct = type_exp env Alloc_local sfunct in (* FIXME mode = Alloc_local *)
+      let funct = type_exp env Alloc_heap sfunct in (* FIXME mode = Alloc_local *)
       if !Clflags.principal then begin
           end_def ();
           generalize_structure funct.exp_type
@@ -2763,13 +2776,13 @@ and type_expect_
       end_def ();
       wrap_trace_gadt_instances env (lower_args []) ty;
       begin_def ();
-      let (args, ty_res) = type_application env Alloc_heap funct sargs in (* FIXME mode *)
+      let (args, ty_res) = type_application env loc mode funct sargs in
       end_def ();
       unify_var env (newvar()) funct.exp_type;
       let exp =
         { exp_desc = Texp_apply(funct, args);
           exp_loc = loc; exp_extra = [];
-          exp_type = ty_res; exp_mode = Alloc_heap; (*FIXME mode*)
+          exp_type = ty_res; exp_mode = mode;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env } in
       begin
@@ -2785,7 +2798,8 @@ and type_expect_
       if maybe_expansive arg then lower_contravariant env arg.exp_type;
       generalize arg.exp_type;
       let cases, partial =
-        type_cases Computation env mode mode
+        (* FIXME: allow matching on Alloc_local values *)
+        type_cases Computation env Alloc_heap mode
           arg.exp_type ty_expected_explained true loc caselist in
       re {
         exp_desc = Texp_match(arg, cases, partial);
@@ -2794,10 +2808,9 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_try(sbody, caselist) ->
-      (* FIXME mode *)
       let body = type_expect env mode sbody ty_expected_explained in
       let cases, _ =
-        type_cases Value env mode mode
+        type_cases Value env Alloc_heap mode
           Predef.type_exn ty_expected_explained false loc caselist in
       re {
         exp_desc = Texp_try(body, cases);
@@ -3008,17 +3021,16 @@ and type_expect_
       rue {
         exp_desc = Texp_field(record, lid, label);
         exp_loc = loc; exp_extra = [];
-        exp_type = ty_arg; exp_mode = Alloc_heap; (*FIXME*)
+        exp_type = ty_arg; exp_mode = mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
-      let mode = Alloc_heap in
       let (record, label, expected_type) =
-        type_label_access env mode srecord lid in
+        type_label_access env Alloc_local srecord lid in
       let ty_record =
         if expected_type = None then newvar () else record.exp_type in
       let (label_loc, label, newval) =
-        type_label_exp false env mode loc ty_record (lid, label, snewval) in
+        type_label_exp false env Alloc_heap loc ty_record (lid, label, snewval) in
       unify_exp env record ty_record;
       if label.lbl_mut = Immutable then
         raise(Error(loc, env, Label_not_mutable lid.txt));
@@ -3247,7 +3259,7 @@ and type_expect_
                     filter_self_method env met Private meths privty
                   in
                   let method_type = newvar () in
-                  let (obj_ty, res_ty) = filter_arrow env method_type Nolabel in
+                  let (_marg_FIXME, obj_ty, _mres_FIXME, res_ty) = filter_arrow env method_type Nolabel in
                   unify env obj_ty desc.val_type;
                   unify env res_ty (instance typ);
                   let method_desc =
@@ -3648,12 +3660,14 @@ and type_expect_
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params = loop slet.pbop_pat (newvar ()) sands in
       let ty_func_result = newvar () in
-      let ty_func = newty (Tarrow(Nolabel, ty_params, ty_func_result, Cok)) in
+      let ty_func = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+                                  ty_params, ty_func_result, Cok)) in
       let ty_result = newvar () in
       let ty_andops = newvar () in
       let ty_op =
-        newty (Tarrow(Nolabel, ty_andops,
-          newty (Tarrow(Nolabel, ty_func, ty_result, Cok)), Cok))
+        newty (Tarrow((Nolabel, Alloc_heap, Alloc_heap), ty_andops,
+          newty (Tarrow((Nolabel, Alloc_heap, Alloc_heap),
+                        ty_func, ty_result, Cok)), Cok))
       in
       begin try
         unify env op_type ty_op
@@ -3766,6 +3780,15 @@ and type_binding_op_ident env s =
   in
   path, desc
 
+and is_a_function e =
+  match e.pexp_desc, e.pexp_attributes with
+  | (Pexp_fun _ | Pexp_function _), _ -> true
+  | Pexp_constraint (e, _), _ -> is_a_function e
+  | Pexp_let (Nonrecursive, _, e),
+    [{Parsetree.attr_name = {txt="#default"};_}] ->
+     is_a_function e
+  | _ -> false
+
 and type_function ?in_function loc attrs env mode ty_expected_explained l caselist =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let (loc_fun, ty_fun) =
@@ -3774,7 +3797,11 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
   in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   if separate then begin_def ();
-  let (ty_arg, ty_res) =
+  let curry =
+    match caselist with
+    | [{pc_lhs = _; pc_guard = None; pc_rhs = e}] -> is_a_function e
+    | _ -> false in
+  let (arg_mode, ty_arg, ret_mode, ty_res) =
     try filter_arrow env (instance ty_expected) l
     with Unify _ ->
       match expand_head env ty_expected with
@@ -3786,6 +3813,11 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
                                           ty_fun,
                                           explanation)))
   in
+  if not curry then
+    begin match Types.Alloc_mode.submode ret_mode Alloc_heap with
+    | Ok () -> ()
+    | Error _ -> raise (Error(loc, env, Local_return_value_escapes))
+    end;
   let ty_arg =
     if is_optional l then
       let tv = newvar() in
@@ -3804,9 +3836,9 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
   let env =
     match in_function with
     | Some _ -> env
-    | None -> Env.add_lock Alloc_heap env in
+    | None -> Env.add_lock mode env in
   let cases, partial =
-    type_cases Value ~in_function:(loc_fun,ty_fun) env Alloc_heap Alloc_heap
+    type_cases Value ~in_function:(loc_fun,ty_fun) env arg_mode ret_mode
       ty_arg (mk_expected ty_res) true loc caselist in
   let not_nolabel_function ty =
     let ls, tvar = list_labels env ty in
@@ -3819,7 +3851,8 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
   re {
     exp_desc = Texp_function { arg_label = l; param; cases; partial; };
     exp_loc = loc; exp_extra = [];
-    exp_type = instance (newgenty (Tarrow(l, ty_arg, ty_res, Cok))); exp_mode = mode;
+    exp_type = instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
+    exp_mode = mode;
     exp_attributes = attrs;
     exp_env = env }
 
@@ -4156,7 +4189,6 @@ and type_label_exp create env mode loc ty_expected
   in
   (lid, label, arg)
 
-(* FIXME argument modes *)
 and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
   (* ty_expected' may be generic *)
   let no_labels ty =
@@ -4172,7 +4204,7 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
     | _ -> false
   in
   match expand_head env ty_expected' with
-    {desc = Tarrow(Nolabel,ty_arg,ty_res,_); level = lv}
+    {desc = Tarrow((Nolabel,marg,mret),ty_arg,ty_res,_); level = lv}
     when is_inferred sarg ->
       (* apply optional arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
@@ -4184,14 +4216,15 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
       end;
       let rec make_args args ty_fun =
         match (expand_head env ty_fun).desc with
-        | Tarrow (l,ty_arg,ty_fun,_) when is_optional l ->
-            let ty = option_none env (instance ty_arg) sarg.pexp_loc in
+        | Tarrow ((l,marg,_mret),ty_arg,ty_fun,_) when is_optional l ->
+            let ty = option_none env (instance ty_arg) marg sarg.pexp_loc in
             make_args ((l, Some ty) :: args) ty_fun
-        | Tarrow (l,_,ty_res',_) when l = Nolabel || !Clflags.classic ->
+        | Tarrow ((l,_,_),_,ty_res',_) when l = Nolabel || !Clflags.classic ->
             List.rev args, ty_fun, no_labels ty_res'
         | Tvar _ ->  List.rev args, ty_fun, false
         |  _ -> [], texp.exp_type, false
       in
+      (* If make_args ends in Tvar, then simple_res is false, no_labels *)
       let args, ty_fun', simple_res = make_args [] texp.exp_type in
       let warn = !Clflags.principal &&
         (lv <> generic_level || (repr ty_fun').level <> generic_level)
@@ -4204,7 +4237,7 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
       unify_exp env {texp with exp_type = ty_fun} ty_expected;
       if args = [] then texp else
       (* eta-expand to avoid side effects *)
-      let var_pair name ty =
+      let var_pair ~mode name ty =
         let id = Ident.create_local name in
         let desc =
           { val_type = ty; val_kind = Val_reg;
@@ -4213,26 +4246,26 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
             val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           }
         in
-        let exp_env = Env.add_value id desc env in
+        let exp_env = Env.add_value ~mode id desc env in
         {pat_desc = Tpat_var (id, mknoloc name); pat_type = ty;pat_extra=[];
          pat_attributes = [];
          pat_loc = Location.none; pat_env = env},
-        {exp_type = ty; exp_mode = Alloc_heap; (*FIXME*) exp_loc = Location.none; exp_env = exp_env;
+        {exp_type = ty; exp_mode = mode; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =
          Texp_ident(Path.Pident id, mknoloc (Longident.Lident name), desc)}
       in
-      let eta_pat, eta_var = var_pair "eta" ty_arg in
+      let eta_pat, eta_var = var_pair ~mode:marg "eta" ty_arg in
       let func texp =
         let e =
-          {texp with exp_type = ty_res; exp_mode = Alloc_heap; (*FIXME*) exp_desc =
+          {texp with exp_type = ty_res; exp_mode = mret; exp_desc =
            Texp_apply
              (texp,
               args @ [Nolabel, Some eta_var])}
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in
-        { texp with exp_type = ty_fun; exp_mode = Alloc_heap; (*FIXME*) exp_desc =
+        { texp with exp_type = ty_fun; exp_mode = mode; exp_desc =
           Texp_function { arg_label = Nolabel; param; cases;
             partial = Total; } }
       in
@@ -4242,8 +4275,8 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
       if warn then Location.prerr_warning texp.exp_loc
           (Warnings.Non_principal_labels "eliminated optional argument");
       (* let-expand to have side effects *)
-      let let_pat, let_var = var_pair "arg" texp.exp_type in
-      re { texp with exp_type = ty_fun; exp_mode = Alloc_heap; (*FIXME*) exp_desc =
+      let let_pat, let_var = var_pair ~mode:texp.exp_mode "arg" texp.exp_type in
+      re { texp with exp_type = ty_fun; exp_mode = mode; exp_desc =
            Texp_let (Nonrecursive,
                      [{vb_pat=let_pat; vb_expr=texp; vb_attributes=[];
                        vb_loc=Location.none;
@@ -4256,12 +4289,37 @@ and type_argument ?explanation ?recarg env mode sarg ty_expected' ty_expected =
       unify_exp env texp ty_expected;
       texp
 
-and type_application env (mode : Alloc_mode.t) funct sargs =
+and type_application env app_loc (mode : Alloc_mode.t) funct sargs =
+  let module Omitted_param = struct
+    type t =
+      { label: arg_label;
+        clos_mode: alloc_mode;  (* the mode of the closure to be created *)
+        arg_mode: alloc_mode;   (* the argument mode of the closure *)
+        arg_ty: type_expr;
+        level: int }
+    let make_fun t ret_mode ret_ty =
+      newty2 t.level (Tarrow ((t.label, t.arg_mode, ret_mode),
+                              t.arg_ty, ret_ty, Cok))
+  end in
+  let open Omitted_param in
   (* funct.exp_type may be generic *)
-  let result_type omitted ty_fun =
-    List.fold_left
-      (fun ty_fun (l,ty,lv) -> newty2 lv (Tarrow(l,ty,ty_fun,Cok)))
-      ty_fun omitted
+  let result_type omitted ty_fun mret =
+    let ty_fun, mclargs, mclos =
+      List.fold_left (fun (ty_fun, mclargs, mret) (p, args) ->
+        let ret_mode = Alloc_mode.join (mret :: List.map fst mclargs) in
+        Omitted_param.make_fun p ret_mode ty_fun,
+        args @ mclargs,
+        p.clos_mode) (ty_fun, [], mret) omitted in
+    List.iter (fun (marg, sarg) ->
+      match Types.Alloc_mode.submode marg mode with
+      | Ok () -> ()
+      | Error _ -> raise (Error (sarg.pexp_loc, env, Local_argument_escapes)))
+      mclargs;
+    begin match Types.Alloc_mode.submode mclos mode with
+    | Ok () -> ()
+    | Error _ -> raise (Error (app_loc, env, Local_return_value_escapes))
+    end;
+    ty_fun
   in
   let has_label l ty_fun =
     let ls, tvar = list_labels env ty_fun in
@@ -4269,8 +4327,15 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
   in
   let eliminated_optional_arguments = ref [] in
   let omitted_parameters = ref [] in
-  let type_unknown_arg (ty_fun, typed_args) (lbl, sarg) =
-    let (ty_arg, ty_res) =
+  let update_omitted_params marg sarg =
+    (* When there are omitted_parameters, subsequent arguments are closed over. *)
+    match !omitted_parameters with
+    | [] -> ()
+    | (p, margs) :: rest ->
+       omitted_parameters := (p, (marg,sarg) :: margs) :: rest
+  in
+  let type_unknown_arg (ty_fun, typed_args, mclos) (lbl, sarg) =
+    let (m_arg, ty_arg, m_ret, ty_res) =
       let ty_fun = expand_head env ty_fun in
       match ty_fun.desc with
       | Tvar _ ->
@@ -4280,16 +4345,19 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
           then
             Location.prerr_warning sarg.pexp_loc
               Warnings.Ignored_extra_argument;
-          unify env ty_fun (newty (Tarrow(lbl,t1,t2,Clink(ref Cunknown))));
-          (t1, t2)
-      | Tarrow (l,t1,t2,_) when l = lbl
+          (* FIXME: not principal, should introduce mode variables *)
+          let kind = (lbl, Alloc_heap, Alloc_heap) in
+          unify env ty_fun (newty (Tarrow(kind,t1,t2,Clink(ref Cunknown))));
+          (Alloc_heap, t1, Alloc_heap, t2)
+      | Tarrow ((l,marg,mret),t1,t2,_) when l = lbl
         || !Clflags.classic && lbl = Nolabel && not (is_optional l) ->
-          (t1, t2)
+          (marg, t1, mret, t2)
       | td ->
           let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
           let ty_res =
+            (* FIXME: return modes of eliminated_optional_arguments *)
             result_type (!omitted_parameters @ !eliminated_optional_arguments)
-              ty_fun
+              ty_fun mclos
           in
           match ty_res.desc with
           | Tarrow _ ->
@@ -4302,14 +4370,14 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
               raise(Error(funct.exp_loc, env, Apply_non_function
                             (expand_head env funct.exp_type)))
     in
+    update_omitted_params m_arg sarg;
     let arg () =
-      (* FIXME arg mode *)
-      let arg = type_expect env Alloc_heap sarg (mk_expected ty_arg) in
+      let arg = type_expect env m_arg sarg (mk_expected ty_arg) in
       if is_optional lbl then
         unify_exp env arg (type_option(newvar()));
       arg
     in
-    (ty_res, (lbl, Some arg) :: typed_args)
+    ty_res, (lbl, Some arg) :: typed_args, m_ret
   in
   let ignore_labels =
     !Clflags.classic ||
@@ -4329,9 +4397,9 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
     end
   in
   let warned = ref false in
-  let rec type_args args ty_fun ty_fun0 sargs =
+  let rec type_args args ty_fun ty_fun0 sargs mclos =
     match expand_head env ty_fun, expand_head env ty_fun0 with
-    | {desc=Tarrow (l, ty, ty_fun, com); level=lv} as ty_fun',
+    | {desc=Tarrow ((l,marg,mret), ty, ty_fun, com); level=lv} as ty_fun',
       {desc=Tarrow (_, ty0, ty_fun0, _)}
       when sargs <> [] && commu_repr com = Cok ->
         let may_warn loc w =
@@ -4344,16 +4412,16 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
         let name = label_name l
         and optional = is_optional l in
         let use_arg sarg l' =
-          (* FIXME arg mode *)
+          update_omitted_params marg sarg;
           Some (
             if not optional || is_optional l' then
-              (fun () -> type_argument env mode sarg ty ty0)
+              (fun () -> type_argument env marg sarg ty ty0)
             else begin
               may_warn sarg.pexp_loc
                 (Warnings.Not_principal "using an optional argument here");
-              (fun () -> option_some env (type_argument env mode sarg
+              (fun () -> option_some env (type_argument env marg sarg
                                             (extract_option_type env ty)
-                                            (extract_option_type env ty0)))
+                                            (extract_option_type env ty0)) marg)
             end
           )
         in
@@ -4361,8 +4429,10 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
           may_warn funct.exp_loc
             (Warnings.Non_principal_labels "eliminated optional argument");
           eliminated_optional_arguments :=
-            (l,ty,lv) :: !eliminated_optional_arguments;
-          Some (fun () -> option_none env (instance ty) Location.none)
+            ({label=l; arg_mode=marg; arg_ty=ty;
+              clos_mode=mclos; level=lv}, [])
+            :: !eliminated_optional_arguments;
+          Some (fun () -> option_none env (instance ty) marg Location.none)
         in
         let remaining_sargs, arg =
           if ignore_labels then begin
@@ -4405,16 +4475,19 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
                      it. *)
                   may_warn funct.exp_loc
                     (Warnings.Non_principal_labels "commuted an argument");
-                  omitted_parameters := (l,ty,lv) :: !omitted_parameters;
+                  omitted_parameters :=
+                    ({label=l; arg_mode=marg; arg_ty=ty;
+                      clos_mode=mclos; level=lv}, [])
+                    :: !omitted_parameters;
                   None
                 end
         in
-        type_args ((l,arg)::args) ty_fun ty_fun0 remaining_sargs
+        type_args ((l,arg)::args) ty_fun ty_fun0 remaining_sargs mret
     | _ ->
         (* We're not looking at a *known* function type anymore, or there are no
            arguments left. *)
-        let ty_fun, typed_args =
-          List.fold_left type_unknown_arg (ty_fun0, args) sargs
+        let ty_fun, typed_args, mclos =
+          List.fold_left type_unknown_arg (ty_fun0, args, mclos) sargs
         in
         let args =
           (* Force typing of arguments.
@@ -4426,7 +4499,7 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
               | l, Some f -> l, Some (f ()))
             (List.rev typed_args)
         in
-        let result_ty = instance (result_type !omitted_parameters ty_fun) in
+        let result_ty = instance (result_type !omitted_parameters ty_fun mclos) in
         args, result_ty
   in
   let is_ignore funct =
@@ -4437,14 +4510,18 @@ and type_application env (mode : Alloc_mode.t) funct sargs =
   match sargs with
   | (* Special case for ignore: avoid discarding warning *)
     [Nolabel, sarg] when is_ignore funct ->
-      let ty_arg, ty_res = filter_arrow env (instance funct.exp_type) Nolabel in
-      (* FIXME arg mode *)
-      let exp = type_expect env mode sarg (mk_expected ty_arg) in
+      let marg, ty_arg, mres, ty_res =
+        filter_arrow env (instance funct.exp_type) Nolabel in
+      begin match Types.Alloc_mode.submode mres mode with
+      | Ok () -> ()
+      | Error _ -> raise (Error(app_loc, env, Local_return_value_escapes))
+      end;
+      let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application false exp;
       ([Nolabel, Some exp], ty_res)
   | _ ->
     let ty = funct.exp_type in
-    type_args [] ty (instance ty) sargs
+    type_args [] ty (instance ty) sargs funct.exp_mode
 
 and type_construct env mode loc lid sarg ty_expected_explained attrs =
   let { ty = ty_expected; explanation } = ty_expected_explained in
@@ -4817,7 +4894,7 @@ and type_let
     ?(check = fun s -> Warnings.Unused_var s)
     ?(check_strict = fun s -> Warnings.Unused_var_strict s)
     existential_context
-    env mode rec_flag spat_sexp_list allow =
+    env rec_flag spat_sexp_list allow =
   let open Ast_helper in
   begin_def();
   if !Clflags.principal then begin_def ();
@@ -4850,7 +4927,7 @@ and type_let
       spat_sexp_list in
   let nvs = List.map (fun _ -> newvar ()) spatl in
   let (pat_list, new_env, force, pvs, unpacks) =
-    type_pattern_list Value existential_context env mode spatl nvs allow in
+    type_pattern_list Value existential_context env spatl nvs allow in
   let attrs_list = List.map fst spatl in
   let is_recursive = (rec_flag = Recursive) in
   (* If recursive, first unify with an approximation of the expression *)
@@ -5093,8 +5170,10 @@ and type_andops env mode sarg sands expected_ty =
         let ty_arg = newvar () in
         let ty_rest = newvar () in
         let ty_result = newvar() in
-        let ty_rest_fun = newty (Tarrow(Nolabel, ty_arg, ty_result, Cok)) in
-        let ty_op = newty (Tarrow(Nolabel, ty_rest, ty_rest_fun, Cok)) in
+        let ty_rest_fun = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+                                        ty_arg, ty_result, Cok)) in
+        let ty_op = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+                                  ty_rest, ty_rest_fun, Cok)) in
         begin try
           unify env op_type ty_op
         with Unify trace ->
@@ -5135,13 +5214,13 @@ let type_binding env rec_flag spat_sexp_list =
       ~check:(fun s -> Warnings.Unused_value_declaration s)
       ~check_strict:(fun s -> Warnings.Unused_value_declaration s)
       At_toplevel
-      env Alloc_heap rec_flag spat_sexp_list false
+      env rec_flag spat_sexp_list false
   in
   (pat_exp_list, new_env)
 
 let type_let existential_ctx env rec_flag spat_sexp_list =
   let (pat_exp_list, new_env, _unpacks) =
-    type_let existential_ctx env Alloc_heap rec_flag spat_sexp_list false in
+    type_let existential_ctx env rec_flag spat_sexp_list false in
   (pat_exp_list, new_env)
 
 (* Typing of toplevel expressions *)
@@ -5601,6 +5680,15 @@ let report_error ~loc env = function
           fprintf ppf "These bindings have type")
         (function ppf ->
           fprintf ppf "but bindings were expected of type")
+  | Local_argument_escapes ->
+      Location.errorf ~loc
+        "This locally-allocated argument is captured by a partial application"
+  | Local_return_value_escapes ->
+      Location.errorf ~loc
+        "This locally-allocated return value escapes"
+  | Local_value_escapes ->
+      Location.errorf ~loc
+        "This locally-allocated value escapes"
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env ~error:true env

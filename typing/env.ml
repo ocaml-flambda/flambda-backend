@@ -2416,7 +2416,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
 
 let constrain_modes ~errors ~loc env id vmode locks mode =
   let constrain m n err =
-    match Alloc_mode.constrain m n with
+    match Alloc_mode.submode m n with
     | Ok () -> ()
     | Error () -> may_lookup_error errors loc env err in
   constrain vmode mode (Local_value_escapes id);

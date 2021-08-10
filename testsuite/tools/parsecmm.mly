@@ -220,7 +220,8 @@ expr:
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
                {Cop(Cextcall($3, $5, [], false),
                     List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN
+      { Cop(Calloc Lambda.Alloc_heap, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }

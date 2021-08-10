@@ -27,7 +27,7 @@ type type_expr =
 
 and type_desc =
     Tvar of string option
-  | Tarrow of arg_label * type_expr * type_expr * commutable
+  | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of type_expr list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   | Tobject of type_expr * (Path.t * type_expr list) option ref
@@ -39,6 +39,11 @@ and type_desc =
   | Tunivar of string option
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * Longident.t list * type_expr list
+
+and arrow_desc =
+  arg_label * alloc_mode * alloc_mode
+
+and alloc_mode = Alloc_heap | Alloc_local
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -477,8 +482,6 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-type alloc_mode = Alloc_heap | Alloc_local
-
 module Alloc_mode = struct
   type t = alloc_mode = Alloc_heap | Alloc_local
 
@@ -488,8 +491,11 @@ module Alloc_mode = struct
   let max_mode = Alloc_local
   let is_max = function Alloc_local -> true | _ -> false
 
-  let constrain a b =
+  let submode a b =
     match a, b with
     | Alloc_heap, _ | _, Alloc_local -> Ok ()
     | Alloc_local, Alloc_heap -> Error ()
+
+  let join ms =
+    if List.mem Alloc_local ms then Alloc_local else Alloc_heap
 end

@@ -198,6 +198,26 @@ and transl_type_aux env policy styp =
     in
     ctyp (Ttyp_var name) ty
   | Ptyp_arrow(l, st1, st2) ->
+    let has_attr a st =
+      List.exists (fun at -> at.attr_name.txt = a) st.ptyp_attributes in
+    let arg_mode =
+      if has_attr "stack" st1 then Alloc_local else Alloc_heap in
+    (* propagate [@stack] (ugly, should be done in parser) *)
+    let rec propagate_stack r =
+      match r.ptyp_desc with
+      | Ptyp_arrow (l, a, r') when not (has_attr "stackret" r) ->
+         { r with
+           ptyp_desc = Ptyp_arrow (l, a, propagate_stack r');
+           ptyp_attributes = { attr_name = Location.mknoloc "stackret";
+                               attr_loc = st1.ptyp_loc;
+                               attr_payload = PStr []
+                               } :: r.ptyp_attributes }
+      | _ -> r
+    in
+    let st2 =
+      if arg_mode = Alloc_local then propagate_stack st2 else st2 in
+    let ret_mode =
+      if has_attr "stackret" st2 then Alloc_local else Alloc_heap in
     let cty1 = transl_type env policy st1 in
     let cty2 = transl_type env policy st2 in
     let ty1 = cty1.ctyp_type in
@@ -205,7 +225,8 @@ and transl_type_aux env policy styp =
       if Btype.is_optional l
       then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
       else ty1 in
-    let ty = newty (Tarrow(l, ty1, cty2.ctyp_type, Cok)) in
+    let ty = newty (Tarrow((l,arg_mode,ret_mode),
+                           ty1, cty2.ctyp_type, Cok)) in
     ctyp (Ttyp_arrow (l, cty1, cty2)) ty
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);

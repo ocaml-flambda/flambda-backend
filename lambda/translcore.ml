@@ -929,7 +929,9 @@ and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
           let mk_body = transl rem in
           fun body ->
             Matching.for_let ~scopes pat.pat_loc lam pat (mk_body body)
-      in fun body -> maybe_region mode bound_modes (transl pat_expr_list body)
+      in
+      let f = transl pat_expr_list in
+      fun body -> maybe_region mode bound_modes (f body)
   | Recursive ->
       let idlist =
         List.map

@@ -112,8 +112,10 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some: Env.t -> Typedtree.expression -> Typedtree.expression
-val option_none: Env.t -> type_expr -> Location.t -> Typedtree.expression
+val option_some:
+  Env.t -> Typedtree.expression -> alloc_mode -> Typedtree.expression
+val option_none:
+  Env.t -> type_expr -> alloc_mode -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
@@ -185,6 +187,10 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
+  | Local_argument_escapes
+  | Local_return_value_escapes
+  | Local_value_escapes
+
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

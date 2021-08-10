@@ -2276,7 +2276,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (Tvar _, _)
         | (_, Tvar _)  ->
             ()
-        | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _))
+        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
           when l1 = l2 || not (is_optional l1 || is_optional l2) ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
@@ -2558,6 +2558,13 @@ let unify_package env unify_list lv1 p1 n1 tl1 lv2 p2 n2 tl2 =
   || !package_subtype env p1 n1 tl1 p2 n2 tl2
   && !package_subtype env p2 n2 tl2 p1 n1 tl1 then () else raise Not_found
 
+let unify_alloc_mode a b =
+  match
+    Types.Alloc_mode.submode a b,
+    Types.Alloc_mode.submode b a
+  with
+  | Ok (), Ok () -> ()
+  | _ -> raise (Unify [])
 
 (* force unification in Reither when one side has a non-conjunctive type *)
 let rigid_variants = ref false
@@ -2706,9 +2713,14 @@ and unify3 env t1 t1' t2 t2' =
     end;
     try
       begin match (d1, d2) with
-        (Tarrow (l1, t1, u1, c1), Tarrow (l2, t2, u2, c2)) when l1 = l2 ||
-        (!Clflags.classic || !umode = Pattern) &&
-        not (is_optional l1 || is_optional l2) ->
+        (Tarrow ((l1,a1,r1), t1, u1, c1),
+         Tarrow ((l2,a2,r2), t2, u2, c2))
+           when
+             (l1 = l2 ||
+              (!Clflags.classic || !umode = Pattern) &&
+               not (is_optional l1 || is_optional l2)) ->
+          unify_alloc_mode a1 a2;
+          unify_alloc_mode r1 r2;
           unify  env t1 t2; unify env  u1 u2;
           begin match commu_repr c1, commu_repr c2 with
             Clink r, c2 -> set_commu r c2
@@ -3192,12 +3204,15 @@ let filter_arrow env t l =
     Tvar _ ->
       let lv = t.level in
       let t1 = newvar2 lv and t2 = newvar2 lv in
-      let t' = newty2 lv (Tarrow (l, t1, t2, Cok)) in
+      (* FIXME mode variables *)
+      let marg = Alloc_heap in
+      let mret = Alloc_heap in
+      let t' = newty2 lv (Tarrow ((l,marg,mret), t1, t2, Cok)) in
       link_type t t';
-      (t1, t2)
-  | Tarrow(l', t1, t2, _)
-    when l = l' || !Clflags.classic && l = Nolabel && not (is_optional l') ->
-      (t1, t2)
+      (marg, t1, mret, t2)
+  | Tarrow((l', arg, ret), t1, t2, _)
+    when (l = l' || !Clflags.classic && l = Nolabel && not (is_optional l)) ->
+      (arg, t1, ret, t2)
   | _ ->
       raise (Unify [])
 
@@ -3317,10 +3332,15 @@ let rec moregen inst_nongen type_pairs env t1 t2 =
               moregen_occur env t1'.level t2;
               update_scope t1'.scope t2;
               link_type t1' t2
-          | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _)) when l1 = l2
-            || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+          | (Tarrow ((l1,a1,r1), t1, u1, _),
+             Tarrow ((l2,a2,r2), t2, u2, _)) when
+               (l1 = l2 
+                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
               moregen inst_nongen type_pairs env t1 t2;
-              moregen inst_nongen type_pairs env u1 u2
+              moregen inst_nongen type_pairs env u1 u2;
+              (* FIXME *)
+              unify_alloc_mode a1 a2;
+              unify_alloc_mode r1 r2
           | (Ttuple tl1, Ttuple tl2) ->
               moregen_list inst_nongen type_pairs env tl1 tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -3589,10 +3609,14 @@ let rec eqtype rename type_pairs subst env t1 t2 =
                 then raise (Unify []);
                 subst := (t1', t2') :: !subst
               end
-          | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _)) when l1 = l2
-            || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+          | (Tarrow ((l1,a1,r1), t1, u1, _),
+             Tarrow ((l2,a2,r2), t2, u2, _)) when
+               (l1 = l2
+                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
               eqtype rename type_pairs subst env t1 t2;
               eqtype rename type_pairs subst env u1 u2;
+              eqtype_alloc_mode a1 a2;
+              eqtype_alloc_mode r1 r2
           | (Ttuple tl1, Ttuple tl2) ->
               eqtype_list rename type_pairs subst env tl1 tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -3698,6 +3722,13 @@ and eqtype_row rename type_pairs subst env row1 row2 =
       | Rabsent, Rabsent -> ()
       | _ -> raise (Unify []))
     pairs
+
+and eqtype_alloc_mode m1 m2 =
+  match m1, m2 with
+  | Alloc_heap, Alloc_heap | Alloc_local, Alloc_local ->
+     ()
+  | Alloc_heap, Alloc_local | Alloc_local, Alloc_heap ->
+     raise (Unify [])
 
 (* Must empty univar_pairs first *)
 let eqtype_list rename type_pairs subst env tl1 tl2 =
@@ -4083,6 +4114,7 @@ let rec build_subtype env visited loops posi level t =
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let c = max c1 c2 in
+      (* FIXME update arrow modes *)
       if c > Unchanged then (newty (Tarrow(l, t1', t2', Cok)), c)
       else (t, Unchanged)
   | Ttuple tlist ->
@@ -4265,10 +4297,14 @@ let rec subtype_rec env trace t1 t2 cstrs =
     match (t1.desc, t2.desc) with
       (Tvar _, _) | (_, Tvar _) ->
         (trace, t1, t2, !univar_pairs)::cstrs
-    | (Tarrow(l1, t1, u1, _), Tarrow(l2, t2, u2, _)) when l1 = l2
-      || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+    | (Tarrow((l1,a1,r1), t1, u1, _),
+       Tarrow((l2,a2,r2), t2, u2, _)) when
+         (l1 = l2
+          || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
         let cstrs = subtype_rec env (Trace.diff t2 t1::trace) t2 t1 cstrs in
-        subtype_rec env (Trace.diff u1 u2::trace) u1 u2 cstrs
+        unify_alloc_mode a1 a2; (* FIXME *)
+        unify_alloc_mode r1 r2;
+        subtype_rec env (Trace.diff u1 u2::trace) u1 u2 cstrs;
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_list env trace tl1 tl2 cstrs
     | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.same p1 p2 ->

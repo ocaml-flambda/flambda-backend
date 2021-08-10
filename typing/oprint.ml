@@ -280,6 +280,7 @@ and print_out_type_1 ppf =
       print_out_type_1 ppf ty2;
       pp_close_box ppf ()
   | ty -> print_out_type_2 ppf ty
+
 and print_out_type_2 ppf =
   function
     Otyp_tuple tyl ->
