@@ -169,6 +169,7 @@ AC_SUBST([stdlib_manpages])
 AC_SUBST([compute_deps])
 AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
+AC_SUBST([intel_jcc_bug_cflags])
 
 ## Generated files
 
@@ -1075,6 +1076,16 @@ AS_CASE([$arch],
        # Alpine and other musl-based Linux distributions
        [common_cflags="-no-pie $common_cflags"],
     [])])
+
+# The major GC performs better with this flag on Intel processors
+# This is a workaround for an Intel CPU bug:
+# https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
+
+intel_jcc_bug_cflags=''
+AS_CASE([$arch],
+  [amd64],
+    [AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
+     [intel_jcc_bug_cflags=-Wa,-mbranches-within-32B-boundaries])])
 
 # Assembler
 

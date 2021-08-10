@@ -30,6 +30,7 @@ m4_include([build-aux/lt~obsolete.m4])
 # Macros from the autoconf macro archive
 m4_include([build-aux/ax_func_which_gethostbyname_r.m4])
 m4_include([build-aux/ax_pthread.m4])
+m4_include([build-aux/ax_check_compile_flag.m4])
 
 # The following macro figures out which C compiler is used.
 # It does so by checking for compiler-specific predefined macros.
