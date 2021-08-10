@@ -362,7 +362,7 @@ let is_tos = function { loc = Reg _; typ = Float } -> true | _ -> false
 
 (* Emit the code for a floating-point comparison *)
 
-let emit_float_test_and_return_condition cmp arg lbl =
+let emit_float_test_and_return_condition cmp arg =
   let actual_cmp =
     match (is_tos arg.(0), is_tos arg.(1)) with
     | (true, true) ->
@@ -423,8 +423,8 @@ let emit_float_test_and_return_condition cmp arg lbl =
       I.and_ (int 69) ah;
       NE
 
-let emit_float_test env cmp arg lbl =
-  let condition = emit_float_test_and_return_condition env cmp arg in
+let emit_float_test cmp arg lbl =
+  let condition = emit_float_test_and_return_condition cmp arg in
   I.j condition lbl
 
 (* Emit a Ifloatspecial instruction *)
@@ -654,7 +654,7 @@ let emit_instr fallthrough i =
       I.set (cond cmp) al;
       I.movzx al (reg i.res.(0));
   | Lop(Icompf cmp) ->
-      let cond = emit_float_test_and_return_condition env cmp i.arg in
+      let cond = emit_float_test_and_return_condition cmp i.arg in
       I.set cond al;
       I.movzx al (reg i.res.(0))
   | Lop(Iintop_imm(Icomp cmp, n)) ->
