@@ -575,8 +575,10 @@ FUNCTION(G(caml_start_program))
         LEA_VAR(caml_program, %r12)
     /* Common code for caml_start_program and caml_callback* */
 LBL(caml_start_program):
+    /* Save the current async exception pointer */
+        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
+        /* stack now 16-aligned */
     /* Build a callback link */
-        subq    $8, %rsp; CFI_ADJUST (8)        /* stack 16-aligned */
         pushq   Caml_state(gc_regs); CFI_ADJUST(8)
         pushq   Caml_state(last_return_address); CFI_ADJUST(8)
         pushq   Caml_state(bottom_of_stack); CFI_ADJUST(8)
@@ -587,6 +589,8 @@ LBL(caml_start_program):
         pushq   %r13; CFI_ADJUST(8)
         pushq   Caml_state(exception_pointer); CFI_ADJUST(8)
         movq    %rsp, Caml_state(exception_pointer)
+    /* Register the same exception handler for async exceptions */
+        movq    %rsp, Caml_state(async_exception_pointer)
     /* Call the OCaml code */
         call    *%r12
 LBL(107):
@@ -600,7 +604,8 @@ LBL(109):
         popq    Caml_state(bottom_of_stack); CFI_ADJUST(-8)
         popq    Caml_state(last_return_address); CFI_ADJUST(-8)
         popq    Caml_state(gc_regs); CFI_ADJUST(-8)
-        addq    $8, %rsp; CFI_ADJUST (-8);
+    /* Restore the asynchronous exception pointer. */
+        popq    Caml_state(async_exception_pointer); CFI_ADJUST(-8)
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
     /* Return to caller. */
@@ -686,6 +691,18 @@ LBL(112):
         ret
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_exception))
+
+/* Raise an async exception from C */
+
+FUNCTION(G(caml_raise_async_exception))
+CFI_STARTPROC
+        movq    C_ARG_1, %r14   /* Caml_state */
+        /* %rax is about to be clobbered anyway */
+        movq    Caml_state(async_exception_pointer), %rax
+        movq    %rax, Caml_state(exception_pointer)
+        jmp     G(caml_raise_exception)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_raise_async_exception))
 
 /* Raise a Stack_overflow exception on return from segv_handler()
    (in runtime/signals_nat.c).  On entry, the stack is full, so we

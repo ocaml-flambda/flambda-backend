@@ -57,7 +57,7 @@ let use_printers x =
     | [] -> None in
   conv (Atomic.get printers)
 
-let to_string_default = function
+let (* XXX rec *) to_string_default = function
   | Out_of_memory -> "Out of memory"
   | Stack_overflow -> "Stack overflow"
   | Match_failure(file, line, char) ->
@@ -66,6 +66,7 @@ let to_string_default = function
       sprintf locfmt file line char (char+6) "Assertion failed"
   | Undefined_recursive_module(file, line, char) ->
       sprintf locfmt file line char (char+6) "Undefined recursive module"
+(* XXX  | Async_exn exn -> to_string_default exn *)
   | x ->
       let x = Obj.repr x in
       if Obj.tag x <> 0 then

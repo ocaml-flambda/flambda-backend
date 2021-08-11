@@ -39,6 +39,7 @@
 #define SYS_BLOCKED_IO 9        /* "Sys_blocked_io" */
 #define ASSERT_FAILURE_EXN 10   /* "Assert_failure" */
 #define UNDEFINED_RECURSIVE_MODULE_EXN 11 /* "Undefined_recursive_module" */
+#define ASYNC_EXN 12            /* "Async_exn" */
 
 #ifdef POSIX_SIGNALS
 struct longjmp_buffer {
@@ -66,6 +67,7 @@ struct longjmp_buffer {
 int caml_is_special_exception(value exn);
 
 CAMLextern value caml_raise_if_exception(value res);
+CAMLextern void caml_raise_async(value res);
 
 #endif /* CAML_INTERNALS */
 
@@ -111,6 +113,10 @@ CAMLnoreturn_end;
 
 CAMLnoreturn_start
 CAMLextern void caml_raise_out_of_memory (void)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
+CAMLextern void caml_raise_out_of_memory_fatal (void)
 CAMLnoreturn_end;
 
 CAMLnoreturn_start

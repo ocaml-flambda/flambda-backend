@@ -333,6 +333,15 @@ val catch_break : bool -> unit
    and [catch_break false] to let the system
    terminate the program on user interrupt. *)
 
+val with_async_exns : (unit -> 'a) -> 'a
+(** [with_async_exns f] runs [f], ensuring that any asynchronous exceptions
+    (e.g. from finalisers, signal handlers or the GC) occurring during the
+    execution of [f] are reraised as normal exceptions to the call site of
+    [with_async_exns].
+
+    This is useful in particular for catching [Break] in a controlled
+    manner. *)
+
 
 val ocaml_version : string
 (** [ocaml_version] is the version of OCaml.

@@ -161,6 +161,11 @@ CAMLexport void caml_raise_out_of_memory(void)
   caml_raise_constant(Field(caml_global_data, OUT_OF_MEMORY_EXN));
 }
 
+CAMLexport void caml_raise_out_of_memory_fatal(void)
+{
+  caml_raise_out_of_memory();
+}
+
 CAMLexport void caml_raise_stack_overflow(void)
 {
   check_global_data("Stack_overflow");
@@ -203,6 +208,11 @@ CAMLexport value caml_raise_if_exception(value res)
   return res;
 }
 
+CAMLexport void caml_raise_async(value exn)
+{
+  caml_raise(exn);
+}
+
 int caml_is_special_exception(value exn) {
   /* this function is only used in caml_format_exception to produce
      a more readable textual representation of some exceptions. It is
@@ -212,4 +222,9 @@ int caml_is_special_exception(value exn) {
   return exn == Field(caml_global_data, MATCH_FAILURE_EXN)
     || exn == Field(caml_global_data, ASSERT_FAILURE_EXN)
     || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
+}
+
+CAMLprim value caml_with_async_exns(value body_callback)
+{
+  return caml_callback_exn(body_callback, Val_unit);
 }
