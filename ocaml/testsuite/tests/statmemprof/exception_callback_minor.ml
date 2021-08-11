@@ -10,6 +10,8 @@ open Gc.Memprof
    its uncaught exception handler. *)
 let _ = Printexc.record_backtrace false
 
+(* CR mshinwell: fix this test properly *)
+
 let _ =
   start ~callstack_size:10 ~sampling_rate:1.
     { null_tracker with

@@ -565,6 +565,9 @@ ENDFUNCTION(G(caml_c_call))
 
 /* Start the OCaml program */
 
+/* CR mshinwell: check failure of "unwind" test on macos (doesn't fail
+   on macos CI though) */
+
 FUNCTION(G(caml_start_program))
        CFI_STARTPROC
     /* Save callee-save registers */
@@ -573,10 +576,22 @@ FUNCTION(G(caml_start_program))
         movq    C_ARG_1, %r14
     /* Initial entry point is G(caml_program) */
         LEA_VAR(caml_program, %r12)
-    /* Common code for caml_start_program and caml_callback* */
+LBL(caml_start_program_async_exn):
+    /* Register the same exception handler as below for async exceptions */
+        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
+        movq    %rsp, %r13
+        subq    $40, %r13
+        movq    %r13, Caml_state(async_exception_pointer)
+        jmp     LBL(107a)
+    /* Common code for caml_start_program and caml_callback*.
+       If you update the number of stack pushes, update the number 40
+       above. */
 LBL(caml_start_program):
+    /* Save the current async exception pointer */
+        pushq   Caml_state(async_exception_pointer); CFI_ADJUST (8)
+LBL(107a):
+    /* Stack is 16-aligned at this point */
     /* Build a callback link */
-        subq    $8, %rsp; CFI_ADJUST (8)        /* stack 16-aligned */
         pushq   Caml_state(gc_regs); CFI_ADJUST(8)
         pushq   Caml_state(last_return_address); CFI_ADJUST(8)
         pushq   Caml_state(bottom_of_stack); CFI_ADJUST(8)
@@ -600,7 +615,9 @@ LBL(109):
         popq    Caml_state(bottom_of_stack); CFI_ADJUST(-8)
         popq    Caml_state(last_return_address); CFI_ADJUST(-8)
         popq    Caml_state(gc_regs); CFI_ADJUST(-8)
-        addq    $8, %rsp; CFI_ADJUST (-8);
+    /* Restore the asynchronous exception pointer (this will be a no-op
+       if this function was not invoked via [caml_start_program_async_exn]). */
+        popq    Caml_state(async_exception_pointer); CFI_ADJUST(-8)
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
     /* Return to caller. */
@@ -687,6 +704,18 @@ LBL(112):
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_exception))
 
+/* Raise an async exception from C */
+
+FUNCTION(G(caml_raise_async_exception))
+CFI_STARTPROC
+        movq    C_ARG_1, %r14   /* Caml_state */
+        /* %rax is about to be clobbered anyway */
+        movq    Caml_state(async_exception_pointer), %rax
+        movq    %rax, Caml_state(exception_pointer)
+        jmp     G(caml_raise_exception)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_raise_async_exception))
+
 /* Raise a Stack_overflow exception on return from segv_handler()
    (in runtime/signals_nat.c).  On entry, the stack is full, so we
    cannot record a backtrace.
@@ -696,7 +725,7 @@ ENDFUNCTION(G(caml_raise_exception))
 FUNCTION(G(caml_stack_overflow))
         movq    C_ARG_1, %r14                 /* Caml_state */
         LEA_VAR(caml_exn_Stack_overflow, %rax)
-        movq    Caml_state(exception_pointer), %rsp /* cut the stack */
+        movq    Caml_state(async_exception_pointer), %rsp /* cut the stack */
      /* Recover previous exn handler */
         popq    Caml_state(exception_pointer)
         ret                                   /* jump to handler's code */
@@ -745,6 +774,20 @@ CFI_STARTPROC
         jmp     LBL(caml_start_program)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_callback3_asm))
+
+/* Variant of caml_callback_asm that installs an async exn trap frame. */
+FUNCTION(G(caml_callback_asm_async_exn))
+CFI_STARTPROC
+    /* Save callee-save registers */
+        PUSH_CALLEE_SAVE_REGS
+    /* Initial loading of arguments */
+        movq    C_ARG_1, %r14      /* Caml_state */
+        movq    C_ARG_2, %rbx      /* closure */
+        movq    0(C_ARG_3), %rax   /* argument */
+        movq    0(%rbx), %r12      /* code pointer */
+        jmp     LBL(caml_start_program_async_exn)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_callback_asm_async_exn))
 
 FUNCTION(G(caml_ml_array_bound_error))
 CFI_STARTPROC

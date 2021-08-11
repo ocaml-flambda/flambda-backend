@@ -81,9 +81,10 @@ exception Not_found
    not be found. *)
 
 exception Out_of_memory
-(** Exception raised by the garbage collector when there is
-   insufficient memory to complete the computation. (Not reliable for
-   allocations on the minor heap.) *)
+(** Exception raised by functions such as those for array and bigarray
+    creation when there is insufficient memory.  Failure to allocate
+    memory during garbage collection causes a fatal error, unlike in
+    previous versions. *)
 
 exception Stack_overflow
 (** Exception raised by the bytecode interpreter when the evaluation
@@ -118,6 +119,18 @@ exception Undefined_recursive_module of (string * int * int)
 (** Exception raised when an ill-founded recursive module definition
    is evaluated. The arguments are the location of the definition in
    the source code (file name, line number, column number). *)
+
+exception Signal_handler_raised of exn
+(** Exception raised from a signal handler.  This should be caught using
+    [Sys.with_async_exns].  Only for native code compilation. *)
+
+exception Finaliser_raised of exn
+(** Exception raised from a finaliser.  This should be caught using
+    [Sys.with_async_exns].  Only for native code compilation. *)
+
+exception Memprof_callback_raised of exn
+(** Exception raised from a memprof callback.  This should be caught using
+    [Sys.with_async_exns].  Only for native code compilation. *)
 
 (** {1 Comparisons} *)
 

@@ -154,9 +154,9 @@ void caml_set_minor_heap_size (asize_t bsz)
   }
   CAMLassert (Caml_state->young_ptr == Caml_state->young_alloc_end);
   new_heap = caml_stat_alloc_aligned_noexc(bsz, 0, &new_heap_base);
-  if (new_heap == NULL) caml_raise_out_of_memory();
+  if (new_heap == NULL) caml_raise_out_of_memory_fatal();
   if (caml_page_table_add(In_young, new_heap, new_heap + bsz) != 0)
-    caml_raise_out_of_memory();
+    caml_raise_out_of_memory_fatal();
 
   if (Caml_state->young_start != NULL){
     caml_page_table_remove(In_young, Caml_state->young_start,
@@ -554,6 +554,8 @@ void caml_alloc_small_dispatch (intnat wosize, int flags,
                                 int nallocs, unsigned char* encoded_alloc_lens)
 {
   intnat whsize = Whsize_wosize (wosize);
+  value res;
+  pending_action_type exn_action;
 
   /* First, we un-do the allocation performed in [Alloc_small] */
   Caml_state->young_ptr += whsize;
@@ -561,10 +563,14 @@ void caml_alloc_small_dispatch (intnat wosize, int flags,
   while(1) {
     /* We might be here because of an async callback / urgent GC
        request. Take the opportunity to do what has been requested. */
-    if (flags & CAML_FROM_CAML)
+    if (flags & CAML_FROM_CAML) {
       /* In the case of allocations performed from OCaml, execute
          asynchronous callbacks. */
-      caml_raise_if_exception(caml_do_pending_actions_exn ());
+      res = caml_do_pending_actions_exn (&exn_action);
+      if (Is_exception_result(res)) {
+        caml_raise_async(Extract_exception(res));
+      }
+    }
     else {
       caml_check_urgent_gc (Val_unit);
       /* In the case of long-running C code that regularly polls with

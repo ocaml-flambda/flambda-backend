@@ -4,6 +4,8 @@
 
 open Gc.Memprof
 
+(* CR mshinwell: fix this test properly *)
+
 let alloc_tracker on_alloc =
   { null_tracker with
     alloc_minor = (fun info -> on_alloc info; None);

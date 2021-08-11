@@ -137,6 +137,7 @@ value caml_startup_common(char_os **argv, int pooling)
                 caml_init_custom_major_ratio, caml_init_custom_minor_ratio,
                 caml_init_custom_minor_max_bsz);
   init_static();
+  Caml_state->async_exceptions_masked = 0;
   caml_init_signals();
 #ifdef _WIN32
   caml_win32_overflow_detection();

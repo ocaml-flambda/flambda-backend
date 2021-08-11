@@ -39,6 +39,9 @@
 #define SYS_BLOCKED_IO 9        /* "Sys_blocked_io" */
 #define ASSERT_FAILURE_EXN 10   /* "Assert_failure" */
 #define UNDEFINED_RECURSIVE_MODULE_EXN 11 /* "Undefined_recursive_module" */
+#define FINALISER_RAISED_EXN 12           /* "Finaliser_raised" */
+#define MEMPROF_CALLBACK_RAISED_EXN 13    /* "Memprof_callback_raised" */
+#define SIGNAL_HANDLER_RAISED_EXN 14      /* "Signal_handler_raised" */
 
 #ifdef POSIX_SIGNALS
 struct longjmp_buffer {
@@ -66,6 +69,21 @@ struct longjmp_buffer {
 int caml_is_special_exception(value exn);
 
 CAMLextern value caml_raise_if_exception(value res);
+CAMLextern value caml_raise_async_if_exception(value res);
+
+typedef enum
+{
+  pending_SIGNAL_HANDLER,
+  pending_FINALISER,
+  pending_MEMPROF_CALLBACK
+} pending_action_type;
+
+CAMLextern value caml_wrap_if_async_exn(value result,
+  pending_action_type action);
+
+/* Note that caml_raise_async may return (in the case where asynchronous
+   exceptions are masked). */
+CAMLextern value caml_raise_async(value res);
 
 #endif /* CAML_INTERNALS */
 
@@ -111,6 +129,10 @@ CAMLnoreturn_end;
 
 CAMLnoreturn_start
 CAMLextern void caml_raise_out_of_memory (void)
+CAMLnoreturn_end;
+
+CAMLnoreturn_start
+CAMLextern void caml_raise_out_of_memory_fatal (void)
 CAMLnoreturn_end;
 
 CAMLnoreturn_start

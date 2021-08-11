@@ -334,6 +334,47 @@ val catch_break : bool -> unit
    terminate the program on user interrupt. *)
 
 
+val with_async_exns : (unit -> 'a) -> 'a
+(** In native code, [with_async_exns f] runs [f] and returns its result,
+    ensuring that any asynchronous exceptions (e.g. from finalisers, signal
+    handlers or the GC) occurring during the execution of [f] are reraised as
+    normal exceptions to the call site of [with_async_exns] and to nowhere else.
+    This is useful in particular for catching [Break] in a controlled manner.
+
+    In bytecode, asynchronous exceptions can be delivered to any exception
+    handler, meaning that [with_async_exns f] is equivalent to just calling
+    [f].  *)
+
+val bracket :
+  acquire:(unit -> 'a) ->
+  release:('a -> unit) ->
+  ?release_on_fail:('a -> unit) ->
+  ('a -> 'b) ->
+  'b
+(** [bracket ~acquire ~release ~release_on_fail f] runs [acquire], with any
+    exceptions that occur during its execution being raised as normal, to the
+    caller of [bracket].  It is guaranteed that no asynchronous exceptions
+    will be raised during [acquire], save that if [Stack_overflow] occurs,
+    the program will be terminated.
+
+    Next [f] is run.  If [f] does not raise any exceptions, [release] will be
+    called, and the result of [f] returned to the caller of [bracket].  It is
+    guaranteed that no asynchronous exceptions will be raised during
+    [release].  If [release] raises any other exceptions, they will be
+    raised as normal, to the caller of [bracket].
+
+    If [f] raises any exceptions then [release_on_fail] will be called.  Any
+    exceptions raised by [release_on_fail] will be ignored.  It is guaranteed
+    that no asynchronous exceptions will be raised during [release_on_fail],
+    save that if [Stack_overflow] occurs, the program will be terminated.
+    Having called [release_on_fail] the exception originally raised by [f]
+    will be reraised to the caller of [bracket].
+
+    [release_on_fail] defaults to [release]. *)
+
+(* CR mshinwell: think more about how [bracket] behaves in bytescode *)
+
+
 val ocaml_version : string
 (** [ocaml_version] is the version of OCaml.
     It is a string of the form

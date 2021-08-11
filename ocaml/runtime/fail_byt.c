@@ -41,6 +41,10 @@ CAMLexport void caml_raise(value v)
   if (Is_exception_result(v))
     v = Extract_exception(v);
 
+  /* CR mshinwell: if supporting masking in bytecode, we will need to
+     ignore any exception that came from
+     [caml_process_pending_actions_with_root_exn], if masking is enabled. */
+
   Caml_state->exn_bucket = v;
   if (Caml_state->external_raise == NULL) caml_fatal_uncaught_exception(v);
   siglongjmp(Caml_state->external_raise->buf, 1);
@@ -112,6 +116,24 @@ static void check_global_data_param(char const *exception_name, char const *msg)
   }
 }
 
+Caml_inline value caml_get_finaliser_raised_tag (char const *msg)
+{
+  check_global_data_param("Finaliser_raised", msg);
+  return Field(caml_global_data, FINALISER_RAISED_EXN);
+}
+
+Caml_inline value caml_get_memprof_callback_raised_tag (char const *msg)
+{
+  check_global_data_param("Memprof_callback_raised", msg);
+  return Field(caml_global_data, MEMPROF_CALLBACK_RAISED_EXN);
+}
+
+Caml_inline value caml_get_signal_handler_raised_tag (char const *msg)
+{
+  check_global_data_param("Signal_handler_raised", msg);
+  return Field(caml_global_data, SIGNAL_HANDLER_RAISED_EXN);
+}
+
 Caml_inline value caml_get_failwith_tag (char const *msg)
 {
   check_global_data_param("Failure", msg);
@@ -161,6 +183,11 @@ CAMLexport void caml_raise_out_of_memory(void)
   caml_raise_constant(Field(caml_global_data, OUT_OF_MEMORY_EXN));
 }
 
+CAMLexport void caml_raise_out_of_memory_fatal(void)
+{
+  caml_raise_out_of_memory();
+}
+
 CAMLexport void caml_raise_stack_overflow(void)
 {
   check_global_data("Stack_overflow");
@@ -203,6 +230,60 @@ CAMLexport value caml_raise_if_exception(value res)
   return res;
 }
 
+CAMLexport value caml_raise_async_if_exception(value result)
+{
+  return caml_raise_if_exception(result);
+}
+
+CAMLexport value caml_wrap_if_async_exn(value result,
+  pending_action_type action)
+{
+  CAMLparam1(result);
+  value exn;
+  value tag = Val_unit;
+  value wrapped;
+  const char *msg = "caml_wrap_if_async_exn";
+
+  if (!Is_exception_result(result)) CAMLreturn(result);
+
+  exn = Extract_exception(result);
+
+  if (Is_block(exn)
+      && Wosize_val(exn) == 2
+      && (Field(exn, 0) == caml_get_signal_handler_raised_tag(msg)
+          || Field(exn, 1) == caml_get_finaliser_raised_tag(msg)
+          || Field(exn, 2) == caml_get_memprof_callback_raised_tag(msg)))
+  {
+    /* Don't double-wrap exceptions. */
+    CAMLreturn(result);
+  }
+
+  wrapped = caml_alloc_small(2, 0);
+
+  switch (action)
+  {
+    case pending_SIGNAL_HANDLER:
+      tag = caml_get_signal_handler_raised_tag(msg);
+      break;
+
+    case pending_FINALISER:
+      tag = caml_get_finaliser_raised_tag(msg);
+      break;
+
+    case pending_MEMPROF_CALLBACK:
+      tag = caml_get_memprof_callback_raised_tag(msg);
+      break;
+
+    default:
+      abort ();
+  }
+
+  Field(wrapped, 0) = tag;
+  Field(wrapped, 1) = Extract_exception(result);
+
+  CAMLreturn(Make_exception_result(wrapped));
+}
+
 int caml_is_special_exception(value exn) {
   /* this function is only used in caml_format_exception to produce
      a more readable textual representation of some exceptions. It is
@@ -212,4 +293,25 @@ int caml_is_special_exception(value exn) {
   return exn == Field(caml_global_data, MATCH_FAILURE_EXN)
     || exn == Field(caml_global_data, ASSERT_FAILURE_EXN)
     || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
+}
+
+CAMLexport value caml_raise_async(value exn)
+{
+  caml_raise(exn);
+}
+
+CAMLprim value caml_with_async_exns(value body_callback)
+{
+  return caml_callback(body_callback, Val_unit);
+}
+
+CAMLprim value caml_mask_async_exns(value unit)
+{
+  /* CR mshinwell: maybe this could be supported in bytecode */
+  return Val_unit;
+}
+
+CAMLprim value caml_unmask_async_exns(value unit)
+{
+  return Val_unit;
 }

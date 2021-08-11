@@ -122,6 +122,60 @@ let catch_break on =
   else
     set_signal sigint Signal_default
 
+external with_async_exns : (unit -> 'a) -> 'a = "caml_with_async_exns"
+external mask_async_exns : unit -> unit = "caml_mask_async_exns"
+external unmask_async_exns : unit -> unit = "caml_unmask_async_exns"
+
+(*
+external reraise : exn -> 'a = "%reraise"
+let with_async_exns body =
+  try with_async_exns0 body
+  with
+  | Signal_handler_raised Break -> reraise Break
+  | exn -> raise exn
+*)
+
+external raise_async : exn -> unit = "caml_raise_async"
+
+let with_destructor f ~destructor =
+  match
+    with_async_exns (fun () ->
+      let result = f () in
+      mask_async_exns ();
+      result)
+  with
+  | result ->
+    unmask_async_exns ();
+    result
+  | exception exn -> (
+    (try destructor () with _ -> ());
+    let is_async_exn =
+      match exn with
+      | Finaliser_raised _ | Memprof_callback_raised _
+      | Signal_handler_raised _ | Stack_overflow -> true
+      | _ -> false
+    in
+    unmask_async_exns ();
+    while true do
+      if is_async_exn then raise_async exn
+      else raise exn
+    done;
+    assert false
+  )
+
+let bracket ~acquire ~release ?(release_on_fail = release) f =
+  mask_async_exns ();
+  match acquire () with
+  | exception exn ->
+    unmask_async_exns ();
+    raise exn
+  | resource ->
+    with_destructor (fun () ->
+        unmask_async_exns ();
+        let result = f resource in
+        release resource;
+        result)
+      ~destructor:(fun () -> release_on_fail resource)
 
 external enable_runtime_warnings: bool -> unit =
   "caml_ml_enable_runtime_warnings"

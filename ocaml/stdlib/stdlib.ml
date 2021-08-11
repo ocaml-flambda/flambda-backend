@@ -46,6 +46,9 @@ exception End_of_file = End_of_file
 exception Division_by_zero = Division_by_zero
 exception Sys_blocked_io = Sys_blocked_io
 exception Undefined_recursive_module = Undefined_recursive_module
+exception Signal_handler_raised = Signal_handler_raised
+exception Finaliser_raised = Finaliser_raised
+exception Memprof_callback_raised = Memprof_callback_raised
 
 (* Composition operators *)
 

@@ -153,7 +153,7 @@ CAMLexport void caml_enter_blocking_section(void)
 {
   while (1){
     /* Process all pending signals now */
-    caml_raise_if_exception(caml_process_pending_signals_exn());
+    caml_raise_async_if_exception(caml_process_pending_signals_exn());
     caml_enter_blocking_section_hook ();
     /* Check again for pending signals.
        If none, done; otherwise, try again */
@@ -224,7 +224,7 @@ value caml_execute_signal_exn(int signal_number, int in_signal_handler)
     caml_sigmask_hook(SIG_SETMASK, &sigs, NULL);
   }
 #endif
-  return res;
+  return caml_wrap_if_async_exn(res, pending_SIGNAL_HANDLER);
 }
 
 void caml_update_young_limit (void)
@@ -318,7 +318,7 @@ value caml_process_pending_actions_with_root_exn(value extra_root)
 value caml_process_pending_actions_with_root(value extra_root)
 {
   value res = process_pending_actions_with_root_exn(extra_root);
-  return caml_raise_if_exception(res);
+  return caml_raise_async_if_exception(res);
 }
 
 CAMLexport value caml_process_pending_actions_exn(void)
@@ -329,7 +329,7 @@ CAMLexport value caml_process_pending_actions_exn(void)
 CAMLexport void caml_process_pending_actions(void)
 {
   value exn = process_pending_actions_with_root_exn(Val_unit);
-  caml_raise_if_exception(exn);
+  caml_raise_async_if_exception(exn);
 }
 
 /* OS-independent numbering of signals */
@@ -486,6 +486,6 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     }
     caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
   }
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  caml_raise_async_if_exception(caml_process_pending_signals_exn());
   CAMLreturn (res);
 }

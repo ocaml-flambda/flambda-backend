@@ -28,7 +28,7 @@ let rec f x =
   then 1 + f (x + 1)
   else
     try
-      1 + f (x + 1)
+      Sys.with_async_exns (fun () -> 1 + f (x + 1))
     with Stack_overflow ->
       print_string "x = "; print_int x; print_newline();
       raise Stack_overflow
@@ -36,7 +36,7 @@ let rec f x =
 let _ =
  begin
   try
-    ignore(f 0)
+    Sys.with_async_exns (fun () -> ignore(f 0))
   with Stack_overflow ->
     print_string "Stack overflow caught"; print_newline()
  end ;
@@ -44,7 +44,7 @@ let _ =
  Printexc.record_backtrace true;
  begin
   try
-    ignore(f 0)
+    Sys.with_async_exns (fun () -> ignore(f 0))
   with Stack_overflow ->
     print_string "second Stack overflow caught"; print_newline()
  end
