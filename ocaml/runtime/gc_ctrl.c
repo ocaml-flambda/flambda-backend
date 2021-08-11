@@ -539,7 +539,7 @@ CAMLprim value caml_gc_minor(value v)
   // call the gc and call finalisers
   exn = caml_process_pending_actions_exn();
   CAML_EV_END(EV_EXPLICIT_GC_MINOR);
-  caml_raise_if_exception(exn);
+  caml_raise_async_if_exception(exn);
   return Val_unit;
 }
 
@@ -571,7 +571,7 @@ CAMLprim value caml_gc_major(value v)
   // call finalisers
   exn = caml_process_pending_actions_exn();
   CAML_EV_END(EV_EXPLICIT_GC_MAJOR);
-  caml_raise_if_exception(exn);
+  caml_raise_async_if_exception(exn);
   return Val_unit;
 }
 
@@ -596,7 +596,7 @@ CAMLprim value caml_gc_full_major(value v)
 
 cleanup:
   CAML_EV_END(EV_EXPLICIT_GC_FULL_MAJOR);
-  caml_raise_if_exception(exn);
+  caml_raise_async_if_exception(exn);
 
   return Val_unit;
 }
@@ -617,7 +617,7 @@ CAMLprim value caml_gc_major_slice (value v)
     caml_major_collection_slice (Long_val (v));
   }
   CAML_EV_END(EV_EXPLICIT_GC_MAJOR_SLICE);
-  caml_raise_if_exception (exn);
+  caml_raise_async_if_exception(exn);
   return Val_long (0);
 }
 
@@ -643,7 +643,7 @@ CAMLprim value caml_gc_compaction(value v)
 
  cleanup:
   CAML_EV_END(EV_EXPLICIT_GC_COMPACT);
-  caml_raise_if_exception(exn);
+  caml_raise_async_if_exception(exn);
   return Val_unit;
 }
 

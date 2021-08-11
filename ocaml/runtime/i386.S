@@ -272,9 +272,25 @@ FUNCTION(caml_start_program)
         pushl   %ebp; CFI_ADJUST(4)
     /* Initial entry point is caml_program */
         movl    $ G(caml_program), %esi
-    /* Common code for caml_start_program and caml_callback* */
-LBL(106):
+LBL(106a):
+    /* Register the same exception handler as below for async exceptions */
         movl    G(Caml_state), %edi
+        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
+        subl    $40, %esp
+        movl    %esp, CAML_STATE(async_exception_pointer, %edi)
+        addl    $40, %esp
+        ALIGN_STACK(12) /* must match below */
+        jmp     LBL(106b)
+    /* Common code for caml_start_program and caml_callback*.
+       If you update the stack pushes / stack pointer changes below, update
+       the number 24 above. */
+LBL(106):
+    /* Save the current async exception pointer without disturbing the
+       alignment of the stack (see note below). */
+        movl    G(Caml_state), %edi
+        pushl   CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(4)
+        ALIGN_STACK(12)
+LBL(106b):
     /* Build a callback link */
         pushl   CAML_STATE(gc_regs, %edi); CFI_ADJUST(4)
         pushl   CAML_STATE(last_return_address, %edi); CFI_ADJUST(4)
@@ -298,6 +314,10 @@ LBL(109):
         popl    CAML_STATE(bottom_of_stack, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(last_return_address, %edi); CFI_ADJUST(-4)
         popl    CAML_STATE(gc_regs, %edi); CFI_ADJUST(-4)
+    /* Restore the asynchronous exception pointer (this will be a no-op
+       if this function was not invoked via [L106a]). */
+        UNDO_ALIGN_STACK(12)
+        popl    CAML_STATE(async_exception_pointer, %edi); CFI_ADJUST(-4)
     /* Restore callee-save registers. */
         popl    %ebp; CFI_ADJUST(-4)
         popl    %edi; CFI_ADJUST(-4)
@@ -427,6 +447,23 @@ FUNCTION(caml_callback3_asm)
         jmp     LBL(106)
         CFI_ENDPROC
 ENDFUNCTION(caml_callback3_asm)
+
+/* Variant of caml_callback_asm that installs an async exn trap frame. */
+FUNCTION(caml_callback_asm_async_exn)
+        CFI_STARTPROC
+    /* Save callee-save registers */
+        pushl   %ebx; CFI_ADJUST(4)
+        pushl   %esi; CFI_ADJUST(4)
+        pushl   %edi; CFI_ADJUST(4)
+        pushl   %ebp; CFI_ADJUST(4)
+    /* Initial loading of arguments */
+        movl    24(%esp), %ebx   /* arg2: closure */
+        movl    28(%esp), %edi   /* arguments array */
+        movl    0(%edi), %eax    /* arg1: argument */
+        movl    0(%ebx), %esi    /* code pointer */
+        jmp     LBL(106a)
+        CFI_ENDPROC
+ENDFUNCTION(caml_callback_asm_async_exn)
 
 FUNCTION(caml_ml_array_bound_error)
         CFI_STARTPROC

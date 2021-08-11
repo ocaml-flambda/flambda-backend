@@ -54,6 +54,7 @@ void caml_init_domain ()
   Caml_state->trapsp = NULL;
   Caml_state->trap_barrier = NULL;
   Caml_state->external_raise = NULL;
+  Caml_state->external_raise_async = NULL;
   Caml_state->exn_bucket = Val_unit;
 
   Caml_state->local_arenas = NULL;

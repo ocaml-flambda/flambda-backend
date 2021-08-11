@@ -51,10 +51,26 @@ static void init_callback_code(void)
   callback_code_inited = 1;
 }
 
-CAMLexport value caml_callbackN_exn(value closure, int narg, value args[])
+static int is_async_exn(value exn)
+{
+  const value *break_exn;
+
+  if (caml_global_data == 0) return 0;
+
+  if (exn == Field(caml_global_data, STACK_OVERFLOW_EXN)) return 1;
+
+  /* "Sys.Break" must match stdlib/sys.mlp. */
+  break_exn = caml_named_value("Sys.Break");
+  if (break_exn != NULL && exn == *break_exn) return 1;
+
+  return 0;
+}
+
+static value caml_callbackN_exn0(value closure, int narg, value args[],
+                                 int catch_async_exns)
 {
   int i;
-  value res;
+  value res, exn;
 
   CAMLassert(narg + 4 <= 256);
 
@@ -69,7 +85,24 @@ CAMLexport value caml_callbackN_exn(value closure, int narg, value args[])
   callback_code[3] = narg;
   res = caml_interprete(callback_code, sizeof(callback_code));
   if (Is_exception_result(res)) Caml_state->extern_sp += narg + 4; /* PR#3419 */
+
+  if (!Is_exception_result(res)) return res;
+
+  exn = Extract_exception(res);
+
+  /* When not called from [Sys.with_async_exns], any asynchronous exceptions
+     must be reraised here, rather than being returned as the result of one
+     of the [caml_callback*] functions.  This will cause them to arrive only
+     at any [Sys.with_async_exns] and toplevel uncaught exception handler
+     sites. */
+  if (!catch_async_exns && is_async_exn(exn)) caml_raise_async(exn);
+
   return res;
+}
+
+CAMLexport value caml_callbackN_exn(value closure, int narg, value args[])
+{
+  return caml_callbackN_exn0(closure, narg, args, 0);
 }
 
 CAMLexport value caml_callback_exn(value closure, value arg1)
@@ -95,6 +128,14 @@ CAMLexport value caml_callback3_exn(value closure,
   arg[1] = arg2;
   arg[2] = arg3;
   return caml_callbackN_exn(closure, 3, arg);
+}
+
+CAMLexport value caml_callback_async_exn(value closure, value arg1)
+{
+  value arg[1];
+  arg[0] = arg1;
+
+  return caml_callbackN_exn0(closure, 1, arg, 1);
 }
 
 #else
@@ -154,6 +195,14 @@ CAMLexport value caml_callbackN_exn(value closure, int narg, value args[])
     }
   }
   CAMLreturn (res);
+}
+
+extern value (caml_callback_asm_async_exn)
+  (caml_domain_state* state, value closure, value* args);
+
+CAMLexport value caml_callback_async_exn(value closure, value arg)
+{
+  return caml_callback_asm_async_exn(Caml_state, closure, &arg);
 }
 
 #endif

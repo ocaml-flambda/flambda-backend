@@ -386,7 +386,8 @@ let can_raise_operation : operation -> bool = function
 
 let can_raise_basic : basic -> bool = function
   | Op op -> can_raise_operation op
-  | Call _ -> true
+  | Call (P (Alloc _)) -> false
+  | Call (P (External _ | Checkbound _)) | Call (F _) -> true
   | Reloadretaddr -> false
   | Pushtrap _ -> false
   | Poptrap -> false

@@ -23,7 +23,7 @@
      callback.c weak.c
    finalise.c stacks.c dynlink.c backtrace_byt.c backtrace.c
      afl.c
-   bigarray.c eventlog.c)
+   bigarray.c eventlog.c fail_nat.c)
  (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
 
 ; Shouldn't this use foreign build sandboxing?
@@ -36,7 +36,7 @@
           (glob_files caml/*.h)
           interp.c misc.c stacks.c fix_code.c startup_aux.c startup_byt.c
           freelist.c major_gc.c minor_gc.c memory.c alloc.c roots_byt.c
-          globroots.c fail_byt.c signals.c signals_byt.c printexc.c
+          globroots.c fail.c fail_byt.c signals.c signals_byt.c printexc.c
           backtrace_byt.c backtrace.c compare.c ints.c floats.c str.c array.c
           io.c extern.c intern.c hash.c sys.c meta.c parsing.c gc_ctrl.c md5.c
           obj.c lexing.c callback.c debugger.c weak.c compact.c finalise.c
@@ -60,7 +60,7 @@
  (deps    ../Makefile.config ../Makefile.common ../Makefile.build_config ../Makefile.config_if_required Makefile
   (glob_files caml/*.h)
   signals_osdep.h amd64.S
-  startup_aux.c startup_nat.c main.c fail_nat.c roots_nat.c signals.c
+  startup_aux.c startup_nat.c main.c fail.c fail_nat.c roots_nat.c signals.c
   signals_nat.c misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c
   compare.c ints.c floats.c str.c array.c io.c extern.c intern.c hash.c sys.c
   parsing.c gc_ctrl.c md5.c obj.c lexing.c unix.c printexc.c callback.c weak.c

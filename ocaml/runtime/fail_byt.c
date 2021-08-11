@@ -31,19 +31,44 @@
 #include "caml/signals.h"
 #include "caml/stacks.h"
 
+static void prepare_for_raise(value v, int *turned_into_async_exn)
+{
+  v = caml_prepare_for_raise(v, turned_into_async_exn);
+  Caml_state->exn_bucket = v;
+}
+
 CAMLexport void caml_raise(value v)
 {
-  Unlock_exn();
-  CAMLassert(!Is_exception_result(v));
+  int turned_into_async_exn = 0;
+  prepare_for_raise(v, &turned_into_async_exn);
 
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
+  if (turned_into_async_exn)
+  {
+    if (Caml_state->external_raise_async == NULL) {
+      caml_fatal_uncaught_exception(v);
+    }
 
-  Caml_state->exn_bucket = v;
-  if (Caml_state->external_raise == NULL) caml_fatal_uncaught_exception(v);
-  siglongjmp(Caml_state->external_raise->buf, 1);
+    siglongjmp(Caml_state->external_raise_async->buf, 1);
+  }
+  else
+  {
+    if (Caml_state->external_raise == NULL)
+      caml_fatal_uncaught_exception(v);
+
+    siglongjmp(Caml_state->external_raise->buf, 1);
+  }
+}
+
+CAMLexport void caml_raise_async(value v)
+{
+  prepare_for_raise(v, NULL);
+
+  if (Caml_state->external_raise_async == NULL)
+  {
+    caml_fatal_uncaught_exception(v);
+  }
+
+  siglongjmp(Caml_state->external_raise_async->buf, 1);
 }
 
 CAMLexport void caml_raise_constant(value tag)
@@ -161,10 +186,15 @@ CAMLexport void caml_raise_out_of_memory(void)
   caml_raise_constant(Field(caml_global_data, OUT_OF_MEMORY_EXN));
 }
 
+CAMLexport void caml_raise_out_of_memory_fatal(void)
+{
+  caml_raise_out_of_memory();
+}
+
 CAMLexport void caml_raise_stack_overflow(void)
 {
   check_global_data("Stack_overflow");
-  caml_raise_constant(Field(caml_global_data, STACK_OVERFLOW_EXN));
+  caml_raise_async(Field(caml_global_data, STACK_OVERFLOW_EXN));
 }
 
 CAMLexport void caml_raise_sys_error(value msg)
@@ -203,6 +233,13 @@ CAMLexport value caml_raise_if_exception(value res)
   return res;
 }
 
+CAMLexport value caml_raise_async_if_exception(value result)
+{
+  if (Is_exception_result(result)) caml_raise_async(Extract_exception(result));
+
+  return result;
+}
+
 int caml_is_special_exception(value exn) {
   /* this function is only used in caml_format_exception to produce
      a more readable textual representation of some exceptions. It is
@@ -212,4 +249,31 @@ int caml_is_special_exception(value exn) {
   return exn == Field(caml_global_data, MATCH_FAILURE_EXN)
     || exn == Field(caml_global_data, ASSERT_FAILURE_EXN)
     || exn == Field(caml_global_data, UNDEFINED_RECURSIVE_MODULE_EXN);
+}
+
+CAMLexport value caml_check_async_exn(value res, const char *msg)
+{
+  check_global_data("Stack_overflow");
+  return caml_check_async_exn0(res, msg,
+    Field(caml_global_data, STACK_OVERFLOW_EXN));
+}
+
+CAMLprim value caml_with_async_exns(value body_callback)
+{
+  value exn;
+  value result = caml_callback_async_exn(body_callback, Val_unit);
+
+  if (!Is_exception_result(result))
+    return result;
+
+  exn = Extract_exception(result);
+
+  /* Irrespective as to whether the exception was asynchronous, it is raised as
+     a normal exception, without any processing of pending actions. */
+
+  if (Caml_state->external_raise == NULL)
+    caml_fatal_uncaught_exception(exn);
+
+  Caml_state->exn_bucket = exn;
+  siglongjmp(Caml_state->external_raise->buf, 1);
 }
