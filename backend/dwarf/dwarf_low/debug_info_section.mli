@@ -22,8 +22,8 @@ type t
     [dies] (along with the abbreviation table). *)
 val create
    : dies:Debugging_information_entry.t list
-  -> debug_abbrev_label:Linearize.label
-  -> compilation_unit_header_label:Linearize.label
+  -> debug_abbrev_label:Dwarf_misc.label
+  -> compilation_unit_header_label:Dwarf_misc.label
   -> t
 
 val dwarf_version : Dwarf_version.t

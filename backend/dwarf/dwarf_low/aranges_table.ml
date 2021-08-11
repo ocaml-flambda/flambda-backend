@@ -31,7 +31,7 @@ let create ~start_of_code_symbol ~end_of_code_symbol
     (* N.B. The following offset is to the compilation unit *header*, not
        the compilation unit DIE. *)
     V.Offset_into_debug_info debug_info_label;
-    V.Int8 (Int8.of_int_exn Arch.size_addr);
+    V.Int8 (Int8.of_int_exn Dwarf_misc.size_addr);
     V.Int8 Int8.zero;  (* flat address space *)
     (* end of header *)
     V.Code_address_from_symbol start_of_code_symbol;

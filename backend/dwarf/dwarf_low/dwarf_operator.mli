@@ -94,11 +94,11 @@ type t =
   | DW_op_minus
   | DW_op_implicit_value of implicit_value
   | DW_op_stack_value
-  | DW_op_GNU_implicit_pointer of { offset_in_bytes : int; label : Cmm.label; }
-  | DW_op_implicit_pointer of { offset_in_bytes : int; label : Cmm.label; }
+  | DW_op_GNU_implicit_pointer of { offset_in_bytes : int; label : Dwarf_misc.cmm_label; }
+  | DW_op_implicit_pointer of { offset_in_bytes : int; label : Dwarf_misc.cmm_label; }
   | DW_op_piece of { size_in_bytes : int; }
-  | DW_op_call4 of { label : Cmm.label;
-      compilation_unit_header_label : Cmm.label; }
+  | DW_op_call4 of { label : Dwarf_misc.cmm_label;
+      compilation_unit_header_label : Dwarf_misc.cmm_label; }
   | DW_op_skip of { num_bytes_forward : int; }
   | DW_op_bra of { num_bytes_forward : int; }
   | DW_op_drop

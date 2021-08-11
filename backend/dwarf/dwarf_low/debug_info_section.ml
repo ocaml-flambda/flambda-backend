@@ -19,8 +19,8 @@ module DIE = Debugging_information_entry
 
 type t = {
   dies : DIE.t list;
-  debug_abbrev_label : Linearize.label;
-  compilation_unit_header_label : Linearize.label;
+  debug_abbrev_label : Dwarf_misc.label;
+  compilation_unit_header_label : Dwarf_misc.label;
 }
 
 let create ~dies ~debug_abbrev_label ~compilation_unit_header_label =
@@ -38,7 +38,7 @@ let debug_abbrev_offset t =
 
 (* CR-someday mshinwell: fix for cross compilation *)
 let address_width_in_bytes_on_target =
-  Dwarf_value.Int8 (Numbers.Int8.of_int_exn Arch.size_addr)
+  Dwarf_value.Int8 (Numbers.Int8.of_int_exn Dwarf_misc.size_addr)
 
 let size_without_first_word t =
   let (+) = Int64.add in

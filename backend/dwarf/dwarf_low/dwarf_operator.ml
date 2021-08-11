@@ -94,13 +94,13 @@ type t =
   | DW_op_minus
   | DW_op_implicit_value of implicit_value
   | DW_op_stack_value
-  | DW_op_GNU_implicit_pointer of { offset_in_bytes : int; label : Cmm.label; }
-  | DW_op_implicit_pointer of { offset_in_bytes : int; label : Cmm.label; }
+  | DW_op_GNU_implicit_pointer of { offset_in_bytes : int; label : Dwarf_misc.cmm_label; }
+  | DW_op_implicit_pointer of { offset_in_bytes : int; label : Dwarf_misc.cmm_label; }
   | DW_op_piece of { size_in_bytes : int; }
   (* CR-someday mshinwell: Should probably use DW_op_call_ref, but gdb doesn't
      currently support it.  This would remove the "header label" nonsense. *)
-  | DW_op_call4 of { label : Cmm.label;
-      compilation_unit_header_label : Cmm.label; }
+  | DW_op_call4 of { label : Dwarf_misc.cmm_label;
+      compilation_unit_header_label : Dwarf_misc.cmm_label; }
   | DW_op_skip of { num_bytes_forward : int; }
   | DW_op_bra of { num_bytes_forward : int; }
   | DW_op_drop
@@ -340,7 +340,7 @@ let size t =
   let opcode_size = Int64.of_int 1 in
   let args_size =
     match t with
-    | DW_op_addr _addr -> Int64.of_int Arch.size_addr
+    | DW_op_addr _addr -> Int64.of_int Dwarf_misc.size_addr
     | DW_op_regx { reg_number; } ->
       Dwarf_value.size (Uleb128 (Int64.of_int reg_number))
     | DW_op_reg0
@@ -414,10 +414,10 @@ let size t =
     | DW_op_breg31 { offset_in_bytes; } ->
       Dwarf_value.size (Sleb128 offset_in_bytes)
     | DW_op_implicit_value (Int _) ->
-      let size_int = Int64.of_int Arch.size_int in
+      let size_int = Int64.of_int Dwarf_misc.size_int in
       Int64.add (Dwarf_value.size (Sleb128 size_int)) size_int
     | DW_op_implicit_value (Symbol _) ->
-      let size_addr = Int64.of_int Arch.size_addr in
+      let size_addr = Int64.of_int Dwarf_misc.size_addr in
       Int64.add (Dwarf_value.size (Sleb128 size_addr)) size_addr
     | DW_op_plus_uconst const -> Dwarf_value.size (Uleb128 const)
     | DW_op_consts const -> Dwarf_value.size (Sleb128 const)
@@ -523,7 +523,7 @@ let emit t =
     Dwarf_value.emit (Sleb128 offset_in_bytes)
   | DW_op_implicit_value (Int i) ->
     let buf =
-      match Arch.size_int with
+      match Dwarf_misc.size_int with
       | 4 ->
         let buf = Bytes.create 4 in
         caml_string_set32 buf ~index:0 (Int64.to_int32 i);
@@ -533,12 +533,12 @@ let emit t =
         caml_string_set64 buf ~index:0 i;
         buf
       | n ->
-        Misc.fatal_errorf "Dwarf_operator: bad Arch.size_int = %d" n
+        Misc.fatal_errorf "Dwarf_operator: bad Dwarf_misc.size_int = %d" n
     in
     Dwarf_value.emit (Sleb128 (Int64.of_int (Bytes.length buf)));
     Dwarf_value.emit (String (Bytes.to_string buf))
   | DW_op_implicit_value (Symbol symbol) ->
-    Dwarf_value.emit (Sleb128 (Int64.of_int Arch.size_addr));
+    Dwarf_value.emit (Sleb128 (Int64.of_int Dwarf_misc.size_addr));
     Dwarf_value.emit (Code_address_from_symbol symbol)
   | DW_op_plus_uconst const -> Dwarf_value.emit (Uleb128 const)
   | DW_op_consts const -> Dwarf_value.emit (Sleb128 const)

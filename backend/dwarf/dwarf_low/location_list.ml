@@ -17,7 +17,7 @@
 module A = Asm_directives
 
 type t = {
-  name : Linearize.label;
+  name : Dwarf_misc.label;
   entries : Location_list_entry.t list;
 }
 
@@ -28,7 +28,7 @@ let sort entries =
   List.sort Location_list_entry.compare_ascending_vma entries
 
 let create ~location_list_entries =
-  { name = Cmm.new_label ();
+  { name = Dwarf_misc.new_label ();
     entries = sort location_list_entries;
   }
 

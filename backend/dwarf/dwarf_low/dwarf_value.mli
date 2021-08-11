@@ -31,10 +31,10 @@ type t =
   | Indirect_string of string
   (* CR mshinwell: remove "Code" name. *)
   | Absolute_code_address of Targetint.t
-  | Code_address_from_label of Linearize.label
+  | Code_address_from_label of Dwarf_misc.label
   | Code_address_from_symbol of string
   | Code_address_from_label_symbol_diff of
-      { upper : Linearize.label;
+      { upper : Dwarf_misc.label;
         lower : string;
         offset_upper : Targetint.t;
       }
@@ -53,12 +53,12 @@ type t =
       (DWARF-4 spec p.142.)  However the widths are the same in both cases,
       corresponding to the DWARF format.
   *)
-  | Offset_into_debug_info of Linearize.label
+  | Offset_into_debug_info of Dwarf_misc.label
   | Offset_into_debug_info_from_symbol of string
-  | Offset_into_debug_line of Linearize.label
+  | Offset_into_debug_line of Dwarf_misc.label
   | Offset_into_debug_line_from_symbol of string
-  | Offset_into_debug_loc of Linearize.label
-  | Offset_into_debug_abbrev of Linearize.label
-  | Distance_between_labels_32bit of { upper : Cmm.label; lower : Cmm.label; }
+  | Offset_into_debug_loc of Dwarf_misc.label
+  | Offset_into_debug_abbrev of Dwarf_misc.label
+  | Distance_between_labels_32bit of { upper : Dwarf_misc.cmm_label; lower : Dwarf_misc.cmm_label; }
 
 include Dwarf_emittable.S with type t := t

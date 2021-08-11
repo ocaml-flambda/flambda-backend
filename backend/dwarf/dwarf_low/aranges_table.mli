@@ -24,5 +24,5 @@ include Dwarf_emittable.S with type t := t
 
 val create : start_of_code_symbol:string
   -> end_of_code_symbol:string
-  -> debug_info_label:Linearize.label
+  -> debug_info_label:Dwarf_misc.label
   -> t

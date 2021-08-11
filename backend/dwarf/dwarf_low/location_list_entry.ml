@@ -19,8 +19,8 @@ module A = Asm_directives
 module Location_list_entry = struct
   type t = {
     start_of_code_symbol : string;
-    beginning_address_label : Linearize.label;
-    ending_address_label : Linearize.label;
+    beginning_address_label : Dwarf_misc.label;
+    ending_address_label : Dwarf_misc.label;
     ending_address_offset : int option;
     expr : Single_location_description.t;
   }

@@ -18,7 +18,7 @@ module A = Asm_directives
 module Attribute_value = Dwarf_attribute_values.Attribute_value
 
 type t = {
-  label : Linearize.label;
+  label : Dwarf_misc.label;
   name : string option;
   abbreviation_code : Abbreviation_code.t;
   attribute_values : Attribute_value.t list;
@@ -33,7 +33,7 @@ let create ~label ~name ~abbreviation_code ~attribute_values =
 
 let null =
   lazy (
-    { label = Cmm.new_label ();
+    { label = Dwarf_misc.new_label ();
       name = None;
       abbreviation_code = Abbreviation_code.null ();
       attribute_values = [];
