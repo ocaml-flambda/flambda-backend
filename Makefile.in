@@ -6,6 +6,8 @@
 #*                                                                        *
 #**************************************************************************
 
+.NOTPARALLEL:
+
 # CR mshinwell: Find out how to get something like "set -eu" in effect.
 prefix=@prefix@
 stage0_prefix=@stage0_prefix@
