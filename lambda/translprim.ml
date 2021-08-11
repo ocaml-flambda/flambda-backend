@@ -128,6 +128,8 @@ let primitives_table =
     "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
     "%makeblock", Primitive ((Pmakeblock(0, Immutable, None, Alloc_heap)), 1);
     "%makemutable", Primitive ((Pmakeblock(0, Mutable, None, Alloc_heap)), 1);
+    "%makelocalmutable",
+       Primitive ((Pmakeblock(0, Mutable, None, Alloc_local)), 1);
     "%raise", Raise Raise_regular;
     "%reraise", Raise Raise_reraise;
     "%raise_notrace", Raise Raise_notrace;
@@ -747,7 +749,7 @@ let lambda_primitive_needs_event_after = function
      collect the call stack. *)
   | Pduprecord _ | Pccall _ | Pfloatofint | Pnegfloat | Pabsfloat
   | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat | Pstringrefs | Pbytesrefs
-  | Pbytessets | Pmakearray (Pgenarray, _) | Pduparray _
+  | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
   | Parrayrefu (Pgenarray | Pfloatarray) | Parraysetu (Pgenarray | Pfloatarray)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
@@ -768,7 +770,7 @@ let lambda_primitive_needs_event_after = function
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
   | Pcompare_ints | Pcompare_floats
   | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _)
+  | Pbytessetu | Pmakearray ((Pintarray | Paddrarray | Pfloatarray), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint | Pisout
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer | Popaque ->
      false

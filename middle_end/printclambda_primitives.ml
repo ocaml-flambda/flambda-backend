@@ -148,8 +148,10 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
   | Pbytessets -> fprintf ppf "bytes.set"
 
   | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
-  | Pmakearray (k, Mutable) -> fprintf ppf "makearray[%s]" (array_kind k)
-  | Pmakearray (k, Immutable) -> fprintf ppf "makearray_imm[%s]" (array_kind k)
+  | Pmakearray (k, mut, mode) ->
+     let mode = match mode with Alloc_local -> "local" | Alloc_heap -> "" in
+     let mut = match mut with Mutable -> "" | Immutable -> "_imm" in
+     fprintf ppf "make%sarray%s[%s]" mut mode (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Parrayrefu k -> fprintf ppf "array.unsafe_get[%s]" (array_kind k)

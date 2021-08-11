@@ -343,9 +343,9 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       when toplevel ->
       List.iter (mark_loop ~toplevel curr) args
 *)
-    | Prim (Pmakearray (Pfloatarray, Immutable), args, _) ->
+    | Prim (Pmakearray (Pfloatarray, Immutable, _mode), args, _) ->
       mark_vars args curr
-    | Prim (Pmakearray (Pfloatarray, Mutable), args, _) ->
+    | Prim (Pmakearray (Pfloatarray, Mutable, _mode), args, _) ->
       (* CR-someday pchambart: Toplevel float arrays could always be
          statically allocated using an equivalent of the
          Initialize_symbol construction.

@@ -94,7 +94,7 @@ let assign_symbols_and_collect_constant_definitions
       | Prim (Pfield _, _, _) ->
         Misc.fatal_errorf "[Pfield] with the wrong number of arguments"
           Flambda.print_named named
-      | Prim (Pmakearray (Pfloatarray as kind, mutability), args, _) ->
+      | Prim (Pmakearray (Pfloatarray as kind, mutability, _mode), args, _) ->
         assign_symbol ();
         record_definition (AA.Allocated_const (Array (kind, mutability, args)))
       | Prim (Pduparray (kind, mutability), [arg], _) ->

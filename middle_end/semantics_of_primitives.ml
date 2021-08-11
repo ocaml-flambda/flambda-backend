@@ -19,13 +19,18 @@
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
+let coeffects_of : Lambda.alloc_mode -> coeffects = function
+  | Alloc_heap ->
+     No_coeffects
+  | Alloc_local ->
+     (* Ensure that local allocations are not reordered wrt. regions *)
+     Has_coeffects
+
 let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
-  | Pmakeblock (_, _, _, Lambda.Alloc_heap)
-  | Pmakearray (_, Mutable) -> Only_generative_effects, No_coeffects
-  | Pmakearray (_, Immutable) -> No_effects, No_coeffects
-  | Pmakeblock (_, _, _, Lambda.Alloc_local) ->
-     Only_generative_effects, Has_coeffects
+  | Pmakeblock (_, _, _, m)
+  | Pmakearray (_, Mutable, m) -> Only_generative_effects, coeffects_of m
+  | Pmakearray (_, Immutable, m) -> No_effects, coeffects_of m
   | Pduparray (_, Immutable) ->
       No_effects, No_coeffects  (* Pduparray (_, Immutable) is allowed only on
                                    immutable arrays. *)

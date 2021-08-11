@@ -663,11 +663,9 @@ let emit_instr fallthrough i =
         I.lea (mem64 NONE 8 R15) (res i 0)
       end
   | Lop(Ialloc { bytes = n; dbginfo=_; mode = Alloc_local }) ->
-      assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
       let r = res i 0 in
       I.mov (domain_field Domainstate.Domain_local_sp) r;
       I.sub (int n) r;
-      (* FIXME: before or after check? Calling conv w/ realloc *)
       I.mov r (domain_field Domainstate.Domain_local_sp);
       I.cmp (domain_field Domainstate.Domain_local_limit) r;
       let lbl_call = new_label () in

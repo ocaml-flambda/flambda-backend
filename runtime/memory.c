@@ -677,7 +677,7 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
 }
 
 struct region_stack {
-  value* base;
+  char* base;
   struct region_stack* next;
 };
 
@@ -691,23 +691,35 @@ CAMLexport void caml_local_region_end(intnat reg)
   Caml_state->local_sp = reg;
 }
 
-void caml_local_realloc(void)
+#define Local_init_wsz 64
+void caml_local_realloc()
 {
-  intnat new_wsize;
+  intnat new_bsize;
   struct region_stack* stk;
-  value* stkbase;
+  char* stkbase;
   if (Caml_state->local_top == NULL) {
-    new_wsize = 2 * Max_young_wosize;
+    new_bsize = Bsize_wsize(Local_init_wsz);
   } else {
-    CAMLassert((value*)Caml_state->local_top + Caml_state->local_limit == Caml_state->local_top->base);
-    new_wsize = -Caml_state->local_limit * 2;
+    CAMLassert((char*)Caml_state->local_top + Caml_state->local_limit == Caml_state->local_top->base);
+    new_bsize = -Caml_state->local_limit;
   }
-  stkbase = caml_stat_alloc(new_wsize * sizeof(value) + sizeof(struct region_stack));
-  stk = (struct region_stack*)(stkbase + new_wsize);
+  while (Caml_state->local_sp < -new_bsize) new_bsize *= 2;
+  stkbase = caml_stat_alloc(new_bsize + sizeof(struct region_stack));
+  stk = (struct region_stack*)(stkbase + new_bsize);
   stk->base = stkbase;
   stk->next = Caml_state->local_top;
   Caml_state->local_top = stk;
-  Caml_state->local_limit = -new_wsize;
+  Caml_state->local_limit = -new_bsize;
+}
+
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+{
+  intnat sp = Caml_state->local_sp;
+  sp -= Bhsize_wosize(wosize);
+  Caml_state->local_sp = sp;
+  if (sp < Caml_state->local_limit)
+    caml_local_realloc();
+  return Val_hp((char*)Caml_state->local_top + sp);
 }
 
 /* Global memory pool.

@@ -120,15 +120,15 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     A.value_block tag (Array.of_list approxs), C.Benefit.zero
   | Praise _ ->
     expr, A.value_bottom, C.Benefit.zero
-  | Pmakearray(_, _) when is_empty approxs ->
-    Prim (Pmakeblock(0, Asttypes.Immutable, Some [], Alloc_heap), [], dbg),
+  | Pmakearray(_, _, mode) when is_empty approxs ->
+    Prim (Pmakeblock(0, Asttypes.Immutable, Some [], mode), [], dbg),
     A.value_block (Tag.create_exn 0) [||], C.Benefit.zero
-  | Pmakearray (Pfloatarray, Mutable) ->
+  | Pmakearray (Pfloatarray, Mutable, _) ->
       let approx =
         A.value_mutable_float_array ~size:(List.length args)
       in
       expr, approx, C.Benefit.zero
-  | Pmakearray (Pfloatarray, Immutable) ->
+  | Pmakearray (Pfloatarray, Immutable, _) ->
       let approx =
         A.value_immutable_float_array (Array.of_list approxs)
       in

@@ -794,7 +794,7 @@ let call_cached_method obj tag cache pos args dbg =
 (* Allocation *)
 
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
-  if wordsize <= Config.max_young_wosize then
+  if mode = Lambda.Alloc_local || wordsize <= Config.max_young_wosize then
     Cop(Calloc mode,
         Cconst_natint(block_header tag wordsize, dbg) :: args, dbg)
   else begin
@@ -816,8 +816,8 @@ let make_alloc ?(mode=Lambda.Alloc_heap) dbg tag args =
   in
   make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
 
-let make_float_alloc dbg tag args =
-  make_alloc_generic ~mode:Alloc_heap float_array_set dbg tag
+let make_float_alloc ?(mode=Lambda.Alloc_heap) dbg tag args =
+  make_alloc_generic ~mode float_array_set dbg tag
                      (List.length args * size_float / size_addr) args
 
 (* Bounds checking *)

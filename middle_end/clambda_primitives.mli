@@ -65,7 +65,7 @@ type primitive =
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
-  | Pmakearray of array_kind * mutable_flag
+  | Pmakearray of array_kind * mutable_flag * Lambda.alloc_mode
   (** For [Pmakearray], the list of arguments must not be empty.  The empty
       array should be represented by a distinguished constant in the middle
       end. *)

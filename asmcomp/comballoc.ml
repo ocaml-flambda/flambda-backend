@@ -47,7 +47,8 @@ let rec combine i allocstate =
       assert (List.length dbginfo = 1);
       begin match get_mode mode allocstate with
       | Pending_alloc {reg; dbginfos; totalsz}
-          when totalsz + sz <= (Config.max_young_wosize + 1) * Arch.size_addr ->
+          when (totalsz + sz <= (Config.max_young_wosize + 1) * Arch.size_addr)
+               || mode = Lambda.Alloc_local ->
           let (next, state) =
            combine i.next
              (set_mode mode allocstate

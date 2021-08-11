@@ -76,7 +76,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytessetu -> Pbytessetu
   | Pbytesrefs -> Pbytesrefs
   | Pbytessets -> Pbytessets
-  | Pmakearray (kind, mutability) -> Pmakearray (kind, mutability)
+  | Pmakearray (kind, mutability, mode) -> Pmakearray (kind, mutability, mode)
   | Pduparray (kind, mutability) -> Pduparray (kind, mutability)
   | Parraylength kind -> Parraylength kind
   | Parrayrefu kind -> Parrayrefu kind

@@ -283,7 +283,7 @@ CAMLprim value caml_floatarray_create(value len)
 }
 
 /* [len] is a [value] representing number of words or floats */
-CAMLprim value caml_make_vect(value len, value init)
+static value make_vect_gen(value len, value init, int local)
 {
   CAMLparam2 (len, init);
   CAMLlocal1 (res);
@@ -301,18 +301,22 @@ CAMLprim value caml_make_vect(value len, value init)
     d = Double_val(init);
     wsize = size * Double_wosize;
     if (wsize > Max_wosize) caml_invalid_argument("Array.make");
-    res = caml_alloc(wsize, Double_array_tag);
+    res = local ?
+      caml_alloc_local(wsize, Double_array_tag) :
+      caml_alloc(wsize, Double_array_tag);
     for (i = 0; i < size; i++) {
       Store_double_flat_field(res, i, d);
     }
 #endif
   } else {
-    if (size <= Max_young_wosize) {
+    if (size > Max_wosize) caml_invalid_argument("Array.make");
+    else if (local) {
+      res = caml_alloc_local(size, 0);
+      for (i = 0; i < size; i++) Field(res, i) = init;
+    } else if (size <= Max_young_wosize) {
       res = caml_alloc_small(size, 0);
       for (i = 0; i < size; i++) Field(res, i) = init;
-    }
-    else if (size > Max_wosize) caml_invalid_argument("Array.make");
-    else {
+    } else {
       if (Is_block(init) && Is_young(init)) {
         /* We don't want to create so many major-to-minor references,
            so [init] is moved to the major heap by doing a minor GC. */
@@ -327,8 +331,19 @@ CAMLprim value caml_make_vect(value len, value init)
     }
   }
   // Give the GC a chance to run, and run memprof callbacks
-  caml_process_pending_actions ();
+  if (!local) caml_process_pending_actions ();
   CAMLreturn (res);
+}
+
+
+CAMLprim value caml_make_vect(value len, value init)
+{
+  return make_vect_gen(len, init, 0);
+}
+
+CAMLprim value caml_make_local_vect(value len, value init)
+{
+  return make_vect_gen(len, init, 1);
 }
 
 /* [len] is a [value] representing number of floats */
@@ -353,7 +368,7 @@ CAMLprim value caml_make_float_vect(value len)
    boxed floats and returns the corresponding flat-allocated [float array].
    In all other cases, it just returns its argument unchanged.
 */
-CAMLprim value caml_make_array(value init)
+static value make_array_gen(value init, int local)
 {
 #ifdef FLAT_FLOAT_ARRAY
   CAMLparam1 (init);
@@ -371,7 +386,9 @@ CAMLprim value caml_make_array(value init)
       CAMLreturn (init);
     } else {
       wsize = size * Double_wosize;
-      if (wsize <= Max_young_wosize) {
+      if (local) {
+        res = caml_alloc_local(wsize, Double_array_tag);
+      } else if (wsize <= Max_young_wosize) {
         res = caml_alloc_small(wsize, Double_array_tag);
       } else {
         res = caml_alloc_shr(wsize, Double_array_tag);
@@ -381,13 +398,24 @@ CAMLprim value caml_make_array(value init)
         Store_double_flat_field(res, i, d);
       }
       // run memprof callbacks
-      caml_process_pending_actions();
+      if (!local)
+        caml_process_pending_actions();
       CAMLreturn (res);
     }
   }
 #else
   return init;
 #endif
+}
+
+CAMLprim value caml_make_array(value init)
+{
+  return make_array_gen(init, 0);
+}
+
+CAMLprim value caml_make_array_local(value init)
+{
+  return make_array_gen(init, 1);
 }
 
 /* Blitting */

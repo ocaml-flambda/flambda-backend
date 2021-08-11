@@ -62,6 +62,9 @@ let transl_extension_constructor ~scopes env path ext =
   let loc = of_location ~scopes ext.ext_loc in
   match ext.ext_kind with
     Text_decl _ ->
+      (* Extension constructors are currently always Alloc_heap.
+         They could be Alloc_local, but that would require changes
+         to pattern typing, as patterns can close over them. *)
       Lprim (Pmakeblock (Obj.object_tag, Immutable, None, Alloc_heap),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
@@ -409,6 +412,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_array expr_list ->
       let kind = array_kind e in
       let ll = transl_list ~scopes expr_list in
+      let mode = transl_alloc_mode e.exp_mode in
       begin try
         (* For native code the decision as to which compilation strategy to
            use is made later.  This enables the Flambda passes to lift certain
@@ -418,6 +422,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
         then begin
           raise Not_constant
         end;
+        (* Pduparray only works in Alloc_heap mode *)
+        if mode <> Alloc_heap then raise Not_constant;
         begin match List.map extract_constant ll with
         | exception Not_constant when kind = Pfloatarray ->
             (* We cannot currently lift [Pintarray] arrays safely in Flambda
@@ -433,7 +439,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                When not [Pfloatarray], the exception propagates to the handler
                below. *)
             let imm_array =
-              Lprim (Pmakearray (kind, Immutable), ll,
+              Lprim (Pmakearray (kind, Immutable, mode), ll,
                      of_location ~scopes e.exp_loc)
             in
             Lprim (Pduparray (kind, Mutable), [imm_array],
@@ -452,7 +458,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                    of_location ~scopes e.exp_loc)
         end
       with Not_constant ->
-        Lprim(Pmakearray (kind, Mutable), ll,
+        Lprim(Pmakearray (kind, Mutable, mode), ll,
               of_location ~scopes e.exp_loc)
       end
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
@@ -958,7 +964,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
   let no_init = match opt_init_expr with None -> true | _ -> false in
-  if no_init || size < Config.max_young_wosize
+  if no_init || size < Config.max_young_wosize || mode = Lambda.Alloc_local
   then begin
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
@@ -1009,7 +1015,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             Lprim(Pmakeblock(tag, mut, Some shape, mode), ll, loc)
         | Record_unboxed _ -> (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
-            Lprim(Pmakearray (Pfloatarray, mut), ll, loc)
+            Lprim(Pmakearray (Pfloatarray, mut, mode), ll, loc)
         | Record_extension path ->
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), mode),
@@ -1045,6 +1051,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
+        assert (mode = Lambda.Alloc_heap); (* Pduprecord must be Alloc_heap *)
         Llet(Strict, Pgenval, copy_id,
              Lprim(Pduprecord (repres, size), [transl_exp ~scopes init_expr],
                    of_location ~scopes loc),

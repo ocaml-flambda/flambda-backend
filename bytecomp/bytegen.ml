@@ -207,11 +207,11 @@ let rec size_of_lambda env = function
       in
       size_of_lambda env body
   | Lprim(Pmakeblock _, args, _) -> RHS_block (List.length args)
-  | Lprim (Pmakearray ((Paddrarray|Pintarray), _), args, _) ->
+  | Lprim (Pmakearray ((Paddrarray|Pintarray), _, _), args, _) ->
       RHS_block (List.length args)
-  | Lprim (Pmakearray (Pfloatarray, _), args, _) ->
+  | Lprim (Pmakearray (Pfloatarray, _, _), args, _) ->
       RHS_floatblock (List.length args)
-  | Lprim (Pmakearray (Pgenarray, _), _, _) ->
+  | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
       RHS_nonrec
@@ -734,7 +734,7 @@ let rec comp_expr env exp sz cont =
         (Kpush::
          Kconst (Const_base (Const_int n))::
          Kaddint::cont)
-  | Lprim(Pmakearray (kind, _), args, loc) ->
+  | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
         Pintarray | Paddrarray ->
@@ -749,9 +749,9 @@ let rec comp_expr env exp sz cont =
                   Kccall("caml_make_array", 1) :: cont)
       end
   | Lprim (Pduparray (kind, mutability),
-           [Lprim (Pmakearray (kind',_),args,_)], loc) ->
+           [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');
-      comp_expr env (Lprim (Pmakearray (kind, mutability), args, loc)) sz cont
+      comp_expr env (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
         Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
