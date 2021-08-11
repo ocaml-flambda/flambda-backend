@@ -50,6 +50,8 @@
 
 (copy_files# ocaml/file_formats/cmxs_format.mli)
 
+(copy_files# printer/*.ml{,i})
+
 (library
  (name ocamloptcomp)
  (wrapped false) ; for compatibility with existing code
@@ -237,6 +239,10 @@
   optcompile
   optmaindriver
   compiler_hooks
+  ;; printer/
+  printcmm_with_mappings
+  printast_with_mappings
+  location_tracker_formatter
   ; The driver should be in here too, but is not at present.  This might
   ; be tricky because it has a different name...
   )
@@ -1192,12 +1198,31 @@
    as
    compiler-libs/flambda2_to_cmm__To_cmm.cmt)
 
-   (compiler_hooks.mli as compiler-libs/compiler_hooks.mli)
-   (.ocamloptcomp.objs/byte/compiler_hooks.cmi as compiler-libs/compiler_hooks.cmi)
-   (.ocamloptcomp.objs/byte/compiler_hooks.cmo as compiler-libs/compiler_hooks.cmo)
-   (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmt)
-   (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmti)
-   (.ocamloptcomp.objs/byte/compiler_hooks.cmti as compiler-libs/compiler_hooks.cmx)
+  (compiler_hooks.mli as compiler-libs/compiler_hooks.mli)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmi as compiler-libs/compiler_hooks.cmi)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmo as compiler-libs/compiler_hooks.cmo)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmt)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmti as compiler-libs/compiler_hooks.cmti)
+  (.ocamloptcomp.objs/native/compiler_hooks.cmx as compiler-libs/compiler_hooks.cmx)
+
+  (printast_with_mappings.mli as compiler-libs/printast_with_mappings.mli)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmi as compiler-libs/printast_with_mappings.cmi)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmo as compiler-libs/printast_with_mappings.cmo)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmt as compiler-libs/printast_with_mappings.cmt)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmti as compiler-libs/printast_with_mappings.cmti)
+  (.ocamloptcomp.objs/native/printast_with_mappings.cmx as compiler-libs/printast_with_mappings.cmx)
+  (printcmm_with_mappings.mli as compiler-libs/printcmm_with_mappings.mli)
+  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmi as compiler-libs/printcmm_with_mappings.cmi)
+  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmo as compiler-libs/printcmm_with_mappings.cmo)
+  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmt as compiler-libs/printcmm_with_mappings.cmt)
+  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmti as compiler-libs/printcmm_with_mappings.cmti)
+  (.ocamloptcomp.objs/native/printcmm_with_mappings.cmx as compiler-libs/printcmm_with_mappings.cmx)
+  (location_tracker_formatter.mli as compiler-libs/location_tracker_formatter.mli)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmi as compiler-libs/location_tracker_formatter.cmi)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmo as compiler-libs/location_tracker_formatter.cmo)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmt as compiler-libs/location_tracker_formatter.cmt)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmti as compiler-libs/location_tracker_formatter.cmti)
+  (.ocamloptcomp.objs/native/location_tracker_formatter.cmx as compiler-libs/location_tracker_formatter.cmx)
   ))
 (install
  (section lib)
