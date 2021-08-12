@@ -58,6 +58,8 @@ let system : unit -> system = failwith "not implemented"
 (** The target object file format and ABI of the OCaml compiler. *)
 let object_file_format_and_abi : unit -> object_file_format_and_abi = failwith "not implemented"
 
+let linux : unit -> bool = failwith "not implemented"
+
 (** Whether the target system is a Windows platform. *)
 let windows : unit -> bool = failwith "not implemented"
 

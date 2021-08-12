@@ -141,7 +141,7 @@
  (modes native)
  (flags (:standard -principal -nostdlib))
  (libraries
-   dwarf_low
+   dwarf_high
    flambda_backend_driver
    memtrace
    flambda2
