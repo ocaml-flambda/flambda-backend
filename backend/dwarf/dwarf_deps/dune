@@ -1,0 +1,21 @@
+(include_subdirs unqualified)
+
+(library
+  (name dwarf_deps)
+  (wrapped false)
+  (modules_without_implementation 
+   arch
+   asm_directives
+   asm_label
+   asm_section
+   asm_symbol
+   clflags
+   dwarf_name_laundry
+   is_parameter
+   numbers
+   targetint
+   target_system)
+  (flags (:standard -principal -nostdlib))
+  (ocamlopt_flags (:standard -O3))
+  (libraries stdlib ocamlcommon ocamlbytecomp)
+)

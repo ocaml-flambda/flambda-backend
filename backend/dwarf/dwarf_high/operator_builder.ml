@@ -12,9 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Dwarf_low
-
 [@@@ocaml.warning "+a-4-30-40-41-42"]
+
+open Dwarf_low
 
 module O = Dwarf_operator
 
@@ -142,7 +142,7 @@ let call ~die_label ~compilation_unit_header_label : O.t =
    optimised, care must be taken with the [DW_op_skip] constructions used
    by the following function---their distance arguments may need updating! *)
 
-let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero =
+let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero () =
   let nonzero_branch_size =
     List.fold_left (fun nonzero_branch_size op ->
         Dwarf_int.add (O.size op) nonzero_branch_size)

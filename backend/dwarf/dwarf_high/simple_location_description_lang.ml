@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open Dwarf_low
+
 module O = Dwarf_operator
 module OB = Operator_builder
 
@@ -65,6 +67,7 @@ module Lvalue = struct
         ] @ OB.add_unsigned_const offset_in_bytes)
         ~at_join:[
         ]
+        ()
 
   let offset_pointer t ~offset_in_words =
     let offset_in_bytes =
@@ -83,6 +86,7 @@ module Lvalue = struct
         ] @ OB.add_unsigned_const offset_in_bytes)
         ~at_join:[
         ]
+        ()
 
   let location_from_another_die ~die_label ~compilation_unit_header_label =
     [OB.call ~die_label ~compilation_unit_header_label]
@@ -145,6 +149,7 @@ module Rvalue = struct
         ])
         ~at_join:[
         ]
+        ()
 
   let read_symbol_field symbol ~field =
     read_field ~block:(const_symbol symbol) ~field

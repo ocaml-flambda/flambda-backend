@@ -3,8 +3,7 @@
 (library
   (name dwarf_low)
   (wrapped true)
-  (modules_without_implementation asm_directives asm_symbol backend_sym asm_label numbers clflags)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
-  (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp)
+  (libraries stdlib ocamlcommon ocamlbytecomp dwarf_deps)
 )
