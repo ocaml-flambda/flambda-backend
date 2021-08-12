@@ -97,8 +97,8 @@
 
     ;; asmcomp/cfg
     cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
-    eliminate_dead_blocks eliminate_fallthrough_blocks extra_debug label
-    linear_to_cfg linear_utils simplify_terminator trap_stack
+    eliminate_dead_blocks eliminate_fallthrough_blocks eliminate_useless_edges
+    extra_debug label linear_to_cfg linear_utils simplify_terminator trap_stack
 
     ;; file_formats/
     linear_format
