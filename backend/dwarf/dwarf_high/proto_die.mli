@@ -12,7 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Dwarf_4
 open Dwarf_low
 
 (** A "proto-DIE" contains similar information to a DWARF debugging

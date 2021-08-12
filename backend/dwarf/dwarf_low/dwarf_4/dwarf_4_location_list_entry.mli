@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Dwarf_low
-
 type t
 
 include Dwarf_emittable.S with type t := t

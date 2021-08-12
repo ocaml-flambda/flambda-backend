@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Dwarf_low
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module AS = Dwarf_attributes.Attribute_specification

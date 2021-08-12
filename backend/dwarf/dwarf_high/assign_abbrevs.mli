@@ -12,7 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Dwarf_4
 open Dwarf_low
 
 (** Construction of abbreviation tables from proto-DIEs together with

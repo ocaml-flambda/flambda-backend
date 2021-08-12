@@ -4,7 +4,7 @@
 (*                                                                        *)
 (*                  Mark Shinwell, Jane Street Europe                     *)
 (*                                                                        *)
-(*   Copyright 2014--2018 Jane Street Group LLC                           *)
+(*   Copyright 2014--2019 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,31 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(** DWARF-4 location lists. *)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Location_list.t list ref
+type t
 
-let create () = ((ref []) : t)
+include Dwarf_emittable.S with type t := t
 
-let insert t ~location_list =
-  let attribute_referencing_the_new_list =
-    let spec =
-      Dwarf_attributes.Attribute_specification.create
-        Dwarf_attributes.Attribute.Location
-        Dwarf_attributes.Form.Sec_offset_loclistsptr
-    in
-    Dwarf_attribute_values.Attribute_value.create spec
-      (Dwarf_attribute_values.Value.offset_into_debug_loc
-        (Location_list.label location_list))
-  in
-  t := location_list :: !t;
-  attribute_referencing_the_new_list
+val create
+   : location_list_entries:Dwarf_4_location_list_entry.t list
+  -> t
 
-let size t =
-  List.fold_left (fun size loc_list ->
-      Dwarf_int.add size (Location_list.size loc_list))
-    (Dwarf_int.zero ())
-    !t
-
-let emit t =
-  List.iter (fun loc_list -> Location_list.emit loc_list) !t
+val label : t -> Asm_label.t
+val compare_increasing_vma : t -> t -> int

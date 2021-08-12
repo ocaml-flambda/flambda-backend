@@ -15,7 +15,6 @@
 (** Helper for emitting the various DWARF sections required for full
     debugging information. *)
 
-open Dwarf_4
 open Dwarf_low
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
