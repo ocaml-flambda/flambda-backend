@@ -51,23 +51,25 @@ let create_string section label =
   }
 
 let label_prefix =
-  match Target_system.architecture () with
+  match Config_typed.architecture () with
   | IA32 | X86_64 ->
-    begin match Target_system.system () with
+    begin match Config_typed.derived_system () with
     | Linux
-    | Windows Cygwin
-    | Windows MinGW
+    | MinGW_32
+    | MinGW_64
+    | Cygwin
     | FreeBSD
     | NetBSD
     | OpenBSD
     | Generic_BSD
     | Solaris
-    | BeOS
-    | GNU
     | Dragonfly
+    | GNU
+    | BeOS
     | Unknown -> ".L"
     | MacOS_like
-    | Windows Native -> "L"
+    | Win32
+    | Win64 -> "L"
     end
   | ARM
   | AArch64
@@ -94,12 +96,6 @@ let create section =
   | None -> not_initialized ()
   | Some new_label -> create_int section (new_label ())
 
-let text_label = lazy (create Text)
-let data_label = lazy (create Data)
-let read_only_data_label = lazy (create Read_only_data)
-let eight_byte_literals_label = lazy (create Eight_byte_literals)
-let sixteen_byte_literals_label = lazy (create Sixteen_byte_literals)
-let jump_tables_label = lazy (create Jump_tables)
 let debug_info_label = lazy (create (DWARF Debug_info))
 let debug_abbrev_label = lazy (create (DWARF Debug_abbrev))
 let debug_aranges_label = lazy (create (DWARF Debug_aranges))
@@ -126,10 +122,4 @@ let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
 
 let for_section (section : Asm_section.t) =
   match section with
-  | Text -> Lazy.force text_label
-  | Data -> Lazy.force data_label
-  | Read_only_data -> Lazy.force read_only_data_label
-  | Eight_byte_literals -> Lazy.force eight_byte_literals_label
-  | Sixteen_byte_literals -> Lazy.force sixteen_byte_literals_label
-  | Jump_tables -> Lazy.force jump_tables_label
   | DWARF dwarf_section -> for_dwarf_section dwarf_section

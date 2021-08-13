@@ -27,168 +27,7 @@ type dwarf_section =
   | Debug_line
 
 type t =
-  | Text
-  | Data
-  | Read_only_data
-  | Eight_byte_literals
-  | Sixteen_byte_literals
-  | Jump_tables
   | DWARF of dwarf_section
-
-let all_sections_in_order () =
-  let sections = [
-    Text;
-    Data;
-    Read_only_data;
-    Eight_byte_literals;
-    Sixteen_byte_literals;
-    Jump_tables;
-    DWARF Debug_info;
-    DWARF Debug_abbrev;
-    DWARF Debug_aranges;
-    DWARF Debug_str;
-    DWARF Debug_line;
-  ] in
-  let dwarf_version_dependent_sections =
-    match !Clflags.gdwarf_version with
-    | Four ->
-      [ DWARF Debug_loc;
-        DWARF Debug_ranges;
-      ]
-    | Five ->
-      [ DWARF Debug_addr;
-        DWARF Debug_loclists;
-        DWARF Debug_rnglists;
-      ]
-  in
-  sections @ dwarf_version_dependent_sections
-
-let section_is_text = function
-  | Text -> true
-  | Data
-  | Read_only_data
-  | Eight_byte_literals
-  | Sixteen_byte_literals
-  | Jump_tables
-  | DWARF _ -> false
-
-type architecture =
-  | IA32
-  | X86_64
-  | ARM
-  | AArch64
-  | POWER
-  | Z
-
-let architecture () : architecture =
-  match Config.architecture with
-  | "i386" -> IA32
-  | "amd64" -> X86_64
-  | "arm" -> ARM
-  | "arm64" -> AArch64
-  | "power" -> POWER
-  | "s390x" -> Z
-  | arch -> Misc.fatal_errorf "Unknown architecture `%s'" arch
-
-type windows_system =
-  | Cygwin
-  | MinGW
-  | Native
-
-type system =
-  | Linux
-  | Windows of windows_system
-  | MacOS_like
-  | FreeBSD
-  | NetBSD
-  | OpenBSD
-  | Generic_BSD
-  | Solaris
-  | Dragonfly
-  | GNU
-  | BeOS
-  | Unknown
-
-(* Some references remain to Solaris in the configure script, although it
-  appears that [Config.system] never gets set to "solaris" any more. *)
-let (_ : system) = Solaris
-
-let system () : system =
-  match architecture (), Config.model, Config.system with
-  | IA32, _, "linux_aout" -> Linux
-  | IA32, _, "linux_elf" -> Linux
-  | IA32, _, "bsd_aout" -> Generic_BSD
-  | IA32, _, "bsd_elf" -> Generic_BSD
-  | IA32, _, "beos" -> BeOS
-  | IA32, _, "cygwin" -> Windows Cygwin
-  | (X86_64 | IA32), _, "macosx" -> MacOS_like
-  | IA32, _, "gnu" -> GNU
-  | IA32, _, "mingw" -> Windows MinGW
-  | IA32, _, "win32" -> Windows Native
-  | POWER, "ppc64le", "elf" -> Linux
-  | POWER, "ppc64", "elf" -> Linux
-  | POWER, "ppc", "elf" -> Linux
-  | POWER, "ppc", "netbsd" -> NetBSD
-  | POWER, "ppc", "bsd_elf" -> OpenBSD
-  | Z, _, "elf" -> Linux
-  | ARM, _, "linux_eabihf" -> Linux
-  | ARM, _, "linux_eabi" -> Linux
-  | ARM, _, "bsd" -> OpenBSD
-  | X86_64, _, "linux" -> Linux
-  | X86_64, _, "gnu" -> GNU
-  | X86_64, _, "dragonfly" -> Dragonfly
-  | X86_64, _, "freebsd" -> FreeBSD
-  | X86_64, _, "netbsd" -> NetBSD
-  | X86_64, _, "openbsd" -> OpenBSD
-  | X86_64, _, "darwin" -> MacOS_like
-  | X86_64, _, "mingw" -> Windows MinGW
-  | AArch64, _, "linux" -> Linux
-  | X86_64, _, "cygwin" -> Windows Cygwin
-  | X86_64, _, "win64" -> Windows Native
-  | _, _, "unknown" -> Unknown
-  | _, _, _ ->
-    Misc.fatal_errorf "Cannot determine system type (model %s, system %s): \
-        ensure `target_system.ml' matches `configure'"
-      Config.model Config.system
-
-(* Modified version of [system] for easier matching in
-   [switch_to_section], below. *)
-type derived_system =
-  | Linux
-  | MinGW_32
-  | MinGW_64
-  | Win32
-  | Win64
-  | Cygwin
-  | MacOS_like
-  | FreeBSD
-  | NetBSD
-  | OpenBSD
-  | Generic_BSD
-  | Solaris
-  | Dragonfly
-  | GNU
-  | BeOS
-  | Unknown
-
-let derived_system () : derived_system =
-  match system (), Machine_width.of_int_exn Targetint.size with
-  | Linux, _ -> Linux
-  | Windows Cygwin, _ -> Cygwin
-  | Windows MinGW, Thirty_two -> MinGW_32
-  | Windows MinGW, Sixty_four -> MinGW_64
-  | Windows Native, Thirty_two -> Win32
-  | Windows Native, Sixty_four -> Win64
-  | MacOS_like, _ -> MacOS_like
-  | FreeBSD, _ -> FreeBSD
-  | NetBSD, _ -> NetBSD
-  | OpenBSD, _ -> OpenBSD
-  | Generic_BSD, _ -> Generic_BSD
-  | Solaris, _ -> Solaris
-  | Dragonfly, _ -> Dragonfly
-  | GNU, _ -> GNU
-  | BeOS, _ -> BeOS
-  | Unknown, _ -> Unknown
 
 type flags_for_section = {
   names : string list;
@@ -197,15 +36,9 @@ type flags_for_section = {
 }
 
 let flags t ~first_occurrence =
-  let text () = [".text"], None, [] in
-  let data () = [".data"], None, [] in
-  let rodata () = [".rodata"], None, [] in
-  let system = derived_system () in
   let names, flags, args =
-    match t, architecture (), system with
-    | Text, _, _ -> text ()
-    | Data, _, _ -> data ()
-    | DWARF dwarf, _, MacOS_like ->
+    match t, Config_typed.derived_system () with
+    | DWARF dwarf, MacOS_like ->
       let name =
         match dwarf with
         | Debug_info -> "__debug_info"
@@ -220,7 +53,7 @@ let flags t ~first_occurrence =
         | Debug_line -> "__debug_line"
       in
       ["__DWARF"; name], None, ["regular"; "debug"]
-    | DWARF dwarf, _, _ ->
+    | DWARF dwarf, _ ->
       let name =
         match dwarf with
         | Debug_info -> ".debug_info"
@@ -247,39 +80,6 @@ let flags t ~first_occurrence =
           []
       in
       [name], flags, args
-    | (Eight_byte_literals | Sixteen_byte_literals), (ARM | AArch64 | Z), _
-    | (Eight_byte_literals | Sixteen_byte_literals), _, Solaris ->
-      rodata ()
-    | Sixteen_byte_literals, _, MacOS_like ->
-      ["__TEXT";"__literal16"], None, ["16byte_literals"]
-    | Sixteen_byte_literals, _, (MinGW_64 | Cygwin) ->
-      [".rdata"], Some "dr", []
-    | Sixteen_byte_literals, _, (MinGW_32 | Win32 | Win64) ->
-      data ()
-    | Sixteen_byte_literals, _, _ ->
-      [".rodata.cst8"], Some "a", ["@progbits"]
-    | Eight_byte_literals, _, MacOS_like ->
-      ["__TEXT";"__literal8"], None, ["8byte_literals"]
-    | Eight_byte_literals, _, (MinGW_64 | Cygwin) ->
-      [".rdata"], Some "dr", []
-    | Eight_byte_literals, _, (MinGW_32 | Win32 | Win64) ->
-      data ()
-    | Eight_byte_literals, _, _ ->
-      [".rodata.cst8"], Some "a", ["@progbits"]
-    | Jump_tables, _, (MinGW_64 | Cygwin) ->
-      [".rdata"], Some "dr", []
-    | Jump_tables, _, (MinGW_32 | Win32) ->
-      data ()
-    | Jump_tables, _, (MacOS_like | Win64) ->
-      text () (* with LLVM/OS X and MASM, use the text segment *)
-    | Jump_tables, _, _ ->
-      [".rodata"], None, []
-    | Read_only_data, _, (MinGW_32 | Win32) ->
-      data ()
-    | Read_only_data, _, (MinGW_64 | Cygwin) ->
-      [".rdata"], Some "dr", []
-    | Read_only_data, _, _ ->
-      rodata ()
   in
   { names; flags; args; }
 
@@ -290,12 +90,6 @@ let to_string t =
 let print ppf t =
   let str =
     match t with
-    | Text -> "Text"
-    | Data -> "Data"
-    | Read_only_data -> "Read_only_data"
-    | Eight_byte_literals -> "Eight_byte_literals"
-    | Sixteen_byte_literals -> "Sixteen_byte_literals"
-    | Jump_tables -> "Jump_tables"
     | DWARF Debug_info -> "(DWARF Debug_info)"
     | DWARF Debug_abbrev -> "(DWARF Debug_abbrev)"
     | DWARF Debug_aranges -> "(DWARF Debug_aranges)"
