@@ -7,7 +7,6 @@
    arch
    asm_directives
    asm_label
-   asm_section
    asm_symbol
    clflags
    numbers)
