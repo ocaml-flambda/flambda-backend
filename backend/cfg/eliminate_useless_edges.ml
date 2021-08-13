@@ -49,7 +49,8 @@
    and `Poptrap` instructions executed so far (as opposed to the information encoded
    in the graph). *)
 
-let rec merge_blocks (modified : bool) (cfg : Cfg.t) =
+let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : bool =
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let merged =
     Label.Tbl.fold
       (fun b1_label (b1_block : Cfg.basic_block) merged ->
@@ -70,6 +71,7 @@ let rec merge_blocks (modified : bool) (cfg : Cfg.t) =
              b1_block.can_raise_interproc <- b1_block.can_raise_interproc || b2_block.can_raise_interproc;
              (* modify b2 *)
              b2_block.predecessors <- Label.Set.empty;
+             Disconnect_block.disconnect cfg_with_layout b2_label;
              true
            end else
              merged
@@ -79,12 +81,11 @@ let rec merge_blocks (modified : bool) (cfg : Cfg.t) =
       false
   in
   if merged then
-    merge_blocks true cfg
+    merge_blocks true cfg_with_layout
   else
     modified
 
 let run (cfg_with_layout : Cfg_with_layout.t) : unit =
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let modified = merge_blocks false cfg in
+  let modified = merge_blocks false cfg_with_layout in
   if modified then
     Eliminate_dead_blocks.run cfg_with_layout
