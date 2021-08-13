@@ -11,8 +11,7 @@
    asm_symbol
    clflags
    numbers
-   targetint
-   target_system)
+   targetint)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
   (libraries stdlib ocamlcommon ocamlbytecomp)

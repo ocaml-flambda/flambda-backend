@@ -343,7 +343,7 @@ let size { value; comment = _; } =
   | Distance_between_labels_64_bit _ -> Dwarf_int.eight ()
 
 let emit { value; comment; } =
-  let width_for_ref_addr_or_sec_offset () : Target_system.machine_width =
+  let width_for_ref_addr_or_sec_offset () : Machine_width.t =
     (* DWARF-4 specification p.142. *)
     match Dwarf_format.get () with
     | Thirty_two -> Thirty_two

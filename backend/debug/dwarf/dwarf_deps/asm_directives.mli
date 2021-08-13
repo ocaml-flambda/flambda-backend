@@ -271,7 +271,7 @@ val offset_into_dwarf_section_label
    : ?comment:string
   -> Asm_section.dwarf_section
   -> Asm_label.t
-  -> width:Target_system.machine_width
+  -> width:Machine_width.t
   -> unit
 
 (** Emit an offset into a DWARF section given a symbol identifying the place
@@ -282,7 +282,7 @@ val offset_into_dwarf_section_symbol
    : ?comment:string
   -> Asm_section.dwarf_section
   -> Asm_symbol.t
-  -> width:Target_system.machine_width
+  -> width:Machine_width.t
   -> unit
 
 module Directive : sig
