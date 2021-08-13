@@ -10,8 +10,6 @@
    asm_section
    asm_symbol
    clflags
-   dwarf_name_laundry
-   is_parameter
    numbers
    targetint
    target_system)
