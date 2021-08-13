@@ -33,8 +33,8 @@
    When the condition is met, `b1` is modified as follows:
    - its body is set to the concatenation of `b1.body` and `b2.body`;
    - its terminator becomes the terminator of `b2`;
-   - its `exns`, `can_raise`, `can_raise_interproc`, `can_raise_interproc` fields
-     are set to the "union" of the respective fields in `b1` and `b2`;
+   - its `exns`, `can_raise`, and `can_raise_interproc` fields  are set to the "union"
+     of the respective fields in `b1` and `b2`;
    - (its other fields are left unchanged);
    and `b2` is modified as follows:
    - its prececessors are set to empty;
