@@ -97,7 +97,7 @@
 
     ;; asmcomp/cfg
     cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
-    eliminate_dead_blocks eliminate_fallthrough_blocks eliminate_useless_edges
+    eliminate_dead_blocks eliminate_fallthrough_blocks merge_straightline_blocks
     extra_debug label linear_to_cfg linear_utils simplify_terminator trap_stack
 
     ;; file_formats/
@@ -339,7 +339,7 @@
     (disconnect_block.mli as compiler-libs/disconnect_block.mli)
     (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
     (eliminate_fallthrough_blocks.mli as compiler-libs/eliminate_fallthrough_blocks.mli)
-    (eliminate_useless_edges.mli as compiler-libs/eliminate_useless_edges.mli)
+    (merge_straightline_blocks.mli as compiler-libs/merge_straightline_blocks.mli)
     (extra_debug.mli as compiler-libs/extra_debug.mli)
     (label.mli as compiler-libs/label.mli)
     (linear_to_cfg.mli as compiler-libs/linear_to_cfg.mli)
@@ -590,10 +590,10 @@
     (.ocamloptcomp.objs/byte/eliminate_fallthrough_blocks.cmo as compiler-libs/eliminate_fallthrough_blocks.cmo)
     (.ocamloptcomp.objs/byte/eliminate_fallthrough_blocks.cmt as compiler-libs/eliminate_fallthrough_blocks.cmt)
     (.ocamloptcomp.objs/byte/eliminate_fallthrough_blocks.cmti as compiler-libs/eliminate_fallthrough_blocks.cmti)
-    (.ocamloptcomp.objs/byte/eliminate_useless_edges.cmi as compiler-libs/eliminate_useless_edges.cmi)
-    (.ocamloptcomp.objs/byte/eliminate_useless_edges.cmo as compiler-libs/eliminate_useless_edges.cmo)
-    (.ocamloptcomp.objs/byte/eliminate_useless_edges.cmt as compiler-libs/eliminate_useless_edges.cmt)
-    (.ocamloptcomp.objs/byte/eliminate_useless_edges.cmti as compiler-libs/eliminate_useless_edges.cmti)
+    (.ocamloptcomp.objs/byte/merge_straightline_blocks.cmi as compiler-libs/merge_straightline_blocks.cmi)
+    (.ocamloptcomp.objs/byte/merge_straightline_blocks.cmo as compiler-libs/merge_straightline_blocks.cmo)
+    (.ocamloptcomp.objs/byte/merge_straightline_blocks.cmt as compiler-libs/merge_straightline_blocks.cmt)
+    (.ocamloptcomp.objs/byte/merge_straightline_blocks.cmti as compiler-libs/merge_straightline_blocks.cmti)
     (.ocamloptcomp.objs/byte/extra_debug.cmi as compiler-libs/extra_debug.cmi)
     (.ocamloptcomp.objs/byte/extra_debug.cmo as compiler-libs/extra_debug.cmo)
     (.ocamloptcomp.objs/byte/extra_debug.cmt as compiler-libs/extra_debug.cmt)
@@ -679,7 +679,7 @@
     (.ocamloptcomp.objs/native/disconnect_block.cmx as compiler-libs/disconnect_block.cmx)
     (.ocamloptcomp.objs/native/eliminate_dead_blocks.cmx as compiler-libs/eliminate_dead_blocks.cmx)
     (.ocamloptcomp.objs/native/eliminate_fallthrough_blocks.cmx as compiler-libs/eliminate_fallthrough_blocks.cmx)
-    (.ocamloptcomp.objs/native/eliminate_useless_edges.cmx as compiler-libs/eliminate_useless_edges.cmx)
+    (.ocamloptcomp.objs/native/merge_straightline_blocks.cmx as compiler-libs/merge_straightline_blocks.cmx)
     (.ocamloptcomp.objs/native/extra_debug.cmx as compiler-libs/extra_debug.cmx)
     (.ocamloptcomp.objs/native/label.cmx as compiler-libs/label.cmx)
     (.ocamloptcomp.objs/native/linear_to_cfg.cmx as compiler-libs/linear_to_cfg.cmx)
