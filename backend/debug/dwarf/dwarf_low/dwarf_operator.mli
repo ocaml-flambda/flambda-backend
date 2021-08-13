@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type implicit_value =
-  | Int of Targetint.t
+  | Int of Targetint_extra.t
   | Symbol of Asm_symbol.t
 
 (* CR mshinwell: Remove "DW_op" prefix to be consistent *)
@@ -63,40 +63,40 @@ type t =
   | DW_op_const8s of Int64.t
   | DW_op_constu of Numbers.Uint64.t
   | DW_op_consts of Int64.t
-  | DW_op_fbreg of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg0 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg1 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg2 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg3 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg4 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg5 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg6 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg7 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg8 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg9 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg10 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg11 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg12 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg13 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg14 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg15 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg16 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg17 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg18 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg19 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg20 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg21 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg22 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg23 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg24 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg25 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg26 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg27 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg28 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg29 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg30 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg31 of { offset_in_bytes : Targetint.t; }
-  | DW_op_bregx of { reg_number : int; offset_in_bytes : Targetint.t; }
+  | DW_op_fbreg of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg0 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg1 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg2 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg3 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg4 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg5 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg6 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg7 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg8 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg9 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg10 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg11 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg12 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg13 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg14 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg15 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg16 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg17 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg18 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg19 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg20 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg21 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg22 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg23 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg24 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg25 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg26 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg27 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg28 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg29 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg30 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg31 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_bregx of { reg_number : int; offset_in_bytes : Targetint_extra.t; }
     (** The [reg_number] is variable-length, but we will assume that [int]
         is sufficient. *)
   | DW_op_dup
@@ -185,18 +185,18 @@ type t =
         is sufficient. *)
   | DW_op_implicit_value of implicit_value
   | DW_op_stack_value
-  | DW_op_piece of { size_in_bytes : Targetint.t; }
+  | DW_op_piece of { size_in_bytes : Targetint_extra.t; }
   | DW_op_bit_piece of {
-      size_in_bits : Targetint.t;
-      offset_in_bits : Targetint.t;
+      size_in_bits : Targetint_extra.t;
+      offset_in_bits : Targetint_extra.t;
     }
   | DW_op_implicit_pointer of {
       label : Asm_label.t;
-      offset_in_bytes : Targetint.t;
+      offset_in_bytes : Targetint_extra.t;
     }
   | DW_op_GNU_implicit_pointer of {
       label : Asm_label.t;
-      offset_in_bytes : Targetint.t;
+      offset_in_bytes : Targetint_extra.t;
     }
 
 val print : Format.formatter -> t -> unit

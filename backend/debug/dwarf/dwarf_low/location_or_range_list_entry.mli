@@ -27,12 +27,12 @@ type 'payload entry =
     }
   | Startx_length of {
       start_inclusive : Address_index.t;
-      length : Targetint.t;
+      length : Targetint_extra.t;
       payload : 'payload;
     }
   | Offset_pair of {
-      start_offset_inclusive : Targetint.t;
-      end_offset_exclusive : Targetint.t;
+      start_offset_inclusive : Targetint_extra.t;
+      end_offset_exclusive : Targetint_extra.t;
       payload : 'payload;
     }
   (** We emit [Default_location] since it is only applicable for location
@@ -49,7 +49,7 @@ type 'payload entry =
     }
   | Start_length of {
       start_inclusive : Asm_label.t;
-      length : Targetint.t;
+      length : Targetint_extra.t;
       payload : 'payload;
     }
 

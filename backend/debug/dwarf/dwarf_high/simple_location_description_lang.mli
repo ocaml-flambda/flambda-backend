@@ -66,20 +66,20 @@ module Lvalue : sig
   val in_register : dwarf_reg_number:int -> t
 
   (** The address of V will be that of the given stack slot at time T. *)
-  val in_stack_slot : offset_in_words:Targetint.t -> t
+  val in_stack_slot : offset_in_words:Targetint_extra.t -> t
 
   (** The address of V will be the address of the given field of the block
       whose address (expressed as an rvalue) is given by the provided simple
       location description at time T. *)
-  val read_field : block:normal rvalue -> field:Targetint.t -> t
+  val read_field : block:normal rvalue -> field:Targetint_extra.t -> t
 
   (** The address of V will be the address of the given field of the given
       symbol at time T. *)
-  val in_symbol_field : Asm_symbol.t -> field:Targetint.t -> t
+  val in_symbol_field : Asm_symbol.t -> field:Targetint_extra.t -> t
 
   (** The address of V will be the supplied address at time T plus the
       [offset_in_words]. *)
-  val offset_pointer : t -> offset_in_words:Targetint.t -> t
+  val offset_pointer : t -> offset_in_words:Targetint_extra.t -> t
 
   (** The address (or register location) of V is found in the location given
       by evaluating the location description (which must yield an lvalue) in
@@ -101,7 +101,7 @@ module Lvalue_without_address : sig
       evaluating the location description (which must yield an rvalue) in the
       DIE at the given [die_label]. *)
   val implicit_pointer
-     : offset_in_bytes:Targetint.t
+     : offset_in_bytes:Targetint_extra.t
     -> die_label:Asm_label.t
     -> Dwarf_version.t
     -> t
@@ -112,7 +112,7 @@ module Rvalue : sig
 
   (** V is the given constant integer.  (This is a raw bit pattern, nothing
       to do with OCaml tagging.) *)
-  val signed_int_const : Targetint.t -> normal t
+  val signed_int_const : Targetint_extra.t -> normal t
 
   (** V is the floating-point number whose bits are specified by the given
       64-bit integer. *)
@@ -126,15 +126,15 @@ module Rvalue : sig
   val in_register : dwarf_reg_number:int -> normal t
 
   (** V will be the contents of the given stack slot at time T. *)
-  val in_stack_slot : offset_in_words:Targetint.t -> normal t
+  val in_stack_slot : offset_in_words:Targetint_extra.t -> normal t
 
   (** V will be the contents of the given field of the block whose location is
       given by the provided simple location description at time T. *)
-  val read_field : block:normal t -> field:Targetint.t -> normal t
+  val read_field : block:normal t -> field:Targetint_extra.t -> normal t
 
   (** V will be the contents of the given field of the given symbol at
       time T. *)
-  val read_symbol_field : Asm_symbol.t -> field:Targetint.t -> normal t
+  val read_symbol_field : Asm_symbol.t -> field:Targetint_extra.t -> normal t
 
   (** V will be found in the location given by evaluating the location
       description (which must yield an rvalue) in the DIE at the given
@@ -151,7 +151,7 @@ module Rvalue : sig
       The resulting description cannot take part in any further location
       computations.  The type parameter statically ensures this. *)
   val implicit_pointer
-     : offset_in_bytes:Targetint.t
+     : offset_in_bytes:Targetint_extra.t
     -> die_label:Asm_label.t
     -> Dwarf_version.t
     -> implicit t

@@ -28,7 +28,7 @@ val create_low_pc
 (** Creates a [DW_AT_high_pc] attribute value by taking the offset in
     bytes from the [DW_AT_low_pc] attribute value. *)
 val create_high_pc_offset
-   : Targetint.t
+   : Targetint_extra.t
   -> Dwarf_attribute_values.Attribute_value.t
 
 val create_high_pc

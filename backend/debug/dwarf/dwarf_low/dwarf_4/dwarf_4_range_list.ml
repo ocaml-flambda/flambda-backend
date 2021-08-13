@@ -33,7 +33,7 @@ let create ~range_list_entries =
 let label t = t.name
 
 let end_marker () =
-  Dwarf_value.absolute_address ~comment:"end marker" Targetint.zero
+  Dwarf_value.absolute_address ~comment:"end marker" Targetint_extra.zero
 
 let size t =
   let (+) = Dwarf_int.add in

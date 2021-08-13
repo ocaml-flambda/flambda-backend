@@ -46,8 +46,8 @@ let create ~start_of_code_symbol ~end_of_code_symbol
       ~upper:end_of_code_symbol ~lower:start_of_code_symbol ();
     (* The terminating entry is only two words since the segment selector
        word is again absent. *)
-    V.absolute_address ~comment:"terminator word 1" Targetint.zero;
-    V.absolute_address ~comment:"terminator word 2" Targetint.zero;
+    V.absolute_address ~comment:"terminator word 1" Targetint_extra.zero;
+    V.absolute_address ~comment:"terminator word 2" Targetint_extra.zero;
   ]
   in
   let size =

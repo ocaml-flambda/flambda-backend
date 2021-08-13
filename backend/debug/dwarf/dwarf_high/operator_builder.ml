@@ -94,35 +94,35 @@ let register_as_lvalue ~dwarf_reg_number =
   dw_op_regx ~dwarf_reg_number
 
 let contents_of_register ~dwarf_reg_number =
-  dw_op_bregx ~dwarf_reg_number ~offset_in_bytes:Targetint.zero
+  dw_op_bregx ~dwarf_reg_number ~offset_in_bytes:Targetint_extra.zero
 
 let address_of_stack_slot ~offset_in_bytes =
   (* Note that this isn't target-dependent.  The target dependent part
      is the calculation of the [offset_in_bytes]. *)
   [ O.DW_op_call_frame_cfa;
-    O.DW_op_consts (Targetint.to_int64 offset_in_bytes);
+    O.DW_op_consts (Targetint_extra.to_int64 offset_in_bytes);
     O.DW_op_minus;
   ]
 
 let contents_of_stack_slot ~offset_in_bytes =
   (* Same comment as per [address_of_stack_slot]. *)
   [ O.DW_op_call_frame_cfa;
-    O.DW_op_consts (Targetint.to_int64 offset_in_bytes);
+    O.DW_op_consts (Targetint_extra.to_int64 offset_in_bytes);
     O.DW_op_minus;
     O.DW_op_deref;
   ]
 
 let value_of_symbol ~symbol : O.t = DW_op_addr (Symbol symbol)
 
-let signed_int_const i : O.t = DW_op_consts (Targetint.to_int64 i)
+let signed_int_const i : O.t = DW_op_consts (Targetint_extra.to_int64 i)
 
 let add_unsigned_const i : O.t list =
-  if Targetint.compare i Targetint.zero < 0 then begin
+  if Targetint_extra.compare i Targetint_extra.zero < 0 then begin
     Misc.fatal_error "[Operator_builder.add_unsigned_const] only takes \
       integers >= 0"
   end;
-  if Targetint.compare i Targetint.zero = 0 then []
-  else [DW_op_plus_uconst (Targetint.to_uint64_exn i)]
+  if Targetint_extra.compare i Targetint_extra.zero = 0 then []
+  else [DW_op_plus_uconst (Targetint_extra.to_uint64_exn i)]
 
 let float_const f : O.t =
   DW_op_const8s f

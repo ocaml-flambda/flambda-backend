@@ -10,8 +10,7 @@
    asm_section
    asm_symbol
    clflags
-   numbers
-   targetint)
+   numbers)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
   (libraries stdlib ocamlcommon ocamlbytecomp)

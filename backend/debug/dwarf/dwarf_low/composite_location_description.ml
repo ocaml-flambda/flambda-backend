@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  | Pieces of (Simple_location_description.t * Targetint.t) list
+  | Pieces of (Simple_location_description.t * Targetint_extra.t) list
 
 let pieces_of_simple_location_descriptions slds = Pieces slds
 

@@ -45,13 +45,13 @@ type value =
   | Sleb128 of Int64.t
   | String of string
   | Indirect_string of string
-  | Absolute_address of Targetint.t
+  | Absolute_address of Targetint_extra.t
   | Code_address_from_label of Asm_label.t
   | Code_address_from_symbol of Asm_symbol.t
   | Code_address_from_label_symbol_diff of {
       upper : Asm_label.t;
       lower : Asm_symbol.t;
-      offset_upper : Targetint.t;
+      offset_upper : Targetint_extra.t;
     }
   | Code_address_from_symbol_diff of {
       upper : Asm_symbol.t;
@@ -59,7 +59,7 @@ type value =
     }
   | Code_address_from_symbol_plus_bytes of {
       sym : Asm_symbol.t;
-      offset_in_bytes : Targetint.t;
+      offset_in_bytes : Targetint_extra.t;
     }
   | Offset_into_debug_info of Asm_label.t
   | Offset_into_debug_info_from_symbol of Asm_symbol.t
@@ -107,13 +107,13 @@ let print ppf { value; comment = _; } =
   | Indirect_string str ->
     Format.fprintf ppf "\"%S\" [indirect]" str
   | Absolute_address addr ->
-    Format.fprintf ppf "0x%Lx" (Targetint.to_int64 addr)
+    Format.fprintf ppf "0x%Lx" (Targetint_extra.to_int64 addr)
   | Code_address_from_label lbl -> Asm_label.print ppf lbl
   | Code_address_from_symbol sym -> Asm_symbol.print ppf sym
   | Code_address_from_label_symbol_diff { upper; lower; offset_upper; } ->
     Format.fprintf ppf "(%a + %a) - %a"
       Asm_label.print upper
-      Targetint.print offset_upper
+      Targetint_extra.print offset_upper
       Asm_symbol.print lower
   | Code_address_from_symbol_diff { upper; lower; } ->
     Format.fprintf ppf "%a - %a"
@@ -122,7 +122,7 @@ let print ppf { value; comment = _; } =
   | Code_address_from_symbol_plus_bytes { sym; offset_in_bytes; } ->
     Format.fprintf ppf "%a + %a"
       Asm_symbol.print sym
-      Targetint.print offset_in_bytes
+      Targetint_extra.print offset_in_bytes
   | Offset_into_debug_info lbl ->
     Format.fprintf ppf "%a - .debug_info" Asm_label.print lbl
   | Offset_into_debug_info_from_symbol sym ->
@@ -320,13 +320,13 @@ let size { value; comment = _; } =
   | Code_address_from_label_symbol_diff _
   | Code_address_from_symbol_diff _
   | Code_address_from_symbol_plus_bytes _ ->
-    begin match Targetint.size with
+    begin match Targetint_extra.size with
     | 32 -> Dwarf_int.four ()
     | 64 -> Dwarf_int.eight ()
-    | bits -> Misc.fatal_errorf "Unsupported Targetint.size %d" bits
+    | bits -> Misc.fatal_errorf "Unsupported Targetint_extra.size %d" bits
     end
   | String str ->
-    Dwarf_int.of_targetint_exn (Targetint.of_int (String.length str + 1))
+    Dwarf_int.of_targetint_exn (Targetint_extra.of_int (String.length str + 1))
   | Indirect_string _
   | Offset_into_debug_line _
   | Offset_into_debug_line_from_symbol _

@@ -38,7 +38,7 @@ let create_low_pc address_label =
     ~comment:"low PC value" address_label)
 
 let create_high_pc_offset offset =
-  match Targetint.repr offset with
+  match Targetint_extra.repr offset with
   | Int32 offset ->
     let spec = AS.create High_pc Data4 in
     AV.create spec (V.int32 ~comment:"high PC value as offset" offset)
@@ -270,14 +270,14 @@ let create_linkage_name ~linkage_name =
   AV.create spec (V.indirect_string ~comment:"linkage name" linkage_name)
 
 let create_const_value_from_symbol ~symbol =
-  match Targetint.size with
+  match Targetint_extra.size with
   | 32 ->
     let spec = AS.create Const_value Data4 in
     AV.create spec (V.symbol_32 symbol)
   | 64 ->
     let spec = AS.create Const_value Data8 in
     AV.create spec (V.symbol_64 symbol)
-  | size -> Misc.fatal_errorf "Unknown Targetint.size %d" size
+  | size -> Misc.fatal_errorf "Unknown Targetint_extra.size %d" size
 
 let create_addr_base label =
   let spec = AS.create Addr_base Sec_offset_addrptr in

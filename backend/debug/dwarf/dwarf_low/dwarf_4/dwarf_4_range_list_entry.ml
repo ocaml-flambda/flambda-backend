@@ -39,7 +39,7 @@ module Range_list_entry = struct
       ~comment:"beginning address"
       ~upper:t.beginning_address_label
       ~lower:t.start_of_code_symbol
-      ~offset_upper:Targetint.zero
+      ~offset_upper:Targetint_extra.zero
       ()
 
   let ending_value t =
@@ -47,8 +47,8 @@ module Range_list_entry = struct
       match t.ending_address_offset with
       | None ->
         (* See note in location_list_entry.ml. *)
-        Targetint.zero
-      | Some offset -> Targetint.of_int_exn offset
+        Targetint_extra.zero
+      | Some offset -> Targetint_extra.of_int_exn offset
     in
     Dwarf_value.code_address_from_label_symbol_diff
       ~comment:"ending address"
@@ -76,7 +76,7 @@ module Base_address_selection_entry = struct
   let to_dwarf_values t =
     [Dwarf_value.absolute_address
        ~comment:"largest representable addr. offset"
-       Targetint.minus_one;  (* all "1"s *)
+       Targetint_extra.minus_one;  (* all "1"s *)
      Dwarf_value.code_address_from_symbol ~comment:"base address" t;
     ]
 

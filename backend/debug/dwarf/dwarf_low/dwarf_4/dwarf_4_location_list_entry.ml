@@ -50,8 +50,8 @@ module Location_list_entry = struct
   let beginning_value t =
     let offset_upper =
       match t.beginning_address_offset with
-      | None -> Targetint.zero
-      | Some offset -> Targetint.of_int_exn offset
+      | None -> Targetint_extra.zero
+      | Some offset -> Targetint_extra.of_int_exn offset
     in
     Dwarf_value.code_address_from_label_symbol_diff
       ~comment:"beginning address"
@@ -68,8 +68,8 @@ module Location_list_entry = struct
            DWARF-4 spec p.30 (point 2):
            "...the first address past the end of the address range over
             which the location is valid." *)
-        Targetint.zero
-      | Some offset -> Targetint.of_int_exn offset
+        Targetint_extra.zero
+      | Some offset -> Targetint_extra.of_int_exn offset
     in
     Dwarf_value.code_address_from_label_symbol_diff
       ~comment:"ending address"
@@ -102,7 +102,7 @@ module Base_address_selection_entry = struct
   let to_dwarf_values t =
     [Dwarf_value.absolute_address
        ~comment:"largest representable addr. offset"
-       Targetint.minus_one;  (* all "1"s *)
+       Targetint_extra.minus_one;  (* all "1"s *)
      Dwarf_value.code_address_from_symbol ~comment:"base address" t;
     ]
 

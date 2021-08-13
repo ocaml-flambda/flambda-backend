@@ -26,7 +26,7 @@ module I = Dwarf_int
 module V = Dwarf_value
 
 type implicit_value =
-  | Int of Targetint.t
+  | Int of Targetint_extra.t
   | Symbol of Asm_symbol.t
 
 type t =
@@ -73,40 +73,40 @@ type t =
   | DW_op_const8s of Int64.t
   | DW_op_constu of Uint64.t
   | DW_op_consts of Int64.t
-  | DW_op_fbreg of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg0 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg1 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg2 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg3 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg4 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg5 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg6 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg7 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg8 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg9 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg10 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg11 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg12 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg13 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg14 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg15 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg16 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg17 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg18 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg19 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg20 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg21 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg22 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg23 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg24 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg25 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg26 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg27 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg28 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg29 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg30 of { offset_in_bytes : Targetint.t; }
-  | DW_op_breg31 of { offset_in_bytes : Targetint.t; }
-  | DW_op_bregx of { reg_number : int; offset_in_bytes : Targetint.t; }
+  | DW_op_fbreg of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg0 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg1 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg2 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg3 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg4 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg5 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg6 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg7 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg8 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg9 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg10 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg11 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg12 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg13 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg14 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg15 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg16 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg17 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg18 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg19 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg20 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg21 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg22 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg23 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg24 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg25 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg26 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg27 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg28 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg29 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg30 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_breg31 of { offset_in_bytes : Targetint_extra.t; }
+  | DW_op_bregx of { reg_number : int; offset_in_bytes : Targetint_extra.t; }
   | DW_op_dup
   | DW_op_drop
   | DW_op_pick
@@ -191,18 +191,18 @@ type t =
   | DW_op_regx of { reg_number : int; }
   | DW_op_implicit_value of implicit_value
   | DW_op_stack_value
-  | DW_op_piece of { size_in_bytes : Targetint.t; }
+  | DW_op_piece of { size_in_bytes : Targetint_extra.t; }
   | DW_op_bit_piece of {
-      size_in_bits : Targetint.t;
-      offset_in_bits : Targetint.t;
+      size_in_bits : Targetint_extra.t;
+      offset_in_bits : Targetint_extra.t;
     }
   | DW_op_implicit_pointer of {
       label : Asm_label.t;
-      offset_in_bytes : Targetint.t;
+      offset_in_bytes : Targetint_extra.t;
     }
   | DW_op_GNU_implicit_pointer of {
       label : Asm_label.t;
-      offset_in_bytes : Targetint.t;
+      offset_in_bytes : Targetint_extra.t;
     }
 
 let opcode_name t =
@@ -590,7 +590,7 @@ end) = struct
     | DW_op_constu n -> value (V.uleb128 ~comment:"  arg of DW_OP_constu" n)
     | DW_op_consts n -> value (V.sleb128 ~comment:"  arg of DW_OP_consts" n)
     | DW_op_fbreg { offset_in_bytes; } ->
-      let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+      let offset_in_bytes = Targetint_extra.to_int64 offset_in_bytes in
       value (V.sleb128 ~comment:"offset in bytes" offset_in_bytes)
     | DW_op_breg0 { offset_in_bytes; }
     | DW_op_breg1 { offset_in_bytes; }
@@ -624,10 +624,10 @@ end) = struct
     | DW_op_breg29 { offset_in_bytes; }
     | DW_op_breg30 { offset_in_bytes; }
     | DW_op_breg31 { offset_in_bytes; } ->
-      let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+      let offset_in_bytes = Targetint_extra.to_int64 offset_in_bytes in
       value (V.sleb128 ~comment:"offset in bytes" offset_in_bytes)
     | DW_op_bregx { reg_number; offset_in_bytes; } ->
-      let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+      let offset_in_bytes = Targetint_extra.to_int64 offset_in_bytes in
       value (V.uleb128 ~comment:"DWARF reg number"
         (Uint64.of_int_exn reg_number))
       >>> fun () ->
@@ -728,18 +728,18 @@ end) = struct
         match Arch.size_int with
         | 4 ->
           let buf = Bytes.create 4 in
-          caml_string_set32 buf ~index:0 (Targetint.to_int32 i);
+          caml_string_set32 buf ~index:0 (Targetint_extra.to_int32 i);
           buf
         | 8 ->
           let buf = Bytes.create 8 in
-          caml_string_set64 buf ~index:0 (Targetint.to_int64 i);
+          caml_string_set64 buf ~index:0 (Targetint_extra.to_int64 i);
           buf
         | n ->
           Misc.fatal_errorf "Dwarf_operator: bad Arch.size_int = %d" n
       in
       let comment =
         if !Clflags.keep_asm_file then
-          Some (Format.asprintf "implicit value %a" Targetint.print i)
+          Some (Format.asprintf "implicit value %a" Targetint_extra.print i)
         else
           None
       in
@@ -753,17 +753,17 @@ end) = struct
       value (V.code_address_from_symbol symbol)
     | DW_op_stack_value -> unit_result
     | DW_op_piece { size_in_bytes; } ->
-      let size_in_bytes = Targetint.to_uint64_exn size_in_bytes in
+      let size_in_bytes = Targetint_extra.to_uint64_exn size_in_bytes in
       value (V.uleb128 ~comment:"size in bytes" size_in_bytes)
     | DW_op_bit_piece { size_in_bits; offset_in_bits; } ->
-      let size_in_bits = Targetint.to_uint64_exn size_in_bits in
-      let offset_in_bits = Targetint.to_uint64_exn offset_in_bits in
+      let size_in_bits = Targetint_extra.to_uint64_exn size_in_bits in
+      let offset_in_bits = Targetint_extra.to_uint64_exn offset_in_bits in
       value (V.uleb128 ~comment:"size in bits" size_in_bits)
       >>> fun () ->
       value (V.uleb128 ~comment:"offset in bits" offset_in_bits)
     | DW_op_implicit_pointer { offset_in_bytes; label; }
     | DW_op_GNU_implicit_pointer { offset_in_bytes; label; } ->
-      let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
+      let offset_in_bytes = Targetint_extra.to_int64 offset_in_bytes in
       value (V.offset_into_debug_info label)
       >>> fun () ->
       value (V.sleb128 ~comment:"offset in bytes" offset_in_bytes)

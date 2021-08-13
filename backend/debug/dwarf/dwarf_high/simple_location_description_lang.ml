@@ -37,25 +37,25 @@ module Lvalue = struct
 
   let in_stack_slot ~offset_in_words =
     let offset_in_bytes =
-      Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul offset_in_words Targetint_extra.size_in_bytes_as_targetint
     in
     OB.address_of_stack_slot ~offset_in_bytes
 
   let in_symbol_field symbol ~field =
     let offset_in_bytes =
-      Targetint.mul field Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul field Targetint_extra.size_in_bytes_as_targetint
     in
     (OB.value_of_symbol ~symbol) :: OB.add_unsigned_const offset_in_bytes
 
   let read_field ~block ~field =
     let offset_in_bytes =
-      Targetint.mul field Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul field Targetint_extra.size_in_bytes_as_targetint
     in
     (* We emit special code to catch the case where evaluation of [block]
        fails (for example due to unavailability).  In the event of an
        unavailability failure, the [DW_OP_call*] evaluation of [block] does
        nothing to the stack. *)
-    (OB.signed_int_const Targetint.zero) ::
+    (OB.signed_int_const Targetint_extra.zero) ::
       block @ [
         O.DW_op_dup;
       ] @
@@ -71,10 +71,10 @@ module Lvalue = struct
 
   let offset_pointer t ~offset_in_words =
     let offset_in_bytes =
-      Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul offset_in_words Targetint_extra.size_in_bytes_as_targetint
     in
     (* Similar to [read_field], above. *)
-    (OB.signed_int_const Targetint.zero) ::
+    (OB.signed_int_const Targetint_extra.zero) ::
       t @ [
         O.DW_op_dup;
       ] @
@@ -127,15 +127,15 @@ module Rvalue = struct
 
   let in_stack_slot ~offset_in_words = 
     let offset_in_bytes =
-      Targetint.mul offset_in_words Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul offset_in_words Targetint_extra.size_in_bytes_as_targetint
     in
     OB.contents_of_stack_slot ~offset_in_bytes
 
   let read_field ~block ~field =
     let offset_in_bytes =
-      Targetint.mul field Targetint.size_in_bytes_as_targetint
+      Targetint_extra.mul field Targetint_extra.size_in_bytes_as_targetint
     in
-    (OB.signed_int_const Targetint.zero) ::
+    (OB.signed_int_const Targetint_extra.zero) ::
       block @ [
         O.DW_op_dup;
       ] @

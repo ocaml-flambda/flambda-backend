@@ -79,7 +79,7 @@ val uint64 : ?comment:string -> Numbers.Uint64.t -> unit
 (** Emit a signed integer whose width is that of an address on the target
     machine.  There is no padding or sign extension. *)
 (* CR-soon mshinwell: Target addresses should not be signed *)
-val targetint : ?comment:string -> Targetint.t -> unit
+val targetint : ?comment:string -> Targetint_extra.t -> unit
 
 (** Emit a 64-bit integer in unsigned LEB128 variable-length encoding
     (cf. DWARF debugging information standard). *)
@@ -202,7 +202,7 @@ val label : ?comment:string -> Asm_label.t -> unit
     in a compilation unit and/or section different from the current one. *)
 val symbol_plus_offset
    : Asm_symbol.t
-  -> offset_in_bytes:Targetint.t
+  -> offset_in_bytes:Targetint_extra.t
   -> unit
 
 (** Emit a machine-width reference giving the displacement between two given
@@ -252,7 +252,7 @@ val between_symbol_in_current_unit_and_label_offset
    : ?comment:string
   -> upper:Asm_label.t
   -> lower:Asm_symbol.t
-  -> offset_upper:Targetint.t
+  -> offset_upper:Targetint_extra.t
   -> unit
 
 (** Emit a 32-bit-wide reference giving the displacement between obtained
@@ -262,7 +262,7 @@ val between_symbol_in_current_unit_and_label_offset
 (* CR mshinwell: double-check use of this function *)
 val between_this_and_label_offset_32bit
    : upper:Asm_label.t
-  -> offset_upper:Targetint.t
+  -> offset_upper:Targetint_extra.t
   -> unit
 
 (** Emit an offset into a DWARF section given a label identifying the place

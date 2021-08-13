@@ -55,12 +55,12 @@ module Value = struct
   let distance_between_label_and_symbol_32_bit ?comment ~upper ~lower () =
     assert (Arch.size_addr = 4);
     Dwarf_value (V.code_address_from_label_symbol_diff ?comment
-      ~upper ~lower ~offset_upper:Targetint.zero ())
+      ~upper ~lower ~offset_upper:Targetint_extra.zero ())
 
   let distance_between_label_and_symbol_64_bit ?comment ~upper ~lower () =
     assert (Arch.size_addr = 8);
     Dwarf_value (V.code_address_from_label_symbol_diff ?comment
-      ~upper ~lower ~offset_upper:Targetint.zero ())
+      ~upper ~lower ~offset_upper:Targetint_extra.zero ())
 
   let code_address_from_label ?comment lbl =
     Dwarf_value (V.code_address_from_label ?comment lbl)

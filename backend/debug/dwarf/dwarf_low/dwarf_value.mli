@@ -48,7 +48,7 @@ val string : ?comment:string -> string -> t
 
 val indirect_string : ?comment:string -> string -> t
 
-val absolute_address : ?comment:string -> Targetint.t -> t
+val absolute_address : ?comment:string -> Targetint_extra.t -> t
 
 val code_address_from_label : ?comment:string -> Asm_label.t -> t
 
@@ -60,7 +60,7 @@ val code_address_from_label_symbol_diff
    : ?comment:string
   -> upper:Asm_label.t
   -> lower:Asm_symbol.t
-  -> offset_upper:Targetint.t
+  -> offset_upper:Targetint_extra.t
   -> unit
   -> t
 
@@ -71,7 +71,7 @@ val code_address_from_symbol_diff
   -> unit
   -> t
 
-val code_address_from_symbol_plus_bytes : Asm_symbol.t -> Targetint.t -> t
+val code_address_from_symbol_plus_bytes : Asm_symbol.t -> Targetint_extra.t -> t
 
 val offset_into_debug_info : ?comment:string -> Asm_label.t -> t
 

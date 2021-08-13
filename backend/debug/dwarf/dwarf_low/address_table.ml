@@ -96,7 +96,7 @@ let size t =
     (Initial_length.to_dwarf_int initial_length)
 
 let entry_to_dwarf_value (entry : entry_and_soc_symbol) =
-  let adjustment = Targetint.of_int_exn entry.entry.adjustment in
+  let adjustment = Targetint_extra.of_int_exn entry.entry.adjustment in
   Dwarf_value.code_address_from_label_symbol_diff
     ~comment:"ending address"
     ~upper:entry.entry.addr

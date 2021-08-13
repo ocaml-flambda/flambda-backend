@@ -27,12 +27,12 @@ type 'payload entry =
     }
   | Startx_length of {
       start_inclusive : Address_index.t;
-      length : Targetint.t;
+      length : Targetint_extra.t;
       payload : 'payload;
     }
   | Offset_pair of {
-      start_offset_inclusive : Targetint.t;
-      end_offset_exclusive : Targetint.t;
+      start_offset_inclusive : Targetint_extra.t;
+      end_offset_exclusive : Targetint_extra.t;
       payload : 'payload;
     }
   | Base_address of Asm_symbol.t
@@ -44,7 +44,7 @@ type 'payload entry =
     }
   | Start_length of {
       start_inclusive : Asm_label.t;
-      length : Targetint.t;
+      length : Targetint_extra.t;
       payload : 'payload;
     }
 
@@ -81,7 +81,7 @@ end) = struct
     }
 
   let label_address ~comment t label ~adjustment =
-    let adjustment = Targetint.of_int_exn adjustment in
+    let adjustment = Targetint_extra.of_int_exn adjustment in
     Dwarf_value.code_address_from_label_symbol_diff
       ~comment
       ~upper:label
@@ -110,7 +110,7 @@ end) = struct
       } ->
       Dwarf_int.add (Address_index.size start_inclusive)
         (Dwarf_int.add
-          (Dwarf_int.of_targetint_exn (Targetint.size_in_bytes_as_targetint))
+          (Dwarf_int.of_targetint_exn (Targetint_extra.size_in_bytes_as_targetint))
           (Payload.size payload))
     | Offset_pair {
         start_offset_inclusive;
@@ -118,10 +118,10 @@ end) = struct
         payload;
       } ->
       let start_offset_inclusive =
-        Dwarf_value.uleb128 (Targetint.to_uint64_exn start_offset_inclusive)
+        Dwarf_value.uleb128 (Targetint_extra.to_uint64_exn start_offset_inclusive)
       in
       let end_offset_exclusive =
-        Dwarf_value.uleb128 (Targetint.to_uint64_exn end_offset_exclusive)
+        Dwarf_value.uleb128 (Targetint_extra.to_uint64_exn end_offset_exclusive)
       in
       Dwarf_int.add (Dwarf_value.size start_offset_inclusive)
         (Dwarf_int.add (Dwarf_value.size end_offset_exclusive)
@@ -142,7 +142,7 @@ end) = struct
         length;
         payload;
       } ->
-      let length = Dwarf_value.uleb128 (Targetint.to_uint64_exn length) in
+      let length = Dwarf_value.uleb128 (Targetint_extra.to_uint64_exn length) in
       Dwarf_int.add (Dwarf_int.of_host_int_exn Arch.size_addr)
         (Dwarf_int.add (Dwarf_value.size length)
           (Payload.size payload))
@@ -197,9 +197,9 @@ end) = struct
         payload;
       } ->
       Dwarf_value.emit (Dwarf_value.sleb128 ~comment:"start_offset_inclusive" (
-        Targetint.to_int64 start_offset_inclusive));
+        Targetint_extra.to_int64 start_offset_inclusive));
       Dwarf_value.emit (Dwarf_value.sleb128 ~comment:"end_offset_exclusive" (
-        Targetint.to_int64 end_offset_exclusive));
+        Targetint_extra.to_int64 end_offset_exclusive));
       Payload.emit payload
     | Base_address sym ->
       A.symbol sym
@@ -225,7 +225,7 @@ end) = struct
         label_address ~comment:"start_inclusive" t start_inclusive
           ~adjustment:0);
       Dwarf_value.emit (
-        Dwarf_value.uleb128 ~comment:"length" (Targetint.to_uint64_exn length));
+        Dwarf_value.uleb128 ~comment:"length" (Targetint_extra.to_uint64_exn length));
       Payload.emit payload
     end;
     if !Clflags.keep_asm_file then begin

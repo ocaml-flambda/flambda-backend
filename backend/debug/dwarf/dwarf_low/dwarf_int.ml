@@ -62,7 +62,7 @@ let of_int64_exn i64 =
       raise Dwarf_format.Too_large_for_thirty_two_bit_dwarf
 
 let of_targetint_exn i =
-  match Targetint.repr i, Dwarf_format.get () with
+  match Targetint_extra.repr i, Dwarf_format.get () with
   | Int32 i32, Thirty_two -> Thirty_two i32
   | Int64 i64, Sixty_four -> Sixty_four i64
   | Int32 i32, Sixty_four -> Sixty_four (Int64.of_int32 i32)
