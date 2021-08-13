@@ -72,7 +72,86 @@ let section_is_text = function
   | Jump_tables
   | DWARF _ -> false
 
-(* Modified version of [TS.system] for easier matching in
+type architecture =
+  | IA32
+  | X86_64
+  | ARM
+  | AArch64
+  | POWER
+  | Z
+
+let architecture () : architecture =
+  match Config.architecture with
+  | "i386" -> IA32
+  | "amd64" -> X86_64
+  | "arm" -> ARM
+  | "arm64" -> AArch64
+  | "power" -> POWER
+  | "s390x" -> Z
+  | arch -> Misc.fatal_errorf "Unknown architecture `%s'" arch
+
+type windows_system =
+  | Cygwin
+  | MinGW
+  | Native
+
+type system =
+  | Linux
+  | Windows of windows_system
+  | MacOS_like
+  | FreeBSD
+  | NetBSD
+  | OpenBSD
+  | Generic_BSD
+  | Solaris
+  | Dragonfly
+  | GNU
+  | BeOS
+  | Unknown
+
+(* Some references remain to Solaris in the configure script, although it
+  appears that [Config.system] never gets set to "solaris" any more. *)
+let (_ : system) = Solaris
+
+let system () : system =
+  match architecture (), Config.model, Config.system with
+  | IA32, _, "linux_aout" -> Linux
+  | IA32, _, "linux_elf" -> Linux
+  | IA32, _, "bsd_aout" -> Generic_BSD
+  | IA32, _, "bsd_elf" -> Generic_BSD
+  | IA32, _, "beos" -> BeOS
+  | IA32, _, "cygwin" -> Windows Cygwin
+  | (X86_64 | IA32), _, "macosx" -> MacOS_like
+  | IA32, _, "gnu" -> GNU
+  | IA32, _, "mingw" -> Windows MinGW
+  | IA32, _, "win32" -> Windows Native
+  | POWER, "ppc64le", "elf" -> Linux
+  | POWER, "ppc64", "elf" -> Linux
+  | POWER, "ppc", "elf" -> Linux
+  | POWER, "ppc", "netbsd" -> NetBSD
+  | POWER, "ppc", "bsd_elf" -> OpenBSD
+  | Z, _, "elf" -> Linux
+  | ARM, _, "linux_eabihf" -> Linux
+  | ARM, _, "linux_eabi" -> Linux
+  | ARM, _, "bsd" -> OpenBSD
+  | X86_64, _, "linux" -> Linux
+  | X86_64, _, "gnu" -> GNU
+  | X86_64, _, "dragonfly" -> Dragonfly
+  | X86_64, _, "freebsd" -> FreeBSD
+  | X86_64, _, "netbsd" -> NetBSD
+  | X86_64, _, "openbsd" -> OpenBSD
+  | X86_64, _, "darwin" -> MacOS_like
+  | X86_64, _, "mingw" -> Windows MinGW
+  | AArch64, _, "linux" -> Linux
+  | X86_64, _, "cygwin" -> Windows Cygwin
+  | X86_64, _, "win64" -> Windows Native
+  | _, _, "unknown" -> Unknown
+  | _, _, _ ->
+    Misc.fatal_errorf "Cannot determine system type (model %s, system %s): \
+        ensure `target_system.ml' matches `configure'"
+      Config.model Config.system
+
+(* Modified version of [system] for easier matching in
    [switch_to_section], below. *)
 type derived_system =
   | Linux
@@ -92,8 +171,8 @@ type derived_system =
   | BeOS
   | Unknown
 
-let derived_system () =
-  match Target_system.system (), Target_system.machine_width () with
+let derived_system () : derived_system =
+  match system (), Machine_width.of_int_exn Targetint.size with
   | Linux, _ -> Linux
   | Windows Cygwin, _ -> Cygwin
   | Windows MinGW, Thirty_two -> MinGW_32
@@ -123,7 +202,7 @@ let flags t ~first_occurrence =
   let rodata () = [".rodata"], None, [] in
   let system = derived_system () in
   let names, flags, args =
-    match t, Target_system.architecture (), system with
+    match t, architecture (), system with
     | Text, _, _ -> text ()
     | Data, _, _ -> data ()
     | DWARF dwarf, _, MacOS_like ->
