@@ -42,12 +42,12 @@
 
    As a consequence, `b2` becomes dead.
 
-   Note: by taking the "union" of the `exns`, `can_raise`, `can_raise_interproc`,
-   and `can_raise_interproc` fields, we are losing a bit of precision as to
-   which handler can be reached from which block. This does not affect the semantics
-   of the code, because at runtime the handler is chosen according to the `Pushtrap`
-   and `Poptrap` instructions executed so far (as opposed to the information encoded
-   in the graph). *)
+   Note: by taking the "union" of the `exns`, `can_raise`, and `can_raise_interproc`
+   fields, we are losing a bit of precision as to which handler can be reached from
+   which block. Such a loss of precision may affect e.g. a liveness analysis. This
+   does however not affect the semantics of the code, because at runtime the handler
+   is chosen according to the `Pushtrap` and `Poptrap` instructions executed so far
+   (as opposed to the information encoded in the graph). *)
 
 let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : bool =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
