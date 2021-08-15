@@ -387,51 +387,58 @@ let output_test_zero arg =
 
 (* Output a floating-point compare and branch *)
 
-let emit_float_test cmp i lbl =
+let emit_float_test cmp i ~(taken : X86_ast.condition -> unit) =
   (* Effect of comisd on flags and conditional branches:
-                     ZF PF CF  cond. branches taken
-        unordered     1  1  1  je, jb, jbe, jp
-        >             0  0  0  jne, jae, ja
-        <             0  0  1  jne, jbe, jb
-        =             1  0  0  je, jae, jbe.
+                               conditional branches taken
+                     ZF PF CF  e ne b be ae a p np
+        unordered     1  1  1  X    X  X      X
+        >             0  0  0     X       X X    X
+        <             0  0  1     X X            X
+        =             1  0  0  X       X  X      X
      If FP traps are on (they are off by default),
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
   match (cmp : Comparison.Float.t) with
+  | CFeq | CFle | CFge when (arg i 1) = (arg i 0) ->
+      I.ucomisd (arg i 1) (arg i 0);
+      taken NP
   | CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp (label next);          (* skip if unordered *)
-      I.je lbl;                   (* branch taken if x=y *)
+      I.jp (label next);
+      taken E;                   (* branch taken if x=y *)
       def_label next
+  | CFneq | CFnle | CFnge when (arg i 1) = (arg i 0) ->
+      I.ucomisd (arg i 1) (arg i 0);
+      taken P
   | CFneq ->
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp lbl;                   (* branch taken if unordered *)
-      I.jne lbl                   (* branch taken if x<y or x>y *)
+      taken P;                    (* branch taken if unordered *)
+      taken NE;                   (* branch taken if x<y or x>y *)
   | CFlt ->
       I.comisd (arg i 0) (arg i 1);
-      I.ja lbl                    (* branch taken if y>x i.e. x<y *)
+      taken A;                    (* branch taken if y>x i.e. x<y *)
   | CFnlt ->
       I.comisd (arg i 0) (arg i 1);
-      I.jbe lbl                   (* taken if unordered or y<=x i.e. !(x<y) *)
+      taken BE                    (* taken if unordered or y<=x i.e. !(x<y) *)
   | CFle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
-      I.jae lbl                    (* branch taken if y>=x i.e. x<=y *)
+      taken AE;                    (* branch taken if y>=x i.e. x<=y *)
   | CFnle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
-      I.jb lbl                     (* taken if unordered or y<x i.e. !(x<=y) *)
+      taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
   | CFgt ->
       I.comisd (arg i 1) (arg i 0);
-      I.ja lbl                     (* branch taken if x>y *)
+      taken A                     (* branch taken if x>y *)
   | CFngt ->
       I.comisd (arg i 1) (arg i 0);
-      I.jbe lbl                    (* taken if unordered or x<=y i.e. !(x>y) *)
+      taken BE                    (* taken if unordered or x<=y i.e. !(x>y) *)
   | CFge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      I.jae lbl                    (* branch taken if x>=y *)
+      taken AE                    (* branch taken if x>=y *)
   | CFnge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      I.jb lbl                     (* taken if unordered or x<y i.e. !(x>=y) *)
+      taken B                     (* taken if unordered or x<y i.e. !(x>=y) *)
 
 (* Deallocate the stack frame before a return or tail call *)
 
@@ -978,6 +985,37 @@ let emit_instr fallthrough i =
       emit_Llabel fallthrough lbl
   | Lbranch lbl ->
       I.jmp (label lbl)
+  | Lop(Ispecific(Icmovcc tst)) ->
+      begin match tst with
+      | Itruetest ->
+          output_test_zero i.arg.(0);
+          I.cmov NE (arg i 1) (res i 0);
+      | Ifalsetest ->
+          output_test_zero i.arg.(0);
+          I.cmov E (arg i 1) (res i 0);
+      | Iinttest cmp ->
+          I.cmp (arg i 1) (arg i 0);
+          I.cmov (cond cmp) (arg i 2) (res i 0)
+      | Iinttest_imm((Isigned Ceq | Isigned Cne |
+                      Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
+          output_test_zero i.arg.(0);
+          I.cmov (cond cmp) (arg i 1) (res i 0)
+      | Iinttest_imm(cmp, n) ->
+          I.cmp (int n) (arg i 0);
+          I.cmov (cond cmp) (arg i 1) (res i 0)
+      | Ifloattest cmp ->
+          emit_float_test cmp i
+            ~taken:(fun c ->
+              let len = Array.length i.arg in
+              I.cmov c (arg i (len - 2)) (arg i (len - 1))
+              )
+      | Ioddtest ->
+          I.test (int 1) (arg8 i 0);
+          I.cmov NE (arg i 1) (res i 0)
+      | Ieventest ->
+          I.test (int 1) (arg8 i 0);
+          I.cmov E (arg i 1) (res i 0)
+      end
   | Lcondbranch(tst, lbl) ->
       let lbl = label lbl in
       begin match tst with
@@ -998,7 +1036,8 @@ let emit_instr fallthrough i =
           I.cmp (int n) (arg i 0);
           I.j (cond cmp) lbl
       | Ifloattest cmp ->
-          emit_float_test cmp i lbl
+          emit_float_test cmp i
+              ~taken:(fun c -> I.j c lbl)
       | Ioddtest ->
           I.test (int 1) (arg8 i 0);
           I.jne lbl

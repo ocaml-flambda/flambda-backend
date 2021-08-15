@@ -316,8 +316,8 @@ let destroyed_at_oper = function
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Iprefetch _
-                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
+                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _
+                 | Iprefetch _ | Icmovcc _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl
@@ -394,7 +394,7 @@ let max_register_pressure =
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
+             | Ibswap _ | Ifloatsqrtf _ | Isqrtf | Icmovcc _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
     -> consumes ~int:0 ~float:0
 
@@ -419,6 +419,7 @@ let op_is_pure = function
   | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _) | Iname_for_debugger _
+  | Ispecific (Icmovcc _)
     -> true
 
 (* Layout of the stack frame *)

@@ -105,7 +105,7 @@ let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
 let i1_s b s x = bprintf b "\t%s%s\t%a" s (suf x) arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg x arg y
-let i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
+let [@inline never] i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
 let i2_ss b s x y = bprintf b "\t%s%s%s\t%a, %a" s (suf x) (suf y) arg x arg y
 
 let i1_call_jmp b s = function
@@ -127,6 +127,7 @@ let print_instr b = function
   | BSWAP arg -> i1 b "bswap" arg
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cltd"
+  | CMC -> i0 b "cmc"
   | CMOV (c, arg1, arg2) -> i2 b ("cmov" ^ string_of_condition c) arg1 arg2
   | CMP (arg1, arg2) -> i2_s b "cmp" arg1 arg2
   | CMPSD (c, arg1, arg2) ->
@@ -188,6 +189,7 @@ let print_instr b = function
   | INC arg -> i1_s b "inc" arg
   | J (c, arg) -> i1_call_jmp b ("j" ^ string_of_condition c) arg
   | JMP arg -> i1_call_jmp b "jmp" arg
+  | LAHF -> i0 b "lahf"
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
   | LEAVE -> i0 b "leave"
   | MOV ((Imm n as arg1), (Reg64 _ as arg2))

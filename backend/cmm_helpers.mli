@@ -28,6 +28,11 @@ val bind_load :
 val bind_nonvar :
   string -> expression -> (expression -> expression) -> expression
 
+(** [force_bind name arg fn] is equivalent to [bind], but does not
+    optimize simple expressions *)
+val force_bind :
+  string -> expression -> (expression -> expression) -> expression
+
 (** Headers *)
 
 (** A null header with GC bits set to black *)

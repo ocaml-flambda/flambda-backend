@@ -114,7 +114,7 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
-  | Ispecific Icrc32q ->
+  | Ispecific (Icrc32q) ->
     (* First argument and result must be in the same register.
        Second argument can be either in a register or on stack. *)
       if stackp arg.(0)
@@ -131,6 +131,17 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
+  | Ispecific (Icmovcc tst) ->
+      let arg' = self#reload_test tst arg in
+      if stackp res.(0)
+      then begin
+        let arg = if arg == arg' then Array.copy arg else arg' in
+        let len = Array.length arg in
+        let res = self#makereg res.(0) in
+        arg.(len - 1) <- res;
+        arg, [| res |]
+        end
+      else arg', res
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
@@ -149,18 +160,30 @@ method! reload_test tst arg =
     Iinttest _ ->
       (* One of the two arguments can reside on stack *)
       if stackp arg.(0) && stackp arg.(1)
-      then [| self#makereg arg.(0); arg.(1) |]
+      then begin
+        let result = Array.copy arg in
+        result.(0) <- self#makereg arg.(0);
+        result
+      end
       else arg
   | Ifloattest (CFlt | CFnlt | CFle | CFnle) ->
       (* Cf. emit.mlp: we swap arguments in this case *)
       (* First argument can be on stack, second must be in register *)
       if stackp arg.(1)
-      then [| arg.(0); self#makereg arg.(1) |]
+      then begin
+        let result = Array.copy arg in
+        result.(1) <- self#makereg arg.(1);
+        result
+      end
       else arg
   | Ifloattest (CFeq | CFneq | CFgt | CFngt | CFge | CFnge) ->
       (* Second argument can be on stack, first must be in register *)
       if stackp arg.(0)
-      then [| self#makereg arg.(0); arg.(1) |]
+      then begin
+        let result = Array.copy arg in
+        result.(0) <- self#makereg arg.(0);
+        result
+      end
       else arg
   | Iinttest_imm (_, _)
   | Itruetest

@@ -112,6 +112,8 @@ module I : sig
   val bswap: arg -> unit
   val call: arg -> unit
   val cdq: unit -> unit
+  val cmc: unit -> unit
+  val cmov : condition -> arg -> arg -> unit
   val cmp: arg -> arg -> unit
   val cmpsd : float_condition -> arg -> arg -> unit
   val comisd: arg -> arg -> unit
@@ -171,6 +173,7 @@ module I : sig
   val jmp: arg -> unit
   val jne: arg -> unit
   val jp: arg -> unit
+  val lahf: unit -> unit
   val lea: arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit

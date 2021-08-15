@@ -95,6 +95,7 @@ type specific_operation =
         locality: prefetch_temporal_locality_hint;
         addr: addressing_mode;
       }
+  | Icmovcc of Comparison.Test.t       (* conditional move *)
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -198,6 +199,11 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
+  | Icmovcc test ->
+      let len = Array.length arg in
+      fprintf ppf "cmovcc %a then %a else %a"
+        (Printcomparison.test printreg test) arg printreg arg.(len - 2)
+        printreg arg.(len - 1)
 
 let win64 =
   match Config.system with

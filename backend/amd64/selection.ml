@@ -19,6 +19,7 @@
 open Arch
 open Proc
 open Cmm
+open Cmm_helpers
 open Mach
 
 (* Auxiliary for recognizing addressing modes *)
@@ -93,6 +94,12 @@ let pseudoregs_for_operation op arg res =
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
     Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor) | Iaddf|Isubf|Imulf|Idivf ->
       ([|res.(0); arg.(1)|], res)
+  | Ispecific (Icmovcc _) ->
+    let length = Array.length arg in
+    Array.append
+      (Array.sub arg 0 (length - 2))
+      [| arg.(length - 2); res.(0) |]
+  , res
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf
@@ -178,11 +185,74 @@ let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
 
 let is_immediate_natint n = n <= 0x7FFF_FFFFn && n >= -0x8000_0000n
 
+(* Transforms [if] to allow it to be replaced by [cmovcc] *)
+let if_for_cmov exp =
+  match exp with
+  | Cifthenelse(econd, dbg_c, ((Cvar _) as l), dbg_l, ((Cconst_int _) as r), dbg_r) ->
+    force_bind "right" r
+      (fun right -> Cifthenelse(econd, dbg_c, l, dbg_l, right, dbg_r))
+  | Cifthenelse(econd, dbg_c, ((Cconst_int _) as l), dbg_l, ((Cvar _) as r), dbg_r) ->
+    force_bind "left" l
+      (fun left -> Cifthenelse(econd, dbg_c, left, dbg_l, r, dbg_r)) 
+  | Cifthenelse(econd, dbg_c, ((Cconst_int _) as l), dbg_l, ((Cconst_int _) as r), dbg_r) ->
+    force_bind "left" l
+      (fun left ->
+         force_bind "right" r
+           (fun right -> Cifthenelse(econd, dbg_c, left, dbg_l, right, dbg_r))) 
+  | Cifthenelse(econd, dbg_c,
+                Cop(Cload(mc, mut),[Cvar(v)], dbg_load_l), dbg_l,
+                Cop(Cload(mc', mut'),[Cop(Cadda, [Cvar(v'); Cconst_int(i', dbg_i)], dbg_add_r)], dbg_load_r), dbg_r)
+    when mc = mc' && v = v' && mut = mut' ->
+    let ite = Cifthenelse(econd, dbg_c, Cconst_int(0,Debuginfo.none), dbg_l, Cconst_int(i', dbg_i), dbg_r) in
+    Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_r)], dbg_load_r)
+  | Cifthenelse(econd, dbg_c,
+                Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); Cconst_int(i, dbg_i)], dbg_add_l)], dbg_load_l), dbg_l,
+                Cop(Cload(mc', mut'),[Cvar(v')], dbg_load_r), dbg_r)
+    when mc = mc' && v = v' && mut = mut' ->
+    let ite = Cifthenelse(econd, dbg_c,Cconst_int(i, dbg_i), dbg_l, Cconst_int(0,Debuginfo.none), dbg_r) in
+    Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_l)], dbg_load_l)
+  | Cifthenelse(econd, dbg_c,
+                Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); Cconst_int(i, dbg_i)], dbg_add_l)], dbg_load_l), dbg_l,
+                Cop(Cload(mc', mut'),[Cop(Cadda, [Cvar(v'); Cconst_int(i', dbg_i')], dbg_add_r)], dbg_load_r), dbg_r)
+    when mc = mc' && v = v' && mut = mut' ->
+    let ite = Cifthenelse(econd, dbg_c,Cconst_int(i, dbg_i), dbg_l, Cconst_int(i',dbg_i'), dbg_r) in
+    Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_l)], dbg_load_l)
+  | exp -> exp
+
 (* The selector class *)
 
 class selector = object (self)
 
 inherit Selectgen.selector_generic as super
+
+method emit_cmov env expr ~econd ~ifso ~ifnot =
+  match Selectgen.env_find ifso env, Selectgen.env_find ifnot env with
+  | [| reg_ifso |], [| reg_ifnot |] when reg_ifso.typ <> Float && reg_ifso.typ = reg_ifnot.typ ->
+    let (cond, earg) = super#select_condition econd in
+    begin match self#emit_expr env earg with
+      | None -> None
+      | Some rarg ->
+        let len = Array.length rarg in
+        let args = Array.make (len + 2) rarg.(0) in
+        Array.blit rarg 0 args 0 len;
+        args.(len    ) <- reg_ifso;
+        args.(len + 1) <- reg_ifnot;
+        let res = self#regs_for [|reg_ifnot.typ|] in
+        Some(super#insert_op env (Ispecific(Icmovcc(cond))) args res)
+    end
+  | _ -> super#emit_expr env expr
+
+method! emit_expr env expr =
+  match if_for_cmov expr with
+  | Cifthenelse(econd, dbg_c, Cvar ifso, dbg_l, Cvar ifnot, dbg_r) ->
+    self#emit_cmov env expr ~econd ~ifso ~ifnot
+  | expr -> super#emit_expr env expr
+
+method! emit_tail env exp =
+  match if_for_cmov exp with
+  | Cifthenelse(_, _, Cvar _, _, Cvar _, _) as ite ->
+    self#emit_tail env (bind "x" ite (fun x -> x))
+  | exp -> super#emit_tail env exp
 
 method! is_immediate op n =
   match op with

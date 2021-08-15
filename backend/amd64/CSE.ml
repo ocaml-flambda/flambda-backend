@@ -37,6 +37,7 @@ method! class_of_operation op =
     | Irdtsc | Irdpmc -> Op_other
     | Icrc32q -> Op_pure
     | Iprefetch _ -> Op_other
+    | Icmovcc _ -> super#class_of_operation op
     end
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
