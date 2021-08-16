@@ -139,7 +139,7 @@ packages can be installed the usual way.
 
 It is also possible to update the compiler after hacking:
 ```shell
-# This will reintall the compiler, and recompile all packages
+# This will reinstall the compiler, and recompile all packages
 # that depend on the compiler
 opam custom-install ocaml-variants -- make install
 # This skips recompilation of other packages,
