@@ -524,6 +524,7 @@ let get_tag_for_block ~block : t =
   Naked_immediate (T_NI.create (Get_tag (alias_type_of K.value block)))
 
 let any_tagged_bool () = these_tagged_immediates Targetint_31_63.all_bools
+let any_naked_bool () = these_naked_immediates Targetint_31_63.all_bools
 
 let this_boxed_float f = box_float (this_naked_float f)
 let this_boxed_int32 i = box_int32 (this_naked_int32 i)
