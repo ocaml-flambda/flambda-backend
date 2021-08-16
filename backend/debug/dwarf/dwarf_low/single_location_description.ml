@@ -26,6 +26,6 @@ let size = function
   | Simple sle -> Simple_location_description.size sle
   | Composite cle -> Composite_location_description.size cle
 
-let emit = function
-  | Simple sle -> Simple_location_description.emit sle
-  | Composite cle -> Composite_location_description.emit cle
+let emit ~params = function
+  | Simple sle -> Simple_location_description.emit ~params sle
+  | Composite cle -> Composite_location_description.emit ~params cle

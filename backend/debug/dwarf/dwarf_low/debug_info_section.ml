@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 module DIE = Debugging_information_entry
 
 type t = {
@@ -73,24 +72,26 @@ let size t =
   let initial_length = Initial_length.create size_without_first_word in
   Dwarf_int.add (Initial_length.size initial_length) size_without_first_word
 
-let emit t =
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   let size_without_first_word = size_without_first_word t in
   let initial_length = Initial_length.create size_without_first_word in
   A.define_label t.compilation_unit_header_label;
-  Initial_length.emit initial_length;
-  Dwarf_version.emit (dwarf_version ());
+  Initial_length.emit ~params initial_length;
+  Dwarf_version.emit ~params (dwarf_version ());
   begin match dwarf_version () with
   | Four ->
-    Dwarf_value.emit (debug_abbrev_offset t);
-    Dwarf_value.emit address_width_in_bytes_on_target
+    Dwarf_value.emit ~params (debug_abbrev_offset t);
+    Dwarf_value.emit ~params address_width_in_bytes_on_target
   | Five ->
-    Unit_type.emit unit_type;
-    Dwarf_value.emit address_width_in_bytes_on_target;
-    Dwarf_value.emit (debug_abbrev_offset t)
+    Unit_type.emit ~params unit_type;
+    Dwarf_value.emit ~params address_width_in_bytes_on_target;
+    Dwarf_value.emit ~params (debug_abbrev_offset t)
   end;
   A.new_line ();
   A.comment "Debugging information entries:";
   A.new_line ();
   Profile.record "die_emission" (fun dies ->
-      List.iter (fun die -> DIE.emit die) dies)
+      List.iter (fun die -> DIE.emit ~params die) dies)
     t.dies

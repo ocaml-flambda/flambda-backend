@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 module Uint8 = Numbers_extra.Uint8
 
 module Entry = struct
@@ -104,12 +103,14 @@ let entry_to_dwarf_value (entry : entry_and_soc_symbol) =
     ~offset_upper:adjustment
     ()
 
-let emit t =
-  Initial_length.emit (initial_length t);
-  Dwarf_version.emit Dwarf_version.five;
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
+  Initial_length.emit ~params (initial_length t);
+  Dwarf_version.emit ~params Dwarf_version.five;
   A.uint8 (Uint8.of_int_exn Arch.size_addr);
   A.uint8 Uint8.zero;
   A.define_label t.base_addr;
   Address_index.Map.iter (fun _index entry ->
-      Dwarf_value.emit (entry_to_dwarf_value entry))
+      Dwarf_value.emit ~params (entry_to_dwarf_value entry))
     t.table

@@ -790,17 +790,17 @@ module Size = Make (struct
 end)
 
 module Emit = Make (struct
-  type param = unit
+  type param = (module Dwarf_params.S)
   type result = unit
   let unit_result () = ()
 
-  let opcode () t =
+  let opcode params t =
     let comment = opcode_name t in
-    V.emit (V.uint8 ~comment (Uint8.of_int_exn (opcode t)))
-  let value () v = V.emit v
-  let (>>>) () () f = f ()
+    V.emit ~params (V.uint8 ~comment (Uint8.of_int_exn (opcode t)))
+  let value params v = V.emit ~params v
+  let (>>>) _params () f = f ()
 end)
 
 let print ppf t = Print.run ppf t
 let size t = Size.run () t
-let emit t = Emit.run () t
+let emit ~params t = Emit.run params t

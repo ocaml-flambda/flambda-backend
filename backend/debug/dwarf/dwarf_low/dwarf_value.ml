@@ -20,7 +20,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 
 module Int8 = Numbers_extra.Int8
 module Int16 = Numbers_extra.Int16
@@ -342,7 +341,9 @@ let size { value; comment = _; } =
   | Distance_between_labels_32_bit _ -> Dwarf_int.four ()
   | Distance_between_labels_64_bit _ -> Dwarf_int.eight ()
 
-let emit { value; comment; } =
+let emit ~params { value; comment; } =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   let width_for_ref_addr_or_sec_offset () : Machine_width.t =
     (* DWARF-4 specification p.142. *)
     match Dwarf_format.get () with

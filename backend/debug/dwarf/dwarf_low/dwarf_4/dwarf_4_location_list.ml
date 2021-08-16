@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 
 type t = {
   name : Asm_label.t;
@@ -54,12 +53,14 @@ let compare_increasing_vma t1 t2 =
     Dwarf_4_location_list_entry.compare_ascending_vma t1_entry t2_entry
   | _ -> failwith "Location_list.compare on empty location list(s)"
 
-let emit t =
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   A.new_line ();
   A.comment "Location list:";
   A.define_label t.name;
-  List.iter (fun entry -> Dwarf_4_location_list_entry.emit entry) t.entries;
+  List.iter (fun entry -> Dwarf_4_location_list_entry.emit ~params entry) t.entries;
   (* DWARF-4 spec, section 2.6.2. *)
   let end_marker = end_marker () in
-  Dwarf_value.emit end_marker;
-  Dwarf_value.emit end_marker
+  Dwarf_value.emit ~params end_marker;
+  Dwarf_value.emit ~params end_marker

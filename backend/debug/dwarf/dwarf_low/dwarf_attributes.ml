@@ -262,8 +262,8 @@ module Form = struct
   let size t =
     Dwarf_value.size (encode t)
 
-  let emit t =
-    Dwarf_value.emit (encode t)
+  let emit ~params t =
+    Dwarf_value.emit ~params (encode t)
 end
 
 module Attribute = struct
@@ -736,8 +736,8 @@ module Attribute = struct
   let size t =
     Dwarf_value.size (encode t)
 
-  let emit t =
-    Dwarf_value.emit (encode t)
+  let emit ~params t =
+    Dwarf_value.emit ~params (encode t)
 
   module Sealed = struct
     type t = {
@@ -800,11 +800,11 @@ module Attribute_specification = struct
       let output _ = failwith "Sealed.output unsupported"
     end)
 
-    let emit t =
+    let emit ~params t =
       match t with
       | T1 (T (attribute, form)) ->
-        Attribute.emit attribute;
-        Form.emit form
+        Attribute.emit ~params attribute;
+        Form.emit ~params form
 
     let size t =
       match t with

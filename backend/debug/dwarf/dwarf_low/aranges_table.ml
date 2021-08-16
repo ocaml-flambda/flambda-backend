@@ -59,6 +59,6 @@ let create ~start_of_code_symbol ~end_of_code_symbol
 
 let size t = t.size
 
-let emit t =
-  Initial_length.emit (Initial_length.create t.size);
-  List.iter (fun v -> Dwarf_value.emit v) t.values
+let emit ~params t =
+  Initial_length.emit ~params (Initial_length.create t.size);
+  List.iter (fun v -> Dwarf_value.emit ~params v) t.values

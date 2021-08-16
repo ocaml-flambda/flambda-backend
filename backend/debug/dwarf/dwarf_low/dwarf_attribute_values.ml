@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 
 module Value = struct
   type internal_t =
@@ -134,7 +133,9 @@ module Attribute_value = struct
       Dwarf_int.add (uleb128_size (Dwarf_int.to_int64 loc_desc_size))
         loc_desc_size
 
-  let emit ((spec, value) : t) =
+  let emit ~params ((spec, value) : t) =
+    let module Params = (val params : Dwarf_params.S) in
+    let module A = Params.Asm_directives in
     match value with
     | Dwarf_value value ->
       let value =
@@ -146,16 +147,16 @@ module Attribute_value = struct
           in
           Dwarf_value.append_to_comment value comment
       in
-      Dwarf_value.emit value
+      Dwarf_value.emit ~params value
     | Single_location_description loc_desc ->
       A.uleb128 ~comment:"size of single location desc."
         (Dwarf_int.to_uint64_exn (Single_location_description.size loc_desc));
-      Single_location_description.emit loc_desc
+      Single_location_description.emit ~params loc_desc
     | Composite_location_description loc_desc ->
       A.uleb128 ~comment:"size of composite location desc."
         (Dwarf_int.to_uint64_exn
           (Composite_location_description.size loc_desc));
-      Composite_location_description.emit loc_desc
+      Composite_location_description.emit ~params loc_desc
 
   let attribute_spec (spec, _value) = spec
 end

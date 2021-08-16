@@ -89,17 +89,18 @@ let size t =
         t
         (Dwarf_int.zero ())
 
-let emit t =
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
   (* There appears to be no statement in the DWARF-4 spec (section 7.5.3)
      saying that the abbrevation table entries have to be in abbrevation
      code order.  (Ours might not be.) *)
   Key.Map.iter (fun _key entry ->
-      Asm_directives.new_line ();
-      Abbreviations_table_entry.emit entry)
+      Params.Asm_directives.new_line ();
+      Abbreviations_table_entry.emit ~params entry)
     t;
   (* DWARF-4 spec section 7.5.3: "The abbreviations for a given compilation
      unit end with an entry consisting of a 0 byte for the abbreviation
      code." *)
-  Dwarf_value.emit (
+  Dwarf_value.emit ~params (
     Dwarf_value.uleb128 ~comment:"End of abbrevs for compilation unit"
       Uint64.zero)

@@ -18,7 +18,7 @@ include Location_or_range_list_entry.Make (struct
   module Payload = struct
     type t = unit
     let size () = Dwarf_int.zero ()
-    let emit () = ()
+    let emit ~params:_ () = ()
   end
 
   let code_for_entry_kind (entry : _ Location_or_range_list_entry.entry) =

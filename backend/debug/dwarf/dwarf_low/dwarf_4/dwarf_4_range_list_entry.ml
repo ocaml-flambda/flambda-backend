@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 
 module Range_list_entry = struct
   type t = {
@@ -63,9 +62,9 @@ module Range_list_entry = struct
     let (+) = Dwarf_int.add in
     Dwarf_value.size v1 + Dwarf_value.size v2
 
-  let emit t =
-    Dwarf_value.emit (beginning_value t);
-    Dwarf_value.emit (ending_value t)
+  let emit ~params t =
+    Dwarf_value.emit ~params (beginning_value t);
+    Dwarf_value.emit ~params (ending_value t)
 end
 
 module Base_address_selection_entry = struct
@@ -85,8 +84,8 @@ module Base_address_selection_entry = struct
       (Dwarf_int.zero ())
       (to_dwarf_values t)
 
-  let emit t =
-    List.iter (fun v -> Dwarf_value.emit v) (to_dwarf_values t)
+  let emit ~params t =
+    List.iter (fun v -> Dwarf_value.emit ~params v) (to_dwarf_values t)
 end
 
 type t =
@@ -113,15 +112,17 @@ let size = function
   | Base_address_selection_entry entry ->
     Base_address_selection_entry.size entry
 
-let emit t =
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   match t with
   | Range_list_entry entry ->
     A.new_line ();
     A.comment "Range list entry:";
-    Range_list_entry.emit entry
+    Range_list_entry.emit ~params entry
   | Base_address_selection_entry entry ->
     A.comment "Base address selection entry:";
-    Base_address_selection_entry.emit entry
+    Base_address_selection_entry.emit ~params entry
 
 let compare_ascending_vma t1 t2 =
   (* This relies on a certain ordering on labels.  See [Compute_ranges]. *)

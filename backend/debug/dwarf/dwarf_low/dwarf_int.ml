@@ -14,8 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
-
 module Uint64 = Numbers_extra.Uint64
 
 type t =
@@ -106,7 +104,9 @@ let size t =
   | Thirty_two _ -> Thirty_two 4l
   | Sixty_four _ -> Sixty_four 8L
 
-let emit ?comment t =
+let emit ~params ?comment t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   match t with
   | Thirty_two i -> A.int32 ?comment i
   | Sixty_four i -> A.int64 ?comment i

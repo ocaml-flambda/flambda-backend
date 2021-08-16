@@ -23,5 +23,5 @@ let size t =
     (Dwarf_int.zero ())
     t
 
-let emit t =
-  List.iter (fun op -> Operator.emit op) t
+let emit ~params t =
+  List.iter (fun op -> Operator.emit ~params op) t

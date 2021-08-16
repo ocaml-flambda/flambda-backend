@@ -58,4 +58,4 @@ val add : t -> t -> t
 val succ : t -> t
 
 val size : t -> t
-val emit : ?comment:string -> t -> unit
+val emit : params:(module Dwarf_params.S) -> ?comment:string -> t -> unit

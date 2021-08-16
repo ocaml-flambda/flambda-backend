@@ -20,7 +20,8 @@ open Dwarf_low
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 val emit
-   : compilation_unit_proto_die:Proto_die.t
+   : params:(module Dwarf_params.S)
+  -> compilation_unit_proto_die:Proto_die.t
   -> start_of_code_symbol:Asm_symbol.t
   -> end_of_code_symbol:Asm_symbol.t
   -> compilation_unit_header_label:Asm_label.t

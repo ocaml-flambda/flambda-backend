@@ -26,6 +26,6 @@ include Identifiable.S with type t := t
 
 val size : t -> Dwarf_int.t
 
-val emit : ?comment:string -> t -> unit
+val emit : params:(module Dwarf_params.S) -> ?comment:string -> t -> unit
 
 module Pair : Identifiable.S with type t = t * t

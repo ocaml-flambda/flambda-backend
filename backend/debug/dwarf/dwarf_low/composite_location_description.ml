@@ -30,11 +30,11 @@ let size t =
       (Dwarf_int.zero ())
       slds
 
-let emit t =
+let emit ~params t =
   match t with
   | Pieces slds ->
     List.iter (fun (sld, size_in_bytes) ->
-        Simple_location_description.emit sld;
+        Simple_location_description.emit ~params sld;
         let pieces = Dwarf_operator.DW_op_piece { size_in_bytes; } in
-        Dwarf_operator.emit pieces)
+        Dwarf_operator.emit ~params pieces)
       slds

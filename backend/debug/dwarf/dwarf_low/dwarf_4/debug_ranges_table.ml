@@ -38,5 +38,5 @@ let size t =
     (Dwarf_int.zero ())
     !t
 
-let emit t =
-  List.iter (fun range_list -> Dwarf_4_range_list.emit range_list) !t
+let emit ~params t =
+  List.iter (fun range_list -> Dwarf_4_range_list.emit ~params range_list) !t

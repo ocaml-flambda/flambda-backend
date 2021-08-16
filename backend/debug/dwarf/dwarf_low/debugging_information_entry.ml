@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 module ASS = Dwarf_attributes.Attribute_specification.Sealed
 module AV = Dwarf_attribute_values.Attribute_value
 
@@ -42,7 +41,9 @@ let null =
 
 let create_null () = Lazy.force null
 
-let emit t =
+let emit ~params t =
+  let module Params = (val params : Dwarf_params.S) in
+  let module A = Params.Asm_directives in
   (* The null DIE is likely to be emitted multiple times; we must not
      emit its label multiple times, or the assembler would complain.
      We don't actually need to point at the null DIE from anywhere else, so
@@ -56,8 +57,8 @@ let emit t =
     end;
     A.define_label t.label
   end;
-  Abbreviation_code.emit t.abbreviation_code;
-  ASS.Map.iter (fun _spec av -> AV.emit av) t.attribute_values
+  Abbreviation_code.emit ~params t.abbreviation_code;
+  ASS.Map.iter (fun _spec av -> AV.emit ~params av) t.attribute_values
 
 let size t =
   ASS.Map.fold (fun _attribute_spec attribute_value size ->

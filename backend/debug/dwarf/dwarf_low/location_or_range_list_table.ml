@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 module Uint8 = Numbers_extra.Uint8
 module Uint32 = Numbers_extra.Uint32
 module Uint64 = Numbers_extra.Uint64
@@ -100,9 +99,11 @@ end) = struct
     Dwarf_int.add (Initial_length.size initial_length)
       (Initial_length.to_dwarf_int initial_length)
 
-  let emit t =
-    Initial_length.emit (initial_length t);
-    Dwarf_version.emit Dwarf_version.five;
+  let emit ~params t =
+    let module Params = (val params : Dwarf_params.S) in
+    let module A = Params.Asm_directives in
+    Initial_length.emit ~params (initial_length t);
+    Dwarf_version.emit ~params Dwarf_version.five;
     A.uint8 ~comment:"Arch.size_addr" (Uint8.of_int_exn Arch.size_addr);
     A.uint8 ~comment:"Segment selector size" Uint8.zero;
     A.uint32 ~comment:"Offset entry count" (offset_entry_count t);
@@ -121,12 +122,12 @@ end) = struct
             else
               None
           in
-          Dwarf_int.emit ?comment offset)
+          Dwarf_int.emit ~params ?comment offset)
         t.lists
     end;
     A.comment "Range or location list(s):";
     List.iter (fun { list; label; _ } ->
         A.define_label label;
-        Location_or_range_list.emit list)
+        Location_or_range_list.emit ~params list)
       t.lists
 end

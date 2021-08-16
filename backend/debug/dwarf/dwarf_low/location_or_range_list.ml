@@ -14,7 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module A = Asm_directives
 
 module Make (Entry : Location_or_range_list_entry.S) = struct
   type t = Entry.t list
@@ -31,10 +30,12 @@ module Make (Entry : Location_or_range_list_entry.S) = struct
       (Dwarf_int.zero ())
       t
 
-  let emit t =
+  let emit ~params t =
+    let module Params = (val params : Dwarf_params.S) in
+    let module A = Params.Asm_directives in
     A.comment "Start of list:";
     A.new_line ();
     List.iter (fun entry ->
-        Entry.emit entry)
+        Entry.emit ~params entry)
       (List.rev t)
 end

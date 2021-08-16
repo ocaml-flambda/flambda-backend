@@ -38,5 +38,5 @@ let encode t =
 let size t =
   Dwarf_value.size (encode t)
 
-let emit t =
-  Dwarf_value.emit (encode t)
+let emit ~params t =
+  Dwarf_value.emit ~params (encode t)
