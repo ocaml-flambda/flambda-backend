@@ -128,7 +128,7 @@
  (libraries ocamlbytecomp ocamlcommon runtime_native stdlib)
  (modules main_native))
 
-(data_only_dirs ocamldoc yacc)
+(data_only_dirs yacc)
 
 (rule
  (deps (source_tree yacc))
