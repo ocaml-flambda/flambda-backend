@@ -1,0 +1,73 @@
+name: closure_cfg
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    env:
+      J: "3"
+
+    steps:
+    - name: Checkout the Flambda backend repo
+      uses: actions/checkout@master
+      with:
+        path: 'flambda_backend'
+
+    - name: Cache dune build compiler install directory
+      uses: actions/cache@v1
+      id: cache
+      with:
+        path: ${{ github.workspace }}/dune_build_compiler/_install
+        key: ${{ matrix.os }}-cache-dune-build-compiler
+
+    - name: Checkout OCaml 4.12 (dune build compiler)
+      uses: actions/checkout@master
+      if: steps.cache.outputs.cache-hit != 'true'
+      with:
+        repository: 'ocaml/ocaml'
+        path: 'dune_build_compiler'
+        ref: '4.12'
+
+    - name: Build and install dune build compiler
+      if: steps.cache.outputs.cache-hit != 'true'
+      working-directory: dune_build_compiler
+      run: |
+        ./configure --prefix=$GITHUB_WORKSPACE/dune_build_compiler/_install
+        make -j $J world.opt
+        make install
+
+    - name: Checkout dune github repo
+      uses: actions/checkout@master
+      with:
+        repository: 'ocaml-flambda/dune'
+        ref: 'special_dune'
+        path: 'dune'
+
+    - name: Build dune
+      working-directory: dune
+      run: |
+        PATH=$GITHUB_WORKSPACE/dune_build_compiler/_install/bin:$PATH make release
+
+    - name: Run autoconf for Flambda backend
+      working-directory: flambda_backend
+      run: autoconf
+
+    - name: Configure Flambda backend (Closure mode)
+      working-directory: flambda_backend
+      run: |
+        ./configure \
+          --prefix=$GITHUB_WORKSPACE/_install \
+          --enable-middle-end=closure \
+          --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
+
+    - name: Build, install and test Flambda backend (Closure mode)
+      working-directory: flambda_backend
+      run: make -j $J ci
+      env:
+        OCAMLPARAM: '_,ocamlcfg=1'
