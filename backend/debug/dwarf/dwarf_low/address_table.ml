@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module A = Asm_directives
-module Uint8 = Numbers.Uint8
+module Uint8 = Numbers_extra.Uint8
 
 module Entry = struct
   type t = {

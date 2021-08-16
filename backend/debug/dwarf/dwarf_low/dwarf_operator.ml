@@ -14,13 +14,13 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Int8 = Numbers.Int8
-module Int16 = Numbers.Int16
+module Int8 = Numbers_extra.Int8
+module Int16 = Numbers_extra.Int16
 
-module Uint8 = Numbers.Uint8
-module Uint16 = Numbers.Uint16
-module Uint32 = Numbers.Uint32
-module Uint64 = Numbers.Uint64
+module Uint8 = Numbers_extra.Uint8
+module Uint16 = Numbers_extra.Uint16
+module Uint32 = Numbers_extra.Uint32
+module Uint64 = Numbers_extra.Uint64
 
 module I = Dwarf_int
 module V = Dwarf_value

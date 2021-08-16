@@ -14,8 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Int16 = Numbers.Int16
-module Uint64 = Numbers.Uint64
+module Int16 = Numbers_extra.Int16
+module Uint64 = Numbers_extra.Uint64
 
 type user = Int16.t
 

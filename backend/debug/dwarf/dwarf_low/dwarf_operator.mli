@@ -53,15 +53,15 @@ type t =
   | DW_op_lit30
   | DW_op_lit31
   | DW_op_addr of implicit_value
-  | DW_op_const1u of Numbers.Uint8.t
-  | DW_op_const2u of Numbers.Uint16.t
-  | DW_op_const4u of Numbers.Uint32.t
-  | DW_op_const8u of Numbers.Uint64.t
-  | DW_op_const1s of Numbers.Int8.t
-  | DW_op_const2s of Numbers.Int16.t
+  | DW_op_const1u of Numbers_extra.Uint8.t
+  | DW_op_const2u of Numbers_extra.Uint16.t
+  | DW_op_const4u of Numbers_extra.Uint32.t
+  | DW_op_const8u of Numbers_extra.Uint64.t
+  | DW_op_const1s of Numbers_extra.Int8.t
+  | DW_op_const2s of Numbers_extra.Int16.t
   | DW_op_const4s of Int32.t
   | DW_op_const8s of Int64.t
-  | DW_op_constu of Numbers.Uint64.t
+  | DW_op_constu of Numbers_extra.Uint64.t
   | DW_op_consts of Int64.t
   | DW_op_fbreg of { offset_in_bytes : Targetint_extra.t; }
   | DW_op_breg0 of { offset_in_bytes : Targetint_extra.t; }
@@ -106,9 +106,9 @@ type t =
   | DW_op_swap
   | DW_op_rot
   | DW_op_deref
-  | DW_op_deref_size of Numbers.Uint8.t
+  | DW_op_deref_size of Numbers_extra.Uint8.t
   | DW_op_xderef
-  | DW_op_xderef_size of Numbers.Uint8.t
+  | DW_op_xderef_size of Numbers_extra.Uint8.t
   | DW_op_push_object_address
   | DW_op_form_tls_address
   | DW_op_call_frame_cfa
@@ -122,7 +122,7 @@ type t =
   | DW_op_not
   | DW_op_or
   | DW_op_plus
-  | DW_op_plus_uconst of Numbers.Uint64.t
+  | DW_op_plus_uconst of Numbers_extra.Uint64.t
   | DW_op_shl
   | DW_op_shr
   | DW_op_shra
@@ -133,8 +133,8 @@ type t =
   | DW_op_lt
   | DW_op_gt
   | DW_op_ne
-  | DW_op_skip of { num_bytes_forward : Numbers.Int16.t; }
-  | DW_op_bra of { num_bytes_forward : Numbers.Int16.t; }
+  | DW_op_skip of { num_bytes_forward : Numbers_extra.Int16.t; }
+  | DW_op_bra of { num_bytes_forward : Numbers_extra.Int16.t; }
   | DW_op_call2 of {
       label : Asm_label.t;
       compilation_unit_header_label : Asm_label.t;

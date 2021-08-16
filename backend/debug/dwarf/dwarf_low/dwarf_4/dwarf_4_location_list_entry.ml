@@ -45,7 +45,7 @@ module Location_list_entry = struct
     let size = Dwarf_int.to_int64 size in
     (* CR-someday mshinwell: maybe this size should be unsigned? *)
     assert (Int64.compare size 0xffffL < 0);
-    Numbers.Int16.of_int64_exn size
+    Numbers_extra.Int16.of_int64_exn size
 
   let beginning_value t =
     let offset_upper =

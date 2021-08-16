@@ -28,12 +28,12 @@ module Value : sig
 
   val int8
      : ?comment:string
-    -> Numbers.Int8.t
+    -> Numbers_extra.Int8.t
     -> Dwarf_attributes.Form.data1 t
 
   val int16
      : ?comment:string
-    -> Numbers.Int16.t
+    -> Numbers_extra.Int16.t
     -> Dwarf_attributes.Form.data2 t
 
   val int32
@@ -48,7 +48,7 @@ module Value : sig
 
   val uleb128
      : ?comment:string
-    -> Numbers.Uint64.t
+    -> Numbers_extra.Uint64.t
     -> Dwarf_attributes.Form.udata t
 
   val string : ?comment:string -> string -> Dwarf_attributes.Form.string t
@@ -169,10 +169,10 @@ module Value : sig
     -> Dwarf_attributes.Form.data1 t
 
   (** Not for use for DWARF < version 5. *)
-  val loclistx : index:Numbers.Uint64.t -> Dwarf_attributes.Form.loclistx t
+  val loclistx : index:Numbers_extra.Uint64.t -> Dwarf_attributes.Form.loclistx t
 
   (** Not for use for DWARF < version 5. *)
-  val rnglistx : index:Numbers.Uint64.t -> Dwarf_attributes.Form.rnglistx t
+  val rnglistx : index:Numbers_extra.Uint64.t -> Dwarf_attributes.Form.rnglistx t
 
   val inline_code : Inline_code.t -> Dwarf_attributes.Form.data1 t
 

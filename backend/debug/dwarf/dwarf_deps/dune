@@ -7,7 +7,7 @@
    arch
    asm_directives
    clflags
-   numbers)
+   numbers_extra)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
   (libraries stdlib ocamlcommon ocamlbytecomp)

@@ -31,6 +31,6 @@ let emit t =
     | No -> "No children"
   in
   Dwarf_value.emit (Dwarf_value.int8 ~comment
-    (Numbers.Int8.of_int_exn (encode t)))
+    (Numbers_extra.Int8.of_int_exn (encode t)))
 
 let compare t1 t2 = Stdlib.compare t1 t2

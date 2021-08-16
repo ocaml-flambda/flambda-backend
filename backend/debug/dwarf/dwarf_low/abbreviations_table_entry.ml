@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module AS = Dwarf_attributes.Attribute_specification.Sealed
-module Uint64 = Numbers.Uint64
+module Uint64 = Numbers_extra.Uint64
 
 type t = {
   abbreviation_code : Abbreviation_code.t;

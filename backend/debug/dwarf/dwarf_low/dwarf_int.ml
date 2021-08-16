@@ -16,7 +16,7 @@
 
 module A = Asm_directives
 
-module Uint64 = Numbers.Uint64
+module Uint64 = Numbers_extra.Uint64
 
 type t =
   | Thirty_two of Int32.t

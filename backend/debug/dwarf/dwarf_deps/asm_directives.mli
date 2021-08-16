@@ -36,10 +36,10 @@ val switch_to_section : Asm_section.t -> unit
 (** Emit an 8-bit signed integer.  There is no padding or sign extension.
     If the [comment] is specified it will be put on the same line as the
     integer. *)
-val int8 : ?comment:string -> Numbers.Int8.t -> unit
+val int8 : ?comment:string -> Numbers_extra.Int8.t -> unit
 
 (** Emit a 16-bit signed integer.  There is no padding or sign extension. *)
-val int16 : ?comment:string -> Numbers.Int16.t -> unit
+val int16 : ?comment:string -> Numbers_extra.Int16.t -> unit
 
 (** Emit a 32-bit signed integer.  There is no padding or sign extension. *)
 val int32 : ?comment:string -> Int32.t -> unit
@@ -48,16 +48,16 @@ val int32 : ?comment:string -> Int32.t -> unit
 val int64 : ?comment:string -> Int64.t -> unit
 
 (** Emit an 8-bit unsigned integer.  There is no padding. *)
-val uint8 : ?comment:string -> Numbers.Uint8.t -> unit
+val uint8 : ?comment:string -> Numbers_extra.Uint8.t -> unit
 
 (** Emit an 16-bit unsigned integer.  There is no padding. *)
-val uint16 : ?comment:string -> Numbers.Uint16.t -> unit
+val uint16 : ?comment:string -> Numbers_extra.Uint16.t -> unit
 
 (** Emit an 32-bit unsigned integer.  There is no padding. *)
-val uint32 : ?comment:string -> Numbers.Uint32.t -> unit
+val uint32 : ?comment:string -> Numbers_extra.Uint32.t -> unit
 
 (** Emit an 64-bit unsigned integer.  There is no padding. *)
-val uint64 : ?comment:string -> Numbers.Uint64.t -> unit
+val uint64 : ?comment:string -> Numbers_extra.Uint64.t -> unit
 
 (** Emit a signed integer whose width is that of an address on the target
     machine.  There is no padding or sign extension. *)
@@ -66,7 +66,7 @@ val targetint : ?comment:string -> Targetint_extra.t -> unit
 
 (** Emit a 64-bit integer in unsigned LEB128 variable-length encoding
     (cf. DWARF debugging information standard). *)
-val uleb128 : ?comment:string -> Numbers.Uint64.t -> unit
+val uleb128 : ?comment:string -> Numbers_extra.Uint64.t -> unit
 
 (** Emit a 64-bit integer in signed LEB128 variable-length encoding. *)
 val sleb128 : ?comment:string -> Int64.t -> unit

@@ -33,7 +33,7 @@ let code t =
 
 let encode t =
   Dwarf_value.uint8 ~comment:"Unit header unit type"
-    (Numbers.Uint8.of_int_exn (code t))
+    (Numbers_extra.Uint8.of_int_exn (code t))
 
 let size t =
   Dwarf_value.size (encode t)

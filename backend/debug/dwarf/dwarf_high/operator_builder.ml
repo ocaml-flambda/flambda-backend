@@ -155,7 +155,7 @@ let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero () =
   if nonzero_branch_size > max_branch_size then begin
     Misc.fatal_error "Dwarf_operator.conditional: nonzero branch too long"
   end;
-  let nonzero_branch_size = Numbers.Int16.of_int64_exn nonzero_branch_size in
+  let nonzero_branch_size = Numbers_extra.Int16.of_int64_exn nonzero_branch_size in
   let if_zero =
     if_zero @
       [O.DW_op_skip { num_bytes_forward = nonzero_branch_size; }]
@@ -170,6 +170,6 @@ let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero () =
   if zero_branch_size > max_branch_size then begin
     Misc.fatal_error "Dwarf_operator.conditional: zero branch too long"
   end;
-  let zero_branch_size = Numbers.Int16.of_int64_exn zero_branch_size in
+  let zero_branch_size = Numbers_extra.Int16.of_int64_exn zero_branch_size in
   O.DW_op_bra { num_bytes_forward = zero_branch_size; }
     :: if_zero @ if_nonzero @ at_join

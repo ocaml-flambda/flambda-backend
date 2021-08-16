@@ -24,23 +24,23 @@ val flag_true : ?comment:string -> unit -> t
 
 val bool : ?comment:string -> bool -> t
 
-val int8 : ?comment:string -> Numbers.Int8.t -> t
+val int8 : ?comment:string -> Numbers_extra.Int8.t -> t
 
-val int16 : ?comment:string -> Numbers.Int16.t -> t
+val int16 : ?comment:string -> Numbers_extra.Int16.t -> t
 
 val int32 : ?comment:string -> Int32.t -> t
 
 val int64 : ?comment:string -> Int64.t -> t
 
-val uint8 : ?comment:string -> Numbers.Uint8.t -> t
+val uint8 : ?comment:string -> Numbers_extra.Uint8.t -> t
 
-val uint16 : ?comment:string -> Numbers.Uint16.t -> t
+val uint16 : ?comment:string -> Numbers_extra.Uint16.t -> t
 
-val uint32 : ?comment:string -> Numbers.Uint32.t -> t
+val uint32 : ?comment:string -> Numbers_extra.Uint32.t -> t
 
-val uint64 : ?comment:string -> Numbers.Uint64.t -> t
+val uint64 : ?comment:string -> Numbers_extra.Uint64.t -> t
 
-val uleb128 : ?comment:string -> Numbers.Uint64.t -> t
+val uleb128 : ?comment:string -> Numbers_extra.Uint64.t -> t
 
 val sleb128 : ?comment:string -> Int64.t -> t
 

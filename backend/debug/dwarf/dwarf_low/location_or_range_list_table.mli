@@ -30,7 +30,7 @@ end) : sig
 
     (** [to_uint64] is used in conjunction with DWARF attributes of
         forms [DW_FORM_loclistx] and [DW_FORM_rnglistx]. *)
-    val to_uint64 : t -> Numbers.Uint64.t
+    val to_uint64 : t -> Numbers_extra.Uint64.t
 
     (** [to_uint64] is used in conjunction with DWARF attributes of
         form [DW_FORM_sec_offset].  Such attributes have to be used if offset

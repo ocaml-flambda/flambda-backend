@@ -49,7 +49,7 @@ val of_int64_exn : Int64.t -> t
 val of_targetint_exn : Targetint_extra.t -> t
 
 val to_int64 : t -> Int64.t
-val to_uint64_exn : t -> Numbers.Uint64.t
+val to_uint64_exn : t -> Numbers_extra.Uint64.t
 
 val width_as_int64 : unit -> Int64.t
 

@@ -19,7 +19,7 @@
     the DIE structures themselves.
 *)
 
-type user = private Numbers.Int16.t
+type user = private Numbers_extra.Int16.t
 
 type dwarf_4 =
   | GNU_call_site

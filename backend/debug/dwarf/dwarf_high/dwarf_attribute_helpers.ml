@@ -20,7 +20,7 @@ module AS = Dwarf_attributes.Attribute_specification
 module AV = Dwarf_attribute_values.Attribute_value
 module V = Dwarf_attribute_values.Value
 
-module Uint64 = Numbers.Uint64
+module Uint64 = Numbers_extra.Uint64
 
 let needs_dwarf_five () =
   match !Clflags.gdwarf_version with

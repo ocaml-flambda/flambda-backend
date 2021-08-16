@@ -18,7 +18,7 @@ open Dwarf_low
 
 module ASS = Dwarf_attributes.Attribute_specification.Sealed
 module AV = Dwarf_attribute_values.Attribute_value
-module Int = Numbers.Int
+module Int = Numbers_extra.Int
 
 type reference = Asm_label.t
 let create_reference () = Asm_label.create (DWARF Debug_info)

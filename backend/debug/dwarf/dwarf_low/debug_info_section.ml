@@ -44,7 +44,7 @@ let debug_abbrev_offset t =
 (* CR-someday mshinwell: fix for cross compilation *)
 let address_width_in_bytes_on_target =
   Dwarf_value.int8 ~comment:"Arch.size_addr"
-    (Numbers.Int8.of_int_exn Arch.size_addr)
+    (Numbers_extra.Int8.of_int_exn Arch.size_addr)
 
 let unit_type = Unit_type.Compile
 

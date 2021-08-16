@@ -14,8 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Int8 = Numbers.Int8
-module Int16 = Numbers.Int16
+module Int8 = Numbers_extra.Int8
+module Int16 = Numbers_extra.Int16
 
 type t = {
   size : Dwarf_int.t;

@@ -15,9 +15,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module A = Asm_directives
-module Uint8 = Numbers.Uint8
-module Uint32 = Numbers.Uint32
-module Uint64 = Numbers.Uint64
+module Uint8 = Numbers_extra.Uint8
+module Uint32 = Numbers_extra.Uint32
+module Uint64 = Numbers_extra.Uint64
 
 module Make (Location_or_range_list : sig
   include Dwarf_emittable.S

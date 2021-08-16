@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module A = Asm_directives
-module Int8 = Numbers.Int8
+module Int8 = Numbers_extra.Int8
 
 type 'payload entry =
   | End_of_list

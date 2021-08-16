@@ -133,4 +133,4 @@ let encode = function
   | BLISS -> 0x25
 
 let as_dwarf_value t =
-  Dwarf_value.int8 ~comment:(name t) (Numbers.Int8.of_int_exn (encode t))
+  Dwarf_value.int8 ~comment:(name t) (Numbers_extra.Int8.of_int_exn (encode t))

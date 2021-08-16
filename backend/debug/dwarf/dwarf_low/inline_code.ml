@@ -29,7 +29,7 @@ let code t =
     | Declared_not_inlined -> 0x02
     | Declared_inlined -> 0x03
   in
-  Numbers.Uint8.of_int_exn code
+  Numbers_extra.Uint8.of_int_exn code
 
 let as_dwarf_value t = 
   let comment =

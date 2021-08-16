@@ -14,7 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Uint64 = Numbers.Uint64
+module Uint64 = Numbers_extra.Uint64
 
 (* CR-someday mshinwell: Change this to [Uint64] once there is a comparison
    function on values of that type. *)
