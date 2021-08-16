@@ -77,8 +77,8 @@ let to_int64 t =
 
 let to_uint64_exn t =
   match t with
-  | Thirty_two t -> Uint64.of_int32_exn t
-  | Sixty_four t -> Uint64.of_int64_exn t
+  | Thirty_two t -> Uint64.of_nonnegative_int32_exn t
+  | Sixty_four t -> Uint64.of_nonnegative_int64_exn t
 
 let add t1 t2 =
   begin match t1, t2 with

@@ -629,7 +629,7 @@ end) = struct
     | DW_op_bregx { reg_number; offset_in_bytes; } ->
       let offset_in_bytes = Targetint_extra.to_int64 offset_in_bytes in
       value (V.uleb128 ~comment:"DWARF reg number"
-        (Uint64.of_int_exn reg_number))
+        (Uint64.of_nonnegative_int_exn reg_number))
       >>> fun () ->
       value (V.sleb128 ~comment:"offset in bytes" offset_in_bytes)
     | DW_op_dup
@@ -722,7 +722,7 @@ end) = struct
     | DW_op_reg31 -> unit_result
     | DW_op_regx { reg_number; } ->
       value (V.uleb128 ~comment:"DWARF reg number"
-        (Uint64.of_int_exn reg_number))
+        (Uint64.of_nonnegative_int_exn reg_number))
     | DW_op_implicit_value (Int i) ->
       let buf =
         match Arch.size_int with
@@ -743,12 +743,12 @@ end) = struct
         else
           None
       in
-      value (V.uleb128 ?comment (Uint64.of_int_exn (Bytes.length buf)))
+      value (V.uleb128 ?comment (Uint64.of_nonnegative_int_exn (Bytes.length buf)))
       >>> fun () ->
       value (V.string (Bytes.to_string buf))
     | DW_op_implicit_value (Symbol symbol) ->
       value (V.uleb128 ~comment:"Arch.size_addr"
-        (Uint64.of_int_exn Arch.size_addr))
+        (Uint64.of_nonnegative_int_exn Arch.size_addr))
       >>> fun () ->
       value (V.code_address_from_symbol symbol)
     | DW_op_stack_value -> unit_result
@@ -796,7 +796,7 @@ module Emit = Make (struct
 
   let opcode params t =
     let comment = opcode_name t in
-    V.emit ~params (V.uint8 ~comment (Uint8.of_int_exn (opcode t)))
+    V.emit ~params (V.uint8 ~comment (Uint8.of_nonnegative_int_exn (opcode t)))
   let value params v = V.emit ~params v
   let (>>>) _params () f = f ()
 end)

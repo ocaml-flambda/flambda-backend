@@ -38,7 +38,7 @@ end) = struct
   module Index = struct
     type t = Asm_label.t * Uint64.t
 
-    let create label index = label, Uint64.of_int_exn index
+    let create label index = label, Uint64.of_nonnegative_int_exn index
 
     let to_label (label, _) = label
     let to_uint64 (_, index) = index
@@ -74,7 +74,7 @@ end) = struct
     !Clflags.gdwarf_offsets
 
   let offset_entry_count t =
-    if offset_array_supported () then Uint32.of_int_exn (List.length t.lists)
+    if offset_array_supported () then Uint32.of_nonnegative_int_exn (List.length t.lists)
     else Uint32.zero
 
   let offset_array_size t =
@@ -104,7 +104,7 @@ end) = struct
     let module A = Params.Asm_directives in
     Initial_length.emit ~params (initial_length t);
     Dwarf_version.emit ~params Dwarf_version.five;
-    A.uint8 ~comment:"Arch.size_addr" (Uint8.of_int_exn Arch.size_addr);
+    A.uint8 ~comment:"Arch.size_addr" (Uint8.of_nonnegative_int_exn Arch.size_addr);
     A.uint8 ~comment:"Segment selector size" Uint8.zero;
     A.uint32 ~comment:"Offset entry count" (offset_entry_count t);
     A.comment "Base label:";

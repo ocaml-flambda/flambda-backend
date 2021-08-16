@@ -257,7 +257,7 @@ module Form = struct
       | Dwarf_4 Sec_offset_loclistptr -> 0x17
       | Dwarf_4 Sec_offset_rangelistptr -> 0x17
     in
-    Dwarf_value.uleb128 ~comment:(name t) (Uint64.of_int_exn code)
+    Dwarf_value.uleb128 ~comment:(name t) (Uint64.of_nonnegative_int_exn code)
 
   let size t =
     Dwarf_value.size (encode t)
@@ -731,7 +731,7 @@ module Attribute = struct
     | Ocaml_specific Cmt_file_digest -> 0x3105
 
   let encode t =
-    Dwarf_value.uleb128 ~comment:(name t) (Uint64.of_int_exn (code t))
+    Dwarf_value.uleb128 ~comment:(name t) (Uint64.of_nonnegative_int_exn (code t))
 
   let size t =
     Dwarf_value.size (encode t)

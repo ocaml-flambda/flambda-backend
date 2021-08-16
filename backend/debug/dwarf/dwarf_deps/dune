@@ -6,8 +6,7 @@
   (modules_without_implementation 
    arch
    asm_directives
-   clflags
-   numbers_extra)
+   clflags)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
   (libraries stdlib ocamlcommon ocamlbytecomp)

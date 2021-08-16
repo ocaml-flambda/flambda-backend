@@ -8,5 +8,5 @@ let size_in_bytes_as_targetint =
 
 let to_uint64_exn t = 
   match repr t with
-  | Int32 t -> Numbers_extra.Uint64.of_int32_exn t
-  | Int64 t -> Numbers_extra.Uint64.of_int64_exn t
+  | Int32 t -> Numbers_extra.Uint64.of_nonnegative_int32_exn t
+  | Int64 t -> Numbers_extra.Uint64.of_nonnegative_int64_exn t

@@ -254,7 +254,7 @@ let encode t =
       assert (code >= dw_tag_lo_user && code <= dw_tag_hi_user);
       Int16.to_int code
   in
-  Dwarf_value.uleb128 ~comment:(tag_name t) (Uint64.of_int_exn code)
+  Dwarf_value.uleb128 ~comment:(tag_name t) (Uint64.of_nonnegative_int_exn code)
 
 let size t =
   Dwarf_value.size (encode t)

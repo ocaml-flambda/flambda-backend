@@ -41,7 +41,7 @@ let is_null t =
   t == null
 
 let encode t =
-  Dwarf_value.uleb128 ~comment:t.comment (Uint64.of_int_exn t.code)
+  Dwarf_value.uleb128 ~comment:t.comment (Uint64.of_nonnegative_int_exn t.code)
 
 let emit ~params t = Dwarf_value.emit ~params (encode t)
 
