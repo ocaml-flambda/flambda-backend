@@ -66,7 +66,7 @@ jobs:
           --enable-middle-end=flambda2 \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build, install and test Flambda backend (Flambda 2 mode)
+    - name: Build, install and test Flambda backend (Flambda 2 mode with ocamlcfg)
       working-directory: flambda_backend
       run: make -j $J ci
       env:

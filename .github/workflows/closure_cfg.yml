@@ -66,7 +66,7 @@ jobs:
           --enable-middle-end=closure \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build, install and test Flambda backend (Closure mode)
+    - name: Build, install and test Flambda backend (Closure mode with ocamlcfg)
       working-directory: flambda_backend
       run: make -j $J ci
       env:
