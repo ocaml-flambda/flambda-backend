@@ -6,7 +6,6 @@
   (modules_without_implementation 
    arch
    asm_directives
-   asm_symbol
    clflags
    numbers)
   (flags (:standard -principal -nostdlib))
