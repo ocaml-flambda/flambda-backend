@@ -101,3 +101,48 @@ library, and then the compiler.
 - There are currently no compiler tests for different intrinics. It
   relies on the library tests to avoid duplication. Library tests use
   `Core`, but the library itself does not.
+
+## Testing the compiler built locally with opam
+
+It is possible to create an `opam` switch with the Flambda backend compiler.
+
+First, you'll need to install the `opam-custom-install` plugin. See
+[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
+
+Then you'll need to create an empty switch. The recommended way is to use a
+local switch in the Flambda backend directory:
+
+```shell
+opam switch create . --empty
+```
+
+The Flambda backend must also be configured with this switch as prefix
+(this can be done before actually creating the switch, the directory only
+needs to exist during the installation step):
+
+```shell
+./configure --prefix=/path/to/cwd/_opam ...
+```
+
+Then build the compiler normally (`make`).
+Once that is done, we're ready to install the compiler:
+
+```shell
+opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
+```
+
+The exact version doesn't matter that much, but the version number should
+match the one in the Flambda backend tree.
+To finish the installation, `opam install ocaml` will install the remaining
+auxiliary packages necessary for a regular switch. After that, normal opam
+packages can be installed the usual way.
+
+It is also possible to update the compiler after hacking:
+```shell
+# This will reintall the compiler, and recompile all packages
+# that depend on the compiler
+opam custom-install ocaml-variants -- make install
+# This skips recompilation of other packages,
+# particularly useful for debugging
+opam custom-install --no-recompilations ocaml-variants -- make install
+```
