@@ -47,7 +47,7 @@ let create_high_pc_offset offset =
     AV.create spec (V.int64 ~comment:"high PC value as offset" offset)
 
 let create_high_pc ~low_pc high_pc =
-  match Arch.size_addr with
+  match Dwarf_arch_sizes.size_addr with
   | 4 ->
     (* CR mshinwell: Shouldn't these be of form [Addr]? *)
     let spec = AS.create High_pc Data4 in
@@ -57,7 +57,7 @@ let create_high_pc ~low_pc high_pc =
     let spec = AS.create High_pc Data8 in
     AV.create spec (V.distance_between_label_and_symbol_64_bit
       ~comment:"high PC value" ~upper:high_pc ~lower:low_pc ())
-  | _ -> Misc.fatal_errorf "Unknown [Arch.size_addr] = %d" Arch.size_addr
+  | _ -> Misc.fatal_errorf "Unknown [Dwarf_arch_sizes.size_addr] = %d" Dwarf_arch_sizes.size_addr
 
 let create_entry_pc_from_symbol symbol =
   let spec = AS.create Entry_pc Addr in
@@ -70,7 +70,7 @@ let create_low_pc_from_symbol symbol =
     ~comment:"low PC value" symbol)
 
 let create_high_pc_from_symbol ~low_pc high_pc =
-  match Arch.size_addr with
+  match Dwarf_arch_sizes.size_addr with
   | 4 ->
     let spec = AS.create High_pc Data4 in
     AV.create spec (V.distance_between_symbols_32_bit
@@ -79,7 +79,7 @@ let create_high_pc_from_symbol ~low_pc high_pc =
     let spec = AS.create High_pc Data8 in
     AV.create spec (V.distance_between_symbols_64_bit
       ~comment:"high PC value" ~upper:high_pc ~lower:low_pc ())
-  | _ -> Misc.fatal_errorf "Unknown [Arch.size_addr] = %d" Arch.size_addr
+  | _ -> Misc.fatal_errorf "Unknown [Dwarf_arch_sizes.size_addr] = %d" Dwarf_arch_sizes.size_addr
 
 let create_producer producer_name =
   let spec = AS.create Producer Strp in

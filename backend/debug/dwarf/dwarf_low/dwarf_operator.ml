@@ -725,7 +725,7 @@ end) = struct
         (Uint64.of_nonnegative_int_exn reg_number))
     | DW_op_implicit_value (Int i) ->
       let buf =
-        match Arch.size_int with
+        match Dwarf_arch_sizes.size_int with
         | 4 ->
           let buf = Bytes.create 4 in
           caml_string_set32 buf ~index:0 (Targetint_extra.to_int32 i);
@@ -735,7 +735,7 @@ end) = struct
           caml_string_set64 buf ~index:0 (Targetint_extra.to_int64 i);
           buf
         | n ->
-          Misc.fatal_errorf "Dwarf_operator: bad Arch.size_int = %d" n
+          Misc.fatal_errorf "Dwarf_operator: bad Dwarf_arch_sizes.size_int = %d" n
       in
       let comment =
         if !Clflags.keep_asm_file then
@@ -747,8 +747,8 @@ end) = struct
       >>> fun () ->
       value (V.string (Bytes.to_string buf))
     | DW_op_implicit_value (Symbol symbol) ->
-      value (V.uleb128 ~comment:"Arch.size_addr"
-        (Uint64.of_nonnegative_int_exn Arch.size_addr))
+      value (V.uleb128 ~comment:"Dwarf_arch_sizes.size_addr"
+        (Uint64.of_nonnegative_int_exn Dwarf_arch_sizes.size_addr))
       >>> fun () ->
       value (V.code_address_from_symbol symbol)
     | DW_op_stack_value -> unit_result

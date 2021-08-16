@@ -86,7 +86,7 @@ let base_addr t = t.base_addr
 
 let initial_length t =
   let num_entries = Int64.of_int (Address_index.Map.cardinal t.table) in
-  let size_entries = Int64.mul num_entries (Int64.of_int Arch.size_addr) in
+  let size_entries = Int64.mul num_entries (Int64.of_int Dwarf_arch_sizes.size_addr) in
   Initial_length.create (Dwarf_int.of_int64_exn (Int64.add 4L size_entries))
 
 let size t =
@@ -108,7 +108,7 @@ let emit ~params t =
   let module A = Params.Asm_directives in
   Initial_length.emit ~params (initial_length t);
   Dwarf_version.emit ~params Dwarf_version.five;
-  A.uint8 (Uint8.of_nonnegative_int_exn Arch.size_addr);
+  A.uint8 (Uint8.of_nonnegative_int_exn Dwarf_arch_sizes.size_addr);
   A.uint8 Uint8.zero;
   A.define_label t.base_addr;
   Address_index.Map.iter (fun _index entry ->

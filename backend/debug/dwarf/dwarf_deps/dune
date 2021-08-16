@@ -4,7 +4,6 @@
   (name dwarf_deps)
   (wrapped false)
   (modules_without_implementation 
-   arch
    asm_directives
    clflags)
   (flags (:standard -principal -nostdlib))

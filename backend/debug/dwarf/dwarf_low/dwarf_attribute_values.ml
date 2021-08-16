@@ -38,11 +38,11 @@ module Value = struct
     Dwarf_value (V.indirect_string ?comment ptr)
 
   let distance_between_symbols_32_bit ?comment ~upper ~lower () =
-    assert (Arch.size_addr = 4);
+    assert (Dwarf_arch_sizes.size_addr = 4);
     Dwarf_value (V.code_address_from_symbol_diff ?comment ~upper ~lower ())
 
   let distance_between_symbols_64_bit ?comment ~upper ~lower () =
-    assert (Arch.size_addr = 8);
+    assert (Dwarf_arch_sizes.size_addr = 8);
     Dwarf_value (V.code_address_from_symbol_diff ?comment ~upper ~lower ())
 
   let distance_between_labels_32_bit ?comment ~upper ~lower () =
@@ -52,12 +52,12 @@ module Value = struct
     Dwarf_value (V.distance_between_labels_64_bit ?comment ~upper ~lower ())
 
   let distance_between_label_and_symbol_32_bit ?comment ~upper ~lower () =
-    assert (Arch.size_addr = 4);
+    assert (Dwarf_arch_sizes.size_addr = 4);
     Dwarf_value (V.code_address_from_label_symbol_diff ?comment
       ~upper ~lower ~offset_upper:Targetint_extra.zero ())
 
   let distance_between_label_and_symbol_64_bit ?comment ~upper ~lower () =
-    assert (Arch.size_addr = 8);
+    assert (Dwarf_arch_sizes.size_addr = 8);
     Dwarf_value (V.code_address_from_label_symbol_diff ?comment
       ~upper ~lower ~offset_upper:Targetint_extra.zero ())
 

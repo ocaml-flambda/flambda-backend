@@ -126,15 +126,15 @@ end) = struct
         (Dwarf_int.add (Dwarf_value.size end_offset_exclusive)
           (Payload.size payload))
     | Base_address _sym ->
-      Dwarf_int.of_host_int_exn Arch.size_addr
+      Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr
     | Start_end {
         start_inclusive = _;
         end_exclusive = _;
         end_adjustment = _;
         payload;
       } ->
-      Dwarf_int.add (Dwarf_int.of_host_int_exn Arch.size_addr)
-        (Dwarf_int.add (Dwarf_int.of_host_int_exn Arch.size_addr)
+      Dwarf_int.add (Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr)
+        (Dwarf_int.add (Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr)
           (Payload.size payload))
     | Start_length {
         start_inclusive = _;
@@ -142,7 +142,7 @@ end) = struct
         payload;
       } ->
       let length = Dwarf_value.uleb128 (Targetint_extra.to_uint64_exn length) in
-      Dwarf_int.add (Dwarf_int.of_host_int_exn Arch.size_addr)
+      Dwarf_int.add (Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr)
         (Dwarf_int.add (Dwarf_value.size length)
           (Payload.size payload))
 

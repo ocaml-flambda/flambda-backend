@@ -32,7 +32,7 @@ let create ~start_of_code_symbol ~end_of_code_symbol
        the compilation unit DIE. *)
     V.offset_into_debug_info ~comment:"offset to compilation unit header"
       debug_info_label;
-    V.int8 ~comment:"Arch.size_addr" (Int8.of_int_exn Arch.size_addr);
+    V.int8 ~comment:"Dwarf_arch_sizes.size_addr" (Int8.of_int_exn Dwarf_arch_sizes.size_addr);
     V.int8 ~comment:"flat address space" Int8.zero;
     (* end of header *)
     (* The mystery values match up with what gcc emits and stop bfd from
