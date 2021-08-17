@@ -1,4 +1,5 @@
 module type Arg = sig
+    val emit_line : string -> unit
 end
 
 module type S = sig
@@ -151,6 +152,7 @@ module type S = sig
     -> lower:Asm_symbol.t
     -> offset_upper:Targetint_extra.t
     -> unit
+    -> unit
 
   (** Emit an offset into a DWARF section given a label identifying the place
       within such section. *)
@@ -171,11 +173,4 @@ module type S = sig
     -> Asm_symbol.t
     -> width:Machine_width.t
     -> unit
-end
-
-module type Asm_directives = sig
-    module type Arg = Arg
-    module type S = S
-
-    module Make (_ : Arg) : S
 end

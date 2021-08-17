@@ -391,7 +391,7 @@ let emit ~params { value; comment; } =
   | Code_address_from_symbol sym -> A.symbol ?comment sym
   | Code_address_from_label_symbol_diff { upper; lower; offset_upper; } ->
     A.between_symbol_in_current_unit_and_label_offset ?comment
-      ~upper ~lower ~offset_upper
+      ~upper ~lower ~offset_upper ()
   | Code_address_from_symbol_diff { upper; lower; } ->
     A.between_symbols_in_current_unit ~upper ~lower
   | Code_address_from_symbol_plus_bytes { sym; offset_in_bytes; } ->

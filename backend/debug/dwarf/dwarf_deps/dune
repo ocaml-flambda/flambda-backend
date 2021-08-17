@@ -3,7 +3,6 @@
 (library
   (name dwarf_deps)
   (wrapped false)
-  (modules_without_implementation asm_directives)
   (flags (:standard -principal -nostdlib))
   (ocamlopt_flags (:standard -O3))
   (libraries stdlib ocamlcommon ocamlbytecomp)
