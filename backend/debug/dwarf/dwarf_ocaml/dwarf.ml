@@ -27,18 +27,13 @@ type t = {
 (* CR mshinwell: On OS X 10.11 (El Capitan), dwarfdump doesn't seem to be able
    to read our 64-bit DWARF output. *)
 
-let create ~sourcefile ~cmt_file_digest ~objfiles ~unit_name =
+let create ~sourcefile ~unit_name =
   begin match !Clflags.gdwarf_format with
   | Thirty_two -> Dwarf_format.set Thirty_two
   | Sixty_four -> Dwarf_format.set Sixty_four
   end;
-  let address_table = Address_table.create () in
-  let location_list_table = Location_list_table.create () in
-  let range_list_table = Range_list_table.create () in
   let compilation_unit_proto_die =
-    Dwarf_compilation_unit.compile_unit_proto_die 
-      ~sourcefile ~unit_name ~cmt_file_digest ~objfiles 
-      address_table location_list_table range_list_table
+    Dwarf_compilation_unit.compile_unit_proto_die ~sourcefile ~unit_name 
   in
   let compilation_unit_header_label = Asm_label.create (DWARF Debug_info) in
   let state =

@@ -12,9 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Dwarf_high
-open Dwarf_low
-
 (** Generation and emission of DWARF debugging information for OCaml
     compilation units. *)
 
@@ -27,8 +24,6 @@ type t
     function. *)
 val create
    : sourcefile:string
-  -> cmt_file_digest:Digest.t option
-  -> objfiles:string list
   -> unit_name:Ident.t
   -> t
 

@@ -17,14 +17,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open Dwarf_high
-open Dwarf_low
 
 val compile_unit_proto_die
    : sourcefile:string
-  -> cmt_file_digest:Digest.t option
-  -> objfiles:string list
   -> unit_name:Ident.t
-  -> Address_table.t
-  -> Location_list_table.t
-  -> Range_list_table.t
   -> Proto_die.t
