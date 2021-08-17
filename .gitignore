@@ -39,6 +39,7 @@ _build/
 _build0/
 _build1/
 _build2/
+_install/
 .rsync-output
 .rsync-output-compare
 _compare/

@@ -283,6 +283,48 @@ module type Optcomp_options = sig
   val _save_ir_after : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
+
+  val _g0 : unit -> unit
+  val _g1 : unit -> unit
+  val _g2 : unit -> unit
+  val _g3 : unit -> unit
+
+  val _gjs_of_ocaml : unit -> unit
+  val _gno_js_of_ocaml : unit -> unit
+  val _gocamldebug : unit -> unit
+  val _gno_ocamldebug : unit -> unit
+  val _gsubprocs : unit -> unit
+  val _gno_subprocs : unit -> unit
+  val _gbacktraces : unit -> unit
+  val _gno_backtraces : unit -> unit
+  val _gbounds_checking : unit -> unit
+  val _gno_bounds_checking : unit -> unit
+  val _gdisable_bytecode_opt : unit -> unit
+  val _gno_disable_bytecode_opt : unit -> unit
+
+  val _gdwarf_format : int -> unit
+  val _gdwarf_version : string -> unit
+
+  val _gdwarf_cfi : unit -> unit
+  val _gno_dwarf_cfi : unit -> unit
+  val _gdwarf_loc : unit -> unit
+  val _gno_dwarf_loc : unit -> unit
+  val _gdwarf_scopes : unit -> unit
+  val _gno_dwarf_scopes : unit -> unit
+  val _gdwarf_vars : unit -> unit
+  val _gno_dwarf_vars : unit -> unit
+  val _gdwarf_call_sites : unit -> unit
+  val _gno_dwarf_call_sites : unit -> unit
+  val _gdwarf_cmm : unit -> unit
+  val _gno_dwarf_cmm : unit -> unit
+
+  val _gdwarf_offsets : unit -> unit
+  val _gno_dwarf_offsets : unit -> unit
+  val _gdwarf_self_tail_calls : unit -> unit
+  val _gno_dwarf_self_tail_calls : unit -> unit
+
+  val _ddebug_invariants : unit -> unit
+  val _dno_debug_invariants : unit -> unit
 end;;
 
 module type Opttop_options = sig
