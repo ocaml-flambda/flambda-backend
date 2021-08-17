@@ -16,13 +16,14 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open Dwarf_high
+open Dwarf_low
+
 val compile_unit_proto_die
    : sourcefile:string
-  -> prefix_name:string
   -> cmt_file_digest:Digest.t option
   -> objfiles:string list
-  -> start_of_code_symbol:Asm_symbol.t
-  -> end_of_code_symbol:Asm_symbol.t
+  -> unit_name:Ident.t
   -> Address_table.t
   -> Location_list_table.t
   -> Range_list_table.t

@@ -12,6 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Dwarf_high
+open Dwarf_low
+
 (** Generation and emission of DWARF debugging information for OCaml
     compilation units. *)
 
@@ -24,29 +27,12 @@ type t
     function. *)
 val create
    : sourcefile:string
-  -> prefix_name:string
   -> cmt_file_digest:Digest.t option
   -> objfiles:string list
+  -> unit_name:Ident.t
   -> t
-
-(** Generate DWARF for the given function. *)
-val dwarf_for_fundecl : t -> Debug_passes.result -> unit
-
-(** Generate DWARF for Flambda [Let_symbol] bindings. *)
-val dwarf_for_toplevel_constants
-   : t
-  -> Clambda.preallocated_constant list
-  -> unit
-
-(** For dealing with [Closure]'s top level module blocks.  The symbol for
-    the module block and the corresponding variable must be provided. *)
-val dwarf_for_closure_top_level_module_block
-   : t
-  -> module_block_sym:Backend_sym.t
-  -> module_block_var:Backend_var.t
-  -> unit
 
 (** Write the DWARF information to the assembly file.  This should only be
     called once all (in)constants and function declarations have been passed
     to the above functions. *)
-val emit : t -> unit
+val emit : params:(module Dwarf_params.S) -> t -> unit

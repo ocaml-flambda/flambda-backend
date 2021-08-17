@@ -22,12 +22,5 @@ open Dwarf_low
 val emit
    : params:(module Dwarf_params.S)
   -> compilation_unit_proto_die:Proto_die.t
-  -> start_of_code_symbol:Asm_symbol.t
-  -> end_of_code_symbol:Asm_symbol.t
   -> compilation_unit_header_label:Asm_label.t
-  -> debug_loc_table:Debug_loc_table.t
-  -> debug_ranges_table:Debug_ranges_table.t
-  -> address_table:Address_table.t
-  -> location_list_table:Location_list_table.t
-  -> range_list_table:Range_list_table.t
   -> unit
