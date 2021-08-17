@@ -138,6 +138,11 @@ module Or_absent = struct
     | Absent -> false
     | Present _ -> true
 
+  let is_present_as_normal = function
+    | Absent -> false
+    | Present Normal -> true
+    | Present (Phantom | In_types) -> false
+
   include Container_types.Make (struct
     type nonrec t = t
 
