@@ -77,7 +77,9 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           ListLabels.filter extra_params_and_args.extra_params
             ~f:(fun extra_param ->
               let used =
-                Name_occurrences.mem_var free_names (KP.var extra_param)
+                Name_mode.Or_absent.is_present_as_normal @@
+                Name_occurrences.greatest_name_mode_var
+                  free_names (KP.var extra_param)
               in
               (* The free_names computation is the reference here, because it
                  records precisely what is actually used in the term being
