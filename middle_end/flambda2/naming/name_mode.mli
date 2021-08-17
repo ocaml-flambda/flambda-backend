@@ -72,6 +72,7 @@ module Or_absent : sig
   val present : kind -> t
 
   val is_present : t -> bool
+  val is_present_as_normal : t -> bool
 
   include Container_types.S with type t := t
 
