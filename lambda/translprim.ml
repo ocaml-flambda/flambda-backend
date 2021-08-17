@@ -80,6 +80,7 @@ type loc_kind =
 type prim =
   | Primitive of Lambda.primitive * int
   | External of Primitive.description
+  | Sys_argv
   | Comparison of comparison * comparison_kind
   | Raise of Lambda.raise_kind
   | Raise_with_backtrace
@@ -349,7 +350,7 @@ let primitives_table =
     "%bswap_native", Primitive ((Pbbswap(Pnativeint)), 1);
     "%int_as_pointer", Primitive (Pint_as_pointer, 1);
     "%opaque", Primitive (Popaque, 1);
-    "%sys_argv", External prim_sys_argv;
+    "%sys_argv", Sys_argv;
     "%send", Send;
     "%sendself", Send_self;
     "%sendcache", Send_cache;
@@ -645,8 +646,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   match prim, args with
   | Primitive (prim, arity), args when arity = List.length args ->
       Lprim(prim, args, loc)
-  | External prim, args when prim = prim_sys_argv ->
-      Lprim(Pccall prim, Lconst (const_int 0) :: args, loc)
+  | Sys_argv, [] ->
+      Lprim(Pccall prim_sys_argv, [Lconst (const_int 0)], loc)
   | External prim, args ->
       Lprim(Pccall prim, args, loc)
   | Comparison(comp, knd), ([_;_] as args) ->
@@ -694,7 +695,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
   | Send_cache, [obj; meth; cache; pos] ->
       Lsend(Cached, meth, obj, [cache; pos], loc)
   | (Raise _ | Raise_with_backtrace
-    | Lazy_force | Loc _ | Primitive _ | Comparison _
+    | Lazy_force | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send | Send_self | Send_cache), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
@@ -704,6 +705,7 @@ let check_primitive_arity loc p =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
     | External _ -> true
+    | Sys_argv -> p.prim_arity = 0
     | Comparison _ -> p.prim_arity = 2
     | Raise _ -> p.prim_arity = 1
     | Raise_with_backtrace -> p.prim_arity = 2
@@ -778,7 +780,7 @@ let lambda_primitive_needs_event_after = function
 (* Determine if a primitive should be surrounded by an "after" debug event *)
 let primitive_needs_event_after = function
   | Primitive (prim,_) -> lambda_primitive_needs_event_after prim
-  | External _ -> true
+  | External _ | Sys_argv -> true
   | Comparison(comp, knd) ->
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
   | Lazy_force | Send | Send_self | Send_cache -> true
