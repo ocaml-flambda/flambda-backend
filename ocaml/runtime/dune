@@ -42,7 +42,7 @@
           obj.c lexing.c callback.c debugger.c weak.c compact.c finalise.c
           custom.c dynlink.c afl.c unix.c win32.c bigarray.c main.c memprof.c 
           domain.c caml/domain_state.tbl eventlog.c skiplist.c codefrag.c
-          instrtrace.c caml/opnames.h prims.c .depend) 
+          instrtrace.c caml/opnames.h prims.c) 
  (action
    (progn
      (run make %{targets}))))
@@ -66,7 +66,7 @@
   parsing.c gc_ctrl.c md5.c obj.c lexing.c unix.c printexc.c callback.c weak.c
   compact.c finalise.c custom.c globroots.c backtrace_nat.c backtrace.c
   dynlink_nat.c debugger.c meta.c dynlink.c clambda_checks.c afl.c bigarray.c memprof.c domain.c
-  caml/domain_state.tbl eventlog.c prims.c .depend)
+  caml/domain_state.tbl eventlog.c prims.c)
  (action
   (progn
    (run make %{targets}))))
@@ -88,7 +88,7 @@
 
 (rule
   (targets ocamlrun)
-  (deps libcamlrun.a prims.o .depend)
+  (deps libcamlrun.a prims.o)
   (action
     (progn
     (run make %{targets}))))
@@ -97,14 +97,14 @@
   (targets ocamlrund)
   ; the ocamlrun dep is a hack to serialise production of ocamlrun* so there
   ; isn't a race on prims.o
-  (deps libcamlrund.a prims.o ocamlrun .depend)
+  (deps libcamlrund.a prims.o ocamlrun)
   (action
     (progn
       (run make %{targets}))))
 
 (rule
   (targets ocamlruni)
-  (deps libcamlruni.a prims.o ocamlrund .depend)
+  (deps libcamlruni.a prims.o ocamlrund)
   (action
     (progn
       (run make %{targets}))))
