@@ -170,8 +170,7 @@ let linear i n contains_calls =
       Iend -> n
     | Iop(Itailcall_ind | Itailcall_imm _ as op)
     | Iop((Iextcall { returns = false; _ }) as op) ->
-        (* note: there cannot be deadcode in n *)
-        copy_instr (Lop op) i (linear env i.Mach.next n)
+        copy_instr (Lop op) i (discard_dead_code (linear env i.Mach.next n))
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
         linear env i.Mach.next n
