@@ -1480,7 +1480,7 @@ let emit_probe_notes () =
   | [] -> ()
   | _ -> emit_probe_notes0 ()
 
-let end_assembly() =
+let end_assembly dwarf =
   if !float_constants <> [] then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal8"] None ["8byte_literals"]
@@ -1571,4 +1571,8 @@ let end_assembly() =
     else
       None
   in
+  begin match dwarf with
+    | Some dwarf -> Dwarf_ocaml.Dwarf.emit dwarf
+    | None -> ()
+  end;
   X86_proc.generate_code asm

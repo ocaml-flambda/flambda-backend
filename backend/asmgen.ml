@@ -23,6 +23,8 @@ open Clflags
 open Misc
 open Cmm
 
+open Dwarf_ocaml
+
 type error =
   | Assembler_error of string
   | Mismatched_for_pack of string option
@@ -203,12 +205,32 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
+let build_dwarf () =
+  let sourcefile = "" in
+  let unit_name =
+    Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
+  in
+  let params : (module Dwarf_params.S) =
+    (module struct 
+      module Asm_directives = Asm_directives.Make(struct
+        let emit_line str = X86_dsl.D.comment str
+      end)
+    end)
+  in
+  Dwarf.create ~sourcefile ~unit_name ~params 
+
 let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
   emit_begin_assembly ();
   make_cmm ()
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
-  ++ (fun () -> ());
+  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump));
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
+  Asm_label.initialize ~new_label:Cmm.new_label;
+  let dwarf = 
+    if Clflags.debug_thing Clflags.Debug_dwarf_functions then
+      Some (build_dwarf ())
+    else
+      None
+  in
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
      when part of a C library, won't be discarded by the linker.
@@ -220,7 +242,7 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
            if not (Primitive.native_name_is_external prim) then None
            else Some (Primitive.native_name prim))
           !Translmod.primitive_declarations));
-  emit_end_assembly ()
+  emit_end_assembly dwarf
 
 let end_gen_implementation ?toplevel ~ppf_dump clambda =
   end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
@@ -291,7 +313,7 @@ let linear_gen_implementation filename =
   start_from_emit := true;
   emit_begin_assembly ();
   Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
-  emit_end_assembly ()
+  emit_end_assembly None
 
 let compile_implementation_linear output_prefix ~progname =
   compile_unit ~output_prefix

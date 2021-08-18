@@ -18,4 +18,4 @@
 val fundecl: Linear.fundecl -> unit
 val data: Cmm.data_item list -> unit
 val begin_assembly: unit -> unit
-val end_assembly: unit -> unit
+val end_assembly: Dwarf_ocaml.Dwarf.t option -> unit

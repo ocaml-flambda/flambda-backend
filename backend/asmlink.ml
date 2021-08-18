@@ -277,7 +277,7 @@ let make_startup_file ~ppf_dump units_list =
   compile_phrase (Cmm_helpers.frame_table all_names);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
-  Emit.end_assembly ()
+  Emit.end_assembly None
 
 let make_shared_startup_file ~ppf_dump units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
@@ -294,7 +294,7 @@ let make_shared_startup_file ~ppf_dump units =
     force_linking_of_startup ~ppf_dump;
   (* this is to force a reference to all units, otherwise the linker
      might drop some of them (in case of libraries) *)
-  Emit.end_assembly ()
+  Emit.end_assembly None
 
 let call_linker_shared file_list output_name =
   let exitcode = Ccomp.call_linker Ccomp.Dll output_name file_list "" in
