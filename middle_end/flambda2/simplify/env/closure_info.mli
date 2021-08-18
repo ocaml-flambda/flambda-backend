@@ -31,4 +31,8 @@ val in_a_set_of_closures : t
 val in_a_closure :
   Code_id.t -> Continuation.t -> Exn_continuation.t -> t
 
+type in_or_out_of_closure = private
+  | In_a_closure
+  | Not_in_a_closure
 
+val in_or_out_of_closure : t -> in_or_out_of_closure

@@ -442,7 +442,7 @@ let static_consts env r ~params_and_body bound_symbols static_consts =
         symbols and static consts. *)
     let dummy_body = Expr.create_invalid () in
     let tmp_let_symbol =
-      Let.create (Bindable_let_bound.symbols bound_symbols Syntactic)
+      Let.create (Bindable_let_bound.symbols bound_symbols)
         (Named.create_static_consts static_consts)
         ~body:dummy_body
         ~free_names_of_body:(Known Name_occurrences.empty)

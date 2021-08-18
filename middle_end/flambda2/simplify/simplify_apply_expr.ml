@@ -429,7 +429,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let static_consts = Static_const.Group.create [code] in
     (* Since we are only generating a "let code" binding and not a "let symbol",
        it doesn't matter if we are not at toplevel. *)
-    Let.create (Bindable_let_bound.symbols bound_symbols Dominator)
+    Let.create (Bindable_let_bound.symbols bound_symbols)
       (Named.create_static_consts static_consts)
       ~body
       ~free_names_of_body:Unknown

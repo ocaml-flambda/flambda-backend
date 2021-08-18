@@ -29,6 +29,8 @@ val empty : t
 
 val add : t -> newer:Code_id.t -> older:Code_id.t -> t
 
+val get_older_version_of : t -> Code_id.t -> Code_id.t option
+
 (** [meet] calculates which of the given pieces of code is newer, or
     identifies that the pieces of code are unrelated. *)
 val meet
@@ -48,26 +50,6 @@ val join
   -> Code_id.t
   -> Code_id.t
   -> Code_id.t Or_unknown.t
-
-(** Returns [true] iff there is no branching in the elements of the code age
-    relation newer than the given code ID.  Any code ID in the relation but
-    not in [all_code_ids_still_existing] will not count for the purposes of
-    the check. *)
-val newer_versions_form_linear_chain
-   : t
-  -> Code_id.t
-  -> all_code_ids_still_existing:Code_id.Set.t
-  -> bool
-
-(* Like [newer_versions_form_linear_chain] but takes a [Name_occurrences.t]
-   to specify which code IDs still exist.  Both the code IDs and
-   "newer version of" code IDs in the [Name_occurrences.t] are taken into
-   account. *)
-val newer_versions_form_linear_chain'
-   : t
-  -> Code_id.t
-  -> all_free_names_still_existing:Name_occurrences.t
-  -> bool
 
 val union : t -> t -> t
 
