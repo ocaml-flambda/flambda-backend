@@ -79,18 +79,6 @@ type exttype =
 val machtype_of_exttype: exttype -> machtype
 val machtype_of_exttype_list: exttype list -> machtype
 
-type integer_comparison = Lambda.integer_comparison =
-  | Ceq | Cne | Clt | Cgt | Cle | Cge
-
-val negate_integer_comparison: integer_comparison -> integer_comparison
-val swap_integer_comparison: integer_comparison -> integer_comparison
-
-type float_comparison = Lambda.float_comparison =
-  | CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
-
-val negate_float_comparison: float_comparison -> float_comparison
-val swap_float_comparison: float_comparison -> float_comparison
-
 type label = int
 val new_label: unit -> label
 val set_label: label -> unit
@@ -189,14 +177,14 @@ and operation =
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
-  | Ccmpi of integer_comparison
+  | Ccmpi of Comparison.Integer.t
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
-  | Ccmpa of integer_comparison
+  | Ccmpa of Comparison.Integer.t
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
-  | Ccmpf of float_comparison
+  | Ccmpf of Comparison.Float.t
   | Craise of Lambda.raise_kind
   | Ccheckbound (* Takes two arguments : first the bound to check against,
                    then the index.

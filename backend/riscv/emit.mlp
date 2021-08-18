@@ -143,11 +143,11 @@ let emit_float_store src ofs =
 
 let emit_float_test cmp ~arg ~res =
   let negated =
-    match cmp with
+    match (cmp : Comparison.Float.t) with
     | CFneq | CFnlt | CFngt | CFnle | CFnge -> true
     | CFeq | CFlt | CFgt | CFle | CFge -> false
   in
-  begin match cmp with
+  begin match (cmp : Comparison.Float.t) with
   | CFeq | CFneq -> `	feq.d	{emit_reg res}, {emit_reg arg.(0)}, {emit_reg arg.(1)}\n`
   | CFlt | CFnlt -> `	flt.d	{emit_reg res}, {emit_reg arg.(0)}, {emit_reg arg.(1)}\n`
   | CFgt | CFngt -> `	flt.d	{emit_reg res}, {emit_reg arg.(1)}, {emit_reg arg.(0)}\n`

@@ -172,7 +172,7 @@ let name_for_comparison : Comparison.Integer.With_signedness.t -> string  = func
   | Iunsigned Ceq -> "eq" | Iunsigned Cne -> "ne" | Iunsigned Cle -> "ls"
   | Iunsigned Cge -> "cs" | Iunsigned Clt -> "cc" | Iunsigned Cgt -> "hi"
 
-let name_for_float_comparison = function
+let name_for_float_comparison : Comparison.Float.t -> string = function
   | CFeq -> "eq"
   | CFneq -> "ne"
   | CFlt -> "cc"

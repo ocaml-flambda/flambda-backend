@@ -397,7 +397,7 @@ let emit_float_test cmp i lbl =
      If FP traps are on (they are off by default),
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
-  match cmp with
+  match (cmp : Comparison.Float.t) with
   | CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);

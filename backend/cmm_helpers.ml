@@ -22,10 +22,13 @@ open Arch
 
 (* Local binding of complex expressions *)
 
+let force_bind name arg fn =
+  let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
+
 let bind name arg fn =
   match arg with
     Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ -> fn arg
-  | _ -> let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
+  | _ -> force_bind name arg fn
 
 let bind_load name arg fn =
   match arg with
@@ -261,13 +264,13 @@ let mk_not dbg cmm =
       match c with
       | Cop(Ccmpi cmp, [c1; c2], dbg'') ->
           tag_int
-            (Cop(Ccmpi (negate_integer_comparison cmp), [c1; c2], dbg'')) dbg'
+            (Cop(Ccmpi (Comparison.Integer.negate cmp), [c1; c2], dbg'')) dbg'
       | Cop(Ccmpa cmp, [c1; c2], dbg'') ->
           tag_int
-            (Cop(Ccmpa (negate_integer_comparison cmp), [c1; c2], dbg'')) dbg'
+            (Cop(Ccmpa (Comparison.Integer.negate cmp), [c1; c2], dbg'')) dbg'
       | Cop(Ccmpf cmp, [c1; c2], dbg'') ->
           tag_int
-            (Cop(Ccmpf (negate_float_comparison cmp), [c1; c2], dbg'')) dbg'
+            (Cop(Ccmpf (Comparison.Float.negate cmp), [c1; c2], dbg'')) dbg'
       | _ ->
         (* 0 -> 3, 1 -> 1 *)
         Cop(Csubi,

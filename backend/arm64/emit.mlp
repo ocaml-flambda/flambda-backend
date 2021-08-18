@@ -644,7 +644,7 @@ let emit_load_literal dst lbl =
   end
 
 
-let name_for_float_comparison = function
+let name_for_float_comparison : Comparison.Float.t -> string = function
   | CFeq -> "eq"
   | CFneq -> "ne"
   | CFlt -> "cc"

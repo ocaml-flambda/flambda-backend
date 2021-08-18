@@ -264,12 +264,12 @@ let emit_load_store instr addressing_mode addr n arg =
 let emit_set_comp cmp res =
   `	mfcr	0\n`;
   let bitnum =
-    match cmp with
+    match (cmp : Comparison.Integer.t) with
       Ceq | Cne -> 2
     | Cgt | Cle -> 1
     | Clt | Cge -> 0 in
 `	rlwinm	{emit_reg res}, 0, {emit_int(bitnum+1)}, 31, 31\n`;
-  begin match cmp with
+  begin match (cmp : Comparison.Integer.t) with
     Cne | Cle | Cge -> `	xori	{emit_reg res}, {emit_reg res}, 1\n`
   | _ -> ()
   end
@@ -278,7 +278,7 @@ let emit_float_comp cmp arg =
   `	fcmpu	0, {emit_reg arg.(0)}, {emit_reg arg.(1)}\n`;
   (* bit 0 = lt, bit 1 = gt, bit 2 = eq *)
   let bitnum =
-    match cmp with
+    match (cmp : Comparison.Float.t) with
     | CFeq | CFneq -> 2
     | CFle | CFnle ->
     `	cror	3, 0, 2\n`; (* lt or eq *)
@@ -289,7 +289,7 @@ let emit_float_comp cmp arg =
     3
     | CFlt | CFnlt -> 0
   in
-  match cmp with
+  match (cmp : Comparison.Float.t) with
   | CFneq | CFngt | CFnge | CFnlt | CFnle ->
     bitnum, true
   | CFeq | CFgt | CFge | CFlt | CFle ->
@@ -361,7 +361,7 @@ let jumptables_lbl = ref (-1)
 
 (* Names for conditional branches after comparisons *)
 
-let branch_for_comparison = function
+let branch_for_comparison : Comparison.Integer.t -> string = function
     Ceq -> "beq" | Cne -> "bne"
   | Cle -> "ble" | Cgt -> "bgt"
   | Cge -> "bge" | Clt -> "blt"

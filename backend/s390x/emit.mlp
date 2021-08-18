@@ -241,7 +241,7 @@ let int_literals = ref ([] : (nativeint * int) list)
 (* Masks for conditional branches after comparisons *)
 
 (* bit 0 = eq, bit 1 = lt, bit 2 = gt, bit 3 = overflow*)
-let branch_for_comparison = function
+let branch_for_comparison : Comparison.Integer.t -> _ = function
   | Ceq -> 0b1000 | Cne -> 0b0111 (* BRNEL is 0111 rather than 0110 *)
   | Cle -> 0b1100 | Cgt -> 0b0010
   | Cge -> 0b1010 | Clt -> 0b0100
@@ -257,7 +257,7 @@ let name_for_int_comparison_imm : Comparison.Integer.With_signedness.t -> _ =
   | Iunsigned cmp -> ("clgfi", branch_for_comparison cmp)
 
 (* bit 0 = eq, bit 1 = lt, bit 2 = gt, bit 3 = unordered*)
-let branch_for_float_comparison = function
+let branch_for_float_comparison : Comparison.Float.t -> _ = function
   | CFeq  -> 0b1000
   | CFneq -> 0b0111
 

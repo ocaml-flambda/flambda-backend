@@ -376,14 +376,14 @@ let emit_float_test_and_return_condition cmp arg =
     | (false, true) ->
         (* second arg on top of FP stack *)
         I.fcomp (reg arg.(0));
-        Cmm.swap_float_comparison cmp
+        Comparison.Float.swap cmp
     | (false, false) ->
         I.fld     (reg arg.(0));
         I.fcomp   (reg arg.(1));
         cmp
   in
   I.fnstsw ax;
-  match actual_cmp with
+  match (actual_cmp : Comparison.Float.t) with
   | CFeq ->
       I.and_ (int 69) ah;
       I.cmp (int 64) ah;

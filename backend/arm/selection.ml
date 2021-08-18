@@ -251,18 +251,18 @@ method private select_operation_softfp op args dbg =
   | (Cintoffloat, args) ->
       (self#iextcall "__aeabi_d2iz" typ_int [XFloat], args)
   | (Ccmpf comp, args) ->
-      let comp, func =
-        match comp with
-        | CFeq -> Cne, "__aeabi_dcmpeq"
-        | CFneq -> Ceq, "__aeabi_dcmpeq"
-        | CFlt -> Cne, "__aeabi_dcmplt"
-        | CFnlt -> Ceq, "__aeabi_dcmplt"
-        | CFle -> Cne, "__aeabi_dcmple"
-        | CFnle -> Ceq, "__aeabi_dcmple"
-        | CFgt -> Cne, "__aeabi_dcmpgt"
-        | CFngt -> Ceq, "__aeabi_dcmpgt"
-        | CFge -> Cne, "__aeabi_dcmpge"
-        | CFnge -> Ceq, "__aeabi_dcmpge"
+      let (comp : Comparison.Integer.t), func =
+        match (comp : Comparison.Float.t) with
+        | CFeq -> Comparison.Integer.Cne, "__aeabi_dcmpeq"
+        | CFneq -> Comparison.Integer.Ceq, "__aeabi_dcmpeq"
+        | CFlt -> Comparison.Integer.Cne, "__aeabi_dcmplt"
+        | CFnlt -> Comparison.Integer.Ceq, "__aeabi_dcmplt"
+        | CFle -> Comparison.Integer.Cne, "__aeabi_dcmple"
+        | CFnle -> Comparison.Integer.Ceq, "__aeabi_dcmple"
+        | CFgt -> Comparison.Integer.Cne, "__aeabi_dcmpgt"
+        | CFngt -> Comparison.Integer.Ceq, "__aeabi_dcmpgt"
+        | CFge -> Comparison.Integer.Cne, "__aeabi_dcmpge"
+        | CFnge -> Comparison.Integer.Ceq, "__aeabi_dcmpge"
       in
       (Iintop_imm(Icomp(Iunsigned comp), 0),
        [Cop(Cextcall { func; ty = typ_int; alloc = false;

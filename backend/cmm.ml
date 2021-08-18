@@ -92,21 +92,6 @@ let machtype_of_exttype = function
 let machtype_of_exttype_list xtl =
   Array.concat (List.map machtype_of_exttype xtl)
 
-type integer_comparison = Lambda.integer_comparison =
-  | Ceq | Cne | Clt | Cgt | Cle | Cge
-
-let negate_integer_comparison = Lambda.negate_integer_comparison
-
-let swap_integer_comparison = Lambda.swap_integer_comparison
-
-(* With floats [not (x < y)] is not the same as [x >= y] due to NaNs,
-   so we provide additional comparisons to represent the negations.*)
-type float_comparison = Lambda.float_comparison =
-  | CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
-
-let negate_float_comparison = Lambda.negate_float_comparison
-
-let swap_float_comparison = Lambda.swap_float_comparison
 type label = int
 
 type exit_label =
@@ -187,13 +172,13 @@ and operation =
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt
   | Cprefetch of { is_write: bool; locality: prefetch_temporal_locality_hint; }
-  | Ccmpi of integer_comparison
+  | Ccmpi of Comparison.Integer.t
   | Caddv | Cadda
-  | Ccmpa of integer_comparison
+  | Ccmpa of Comparison.Integer.t
   | Cnegf | Cabsf
   | Caddf | Csubf | Cmulf | Cdivf
   | Cfloatofint | Cintoffloat
-  | Ccmpf of float_comparison
+  | Ccmpf of Comparison.Float.t
   | Craise of Lambda.raise_kind
   | Ccheckbound
   | Cprobe of { name: string; handler_code_sym: string; }

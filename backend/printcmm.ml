@@ -59,26 +59,6 @@ let extcall_signature ppf (ty_res, ty_args) =
       fprintf ppf "->%a" machtype ty_res
   end
 
-let integer_comparison = function
-  | Ceq -> "=="
-  | Cne -> "!="
-  | Clt -> "<"
-  | Cle -> "<="
-  | Cgt -> ">"
-  | Cge -> ">="
-
-let float_comparison = function
-  | CFeq -> "=="
-  | CFneq -> "!="
-  | CFlt -> "<"
-  | CFnlt -> "!<"
-  | CFle -> "<="
-  | CFnle -> "!<="
-  | CFgt -> ">"
-  | CFngt -> "!>"
-  | CFge -> ">="
-  | CFnge -> "!>="
-
 let chunk = function
   | Byte_unsigned -> "unsigned int8"
   | Byte_signed -> "signed int8"
@@ -176,10 +156,10 @@ let operation d = function
   | Cclz { arg_is_non_zero; } -> Printf.sprintf "clz %B" arg_is_non_zero
   | Cctz { arg_is_non_zero; } -> Printf.sprintf "ctz %B" arg_is_non_zero
   | Cpopcnt -> "popcnt"
-  | Ccmpi c -> integer_comparison c
+  | Ccmpi c -> Printcomparison.integer_comparison c
   | Caddv -> "+v"
   | Cadda -> "+a"
-  | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
+  | Ccmpa c -> Printf.sprintf "%sa" (Printcomparison.integer_comparison c)
   | Cnegf -> "~f"
   | Cabsf -> "absf"
   | Caddf -> "+f"
@@ -188,7 +168,7 @@ let operation d = function
   | Cdivf -> "/f"
   | Cfloatofint -> "floatofint"
   | Cintoffloat -> "intoffloat"
-  | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
+  | Ccmpf c -> Printf.sprintf "%sf" (Printcomparison.float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
   | Cprobe { name; handler_code_sym } ->
