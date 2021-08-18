@@ -1,8 +1,16 @@
 module type Arg = sig
     val emit_line : string -> unit
+
+    module D : sig
+      val file: file_num:int -> file_name:string -> unit
+
+      val loc: file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
+      val text : unit -> unit
+    end
 end
 
 module type S = sig
+
   (** Emit subsequent directives to the given section.  If this function
       has not been called before on the particular section, a label
       declaration will be emitted after declaring the section.
@@ -12,6 +20,10 @@ module type S = sig
       get relocated correctly when those places become not at the start
       (e.g. during linking). *)
   val switch_to_section : Asm_section.t -> unit
+
+  (** Called at the beginning of the assembly generation and only if the dwarf
+      flag has been set. *)
+  val initialize : unit -> unit
 
   (** Emit an 8-bit signed integer.  There is no padding or sign extension.
       If the [comment] is specified it will be put on the same line as the

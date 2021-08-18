@@ -3,9 +3,25 @@
 module type S = Asm_directives_intf.S
 module type Arg = Asm_directives_intf.Arg
 
-module Make ( A : Asm_directives_intf.Arg ) = struct
+module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
+
+  module D = A.D
+
   let switch_to_section section =
     A.emit_line ("switch_to_section: " ^ Asm_section.to_string section)
+
+  let initialize () =
+    (* Forward label references are illegal in GAS *)
+    begin match Config_typed.assembler () with
+    | MASM | MacOS -> ()
+    | GAS_like -> List.iter switch_to_section (Asm_section.dwarf_sections_in_order ())
+    end;
+    (* Stop dsymutil complaining about empty __debug_line sections (produces
+      bogus error "line table parameters mismatch") by making sure such sections
+      are never empty. *)
+    D.file ~file_num:1 ~file_name:"none";  (* also PR#7037 *)
+    D.loc ~file_num:1 ~line:1 ~col:1 ();
+    D.text ()
 
   let int8 ?comment:_ _num = A.emit_line "int8"
   let int16 ?comment:_ _num = A.emit_line "int16"

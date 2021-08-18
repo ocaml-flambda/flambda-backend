@@ -255,7 +255,7 @@ let make_startup_file ~ppf_dump units_list =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup";
   (* set the name of the "current" compunit *)
-  Emit.begin_assembly ();
+  Emit.begin_assembly ~init_dwarf:(fun () -> ());
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in
   compile_phrase (Cmm_helpers.entry_point name_list);
@@ -283,7 +283,7 @@ let make_shared_startup_file ~ppf_dump units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Location.input_name := "caml_startup";
   Compilenv.reset "_shared_startup";
-  Emit.begin_assembly ();
+  Emit.begin_assembly ~init_dwarf:(fun () -> ());
   List.iter compile_phrase
     (Cmm_helpers.generic_functions true (List.map fst units));
   compile_phrase (Cmm_helpers.plugin_header units);

@@ -85,7 +85,7 @@ let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
 
 let if_emit_do f x = if should_emit () then f x else ()
-let emit_begin_assembly = if_emit_do Emit.begin_assembly
+let emit_begin_assembly = if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf)
 let emit_end_assembly = if_emit_do Emit.end_assembly
 let emit_data = if_emit_do Emit.data
 let emit_fundecl =
@@ -205,30 +205,43 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let build_dwarf sourcefile =
+let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) sourcefile =
   let unit_name =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in
   let params : (module Dwarf_params.S) =
     (module struct 
-      module Asm_directives = Asm_directives.Make(struct
-        let emit_line str = X86_dsl.D.comment str
-      end)
+      module Asm_directives = Asm_directives
     end)
   in
   Dwarf.create ~sourcefile ~unit_name ~params 
 
 let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
-  emit_begin_assembly ();
+  let asm_directives =
+    if Clflags.debug_thing Clflags.Debug_dwarf_functions then
+      Some 
+        ( module Asm_directives.Make(struct
+            let emit_line str = X86_dsl.D.comment str
+            module D = X86_dsl.D
+          end)
+          : Asm_directives_intf.S)
+    else
+      None
+  in
+  emit_begin_assembly (fun () ->
+    Option.iter
+      (fun (module Asm_directives : Asm_directives_intf.S) ->
+        Asm_label.initialize ~new_label:Cmm.new_label;
+        Asm_directives.initialize ())
+      asm_directives
+  );
   make_cmm ()
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump));
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
-  Asm_label.initialize ~new_label:Cmm.new_label;
   let dwarf = 
-    if Clflags.debug_thing Clflags.Debug_dwarf_functions then
-      Some (build_dwarf sourcefile)
-    else
-      None
+    Option.map
+      (fun asm_directives -> build_dwarf ~asm_directives sourcefile)
+      asm_directives
   in
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
@@ -310,7 +323,7 @@ let linear_gen_implementation filename =
     | Func f -> emit_fundecl f
   in
   start_from_emit := true;
-  emit_begin_assembly ();
+  emit_begin_assembly (fun () -> ());
   Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
   emit_end_assembly None
 
