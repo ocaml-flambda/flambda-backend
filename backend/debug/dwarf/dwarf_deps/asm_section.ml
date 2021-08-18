@@ -26,14 +26,35 @@ type dwarf_section =
   | Debug_str
   | Debug_line
 
-type t =
-  | DWARF of dwarf_section
+type t = DWARF of dwarf_section
 
 type flags_for_section = {
   names : string list;
   flags : string option;
   args : string list;
 }
+
+let dwarf_sections_in_order () =
+  let sections = [
+    DWARF Debug_info;
+    DWARF Debug_abbrev;
+    DWARF Debug_aranges;
+    DWARF Debug_str;
+    DWARF Debug_line;
+  ] in
+  let dwarf_version_dependent_sections =
+    match !Clflags.gdwarf_version with
+    | Four ->
+      [ DWARF Debug_loc;
+        DWARF Debug_ranges;
+      ]
+    | Five ->
+      [ DWARF Debug_addr;
+        DWARF Debug_loclists;
+        DWARF Debug_rnglists;
+      ]
+  in
+  sections @ dwarf_version_dependent_sections
 
 let flags t ~first_occurrence =
   let names, flags, args =

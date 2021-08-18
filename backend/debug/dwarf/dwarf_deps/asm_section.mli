@@ -29,8 +29,7 @@ type dwarf_section =
   | Debug_str
   | Debug_line
 
-type t =
-  | DWARF of dwarf_section
+type t = DWARF of dwarf_section
 
 val to_string : t -> string
 
@@ -39,6 +38,8 @@ type flags_for_section = private {
   flags : string option;
   args : string list;
 }
+
+val dwarf_sections_in_order : unit -> t list
 
 (** The necessary information for a section directive.  [first_occurrence]
     should be [true] iff the corresponding directive will be the first such
