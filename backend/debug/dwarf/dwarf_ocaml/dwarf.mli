@@ -25,9 +25,10 @@ type t
 val create
    : sourcefile:string
   -> unit_name:Ident.t
+  -> params:(module Dwarf_params.S)
   -> t
 
 (** Write the DWARF information to the assembly file.  This should only be
     called once all (in)constants and function declarations have been passed
     to the above functions. *)
-val emit : params:(module Dwarf_params.S) -> t -> unit
+val emit : t -> unit

@@ -21,13 +21,14 @@ module DS = Dwarf_state
 
 type t = {
   state : DS.t;
+  params: (module Dwarf_params.S);
   mutable emitted : bool;
 }
 
 (* CR mshinwell: On OS X 10.11 (El Capitan), dwarfdump doesn't seem to be able
    to read our 64-bit DWARF output. *)
 
-let create ~sourcefile ~unit_name =
+let create ~sourcefile ~unit_name ~params =
   begin match !Clflags.gdwarf_format with
   | Thirty_two -> Dwarf_format.set Thirty_two
   | Sixty_four -> Dwarf_format.set Sixty_four
@@ -39,19 +40,20 @@ let create ~sourcefile ~unit_name =
   let state =
     DS.create ~compilation_unit_header_label ~compilation_unit_proto_die
   in
-  { state;
-    emitted = false;
+  { state
+  ; params
+  ; emitted = false
   }
 
-let emit ~params t =
+let emit t =
   if t.emitted then begin
     Misc.fatal_error "Cannot call [Dwarf.emit] more than once on a given \
       value of type [Dwarf.t]"
   end;
   t.emitted <- true;
   Dwarf_world.emit
-    ~params
+    ~params:t.params
     ~compilation_unit_proto_die:(DS.compilation_unit_proto_die t.state)
     ~compilation_unit_header_label:(DS.compilation_unit_header_label t.state)
 
-let emit ~params t = Profile.record "emit_dwarf" (emit ~params) t
+let emit t = Profile.record "emit_dwarf" emit t
