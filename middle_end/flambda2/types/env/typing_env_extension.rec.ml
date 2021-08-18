@@ -142,14 +142,6 @@ let meet env t1 t2 : _ Or_bottom.t =
     Ok (meet0 env t1 t2 [])
   with Bottom_meet -> Bottom
 
-let is_alias_of_name ty name =
-  match Type_grammar.get_alias_exn ty with
-  | exception Not_found -> false
-  | simple ->
-    Simple.pattern_match simple
-      ~name:(fun name' ~coercion:_ -> Name.equal name name')
-      ~const:(fun _ -> false)
-
 let join env t1 t2 =
   let equations =
     Name.Map.merge (fun name ty1_opt ty2_opt ->
@@ -158,12 +150,12 @@ let join env t1 t2 =
         | Some ty1, Some ty2 ->
           begin match Type_grammar.join env ty1 ty2 with
           | Known ty ->
-            if is_alias_of_name ty name then
+            if Type_grammar.is_alias_of_name ty name then
               (* This is rare but not anomalous. It may mean that [ty1] and [ty2]
                  are both alias types which canonicalize to [name], for instance.
                  In any event, if the best type available for [name] is [= name],
-                 we effectively know nothing, so we drop [name]. ([name = name] is
-                 an invalid equation anyway.) *)
+                 we effectively know nothing, so we drop [name]. ([name = name]
+                 would be rejected by [Typing_env.add_equation] anyway.) *)
               None
             else begin
               (* This should always pass due to the [is_alias_of_name] check. *)

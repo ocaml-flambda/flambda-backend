@@ -1007,7 +1007,7 @@ let join ?bound_name env t1 t2 =
       print t1
       print t2
 
-let equation_is_directly_recursive name ty =
+let is_alias_of_name ty name =
   match get_alias_exn ty with
   | exception Not_found -> false
   | simple ->
@@ -1017,7 +1017,7 @@ let equation_is_directly_recursive name ty =
 
 let check_equation name ty =
   if Flambda_features.check_invariants () then begin
-    if equation_is_directly_recursive name ty then begin
+    if is_alias_of_name ty name then begin
       Misc.fatal_errorf "Directly recursive equation@ %a = %a@ \
           disallowed"
         Name.print name

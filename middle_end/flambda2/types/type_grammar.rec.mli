@@ -45,6 +45,7 @@ val apply_coercion : t -> Coercion.t -> t Or_bottom.t
 val eviscerate : t -> Typing_env.t -> t
 
 val get_alias_exn : t -> Simple.t
+val is_alias_of_name : t -> Name.t -> bool
 
 val is_obviously_bottom : t -> bool
 val is_obviously_unknown : t -> bool
