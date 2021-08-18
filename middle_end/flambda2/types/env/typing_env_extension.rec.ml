@@ -52,7 +52,8 @@ let empty () = { equations = Name.Map.empty; }
 let is_empty { equations } = Name.Map.is_empty equations
 
 let from_map equations =
-  { equations; }
+  let t = { equations; } in
+  invariant t; t
 
 let one_equation name ty =
   Type_grammar.check_equation name ty;
@@ -143,12 +144,24 @@ let meet env t1 t2 : _ Or_bottom.t =
 
 let join env t1 t2 =
   let equations =
-    Name.Map.merge (fun _name ty1_opt ty2_opt ->
+    Name.Map.merge (fun name ty1_opt ty2_opt ->
         match ty1_opt, ty2_opt with
         | None, _ | _, None -> None
         | Some ty1, Some ty2 ->
           begin match Type_grammar.join env ty1 ty2 with
-          | Known ty -> Some ty
+          | Known ty ->
+            if Type_grammar.is_alias_of_name ty name then
+              (* This is rare but not anomalous. It may mean that [ty1] and [ty2]
+                 are both alias types which canonicalize to [name], for instance.
+                 In any event, if the best type available for [name] is [= name],
+                 we effectively know nothing, so we drop [name]. ([name = name]
+                 would be rejected by [Typing_env.add_equation] anyway.) *)
+              None
+            else begin
+              (* This should always pass due to the [is_alias_of_name] check. *)
+              Type_grammar.check_equation name ty;
+              Some ty
+            end
           | Unknown -> None
           end)
       t1.equations
