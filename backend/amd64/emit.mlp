@@ -440,6 +440,34 @@ let emit_float_test cmp i ~(taken : X86_ast.condition -> unit) =
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
       taken B                     (* taken if unordered or x<y i.e. !(x>=y) *)
 
+let emit_test i (tst : Comparison.Test.t) ~(taken: X86_ast.condition -> unit) =
+  match tst with
+  | Itruetest ->
+      output_test_zero i.arg.(0);
+      taken NE
+  | Ifalsetest ->
+      output_test_zero i.arg.(0);
+      taken E
+  | Iinttest cmp ->
+      I.cmp (arg i 1) (arg i 0);
+      taken (cond cmp)
+  | Iinttest_imm((Isigned Ceq | Isigned Cne |
+                  Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
+      output_test_zero i.arg.(0);
+      taken (cond cmp)
+  | Iinttest_imm(cmp, n) ->
+      I.cmp (int n) (arg i 0);
+      taken (cond cmp)
+  | Ifloattest cmp ->
+      emit_float_test cmp i
+        ~taken
+  | Ioddtest ->
+      I.test (int 1) (arg8 i 0);
+      taken NE
+  | Ieventest ->
+      I.test (int 1) (arg8 i 0);
+      taken E
+
 (* Deallocate the stack frame before a return or tail call *)
 
 let output_epilogue f =
@@ -986,65 +1014,15 @@ let emit_instr fallthrough i =
   | Lbranch lbl ->
       I.jmp (label lbl)
   | Lop(Ispecific(Icmovcc tst)) ->
-      begin match tst with
-      | Itruetest ->
-          output_test_zero i.arg.(0);
-          I.cmov NE (arg i 1) (res i 0);
-      | Ifalsetest ->
-          output_test_zero i.arg.(0);
-          I.cmov E (arg i 1) (res i 0);
-      | Iinttest cmp ->
-          I.cmp (arg i 1) (arg i 0);
-          I.cmov (cond cmp) (arg i 2) (res i 0)
-      | Iinttest_imm((Isigned Ceq | Isigned Cne |
-                      Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
-          output_test_zero i.arg.(0);
-          I.cmov (cond cmp) (arg i 1) (res i 0)
-      | Iinttest_imm(cmp, n) ->
-          I.cmp (int n) (arg i 0);
-          I.cmov (cond cmp) (arg i 1) (res i 0)
-      | Ifloattest cmp ->
-          emit_float_test cmp i
-            ~taken:(fun c ->
-              let len = Array.length i.arg in
-              I.cmov c (arg i (len - 2)) (arg i (len - 1))
-              )
-      | Ioddtest ->
-          I.test (int 1) (arg8 i 0);
-          I.cmov NE (arg i 1) (res i 0)
-      | Ieventest ->
-          I.test (int 1) (arg8 i 0);
-          I.cmov E (arg i 1) (res i 0)
-      end
+      let taken c =
+        let len = Array.length i.arg in
+        I.cmov c (arg i (len - 2)) (arg i (len - 1))
+      in
+      emit_test i tst ~taken
   | Lcondbranch(tst, lbl) ->
       let lbl = label lbl in
-      begin match tst with
-      | Itruetest ->
-          output_test_zero i.arg.(0);
-          I.jne lbl
-      | Ifalsetest ->
-          output_test_zero i.arg.(0);
-          I.je lbl
-      | Iinttest cmp ->
-          I.cmp (arg i 1) (arg i 0);
-          I.j (cond cmp) lbl
-      | Iinttest_imm((Isigned Ceq | Isigned Cne |
-                      Iunsigned Ceq | Iunsigned Cne) as cmp, 0) ->
-          output_test_zero i.arg.(0);
-          I.j (cond cmp) lbl
-      | Iinttest_imm(cmp, n) ->
-          I.cmp (int n) (arg i 0);
-          I.j (cond cmp) lbl
-      | Ifloattest cmp ->
-          emit_float_test cmp i
-              ~taken:(fun c -> I.j c lbl)
-      | Ioddtest ->
-          I.test (int 1) (arg8 i 0);
-          I.jne lbl
-      | Ieventest ->
-          I.test (int 1) (arg8 i 0);
-          I.je lbl
-      end
+      let taken c = I.j c lbl in
+      emit_test i tst ~taken
   | Lcondbranch3(lbl0, lbl1, lbl2) ->
       I.cmp (int 1) (arg i 0);
       begin match lbl0 with
