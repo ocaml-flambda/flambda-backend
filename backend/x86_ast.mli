@@ -116,7 +116,6 @@ type instruction =
   | BSWAP of arg
   | CALL of arg
   | CDQ
-  | CMC
   | CMOV of condition * arg * arg
   | CMP of arg * arg
   | CMPSD of float_condition * arg * arg
@@ -170,7 +169,6 @@ type instruction =
   | INC of arg
   | J of condition * arg
   | JMP of arg
-  | LAHF
   | LEA of arg * arg
   | LEAVE
   | MOV of arg * arg

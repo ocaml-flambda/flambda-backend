@@ -114,7 +114,7 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
-  | Ispecific (Icrc32q) ->
+  | Ispecific Icrc32q ->
     (* First argument and result must be in the same register.
        Second argument can be either in a register or on stack. *)
       if stackp arg.(0)

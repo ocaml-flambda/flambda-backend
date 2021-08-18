@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # To be run from the root of the Flambda backend repo
 
