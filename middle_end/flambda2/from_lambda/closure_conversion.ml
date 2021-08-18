@@ -712,8 +712,6 @@ let close_switch acc env scrutinee (sw : IR.switch)
         untag ~body ~free_names_of_body:Unknown
       |> Expr_with_acc.create_let
 
-external reraise : exn -> 'a = "%reraise"
-
 let close_one_function acc ~external_env ~by_closure_id decl
       ~var_within_closures_from_idents ~closure_ids_from_idents
       function_declarations =
@@ -817,6 +815,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let acc, body =
     try body acc closure_env
     with Misc.Fatal_error -> begin
+      let bt = Printexc.get_raw_backtrace () in
       Format.eprintf "\n%sContext is:%s closure converting \
         function@ with [our_let_rec_ident] %a (closure ID %a)"(* @ \ *)
         (* and body:@ %a *)
@@ -825,7 +824,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
         Ident.print our_let_rec_ident
         Closure_id.print closure_id;
         (* print body *)
-      reraise Misc.Fatal_error
+      Printexc.raise_with_backtrace Misc.Fatal_error bt
     end
   in
   let contains_subfunctions = Acc.seen_a_function acc in
