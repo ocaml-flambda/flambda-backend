@@ -350,33 +350,33 @@ binaryop:
   | LSL                         { Clsl }
   | LSR                         { Clsr }
   | ASR                         { Casr }
-  | EQI                         { Ccmpi Ceq }
-  | NEI                         { Ccmpi Cne }
-  | LTI                         { Ccmpi Clt }
-  | LEI                         { Ccmpi Cle }
-  | GTI                         { Ccmpi Cgt }
-  | GEI                         { Ccmpi Cge }
+  | EQI                         { Ccmpi Comparison.Ceq }
+  | NEI                         { Ccmpi Comparison.Cne }
+  | LTI                         { Ccmpi Comparison.Clt }
+  | LEI                         { Ccmpi Comparison.Cle }
+  | GTI                         { Ccmpi Comparison.Cgt }
+  | GEI                         { Ccmpi Comparison.Cge }
   | ADDA                        { Cadda }
   | ADDV                        { Caddv }
-  | EQA                         { Ccmpa Ceq }
-  | NEA                         { Ccmpa Cne }
-  | LTA                         { Ccmpa Clt }
-  | LEA                         { Ccmpa Cle }
-  | GTA                         { Ccmpa Cgt }
-  | GEA                         { Ccmpa Cge }
+  | EQA                         { Ccmpa Comparison.Ceq }
+  | NEA                         { Ccmpa Comparison.Cne }
+  | LTA                         { Ccmpa Comparison.Clt }
+  | LEA                         { Ccmpa Comparison.Cle }
+  | GTA                         { Ccmpa Comparison.Cgt }
+  | GEA                         { Ccmpa Comparison.Cge }
   | ADDF                        { Caddf }
   | MULF                        { Cmulf }
   | DIVF                        { Cdivf }
-  | EQF                         { Ccmpf CFeq }
-  | NEF                         { Ccmpf CFneq }
-  | LTF                         { Ccmpf CFlt }
-  | NLTF                        { Ccmpf CFnlt }
-  | LEF                         { Ccmpf CFle }
-  | NLEF                        { Ccmpf CFnle }
-  | GTF                         { Ccmpf CFgt }
-  | NGTF                        { Ccmpf CFngt }
-  | GEF                         { Ccmpf CFge }
-  | NGEF                        { Ccmpf CFnge }
+  | EQF                         { Ccmpf Comparison.CFeq }
+  | NEF                         { Ccmpf Comparison.CFneq }
+  | LTF                         { Ccmpf Comparison.CFlt }
+  | NLTF                        { Ccmpf Comparison.CFnlt }
+  | LEF                         { Ccmpf Comparison.CFle }
+  | NLEF                        { Ccmpf Comparison.CFnle }
+  | GTF                         { Ccmpf Comparison.CFgt }
+  | NGTF                        { Ccmpf Comparison.CFngt }
+  | GEF                         { Ccmpf Comparison.CFge }
+  | NGEF                        { Ccmpf Comparison.CFnge }
   | CHECKBOUND                  { Ccheckbound }
   | MULH                        { Cmulhi }
 ;
