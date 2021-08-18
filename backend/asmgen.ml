@@ -222,7 +222,11 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
       Some 
         ( module Asm_directives.Make(struct
             let emit_line str = X86_dsl.D.comment str
-            module D = X86_dsl.D
+            module D = struct
+              include X86_dsl.D
+              (* Hide (currently ignored) optional argument *)
+              let label str = label str
+            end 
           end)
           : Asm_directives_intf.S)
     else

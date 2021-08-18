@@ -7,8 +7,75 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   module D = A.D
 
+  let if_not_masm f =
+    match Config_typed.assembler () with
+    | MASM -> ()
+    | GAS_like 
+    | MacOS -> f ()
+
+  (* gas can silently emit corrupted line tables if a .file directive
+     contains a number but an empty filename. *)
+  let file ~file_num ~file_name =
+    let file_name =
+      if String.length file_name = 0 then "none"
+      else file_name
+    in
+    if_not_masm (fun () -> D.file ~file_num ~file_name)
+  
+  let loc ~file_num ~line ~col =
+    if_not_masm (fun () -> D.loc ~file_num ~line ~col ())
+
+  (* Currently just ignore *)
+  let new_line () = ()
+
+  let sections_seen = ref []
+
+  let current_section_ref = ref None
+
+  let not_initialized () =
+    Misc.fatal_error "[Asm_directives.initialize] has not been called"
+
+  let define_label label =
+    let lbl_section = Asm_label.section label in
+    let this_section =
+      match !current_section_ref with
+      | None -> not_initialized ()
+      | Some this_section -> this_section
+    in
+    if not (Asm_section.equal lbl_section this_section) then begin
+      Misc.fatal_errorf "Cannot define label %a intended for section %a \
+          in section %a"
+        Asm_label.print label
+        Asm_section.print lbl_section
+        Asm_section.print this_section
+    end;
+    (* CR-someday bkhajwal: Be aware of MASM label type annotation *)
+    D.label (Asm_label.encode label)
+
   let switch_to_section section =
-    A.emit_line ("switch_to_section: " ^ Asm_section.to_string section)
+    let first_occurrence =
+      if List.mem section !sections_seen then false
+      else begin
+        sections_seen := section::!sections_seen;
+        true
+      end
+    in
+    match !current_section_ref with
+    | Some section' when Asm_section.equal section section' ->
+      assert (not first_occurrence);
+      ()
+    | _ ->
+      current_section_ref := Some section;
+      let ({ names; flags; args; } : Asm_section.flags_for_section) =
+        Asm_section.flags section ~first_occurrence
+      in
+      if not first_occurrence then begin
+        new_line ()
+      end;
+      D.section names flags args;
+      if first_occurrence then begin
+        define_label (Asm_label.for_section section)
+      end
 
   let initialize () =
     (* Forward label references are illegal in GAS *)
@@ -19,8 +86,8 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
     (* Stop dsymutil complaining about empty __debug_line sections (produces
       bogus error "line table parameters mismatch") by making sure such sections
       are never empty. *)
-    D.file ~file_num:1 ~file_name:"none";  (* also PR#7037 *)
-    D.loc ~file_num:1 ~line:1 ~col:1 ();
+    file ~file_num:1 ~file_name:"none";  (* also PR#7037 *)
+    loc ~file_num:1 ~line:1 ~col:1;
     D.text ()
 
   let int8 ?comment:_ _num = A.emit_line "int8"
