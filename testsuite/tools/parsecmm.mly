@@ -19,6 +19,11 @@
 open Cmm
 open Parsecmmaux
 
+(* Because [Comparison] isn't in the upstream compiler, we have difficulty
+ * refererring to constructors from there without triggering warnings or
+ * compilation failures. *)
+[@@@ocaml.warning "-40"]
+
 let rec make_letdef def body =
   match def with
     [] -> body
@@ -350,33 +355,33 @@ binaryop:
   | LSL                         { Clsl }
   | LSR                         { Clsr }
   | ASR                         { Casr }
-  | EQI                         { Ccmpi Comparison.Ceq }
-  | NEI                         { Ccmpi Comparison.Cne }
-  | LTI                         { Ccmpi Comparison.Clt }
-  | LEI                         { Ccmpi Comparison.Cle }
-  | GTI                         { Ccmpi Comparison.Cgt }
-  | GEI                         { Ccmpi Comparison.Cge }
+  | EQI                         { Ccmpi Ceq }
+  | NEI                         { Ccmpi Cne }
+  | LTI                         { Ccmpi Clt }
+  | LEI                         { Ccmpi Cle }
+  | GTI                         { Ccmpi Cgt }
+  | GEI                         { Ccmpi Cge }
   | ADDA                        { Cadda }
   | ADDV                        { Caddv }
-  | EQA                         { Ccmpa Comparison.Ceq }
-  | NEA                         { Ccmpa Comparison.Cne }
-  | LTA                         { Ccmpa Comparison.Clt }
-  | LEA                         { Ccmpa Comparison.Cle }
-  | GTA                         { Ccmpa Comparison.Cgt }
-  | GEA                         { Ccmpa Comparison.Cge }
+  | EQA                         { Ccmpa Ceq }
+  | NEA                         { Ccmpa Cne }
+  | LTA                         { Ccmpa Clt }
+  | LEA                         { Ccmpa Cle }
+  | GTA                         { Ccmpa Cgt }
+  | GEA                         { Ccmpa Cge }
   | ADDF                        { Caddf }
   | MULF                        { Cmulf }
   | DIVF                        { Cdivf }
-  | EQF                         { Ccmpf Comparison.CFeq }
-  | NEF                         { Ccmpf Comparison.CFneq }
-  | LTF                         { Ccmpf Comparison.CFlt }
-  | NLTF                        { Ccmpf Comparison.CFnlt }
-  | LEF                         { Ccmpf Comparison.CFle }
-  | NLEF                        { Ccmpf Comparison.CFnle }
-  | GTF                         { Ccmpf Comparison.CFgt }
-  | NGTF                        { Ccmpf Comparison.CFngt }
-  | GEF                         { Ccmpf Comparison.CFge }
-  | NGEF                        { Ccmpf Comparison.CFnge }
+  | EQF                         { Ccmpf CFeq }
+  | NEF                         { Ccmpf CFneq }
+  | LTF                         { Ccmpf CFlt }
+  | NLTF                        { Ccmpf CFnlt }
+  | LEF                         { Ccmpf CFle }
+  | NLEF                        { Ccmpf CFnle }
+  | GTF                         { Ccmpf CFgt }
+  | NGTF                        { Ccmpf CFngt }
+  | GEF                         { Ccmpf CFge }
+  | NGEF                        { Ccmpf CFnge }
   | CHECKBOUND                  { Ccheckbound }
   | MULH                        { Cmulhi }
 ;
