@@ -224,8 +224,14 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
             let emit_line str = X86_dsl.D.comment str
             module D = struct
               include X86_dsl.D
+
               (* Hide (currently ignored) optional argument *)
               let label str = label str
+
+              let byte num = byte (Const num)
+              let word num = word (Const num)
+              let long num = long (Const num)
+              let qword num = qword (Const num)
             end 
           end)
           : Asm_directives_intf.S)

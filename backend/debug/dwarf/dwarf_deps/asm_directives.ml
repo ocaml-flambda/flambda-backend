@@ -5,6 +5,14 @@ module type Arg = Asm_directives_intf.Arg
 
 module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
+  module Int8 = Numbers_extra.Int8
+  module Int16 = Numbers_extra.Int16
+
+  module Uint8 = Numbers_extra.Uint8
+  module Uint16 = Numbers_extra.Uint16
+  module Uint32 = Numbers_extra.Uint32
+  module Uint64 = Numbers_extra.Uint64
+
   module D = A.D
 
   let if_not_masm f =
@@ -90,15 +98,26 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
     loc ~file_num:1 ~line:1 ~col:1;
     D.text ()
 
-  let int8 ?comment:_ _num = A.emit_line "int8"
-  let int16 ?comment:_ _num = A.emit_line "int16"
-  let int32 ?comment:_ _num = A.emit_line "int32"
-  let int64 ?comment:_ _num = A.emit_line "int64"
-  let uint8 ?comment:_ _num = A.emit_line "uint8"
-  let uint16 ?comment:_ _num = A.emit_line "uint16"
-  let uint32 ?comment:_ _num = A.emit_line "uint32"
-  let uint64 ?comment:_ _num = A.emit_line "uint64"
-  let targetint ?comment:_ _num = A.emit_line "targetint"
+  let with_comment f ?comment x =
+    Option.iter D.comment comment;
+    f x
+
+  let int8 = with_comment (fun num -> D.byte (Int64.of_int (Int8.to_int num)))
+  let int16 = with_comment (fun num -> D.word (Int64.of_int (Int16.to_int num)))
+  let int32 = with_comment (fun num -> D.long (Int64.of_int32 num))
+  let int64 = with_comment (fun num -> D.qword num)
+
+  let uint8 = with_comment (fun num -> D.byte (Int64.of_int (Uint8.to_int num)))
+  let uint16 = with_comment (fun num -> D.word (Int64.of_int (Uint16.to_int num)))
+  let uint32 = with_comment (fun num -> D.long (Uint32.to_int64 num))
+  let uint64 = with_comment (fun num -> D.qword (Uint64.to_int64 num))
+
+  let targetint = with_comment (fun num -> 
+      match Targetint_extra.repr num with
+      | Int32 n -> D.long (Int64.of_int32 n)
+      | Int64 n -> D.qword n
+    )
+
   let uleb128 ?comment:_ _num = A.emit_line "uleb128"
   let sleb128 ?comment:_ _num = A.emit_line "sleb128"
   let string ?comment:_ _num = A.emit_line "string"

@@ -3,10 +3,17 @@ module type Arg = sig
 
     module D : sig
       val file: file_num:int -> file_name:string -> unit
-      val label: string -> unit
       val loc: file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
+      val comment: string -> unit
+
+      val label: string -> unit
       val section: string list -> string option -> string list -> unit
       val text : unit -> unit
+
+      val byte: int64 -> unit
+      val word: int64 -> unit
+      val long: int64 -> unit
+      val qword: int64 -> unit
     end
 end
 
