@@ -73,3 +73,27 @@ let derived_system () : derived_system =
     Misc.fatal_errorf "Cannot determine system type (model %s, system %s): \
         ensure `target_system.ml' matches `configure'"
       Config.model Config.system
+
+type assembler =
+  | GAS_like
+  | MacOS
+  | MASM
+
+let assembler () =
+  match derived_system () with
+  | Win32
+  | Win64 -> MASM
+  | MacOS_like -> MacOS
+  | MinGW_32
+  | MinGW_64
+  | Cygwin
+  | Linux
+  | FreeBSD
+  | NetBSD
+  | OpenBSD
+  | Generic_BSD
+  | Solaris
+  | GNU
+  | Dragonfly
+  | BeOS
+  | Unknown -> GAS_like

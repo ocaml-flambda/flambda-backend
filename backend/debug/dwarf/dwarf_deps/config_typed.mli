@@ -27,3 +27,10 @@ type derived_system =
   | Unknown
 
 val derived_system : unit -> derived_system
+
+type assembler =
+  | GAS_like
+  | MacOS
+  | MASM
+
+val assembler : unit -> assembler
