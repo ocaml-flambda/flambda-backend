@@ -205,8 +205,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
        if create_asm && not keep_asm then remove_file asm_filename
     )
 
-let build_dwarf () =
-  let sourcefile = "" in
+let build_dwarf sourcefile =
   let unit_name =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in
@@ -219,7 +218,7 @@ let build_dwarf () =
   in
   Dwarf.create ~sourcefile ~unit_name ~params 
 
-let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
+let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
   emit_begin_assembly ();
   make_cmm ()
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump));
@@ -227,7 +226,7 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
   Asm_label.initialize ~new_label:Cmm.new_label;
   let dwarf = 
     if Clflags.debug_thing Clflags.Debug_dwarf_functions then
-      Some (build_dwarf ())
+      Some (build_dwarf sourcefile)
     else
       None
   in
@@ -244,8 +243,8 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
           !Translmod.primitive_declarations));
   emit_end_assembly dwarf
 
-let end_gen_implementation ?toplevel ~ppf_dump clambda =
-  end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
+let end_gen_implementation ?toplevel ~ppf_dump ~sourcefile clambda =
+  end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile (fun () ->
     Profile.record "cmm" Cmmgen.compunit clambda)
 
 type middle_end =
@@ -271,7 +270,7 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       let clambda_with_constants =
         middle_end ~backend ~filename ~prefixname ~ppf_dump program
       in
-      end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
+      end_gen_implementation ?toplevel ~ppf_dump ~sourcefile:filename clambda_with_constants)
 
 type middle_end_flambda2 =
      ppf_dump:Format.formatter
@@ -297,7 +296,7 @@ let compile_implementation_flambda2 ?toplevel ~backend ~filename ~prefixname
           ~ppf_dump ~module_ident ~module_initializer
       in
       let cmm_phrases = flambda2_to_cmm middle_end_result in
-      end_gen_implementation0 ?toplevel ~ppf_dump (fun () -> cmm_phrases))
+      end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile:filename (fun () -> cmm_phrases))
 
 let linear_gen_implementation filename =
   let open Linear_format in
