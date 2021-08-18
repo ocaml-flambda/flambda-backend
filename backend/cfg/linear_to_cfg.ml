@@ -348,7 +348,7 @@ let get_or_make_label t (insn : Linear.instruction) :
       let insn = Linear.instr_cons (Llabel label) [||] [||] insn in
       { label; insn }
 
-let of_cmm_float_test ~lbl ~inv (cmp : Cmm.float_comparison) : C.float_test =
+let of_cmm_float_test ~lbl ~inv (cmp : Comparison.Float.t) : C.float_test =
   match cmp with
   | CFeq -> { eq = lbl; lt = inv; gt = inv; uo = inv }
   | CFlt -> { eq = inv; lt = lbl; gt = inv; uo = inv }
@@ -361,7 +361,7 @@ let of_cmm_float_test ~lbl ~inv (cmp : Cmm.float_comparison) : C.float_test =
   | CFnle -> { eq = inv; lt = inv; gt = lbl; uo = lbl }
   | CFnge -> { eq = inv; lt = lbl; gt = inv; uo = lbl }
 
-let of_cmm_int_test ~lbl ~inv ~is_signed ~imm (cmp : Cmm.integer_comparison)
+let of_cmm_int_test ~lbl ~inv ~is_signed ~imm (cmp : Comparison.Integer.t)
     : C.int_test =
   match cmp with
   | Ceq -> { eq = lbl; lt = inv; gt = inv; is_signed; imm }
@@ -371,7 +371,7 @@ let of_cmm_int_test ~lbl ~inv ~is_signed ~imm (cmp : Cmm.integer_comparison)
   | Cle -> { eq = lbl; lt = lbl; gt = inv; is_signed; imm }
   | Cge -> { eq = lbl; lt = inv; gt = lbl; is_signed; imm }
 
-let mk_int_test ~lbl ~inv ~imm (cmp : Mach.integer_comparison) : C.int_test =
+let mk_int_test ~lbl ~inv ~imm (cmp : Comparison.Integer.With_signedness.t) : C.int_test =
   match cmp with
   | Isigned cmp -> of_cmm_int_test ~lbl ~inv cmp ~is_signed:true ~imm
   | Iunsigned cmp -> of_cmm_int_test ~lbl ~inv cmp ~is_signed:false ~imm
@@ -517,7 +517,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       let fallthrough = get_or_make_label t i.next in
       let inv = fallthrough.label in
       let desc : C.terminator =
-        match (cond : Mach.test) with
+        match (cond : Comparison.Test.t) with
         | Ieventest -> Parity_test { ifso = lbl; ifnot = inv }
         | Ioddtest -> Parity_test { ifso = inv; ifnot = lbl }
         | Itruetest -> Truth_test { ifso = lbl; ifnot = inv }

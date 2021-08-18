@@ -366,7 +366,8 @@ let branch_for_comparison = function
   | Cle -> "ble" | Cgt -> "bgt"
   | Cge -> "bge" | Clt -> "blt"
 
-let name_for_int_comparison = function
+let name_for_int_comparison : Comparison.Integer.With_signedness.t -> _ =
+  function
     Isigned cmp -> (cmpg, branch_for_comparison cmp)
   | Iunsigned cmp -> (cmplg, branch_for_comparison cmp)
 

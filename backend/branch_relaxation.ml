@@ -72,7 +72,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
       match lbl with
       | None -> next
       | Some l ->
-        instr_cons (Lcondbranch (Iinttest_imm (Isigned Cmm.Ceq, n), l))
+        instr_cons (Lcondbranch (Iinttest_imm (Isigned Ceq, n), l))
           arg [||] next
     in
     let rec fixup did_fix pc instr =
@@ -105,7 +105,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
               instr_cons (Lbranch lbl) [||] [||]
                 (instr_cons (Llabel lbl2) [||] [||] instr.next)
             in
-            instr.desc <- Lcondbranch (invert_test test, lbl2);
+            instr.desc <- Lcondbranch (Comparison.Test.invert test, lbl2);
             instr.next <- cont;
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lcondbranch3 (lbl0, lbl1, lbl2) ->

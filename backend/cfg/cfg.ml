@@ -146,10 +146,10 @@ let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 (* CR-someday gyorsh: implement desc printing, and args/res/dbg, etc,
    properly, with regs, use the dreaded Format. *)
 
-let intcomp (comp : Mach.integer_comparison) =
+let intcomp (comp : Comparison.Integer.With_signedness.t) =
   match comp with
-  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
-  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
+  | Isigned c -> Printf.sprintf " %ss " (Printcomparison.integer_comparison c)
+  | Iunsigned c -> Printf.sprintf " %su " (Printcomparison.integer_comparison c)
 
 let intop (op : Mach.integer_operation) =
   match op with

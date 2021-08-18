@@ -69,13 +69,6 @@ let regsetaddr ppf s =
       | _ -> ())
     s
 
-let intcomp = function
-  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
-  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
-
-let floatcomp c =
-    Printf.sprintf " %sf " (Printcmm.float_comparison c)
-
 let is_unary_op = function
   | Iclz _
   | Ictz _
@@ -102,20 +95,8 @@ let intop = function
   | Iclz { arg_is_non_zero; } -> Printf.sprintf "clz %B " arg_is_non_zero
   | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
   | Ipopcnt -> "popcnt "
-  | Icomp cmp -> intcomp cmp
+  | Icomp cmp -> Printcomparison.intcomp cmp
   | Icheckbound -> Printf.sprintf "check > "
-
-let test tst ppf arg =
-  match tst with
-  | Itruetest -> reg ppf arg.(0)
-  | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
-  | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
-  | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest cmp ->
-      fprintf ppf "%a%s%a"
-       reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
-  | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
 
 let operation op arg ppf res =
   if Array.length res > 0 then fprintf ppf "%a := " regs res;
@@ -156,7 +137,7 @@ let operation op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
-  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
+  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (Printcomparison.floatcomp cmp) reg arg.(1)
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
   | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
   | Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
@@ -201,7 +182,7 @@ let rec instr ppf i =
   | Ireturn traps ->
       fprintf ppf "return%a %a" Printcmm.trap_action_list traps regs i.arg
   | Iifthenelse(tst, ifso, ifnot) ->
-      fprintf ppf "@[<v 2>if %a then@,%a" (test tst) i.arg instr ifso;
+      fprintf ppf "@[<v 2>if %a then@,%a" (Printcomparison.test reg tst) i.arg instr ifso;
       begin match ifnot.desc with
       | Iend -> ()
       | _ -> fprintf ppf "@;<0 -2>else@,%a" instr ifnot

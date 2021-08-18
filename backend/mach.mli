@@ -23,29 +23,14 @@ type trap_stack =
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
   (** Current handler is a delayed/shared Trywith *)
 
-type integer_comparison =
-    Isigned of Cmm.integer_comparison
-  | Iunsigned of Cmm.integer_comparison
-
 type integer_operation =
     Iadd | Isub | Imul | Imulh | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Iclz of { arg_is_non_zero: bool; }
   | Ictz of { arg_is_non_zero: bool; }
   | Ipopcnt
-  | Icomp of integer_comparison
+  | Icomp of Comparison.Integer.With_signedness.t
   | Icheckbound
-
-type float_comparison = Cmm.float_comparison
-
-type test =
-    Itruetest
-  | Ifalsetest
-  | Iinttest of integer_comparison
-  | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_comparison
-  | Ioddtest
-  | Ieventest
 
 type operation =
     Imove
@@ -68,7 +53,7 @@ type operation =
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo; }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
-  | Icompf of float_comparison
+  | Icompf of Comparison.Float.t
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat
   | Ispecific of Arch.specific_operation
@@ -98,7 +83,7 @@ and instruction_desc =
     Iend
   | Iop of operation
   | Ireturn of Cmm.trap_action list
-  | Iifthenelse of test * instruction * instruction
+  | Iifthenelse of Comparison.Test.t * instruction * instruction
   | Iswitch of int array * instruction array
   | Icatch of Cmm.rec_flag * trap_stack * (int * trap_stack * instruction) list * instruction
   | Iexit of int * Cmm.trap_action list

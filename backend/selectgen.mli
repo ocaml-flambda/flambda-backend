@@ -67,7 +67,7 @@ class virtual selector_generic : object
        immediate operand to the given integer arithmetic instruction.
        The default implementation handles shifts by immediate amounts,
        but produces no immediate operations otherwise. *)
-  method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+  method virtual is_immediate_test : Comparison.Integer.With_signedness.t -> int -> bool
     (* Must be defined to indicate whether a constant is a suitable
        immediate operand to the given integer test *)
   method virtual select_addressing :
@@ -82,7 +82,7 @@ class virtual selector_generic : object
     Debuginfo.t ->
     Mach.operation * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
-  method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+  method select_condition : Cmm.expression -> Comparison.Test.t * Cmm.expression
     (* Can be overridden to deal with special test instructions *)
   method select_store :
     bool -> Arch.addressing_mode -> Cmm.expression ->

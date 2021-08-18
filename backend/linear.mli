@@ -34,7 +34,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of label
   | Lbranch of label
-  | Lcondbranch of Mach.test * label
+  | Lcondbranch of Comparison.Test.t * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
@@ -47,7 +47,6 @@ val has_fallthrough :  instruction_desc -> bool
 val end_instr: instruction
 val instr_cons:
   instruction_desc -> Reg.t array -> Reg.t array -> instruction -> instruction
-val invert_test: Mach.test -> Mach.test
 
 type fundecl =
   { fun_name: string;

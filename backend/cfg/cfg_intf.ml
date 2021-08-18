@@ -73,7 +73,7 @@ module S = struct
     | Subf
     | Mulf
     | Divf
-    | Compf of Mach.float_comparison  (* CR gyorsh: can merge with float_test? *)
+    | Compf of Comparison.Float.t  (* CR gyorsh: can merge with float_test? *)
     | Floatofint
     | Intoffloat
     | Probe of

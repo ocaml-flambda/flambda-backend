@@ -207,7 +207,7 @@ let emit_call_bound_error bd =
 
 (* Names of various instructions *)
 
-let name_for_comparison = function
+let name_for_comparison : Comparison.Integer.With_signedness.t -> _ = function
   | Isigned Ceq -> "eq" | Isigned Cne -> "ne" | Isigned Cle -> "le"
   | Isigned Cge -> "ge" | Isigned Clt -> "lt" | Isigned Cgt -> "gt"
   | Iunsigned Ceq -> "eq" | Iunsigned Cne -> "ne" | Iunsigned Cle -> "ls"

@@ -246,11 +246,13 @@ let branch_for_comparison = function
   | Cle -> 0b1100 | Cgt -> 0b0010
   | Cge -> 0b1010 | Clt -> 0b0100
 
-let name_for_int_comparison = function
+let name_for_int_comparison : Comparison.Integer.With_signedness.t -> _ =
+  function
     Isigned cmp -> ("cgr", branch_for_comparison cmp)
   | Iunsigned cmp -> ("clgr", branch_for_comparison cmp)
 
-let name_for_int_comparison_imm = function
+let name_for_int_comparison_imm : Comparison.Integer.With_signedness.t -> _ =
+  function
     Isigned cmp -> ("cgfi", branch_for_comparison cmp)
   | Iunsigned cmp -> ("clgfi", branch_for_comparison cmp)
 

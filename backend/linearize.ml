@@ -185,13 +185,13 @@ let linear i n contains_calls =
           Iend, _, Lbranch lbl ->
           copy_instr (Lcondbranch(test, lbl)) i (linear env ifnot n1)
         | _, Iend, Lbranch lbl ->
-            copy_instr (Lcondbranch(invert_test test, lbl)) i
+            copy_instr (Lcondbranch(Comparison.Test.invert test, lbl)) i
               (linear env ifso n1)
         | Iexit (nfail1, []), Iexit (nfail2, []), _
             when is_next_catch env nfail1 ->
             let lbl2 = find_exit_label env nfail2 in
             copy_instr
-              (Lcondbranch (invert_test test, lbl2)) i (linear env ifso n1)
+              (Lcondbranch (Comparison.Test.invert test, lbl2)) i (linear env ifso n1)
         | Iexit (nfail, []), _, _ ->
             let n2 = linear env ifnot n1
             and lbl = find_exit_label env nfail in
@@ -199,19 +199,19 @@ let linear i n contains_calls =
         | _,  Iexit (nfail, []), _ ->
             let n2 = linear env ifso n1 in
             let lbl = find_exit_label env nfail in
-            copy_instr (Lcondbranch(invert_test test, lbl)) i n2
+            copy_instr (Lcondbranch(Comparison.Test.invert test, lbl)) i n2
         | Iend, _, _ ->
             let (lbl_end, n2) = get_label n1 in
             copy_instr (Lcondbranch(test, lbl_end)) i (linear env ifnot n2)
         | _,  Iend, _ ->
             let (lbl_end, n2) = get_label n1 in
-            copy_instr (Lcondbranch(invert_test test, lbl_end)) i
+            copy_instr (Lcondbranch(Comparison.Test.invert test, lbl_end)) i
                        (linear env ifso n2)
         | _, _, _ ->
           (* Should attempt branch prediction here *)
             let (lbl_end, n2) = get_label n1 in
             let (lbl_else, nelse) = get_label (linear env ifnot n2) in
-            copy_instr (Lcondbranch(invert_test test, lbl_else)) i
+            copy_instr (Lcondbranch(Comparison.Test.invert test, lbl_else)) i
               (linear env ifso (add_branch lbl_end nelse))
         end
     | Iswitch(index, cases) ->

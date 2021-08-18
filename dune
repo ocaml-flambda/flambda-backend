@@ -94,6 +94,7 @@
     liveness mach printcmm printlinear printmach proc reg reload reloadgen
     schedgen scheduling selectgen selection spill split
     strmatch x86_ast x86_dsl x86_gas x86_masm x86_proc fdo_info
+    comparison printcomparison
 
     ;; asmcomp/cfg
     cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
@@ -290,6 +291,7 @@
     (branch_relaxation.mli as compiler-libs/branch_relaxation.mli)
     (cmm_helpers.mli as compiler-libs/cmm_helpers.mli)
     (cmm.mli as compiler-libs/cmm.mli)
+    (comparison.mli as compiler-libs/comparison.mli)
     (cmmgen.mli as compiler-libs/cmmgen.mli)
     (cmmgen_state.mli as compiler-libs/cmmgen_state.mli)
     (coloring.mli as compiler-libs/coloring.mli)
@@ -393,6 +395,10 @@
     (.ocamloptcomp.objs/byte/cSEgen.cmo as compiler-libs/CSEgen.cmo)
     (.ocamloptcomp.objs/byte/cSEgen.cmt as compiler-libs/CSEgen.cmt)
     (.ocamloptcomp.objs/byte/cSEgen.cmti as compiler-libs/CSEgen.cmti)
+    (.ocamloptcomp.objs/byte/comparison.cmi as compiler-libs/comparison.cmi)
+    (.ocamloptcomp.objs/byte/comparison.cmo as compiler-libs/comparison.cmo)
+    (.ocamloptcomp.objs/byte/comparison.cmt as compiler-libs/comparison.cmt)
+    (.ocamloptcomp.objs/byte/comparison.cmti as compiler-libs/comparison.cmti)
     (.ocamloptcomp.objs/byte/cmm.cmi as compiler-libs/cmm.cmi)
     (.ocamloptcomp.objs/byte/cmm.cmo as compiler-libs/cmm.cmo)
     (.ocamloptcomp.objs/byte/cmm.cmt as compiler-libs/cmm.cmt)
@@ -625,6 +631,7 @@
     (.ocamloptcomp.objs/native/branch_relaxation_intf.cmx as compiler-libs/branch_relaxation_intf.cmx)
     (.ocamloptcomp.objs/native/cSE.cmx as compiler-libs/CSE.cmx)
     (.ocamloptcomp.objs/native/cSEgen.cmx as compiler-libs/CSEgen.cmx)
+    (.ocamloptcomp.objs/native/comparison.cmx as compiler-libs/comparison.cmx)
     (.ocamloptcomp.objs/native/cmm.cmx as compiler-libs/cmm.cmx)
     (.ocamloptcomp.objs/native/cmm_helpers.cmx as compiler-libs/cmm_helpers.cmx)
     (.ocamloptcomp.objs/native/cmmgen.cmx as compiler-libs/cmmgen.cmx)

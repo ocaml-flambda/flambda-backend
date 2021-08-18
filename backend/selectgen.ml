@@ -210,9 +210,9 @@ let size_expr (env:environment) exp =
 
 (* Swap the two arguments of an integer comparison *)
 
-let swap_intcomp = function
-    Isigned cmp -> Isigned(swap_integer_comparison cmp)
-  | Iunsigned cmp -> Iunsigned(swap_integer_comparison cmp)
+let swap_intcomp : ((Comparison.Integer.With_signedness.t as 'a) -> 'a)= function
+    Isigned cmp -> Isigned(Comparison.Integer.swap cmp)
+  | Iunsigned cmp -> Iunsigned(Comparison.Integer.swap cmp)
 
 (* Naming of registers *)
 
@@ -471,7 +471,7 @@ method is_immediate op n =
 (* Says whether an integer constant is a suitable immediate argument for
    the given integer test *)
 
-method virtual is_immediate_test : integer_comparison -> int -> bool
+method virtual is_immediate_test : Comparison.Integer.With_signedness.t -> int -> bool
 
 (* Selection of addressing modes *)
 
@@ -560,10 +560,12 @@ method select_operation op args _dbg =
   | (Cclz {arg_is_non_zero}, _) -> (Iintop (Iclz{arg_is_non_zero}), args)
   | (Cctz {arg_is_non_zero}, _) -> (Iintop (Ictz{arg_is_non_zero}), args)
   | (Cpopcnt, _) -> (Iintop Ipopcnt, args)
-  | (Ccmpi comp, _) -> self#select_arith_comp (Isigned comp) args
+  | (Ccmpi comp, _) ->
+    self#select_arith_comp (Comparison.Integer.With_signedness.Isigned comp) args
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
-  | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
+  | (Ccmpa comp, _) ->
+    self#select_arith_comp (Comparison.Integer.With_signedness.Iunsigned comp) args
   | (Ccmpf comp, _) -> (Icompf comp, args)
   | (Cnegf, _) -> (Inegf, args)
   | (Cabsf, _) -> (Iabsf, args)
@@ -594,7 +596,7 @@ method private select_arith op = function
   | args ->
       (Iintop op, args)
 
-method private select_arith_comp cmp = function
+method private select_arith_comp (cmp : Comparison.Integer.With_signedness.t) = function
   | [arg; Cconst_int (n, _)] when self#is_immediate (Icomp cmp) n ->
       (Iintop_imm(Icomp cmp, n), [arg])
   | [Cconst_int (n, _); arg]
@@ -605,21 +607,21 @@ method private select_arith_comp cmp = function
 
 (* Instruction selection for conditionals *)
 
-method select_condition = function
+method select_condition : _ -> (Comparison.Test.t * _) = function
   | Cop(Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
     when self#is_immediate_test (Isigned cmp) n ->
       (Iinttest_imm(Isigned cmp, n), arg1)
   | Cop(Ccmpi cmp, [Cconst_int (n, _); arg2], _)
-    when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
-      (Iinttest_imm(Isigned(swap_integer_comparison cmp), n), arg2)
+    when self#is_immediate_test (Isigned (Comparison.Integer.swap cmp)) n ->
+      (Iinttest_imm(Isigned(Comparison.Integer.swap cmp), n), arg2)
   | Cop(Ccmpi cmp, args, _) ->
       (Iinttest(Isigned cmp), Ctuple args)
   | Cop(Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
     when self#is_immediate_test (Iunsigned cmp) n ->
       (Iinttest_imm(Iunsigned cmp, n), arg1)
   | Cop(Ccmpa cmp, [Cconst_int (n, _); arg2], _)
-    when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n ->
-      (Iinttest_imm(Iunsigned(swap_integer_comparison cmp), n), arg2)
+    when self#is_immediate_test (Iunsigned (Comparison.Integer.swap cmp)) n ->
+      (Iinttest_imm(Iunsigned(Comparison.Integer.swap cmp), n), arg2)
   | Cop(Ccmpa cmp, args, _) ->
       (Iinttest(Iunsigned cmp), Ctuple args)
   | Cop(Ccmpf cmp, args, _) ->

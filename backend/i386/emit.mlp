@@ -326,7 +326,7 @@ let instr_for_floatarithmem = function
   | Ifloatdiv -> I.fdiv
   | Ifloatdivrev -> I.fdivr
 
-let cond = function
+let cond : Comparison.Integer.With_signedness.t -> _ = function
   | Isigned Ceq   -> E   | Isigned Cne   -> NE
   | Isigned Cle   -> LE  | Isigned Cgt   -> G
   | Isigned Clt   -> L   | Isigned Cge   -> GE

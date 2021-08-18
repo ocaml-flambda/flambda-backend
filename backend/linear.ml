@@ -34,7 +34,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of label
   | Lbranch of label
-  | Lcondbranch of Mach.test * label
+  | Lcondbranch of Comparison.Test.t * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
@@ -59,21 +59,6 @@ type fundecl =
     fun_frame_required: bool;
     fun_prologue_required: bool;
   }
-
-(* Invert a test *)
-
-let invert_integer_test = function
-    Isigned cmp -> Isigned(Cmm.negate_integer_comparison cmp)
-  | Iunsigned cmp -> Iunsigned(Cmm.negate_integer_comparison cmp)
-
-let invert_test = function
-    Itruetest -> Ifalsetest
-  | Ifalsetest -> Itruetest
-  | Iinttest(cmp) -> Iinttest(invert_integer_test cmp)
-  | Iinttest_imm(cmp, n) -> Iinttest_imm(invert_integer_test cmp, n)
-  | Ifloattest(cmp) -> Ifloattest(Cmm.negate_float_comparison cmp)
-  | Ieventest -> Ioddtest
-  | Ioddtest -> Ieventest
 
 (* The "end" instruction *)
 

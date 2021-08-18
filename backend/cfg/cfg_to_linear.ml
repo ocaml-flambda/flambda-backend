@@ -100,7 +100,7 @@ let basic_to_linear (i : _ Cfg.instruction) ~next =
   let desc = from_basic i.desc in
   to_linear_instr ~like:i desc ~next
 
-let mk_int_test ~lt ~eq ~gt : Cmm.integer_comparison =
+let mk_int_test ~lt ~eq ~gt : Comparison.Integer.t =
   match (eq, lt, gt) with
   | true, false, false -> Ceq
   | false, true, false -> Clt
@@ -122,7 +122,7 @@ let mk_int_test ~lt ~eq ~gt : Cmm.integer_comparison =
    appears last, after all other conditional jumps. *)
 type float_cond =
   | Must_be_last
-  | Any of Cmm.float_comparison list
+  | Any of Comparison.Float.t list
 
 let mk_float_cond ~lt ~eq ~gt ~uo =
   match (eq, lt, gt, uo) with
@@ -291,13 +291,13 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
                   in
                   let comp =
                     match is_signed with
-                    | true -> Mach.Isigned cond
-                    | false -> Mach.Iunsigned cond
+                    | true -> Comparison.Integer.With_signedness.Isigned cond
+                    | false -> Comparison.Integer.With_signedness.Iunsigned cond
                   in
                   let test =
                     match imm with
-                    | None -> Mach.Iinttest comp
-                    | Some n -> Mach.Iinttest_imm (comp, n)
+                    | None -> Comparison.Test.Iinttest comp
+                    | Some n -> Comparison.Test.Iinttest_imm (comp, n)
                   in
                   L.Lcondbranch (test, lbl) :: acc)
                 cond_successor_labels init, None
