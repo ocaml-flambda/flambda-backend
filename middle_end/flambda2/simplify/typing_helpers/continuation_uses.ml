@@ -44,8 +44,6 @@ let print ppf { continuation; arity; uses; } =
     Flambda_arity.print arity
     (Format.pp_print_list ~pp_sep:Format.pp_print_space U.print) uses
 
-external reraise : exn -> 'a = "%reraise"
-
 let add_use t kind ~env_at_use id ~arg_types =
   try
     let arity = T.arity_of_list arg_types in
@@ -60,6 +58,7 @@ let add_use t kind ~env_at_use id ~arg_types =
       uses = use :: t.uses;
     }
   with Misc.Fatal_error -> begin
+    let bt = Printexc.get_raw_backtrace () in
     Format.eprintf "\n%sContext is:%s adding use of %a with \
           arg types@ (%a);@ existing uses:@ %a; environment:@ %a"
       (Flambda_colours.error ())
@@ -68,7 +67,7 @@ let add_use t kind ~env_at_use id ~arg_types =
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print) arg_types
       print t
       DE.print env_at_use;
-    reraise Misc.Fatal_error
+    Printexc.raise_with_backtrace Misc.Fatal_error bt
   end
 
 let union t1 t2 =
