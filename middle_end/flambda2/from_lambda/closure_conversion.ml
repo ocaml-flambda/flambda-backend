@@ -1111,7 +1111,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words
           (Static_const.Group.create [static_const])
       in
       Let_with_acc.create acc
-        (Bindable_let_bound.symbols bound_symbols Syntactic)
+        (Bindable_let_bound.symbols bound_symbols)
         named
         ~body:return
         ~free_names_of_body:Unknown
@@ -1178,7 +1178,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words
           |> Named.create_static_consts
         in
         Let_with_acc.create acc
-          (Bindable_let_bound.symbols bound_symbols Syntactic)
+          (Bindable_let_bound.symbols bound_symbols)
           defining_expr ~body ~free_names_of_body:Unknown
         |> Expr_with_acc.create_let)
       (Acc.code acc)
@@ -1209,7 +1209,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words
         |> Named.create_static_consts
       in
       Let_with_acc.create acc
-        (Bindable_let_bound.symbols bound_symbols Syntactic)
+        (Bindable_let_bound.symbols bound_symbols)
         defining_expr ~body ~free_names_of_body:Unknown
       |> Expr_with_acc.create_let)
       (acc, body)

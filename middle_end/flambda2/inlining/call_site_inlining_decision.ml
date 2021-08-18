@@ -214,8 +214,18 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr
         | Never_returns -> Continuation.create ()
         | Return cont -> cont
       in
-      let { required_variables; } : Data_flow.result =
+      (* When doing the speculative analysis, in order to not blow up,
+         the data_flow analysis is only done on the speculatively inlined
+         body; however the reachable code_ids part of the data flow analysis
+         is only correct at toplevel when all information about the
+         code_age relation and used_closure vars is available (for the whole
+         compilation unit). Thus we here provide empty/dummy values
+         for the used_closure_vars and code_age_relation, and ignore the
+         reachable_code_id part of the data_flow analysis. *)
+      let { required_names; reachable_code_ids = _; } : Data_flow.result =
         Data_flow.analyze data_flow
+          ~code_age_relation:Code_age_relation.empty
+          ~used_closure_vars:Unknown
           ~return_continuation:function_return_cont
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
       in
@@ -227,7 +237,7 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr
           UE.add_return_continuation uenv return_continuation scope
             return_arity
       in
-      let uacc = UA.create ~required_variables uenv dacc in
+      let uacc = UA.create ~required_names ~reachable_code_ids:Unknown uenv dacc in
       rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc)
     )
   in

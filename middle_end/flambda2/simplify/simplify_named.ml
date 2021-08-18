@@ -213,7 +213,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
     Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
       bindable_let_bound set_of_closures ~simplify_toplevel
   | Static_consts static_consts ->
-    let { Bindable_let_bound. bound_symbols; scoping_rule = _; } =
+    let { Bindable_let_bound. bound_symbols; } =
       Bindable_let_bound.must_be_symbols bindable_let_bound
     in
     let binds_symbols = Bound_symbols.binds_symbols bound_symbols in

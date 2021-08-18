@@ -134,7 +134,6 @@ type flattened_for_printing = {
   second_or_later_binding_within_one_set : bool;
   second_or_later_rec_binding : bool;
   descr : flattened_for_printing_descr;
-  scoping_rule : Symbol_scoping_rule.t;
 }
 
 let shape_colour descr =
@@ -145,7 +144,7 @@ let shape_colour descr =
 (* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it
    doesn't become used soon. *)
 
-let flatten_for_printing0 bound_symbols scoping_rule defining_exprs =
+let flatten_for_printing0 bound_symbols defining_exprs =
   Static_const.Group.match_against_bound_symbols defining_exprs bound_symbols
     ~init:([], false)
     ~code:(fun (flattened_acc, second_or_later_rec_binding)
@@ -154,7 +153,6 @@ let flatten_for_printing0 bound_symbols scoping_rule defining_exprs =
         { second_or_later_binding_within_one_set = false;
           second_or_later_rec_binding;
           descr = Code (code_id, code);
-          scoping_rule;
         }
       in
       flattened_acc @ [flattened], true)
@@ -167,7 +165,6 @@ let flatten_for_printing0 bound_symbols scoping_rule defining_exprs =
           [{ second_or_later_binding_within_one_set;
              second_or_later_rec_binding;
              descr = Set_of_closures (closure_symbols, set_of_closures);
-             scoping_rule;
           }]
       in
       flattened_acc @ flattened, true)
@@ -177,7 +174,6 @@ let flatten_for_printing0 bound_symbols scoping_rule defining_exprs =
         { second_or_later_binding_within_one_set = false;
           second_or_later_rec_binding;
           descr = Block_like (symbol, defining_expr);
-          scoping_rule;
         }
       in
       flattened_acc @ [flattened], true)
@@ -185,9 +181,9 @@ let flatten_for_printing0 bound_symbols scoping_rule defining_exprs =
 let flatten_for_printing t =
   pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
     match bindable_let_bound with
-    | Symbols { bound_symbols; scoping_rule; } ->
+    | Symbols { bound_symbols; } ->
       let flattened, _ =
-        flatten_for_printing0 bound_symbols scoping_rule
+        flatten_for_printing0 bound_symbols
           (Named.must_be_static_consts t.defining_expr)
       in
       Some (flattened, body)
@@ -225,7 +221,6 @@ let print_flattened ppf
       { second_or_later_binding_within_one_set = _;
         second_or_later_rec_binding;
         descr;
-        scoping_rule;
       } =
   fprintf ppf "@[<hov 0>";
   (*
@@ -240,11 +235,7 @@ let print_flattened ppf
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
   end else begin
-    let shape =
-      match scoping_rule with
-      | Syntactic -> "\u{25b6}" (* filled triangle *)
-      | Dominator -> "\u{25b7}" (* unfilled triangle *)
-    in
+    let shape = "\u{25b7}" (* unfilled triangle *) in
     fprintf ppf "@<0>%s@<1>%s @<0>%s"
       (shape_colour descr)
       shape

@@ -62,9 +62,34 @@ and simplify_toplevel dacc expr ~return_continuation
         )
       in
       let data_flow = DA.data_flow dacc in
-      let { required_variables; } : Data_flow.result =
-        Data_flow.analyze data_flow ~return_continuation
+      let closure_info = DE.closure_info (DA.denv dacc) in
+      (* The code_age_relation and used closure_vars are only correct
+         at toplevel, and they are only necessary to compute the live
+         code ids, which are only used when simplifying at the toplevel.
+         So if we are in a closure, we use empty/dummy values for the
+         code_age_relation and used_closure_vars, and in return we
+         do not use the reachable_code_id part of the data_flow analysis. *)
+      let code_age_relation, used_closure_vars =
+        match Closure_info.in_or_out_of_closure closure_info with
+        | In_a_closure ->
+          Code_age_relation.empty, Or_unknown.Unknown
+        | Not_in_a_closure ->
+          DA.code_age_relation dacc,
+          Or_unknown.Known (DA.used_closure_vars dacc)
+      in
+      let { required_names; reachable_code_ids; } : Data_flow.result =
+        Data_flow.analyze data_flow
+          ~code_age_relation ~used_closure_vars ~return_continuation
           ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+      in
+      (* The code_id part of the data_flow analysis is correct
+         only at toplevel where all the code_ids are, so when in a closure,
+         we state the the live code ids are unknown, which will prevent any
+         from being mistakenly deleted. *)
+      let reachable_code_ids : _ Or_unknown.t =
+        match Closure_info.in_or_out_of_closure closure_info with
+        | In_a_closure -> Unknown
+        | Not_in_a_closure -> Known reachable_code_ids
       in
       let uenv =
         UE.add_return_continuation UE.empty return_continuation
@@ -73,7 +98,7 @@ and simplify_toplevel dacc expr ~return_continuation
       let uenv =
         UE.add_exn_continuation uenv exn_continuation exn_cont_scope
       in
-      let uacc = UA.create ~required_variables uenv dacc in
+      let uacc = UA.create ~required_names ~reachable_code_ids uenv dacc in
       rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
   (* We don't check occurrences of variables or symbols here because the check
