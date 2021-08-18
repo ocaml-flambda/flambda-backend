@@ -1282,8 +1282,6 @@ let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params
   in
   add_env_extension_from_level definition_typing_env level
 
-external reraise : exn -> 'a = "%reraise"
-
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx
      file, since this function is only used for typing variables in terms,
@@ -1347,11 +1345,12 @@ let type_simple_in_term_exn t ?min_name_mode simple =
       ~min_name_mode ~min_binding_time
   with
   | exception Misc.Fatal_error ->
+    let bt = Printexc.get_raw_backtrace () in
     Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
       (Flambda_colours.error ())
       (Flambda_colours.normal ())
       print t;
-    reraise Misc.Fatal_error
+    Printexc.raise_with_backtrace Misc.Fatal_error bt
   | alias -> Type_grammar.alias_type_of kind alias
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
@@ -1427,11 +1426,12 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
       ~min_name_mode ~min_binding_time
   with
   | exception Misc.Fatal_error ->
+    let bt = Printexc.get_raw_backtrace () in
     Format.eprintf "\n%sContext is:%s typing environment@ %a\n"
       (Flambda_colours.error ())
       (Flambda_colours.normal ())
       print t;
-    reraise Misc.Fatal_error
+    Printexc.raise_with_backtrace Misc.Fatal_error bt
   | alias -> alias
 
 let get_alias_then_canonical_simple_exn t ?min_name_mode

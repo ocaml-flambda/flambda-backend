@@ -137,8 +137,6 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
     let var = Var_in_binding_pos.var bound_var in
     DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj)
 
-external reraise : exn -> 'a = "%reraise"
-
 (* It is important that every set of closures returned by this function
    (in [bindings_outermost_first]) arises from simplification in
    [Simplify_set_of_closures], and not some other path such as reification.
@@ -239,13 +237,14 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
         Simplify_static_const.simplify_static_consts dacc bound_symbols
           static_consts ~simplify_toplevel
       with Misc.Fatal_error -> begin
+        let bt = Printexc.get_raw_backtrace () in
         Format.eprintf "\n%sContext is:%s simplifying 'let symbol' binding \
                           of@ %a@ with downwards accumulator:@ %a\n"
           (Flambda_colours.error ())
           (Flambda_colours.normal ())
           Bound_symbols.print bound_symbols
           DA.print dacc;
-        reraise Misc.Fatal_error
+        Printexc.raise_with_backtrace Misc.Fatal_error bt
       end
     in
     let dacc, lifted_constants =
@@ -389,8 +388,6 @@ let removed_operations (named : Named.t) result =
     end
   | Rec_info _ -> zero
 
-external reraise : exn -> 'a = "%reraise"
-
 let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
   try
     let simplified_named =
@@ -398,6 +395,7 @@ let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
     in
     simplified_named, removed_operations named simplified_named
   with Misc.Fatal_error -> begin
+    let bt = Printexc.get_raw_backtrace () in
     Format.eprintf "\n%sContext is:%s simplifying [Let] binding@ %a =@ %a@ \
         with downwards accumulator:@ %a\n"
       (Flambda_colours.error ())
@@ -405,5 +403,5 @@ let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
       Bindable_let_bound.print bindable_let_bound
       Named.print named
       DA.print dacc;
-    reraise Misc.Fatal_error
+    Printexc.raise_with_backtrace Misc.Fatal_error bt
   end
