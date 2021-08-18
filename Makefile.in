@@ -234,8 +234,8 @@ config_files: ocaml-stage1-config.status
 .PHONY: install
 install: stage2
 	mkdir -p $(prefix)
-	rsync --copy-links -r $(stage2_prefix)/bin $(prefix)
-	rsync --copy-links -r $(stage2_prefix)/lib $(prefix)
+	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/bin $(prefix)
+	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/lib $(prefix)
 	rm -f $(prefix)/bin/ocamllex
 	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
 	rm -f $(prefix)/bin/flambda_backend.main*
