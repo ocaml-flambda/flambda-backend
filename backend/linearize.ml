@@ -60,9 +60,6 @@ let rec adjust_trap_depth delta_traps next =
   match next.desc with
   | Ladjust_trap_depth { delta_traps = k } ->
     adjust_trap_depth (delta_traps + k) next.next
-  | Llabel lbl ->
-    let next = adjust_trap_depth delta_traps next.next in
-    cons_instr (Llabel lbl) next
   | Lbranch lbl ->
     let next = adjust_trap_depth delta_traps next.next in
     cons_instr (Lbranch lbl) next
