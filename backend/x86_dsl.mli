@@ -80,7 +80,6 @@ module D : sig
   val file: file_num:int -> file_name:string -> unit
   val global: string -> unit
   val hidden: string -> unit
-  val weak: string -> unit
   val indirect_symbol: string -> unit
   val label: ?typ:data_type -> string -> unit
   val loc: file_num:int -> line:int -> col:int -> ?discriminator:int -> unit
@@ -88,15 +87,19 @@ module D : sig
   val long: constant -> unit
   val mode386: unit -> unit
   val model: string -> unit
+  val new_line : unit -> unit
   val private_extern: string -> unit
   val qword: constant -> unit
   val reloc: offset:constant -> name:reloc_type -> expr:constant -> unit
   val section: string list -> string option -> string list -> unit
   val setvar: string * constant -> unit
   val size: string -> constant -> unit
+  val sleb128 : constant -> unit
   val space: int -> unit
   val text: unit -> unit
   val type_: string -> string -> unit
+  val uleb128 : constant -> unit
+  val weak: string -> unit
   val word: constant -> unit
 end
 

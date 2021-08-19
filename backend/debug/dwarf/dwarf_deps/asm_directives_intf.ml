@@ -9,12 +9,15 @@ module type Arg = sig
       val label: string -> unit
       val section: string list -> string option -> string list -> unit
       val text : unit -> unit
+      val new_line : unit -> unit
 
       val byte: int64 -> unit
       val word: int64 -> unit
       val long: int64 -> unit
       val qword: int64 -> unit
       val bytes : string -> unit
+      val uleb128 : int64 -> unit
+      val sleb128 : int64 -> unit
     end
 end
 

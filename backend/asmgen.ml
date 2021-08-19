@@ -232,6 +232,9 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
               let word num = word (Const num)
               let long num = long (Const num)
               let qword num = qword (Const num)
+
+              let uleb128 num = uleb128 (Const num)
+              let sleb128 num = sleb128 (Const num)
             end 
           end)
           : Asm_directives_intf.S)

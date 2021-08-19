@@ -69,8 +69,7 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
   let loc ~file_num ~line ~col =
     if_not_masm (fun () -> D.loc ~file_num ~line ~col ())
 
-  (* Currently just ignore *)
-  let new_line () = ()
+  let new_line () = D.new_line ()
 
   let not_initialized () =
     Misc.fatal_error "[Asm_directives.initialize] has not been called"
@@ -152,8 +151,8 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
       | Int64 n -> D.qword n
     )
 
-  let uleb128 ?comment:_ _num = A.emit_line "uleb128"
-  let sleb128 ?comment:_ _num = A.emit_line "sleb128"
+  let uleb128 = with_comment (fun num -> D.uleb128 (Uint64.to_int64 num))
+  let sleb128 = with_comment (fun num -> D.sleb128 num)
 
   let string = with_comment (fun str -> D.bytes str)
 

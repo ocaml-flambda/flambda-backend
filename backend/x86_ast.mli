@@ -226,10 +226,13 @@ type asm_line =
   | Hidden of string
   | Weak of string
   | Long of constant
-  | NewLabel of string * data_type
+  | New_label of string * data_type
+  | New_line
   | Quad of constant
   | Section of string list * string option * string list
+  | Sleb128 of constant
   | Space of int
+  | Uleb128 of constant
   | Word of constant
 
   (* masm only (the gas emitter will fail on them) *)
