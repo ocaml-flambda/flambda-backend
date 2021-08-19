@@ -310,18 +310,12 @@ module Make (Head : Type_head_intf.S
        environment extensions from [join], which should be fine. *)
     (* CR pchambart: This seams terribly inefficient. We should change it.
        Also the result is less precise as local aliases are lost *)
-    | Ok head1, Bottom ->
-      begin match Head.join env head1 head1 with
-      | Known head ->
-        Ok head
-      | Unknown -> Unknown
-      end
-    | Bottom, Ok head2 ->
-      begin match Head.join env head2 head2 with
-      | Known head ->
-        Ok head
-      | Unknown -> Unknown
-      end
+    (* CR vlaviron: I believe the above comments are outdated, and there is
+       no need to traverse either head. The target environment should
+       have defined all the names bound on either side. *)
+    | Ok head, Bottom
+    | Bottom, Ok head ->
+      Ok head
     | Unknown, _ -> Unknown
     | _, Unknown -> Unknown
     | Ok head1, Ok head2 ->
