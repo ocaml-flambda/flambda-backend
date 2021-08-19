@@ -39,14 +39,15 @@ module S = struct
     | Self of { destination : Label.t; }
     | Func of func_call_operation
 
+  type external_call_operation =
+    { func_symbol : string;
+      alloc : bool;
+      ty_res : Cmm.machtype;
+      ty_args : Cmm.exttype list
+    }
+
   type prim_call_operation =
-    | External of
-        { func_symbol : string;
-          alloc : bool;
-          returns : bool;
-          ty_res : Cmm.machtype;
-          ty_args : Cmm.exttype list
-        }
+    | External of external_call_operation
     | Alloc of
         { bytes : int;
           dbginfo : Debuginfo.alloc_dbginfo;
@@ -164,6 +165,7 @@ module S = struct
     | Return
     | Raise of Lambda.raise_kind
     | Tailcall of tail_call_operation
+    | Throw of external_call_operation
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

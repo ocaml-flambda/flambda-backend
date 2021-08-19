@@ -63,6 +63,7 @@ let successor_labels_normal ti =
   | Tailcall (Self { destination; }) -> Label.Set.singleton destination
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall (Func _) -> Label.Set.empty
+  | Throw _ -> Label.Set.empty
   | Never -> Label.Set.empty
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
@@ -112,7 +113,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Tailcall (Self { destination = f destination; })
       | Tailcall (Func Indirect)
       | Tailcall (Func (Direct _))
-      | Return | Raise _  -> block.terminator.desc
+      | Return | Raise _ | Throw _ -> block.terminator.desc
     in
     block.terminator <- { block.terminator with desc }
 
@@ -255,6 +256,8 @@ let print_terminator oc ?(sep = "\n") ti =
       for i = 0 to Array.length labels - 1 do
         Printf.fprintf oc "case %d: goto %d%s" i labels.(i) sep
       done
+  | Throw { func_symbol : string; _ }  ->
+    Printf.fprintf oc "Throw %s%s" func_symbol sep
   | Return -> Printf.fprintf oc "Return%s" sep
   | Raise _ -> Printf.fprintf oc "Raise%s" sep
   | Tailcall (Self _) -> Printf.fprintf oc "Tailcall self%s" sep
