@@ -69,10 +69,10 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
          spend time here calculating unused parameters, since the creation of
          [Let]-expressions around the continuation's handler will do that
          anyway. *)
-      let used_extra_params =
-        if is_single_inlinable_use then extra_params_and_args.extra_params
+      let extra_params_used_as_normal, extra_params_not_used_as_normal =
+        if is_single_inlinable_use then extra_params_and_args.extra_params, []
         else
-          ListLabels.filter extra_params_and_args.extra_params
+          ListLabels.partition extra_params_and_args.extra_params
             ~f:(fun extra_param ->
               let used =
                 Name_mode.Or_absent.is_present_as_normal @@
@@ -107,7 +107,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
               end;
               used)
       in
-      let used_as_normal, not_used_as_normal =
+      let params_used_as_normal, params_not_used_as_normal =
         if is_single_inlinable_use then params, []
         else begin
           let first = ref true in
@@ -149,21 +149,21 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       let new_phantom_params =
         List.filter (fun param ->
             Name_occurrences.mem_var free_names (KP.var param))
-          not_used_as_normal
+          (params_not_used_as_normal @ extra_params_not_used_as_normal)
       in
       let rewrite =
         Apply_cont_rewrite.create ~original_params:params
           (* CR mshinwell: We should stop this set/list translation *)
-          ~used_params:(KP.Set.of_list used_as_normal)
+          ~used_params:(KP.Set.of_list params_used_as_normal)
           ~extra_params:extra_params_and_args.extra_params
           ~extra_args:extra_params_and_args.extra_args
-          ~used_extra_params:(KP.Set.of_list used_extra_params)
+          ~used_extra_params:(KP.Set.of_list extra_params_used_as_normal)
       in
       let uacc =
         UA.map_uenv uacc ~f:(fun uenv ->
           UE.add_apply_cont_rewrite uenv cont rewrite)
       in
-      uacc, used_as_normal @ used_extra_params, new_phantom_params
+      uacc, params_used_as_normal @ extra_params_used_as_normal, new_phantom_params
   in
   let handler, uacc =
     EB.make_new_let_bindings uacc ~body:handler
