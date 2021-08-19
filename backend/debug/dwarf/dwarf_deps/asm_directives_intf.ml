@@ -2,6 +2,13 @@ module type Arg = sig
     val emit_line : string -> unit
 
     module D : sig
+
+      type constant
+      val const_int64 : int64 -> constant
+      val const_label : string -> constant
+      val const_add : constant -> constant -> constant
+      val const_sub : constant -> constant -> constant
+
       val file: file_num:int -> file_name:string -> unit
       val loc: file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
       val comment: string -> unit
@@ -11,13 +18,15 @@ module type Arg = sig
       val text : unit -> unit
       val new_line : unit -> unit
 
-      val byte: int64 -> unit
-      val word: int64 -> unit
-      val long: int64 -> unit
-      val qword: int64 -> unit
+      val byte: constant -> unit
+      val word: constant -> unit
+      val long: constant -> unit
+      val qword: constant -> unit
       val bytes : string -> unit
-      val uleb128 : int64 -> unit
-      val sleb128 : int64 -> unit
+      val uleb128 : constant -> unit
+      val sleb128 : constant -> unit
+
+      val direct_assignment : string -> constant -> unit
     end
 end
 

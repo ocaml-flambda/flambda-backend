@@ -253,4 +253,7 @@ type asm_line =
   | Type of string * string
   | Reloc of reloc
 
+  (* MacOS only *)
+  | Direct_assignment of string * constant
+
 type asm_program = asm_line list

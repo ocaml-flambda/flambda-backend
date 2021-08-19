@@ -86,6 +86,7 @@ module D = struct
   let cfi_startproc () = directive Cfi_startproc
   let comment s = directive (Comment s)
   let data () = section [ ".data" ] None []
+  let direct_assignment var const = directive (Direct_assignment (var, const))
   let extrn s ptr = directive (External (s, ptr))
   let file ~file_num ~file_name = directive (File (file_num, file_name))
   let global s = directive (Global s)

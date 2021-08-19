@@ -51,6 +51,13 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   let cached_strings = ref Cached_string.Map.empty
 
+  let temp_var_counter = ref 0
+
+  let is_macos () = 
+    match Config_typed.assembler () with
+    | MASM | GAS_like -> false
+    | MacOS -> true
+
   let if_not_masm f =
     match Config_typed.assembler () with
     | MASM -> ()
@@ -119,6 +126,7 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
   let initialize () =
     cached_strings := Cached_string.Map.empty;
     sections_seen := [];
+    temp_var_counter := 0;
     (* Forward label references are illegal in GAS *)
     begin match Config_typed.assembler () with
     | MASM | MacOS -> ()
@@ -135,24 +143,25 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
     Option.iter D.comment comment;
     f x
 
-  let int8 = with_comment (fun num -> D.byte (Int64.of_int (Int8.to_int num)))
-  let int16 = with_comment (fun num -> D.word (Int64.of_int (Int16.to_int num)))
-  let int32 = with_comment (fun num -> D.long (Int64.of_int32 num))
-  let int64 = with_comment (fun num -> D.qword num)
+  let (>>) f g x = g (f x)
+  
+  let int8 = with_comment (Int8.to_int >> Int64.of_int >> D.const_int64 >> D.byte)
+  let int16 = with_comment (Int16.to_int >> Int64.of_int >> D.const_int64 >> D.word)
+  let int32 = with_comment (Int64.of_int32 >> D.const_int64 >> D.long)
+  let int64 = with_comment (D.const_int64 >> D.qword)
 
-  let uint8 = with_comment (fun num -> D.byte (Int64.of_int (Uint8.to_int num)))
-  let uint16 = with_comment (fun num -> D.word (Int64.of_int (Uint16.to_int num)))
-  let uint32 = with_comment (fun num -> D.long (Uint32.to_int64 num))
-  let uint64 = with_comment (fun num -> D.qword (Uint64.to_int64 num))
+  let uint8 = with_comment (Uint8.to_int >> Int64.of_int >> D.const_int64 >> D.byte)
+  let uint16 = with_comment (Uint16.to_int >> Int64.of_int >> D.const_int64 >> D.word)
+  let uint32 = with_comment (Uint32.to_int64 >> D.const_int64 >> D.long)
+  let uint64 = with_comment (Uint64.to_int64 >> D.const_int64 >> D.qword)
 
-  let targetint = with_comment (fun num -> 
-      match Targetint_extra.repr num with
-      | Int32 n -> D.long (Int64.of_int32 n)
-      | Int64 n -> D.qword n
-    )
+  let targetint ?comment num = 
+    match Targetint_extra.repr num with
+    | Int32 n -> int32 ?comment n
+    | Int64 n -> int64 ?comment n
 
-  let uleb128 = with_comment (fun num -> D.uleb128 (Uint64.to_int64 num))
-  let sleb128 = with_comment (fun num -> D.sleb128 num)
+  let uleb128 = with_comment (Uint64.to_int64 >> D.const_int64 >> D.uleb128)
+  let sleb128 = with_comment (D.const_int64 >> D.sleb128)
 
   let string = with_comment (fun str -> D.bytes str)
 
@@ -195,12 +204,64 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
   let between_symbol_in_current_unit_and_label_offset 
   ?comment:_ ~upper:_ ~lower:_ ~offset_upper:_ () = A.emit_line "between_symbol_in_current_unit_and_label_offset"
 
-  let offset_into_dwarf_section_label
-    ?comment:_
-    _section
-    _label
-    ~width:_
-    = A.emit_line "offset_into_dwarf_section_label"
+  let new_temp_var () =
+    let id = !temp_var_counter in
+    incr temp_var_counter;
+    Printf.sprintf "Ltemp%d" id
+
+  let force_assembly_time_constant _section expr =
+    if not (is_macos ()) then
+      expr
+    else
+      (* This ensures the correct result is obtained on macOS.  (Apparently
+        just writing expressions such as "L100 - L101" inline can cause
+        unexpected results when one of the labels is on a section boundary,
+        for example.) *)
+      let temp = new_temp_var () in
+      D.direct_assignment temp expr;
+      (* TODO: Insert logic
+      let compilation_unit = Compilation_unit.get_current_exn ()  in
+      let sym =
+        Asm_symbol.of_external_name_no_prefix section compilation_unit temp
+      in
+      Symbol sym  (* not really a symbol, but OK. *)
+      *)
+      Misc.fatal_error "not implemented"
+
+  let offset_into_dwarf_section_label ?comment section upper ~width = 
+    let upper_section = Asm_label.section upper in
+    let expected_section : Asm_section.t = DWARF section in
+    if not (Asm_section.equal upper_section expected_section) then begin
+      Misc.fatal_errorf "Label %a (in section %a) is not in section %a"
+        Asm_label.print upper
+        Asm_section.print upper_section
+        Asm_section.print expected_section
+    end;
+    if !Clflags.keep_asm_file then begin
+      let expected_section = Asm_section.to_string expected_section in
+      match comment with
+      | None ->
+        D.comment (Format.asprintf "offset into %s" expected_section)
+      | Some comment ->
+        D.comment (Format.asprintf "%s (offset into %s)" comment expected_section)
+    end;
+    (* macOS does not use relocations in DWARF sections in places, such as
+      here, where they might be expected.  Instead dsymutil and other tools
+      parse DWARF sections properly and adjust offsets manually. *)
+    let expr =
+      if is_macos () then
+        let lower = Asm_label.for_dwarf_section section in
+        force_assembly_time_constant
+          expected_section
+          (D.const_sub
+            (D.const_label (Asm_label.encode upper))
+            (D.const_label (Asm_label.encode lower)))
+      else
+        D.const_label (Asm_label.encode upper)
+    in
+    match (width : Machine_width.t) with
+    | Thirty_two -> D.long expr
+    | Sixty_four -> D.qword expr
   
   let offset_into_dwarf_section_symbol
     ?comment:_

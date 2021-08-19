@@ -216,28 +216,30 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) 
   in
   Dwarf.create ~sourcefile ~unit_name ~params 
 
+let build_asm_directives () : (module Asm_directives_intf.S) = (
+    module Asm_directives.Make(struct
+      let emit_line str = X86_dsl.D.comment str
+      module D = struct
+        open X86_ast
+
+        include X86_dsl.D
+
+        type nonrec constant = constant
+        let const_int64 num = Const num
+        let const_label str = ConstLabel str
+        let const_add c1 c2 = ConstAdd (c1, c2)
+        let const_sub c1 c2 = ConstSub (c1, c2)
+
+        (* Hide (currently ignored) optional argument *)
+        let label str = label str
+      end 
+    end)
+  )
+
 let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
   let asm_directives =
     if Clflags.debug_thing Clflags.Debug_dwarf_functions then
-      Some 
-        ( module Asm_directives.Make(struct
-            let emit_line str = X86_dsl.D.comment str
-            module D = struct
-              include X86_dsl.D
-
-              (* Hide (currently ignored) optional argument *)
-              let label str = label str
-
-              let byte num = byte (Const num)
-              let word num = word (Const num)
-              let long num = long (Const num)
-              let qword num = qword (Const num)
-
-              let uleb128 num = uleb128 (Const num)
-              let sleb128 num = sleb128 (Const num)
-            end 
-          end)
-          : Asm_directives_intf.S)
+      Some (build_asm_directives ())
     else
       None
   in
