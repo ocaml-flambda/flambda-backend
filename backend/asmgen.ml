@@ -88,9 +88,14 @@ let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly = if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf)
 let emit_end_assembly = if_emit_do Emit.end_assembly
 let emit_data = if_emit_do Emit.data
-let emit_fundecl =
+let emit_fundecl ?dwarf =
   if_emit_do
-    (Profile.record ~accumulate:true "emit" Emit.fundecl)
+    (fun (fundecl : Linear.fundecl) -> 
+      let () = Profile.record ~accumulate:true "emit" Emit.fundecl fundecl in
+      match dwarf with
+      | None -> ()
+      | Some dwarf -> Dwarf.dwarf_for_fundecl dwarf { fun_name = fundecl.fun_name }
+    )
 
 let rec regalloc ~ppf_dump round fd =
   if round > 50 then
@@ -120,7 +125,7 @@ let rec regalloc ~ppf_dump round fd =
 
 let (++) x f = f x
 
-let compile_fundecl ~ppf_dump fd_cmm =
+let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
   fd_cmm
@@ -153,17 +158,17 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear
-  ++ emit_fundecl
+  ++ emit_fundecl ?dwarf
 
 let compile_data dl =
   dl
   ++ save_data
   ++ emit_data
 
-let compile_phrase ~ppf_dump p =
+let compile_phrase ?dwarf ~ppf_dump p =
   if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
   match p with
-  | Cfunction fd -> compile_fundecl ~ppf_dump fd
+  | Cfunction fd -> compile_fundecl ?dwarf ~ppf_dump fd
   | Cdata dl -> compile_data dl
 
 
@@ -212,6 +217,8 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) 
   let params : (module Dwarf_params.S) =
     (module struct 
       module Asm_directives = Asm_directives
+
+      let make_symbol str = Compilenv.make_symbol (Some str)
     end)
   in
   Dwarf.create ~sourcefile ~unit_name ~params 
@@ -250,14 +257,14 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
         Asm_directives.initialize ())
       asm_directives
   );
-  make_cmm ()
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump));
-  (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   let dwarf = 
     Option.map
       (fun asm_directives -> build_dwarf ~asm_directives sourcefile)
       asm_directives
   in
+  make_cmm ()
+  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump));
+  (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
      when part of a C library, won't be discarded by the linker.

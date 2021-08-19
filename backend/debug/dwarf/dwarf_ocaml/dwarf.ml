@@ -45,6 +45,9 @@ let create ~sourcefile ~unit_name ~params =
   ; emitted = false
   }
 
+let dwarf_for_fundecl t fundecl =
+  Dwarf_concrete_instances.for_fundecl ~params:t.params t.state fundecl
+
 let emit t =
   if t.emitted then begin
     Misc.fatal_error "Cannot call [Dwarf.emit] more than once on a given \

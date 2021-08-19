@@ -9,3 +9,5 @@ end
 
 include Thing
 include Identifiable.Make(Thing)
+
+let create ~make_symbol name = make_symbol name
