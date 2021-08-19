@@ -14,6 +14,7 @@ module type Arg = sig
       val word: int64 -> unit
       val long: int64 -> unit
       val qword: int64 -> unit
+      val bytes : string -> unit
     end
 end
 

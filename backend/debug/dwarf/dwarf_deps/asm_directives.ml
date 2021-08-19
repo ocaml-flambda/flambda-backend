@@ -3,6 +3,36 @@
 module type S = Asm_directives_intf.S
 module type Arg = Asm_directives_intf.Arg
 
+module Cached_string = struct
+  type t = {
+    section : Asm_section.t;
+    str : string;
+    comment : string option;
+  }
+
+  include Identifiable.Make (struct
+    type nonrec t = t
+
+    let compare { section = section1; str = str1; comment = comment1; }
+          { section = section2; str = str2; comment = comment2; } =
+      let c = Asm_section.compare section1 section2 in
+      if c <> 0 then c
+      else
+        let c = String.compare str1 str2 in
+        if c <> 0 then c
+        else
+          Option.compare String.compare comment1 comment2
+
+    let equal t1 t2 =
+      compare t1 t2 = 0
+
+    let hash t = Hashtbl.hash t
+
+    let print _ _ = Misc.fatal_error "Not yet implemented"
+    let output _ _ = Misc.fatal_error "Not yet implemented"
+  end)
+end
+
 module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   module Int8 = Numbers_extra.Int8
@@ -14,6 +44,12 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
   module Uint64 = Numbers_extra.Uint64
 
   module D = A.D
+
+  let sections_seen = ref []
+
+  let current_section_ref = ref None
+
+  let cached_strings = ref Cached_string.Map.empty
 
   let if_not_masm f =
     match Config_typed.assembler () with
@@ -35,10 +71,6 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   (* Currently just ignore *)
   let new_line () = ()
-
-  let sections_seen = ref []
-
-  let current_section_ref = ref None
 
   let not_initialized () =
     Misc.fatal_error "[Asm_directives.initialize] has not been called"
@@ -86,6 +118,8 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
       end
 
   let initialize () =
+    cached_strings := Cached_string.Map.empty;
+    sections_seen := [];
     (* Forward label references are illegal in GAS *)
     begin match Config_typed.assembler () with
     | MASM | MacOS -> ()
@@ -120,25 +154,34 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   let uleb128 ?comment:_ _num = A.emit_line "uleb128"
   let sleb128 ?comment:_ _num = A.emit_line "sleb128"
-  let string ?comment:_ _num = A.emit_line "string"
 
-  let cache_string ?comment:_ section _str =
-    A.emit_line "cache_string";
-    Asm_label.create section 
+  let string = with_comment (fun str -> D.bytes str)
 
-  let emit_cached_strings () = A.emit_line "emit_cached_strings"
+  let cache_string ?comment section str =
+    let cached : Cached_string.t = { section; str; comment; } in
+    match Cached_string.Map.find cached !cached_strings with
+    | label -> label
+    | exception Not_found ->
+      let label = Asm_label.create section in
+      cached_strings := Cached_string.Map.add cached label !cached_strings;
+      label
 
-  let comment str = A.emit_line ("comment: " ^ str)
+  let emit_cached_strings () =
+    Cached_string.Map.iter (fun { section; str; comment; } label_name ->
+        switch_to_section section;
+        define_label label_name;
+        string ?comment str;
+        int8 Int8.zero)
+      !cached_strings;
+    cached_strings := Cached_string.Map.empty
 
-  let new_line () = A.emit_line "new_line"
+  let comment str = D.comment str
 
   let define_data_symbol _sym = A.emit_line "define_data_symbol: XXX"
 
   let global _sym = A.emit_line "global: XXX"
 
   let symbol ?comment:_ _sym = A.emit_line "symbol"
-
-  let define_label _lab = A.emit_line "define_label"
 
   let label ?comment:_ _lab = A.emit_line "label"
 
