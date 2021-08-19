@@ -191,11 +191,8 @@ let record_var_binding var name_occurrences ~generate_phantom_lets t =
     { elt with bindings; used_in_handler; }
   )
 
-let record_symbol_projection var symbol t =
+let record_symbol_projection var name_occurrences t =
   update_top_of_stack ~t ~f:(fun elt ->
-    let name_occurrences =
-      Name_occurrences.singleton_symbol symbol Name_mode.normal
-    in
     let bindings =
       Name.Map.update (Name.var var) (function
         | None -> Some name_occurrences
@@ -204,8 +201,11 @@ let record_symbol_projection var symbol t =
             original
           else
             Misc.fatal_errorf
-              "The following projection has been bound to different symbols: %a"
+              "@[<v>The following projection has been bound to different symbols:\
+               %a@ previously bound to:@ %a@ and now to@ %a@]"
               Variable.print var
+              Name_occurrences.print prior_occurences
+              Name_occurrences.print name_occurrences
       ) elt.bindings
     in
     { elt with bindings; }
