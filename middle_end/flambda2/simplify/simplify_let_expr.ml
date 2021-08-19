@@ -156,7 +156,7 @@ let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
                   (* Record all projections as potential dependencies. *)
                   Variable.Map.fold (fun var proj data_flow ->
                       Data_flow.record_symbol_projection var
-                        (Symbol_projection.symbol proj)
+                        (Symbol_projection.free_names proj)
                         data_flow)
                     (LC.symbol_projections lifted_constant)
                     data_flow

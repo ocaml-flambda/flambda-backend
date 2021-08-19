@@ -58,7 +58,7 @@ val record_var_binding
 
 val record_symbol_projection
    : Variable.t
-  -> Symbol.t
+  -> Name_occurrences.t
   -> t
   -> t
 (** Add a variable binding to the symbol.
