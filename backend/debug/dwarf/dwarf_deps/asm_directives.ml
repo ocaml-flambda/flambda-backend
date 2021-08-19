@@ -212,7 +212,7 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
   let force_assembly_time_constant _section expr =
     if not (is_macos ()) then
       expr
-    else
+    else begin
       (* This ensures the correct result is obtained on macOS.  (Apparently
         just writing expressions such as "L100 - L101" inline can cause
         unexpected results when one of the labels is on a section boundary,
@@ -227,6 +227,7 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
       Symbol sym  (* not really a symbol, but OK. *)
       *)
       Misc.fatal_error "not implemented"
+    end
 
   let offset_into_dwarf_section_label ?comment section upper ~width = 
     let upper_section = Asm_label.section upper in
