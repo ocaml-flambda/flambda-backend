@@ -405,22 +405,22 @@ let emit_float_test cmp i ~(taken : X86_ast.condition -> unit) =
   | CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);
-      I.jp (label next);
-      taken E;                   (* branch taken if x=y *)
+      I.jp (label next);           (* skip if unordered *)
+      taken E;                     (* branch taken if x=y *)
       def_label next
   | CFneq | CFnle | CFnge when (arg i 1) = (arg i 0) ->
       I.ucomisd (arg i 1) (arg i 0);
       taken P
   | CFneq ->
       I.ucomisd (arg i 1) (arg i 0);
-      taken P;                    (* branch taken if unordered *)
-      taken NE;                   (* branch taken if x<y or x>y *)
+      taken P;                     (* branch taken if unordered *)
+      taken NE;                    (* branch taken if x<y or x>y *)
   | CFlt ->
       I.comisd (arg i 0) (arg i 1);
-      taken A;                    (* branch taken if y>x i.e. x<y *)
+      taken A;                     (* branch taken if y>x i.e. x<y *)
   | CFnlt ->
       I.comisd (arg i 0) (arg i 1);
-      taken BE                    (* taken if unordered or y<=x i.e. !(x<y) *)
+      taken BE                     (* taken if unordered or y<=x i.e. !(x<y) *)
   | CFle ->
       I.comisd (arg i 0) (arg i 1);(* swap compare *)
       taken AE;                    (* branch taken if y>=x i.e. x<=y *)
@@ -429,16 +429,16 @@ let emit_float_test cmp i ~(taken : X86_ast.condition -> unit) =
       taken B                      (* taken if unordered or y<x i.e. !(x<=y) *)
   | CFgt ->
       I.comisd (arg i 1) (arg i 0);
-      taken A                     (* branch taken if x>y *)
+      taken A                      (* branch taken if x>y *)
   | CFngt ->
       I.comisd (arg i 1) (arg i 0);
-      taken BE                    (* taken if unordered or x<=y i.e. !(x>y) *)
+      taken BE                     (* taken if unordered or x<=y i.e. !(x>y) *)
   | CFge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      taken AE                    (* branch taken if x>=y *)
+      taken AE                     (* branch taken if x>=y *)
   | CFnge ->
       I.comisd (arg i 1) (arg i 0);(* swap compare *)
-      taken B                     (* taken if unordered or x<y i.e. !(x>=y) *)
+      taken B                      (* taken if unordered or x<y i.e. !(x>=y) *)
 
 let emit_test i (tst : Comparison.Test.t) ~(taken: X86_ast.condition -> unit) =
   match tst with
