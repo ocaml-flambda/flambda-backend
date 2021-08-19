@@ -97,8 +97,14 @@ let apply_renaming ({ symbol; projection = _; } as t) renaming =
   if symbol == symbol' then t
   else { t with symbol = symbol'; }
 
-let free_names { symbol; projection = _; } =
-  Name_occurrences.singleton_symbol symbol Name_mode.normal
+let free_names { symbol; projection; } =
+  let free_names =
+    Name_occurrences.singleton_symbol symbol Name_mode.normal
+  in
+  match projection with
+  | Block_load _ -> free_names
+  | Project_var { project_from = _; var; } ->
+    Name_occurrences.add_closure_var free_names var Name_mode.normal
 
 let all_ids_for_export { symbol; projection = _; } =
   Ids_for_export.singleton_symbol symbol
