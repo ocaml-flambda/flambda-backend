@@ -301,27 +301,12 @@ module Make (Head : Type_head_intf.S
         : _ Or_unknown_or_bottom.t =
     match head1, head2 with
     | Bottom, Bottom -> Bottom
-    (* In these next two cases, we still need to traverse [head1] (or
-       [head2]), because they may contain names not bound in the target
-       join environment.  We force this by joining those types with
-       themselves. *)
-    (* CR mshinwell: It would be better to use [make_suitable_for_environment]
-       here as it's lazy.  In that case we would need to start returning
-       environment extensions from [join], which should be fine. *)
-    (* CR pchambart: This seams terribly inefficient. We should change it.
-       Also the result is less precise as local aliases are lost *)
-    | Ok head1, Bottom ->
-      begin match Head.join env head1 head1 with
-      | Known head ->
-        Ok head
-      | Unknown -> Unknown
-      end
-    | Bottom, Ok head2 ->
-      begin match Head.join env head2 head2 with
-      | Known head ->
-        Ok head
-      | Unknown -> Unknown
-      end
+    (* The target environment defines all the names from the left
+       and right environments, so we can safely return any input
+       as the result *)
+    | Ok head, Bottom
+    | Bottom, Ok head ->
+      Ok head
     | Unknown, _ -> Unknown
     | _, Unknown -> Unknown
     | Ok head1, Ok head2 ->
