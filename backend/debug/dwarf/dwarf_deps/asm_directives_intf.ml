@@ -9,14 +9,19 @@ module type Arg = sig
       val const_add : constant -> constant -> constant
       val const_sub : constant -> constant -> constant
 
+      type data_type =
+        | NONE | DWORD | QWORD
+
       val file: file_num:int -> file_name:string -> unit
       val loc: file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit
       val comment: string -> unit
 
-      val label: string -> unit
+      val label: ?data_type:data_type -> string -> unit
       val section: string list -> string option -> string list -> unit
       val text : unit -> unit
       val new_line : unit -> unit
+      val global: string -> unit
+      val type_: string -> string -> unit
 
       val byte: constant -> unit
       val word: constant -> unit

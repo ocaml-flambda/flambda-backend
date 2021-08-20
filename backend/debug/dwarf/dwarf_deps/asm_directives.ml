@@ -185,9 +185,28 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   let comment str = D.comment str
 
-  let define_data_symbol _sym = A.emit_line "define_data_symbol: XXX"
+  let define_data_symbol symbol =
+    (* 
+      CR-someday bkhajwal: Asm_symbol currently is just a string, if section-related
+      information is added, should be worth doing this check.
 
-  let global _sym = A.emit_line "global: XXX"
+      check_symbol_for_definition_in_current_section symbol;
+    *)
+    let symbol = Asm_symbol.encode symbol in
+    let data_type = 
+      match Machine_width.of_int_exn Sys.word_size with
+      | Thirty_two -> D.DWORD
+      | Sixty_four -> D.QWORD
+    in
+    D.label ~data_type symbol;
+    begin match Config_typed.assembler (), Config_typed.is_windows () with
+    | GAS_like, false -> D.type_ symbol "STT_OBJECT"
+    | GAS_like, true
+    | MacOS, _
+    | MASM, _ -> ()
+    end
+
+  let global sym = D.global (Asm_symbol.encode sym)
 
   let symbol ?comment:_ _sym = A.emit_line "symbol"
 

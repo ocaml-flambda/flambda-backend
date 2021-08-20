@@ -74,6 +74,25 @@ let derived_system () : derived_system =
         ensure `target_system.ml' matches `configure'"
       Config.model Config.system
 
+let is_windows () =
+  match derived_system () with
+  | Linux
+  | MacOS_like
+  | FreeBSD
+  | NetBSD
+  | OpenBSD
+  | Generic_BSD
+  | Solaris
+  | Dragonfly
+  | GNU
+  | BeOS
+  | Unknown -> false
+  | MinGW_32
+  | MinGW_64
+  | Win32
+  | Win64
+  | Cygwin -> true
+
 type assembler =
   | GAS_like
   | MacOS

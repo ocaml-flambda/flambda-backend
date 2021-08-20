@@ -28,6 +28,8 @@ type derived_system =
 
 val derived_system : unit -> derived_system
 
+val is_windows : unit -> bool
+
 type assembler =
   | GAS_like
   | MacOS

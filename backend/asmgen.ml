@@ -231,14 +231,25 @@ let build_asm_directives () : (module Asm_directives_intf.S) = (
 
         include X86_dsl.D
 
+        type data_type =
+          | NONE | DWORD | QWORD
+
         type nonrec constant = constant
         let const_int64 num = Const num
         let const_label str = ConstLabel str
         let const_add c1 c2 = ConstAdd (c1, c2)
         let const_sub c1 c2 = ConstSub (c1, c2)
 
-        (* Hide (currently ignored) optional argument *)
-        let label str = label str
+        let label ?data_type str = 
+          let typ = 
+            Option.map
+              (function
+                | NONE -> X86_ast.NONE
+                | DWORD -> X86_ast.DWORD
+                | QWORD -> X86_ast.QWORD)
+              data_type
+          in
+          label ?typ str
       end 
     end)
   )
