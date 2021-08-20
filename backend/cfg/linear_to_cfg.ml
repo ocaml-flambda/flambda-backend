@@ -440,6 +440,32 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } ->
     assert false
 
+let rec adjust_traps (i : L.instruction) ~trap_depth ~traps =
+  (* We do not emit any executable code for this insn; it only moves the virtual
+     stack pointer in the emitter. We do not have a corresponding insn in [Cfg]
+     because the required adjustment can change when blocks are reordered.
+     Instead we regenerate the instructions when converting back to linear. We
+     use [delta_traps] only to compute [trap_depth]s of other instructions. *)
+  match i.desc with
+  | Ladjust_trap_depth { delta_traps } ->
+    let trap_depth = trap_depth + delta_traps in
+    if trap_depth < 0
+    then
+      Misc.fatal_errorf
+        "Ladjust_trap_depth %d moves the trap depth below zero: %d" delta_traps
+        trap_depth;
+    let traps = T.unknown () in
+    adjust_traps i.next ~trap_depth ~traps
+  | Llabel _ ->
+    let trap_depth, traps, next = adjust_traps i.next ~trap_depth ~traps in
+    trap_depth, traps, { i with next }
+  | Lend | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+  | Lbranch _
+  | Lcondbranch (_, _)
+  | Lcondbranch3 (_, _, _)
+  | Lswitch _ | Lpushtrap _ | Lraise _ ->
+    trap_depth, traps, i
+
 (** [traps] represents the trap stack, with head being the top. [trap_depths] is
     the depth of the trap stack. *)
 let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
@@ -447,7 +473,9 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
   (* [traps] is constructed incrementally, because Ladjust_trap does not give
      enough information to compute it upfront, but trap_depth is directly
      computed. *)
+  let trap_depth, traps, i = adjust_traps i ~trap_depth ~traps in
   match i.desc with
+  | Ladjust_trap_depth _ -> assert false
   | Lend ->
     if not (block_is_registered t block)
     then
@@ -534,21 +562,6 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     (* CR-someday gyorsh: get rid of switches entirely and re-generate them
        based on optimization and perf data? *)
     add_terminator t block i (Switch labels) ~trap_depth ~traps;
-    create_blocks t i.next block ~trap_depth ~traps
-  | Ladjust_trap_depth { delta_traps } ->
-    (* We do not emit any executable code for this insn; it only moves the
-       virtual stack pointer in the emitter. We do not have a corresponding insn
-       in [Cfg] because the required adjustment can change when blocks are
-       reordered. Instead we regenerate the instructions when converting back to
-       linear. We use [delta_traps] only to compute [trap_depth]s of other
-       instructions. *)
-    let trap_depth = trap_depth + delta_traps in
-    if trap_depth < 0
-    then
-      Misc.fatal_errorf
-        "Ladjust_trap_depth %d moves the trap depth below zero: %d" delta_traps
-        trap_depth;
-    let traps = T.unknown () in
     create_blocks t i.next block ~trap_depth ~traps
   | Lpushtrap { lbl_handler } ->
     t.trap_handlers <- Label.Set.add lbl_handler t.trap_handlers;
