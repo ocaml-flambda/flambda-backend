@@ -244,6 +244,8 @@ install: stage2
 	rm -f $(prefix)/lib/ocaml/META
 	rm -f $(prefix)/lib/ocaml/dune-package
 	rm -f $(prefix)/lib/ocaml/compiler-libs/*.cmo
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/topstart.cmo \
+	  $(prefix)/lib/ocaml/compiler-libs/
 	rm -rf $(prefix)/lib/flambda_backend
 	for file in topdirs opttopdirs; do \
 	  for ext in cmi mli cmt cmti; do \
