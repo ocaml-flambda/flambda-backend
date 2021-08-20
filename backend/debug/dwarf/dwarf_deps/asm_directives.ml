@@ -208,13 +208,30 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
 
   let global sym = D.global (Asm_symbol.encode sym)
 
-  let symbol ?comment:_ _sym = A.emit_line "symbol"
+  let const_machine_width const =
+    match Machine_width.of_int_exn Sys.word_size with
+    | Thirty_two -> D.long const
+    | Sixty_four -> D.qword const
+
+  let symbol = with_comment (fun sym ->
+    let lab = D.const_label (Asm_symbol.encode sym) in
+    const_machine_width lab
+  )
 
   let label ?comment:_ _lab = A.emit_line "label"
 
   let symbol_plus_offset _sym ~offset_in_bytes:_ = A.emit_line "symbol_plus_offset"
   
-  let between_symbols_in_current_unit ~upper:_ ~lower:_ = A.emit_line "between_symbols_in_current_unit"
+  let between_symbols_in_current_unit ~upper ~lower =
+    (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
+      check_symbol_in_current_unit upper;
+      check_symbol_in_current_unit lower;
+      check_symbols_in_same_section upper lower;
+    *)
+    let upper = D.const_label (Asm_symbol.encode upper) in
+    let lower = D.const_label (Asm_symbol.encode lower) in
+    (* CR-someday bkhajwal: Add `force_assembly_time_constant` *)
+    const_machine_width (D.const_sub upper lower)
   
   let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () = A.emit_line "between_labels_16_bit"
   let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () = A.emit_line "between_labels_32_bit"

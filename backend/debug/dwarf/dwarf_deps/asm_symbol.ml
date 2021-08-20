@@ -12,6 +12,8 @@ include Identifiable.Make(Thing)
 
 let create ~make_symbol name = make_symbol name
 
+let create_no_mangle s = s
+
 let escape name =
   let spec = ref false in
   for i = 0 to String.length name - 1 do

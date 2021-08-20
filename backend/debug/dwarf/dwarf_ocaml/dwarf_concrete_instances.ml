@@ -11,7 +11,7 @@ module DAH = Dwarf_attribute_helpers
 
 let end_symbol_name start_symbol = start_symbol ^ "__end"
 
-let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
+let for_fundecl ~params:_ state fundecl =
   let parent = Dwarf_state.compilation_unit_proto_die state in
   let fun_name = fundecl.fun_name in
   let linkage_name =
@@ -21,12 +21,9 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
     | [] -> fun_name 
     | _ -> Misc.fatal_errorf "multiple debug entries"
   in
-  let create_symbol name =
-    Asm_symbol.create ~make_symbol:Params.make_symbol name
-  in
-  let start_sym = create_symbol fun_name in
-  let end_sym = create_symbol (end_symbol_name fun_name) in
-  let concrete_instance_proto_die =
+  let start_sym = Asm_symbol.create_no_mangle fun_name in
+  let end_sym = Asm_symbol.create_no_mangle (end_symbol_name fun_name) in
+  let _concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent)
       ~tag:Subprogram
       ~attribute_values:
@@ -38,4 +35,6 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
         ]
       ()
   in
-  Proto_die.set_name concrete_instance_proto_die start_sym;
+  (* TODO: Fix this name here! *)
+  (* Proto_die.set_name concrete_instance_proto_die start_sym; *)
+  ()
