@@ -165,7 +165,7 @@ module S = struct
     | Return
     | Raise of Lambda.raise_kind
     | Tailcall of tail_call_operation
-    | Throw of external_call_operation
+    | Call_no_return of external_call_operation
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)
