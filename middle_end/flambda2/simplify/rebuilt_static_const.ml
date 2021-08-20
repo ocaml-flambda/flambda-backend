@@ -294,9 +294,7 @@ module Group = struct
         | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None)
     in
     consts
-    |> List.filter_map (fun code ->
-      if Code.is_deleted code then None
-      else Some (Code.code_id code, code))
+    |> List.map (fun code -> (Code.code_id code, code))
     |> Code_id.Map.of_list
 
   let function_params_and_body_for_code_not_rebuilt =

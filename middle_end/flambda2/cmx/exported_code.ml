@@ -51,17 +51,25 @@ module Calling_convention = struct
     && Bool.equal is_tupled1 is_tupled2
 
   let compute ~params_and_body ~is_tupled =
-    let f ~return_continuation:_ _exn_continuation params ~body:_
-          ~my_closure:_ ~(is_my_closure_used : _ Or_unknown.t) ~my_depth:_ =
-      let is_my_closure_used =
-        match is_my_closure_used with
-        | Unknown -> true
-        | Known is_my_closure_used -> is_my_closure_used
+    match (params_and_body : _ Or_deleted.t) with
+    | Present params_and_body ->
+      let f ~return_continuation:_ _exn_continuation params ~body:_
+            ~my_closure:_ ~(is_my_closure_used : _ Or_unknown.t) ~my_depth:_ =
+        let is_my_closure_used =
+          match is_my_closure_used with
+          | Unknown -> true
+          | Known is_my_closure_used -> is_my_closure_used
+        in
+        let params_arity = Kinded_parameter.List.arity params in
+        { needs_closure_arg = is_my_closure_used; params_arity; is_tupled; }
       in
-      let params_arity = Kinded_parameter.List.arity params in
-      { needs_closure_arg = is_my_closure_used; params_arity; is_tupled; }
-    in
-    P.pattern_match params_and_body ~f
+      P.pattern_match params_and_body ~f
+    | Deleted ->
+      (* A dummy that won't actually be used *)
+      { needs_closure_arg = false;
+        params_arity = [ Flambda_kind.value ];
+        is_tupled = false;
+      }
 end
 
 type t0 =
@@ -95,17 +103,13 @@ let empty = Code_id.Map.empty
 
 let add_code code t =
   let with_calling_convention =
-    Code_id.Map.filter_map (fun _code_id code ->
-        match C.params_and_body code with
-        | Present params_and_body ->
-          let is_tupled = C.is_tupled code in
-          let calling_convention =
-            Calling_convention.compute ~params_and_body ~is_tupled
-          in
-          Some (Present { code; calling_convention; })
-        | Deleted ->
-          (* CR lmaurer for vlaviron: Okay to just ignore deleted code? *)
-          None)
+    Code_id.Map.map (fun code ->
+        let params_and_body = C.params_and_body code in
+        let is_tupled = C.is_tupled code in
+        let calling_convention =
+          Calling_convention.compute ~params_and_body ~is_tupled
+        in
+        Present { code; calling_convention; })
       code
   in
   Code_id.Map.disjoint_union with_calling_convention t
