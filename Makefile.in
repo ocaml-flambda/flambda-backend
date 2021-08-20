@@ -235,6 +235,7 @@ config_files: ocaml-stage1-config.status
 install: stage2
 	mkdir -p $(prefix)
 	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/bin $(prefix)
+	cp scripts/dummy-ocamlprof.sh $(prefix)/bin/ocamlprof
 	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/lib $(prefix)
 	rm -f $(prefix)/bin/ocamllex
 	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
