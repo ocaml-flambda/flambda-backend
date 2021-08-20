@@ -60,6 +60,23 @@ module Map_to_canonical = struct
               elt coercion1 coercion2)
       map1
       map2
+
+  let all_ids_for_export t =
+    Name.Map.fold (fun name coercion ids ->
+        Ids_for_export.union ids
+          (Ids_for_export.add_name
+            (Coercion.all_ids_for_export coercion)
+            name))
+      t
+      Ids_for_export.empty
+
+  let apply_renaming t renaming =
+    Name.Map.fold (fun name coercion t ->
+        Name.Map.add (Renaming.apply_name renaming name)
+          (Coercion.apply_renaming coercion renaming)
+          t)
+      t
+      Name.Map.empty
 end
 
 module Aliases_of_canonical_element : sig
@@ -92,11 +109,13 @@ module Aliases_of_canonical_element : sig
   val union : t -> t -> t
   val inter : t -> t -> t
 
-  val rename : (Name.t -> Name.t) -> t -> t
-
   val merge : t -> t -> t
 
   val compose : t -> then_:Coercion.t -> t
+
+  include Contains_ids.S with type t := t
+
+  val apply_renaming : t -> Renaming.t -> t
 end = struct
   type t = {
     aliases : Map_to_canonical.t Name_mode.Map.t;
@@ -214,19 +233,6 @@ end = struct
     invariant t;
     t
 
-  let rename rename_name { aliases; all } =
-    let map_name elts =
-      Name.Map.fold (fun elt coercion acc ->
-        Name.Map.add (rename_name elt) coercion acc)
-        elts
-        Name.Map.empty
-    in
-    let aliases = Name_mode.Map.map map_name aliases in
-    let all = map_name all in
-    let t = { aliases; all } in
-    invariant t;
-    t
-
   let merge t1 t2 =
     let aliases =
       Name_mode.Map.union (fun _mode map1 map2 ->
@@ -246,6 +252,26 @@ end = struct
     in
     let aliases = Name_mode.Map.map f aliases in
     let all = f all in
+    { aliases; all; }
+
+  let all_ids_for_export { aliases; all; } =
+    let aliases =
+      Name_mode.Map.fold (fun _mode map_to_canonical ids ->
+          Ids_for_export.union ids
+            (Map_to_canonical.all_ids_for_export map_to_canonical))
+        aliases
+        Ids_for_export.empty
+    in
+    let all = Map_to_canonical.all_ids_for_export all in
+    Ids_for_export.union aliases all
+
+  let apply_renaming { aliases; all; } renaming =
+    let aliases =
+      Name_mode.Map.map (fun map_to_canonical ->
+          Map_to_canonical.apply_renaming map_to_canonical renaming)
+        aliases
+    in
+    let all = Map_to_canonical.apply_renaming all renaming in
     { aliases; all; }
 end
 
@@ -1117,14 +1143,43 @@ let get_aliases t element =
       ~coercion_from_canonical_to_element
       ~alias_names_with_coercions_to_element
 
-let all_ids_for_export { canonical_elements = _;
-                         aliases_of_canonical_names = _;
-                         aliases_of_consts = _;
+let all_ids_for_export { canonical_elements;
+                         aliases_of_canonical_names;
+                         aliases_of_consts;
                          binding_times_and_modes; } =
-  Name.Map.fold (fun elt _binding_time_and_mode ids ->
-    Ids_for_export.add_name ids elt)
+  let ids =
+    Name.Map.fold (fun elt (canonical, coercion) ids ->
+        let ids =
+          Ids_for_export.union ids (Coercion.all_ids_for_export coercion)
+        in
+        Ids_for_export.add_name
+          (Ids_for_export.add_simple ids canonical)
+          elt)
+      canonical_elements
+      Ids_for_export.empty
+  in
+  let ids =
+    Name.Map.fold (fun elt aliases_of ids ->
+        Ids_for_export.add_name
+          (Ids_for_export.union ids
+            (Aliases_of_canonical_element.all_ids_for_export aliases_of))
+          elt)
+      aliases_of_canonical_names
+      ids
+  in
+  let ids =
+    Const.Map.fold (fun const aliases_of ids ->
+        Ids_for_export.add_const
+          (Ids_for_export.union ids
+            (Aliases_of_canonical_element.all_ids_for_export aliases_of))
+          const)
+      aliases_of_consts
+      ids
+  in
+  Name.Map.fold (fun elt (_ : Binding_time.With_name_mode.t) ids ->
+      Ids_for_export.add_name ids elt)
     binding_times_and_modes
-    Ids_for_export.empty
+    ids
 
 let apply_renaming
       { canonical_elements;
@@ -1136,21 +1191,27 @@ let apply_renaming
   let rename_simple = Renaming.apply_simple renaming in
   let canonical_elements =
     Name.Map.fold (fun elt (canonical, coercion) acc ->
-      Name.Map.add (rename_name elt) (rename_simple canonical, coercion) acc)
+        Name.Map.add (rename_name elt)
+          (rename_simple canonical,
+           Coercion.apply_renaming coercion renaming)
+          acc)
       canonical_elements
       Name.Map.empty
   in
   let aliases_of_canonical_names =
     Name.Map.fold (fun canonical aliases acc ->
         Name.Map.add (rename_name canonical)
-          (Aliases_of_canonical_element.rename rename_name aliases)
+          (Aliases_of_canonical_element.apply_renaming aliases renaming)
           acc)
       aliases_of_canonical_names
       Name.Map.empty
   in
   let aliases_of_consts =
-    Const.Map.map (Aliases_of_canonical_element.rename rename_name)
+    Const.Map.fold (fun const aliases ->
+        Const.Map.add (Renaming.apply_const renaming const)
+          (Aliases_of_canonical_element.apply_renaming aliases renaming))
       aliases_of_consts
+      Const.Map.empty
   in
   let binding_times_and_modes =
     Name.Map.fold (fun name binding_time_and_mode acc ->

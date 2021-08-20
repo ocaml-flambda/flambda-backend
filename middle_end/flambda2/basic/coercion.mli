@@ -17,6 +17,7 @@
 include module type of struct include Reg_width_things.Coercion end
 
 include Contains_names.S with type t := t
+include Contains_ids.S with type t := t
 
 val print : Format.formatter -> t -> unit
 
