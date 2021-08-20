@@ -94,7 +94,13 @@ let emit_fundecl ?dwarf =
       let () = Profile.record ~accumulate:true "emit" Emit.fundecl fundecl in
       match dwarf with
       | None -> ()
-      | Some dwarf -> Dwarf.dwarf_for_fundecl dwarf { fun_name = fundecl.fun_name }
+      | Some dwarf ->
+        let fundecl : Dwarf_concrete_instances.fundecl =
+          { fun_name = fundecl.fun_name
+          ; fun_dbg = fundecl.fun_dbg
+          }
+        in
+        Dwarf.dwarf_for_fundecl dwarf fundecl
     )
 
 let rec regalloc ~ppf_dump round fd =
