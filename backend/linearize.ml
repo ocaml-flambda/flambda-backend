@@ -60,12 +60,6 @@ let rec adjust_trap_depth delta_traps next =
   match next.desc with
   | Ladjust_trap_depth { delta_traps = k } ->
     adjust_trap_depth (delta_traps + k) next.next
-  | Llabel lbl ->
-    let next = adjust_trap_depth delta_traps next.next in
-    cons_instr (Llabel lbl) next
-  | Lbranch lbl ->
-    let next = adjust_trap_depth delta_traps next.next in
-    cons_instr (Lbranch lbl) next
   | _ ->
     if delta_traps = 0 then next
     else cons_instr (Ladjust_trap_depth { delta_traps }) next
@@ -170,8 +164,7 @@ let linear i n contains_calls =
       Iend -> n
     | Iop(Itailcall_ind | Itailcall_imm _ as op)
     | Iop((Iextcall { returns = false; _ }) as op) ->
-        (* note: there cannot be deadcode in n *)
-        copy_instr (Lop op) i (linear env i.Mach.next n)
+        copy_instr (Lop op) i (discard_dead_code n)
     | Iop(Imove | Ireload | Ispill)
       when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
         linear env i.Mach.next n

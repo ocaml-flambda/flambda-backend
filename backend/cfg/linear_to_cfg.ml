@@ -212,7 +212,7 @@ let register_block t (block : C.basic_block) traps =
 
 let can_raise_terminator (i : C.terminator) =
   match i with
-  | Raise _ | Tailcall (Func _) -> true
+  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return
   | Tailcall (Self _) ->
@@ -386,7 +386,7 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
   ( match desc with
   | Never -> Misc.fatal_error "Cannot add terminator: Never"
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ -> ()
-  | Switch _ | Return | Raise _ | Tailcall _ ->
+  | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
       if not (Linear_utils.defines_label i.next) then
         Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
           Printlinear.instr
@@ -400,8 +400,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Icall_ind -> Call (F Indirect)
   | Icall_imm { func; } ->
       Call (F (Direct { func_symbol = func; }))
-  | Iextcall { func; alloc; ty_args; ty_res; returns; } ->
-      Call (P (External { func_symbol = func; alloc; ty_args; ty_res; returns }))
+  | Iextcall { func; alloc; ty_args; ty_res; returns = true; } ->
+      Call (P (External { func_symbol = func; alloc; ty_args; ty_res; }))
   | Iintop Icheckbound ->
       Call
         (P
@@ -453,7 +453,8 @@ let to_basic (mop : Mach.operation) : C.basic =
       Op
         (Name_for_debugger
            { ident; which_parameter; provenance; is_assignment })
-  | Itailcall_ind | Itailcall_imm _ -> assert false
+  | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ }
+    -> assert false
 
 (** [traps] represents the trap stack, with head being the top. [trap_depths]
     is the depth of the trap stack. *)
@@ -611,6 +612,12 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
           in
           add_terminator t block i desc ~trap_depth ~traps;
           create_blocks t i.next block ~trap_depth ~traps
+      | Iextcall { func; alloc; ty_args; ty_res; returns = false; } ->
+        let desc =
+          C.Call_no_return ({ func_symbol = func; alloc; ty_args; ty_res; })
+        in
+        add_terminator t block i desc ~trap_depth ~traps;
+        create_blocks t i.next block ~trap_depth ~traps
       | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf
       | Idivf | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _
       | Icompf _

@@ -46,8 +46,8 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
   | Call (F (Indirect)) -> Lop (Icall_ind)
   | Call (F (Direct { func_symbol; })) ->
       Lop (Icall_imm { func = func_symbol; })
-  | Call (P (External { func_symbol; alloc; ty_args; ty_res; returns; })) ->
-      Lop (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns; })
+  | Call (P (External { func_symbol; alloc; ty_args; ty_res; })) ->
+      Lop (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns = true; })
   | Call
       (P
         (Checkbound { immediate = None; }))
@@ -181,7 +181,10 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
     | Tailcall (Func (Direct { func_symbol })) ->
       [L.Lop (Itailcall_imm { func = func_symbol })], None
     | Tailcall (Self { destination }) ->
-        [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
+      [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
+    | Call_no_return { func_symbol; alloc; ty_args; ty_res; } ->
+      [L.Lop (Iextcall { func = func_symbol; alloc; ty_args; ty_res;
+                         returns = false; })], None
     | Switch labels -> [L.Lswitch labels], None
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough label, None
@@ -328,7 +331,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
             let new_labels = CL.new_labels cfg_with_layout in
             CL.preserve_orig_labels cfg_with_layout
             && not (Label.Set.mem block.start new_labels)
-        | Return | Raise _ | Tailcall _ -> assert false )
+        | Return | Raise _ | Tailcall _ | Call_no_return _ -> assert false )
 
 let adjust_trap_depth body (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =
