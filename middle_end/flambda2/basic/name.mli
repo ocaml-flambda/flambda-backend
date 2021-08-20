@@ -50,6 +50,8 @@ val must_be_symbol : t -> Symbol.t
 
 val compilation_unit : t -> Compilation_unit.t
 
+val is_foreign : t -> bool
+
 val must_be_var_opt : t -> Variable.t option
 
 val must_be_symbol_opt : t -> Symbol.t option

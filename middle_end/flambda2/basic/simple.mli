@@ -72,6 +72,8 @@ val is_symbol : t -> bool
 
 val is_var : t -> bool
 
+val is_foreign_or_constant : t -> bool
+
 val free_names_in_types : t -> Name_occurrences.t
 
 val pattern_match'

@@ -940,6 +940,8 @@ let invariant_for_new_equation (t:t) name ty =
     end
   end
 
+exception Drop_equation
+
 let rec add_equation0 (t:t) name ty =
   if Flambda_features.Debug.concrete_types_only_on_canonicals () then begin
     let is_concrete =
@@ -997,7 +999,7 @@ let rec add_equation0 (t:t) name ty =
   (* invariant_for_aliases res; *)
   res
 
-and add_equation t name ty =
+and add_equation_exn t name ty =
   if Flambda_features.check_invariants () then begin
     let existing_ty = find t name None in
     if not (K.equal (Type_grammar.kind existing_ty) (Type_grammar.kind ty))
@@ -1050,6 +1052,22 @@ and add_equation t name ty =
          any name modes). *)
       let canonical = Aliases.get_canonical_ignoring_name_mode aliases name in
       canonical, t, ty
+    | alias_of when Simple.is_foreign_or_constant alias_of
+                 && Name.is_foreign name ->
+      (* At the point of writing we do not properly merge alias structures in
+         packs, and rely on the domains of their [canonical_elements] maps
+         being disjoint. In practice, this means that this map must only have
+         elements from the current compilation unit as keys.
+         It's already impossible for constants to end up as keys, as they're
+         always canonical. The same also holds for symbols.
+         A foreign variable can't alias to a non-foreign symbol either, but
+         the implementation doesn't know it; fortunately until we start
+         supporting arbitrary aliases (for example, as created by the physical
+         equality primitive), it's impossible to reach this case in practice.
+         So all that remains are aliases between a foreign variable and
+         either a constant or a foreign name.
+         In these cases we drop the equation. *)
+      raise Drop_equation
     | alias_of ->
       (* Forget where [name] and [alias_of] came from---our job is now to
          record that they're equal. In general, they have canonical expressions
@@ -1126,6 +1144,10 @@ and add_equation t name ty =
     add_equation0 t name ty
   in
   Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
+
+and add_equation t name ty =
+  try add_equation_exn t name ty with
+  | Drop_equation -> t
 
 and add_env_extension t (env_extension : Typing_env_extension.t) =
   Typing_env_extension.fold
