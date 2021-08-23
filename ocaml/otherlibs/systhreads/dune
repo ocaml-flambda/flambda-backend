@@ -20,6 +20,7 @@
     condition
     event
     mutex
+    semaphore
     thread)
   (flags -w +33..39 -warn-error A -g -bin-annot -safe-string)
   (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
@@ -68,12 +69,14 @@
     (condition.mli as threads/condition.mli)
     (event.mli as threads/event.mli)
     (mutex.mli as threads/mutex.mli)
+    (semaphore.mli as threads/semaphore.mli)
 
     (threads.h as caml/threads.h)
 
     (.threads.objs/native/condition.cmx as threads/condition.cmx)
     (.threads.objs/native/event.cmx as threads/event.cmx)
     (.threads.objs/native/mutex.cmx as threads/mutex.cmx)
+    (.threads.objs/native/semaphore.cmx as threads/semaphore.cmx)
     (.threads.objs/native/thread.cmx as threads/thread.cmx)
 
     (.threads.objs/byte/condition.cmi as threads/condition.cmi)
@@ -82,6 +85,8 @@
     (.threads.objs/byte/event.cmti as threads/event.cmti)
     (.threads.objs/byte/mutex.cmi as threads/mutex.cmi)
     (.threads.objs/byte/mutex.cmti as threads/mutex.cmti)
+    (.threads.objs/byte/semaphore.cmi as threads/semaphore.cmi)
+    (.threads.objs/byte/semaphore.cmti as threads/semaphore.cmti)
     (.threads.objs/byte/thread.cmi as threads/thread.cmi)
     (.threads.objs/byte/thread.cmti as threads/thread.cmti)
   )
