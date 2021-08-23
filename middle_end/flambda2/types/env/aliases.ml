@@ -1298,8 +1298,29 @@ let clean_for_export
         aliases_of_canonical_names;
         aliases_of_consts;
         binding_times_and_modes; } =
-  (* CR vlaviron: This function is kept as a reminder that we'd like
-     to remove unreachable entries at some point. *)
+  (* CR vlaviron: We'd like to remove unreachable entries at some point. *)
+  let canonical_elements =
+    (* At this point, we know that we're never going to add new aliases to
+       this structure, so it's fine if we break the invariant that all
+       non-canonical elements are in the [canonical_elements] map.
+       Note that this is only needed because the [merge] function uses
+       [Map.disjoint_union], to avoid an expensive reconstruction of the
+       whole structure. We ensure this by making sure that all keys in the
+       map are bound in the compilation unit the structure was created for.
+       Either a better handling of packs (removing the need for merging units)
+       or a more comprehensive merge function would remove the need for this
+       filter.
+
+       Aliases between imported names can be brought in the current scope
+       when an extension stored in a Row_like or Variant type is opened.
+       In addition, it would be possible to add aliases when simplifying
+       the physical equality primitive, although at the time of writing
+       this is not implemented yet.
+    *)
+    Name.Map.filter (fun name _canonical ->
+        not (Name.is_imported name))
+      canonical_elements
+  in
   { canonical_elements;
     aliases_of_canonical_names;
     aliases_of_consts;
