@@ -35,6 +35,7 @@ _ocamltestd
 *.odoc
 .merlin
 
+_install/
 _build/
 _build0/
 _build1/

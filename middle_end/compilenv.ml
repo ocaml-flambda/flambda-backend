@@ -115,6 +115,16 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | None -> prefix
   | Some id -> concat_symbol prefix id
 
+let make_fun_symbol loc id =
+  let loc_bits =
+    Debuginfo.Scoped_location.string_of_scoped_location loc
+    |> String.split_on_char '.'
+  in
+  let loc_bits =
+    List.rev (List.tl (List.rev loc_bits)) in
+  let bits = loc_bits @ [ id ] in
+  "_ZN" ^ String.concat "" (List.map (fun bit -> Int.to_string (String.length bit) ^ bit) bits) ^ "E"
+
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
 
