@@ -50,10 +50,6 @@ type basic_block =
     mutable can_raise : bool;
         (** Does this block contain any instruction that can raise, such as a
             call, bounds check, allocation, or an explicit [raise]? *)
-    mutable can_raise_interproc : bool;
-        (** This block raises an exn that is not handled in this function,
-            [can_raise_interproc] implies [can_raise] but not necessarily
-            vice versa. *)
     mutable is_trap_handler : bool;
         (** Is this block a trap handler (i.e. is it an exn successor of
             another block) or not? *)
@@ -102,6 +98,8 @@ val replace_successor_labels :
   basic_block ->
   f:(Label.t -> Label.t) ->
   unit
+
+val can_raise_interproc : basic_block -> bool
 
 val mem_block : t -> Label.t -> bool
 

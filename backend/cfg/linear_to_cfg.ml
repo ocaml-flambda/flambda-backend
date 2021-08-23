@@ -176,7 +176,6 @@ let create_empty_block t start ~trap_depth ~traps =
       trap_depth;
       is_trap_handler = false;
       can_raise = false;
-      can_raise_interproc = false;
       dead = false
     }
   in
@@ -260,9 +259,7 @@ let register_exns t label (block : C.basic_block) =
         | None ->
             Misc.fatal_errorf "register_exns: empty trap stack for %d" label
         | Some l ->
-            if Label.equal l t.interproc_handler then (
-              block.can_raise_interproc <- true;
-              acc )
+            if Label.equal l t.interproc_handler then acc
             else Label.Set.add l acc
         | exception T.Unresolved ->
             (* must be dead block or flow from exception handler only *)
@@ -318,8 +315,8 @@ let check_and_register_traps t =
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =
     let n = Label.Set.cardinal block.exns in
-    assert ((not block.can_raise_interproc) || block.can_raise);
-    assert ((not block.can_raise) || n > 0 || block.can_raise_interproc)
+    assert ((not (Cfg.can_raise_interproc block)) || block.can_raise);
+    assert ((not block.can_raise) || n > 0 || (Cfg.can_raise_interproc block))
   in
   C.iter_blocks t.cfg ~f
 
