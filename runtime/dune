@@ -45,9 +45,7 @@
           instrtrace.c caml/opnames.h prims.c) 
  (action
    (progn
-     (bash "touch .depend") ; hack.
-     (run make -j8 %{targets} COMPUTE_DEPS=false)
-     (bash "rm -f .depend"))))
+     (run make %{targets}))))
 
 (rule
   (targets prims.c)
@@ -71,11 +69,7 @@
   caml/domain_state.tbl eventlog.c prims.c)
  (action
   (progn
-   (bash "touch .depend") ; hack.
-   (run make -j8 %{targets})
-   (bash "rm -f .depend"))))
-
-; Why isn't .depend present under _build?
+   (run make %{targets}))))
 
 (rule
   (targets ld.conf)
@@ -91,14 +85,13 @@
 ;      (run make -j8 %{targets})
 ;      (bash "chmod o+w %{targets}"))))
 ;
+
 (rule
   (targets ocamlrun)
   (deps libcamlrun.a prims.o)
   (action
     (progn
-      (bash "touch .depend") ; hack.
-      (run make -j8 %{targets})
-      (bash "rm -f .depend"))))
+    (run make %{targets}))))
 
 (rule
   (targets ocamlrund)
@@ -107,18 +100,14 @@
   (deps libcamlrund.a prims.o ocamlrun)
   (action
     (progn
-      (bash "touch .depend") ; hack.
-      (run make -j8 %{targets})
-      (bash "rm -f .depend"))))
+      (run make %{targets}))))
 
 (rule
   (targets ocamlruni)
   (deps libcamlruni.a prims.o ocamlrund)
   (action
     (progn
-      (bash "touch .depend") ; hack.
-      (run make -j8 %{targets})
-      (bash "rm -f .depend"))))
+      (run make %{targets}))))
 
 (library
   (name runtime_byte)
