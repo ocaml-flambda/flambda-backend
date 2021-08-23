@@ -315,7 +315,6 @@ let check_and_register_traps t =
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =
     let n = Label.Set.cardinal block.exns in
-    assert ((not (Cfg.can_raise_interproc block)) || block.can_raise);
     assert ((not block.can_raise) || n > 0 || (Cfg.can_raise_interproc block))
   in
   C.iter_blocks t.cfg ~f

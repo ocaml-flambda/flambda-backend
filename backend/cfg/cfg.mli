@@ -100,6 +100,9 @@ val replace_successor_labels :
   unit
 
 val can_raise_interproc : basic_block -> bool
+(** Returns [true] iff the passed block raises an exn that is not handled in
+    this function, [can_raise_interproc] implies [can_raise] but not necessarily
+    vice versa. *)
 
 val mem_block : t -> Label.t -> bool
 
