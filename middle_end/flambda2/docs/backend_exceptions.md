@@ -42,10 +42,11 @@ This all works well as long as all code paths go through the `Lpushtrap` and
 `Lpoptrap` instructions in a well-parenthesized manner. However, this invariant
 can be broken by the static exceptions used in the compiler representations
 from Lambda and onwards. In particular, although it only occurs in specific
-circumstences, it is allowed to have inside the body of a `try...with`
+circumstances, it is allowed to have inside the body of a `try...with`
 structure a sub-expression that raises a static exception whose handler is
 outside the body of the `try...with`. This looks like a simple detail, as
-the code that emits the traps simply needs to insert traps around these
+the code that emits the traps simply needs to insert traps (possibly
+multiple traps) around these
 static raising constructs, but this is actually also important for earlier
 passes as some optimisations involving static exceptions that would be correct
 if both the handler and the raise are in the same exception context become
