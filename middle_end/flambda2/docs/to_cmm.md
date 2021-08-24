@@ -250,7 +250,7 @@ the rest is relatively simple and can be understood directly from the code.
 
 Since in most cases, these are handled by C functions, the C convention is used
 throughtou all the code: on a 32-bit arch, an Int64 is split into its lower
-bits and its higher bits, and then carrried on two registers.  Handling these
+bits and its higher bits, and then carried on two registers.  Handling these
 is relatively straightforward since the low-level operations are already
 written in `cmm_helpers`.
 
