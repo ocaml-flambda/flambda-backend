@@ -65,7 +65,7 @@ and lower these operations are explicit, e.g.:
 - field projection must be translated as a memory address computation
   (pointer of the value + offset of the field, which can depend on the integer
   size for the targeted architecture), and then a memory read
-- similarly, field assignements must be expressed as memory address
+- similarly, field assignments must be expressed as memory address
   computation followed by a memory write
 
 One good point compared to cmmgen is that we can assume that the flambda
@@ -201,7 +201,7 @@ flambda2.
 `un_cps` translate flambda2 expressions using two traversals of an flambda2
 body.
 
-The first traverssal iterates over all sets of closures defined by the body.
+The first traversal iterates over all sets of closures defined by the body.
 This allows to assign offsets to all members of sets of closures (taking into
 account constraints due to a potential sharing of closures of env vars beetween
 sets of closures), using the code in `un_cps_closure.ml`.
@@ -220,7 +220,7 @@ the `un_cps_static.ml` file.
 ### Tagging and unboxing
 
 In the code, this is one of the rather easy points. Flambda2 has a notion
-of kinds, which offser enough information about the memory representation
+of kinds, which offers enough information about the memory representation
 of values, e.g. boxed integers are identified with their size, tagged integers
 are differentiated from untagged integers, ... . Together with information
 about what the cmm primitives expect (i.e. which primitive expect or return
@@ -233,7 +233,7 @@ things. See the following for more details:
 - [the cmm doc](cmm.md) for info about the primitives in cmm
   (this is still a TODO)
 
-Unboxing is also straightforward: as mentioneed earlier, flambda2 already
+Unboxing is also straightforward: as mentioned earlier, flambda2 already
 takes care of identifying and applying all the unboxing we want, so `un_cps`
 only introduces the boxing and unboxing as needed, using the same information
 as for tagging/untagging.
@@ -249,7 +249,7 @@ the rest is relatively simple and can be understood directly from the code.
 #### Int64 on 32-bit archs
 
 Since in most cases, these are handled by C functions, the C convention is used
-throughtou all the code: on a 32-bit arch, an Int64 is split into its lower
+throughout all the code: on a 32-bit arch, an Int64 is split into its lower
 bits and its higher bits, and then carried on two registers.  Handling these
 is relatively straightforward since the low-level operations are already
 written in `cmm_helpers`.
@@ -301,12 +301,12 @@ a trap mechanism to mirror that of flambda2.
 This is the most complex part of `un_cps` and also the part most sensitive
 to changes (even innocuous changes in `un_cps` might break becasue of this).
 The goal is to substitute let-bound variable's bodies during translation, because
-it allows for more optimizations. There are two technical challengs
+it allows for more optimizations. There are two technical challenges
 with this:
 - keep the correct order of evaluation (with respect to effects and co-effects)
 - yet still allow for some re-ordering of evaluation, such as pure computations
   across other computations (as long as it doesn't cross into a recursive
-  continuations, in which case the expression might be valuated more than once).
+  continuations, in which case the expression might be evaluated more than once).
 
 Most of the code to deal with this is in the definition of the translation
 environment in `un_cps_env`: the environment accumulates all let-bindings
@@ -322,7 +322,7 @@ Let-bindings are stored in the environment in a few structures:
   or a single effectful binding.
 These two structures are used to store enough information to perform substitution
 if needed. Additionally, another map is used to relate all flambda2 variables to
-a corresponding cmm variables. This mapping is used when `un_cps` decides not to
+corresponding cmm variables. This mapping is used when `un_cps` decides not to
 substitute a variable's body.
 
 When a let-bound variable has to be translated, a special env lookup is used,
@@ -361,12 +361,12 @@ be seen as effectful let-bindings).
 ### Closure offsets
 
 Closure offset computation is done in two steps. First is to accumulate all
-information about sets of closures and members of these in ia mutable
-structure: by iterating over all sets of closure sin the flamdba2 program body,
+information about sets of closures and members of these in a mutable
+structure: by iterating over all sets of closures in the flamdba2 program body,
 we build a record for each set of closures. These records contain a list of
 closures and of env vars that belong to the set of closures; we will refer to
 them as slots. A slot is a member of a set of closures, currently a slot is
-occupied by either a closure or an env var.  Additionally, each slot record all
+occupied by either a closure or an env var.  Additionally, each slot records all
 the sets of closures in which it appears (hence the need for a mutable data
 structure, since there can be a lot of cycles). Additionally, earlier compilation
 units are checked for closure and env vars that already have assigned offsets
