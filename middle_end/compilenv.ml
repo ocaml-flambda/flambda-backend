@@ -116,14 +116,18 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | Some id -> concat_symbol prefix id
 
 let make_fun_symbol loc id =
-  let loc_bits =
+  let loc_parts =
     Debuginfo.Scoped_location.string_of_scoped_location loc
     |> String.split_on_char '.'
+    (* Remove last *)
+    |> List.rev |> List.tl |> List.rev
   in
-  let loc_bits =
-    List.rev (List.tl (List.rev loc_bits)) in
-  let bits = loc_bits @ [ id ] in
-  "_ZN" ^ String.concat "" (List.map (fun bit -> Int.to_string (String.length bit) ^ bit) bits) ^ "E"
+  (* Encode parts in the C++ name mangling convention *)
+  loc_parts @ [ id ]
+  |> List.map (fun part ->
+    Printf.sprintf "%d%s" (String.length part) part)
+  |> String.concat ""
+  |> Printf.sprintf "_ZN%sE" 
 
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
@@ -452,13 +456,27 @@ let closure_symbol fv =
   in
   Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
 
-let function_label fv =
-  let compilation_unit = Closure_id.get_compilation_unit fv in
-  let unitname =
-    Linkage_name.to_string
-      (Compilation_unit.get_linkage_name compilation_unit)
-  in
-  (concat_symbol unitname (Closure_id.unique_name fv))
+let function_label fv (dbg : Debuginfo.t) =
+  match dbg with
+  | [] ->
+    let compilation_unit = Closure_id.get_compilation_unit fv in
+    let unitname =
+      Linkage_name.to_string
+        (Compilation_unit.get_linkage_name compilation_unit)
+    in
+    let name = Closure_id.unique_name fv in
+    Printf.printf "No debug info for: %s\n" name;
+    concat_symbol unitname name
+  | item :: _ ->
+    let scoped_loc = Debuginfo.Scoped_location.Loc_known
+      { loc = Debuginfo.to_location dbg
+      ; scopes = item.dinfo_scopes
+      } in
+    make_fun_symbol scoped_loc (Closure_id.unique_name fv)
+  (*| items ->
+    Misc.fatal_errorf
+      "Expected at most one debug item, got %d" (List.length items)*)
+
 
 let require_global global_ident =
   if not (Ident.is_predef global_ident) then

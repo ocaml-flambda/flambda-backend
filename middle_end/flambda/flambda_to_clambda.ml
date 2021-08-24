@@ -450,7 +450,7 @@ and to_clambda_switch t env cases num_keys default =
 and to_clambda_direct_apply t func args direct_func probe dbg env
   : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
-  let label = Compilenv.function_label direct_func in
+  let label = Compilenv.function_label direct_func dbg in
   let uargs =
     let uargs = subst_vars env args in
     (* Remove the closure argument if the closure is closed.  (Note that the
@@ -540,7 +540,7 @@ and to_clambda_set_of_closures t env
           env, id :: params)
         function_decl.params (env, [])
     in
-    { label = Compilenv.function_label closure_id;
+    { label = Compilenv.function_label closure_id function_decl.dbg;
       arity = Flambda_utils.function_arity function_decl;
       params =
         List.map
@@ -588,7 +588,7 @@ and to_clambda_closed_set_of_closures t env symbol
       Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol
         (to_clambda t env_body function_decl.body)
     in
-    { label = Compilenv.function_label (Closure_id.wrap id);
+    { label = Compilenv.function_label (Closure_id.wrap id) function_decl.dbg;
       arity = Flambda_utils.function_arity function_decl;
       params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
       return = Lambda.Pgenval;

@@ -114,7 +114,7 @@ val closure_symbol : Closure_id.t -> Symbol.t
         (* Symbol of a function if the function is
            closed (statically allocated)
            flambda-only *)
-val function_label : Closure_id.t -> string
+val function_label : Closure_id.t -> Debuginfo.t -> string
         (* linkage name of the code of a function
            flambda-only *)
 
