@@ -50,6 +50,8 @@ val add_symbol : t -> Symbol.t -> t
 
 val add_name : t -> Name.t -> t
 
+val add_const : t -> Reg_width_things.Const.t -> t
+
 val add_simple : t -> Simple.t -> t
 
 val add_code_id : t -> Code_id.t -> t
