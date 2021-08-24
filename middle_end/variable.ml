@@ -22,6 +22,8 @@ type t = {
   name : string;
   name_stamp : int;
   (** [name_stamp]s are unique within any given compilation unit. *)
+  debug_info : Debuginfo.t option;
+  (** [debug_info] should be set for variables repreesnting functions *)
 }
 
 include Identifiable.Make (struct
@@ -62,7 +64,7 @@ end)
 
 let previous_name_stamp = ref (-1)
 
-let create_with_name_string ?current_compilation_unit name =
+let create_with_name_string ?current_compilation_unit ?debug_info name =
   let compilation_unit =
     match current_compilation_unit with
     | Some compilation_unit -> compilation_unit
@@ -75,14 +77,15 @@ let create_with_name_string ?current_compilation_unit name =
   { compilation_unit;
     name;
     name_stamp;
+    debug_info;
   }
 
-let create ?current_compilation_unit name =
+let create ?current_compilation_unit ?debug_info name =
   let name = (name : Internal_variable_names.t :> string) in
-  create_with_name_string ?current_compilation_unit name
+  create_with_name_string ?current_compilation_unit ?debug_info name
 
-let create_with_same_name_as_ident ident =
-  create_with_name_string (Ident.name ident)
+let create_with_same_name_as_ident ?debug_info ident =
+  create_with_name_string ?debug_info (Ident.name ident)
 
 let rename ?current_compilation_unit t =
   create_with_name_string ?current_compilation_unit t.name

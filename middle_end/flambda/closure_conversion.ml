@@ -208,7 +208,10 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            contents_kind = block_kind })
   | Lfunction { kind; params; body; attr; loc; } ->
     let name = Names.anon_fn_with_loc loc in
-    let closure_bound_var = Variable.create name in
+    let closure_bound_var =
+      let debug_info = Debuginfo.from_location loc in
+      Variable.create ~debug_info name
+    in
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
@@ -258,7 +261,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           | (let_rec_ident,
              Lambda.Lfunction { kind; params; body; attr; loc }) ->
             let closure_bound_var =
-              Variable.create_with_same_name_as_ident let_rec_ident
+              let debug_info = Debuginfo.from_location loc in
+              Variable.create_with_same_name_as_ident ~debug_info let_rec_ident
             in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
@@ -524,7 +528,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let st_exn = Static_exception.create () in
     let env = Env.add_static_exception env i st_exn in
     let ids = List.map fst ids in
-    let vars = List.map Variable.create_with_same_name_as_ident ids in
+    let vars =
+      List.map (fun ident -> Variable.create_with_same_name_as_ident ident) ids
+    in
     Static_catch (st_exn, vars, close t env body,
       close t (Env.add_vars env ids vars) handler)
   | Ltrywith (body, id, handler) ->

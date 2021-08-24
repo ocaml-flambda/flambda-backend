@@ -30,9 +30,10 @@ include Identifiable.S
 
 val create
    : ?current_compilation_unit:Compilation_unit.t
+  -> ?debug_info:Debuginfo.t
   -> Internal_variable_names.t
   -> t
-val create_with_same_name_as_ident : Ident.t -> t
+val create_with_same_name_as_ident : ?debug_info:Debuginfo.t -> Ident.t -> t
 
 val rename
    : ?current_compilation_unit:Compilation_unit.t
