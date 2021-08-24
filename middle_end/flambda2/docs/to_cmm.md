@@ -19,7 +19,7 @@ and [the cmm doc](cmm.md) for an overview of the cmm language.
 
 This section provides an overview of the main tasks of the `un_cps`
 translation. First these "tasks" are listed, and then are explained in details,
-together with their motivations and requirements. The tecnical aspect of how
+together with their motivations and requirements. The technical aspect of how
 these tasks are implemented will be discussed in the following section).
 
 The main challenges of the translation are:
