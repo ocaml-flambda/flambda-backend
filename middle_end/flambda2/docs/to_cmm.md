@@ -363,7 +363,7 @@ be seen as effectful let-bindings).
 Closure offset computation is done in two steps. First is to accumulate all
 information about sets of closures and members of these in ia mutable
 structure: by iterating over all sets of closure sin the flamdba2 program body,
-we build a record for each set of closures. These records contains a list of
+we build a record for each set of closures. These records contain a list of
 closures and of env vars that belong to the set of closures; we will refer to
 them as slots. A slot is a member of a set of closures, currently a slot is
 occupied by either a closure or an env var.  Additionally, each slot record all
