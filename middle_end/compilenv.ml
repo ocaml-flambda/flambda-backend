@@ -115,7 +115,7 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | None -> prefix
   | Some id -> concat_symbol prefix id
 
-let make_fun_symbol loc id =
+let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
   let loc_parts =
     Debuginfo.Scoped_location.string_of_scoped_location loc
     |> String.split_on_char '.'
@@ -123,7 +123,7 @@ let make_fun_symbol loc id =
     |> List.rev |> List.tl |> List.rev
   in
   (* Encode parts in the C++ name mangling convention *)
-  loc_parts @ [ id ]
+  unitname :: loc_parts @ [ id ]
   |> List.map (fun part ->
     Printf.sprintf "%d%s" (String.length part) part)
   |> String.concat ""
@@ -446,41 +446,33 @@ let structured_constants () =
          provenance = Some provenance;
        })
 
-let closure_symbol fv =
-  let compilation_unit = Closure_id.get_compilation_unit fv in
-  let unitname =
-    Linkage_name.to_string (Compilation_unit.get_linkage_name compilation_unit)
-  in
-  let linkage_name =
-    concat_symbol unitname ((Closure_id.unique_name fv) ^ "_closure")
-  in
-  Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
-
 let function_label closure_id =
-  let debug_info = Variable.debug_info (Closure_id.unwrap closure_id) in
-  match debug_info with
+  let compilation_unit = Closure_id.get_compilation_unit closure_id in
+  let unitname =
+    Linkage_name.to_string
+      (Compilation_unit.get_linkage_name compilation_unit)
+  in
+  let name = Closure_id.unique_name closure_id in
+  match Variable.debug_info (Closure_id.unwrap closure_id) with
   | None
   | Some [] ->
-    let compilation_unit = Closure_id.get_compilation_unit closure_id in
-    let unitname =
-      Linkage_name.to_string
-        (Compilation_unit.get_linkage_name compilation_unit)
-    in
-    let name = Closure_id.unique_name closure_id in
-    Printf.printf "No debug info for: %s\n" name;
     concat_symbol unitname name
-  | Some ((item :: _) as debug_info) ->
-    let scoped_loc = Debuginfo.Scoped_location.Loc_known
-      { loc = Debuginfo.to_location debug_info
-      ; scopes = item.dinfo_scopes
-      }
+  | Some ([ item ] as debug_info) ->
+    let scoped_loc =
+      Debuginfo.Scoped_location.Loc_known
+        { loc = Debuginfo.to_location debug_info
+        ; scopes = item.dinfo_scopes
+        }
     in
-    let name = Closure_id.unique_name closure_id in
-    Printf.printf "Debuginfo for %s: %s\n" name (Debuginfo.to_string debug_info);
-    make_fun_symbol scoped_loc name
-  (*| items ->
+    make_fun_symbol ~unitname scoped_loc name
+  | Some items ->
     Misc.fatal_errorf
-      "Expected at most one debug item, got %d" (List.length items)*)
+      "Expected at most one debug item, got %d" (List.length items)
+
+let closure_symbol closure_id =
+  let compilation_unit = Closure_id.get_compilation_unit closure_id in
+  let linkage_name = (function_label closure_id) ^ "_closure" in
+  Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
 
 let require_global global_ident =
   if not (Ident.is_predef global_ident) then
