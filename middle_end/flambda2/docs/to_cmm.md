@@ -43,7 +43,7 @@ The main challenges of the translation are:
 
 The points here (tagging/unboxing, and big/small values) are actually
 tasks that are also performed by cmmgen (because they are properties of the
-diffrecnes between representtion between middle-end and backend).
+diffrecnes between representation between middle-end and backend).
 
 #### Tagging and boxing
 
