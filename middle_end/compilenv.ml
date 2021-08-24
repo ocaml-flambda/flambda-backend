@@ -456,27 +456,31 @@ let closure_symbol fv =
   in
   Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
 
-let function_label fv (dbg : Debuginfo.t) =
-  match dbg with
-  | [] ->
-    let compilation_unit = Closure_id.get_compilation_unit fv in
+let function_label closure_id =
+  let debug_info = Variable.debug_info (Closure_id.unwrap closure_id) in
+  match debug_info with
+  | None
+  | Some [] ->
+    let compilation_unit = Closure_id.get_compilation_unit closure_id in
     let unitname =
       Linkage_name.to_string
         (Compilation_unit.get_linkage_name compilation_unit)
     in
-    let name = Closure_id.unique_name fv in
+    let name = Closure_id.unique_name closure_id in
     Printf.printf "No debug info for: %s\n" name;
     concat_symbol unitname name
-  | item :: _ ->
+  | Some ((item :: _) as debug_info) ->
     let scoped_loc = Debuginfo.Scoped_location.Loc_known
-      { loc = Debuginfo.to_location dbg
+      { loc = Debuginfo.to_location debug_info
       ; scopes = item.dinfo_scopes
-      } in
-    make_fun_symbol scoped_loc (Closure_id.unique_name fv)
+      }
+    in
+    let name = Closure_id.unique_name closure_id in
+    Printf.printf "Debuginfo for %s: %s\n" name (Debuginfo.to_string debug_info);
+    make_fun_symbol scoped_loc name
   (*| items ->
     Misc.fatal_errorf
       "Expected at most one debug item, got %d" (List.length items)*)
-
 
 let require_global global_ident =
   if not (Ident.is_predef global_ident) then
