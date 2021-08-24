@@ -185,8 +185,28 @@ let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
 
 let is_immediate_natint n = n <= 0x7FFF_FFFFn && n >= -0x8000_0000n
 
+
+(* The selector class *)
+
+class selector = object (self)
+
+inherit Selectgen.selector_generic as super
+
 (* Transforms [if] to allow it to be replaced by [cmovcc] *)
-let if_for_cmov exp =
+method if_for_cmov exp =
+  let can_transpose_cond_and_load ~mc ~mc' ~v ~v' ~mut ~mut' ~econd =
+    let same_load_parameters = mc = mc' && v = v' && mut = mut' in
+    let effects_and_load_compatibility =
+      mut = Asttypes.Immutable
+      ||
+      (match Selectgen.Effect_and_coeffect.(effect (self#effects_of econd)) with
+       | None -> true
+       | Raise -> true (* If we raise, then the mutable load is discarded anyway *)
+       | Arbitrary -> false
+      )
+    in
+    same_load_parameters && effects_and_load_compatibility
+  in
   match exp with
   | Cifthenelse(econd, dbg_c, ((Cvar _) as l), dbg_l, ((Cconst_int _) as r), dbg_r) ->
     force_bind "right" r
@@ -202,28 +222,22 @@ let if_for_cmov exp =
   | Cifthenelse(econd, dbg_c,
                 Cop(Cload(mc, mut),[Cvar(v)], dbg_load_l), dbg_l,
                 Cop(Cload(mc', mut'),[Cop(Cadda, [Cvar(v'); Cconst_int(i', dbg_i)], dbg_add_r)], dbg_load_r), dbg_r)
-    when mc = mc' && v = v' && mut = mut' ->
+    when can_transpose_cond_and_load ~mc ~mc' ~v ~v' ~mut ~mut' ~econd ->
     let ite = Cifthenelse(econd, dbg_c, Cconst_int(0,Debuginfo.none), dbg_l, Cconst_int(i', dbg_i), dbg_r) in
     Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_r)], dbg_load_r)
   | Cifthenelse(econd, dbg_c,
                 Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); Cconst_int(i, dbg_i)], dbg_add_l)], dbg_load_l), dbg_l,
                 Cop(Cload(mc', mut'),[Cvar(v')], dbg_load_r), dbg_r)
-    when mc = mc' && v = v' && mut = mut' ->
+    when can_transpose_cond_and_load ~mc ~mc' ~v ~v' ~mut ~mut' ~econd ->
     let ite = Cifthenelse(econd, dbg_c,Cconst_int(i, dbg_i), dbg_l, Cconst_int(0,Debuginfo.none), dbg_r) in
     Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_l)], dbg_load_l)
   | Cifthenelse(econd, dbg_c,
                 Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); Cconst_int(i, dbg_i)], dbg_add_l)], dbg_load_l), dbg_l,
                 Cop(Cload(mc', mut'),[Cop(Cadda, [Cvar(v'); Cconst_int(i', dbg_i')], dbg_add_r)], dbg_load_r), dbg_r)
-    when mc = mc' && v = v' && mut = mut' ->
+    when can_transpose_cond_and_load ~mc ~mc' ~v ~v' ~mut ~mut' ~econd ->
     let ite = Cifthenelse(econd, dbg_c,Cconst_int(i, dbg_i), dbg_l, Cconst_int(i',dbg_i'), dbg_r) in
     Cop(Cload(mc, mut),[Cop(Cadda, [Cvar(v); ite], dbg_add_l)], dbg_load_l)
   | exp -> exp
-
-(* The selector class *)
-
-class selector = object (self)
-
-inherit Selectgen.selector_generic as super
 
 method emit_cmov env expr ~econd ~ifso ~ifnot =
   match Selectgen.env_find ifso env, Selectgen.env_find ifnot env with
@@ -243,13 +257,13 @@ method emit_cmov env expr ~econd ~ifso ~ifnot =
   | _ -> super#emit_expr env expr
 
 method! emit_expr env expr =
-  match if_for_cmov expr with
+  match self#if_for_cmov expr with
   | Cifthenelse(econd, dbg_c, Cvar ifso, dbg_l, Cvar ifnot, dbg_r) ->
     self#emit_cmov env expr ~econd ~ifso ~ifnot
   | expr -> super#emit_expr env expr
 
 method! emit_tail env exp =
-  match if_for_cmov exp with
+  match self#if_for_cmov exp with
   | Cifthenelse(_, _, Cvar _, _, Cvar _, _) as ite ->
     self#emit_tail env (bind "x" ite (fun x -> x))
   | exp -> super#emit_tail env exp
