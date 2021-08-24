@@ -158,7 +158,7 @@ this set of closures, in addition to its own set of closures). However, flambda2
 relies on the fact that given a set of closures, it is possible to project a
 closure (or env var) from it in a static manner[1]. This means that every
 closure and env var must be assigned a unique offset so that in any set of
-closure, a closure or env var will be found at its offset (it if belongs to the
+closures, a closure or env var will be found at its offset (it if belongs to the
 set of closure). Additionally, some closures or env vars may have assigned offset
 from other compilation units, since flambda2 can perform cross-module inlining.
 
