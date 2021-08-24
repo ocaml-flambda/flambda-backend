@@ -346,7 +346,7 @@ adequate, but for variables not substituted, the let-binding information is
 let-binding info in the env, thus if the variable's body is not substituted, it
 simply stays in the env. Hence, the env needs to be "flushed" of its accumulated
 let-bindings at some precise points to ensure that all let-bindings are correctly
-translated and present in the generated cmm code. This presents two challenge:
+translated and present in the generated cmm code. This presents two challenges:
 - correctly identify all points where the env needs to be flushed (else variables
   may be unbound)
 - the env must be treated as a somewhat linear type, more precisely an env can
