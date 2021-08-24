@@ -48,6 +48,8 @@ val unique_name : t -> string
 
 val get_compilation_unit : t -> Compilation_unit.t
 
+val debug_info : t -> Debuginfo.t option
+
 val print_list : Format.formatter -> t list -> unit
 val print_opt : Format.formatter -> t option -> unit
 

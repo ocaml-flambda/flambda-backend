@@ -95,6 +95,8 @@ let in_compilation_unit t cu =
 
 let get_compilation_unit t = t.compilation_unit
 
+let debug_info t = t.debug_info
+
 let name t = t.name
 
 let unique_name t =
