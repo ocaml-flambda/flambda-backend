@@ -236,6 +236,7 @@ install: stage2
 	mkdir -p $(prefix)
 	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/bin $(prefix)
 	cp scripts/dummy-ocamlprof.sh $(prefix)/bin/ocamlprof
+	cp scripts/dummy-ocamlcp.sh $(prefix)/bin/ocamlcp
 	rsync --copy-links --chmod=u+rw,go+r -r $(stage2_prefix)/lib $(prefix)
 	rm -f $(prefix)/bin/ocamllex
 	ln -s $(prefix)/bin/ocamllex.opt $(prefix)/bin/ocamllex
