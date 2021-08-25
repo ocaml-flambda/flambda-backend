@@ -1377,7 +1377,8 @@ and let_dynamic_set_of_closures env res body closure_vars
   let l, env, effs =
     fill_layout decl_map layout.startenv elts env effs [] 0 layout.slots
   in
-  let csoc = C.make_closure_block l in
+  let has_zero_closures = Closure_id.Lmap.is_empty decls in
+  let csoc = C.make_closure_block l ~has_zero_closures in
   (* Create a variable to hold the set of closure *)
   let soc_var = Variable.create "*set_of_closures*" in
   let env = Env.bind_variable env soc_var effs false csoc in

@@ -294,10 +294,14 @@ let make_block ?(dbg=Debuginfo.none) kind args =
     end;
     make_array ~dbg Naked_floats args
 
-let make_closure_block ?(dbg=Debuginfo.none) l =
+let make_closure_block ?(dbg=Debuginfo.none) l ~has_zero_closures =
   assert (List.compare_length_with l 0 > 0);
-  let tag = Tag.(to_int closure_tag) in
-  make_alloc dbg tag l
+  (* Blocks consisting of only an environment must not have tag Closure_tag *)
+  if has_zero_closures then
+    make_alloc dbg 0 l
+  else
+    let tag = Tag.(to_int closure_tag) in
+    make_alloc dbg tag l
 
 (* Block access *)
 

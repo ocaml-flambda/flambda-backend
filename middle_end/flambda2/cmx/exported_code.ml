@@ -50,7 +50,7 @@ module Calling_convention = struct
     && Flambda_arity.equal params_arity1 params_arity2
     && Bool.equal is_tupled1 is_tupled2
 
-  let compute ~params_and_body ~is_tupled =
+  let compute ~params_and_body ~is_tupled : _ Or_deleted.t =
     match (params_and_body : _ Or_deleted.t) with
     | Present params_and_body ->
       let f ~return_continuation:_ _exn_continuation params ~body:_
@@ -63,21 +63,16 @@ module Calling_convention = struct
         let params_arity = Kinded_parameter.List.arity params in
         { needs_closure_arg = is_my_closure_used; params_arity; is_tupled; }
       in
-      P.pattern_match params_and_body ~f
-    | Deleted ->
-      (* A dummy that won't actually be used *)
-      { needs_closure_arg = false;
-        params_arity = [ Flambda_kind.value ];
-        is_tupled = false;
-      }
+      Present (P.pattern_match params_and_body ~f)
+    | Deleted -> Deleted
 end
 
 type t0 =
   | Present of {
     code : C.t;
-    calling_convention : Calling_convention.t;
+    calling_convention : Calling_convention.t Or_deleted.t;
   }
-  | Imported of { calling_convention : Calling_convention.t; }
+  | Imported of { calling_convention : Calling_convention.t Or_deleted.t; }
 
 type t = t0 Code_id.Map.t
 
@@ -90,11 +85,11 @@ let print0 ppf t0 =
          @[<hov 1>(calling_convention@ %a)@]\
        ))@]"
       C.print code
-      Calling_convention.print calling_convention
+      (Or_deleted.print Calling_convention.print) calling_convention
   | Imported { calling_convention; } ->
     Format.fprintf ppf
       "@[<hov 1>(Imported@ (calling_convention@ %a))@]"
-      Calling_convention.print calling_convention
+      (Or_deleted.print Calling_convention.print) calling_convention
 
 let print ppf t =
   Code_id.Map.print print0 ppf t
@@ -128,14 +123,14 @@ let merge t1 t2 =
     match t01, t02 with
     | Imported { calling_convention = cc1; },
       Imported { calling_convention = cc2; } ->
-      if Calling_convention.equal cc1 cc2 then Some t01
+      if Or_deleted.equal Calling_convention.equal cc1 cc2 then Some t01
       else
         Misc.fatal_errorf
           "Code id %a is imported with different calling conventions\
            (%a and %a)"
           Code_id.print code_id
-          Calling_convention.print cc1
-          Calling_convention.print cc2
+          (Or_deleted.print Calling_convention.print) cc1
+          (Or_deleted.print Calling_convention.print) cc2
     | Present _, Present _ ->
       Misc.fatal_errorf "Cannot merge two definitions for code id %a"
         Code_id.print code_id
@@ -143,14 +138,15 @@ let merge t1 t2 =
       (Present { calling_convention = cc_present; code = _; } as t0)
     | (Present { calling_convention = cc_present; code = _; } as t0),
       Imported { calling_convention = cc_imported; } ->
-      if Calling_convention.equal cc_present cc_imported then Some t0
+      if Or_deleted.equal Calling_convention.equal cc_present cc_imported
+      then Some t0
       else
         Misc.fatal_errorf
           "Code_id %a is present with calling convention %a\
            but imported with calling convention %a"
           Code_id.print code_id
-          Calling_convention.print cc_present
-          Calling_convention.print cc_imported
+          (Or_deleted.print Calling_convention.print) cc_present
+          (Or_deleted.print Calling_convention.print) cc_imported
   in
   Code_id.Map.union merge_one t1 t2
 

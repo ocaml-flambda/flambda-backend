@@ -93,7 +93,8 @@ val make_block :
 (** Create a block using the given fields. *)
 
 val make_closure_block :
-  ?dbg:Debuginfo.t -> Cmm.expression list -> Cmm.expression
+  ?dbg:Debuginfo.t -> Cmm.expression list ->
+  has_zero_closures:bool -> Cmm.expression
 (** Create a closure block. *)
 
 (** {2 Boxed numbers} *)

@@ -188,7 +188,11 @@ let exn_cont env = env.k_exn
 (* Function info *)
 
 let get_function_info env code_id =
-  Exported_code.find_calling_convention env.functions_info code_id
+  match Exported_code.find_calling_convention env.functions_info code_id with
+  | Present calling_convention -> calling_convention
+  | Deleted ->
+    Misc.fatal_errorf "No calling convention available for deleted code %a"
+      Code_id.print code_id
 
 let get_func_decl_params_arity t code_id =
   let info = get_function_info t code_id in

@@ -24,3 +24,9 @@ let print print_contents ppf t =
   match t with
   | Present contents -> print_contents ppf contents
   | Deleted -> Format.pp_print_string ppf "Deleted"
+
+let equal equal_contents t1 t2 =
+  match t1, t2 with
+  | Present contents1, Present contents2 -> equal_contents contents1 contents2
+  | Deleted, Deleted -> true
+  | Present _, Deleted | Deleted, Present _ -> false

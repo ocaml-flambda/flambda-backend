@@ -440,23 +440,28 @@ module Greedy = struct
   let rec create_closure_slots set state exported_code = function
     | [] -> state
     | (c, code_id) :: r ->
-        let s, state =
+        let slot =
           match find_closure_slot state c with
-          | Some s -> s, state
+          | Some s -> Some (s, state)
           | None ->
-              let calling_convention =
-                Exported_code.find_calling_convention exported_code code_id
-              in
+            match
+              Exported_code.find_calling_convention exported_code code_id
+            with
+            | Deleted -> None
+            | Present calling_convention ->
               let module CC = Exported_code.Calling_convention in
               let is_tupled = CC.is_tupled calling_convention in
               let params_arity = CC.params_arity calling_convention in
               let arity = List.length params_arity in
               let size = if arity = 1 && not is_tupled then 2 else 3 in
               let s = create_slot size (Closure c) in
-              s, add_closure_slot state c s
+              Some (s, add_closure_slot state c s)
         in
-        let () = add_unallocated_slot_to_set s set in
-        create_closure_slots set state exported_code r
+        match slot with
+        | None -> state
+        | Some (s, state) ->
+          let () = add_unallocated_slot_to_set s set in
+          create_closure_slots set state exported_code r
 
   let rec create_env_var_slots set state = function
     | [] -> state

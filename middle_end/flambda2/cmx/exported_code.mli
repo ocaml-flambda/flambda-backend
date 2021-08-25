@@ -49,7 +49,10 @@ val find_code : t -> Code_id.t -> Flambda.Code.t option
 
 val find_code_if_not_imported : t -> Code_id.t -> Flambda.Code.t option
 
-val find_calling_convention : t -> Code_id.t -> Calling_convention.t
+val find_calling_convention
+   : t
+  -> Code_id.t
+  -> Calling_convention.t Or_deleted.t
 
 val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
 

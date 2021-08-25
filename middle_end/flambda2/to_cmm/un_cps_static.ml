@@ -171,12 +171,17 @@ let rec static_set_of_closures env symbs set prev_update =
     | [] -> []
     (* Regular case. *)
     | _ ->
-      let header = C.cint (C.black_closure_header length) in
+      let header =
+        (* Blocks consisting of only an environment must not have tag
+           Closure_tag. *)
+        if Closure_id.Map.is_empty decls then C.black_block_header 0 length
+        else C.black_closure_header length
+      in
       let sdef = match !clos_symb with
         | None -> []
         | Some s -> C.define_symbol ~global:false (symbol s)
       in
-      header :: sdef @ l
+      (C.cint header) :: sdef @ l
   in
   env, block, updates
 
