@@ -3,8 +3,13 @@
 This repository is for more experimental work, of production quality, on the OCaml compiler.
 This is also the home of the Flambda 2 optimiser.
 
+The Flambda backend is currently based on OCaml 4.12.0.
+
 The following gives basic instructions for getting set up.  Please see
 [`HACKING.md`](HACKING.md) for more detailed instructions if you want to develop in this repo.
+That file also contains instructions for installing the Flambda backend compiler in a way
+that it can be used to build OPAM packages.  (The Flambda backend is expected to appear in the
+main OPAM repository by the end of 2021.)
 
 ## One-time setup for dev work or installation
 
@@ -24,11 +29,11 @@ You probably then want to fork the `ocaml-flambda/flambda-backend` repo to your 
 
 ## Branching and configuring
 
-Use normal commands to make a branch from the main upstream branch (currently `4.11`), e.g.:
+Use normal commands to make a branch from the desired upstream branch (typically `main`), e.g.:
 ```
 $ git clone https://github.com/ocaml-flambda/flambda-backend
 $ cd flambda-backend
-$ git checkout -b myfeature origin/4.11
+$ git checkout -b myfeature origin/main
 ```
 
 The Flambda backend tree has to be configured before building.  The configure script is not checked
