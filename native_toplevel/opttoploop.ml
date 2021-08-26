@@ -26,6 +26,8 @@ open Ast_helper
 
 module Genprintval = Genprintval_native
 
+let any_flambda = Config.flambda || Config.flambda2
+
 type res = Ok of Obj.t | Err of string
 type evaluation_outcome = Result of Obj.t | Exception of exn
 
@@ -93,7 +95,7 @@ let close_phrase lam =
 
 let toplevel_value id =
   let glob, pos =
-    if Config.flambda then toplevel_value id else Translmod.nat_toplevel_name id
+    if any_flambda then toplevel_value id else Translmod.nat_toplevel_name id
   in
   (Obj.magic (global_symbol glob)).(pos)
 
@@ -251,21 +253,33 @@ let load_lambda ppf ~module_ident ~required_globals lam size =
     else Filename.temp_file ("caml" ^ !phrase_name) ext_dll
   in
   let filename = Filename.chop_extension dll in
-  let program =
+  if Config.flambda2 then begin
+    let backend = (module Flambda2_backend_impl : Flambda2.Flambda_backend_intf.S) in
+    let middle_end = Flambda2.Flambda_middle_end.middle_end in
+    let flambda2_to_cmm = Flambda2_to_cmm.Un_cps.unit in
+    Asmgen.compile_implementation_flambda2 () ~toplevel:need_symbol
+      ~backend ~filename ~prefixname:filename
+      ~middle_end ~ppf_dump:ppf
+      ~size ~module_ident ~module_initializer:slam
+      ~flambda2_to_cmm ~required_globals
+  end
+  else begin
+    let program =
     { Lambda.
       code = slam;
       main_module_block_size = size;
       module_ident;
       required_globals;
     }
-  in
-  let middle_end =
-    if Config.flambda then Flambda_middle_end.lambda_to_clambda
-    else Closure_middle_end.lambda_to_clambda
-  in
-  Asmgen.compile_implementation ~toplevel:need_symbol
-    ~backend ~filename ~prefixname:filename
-    ~middle_end ~ppf_dump:ppf program;
+    in
+    let middle_end =
+      if Config.flambda then Flambda_middle_end.lambda_to_clambda
+      else Closure_middle_end.lambda_to_clambda
+    in
+    Asmgen.compile_implementation ~toplevel:need_symbol
+      ~backend ~filename ~prefixname:filename
+      ~middle_end ~ppf_dump:ppf program
+  end;
   Asmlink.call_linker_shared [filename ^ ext_obj] dll;
   Sys.remove (filename ^ ext_obj);
 
@@ -340,7 +354,7 @@ let execute_phrase print_outcome ppf phr =
       ignore (Includemod.signatures oldenv ~mark:Mark_positive sg sg');
       Typecore.force_delayed_checks ();
       let module_ident, res, required_globals, size =
-        if Config.flambda then
+        if any_flambda then
           let { Lambda.module_ident; main_module_block_size = size;
                 required_globals; code = res } =
             Translmod.transl_implementation_flambda !phrase_name
@@ -359,7 +373,7 @@ let execute_phrase print_outcome ppf phr =
         let out_phr =
           match res with
           | Result _ ->
-              if Config.flambda then
+              if any_flambda then
                 (* CR-someday trefis: *)
                 Env.register_import_as_opaque (Ident.name module_ident)
               else
