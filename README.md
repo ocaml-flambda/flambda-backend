@@ -1,4 +1,10 @@
-The Flambda backend project for OCaml.
+# The Flambda backend project for OCaml
+
+This repository is for more experimental work, of production quality, on the OCaml compiler.
+This is also the home of the Flambda 2 optimiser.
+
+The following gives basic instructions for getting set up.  Please see
+[`HACKING.md`](HACKING.md) for more detailed instructions if you want to develop in this repo.
 
 ## One-time setup for dev work or installation
 
