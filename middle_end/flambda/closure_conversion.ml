@@ -607,6 +607,9 @@ and close_functions t external_env function_declarations : Flambda.named =
     let param_vars = List.map (Env.find_var closure_env) params in
     let params = List.map Parameter.wrap param_vars in
     let closure_bound_var = Function_decl.closure_bound_var decl in
+    (* The closure_bound_var for a declared function should
+       always have the debug info *)
+    assert (Option.is_some (Variable.debug_info closure_bound_var));
     let unboxed_version = Variable.rename closure_bound_var in
     let body = close t closure_env body in
     let closure_origin =
@@ -668,7 +671,10 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
   | Lfunction { kind; params; body; attr; loc; } ->
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
-    let closure_bound_var = Variable.rename let_bound_var in
+    let closure_bound_var =
+      let debug_info = Debuginfo.from_location loc in
+      Variable.rename ~debug_info let_bound_var
+    in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind
         ~params:(List.map fst params) ~body ~attr ~loc

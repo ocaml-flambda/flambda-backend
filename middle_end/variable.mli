@@ -37,6 +37,7 @@ val create_with_same_name_as_ident : ?debug_info:Debuginfo.t -> Ident.t -> t
 
 val rename
    : ?current_compilation_unit:Compilation_unit.t
+  -> ?debug_info:Debuginfo.t
   -> t
   -> t
 

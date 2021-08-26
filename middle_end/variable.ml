@@ -87,8 +87,13 @@ let create ?current_compilation_unit ?debug_info name =
 let create_with_same_name_as_ident ?debug_info ident =
   create_with_name_string ?debug_info (Ident.name ident)
 
-let rename ?current_compilation_unit t =
-  create_with_name_string ?current_compilation_unit ?debug_info:t.debug_info t.name
+let rename ?current_compilation_unit ?debug_info t =
+  let debug_info = 
+    match debug_info with
+    | Some debug_info -> Some debug_info
+    | None -> t.debug_info 
+  in
+  create_with_name_string ?current_compilation_unit ?debug_info t.name
 
 let in_compilation_unit t cu =
   Compilation_unit.equal cu t.compilation_unit
