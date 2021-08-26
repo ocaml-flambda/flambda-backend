@@ -3,6 +3,35 @@
 This page is intended to keep track of useful information for people who
 want to modify the Flambda backend.
 
+## Branches, pull requests, etc.
+
+Pull requests should be submitted to the `main` branch, which is the default.
+
+Simple edits to documents can be committed directly via the Github "edit file"
+functionality for people with write access to the repo.  Changes requiring review
+and all code changes must go through PRs.
+
+PRs should not be merged unless all CI checks have passed unless there is a good
+reason.  It is not necessary to wait for CI checks to pass after genuinely trivial
+changes to a PR that was previously passing CI.
+
+There are also release branches (e.g. `release-4.12`) which are used for cutting
+production releases (which are all marked by git tags).  These branches should not be
+committed to without approval from the person responsible for the next release.
+
+## Upstream subtree
+
+The `ocaml/` directory contains a patched version of the upstream OCaml compiler
+around which is built the Flambda backend.  This directory is currently handled as
+a git subtree (not a submodule).
+
+Patches to the `ocaml/` subdirectory should be minimised and in the majority of cases
+be suitable for upstream submission.
+
+We are planning to move to a model where the patched upstream compiler is maintained
+in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
+We may then use a git submodule to import it into the Flambda backend repo.
+
 ## Rebuilding during dev work
 
 To rebuild after making changes, you can just type `make` (or `make -j16`, etc).
@@ -27,6 +56,30 @@ Any changes in `ocaml/asmcomp` and `ocaml/middle_end` directories
 should also be applied to the corresponding directories `backend` and
 `middle_end`.
 
+## Running tests
+
+Prior to `make install` you can do:
+- `make runtest` to run the Flambda backend tests (which use dune);
+- `make runtest-upstream` to run the upstream testsuite. The upstream
+testsuite runs much faster if you install GNU parallel. This is likely
+already present on Linux machines. On macOS, install Homebrew, then `brew
+install parallel`.
+
+There is also a `make ci` target (best run as e.g. `make -j16 ci`) which does a full build
+and test run.
+
+## Running only part of the upstream testsuite
+
+This can be done from the `_runtest` directory after it has been initialised by a previous `make runtest-upstream`.
+Any changes you have made to the tests in the real testsuite directory (`ocaml/testsuite/`) will need to be copied
+into here first.  Then you can do things like:
+```
+OCAMLSRCDIR=<FLAMBDA_BACKEND>/_runtest make one DIR=tests/runtime-errors
+```
+where `<FLAMBDA_BACKEND>` is the path to your clone.
+You may also need the `CAML_LD_LIBRARY_PATH` setting depending on what you are testing (see `Makefile.in` at the
+root).
+
 ## Running the compiler produced by "make hacking" on an example without the stdlib
 
 For small examples that don't need the stdlib or any other library provided by the
@@ -46,6 +99,69 @@ rm -f _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
 PATH=<FLAMBDA_BACKEND>/_build1/install/default/bin:$PATH <DUNE> build --profile=release --build-dir=_build2 --verbose _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
 ```
 where `<FLAMBDA_BACKEND>` is the path to your clone and `<DUNE>` is the path to the dune provided to `configure`.
+
+## Testing the compiler built locally with opam
+
+It is possible to create an `opam` switch with the Flambda backend compiler.
+
+First, you'll need to install the `opam-custom-install` plugin. See
+[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
+
+Then you'll need to create an empty switch. The recommended way is to use a
+local switch in the Flambda backend directory:
+
+```shell
+opam switch create . --empty
+```
+
+The Flambda backend must also be configured with this switch as prefix
+(this can be done before actually creating the switch, the directory only
+needs to exist during the installation step):
+
+```shell
+./configure --prefix=/path/to/cwd/_opam ...
+```
+
+Then build the compiler normally (`make`).
+Once that is done, we're ready to install the compiler:
+
+```shell
+opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
+```
+
+The exact version doesn't matter that much, but the version number should
+match the one in the Flambda backend tree.
+To finish the installation, `opam install ocaml` will install the remaining
+auxiliary packages necessary for a regular switch. After that, normal opam
+packages can be installed the usual way.
+
+It is also possible to update the compiler after hacking:
+```shell
+# This will reinstall the compiler, and recompile all packages
+# that depend on the compiler
+opam custom-install ocaml-variants -- make install
+# This skips recompilation of other packages,
+# particularly useful for debugging
+opam custom-install --no-recompilations ocaml-variants -- make install
+```
+
+## Pulling changes onto a release branch
+
+This should only be done with the approval of the person responsible for the next release.
+One way of doing it is as follows:
+```
+git checkout -b release-4.12 flambda-backend/release-4.12
+git reset --hard flambda-backend/main
+git rebase -i flambda-backend/release-4.12
+```
+assuming that `flambda-backend` is the git remote for the Flambda backend repo.
+
+The resulting local branch `release-4.12` should _not_ require a force push when pushed
+to the remote.
+
+## Rebasing to a new major version of the upstream compiler
+
+The procedure for this is still under development; talk to @poechsel or @mshinwell.
 
 ## How to add a new intrinsic to the compiler
 
@@ -102,47 +218,12 @@ library, and then the compiler.
   relies on the library tests to avoid duplication. Library tests use
   `Core`, but the library itself does not.
 
-## Testing the compiler built locally with opam
+## Installation tree comparison script
 
-It is possible to create an `opam` switch with the Flambda backend compiler.
-
-First, you'll need to install the `opam-custom-install` plugin. See
-[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
-
-Then you'll need to create an empty switch. The recommended way is to use a
-local switch in the Flambda backend directory:
-
-```shell
-opam switch create . --empty
-```
-
-The Flambda backend must also be configured with this switch as prefix
-(this can be done before actually creating the switch, the directory only
-needs to exist during the installation step):
-
-```shell
-./configure --prefix=/path/to/cwd/_opam ...
-```
-
-Then build the compiler normally (`make`).
-Once that is done, we're ready to install the compiler:
-
-```shell
-opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
-```
-
-The exact version doesn't matter that much, but the version number should
-match the one in the Flambda backend tree.
-To finish the installation, `opam install ocaml` will install the remaining
-auxiliary packages necessary for a regular switch. After that, normal opam
-packages can be installed the usual way.
-
-It is also possible to update the compiler after hacking:
-```shell
-# This will reinstall the compiler, and recompile all packages
-# that depend on the compiler
-opam custom-install ocaml-variants -- make install
-# This skips recompilation of other packages,
-# particularly useful for debugging
-opam custom-install --no-recompilations ocaml-variants -- make install
-```
+A target `make compare` exists to run a comparison script that finds differences
+between the upstream and Flambda backend install trees.  This script currently
+only runs on Linux, although it shouldn't be hard to port to macOS, especially
+if using GNU binutils.  It is recommended to install the Jane Street `patdiff` executable
+before running `make compare`.  The comparison script has not been maintained since the
+early releases of the Flambda backend; it was written as part of the acceptance process
+for the initial release.
