@@ -21,7 +21,7 @@
  (flags (:standard -principal -nostdlib -w -9))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries stdlib ocamlcommon ocamlbytecomp ocamloptcomp
-   dynlink_internal)
+   flambda2_to_cmm flambda2_backend_impl dynlink_internal)
  (modules genprintval_native opttoploop opttopdirs opttopmain))
 
 (rule
@@ -62,4 +62,3 @@
   )
   (section lib)
   (package ocaml))
-
