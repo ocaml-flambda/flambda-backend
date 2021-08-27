@@ -33,6 +33,8 @@ module Scoped_location : sig
   val of_location : scopes:scopes -> Location.t -> t
   val to_location : t -> Location.t
   val string_of_scoped_location : t -> string
+
+  val update_scopes : f:(scopes:scopes -> scopes) -> t -> t
 end
 
 type item = private {
@@ -70,6 +72,12 @@ val from_location : Scoped_location.t -> t
 val to_location : t -> Location.t
 
 val inline : t -> t -> t
+
+(** Update the scopes on the most recently inlined debug entry *)
+val update_scopes
+  : t
+  -> f:(scopes:Scoped_location.scopes -> Scoped_location.scopes)
+  -> t
 
 val compare : t -> t -> int
 

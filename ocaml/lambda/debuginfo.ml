@@ -106,6 +106,10 @@ module Scoped_location = struct
   let string_of_scoped_location = function
     | Loc_unknown -> "??"
     | Loc_known { loc = _; scopes } -> string_of_scopes scopes
+  
+  let update_scopes ~f = function 
+    | Loc_unknown -> Loc_unknown
+    | Loc_known { loc; scopes } -> Loc_known { loc; scopes = f ~scopes }
 end
 
 type item = {
@@ -190,6 +194,15 @@ let to_location = function
 
 let inline dbg1 dbg2 =
   dbg1 @ dbg2
+
+let update_scopes t ~f =
+  match t with
+  | [] ->
+    (* Misc.fatal_error "Debug info expected" *)
+    []
+  | item :: items ->
+    let item = { item with dinfo_scopes = f ~scopes:item.dinfo_scopes } in
+    item :: items
 
 (* CR-someday afrisch: FWIW, the current compare function does not seem very
    good, since it reverses the two lists. I don't know how long the lists are,
