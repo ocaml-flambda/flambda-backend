@@ -588,6 +588,11 @@ module Alloc_mode = struct
     | () -> Ok ()
     | exception NotSubmode -> Error ()
 
+  let equate a b =
+    match submode a b, submode b a with
+    | Ok (), Ok () -> Ok ()
+    | Error (), _ | _, Error () -> Error ()
+
   let next_id = ref (-1)
   let fresh () =
     incr next_id;

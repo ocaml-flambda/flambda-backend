@@ -50,6 +50,7 @@ type token =
   | METHOD
   | MATCH
   | LPAREN
+  | LOCAL
   | LIDENT of (string)
   | LETOP of (string)
   | LET

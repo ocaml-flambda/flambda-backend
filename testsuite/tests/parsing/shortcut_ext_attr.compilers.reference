@@ -71,6 +71,8 @@
                           structure_item (shortcut_ext_attr.ml[14,294+3]..[14,294+24])
                             Pstr_eval
                             expression (shortcut_ext_attr.ml[14,294+3]..[14,294+24])
+                              attribute "curry"
+                                []
                               attribute "foo"
                                 []
                               Pexp_fun

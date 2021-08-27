@@ -599,12 +599,14 @@ module Alloc_mode : sig
   val heap : t
   val local : t
   val of_const : alloc_mode_const -> t
-  
+
   val min_mode : t
 
   val max_mode : t
 
   val submode : t -> t -> (unit, unit) result
+
+  val equate : t -> t -> (unit, unit) result
 
   val join : t list -> t
 

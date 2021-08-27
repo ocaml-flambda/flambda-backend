@@ -155,6 +155,29 @@ let transl_type_param env styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_param env styp)
 
+let has_attr s styp =
+  List.exists
+    (fun attr -> String.equal attr.attr_name.txt s)
+    styp.ptyp_attributes
+
+let rec extract_params styp =
+  let final styp =
+    let ret_mode =
+      if has_attr "stack" styp then Alloc_mode.local else Alloc_mode.heap
+    in
+    [], styp, ret_mode
+  in
+  match styp.ptyp_desc with
+  | Ptyp_arrow (l, a, r) ->
+      let arg_mode =
+        if has_attr "stack" a then Alloc_mode.local else Alloc_mode.heap
+      in
+      let params, ret, ret_mode =
+        if has_attr "curry" r then final r
+        else extract_params r
+      in
+      (l, arg_mode, a) :: params, ret, ret_mode
+  | _ -> final styp
 
 let new_pre_univar ?name () =
   let v = newvar ?name () in pre_univars := v :: !pre_univars; v
@@ -197,37 +220,33 @@ and transl_type_aux env policy styp =
       end
     in
     ctyp (Ttyp_var name) ty
-  | Ptyp_arrow(l, st1, st2) ->
-    let has_attr a st =
-      List.exists (fun at -> at.attr_name.txt = a) st.ptyp_attributes in
-    let arg_mode =
-      if has_attr "stack" st1 then Alloc_mode.local else Alloc_mode.heap in
-    (* propagate [@stack] (ugly, should be done in parser) *)
-    let rec propagate_stack r =
-      match r.ptyp_desc with
-      | Ptyp_arrow (l, a, r') when not (has_attr "stackret" r) ->
-         { r with
-           ptyp_desc = Ptyp_arrow (l, a, propagate_stack r');
-           ptyp_attributes = { attr_name = Location.mknoloc "stackret";
-                               attr_loc = st1.ptyp_loc;
-                               attr_payload = PStr []
-                               } :: r.ptyp_attributes }
-      | _ -> r
-    in
-    let st2 =
-      if arg_mode = Alloc_mode.local then propagate_stack st2 else st2 in
-    let ret_mode =
-      if has_attr "stackret" st2 then Alloc_mode.local else Alloc_mode.heap in
-    let cty1 = transl_type env policy st1 in
-    let cty2 = transl_type env policy st2 in
-    let ty1 = cty1.ctyp_type in
-    let ty1 =
-      if Btype.is_optional l
-      then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
-      else ty1 in
-    let ty = newty (Tarrow((l,arg_mode,ret_mode),
-                           ty1, cty2.ctyp_type, Cok)) in
-    ctyp (Ttyp_arrow (l, cty1, cty2)) ty
+  | Ptyp_arrow _ ->
+      let args, ret, ret_mode = extract_params styp in
+      let rec loop acc_mode args =
+        match args with
+        | (l, arg_mode, arg) :: rest ->
+          let arg_cty = transl_type env policy arg in
+          let acc_mode = Alloc_mode.join [acc_mode; arg_mode] in
+          let ret_mode =
+            match rest with
+            | [] -> ret_mode
+            | _ :: _ -> acc_mode
+          in
+          let ret_cty = loop acc_mode rest in
+          let arg_ty = arg_cty.ctyp_type in
+          let arg_ty =
+            if Btype.is_optional l
+            then newty (Tconstr(Predef.path_option,[arg_ty], ref Mnil))
+            else arg_ty
+          in
+          let ty =
+            newty
+              (Tarrow((l,arg_mode,ret_mode), arg_ty, ret_cty.ctyp_type, Cok))
+          in
+          ctyp (Ttyp_arrow (l, arg_cty, arg_cty)) ty
+        | [] -> transl_type env policy ret
+      in
+      loop Alloc_mode.heap args
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
     let ctys = List.map (transl_type env policy) stl in
@@ -609,7 +628,6 @@ and transl_fields env policy o fields =
   let ty = List.fold_left (fun ty (s, ty') ->
       newty (Tfield (s, Fpresent, ty', ty))) ty_init fields in
   ty, object_fields
-
 
 (* Make the rows "fixed" in this type, to make universal check easier *)
 let rec make_fixed_univars ty =

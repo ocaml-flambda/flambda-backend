@@ -5,14 +5,19 @@ type t = int
 type smallrecord = {  a : t; b : t; c : t }
 
 
-external opaque_local : ('a[@stack]) -> ('a[@stackret]) = "%opaque"
-let ignore_local : ('a[@stack]) -> unit = fun x -> let[@stack] _ = opaque_local x in ()
+external opaque_local : local_ 'a -> local_ 'a = "%opaque"
+let ignore_local : local_ 'a -> unit =
+  fun x -> let _ = local_ opaque_local x in ()
 
 let makesmall n =
-  ignore_local { a = n; b = n; c = n }
+  ignore_local { a = n; b = n; c = n };
+  ()
+
 let smallconst = { a = 0; b = 0; c = 0 }
 
-let dupsmall r = ignore_local { r with a = 42 }
+let dupsmall r =
+  ignore_local { r with a = 42 };
+  ()
 
 type bigrecord = {
   v001 : t; v002 : t; v003 : t; v004 : t; v005 : t; v006 : t; v007 : t; v008 : t; v009 : t; v010 : t;
@@ -83,7 +88,7 @@ let bigconst =
   }
 
 let makebig n =
-  let[@stack] r =
+  let r = local_
     {
       v001 = n; v002 = n; v003 = n; v004 = n; v005 = n; v006 = n; v007 = n; v008 = n; v009 = n; v010 = n;
       v011 = n; v012 = n; v013 = n; v014 = n; v015 = n; v016 = n; v017 = n; v018 = n; v019 = n; v020 = n;
@@ -116,28 +121,53 @@ let makebig n =
       v281 = n; v282 = n; v283 = n; v284 = n; v285 = n; v286 = n; v287 = n; v288 = n; v289 = n; v290 = n;
       v291 = n; v292 = n; v293 = n; v294 = n; v295 = n; v296 = n; v297 = n; v298 = n; v299 = n; v300 = n;
     } in
-  ignore_local r
+  ignore_local r;
+  ()
 
 let dupbig r =
-  let[@stack] v = { r with v001 = 42 } in
-  ignore_local v
+  let v = local_ { r with v001 = 42 } in
+  ignore_local v;
+  ()
 
 type floatrecord = { x: float; y: float; z: float }
-let makefloat n = ignore_local { x=n; y=n; z=n }
-let floatconst = {x=0.; y=0.; z=0.}
-let dupfloat n = ignore_local {n with x=42.}
+let makefloat n =
+  ignore_local { x=n; y=n; z=n };
+  ()
 
-let makepolyvariant n = ignore_local (`Foo (n, n, n))
+let floatconst = {x=0.; y=0.; z=0.}
+
+let dupfloat n =
+  ignore_local {n with x=42.};
+  ()
+
+let makepolyvariant n =
+  ignore_local (`Foo (n, n, n));
+  ()
 
 type 'a ext = ..
 type 'a ext += Foo of 'a
-let makeextension n = ignore_local (Foo (n, n, n))
+let makeextension n =
+  ignore_local (Foo (n, n, n));
+  ()
 
-let makeintarray (n:int) = ignore_local [| n |]
-let makeaddrarray (n:int list) = ignore_local [| n |]
-let makefloatarray (n:float) = ignore_local [| n |]
-let makeshortarray n = ignore_local [| n |]
-let makelongarray n = ignore_local
+let makeintarray (n:int) =
+  ignore_local [| n |];
+  ()
+
+let makeaddrarray (n:int list) =
+  ignore_local [| n |];
+  ()
+
+let makefloatarray (n:float) =
+  ignore_local [| n |];
+  ()
+
+let makeshortarray n =
+  ignore_local [| n |];
+  ()
+
+let makelongarray n =
+  ignore_local
    [| n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
@@ -161,14 +191,17 @@ let makelongarray n = ignore_local
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
-      n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |]
+      n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |];
+  ()
 
-external local_ref : 'a -> ('a ref)[@stackret] = "%makelocalmutable"
-let makeref n = ignore_local (local_ref n)
+external local_ref : 'a -> local_ 'a ref = "%makelocalmutable"
+let makeref n =
+  ignore_local (local_ref n);
+  ()
 
 let rec makemanylong n =
   if n = 0 then () else
-  let[@stack] stuff =
+  let stuff = local_
    [| n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n;
@@ -195,12 +228,14 @@ let rec makemanylong n =
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |]
   in
   makemanylong (n-1);
-  ignore_local stuff
+  ignore_local stuff;
+  ()
 
-external local_array: int -> 'a -> ('a array)[@stackret] = "caml_make_local_vect"
+external local_array: int -> 'a -> local_ 'a array = "caml_make_local_vect"
 
 let makeverylong n =
-  ignore_local (local_array 10_000 n)
+  ignore_local (local_array 10_000 n);
+  ()
 
 (* FIXME:
     Higher-order code:

@@ -124,6 +124,8 @@ val force_delayed_checks: unit -> unit
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 
+val escape : loc:Location.t -> env:Env.t -> Alloc_mode.t -> unit
+
 val self_coercion : (Path.t * Location.t list ref) list ref
 
 type error =
@@ -190,7 +192,8 @@ type error =
   | Local_argument_escapes
   | Local_return_value_escapes
   | Local_value_escapes
-
+  | Param_mode_clash of type_expr
+  | Unannotated_local_return
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

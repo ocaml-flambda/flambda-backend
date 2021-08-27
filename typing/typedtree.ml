@@ -40,6 +40,7 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
+    pat_mode: alloc_mode;
     pat_env: Env.t;
     pat_attributes: attribute list;
    }
@@ -622,6 +623,7 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_loc = p.pat_loc;
     pat_extra = [];
     pat_type = p.pat_type;
+    pat_mode = p.pat_mode;
     pat_env = p.pat_env;
     pat_attributes = [];
   }
@@ -741,10 +743,10 @@ let rec iter_bound_idents
   = fun f pat ->
   match pat.pat_desc with
   | Tpat_var (id,s) ->
-     f (id,s,pat.pat_type)
+     f (id,s,pat.pat_type,pat.pat_mode)
   | Tpat_alias(p, id, s) ->
       iter_bound_idents f p;
-      f (id,s,pat.pat_type)
+      f (id,s,pat.pat_type,pat.pat_mode)
   | Tpat_or(p1, _, _) ->
       (* Invariant : both arguments bind the same variables *)
       iter_bound_idents f p1
@@ -760,7 +762,7 @@ let rev_pat_bound_idents_full pat =
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_,_) -> id) idents_full
+  List.rev_map (fun (id,_,_,_) -> id) idents_full
 
 let pat_bound_idents_full pat =
   List.rev (rev_pat_bound_idents_full pat)

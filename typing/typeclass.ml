@@ -819,6 +819,8 @@ and class_field_aux self_loc cl_num self_type meths vars
 and class_structure cl_num final val_env met_env loc
   { pcstr_self = spat; pcstr_fields = str } =
   (* Environment for substructures *)
+  let val_env = Env.add_lock Alloc_mode.heap val_env in
+  let met_env = Env.add_lock Alloc_mode.heap met_env in
   let par_env = met_env in
 
   (* Location of self. Used for locations of self arguments *)
@@ -1065,6 +1067,7 @@ and class_expr_aux cl_num val_env met_env scl =
         Typecore.check_partial val_env pat.pat_type pat.pat_loc
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
+      let val_env' = Env.add_lock Alloc_mode.heap val_env' in
       Ctype.raise_nongen_level ();
       let cl = class_expr cl_num val_env' met_env scl' in
       Ctype.end_def ();
@@ -1190,7 +1193,8 @@ and class_expr_aux cl_num val_env met_env scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, _id_loc, _typ) (vals, met_env) ->
+          (fun (id, id_loc, _typ, mode) (vals, met_env) ->
+             Typecore.escape ~loc:id_loc.loc ~env:val_env mode;
              let path = Pident id in
              (* do not mark the value as used *)
              let vd = Env.find_value path val_env in

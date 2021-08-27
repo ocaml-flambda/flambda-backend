@@ -980,18 +980,20 @@ let rec tree_of_typexp sch ty =
                 tree_of_typexp sch ty
             | _ -> Otyp_stuff "<hidden>"
           else tree_of_typexp sch ty1 in
-        let t1 =
+        let am =
           match Alloc_mode.check_const marg with
-          | Some Local -> Otyp_attribute (t1, {oattr_name="stack"})
-          | _ -> t1
+          | Some Heap -> Oam_global
+          | Some Local -> Oam_local
+          | None -> Oam_unknown
         in
         let t2 = tree_of_typexp sch ty2 in
-        let t2 =
+        let rm =
           match Alloc_mode.check_const mret with
-          | Some Local -> Otyp_attribute (t2, {oattr_name="stackret"})
-          | _ -> t2
+          | Some Heap -> Oam_global
+          | Some Local -> Oam_local
+          | None -> Oam_unknown
         in
-        Otyp_arrow (lab, t1, t2)
+        Otyp_arrow (lab, am, t1, rm, t2)
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist sch tyl)
     | Tconstr(p, tyl, _abbrev) ->

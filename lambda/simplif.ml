@@ -533,6 +533,7 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
+          (* FIXME: not safe with local allocations *)
           Lfunction{kind; params = params @ params'; return; body; attr; loc; mode}
       | body ->
           Lfunction{kind; params; return = return1; body; attr; loc; mode}

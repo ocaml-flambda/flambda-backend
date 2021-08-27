@@ -25,6 +25,7 @@ let omega = {
   pat_loc = Location.none;
   pat_extra = [];
   pat_type = Ctype.none;
+  pat_mode = Alloc_mode.local;
   pat_env = Env.empty;
   pat_attributes = [];
 }

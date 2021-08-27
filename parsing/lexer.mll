@@ -63,6 +63,7 @@ let keyword_table =
     "initializer", INITIALIZER;
     "lazy", LAZY;
     "let", LET;
+    "local_", LOCAL;
     "match", MATCH;
     "method", METHOD;
     "module", MODULE;

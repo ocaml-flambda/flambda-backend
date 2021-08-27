@@ -2559,12 +2559,9 @@ let unify_package env unify_list lv1 p1 n1 tl1 lv2 p2 n2 tl2 =
   && !package_subtype env p2 n2 tl2 p1 n1 tl1 then () else raise Not_found
 
 let unify_alloc_mode a b =
-  match
-    Types.Alloc_mode.submode a b,
-    Types.Alloc_mode.submode b a
-  with
-  | Ok (), Ok () -> ()
-  | _ -> raise (Unify [])
+  match Types.Alloc_mode.equate a b with
+  | Ok () -> ()
+  | Error () -> raise (Unify [])
 
 (* force unification in Reither when one side has a non-conjunctive type *)
 let rigid_variants = ref false

@@ -797,6 +797,7 @@ and transl_curried_function
                    { arg_label = _; param = param'; cases = cases';
                      partial = partial'; }; exp_env; exp_type;exp_loc}}]
       when arity <  max_arity ->
+      (* FIXME: Not always safe with local allocations  *)
       if  Parmatch.inactive ~partial pat
       then
         let kind = value_kind pat.pat_env pat.pat_type in
@@ -1088,9 +1089,9 @@ and transl_match ~scopes e arg pat_expr_list partial =
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
            use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full pv in
-        let ids = List.map (fun (id, _, _) -> id) ids_full in
+        let ids = List.map (fun (id, _, _, _) -> id) ids_full in
         let ids_kinds =
-          List.map (fun (id, _, ty) -> id, Typeopt.value_kind pv.pat_env ty)
+          List.map (fun (id, _, ty, _) -> id, Typeopt.value_kind pv.pat_env ty)
             ids_full
         in
         let vids = List.map Ident.rename ids in

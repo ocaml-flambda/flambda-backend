@@ -258,6 +258,14 @@ let pr_var = Pprintast.tyvar
 let pr_vars =
   print_list pr_var (fun ppf -> fprintf ppf "@ ")
 
+let join_modes rm1 am2 =
+  match rm1, am2 with
+  | Oam_local, _ -> Oam_local
+  | _, Oam_local -> Oam_local
+  | Oam_unknown, _ -> Oam_unknown
+  | _, Oam_unknown -> Oam_unknown
+  | Oam_global, Oam_global -> Oam_global
+
 let rec print_out_type ppf =
   function
   | Otyp_alias (ty, s) ->
@@ -267,19 +275,48 @@ let rec print_out_type ppf =
         pr_vars sl
         print_out_type ty
   | ty ->
-      print_out_type_1 ppf ty
+      print_out_type_1 ppf Oam_global ty
 
-and print_out_type_1 ppf =
+and print_out_type_1 ppf mode =
   function
-    Otyp_arrow (lab, ty1, ty2) ->
+  | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
       if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
-      print_out_type_2 ppf ty1;
+      print_out_arg ppf am ty1;
       pp_print_string ppf " ->";
       pp_print_space ppf ();
-      print_out_type_1 ppf ty2;
+      let mode = join_modes mode am in
+      print_out_ret ppf mode rm ty2;
       pp_close_box ppf ()
-  | ty -> print_out_type_2 ppf ty
+  | ty ->
+    match mode with
+    | Oam_local ->
+        pp_print_string ppf "local_";
+        pp_print_space ppf ();
+        print_out_type_2 ppf ty
+    | Oam_unknown -> print_out_type_2 ppf ty
+    | Oam_global -> print_out_type_2 ppf ty
+
+and print_out_arg ppf am ty =
+  match am with
+  | Oam_local ->
+      pp_print_string ppf "local_";
+      pp_print_space ppf ();
+      print_out_type_2 ppf ty
+  | Oam_global -> print_out_type_2 ppf ty
+  | Oam_unknown -> print_out_type_2 ppf ty
+
+and print_out_ret ppf mode rm ty =
+  match mode, rm with
+  | Oam_local, Oam_local
+  | Oam_global, Oam_global
+  | Oam_unknown, _
+  | _, Oam_unknown -> print_out_type_1 ppf mode ty
+  | _, Oam_local ->
+      pp_print_string ppf "local_";
+      pp_print_space ppf ();
+      print_out_type_2 ppf ty
+  | _, Oam_global -> print_out_type_2 ppf ty
 
 and print_out_type_2 ppf =
   function

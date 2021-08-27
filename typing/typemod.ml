@@ -1957,6 +1957,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv, true
       in
+      let newenv = Env.add_lock Alloc_mode.heap newenv in
       let body = type_module sttn funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
@@ -2169,7 +2170,8 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         Tstr_value(rec_flag, defs),
-        List.map (fun (id, { Asttypes.loc; _ }, _typ)->
+        List.map (fun (id, { Asttypes.loc; _ }, _typ, mode)->
+          Typecore.escape ~loc ~env:newenv mode;
           Signature_names.check_value names loc id;
           Sig_value(id, Env.find_value (Pident id) newenv, Exported)
         ) (let_bound_idents_full defs),
