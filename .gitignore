@@ -45,6 +45,7 @@ _compare/
 _runtest/
 _stage2_configure/
 autom4te.cache
+_install/
 
 /Makefile
 /config.log
