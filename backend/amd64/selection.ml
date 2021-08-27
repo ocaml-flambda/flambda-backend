@@ -147,12 +147,26 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ioffset_loc (_, _)|Ifloatsqrtf _ |Irdtsc)
+              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
     -> raise Use_default
+
+let select_locality (l : Cmm.prefetch_temporal_locality_hint)
+  : Arch.prefetch_temporal_locality_hint =
+  match l with
+  | Nonlocal -> Nonlocal
+  | Low -> Low
+  | Moderate -> Moderate
+  | High -> High
+
+let one_arg name args =
+  match args with
+  | [arg] -> arg
+  | _ ->
+    Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
@@ -301,6 +315,23 @@ method! select_operation op args dbg =
       Ispecific Izextend32, [arg]
     | _ -> super#select_operation op args dbg
     end
+  | Cprefetch { is_write; locality; } ->
+      (* Emit prefetch for read hint when prefetchw is not supported.
+         Matches the behavior of gcc's __builtin_prefetch *)
+      let is_write =
+        if is_write && not !prefetchw_support
+        then false
+        else is_write
+      in
+      let locality : Arch.prefetch_temporal_locality_hint =
+        match select_locality locality with
+        | Moderate when is_write && not !prefetchwt1_support -> High
+        | l -> l
+      in
+      let addr, eloc =
+        self#select_addressing Word_int (one_arg "prefetch" args)
+      in
+      Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   | _ -> super#select_operation op args dbg
 
 (* Recognize float arithmetic with mem *)
