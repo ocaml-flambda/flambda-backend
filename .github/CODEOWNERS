@@ -1,0 +1,73 @@
+# Later lines in the file take precedence.
+
+*       @mshinwell
+
+.github/                @mshinwell
+.github/CODEOWNERS      @mshinwell @lpw25
+.gitignore              @mshinwell
+
+.vscode                 @mshinwell
+
+autoconf-aux            @mshinwell
+configure.ac            @mshinwell
+**/dune                 @mshinwell
+**/dune-project         @mshinwell
+Makefile.in             @mshinwell
+
+flambda_backend.opam    @mshinwell
+
+HACKING.md      @mshinwell
+README.md       @mshinwell
+
+build_ocaml_compiler.sexp       @poechsel
+
+backend/                        @gretay-js @xclerc
+backend/debug/                  @mshinwell
+
+driver/                         @mshinwell
+
+external/memtrace/              @stedolan
+
+file_formats/                   @mshinwell
+
+middle_end/                     @mshinwell
+
+middle_end/flambda2/                    @mshinwell @lthls
+middle_end/flambda2/backend_intf        @mshinwell @lthls
+middle_end/flambda2/basic               @mshinwell @lthls
+middle_end/flambda2/cmx                 @lthls @mshinwell
+middle_end/flambda2/compilenv_deps      @mshinwell @gbury
+middle_end/flambda2/from_lambda         @lthls @mshinwell
+middle_end/flambda2/inlining            @poechsel @lukemaurer
+middle_end/flambda2/lifting             @mshinwell @chambart
+middle_end/flambda2/naming              @mshinwell @lthls
+middle_end/flambda2/simplify            @mshinwell @gbury
+middle_end/flambda2/terms               @mshinwell @lthls
+middle_end/flambda2/to_cmm              @gbury @lthls
+middle_end/flambda2/types               @lthls @chambart
+middle_end/flambda2/unboxing            @chambart @gbury
+
+middle_end/flambda2/compare             @lukemaurer
+middle_end/flambda2/parser              @lukemaurer
+middle_end/flambda2/tests               @lukemaurer
+
+middle_end/flambda2/scripts             @mshinwell
+
+middle_end/flambda2/docs/backend_exceptions.md  @lthls
+middle_end/flambda2/docs/to_cmm.md              @gbury
+middle_end/flambda2/docs/types.md               @lthls
+
+native_toplevel/                @mshinwell
+
+ocaml/asmcomp/                  @gretay-js @xclerc
+ocaml/runtime/                  @stedolan
+ocaml/typing/                   @lpw25 @antalsz
+
+scripts/                        @mshinwell
+
+testsuite/tools                 @gretay-js
+testsuite/flambda2-test-list    @xclerc
+
+tools/merge_archives.ml         @mshinwell @xclerc
+tools/merge_dot_a_files.sh      @mshinwell @xclerc
+tools/objinfo.ml                @mshinwell @xclerc
