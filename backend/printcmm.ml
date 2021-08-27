@@ -92,16 +92,10 @@ let chunk = function
   | Double -> "float64"
 
 let temporal_locality = function
-  (* XCR mshinwell: It's probably better to have this print "not_at_all" to
-     avoid confusion
-
-     gyorsh: fixed.
-  *)
   | Nonlocal -> "nonlocal"
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"
-
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with

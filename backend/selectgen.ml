@@ -445,8 +445,7 @@ method effects_of exp =
       | Capply _ | Cextcall _ | Cprobe _ -> EC.arbitrary
       | Calloc -> EC.none
       | Cstore _ -> EC.effect_only Effect.Arbitrary
-      | Cprefetch _ -> EC.join (EC.effect_only Effect.Arbitrary)
-                               (EC.coeffect_only Coeffect.Arbitrary)
+      | Cprefetch _ -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable

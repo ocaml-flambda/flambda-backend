@@ -204,7 +204,6 @@ let print_instr b = function
   | POPCNT (arg1, arg2) -> i2 b "popcnt" arg1 arg2
   | PREFETCH (is_write, hint, arg1) ->
     (match is_write, hint with
-      (* XCR mshinwell: Exhaustive match again please *)
      | true, T0 -> i1 b "prefetchw" arg1
      | true, (T1|T2|Nta) -> i1 b "prefetchwt1" arg1
      | false, (T0|T1|T2|Nta) ->

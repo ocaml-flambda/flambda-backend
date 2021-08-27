@@ -102,8 +102,6 @@ type exit_label =
 
 type rec_flag = Nonrecursive | Recursive
 
-(* XCR mshinwell: Rename to [prefetch_temporal_locality] so it's clear what
-   this refers to. *)
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type effects = No_effects | Arbitrary_effects

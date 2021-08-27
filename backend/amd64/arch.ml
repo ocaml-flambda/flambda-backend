@@ -36,21 +36,22 @@ let command_line_options =
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
     "-fpopcnt", Arg.Set popcnt_support,
-      " Use POPCNT instruction (not available prior to Nehalem)";
+      " Use POPCNT instruction (not available prior to Nehalem) (default)";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use POPCNT instruction";
     "-fcrc32", Arg.Set crc32_support,
-      " Use CRC32 instructions (requires SSE4.2 support)";
+      " Use CRC32 instructions (requires SSE4.2 support) (default)";
     "-fno-crc32", Arg.Clear crc32_support,
       " Do not emit CRC32 instructions";
     "-fprefetchw", Arg.Set prefetchw_support,
-      " Use PREFETCHW instructions (not available on Haswell and earlier)";
+      " Use PREFETCHW instructions (not available on Haswell and earlier) \
+        (default)";
     "-fno-prefetchw", Arg.Clear prefetchw_support,
       " Do not use PREFETCHW instructions";
     "-fprefetchwt1", Arg.Set prefetchwt1_support,
       " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
     "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
-      " Do not use PREFETCHWT1 instructions";
+      " Do not use PREFETCHWT1 instructions (default)";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -64,8 +65,6 @@ type addressing_mode =
   | Iscaled of int * int                (* reg * scale + displ *)
   | Iindexed2scaled of int * int        (* reg + reg * scale + displ *)
 
-(* XCR mshinwell: rename to prefetch_locality_hint or something?  (I left a
-   similar CR elsewhere; it would be worth ensuring the names match.) *)
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
 type prefetch_info = {
@@ -136,8 +135,7 @@ let num_args_addressing = function
 (* Printing operations and addressing modes *)
 
 let string_of_prefetch_temporal_locality_hint = function
-  | Nonlocal -> "nonlocal" (* XCR mshinwell: same comment as in the Cmm part
-                              gyorsh: fixed. *)
+  | Nonlocal -> "nonlocal"
   | Low -> "low"
   | Moderate -> "moderate"
   | High -> "high"

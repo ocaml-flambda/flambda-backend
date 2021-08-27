@@ -2660,6 +2660,7 @@ let bigstring_prefetch ~is_write locality args dbg =
   if_operation_supported op ~f:(fun () ->
     let arg1, arg2 = two_args "bigstring_prefetch" args in
     bind "ba" arg1 (fun ba ->
+      (* [arg2], the index, is already untagged. *)
       bind "index" arg2 (fun idx ->
         bind "ba_data"
           (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
@@ -2674,9 +2675,6 @@ let prefetch ~is_write locality arg dbg =
   if_operation_supported op ~f:(fun () -> (Cop (op, [arg], dbg)))
 
 let ext_pointer_prefetch ~is_write locality arg dbg =
-  (* XCR mshinwell: Use [int_as_pointer] if possible
-
-     gyorsh: ah, yes, I didn't think of it, thanks! *)
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
 
 (** [transl_builtin prim args dbg] returns None if the built-in [prim]
@@ -2806,14 +2804,6 @@ let transl_builtin name args dbg =
   | "caml_ext_pointer_store_unboxed_float" ->
     ext_pointer_store Double name args dbg
   (* Bigstring prefetch *)
-  (* XCR mshinwell: These names seem very Intel-specific.  I think if we're
-     going to have prefetch as a Cmm operations, these C function names
-     should probably match the data constructors (High, Moderate, etc).
-     This would also make it obvious that this piece of code is correct; it
-     is not obvious at all at present.
-
-     gyorsh: fixed.
-  *)
   | "caml_prefetch_write_high_bigstring_untagged" ->
     bigstring_prefetch ~is_write:true High args dbg
   | "caml_prefetch_write_moderate_bigstring_untagged" ->
@@ -2832,13 +2822,13 @@ let transl_builtin name args dbg =
     bigstring_prefetch ~is_write:false Low args dbg
   (* Ext_pointer prefetch *)
   | "caml_prefetch_write_high_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  High (one_arg name args) dbg
+    ext_pointer_prefetch ~is_write:true High (one_arg name args) dbg
   | "caml_prefetch_write_moderate_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  Moderate (one_arg name args) dbg
+    ext_pointer_prefetch ~is_write:true Moderate (one_arg name args) dbg
   | "caml_prefetch_write_low_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  Low (one_arg name args) dbg
+    ext_pointer_prefetch ~is_write:true Low (one_arg name args) dbg
   | "caml_prefetch_write_none_ext_pointer" ->
-    ext_pointer_prefetch ~is_write:true  Nonlocal (one_arg name args) dbg
+    ext_pointer_prefetch ~is_write:true Nonlocal (one_arg name args) dbg
   | "caml_prefetch_read_none_ext_pointer" ->
     ext_pointer_prefetch ~is_write:false Nonlocal (one_arg name args) dbg
   | "caml_prefetch_read_high_ext_pointer" ->
@@ -2851,11 +2841,11 @@ let transl_builtin name args dbg =
   | "caml_prefetch_write_high_native_pointer_unboxed" ->
     prefetch ~is_write:true High (one_arg name args) dbg
   | "caml_prefetch_write_moderate_native_pointer_unboxed" ->
-    prefetch ~is_write:true  Moderate (one_arg name args) dbg
+    prefetch ~is_write:true Moderate (one_arg name args) dbg
   | "caml_prefetch_write_low_native_pointer_unboxed" ->
-    prefetch ~is_write:true  Low (one_arg name args) dbg
+    prefetch ~is_write:true Low (one_arg name args) dbg
   | "caml_prefetch_write_none_native_pointer_unboxed" ->
-    prefetch ~is_write:true  Nonlocal (one_arg name args) dbg
+    prefetch ~is_write:true Nonlocal (one_arg name args) dbg
   | "caml_prefetch_read_none_native_pointer_unboxed" ->
     prefetch ~is_write:false Nonlocal (one_arg name args) dbg
   | "caml_prefetch_read_high_native_pointer_unboxed" ->

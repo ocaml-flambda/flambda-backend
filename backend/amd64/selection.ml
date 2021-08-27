@@ -328,9 +328,9 @@ method! select_operation op args dbg =
         | Moderate when is_write && not !prefetchwt1_support -> High
         | l -> l
       in
-      (* XCR mshinwell: List.hd again *)
-      let addr, eloc = self#select_addressing Word_int
-                         (one_arg "prefetch" args) in
+      let addr, eloc =
+        self#select_addressing Word_int (one_arg "prefetch" args)
+      in
       Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   | _ -> super#select_operation op args dbg
 
