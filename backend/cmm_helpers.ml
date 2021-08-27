@@ -2655,6 +2655,28 @@ let ext_pointer_store chunk name args dbg =
   let p = int_as_pointer arg1 dbg in
   Some(Cop(Cstore (chunk, Assignment), [p; arg2], dbg))
 
+let bigstring_prefetch ~is_write locality args dbg =
+  let op = Cprefetch { is_write; locality; } in
+  if_operation_supported op ~f:(fun () ->
+    let arg1, arg2 = two_args "bigstring_prefetch" args in
+    bind "ba" arg1 (fun ba ->
+      (* [arg2], the index, is already untagged. *)
+      bind "index" arg2 (fun idx ->
+        bind "ba_data"
+          (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
+          (fun ba_data ->
+             (* pointer to element "idx" of "ba" of type
+                (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t
+                is simply offset "idx" from "ba_data" *)
+             (Cop (op, [add_int ba_data idx dbg], dbg))))))
+
+let prefetch ~is_write locality arg dbg =
+  let op = Cprefetch { is_write; locality; } in
+  if_operation_supported op ~f:(fun () -> (Cop (op, [arg], dbg)))
+
+let ext_pointer_prefetch ~is_write locality arg dbg =
+  prefetch ~is_write locality (int_as_pointer arg dbg) dbg
+
 (** [transl_builtin prim args dbg] returns None if the built-in [prim]
     is not supported, otherwise it constructs and returns the corresponding
     Cmm expression.
@@ -2781,6 +2803,57 @@ let transl_builtin name args dbg =
     ext_pointer_load Double name args dbg
   | "caml_ext_pointer_store_unboxed_float" ->
     ext_pointer_store Double name args dbg
+  (* Bigstring prefetch *)
+  | "caml_prefetch_write_high_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true High args dbg
+  | "caml_prefetch_write_moderate_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Moderate args dbg
+  | "caml_prefetch_write_low_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Low args dbg
+  | "caml_prefetch_write_none_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:true Nonlocal args dbg
+  | "caml_prefetch_read_none_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Nonlocal args dbg
+  | "caml_prefetch_read_high_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false High args dbg
+  | "caml_prefetch_read_moderate_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Moderate args dbg
+  | "caml_prefetch_read_low_bigstring_untagged" ->
+    bigstring_prefetch ~is_write:false Low args dbg
+  (* Ext_pointer prefetch *)
+  | "caml_prefetch_write_high_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true High (one_arg name args) dbg
+  | "caml_prefetch_write_moderate_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true Moderate (one_arg name args) dbg
+  | "caml_prefetch_write_low_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true Low (one_arg name args) dbg
+  | "caml_prefetch_write_none_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:true Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_none_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_high_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false High (one_arg name args) dbg
+  | "caml_prefetch_read_moderate_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Moderate (one_arg name args) dbg
+  | "caml_prefetch_read_low_ext_pointer" ->
+    ext_pointer_prefetch ~is_write:false Low (one_arg name args) dbg
+  (* Native_pointer prefetch *)
+  | "caml_prefetch_write_high_native_pointer_unboxed" ->
+    prefetch ~is_write:true High (one_arg name args) dbg
+  | "caml_prefetch_write_moderate_native_pointer_unboxed" ->
+    prefetch ~is_write:true Moderate (one_arg name args) dbg
+  | "caml_prefetch_write_low_native_pointer_unboxed" ->
+    prefetch ~is_write:true Low (one_arg name args) dbg
+  | "caml_prefetch_write_none_native_pointer_unboxed" ->
+    prefetch ~is_write:true Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_none_native_pointer_unboxed" ->
+    prefetch ~is_write:false Nonlocal (one_arg name args) dbg
+  | "caml_prefetch_read_high_native_pointer_unboxed" ->
+    prefetch ~is_write:false High (one_arg name args) dbg
+  | "caml_prefetch_read_moderate_native_pointer_unboxed" ->
+    prefetch ~is_write:false Moderate (one_arg name args) dbg
+  | "caml_prefetch_read_low_native_pointer_unboxed" ->
+    prefetch ~is_write:false Low (one_arg name args) dbg
   | _ -> None
 
 (* [cextcall] is called from [Cmmgen.transl_ccall] *)

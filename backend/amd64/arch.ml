@@ -21,6 +21,13 @@ let popcnt_support = ref true
 (* CRC32 requires SSE 4.2 support *)
 let crc32_support = ref true
 
+(* PREFETCHW instruction is not available on processors
+   based on Haswell or earlier microarchitectures. *)
+let prefetchw_support = ref true
+
+(* PREFETCHWT1 is Intel Xeon Phi only. *)
+let prefetchwt1_support = ref false
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -29,13 +36,22 @@ let command_line_options =
     "-fno-PIC", Arg.Clear Clflags.pic_code,
       " Generate position-dependent machine code";
     "-fpopcnt", Arg.Set popcnt_support,
-      " Use POPCNT instruction (not available prior to Nehalem)";
+      " Use POPCNT instruction (not available prior to Nehalem) (default)";
     "-fno-popcnt", Arg.Clear popcnt_support,
       " Do not use POPCNT instruction";
     "-fcrc32", Arg.Set crc32_support,
-      " Use CRC32 instructions (requires SSE4.2 support)";
+      " Use CRC32 instructions (requires SSE4.2 support) (default)";
     "-fno-crc32", Arg.Clear crc32_support,
       " Do not emit CRC32 instructions";
+    "-fprefetchw", Arg.Set prefetchw_support,
+      " Use PREFETCHW instructions (not available on Haswell and earlier) \
+        (default)";
+    "-fno-prefetchw", Arg.Clear prefetchw_support,
+      " Do not use PREFETCHW instructions";
+    "-fprefetchwt1", Arg.Set prefetchwt1_support,
+      " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
+    "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
+      " Do not use PREFETCHWT1 instructions (default)";
   ]
 
 (* Specific operations for the AMD64 processor *)
@@ -48,6 +64,14 @@ type addressing_mode =
   | Iindexed2 of int                    (* reg + reg + displ *)
   | Iscaled of int * int                (* reg * scale + displ *)
   | Iindexed2scaled of int * int        (* reg + reg * scale + displ *)
+
+type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
+
+type prefetch_info = {
+  is_write: bool;
+  locality: prefetch_temporal_locality_hint;
+  addr: addressing_mode;
+}
 
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
@@ -66,6 +90,11 @@ type specific_operation =
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)
+  | Iprefetch of                       (* memory prefetching hint *)
+      { is_write: bool;
+        locality: prefetch_temporal_locality_hint;
+        addr: addressing_mode;
+      }
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
@@ -104,6 +133,12 @@ let num_args_addressing = function
   | Iindexed2scaled _ -> 2
 
 (* Printing operations and addressing modes *)
+
+let string_of_prefetch_temporal_locality_hint = function
+  | Nonlocal -> "nonlocal"
+  | Low -> "low"
+  | Moderate -> "moderate"
+  | High -> "high"
 
 let print_addressing printreg addr ppf arg =
   match addr with
@@ -159,6 +194,10 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Icrc32q ->
       fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Iprefetch { is_write; locality; } ->
+      fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
+        is_write (string_of_prefetch_temporal_locality_hint locality)
+        printreg arg.(0)
 
 let win64 =
   match Config.system with
