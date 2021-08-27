@@ -243,7 +243,15 @@ end = struct
     in
     let all = Map_to_canonical.union t1.all t2.all in
     let t = { aliases; all; } in
-    invariant t;
+    (* CR vlaviron: Here we're merging structures that can come from different
+       compilation units. In particular, if one variable has mode Normal in one
+       of the units, then in all the other ones it will have mode In_types.
+       The proper way to handle that might be to move all variables to mode
+       In_types on export or import (there's code in Typing_env.find that
+       takes care of returning the correct mode to the outside already, so it's
+       mostly an internal issue).
+       For now, as a quick fix the invariant checks are disabled here. *)
+    (* invariant t; *)
     t
 
   let compose { aliases; all; } ~then_ =
