@@ -71,7 +71,16 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : b
              b1_block.can_raise_interproc <- b1_block.can_raise_interproc || b2_block.can_raise_interproc;
              (* modify b2 *)
              b2_block.predecessors <- Label.Set.empty;
-             Disconnect_block.disconnect cfg_with_layout b2_label;
+             Label.Set.iter
+               (fun (b2_succ_label : Label.t) ->
+                  let b2_succ_block = Cfg.get_block_exn cfg b2_succ_label in
+                  b2_succ_block.predecessors <-
+                    Label.Set.add
+                      b1_label
+                      (Label.Set.remove b2_label b2_succ_block.predecessors))
+               (Cfg.successor_labels ~normal:true ~exn:true b2_block);
+             b2_block.terminator <- { b2_block.terminator with desc = Cfg_intf.S.Never; };
+             b2_block.exns <- Label.Set.empty;
              true
            end else
              merged
