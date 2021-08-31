@@ -115,19 +115,67 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | None -> prefix
   | Some id -> concat_symbol prefix id
 
-let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
-  let loc_parts =
-    Debuginfo.Scoped_location.string_of_scoped_location loc
-    |> String.split_on_char '.'
-    (* Remove last *)
-    |> List.rev |> List.tl |> List.rev
+let begins_with str prefix = 
+  let rec helper xs ys =
+    match xs, ys with
+    | _, [] -> true
+    | x :: xs, y :: ys -> x = y && helper xs ys
+    | _ -> false 
   in
-  (* Encode parts in the C++ name mangling convention *)
-  unitname :: loc_parts @ [ id ]
-  |> List.map (fun part ->
-    Printf.sprintf "%d%s" (String.length part) part)
+  let chars x = List.of_seq (String.to_seq x) in
+  helper (chars str) (chars prefix)
+
+let mangle_cpp parts =
+  parts
+  |> List.map (fun part -> Printf.sprintf "%d%s" (String.length part) part)
   |> String.concat ""
   |> Printf.sprintf "_ZN%sE" 
+
+let list_last_exn xs = List.nth xs (List.length xs - 1)
+
+let simplify_anon_fn id = 
+  "anon_fn_" ^ list_last_exn (String.split_on_char '_' id)
+
+let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
+  let loc_str = Debuginfo.Scoped_location.string_of_scoped_location loc in
+  let loc_parts = loc_str |> String.split_on_char '.' in
+  let id = if begins_with id "anon_fn" then simplify_anon_fn id else id in
+  let strip_last = 
+    match List.rev loc_parts with
+    | [] -> Misc.fatal_errorf "No location - %s %s" unitname id
+    (* If the `id` is an anonymous function this corresponds to that,
+        however, even if not, then the function has likely been given
+        a name via some form of aliasing (e.g. `let f = fun x -> ...`)
+        so take the id name.
+      *)
+    | "(fun)" :: _rest ->
+      true
+    (* Normal case where closure id and scope match *)
+    | last_bit :: _rest when begins_with id last_bit -> true
+    (* For operators, scope is wrapped in parens *)
+    | last_bit :: _rest when 
+      String.length last_bit >= 3 &&
+        begins_with id (String.sub last_bit 1 (String.length last_bit - 2))
+        ->
+          true
+    (* Currently the missing case should only be on functors *)
+    | _last_bit :: _rest ->
+      (* print_endline (loc_str ^ " -- " ^ id); *)
+      false
+  in
+  let parts = 
+    if strip_last then List.rev loc_parts |> List.tl |> List.rev 
+    else loc_parts
+  in
+  (* Remove caml *)
+  if not (begins_with unitname "caml") then
+    Misc.fatal_error "unitname expected to begin with caml";
+  let unitname = String.sub unitname 4 (String.length unitname - 4) in
+  (* if not (String.equal unitname (List.hd parts)) then begin
+    print_endline ([ unitname; loc_str; id ] |> String.concat " -- ")
+  end; *)
+  let parts = unitname :: (List.tl parts) @ [ id ] in
+  mangle_cpp parts
 
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
@@ -453,11 +501,14 @@ let function_label closure_id =
       (Compilation_unit.get_linkage_name compilation_unit)
   in
   let name = Closure_id.unique_name closure_id in
-  match Variable.debug_info (Closure_id.unwrap closure_id) with
+  match
+    (* Option.map List.rev (Closure_id.debug_info closure_id) *)
+    Closure_id.debug_info closure_id
+  with
   | None
   | Some [] ->
     concat_symbol unitname name
-  | Some ([ item ] as debug_info) ->
+  | Some ((item :: _items) as debug_info) ->
     let scoped_loc =
       Debuginfo.Scoped_location.Loc_known
         { loc = Debuginfo.to_location debug_info
@@ -465,9 +516,15 @@ let function_label closure_id =
         }
     in
     make_fun_symbol ~unitname scoped_loc name
-  | Some items ->
+    (* if List.length debug_info > 1 then
+      print_endline (
+        debug_info
+        |> List.map (fun (item : Debuginfo.item) -> Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes )
+        |> String.concat "; "
+      ); *)
+  (* | Some items ->
     Misc.fatal_errorf
-      "Expected at most one debug item, got %d" (List.length items)
+      "Expected at most one debug item, got %d" (List.length items) *)
 
 let closure_symbol closure_id =
   let compilation_unit = Closure_id.get_compilation_unit closure_id in
