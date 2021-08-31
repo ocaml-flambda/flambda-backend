@@ -804,6 +804,7 @@ and transl_apply ~scopes
                         body = lam; attr;
                         loc}
           | lam ->
+              let loc = update_scopes ~f:enter_anonymous_function loc in
               Lfunction{kind = Curried; params = [id_arg, Pgenval];
                         return = Pgenval; body = lam;
                         attr = default_stub_attribute; loc = loc}
