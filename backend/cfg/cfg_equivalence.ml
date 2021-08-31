@@ -1,0 +1,539 @@
+[@@@ocaml.warning "+a-30-40-41-42"]
+
+type location = string
+
+exception Different of {
+    location : location;
+    message : string;
+  }
+
+let different
+  : location -> string -> _
+  = fun location message ->
+    raise (Different {location; message; })
+
+module type State = sig
+  type t
+  val make : unit -> t
+  val add_to_explore : t -> Label.t -> Label.t -> unit
+  val to_explore : t -> (Label.t * Label.t) option
+  val add_seen : t -> Label.t -> unit
+  val has_seen : t -> Label.t -> bool
+  val num_seen : t -> int
+  val add_labels_to_check : t -> location -> Label.t -> Label.t -> unit
+  val add_label_sets_to_check : t -> location -> Label.Set.t -> Label.Set.t -> unit
+  val check : t -> Cfg.t -> unit
+end
+
+module type Container = sig
+  type 'a t
+  val make : unit -> 'a t
+  val add : 'a -> 'a t -> unit
+  val get : 'a t -> 'a option
+end
+
+module StackContainer : Container = struct
+  type 'a t = 'a Stack.t
+  let make = Stack.create
+  let add = Stack.push
+  let get = Stack.pop_opt
+end
+
+(*
+module QueueContainer : Container = struct
+  type 'a t = 'a Queue.t
+  let make = Queue.create
+  let add = Queue.add
+  let get = Queue.take_opt
+end
+*)
+
+module Make_state (C : Container) : State = struct
+
+  type t = {
+    subst : Label.t Label.Tbl.t;
+    to_explore : (Label.t * Label.t) C.t;
+    mutable seen : Label.Set.t;
+    mutable labels_to_check : (location * Label.t * Label.t) list;
+    mutable label_sets_to_check : (location * Label.Set.t * Label.Set.t) list;
+  }
+
+  let make () =
+    let subst = Label.Tbl.create 123 in
+    let to_explore = C.make () in
+    let seen = Label.Set.empty in
+    let labels_to_check = [] in
+    let label_sets_to_check = [] in
+    { to_explore; subst; seen; labels_to_check; label_sets_to_check; }
+
+  let add_subst t from to_ =
+    Label.Tbl.iter
+      (fun key data ->
+         match Label.equal key from, Label.equal data to_ with
+         | true, true | false, false -> ()
+         | true, false | false, true ->
+           Misc.fatal_errorf "Cfg_equivalence: inconsistent substitution (trying to add %a %a)"
+             Label.print from
+             Label.print to_)
+      t.subst;
+    Label.Tbl.replace t.subst from to_
+
+  let add_to_explore t lbl1 lbl2 =
+    add_subst t lbl1 lbl2;
+    C.add (lbl1, lbl2) t.to_explore
+
+  let to_explore t =
+    C.get t.to_explore
+
+  let add_seen t lbl =
+    t.seen <- Label.Set.add lbl t.seen
+
+  let has_seen t lbl =
+    Label.Set.mem lbl t.seen
+
+  let num_seen t =
+    Label.Set.cardinal t.seen
+
+  let add_labels_to_check t location lbl1 lbl2 =
+    t.labels_to_check <- (location, lbl1, lbl2) :: t.labels_to_check
+
+  let add_label_sets_to_check t location set1 set2 =
+    t.label_sets_to_check <- (location, set1, set2) :: t.label_sets_to_check
+
+  let check_label t cfg location lbl1 lbl2 =
+    if Label.Tbl.mem cfg.Cfg.blocks lbl1 then begin
+      match Label.Tbl.find_opt t.subst lbl1 with
+      | None ->
+        different
+          location
+          (Printf.sprintf "label %s is not mapped" (Label.to_string lbl1))
+      | Some lbl2' ->
+        if not (Label.equal lbl2 lbl2') then begin
+          different
+            location
+            (Printf.sprintf "label %s is mapped to %s (but %s was expected)"
+               (Label.to_string lbl1)
+               (Label.to_string lbl2')
+               (Label.to_string lbl2))
+        end
+    end else
+      () (* the label is not present in the "original" CFG, just ignore it *)
+
+  let check t cfg =
+    List.iter
+      (fun (location, lbl1, lbl2) ->
+         check_label t cfg location lbl1 lbl2)
+      t.labels_to_check;
+    List.iter
+      (fun (location, set1, set2) ->
+         let set1' =
+           Label.Set.fold
+             (fun lbl acc ->
+                if Label.Tbl.mem cfg.Cfg.blocks lbl then begin
+                  match Label.Tbl.find_opt t.subst lbl with
+                  | Some lbl' -> Label.Set.add lbl' acc
+                  | None ->
+                    different
+                      location
+                      (Printf.sprintf "label %s is not mapped" (Label.to_string lbl))
+                end else
+                  acc)
+             set1
+             Label.Set.empty
+         in
+         if not (Label.Set.equal set1' set2) then begin
+           let string_of_label_set set =
+             set
+             |> Label.Set.elements
+             |> ListLabels.map ~f:Label.to_string
+             |> StringLabels.concat ~sep:","
+           in
+           different
+             location
+             (Printf.sprintf "{%s}/{%s} <> {%s}"
+                (string_of_label_set set1)
+                (string_of_label_set set1')
+                (string_of_label_set set2))
+         end)
+      t.label_sets_to_check
+
+end
+
+module State = Make_state (StackContainer)
+
+(* note: defined here because we do not want to touch anything under ocaml/ *)
+let equal_raise_kind
+  : Lambda.raise_kind -> Lambda.raise_kind -> bool
+  = fun left right ->
+    match left, right with
+    | Raise_regular, Raise_regular -> true
+    | Raise_reraise, Raise_reraise -> true
+    | Raise_notrace, Raise_notrace -> true
+    | Raise_regular, (Raise_reraise | Raise_notrace)
+    | Raise_reraise, (Raise_regular | Raise_notrace)
+    | Raise_notrace, (Raise_regular | Raise_reraise) ->
+      false
+
+let array_equal eq left right =
+  Array.length left = Array.length right
+  && Array.for_all2 eq left right
+
+let check_external_call_operation
+  : location -> Cfg.external_call_operation -> Cfg.external_call_operation -> unit
+  = fun location expected result ->
+    if not (String.equal expected.func_symbol result.func_symbol) then
+      different location "function symbol";
+    if not (Bool.equal expected.alloc result.alloc) then
+      different location "allocating";
+    if not (array_equal Cmm.equal_machtype_component expected.ty_res result.ty_res) then
+      different location "result type";
+    if not (List.equal Cmm.equal_exttype expected.ty_args result.ty_args) then
+      different location "argument types"
+
+let check_operation
+  : location -> Cfg.operation -> Cfg.operation -> unit
+  = fun location expected result ->
+    match expected, result with
+    | Move, Move -> ()
+    | Spill, Spill -> ()
+    | Reload, Reload -> ()
+    | Const_int expected, Const_int result when Nativeint.equal expected result -> ()
+    | Const_float expected, Const_float result when Int64.equal expected result -> ()
+    | Const_symbol expected, Const_symbol result when String.equal expected result -> ()
+    | Stackoffset expected, Stackoffset result when Int.equal expected result -> ()
+    | Load (expected_mem, expected_arch_mode), Load (result_mem, result_arch_mode)
+      when Cmm.equal_memory_chunk expected_mem result_mem
+        && Arch.equal_addressing_mode expected_arch_mode result_arch_mode -> ()
+    | Store (expected_mem, expected_arch_mode, expected_bool),
+      Store (result_mem, result_arch_mode, result_bool)
+      when Cmm.equal_memory_chunk expected_mem result_mem
+        && Arch.equal_addressing_mode expected_arch_mode result_arch_mode
+        && Bool.equal expected_bool result_bool -> ()
+    | Intop left_op, Intop right_op
+      when Mach.equal_integer_operation left_op right_op -> ()
+    | Intop_imm (left_op, left_imm), Intop_imm (right_op, right_imm)
+        when Mach.equal_integer_operation left_op right_op
+          && Int.equal left_imm right_imm -> ()
+    | Negf, Negf -> ()
+    | Absf, Absf -> ()
+    | Addf, Addf -> ()
+    | Subf, Subf -> ()
+    | Mulf, Mulf -> ()
+    | Divf, Divf -> ()
+    | Compf left_comp, Compf right_comp
+      when Cmm.equal_float_comparison left_comp right_comp -> ()
+    | Floatofint, Floatofint -> ()
+    | Intoffloat, Intoffloat -> ()
+    | Probe { name = expected_name; handler_code_sym = expected_handler_code_sym; },
+      Probe { name = result_name; handler_code_sym = result_handler_code_sym; }
+      when String.equal expected_name result_name
+        && String.equal expected_handler_code_sym result_handler_code_sym  -> ()
+    | Probe_is_enabled { name = expected_name; },
+      Probe_is_enabled { name = result_name; }
+      when String.equal expected_name result_name -> ()
+    | Specific expected_spec, Specific result_spec
+      when Arch.equal_specific_operation expected_spec result_spec -> ()
+    | Name_for_debugger {
+        ident = left_ident;
+        which_parameter = left_which_parameter;
+        provenance = left_provenance;
+        is_assignment = left_is_assignment;
+      },
+      Name_for_debugger {
+        ident = right_ident;
+        which_parameter = right_which_parameter;
+        provenance = right_provenance;
+        is_assignment = right_is_assignment;
+      }
+      when Ident.equal left_ident right_ident
+        && Option.equal Int.equal left_which_parameter right_which_parameter
+        && Option.equal Unit.equal left_provenance right_provenance
+        && Bool.equal left_is_assignment right_is_assignment -> ()
+    | _ -> different location "operation"
+[@@ocaml.warning "-4"]
+
+let check_prim_call_operation
+  : location -> Cfg.prim_call_operation -> Cfg.prim_call_operation -> unit
+  = fun location expected result ->
+    match expected, result with
+    | External expected, External result ->
+      check_external_call_operation location expected result
+    | Alloc { bytes = expected_bytes; dbginfo = _expected_dbginfo; },
+      Alloc { bytes = result_bytes; dbginfo = _result_dbginfo; }
+      when Int.equal expected_bytes result_bytes ->
+      (* CR xclerc for xclerc: also check debug info *)
+      ()
+    | Checkbound  { immediate = expected_immediate; },
+      Checkbound  { immediate = result_immediate; }
+      when Option.equal Int.equal expected_immediate result_immediate ->
+      ()
+    | _ -> different location "primitive call operation"
+[@@ocaml.warning "-4"]
+
+let check_func_call_operation
+  : location -> Cfg.func_call_operation -> Cfg.func_call_operation -> unit
+  = fun location expected result ->
+    match expected, result with
+    | Indirect, Indirect -> ()
+    | Direct { func_symbol = expected_func_symbol; },
+      Direct { func_symbol = result_func_symbol; }
+      when String.equal expected_func_symbol result_func_symbol ->
+      ()
+    | _ -> different location "function call operation"
+[@@ocaml.warning "-4"]
+
+let check_tail_call_operation
+  : State.t -> location -> Cfg.tail_call_operation -> Cfg.tail_call_operation -> unit
+  = fun state location expected result ->
+    match expected, result with
+    | Self { destination = expected_destination; },
+      Self { destination = result_destination; } ->
+      State.add_labels_to_check
+        state
+        location
+        expected_destination
+        result_destination
+    | Func expected_func, Func result_func ->
+      check_func_call_operation location expected_func result_func
+    | _ -> different location "tail call operation"
+[@@ocaml.warning "-4"]
+
+let check_call_operation
+  : location -> Cfg.call_operation -> Cfg.call_operation -> unit
+  = fun location expected result ->
+    match expected, result with
+    | P expected, P result -> check_prim_call_operation location expected result
+    | F expected, F result -> check_func_call_operation location expected result
+    | _ -> different location "call operation"
+[@@ocaml.warning "-4"]
+
+let check_basic
+  : State.t -> location -> Cfg.basic -> Cfg.basic -> unit
+  = fun state location expected result ->
+    match expected, result with
+    | Op expected, Op result ->
+      check_operation location expected result
+    | Call expected, Call result ->
+      check_call_operation location expected result
+    | Reloadretaddr, Reloadretaddr -> ()
+    | Pushtrap { lbl_handler = expected_lbl_handler; },
+      Pushtrap { lbl_handler = result_lbl_handler; } ->
+      (* redundant *)
+      State.add_labels_to_check
+        state
+        location
+        expected_lbl_handler
+        result_lbl_handler;
+      State.add_to_explore state expected_lbl_handler result_lbl_handler;
+    | Poptrap, Poptrap -> ()
+    | Prologue, Prologue -> ()
+    | _ -> different location "basic"
+[@@ocaml.warning "-4"]
+
+let check_intruction
+  : type a . check_live:bool -> check_dbg:bool -> int -> location -> a Cfg.instruction -> a Cfg.instruction -> unit
+  = fun ~check_live ~check_dbg idx location expected result ->
+    let location = Printf.sprintf "%s (index %d)" location idx in
+    (* CR xclerc for xclerc: double check whether `Reg.same_loc` is enough.
+       (note: `Reg.Set.equal` uses the `stamp` fields) *)
+    if not (array_equal Reg.same_loc expected.arg result.arg) then
+      different location "input registers";
+    if not (array_equal Reg.same_loc expected.res result.res) then
+      different location "output registers";
+    if check_dbg && not (Debuginfo.compare expected.dbg result.dbg = 0) then
+      different location "debug info";
+    if not (Fdo_info.equal expected.fdo result.fdo) then
+      different location "FDO info";
+    if check_live && not (Reg.Set.equal expected.live result.live) then
+      different location "live register set";
+    if not (Int.equal expected.trap_depth result.trap_depth) then
+      different location "trap depth";
+    (* note: not comparing `id` fields on purpose *)
+    ()
+
+let check_basic_intruction
+  : State.t -> location -> int -> Cfg.basic Cfg.instruction -> Cfg.basic Cfg.instruction -> unit
+  = fun state location idx expected result ->
+    check_basic state location expected.desc result.desc;
+    check_intruction ~check_live:true ~check_dbg:true idx location expected result
+
+let rec check_basic_intruction_list
+  : State.t -> location -> int -> Cfg.basic Cfg.instruction list -> Cfg.basic Cfg.instruction list -> unit
+  = fun state location idx expected result ->
+    match expected, result with
+    | [], [] -> ()
+    | (_ :: _), [] ->
+      different location "bodies with different sizes (expected is longer)"
+    | [], (_ :: _) ->
+      different location "bodies with different sizes (expected is shorter)"
+    | (expected_hd :: expected_tl), (result_hd :: result_tl) ->
+      check_basic_intruction state location idx expected_hd result_hd;
+      check_basic_intruction_list state location (succ idx) expected_tl result_tl
+
+let check_terminator_instruction
+  : State.t -> location -> Cfg.terminator Cfg.instruction -> Cfg.terminator Cfg.instruction -> unit
+  = fun state location expected result ->
+    begin match expected.desc, result.desc with
+    | Never, Never ->
+      ()
+    | Always lbl1, Always lbl2 ->
+      State.add_to_explore state lbl1 lbl2
+    | Parity_test { ifso = ifso1; ifnot = ifnot1; },
+      Parity_test { ifso = ifso2; ifnot = ifnot2; } ->
+      State.add_to_explore state ifso1 ifso2;
+      State.add_to_explore state ifnot1 ifnot2
+    | Truth_test { ifso = ifso1; ifnot = ifnot1; },
+      Truth_test { ifso = ifso2; ifnot = ifnot2; } ->
+      State.add_to_explore state ifso1 ifso2;
+      State.add_to_explore state ifnot1 ifnot2
+    | Float_test { lt = lt1; eq = eq1; gt = gt1; uo = uo1; },
+      Float_test { lt = lt2; eq = eq2; gt = gt2; uo = uo2; } ->
+      State.add_to_explore state lt1 lt2;
+      State.add_to_explore state eq1 eq2;
+      State.add_to_explore state gt1 gt2;
+      State.add_to_explore state uo1 uo2
+    | Int_test { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1; imm = imm1; },
+      Int_test { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2; imm = imm2; }
+      when Bool.equal is_signed1 is_signed2 && Option.equal (Int.equal) imm1 imm2 ->
+      State.add_to_explore state lt1 lt2;
+      State.add_to_explore state eq1 eq2;
+      State.add_to_explore state gt1 gt2
+    | Int_test { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1; imm = Some imm1; },
+      Int_test { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2; imm = Some imm2; }
+      when Bool.equal is_signed1 is_signed2 && Int.equal imm1 (Int.pred imm2)
+        && Label.equal lt1 eq1 && Label.equal eq2 gt2 ->
+      State.add_to_explore state lt1 lt2;
+      State.add_to_explore state gt1 gt2;
+      let location = location ^ " (terminator)" in
+      State.add_labels_to_check state location eq1 lt2;
+      State.add_labels_to_check state location gt1 eq2
+    | Switch a1, Switch a2
+      when Array.length a1 = Array.length a2 ->
+      Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2;
+    | Return, Return ->
+      ()
+    | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 ->
+      ()
+    | Tailcall tc1, Tailcall tc2 ->
+      let location = location ^ " (terminator)" in
+      check_tail_call_operation state location tc1 tc2
+    | Call_no_return cn1, Call_no_return cn2 ->
+      check_external_call_operation location cn1 cn2
+    | _ ->
+      different location "terminator"
+    end;
+    check_intruction ~check_live:false ~check_dbg:false (-1) location expected result
+[@@ocaml.warning "-4"]
+
+let check_basic_block
+  : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit
+  = fun state expected result ->
+    let location =
+      Printf.sprintf "block %s/%s"
+        (Label.to_string expected.start)
+        (Label.to_string result.start)
+    in
+    check_basic_intruction_list state location 0 expected.body result.body;
+    check_terminator_instruction state location expected.terminator result.terminator;
+    State.add_label_sets_to_check
+      state
+      (location ^ " (predecessors)")
+      expected.predecessors
+      result.predecessors;
+    if not (Int.equal expected.trap_depth result.trap_depth) then
+      different location "trap depth";
+    State.add_label_sets_to_check
+      state
+      (location ^ " (exceptional successors)")
+      expected.exns
+      result.exns;
+    if not (Bool.equal expected.can_raise result.can_raise) then
+      different location "can_raise";
+    if not (Bool.equal expected.can_raise_interproc result.can_raise_interproc) then
+      different location "can_raise_interproc";
+    if not (Bool.equal expected.is_trap_handler result.is_trap_handler) then
+      different location "is_trap_handler";
+    if not (Bool.equal expected.dead result.dead) then
+      different location "dead"
+
+let rec explore_cfg
+  : State.t -> Cfg.t -> Cfg.t -> unit
+  = fun state expected result ->
+    match State.to_explore state with
+    | None -> ()
+    | Some (lbl1, lbl2) ->
+      if not (State.has_seen state lbl1) then begin
+        let expected_block = Label.Tbl.find_opt expected.blocks lbl1 in
+        let result_block = Label.Tbl.find_opt result.blocks lbl2 in
+        match expected_block, result_block with
+        | None, None -> ()
+        | None, Some _ ->
+          different "graph" "extra block"
+        | Some _, None ->
+          different "graph" "missing block"
+        | Some expected_block, Some result_block ->
+          State.add_seen state lbl1;
+          check_basic_block state expected_block result_block;
+      end;
+      explore_cfg state expected result
+
+let check_cfg
+  : State.t -> Cfg.t -> Cfg.t -> unit
+  = fun state expected result ->
+    let expected_num_blocks = Label.Tbl.length expected.blocks in
+    let result_num_blocks = Label.Tbl.length result.blocks in
+    if not (Int.equal expected_num_blocks result_num_blocks) then
+      different "CFG" "number of blocks";
+    if not (String.equal expected.fun_name result.fun_name) then
+      different "CFG" "fun_name";
+    if not (Debuginfo.compare expected.fun_dbg result.fun_dbg = 0) then
+      different "CFG" "fun_dbg";
+    State.add_to_explore state expected.entry_label result.entry_label;
+    explore_cfg state expected result
+
+let check_layout
+  : State.t -> Label.t list -> Label.t list -> unit
+  = fun state expected result ->
+    let expected_length = List.length expected in
+    let result_length = List.length result in
+    if expected_length <> result_length then begin
+      different
+        "layout sizes"
+        (Printf.sprintf "expected %d, got %d" expected_length result_length)
+    end;
+    List.iter2
+      (fun expected_label result_label ->
+         State.add_labels_to_check state "layout" expected_label result_label)
+      expected
+      result
+
+let save_cfg_as_dot
+  : Cfg_with_layout.t -> string -> unit
+  = fun cfg_with_layout msg ->
+    Cfg_with_layout.save_as_dot
+      cfg_with_layout
+      ~show_instr:true
+      ~show_exn:true
+      ~annotate_block:(Printf.sprintf "label:%d")
+      ~annotate_succ:(Printf.sprintf "%d->%d")
+      msg
+
+let check_cfg_with_layout
+  : Mach.fundecl -> Cfg_with_layout.t -> Cfg_with_layout.t -> unit
+  = fun f expected result ->
+    try
+      let state = State.make () in
+      check_cfg state (Cfg_with_layout.cfg expected) (Cfg_with_layout.cfg result);
+      check_layout state (Cfg_with_layout.layout expected) (Cfg_with_layout.layout result);
+      State.check state (Cfg_with_layout.cfg expected);
+      let num_seen = State.num_seen state in
+      if not (Int.equal num_seen (Label.Tbl.length (Cfg_with_layout.cfg expected).blocks)) then
+        different "exploration" "partial"
+    with Different { location; message; } ->
+      save_cfg_as_dot expected "expected";
+      save_cfg_as_dot result "result";
+      Format.eprintf "%a\n%!" Printmach.fundecl f;
+      Misc.fatal_errorf "Cfg_equivalence: error in %s\n  %s: %s\n"
+        (Cfg.fun_name (Cfg_with_layout.cfg expected))
+        location
+        message

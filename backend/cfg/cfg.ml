@@ -171,7 +171,7 @@ let intop (op : Mach.integer_operation) =
   | Iclz _ -> " clz "
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
-  | Icheckbound -> assert false
+  | Icheckbound -> " checkbound "
 
 let print_op oc = function
   | Move -> Printf.fprintf oc "mov"

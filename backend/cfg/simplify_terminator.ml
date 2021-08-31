@@ -90,9 +90,11 @@ let simplify_switch (block : C.basic_block) labels =
 let block (block : C.basic_block) =
   match block.terminator.desc with
   | Always _ -> ()
-  | Never ->
+  | Never -> ()
+      (* CR xclerc for xclerc: TODO
       Misc.fatal_errorf "Cannot simplify terminator: Never (in block %d)"
         block.start
+      *)
   | Parity_test _ | Truth_test _ | Int_test _ | Float_test _ ->
       let labels = C.successor_labels ~normal:true ~exn:false block in
       if Label.Set.cardinal labels = 1 then

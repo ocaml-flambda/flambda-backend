@@ -376,13 +376,37 @@ let fundecl f =
     add_prologue (linear f.Mach.fun_body end_instr contains_calls)
       fun_prologue_required
   in
-  { fun_name = f.Mach.fun_name;
-    fun_body;
-    fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
-    fun_dbg  = f.Mach.fun_dbg;
-    fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label;
-    fun_contains_calls = contains_calls;
-    fun_num_stack_slots = f.Mach.fun_num_stack_slots;
-    fun_frame_required = Proc.frame_required f;
-    fun_prologue_required;
-  }
+  let res =
+    { fun_name = f.Mach.fun_name;
+      fun_body;
+      fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
+      fun_dbg  = f.Mach.fun_dbg;
+      fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label;
+      fun_contains_calls = contains_calls;
+      fun_num_stack_slots = f.Mach.fun_num_stack_slots;
+      fun_frame_required = Proc.frame_required f;
+      fun_prologue_required;
+    } in
+  (* CR xclerc for xclerc: temporary, for testing. *)
+  if !Clflags.use_ocamlcfg then begin
+    Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
+    let result =
+      Cfgize.fundecl
+        f
+        ~preserve_orig_labels:false
+        ~prologue_required:(if fun_prologue_required then
+                              Some (fun_body.dbg, fun_body.fdo)
+                            else
+                              None)
+    in
+    let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
+    Eliminate_fallthrough_blocks.run expected;
+    Merge_straightline_blocks.run expected;
+    Eliminate_dead_blocks.run expected;
+    Simplify_terminator.run (Cfg_with_layout.cfg expected);
+    Cfg_equivalence.check_cfg_with_layout f expected result;
+    Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
+      f.Mach.fun_name
+  end;
+  res
+
