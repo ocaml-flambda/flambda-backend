@@ -449,8 +449,6 @@ let check_basic_block
       result.exns;
     if not (Bool.equal expected.can_raise result.can_raise) then
       different location "can_raise";
-    if not (Bool.equal expected.can_raise_interproc result.can_raise_interproc) then
-      different location "can_raise_interproc";
     if not (Bool.equal expected.is_trap_handler result.is_trap_handler) then
       different location "is_trap_handler";
     if not (Bool.equal expected.dead result.dead) then
