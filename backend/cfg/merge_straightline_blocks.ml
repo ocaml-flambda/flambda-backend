@@ -68,7 +68,6 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : b
              b1_block.terminator <- b2_block.terminator;
              b1_block.exns <- Label.Set.union b1_block.exns b2_block.exns;
              b1_block.can_raise <- b1_block.can_raise || b2_block.can_raise;
-             b1_block.can_raise_interproc <- b1_block.can_raise_interproc || b2_block.can_raise_interproc;
              (* modify b2 *)
              b2_block.predecessors <- Label.Set.empty;
              Label.Set.iter
