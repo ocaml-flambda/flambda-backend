@@ -89,7 +89,7 @@
 
     ;; asmcomp/
     afl_instrument arch asmgen asmlibrarian asmlink asmpackager branch_relaxation
-    branch_relaxation_intf cmm_helpers cmm cmmgen cmmgen_state coloring comballoc
+    branch_relaxation_intf cfgize cmm_helpers cmm cmmgen cmmgen_state coloring comballoc
     CSE CSEgen deadcode emit emitaux interf interval linear linearize linscan
     liveness mach printcmm printlinear printmach proc reg reload reloadgen
     schedgen scheduling selectgen selection spill split
@@ -99,6 +99,7 @@
     cfg cfg_intf cfg_to_linear cfg_with_layout disconnect_block
     eliminate_dead_blocks eliminate_fallthrough_blocks merge_straightline_blocks
     extra_debug label linear_to_cfg linear_utils simplify_terminator trap_stack
+    cfg_equivalence
 
     ;; file_formats/
     linear_format
@@ -288,6 +289,7 @@
     (asmlink.mli as compiler-libs/asmlink.mli)
     (asmpackager.mli as compiler-libs/asmpackager.mli)
     (branch_relaxation.mli as compiler-libs/branch_relaxation.mli)
+    (cfgize.mli as compiler-libs/cfgize.mli)
     (cmm_helpers.mli as compiler-libs/cmm_helpers.mli)
     (cmm.mli as compiler-libs/cmm.mli)
     (cmmgen.mli as compiler-libs/cmmgen.mli)
@@ -346,6 +348,7 @@
     (linear_utils.mli as compiler-libs/linear_utils.mli)
     (simplify_terminator.mli as compiler-libs/simplify_terminator.mli)
     (trap_stack.mli as compiler-libs/trap_stack.mli)
+    (cfg_equivalence.mli as compiler-libs/cfg_equivalence.mli)
 
     (.ocamloptcomp.objs/byte/linear_format.cmi as compiler-libs/linear_format.cmi)
     (.ocamloptcomp.objs/byte/linear_format.cmo as compiler-libs/linear_format.cmo)
@@ -398,6 +401,10 @@
     (.ocamloptcomp.objs/byte/cmm.cmo as compiler-libs/cmm.cmo)
     (.ocamloptcomp.objs/byte/cmm.cmt as compiler-libs/cmm.cmt)
     (.ocamloptcomp.objs/byte/cmm.cmti as compiler-libs/cmm.cmti)
+    (.ocamloptcomp.objs/byte/cfgize.cmi as compiler-libs/cfgize.cmi)
+    (.ocamloptcomp.objs/byte/cfgize.cmo as compiler-libs/cfgize.cmo)
+    (.ocamloptcomp.objs/byte/cfgize.cmt as compiler-libs/cfgize.cmt)
+    (.ocamloptcomp.objs/byte/cfgize.cmti as compiler-libs/cfgize.cmti)
     (.ocamloptcomp.objs/byte/cmm_helpers.cmi as compiler-libs/cmm_helpers.cmi)
     (.ocamloptcomp.objs/byte/cmm_helpers.cmo as compiler-libs/cmm_helpers.cmo)
     (.ocamloptcomp.objs/byte/cmm_helpers.cmt as compiler-libs/cmm_helpers.cmt)
@@ -618,6 +625,10 @@
     (.ocamloptcomp.objs/byte/trap_stack.cmo as compiler-libs/trap_stack.cmo)
     (.ocamloptcomp.objs/byte/trap_stack.cmt as compiler-libs/trap_stack.cmt)
     (.ocamloptcomp.objs/byte/trap_stack.cmti as compiler-libs/trap_stack.cmti)
+    (.ocamloptcomp.objs/byte/cfg_equivalence.cmi as compiler-libs/cfg_equivalence.cmi)
+    (.ocamloptcomp.objs/byte/cfg_equivalence.cmo as compiler-libs/cfg_equivalence.cmo)
+    (.ocamloptcomp.objs/byte/cfg_equivalence.cmt as compiler-libs/cfg_equivalence.cmt)
+    (.ocamloptcomp.objs/byte/cfg_equivalence.cmti as compiler-libs/cfg_equivalence.cmti)
 
     (.ocamloptcomp.objs/native/afl_instrument.cmx as compiler-libs/afl_instrument.cmx)
     (.ocamloptcomp.objs/native/arch.cmx as compiler-libs/arch.cmx)
@@ -631,6 +642,7 @@
     (.ocamloptcomp.objs/native/cSE.cmx as compiler-libs/CSE.cmx)
     (.ocamloptcomp.objs/native/cSEgen.cmx as compiler-libs/CSEgen.cmx)
     (.ocamloptcomp.objs/native/cmm.cmx as compiler-libs/cmm.cmx)
+    (.ocamloptcomp.objs/native/cfgize.cmx as compiler-libs/cfgize.cmx)
     (.ocamloptcomp.objs/native/cmm_helpers.cmx as compiler-libs/cmm_helpers.cmx)
     (.ocamloptcomp.objs/native/cmmgen.cmx as compiler-libs/cmmgen.cmx)
     (.ocamloptcomp.objs/native/cmmgen_state.cmx as compiler-libs/cmmgen_state.cmx)
@@ -686,6 +698,7 @@
     (.ocamloptcomp.objs/native/linear_utils.cmx as compiler-libs/linear_utils.cmx)
     (.ocamloptcomp.objs/native/simplify_terminator.cmx as compiler-libs/simplify_terminator.cmx)
     (.ocamloptcomp.objs/native/trap_stack.cmx as compiler-libs/trap_stack.cmx)
+    (.ocamloptcomp.objs/native/cfg_equivalence.cmx as compiler-libs/cfg_equivalence.cmx)
   ))
 
 (install
