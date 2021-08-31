@@ -456,7 +456,6 @@ let rec add_blocks
     let { instrs; last; terminator; can_raise; } =
       extract_block_info state instr ~trap_depth in
     let terminate_block ~trap_actions term =
-      let block_trap_depth = trap_depth in
       let body = instrs in
       let body =
         match starts_with_pushtrap with
@@ -511,7 +510,6 @@ let rec add_blocks
         trap_depth = (if Option.is_none starts_with_pushtrap then trap_depth else trap_depth - 1);
         exns = if can_raise then exns else Label.Set.empty;
         can_raise;
-        can_raise_interproc = can_raise && (block_trap_depth = 1);
         is_trap_handler = false; (* See [update_trap_handler_blocks] *)
         dead = false;
       }
@@ -766,7 +764,6 @@ let fundecl
       trap_depth = initial_trap_depth;
       exns = Label.Set.empty;
       can_raise = false;
-      can_raise_interproc = false;
       is_trap_handler = false;
       dead = false;
     };
@@ -778,7 +775,6 @@ let fundecl
       trap_depth = initial_trap_depth;
       exns = Label.Set.empty;
       can_raise = false;
-      can_raise_interproc = false;
       is_trap_handler = false;
       dead = false;
     };
