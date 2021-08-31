@@ -134,7 +134,7 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
           Printf.fprintf oc "%s->%s [style=dashed %s]\n" (name label)
             (name l) (annotate_succ label l))
         (Cfg.successor_labels ~normal:false ~exn:true block);
-      if block.can_raise_interproc then
+      if Cfg.can_raise_interproc block then
         Printf.fprintf oc "%s->%s [style=dashed]\n" (name label)
           "placeholder" )
   in

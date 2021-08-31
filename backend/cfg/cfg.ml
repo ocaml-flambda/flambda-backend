@@ -37,7 +37,6 @@ type basic_block =
     trap_depth : int;
     mutable exns : Label.Set.t;
     mutable can_raise : bool;
-    mutable can_raise_interproc : bool;
     mutable is_trap_handler : bool;
     mutable dead : bool
   }
@@ -130,6 +129,9 @@ let get_block_exn t label =
   | exception Not_found ->
       Misc.fatal_errorf "Cfg.get_block_exn: block %d not found" label
   | block -> block
+
+let can_raise_interproc block =
+  block.can_raise && (block.trap_depth = 1)
 
 let fun_name t = t.fun_name
 
