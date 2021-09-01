@@ -75,8 +75,9 @@ let rec combine i allocstate =
            else instr_cons_debug (Iop(Iintop_imm(Iadd, offset))) i.res
                 i.res i.dbg next
          in
+         let rstate = set_mode mode state (get_mode mode allocstate) in
          (instr_cons_debug (Iop(Ialloc {bytes = totalsz; dbginfo; mode}))
-          i.arg i.res i.dbg next, allocstate)
+          i.arg i.res i.dbg next, rstate)
       end
   | Iop(Icall_ind | Icall_imm _ | Iextcall _ |
         Itailcall_ind | Itailcall_imm _) ->

@@ -691,7 +691,8 @@ CAMLexport void caml_local_region_end(intnat reg)
   Caml_state->local_sp = reg;
 }
 
-#define Local_init_wsz 64
+//#define Local_init_wsz 64
+#define Local_init_wsz (64*1024*1024)
 void caml_local_realloc()
 {
   intnat new_bsize;
@@ -706,6 +707,7 @@ void caml_local_realloc()
   while (Caml_state->local_sp < -new_bsize) new_bsize *= 2;
   stkbase = caml_stat_alloc(new_bsize + sizeof(struct region_stack));
   stk = (struct region_stack*)(stkbase + new_bsize);
+  memset(stkbase, 0x42, new_bsize); /* FIXME debugging only */
   stk->base = stkbase;
   stk->next = Caml_state->local_top;
   Caml_state->local_top = stk;

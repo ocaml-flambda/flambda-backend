@@ -330,6 +330,27 @@ void caml_oldify_local_roots (void)
       }
     }
   }
+  /* Local allocations */
+  {
+    header_t* hp = (header_t*)((char*)Caml_state->local_top + Caml_state->local_sp);
+    value start = Val_hp(hp), end = Val_hp((header_t*)Caml_state->local_top);
+    while (hp < (header_t*)Caml_state->local_top) {
+      header_t hd = Hd_hp(hp);
+      CAMLassert(Tag_hd(hd) != Infix_tag);
+      if (Tag_hd(hd) < No_scan_tag) {
+        i = 0;
+        if (Tag_hd(hd) == Closure_tag)
+          i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+        for (; i < Wosize_hd(hd); i++) {
+          value* p = Op_hp(hp) + i;
+          if (Is_block(*p) && !(start <= *p && *p < end))
+            Oldify(p);
+        }
+      }
+      hp += Whsize_hd(hd);
+    }
+    CAMLassert(hp == (header_t*)Caml_state->local_top);
+  }
   /* Global C roots */
   caml_scan_global_young_roots(&caml_oldify_one);
   /* Finalised values */
@@ -508,6 +529,27 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
         f (*root, root);
       }
     }
+  }
+  /* Local allocations */
+  {
+    header_t* hp = (header_t*)((char*)Caml_state->local_top + Caml_state->local_sp);
+    value start = Val_hp(hp), end = Val_hp((header_t*)Caml_state->local_top);
+    while (hp < (header_t*)Caml_state->local_top) {
+      header_t hd = Hd_hp(hp);
+      CAMLassert(Tag_hd(hd) != Infix_tag);
+      if (Tag_hd(hd) < No_scan_tag) {
+        i = 0;
+        if (Tag_hd(hd) == Closure_tag)
+          i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+        for (; i < Wosize_hd(hd); i++) {
+          value* p = Op_hp(hp) + i;
+          if (Is_block(*p) && !(start <= *p && *p < end))
+            f(*p, p);
+        }
+      }
+      hp += Whsize_hd(hd);
+    }
+    CAMLassert(hp == (header_t*)Caml_state->local_top);
   }
 }
 

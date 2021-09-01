@@ -3814,11 +3814,15 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
                                           ty_fun,
                                           explanation)))
   in
-  if not curry then
-    begin match Types.Alloc_mode.submode ret_mode Alloc_heap with
+  if curry then begin
+    match Types.Alloc_mode.submode mode ret_mode with
     | Ok () -> ()
     | Error _ -> raise (Error(loc, env, Local_return_value_escapes))
-    end;
+  end else begin
+    match Types.Alloc_mode.submode ret_mode Alloc_heap with
+    | Ok () -> ()
+    | Error _ -> raise (Error(loc, env, Local_return_value_escapes))
+  end;
   let ty_arg =
     if is_optional l then
       let tv = newvar() in

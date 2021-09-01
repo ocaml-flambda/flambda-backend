@@ -150,6 +150,8 @@ CAMLprim value caml_sys_exit(value retcode_v)
     caml_gc_message(0x400,
                     "forced_major_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
                     forcmajcoll);
+    caml_gc_message(0x400, "local_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
+                    Wsize_bsize(Caml_state->local_total));
   }
 
 #ifndef NATIVE_CODE
