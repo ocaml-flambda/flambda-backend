@@ -369,6 +369,11 @@ let add_prologue first_insn prologue_required =
   in
   skip_naming_ops first_insn
 
+let ocamlcfg_verbose =
+  match Sys.getenv_opt "OCAMLCFG_VERBOSE" with
+  | Some "1" -> true
+  | Some _ | None -> false
+
 let fundecl f =
   let fun_prologue_required = Proc.prologue_required f in
   let contains_calls = f.Mach.fun_contains_calls in
@@ -389,7 +394,9 @@ let fundecl f =
     } in
   (* CR xclerc for xclerc: temporary, for testing. *)
   if !Clflags.use_ocamlcfg then begin
-    Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
+    if ocamlcfg_verbose then begin
+      Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
+    end;
     let result =
       Cfgize.fundecl
         f
@@ -405,8 +412,10 @@ let fundecl f =
     Eliminate_dead_blocks.run expected;
     Simplify_terminator.run (Cfg_with_layout.cfg expected);
     Cfg_equivalence.check_cfg_with_layout f expected result;
-    Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
-      f.Mach.fun_name
+    if ocamlcfg_verbose then begin
+      Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
+        f.Mach.fun_name;
+    end;
   end;
   res
 
