@@ -30,13 +30,27 @@ module CL = Cfg_with_layout
 
 let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   let cfg = CL.cfg cfg_with_layout in
+  (* CR xclerc for xclerc: the motivation behind the addition of the
+     `Tailcall (Self )` case is that when we are merging blocks, the
+     test against `entry_label` is slightly misleading. Consider:
+
+     entry_block -> empty_block -> empty_block_ending_with_tailcall_self
+
+     The right-most block is not yet the entry point (but will eventually),
+     so without the new case its `Tailcall (Self _)` could be rewritten
+     to a mere jump.
+
+     This probably means the whole condition should be re-examined, quite
+     possibly to drop the `Label.equal cfg.entry_label block.start` part. *)
   if
     Label.equal cfg.entry_label block.start
     || block.is_trap_handler
     || List.length block.body > 0
     || block.can_raise
-    (* We need to check for can_raise here, because of Tailcall to Self that
-       can raise and has a single successor. *)
+    || (match block.terminator.desc with
+        | Tailcall (Self _) -> true
+        | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+        | Switch _ | Return | Raise _ | Tailcall (Func _) | Call_no_return _ -> false)
   then None
   else
     let successors = C.successor_labels ~normal:true ~exn:false block in
