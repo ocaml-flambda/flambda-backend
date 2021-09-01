@@ -169,3 +169,9 @@ let print_specific_operation printreg op ppf arg =
   | Imove32 ->
       fprintf ppf "move32 %a"
         printreg arg.(0)
+
+(* CR xclerc for xclerc: TODO *)
+let equal_addressing_mode _ _ : bool = assert false
+let equal_prefetch_temporal_locality_hint _ _ : bool = assert false
+let equal_float_operation _ _ : bool = assert false
+let equal_specific_operation _ _ : bool = assert false
