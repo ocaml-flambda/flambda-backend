@@ -179,3 +179,9 @@ end
 val register_jit : Jit.t -> unit
 
 val default_lookup : string -> Obj.t option
+
+(* Internals required by the JIT *)
+
+val need_symbol : string -> bool
+
+val phrase_name : string ref
