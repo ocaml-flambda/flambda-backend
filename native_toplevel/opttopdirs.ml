@@ -73,38 +73,6 @@ let _ = Hashtbl.add directive_table "cd" (Directive_string dir_cd)
 
 (* Load in-core a .cmxs file *)
 
-let load_file_exn ppf name0 =
-  let name =
-    try Some (Load_path.find name0)
-    with Not_found -> None
-  in
-  match name with
-  | None ->
-    let msg = Format.asprintf "File not found: %s@." name0 in
-    failwith msg
-  | Some name ->
-    let fn,tmp =
-      if Filename.check_suffix name ".cmx" || Filename.check_suffix name ".cmxa"
-      then
-        let cmxs = Filename.temp_file "caml" ".cmxs" in
-        Asmlink.link_shared ~ppf_dump:ppf [name] cmxs;
-        cmxs,true
-      else
-        name,false
-    in
-    let res =
-      try
-        Dynlink.loadfile fn;
-        Result.Ok ()
-      with
-      | Dynlink.Error (Module_already_loaded _) -> Result.Ok ()
-      | exn -> Result.Error exn
-    in
-    if tmp then (try Sys.remove fn with Sys_error _ -> ());
-    match res with
-    | Ok () -> ()
-    | Error exn -> raise exn
-
 let load_file ppf name0 =
   let name =
     try Some (Load_path.find name0)
@@ -140,8 +108,6 @@ let load_file ppf name0 =
     success
 
 let dir_load ppf name = ignore (load_file ppf name)
-
-let dir_load_exn name = load_file_exn name
 
 let _ = Hashtbl.add directive_table "load" (Directive_string (dir_load std_out))
 
