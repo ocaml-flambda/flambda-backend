@@ -224,8 +224,44 @@ let file_template_arg file =
     Expression expr
   
 let file_chars_arg startchar endchar =
-  (* Expression (Binop (Minus, (Integer startchar), (Integer endchar))) *)
   Cpp_name (Simple (Printf.sprintf "chars_%d_to_%d" startchar endchar))
+
+let name_op = function
+  | "+" -> "PLUS"
+  | "++" -> "PLUSPLUS"
+  | "+." -> "PLUSDOT"
+  | "+=" -> "PLUSEQ"
+  | "-" -> "MINUS"
+  | "-." -> "MINUSDOT"
+  | "*" -> "STAR"
+  | "%" -> "PERCENT"
+  | "=" -> "EQUAL"
+  | "<" -> "LESS"
+  | ">" -> "GREATER"
+  | "<>" -> "NOTEQUAL"
+  | "||" -> "BARBAR"
+  | "&" -> "AMPERSAND"
+  | "&&" -> "AMPERAMPER"
+  | ":=" -> "COLONEQUAL"
+  | "^" -> "CARET"
+  | "^^" -> "CARETCARET"
+  | "@" -> "AT"
+  | "<<" -> "LSHIFT"
+  | ">>" -> "RSHIFT"
+  | op -> op
+
+let split_last_exn str c = 
+  let n = String.length str in
+  let ridx = String.rindex str c in
+  (String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1))
+
+let convert_quotes str =
+  match String.split_on_char '\'' str with
+  | [] -> Misc.fatal_error "empty split"
+  | [ s ] -> Simple s
+  | parts -> 
+    let s = String.concat "_Q" parts in
+    Templated (s, [ Cpp_name (Simple "quoted")] )
 
 let handle_closure_id id loc = 
   (* Replace flambda location with C++ template version *)
@@ -243,10 +279,22 @@ let handle_closure_id id loc =
     in
     Templated (str, info)
   else
-    Simple id
+    match id.[0] with
+    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') -> convert_quotes id
+    | _op -> 
+      let (op, stamp) = split_last_exn id '_' in
+      Templated ("op_" ^ stamp, [Cpp_name (Simple (name_op op))])
   
-(* TODO: Handle operators *)
-let convert_scope_part part = Simple part
+let convert_scope_part part =
+  let n = String.length part in
+  if String.equal part "(fun)" then
+    Templated ("anon_fn", [])
+  (* operators *)
+  else if n > 2 && String.get part 0 = '(' && String.get part (n - 1) = ')' then
+    let op = String.sub part 1 (n - 2) in
+    Templated ("op", [ Cpp_name (Simple (name_op op)) ])
+  else
+    convert_quotes part
 
 let symbol_parts ~unitname loc id =
   (* Remove caml *)
@@ -294,7 +342,7 @@ let symbol_parts ~unitname loc id =
     if String.equal mod_orig unitname then
       namespace_parts mod_orig @ List.tl parts
     else 
-      namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
+      namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined_in", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
   | Loc_unknown ->
     namespace_parts unitname @ [ handle_closure_id id loc ]
 
