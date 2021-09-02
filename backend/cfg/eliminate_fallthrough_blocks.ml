@@ -34,7 +34,6 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
     Label.equal cfg.entry_label block.start
     || block.is_trap_handler
     || List.length block.body > 0
-    || block.can_raise
   then None
   else
     let successors = C.successor_labels ~normal:true ~exn:false block in
