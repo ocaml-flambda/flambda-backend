@@ -89,12 +89,30 @@ module IR = struct
 end
 
 module Env = struct
+  type function_description =
+    { fd_code_id : Code_id.t;
+      fd_code : Code.t;
+      fd_ret_cont : Continuation.t;
+      fd_exn_cont : Exn_continuation.t;
+      fd_params : Bound_parameter.t list;
+      fd_body : Flambda.Expr.t;
+      fd_closure : Variable.t;
+      fd_depth : Variable.t
+    }
+
+  type value_approximation =
+    | Value_unknown
+    | Closure_approximation of function_description
+    | Block_approximation of value_approximation array
+
   type t =
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
       current_unit_id : Ident.t;
+      current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
+      value_approximations : value_approximation Name.Map.t;
       big_endian : bool
     }
 
@@ -104,12 +122,16 @@ module Env = struct
 
   let big_endian t = t.big_endian
 
+  let current_depth t = t.current_depth
+
   let create ~symbol_for_global ~big_endian =
     let compilation_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
+      current_depth = None;
+      value_approximations = Name.Map.empty;
       symbol_for_global;
       big_endian
     }
@@ -120,6 +142,8 @@ module Env = struct
         simples_to_substitute;
         current_unit_id;
         symbol_for_global;
+        current_depth;
+        value_approximations;
         big_endian
       } =
     let simples_to_substitute =
@@ -131,9 +155,13 @@ module Env = struct
       globals;
       simples_to_substitute;
       current_unit_id;
+      current_depth;
+      value_approximations;
       symbol_for_global;
       big_endian
     }
+
+  let with_depth t depth_var = { t with current_depth = Some depth_var }
 
   let add_var t id var = { t with variables = Ident.Map.add id var t.variables }
 
@@ -208,14 +236,47 @@ module Env = struct
 
   let find_simple_to_substitute_exn t id =
     Ident.Map.find id t.simples_to_substitute
+
+  let add_value_approximation t name approx =
+    if approx = Value_unknown
+    then t
+    else
+      { t with
+        value_approximations = Name.Map.add name approx t.value_approximations
+      }
+
+  let add_closure_approximation t name approx =
+    add_value_approximation t name (Closure_approximation approx)
+
+  let add_block_approximation t name approxs =
+    if Array.for_all (( = ) Value_unknown) approxs
+    then t
+    else add_value_approximation t name (Block_approximation approxs)
+
+  let find_value_approximation t simple =
+    Simple.pattern_match simple
+      ~const:(fun _ -> Value_unknown)
+      ~name:(fun name ~coercion:_ ->
+        try Name.Map.find name t.value_approximations
+        with Not_found -> Value_unknown)
+
+  let add_approximation_alias t name alias =
+    match find_value_approximation t (Simple.name name) with
+    | Value_unknown -> t
+    | approx -> add_value_approximation t alias approx
 end
 
 module Acc = struct
+  type continuation_application =
+    | Trackable_arguments of Env.value_approximation list
+    | Untrackable
+
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       shareable_constants : Symbol.t Static_const.Map.t;
       code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
+      continuation_applications : continuation_application Continuation.Map.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t
@@ -237,6 +298,7 @@ module Acc = struct
       shareable_constants = Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
+      continuation_applications = Continuation.Map.empty;
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       symbol_for_global
@@ -287,13 +349,35 @@ module Acc = struct
   let remove_var_from_free_names var t =
     { t with free_names = Name_occurrences.remove_var t.free_names var }
 
+  let add_continuation_application ~cont args_approx t =
+    let continuation_application =
+      match args_approx with
+      | None -> Untrackable
+      | Some args ->
+        if Continuation.Map.mem cont t.continuation_applications
+        then Untrackable
+        else Trackable_arguments args
+    in
+    { t with
+      continuation_applications =
+        Continuation.Map.add cont continuation_application
+          t.continuation_applications
+    }
+
   let remove_continuation_from_free_names cont t =
     { t with
-      free_names = Name_occurrences.remove_continuation t.free_names cont
+      free_names = Name_occurrences.remove_continuation t.free_names cont;
+      continuation_applications =
+        Continuation.Map.remove cont t.continuation_applications
     }
 
   let remove_code_id_from_free_names code_id t =
     remove_code_id_or_symbol_from_free_names (Code_id code_id) t
+
+  let continuation_known_arguments ~cont t =
+    match Continuation.Map.find cont t.continuation_applications with
+    | (exception Not_found) | Untrackable -> None
+    | Trackable_arguments args -> Some args
 
   let with_free_names free_names t = { t with free_names }
 
@@ -480,12 +564,14 @@ module Expr_with_acc = struct
 end
 
 module Apply_cont_with_acc = struct
-  let create acc ?trap_action cont ~args ~dbg =
+  let create acc ?trap_action ?args_approx cont ~args ~dbg =
     let apply_cont = Apply_cont.create ?trap_action cont ~args ~dbg in
+    let acc = Acc.add_continuation_application ~cont args_approx acc in
     let acc = Acc.add_free_names (Apply_cont.free_names apply_cont) acc in
     acc, apply_cont
 
-  let goto acc cont = create acc cont ~args:[] ~dbg:Debuginfo.none
+  let goto acc cont =
+    create acc cont ~args:[] ?args_approx:None ~dbg:Debuginfo.none
 end
 
 module Let_with_acc = struct
