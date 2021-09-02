@@ -137,6 +137,55 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
     let var = Var_in_binding_pos.var bound_var in
     DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj)
 
+let create_lifted_constant (dacc, lifted_constants)
+      (pat : Bound_symbols.Pattern.t) static_const =
+  match pat with
+  | Block_like symbol ->
+    let typ =
+      (* CR mshinwell: Maybe the types should be returned from
+         [Simplify_static_const] to avoid this lookup. *)
+      TE.find (DA.typing_env dacc) (Name.symbol symbol) (Some K.value)
+    in
+    (* The [symbol_projections] map is empty because we only introduce
+       symbol projections when lifting -- and [static_const] has
+       already been lifted. *)
+    let lifted_constant =
+      LC.create_block_like symbol static_const (DA.denv dacc)
+        ~symbol_projections:Variable.Map.empty typ
+    in
+    let dacc =
+      match Rebuilt_static_const.to_const static_const with
+      | None -> dacc
+      | Some static_const ->
+        DA.consider_constant_for_sharing dacc symbol static_const
+    in
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+        DE.no_longer_defining_symbol denv symbol)
+    in
+    dacc, lifted_constant :: lifted_constants
+  | Code code_id ->
+    let lifted_constant = LC.create_code code_id static_const in
+    dacc, lifted_constant :: lifted_constants
+  | Set_of_closures closure_symbols ->
+    let closure_symbols_with_types =
+      Closure_id.Lmap.map (fun symbol ->
+          let typ =
+            TE.find (DA.typing_env dacc) (Name.symbol symbol)
+              (Some K.value)
+          in
+          symbol, typ)
+        closure_symbols
+    in
+    let lifted_constant =
+      LC.create_set_of_closures (DA.denv dacc)
+        ~closure_symbols_with_types
+        (* Same comment as above re. [symbol_projections]. *)
+        ~symbol_projections:Variable.Map.empty
+        static_const
+    in
+    dacc, lifted_constant :: lifted_constants
+
 (* It is important that every set of closures returned by this function
    (in [bindings_outermost_first]) arises from simplification in
    [Simplify_set_of_closures], and not some other path such as reification.
@@ -252,54 +301,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
         (Bound_symbols.to_list bound_symbols)
         (Rebuilt_static_const.Group.to_list static_consts)
         ~init:(dacc, [])
-        ~f:(fun (dacc, lifted_constants)
-                (pat : Bound_symbols.Pattern.t) static_const ->
-          match pat with
-          | Block_like symbol ->
-            let typ =
-              (* CR mshinwell: Maybe the types should be returned from
-                 [Simplify_static_const] to avoid this lookup. *)
-              TE.find (DA.typing_env dacc) (Name.symbol symbol) (Some K.value)
-            in
-            (* The [symbol_projections] map is empty because we only introduce
-               symbol projections when lifting -- and [static_const] has
-               already been lifted. *)
-            let lifted_constant =
-              LC.create_block_like symbol static_const (DA.denv dacc)
-                ~symbol_projections:Variable.Map.empty typ
-            in
-            let dacc =
-              match Rebuilt_static_const.to_const static_const with
-              | None -> dacc
-              | Some static_const ->
-                DA.consider_constant_for_sharing dacc symbol static_const
-            in
-            let dacc =
-              DA.map_denv dacc ~f:(fun denv ->
-                DE.no_longer_defining_symbol denv symbol)
-            in
-            dacc, lifted_constant :: lifted_constants
-          | Code code_id ->
-            let lifted_constant = LC.create_code code_id static_const in
-            dacc, lifted_constant :: lifted_constants
-          | Set_of_closures closure_symbols ->
-            let closure_symbols_with_types =
-              Closure_id.Lmap.map (fun symbol ->
-                  let typ =
-                    TE.find (DA.typing_env dacc) (Name.symbol symbol)
-                      (Some K.value)
-                  in
-                  symbol, typ)
-                closure_symbols
-            in
-            let lifted_constant =
-              LC.create_set_of_closures (DA.denv dacc)
-                ~closure_symbols_with_types
-                (* Same comment as above re. [symbol_projections]. *)
-                ~symbol_projections:Variable.Map.empty
-                static_const
-            in
-            dacc, lifted_constant :: lifted_constants)
+        ~f:create_lifted_constant
     in
     let dacc = DA.add_lifted_constant dacc (LC.concat lifted_constants) in
     (* We don't need to return any bindings; [Simplify_expr.simplify_let]
