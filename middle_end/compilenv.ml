@@ -115,37 +115,47 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | None -> prefix
   | Some id -> concat_symbol prefix id
 
-let begins_with str prefix = 
-  let rec helper xs ys =
-    match xs, ys with
-    | _, [] -> true
-    | x :: xs, y :: ys -> x = y && helper xs ys
-    | _ -> false 
+let begins_with ?(from = 0) str prefix = 
+  let rec helper idx =
+    if idx < 0 then true
+    else 
+      String.get str (from + idx) = String.get prefix idx && helper (idx-1)
   in
-  let chars x = List.of_seq (String.to_seq x) in
-  helper (chars str) (chars prefix)
+  let n = String.length str in
+  let m = String.length prefix in
+  if n >= from + m then helper (m-1) else false
+
+let split_on_string str split = 
+  let n = String.length str in
+  let m = String.length split in
+  let rec helper acc last_idx idx = 
+    if idx = n then
+      let cur = String.sub str last_idx (idx - last_idx) in
+      List.rev (cur :: acc)
+    else if begins_with ~from:idx str split then
+      let cur = String.sub str last_idx (idx - last_idx) in
+      helper (cur :: acc) (idx + m) (idx + m)
+    else
+      helper acc last_idx (idx + 1)
+  in
+  helper [] 0 0
 
 let escape_symbols part = 
   let buf = Buffer.create 16 in
+  let was_hex_last = ref false in
   let handle_char = function 
-    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') as c -> Buffer.add_char buf c
-    | c -> Printf.bprintf buf "hex%02x" (Char.code c)
+    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') as c ->
+      if !was_hex_last then Buffer.add_string buf "__";
+      Buffer.add_char buf c;
+      was_hex_last := false
+    | c ->
+      Printf.bprintf buf "%sX%02x"
+        (if !was_hex_last then "_" else "__")
+        (Char.code c);
+      was_hex_last := true
   in
   String.iter handle_char part;
   Buffer.contents buf
-
-(* TODO: Make this better *)
-let split_on_string str split = 
-  let n = String.length split in
-  let rec helper acc cur s = 
-    if String.equal s "" then
-      List.rev (cur :: acc)
-    else if begins_with s split then
-      helper (cur :: acc) "" (String.sub s n (String.length s - n))
-    else
-      helper acc (cur ^ String.make 1 (String.get s 0)) (String.sub s 1 (String.length s -1))
-  in
-  helper [] "" str
 
 type cpp_name =
   | Simple of string
@@ -224,7 +234,6 @@ let symbol_parts ~unitname loc id =
             true
       (* Currently the missing case should only be on functors *)
       | _last_bit :: _rest ->
-        (* print_endline (loc_str ^ " -- " ^ id); *)
         false
     in
     let scope_parts = 
@@ -242,7 +251,6 @@ let symbol_parts ~unitname loc id =
       namespace_parts mod_orig @ List.tl parts
     else 
       namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined", [ Scoped (namespace_parts unitname) ])]
-    (* namespace_parts unitname @ parts *)
   | Loc_unknown ->
     namespace_parts unitname @ [ handle_closure_id id loc ]
 
