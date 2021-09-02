@@ -41,6 +41,7 @@ module CIS = Code_id_or_symbol
 module CUE = Continuation_uses_env
 module DA = Downwards_acc
 module DE = Downwards_env
+module DF = Data_flow
 module EA = Continuation_extra_params_and_args.Extra_arg
 module EB = Expr_builder
 module EPA = Continuation_extra_params_and_args
