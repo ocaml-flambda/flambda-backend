@@ -157,14 +157,16 @@ let escape_symbols part =
   String.iter handle_char part;
   Buffer.contents buf
 
-(* type binop =
+[@@@ocaml.warning "-4"]
+
+type binop =
   | Slash
-  | Plus *)
+  | Minus
 
 type expression = 
   | String of string
   | Integer of int
-  (* | Binop of binop * expression * expression *)
+  | Binop of binop * expression * expression
   | Dot of expression * string
 
 type cpp_name =
@@ -180,16 +182,16 @@ let mangle_cpp name =
   let with_length s =
     let s = escape_symbols s in
     Printf.sprintf "%d%s" (String.length s) s in
-  (* let binop_name = function
-    | Plus -> "pl"
+  let binop_name = function
     | Slash -> "dv"
-  in *)
+    | Minus -> "mi"
+  in
   let rec mangle_expression = function
     | String s -> with_length s
     | Integer n -> Printf.sprintf "Li%dE" n
     | Dot (e, name) -> Printf.sprintf "dt%s%s" (mangle_expression e) (with_length name)
-    (* | Binop (op, e1, e2) ->
-      Printf.sprintf "%s%s%s" (binop_name op) (mangle_expression e1) (mangle_expression e2)  *)
+    | Binop (op, e1, e2) ->
+      Printf.sprintf "%s%s%s" (binop_name op) (mangle_expression e1) (mangle_expression e2) 
   in 
   let rec mangle_name = function
     | Simple s -> with_length s
@@ -213,15 +215,23 @@ let namespace_parts part =
 let list_last_exn xs = List.nth xs (List.length xs - 1)
 
 let file_template_arg file =
-  let parts = String.split_on_char '.' file in
-  if List.length parts >= 2 then
-    let expr =
-      List.fold_left (fun expr part -> Dot (expr, part))
-        (String (List.hd parts)) (List.tl parts) 
-    in
-    Expression expr
-  else
-    Cpp_name (Simple file)
+  match String.split_on_char '.' file with
+  | [] -> Misc.fatal_error "Empty split"
+  | dot_hd :: dot_tl ->
+    match List.rev (String.split_on_char '/' dot_hd) with
+    | [] -> Misc.fatal_error "Empty split"
+    | slash_last :: slash_rest ->
+      let last_expr =
+        List.fold_left (fun e x -> Dot (e, x)) (String slash_last) dot_tl
+      in
+      let rest_expr = List.map (fun part -> String part) slash_rest in
+      let slash_exprs = List.rev (last_expr :: rest_expr) in
+      let expr = List.fold_left (fun e1 e2 -> Binop (Slash, e1, e2))
+        (List.hd slash_exprs) (List.tl slash_exprs) in
+      Expression expr
+  
+let file_chars_arg startchar endchar =
+  Expression (Binop (Minus, (Integer startchar), (Integer endchar)))
 
 let handle_closure_id id loc = 
   (* Replace flambda location with C++ template version *)
@@ -234,9 +244,9 @@ let handle_closure_id id loc =
     let info = [ file_template_arg file; int_arg line] in
     let info =
       if startchar >= 0 then
-        info @ [ int_arg startchar; int_arg endchar ]
+        info @ [ file_chars_arg startchar endchar ]
       else 
-      info
+        info
     in
     Templated (str, info)
   else
