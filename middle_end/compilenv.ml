@@ -157,7 +157,7 @@ let escape_symbols part =
   String.iter handle_char part;
   Buffer.contents buf
 
-[@@@ocaml.warning "-4"]
+[@@@ocaml.warning "-37"]
 
 type binop =
   | Slash
@@ -215,23 +215,17 @@ let namespace_parts part =
 let list_last_exn xs = List.nth xs (List.length xs - 1)
 
 let file_template_arg file =
+  (* Take the file name + extension only *)
+  let file = list_last_exn (String.split_on_char '/' file) in
   match String.split_on_char '.' file with
   | [] -> Misc.fatal_error "Empty split"
-  | dot_hd :: dot_tl ->
-    match List.rev (String.split_on_char '/' dot_hd) with
-    | [] -> Misc.fatal_error "Empty split"
-    | slash_last :: slash_rest ->
-      let last_expr =
-        List.fold_left (fun e x -> Dot (e, x)) (String slash_last) dot_tl
-      in
-      let rest_expr = List.map (fun part -> String part) slash_rest in
-      let slash_exprs = List.rev (last_expr :: rest_expr) in
-      let expr = List.fold_left (fun e1 e2 -> Binop (Slash, e1, e2))
-        (List.hd slash_exprs) (List.tl slash_exprs) in
-      Expression expr
+  | hd :: tl ->
+    let expr = List.fold_left (fun e x -> Dot (e, x)) (String hd) tl in
+    Expression expr
   
 let file_chars_arg startchar endchar =
-  Expression (Binop (Minus, (Integer startchar), (Integer endchar)))
+  (* Expression (Binop (Minus, (Integer startchar), (Integer endchar))) *)
+  Cpp_name (Simple (Printf.sprintf "chars_%d_to_%d" startchar endchar))
 
 let handle_closure_id id loc = 
   (* Replace flambda location with C++ template version *)
@@ -240,8 +234,7 @@ let handle_closure_id id loc =
     let loc = Debuginfo.Scoped_location.to_location loc in
     let (file, line, startchar) = Location.get_pos_info loc.loc_start in
     let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
-    let int_arg n = Expression (Integer n) in
-    let info = [ file_template_arg file; int_arg line] in
+    let info = [ file_template_arg file; Cpp_name (Simple (Printf.sprintf "line_%d" line))] in
     let info =
       if startchar >= 0 then
         info @ [ file_chars_arg startchar endchar ]
