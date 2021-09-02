@@ -329,7 +329,7 @@ let can_raise_operation
     | Compf _ -> false
     | Floatofint -> false
     | Intoffloat -> false
-    | Probe _ -> false (* CR xclerc for xclerc: double check *)
+    | Probe _ -> true
     | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
     | Specific _ -> false (* CR xclerc for xclerc: double check *)
     | Name_for_debugger _ -> false
