@@ -157,31 +157,71 @@ let escape_symbols part =
   String.iter handle_char part;
   Buffer.contents buf
 
+(* type binop =
+  | Slash
+  | Plus *)
+
+type expression = 
+  | String of string
+  | Integer of int
+  (* | Binop of binop * expression * expression *)
+  | Dot of expression * string
+
 type cpp_name =
   | Simple of string
   | Scoped of cpp_name list
-  | Templated of string * cpp_name list
+  | Templated of string * template_arg list
+
+and template_arg =
+  | Cpp_name of cpp_name
+  | Expression of expression
 
 let mangle_cpp name =
   let with_length s =
     let s = escape_symbols s in
     Printf.sprintf "%d%s" (String.length s) s in
-  let rec helper = function
+  (* let binop_name = function
+    | Plus -> "pl"
+    | Slash -> "dv"
+  in *)
+  let rec mangle_expression = function
+    | String s -> with_length s
+    | Integer n -> Printf.sprintf "Li%dE" n
+    | Dot (e, name) -> Printf.sprintf "dt%s%s" (mangle_expression e) (with_length name)
+    (* | Binop (op, e1, e2) ->
+      Printf.sprintf "%s%s%s" (binop_name op) (mangle_expression e1) (mangle_expression e2)  *)
+  in 
+  let rec mangle_name = function
     | Simple s -> with_length s
     | Scoped names ->
-      let s = List.map helper names |> String.concat "" in
+      let s = List.map mangle_name names |> String.concat "" in
       Printf.sprintf "N%sE" s
     | Templated (str, parts) ->
-      let s = List.map helper parts |> String.concat "" in
+      let s = List.map mangle_arg parts |> String.concat "" in
       Printf.sprintf "%sI%sE" (with_length str) s
+  and mangle_arg = function
+    | Cpp_name name -> mangle_name name
+    | Expression expression ->
+      Printf.sprintf "X%sE" (mangle_expression expression)
   in
-  "_Z" ^ helper name
+  "_Z" ^ mangle_name name
 
 let namespace_parts part =
   split_on_string part "__"
   |> List.map (fun part -> Simple part)
 
 let list_last_exn xs = List.nth xs (List.length xs - 1)
+
+let file_template_arg file =
+  let parts = String.split_on_char '.' file in
+  if List.length parts >= 2 then
+    let expr =
+      List.fold_left (fun expr part -> Dot (expr, part))
+        (String (List.hd parts)) (List.tl parts) 
+    in
+    Expression expr
+  else
+    Cpp_name (Simple file)
 
 let handle_closure_id id loc = 
   (* Replace flambda location with C++ template version *)
@@ -190,10 +230,11 @@ let handle_closure_id id loc =
     let loc = Debuginfo.Scoped_location.to_location loc in
     let (file, line, startchar) = Location.get_pos_info loc.loc_start in
     let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
-    let info = [ Simple file; Simple ("line"^ Int.to_string line)] in
+    let int_arg n = Expression (Integer n) in
+    let info = [ file_template_arg file; int_arg line] in
     let info =
       if startchar >= 0 then
-        info @ [ Simple ("start"^ Int.to_string startchar); Simple ("end"^ Int.to_string endchar)]
+        info @ [ int_arg startchar; int_arg endchar ]
       else 
       info
     in
@@ -250,7 +291,7 @@ let symbol_parts ~unitname loc id =
     if String.equal mod_orig unitname then
       namespace_parts mod_orig @ List.tl parts
     else 
-      namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined", [ Scoped (namespace_parts unitname) ])]
+      namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
   | Loc_unknown ->
     namespace_parts unitname @ [ handle_closure_id id loc ]
 
