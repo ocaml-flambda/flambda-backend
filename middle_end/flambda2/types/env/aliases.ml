@@ -109,8 +109,6 @@ module Aliases_of_canonical_element : sig
   val union : t -> t -> t
   val inter : t -> t -> t
 
-  val merge : t -> t -> t
-
   val compose : t -> then_:Coercion.t -> t
 
   include Contains_ids.S with type t := t
@@ -230,19 +228,6 @@ end = struct
       Map_to_canonical.inter t1.all t2.all
     in
     let t = { aliases; all } in
-    invariant t;
-    t
-
-  let merge t1 t2 =
-    let aliases =
-      Name_mode.Map.union (fun _mode map1 map2 ->
-        Some (Map_to_canonical.union map1 map2)
-      )
-        t1.aliases
-        t2.aliases
-    in
-    let all = Map_to_canonical.union t1.all t2.all in
-    let t = { aliases; all; } in
     invariant t;
     t
 
@@ -1231,57 +1216,30 @@ let merge t1 t2 =
       t1.canonical_elements
       t2.canonical_elements
   in
-  (* Warning: we assume that the aliases in the two alias trackers are disjoint,
-     but nothing stops them from sharing a canonical element. For instance, if
-     multiple compilation units define aliases to the same canonical symbol,
-     that symbol will be a canonical element in both of the units' alias
-     trackers, and thus their [aliases_of_canonical_names] will have a key in
-     common. *)
-  let merge_aliases _canonical aliases1 aliases2 =
-    Some (Aliases_of_canonical_element.merge aliases1 aliases2)
-  in
-  let aliases_of_canonical_names =
-    Name.Map.union merge_aliases
-      t1.aliases_of_canonical_names
-      t2.aliases_of_canonical_names
-  in
-  let aliases_of_consts =
-    Const.Map.union merge_aliases
-      t1.aliases_of_consts
-      t2.aliases_of_consts
-  in
-
-  let symbol_data =
-    Binding_time.With_name_mode.create
-      Binding_time.symbols
-      Name_mode.normal
-  in
-  let binding_times_and_modes =
-    Name.Map.union (fun name data1 data2 ->
-        Name.pattern_match name
-          ~var:(fun var ->
-            (* TODO: filter variables on export and restore fatal_error *)
-            if Binding_time.(equal (With_name_mode.binding_time data1)
-                               imported_variables)
-            then Some data2
-            else if Binding_time.(equal (With_name_mode.binding_time data2)
-                               imported_variables)
-            then Some data1
-            else
-              Misc.fatal_errorf
-                "Variable %a is present in multiple environments"
-                Variable.print var)
-          ~symbol:(fun _sym ->
-            assert (Binding_time.With_name_mode.equal data1 symbol_data);
-            assert (Binding_time.With_name_mode.equal data2 symbol_data);
-            Some data1))
-      t1.binding_times_and_modes
-      t2.binding_times_and_modes
-  in
+  (* This function should only be called on structures that have gone through
+     [clean_for_export]. *)
+  if Flambda_features.check_invariants () then begin
+    let empty_maps =
+      Name.Map.is_empty t1.aliases_of_canonical_names
+      && Const.Map.is_empty t1.aliases_of_consts
+      && Name.Map.is_empty t1.binding_times_and_modes
+      && Name.Map.is_empty t2.aliases_of_canonical_names
+      && Const.Map.is_empty t2.aliases_of_consts
+      && Name.Map.is_empty t2.binding_times_and_modes
+    in
+    if empty_maps then () else begin
+      Misc.fatal_errorf "Aliases.merge: at least one of the inputs has an \
+                         unexpected non-empty field.@.\
+                         t1: %a@.\
+                         t2: %a@."
+        print t1
+        print t2
+    end
+  end;
   { canonical_elements;
-    aliases_of_canonical_names;
-    aliases_of_consts;
-    binding_times_and_modes;
+    aliases_of_canonical_names = Name.Map.empty;
+    aliases_of_consts = Const.Map.empty;
+    binding_times_and_modes = Name.Map.empty;
   }
 
 let get_canonical_ignoring_name_mode t name =
@@ -1295,13 +1253,23 @@ let get_canonical_ignoring_name_mode t name =
 
 let clean_for_export
       { canonical_elements;
-        aliases_of_canonical_names;
-        aliases_of_consts;
-        binding_times_and_modes; } =
-  (* CR vlaviron: This function is kept as a reminder that we'd like
-     to remove unreachable entries at some point. *)
+        aliases_of_canonical_names = _;
+        aliases_of_consts = _;
+        binding_times_and_modes = _; } =
+  (* CR vlaviron: We'd like to remove unreachable entries at some point. *)
+  (* From this point, the structure will only be used for looking up
+     names that are defined in this compilation unit.
+     No new aliases will be added, name modes have become irrelevant
+     (Typing_env takes care of setting the mode to In_types for imported
+     variables), so all we really need to keep is the [canonical_elements] map,
+     and we further restrict the map to names that are not imported. *)
+  let canonical_elements =
+    Name.Map.filter (fun name _canonical ->
+        not (Name.is_imported name))
+      canonical_elements
+  in
   { canonical_elements;
-    aliases_of_canonical_names;
-    aliases_of_consts;
-    binding_times_and_modes;
+    aliases_of_canonical_names = Name.Map.empty;
+    aliases_of_consts = Const.Map.empty;
+    binding_times_and_modes = Name.Map.empty;
   }

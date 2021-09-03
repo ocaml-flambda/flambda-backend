@@ -85,6 +85,10 @@ let compilation_unit t =
   ~var:(fun var -> Variable.compilation_unit var)
   ~symbol:(fun sym -> Symbol.compilation_unit sym)
 
+let is_imported t =
+  let current = Compilation_unit.get_current_exn () in
+  not (Compilation_unit.equal current (compilation_unit t))
+
 let rename t =
   pattern_match t
     ~var:(fun v -> var (Variable.rename v))
