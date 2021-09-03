@@ -614,6 +614,7 @@ and close_functions t external_env function_declarations : Flambda.named =
     let closure_origin =
       Closure_origin.create (Closure_id.wrap unboxed_version)
     in
+    let dbg = Option.get (Variable.debug_info closure_bound_var) in
     let fun_decl =
       Flambda.create_function_declaration ~params ~body ~stub
         ~inline:(Function_decl.inline decl)
