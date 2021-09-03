@@ -316,6 +316,7 @@ end = struct
        [Rec_info_expr.do_not_inline] here so that we don't start unrolling,
        since without propagating the rec info into the closure, we don't know
        when to stop unrolling.)
+
        mshinwell: Leo and I have discussed allowing In_types variables in
        closures, which should cover this case, if we allowed such variables
        to be of kinds other than [Value]. *)

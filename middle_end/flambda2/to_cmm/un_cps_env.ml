@@ -15,7 +15,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (* Continuation use. A continuation can be translated one of two ways:
+
    - by a static jump (Cmm jump, using a unique integer)
+
    - by inlining the continuation's body at the call site. *)
 
 type cont =
@@ -51,11 +53,16 @@ type extra_info =
    Pure variables are put in a map, given that they can commute with everything.
    Effectful and coeffectful variables, are organised into stages. A stage is a
    set of (non-pure) bindings that can all commute with each other.
+
    Concretely, a stage is either:
+
    - a series of consecutive bindings with only coeffects
+
    - a single effectful binding
+
    Whenever a new binding that doesn't match the current stage is added,
    the current stage is archived, and replaced by a new stage.
+
    Only bindings in the current stage, or in the map of pure bindings are
    candidates to inlining. When inlined, a binding is removed from its stage
    (as only linear bindings are supposed to be inlined), and if the current stage
@@ -107,6 +114,7 @@ type t = {
   used_code_ids : Code_id.Set.t;
   (* Code ids marked as deleted are only allowed in the newer_version_of
      field of code definitions.
+
      Due to the order in which the checks are made, it is possible that
      a code id is checked before we know whether it is deleted or not,
      so the used_code_ids records all code ids that were checked.*)
@@ -117,6 +125,7 @@ type t = {
      These are relative to the flambda expression being currently
      translated, i.e. either the unit initialization code, or the
      body of a function.
+
      Thus they are reset when entering a new function. *)
 
   k_return : Continuation.t;

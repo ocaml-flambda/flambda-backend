@@ -428,6 +428,7 @@ let create_let_symbols uacc lifted_constant ~body =
              we can't use a name permutation to resolve the problem as both
              [var] and [var'] may occur in [expr], and permuting could cause
              an unbound name.
+
              It is possible for one projection to yield a variable that is
              in turn defined by another symbol projection, so we need to
              expand transitively. *)

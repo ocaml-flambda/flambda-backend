@@ -86,8 +86,10 @@ val create_names : Name.Set.t -> Name_mode.t -> t
 val create_closure_vars : Var_within_closure.Set.t -> t
 
 (** [diff t1 t2] removes from [t1] all those names that occur in [t2].
+
     The number of occurrences of any names in the return value will be exactly
     the same as in [t1].
+
     Note that a code ID in [t2] will not only be removed from the code ID
     set in [t1] but also the newer-version-of code ID set in [t1]. *)
 val diff : t -> t -> t

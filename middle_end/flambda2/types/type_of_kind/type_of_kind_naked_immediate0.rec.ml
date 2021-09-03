@@ -136,8 +136,8 @@ let join env t1 t2 : _ Or_unknown.t =
   | Get_tag ty1, Get_tag ty2 ->
     Or_unknown.map (T.join env ty1 ty2)
       ~f:(fun ty -> Get_tag ty)
-  (* From now on: Irregular cases
-     CR vlaviron: There could be improvements based on reduction
+  (* From now on: Irregular cases *)
+  (* CR vlaviron: There could be improvements based on reduction
      (trying to reduce the is_int and get_tag cases to naked_immediate sets,
      then joining those) but this looks unlikely to be useful and could end up
      begin quite expensive. *)

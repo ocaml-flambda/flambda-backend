@@ -23,6 +23,7 @@ type kind =
   | Effect
   (** Effectful expressions do not commute with coeffectful or effectful
       expressions.
+
       Currently, because it is tecnically possible to inspect the Gc state
       in ocaml programs using the Gc module, allocations are considered
       as effectful in order to not be commuted with function calls (or
@@ -105,7 +106,9 @@ val bind_variable :
 
 val get_variable : t -> Variable.t -> Cmm.expression
 (** Get the cmm variable bound to a flambda variable.
+
     Will fail (i.e. assertion failure) if the variable is not bound.
+
     Be careful: in general you do *NOT* want to use this function but
     instead the {inline_variable} function, as it will correctly
     perform the inlining of used exactly once variables. *)
@@ -126,6 +129,7 @@ val extra_info : t -> Variable.t -> extra_info option
 type cont =
   | Jump of { types: Cmm.machtype list; cont: int; }
   (** Static jump, with the given cmm continuation.
+
       The list of machtypes represent the types of arguments expected by the
       catch handler. *)
   | Inline of { handler_params: Kinded_parameter.t list;
@@ -146,6 +150,7 @@ val add_inline_cont :
     -> Flambda.Expr.t -> t
 (** Bind the given continuation as an inline continuation, bound over
     the given variables.
+
     Returns the Cmm continuation id, a reference that will be set to true if
     a catch handler is needed, and the environment. *)
 

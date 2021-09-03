@@ -25,11 +25,13 @@ open Lambda
 
    That is, for every expression to which a variable is bound in
    the let-rec verify:
+
    * It does not inspect any variable bound by the let-rec.
      This implies that the value of a variable bound by the let-rec
      does not need to be valid during the computation of the other
      bindings. Only the address is needed. This means that we can
      preallocate values for which we know the size.
+
    * If the value can't be preallocated (it can be because the
      size can't be statically known, or because the value is not
      allocated, like integers), then the value does not
@@ -46,51 +48,54 @@ open Lambda
    letrec.
 
    The structure of the generated code will be:
-   {[
-     let c = const in
-     (* [consts]: constants *)
-     ...
-     let v = caml_alloc_dummy n in
-     (* [blocks]: With n the staticaly known size of blocks *)
-     ...
-     let p = expr in
-     (* [pre]: Values that do not depend on any other from the let-rec in
-        [Rec_check.Dereference] position *)
-     ...
-     let rec f x = ...
-     and g x = ...
-     and ...
-     in
-     (* [functions]: All the functions from the let-rec *)
-     caml_update_dummy v v_contents;
-     (* Initialisation ([effects]) *)
-     ...
-   ]}
-
+*)
+(* {[
+ *   let c = const in
+ *   (* [consts]: constants *)
+ *   ...
+ *   let v = caml_alloc_dummy n in
+ *   (* [blocks]: With n the staticaly known size of blocks *)
+ *   ...
+ *   let p = expr in
+ *   (* [pre]: Values that do not depend on any other from the let-rec in
+ *      [Rec_check.Dereference] position *)
+ *   ...
+ *   let rec f x = ...
+ *   and g x = ...
+ *   and ...
+ *   in
+ *   (* [functions]: All the functions from the let-rec *)
+ *   caml_update_dummy v v_contents;
+ *   (* Initialisation ([effects]) *)
+ *   ...
+ * ]}
+ *)
+(*
    Special care is taken to handle nested [let rec]s:
    the recursive values of a letrec are often more than the ones
-   bound by the letrec expression itself. For instance
-
-   let rec f =
-     let rec g x = h (x+1)
-     and h x = i x
-     in
-     fun x -> g x
-   and i x =
-     if x > 33 then x
-     else f x
-
-   in this expression every function is recursively defined with
-   any other. Hence this is equivalent to
-
-   let rec f = fun x -> g x
-   and i x =
-     if x > 33 then x
-     else f x
-   and g x = h (x+1)
-   and h x = i x
-
-   However, there might be (a subset of) a local [let rec] that is indeed
+   bound by the letrec expression itself. For instance:
+*)
+(*
+ * let rec f =
+ *   let rec g x = h (x+1)
+ *   and h x = i x
+ *   in
+ *   fun x -> g x
+ * and i x =
+ *   if x > 33 then x
+ *   else f x
+ *
+ * in this expression every function is recursively defined with
+ * any other. Hence this is equivalent to
+ *
+ * let rec f = fun x -> g x
+ * and i x =
+ *   if x > 33 then x
+ *   else f x
+ * and g x = h (x+1)
+ * and h x = i x
+*)
+(* However, there might be (a subset of) a local [let rec] that is indeed
    internally recursive, but that is used by the top-level [let rec] in
    [Dereference] positions. We carefully lift those within [pre], and handle
    them recursively in the same pass to preserve the order of evaluation.
@@ -283,8 +288,11 @@ let rec prepare_letrec
       let letrec = prepare_letrec recursive_set current_let body letrec in
       (* Variable let comes from mutable values, and reading from it is
          considered as inspections by Typecore.check_recursive_expression.
+
          This means that either:
+
          - the value does not depend on any recursive value,
+
          - or it is not read in the let-rec
       *)
 

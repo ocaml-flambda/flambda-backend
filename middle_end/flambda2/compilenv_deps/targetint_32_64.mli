@@ -68,11 +68,11 @@ val unsigned_div : t -> t -> t
 
 val rem : t -> t -> t
 (** Integer remainder.  If [y] is not zero, the result
-   of [Targetint_32_64.rem x y] satisfies the following properties:
-   [Targetint_32_64.zero <= Nativeint.rem x y < Targetint_32_64.abs y] and
-   [x = Targetint_32_64.add (Targetint_32_64.mul (Targetint_32_64.div x y) y)
-                      (Targetint_32_64.rem x y)].
-   If [y = 0], [Targetint_32_64.rem x y] raises [Division_by_zero]. *)
+  * of [Targetint_32_64.rem x y] satisfies the following properties:
+  * [Targetint_32_64.zero <= Nativeint.rem x y < Targetint_32_64.abs y] and
+  * [x = Targetint_32_64.add (Targetint_32_64.mul (Targetint_32_64.div x y) y)
+  *                            (Targetint_32_64.rem x y)].
+  * If [y = 0], [Targetint_32_64.rem x y] raises [Division_by_zero]. *)
 
 val unsigned_rem : t -> t -> t
 (** Same as {!rem}, except that arguments and result are interpreted as {e
@@ -124,21 +124,26 @@ val lognot : t -> t
 
 val shift_left : t -> int -> t
 (** [Targetint_32_64.shift_left x y] shifts [x] to the left by [y] bits.
+
     The result is unspecified if [y < 0] or [y >= bitsize],
     where [bitsize] is [32] on a 32-bit platform and
     [64] on a 64-bit platform. *)
 
 val shift_right : t -> int -> t
 (** [Targetint_32_64.shift_right x y] shifts [x] to the right by [y] bits.
+
     This is an arithmetic shift: the sign bit of [x] is replicated
     and inserted in the vacated bits.
+
     The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 val shift_right_logical : t -> int -> t
 (** [Targetint_32_64.shift_right_logical x y] shifts [x] to the right
     by [y] bits.
+
     This is a logical shift: zeroes are inserted in the vacated bits
     regardless of the sign of [x].
+
     The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 val of_int : int -> t
@@ -157,6 +162,7 @@ val to_int : t -> int
 val of_float : float -> t
 (** Convert the given floating-point number to a target integer,
    discarding the fractional part (truncate towards 0).
+
    The result of the conversion is undefined if, after truncation,
    the number is outside the range
    \[{!Targetint_32_64.min_int}, {!Targetint_32_64.max_int}\]. *)
@@ -170,7 +176,9 @@ val of_int32 : int32 -> t
 
 val to_int32 : t -> int32
 (** Convert the given target integer to a
-    32-bit integer (type [int32]).  On 64-bit platforms,
+    32-bit integer (type [int32]).
+
+    On 64-bit platforms,
     the 64-bit native integer is taken modulo 2{^32},
     i.e. the top 32 bits are lost.  On 32-bit platforms,
     the conversion is exact. *)
@@ -185,9 +193,11 @@ val to_int64 : t -> int64
 
 val of_string : string -> t
 (** Convert the given string to a target integer.
+
     The string is read in decimal (by default) or in hexadecimal,
     octal or binary if the string begins with [0x], [0o] or [0b]
     respectively.
+
     Raise [Failure "int_of_string"] if the given string is not
     a valid representation of an integer, or if the integer represented
     exceeds the range of integers representable in type [nativeint]. *)

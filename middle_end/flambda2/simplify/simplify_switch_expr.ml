@@ -74,10 +74,10 @@ let rebuild_arm uacc arm (action, use_id, arity)
       | None -> normal_case ~identity_arms ~not_arms
       | Some arg ->
         (* CR-someday mshinwell: Maybe this check should be generalised
-           e.g. to detect
-             | 0 -> apply_cont k x y 1
-             | 1 -> apply_cont k x y 0
-        *)
+         * e.g. to detect
+         *   | 0 -> apply_cont k x y 1
+         *   | 1 -> apply_cont k x y 0
+         *)
         let [@inline always] const arg =
           match Reg_width_const.descr arg with
           | Tagged_immediate arg ->
@@ -155,6 +155,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
        the rewrites anyway; they have already been applied.  It is of course
        necessary to restore any rewrite before returning [uacc], since the
        surrounding context may need it.
+
        Likewise, we need to clear the continuation uses environment for
        [dest] in [dacc], since our new [Apply_cont] might not match the
        original uses (e.g. if a parameter has been removed). *)
@@ -303,29 +304,31 @@ let check_cse_environment dacc ~scrutinee =
      because there is already a dependency registered on the scrutinee. But
      if CSE replaces it by a variable that is only used here, we can
      create a real new dependency that didn't exist before.  For example:
-
-       let untagged = untag x
-       apply_cont k untagged (cse_arg tag(untagged) = x)
-       where k x cse_param =
-         switch x
-         | 0 -> apply_cont k2 0
-         | 1 -> apply_cont k2 1
-
-     would be rewritten to:
-
-       let untagged = untag x
-       apply_cont k untagged (cse_arg tag(untagged) = x)
-       where k x cse_param =
-         let tagged = tag x
-         apply_cont k2 tagged
-
-     And with CSE:
-
-       let untagged = untag x
-       apply_cont k untagged (cse_arg tag(untagged) = x)
-       where k x cse_param =
-         apply_cont k2 cse_param
-
+  *)
+  (*
+   *   let untagged = untag x
+   *   apply_cont k untagged (cse_arg tag(untagged) = x)
+   *   where k x cse_param =
+   *     switch x
+   *     | 0 -> apply_cont k2 0
+   *     | 1 -> apply_cont k2 1
+   *
+   *  would be rewritten to:
+   *
+   *   let untagged = untag x
+   *   apply_cont k untagged (cse_arg tag(untagged) = x)
+   *   where k x cse_param =
+   *     let tagged = tag x
+   *     apply_cont k2 tagged
+   *
+   * And with CSE:
+   *
+   *   let untagged = untag x
+   *   apply_cont k untagged (cse_arg tag(untagged) = x)
+   *   where k x cse_param =
+   *     apply_cont k2 cse_param
+   *)
+  (*
      If the tracking were not done properly, cse_param could be considered
      dead and removed from the parameters of continuation k.
 

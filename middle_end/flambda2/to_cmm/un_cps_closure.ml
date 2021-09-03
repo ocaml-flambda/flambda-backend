@@ -32,39 +32,41 @@ let filter_closure_vars set ~used_closure_vars =
 
    We assume an ideal (i.e. compact) layout for a block containing
    a set of closures is the following:
-
-   |----------------------|
-   | header               |
-   |----------------------| offset 0
-   | fn_block_0           |
-   | (pos 0, size 2 or 3) |
-   |----------------------|
-   | Infix_header         |
-   |----------------------|
-   | fn_block_1           |
-   | (pos x, size 2 or 3) |  (x=3 if fn_block_0 is of size 2 for instance)
-   |----------------------|
-   | Infix_header         |
-   |----------------------|
-   .                      .
-   .                      .
-   .                      .
-   |----------------------|
-   | Infix_header         |
-   |----------------------|
-   | fn_block             |
-   | (last closure slot)  |
-   |----------------------|
-   | Env_value (slot 0)   | <- start of env
-   |----------------------|
-   | Env_value (slot 1)   |
-   |----------------------|
-   .                      .
-   .                      .
-   |----------------------|
-   | Env_value (last slot)|
-   |----------------------|
-
+*)
+(*
+ * |----------------------|
+ * | header               |
+ * |----------------------| offset 0
+ * | fn_block_0           |
+ * | (pos 0, size 2 or 3) |
+ * |----------------------|
+ * | Infix_header         |
+ * |----------------------|
+ * | fn_block_1           |
+ * | (pos x, size 2 or 3) |  (x=3 if fn_block_0 is of size 2 for instance)
+ * |----------------------|
+ * | Infix_header         |
+ * |----------------------|
+ * .                      .
+ * .                      .
+ * .                      .
+ * |----------------------|
+ * | Infix_header         |
+ * |----------------------|
+ * | fn_block             |
+ * | (last closure slot)  |
+ * |----------------------|
+ * | Env_value (slot 0)   | <- start of env
+ * |----------------------|
+ * | Env_value (slot 1)   |
+ * |----------------------|
+ * .                      .
+ * .                      .
+ * |----------------------|
+ * | Env_value (last slot)|
+ * |----------------------|
+ *)
+(*
    However, that ideal layout may not be possible in certain circumstances,
    as there may be arbitrary holes between slots (i.e. unused words in the block).
 
@@ -76,6 +78,7 @@ let filter_closure_vars set ~used_closure_vars =
    clear, there are situations impossible to satisfy regardless of this requirement;
    it's just that this requirement makes some situations that were previously
    possible to satisfy be now unsatisfiable).
+
    For instance, it is perfectly possible to have a situation where an env_value has
    been fixed at offset 3 (because it is in a simple closure with one function of
    arity > 1 in another cmx), however it is in a closure set with more than one closure
@@ -198,8 +201,10 @@ let print_layout fmt l =
 
 module Greedy = struct
   (** Greedy algorithm for assigning slots to closures and environment variables.
+
       Slots are assigned using a "first comes, first served" basis, filling
       upwards from 0.
+
       As much as is possible, the algorithm tries and put first all the closure
       slots, and then all the env_var slots, however, that may be impossible
       because of constraints read from a cmx.

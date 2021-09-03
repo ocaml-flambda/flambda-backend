@@ -15,6 +15,7 @@
 (**************************************************************************)
 
 (** Exception continuations for function calls, etc.
+
     We allow exception handlers that have not only the exception bucket
     argument but also a sequence of "extra arguments". *)
 

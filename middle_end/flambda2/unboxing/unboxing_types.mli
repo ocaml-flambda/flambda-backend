@@ -91,10 +91,13 @@ end
    decision into a decision compatible with a given set of uses of the
    continuation. Indeed, depending on whether enough information is
    available at the use site, we can end up in a few different cases:
+
    - enough information, and the unboxed values are directly available,
      in which case, we can use them directly
+
    - the unboxed values are not available directly, but can be "reasonably"
      computed by introducing a let-binding (e.g. a block field projection)
+
    - the unboxed values are not available, and would be too costly to
      compute (see the example about variants a few lines down).
 
@@ -112,15 +115,18 @@ type pass =
      For recursive continuations, we need to prevent unboxing variants
      and closures because we cannot be sure that reasonable extra_args can be
      computed for all use sites. For instance:
-
-     let rec cont k x y =
-       switch y with
-       | 0 -> k (Some x)
-       | 1 -> k (f x) (* for some function f in scope *)
-
-     In this case, even if we know that x is an option, to unbox it we'd
+   *)
+  (*
+   * let rec cont k x y =
+   *   switch y with
+   *   | 0 -> k (Some x)
+   *   | 1 -> k (f x) (* for some function f in scope *)
+  *)
+  (* In this case, even if we know that x is an option, to unbox it we'd
      need to introduce a switch in the `1` branch.  This is:
+
      1) not implemented (although technically possible)
+
      2) not efficient or beneficial in most cases.
   *)
   | Compute_all_extra_args
