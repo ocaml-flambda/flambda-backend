@@ -331,12 +331,12 @@ let check_basic
 [@@ocaml.warning "-4"]
 
 let check_instruction
-  : type a . check_live:bool -> check_dbg:bool -> int -> location -> a Cfg.instruction -> a Cfg.instruction -> unit
-  = fun ~check_live ~check_dbg idx location expected result ->
+  : type a . check_live:bool -> check_dbg:bool -> check_arg:bool -> int -> location -> a Cfg.instruction -> a Cfg.instruction -> unit
+  = fun ~check_live ~check_dbg ~check_arg idx location expected result ->
     let location = Printf.sprintf "%s (index %d)" location idx in
     (* CR xclerc for xclerc: double check whether `Reg.same_loc` is enough.
        (note: `Reg.Set.equal` uses the `stamp` fields) *)
-    if not (array_equal Reg.same_loc expected.arg result.arg) then
+    if check_arg && not (array_equal Reg.same_loc expected.arg result.arg) then
       different location "input registers";
     if not (array_equal Reg.same_loc expected.res result.res) then
       different location "output registers";
@@ -355,7 +355,7 @@ let check_basic_instruction
   : State.t -> location -> int -> Cfg.basic Cfg.instruction -> Cfg.basic Cfg.instruction -> unit
   = fun state location idx expected result ->
     check_basic state location expected.desc result.desc;
-    check_instruction ~check_live:true ~check_dbg:true idx location expected result
+    check_instruction ~check_live:true ~check_dbg:true ~check_arg:true idx location expected result
 
 let rec check_basic_instruction_list
   : State.t -> location -> int -> Cfg.basic Cfg.instruction list -> Cfg.basic Cfg.instruction list -> unit
@@ -422,7 +422,15 @@ let check_terminator_instruction
     | _ ->
       different location "terminator"
     end;
-    check_instruction ~check_live:false ~check_dbg:false (-1) location expected result
+    (* CR xclerc for xclerc: temporary, for testing *)
+    let check_arg =
+      match expected.desc with
+      | Always _ -> false
+      | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
+        true
+    in
+    check_instruction ~check_live:false ~check_dbg:false ~check_arg (-1) location expected result
 [@@ocaml.warning "-4"]
 
 let check_basic_block
