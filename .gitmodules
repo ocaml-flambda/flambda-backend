@@ -1,0 +1,4 @@
+[submodule "ocaml"]
+	path = ocaml
+	url = https://github.com/ocaml-flambda/ocaml
+	branch = 4.12-flambda-backend
