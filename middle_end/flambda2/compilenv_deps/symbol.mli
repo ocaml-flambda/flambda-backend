@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 (** A symbol identifies a constant provided by either:
+
     - another compilation unit; or
+
     - a top-level module.
 
     The linkage name must be globally unique: two compilation units linked in

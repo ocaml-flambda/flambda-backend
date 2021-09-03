@@ -41,9 +41,9 @@ module Make
 struct
 
   (* Note: it wouldn't require much changes to change it to an interval:
-     type index = { at_least : Index.t; at_most : Index.t }
-     representing { x | at_least \subset x /\ x \subset at_most }
-  *)
+   * type index = { at_least : Index.t; at_most : Index.t }
+   * representing { x | at_least \subset x /\ x \subset at_most }
+   *)
   type index =
     | Known of Index.t (** Known x represents the singleton set: { x } *)
     | At_least of Index.t (** At_least x represents the set { y | x \subset y } *)
@@ -166,9 +166,12 @@ struct
 
        This is an overapproximation because the result could have only one tag
        for instance if
+
        t1 = [Tag 1 | Tag 2] and t2 = [Tag 2 | Tag 3], or if
-       t1 = [Tag 1 | Tag 2] and t2 = [Tag 1 | Tag 2] but the meet between some
-       combinations result in a bottom. *)
+
+       t1 = [Tag 1 | Tag 2] and t2 = [Tag 1 | Tag 2]
+
+       but the meet between some combinations result in a bottom. *)
       match other1, Tag.Map.get_singleton known1, other2, Tag.Map.get_singleton known2 with
       | Bottom, Some _, _, _           -> false
       | _, _,           Bottom, Some _ -> false

@@ -66,6 +66,7 @@ let length_offset_of_size size =
 (* This computes the maximum of a given value [x] with zero,
    in an optimized way. It takes as named argument the size (in bytes)
    of an integer register on the target architecture.
+
    It is equivalent to the `max_or_zero` function in `cmm_helpers.ml` *)
 let max_with_zero ~size_int x =
   let register_bitsize_minus_one =

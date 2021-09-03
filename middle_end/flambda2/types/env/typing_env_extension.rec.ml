@@ -104,6 +104,7 @@ let rec meet0 env (t1 : t) (t2 : t) extra_extensions =
   (* A symmetrical meet would be hard to implement, as
      the inner meets can produce extra extensions that need
      to be merged with the result.
+
      To get around this, we'll suppose that [t2] is smaller than [t1]
      and add equations from [t2] to [t1], along with all extra equations
   *)
@@ -131,7 +132,8 @@ let rec meet0 env (t1 : t) (t2 : t) extra_extensions =
        but since we lack the property that the new extensions are stricter than
        the existing ones we can get into an infinite loop here
        (see flambdatest/unit_test/extension_meet.ml, function
-       test_double_recursion for an example)
+       test_double_recursion for an example).
+
        This is very uncommon though (it needs recursive types involving at least
        three different names), so for now we still do the meet systematically.
     *)

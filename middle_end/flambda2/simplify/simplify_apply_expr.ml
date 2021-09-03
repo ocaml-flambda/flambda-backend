@@ -543,8 +543,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         let provided_num_args = List.length args in
         (* A function declaration with [is_tupled = true] must be treated
            specially:
+
            - Direct calls adopt the normal calling convention of the code's
              body, i.e. that given by [Code.params_arity].
+
            - Indirect calls adopt the calling convention consisting of a
              single tuple argument, irrespective of what [Code.params_arity]
              says. *)

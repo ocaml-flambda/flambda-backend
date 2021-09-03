@@ -19,6 +19,7 @@
 type t
 (** An accumulator for the cmm phrases that result from translating
     pre-allocated static blocks, functions, and gc roots.
+
     In addition to storing already translated static data, these
     accumulators also allow working on the elaboration of a Cmm.data_item
     list (named the current_data). *)

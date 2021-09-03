@@ -30,7 +30,9 @@ let arch64 = Targetint_32_64.size = 64 (* are we compiling for a 64-bit arch *)
 (* CR-soon mshinwell: Investigate revised size numbers. *)
 
 (* Native operations are estimated to be of size 1, this includes:
+
    - arithmetic operations
+
    - direct loads (without write barrier) *)
 
 (** Allocation size *)

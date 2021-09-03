@@ -27,10 +27,14 @@ module Apply_cont = Apply_cont_expr
 module Switch = Switch_expr
 
 (** The basic structure of the language ensures that:
+
     - every intermediate value (and in particular every potential constant
       that we may want to lift) has a name;
+
     - every point to which we might wish to jump has a name;
+
     - there are no nested "let"s or subexpressions;
+
     - no re-normalisation of terms is required when substituting an
       application for an inlined body (unlike in ANF form).
 *)
@@ -213,17 +217,18 @@ end and Let_expr : sig
     -> ('a, Pattern_match_pair_error.t) Result.t
 end and Let_cont_expr : sig
   (** Values of type [t] represent alpha-equivalence classes of the definitions
-      of continuations:
-        let_cont [name] [args] = [handler] in [body]
-      or using an alternative notation:
-        [body]
-        where [name] [args] = [handler]
+   *  of continuations:
+   *    let_cont [name] [args] = [handler] in [body]
+   *  or using an alternative notation:
+   *    [body]
+   *    where [name] [args] = [handler]
+   *
+   *  - Continuations are second-class.
+   *  - Continuations do not capture variables.
+   *  - Continuations may be (mutually-)recursive.
+   *)
 
-      - Continuations are second-class.
-      - Continuations do not capture variables.
-      - Continuations may be (mutually-)recursive.
-
-      It is an error to mark a continuation that might be recursive as
+  (** It is an error to mark a continuation that might be recursive as
       non-recursive. The converse is safe.
 
       Note: any continuation used as an exception handler must be non-recursive

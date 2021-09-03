@@ -375,30 +375,30 @@ type t = {
 }
 
 (* Canonical elements can be seen as a collection of star graphs:
-
-   canon_i <--[coercion_i_0]-- elem_i_0
-       ^ ^--[...]-- ...
-        \--[coercion_i_m]-- elem_i_m
-
-   ...
-
-   canon_j <--[coercion_j_0]-- elem_j_0
-       ^ ^--[...]-- ...
-        \--[coercion_j_n]-- elem_j_n
-
-
-   stored as a map:
-
-   canonical_elements[elem_i_0] = (canon_i, coercion_i_0)
-   ...
-   canonical_elements[elem_i_m] = (canon_i, coercion_i_m)
-
-   ...
-
-   canonical_elements[elem_j_0] = (canon_j, coercion_j_0)
-   ...
-   canonical_elements[elem_j_n] = (canon_j, coercion_j_n)
-*)
+ *
+ * canon_i <--[coercion_i_0]-- elem_i_0
+ *     ^ ^--[...]-- ...
+ *      \--[coercion_i_m]-- elem_i_m
+ *
+ * ...
+ *
+ * canon_j <--[coercion_j_0]-- elem_j_0
+ *     ^ ^--[...]-- ...
+ *      \--[coercion_j_n]-- elem_j_n
+ *
+ *
+ * stored as a map:
+ *
+ * canonical_elements[elem_i_0] = (canon_i, coercion_i_0)
+ * ...
+ * canonical_elements[elem_i_m] = (canon_i, coercion_i_m)
+ *
+ * ...
+ *
+ * canonical_elements[elem_j_0] = (canon_j, coercion_j_0)
+ * ...
+ * canonical_elements[elem_j_n] = (canon_j, coercion_j_n)
+ *)
 
 let print ppf { canonical_elements; aliases_of_canonical_names;
                 aliases_of_consts; binding_times_and_modes; } =
@@ -553,46 +553,48 @@ let get_aliases_of_canonical_element t ~canonical_element =
   | aliases -> aliases
 
 (*
-   before
-   ~~~~~~
-   canonical_element <--[coercion_ce_0]-- ce_0
-     ^ ^--[...]-- ...
-      \--[coercion_ce_m]-- ce_m
-   to_be_demoted <--[coercion_tbd_0]-- tbd_0
-     ^ ^--[...]-- ...
-      \--[coercion_tbd_n]-- tbd_n
-
-   i.e.
-
-   canonical_elements[ce_0] = (canonical_element, coercion_ce_0)
-   ...
-   canonical_elements[ce_m] = (canonical_element, coercion_ce_m)
-   canonical_elements[tbd_0] = (to_be_demoted, coercion_tbd_0)
-   ...
-   canonical_elements[tbd_n] = (to_be_demoted, coercion_tbd_n)
-
-
-   after
-   ~~~~~
-   canonical_element <--[coercion_ce_0]-- ce_0
-     ^ ^ ^ ^ ^ ^--[...]-- ...
-     | | | |  \--[coercion_ce_m]-- ce_m
-     | | | \--[coercion_to_canonical]-- to_be_demoted
-     | | \--[compose(coercion_tbd_0, coercion_to_canonical)]-- tbd_0
-     | \--[...]-- ...
-     \--[compose(coercion_tbd_n, coercion_to_canonical)]-- tbd_n
-
-   i.e.
-
-   canonical_elements[ce_0] = (canonical_element, coercion_ce_0)
-   ...
-   canonical_elements[ce_m] = (canonical_element, coercion_ce_m)
-   canonical_elements[to_be_demoted] = (canonical_element, coercion_to_canonical)
-   canonical_elements[tbd_0] = (canonical_element, compose(coercion_tbd_0, coercion_to_canonical))
-   ...
-   canonical_elements[tbd_n] = (canonical_element, compose(coercion_tbd_n, coercion_to_canonical))
-
-*)
+ * before
+ * ~~~~~~
+ * canonical_element <--[coercion_ce_0]-- ce_0
+ *   ^ ^--[...]-- ...
+ *    \--[coercion_ce_m]-- ce_m
+ * to_be_demoted <--[coercion_tbd_0]-- tbd_0
+ *   ^ ^--[...]-- ...
+ *    \--[coercion_tbd_n]-- tbd_n
+ *
+ * i.e.
+ *
+ * canonical_elements[ce_0] = (canonical_element, coercion_ce_0)
+ * ...
+ * canonical_elements[ce_m] = (canonical_element, coercion_ce_m)
+ * canonical_elements[tbd_0] = (to_be_demoted, coercion_tbd_0)
+ * ...
+ * canonical_elements[tbd_n] = (to_be_demoted, coercion_tbd_n)
+ *
+ *
+ * after
+ * ~~~~~
+ * canonical_element <--[coercion_ce_0]-- ce_0
+ *   ^ ^ ^ ^ ^ ^--[...]-- ...
+ *   | | | |  \--[coercion_ce_m]-- ce_m
+ *   | | | \--[coercion_to_canonical]-- to_be_demoted
+ *   | | \--[compose(coercion_tbd_0, coercion_to_canonical)]-- tbd_0
+ *   | \--[...]-- ...
+ *   \--[compose(coercion_tbd_n, coercion_to_canonical)]-- tbd_n
+ *
+ * i.e.
+ *
+ * canonical_elements[ce_0] = (canonical_element, coercion_ce_0)
+ * ...
+ * canonical_elements[ce_m] = (canonical_element, coercion_ce_m)
+ * canonical_elements[to_be_demoted] =
+ *   (canonical_element, coercion_to_canonical)
+ * canonical_elements[tbd_0] =
+ *   (canonical_element, compose(coercion_tbd_0, coercion_to_canonical))
+ * ...
+ * canonical_elements[tbd_n] =
+ *   (canonical_element, compose(coercion_tbd_n, coercion_to_canonical))
+ *)
 let add_alias_between_canonical_elements t ~canonical_element
       ~coercion_to_canonical:coercion_to_canonical ~to_be_demoted =
   if Simple.equal canonical_element to_be_demoted then begin
@@ -747,20 +749,23 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
          is really:
 
          1. What aliases need to be updated?
+
          2. What do those aliases point to now?
 
          Currently #1 is always exactly one element, but it could be zero in
          this case since nothing needs to be updated.
-
-         So the new [add_result] could be something like:
-         {[
-           type add_result = {
-             t : t;
-             updated_aliases : Name.t list;
-             new_canonical_element : Simple.t;
-           }
-         ]}
-
+      *)
+      (*
+       * So the new [add_result] could be something like:
+       * {[
+       *   type add_result = {
+       *     t : t;
+       *     updated_aliases : Name.t list;
+       *     new_canonical_element : Simple.t;
+       *   }
+       * ]}
+       *)
+      (*
          (It's not actually necessary that [new_canonical_element] is canonical
          as far as [Typing_env] is concerned, but I think this is easier
          to explain than "representative_of_new_alias_class" or some such.) *)
@@ -847,10 +852,10 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
     let canonical_element2 = element2 in
     let coercion_from_element2_to_canonical_element2 = Coercion.id in
     (* element1 <--[c]-- canonical_element2=element2
-       +
-       canonical_element1 <--[c1] element1
-       ~>
-       canonical_element1 <--[c1 << c]-- canonical_element2 *)
+     * +
+     * canonical_element1 <--[c1] element1
+     * ~>
+     * canonical_element1 <--[c1 << c]-- canonical_element2 *)
     let coercion_from_canonical_element2_to_canonical_element1 =
       Coercion.compose_exn coercion_from_element2_to_element1
         ~then_:coercion_from_element1_to_canonical_element1
@@ -868,13 +873,13 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
     let coercion_from_element1_to_canonical_element1 = Coercion.id in
     let coercion_from_canonical_element2_to_canonical_element1 =
       (* canonical_element1=element1 <--[c]-- element2
-         +
-         canonical_element2 <--[c2]-- element2
-         ~>
-         element2 <--[c2^-1]-- canonical_element2
-         ~>
-         canonical_element1 <--[c << c2^-1]-- canonical_element2
-      *)
+       * +
+       * canonical_element2 <--[c2]-- element2
+       * ~>
+       * element2 <--[c2^-1]-- canonical_element2
+       * ~>
+       * canonical_element1 <--[c << c2^-1]-- canonical_element2
+       *)
       Coercion.compose_exn
         (Coercion.inverse coercion_from_element2_to_canonical_element2)
         ~then_:coercion_from_element2_to_element1
@@ -893,14 +898,14 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
     } ->
     let coercion_from_canonical_element2_to_canonical_element1 =
       (* canonical_element1 <--[c1]-- element1
-         canonical_element2 <--[c2]-- element2
-         +
-         element1 <--[c]-- element2
-         ~>
-         element2 <--[c2^-1]-- canonical_element2
-         ~>
-         canonical_element1 <--[c1 << c << c2^-1]-- canonical_element2
-         *)
+       * canonical_element2 <--[c2]-- element2
+       * +
+       * element1 <--[c]-- element2
+       * ~>
+       * element2 <--[c2^-1]-- canonical_element2
+       * ~>
+       * canonical_element1 <--[c1 << c << c2^-1]-- canonical_element2
+       *)
       Coercion.compose_exn
         (Coercion.inverse coercion_from_element2_to_canonical_element2)
         ~then_:(Coercion.compose_exn
@@ -916,12 +921,12 @@ let add t ~element1:element1_with_coercion ~binding_time_and_mode1
       ~element2:element2_with_coercion ~binding_time_and_mode2 =
   let original_t = t in
   (* element1_with_coercion <--[c1]-- element1
-     +
-     element2_with_coercion <--[c2]-- element2
-     ~
-     element1 <--[c1^-1]-- element1_with_coercion
-     ~
-     element1 <--[c1^-1 << c2]-- element2
+   * +
+   * element2_with_coercion <--[c2]-- element2
+   * ~
+   * element1 <--[c1^-1]-- element1_with_coercion
+   * ~
+   * element1 <--[c1^-1 << c2]-- element2
    *)
   let element1 = element1_with_coercion |> Simple.without_coercion in
   let element2 = element2_with_coercion |> Simple.without_coercion in

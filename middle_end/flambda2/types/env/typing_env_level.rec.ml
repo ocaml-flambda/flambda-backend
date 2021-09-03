@@ -189,8 +189,10 @@ let concat (t1 : t) (t2 : t) =
 let join_types ~params ~env_at_fork envs_with_levels =
   (* Add all the variables defined by the branches as existentials to the
      [env_at_fork].
+
      Any such variable will be given type [Unknown] on a branch where it
      was not originally present.
+
      Iterating on [level.binding_times] instead of [level.defined_vars] ensures
      consistency of binding time order in the branches and the result.
      In addition, this also aggregates the code age relations of the branches.
@@ -223,6 +225,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
   (* Special handling for parameters: they're defined in [env_at_fork],
      but their type (Unknown) is only a placeholder until we compute
      the actual join.
+
      So we start the join with equations binding the parameters to Bottom,
      to make sure we end up with the right type in the end.
   *)
@@ -265,6 +268,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
            of the levels, then ignore it.  [Simplify_expr] will already have
            made its type suitable for [base_env] and inserted it into that
            environment.
+
            If [name] is a symbol that is not a lifted constant, then it was
            defined before the fork and already has an equation in base_env.
            While it is possible that its type could be refined by all of the
@@ -295,6 +299,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
                    valid on all of the previous paths.  This is either the type
                    of [name] in the original [env_at_fork] (passed to [join],
                    below), or if [name] was undefined there, [Unknown].
+
                    Since the current version of
                    [base_env] has definitions for all the variables
                    present in the branches, we can actually always just look
@@ -314,11 +319,14 @@ let join_types ~params ~env_at_fork envs_with_levels =
             | Some joined_ty, None ->
               (* There is no equation, at all (not even saying "unknown"), on
                  the current level for [name].
+
                  However, we know we've already seen [name] earlier.
                  So like in the case above, we have three cases:
+
                  - [name] is defined in [env_at_fork]. In that case, the type
                  for [name] at the current use is the one from [env_at_fork],
                  and we need to join with it.
+
                  - [name] is not defined in [env_at_fork], but is defined in
                  [env_at_use]. In this case (which we can check by looking at
                  [t.defined_vars]), the type for [name] at the current use is
@@ -326,6 +334,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
                  is already [Unknown], so we need to do a join. However,
                  since the join of anything with [Unknown] is [Unknown], we
                  can return it directly.
+
                  - [name] is defined neither in [env_at_fork] nor in
                  [env_at_use]. In this case, the type for [name] is considered
                  [Bottom] in this branch, so we can return [joined_ty] directly.
@@ -487,8 +496,10 @@ let join ~env_at_fork envs_with_levels ~params
      the join point.  (Recall that the environment at the fork point includes
      the parameters of the continuation being called at the join. We wish to
      ensure that information in the types of these parameters is not lost.)
+
      - Equations on names defined in the environment at the fork point are
      always propagated.
+
      - Definitions of, and equations on, names that occur free on the
      right-hand sides of the propagated equations are also themselves
      propagated. The definition of any such propagated name (i.e. one that

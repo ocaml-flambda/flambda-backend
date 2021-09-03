@@ -26,16 +26,18 @@
     to coercion_, which is to say, there exists a coercion [c] such that [x =
     (coerce y c)]. Coercions form a _groupoid_, meaning they have just the
     right properties to let [~] be an equivalence relation:
-
+    {|
       + There is an identity coercion, so [x = (coerce x id)], meaning [x ~ x].
+
       + Coercions can be inverted, so if [x ~ y], meaning [x = (coerce y c)],
         then (writing [c^-1] for the inverse) we have [y = (coerce x c^-1)],
         meaning [y ~ x].
+
       + Coercions can be composed, so if [x ~ y] and [y ~ z], meaning
         [x = (coerce y c_xy)] and [y = (coerce z c_yz)], then (using [>>] as
         the composition operator) we have [x = (coerce z (c_xy >> c_yz))] and
         [x ~ z].
-
+    |}
     Therefore we can safely redefine "alias" to mean [x ~ y] rather than [x =
     y], and the coercions keep track of the precise sense in which [x] and [y]
     are "equal enough." In particular, this module keeps track of aliases in
@@ -73,9 +75,12 @@ type add_result = private {
     must be different and not both constants. If [add t s1 mode1 s2 mode2]
     returns [{ t = t'; canonical_element; alias_of_demoted_element }], then
     according to [t'],
+
     - [canonical_element] is the canonical element of both [s1] and [s2];
+
     - [alias_of_demoted_element] is either [s1] or [s2] (possibly with a new
       coercion; see note on [add_result]); and
+
     - in the case that [alias_of_demoted_element] was canonical before
       (meaning that either [s1] or [s2] happened to be canonical), it is
       no longer canonical. *)

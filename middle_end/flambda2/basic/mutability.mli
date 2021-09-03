@@ -18,8 +18,10 @@
 
 type t = Mutable | Immutable | Immutable_unique
 (** Mutable means that contents may vary at any moment.
+
     Immutable means that not only contents will never vary,
     but we're also allowed to share or duplicate identical values at will.
+
     Immutable_unique means that the contents will never vary,
     but physical equality is meaningful so the value must not be duplicated,
     nor shared. *)

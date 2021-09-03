@@ -25,6 +25,7 @@ module UE = Upwards_env
 
 (* CR mshinwell: We need to emit [Warnings.Inlining_impossible] as
    required.
+
    When in fallback-inlining mode: if we want to follow Closure we should
    not complain about function declarations with e.g. [@inline always]
    if the function contains other functions and therefore cannot be

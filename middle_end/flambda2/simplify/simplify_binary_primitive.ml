@@ -447,6 +447,7 @@ end = struct
     | Lsl | Lsr | Asr ->
       (* Shifting either way by [Targetint_32_64.size] or above, or by a negative
          amount, is undefined.
+
          However note that we cannot produce [Invalid] unless the code is
          type unsafe, which it is not here.  (Otherwise a GADT match might
          be reduced to only one possible case which it would be wrong to

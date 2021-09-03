@@ -114,10 +114,10 @@ let sort0 lifted_constants =
         LC.concat lifted_constants)
   in
   (* We may wish to traverse the array of constants in either direction.
-     This can be done by virtue of the following property:
-       Let the list/array L be a topological sort of a directed graph G.
-       Then the reverse of L is a topological sort of the transpose of G.
-  *)
+   * This can be done by virtue of the following property:
+   *   Let the list/array L be a topological sort of a directed graph G.
+   *   Then the reverse of L is a topological sort of the transpose of G.
+   *)
   LCS.singleton_sorted_array_of_constants ~innermost_first
 
 let sort lifted_constants =

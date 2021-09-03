@@ -100,13 +100,13 @@ module Args = struct
 
   let (<=) t1 t2 =
     (* The comparison of two [Args.t] is a pointwise comparison. It is a
-       partial order so it may happen that both [t1 <= t2] and [t2 <= t1] are
-       false. For example we could have:
-       t1 = { call_cost = 2; alloc_cost = 2 }
-       t2 = { call_cost = 4; alloc_cost = 1 }
-       In that case [(<=) t1 t2 = false] as [t1.alloc_cost > t2.alloc_cost] and
-       [(<=) t2 t1 = false] as [t2.call_cost > t1.call_cost]
-    *)
+     * partial order so it may happen that both [t1 <= t2] and [t2 <= t1] are
+     * false. For example we could have:
+     * t1 = { call_cost = 2; alloc_cost = 2 }
+     * t2 = { call_cost = 4; alloc_cost = 1 }
+     * In that case [(<=) t1 t2 = false] as [t1.alloc_cost > t2.alloc_cost] and
+     * [(<=) t2 t1 = false] as [t2.call_cost > t1.call_cost]
+     *)
     let {
       max_inlining_depth = t1_max_inlining_depth;
       call_cost = t1_call_cost;
@@ -216,10 +216,10 @@ let threshold t = t.Args.threshold
 
 let meet t1 t2 =
   (* If we are sure that args1 is lower than args2 then
-      [meet args1 args2 = args1]. In that case we can avoid calling
-      [Args.meet] and reuse args1 to avoid having to allocate a new Args.t.
-      The same goes if the are sure that args2 is lower than args1.
-  *)
+   * [meet args1 args2 = args1]. In that case we can avoid calling
+   * [Args.meet] and reuse args1 to avoid having to allocate a new Args.t.
+   * The same goes if the are sure that args2 is lower than args1.
+   *)
   if Args.(<=) t1 t2 then
     t1
   else if Args.(<=) t2 t1 then

@@ -143,10 +143,10 @@ val block_set :
 (* CR mshinwell: These functions should have labelled arguments so we don't
    need comments *)
 (** Set a field in a block. Cmm argument order:
-    - block
-    - field number as a tagged integer
-    - new value for the field.
-*)
+ *  - block
+ *  - field number as a tagged integer
+ *  - new value for the field.
+ *)
 
 (** {2 Array access} *)
 
@@ -159,9 +159,9 @@ val array_load :
   ?dbg:Debuginfo.t -> Flambda_primitive.Array_kind.t ->
   Cmm.expression -> Cmm.expression -> Cmm.expression
 (** Load a field from an array. Cmm argument order:
-    - array
-    - field number as a tagged integer
-*)
+ *  - array
+ *  - field number as a tagged integer
+ *)
 
 val array_set :
   ?dbg:Debuginfo.t ->
@@ -169,10 +169,10 @@ val array_set :
   Flambda_primitive.Init_or_assign.t ->
   Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression
 (** Set a field in an array. Cmm argument order:
-    - array
-    - field number as a tagged integer
-    - new value for the field.
-*)
+ *  - array
+ *  - field number as a tagged integer
+ *  - new value for the field.
+ *)
 
 (** {2 String and Bytes access} *)
 
@@ -182,10 +182,10 @@ val string_like_load :
   Flambda_primitive.string_accessor_width ->
   Cmm.expression -> Cmm.expression -> Cmm.expression
 (** Load the given number of bits from a string-like value (string, bytes,
-    bigstring). Cmm arguments order:
-    - string-like value
-    - index within the string as a tagged integer
-*)
+ *  bigstring). Cmm arguments order:
+ *  - string-like value
+ *  - index within the string as a tagged integer
+ *)
 
 val bytes_like_set :
   ?dbg:Debuginfo.t ->
@@ -193,11 +193,11 @@ val bytes_like_set :
   Flambda_primitive.string_accessor_width ->
   Cmm.expression -> Cmm.expression -> Cmm.expression -> Cmm.expression
 (** Set the given number of bits in a bytes-like value (bytes, bigstring).
-    Cmm arguments order:
-    - string-like value
-    - index within the string as a tagged integer
-    - new value for the bits set
-*)
+ *  Cmm arguments order:
+ *  - string-like value
+ *  - index within the string as a tagged integer
+ *  - new value for the bits set
+ *)
 
 (** {2 Bigarrays} *)
 
@@ -388,6 +388,7 @@ val direct_call :
   Cmm.machtype -> Cmm.expression -> Cmm.expression list -> Cmm.expression
 (** [direct_call ty f_code args] creates a direct call to the function code [f_code] with
     arguments [args], with a return value of type [ty].
+
     If a closure needs to be passed, it must be included in [args]. *)
 
 val indirect_call :

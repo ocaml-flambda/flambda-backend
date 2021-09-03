@@ -499,6 +499,7 @@ let after_non_recursive_let_cont_body_rebuilt cont ~uenv_without_cont
      with the body; or if the body is just an [Apply_cont]
      (with no trap action) of [cont], in which case we're
      left with the handler.
+
      The upwards environment of [uacc] is replaced so that
      out-of-scope continuation bindings do not end up in the
      accumulator. *)
@@ -610,9 +611,11 @@ let after_downwards_traversal_of_non_recursive_let_cont_handler ~down_to_up
     (* Now, on the upwards traversal, the handler is rebuilt.
        We need to be careful with the free name information
        returned in [uacc] in two ways:
+
        - Observe that linear inlining of the continuation doesn't
          change the free names of the whole [Let_cont] (so nothing
          extra to do here).
+
        - If the continuation has zero uses, we must not
          count the free names of the handler, as it will be
          removed. *)
@@ -875,6 +878,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr
      [extra_params_and_args] argument, but we can't provide a meaningful one
      at this point: we need to finish the downwards traversal of the handler
      to compute the extra args for unboxing.
+
      Thankfully, for recursive continuations, this argument is not really used
      (see the use of [extra_params_and_args] in
      {rebuild_one_continuation_handler}. Therefore, we pass an empty one to

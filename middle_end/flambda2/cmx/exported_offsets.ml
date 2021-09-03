@@ -25,7 +25,9 @@
 type closure_info = {
   offset : int;
   size : int; (* Number of fields taken for the function:
+
                  2 fields (code pointer + arity) for function of arity one
+
                  3 fields (caml_curry + arity + code pointer) otherwise *)
 }
 
