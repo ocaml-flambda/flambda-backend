@@ -1305,8 +1305,7 @@ let emit_probe_handler_wrapper p =
   (* Account for the return address that is now pushed on the stack. *)
   stack_offset := !stack_offset + 8;
   (* Emit function entry code *)
-  D.comment (Printf.sprintf "probe %s %s" p.probe_name
-               handler_code_sym);
+  D.comment (Printf.sprintf "probe %s %s" p.probe_name handler_code_sym);
   emit_named_text_section wrap_label;
   D.align 16;
   _label wrap_label;
@@ -1360,9 +1359,8 @@ let emit_probe_handler_wrapper p =
   (* Reload spilled registers used as temporaries *)
   I.mov (reg saved_r15) r15;
   (* Emit call to handler *)
-  let h = Option.get p.probe_handler_code_sym in
-  add_used_symbol h;
-  emit_call h;
+  add_used_symbol handler_code_sym;
+  emit_call handler_code_sym;
   (* Record a frame description for the wrapper *)
   let label = new_label () in
   let live_offset =
