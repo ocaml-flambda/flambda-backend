@@ -21,9 +21,11 @@ module Ece = Effects_and_coeffects
 module R = Un_cps_result
 
 (* Notes:
+
    - an int64 on a 32-bit host is represented across two registers,
      hence most operations on them will actually need to call C primitive
      that can handle them.
+
    - int32 on 64 bits are represented as an int64 in the range of
      32-bit integers. Thus we insert sign extensions after every operation
      on 32-bits integers that may have a result outside of the range.
@@ -315,11 +317,13 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
   (* Tagged integers *)
   (* When comparing tagged integers, there is always one number for which
      the last bit is irrelevant.
+
      For x < y, ignoring the last bit of y will not change the result, as
      if x and y are different (as OCaml integers) then the comparison doesn't
      need to see the last bit, and if they are equal then if the last bit of
      x is one (as it is supposed to be) the result will be false
      for both values of the last bit of y, as expected.
+
      The same reasoning applies to the other comparisons. *)
   | Tagged_immediate, Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
   | Tagged_immediate, Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
@@ -582,6 +586,7 @@ let wrap_extcall_result (l : Flambda_kind.t list) =
      code that returns an int32 returns one that is sign extended or not *)
   | [Naked_number Naked_int32] -> C.sign_extend_32
   (* No need to wrap other return arities.
+
      Note that extcall of arity 0 are allowed (these are extcalls that
      never return, such as caml_ml_array_bound_error) *)
   | [] | [_] -> (fun _dbg cmm -> cmm)
@@ -818,8 +823,10 @@ and let_cont_inline env res k h body =
   expr env res body
 
 (* Continuations that are not inlined are translated using a jump:
+
    - exceptions continuations use "dynamic" jumps using the
      raise/trywith cmm mechanism
+
    - regular continuations use static jumps, through the
      exit/catch cmm mechanism *)
 (* CR Gbury: "split" the environment according to which variables the
@@ -841,6 +848,7 @@ and let_cont_jump env res k h body =
   end
 
 (* Exception continuations, translated using delayed trywith blocks.
+
    Additionally, exn continuations in flambda can have extra args, which
    are passed through the trywith using mutable cmm variables. Thus the
    exn handler must first read the contents of thos extra args (eagerly
@@ -911,7 +919,9 @@ and continuation_handler env res h =
   vars, arity, e, res
 
 (* Function calls: besides the function calls, there are a few things to do:
+
    - setup the mutable variables for the exn cont extra args if needed
+
    - translate the call continuation (either through a jump, or inlining). *)
 and apply_expr env res e =
   let call, env, effs = apply_call env e in
@@ -1209,9 +1219,11 @@ and switch env res s =
      it can be interesting to *not* untag the scrutinee (particularly
      for those coming from a source if-then-else on booleans) as that way
      the translation can use 2 instructions instead of 3.
+
      However, this is only useful to do if the tagged expression is
      smaller then the untagged one (which is not always true due to
      arithmetic simplifications performed by cmm_helpers).
+
      Additionally for switches with more than 2 arms, not untagging
      and lifting the switch to perform on tagged integer might be worse
      (because the discriminant of the arms may not be successive anymore,
@@ -1270,6 +1282,7 @@ and make_arm ~tag_discriminant env res (d, action) =
 
 (* Create a switch given the env, the scrutinee and its arms,
    plus some optimization/simplification option, for now:
+
    - whether to tag the discriminant of the arms (this suppose
      that the scrutinee is adequately tagged/untagged) *)
 and make_switch ~tag_discriminant env res e arms =

@@ -34,6 +34,7 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
        a variable (via the [Simple] constructor), then in the event that the
        variable is itself a symbol projection, the environment will already
        know this fact.
+
        We don't need to record a projection if we are currently at toplevel,
        since any variable involved in a constant to be lifted from that
        position will also be at toplevel. *)

@@ -127,8 +127,10 @@ val is_int_for_scrutinee : scrutinee:Simple.t -> t
 val get_tag_for_block : block:Simple.t -> t
 
 (** Create a shape of blocks, for use as a meet constraint.
+
     Special tags are approximated to Unknown, as there is no good way
     to represent their shapes exactly.
+
     In particular, creating a Variant shape for a special tag is unsound,
     as it forbids the other special shapes that could apply. *)
 val blocks_with_these_tags : Tag.Set.t -> t Or_unknown.t

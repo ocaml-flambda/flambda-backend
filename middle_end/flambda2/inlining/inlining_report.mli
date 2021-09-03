@@ -55,6 +55,7 @@ val record_decision : dbg:Debuginfo.t -> decision -> unit
 val output_then_forget_decisions : output_prefix:string -> unit
 (** Output the report for all recorded decisions up to that point,
     and clean/forget all decisions.
+
     Note that this function should be called once for each round of
     simplification. *)
 

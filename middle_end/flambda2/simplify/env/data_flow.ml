@@ -603,10 +603,13 @@ module Dependency_graph = struct
         in
         Numeric_types.Int.Map.fold (fun i name_occurrence t ->
           (* Note on the direction of the edge:
+
              We later do a reachability analysis to compute the
              transitive closure of the used variables.
+
              Therefore an edge from src to dst means: if src is used, then
              dst is also used.
+
              Applied here, this means : if the param of a continuation is used,
              then any argument provided for that param is also used.
              The other way wouldn't make much sense. *)
@@ -658,9 +661,11 @@ module Dependency_graph = struct
                    _prim_gen) and generated when going up while creating a
                    wrapper continuation for the return of a function
                    application.
+
                    In that case, the fresh parameters created for the wrapper
                    cannot introduce dependencies to other variables or
                    parameters of continuations.
+
                    Therefore, in this case, the data_flow analysis is
                    incomplete, and we instead rely on the free_names analysis
                    to eliminate the extra_let binding if it is unneeded. *)

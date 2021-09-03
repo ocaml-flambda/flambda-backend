@@ -17,6 +17,7 @@
     to a type. A coercion must:
 
     + have an inverse (which is also a coercion), and
+
     + not alter the run-time value of its argument.
 
     Rule #1 allows us to treat a coerced name as an alias of the original name,

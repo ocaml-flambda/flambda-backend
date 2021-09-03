@@ -35,6 +35,7 @@ module type S = sig
 
   (* Note that unlike the [join] function on regular types, for structures
      the return type is [t] (and not [t Or_unknown.t]).
+
      This simplifies a bit some parts of the code that cannot handle
      the Unknown case gracefully, and all implementations of this interface
      can handle [Unknown] results from generic [join]s without needing to

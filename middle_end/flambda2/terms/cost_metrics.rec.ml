@@ -137,12 +137,13 @@ let (+) a b = {
    it contains. The intuition behind it is that if we do inline a function f in
    which a set of closure is defined then we will copy the body of all functions
    referred by this set of closure as they are dependent upon f.
-
-   A set of closures introduces implicitly an alloc whose size (as in OCaml 4.11)
-   is:
-     total number of closure variables + sum of s(arity) for each closure
-   where s(a) = if a = 1 then 2 else 3
 *)
+(*
+ * A set of closures introduces implicitly an alloc whose size (as in OCaml 4.11)
+ * is:
+ *   total number of closure variables + sum of s(arity) for each closure
+ * where s(a) = if a = 1 then 2 else 3
+ *)
 let set_of_closures ~find_code_characteristics set_of_closures =
   let func_decls = Set_of_closures.function_decls set_of_closures in
   let funs = Function_declarations.funs func_decls in

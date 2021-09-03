@@ -545,8 +545,10 @@ val prove_variant_like
 (** If [ty] is known to represent a boxed number or a tagged integer,
     [prove_is_a_boxed_number env ty] is [Proved kind]. [kind] is the kind of
     the unboxed number.
+
     If [ty] is known to represent something of kind value that is not a number
     [prove_is_a_boxed_number env ty] is [Invalid].
+
     Otherwise it is [Unknown] or [Wrong_kind] when [ty] is not of kind value.
 *)
 val prove_is_a_boxed_number
@@ -615,6 +617,7 @@ val prove_strings : Typing_env.t -> t -> String_info.Set.t proof
 
 (** Attempt to show that the provided type describes the tagged version of
     a unique naked immediate [Simple].
+
     This function will return [Unknown] if values of the provided type might
     sometimes, but not always, be a tagged immediate (for example if it is a
     variant type involving blocks). *)

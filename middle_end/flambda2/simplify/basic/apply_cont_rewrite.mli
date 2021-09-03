@@ -17,6 +17,7 @@
 (** Rewrites applied to [Apply_cont] expressions in order to reflect
     changes in continuation arities consequential to addition or removal of
     parameters.
+
     The rewrites are actually applied via [Expr_builder]. *)
 
 [@@@ocaml.warning "+a-30-40-41-42"]

@@ -75,6 +75,7 @@ type report = [ `Flambda2_1_0_0 of metadata * t list ]
 (* Actual log storage. During simplification, in order to be more efficient,
    decisions are stored from the most recent one (in the head of the list),
    to the oldest one (at the end of the list).
+
    This means that one should rev the list before printing. *)
 let log : t list ref = ref []
 
