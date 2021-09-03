@@ -268,6 +268,10 @@ let update_args t ~args =
   if args == t.args then t
   else { t with args; }
 
+let with_debuginfo t ~dbg =
+  if dbg == t.dbg then t
+  else { t with dbg; }
+
 let no_args t =
   match args t with
   | [] -> true

@@ -54,6 +54,8 @@ val update_continuation_and_args
 
 val update_args : t -> args:Simple.t list -> t
 
+val with_debuginfo : t -> dbg:Debuginfo.t -> t
+
 val is_goto : t -> bool
 
 val is_goto_to : t -> Continuation.t -> bool
