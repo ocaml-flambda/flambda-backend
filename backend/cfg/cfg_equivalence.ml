@@ -330,7 +330,7 @@ let check_basic
     | _ -> different location "basic"
 [@@ocaml.warning "-4"]
 
-let check_intruction
+let check_instruction
   : type a . check_live:bool -> check_dbg:bool -> int -> location -> a Cfg.instruction -> a Cfg.instruction -> unit
   = fun ~check_live ~check_dbg idx location expected result ->
     let location = Printf.sprintf "%s (index %d)" location idx in
@@ -351,13 +351,13 @@ let check_intruction
     (* note: not comparing `id` fields on purpose *)
     ()
 
-let check_basic_intruction
+let check_basic_instruction
   : State.t -> location -> int -> Cfg.basic Cfg.instruction -> Cfg.basic Cfg.instruction -> unit
   = fun state location idx expected result ->
     check_basic state location expected.desc result.desc;
-    check_intruction ~check_live:true ~check_dbg:true idx location expected result
+    check_instruction ~check_live:true ~check_dbg:true idx location expected result
 
-let rec check_basic_intruction_list
+let rec check_basic_instruction_list
   : State.t -> location -> int -> Cfg.basic Cfg.instruction list -> Cfg.basic Cfg.instruction list -> unit
   = fun state location idx expected result ->
     match expected, result with
@@ -367,8 +367,8 @@ let rec check_basic_intruction_list
     | [], (_ :: _) ->
       different location "bodies with different sizes (expected is shorter)"
     | (expected_hd :: expected_tl), (result_hd :: result_tl) ->
-      check_basic_intruction state location idx expected_hd result_hd;
-      check_basic_intruction_list state location (succ idx) expected_tl result_tl
+      check_basic_instruction state location idx expected_hd result_hd;
+      check_basic_instruction_list state location (succ idx) expected_tl result_tl
 
 let check_terminator_instruction
   : State.t -> location -> Cfg.terminator Cfg.instruction -> Cfg.terminator Cfg.instruction -> unit
@@ -422,7 +422,7 @@ let check_terminator_instruction
     | _ ->
       different location "terminator"
     end;
-    check_intruction ~check_live:false ~check_dbg:false (-1) location expected result
+    check_instruction ~check_live:false ~check_dbg:false (-1) location expected result
 [@@ocaml.warning "-4"]
 
 let check_basic_block
@@ -433,7 +433,7 @@ let check_basic_block
         (Label.to_string expected.start)
         (Label.to_string result.start)
     in
-    check_basic_intruction_list state location 0 expected.body result.body;
+    check_basic_instruction_list state location 0 expected.body result.body;
     check_terminator_instruction state location expected.terminator result.terminator;
     State.add_label_sets_to_check
       state
