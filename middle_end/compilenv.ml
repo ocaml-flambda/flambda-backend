@@ -171,16 +171,8 @@ let escape_symbols part =
   String.iter handle_char part;
   Buffer.contents buf
 
-[@@@ocaml.warning "-37"]
-
-type binop =
-  | Slash
-  | Minus
-
 type expression = 
   | String of string
-  | Integer of int
-  | Binop of binop * expression * expression
   | Dot of expression * string
 
 type cpp_name =
@@ -196,16 +188,9 @@ let mangle_cpp name =
   let with_length s =
     let s = escape_symbols s in
     Printf.sprintf "%d%s" (String.length s) s in
-  let binop_name = function
-    | Slash -> "dv"
-    | Minus -> "mi"
-  in
   let rec mangle_expression = function
     | String s -> with_length s
-    | Integer n -> Printf.sprintf "Li%dE" n
     | Dot (e, name) -> Printf.sprintf "dt%s%s" (mangle_expression e) (with_length name)
-    | Binop (op, e1, e2) ->
-      Printf.sprintf "%s%s%s" (binop_name op) (mangle_expression e1) (mangle_expression e2) 
   in 
   let rec mangle_name = function
     | Simple s -> with_length s
