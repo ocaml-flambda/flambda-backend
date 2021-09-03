@@ -16,7 +16,9 @@
 
     This module aims mainly at tracking uses of variables (other things may
     be added later on), with the aim of:
+
     - removing unused parameters of *recursive* continuations;
+
     - moving allocations out of the hot path of recursive continuations
       (e.g. the allocation of a float that was unboxed by the simplifier).
 *)
@@ -24,6 +26,7 @@
 type t
 (** The type tracking the uses of variables (passed through the downwards
     accumulator).
+
     This contains a stack to track in which continuation's handler
     the downwards acc currently is. *)
 

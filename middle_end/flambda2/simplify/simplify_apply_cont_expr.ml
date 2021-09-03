@@ -118,10 +118,6 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
        of allocating (branches can be moved by the backend, their runtime
        depends on the branch predictor...). Underestimating the number of
        removed branch is fine.
-
-       let uacc =
-        UA.notify_removed ~operation:Removed_operations.branch uacc
-      in
     *)
     inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
       ~free_names_of_handler ~cost_metrics_of_handler

@@ -31,6 +31,7 @@ open! Flambda.Import
     prevents it from being used to create "let symbol" bindings; use the
     other functions in this module instead.)  Bindings will be elided if they
     are unused.
+
     The [name_occurrences] in the provided [uacc] must contain exactly the
     free names of the [body]. *)
 val make_new_let_bindings
@@ -41,11 +42,14 @@ val make_new_let_bindings
 
 (** Create the "let symbol" binding(s) around a given body necessary to define
     the given lifted constant.  Two optimisations are performed:
+
     1. Best efforts are made not to create the binding(s) if it/they
        would be redundant.
+
     2. Closure variables are removed if they are not used according to the
        given [uacc].  (Such [uacc] must have seen all uses in the whole
        compilation unit.)
+
     The [name_occurrences] in the provided [uacc] must contain exactly the
     free names of the [body]. *)
 val create_let_symbols
@@ -57,6 +61,7 @@ val create_let_symbols
 (** Place lifted constants whose defining expressions involve [Name]s (for
     example those bound by a [Let] or a [Let_cont]) that are about to go out
     of scope.
+
     The [name_occurrences] in the provided [uacc] must contain exactly the
     free names of the [body]. *)
 val place_lifted_constants

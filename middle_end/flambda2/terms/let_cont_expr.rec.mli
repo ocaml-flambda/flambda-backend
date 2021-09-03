@@ -17,17 +17,18 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** Values of type [t] represent alpha-equivalence classes of the definitions
-    of continuations:
-      let_cont [name] [args] = [handler] in [body]
-    or using an alternative notation:
-      [body]
-      where [name] [args] = [handler]
+ *  of continuations:
+ *    let_cont [name] [args] = [handler] in [body]
+ *  or using an alternative notation:
+ *    [body]
+ *    where [name] [args] = [handler]
+ *
+ *  - Continuations are second-class.
+ *  - Continuations do not capture variables.
+ *  - Continuations may be (mutually-)recursive.
+ *)
 
-    - Continuations are second-class.
-    - Continuations do not capture variables.
-    - Continuations may be (mutually-)recursive.
-
-    It is an error to mark a continuation that might be recursive as
+(** It is an error to mark a continuation that might be recursive as
     non-recursive. The converse is safe.
 
     Note: any continuation used as an exception handler must be non-recursive

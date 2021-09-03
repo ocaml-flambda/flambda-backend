@@ -18,7 +18,9 @@ type t
 type closure_info = {
   offset : int;
   size : int; (* Number of fields taken for the function:
+
                  2 fields (code pointer + arity) for function of arity one
+
                  3 fields (caml_curry + arity + code pointer) otherwise *)
 }
 
@@ -35,15 +37,18 @@ val print : Format.formatter -> t -> unit
 val env_var_offset : t -> Var_within_closure.t -> env_var_info option
 (** Returns the offset computed for an environment variable, in
     terms of target architecture words.
+
     If [None] is returned, there is no closure in the program containing the
     given closure variable. *)
 
 val closure_offset : t -> Closure_id.t -> closure_info option
 (** Returns the offset computed for a closure id, in terms of
     target architecture words.
+
     This points to the first field of the closure representation
     within the sets of closures block. Notably, if the offset is not 0,
     an infix header should be placed just before the returned offset.
+
     If [None] is returned, there is no closure in the program containing the
     given closure ID. *)
 

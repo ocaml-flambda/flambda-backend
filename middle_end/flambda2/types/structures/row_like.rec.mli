@@ -51,23 +51,32 @@ module For_blocks : sig
   val get_singleton : t -> (Tag_and_size.t * Product.Int_indexed.t) option
 
   (** Get the nth field of the block if it is unambiguous.
+
       This can be done precisely using Type_grammar.meet_shape, but this meet
       can be expensive. This function allows to give a precise answer quickly
       in the common case where the block type is known exactly (for example,
       it is the result of a previous record or module allocation).
 
       This will return Unknown if:
+
       - There is no nth field (the read is invalid, and will produce bottom)
+
       - The block type represents a disjunction (several possible tags)
+
       - The tag or size is not exactly known
+
       - The nth field exists, is unique, but has Unknown type
 
       The handling of those cases could be improved:
+
       - When there is no valid field, Bottom could be returned instead
+
       - In the case of disjunctions, if all possible nth fields point to the
       same type, this type could be returned directly.
+
       - When the tag or size is not known but there is a unique possible value,
       it could be returned anyway
+
       - There could be a distinction between the first three cases (where we
       expect that doing the actual meet could give us a better result) and the
       last case where we already know what the result of the meet will be.

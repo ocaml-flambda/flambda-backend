@@ -249,6 +249,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      retrieve all of the constants, which are then manually transferred
      into the computed [dacc] at the join point for subsequent
      simplification of the continuation handler(s).
+
      Note that no lifted constants are ever placed during the simplification
      of the defining expression.  (Not even in the case of a
      [Set_of_closures] binding, since "let symbol" is disallowed under a

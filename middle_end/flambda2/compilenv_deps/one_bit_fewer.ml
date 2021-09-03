@@ -74,6 +74,7 @@ end
 (* The goal of this module is to take as argument a module
    that operates on integers of size {n} bits, and return a
    module that operates on integers of size {n-1} bits.
+
    We assume that {n} > 16, so that all constants can be
    represented and the get_least_significant_16_bits_then_byte_swap
    function actually has a defined semantics.*)

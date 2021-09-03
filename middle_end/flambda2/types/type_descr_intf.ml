@@ -29,7 +29,9 @@ module type S = sig
     type t = private
       | No_alias of head Or_unknown_or_bottom.t
         (** For each kind there is a lattice of types.
+
             Unknown = "Any value can flow to this point": the top element.
+
             Bottom = "No value can flow to this point": the least element.
         *)
       | Equals of Simple.t

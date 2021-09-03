@@ -44,6 +44,7 @@ type t =
       and whose results are unused may be eliminated by the compiler. However,
       unlike "No effects" primitives, such applications will never be eligible
       for duplication.
+
       The argument to [Only_generative_effects] states whether the returned
       value from the primitive is mutable. *)
   | Arbitrary_effects

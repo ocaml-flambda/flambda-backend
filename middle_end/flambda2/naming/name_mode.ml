@@ -22,12 +22,12 @@ type t =
   | In_types
 
 (* Semilattice:
-
-          Normal
-         /      \
-        /        \
-    In_types   Phantom
-*)
+ *
+ *         Normal
+ *       /      \
+ *      /        \
+ *  In_types   Phantom
+ *)
 
 let max_in_terms t1 t2 =
   match t1, t2 with

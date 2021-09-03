@@ -188,6 +188,7 @@ let apply_cont_use_kind ~context apply_cont : Continuation_use_kind.t =
            we only convert "raise_notrace" into jumps, except if debugging
            information generation is disabled.  (This matches the handling
            at Cmm level; see [Cmm_helpers.raise_prim].)
+
            We set [escaping = true] for the cases we do not want to
            convert into jumps. *)
         if Flambda_features.debug () then Non_inlinable { escaping = true; }
