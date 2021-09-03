@@ -1303,34 +1303,23 @@ let get_canonical_ignoring_name_mode t name =
 
 let clean_for_export
       { canonical_elements;
-        aliases_of_canonical_names;
-        aliases_of_consts;
-        binding_times_and_modes; } =
+        aliases_of_canonical_names = _;
+        aliases_of_consts = _;
+        binding_times_and_modes = _; } =
   (* CR vlaviron: We'd like to remove unreachable entries at some point. *)
+  (* From this point, the structure will only be used for looking up
+     names that are defined in this compilation unit.
+     No new aliases will be added, name modes have become irrelevant
+     (Typing_env takes care of setting the mode to In_types for imported
+     variables), so all we really need to keep is the [canonical_elements] map,
+     and we further restrict the map to names that are not imported. *)
   let canonical_elements =
-    (* At this point, we know that we're never going to add new aliases to
-       this structure, so it's fine if we break the invariant that all
-       non-canonical elements are in the [canonical_elements] map.
-       Note that this is only needed because the [merge] function uses
-       [Map.disjoint_union], to avoid an expensive reconstruction of the
-       whole structure. We ensure this by making sure that all keys in the
-       map are bound in the compilation unit the structure was created for.
-       Either a better handling of packs (removing the need for merging units)
-       or a more comprehensive merge function would remove the need for this
-       filter.
-
-       Aliases between imported names can be brought in the current scope
-       when an extension stored in a Row_like or Variant type is opened.
-       In addition, it would be possible to add aliases when simplifying
-       the physical equality primitive, although at the time of writing
-       this is not implemented yet.
-    *)
     Name.Map.filter (fun name _canonical ->
         not (Name.is_imported name))
       canonical_elements
   in
   { canonical_elements;
-    aliases_of_canonical_names;
-    aliases_of_consts;
-    binding_times_and_modes;
+    aliases_of_canonical_names = Name.Map.empty;
+    aliases_of_consts = Const.Map.empty;
+    binding_times_and_modes = Name.Map.empty;
   }
