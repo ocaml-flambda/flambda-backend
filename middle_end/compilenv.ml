@@ -207,10 +207,6 @@ let mangle_cpp name =
   in
   "_Z" ^ mangle_name name
 
-(* Split module names where '__' should represent a nested scope *)
-let namespace_parts name =
-  split_on_string name "__" |> List.map (fun part -> Simple part)
-
 let file_template_arg file =
   (* Take the file name only *)
   let filename =
@@ -310,7 +306,13 @@ let scope_matches_closure_id scope closure_id =
   ( String.length scope >= 3 &&
     begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
 
-let symbol_parts ~unitname loc id =
+(* Returns a pair of the top-level module and the list of scopes
+   the strictly contain the closure id *)
+let module_and_scopes ~unitname loc id = 
+  (* Remove caml *)
+  if not (begins_with unitname "caml") then
+    Misc.fatal_error "unitname expected to begin with caml";
+  let unitname = String.sub unitname 4 (String.length unitname - 4) in
   match (loc : Debuginfo.Scoped_location.t) with
   | Loc_known { loc = _; scopes } ->
     let scopes = list_of_scopes scopes in
@@ -323,31 +325,29 @@ let symbol_parts ~unitname loc id =
       | _ -> scopes
     in
     (* If the scope is now empty, use the unitname as the top-level module *)
-    let top_level_module, sub_scopes = 
-      match scopes with
+    begin match scopes with
       | [] -> unitname, []
-      | hd :: tl -> hd, tl
-    in
-    let parts =
-      List.concat [
-        namespace_parts top_level_module;
-        List.map convert_scope sub_scopes;
-        [ convert_closure_id id loc ]
-      ]
-    in
-    if String.equal top_level_module unitname then
-      parts 
-    else
-      parts @ [ Templated ("inlined_in", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
-  | Loc_unknown ->
-    namespace_parts unitname @ [ convert_closure_id id loc ]
+      | top_module :: sub_scopes -> top_module, sub_scopes
+    end
+  | Loc_unknown -> unitname, []
 
 let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
-  (* Remove caml *)
-  if not (begins_with unitname "caml") then
-    Misc.fatal_error "unitname expected to begin with caml";
-  let unitname = String.sub unitname 4 (String.length unitname - 4) in
-  let parts = symbol_parts ~unitname loc id in
+  let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
+  let namespace_parts name =
+    split_on_string name "__" |> List.map (fun part -> Simple part)
+  in
+  let parts =
+    List.concat [
+      namespace_parts top_level_module;
+      List.map convert_scope sub_scopes;
+      [ convert_closure_id id loc ];
+      if String.equal top_level_module unitname then [] 
+      else [
+        Templated ("inlined_in",
+          [ Cpp_name (Scoped (namespace_parts unitname)) ])
+      ]
+    ]
+  in
   mangle_cpp (Scoped parts)
 
 let current_unit_linkage_name () =
