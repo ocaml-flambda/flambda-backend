@@ -483,3 +483,9 @@ ci:
 	$(MAKE) runtest
 	$(MAKE) runtest-upstream
 
+.PHONY: fmt
+fmt:
+	ocamlformat -i \
+	  $$(find middle_end/flambda2 \
+	    \( -name "*.ml" -or -name "*.mli" \) \
+	    -and \! \( -name "flambda_parser.*" -or -name "flambda_lex.*" \))
