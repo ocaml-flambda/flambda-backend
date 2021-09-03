@@ -140,6 +140,20 @@ let split_on_string str split =
   in
   helper [] 0 0
 
+let split_on_chars str chars =
+  let rec helper chars_left s acc = 
+    match chars_left with
+    | [] -> s :: acc
+    | c :: cs -> 
+      List.fold_right (helper cs) (String.split_on_char c s) acc
+  in 
+  helper chars str []
+
+let split_last_exn str c = 
+  let n = String.length str in
+  let ridx = String.rindex str c in
+  (String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1))
+
 let escape_symbols part = 
   let buf = Buffer.create 16 in
   let was_hex_last = ref false in
@@ -208,23 +222,21 @@ let mangle_cpp name =
   in
   "_Z" ^ mangle_name name
 
-let namespace_parts part =
-  split_on_string part "__"
-  |> List.map (fun part -> Simple part)
-
-let list_last_exn xs = List.nth xs (List.length xs - 1)
+(* Split module names where '__' should represent a nested scope *)
+let namespace_parts name =
+  split_on_string name "__" |> List.map (fun part -> Simple part)
 
 let file_template_arg file =
-  (* Take the file name + extension only *)
-  let file = list_last_exn (String.split_on_char '/' file) in
-  match String.split_on_char '.' file with
+  (* Take the file name only *)
+  let filename =
+    if String.contains file '/' then snd (split_last_exn file '/')
+    else file
+  in
+  match String.split_on_char '.' filename with
   | [] -> Misc.fatal_error "Empty split"
   | hd :: tl ->
     let expr = List.fold_left (fun e x -> Dot (e, x)) (String hd) tl in
     Expression expr
-  
-let file_chars_arg startchar endchar =
-  Cpp_name (Simple (Printf.sprintf "chars_%d_to_%d" startchar endchar))
 
 let name_op = function
   | "+" -> "PLUS"
@@ -249,13 +261,21 @@ let name_op = function
   | "<<" -> "LSHIFT"
   | ">>" -> "RSHIFT"
   | op -> op
+  
+let build_location_info loc =
+  let loc = Debuginfo.Scoped_location.to_location loc in
+  let (file, line, startchar) = Location.get_pos_info loc.loc_start in
+  let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
+  let line_str = Printf.sprintf "ln_%d" line in
+  let info = [ file_template_arg file; Cpp_name (Simple line_str) ] in
+  if startchar >= 0 then
+    let char_str = Printf.sprintf "ch_%d_to_%d" startchar endchar in
+    info @ [ Cpp_name (Simple char_str) ]
+  else info
 
-let split_last_exn str c = 
-  let n = String.length str in
-  let ridx = String.rindex str c in
-  (String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1))
-
-let convert_quotes str =
+(* OCaml names can contain single quotes but need to be escaped
+   for C++ identifiers. *)
+let convert_identifier str =
   match String.split_on_char '\'' str with
   | [] -> Misc.fatal_error "empty split"
   | [ s ] -> Simple s
@@ -263,90 +283,85 @@ let convert_quotes str =
     let s = String.concat "_Q" parts in
     Templated (s, [ Cpp_name (Simple "quoted")] )
 
-let handle_closure_id id loc = 
-  (* Replace flambda location with C++ template version *)
+let convert_closure_id id loc = 
   if begins_with id "anon_fn[" then
-    let str = "anon_fn_" ^ list_last_exn (String.split_on_char '_' id) in
-    let loc = Debuginfo.Scoped_location.to_location loc in
-    let (file, line, startchar) = Location.get_pos_info loc.loc_start in
-    let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
-    let info = [ file_template_arg file; Cpp_name (Simple (Printf.sprintf "line_%d" line))] in
-    let info =
-      if startchar >= 0 then
-        info @ [ file_chars_arg startchar endchar ]
-      else 
-        info
-    in
-    Templated (str, info)
+    (* Keep the unique integer stamp *)
+    let (_init, stamp) = split_last_exn id '_' in
+    (* Put the location inside C++ template args *)
+    Templated ("anon_fn_" ^ stamp, build_location_info loc)
   else
     match id.[0] with
-    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') -> convert_quotes id
+    (* A regular identifier *)
+    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') -> convert_identifier id
+    (* An operator *)
     | _op -> 
       let (op, stamp) = split_last_exn id '_' in
       Templated ("op_" ^ stamp, [Cpp_name (Simple (name_op op))])
   
-let convert_scope_part part =
-  let n = String.length part in
-  if String.equal part "(fun)" then
-    Templated ("anon_fn", [])
+let convert_scope scope =
+  let n = String.length scope in
+  (* anonymous function *)
+  if String.equal scope "(fun)" then Templated ("anon_fn", [])
   (* operators *)
-  else if n > 2 && String.get part 0 = '(' && String.get part (n - 1) = ')' then
-    let op = String.sub part 1 (n - 2) in
+  else if n > 2 && String.get scope 0 = '(' && String.get scope (n - 1) = ')' then
+    let op = String.sub scope 1 (n - 2) in
     Templated ("op", [ Cpp_name (Simple (name_op op)) ])
-  else
-    convert_quotes part
+  (* regular identifiers *)
+  else convert_identifier scope
+
+let list_of_scopes scopes = 
+  (* Works for now since the only separators are '.' and '#' *)
+  let scope_str = Debuginfo.Scoped_location.string_of_scopes scopes in
+  split_on_chars scope_str [ '.'; '#' ]
+
+let scope_matches_closure_id scope closure_id = 
+  (* If the `id` is an anonymous function this corresponds to that,
+      and, even if not, then the function has likely been given
+      a name via some aliasing (e.g. `let f = fun x -> ...`) *)
+  String.equal scope "(fun)" ||
+  (* Normal case where closure id and scope match directly *)
+  begins_with closure_id scope ||
+  (* For operators, the scope is wrapped in parens *)
+  ( String.length scope >= 3 &&
+    begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
 
 let symbol_parts ~unitname loc id =
+  match (loc : Debuginfo.Scoped_location.t) with
+  | Loc_known { loc = _; scopes } ->
+    let scopes = list_of_scopes scopes in
+    (* Remove last scope if it matches closure id *)
+    let scopes = 
+      match List.rev scopes with
+      | [] -> Misc.fatal_errorf "No location - %s %s" unitname id
+      | last_scope :: rest when scope_matches_closure_id last_scope id -> 
+        List.rev rest
+      | _ -> scopes
+    in
+    (* If the scope is now empty, use the unitname as the top-level module *)
+    let top_level_module, sub_scopes = 
+      match scopes with
+      | [] -> unitname, []
+      | hd :: tl -> hd, tl
+    in
+    let parts =
+      List.concat [
+        namespace_parts top_level_module;
+        List.map convert_scope sub_scopes;
+        [ convert_closure_id id loc ]
+      ]
+    in
+    if String.equal top_level_module unitname then
+      parts 
+    else
+      parts @ [ Templated ("inlined_in", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
+  | Loc_unknown ->
+    namespace_parts unitname @ [ convert_closure_id id loc ]
+
+let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
   (* Remove caml *)
   if not (begins_with unitname "caml") then
     Misc.fatal_error "unitname expected to begin with caml";
   let unitname = String.sub unitname 4 (String.length unitname - 4) in
-  match (loc : Debuginfo.Scoped_location.t) with
-  | Loc_known { loc = _; scopes } ->
-    (* Hack for now *)
-    let scope_str = Debuginfo.Scoped_location.string_of_scopes scopes in
-    let scope_parts = String.split_on_char '.' scope_str in
-    let strip_last = 
-      match List.rev scope_parts with
-      | [] -> Misc.fatal_errorf "No location - %s %s" unitname id
-      (* If the `id` is an anonymous function this corresponds to that,
-          however, even if not, then the function has likely been given
-          a name via some form of aliasing (e.g. `let f = fun x -> ...`)
-          so take the id name.
-        *)
-      | "(fun)" :: _rest ->
-        true
-      (* Normal case where closure id and scope match *)
-      | last_bit :: _rest when begins_with id last_bit -> true
-      (* For operators, scope is wrapped in parens *)
-      | last_bit :: _rest when 
-        String.length last_bit >= 3 &&
-          begins_with id (String.sub last_bit 1 (String.length last_bit - 2))
-          ->
-            true
-      (* Currently the missing case should only be on functors *)
-      | _last_bit :: _rest ->
-        false
-    in
-    let scope_parts = 
-      if strip_last then List.rev scope_parts |> List.tl |> List.rev 
-      else scope_parts
-    in
-    let mod_orig =
-      Option.value ~default:"" (List.nth_opt scope_parts 0)
-    in
-    let parts =
-      List.map convert_scope_part scope_parts 
-      @ [ handle_closure_id id loc ]
-    in
-    if String.equal mod_orig unitname then
-      namespace_parts mod_orig @ List.tl parts
-    else 
-      namespace_parts mod_orig @ List.tl parts @ [ Templated ("inlined_in", [ Cpp_name (Scoped (namespace_parts unitname)) ])]
-  | Loc_unknown ->
-    namespace_parts unitname @ [ handle_closure_id id loc ]
-
-let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
   let parts = symbol_parts ~unitname loc id in
   mangle_cpp (Scoped parts)
 
