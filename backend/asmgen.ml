@@ -231,7 +231,12 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) 
 
 let build_asm_directives () : (module Asm_directives_intf.S) = (
     module Asm_directives.Make(struct
+
       let emit_line str = X86_dsl.D.comment str
+
+      let get_file_num file_name =
+        Emitaux.get_file_num ~f:(fun _file_num -> ()) file_name
+
       module D = struct
         open X86_ast
 

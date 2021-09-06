@@ -135,8 +135,9 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
     (* Stop dsymutil complaining about empty __debug_line sections (produces
       bogus error "line table parameters mismatch") by making sure such sections
       are never empty. *)
-    file ~file_num:1 ~file_name:"none";  (* also PR#7037 *)
-    loc ~file_num:1 ~line:1 ~col:1;
+    let file_num = A.get_file_num "none" in
+    file ~file_num ~file_name:"none";  (* also PR#7037 *)
+    loc ~file_num ~line:1 ~col:1;
     D.text ()
 
   let with_comment f ?comment x =

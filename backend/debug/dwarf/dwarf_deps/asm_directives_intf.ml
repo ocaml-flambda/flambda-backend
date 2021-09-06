@@ -1,6 +1,9 @@
 module type Arg = sig
     val emit_line : string -> unit
 
+    (* Should be Emitaux.get_file_num *)
+    val get_file_num : string -> int
+
     module D : sig
 
       type constant
