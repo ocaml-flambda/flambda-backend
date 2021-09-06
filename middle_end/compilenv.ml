@@ -309,10 +309,6 @@ let scope_matches_closure_id scope closure_id =
 (* Returns a pair of the top-level module and the list of scopes
    the strictly contain the closure id *)
 let module_and_scopes ~unitname loc id = 
-  (* Remove caml *)
-  if not (begins_with unitname "caml") then
-    Misc.fatal_error "unitname expected to begin with caml";
-  let unitname = String.sub unitname 4 (String.length unitname - 4) in
   match (loc : Debuginfo.Scoped_location.t) with
   | Loc_known { loc = _; scopes } ->
     let scopes = list_of_scopes scopes in
@@ -332,6 +328,10 @@ let module_and_scopes ~unitname loc id =
   | Loc_unknown -> unitname, []
 
 let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
+  (* Remove caml *)
+  if not (begins_with unitname "caml") then
+    Misc.fatal_error "unitname expected to begin with caml";
+  let unitname = String.sub unitname 4 (String.length unitname - 4) in
   let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
   let namespace_parts name =
     split_on_string name "__" |> List.map (fun part -> Simple part)
