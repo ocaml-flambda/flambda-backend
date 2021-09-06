@@ -138,7 +138,11 @@ module Iter = struct
   and named let_expr (bindable_let_bound : Bindable_let_bound.t) f_c f_s n =
     match (n : Named.t) with
     | Simple _ | Prim _ | Rec_info _ -> ()
-    | Set_of_closures s -> f_s ~closure_symbols:None s
+    | Set_of_closures s ->
+      let is_phantom =
+        Name_mode.is_phantom (Bindable_let_bound.name_mode bindable_let_bound)
+      in
+      f_s ~closure_symbols:None ~is_phantom s
     | Static_consts consts -> (
       match bindable_let_bound with
       | Symbols { bound_symbols; _ } ->
@@ -206,13 +210,14 @@ module Iter = struct
                  ~my_depth:_
                -> expr f_c f_s body))
       ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
-        f_s ~closure_symbols:(Some closure_symbols) set_of_closures)
+        f_s ~closure_symbols:(Some closure_symbols) ~is_phantom:false
+          set_of_closures)
       ~block_like:(fun () _ _ -> ())
 end
 
 let ignore_code ~id:_ _ = ()
 
-let ignore_set_of_closures ~closure_symbols:_ _ = ()
+let ignore_set_of_closures ~closure_symbols:_ ~is_phantom:_ _ = ()
 
 let iter ?(code = ignore_code) ?(set_of_closures = ignore_set_of_closures) t =
   Iter.expr code set_of_closures t.body
