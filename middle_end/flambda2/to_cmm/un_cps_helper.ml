@@ -166,9 +166,27 @@ let eq ?(dbg = Debuginfo.none) x y =
        ...], with [not expr] being compiled to [4 - c] and the condition for the
        test becomes [1 = 4 - c].
 
-       Because [m] and [n] are implicitly sign-extended in the above identity,
-       it only holds if [m - n] does not overflow. The following z3 script shows
-       that this check is sufficient: *)
+       We need to impose the side condition because the above equivalence hides
+       a subtlety: While [c] is a full-blooded native integer, [m] and [n] are
+       OCaml ints that get sign-extended at run time. That in itself doesn't
+       break the equivalence. The problem is that we intend to compute [m - n]
+       right now, at compile time, while [m] and [n] are one bit shorter. Thus
+       there's a bit of sleight of hand going on: the [m - n] we compute now may
+       not be the [m - n] that appears in the equivalence. [m - c], however,
+       _is_ subtraction of full native ints (it must be, since [c] can be any
+       native int). So [m - c] and [m - n] refer to two different operations and
+       we're cheekily swapping one for the other. We'll get away with it,
+       however, _so long as [m - n] doesn't overflow_.
+
+       Formally, writing [se] for sign extension, we can write a version of our
+       equivalence that's unconditionally true: [se(n) = se(m) - c] <=> [c =
+       se(m) - se(n)], where now [-] consistently means subtraction of native
+       ints. Effectively, we intend to write [c = se(m - n)] in the compiled
+       code (here [-] is instead subtraction of OCaml ints). This is the same as
+       [c = se(m) - se(n)] exactly when [se(m - n) = se(m) - se(n)], which is
+       another way of saying that [m - n] doesn't overflow.
+
+       The following z3 script confirms that this check is sufficient: *)
     (*
      *   (define-sort int63 () (_ BitVec 63))
      *   (define-sort int64 () (_ BitVec 64))
