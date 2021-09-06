@@ -71,15 +71,15 @@ val create_external
    : is_visible_externally:bool
   -> Dwarf_attribute_values.Attribute_value.t
 
-val create_call_file
+val create_decl_file
    : int
   -> Dwarf_attribute_values.Attribute_value.t
 
-val create_call_line
+val create_decl_line
    : int
   -> Dwarf_attribute_values.Attribute_value.t
 
-val create_call_column
+val create_decl_column
    : int
   -> Dwarf_attribute_values.Attribute_value.t
 

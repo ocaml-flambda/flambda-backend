@@ -46,7 +46,7 @@ let create ~sourcefile ~unit_name ~params =
   }
 
 let dwarf_for_fundecl t fundecl =
-  Dwarf_concrete_instances.for_fundecl t.state fundecl
+  Dwarf_concrete_instances.for_fundecl ~params:t.params t.state fundecl
 
 let emit t =
   if t.emitted then begin

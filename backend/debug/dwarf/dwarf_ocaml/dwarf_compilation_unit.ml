@@ -28,15 +28,16 @@ let compile_unit_proto_die ~sourcefile ~unit_name =
     Location.rewrite_absolute_path source_directory_path
   in
   let attribute_values =
-    [ DAH.create_name source_filename;
-      DAH.create_comp_dir source_directory_path;
+    [ DAH.create_name source_filename
+    ; DAH.create_comp_dir source_directory_path
       (* The [OCaml] attribute value here is only defined in DWARF-5, but
          it doesn't mean anything else in DWARF-4, so we always emit it.
          This saves special-case logic in gdb based on the producer name. *)
-      DAH.create_language OCaml;
-      DAH.create_producer "ocamlopt";
-      DAH.create_ocaml_unit_name unit_name;
-      DAH.create_ocaml_compiler_version Sys.ocaml_version;
+    ; DAH.create_language OCaml
+    ; DAH.create_producer "ocamlopt"
+    ; DAH.create_ocaml_unit_name unit_name
+    ; DAH.create_ocaml_compiler_version Sys.ocaml_version
+    ; DAH.create_stmt_list ~debug_line_label:(Asm_label.for_dwarf_section Asm_section.Debug_line)
     ] 
   in
   Proto_die.create ~parent:None
