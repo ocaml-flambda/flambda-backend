@@ -29,7 +29,9 @@ module For_blocks : sig
 
   val create_bottom : unit -> t
 
-  type open_or_closed = Open of Tag.t Or_unknown.t | Closed of Tag.t
+  type open_or_closed =
+    | Open of Tag.t Or_unknown.t
+    | Closed of Tag.t
 
   val create :
     field_kind:Flambda_kind.t ->

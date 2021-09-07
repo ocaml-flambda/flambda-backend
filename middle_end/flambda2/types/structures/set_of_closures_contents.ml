@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { closures : Closure_id.Set.t; closure_vars : Var_within_closure.Set.t }
+  { closures : Closure_id.Set.t;
+    closure_vars : Var_within_closure.Set.t
+  }
 
 include Container_types.Make (struct
   type nonrec t = t

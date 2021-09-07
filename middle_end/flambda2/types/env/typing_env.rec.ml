@@ -201,7 +201,10 @@ end
 
 module One_level = struct
   type t =
-    { scope : Scope.t; level : Typing_env_level.t; just_after_level : Cached.t }
+    { scope : Scope.t;
+      level : Typing_env_level.t;
+      just_after_level : Cached.t
+    }
 
   let [@ocamlformat "disable"] print_with_cache ~min_binding_time ~cache:_ ppf
         { scope = _; level; just_after_level; } =

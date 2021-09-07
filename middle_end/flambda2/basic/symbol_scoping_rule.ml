@@ -14,7 +14,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = Syntactic | Dominator
+type t =
+  | Syntactic
+  | Dominator
 
 let compare = Stdlib.compare
 

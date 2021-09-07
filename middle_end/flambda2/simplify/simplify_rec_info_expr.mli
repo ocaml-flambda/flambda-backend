@@ -23,7 +23,9 @@ val simplify_rec_info_expr :
 
 module Evaluated_rec_info_expr : sig
   type t = private
-    { depth : int Or_infinity.t; unrolling : Rec_info_expr.Unrolling_state.t }
+    { depth : int Or_infinity.t;
+      unrolling : Rec_info_expr.Unrolling_state.t
+    }
 
   val print : Format.formatter -> t -> unit
 end

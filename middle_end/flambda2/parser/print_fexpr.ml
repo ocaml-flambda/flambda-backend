@@ -23,7 +23,10 @@ let pp_with ?(prefix = empty_fmt) ?(suffix = empty_fmt) ppf =
 
 let pp_like fmt f ppf = Format.fprintf ppf fmt f
 
-type spacing = Before | After | Neither
+type spacing =
+  | Before
+  | After
+  | Neither
 
 let pp_spaced ~space ppf =
   let prefix, suffix =
@@ -188,7 +191,9 @@ let field_of_block ppf : field_of_block -> unit = function
   | Dynamically_computed v -> variable ppf v
   | Tagged_immediate i -> Format.fprintf ppf "%s" i
 
-type parens = Never | If_complex
+type parens =
+  | Never
+  | If_complex
 
 let rec rec_info ~parens ppf (ri : Fexpr.rec_info) =
   let with_parens ~f ppf =
@@ -548,7 +553,10 @@ let func_name_with_optional_arities ppf (n, arities) =
     Format.fprintf ppf "@[<2>(%a :@ %a ->@ %a@,)@]" name n (or_blank arity)
       params_arity arity ret_arity
 
-type scope = Outer | Where_body | Continuation_body
+type scope =
+  | Outer
+  | Where_body
+  | Continuation_body
 
 let parens ~if_scope_is scope ppf f =
   if if_scope_is = scope

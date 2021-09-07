@@ -17,7 +17,10 @@
 module Projection = struct
   type t =
     | Block_load of { index : Targetint_31_63.Imm.t }
-    | Project_var of { project_from : Closure_id.t; var : Var_within_closure.t }
+    | Project_var of
+        { project_from : Closure_id.t;
+          var : Var_within_closure.t
+        }
 
   let block_load ~index = Block_load { index }
 
@@ -56,7 +59,10 @@ module Projection = struct
     | Project_var _, Block_load _ -> 1
 end
 
-type t = { symbol : Symbol.t; projection : Projection.t }
+type t =
+  { symbol : Symbol.t;
+    projection : Projection.t
+  }
 
 let [@ocamlformat "disable"] print ppf { symbol; projection; } =
   Format.fprintf ppf "@[<hov 1>(\

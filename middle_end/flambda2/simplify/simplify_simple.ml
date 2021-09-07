@@ -48,7 +48,9 @@ let simplify_simple dacc simple ~min_name_mode =
       T.alias_type_of (T.kind ty) simple
 
 type simplify_simples_result =
-  { simples : Simple.t list; simple_tys : Flambda_type.t list }
+  { simples : Simple.t list;
+    simple_tys : Flambda_type.t list
+  }
 
 let simplify_simples dacc simples =
   let simple_tys =

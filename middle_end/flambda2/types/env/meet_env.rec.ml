@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = { env : Typing_env.t; already_meeting : Name.Pair.Set.t }
+type t =
+  { env : Typing_env.t;
+    already_meeting : Name.Pair.Set.t
+  }
 
 let [@ocamlformat "disable"] print ppf { env; already_meeting; } =
   Format.fprintf ppf

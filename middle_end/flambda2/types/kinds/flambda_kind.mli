@@ -184,7 +184,10 @@ module With_subkind : sig
       | Boxed_int64
       | Boxed_nativeint
       | Tagged_immediate
-      | Block of { tag : Tag.t; fields : t list }
+      | Block of
+          { tag : Tag.t;
+            fields : t list
+          }
       | Float_block of { num_fields : int }
 
     include Container_types.S with type t := t
@@ -241,7 +244,10 @@ module With_subkind : sig
     | Boxed_nativeint
     | Tagged_immediate
     | Rec_info
-    | Block of { tag : Tag.t; fields : descr list }
+    | Block of
+        { tag : Tag.t;
+          fields : descr list
+        }
     | Float_block of { num_fields : int }
 
   val descr : t -> descr

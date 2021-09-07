@@ -14,7 +14,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = Code_id of Code_id.t | Symbol of Symbol.t
+type t =
+  | Code_id of Code_id.t
+  | Symbol of Symbol.t
 
 include Container_types.S with type t := t
 

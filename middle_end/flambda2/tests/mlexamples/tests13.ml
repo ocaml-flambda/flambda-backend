@@ -4,7 +4,9 @@ external ignore : 'a -> unit = "%ignore"
 
 external ( + ) : int -> int -> int = "%addint"
 
-type +'a node = Nil | Cons of 'a * 'a t
+type +'a node =
+  | Nil
+  | Cons of 'a * 'a t
 
 and 'a t = unit -> 'a node
 

@@ -31,7 +31,10 @@ module type S = sig
 
   type behaviour = private
     | Unreachable of { arity : Flambda_arity.t }
-    | Alias_for of { arity : Flambda_arity.t; alias_for : Continuation.t }
+    | Alias_for of
+        { arity : Flambda_arity.t;
+          alias_for : Continuation.t
+        }
     | Apply_cont_with_constant_arg of
         { cont : Continuation.t;
           arg : Reg_width_const.t;

@@ -1,4 +1,8 @@
-type t = C0 | C1 | B0 of int | B1 of int
+type t =
+  | C0
+  | C1
+  | B0 of int
+  | B1 of int
 
 let out _x = Sys.opaque_identity () [@@inline never] [@@local never]
 

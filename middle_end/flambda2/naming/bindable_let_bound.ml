@@ -19,7 +19,9 @@ type symbols = { bound_symbols : Bound_symbols.t }
 type t =
   | Singleton of Var_in_binding_pos.t
   | Set_of_closures of
-      { name_mode : Name_mode.t; closure_vars : Var_in_binding_pos.t list }
+      { name_mode : Name_mode.t;
+        closure_vars : Var_in_binding_pos.t list
+      }
   | Symbols of symbols
 (* CR mshinwell: Add a case here for let-code and move it out of Symbols *)
 

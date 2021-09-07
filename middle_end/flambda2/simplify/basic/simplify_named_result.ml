@@ -23,7 +23,10 @@ type descr =
       }
   | Multiple_bindings_to_symbols of Symbol.t Var_in_binding_pos.Map.t
 
-type t = { dacc : Downwards_acc.t; descr : descr }
+type t =
+  { dacc : Downwards_acc.t;
+    descr : descr
+  }
 
 let with_dacc ~dacc t = { t with dacc }
 

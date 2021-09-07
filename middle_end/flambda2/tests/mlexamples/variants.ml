@@ -1,6 +1,10 @@
 external ( + ) : int -> int -> int = "%addint"
 
-type t = A0 | A1 | B of int | C of int * int
+type t =
+  | A0
+  | A1
+  | B of int
+  | C of int * int
 
 let f t =
   match t with

@@ -1,4 +1,8 @@
-type borne = Strict of (int * int) | Large of (int * int) | Pinfty | Minfty
+type borne =
+  | Strict of (int * int)
+  | Large of (int * int)
+  | Pinfty
+  | Minfty
 
 type t = (borne * borne) list * int * int
 

@@ -2,7 +2,10 @@
 
 type location = Lambda.scoped_location
 
-type 'a located = { txt : 'a; loc : location }
+type 'a located =
+  { txt : 'a;
+    loc : location
+  }
 
 type variable = string located
 
@@ -31,11 +34,18 @@ type special_continuation =
   | Error
 (* top-level exception continuation *)
 
-type continuation = Named of continuation_id | Special of special_continuation
+type continuation =
+  | Named of continuation_id
+  | Special of special_continuation
 
-type result_continuation = Return of continuation | Never_returns
+type result_continuation =
+  | Return of continuation
+  | Never_returns
 
-type continuation_sort = Normal | Exn | Define_root_symbol
+type continuation_sort =
+  | Normal
+  | Exn
+  | Define_root_symbol
 (* There's also [Return] and [Toplevel_return], but those don't need to be
  * specified explicitly *)
 
@@ -52,13 +62,20 @@ type field_of_block =
   | Tagged_immediate of immediate
   | Dynamically_computed of variable
 
-type is_recursive = Nonrecursive | Recursive
+type is_recursive =
+  | Nonrecursive
+  | Recursive
 
 type tag_scannable = int
 
-type mutability = Mutability.t = Mutable | Immutable | Immutable_unique
+type mutability = Mutability.t =
+  | Mutable
+  | Immutable
+  | Immutable_unique
 
-type 'a or_variable = Const of 'a | Var of variable
+type 'a or_variable =
+  | Const of 'a
+  | Var of variable
 
 type static_data =
   | Block of
@@ -92,7 +109,10 @@ type kind =
 type kind_with_subkind =
   (* can't alias for same reason as [kind] *)
   | Any_value
-  | Block of { tag : Tag.t; fields : kind_with_subkind list }
+  | Block of
+      { tag : Tag.t;
+        fields : kind_with_subkind list
+      }
   | Float_block of { num_fields : int }
   | Naked_number of naked_number_kind
   | Boxed_float
@@ -102,17 +122,26 @@ type kind_with_subkind =
   | Tagged_immediate
   | Rec_info
 
-type static_data_binding = { symbol : symbol; defining_expr : static_data }
+type static_data_binding =
+  { symbol : symbol;
+    defining_expr : static_data
+  }
 
 type invalid_term_semantics = Invalid_term_semantics.t =
   | Treat_as_unreachable
   | Halt_and_catch_fire
 
-type raise_kind = Trap_action.raise_kind = Regular | Reraise | No_trace
+type raise_kind = Trap_action.raise_kind =
+  | Regular
+  | Reraise
+  | No_trace
 
 type trap_action =
   | Push of { exn_handler : continuation }
-  | Pop of { exn_handler : continuation; raise_kind : raise_kind option }
+  | Pop of
+      { exn_handler : continuation;
+        raise_kind : raise_kind option
+      }
 
 type rec_info =
   | Depth of int
@@ -122,11 +151,21 @@ type rec_info =
   | Succ of rec_info
   | Unroll of int * rec_info
 
-type coercion = Id | Change_depth of { from : rec_info; to_ : rec_info }
+type coercion =
+  | Id
+  | Change_depth of
+      { from : rec_info;
+        to_ : rec_info
+      }
 
-type kinded_parameter = { param : variable; kind : kind_with_subkind option }
+type kinded_parameter =
+  { param : variable;
+    kind : kind_with_subkind option
+  }
 
-type name = Var of variable | Symbol of symbol
+type name =
+  | Var of variable
+  | Symbol of symbol
 
 type simple =
   | Var of variable
@@ -180,13 +219,21 @@ type standard_int_or_float = Flambda_kind.Standard_int_or_float.t =
   | Naked_int64
   | Naked_nativeint
 
-type string_or_bytes = Flambda_primitive.string_or_bytes = String | Bytes
+type string_or_bytes = Flambda_primitive.string_or_bytes =
+  | String
+  | Bytes
 
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
   | Assignment
 
-type comparison = Flambda_primitive.comparison = Eq | Neq | Lt | Gt | Le | Ge
+type comparison = Flambda_primitive.comparison =
+  | Eq
+  | Neq
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
 type ordered_comparison = Flambda_primitive.ordered_comparison =
   | Lt
@@ -194,7 +241,9 @@ type ordered_comparison = Flambda_primitive.ordered_comparison =
   | Le
   | Ge
 
-type equality_comparison = Flambda_primitive.equality_comparison = Eq | Neq
+type equality_comparison = Flambda_primitive.equality_comparison =
+  | Eq
+  | Neq
 
 type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Signed
@@ -205,10 +254,19 @@ type unop =
   | Box_number of box_kind
   | Get_tag
   | Is_int
-  | Num_conv of { src : standard_int_or_float; dst : standard_int_or_float }
+  | Num_conv of
+      { src : standard_int_or_float;
+        dst : standard_int_or_float
+      }
   | Opaque_identity
-  | Project_var of { project_from : closure_id; var : var_within_closure }
-  | Select_closure of { move_from : closure_id; move_to : closure_id }
+  | Project_var of
+      { project_from : closure_id;
+        var : var_within_closure
+      }
+  | Select_closure of
+      { move_from : closure_id;
+        move_to : closure_id
+      }
   | String_length of string_or_bytes
   | Unbox_number of box_kind
 
@@ -226,7 +284,10 @@ type binary_int_arith_op = Flambda_primitive.binary_int_arith_op =
   | Or
   | Xor
 
-type int_shift_op = Flambda_primitive.int_shift_op = Lsl | Lsr | Asr
+type int_shift_op = Flambda_primitive.int_shift_op =
+  | Lsl
+  | Lsr
+  | Asr
 
 type binary_float_arith_op = Flambda_primitive.binary_float_arith_op =
   | Add
@@ -266,19 +327,28 @@ type prim =
 type arity = kind_with_subkind list
 
 type function_call =
-  | Direct of { code_id : code_id; closure_id : closure_id option }
+  | Direct of
+      { code_id : code_id;
+        closure_id : closure_id option
+      }
   | Indirect
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
-type method_kind = Self | Public | Cached
+type method_kind =
+  | Self
+  | Public
+  | Cached
 
 type call_kind =
   | Function of function_call
   (* | Method of { kind : method_kind; obj : simple; } *)
   | C_call of { alloc : bool }
 
-type function_arities = { params_arity : arity option; ret_arity : arity }
+type function_arities =
+  { params_arity : arity option;
+    ret_arity : arity
+  }
 
 type inline_attribute = Inline_attribute.t =
   | Always_inline
@@ -303,7 +373,10 @@ type apply =
 type size = int
 
 type apply_cont =
-  { cont : continuation; trap_action : trap_action option; args : simple list }
+  { cont : continuation;
+    trap_action : trap_action option;
+    args : simple list
+  }
 
 type expr =
   | Let of let_
@@ -311,12 +384,18 @@ type expr =
   | Let_symbol of let_symbol
   | Apply of apply
   | Apply_cont of apply_cont
-  | Switch of { scrutinee : simple; cases : (int * apply_cont) list }
+  | Switch of
+      { scrutinee : simple;
+        cases : (int * apply_cont) list
+      }
   | Invalid of invalid_term_semantics
 
 and closure_elements = closure_element list
 
-and closure_element = { var : var_within_closure; value : simple }
+and closure_element =
+  { var : var_within_closure;
+    value : simple
+  }
 
 and let_ =
   { bindings : let_binding list;
@@ -324,7 +403,10 @@ and let_ =
     body : expr
   }
 
-and let_binding = { var : variable; defining_expr : named }
+and let_binding =
+  { var : variable;
+    defining_expr : named
+  }
 
 and named =
   | Simple of simple
@@ -364,7 +446,9 @@ and symbol_binding =
   | Set_of_closures of static_set_of_closures
 
 and static_set_of_closures =
-  { bindings : static_closure_binding list; elements : closure_elements option }
+  { bindings : static_closure_binding list;
+    elements : closure_elements option
+  }
 
 and code =
   { id : code_id;
@@ -389,14 +473,24 @@ and params_and_body =
     body : expr
   }
 
-and 'a or_deleted = Present of 'a | Deleted
+and 'a or_deleted =
+  | Present of 'a
+  | Deleted
 
-and static_closure_binding = { symbol : symbol; fun_decl : fun_decl }
+and static_closure_binding =
+  { symbol : symbol;
+    fun_decl : fun_decl
+  }
 
 type flambda_unit = { body : expr }
 
-type expect_test_spec = { before : flambda_unit; after : flambda_unit }
+type expect_test_spec =
+  { before : flambda_unit;
+    after : flambda_unit
+  }
 
-type markdown_node = Text of string | Expect of expect_test_spec
+type markdown_node =
+  | Text of string
+  | Expect of expect_test_spec
 
 type markdown_doc = markdown_node list

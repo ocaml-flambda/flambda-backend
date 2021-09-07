@@ -16,7 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type 'a t = Known of 'a | Unknown
+type 'a t =
+  | Known of 'a
+  | Unknown
 
 let [@ocamlformat "disable"] print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in

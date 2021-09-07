@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { scrutinee : Simple.t; arms : Apply_cont_expr.t Targetint_31_63.Map.t }
+  { scrutinee : Simple.t;
+    arms : Apply_cont_expr.t Targetint_31_63.Map.t
+  }
 
 let fprintf = Format.fprintf
 

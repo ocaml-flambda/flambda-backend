@@ -1,6 +1,11 @@
-type src = C1 of int | C2
+type src =
+  | C1 of int
+  | C2
 
-type dst = A | B | C
+type dst =
+  | A
+  | B
+  | C
 
 let[@inline always] of_src = function C1 _ -> A | C2 -> B
 

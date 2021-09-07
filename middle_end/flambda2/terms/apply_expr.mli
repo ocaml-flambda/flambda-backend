@@ -27,7 +27,9 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 module Result_continuation : sig
-  type t = Return of Continuation.t | Never_returns
+  type t =
+    | Return of Continuation.t
+    | Never_returns
 
   include Container_types.S with type t := t
 

@@ -16,7 +16,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t = Const of 'a | Var of Variable.t
+type 'a t =
+  | Const of 'a
+  | Var of Variable.t
 
 let [@ocamlformat "disable"] print print_const ppf t =
   match t with

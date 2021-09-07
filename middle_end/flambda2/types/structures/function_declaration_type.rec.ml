@@ -21,7 +21,10 @@ module TEE = Typing_env_extension
 
 module Inlinable = struct
   type t =
-    { code_id : Code_id.t; rec_info : Type_grammar.t; must_be_inlined : bool }
+    { code_id : Code_id.t;
+      rec_info : Type_grammar.t;
+      must_be_inlined : bool
+    }
 
   let [@ocamlformat "disable"] print ppf { code_id; rec_info; must_be_inlined } =
     Format.fprintf ppf
@@ -81,7 +84,9 @@ module Non_inlinable = struct
     if code_id == code_id' then t else { code_id = code_id' }
 end
 
-type t0 = Inlinable of Inlinable.t | Non_inlinable of Non_inlinable.t
+type t0 =
+  | Inlinable of Inlinable.t
+  | Non_inlinable of Non_inlinable.t
 
 type t = t0 Or_unknown_or_bottom.t
 

@@ -72,7 +72,10 @@ module Function_call = struct
     | Indirect_unknown_arity -> [Flambda_kind.With_subkind.any_value]
 end
 
-type method_kind = Self | Public | Cached
+type method_kind =
+  | Self
+  | Public
+  | Cached
 
 let print_method_kind ppf kind =
   match kind with
@@ -82,7 +85,10 @@ let print_method_kind ppf kind =
 
 type t =
   | Function of Function_call.t
-  | Method of { kind : method_kind; obj : Simple.t }
+  | Method of
+      { kind : method_kind;
+        obj : Simple.t
+      }
   | C_call of
       { alloc : bool;
         param_arity : Flambda_arity.t;

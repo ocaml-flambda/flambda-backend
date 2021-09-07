@@ -18,7 +18,9 @@
 
 (** Environments used for invariant checks. *)
 
-type continuation_kind = Normal | Exn_handler
+type continuation_kind =
+  | Normal
+  | Exn_handler
 
 (* module Continuation_stack : sig type t
 

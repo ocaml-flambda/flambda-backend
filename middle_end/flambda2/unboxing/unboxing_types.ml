@@ -26,7 +26,9 @@ type do_not_unbox_reason =
 
 module Extra_param_and_args = struct
   type t =
-    { param : Variable.t; args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t }
+    { param : Variable.t;
+      args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t
+    }
 
   let create ~name =
     { param = Variable.create name; args = Apply_cont_rewrite_id.Map.empty }
@@ -46,7 +48,10 @@ module Extra_param_and_args = struct
 end
 
 type unboxing_decision =
-  | Unique_tag_and_size of { tag : Tag.t; fields : field_decision list }
+  | Unique_tag_and_size of
+      { tag : Tag.t;
+        fields : field_decision list
+      }
   | Variant of
       { tag : Extra_param_and_args.t;
         const_ctors : const_ctors_decision;
@@ -58,11 +63,17 @@ type unboxing_decision =
       }
   | Number of Flambda_kind.Naked_number_kind.t * Extra_param_and_args.t
 
-and field_decision = { epa : Extra_param_and_args.t; decision : decision }
+and field_decision =
+  { epa : Extra_param_and_args.t;
+    decision : decision
+  }
 
 and const_ctors_decision =
   | Zero
-  | At_least_one of { is_int : Extra_param_and_args.t; ctor : decision }
+  | At_least_one of
+      { is_int : Extra_param_and_args.t;
+        ctor : decision
+      }
 
 and decision =
   | Unbox of unboxing_decision
@@ -73,7 +84,9 @@ type decisions =
     rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
   }
 
-type pass = Filter of { recursive : bool } | Compute_all_extra_args
+type pass =
+  | Filter of { recursive : bool }
+  | Compute_all_extra_args
 
 (* Printing *)
 (* ******** *)

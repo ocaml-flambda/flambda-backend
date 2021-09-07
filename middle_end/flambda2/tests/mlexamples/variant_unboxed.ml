@@ -1,7 +1,16 @@
 type t =
-  | Foo1 of { foo : int; bar : int }
-  | Foo2 of { foo : int; bar : float }
-  | Foo3 of { foo : int; foobar : string }
+  | Foo1 of
+      { foo : int;
+        bar : int
+      }
+  | Foo2 of
+      { foo : int;
+        bar : float
+      }
+  | Foo3 of
+      { foo : int;
+        foobar : string
+      }
 
 let foo b b' x1 x2 y =
   let f =

@@ -81,7 +81,10 @@ module Binary_arith_like (N : Binary_arith_like_sig) : sig
     Simplified_named.t * TEE.t * DA.t
 end = struct
   module Possible_result = struct
-    type t = Simple of Simple.t | Prim of P.t | Exactly of N.Result.t
+    type t =
+      | Simple of Simple.t
+      | Prim of P.t
+      | Exactly of N.Result.t
 
     include Container_types.Make (struct
       type nonrec t = t
@@ -278,7 +281,12 @@ end = struct
     | Or -> always_some I.Num.or_
     | Xor -> always_some I.Num.xor
 
-  type symmetric_op = Add | Mul | And | Or | Xor
+  type symmetric_op =
+    | Add
+    | Mul
+    | And
+    | Or
+    | Xor
 
   module Num = I.Num
 
@@ -685,7 +693,9 @@ end = struct
     | Mul -> always_some F.IEEE_semantics.mul
     | Div -> always_some F.IEEE_semantics.div
 
-  type symmetric_op = Add | Mul
+  type symmetric_op =
+    | Add
+    | Mul
 
   (* To be certain of correctness we restrict identities on floating-point
      numbers to those that preserve the _bit pattern_. *)

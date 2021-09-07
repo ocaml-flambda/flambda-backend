@@ -306,7 +306,14 @@ end
 module Make (Ord : OrderedType) = struct
   type elt = Ord.t
 
-  type t = Empty | Node of { l : t; v : elt; r : t; h : int }
+  type t =
+    | Empty
+    | Node of
+        { l : t;
+          v : elt;
+          r : t;
+          h : int
+        }
 
   (* Sets are represented by balanced binary trees (the heights of the children
      differ by at most 2 *)
@@ -525,7 +532,9 @@ module Make (Ord : OrderedType) = struct
   (* Same as split, but compute the left and right subtrees only if the pivot
      element is not in the set. The right subtree is computed on demand. *)
 
-  type split_bis = Found | NotFound of t * (unit -> t)
+  type split_bis =
+    | Found
+    | NotFound of t * (unit -> t)
 
   let rec split_bis x = function
     | Empty -> NotFound (Empty, fun () -> Empty)
@@ -563,7 +572,9 @@ module Make (Ord : OrderedType) = struct
       | l2, false, r2 -> join (diff l1 l2) v1 (diff r1 r2)
       | l2, true, r2 -> concat (diff l1 l2) (diff r1 r2))
 
-  type enumeration = End | More of elt * t * enumeration
+  type enumeration =
+    | End
+    | More of elt * t * enumeration
 
   let rec cons_enum s e =
     match s with Empty -> e | Node { l; v; r } -> cons_enum l (More (v, r, e))

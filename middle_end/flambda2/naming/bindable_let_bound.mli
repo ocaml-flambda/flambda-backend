@@ -22,7 +22,9 @@ type t = private
   | Singleton of Var_in_binding_pos.t
       (** The binding of a single variable, which is statically scoped. *)
   | Set_of_closures of
-      { name_mode : Name_mode.t; closure_vars : Var_in_binding_pos.t list }
+      { name_mode : Name_mode.t;
+        closure_vars : Var_in_binding_pos.t list
+      }
       (** The binding of one or more variables to the individual closures in a
           set of closures. The variables are statically scoped. *)
   | Symbols of symbols

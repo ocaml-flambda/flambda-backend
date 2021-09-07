@@ -18,7 +18,9 @@
 
 module Simple = Reg_width_things.Simple
 
-type continuation_kind = Normal | Exn_handler
+type continuation_kind =
+  | Normal
+  | Exn_handler
 
 (* (* For checking that push- and pop-trap operations match up correctly. *)
 

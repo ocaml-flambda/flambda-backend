@@ -46,7 +46,10 @@ end
 
 module A = Name_abstraction.Make_list (Kinded_parameter) (T0)
 
-type t = { abst : A.t; is_exn_handler : bool }
+type t =
+  { abst : A.t;
+    is_exn_handler : bool
+  }
 
 let invariant _env _t = ()
 

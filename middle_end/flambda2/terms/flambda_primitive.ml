@@ -22,7 +22,10 @@
 
 module K = Flambda_kind
 
-type classification_for_printing = Constructive | Destructive | Neither
+type classification_for_printing =
+  | Constructive
+  | Destructive
+  | Neither
 
 module Block_of_values_field = struct
   type t =
@@ -82,7 +85,11 @@ module Block_kind = struct
 end
 
 module Array_kind = struct
-  type t = Immediates | Values | Naked_floats | Float_array_opt_dynamic
+  type t =
+    | Immediates
+    | Values
+    | Naked_floats
+    | Float_array_opt_dynamic
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -113,7 +120,10 @@ end
 
 module Duplicate_block_kind = struct
   type t =
-    | Values of { tag : Tag.Scannable.t; length : Targetint_31_63.Imm.t }
+    | Values of
+        { tag : Tag.Scannable.t;
+          length : Targetint_31_63.Imm.t
+        }
     | Naked_floats of { length : Targetint_31_63.Imm.t }
 
   let [@ocamlformat "disable"] print ppf t =
@@ -182,7 +192,9 @@ module Duplicate_array_kind = struct
 end
 
 module Block_access_field_kind = struct
-  type t = Any_value | Immediate
+  type t =
+    | Any_value
+    | Immediate
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -243,10 +255,14 @@ module Block_access_kind = struct
     | Naked_floats _, Values _ -> 1
 end
 
-type string_or_bytes = String | Bytes
+type string_or_bytes =
+  | String
+  | Bytes
 
 module Init_or_assign = struct
-  type t = Initialization | Assignment
+  type t =
+    | Initialization
+    | Assignment
 
   let [@ocamlformat "disable"] print ppf t =
     let fprintf = Format.fprintf in
@@ -262,7 +278,9 @@ module Init_or_assign = struct
     | Assignment -> Assignment
 end
 
-type array_like_operation = Reading | Writing
+type array_like_operation =
+  | Reading
+  | Writing
 
 let effects_of_operation operation =
   match operation with
@@ -331,7 +349,13 @@ type 'op comparison_behaviour =
   | Yielding_bool of 'op
   | Yielding_int_like_compare_functions
 
-type comparison = Eq | Neq | Lt | Gt | Le | Ge
+type comparison =
+  | Eq
+  | Neq
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
 let print_comparison ppf c =
   let fprintf = Format.fprintf in
@@ -349,9 +373,15 @@ let print_comparison_and_behaviour ppf behaviour =
   | Yielding_int_like_compare_functions ->
     Format.pp_print_string ppf "<compare>"
 
-type signed_or_unsigned = Signed | Unsigned
+type signed_or_unsigned =
+  | Signed
+  | Unsigned
 
-type ordered_comparison = Lt | Gt | Le | Ge
+type ordered_comparison =
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
 let print_ordered_comparison ppf signedness c =
   let fprintf = Format.fprintf in
@@ -380,7 +410,9 @@ let print_ordered_comparison_and_behaviour ppf signedness behaviour =
     in
     Format.fprintf ppf "<ordered-%s-compare>" signedness
 
-type equality_comparison = Eq | Neq
+type equality_comparison =
+  | Eq
+  | Neq
 
 let print_equality_comparison ppf op =
   match op with
@@ -429,7 +461,9 @@ let print_bigarray_kind ppf k =
   | Complex32 -> fprintf ppf "Complex32"
   | Complex64 -> fprintf ppf "Complex64"
 
-type bigarray_layout = C | Fortran
+type bigarray_layout =
+  | C
+  | Fortran
 
 let print_bigarray_layout ppf l =
   let fprintf = Format.fprintf in
@@ -458,7 +492,10 @@ let writing_to_a_bigarray kind =
 
 let bigarray_index_kind = K.value
 
-type string_like_value = String | Bytes | Bigstring
+type string_like_value =
+  | String
+  | Bytes
+  | Bigstring
 
 let print_string_like_value ppf s =
   match s with
@@ -466,14 +503,20 @@ let print_string_like_value ppf s =
   | Bytes -> Format.pp_print_string ppf "bytes"
   | Bigstring -> Format.pp_print_string ppf "bigstring"
 
-type bytes_like_value = Bytes | Bigstring
+type bytes_like_value =
+  | Bytes
+  | Bigstring
 
 let print_bytes_like_value ppf b =
   match b with
   | Bytes -> Format.pp_print_string ppf "bytes"
   | Bigstring -> Format.pp_print_string ppf "bigstring"
 
-type string_accessor_width = Eight | Sixteen | Thirty_two | Sixty_four
+type string_accessor_width =
+  | Eight
+  | Sixteen
+  | Thirty_two
+  | Sixty_four
 
 let print_string_accessor_width ppf w =
   let fprintf = Format.fprintf in
@@ -500,7 +543,9 @@ type num_dimensions = int
 
 let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
 
-type unary_int_arith_op = Neg | Swap_byte_endianness
+type unary_int_arith_op =
+  | Neg
+  | Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
@@ -508,15 +553,21 @@ let print_unary_int_arith_op ppf o =
   | Neg -> fprintf ppf "~"
   | Swap_byte_endianness -> fprintf ppf "bswap"
 
-type unary_float_arith_op = Abs | Neg
+type unary_float_arith_op =
+  | Abs
+  | Neg
 
 let print_unary_float_arith_op ppf o =
   let fprintf = Format.fprintf in
   match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~"
 
-type arg_kinds = Variadic of K.t list | Variadic_all_of_kind of K.t
+type arg_kinds =
+  | Variadic of K.t list
+  | Variadic_all_of_kind of K.t
 
-type result_kind = Singleton of K.t | Unit
+type result_kind =
+  | Singleton of K.t
+  | Unit
 
 type nullary_primitive =
   | Optimised_out of K.t
@@ -587,8 +638,14 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t
-  | Select_closure of { move_from : Closure_id.t; move_to : Closure_id.t }
-  | Project_var of { project_from : Closure_id.t; var : Var_within_closure.t }
+  | Select_closure of
+      { move_from : Closure_id.t;
+        move_to : Closure_id.t
+      }
+  | Project_var of
+      { project_from : Closure_id.t;
+        var : Var_within_closure.t
+      }
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -863,7 +920,15 @@ let unary_classify_for_printing p =
   | Box_number _ -> Constructive
   | Select_closure _ | Project_var _ -> Destructive
 
-type binary_int_arith_op = Add | Sub | Mul | Div | Mod | And | Or | Xor
+type binary_int_arith_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Mod
+  | And
+  | Or
+  | Xor
 
 let print_binary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
@@ -877,7 +942,10 @@ let print_binary_int_arith_op ppf o =
   | Or -> fprintf ppf "or"
   | Xor -> fprintf ppf "xor"
 
-type int_shift_op = Lsl | Lsr | Asr
+type int_shift_op =
+  | Lsl
+  | Lsr
+  | Asr
 
 let print_int_shift_op ppf o =
   let fprintf = Format.fprintf in
@@ -886,7 +954,11 @@ let print_int_shift_op ppf o =
   | Lsr -> fprintf ppf "lsr"
   | Asr -> fprintf ppf "asr"
 
-type binary_float_arith_op = Add | Sub | Mul | Div
+type binary_float_arith_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
 
 let print_binary_float_arith_op ppf o =
   let fprintf = Format.fprintf in

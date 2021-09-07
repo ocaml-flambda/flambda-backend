@@ -208,7 +208,15 @@ let invalid_arg s = raise (Invalid_argument s)
 
 type key = int
 
-type 'a t = Empty | Node of { l : 'a t; v : key; d : 'a; r : 'a t; h : int }
+type 'a t =
+  | Empty
+  | Node of
+      { l : 'a t;
+        v : key;
+        d : 'a;
+        r : 'a t;
+        h : int
+      }
 
 let rec merge f s1 s2 =
   match s1, s2 with

@@ -30,7 +30,9 @@ module TE = Flambda_type.Typing_env
 module List = ListLabels
 
 type t =
-  { by_scope : Simple.t EP.Map.t Scope.Map.t; combined : Simple.t EP.Map.t }
+  { by_scope : Simple.t EP.Map.t Scope.Map.t;
+    combined : Simple.t EP.Map.t
+  }
 
 let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
   Format.fprintf ppf "@[<hov 1>(\

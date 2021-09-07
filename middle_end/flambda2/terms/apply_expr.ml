@@ -19,7 +19,9 @@
 module K = Flambda_kind
 
 module Result_continuation = struct
-  type t = Return of Continuation.t | Never_returns
+  type t =
+    | Return of Continuation.t
+    | Never_returns
 
   include Container_types.Make (struct
     type nonrec t = t

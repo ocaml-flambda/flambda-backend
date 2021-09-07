@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Zero | One | Many
+type t =
+  | Zero
+  | One
+  | Many
 
 let ( + ) t1 t2 =
   match t1, t2 with
