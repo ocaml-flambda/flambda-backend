@@ -749,7 +749,6 @@ let fundecl
       ~next:fallthrough_label;
     update_trap_handler_blocks state cfg;
     update_blocks_with_predecessors cfg;
-    update_liveness cfg;
     let cfg_with_layout =
       Cfg_with_layout.create
         cfg
