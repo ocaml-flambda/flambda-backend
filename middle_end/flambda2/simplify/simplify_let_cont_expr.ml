@@ -18,6 +18,103 @@
 
 open! Simplify_import
 
+type used_extra_params =
+  { extra_params_used_as_normal : KP.t list;
+    extra_params_not_used_as_normal : KP.t list
+  }
+
+let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
+    ~is_single_inlinable_use ~free_names ~handler =
+  (* If the continuation is going to be inlined out, we don't need to spend time
+     here calculating unused parameters, since the creation of [Let]-expressions
+     around the continuation's handler will do that anyway. *)
+  if is_single_inlinable_use
+  then
+    { extra_params_used_as_normal = extra_params_and_args.extra_params;
+      extra_params_not_used_as_normal = []
+    }
+  else
+    let used_or_not extra_param =
+      let used =
+        Name_mode.Or_absent.is_present_as_normal
+        @@ Name_occurrences.greatest_name_mode_var free_names
+             (KP.var extra_param)
+      in
+      (* The free_names computation is the reference here, because it records
+         precisely what is actually used in the term being rebuilt. The required
+         variables computed by the data_flow analysis can only be an over
+         approximation of it here (given that some simplification/dead code
+         elimination may have removed some uses on the way up). To make sure the
+         data_flow analysis is correct (or rather than the pre-condition for its
+         correctness are verified, i.e. that on the way down, the use
+         constraints accumulated are an over-approximation of the actual use
+         constraints), we check here that all actually-used variables were also
+         marked as used by the data_flow analysis. *)
+      let marked_as_required =
+        Name.Set.mem (Name.var (KP.var extra_param)) (UA.required_names uacc)
+      in
+      if used && not marked_as_required
+      then
+        Misc.fatal_errorf
+          "The data_flow analysis marked the extra param %a@ as not required, \
+           but the free_names indicate it is actually used:@ \n\
+           free_names = %a@ \n\
+           handler = %a" KP.print extra_param Name_occurrences.print free_names
+          (RE.print (UA.are_rebuilding_terms uacc))
+          handler;
+      used
+    in
+    let extra_params_used_as_normal, extra_params_not_used_as_normal =
+      ListLabels.partition extra_params_and_args.extra_params ~f:used_or_not
+    in
+    { extra_params_used_as_normal; extra_params_not_used_as_normal }
+
+type used_params =
+  { params_used_as_normal : KP.t list; params_not_used_as_normal : KP.t list }
+
+let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
+    ~free_names ~handler =
+  if is_single_inlinable_use
+  then { params_used_as_normal = params; params_not_used_as_normal = [] }
+  else
+    let first = ref true in
+    let param_is_used param =
+      (* CR mshinwell: We should have a robust means of propagating which
+         parameter is the exception bucket. Then this hack can be removed. *)
+      if !first && is_exn_handler
+      then begin
+        first := false;
+        true
+      end
+      else begin
+        first := false;
+        let param_var = KP.var param in
+        let num =
+          Name_occurrences.count_variable_normal_mode free_names param_var
+        in
+        match num with
+        | Zero -> false
+        | One | More_than_one ->
+          (* CR mshinwell: We should guard this check and the one above by an
+             invariants flag *)
+          (* Same as above *)
+          if not (Name.Set.mem (Name.var param_var) (UA.required_names uacc))
+          then
+            Misc.fatal_errorf
+              "The data_flow analysis marked the original param %a@ as not \
+               required, but the free_names indicate it is actually used:@ \n\
+               free_names = %a@ \n\
+               handler = %a" KP.print param Name_occurrences.print free_names
+              (RE.print (UA.are_rebuilding_terms uacc))
+              handler;
+          true
+      end
+    in
+    let params_used_as_normal, params_not_used_as_normal =
+      List.partition param_is_used params
+    in
+    { params_used_as_normal; params_not_used_as_normal }
+
 let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
     ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild =
@@ -67,90 +164,13 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
          time here calculating unused parameters, since the creation of
          [Let]-expressions around the continuation's handler will do that
          anyway. *)
-      let extra_params_used_as_normal, extra_params_not_used_as_normal =
-        if is_single_inlinable_use
-        then extra_params_and_args.extra_params, []
-        else
-          let used_or_not extra_param =
-            let used =
-              Name_mode.Or_absent.is_present_as_normal
-              @@ Name_occurrences.greatest_name_mode_var free_names
-                   (KP.var extra_param)
-            in
-            (* The free_names computation is the reference here, because it
-               records precisely what is actually used in the term being
-               rebuilt. The required variables computed by the data_flow
-               analysis can only be an over approximation of it here (given that
-               some simplification/dead code elimination may have removed some
-               uses on the way up). To make sure the data_flow analysis is
-               correct (or rather than the pre-condition for its correctness are
-               verified, i.e. that on the way down, the use constraints
-               accumulated are an over-approximation of the actual use
-               constraints), we check here that all actually-used variables were
-               also marked as used by the data_flow analysis. *)
-            let marked_as_required =
-              Name.Set.mem
-                (Name.var (KP.var extra_param))
-                (UA.required_names uacc)
-            in
-            if used && not marked_as_required
-            then
-              Misc.fatal_errorf
-                "The data_flow analysis marked the extra param %a@ as not \
-                 required, but the free_names indicate it is actually used:@ \n\
-                 free_names = %a@ \n\
-                 handler = %a" KP.print extra_param Name_occurrences.print
-                free_names
-                (RE.print (UA.are_rebuilding_terms uacc))
-                handler;
-            used
-          in
-          ListLabels.partition extra_params_and_args.extra_params ~f:used_or_not
+      let { extra_params_used_as_normal; extra_params_not_used_as_normal } =
+        compute_used_extra_params uacc extra_params_and_args
+          ~is_single_inlinable_use ~free_names ~handler
       in
-      let params_used_as_normal, params_not_used_as_normal =
-        if is_single_inlinable_use
-        then params, []
-        else
-          let first = ref true in
-          List.partition
-            (fun param ->
-              (* CR mshinwell: We should have a robust means of propagating
-                 which parameter is the exception bucket. Then this hack can be
-                 removed. *)
-              if !first && is_exn_handler
-              then begin
-                first := false;
-                true
-              end
-              else begin
-                first := false;
-                let num =
-                  Name_occurrences.count_variable_normal_mode free_names
-                    (KP.var param)
-                in
-                match num with
-                | Zero -> false
-                | One | More_than_one ->
-                  (* CR mshinwell: We should guard this check and the one above
-                     by an invariants flag *)
-                  (* Same as above *)
-                  if not
-                       (Name.Set.mem
-                          (Name.var (KP.var param))
-                          (UA.required_names uacc))
-                  then
-                    Misc.fatal_errorf
-                      "The data_flow analysis marked the original param %a@ as \
-                       not required, but the free_names indicate it is \
-                       actually used:@ \n\
-                       free_names = %a@ \n\
-                       handler = %a" KP.print param Name_occurrences.print
-                      free_names
-                      (RE.print (UA.are_rebuilding_terms uacc))
-                      handler;
-                  true
-              end)
-            params
+      let { params_used_as_normal; params_not_used_as_normal } =
+        compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
+          ~free_names ~handler
       in
       let new_phantom_params =
         List.filter
