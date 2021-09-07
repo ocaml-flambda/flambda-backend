@@ -30,7 +30,7 @@ let default ~round = {
 
 let create ~arguments ~depth = { arguments; depth }
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(depth@ %d, arguments@ %a)@]"
     t.depth
     Inlining_arguments.print t.arguments

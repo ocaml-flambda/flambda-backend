@@ -24,7 +24,7 @@ type t =
       exn_continuation : Exn_continuation.t;
     }
 
-let print ppf = function
+let [@ocamlformat "disable"] print ppf = function
   | Not_in_a_closure ->
     Format.fprintf ppf "not_in_a_closure"
   | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->

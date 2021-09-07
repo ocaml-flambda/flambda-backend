@@ -51,7 +51,7 @@ module Const_data = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf (t : t) =
+    let [@ocamlformat "disable"] print ppf (t : t) =
       match t with
       | Naked_immediate i ->
         Format.fprintf ppf "@<0>%s#%a@<0>%s"
@@ -152,7 +152,7 @@ module Variable_data = struct
 
   let flags = var_flags
 
-  let print ppf { compilation_unit; previous_compilation_units = _;
+  let [@ocamlformat "disable"] print ppf { compilation_unit; previous_compilation_units = _;
                   name; name_stamp; user_visible; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
@@ -211,7 +211,7 @@ module Symbol_data = struct
 
   let flags = symbol_flags
 
-  let print ppf { compilation_unit; linkage_name; } =
+  let [@ocamlformat "disable"] print ppf { compilation_unit; linkage_name; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
         @[<hov 1>(linkage_name@ %a)@]\
@@ -281,7 +281,7 @@ module Const = struct
     let equal = Id.equal
     let hash = Id.hash
 
-    let print ppf t = Const_data.print ppf (descr t)
+    let [@ocamlformat "disable"] print ppf t = Const_data.print ppf (descr t)
 
     let output chan t = print (Format.formatter_of_out_channel chan) t
   end
@@ -348,7 +348,7 @@ module Variable = struct
     let hash = Id.hash
 
     (* CR mshinwell: colour? *)
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       let cu = compilation_unit t in
       if Compilation_unit.equal cu (Compilation_unit.get_current_exn ())
       then Format.fprintf ppf "%s/%d" (name t) (name_stamp t)
@@ -422,7 +422,7 @@ module Symbol = struct
     let equal = Id.equal
     let hash = Id.hash
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.symbol ());
       Compilation_unit.print ppf (compilation_unit t);
       Format.pp_print_string ppf ".";
@@ -469,7 +469,7 @@ module Name = struct
     let equal = Id.equal
     let hash = Id.hash
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.name ());
       pattern_match t
         ~var:(fun var -> Variable.print ppf var)
@@ -503,7 +503,7 @@ module Simple_data = struct
 
   let flags = simple_flags
 
-  let print ppf { simple = _; coercion; } =
+  let [@ocamlformat "disable"] print ppf { simple = _; coercion; } =
     Format.fprintf ppf "@[<hov 1>\
         @[<hov 1>(coercion@ %a)@]\
         @]"
@@ -583,8 +583,8 @@ module Simple = struct
     let equal = Id.equal
     let hash = Id.hash
 
-    let print ppf t =
-      let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
+      let [@ocamlformat "disable"] print ppf t =
         pattern_match t
           ~name:(fun name ~coercion:_ -> Name.print ppf name)
           ~const:(fun cst -> Const.print ppf cst)

@@ -95,7 +95,7 @@ let compare_partial_order t1 t2 =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Normal -> Format.pp_print_string ppf "Normal"
     | In_types -> Format.pp_print_string ppf "In_types"
@@ -146,7 +146,7 @@ module Or_absent = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Absent -> Format.pp_print_string ppf "Absent"
       | Present kind ->

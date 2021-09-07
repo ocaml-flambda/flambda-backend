@@ -107,7 +107,7 @@ module Evaluated_rec_info_expr = struct
     unrolling : Rec_info_expr.Unrolling_state.t;
   }
 
-  let print ppf { depth; unrolling } =
+  let [@ocamlformat "disable"] print ppf { depth; unrolling } =
     Rec_info_expr.print ppf (Rec_info_expr.const ~depth ~unrolling)
 end
 

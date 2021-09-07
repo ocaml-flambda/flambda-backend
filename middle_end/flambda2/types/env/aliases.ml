@@ -140,7 +140,7 @@ end = struct
       Misc.fatal_errorf "[Aliases_of_canonical_element.invariant]: \
                          [aliases] and [all] are not consistent"
 
-  let print ppf { aliases; all = _; } =
+  let [@ocamlformat "disable"] print ppf { aliases; all = _; } =
     Name_mode.Map.print (Name.Map.print Coercion.print) ppf aliases
 
   let empty = {
@@ -303,7 +303,7 @@ module Alias_set = struct
       |> Option.map (fun (name, coercion) ->
            Simple.with_coercion (Simple.name name) coercion)
 
-  let print ppf { const; names; } =
+  let [@ocamlformat "disable"] print ppf { const; names; } =
     let none ppf () =
       Format.fprintf ppf "@<0>%s()" (Flambda_colours.elide ())
     in
@@ -400,7 +400,7 @@ type t = {
  * canonical_elements[elem_j_n] = (canon_j, coercion_j_n)
  *)
 
-let print ppf { canonical_elements; aliases_of_canonical_names;
+let [@ocamlformat "disable"] print ppf { canonical_elements; aliases_of_canonical_names;
                 aliases_of_consts; binding_times_and_modes; } =
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\

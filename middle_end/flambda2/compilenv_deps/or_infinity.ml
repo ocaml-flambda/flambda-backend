@@ -35,6 +35,6 @@ let hash ~f = function
   | Finite a -> Hashtbl.hash (0, f a)
   | Infinity -> Hashtbl.hash 1
 
-let print ~f ppf = function
+let [@ocamlformat "disable"] print ~f ppf = function
   | Finite a -> f ppf a
   | Infinity -> Format.pp_print_string ppf "\u{221e}"

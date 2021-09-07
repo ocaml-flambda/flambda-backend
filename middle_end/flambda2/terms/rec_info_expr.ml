@@ -18,7 +18,7 @@
 
 include Reg_width_things.Rec_info_expr
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let rec apply_renaming orig perm =
   match orig with

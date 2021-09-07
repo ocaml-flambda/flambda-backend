@@ -53,7 +53,7 @@ module Field_of_block = struct
         Hashtbl.hash (1, Targetint_31_63.hash immediate)
       | Dynamically_computed var -> Hashtbl.hash (2, Variable.hash var)
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Symbol symbol -> Symbol.print ppf symbol
       | Tagged_immediate immediate -> Targetint_31_63.print ppf immediate
@@ -107,7 +107,7 @@ type t =
 
 type static_const = t
 
-let print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   match t with
   | Code code ->
     fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
@@ -180,7 +180,7 @@ let print_with_cache ~cache ppf t =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let compare t1 t2 =
@@ -482,13 +482,13 @@ module Group = struct
 
   let empty = []
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     Format.fprintf ppf "@[<hov 1>(%a)@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
         (print_with_cache ~cache))
       t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 1>(%a)@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print) t
 

@@ -26,7 +26,7 @@ include Container_types.Make (struct
   let equal = Numeric_types.Int.equal
   let hash = Numeric_types.Int.hash
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[tag_%d@]" t
 
   let output chan t =

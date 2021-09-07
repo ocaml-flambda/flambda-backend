@@ -45,7 +45,7 @@ include Container_types.Make (struct
   type nonrec t = t
 
 (*
-  let print ppf { var; name_mode; } =
+  let [@ocamlformat "disable"] print ppf { var; name_mode; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(var@ %a)@]@ \
         @[<hov 1>(name_mode@ %a)@]\
@@ -54,7 +54,7 @@ include Container_types.Make (struct
       Name_mode.print name_mode
 *)
 
-  let print ppf { var; name_mode; } =
+  let [@ocamlformat "disable"] print ppf { var; name_mode; } =
     match Name_mode.descr name_mode with
     | Normal -> Variable.print ppf var
     | In_types -> Format.fprintf ppf "@[%a\u{1d749}@]" Variable.print var

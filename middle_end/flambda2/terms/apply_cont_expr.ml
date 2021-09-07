@@ -33,7 +33,7 @@ let print_or_elide_debuginfo ppf dbg =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf { k; args; trap_action; dbg; } =
+  let [@ocamlformat "disable"] print ppf { k; args; trap_action; dbg; } =
     let name, trap_action =
       match Continuation.sort k, trap_action, args with
       | Normal_or_exn, None, [] -> "goto", None
@@ -109,7 +109,7 @@ include Container_types.Make (struct
   let equal t1 t2 = (compare t1 t2 = 0)
 end)
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let invariant _env _ = ()
 (*

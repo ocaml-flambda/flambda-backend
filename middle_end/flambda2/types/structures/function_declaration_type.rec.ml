@@ -26,7 +26,7 @@ module Inlinable = struct
     must_be_inlined : bool;
   }
 
-  let print ppf { code_id; rec_info; must_be_inlined } =
+  let [@ocamlformat "disable"] print ppf { code_id; rec_info; must_be_inlined } =
     Format.fprintf ppf
       "@[<hov 1>(Inlinable@ \
         @[<hov 1>(code_id@ %a)@]@ \
@@ -65,7 +65,7 @@ module Non_inlinable = struct
     code_id : Code_id.t;
   }
 
-  let print ppf { code_id; } =
+  let [@ocamlformat "disable"] print ppf { code_id; } =
     Format.fprintf ppf
       "@[<hov 1>(Non_inlinable@ \
         @[<hov 1>(code_id@ %a)@]\
@@ -116,10 +116,10 @@ let print_t0 ppf t0 =
   | Inlinable inlinable -> Inlinable.print ppf inlinable
   | Non_inlinable non_inlinable -> Non_inlinable.print ppf non_inlinable
 
-let print_with_cache ~cache:_ ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t =
   Or_unknown_or_bottom.print print_t0 ppf t
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Or_unknown_or_bottom.print print_t0 ppf t
 
 let free_names (t : t) =

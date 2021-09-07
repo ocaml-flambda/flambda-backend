@@ -196,7 +196,7 @@ let to_const t =
   | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None
   | Normal { const; _ } -> Some const
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Normal { const; _ } -> Static_const.print ppf const
   | Non_code_not_rebuilt { free_names = _; } ->
@@ -260,7 +260,7 @@ module Group = struct
       free_names = Unknown;
     }
 
-  let print ppf { consts; free_names = _; } =
+  let [@ocamlformat "disable"] print ppf { consts; free_names = _; } =
     Format.fprintf ppf "@[<hov 1>(%a)@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print) consts
 

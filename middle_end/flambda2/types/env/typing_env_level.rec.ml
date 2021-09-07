@@ -37,7 +37,7 @@ let defines_name_but_no_equations t name =
       && not (Name.Map.mem name t.equations)
 *)
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print_with_cache ~cache ppf
       { defined_vars; binding_times = _; equations;
         symbol_projections = _; } =
   (* CR mshinwell: print symbol projections along with tidying up this
@@ -74,7 +74,7 @@ let print_with_cache ~cache ppf
       Variable.Set.print (Variable.Map.keys defined_vars) (* XXX *)
       print_equations equations
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let fold_on_defined_vars f t init =

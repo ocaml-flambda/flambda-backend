@@ -23,7 +23,7 @@ include Container_types.Make (struct
   let compare () () = 0
   let equal () () = true
   let hash () = 0
-  let print ppf () = Format.pp_print_string ppf "()"
+  let [@ocamlformat "disable"] print ppf () = Format.pp_print_string ppf "()"
   let output chan () = output_string chan "()"
 end)
 

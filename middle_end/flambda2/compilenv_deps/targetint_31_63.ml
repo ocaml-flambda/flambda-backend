@@ -169,7 +169,7 @@ module T0 = struct
 
   let hash t = Imm.hash t.value
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let print_as_char =
       t.print_as_char
       && Imm.compare t.value Imm.zero >= 0

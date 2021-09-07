@@ -35,7 +35,7 @@ type t =
   | Unreachable of { arity : Flambda_arity.With_subkinds.t; }
 
 (* CR mshinwell: Write a proper printer *)
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Linearly_used_and_inlinable { params = _; handler = _;
       free_names_of_handler = _; cost_metrics_of_handler = _ } ->

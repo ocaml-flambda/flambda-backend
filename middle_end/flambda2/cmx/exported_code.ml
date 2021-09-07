@@ -28,7 +28,7 @@ module Calling_convention = struct
   let params_arity t = t.params_arity
   let is_tupled t = t.is_tupled
 
-  let print ppf { needs_closure_arg; params_arity; is_tupled } =
+  let [@ocamlformat "disable"] print ppf { needs_closure_arg; params_arity; is_tupled } =
     Format.fprintf ppf
       "@[<hov 1>(needs_closure_arg@ %b)@] \
        @[<hov 1>(is_tupled@ %b)@] \
@@ -88,7 +88,7 @@ let print0 ppf t0 =
       "@[<hov 1>(Imported@ (calling_convention@ %a))@]"
       Calling_convention.print calling_convention
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Code_id.Map.print print0 ppf t
 
 let empty = Code_id.Map.empty

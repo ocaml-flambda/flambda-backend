@@ -18,7 +18,7 @@
 
 include Variable
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let free_names t =
   Name_occurrences.singleton_variable t Name_mode.in_types

@@ -60,7 +60,7 @@ module Id(_:sig end) : Id = struct
     then Int.to_string t
     else Printf.sprintf "%s_%i" name t
   let output fd t = output_string fd (to_string t)
-  let print ppf v = Format.pp_print_string ppf (to_string v)
+  let [@ocamlformat "disable"] print ppf v = Format.pp_print_string ppf (to_string v)
 end
 
 module UnitId(Innerid:Id)(Compilation_unit:Container_types.Thing) :
@@ -78,7 +78,7 @@ module UnitId(Innerid:Id)(Compilation_unit:Container_types.Thing) :
     Printf.fprintf oc "%a.%a"
       Compilation_unit.output x.unit
       Innerid.output x.id
-  let print ppf x =
+  let [@ocamlformat "disable"] print ppf x =
     Format.fprintf ppf "%a.%a"
       Compilation_unit.print x.unit
       Innerid.print x.id

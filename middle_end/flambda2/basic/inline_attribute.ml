@@ -23,7 +23,7 @@ type t =
   | Unroll of int
   | Default_inline
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Always_inline -> fprintf ppf "Always_inline"

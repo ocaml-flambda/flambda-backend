@@ -51,7 +51,7 @@ let to_simple t = Simple.name t.name
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf { name; name_mode; } =
+  let [@ocamlformat "disable"] print ppf { name; name_mode; } =
     Format.fprintf ppf "@[<hov 1>)\
         @[<hov 1>(name@ %a)@]@ \
         @[<hov 1>(name_mode@ %a)@]\

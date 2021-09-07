@@ -20,7 +20,7 @@ type 'a t =
   | Known of 'a
   | Unknown
 
-let print f ppf t =
+let [@ocamlformat "disable"] print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in
   match t with
   | Known contents -> Format.fprintf ppf "@[<hov 1>%a@]" f contents
@@ -80,7 +80,7 @@ module Lift (I : Container_types.S) = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t = print I.print ppf t
+    let [@ocamlformat "disable"] print ppf t = print I.print ppf t
 
     let compare t1 t2 = compare I.compare t1 t2
 

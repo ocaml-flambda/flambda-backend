@@ -350,7 +350,7 @@ module Greedy = struct
         Format.fprintf fmt "%a@ " print_set s
       ) l
 
-  let print fmt state =
+  let [@ocamlformat "disable"] print fmt state =
     Format.fprintf fmt
       "@[<v 2>Sets of closures:@ %a@]"
       print_sets state.sets_of_closures

@@ -75,7 +75,7 @@ module Definition = struct
         symbols
     | Block_like { symbol; _ } -> Symbol.print ppf symbol
 
-  let print ppf { descr; defining_expr; } =
+  let [@ocamlformat "disable"] print ppf { descr; defining_expr; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(descr@ %a)@]@ \
         @[<hov 1>(defining_expr@ %a)@]\
@@ -161,7 +161,7 @@ let free_names_of_defining_exprs t =
 
 let is_fully_static t = t.is_fully_static
 
-let print ppf
+let [@ocamlformat "disable"] print ppf
       { definitions; bound_symbols = _; defining_exprs = _;
         is_fully_static = _; symbol_projections = _; } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"

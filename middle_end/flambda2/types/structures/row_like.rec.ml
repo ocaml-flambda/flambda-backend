@@ -74,7 +74,7 @@ struct
       Format.fprintf ppf "(At_least @[<2>%a@])"
         Index.print min_index
 
-  let print_with_cache ~cache ppf (({ known_tags; other_tags } as t) : t) =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf (({ known_tags; other_tags } as t) : t) =
     if is_bottom t then
       (* CR mshinwell: factor out (also in [Type_descr]) *)
       let colour = Flambda_colours.top_or_bottom_type () in
@@ -88,7 +88,7 @@ struct
         if not (TEE.is_empty env_extension) then
           Format.fprintf ppf "@ %a" TEE.print env_extension
       in
-      let print ppf { maps_to; index; env_extension } =
+      let [@ocamlformat "disable"] print ppf { maps_to; index; env_extension } =
         Format.fprintf ppf "=> %a,@ %a%a"
           print_index index
           (Maps_to.print_with_cache ~cache) maps_to
@@ -102,7 +102,7 @@ struct
         (Tag.Map.print print) known_tags
         (Or_bottom.print print) other_tags
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let _invariant _t = ()

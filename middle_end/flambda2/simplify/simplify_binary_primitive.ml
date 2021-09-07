@@ -102,7 +102,7 @@ end = struct
         compare t1 t2 = 0
 
       let hash _ = Misc.fatal_error "Not yet implemented"
-      let print _ppf _t = Misc.fatal_error "Not yet implemented"
+      let [@ocamlformat "disable"] print _ppf _t = Misc.fatal_error "Not yet implemented"
       let output _ _ = Misc.fatal_error "Not yet implemented"
     end)
   end

@@ -18,7 +18,7 @@
 
 type t = No_coeffects | Has_coeffects
 
-let print ppf co =
+let [@ocamlformat "disable"] print ppf co =
   match co with
   | No_coeffects -> Format.fprintf ppf "no coeffects"
   | Has_coeffects -> Format.fprintf ppf "has coeffects"

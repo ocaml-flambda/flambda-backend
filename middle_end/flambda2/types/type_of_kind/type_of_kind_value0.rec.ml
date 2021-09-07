@@ -35,7 +35,7 @@ type t =
   | String of String_info.Set.t
   | Array of { length : T.t; }
 
-let print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   match t with
   | Variant { blocks; immediates; is_unique } ->
     (* CR mshinwell: Improve so that we elide blocks and/or immediates when
@@ -70,7 +70,7 @@ let print_with_cache ~cache ppf t =
     Format.fprintf ppf "@[<hov 1>(Array@ (length@ %a))@]"
       (T.print_with_cache ~cache) length
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let apply_renaming_variant blocks immediates perm =
   let immediates' =

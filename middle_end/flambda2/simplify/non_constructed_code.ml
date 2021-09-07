@@ -19,6 +19,6 @@
 include Code0.Make (struct
     include Unit
     let all_ids_for_export _ = Ids_for_export.empty
-    let print_with_cache ~cache:_ ppf t = print ppf t
+    let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
   end)
   (Flambda.Cost_metrics)
