@@ -1,44 +1,43 @@
 [@@@ocaml.warning "-30"]
 
 type location = Lambda.scoped_location
-type 'a located = {
-  txt : 'a;
-  loc : location;
-}
+
+type 'a located = { txt : 'a; loc : location }
 
 type variable = string located
+
 type continuation_id = string located
+
 type code_id = string located
+
 type closure_id = string located
+
 type var_within_closure = string located
 
-type compilation_unit = {
-  ident : string;
-  linkage_name : string option; (* defaults to same as ident *)
-}
+type compilation_unit =
+  { ident : string;
+    linkage_name : string option (* defaults to same as ident *)
+  }
+
 type symbol = (compilation_unit option * string) located
 
 type immediate = string
+
 type targetint = int64
 
 type special_continuation =
-  | Done (* top-level normal continuation *)
-  | Error (* top-level exception continuation *)
+  | Done
+  (* top-level normal continuation *)
+  | Error
+(* top-level exception continuation *)
 
-type continuation =
-  | Named of continuation_id
-  | Special of special_continuation
+type continuation = Named of continuation_id | Special of special_continuation
 
-type result_continuation =
-  | Return of continuation
-  | Never_returns
+type result_continuation = Return of continuation | Never_returns
 
-type continuation_sort =
-  | Normal
-  | Exn
-  | Define_root_symbol
-  (* There's also [Return] and [Toplevel_return], but those don't need to be
-   * specified explicitly *)
+type continuation_sort = Normal | Exn | Define_root_symbol
+(* There's also [Return] and [Toplevel_return], but those don't need to be
+ * specified explicitly *)
 
 type const =
   | Naked_immediate of immediate
@@ -53,34 +52,27 @@ type field_of_block =
   | Tagged_immediate of immediate
   | Dynamically_computed of variable
 
-type is_recursive =
-  | Nonrecursive
-  | Recursive
+type is_recursive = Nonrecursive | Recursive
 
 type tag_scannable = int
 
-type mutability = Mutability.t =
-  | Mutable
-  | Immutable
-  | Immutable_unique
+type mutability = Mutability.t = Mutable | Immutable | Immutable_unique
 
-type 'a or_variable =
-  | Const of 'a
-  | Var of variable
+type 'a or_variable = Const of 'a | Var of variable
 
 type static_data =
-  | Block of {
-      tag : tag_scannable;
-      mutability : mutability;
-      elements : field_of_block list;
-    }
+  | Block of
+      { tag : tag_scannable;
+        mutability : mutability;
+        elements : field_of_block list
+      }
   | Boxed_float of float or_variable
   | Boxed_int32 of int32 or_variable
   | Boxed_int64 of int64 or_variable
   | Boxed_nativeint of targetint or_variable
   | Immutable_float_block of float or_variable list
   | Immutable_float_array of float or_variable list
-  | Mutable_string of { initial_value : string; }
+  | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
 type naked_number_kind = Flambda_kind.Naked_number_kind.t =
@@ -90,16 +82,18 @@ type naked_number_kind = Flambda_kind.Naked_number_kind.t =
   | Naked_int64
   | Naked_nativeint
 
-type kind = (* can't alias because Flambda_kind.t is private *)
+type kind =
+  (* can't alias because Flambda_kind.t is private *)
   | Value
   | Naked_number of naked_number_kind
   | Fabricated
   | Rec_info
 
-type kind_with_subkind = (* can't alias for same reason as [kind] *)
+type kind_with_subkind =
+  (* can't alias for same reason as [kind] *)
   | Any_value
   | Block of { tag : Tag.t; fields : kind_with_subkind list }
-  | Float_block of { num_fields : int; }
+  | Float_block of { num_fields : int }
   | Naked_number of naked_number_kind
   | Boxed_float
   | Boxed_int32
@@ -108,26 +102,17 @@ type kind_with_subkind = (* can't alias for same reason as [kind] *)
   | Tagged_immediate
   | Rec_info
 
-type static_data_binding = {
-  symbol : symbol;
-  defining_expr : static_data;
-}
+type static_data_binding = { symbol : symbol; defining_expr : static_data }
 
 type invalid_term_semantics = Invalid_term_semantics.t =
   | Treat_as_unreachable
   | Halt_and_catch_fire
 
-type raise_kind = Trap_action.raise_kind =
-  | Regular
-  | Reraise
-  | No_trace
+type raise_kind = Trap_action.raise_kind = Regular | Reraise | No_trace
 
 type trap_action =
   | Push of { exn_handler : continuation }
-  | Pop of {
-      exn_handler : continuation;
-      raise_kind : raise_kind option;
-    }
+  | Pop of { exn_handler : continuation; raise_kind : raise_kind option }
 
 type rec_info =
   | Depth of int
@@ -137,21 +122,11 @@ type rec_info =
   | Succ of rec_info
   | Unroll of int * rec_info
 
-type coercion =
-  | Id
-  | Change_depth of {
-      from : rec_info;
-      to_ : rec_info;
-    }
+type coercion = Id | Change_depth of { from : rec_info; to_ : rec_info }
 
-type kinded_parameter = {
-  param : variable;
-  kind : kind_with_subkind option;
-}
+type kinded_parameter = { param : variable; kind : kind_with_subkind option }
 
-type name =
-  | Var of variable
-  | Symbol of symbol
+type name = Var of variable | Symbol of symbol
 
 type simple =
   | Var of variable
@@ -183,11 +158,11 @@ type block_access_field_kind = Flambda_primitive.Block_access_field_kind.t =
   | Immediate
 
 type block_access_kind =
-  | Values of {
-      tag : tag_scannable;
-      size : targetint option;
-      field_kind : block_access_field_kind;
-    }
+  | Values of
+      { tag : tag_scannable;
+        size : targetint option;
+        field_kind : block_access_field_kind
+      }
   | Naked_floats of { size : targetint option }
 
 type standard_int = Flambda_kind.Standard_int.t =
@@ -205,45 +180,35 @@ type standard_int_or_float = Flambda_kind.Standard_int_or_float.t =
   | Naked_int64
   | Naked_nativeint
 
-type string_or_bytes = Flambda_primitive.string_or_bytes =
-  | String
-  | Bytes
+type string_or_bytes = Flambda_primitive.string_or_bytes = String | Bytes
 
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
   | Assignment
 
-type comparison = Flambda_primitive.comparison =
-  | Eq | Neq | Lt | Gt | Le | Ge
+type comparison = Flambda_primitive.comparison = Eq | Neq | Lt | Gt | Le | Ge
 
 type ordered_comparison = Flambda_primitive.ordered_comparison =
-  | Lt | Gt
-  | Le | Ge
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
-type equality_comparison = Flambda_primitive.equality_comparison =
-  | Eq | Neq
+type equality_comparison = Flambda_primitive.equality_comparison = Eq | Neq
 
 type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
-  | Signed | Unsigned
+  | Signed
+  | Unsigned
 
 type unop =
   | Array_length of array_kind
   | Box_number of box_kind
   | Get_tag
   | Is_int
-  | Num_conv of {
-      src : standard_int_or_float;
-      dst : standard_int_or_float;
-    }
+  | Num_conv of { src : standard_int_or_float; dst : standard_int_or_float }
   | Opaque_identity
-  | Project_var of {
-      project_from : closure_id;
-      var : var_within_closure;
-    }
-  | Select_closure of {
-      move_from : closure_id;
-      move_to : closure_id;
-    }
+  | Project_var of { project_from : closure_id; var : var_within_closure }
+  | Select_closure of { move_from : closure_id; move_to : closure_id }
   | String_length of string_or_bytes
   | Unbox_number of box_kind
 
@@ -252,13 +217,22 @@ type 'a comparison_behaviour = 'a Flambda_primitive.comparison_behaviour =
   | Yielding_int_like_compare_functions
 
 type binary_int_arith_op = Flambda_primitive.binary_int_arith_op =
-  | Add | Sub | Mul | Div | Mod | And | Or | Xor
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Mod
+  | And
+  | Or
+  | Xor
 
-type int_shift_op = Flambda_primitive.int_shift_op =
-  | Lsl | Lsr | Asr
+type int_shift_op = Flambda_primitive.int_shift_op = Lsl | Lsr | Asr
 
 type binary_float_arith_op = Flambda_primitive.binary_float_arith_op =
-  | Add | Sub | Mul | Div
+  | Add
+  | Sub
+  | Mul
+  | Div
 
 type infix_binop =
   | Int_arith of binary_int_arith_op (* on tagged immediates *)
@@ -279,11 +253,9 @@ type binop =
   | Int_shift of standard_int * int_shift_op
   | Infix of infix_binop
 
-type ternop =
-  | Array_set of array_kind * init_or_assign
+type ternop = Array_set of array_kind * init_or_assign
 
-type varop =
-  | Make_block of tag_scannable * mutability
+type varop = Make_block of tag_scannable * mutability
 
 type prim =
   | Unary of unop * simple
@@ -294,27 +266,19 @@ type prim =
 type arity = kind_with_subkind list
 
 type function_call =
-  | Direct of {
-      code_id : code_id;
-      closure_id : closure_id option;
-    }
-  | Indirect (* Will translate to indirect_known_arity or
-                indirect_unknown_arity depending on whether the apply record's
-                arities field has a value *)
+  | Direct of { code_id : code_id; closure_id : closure_id option }
+  | Indirect
+(* Will translate to indirect_known_arity or indirect_unknown_arity depending on
+   whether the apply record's arities field has a value *)
 
 type method_kind = Self | Public | Cached
 
 type call_kind =
   | Function of function_call
   (* | Method of { kind : method_kind; obj : simple; } *)
-  | C_call of {
-      alloc : bool;
-    }
+  | C_call of { alloc : bool }
 
-type function_arities = {
-  params_arity : arity option;
-  ret_arity : arity;
-}
+type function_arities = { params_arity : arity option; ret_arity : arity }
 
 type inline_attribute = Inline_attribute.t =
   | Always_inline
@@ -323,29 +287,23 @@ type inline_attribute = Inline_attribute.t =
   | Unroll of int
   | Default_inline
 
-type inlining_state = {
-  depth : int;
-  (* CR lmaurer: Add inlining arguments *)
-}
+type inlining_state = { depth : int (* CR lmaurer: Add inlining arguments *) }
 
-type apply = {
-    func : name;
+type apply =
+  { func : name;
     continuation : result_continuation;
     exn_continuation : continuation;
     args : simple list;
     call_kind : call_kind;
     arities : function_arities option;
     inline : inline_attribute option;
-    inlining_state : inlining_state option;
+    inlining_state : inlining_state option
   }
 
 type size = int
 
-type apply_cont = {
-  cont : continuation;
-  trap_action : trap_action option;
-  args : simple list;
-}
+type apply_cont =
+  { cont : continuation; trap_action : trap_action option; args : simple list }
 
 type expr =
   | Let of let_
@@ -353,29 +311,20 @@ type expr =
   | Let_symbol of let_symbol
   | Apply of apply
   | Apply_cont of apply_cont
-  | Switch of {
-      scrutinee : simple;
-      cases : (int * apply_cont) list;
-    }
+  | Switch of { scrutinee : simple; cases : (int * apply_cont) list }
   | Invalid of invalid_term_semantics
 
 and closure_elements = closure_element list
 
-and closure_element = {
-  var : var_within_closure;
-  value : simple;
-}
+and closure_element = { var : var_within_closure; value : simple }
 
-and let_ = {
-  bindings : let_binding list;
-  closure_elements : closure_elements option;
-  body : expr;
-}
-
-and let_binding = {
-    var : variable;
-    defining_expr : named;
+and let_ =
+  { bindings : let_binding list;
+    closure_elements : closure_elements option;
+    body : expr
   }
+
+and let_binding = { var : variable; defining_expr : named }
 
 and named =
   | Simple of simple
@@ -383,30 +332,30 @@ and named =
   | Closure of fun_decl
   | Rec_info of rec_info
 
-and fun_decl = {
-  code_id : code_id;
-  closure_id : closure_id option; (* defaults to same name as code id *)
-}
+and fun_decl =
+  { code_id : code_id;
+    closure_id : closure_id option (* defaults to same name as code id *)
+  }
 
-and let_cont = {
-  recursive : is_recursive;
-  body : expr;
-  bindings : continuation_binding list;
-}
+and let_cont =
+  { recursive : is_recursive;
+    body : expr;
+    bindings : continuation_binding list
+  }
 
-and continuation_binding = {
-  name : continuation_id;
-  params : kinded_parameter list;
-  sort : continuation_sort option;
-  handler : expr;
-}
+and continuation_binding =
+  { name : continuation_id;
+    params : kinded_parameter list;
+    sort : continuation_sort option;
+    handler : expr
+  }
 
-and let_symbol = {
-  bindings : symbol_binding list;
-  (* Only used if there's no [Set_of_closures] in the list *)
-  closure_elements : closure_elements option;
-  body : expr;
-}
+and let_symbol =
+  { bindings : symbol_binding list;
+    (* Only used if there's no [Set_of_closures] in the list *)
+    closure_elements : closure_elements option;
+    body : expr
+  }
 
 and symbol_binding =
   | Data of static_data_binding
@@ -414,54 +363,40 @@ and symbol_binding =
   | Closure of static_closure_binding
   | Set_of_closures of static_set_of_closures
 
-and static_set_of_closures = {
-  bindings : static_closure_binding list;
-  elements : closure_elements option;
-}
+and static_set_of_closures =
+  { bindings : static_closure_binding list; elements : closure_elements option }
 
-and code = {
-  id : code_id;
-  newer_version_of : code_id option;
-  param_arity : arity option;
-  ret_arity : arity option;
-  recursive : is_recursive;
-  inline : inline_attribute option;
-  params_and_body : params_and_body or_deleted;
-  code_size : code_size;
-  is_tupled : bool;
-}
+and code =
+  { id : code_id;
+    newer_version_of : code_id option;
+    param_arity : arity option;
+    ret_arity : arity option;
+    recursive : is_recursive;
+    inline : inline_attribute option;
+    params_and_body : params_and_body or_deleted;
+    code_size : code_size;
+    is_tupled : bool
+  }
 
 and code_size = int
 
-and params_and_body = {
-  params : kinded_parameter list;
-  closure_var : variable;
-  depth_var : variable;
-  ret_cont : continuation_id;
-  exn_cont : continuation_id;
-  body : expr;
-}
+and params_and_body =
+  { params : kinded_parameter list;
+    closure_var : variable;
+    depth_var : variable;
+    ret_cont : continuation_id;
+    exn_cont : continuation_id;
+    body : expr
+  }
 
-and 'a or_deleted =
-  | Present of 'a
-  | Deleted
+and 'a or_deleted = Present of 'a | Deleted
 
-and static_closure_binding = {
-  symbol : symbol;
-  fun_decl : fun_decl;
-}
+and static_closure_binding = { symbol : symbol; fun_decl : fun_decl }
 
-type flambda_unit = {
-  body : expr;
-}
+type flambda_unit = { body : expr }
 
-type expect_test_spec = {
-  before : flambda_unit;
-  after : flambda_unit;
-}
+type expect_test_spec = { before : flambda_unit; after : flambda_unit }
 
-type markdown_node =
-  | Text of string
-  | Expect of expect_test_spec
+type markdown_node = Text of string | Expect of expect_test_spec
 
 type markdown_doc = markdown_node list

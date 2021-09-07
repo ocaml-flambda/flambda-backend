@@ -1,5 +1,4 @@
 module GPR_109 = struct
-
   let f () =
     let r = ref 0. in
     for i = 1 to 1000 do
@@ -8,5 +7,4 @@ module GPR_109 = struct
       r := !r +. y
     done;
     !r
-
 end

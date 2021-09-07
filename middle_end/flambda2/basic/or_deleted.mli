@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t =
-  | Present of 'a
-  | Deleted
+type 'a t = Present of 'a | Deleted
 
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit

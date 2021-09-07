@@ -18,14 +18,11 @@
 
 open! Simplify_import
 
-let simplify_ternary_primitive dacc (prim : P.ternary_primitive)
-      ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ dbg ~result_var =
+let simplify_ternary_primitive dacc (prim : P.ternary_primitive) ~arg1
+    ~arg1_ty:_ ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ dbg ~result_var =
   let result_var' = Var_in_binding_pos.var result_var in
   match prim with
-  | Block_set _
-  | Array_set _
-  | Bytes_or_bigstring_set _
-  | Bigarray_set _ ->
+  | Block_set _ | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     let prim : P.t = Ternary (prim, arg1, arg2, arg3) in
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in

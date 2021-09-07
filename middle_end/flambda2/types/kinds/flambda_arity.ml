@@ -29,7 +29,7 @@ include Container_types.Make (struct
 
   let compare t1 t2 = Misc.Stdlib.List.compare Flambda_kind.compare t1 t2
 
-  let equal t1 t2 = (compare t1 t2 = 0)
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
@@ -43,15 +43,12 @@ include Container_types.Make (struct
           Flambda_kind.print)
         t
 
-  let output chan t =
-    print (Format.formatter_of_out_channel chan) t
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
-let is_all_values t =
-  List.for_all Flambda_kind.is_value t
+let is_all_values t = List.for_all Flambda_kind.is_value t
 
-let is_all_naked_floats t =
-  List.for_all Flambda_kind.is_naked_float t
+let is_all_naked_floats t = List.for_all Flambda_kind.is_naked_float t
 
 let is_singleton_value t =
   match t with
@@ -60,6 +57,7 @@ let is_singleton_value t =
 
 module With_subkinds = struct
   type arity = t
+
   type t = Flambda_kind.With_subkind.t list
 
   let create t = t
@@ -70,7 +68,7 @@ module With_subkinds = struct
     let compare t1 t2 =
       Misc.Stdlib.List.compare Flambda_kind.With_subkind.compare t1 t2
 
-    let equal t1 t2 = (compare t1 t2 = 0)
+    let equal t1 t2 = compare t1 t2 = 0
 
     let hash = Hashtbl.hash
 
@@ -84,15 +82,16 @@ module With_subkinds = struct
             Flambda_kind.With_subkind.print)
           t
 
-    let output chan t =
-      print (Format.formatter_of_out_channel chan) t
+    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   let is_singleton_value t =
     match t with
     | [kind]
-      when Flambda_kind.equal (Flambda_kind.With_subkind.kind kind)
-        Flambda_kind.value -> true
+      when Flambda_kind.equal
+             (Flambda_kind.With_subkind.kind kind)
+             Flambda_kind.value ->
+      true
     | _ -> false
 
   let to_arity t = List.map Flambda_kind.With_subkind.kind t
@@ -101,12 +100,12 @@ module With_subkinds = struct
     List.map (fun kind -> Flambda_kind.With_subkind.create kind Anything) arity
 
   let compatible t ~when_used_at =
-    if List.compare_lengths t when_used_at <> 0 then begin
-      Misc.fatal_errorf "Mismatched arities:@ %a@ and@ %a"
-        print t
-        print when_used_at
-    end;
-    List.for_all2 (fun kind when_used_at ->
+    if List.compare_lengths t when_used_at <> 0
+    then
+      Misc.fatal_errorf "Mismatched arities:@ %a@ and@ %a" print t print
+        when_used_at;
+    List.for_all2
+      (fun kind when_used_at ->
         Flambda_kind.With_subkind.compatible kind ~when_used_at)
       t when_used_at
 end

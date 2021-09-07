@@ -16,6 +16,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-val simplify_switch
-   : simplify_let:Flambda.Let.t Simplify_common.expr_simplifier
-  -> Flambda.Switch.t Simplify_common.expr_simplifier
+val simplify_switch :
+  simplify_let:Flambda.Let.t Simplify_common.expr_simplifier ->
+  Flambda.Switch.t Simplify_common.expr_simplifier

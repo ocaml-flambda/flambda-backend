@@ -16,26 +16,28 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-type t = {
-  compilation_unit : Compilation_unit.t;
-  name : string;
-  name_stamp : int;
-  (** [name_stamp]s are unique within any given compilation unit. *)
-}
+type t =
+  { compilation_unit : Compilation_unit.t;
+    name : string;
+    name_stamp : int
+        (** [name_stamp]s are unique within any given compilation unit. *)
+  }
 
 module Self = Container_types.Make (struct
   type nonrec t = t
 
   let compare t1 t2 =
-    if t1 == t2 then 0
+    if t1 == t2
+    then 0
     else
       let c = t1.name_stamp - t2.name_stamp in
-      if c <> 0 then c
+      if c <> 0
+      then c
       else Compilation_unit.compare t1.compilation_unit t2.compilation_unit
 
-  let equal t1 t2 = (compare t1 t2 = 0)
+  let equal t1 t2 = compare t1 t2 = 0
 
-  let hash t = t.name_stamp lxor (Compilation_unit.hash t.compilation_unit)
+  let hash t = t.name_stamp lxor Compilation_unit.hash t.compilation_unit
 
   let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@<0>%s" (Flambda_colours.closure_element ());
@@ -51,14 +53,14 @@ module Self = Container_types.Make (struct
     end;
     Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
 
-  let output chan t =
-    print (Format.formatter_of_out_channel chan) t
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 include Self
 
-module Lmap = Lmap.Make(struct
+module Lmap = Lmap.Make (struct
   type nonrec t = t
+
   include Self
 end)
 
@@ -69,26 +71,20 @@ let get_next_stamp () =
   incr next_stamp;
   stamp
 
-let in_compilation_unit t cu =
-  Compilation_unit.equal cu t.compilation_unit
+let in_compilation_unit t cu = Compilation_unit.equal cu t.compilation_unit
 
 let get_compilation_unit t = t.compilation_unit
 
-let to_string t =
-  t.name ^ "_" ^ (string_of_int t.name_stamp)
+let to_string t = t.name ^ "_" ^ string_of_int t.name_stamp
 
-let name t =
-  t.name
+let name t = t.name
 
-let rename t =
-  { t with
-    name_stamp = get_next_stamp ();
-  }
+let rename t = { t with name_stamp = get_next_stamp () }
 
 let unwrap t = Variable.create (to_string t)
 
 let wrap compilation_unit var =
   { compilation_unit;
     name = Variable.raw_name var;
-    name_stamp = get_next_stamp ();
+    name_stamp = get_next_stamp ()
   }

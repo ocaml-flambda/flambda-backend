@@ -17,8 +17,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** The representation of the alpha-equivalence class of a group of possibly
-    (mutually-) recursive continuation handlers that are bound both over a
-    body and their own handler code. *)
+    (mutually-) recursive continuation handlers that are bound both over a body
+    and their own handler code. *)
 type t
 
 (** Printing, invariant checks, name manipulation, etc. *)
@@ -26,22 +26,20 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-(** Deconstruct a continuation binding to get the bound continuations,
-    together with the expressions and handlers over which they are scoped. *)
-val pattern_match
-   : t
-  -> f:(body:Expr.t -> Continuation_handlers.t -> 'a)
-  -> 'a
+(** Deconstruct a continuation binding to get the bound continuations, together
+    with the expressions and handlers over which they are scoped. *)
+val pattern_match : t -> f:(body:Expr.t -> Continuation_handlers.t -> 'a) -> 'a
 
 (** Deconstruct two continuation bindings using the same bound continuations. *)
-val pattern_match_pair
-   : t
-  -> t
-  -> f:(body1:Expr.t -> body2:Expr.t
-    -> Continuation_handlers.t -> Continuation_handlers.t -> 'a)
-  -> 'a
+val pattern_match_pair :
+  t ->
+  t ->
+  f:
+    (body1:Expr.t ->
+    body2:Expr.t ->
+    Continuation_handlers.t ->
+    Continuation_handlers.t ->
+    'a) ->
+  'a
 
-val create
-   : body:Expr.t
-  -> Continuation_handlers.t
-  -> t
+val create : body:Expr.t -> Continuation_handlers.t -> t

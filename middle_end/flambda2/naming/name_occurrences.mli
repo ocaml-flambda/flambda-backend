@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** A structure for counting name-like entities that occur free in terms
-    or types. *)
+(** A structure for counting name-like entities that occur free in terms or
+    types. *)
 
 (* CR mshinwell: (from gbury on PR#44) Additionally, it might be useful in the
    future to extend the Name_occurrences.t type to distinguish names used one
@@ -70,7 +70,7 @@ val singleton_code_id : Code_id.t -> Name_mode.t -> t
 val add_code_id : t -> Code_id.t -> Name_mode.t -> t
 
 (** [add_newer_version_of_code_id] registers a use of a code ID occurring in a
-     "newer version of" field (e.g. in [Flambda_static.Static_part.code]). *)
+    "newer version of" field (e.g. in [Flambda_static.Static_part.code]). *)
 val add_newer_version_of_code_id : t -> Code_id.t -> Name_mode.t -> t
 
 val singleton_name : Name.t -> Name_mode.t -> t
@@ -90,17 +90,17 @@ val create_closure_vars : Var_within_closure.Set.t -> t
     The number of occurrences of any names in the return value will be exactly
     the same as in [t1].
 
-    Note that a code ID in [t2] will not only be removed from the code ID
-    set in [t1] but also the newer-version-of code ID set in [t1]. *)
+    Note that a code ID in [t2] will not only be removed from the code ID set in
+    [t1] but also the newer-version-of code ID set in [t1]. *)
 val diff : t -> t -> t
 
 val union : t -> t -> t
 
 val union_list : t list -> t
 
-(** [subset_domain t1 t2] is the usual "set subset" test on the names
-    occurring in [t1] and [t2].  The numbers of occurrences and the kinds of
-    those occurrences are ignored. *)
+(** [subset_domain t1 t2] is the usual "set subset" test on the names occurring
+    in [t1] and [t2]. The numbers of occurrences and the kinds of those
+    occurrences are ignored. *)
 val subset_domain : t -> t -> bool
 
 val inter_domain_is_non_empty : t -> t -> bool
@@ -133,9 +133,9 @@ val without_code_ids : t -> t
 
 val without_closure_vars : t -> t
 
-val with_only_variables :  t -> t
+val with_only_variables : t -> t
 
-val with_only_names_and_code_ids :  t -> t
+val with_only_names_and_code_ids : t -> t
 
 val mem_var : t -> Variable.t -> bool
 
@@ -155,47 +155,20 @@ val remove_code_id_or_symbol : t -> Code_id_or_symbol.t -> t
 
 val remove_continuation : t -> Continuation.t -> t
 
-val remove_one_occurrence_of_closure_var
-   : t
-  -> Var_within_closure.t
-  -> Name_mode.t
-  -> t
+val remove_one_occurrence_of_closure_var :
+  t -> Var_within_closure.t -> Name_mode.t -> t
 
-val greatest_name_mode_var
-   : t
-  -> Variable.t
-  -> Name_mode.Or_absent.t
+val greatest_name_mode_var : t -> Variable.t -> Name_mode.Or_absent.t
 
-val downgrade_occurrences_at_strictly_greater_kind
-   : t
-  -> Name_mode.t
-  -> t
+val downgrade_occurrences_at_strictly_greater_kind : t -> Name_mode.t -> t
 
-val filter_names
-   : t
-  -> f:(Name.t -> bool)
-  -> t
+val filter_names : t -> f:(Name.t -> bool) -> t
 
-val fold_names
-   : t
-  -> init:'a
-  -> f:('a -> Name.t -> 'a)
-  -> 'a
+val fold_names : t -> init:'a -> f:('a -> Name.t -> 'a) -> 'a
 
-val fold_variables
-   : t
-  -> init:'a
-  -> f:('a -> Variable.t -> 'a)
-  -> 'a
+val fold_variables : t -> init:'a -> f:('a -> Variable.t -> 'a) -> 'a
 
-val fold_continuations_including_in_trap_actions
-   : t
-  -> init:'a
-  -> f:('a -> Continuation.t -> 'a)
-  -> 'a
+val fold_continuations_including_in_trap_actions :
+  t -> init:'a -> f:('a -> Continuation.t -> 'a) -> 'a
 
-val fold_code_ids
-   : t
-  -> init:'a
-  -> f:('a -> Code_id.t -> 'a)
-  -> 'a
+val fold_code_ids : t -> init:'a -> f:('a -> Code_id.t -> 'a) -> 'a

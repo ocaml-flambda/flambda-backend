@@ -20,11 +20,14 @@ open! Simplify_import
 
 let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
   match to_lift with
-  | Immutable_block { tag; is_unique; fields; } ->
-    let fields  =
+  | Immutable_block { tag; is_unique; fields } ->
+    let fields =
       ListLabels.map fields
-        ~f:(fun (field : T.var_or_symbol_or_tagged_immediate)
-              : Static_const.Field_of_block.t ->
+        ~f:(fun
+             (field : T.var_or_symbol_or_tagged_immediate)
+             :
+             Static_const.Field_of_block.t
+           ->
           match field with
           | Var var -> Dynamically_computed var
           | Symbol sym -> Symbol sym
@@ -33,19 +36,24 @@ let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
     in
-    Rebuilt_static_const.create_block (DA.are_rebuilding_terms dacc)
+    Rebuilt_static_const.create_block
+      (DA.are_rebuilding_terms dacc)
       tag mut ~fields
   | Boxed_float f ->
-    Rebuilt_static_const.create_boxed_float (DA.are_rebuilding_terms dacc)
+    Rebuilt_static_const.create_boxed_float
+      (DA.are_rebuilding_terms dacc)
       (Const f)
   | Boxed_int32 i ->
-    Rebuilt_static_const.create_boxed_int32 (DA.are_rebuilding_terms dacc)
+    Rebuilt_static_const.create_boxed_int32
+      (DA.are_rebuilding_terms dacc)
       (Const i)
   | Boxed_int64 i ->
-    Rebuilt_static_const.create_boxed_int64 (DA.are_rebuilding_terms dacc)
+    Rebuilt_static_const.create_boxed_int64
+      (DA.are_rebuilding_terms dacc)
       (Const i)
   | Boxed_nativeint i ->
-    Rebuilt_static_const.create_boxed_nativeint (DA.are_rebuilding_terms dacc)
+    Rebuilt_static_const.create_boxed_nativeint
+      (DA.are_rebuilding_terms dacc)
       (Const i)
 
 let lift dacc ty ~bound_to static_const =
@@ -58,27 +66,25 @@ let lift dacc ty ~bound_to static_const =
     match existing_symbol with
     | Some symbol ->
       if Flambda_features.check_invariants ()
-        && not (DE.mem_symbol (DA.denv dacc) symbol)
-      then begin
-        Misc.fatal_errorf "Constant with symbol %a is shareable but not in \
-            the environment:@ %a"
-          Symbol.print symbol
-          DA.print dacc
-      end;
+         && not (DE.mem_symbol (DA.denv dacc) symbol)
+      then
+        Misc.fatal_errorf
+          "Constant with symbol %a is shareable but not in the environment:@ %a"
+          Symbol.print symbol DA.print dacc;
       dacc, symbol
     | None ->
       let symbol =
-        Symbol.create (Compilation_unit.get_current_exn ())
+        Symbol.create
+          (Compilation_unit.get_current_exn ())
           (Linkage_name.create (Variable.unique_name bound_to))
       in
-      if not (K.equal (T.kind ty) K.value) then begin
-        Misc.fatal_errorf "Cannot lift non-[Value] variable: %a"
-          Variable.print bound_to
-      end;
+      if not (K.equal (T.kind ty) K.value)
+      then
+        Misc.fatal_errorf "Cannot lift non-[Value] variable: %a" Variable.print
+          bound_to;
       let free_names = Rebuilt_static_const.free_names static_const in
       let symbol_projections =
-        Name_occurrences.fold_variables free_names
-          ~init:Variable.Map.empty
+        Name_occurrences.fold_variables free_names ~init:Variable.Map.empty
           ~f:(fun symbol_projections var ->
             match DE.find_symbol_projection (DA.denv dacc) var with
             | None -> symbol_projections
@@ -105,12 +111,12 @@ let lift dacc ty ~bound_to static_const =
   let var_ty = T.alias_type_of (T.kind ty) symbol' in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
-      DE.add_equation_on_variable denv bound_to var_ty)
+        DE.add_equation_on_variable denv bound_to var_ty)
   in
   Simplified_named.reachable term, dacc, var_ty
 
 let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
-      ~allow_lifting =
+    ~allow_lifting =
   let occ_kind = Var_in_binding_pos.name_mode bound_to in
   let bound_to = Var_in_binding_pos.var bound_to in
   let denv = DA.denv dacc in
@@ -122,41 +128,43 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
     let ty = T.bottom_like ty in
     let denv = DE.add_equation_on_variable denv bound_to ty in
     Simplified_named.invalid (), DA.with_denv dacc denv, ty
-  | Reachable _ ->
+  | Reachable _ -> (
     let typing_env = DE.typing_env denv in
     let reify_result =
       T.reify ~allowed_if_free_vars_defined_in:typing_env
         ~additional_free_var_criterion:(fun var ->
           DE.is_defined_at_toplevel denv var
-            || Option.is_some (DE.find_symbol_projection denv var))
-        ~allow_unique:true
-        typing_env ~min_name_mode:NM.normal ty
+          || Option.is_some (DE.find_symbol_projection denv var))
+        ~allow_unique:true typing_env ~min_name_mode:NM.normal ty
     in
     match reify_result with
     | Lift to_lift ->
-      if Name_mode.is_normal occ_kind && allow_lifting then
+      if Name_mode.is_normal occ_kind && allow_lifting
+      then
         let static_const = create_static_const dacc to_lift in
         lift dacc ty ~bound_to static_const
-      else
-        term, dacc, ty
+      else term, dacc, ty
     | Simple simple ->
       (* CR mshinwell: Think about whether this is the best way of handling
          this. *)
-      (* It is possible that the only [Simple] that [reify] could return is
-         in fact [bound_to] -- for example when all other aliases are of
-         an unsuitable occurrence kind. *)
+      (* It is possible that the only [Simple] that [reify] could return is in
+         fact [bound_to] -- for example when all other aliases are of an
+         unsuitable occurrence kind. *)
       let dacc =
-        if Simple.equal simple (Simple.var bound_to) then dacc
+        if Simple.equal simple (Simple.var bound_to)
+        then dacc
         else
           let ty = T.alias_type_of (T.kind ty) simple in
           let denv = DE.add_equation_on_variable denv bound_to ty in
           DA.with_denv dacc denv
       in
-      if Simple.equal (Simple.var bound_to) simple then term, dacc, ty
+      if Simple.equal (Simple.var bound_to) simple
+      then term, dacc, ty
       else Simplified_named.reachable (Named.create_simple simple), dacc, ty
-    | Lift_set_of_closures _  (* already dealt with in [Simplify_named] *)
-    | Cannot_reify -> term, dacc, ty
+    | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
+    | Cannot_reify ->
+      term, dacc, ty
     | Invalid ->
       let ty = T.bottom_like ty in
       let denv = DE.add_equation_on_variable denv bound_to ty in
-      Simplified_named.invalid (), DA.with_denv dacc denv, ty
+      Simplified_named.invalid (), DA.with_denv dacc denv, ty)

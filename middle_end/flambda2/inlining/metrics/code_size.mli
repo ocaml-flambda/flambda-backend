@@ -17,28 +17,40 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (* Computes an approximation for the code size corresponding to flambda terms.
-   The code size of a given term should be a rough estimate of the size of
-   the generated machine code.
-*)
+   The code size of a given term should be a rough estimate of the size of the
+   generated machine code. *)
 
 type t
 
 (* Both are only there temporarly *)
 val of_int : int -> t
+
 val to_int : t -> int
 
 val zero : t
-val (+) : t -> t -> t
-val (<=) : t -> t -> bool
+
+val ( + ) : t -> t -> t
+
+val ( <= ) : t -> t -> bool
+
 val equal : t -> t -> bool
+
 val print : Format.formatter -> t -> unit
 
 val prim : Flambda_primitive.t -> t
+
 val simple : Simple.t -> t
+
 val static_consts : unit -> t
+
 val apply : Apply_expr.t -> t
+
 val apply_cont : Apply_cont_expr.t -> t
+
 val switch : Switch_expr.t -> t
+
 val invalid : t
+
 val evaluate : args:Inlining_arguments.t -> t -> float
+
 val alloc_size : t

@@ -35,4 +35,5 @@ let join co1 co2 =
   | No_coeffects, No_coeffects -> No_coeffects
   | No_coeffects, Has_coeffects
   | Has_coeffects, Has_coeffects
-  | Has_coeffects, No_coeffects -> Has_coeffects
+  | Has_coeffects, No_coeffects ->
+    Has_coeffects

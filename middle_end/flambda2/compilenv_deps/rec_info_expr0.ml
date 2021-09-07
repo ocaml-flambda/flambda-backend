@@ -28,7 +28,9 @@ module type S = sig
       | Do_not_unroll
 
     val not_unrolling : t
+
     val unrolling : remaining_depth:int -> t
+
     val do_not_unroll : t
 
     val print : Format.formatter -> t -> unit
@@ -45,11 +47,17 @@ module type S = sig
     | Unroll_to of int * t
 
   val initial : t
+
   val unknown : t
+
   val do_not_inline : t
+
   val const : depth:int Or_infinity.t -> unrolling:Unrolling_state.t -> t
+
   val var : variable -> t
+
   val succ : t -> t
+
   val unroll_to : int -> t -> t
 
   val is_obviously_initial : t -> bool
@@ -63,9 +71,8 @@ module type S = sig
   val map_depth_variables : t -> f:(variable -> variable) -> t
 end
 
-module Make(Variable : Container_types.S)
-  : S with type variable = Variable.t
-= struct
+module Make (Variable : Container_types.S) : S with type variable = Variable.t =
+struct
   type variable = Variable.t
 
   module Unrolling_state = struct
@@ -75,7 +82,9 @@ module Make(Variable : Container_types.S)
       | Do_not_unroll
 
     let not_unrolling = Not_unrolling
-    let unrolling ~remaining_depth = Unrolling { remaining_depth; }
+
+    let unrolling ~remaining_depth = Unrolling { remaining_depth }
+
     let do_not_unroll = Do_not_unroll
 
     let [@ocamlformat "disable"] print ppf = function
@@ -92,19 +101,16 @@ module Make(Variable : Container_types.S)
     let equal t1 t2 =
       match t1, t2 with
       | Not_unrolling, Not_unrolling -> true
-      | Unrolling { remaining_depth = remaining_depth1 },
-        Unrolling { remaining_depth = remaining_depth2 } ->
+      | ( Unrolling { remaining_depth = remaining_depth1 },
+          Unrolling { remaining_depth = remaining_depth2 } ) ->
         remaining_depth1 = remaining_depth2
       | Do_not_unroll, Do_not_unroll -> true
       | (Not_unrolling | Unrolling _ | Do_not_unroll), _ -> false
 
     let hash = function
-      | Not_unrolling ->
-        Hashtbl.hash 0
-      | Unrolling { remaining_depth } ->
-        Hashtbl.hash (1, remaining_depth)
-      | Do_not_unroll ->
-        Hashtbl.hash 2
+      | Not_unrolling -> Hashtbl.hash 0
+      | Unrolling { remaining_depth } -> Hashtbl.hash (1, remaining_depth)
+      | Do_not_unroll -> Hashtbl.hash 2
   end
 
   type t =
@@ -114,18 +120,27 @@ module Make(Variable : Container_types.S)
     | Unroll_to of int * t
 
   let initial = Const { depth = Finite 0; unrolling = Not_unrolling }
+
   let unknown = Const { depth = Infinity; unrolling = Not_unrolling }
+
   let do_not_inline = Const { depth = Infinity; unrolling = Do_not_unroll }
+
   let const ~depth ~unrolling = Const { depth; unrolling }
+
   let var dv = Var dv
+
   let succ t = Succ t
+
   let unroll_to unroll_depth t = Unroll_to (unroll_depth, t)
 
   let is_obviously_initial = function
     | Const { depth = Finite 0; unrolling = Not_unrolling } -> true
-    | Const { depth = (Finite _ | Infinity);
-              unrolling = (Not_unrolling | Unrolling _ | Do_not_unroll) }
-    | Var _ | Succ _ | Unroll_to _ -> false
+    | Const
+        { depth = Finite _ | Infinity;
+          unrolling = Not_unrolling | Unrolling _ | Do_not_unroll
+        }
+    | Var _ | Succ _ | Unroll_to _ ->
+      false
 
   let [@ocamlformat "disable"] rec print ppf = function
     | Const { depth; unrolling } ->
@@ -157,29 +172,25 @@ module Make(Variable : Container_types.S)
     t1 == t2
     ||
     match t1, t2 with
-    | Const { depth = depth1; unrolling = unrolling1 },
-      Const { depth = depth2; unrolling = unrolling2 } ->
+    | ( Const { depth = depth1; unrolling = unrolling1 },
+        Const { depth = depth2; unrolling = unrolling2 } ) ->
       Or_infinity.equal ~f:Int.equal depth1 depth2
       && Unrolling_state.equal unrolling1 unrolling2
-    | Var dv1, Var dv2 ->
-      Variable.equal dv1 dv2
-    | Succ t1, Succ t2 ->
-      equal t1 t2
+    | Var dv1, Var dv2 -> Variable.equal dv1 dv2
+    | Succ t1, Succ t2 -> equal t1 t2
     | Unroll_to (unroll_depth1, t1), Unroll_to (unroll_depth2, t2) ->
       unroll_depth1 = unroll_depth2 && equal t1 t2
     | (Const _ | Var _ | Succ _ | Unroll_to _), _ -> false
 
   let rec hash = function
     | Const { depth; unrolling } ->
-      Hashtbl.hash (0,
-                    Or_infinity.hash ~f:Hashtbl.hash depth,
-                    Unrolling_state.hash unrolling)
-    | Var dv ->
-      Hashtbl.hash (1, Variable.hash dv)
-    | Succ t ->
-      Hashtbl.hash (2, hash t)
-    | Unroll_to (unroll_depth, t) ->
-      Hashtbl.hash (3, unroll_depth, hash t)
+      Hashtbl.hash
+        ( 0,
+          Or_infinity.hash ~f:Hashtbl.hash depth,
+          Unrolling_state.hash unrolling )
+    | Var dv -> Hashtbl.hash (1, Variable.hash dv)
+    | Succ t -> Hashtbl.hash (2, hash t)
+    | Unroll_to (unroll_depth, t) -> Hashtbl.hash (3, unroll_depth, hash t)
 
   let rec map_depth_variables t ~f =
     match t with

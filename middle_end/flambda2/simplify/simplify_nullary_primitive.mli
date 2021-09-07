@@ -17,10 +17,12 @@
 
 (** Simplification of primitives taking no argument. *)
 
-val simplify_nullary_primitive
-   : Downwards_acc.t
-  -> Flambda_primitive.nullary_primitive
-  -> Debuginfo.t
-  -> result_var:Var_in_binding_pos.t
-  -> Simplified_named.t * Flambda_type.Typing_env_extension.t
-       * Simple.t list * Downwards_acc.t
+val simplify_nullary_primitive :
+  Downwards_acc.t ->
+  Flambda_primitive.nullary_primitive ->
+  Debuginfo.t ->
+  result_var:Var_in_binding_pos.t ->
+  Simplified_named.t
+  * Flambda_type.Typing_env_extension.t
+  * Simple.t list
+  * Downwards_acc.t

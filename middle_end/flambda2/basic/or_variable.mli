@@ -18,9 +18,7 @@
 
 (** Values of type ['a] must not contain names! *)
 
-type 'a t =
-  | Const of 'a
-  | Var of Variable.t
+type 'a t = Const of 'a | Var of Variable.t
 
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 

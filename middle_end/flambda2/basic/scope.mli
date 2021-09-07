@@ -23,12 +23,16 @@ include Container_types.S with type t := t
 val initial : t
 
 val prev : t -> t
+
 val next : t -> t
 
-val (<=): t -> t -> bool
-val (<): t -> t -> bool
-val (>): t -> t -> bool
-val (>=): t -> t -> bool
+val ( <= ) : t -> t -> bool
+
+val ( < ) : t -> t -> bool
+
+val ( > ) : t -> t -> bool
+
+val ( >= ) : t -> t -> bool
 
 val max : t -> t -> t
 

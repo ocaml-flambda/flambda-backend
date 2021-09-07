@@ -17,8 +17,7 @@
 (** An [Exn_continuation] equipped with operations that mean it can be used in
     binding position within a [Name_abstraction] value.
 
-    When this happens, only the [exn_handler] is bound, not the [extra_args].
-*)
+    When this happens, only the [exn_handler] is bound, not the [extra_args]. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 

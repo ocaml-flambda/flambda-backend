@@ -33,15 +33,12 @@ let free_names _t = Name_occurrences.empty
 let all_ids_for_export _t = Ids_for_export.empty
 
 let apply_coercion t coercion : _ Or_bottom.t =
-  if Coercion.is_id coercion then Ok t
-  else Bottom
+  if Coercion.is_id coercion then Ok t else Bottom
 
 let eviscerate _ : _ Or_unknown.t = Unknown
 
 let meet _env t1 t2 : _ Or_bottom.t =
   let t = Int32.Set.inter t1 t2 in
-  if Int32.Set.is_empty t then Bottom
-  else Ok (t, TEE.empty ())
+  if Int32.Set.is_empty t then Bottom else Ok (t, TEE.empty ())
 
-let join _env t1 t2 : _ Or_unknown.t =
-  Known (Int32.Set.union t1 t2)
+let join _env t1 t2 : _ Or_unknown.t = Known (Int32.Set.union t1 t2)

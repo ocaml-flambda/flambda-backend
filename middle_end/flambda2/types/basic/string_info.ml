@@ -16,21 +16,14 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type string_contents =
-  | Contents of string
-  | Unknown_or_mutable
+type string_contents = Contents of string | Unknown_or_mutable
 
-type t = {
-  contents : string_contents;
-  size : Targetint_31_63.Imm.t;
-}
+type t = { contents : string_contents; size : Targetint_31_63.Imm.t }
 
-let create ~contents ~size =
-  { contents;
-    size;
-  }
+let create ~contents ~size = { contents; size }
 
 let contents t = t.contents
+
 let size t = t.size
 
 include Container_types.Make (struct
@@ -44,11 +37,9 @@ include Container_types.Make (struct
       | Contents _, Unknown_or_mutable -> -1
       | Unknown_or_mutable, Contents _ -> 1
     in
-    if c <> 0 then c
-    else Stdlib.compare t1.size t2.size
+    if c <> 0 then c else Stdlib.compare t1.size t2.size
 
-  let equal t1 t2 =
-    compare t1 t2 = 0
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash t = Hashtbl.hash t
 

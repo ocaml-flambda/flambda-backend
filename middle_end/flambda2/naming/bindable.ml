@@ -23,23 +23,24 @@ module type S = sig
   type t
 
   include Container_types.S with type t := t
+
   include Contains_names.S with type t := t
+
   include Contains_ids.S with type t := t
 
   val print : Format.formatter -> t -> unit
+
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 
   val rename : t -> t
 
   val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
 
-  val add_to_name_permutation
-     : t
-    -> guaranteed_fresh:t
-    -> Renaming.t
-    -> Renaming.t
+  val add_to_name_permutation :
+    t -> guaranteed_fresh:t -> Renaming.t -> Renaming.t
 
   (* CR mshinwell: Check why this and [free_names] are here *)
   val singleton_occurrence_in_terms : t -> Name_occurrences.t
+
   val add_occurrence_in_terms : t -> Name_occurrences.t -> Name_occurrences.t
 end

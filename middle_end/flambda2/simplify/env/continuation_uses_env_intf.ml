@@ -24,31 +24,29 @@ module type S = sig
       where we have already advanced past the point at which such wrappers would
       need to be defined, before knowing that a wrapper is needed. *)
 
-  val record_continuation_use
-     : t
-    -> Continuation.t
-    -> Continuation_use_kind.t
-    -> env_at_use:Downwards_env.t
-    -> arg_types:Flambda_type.t list
-    -> t * Apply_cont_rewrite_id.t
+  val record_continuation_use :
+    t ->
+    Continuation.t ->
+    Continuation_use_kind.t ->
+    env_at_use:Downwards_env.t ->
+    arg_types:Flambda_type.t list ->
+    t * Apply_cont_rewrite_id.t
 
   val delete_continuation_uses : t -> Continuation.t -> t
 
-  val get_typing_env_no_more_than_one_use
-     : t
-    -> Continuation.t
-    -> Flambda_type.Typing_env.t option
+  val get_typing_env_no_more_than_one_use :
+    t -> Continuation.t -> Flambda_type.Typing_env.t option
 
   (* CR mshinwell: Add [record_exn_continuation_use]? *)
 
-  val compute_handler_env
-     : t
-    -> env_at_fork_plus_params_and_consts:Downwards_env.t
-    -> consts_lifted_during_body:Lifted_constant_state.t
-    -> Continuation.t
-    -> params:Kinded_parameter.t list
-    -> code_age_relation_after_body:Code_age_relation.t
-    -> Continuation_env_and_param_types.t
+  val compute_handler_env :
+    t ->
+    env_at_fork_plus_params_and_consts:Downwards_env.t ->
+    consts_lifted_during_body:Lifted_constant_state.t ->
+    Continuation.t ->
+    params:Kinded_parameter.t list ->
+    code_age_relation_after_body:Code_age_relation.t ->
+    Continuation_env_and_param_types.t
 
   val num_continuation_uses : t -> Continuation.t -> int
 

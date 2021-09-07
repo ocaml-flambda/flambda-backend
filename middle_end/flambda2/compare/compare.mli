@@ -7,18 +7,13 @@ module Comparison : sig
   type 'a t =
     | Equivalent (* x and y are alpha-equivalent *)
     | Different of { approximant : 'a }
-      (* x and y are not alpha-equivalent, and furthermore [approximant] is
-       * alpha-equivalent to x and textually the same as y in places where x and
-       * y agree *)
+  (* x and y are not alpha-equivalent, and furthermore [approximant] is
+   * alpha-equivalent to x and textually the same as y in places where x and
+   * y agree *)
 
-  val print
-         : (Format.formatter -> 'a -> unit)
-        -> Format.formatter
-        -> 'a t
-        -> unit
+  val print :
+    (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 end
 
-val flambda_units
-   : Flambda_unit.t
-  -> Flambda_unit.t
-  -> Flambda_unit.t Comparison.t
+val flambda_units :
+  Flambda_unit.t -> Flambda_unit.t -> Flambda_unit.t Comparison.t

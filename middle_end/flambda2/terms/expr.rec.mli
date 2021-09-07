@@ -26,21 +26,19 @@ include Contains_ids.S with type t := t
 
 type descr = private
   | Let of Let_expr.t
-  (** Bind variable(s) or symbol(s).  There can be no effect on control flow
-      (save for asynchronous operations such as the invocation of finalisers
-      or signal handlers as a result of reaching a safe point). *)
-  | Let_cont of Let_cont_expr.t
-  (** Define one or more continuations. *)
+      (** Bind variable(s) or symbol(s). There can be no effect on control flow
+          (save for asynchronous operations such as the invocation of finalisers
+          or signal handlers as a result of reaching a safe point). *)
+  | Let_cont of Let_cont_expr.t  (** Define one or more continuations. *)
   | Apply of Apply.t
-  (** Call an OCaml function, external function or method. *)
+      (** Call an OCaml function, external function or method. *)
   | Apply_cont of Apply_cont.t
-  (** Call a continuation, optionally adding or removing exception trap
-      frames from the stack, which thus allows for the raising of
-      exceptions. *)
-  | Switch of Switch.t
-  (** Conditional control flow. *)
+      (** Call a continuation, optionally adding or removing exception trap
+          frames from the stack, which thus allows for the raising of
+          exceptions. *)
+  | Switch of Switch.t  (** Conditional control flow. *)
   | Invalid of Invalid_term_semantics.t
-  (** Code proved type-incorrect and therefore unreachable. *)
+      (** Code proved type-incorrect and therefore unreachable. *)
 
 (** Extract the description of an expression. *)
 val descr : t -> descr
@@ -60,8 +58,5 @@ val create_switch : Switch_expr.t -> t
 (** Create an expression indicating type-incorrect or unreachable code. *)
 val create_invalid : ?semantics:Invalid_term_semantics.t -> unit -> t
 
-val bind_parameters_to_args_no_simplification
-   : params:Kinded_parameter.t list
-  -> args:Simple.t list
-  -> body:Expr.t
-  -> Expr.t
+val bind_parameters_to_args_no_simplification :
+  params:Kinded_parameter.t list -> args:Simple.t list -> body:Expr.t -> Expr.t
