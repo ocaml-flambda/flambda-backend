@@ -14,7 +14,10 @@ let f x str =
   x + String.length cow + String.length sheep + String.length str
   + String.length str
 
-type all_floats = { f1 : float; f2 : float }
+type all_floats =
+  { f1 : float;
+    f2 : float
+  }
 
 external ( +. ) : float -> float -> float = "%addfloat"
 

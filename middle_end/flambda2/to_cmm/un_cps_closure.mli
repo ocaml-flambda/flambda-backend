@@ -52,7 +52,10 @@ type layout_slot =
 
 (** Alias for complete layouts. The list is sorted according to offsets (in
     increasing order). *)
-type layout = { startenv : int; slots : (int * layout_slot) list }
+type layout =
+  { startenv : int;
+    slots : (int * layout_slot) list
+  }
 
 (** Order the given closure ids and env vars into a list of layout slots
     together with their respective offset. Note that there may be holes between

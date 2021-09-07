@@ -542,7 +542,9 @@ let create_switch uacc ~scrutinee ~arms =
 let rebuild_invalid uacc ~after_rebuild =
   after_rebuild (RE.create_invalid ()) uacc
 
-type rewrite_use_ctx = Apply_cont | Apply_expr of Simple.t list
+type rewrite_use_ctx =
+  | Apply_cont
+  | Apply_expr of Simple.t list
 
 type rewrite_use_result =
   | Apply_cont of Apply_cont.t

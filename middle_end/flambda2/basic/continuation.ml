@@ -30,7 +30,11 @@ let next_raise_count () =
   !raise_count
 
 module Sort = struct
-  type t = Normal_or_exn | Return | Define_root_symbol | Toplevel_return
+  type t =
+    | Normal_or_exn
+    | Return
+    | Define_root_symbol
+    | Toplevel_return
 
   let to_string t =
     match t with

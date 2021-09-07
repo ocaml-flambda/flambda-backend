@@ -21,7 +21,10 @@ module type S = sig
 
   type t = private
     | Id
-    | Change_depth of { from : rec_info_expr; to_ : rec_info_expr }
+    | Change_depth of
+        { from : rec_info_expr;
+          to_ : rec_info_expr
+        }
 
   val change_depth : from:rec_info_expr -> to_:rec_info_expr -> t
 
@@ -50,7 +53,12 @@ module Make (Rec_info_expr : Rec_info_expr0.S) :
 
   type rec_info_expr = Rec_info_expr.t
 
-  type t = Id | Change_depth of { from : rec_info_expr; to_ : rec_info_expr }
+  type t =
+    | Id
+    | Change_depth of
+        { from : rec_info_expr;
+          to_ : rec_info_expr
+        }
 
   let id = Id
 

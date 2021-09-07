@@ -1,12 +1,22 @@
-type vec3 = { x : float; y : float; z : float }
+type vec3 =
+  { x : float;
+    y : float;
+    z : float
+  }
 
-type aabb = { min : vec3; max : vec3 }
+type aabb =
+  { min : vec3;
+    max : vec3
+  }
 
 type pos = vec3
 
 type dir = vec3
 
-type ray = { origin : pos; dir : dir }
+type ray =
+  { origin : pos;
+    dir : dir
+  }
 
 let[@inline always] min (x : float) y = if x <= y then x else y
 

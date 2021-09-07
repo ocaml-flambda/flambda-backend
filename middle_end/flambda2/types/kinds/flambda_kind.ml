@@ -71,7 +71,11 @@ module Naked_number_kind = struct
   let equal t1 t2 = compare t1 t2 = 0
 end
 
-type t = Value | Naked_number of Naked_number_kind.t | Fabricated | Rec_info
+type t =
+  | Value
+  | Naked_number of Naked_number_kind.t
+  | Fabricated
+  | Rec_info
 
 type kind = t
 
@@ -382,7 +386,10 @@ module With_subkind = struct
       | Boxed_int64
       | Boxed_nativeint
       | Tagged_immediate
-      | Block of { tag : Tag.t; fields : t list }
+      | Block of
+          { tag : Tag.t;
+            fields : t list
+          }
       | Float_block of { num_fields : int }
 
     include Container_types.Make (struct
@@ -433,7 +440,10 @@ module With_subkind = struct
 
   type kind = t
 
-  type t = { kind : kind; subkind : Subkind.t }
+  type t =
+    { kind : kind;
+      subkind : Subkind.t
+    }
 
   let create (kind : kind) (subkind : Subkind.t) =
     begin
@@ -533,7 +543,10 @@ module With_subkind = struct
     | Boxed_nativeint
     | Tagged_immediate
     | Rec_info
-    | Block of { tag : Tag.t; fields : descr list }
+    | Block of
+        { tag : Tag.t;
+          fields : descr list
+        }
     | Float_block of { num_fields : int }
 
   let rec subkind_descr (t : Subkind.t) : descr =

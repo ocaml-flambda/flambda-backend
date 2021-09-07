@@ -500,7 +500,10 @@ val type_for_const : Reg_width_const.t -> t
 
 val kind_for_const : Reg_width_const.t -> Flambda_kind.t
 
-type 'a proof = private Proved of 'a | Unknown | Invalid
+type 'a proof = private
+  | Proved of 'a
+  | Unknown
+  | Invalid
 
 type 'a proof_allowing_kind_mismatch = private
   | Proved of 'a

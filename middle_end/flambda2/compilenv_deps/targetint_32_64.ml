@@ -16,9 +16,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type repr = Int32 of int32 | Int64 of int64
+type repr =
+  | Int32 of int32
+  | Int64 of int64
 
-type num_bits = Thirty_two | Sixty_four
+type num_bits =
+  | Thirty_two
+  | Sixty_four
 
 module type S = sig
   type t

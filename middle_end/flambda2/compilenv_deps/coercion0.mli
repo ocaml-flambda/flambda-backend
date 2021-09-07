@@ -38,7 +38,10 @@ module type S = sig
 
   type t = private
     | Id
-    | Change_depth of { from : rec_info_expr; to_ : rec_info_expr }
+    | Change_depth of
+        { from : rec_info_expr;
+          to_ : rec_info_expr
+        }
 
   val change_depth : from:rec_info_expr -> to_:rec_info_expr -> t
 

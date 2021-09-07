@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = { name : Name.t; name_mode : Name_mode.t }
+type t =
+  { name : Name.t;
+    name_mode : Name_mode.t
+  }
 
 let create name name_mode = { name; name_mode }
 

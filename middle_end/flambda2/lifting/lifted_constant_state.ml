@@ -26,7 +26,10 @@ type t =
   | Empty
   | Leaf of LC.t
   | Leaf_array of { innermost_first : LC.t array }
-  | Union of { outer : t; inner : t }
+  | Union of
+      { outer : t;
+        inner : t
+      }
 
 let to_list_outermost_first t =
   let rec to_list t acc =

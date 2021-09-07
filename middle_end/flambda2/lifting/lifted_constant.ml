@@ -35,7 +35,10 @@ module Definition = struct
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
 
-  type t = { descr : descr; defining_expr : Rebuilt_static_const.t }
+  type t =
+    { descr : descr;
+      defining_expr : Rebuilt_static_const.t
+    }
 
   let binds_symbol t sym =
     match t.descr with

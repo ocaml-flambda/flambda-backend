@@ -89,7 +89,10 @@ end
 
 module UnitId (Innerid : Id) (Compilation_unit : Container_types.Thing) :
   UnitId with module Compilation_unit := Compilation_unit = struct
-  type t = { id : Innerid.t; unit : Compilation_unit.t }
+  type t =
+    { id : Innerid.t;
+      unit : Compilation_unit.t
+    }
 
   let compare x y =
     let c = Innerid.compare x.id y.id in

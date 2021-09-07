@@ -1,11 +1,18 @@
 external ( - ) : int -> int -> int = "%subint"
 
 module Record = struct
-  type t = { a : int; b : int }
+  type t =
+    { a : int;
+      b : int
+    }
 end
 
 module Variant = struct
-  type t = T of { a : int; b : int }
+  type t =
+    | T of
+        { a : int;
+          b : int
+        }
 end
 
 let[@inline] help_desired ~should_swap ~a ~b =

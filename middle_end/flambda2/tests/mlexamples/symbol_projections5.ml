@@ -8,7 +8,9 @@ external ( && ) : bool -> bool -> bool = "%logand"
 
 let foo = match getenv "FOO" with exception _ -> false | _ -> true
 
-type t = S of (int -> t) | T of (int -> t)
+type t =
+  | S of (int -> t)
+  | T of (int -> t)
 
 let f b =
   if b

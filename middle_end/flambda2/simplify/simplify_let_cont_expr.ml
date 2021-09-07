@@ -70,7 +70,9 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
     { extra_params_used_as_normal; extra_params_not_used_as_normal }
 
 type used_params =
-  { params_used_as_normal : KP.t list; params_not_used_as_normal : KP.t list }
+  { params_used_as_normal : KP.t list;
+    params_not_used_as_normal : KP.t list
+  }
 
 let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
     ~free_names ~handler =
@@ -241,7 +243,10 @@ let simplify_one_continuation_handler ~simplify_expr dacc cont ~at_unit_toplevel
   in
   simplify_expr dacc handler ~down_to_up
 
-type behaviour = Unreachable | Alias_for of Continuation.t | Unknown
+type behaviour =
+  | Unreachable
+  | Alias_for of Continuation.t
+  | Unknown
 
 let rebuild_non_recursive_let_cont_handler cont
     (uses : Continuation_env_and_param_types.t) ~params ~handler

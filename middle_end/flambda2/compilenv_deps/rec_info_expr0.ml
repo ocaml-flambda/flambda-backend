@@ -41,7 +41,10 @@ module type S = sig
   end
 
   type t = private
-    | Const of { depth : int Or_infinity.t; unrolling : Unrolling_state.t }
+    | Const of
+        { depth : int Or_infinity.t;
+          unrolling : Unrolling_state.t
+        }
     | Var of variable
     | Succ of t
     | Unroll_to of int * t
@@ -114,7 +117,10 @@ struct
   end
 
   type t =
-    | Const of { depth : int Or_infinity.t; unrolling : Unrolling_state.t }
+    | Const of
+        { depth : int Or_infinity.t;
+          unrolling : Unrolling_state.t
+        }
     | Var of Variable.t
     | Succ of t
     | Unroll_to of int * t

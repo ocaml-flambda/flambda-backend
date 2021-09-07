@@ -58,7 +58,10 @@ end
    some problems with double vision etc. last time. Although we don't want to
    cache free names here. *)
 
-type t = { mutable descr : Descr.t; mutable delayed_permutation : Renaming.t }
+type t =
+  { mutable descr : Descr.t;
+    mutable delayed_permutation : Renaming.t
+  }
 
 type descr = Descr.t =
   | Let of Let_expr.t

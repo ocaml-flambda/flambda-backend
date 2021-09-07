@@ -59,7 +59,10 @@ struct
       env_extension : TEE.t
     }
 
-  type t = { known_tags : case Tag.Map.t; other_tags : case Or_bottom.t }
+  type t =
+    { known_tags : case Tag.Map.t;
+      other_tags : case Or_bottom.t
+    }
 
   let is_bottom { known_tags; other_tags } =
     Tag.Map.is_empty known_tags && other_tags = Or_bottom.Bottom
@@ -486,7 +489,9 @@ module For_blocks = struct
   module Tag_or_unknown = Tag_or_unknown_and_size.Tag_or_unknown
   include Make (Tag) (Targetint_ocaml_index) (Product.Int_indexed)
 
-  type open_or_closed = Open of Tag.t Or_unknown.t | Closed of Tag.t
+  type open_or_closed =
+    | Open of Tag.t Or_unknown.t
+    | Closed of Tag.t
 
   let create ~(field_kind : Flambda_kind.t) ~field_tys
       (open_or_closed : open_or_closed) =

@@ -17,7 +17,10 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module T0 = struct
-  type t = { handlers : Continuation_handlers.t; body : Expr.t }
+  type t =
+    { handlers : Continuation_handlers.t;
+      body : Expr.t
+    }
 
   let invariant _env _t = ()
 

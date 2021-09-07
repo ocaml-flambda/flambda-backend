@@ -123,7 +123,10 @@ type block_type =
   (* tag *)
   | Boxed_float
 
-type block = { block_type : block_type; size : int }
+type block =
+  { block_type : block_type;
+    size : int
+  }
 
 type letrec =
   { blocks : (Ident.t * block) list;
@@ -578,7 +581,9 @@ let dissect_letrec ~bindings ~body =
 
   substituted
 
-type dissected = Dissected of Lambda.lambda | Unchanged
+type dissected =
+  | Dissected of Lambda.lambda
+  | Unchanged
 
 let dissect_letrec ~bindings ~body =
   let is_a_function = function _, Lfunction _ -> true | _, _ -> false in

@@ -58,7 +58,10 @@ end) =
 struct
   type elt = int
 
-  type t = Empty | Leaf of int | Branch of int * int * t * t
+  type t =
+    | Empty
+    | Leaf of int
+    | Branch of int * int * t * t
 
   let empty = Empty
 
@@ -440,7 +443,10 @@ struct
 
     val branch_non_empty : int -> int -> 'a t -> 'a t -> 'a t
   end = struct
-    type 'a t = Empty | Leaf of int * 'a | Branch of int * int * 'a t * 'a t
+    type 'a t =
+      | Empty
+      | Leaf of int * 'a
+      | Branch of int * int * 'a t * 'a t
 
     let empty = Empty
 

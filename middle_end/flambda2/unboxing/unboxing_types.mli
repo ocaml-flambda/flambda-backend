@@ -29,7 +29,9 @@ type do_not_unbox_reason =
 
 module Extra_param_and_args : sig
   type t = private
-    { param : Variable.t; args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t }
+    { param : Variable.t;
+      args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t
+    }
 
   val create : name:string -> t
 
@@ -37,7 +39,10 @@ module Extra_param_and_args : sig
 end
 
 type unboxing_decision =
-  | Unique_tag_and_size of { tag : Tag.t; fields : field_decision list }
+  | Unique_tag_and_size of
+      { tag : Tag.t;
+        fields : field_decision list
+      }
   | Variant of
       { tag : Extra_param_and_args.t;
         const_ctors : const_ctors_decision;
@@ -51,11 +56,17 @@ type unboxing_decision =
      contains a single closure. *)
   | Number of Flambda_kind.Naked_number_kind.t * Extra_param_and_args.t
 
-and field_decision = { epa : Extra_param_and_args.t; decision : decision }
+and field_decision =
+  { epa : Extra_param_and_args.t;
+    decision : decision
+  }
 
 and const_ctors_decision =
   | Zero
-  | At_least_one of { is_int : Extra_param_and_args.t; ctor : decision }
+  | At_least_one of
+      { is_int : Extra_param_and_args.t;
+        ctor : decision
+      }
 
 and decision =
   | Unbox of unboxing_decision

@@ -35,7 +35,9 @@ module VB = Var_in_binding_pos
    result_size_in_bytes in if Targetint_31_63.Imm.compare index_in_bytes
    highest_index_allowed >= 0 then Out_of_range else In_range *)
 
-type failure = Division_by_zero | Index_out_of_bounds
+type failure =
+  | Division_by_zero
+  | Index_out_of_bounds
 
 type expr_primitive =
   | Simple of Simple.t
@@ -53,7 +55,9 @@ type expr_primitive =
         dbg : Debuginfo.t
       }
 
-and simple_or_prim = Simple of Simple.t | Prim of expr_primitive
+and simple_or_prim =
+  | Simple of Simple.t
+  | Prim of expr_primitive
 
 let rec print_expr_primitive ppf expr_primitive =
   let module W = Flambda_primitive.Without_args in

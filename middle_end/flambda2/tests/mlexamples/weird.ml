@@ -1,4 +1,6 @@
-type t = Foo of int | Bar of string
+type t =
+  | Foo of int
+  | Bar of string
 
 let f r =
   let v = match r with Foo x' as res -> res | Bar _ -> raise Exit in

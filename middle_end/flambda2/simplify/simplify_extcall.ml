@@ -17,7 +17,9 @@
 
 open! Simplify_import
 
-type t = Unchanged | Poly_compare_specialized of DA.t * Expr.t
+type t =
+  | Unchanged
+  | Poly_compare_specialized of DA.t * Expr.t
 
 (* Helpers *)
 (* ******* *)

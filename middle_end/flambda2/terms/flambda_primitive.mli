@@ -74,7 +74,10 @@ end
 
 module Duplicate_block_kind : sig
   type t =
-    | Values of { tag : Tag.Scannable.t; length : Targetint_31_63.Imm.t }
+    | Values of
+        { tag : Tag.Scannable.t;
+          length : Targetint_31_63.Imm.t
+        }
     | Naked_floats of { length : Targetint_31_63.Imm.t }
 
   val print : Format.formatter -> t -> unit
@@ -95,7 +98,9 @@ module Duplicate_array_kind : sig
 end
 
 module Block_access_field_kind : sig
-  type t = Any_value | Immediate
+  type t =
+    | Any_value
+    | Immediate
 
   val print : Format.formatter -> t -> unit
 
@@ -129,19 +134,35 @@ end
    cmmgen.ml) Something that is odd about this primitive is that it does not
    appear to have a bounds check. Maybe it should? *)
 
-type string_or_bytes = String | Bytes
+type string_or_bytes =
+  | String
+  | Bytes
 
 module Init_or_assign : sig
-  type t = Initialization | Assignment
+  type t =
+    | Initialization
+    | Assignment
 
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
 
-type comparison = Eq | Neq | Lt | Gt | Le | Ge
+type comparison =
+  | Eq
+  | Neq
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
-type ordered_comparison = Lt | Gt | Le | Ge
+type ordered_comparison =
+  | Lt
+  | Gt
+  | Le
+  | Ge
 
-type equality_comparison = Eq | Neq
+type equality_comparison =
+  | Eq
+  | Neq
 
 type bigarray_kind =
   (* | Unknown *)
@@ -160,21 +181,34 @@ type bigarray_kind =
 
 val element_kind_of_bigarray_kind : bigarray_kind -> Flambda_kind.t
 
-type bigarray_layout = (* Unknown | *) C | Fortran
+type bigarray_layout =
+  | (* Unknown | *) C
+  | Fortran
 
-type string_accessor_width = Eight | Sixteen | Thirty_two | Sixty_four
+type string_accessor_width =
+  | Eight
+  | Sixteen
+  | Thirty_two
+  | Sixty_four
 
 val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
 
-type string_like_value = String | Bytes | Bigstring
+type string_like_value =
+  | String
+  | Bytes
+  | Bigstring
 
-type bytes_like_value = Bytes | Bigstring
+type bytes_like_value =
+  | Bytes
+  | Bigstring
 
 type num_dimensions = int
 
-type signed_or_unsigned = Signed | Unsigned
+type signed_or_unsigned =
+  | Signed
+  | Unsigned
 
 (** Primitive taking exactly zero arguments *)
 type nullary_primitive =
@@ -191,10 +225,14 @@ type nullary_primitive =
     encoding a 16-bit quantity (described in the least significant 16 bits of
     the immediate after untagging) and exchanges the two halves of the 16-bit
     quantity. The higher-order bits are zeroed. *)
-type unary_int_arith_op = Neg | Swap_byte_endianness
+type unary_int_arith_op =
+  | Neg
+  | Swap_byte_endianness
 
 (** Naked float unary arithmetic operations. *)
-type unary_float_arith_op = Abs | Neg
+type unary_float_arith_op =
+  | Abs
+  | Neg
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
@@ -246,10 +284,16 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t
-  | Select_closure of { move_from : Closure_id.t; move_to : Closure_id.t }
+  | Select_closure of
+      { move_from : Closure_id.t;
+        move_to : Closure_id.t
+      }
       (** Given the pointer to one closure in some particular set of closures,
           return the pointer to another closure in the same set. *)
-  | Project_var of { project_from : Closure_id.t; var : Var_within_closure.t }
+  | Project_var of
+      { project_from : Closure_id.t;
+        var : Var_within_closure.t
+      }
       (** Read a value from the environment of a closure. Also specifies the id
           of the closure pointed at in the set of closures given as argument. *)
 
@@ -261,13 +305,28 @@ type 'op comparison_behaviour =
   | Yielding_int_like_compare_functions
 
 (** Binary arithmetic operations on integers. *)
-type binary_int_arith_op = Add | Sub | Mul | Div | Mod | And | Or | Xor
+type binary_int_arith_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
+  | Mod
+  | And
+  | Or
+  | Xor
 
 (** Shift operations on integers. *)
-type int_shift_op = Lsl | Lsr | Asr
+type int_shift_op =
+  | Lsl
+  | Lsr
+  | Asr
 
 (** Naked float binary arithmetic operations. *)
-type binary_float_arith_op = Add | Sub | Mul | Div
+type binary_float_arith_op =
+  | Add
+  | Sub
+  | Mul
+  | Div
 
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =

@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = Mutable | Immutable | Immutable_unique
+type t =
+  | Mutable
+  | Immutable
+  | Immutable_unique
 
 let [@ocamlformat "disable"] print ppf t =
   match t with

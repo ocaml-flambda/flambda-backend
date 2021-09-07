@@ -1,4 +1,10 @@
-type t = Empty | Node of { l : t; v : int; r : t }
+type t =
+  | Empty
+  | Node of
+      { l : t;
+        v : int;
+        r : t
+      }
 
 let bal l v r = Node { l; v; r } [@@inline never]
 

@@ -21,7 +21,10 @@
    - by inlining the continuation's body at the call site. *)
 
 type cont =
-  | Jump of { types : Cmm.machtype list; cont : int }
+  | Jump of
+      { types : Cmm.machtype list;
+        cont : int
+      }
   | Inline of
       { handler_params : Kinded_parameter.t list;
         handler_body : Flambda.Expr.t;
@@ -67,7 +70,10 @@ type extra_info = Untag of Cmm.expression
    only linear bindings are supposed to be inlined), and if the current stage
    becomes empty, the last archived stage is "un-archived". *)
 
-type kind = Pure | Effect | Coeffect
+type kind =
+  | Pure
+  | Effect
+  | Coeffect
 
 type binding =
   { order : int;
@@ -77,7 +83,9 @@ type binding =
     cmm_expr : Cmm.expression
   }
 
-type stage = Eff of Variable.t * binding | Coeff of binding Variable.Map.t
+type stage =
+  | Eff of Variable.t * binding
+  | Coeff of binding Variable.Map.t
 
 (* Translation environment *)
 

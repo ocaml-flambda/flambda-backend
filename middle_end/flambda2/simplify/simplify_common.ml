@@ -154,7 +154,9 @@ let split_direct_over_application apply ~param_arity =
   in
   expr
 
-type apply_cont_context = Apply_cont_expr | Switch_branch
+type apply_cont_context =
+  | Apply_cont_expr
+  | Switch_branch
 
 let apply_cont_use_kind ~context apply_cont : Continuation_use_kind.t =
   (* CR mshinwell: Is [Continuation.sort] reliable enough to detect the toplevel

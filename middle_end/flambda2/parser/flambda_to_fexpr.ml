@@ -40,7 +40,10 @@ module Name_map (I : Convertible_id) : sig
 end = struct
   module String_map = Map.Make (String)
 
-  type t = { id_map : I.fexpr_id I.Map.t; names : int String_map.t }
+  type t =
+    { id_map : I.fexpr_id I.Map.t;
+      names : int String_map.t
+    }
 
   let empty = { id_map = I.Map.empty; names = String_map.empty }
 
@@ -88,7 +91,10 @@ end = struct
     let hash = Hashtbl.hash
   end)
 
-  type t = { id_tbl : I.fexpr_id I.Tbl.t; names : int String_tbl.t }
+  type t =
+    { id_tbl : I.fexpr_id I.Tbl.t;
+      names : int String_tbl.t
+    }
 
   let create () = { id_tbl = I.Tbl.create 10; names = String_tbl.create 10 }
 

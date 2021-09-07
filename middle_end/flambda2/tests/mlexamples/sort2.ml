@@ -209,7 +209,9 @@ let invalid_arg s = raise (Invalid_argument s)
 let rec ( @ ) l1 l2 = match l1 with [] -> l2 | hd :: tl -> hd :: (tl @ l2)
 
 (* An alias for the type of lists. *)
-type 'a t = 'a list = [] | ( :: ) of 'a * 'a list
+type 'a t = 'a list =
+  | []
+  | ( :: ) of 'a * 'a list
 
 let rec f1 f accu l1 l2 =
   match l1, l2 with

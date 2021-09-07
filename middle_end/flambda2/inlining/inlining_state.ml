@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = { arguments : Inlining_arguments.t; depth : int }
+type t =
+  { arguments : Inlining_arguments.t;
+    depth : int
+  }
 
 let increment_depth t = { t with depth = t.depth + 1 }
 

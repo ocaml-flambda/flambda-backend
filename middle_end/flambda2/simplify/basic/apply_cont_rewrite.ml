@@ -20,7 +20,9 @@ module EA = Continuation_extra_params_and_args.Extra_arg
 module KP = Kinded_parameter
 module Id = Apply_cont_rewrite_id
 
-type used = Used | Unused
+type used =
+  | Used
+  | Unused
 
 type t =
   { original_params : KP.t list;

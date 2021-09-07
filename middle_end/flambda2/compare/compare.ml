@@ -57,7 +57,9 @@ open Flambda
  * consistent with outer bindings and unifications. *)
 
 module Comparison = struct
-  type 'a t = Equivalent | Different of { approximant : 'a }
+  type 'a t =
+    | Equivalent
+    | Different of { approximant : 'a }
 
   let map ~f = function
     | Equivalent -> Equivalent

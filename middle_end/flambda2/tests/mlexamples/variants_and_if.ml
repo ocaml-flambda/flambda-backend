@@ -1,6 +1,8 @@
 (* Like Typedecl.transl_declaration *)
 
-type t = A | B of int
+type t =
+  | A
+  | B of int
 
 exception Foo
 

@@ -6,7 +6,11 @@ let f1 b x =
   let opt = if b then None else Some x in
   match opt with None -> 1 | Some x -> x
 
-type t = A | B | C of int | D of int * int
+type t =
+  | A
+  | B
+  | C of int
+  | D of int * int
 
 let f2 x y a b =
   let t =

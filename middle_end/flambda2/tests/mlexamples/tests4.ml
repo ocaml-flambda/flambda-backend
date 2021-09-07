@@ -27,7 +27,10 @@ external opaque_identity : 'a -> 'a = "%opaque"
    -. x in let u = b +. 1. in u *. 2. *)
 external float_of_int : int -> float = "%floatofint"
 
-type t = { x : float; y : float }
+type t =
+  { x : float;
+    y : float
+  }
 
 (* let pr2162_1 z x y = let a, b = if z then (x * 2, y *. 3.) else (x, y) in
    float_of_int a -. b *)

@@ -61,12 +61,17 @@ val of_int : int -> t
 (* CR mshinwell: some of these may not be needed now *)
 val max_to_int : int
 
-type descr = private Normal | Phantom | In_types
+type descr = private
+  | Normal
+  | Phantom
+  | In_types
 
 val descr : t -> descr
 
 module Or_absent : sig
-  type t = private Absent | Present of kind
+  type t = private
+    | Absent
+    | Present of kind
 
   val absent : t
 

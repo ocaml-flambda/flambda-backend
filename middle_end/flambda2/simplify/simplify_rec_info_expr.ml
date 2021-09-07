@@ -54,7 +54,9 @@ let compute_unroll_to ~depth ~old_unrolling_state ~unroll_to =
   in
   Rec_info_expr.const ~depth ~unrolling
 
-type on_unknown = Leave_unevaluated | Assume_value of Rec_info_expr.t
+type on_unknown =
+  | Leave_unevaluated
+  | Assume_value of Rec_info_expr.t
 
 let rec simplify_rec_info_expr0 denv orig ~on_unknown : Rec_info_expr.t =
   match (orig : Rec_info_expr.t) with
@@ -97,7 +99,9 @@ let simplify_rec_info_expr dacc rec_info_expr =
 
 module Evaluated_rec_info_expr = struct
   type t =
-    { depth : int Or_infinity.t; unrolling : Rec_info_expr.Unrolling_state.t }
+    { depth : int Or_infinity.t;
+      unrolling : Rec_info_expr.Unrolling_state.t
+    }
 
   let [@ocamlformat "disable"] print ppf { depth; unrolling } =
     Rec_info_expr.print ppf (Rec_info_expr.const ~depth ~unrolling)

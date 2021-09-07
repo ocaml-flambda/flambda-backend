@@ -669,7 +669,10 @@ and Cost_metrics : sig
 
   val ( + ) : t -> t -> t
 
-  type code_characteristics = { cost_metrics : t; params_arity : int }
+  type code_characteristics =
+    { cost_metrics : t;
+      params_arity : int
+    }
 
   val set_of_closures :
     find_code_characteristics:(Code_id.t -> code_characteristics) ->

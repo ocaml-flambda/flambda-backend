@@ -24,7 +24,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type raise_kind = Regular | Reraise | No_trace
+type raise_kind =
+  | Regular
+  | Reraise
+  | No_trace
 
 type t =
   | Push of { exn_handler : Continuation.t }

@@ -39,12 +39,18 @@ type t =
   | Recursion_depth_exceeded
   | Never_inline_attribute
   | Speculatively_not_inline of
-      { cost_metrics : Cost_metrics.t; evaluated_to : float; threshold : float }
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
   | Attribute_always
   | Attribute_unroll of int
   | Definition_says_inline
   | Speculatively_inline of
-      { cost_metrics : Cost_metrics.t; evaluated_to : float; threshold : float }
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
 
 let [@ocamlformat "disable"] print ppf t =
   match t with

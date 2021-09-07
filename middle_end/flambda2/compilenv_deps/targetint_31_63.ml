@@ -149,9 +149,14 @@ module Imm = struct
   let to_string t = Format.asprintf "%a" print t
 end
 
-type 'a or_wrong = Ok of 'a | Wrong
+type 'a or_wrong =
+  | Ok of 'a
+  | Wrong
 
-type t = { value : Imm.t; print_as_char : bool }
+type t =
+  { value : Imm.t;
+    print_as_char : bool
+  }
 
 type immediate = t
 

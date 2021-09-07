@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type arg_at_use =
-  { arg_type : Flambda_type.t; typing_env : Flambda_type.Typing_env.t }
+  { arg_type : Flambda_type.t;
+    typing_env : Flambda_type.Typing_env.t
+  }
 
 type t =
   | No_uses

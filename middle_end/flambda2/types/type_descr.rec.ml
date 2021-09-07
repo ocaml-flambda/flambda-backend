@@ -30,7 +30,9 @@ module Make
               with type type_grammar := Type_grammar.t) =
 struct
   module Descr = struct
-    type t = No_alias of Head.t Or_unknown_or_bottom.t | Equals of Simple.t
+    type t =
+      | No_alias of Head.t Or_unknown_or_bottom.t
+      | Equals of Simple.t
 
     let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
       let colour = Flambda_colours.top_or_bottom_type () in

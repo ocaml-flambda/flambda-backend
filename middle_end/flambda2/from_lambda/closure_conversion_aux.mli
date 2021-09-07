@@ -19,7 +19,9 @@
 (** Environments and auxiliary structures used during closure conversion. *)
 
 module IR : sig
-  type simple = Var of Ident.t | Const of Lambda.structured_constant
+  type simple =
+    | Var of Ident.t
+    | Const of Lambda.structured_constant
 
   type exn_continuation =
     { exn_handler : Continuation.t;
@@ -30,7 +32,9 @@ module IR : sig
     | Push of { exn_handler : Continuation.t }
     | Pop of { exn_handler : Continuation.t }
 
-  type user_visible = User_visible | Not_user_visible
+  type user_visible =
+    | User_visible
+    | Not_user_visible
 
   type named =
     | Simple of simple
@@ -44,7 +48,10 @@ module IR : sig
 
   type apply_kind =
     | Function
-    | Method of { kind : Lambda.meth_kind; obj : simple }
+    | Method of
+        { kind : Lambda.meth_kind;
+          obj : simple
+        }
 
   type apply =
     { kind : apply_kind;

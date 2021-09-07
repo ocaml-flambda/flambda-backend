@@ -13,7 +13,9 @@
    done in the wrong environment no type was found and Top was returned
    instead. *)
 
-type t = Foo of int | Bar of string
+type t =
+  | Foo of int
+  | Bar of string
 
 let f r =
   let v = match r with Foo x' as res -> res | Bar _ -> raise Exit in

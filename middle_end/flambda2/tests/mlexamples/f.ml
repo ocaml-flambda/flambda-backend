@@ -191,7 +191,12 @@ external float_of_bits : int64 -> float
   = "caml_int64_float_of_bits" "caml_int64_float_of_bits_unboxed"
   [@@unboxed] [@@noalloc]
 
-type fpclass = FP_normal | FP_subnormal | FP_zero | FP_infinite | FP_nan
+type fpclass =
+  | FP_normal
+  | FP_subnormal
+  | FP_zero
+  | FP_infinite
+  | FP_nan
 
 external classify_float : (float[@unboxed]) -> fpclass
   = "caml_classify_float" "caml_classify_float_unboxed"

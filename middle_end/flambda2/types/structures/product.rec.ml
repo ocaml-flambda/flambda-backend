@@ -175,7 +175,10 @@ module Var_within_closure_indexed = Make (Var_within_closure_index)
 module Int_indexed = struct
   (* CR mshinwell: Add [Or_bottom]. However what should [width] return for
      [Bottom]? Maybe we can circumvent that question if removing [Row_like]. *)
-  type t = { fields : T.t array; kind : Flambda_kind.t }
+  type t =
+    { fields : T.t array;
+      kind : Flambda_kind.t
+    }
 
   let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 1>(%a)@]"
