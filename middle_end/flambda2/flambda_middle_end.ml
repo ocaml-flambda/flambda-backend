@@ -47,8 +47,7 @@ let print_rawflambda ppf unit =
 
 let print_flambda name ppf unit =
   if Flambda_features.dump_flambda ()
-  then
-    Format.fprintf ppf "\n%sAfter %s:%s@ %a@."
+  then Format.fprintf ppf "\n%sAfter %s:%s@ %a@."
       (Flambda_colours.each_file ())
       name
       (Flambda_colours.normal ())
