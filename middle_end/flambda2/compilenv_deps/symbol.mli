@@ -25,7 +25,9 @@
     The linkage name must be globally unique: two compilation units linked in
     the same program must not share a linkage name. *)
 
-include module type of struct include Reg_width_things.Symbol end
+include module type of struct
+  include Reg_width_things.Symbol
+end
 
 val import_for_pack : t -> pack:Compilation_unit.t -> t
 

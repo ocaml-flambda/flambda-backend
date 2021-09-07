@@ -18,9 +18,9 @@
 
 open! Flambda.Import
 
-val inline
-   : Downwards_acc.t
-  -> apply:Apply.t
-  -> unroll_to:int option
-  -> Flambda_type.Function_declaration_type.Inlinable.t
-  -> Downwards_acc.t * Expr.t
+val inline :
+  Downwards_acc.t ->
+  apply:Apply.t ->
+  unroll_to:int option ->
+  Flambda_type.Function_declaration_type.Inlinable.t ->
+  Downwards_acc.t * Expr.t

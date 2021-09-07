@@ -37,8 +37,7 @@ let rec free_names_in_mode t mode =
   match t with
   | Const _ -> Name_occurrences.empty
   | Var dv -> Name_occurrences.singleton_variable dv Name_mode.normal
-  | Succ t
-  | Unroll_to (_, t) -> free_names_in_mode t mode
+  | Succ t | Unroll_to (_, t) -> free_names_in_mode t mode
 
 let free_names t = free_names_in_mode t Name_mode.normal
 
@@ -47,10 +46,6 @@ let free_names_in_types t = free_names_in_mode t Name_mode.in_types
 let invariant _ _ = ()
 
 let rec all_ids_for_export = function
-  | Const _ ->
-    Ids_for_export.empty
-  | Var dv ->
-    Ids_for_export.add_variable Ids_for_export.empty dv
-  | Succ t
-  | Unroll_to (_, t) ->
-    all_ids_for_export t
+  | Const _ -> Ids_for_export.empty
+  | Var dv -> Ids_for_export.add_variable Ids_for_export.empty dv
+  | Succ t | Unroll_to (_, t) -> all_ids_for_export t

@@ -44,8 +44,8 @@ val with_kind : t -> Flambda_kind.With_subkind.t -> t
 
 (* CR mshinwell: We should use [Name.t] underneath *)
 
-(** Returns [true] iff the provided kinded parameters have the same kind
-    and subkind. *)
+(** Returns [true] iff the provided kinded parameters have the same kind and
+    subkind. *)
 val equal_kinds : t -> t -> bool
 
 val rename : t -> t

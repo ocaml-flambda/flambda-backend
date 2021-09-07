@@ -20,13 +20,11 @@ include Variable
 
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
-let free_names t =
-  Name_occurrences.singleton_variable t Name_mode.normal
+let free_names t = Name_occurrences.singleton_variable t Name_mode.normal
 
 let apply_renaming t perm = Renaming.apply_variable perm t
 
-let all_ids_for_export t =
-  Ids_for_export.add_variable Ids_for_export.empty t
+let all_ids_for_export t = Ids_for_export.add_variable Ids_for_export.empty t
 
 let rename t = rename t
 

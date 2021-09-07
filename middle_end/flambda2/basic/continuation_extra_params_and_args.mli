@@ -32,10 +32,10 @@ module Extra_arg : sig
   end
 end
 
-type t = {
-  extra_params : Kinded_parameter.t list;
-  extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t;
-}
+type t =
+  { extra_params : Kinded_parameter.t list;
+    extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
+  }
 
 val print : Format.formatter -> t -> unit
 
@@ -43,11 +43,11 @@ val empty : t
 
 val is_empty : t -> bool
 
-val add
-   : t
-  -> extra_param:Kinded_parameter.t
-  -> extra_args:Extra_arg.t Apply_cont_rewrite_id.Map.t
-  -> t
+val add :
+  t ->
+  extra_param:Kinded_parameter.t ->
+  extra_args:Extra_arg.t Apply_cont_rewrite_id.Map.t ->
+  t
 
 val concat : t -> t -> t
 

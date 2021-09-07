@@ -1,20 +1,21 @@
 external opaque : 'a -> 'a = "%opaque"
+
 external ignore : 'a -> unit = "%ignore"
 
-type +'a node =
-  | Nil
-  | Cons of 'a * 'a t
+type +'a node = Nil | Cons of 'a * 'a t
 
 and 'a t = unit -> 'a node
 
-(* If the .mli is deleted, [bar] shouldn't be deleted either, as it
-   doesn't satisfy the check on the shape of the code age relation
-   (see [Simplify_common]). *)
+(* If the .mli is deleted, [bar] shouldn't be deleted either, as it doesn't
+   satisfy the check on the shape of the code age relation (see
+   [Simplify_common]). *)
 
-let [@inline always] bar map_foo = ();
+let[@inline always] bar map_foo =
+  ();
   fun () -> (map_foo [@inlined never]) (fun x -> x) (fun () -> Nil) ()
 
-let rec map_foo f seq () = match seq() with
+let rec map_foo f seq () =
+  match seq () with
   | Nil -> Nil
   | Cons (x, next) ->
     let (g : unit -> 'a node) =

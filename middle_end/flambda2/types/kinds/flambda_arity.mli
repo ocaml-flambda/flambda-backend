@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Generalization of the concepts of "number of arguments" and "number
-    of return values". *)
+(** Generalization of the concepts of "number of arguments" and "number of
+    return values". *)
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
@@ -39,6 +39,7 @@ include Container_types.S with type t := t
 
 module With_subkinds : sig
   type arity = t
+
   type t = Flambda_kind.With_subkind.t list
 
   val create : Flambda_kind.With_subkind.t list -> t

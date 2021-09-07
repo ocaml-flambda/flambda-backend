@@ -17,18 +17,29 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 type value = private Value
+
 type empty_naked_immediate = private Naked_immediate
+
 type empty_naked_float = private Naked_float
+
 type empty_naked_int32 = private Naked_int32
+
 type empty_naked_int64 = private Naked_int64
+
 type empty_naked_nativeint = private Naked_nativeint
+
 type fabricated = private Fabricated
+
 type rec_info = private Rec_info
 
 type naked_immediate = empty_naked_immediate * Targetint_31_63.Set.t
+
 type naked_float = empty_naked_float * Numeric_types.Float_by_bit_pattern.Set.t
+
 type naked_int32 = empty_naked_int32 * Numeric_types.Int32.Set.t
+
 type naked_int64 = empty_naked_int64 * Numeric_types.Int64.Set.t
+
 type naked_nativeint = empty_naked_nativeint * Targetint_32_64.Set.t
 
 module Naked_number_kind = struct
@@ -55,39 +66,41 @@ module Naked_number_kind = struct
     | Naked_int64 -> 3
     | Naked_nativeint -> 4
 
-  let compare t1 t2 =
-    Int.compare (to_int t1) (to_int t2)
+  let compare t1 t2 = Int.compare (to_int t1) (to_int t2)
 
-  let equal t1 t2 =
-    compare t1 t2 = 0
+  let equal t1 t2 = compare t1 t2 = 0
 end
 
-type t =
-  | Value
-  | Naked_number of Naked_number_kind.t
-  | Fabricated
-  | Rec_info
+type t = Value | Naked_number of Naked_number_kind.t | Fabricated | Rec_info
 
 type kind = t
 
 let value = Value
+
 let naked_immediate = Naked_number Naked_immediate
+
 let naked_float = Naked_number Naked_float
+
 let naked_int32 = Naked_number Naked_int32
+
 let naked_int64 = Naked_number Naked_int64
+
 let naked_nativeint = Naked_number Naked_nativeint
+
 let fabricated = Fabricated
+
 let rec_info = Rec_info
 
 let unit = Value
 
-let unicode = true  (* CR mshinwell: move elsewhere *)
+let unicode = true (* CR mshinwell: move elsewhere *)
 
 include Container_types.Make (struct
   type nonrec t = t
 
   let compare t1 t2 =
-    if t1 == t2 then 0
+    if t1 == t2
+    then 0
     else
       match t1, t2 with
       | Value, Value -> 0
@@ -101,7 +114,7 @@ include Container_types.Make (struct
       | Fabricated, _ -> -1
       | _, Fabricated -> 1
 
-  let equal t1 t2 = (compare t1 t2 = 0)
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
@@ -149,24 +162,19 @@ include Container_types.Make (struct
       else
         Format.fprintf ppf "Rec"
 
-  let output chan t =
-    print (Format.formatter_of_out_channel chan) t
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let is_value t =
-  match t with
-  | Value -> true
-  | Naked_number _
-  | Fabricated
-  | Rec_info -> false
+  match t with Value -> true | Naked_number _ | Fabricated | Rec_info -> false
 
 let is_naked_float t =
   match t with
   | Naked_number Naked_float -> true
   | Value
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-  | Fabricated
-  | Rec_info -> false
+  | Fabricated | Rec_info ->
+    false
 
 module Standard_int = struct
   type t =
@@ -203,12 +211,11 @@ module Standard_int = struct
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
 
-    let output chan t =
-      print (Format.formatter_of_out_channel chan) t
+    let output chan t = print (Format.formatter_of_out_channel chan) t
 
-    let compare t1 t2 = (to_int t1) - (to_int t2)
+    let compare t1 t2 = to_int t1 - to_int t2
 
-    let equal t1 t2 = (compare t1 t2 = 0)
+    let equal t1 t2 = compare t1 t2 = 0
 
     let hash = Hashtbl.hash
   end)
@@ -261,11 +268,12 @@ module Standard_int_or_float = struct
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
 
-    let output chan t =
-      print (Format.formatter_of_out_channel chan) t
+    let output chan t = print (Format.formatter_of_out_channel chan) t
 
-    let compare t1 t2 = (to_int t1) - (to_int t2)
-    let equal t1 t2 = (compare t1 t2 = 0)
+    let compare t1 t2 = to_int t1 - to_int t2
+
+    let equal t1 t2 = compare t1 t2 = 0
+
     let hash = Hashtbl.hash
   end)
 
@@ -322,12 +330,11 @@ module Boxable_number = struct
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
       | Untagged_immediate -> Format.pp_print_string ppf "Untagged_immediate"
 
-    let output chan t =
-      print (Format.formatter_of_out_channel chan) t
+    let output chan t = print (Format.formatter_of_out_channel chan) t
 
-    let compare t1 t2 = (to_int t1) - (to_int t2)
+    let compare t1 t2 = to_int t1 - to_int t2
 
-    let equal t1 t2 = (t1 == t2)
+    let equal t1 t2 = t1 == t2
 
     let hash = Hashtbl.hash
   end)
@@ -376,7 +383,7 @@ module With_subkind = struct
       | Boxed_nativeint
       | Tagged_immediate
       | Block of { tag : Tag.t; fields : t list }
-      | Float_block of { num_fields : int; }
+      | Float_block of { num_fields : int }
 
     include Container_types.Make (struct
       type nonrec t = t
@@ -416,7 +423,7 @@ module With_subkind = struct
 
       let compare = Stdlib.compare
 
-      let equal t1 t2 = (compare t1 t2 = 0)
+      let equal t1 t2 = compare t1 t2 = 0
 
       let hash = Hashtbl.hash
 
@@ -426,55 +433,60 @@ module With_subkind = struct
 
   type kind = t
 
-  type t = {
-    kind : kind;
-    subkind : Subkind.t;
-  }
+  type t = { kind : kind; subkind : Subkind.t }
 
   let create (kind : kind) (subkind : Subkind.t) =
-    begin match kind with
-    | Value -> ()
-    | Naked_number _ | Fabricated | Rec_info ->
-      match subkind with
-      | Anything -> ()
-      | Boxed_float
-      | Boxed_int32
-      | Boxed_int64
-      | Boxed_nativeint
-      | Tagged_immediate
-      | Block _
-      | Float_block _ ->
-        Misc.fatal_errorf "Only subkind %a is valid for kind %a"
-          Subkind.print subkind
-          print kind
+    begin
+      match kind with
+      | Value -> ()
+      | Naked_number _ | Fabricated | Rec_info -> (
+        match subkind with
+        | Anything -> ()
+        | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+        | Tagged_immediate | Block _ | Float_block _ ->
+          Misc.fatal_errorf "Only subkind %a is valid for kind %a" Subkind.print
+            subkind print kind)
     end;
-    { kind; subkind; }
+    { kind; subkind }
 
   let kind t = t.kind
+
   let subkind t = t.subkind
 
   let any_value = create value Anything
+
   let naked_immediate = create naked_immediate Anything
+
   let naked_float = create naked_float Anything
+
   let naked_int32 = create naked_int32 Anything
+
   let naked_int64 = create naked_int64 Anything
+
   let naked_nativeint = create naked_nativeint Anything
+
   let boxed_float = create value Boxed_float
+
   let boxed_int32 = create value Boxed_int32
+
   let boxed_int64 = create value Boxed_int64
+
   let boxed_nativeint = create value Boxed_nativeint
+
   let tagged_immediate = create value Tagged_immediate
+
   let rec_info = create rec_info Anything
 
   let block tag fields =
-    if List.exists (fun t -> not (equal t.kind Value)) fields then begin
-      Misc.fatal_error "Block with fields of non-Value kind \
-        (use [Flambda_kind.With_subkind.float_block] for float records)"
-    end;
+    if List.exists (fun t -> not (equal t.kind Value)) fields
+    then
+      Misc.fatal_error
+        "Block with fields of non-Value kind (use \
+         [Flambda_kind.With_subkind.float_block] for float records)";
     let fields = List.map (fun t -> t.subkind) fields in
     create value (Block { tag; fields })
 
-  let float_block ~num_fields = create value (Float_block { num_fields; })
+  let float_block ~num_fields = create value (Float_block { num_fields })
 
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =
     match naked_number_kind with
@@ -497,19 +509,17 @@ module With_subkind = struct
       | (Naked_number _ | Fabricated | Rec_info),
         (Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
           | Tagged_immediate | Block _ | Float_block _) ->
-        assert false  (* see [create] *)
+        assert false
+    (* see [create] *)
 
-    let compare
-          { kind = kind1; subkind = subkind1; }
-          { kind = kind2; subkind = subkind2; } =
+    let compare { kind = kind1; subkind = subkind1 }
+        { kind = kind2; subkind = subkind2 } =
       let c = compare kind1 kind2 in
-      if c <> 0 then c
-      else Subkind.compare subkind1 subkind2
+      if c <> 0 then c else Subkind.compare subkind1 subkind2
 
-    let equal t1 t2 = (compare t1 t2 = 0)
+    let equal t1 t2 = compare t1 t2 = 0
 
-    let hash { kind; subkind; } =
-      Hashtbl.hash (hash kind, Subkind.hash subkind)
+    let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
 
     let output _ _ = Misc.fatal_error "Not yet implemented"
   end)
@@ -524,7 +534,7 @@ module With_subkind = struct
     | Tagged_immediate
     | Rec_info
     | Block of { tag : Tag.t; fields : descr list }
-    | Float_block of { num_fields : int; }
+    | Float_block of { num_fields : int }
 
   let rec subkind_descr (t : Subkind.t) : descr =
     match t with
@@ -536,7 +546,7 @@ module With_subkind = struct
     | Boxed_nativeint -> Boxed_nativeint
     | Block { tag; fields } ->
       Block { tag; fields = List.map subkind_descr fields }
-    | Float_block { num_fields; } -> Float_block { num_fields; }
+    | Float_block { num_fields } -> Float_block { num_fields }
 
   let descr t : descr =
     match t.kind with
@@ -555,15 +565,17 @@ module With_subkind = struct
     | Boxed_int64, Boxed_int64
     | Boxed_nativeint, Boxed_nativeint
     | Tagged_immediate, Tagged_immediate
-    | Rec_info, Rec_info -> true
-    | Block { tag = t1; fields = fields1 },
-      Block { tag = t2; fields = fields2 } ->
-      Tag.equal t1 t2 &&
-      List.length fields1 = List.length fields2 &&
-      List.for_all2 (fun d when_used_at -> compatible_descr d ~when_used_at)
-        fields1 fields2
-    | Float_block { num_fields = num_fields1; },
-      Float_block { num_fields = num_fields2; } ->
+    | Rec_info, Rec_info ->
+      true
+    | Block { tag = t1; fields = fields1 }, Block { tag = t2; fields = fields2 }
+      ->
+      Tag.equal t1 t2
+      && List.length fields1 = List.length fields2
+      && List.for_all2
+           (fun d when_used_at -> compatible_descr d ~when_used_at)
+           fields1 fields2
+    | ( Float_block { num_fields = num_fields1 },
+        Float_block { num_fields = num_fields2 } ) ->
       num_fields1 = num_fields2
     (* Subkinds of [Value] may always be used at [Value], but not the
        converse: *)
@@ -572,11 +584,14 @@ module With_subkind = struct
     | Boxed_int32, Any_value
     | Boxed_int64, Any_value
     | Boxed_nativeint, Any_value
-    | Tagged_immediate, Any_value -> true
+    | Tagged_immediate, Any_value ->
+      true
     (* All other combinations are incompatible. *)
-    | (Any_value | Naked_number _ | Boxed_float | Boxed_int32 | Boxed_int64
-      | Boxed_nativeint | Tagged_immediate | Block _ | Float_block _
-      | Rec_info), _ -> false
+    | ( ( Any_value | Naked_number _ | Boxed_float | Boxed_int32 | Boxed_int64
+        | Boxed_nativeint | Tagged_immediate | Block _ | Float_block _
+        | Rec_info ),
+        _ ) ->
+      false
 
   let compatible t ~when_used_at =
     compatible_descr (descr t) ~when_used_at:(descr when_used_at)
@@ -584,11 +599,7 @@ module With_subkind = struct
   let has_useful_subkind_info t =
     match t.subkind with
     | Anything -> false
-    | Boxed_float
-    | Boxed_int32
-    | Boxed_int64
-    | Boxed_nativeint
-    | Tagged_immediate
-    | Block _
-    | Float_block _ -> true
+    | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
+    | Tagged_immediate | Block _ | Float_block _ ->
+      true
 end

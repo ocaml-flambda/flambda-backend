@@ -18,7 +18,7 @@
 
 open! Simplify_import
 
-val simplify_let
-   : simplify_expr:Expr.t Simplify_common.expr_simplifier
-  -> simplify_toplevel:Simplify_common.simplify_toplevel
-  -> Let.t Simplify_common.expr_simplifier
+val simplify_let :
+  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
+  simplify_toplevel:Simplify_common.simplify_toplevel ->
+  Let.t Simplify_common.expr_simplifier

@@ -14,12 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** A value that is known to fit into a register (of the appropriate kind)
-    on the target machine.  We do not require such values to be [Let]-bound. *)
+(** A value that is known to fit into a register (of the appropriate kind) on
+    the target machine. We do not require such values to be [Let]-bound. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-include module type of struct include Reg_width_things.Simple end
+include module type of struct
+  include Reg_width_things.Simple
+end
 
 include Contains_names.S with type t := t
 
@@ -43,13 +45,16 @@ val const_int : Targetint_31_63.Imm.t -> t
 (** The constant representating the given boolean value. *)
 val const_bool : bool -> t
 
-(** The constant representating boolean true. *)
 (* CR mshinwell: fix naming *)
+
+(** The constant representating boolean true. *)
 val const_true : t
+
 val untagged_const_true : t
 
 (** The constant representating boolean false. *)
 val const_false : t
+
 val untagged_const_false : t
 
 (** The constant representating the number zero of type "int". *)
@@ -76,17 +81,18 @@ val is_imported_or_constant : t -> bool
 
 val free_names_in_types : t -> Name_occurrences.t
 
-val pattern_match'
-   : t
-  -> var:(Variable.t -> coercion:Coercion.t -> 'a)
-  -> symbol:(Symbol.t -> coercion:Coercion.t -> 'a)
-  -> const:(Reg_width_const.t -> 'a)
-  -> 'a
+val pattern_match' :
+  t ->
+  var:(Variable.t -> coercion:Coercion.t -> 'a) ->
+  symbol:(Symbol.t -> coercion:Coercion.t -> 'a) ->
+  const:(Reg_width_const.t -> 'a) ->
+  'a
 
 module List : sig
   type nonrec t = t list
 
   include Contains_names.S with type t := t
+
   include Container_types.S with type t := t
 end
 
@@ -94,5 +100,6 @@ module With_kind : sig
   type nonrec t = t * Flambda_kind.t
 
   include Contains_names.S with type t := t
+
   include Container_types.S with type t := t
 end

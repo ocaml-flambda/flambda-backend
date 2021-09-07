@@ -21,14 +21,17 @@
 
 module Const : sig
   type t = private Table_by_int_id.Id.t
+
   type exported
 
   include Container_types.S with type t := t
 
   val const_true : t
+
   val const_false : t
 
   val untagged_const_true : t
+
   val untagged_const_false : t
 
   val untagged_const_zero : t
@@ -36,20 +39,26 @@ module Const : sig
   val untagged_const_int : Targetint_31_63.Imm.t -> t
 
   val const_zero : t
+
   val const_one : t
+
   val const_unit : t
 
   val const_int : Targetint_31_63.Imm.t -> t
 
-  (** [naked_immediate] is similar to [naked_nativeint], but represents
-      integers of width [n - 1] bits, where [n] is the native machine
-      width. (By contrast, [naked_nativeint] represents integers of
-      width [n] bits.) *)
+  (** [naked_immediate] is similar to [naked_nativeint], but represents integers
+      of width [n - 1] bits, where [n] is the native machine width. (By
+      contrast, [naked_nativeint] represents integers of width [n] bits.) *)
   val naked_immediate : Targetint_31_63.t -> t
+
   val tagged_immediate : Targetint_31_63.t -> t
+
   val naked_float : Numeric_types.Float_by_bit_pattern.t -> t
+
   val naked_int32 : Int32.t -> t
+
   val naked_int64 : Int64.t -> t
+
   val naked_nativeint : Targetint_32_64.t -> t
 
   module Descr : sig
@@ -76,6 +85,7 @@ end
 
 module Variable : sig
   type t = private Table_by_int_id.Id.t
+
   type exported
 
   include Container_types.S with type t := t
@@ -100,6 +110,7 @@ end
 
 module Symbol : sig
   type t = private Table_by_int_id.Id.t
+
   type exported
 
   include Container_types.S with type t := t
@@ -131,21 +142,20 @@ module Name : sig
 
   val symbol : Symbol.t -> t
 
-  val pattern_match
-     : t
-    -> var:(Variable.t -> 'a)
-    -> symbol:(Symbol.t -> 'a)
-    -> 'a
+  val pattern_match :
+    t -> var:(Variable.t -> 'a) -> symbol:(Symbol.t -> 'a) -> 'a
 end
 
 module Rec_info_expr : Rec_info_expr0.S with type variable = Variable.t
 
-module Coercion : Coercion0.S
-  with type variable = Variable.t
-   and type rec_info_expr = Rec_info_expr.t
+module Coercion :
+  Coercion0.S
+    with type variable = Variable.t
+     and type rec_info_expr = Rec_info_expr.t
 
 module Simple : sig
   type t = private Table_by_int_id.Id.t
+
   type exported
 
   include Container_types.S with type t := t
@@ -167,16 +177,16 @@ module Simple : sig
   (* This does not consult the grand table of [Simple]s. *)
   val has_coercion : t -> bool
 
-  (* CR lmaurer: Should make [name] and [const] take a [coercion] argument to
-     be sure we're not dropping coercions by accident. *)
-  val pattern_match
-     : t
-    -> name:(Name.t -> coercion:Coercion.t -> 'a)
-    -> const:(Const.t -> 'a)
-    -> 'a
+  (* CR lmaurer: Should make [name] and [const] take a [coercion] argument to be
+     sure we're not dropping coercions by accident. *)
+  val pattern_match :
+    t ->
+    name:(Name.t -> coercion:Coercion.t -> 'a) ->
+    const:(Const.t -> 'a) ->
+    'a
 
-  (* [same s1 s2] returns true iff they represent the same name or const
-     i.e. [same s (with_coercion s coercion)] returns true *)
+  (* [same s1 s2] returns true iff they represent the same name or const i.e.
+     [same s (with_coercion s coercion)] returns true *)
   val same : t -> t -> bool
 
   val export : t -> exported

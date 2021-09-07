@@ -21,12 +21,11 @@ type t =
   | Unchanged
   | Poly_compare_specialized of Downwards_acc.t * Flambda.Expr.t
 
-val simplify_extcall
-   : Downwards_acc.t
-  -> Flambda.Apply.t
-  -> callee_ty:Flambda_type.t
-  -> param_arity:Flambda_arity.t
-  -> return_arity:Flambda_arity.t
-  -> arg_types:Flambda_type.t list
-  -> t
-
+val simplify_extcall :
+  Downwards_acc.t ->
+  Flambda.Apply.t ->
+  callee_ty:Flambda_type.t ->
+  param_arity:Flambda_arity.t ->
+  return_arity:Flambda_arity.t ->
+  arg_types:Flambda_type.t list ->
+  t

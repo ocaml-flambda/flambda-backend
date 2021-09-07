@@ -14,9 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Sort a group of lifted constants into an order suitable for binding by
-    one or more [Let_symbol] bindings.  This includes grouping together sets
-    of closures with recursion between them (c.f. the
+(** Sort a group of lifted constants into an order suitable for binding by one
+    or more [Let_symbol] bindings. This includes grouping together sets of
+    closures with recursion between them (c.f. the
     [Let_symbol_expr.Bound_symbol.Sets_of_closures] constructor). *)
 
 [@@@ocaml.warning "+a-30-40-41-42"]

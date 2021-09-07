@@ -19,20 +19,19 @@
 (** The defining expressions of [Let] bindings. *)
 type t = private
   | Simple of Simple.t
-    (** Things that fit in a register (variables, symbols, constants).
-        These do not have to be [Let]-bound but are allowed here for
-        convenience. *)
+      (** Things that fit in a register (variables, symbols, constants). These
+          do not have to be [Let]-bound but are allowed here for convenience. *)
   | Prim of Flambda_primitive.t * Debuginfo.t
-    (** Primitive operations (arithmetic, memory access, allocation, etc). *)
+      (** Primitive operations (arithmetic, memory access, allocation, etc). *)
   | Set_of_closures of Set_of_closures.t
-    (** Definition of a set of (dynamically allocated) possibly
-        mutually-recursive closures. *)
+      (** Definition of a set of (dynamically allocated) possibly
+          mutually-recursive closures. *)
   | Static_consts of Static_const.Group.t
-    (* CR mshinwell: Add comment regarding ordering, recursion, etc. *)
-    (** Definition of one or more symbols representing statically-allocated
-        constants (including sets of closures). *)
+      (** Definition of one or more symbols representing statically-allocated
+          constants (including sets of closures). *)
+  (* CR mshinwell: Add comment regarding ordering, recursion, etc. *)
   | Rec_info of Rec_info_expr.t
-    (** Definition of a state of recursive inlining. *)
+      (** Definition of a state of recursive inlining. *)
 
 (** Printing, invariant checks, name manipulation, etc. *)
 include Expr_std.S with type t := t
@@ -57,21 +56,15 @@ val create_static_consts : Static_const.Group.t -> t
     expression of a [Let]. *)
 val create_rec_info : Rec_info_expr.t -> t
 
-(** Build an expression boxing the name.  The returned kind is the
-    one of the unboxed version. *)
-val box_value
-  : Name.t
- -> Flambda_kind.t
- -> Debuginfo.t
- -> Named.t * Flambda_kind.t
+(** Build an expression boxing the name. The returned kind is the one of the
+    unboxed version. *)
+val box_value :
+  Name.t -> Flambda_kind.t -> Debuginfo.t -> Named.t * Flambda_kind.t
 
-(** Build an expression unboxing the name.  The returned kind is the
-    one of the unboxed version. *)
-val unbox_value
-  : Name.t
- -> Flambda_kind.t
- -> Debuginfo.t
- -> Named.t * Flambda_kind.t
+(** Build an expression unboxing the name. The returned kind is the one of the
+    unboxed version. *)
+val unbox_value :
+  Name.t -> Flambda_kind.t -> Debuginfo.t -> Named.t * Flambda_kind.t
 
 (** Return a defining expression for a [Let] which is kind-correct, but not
     necessarily type-correct, at the given kind. *)
@@ -79,10 +72,8 @@ val dummy_value : Flambda_kind.t -> t
 
 val at_most_generative_effects : t -> bool
 
-val invariant_returning_kind
-   : Invariant_env.t
-  -> t
-  -> Flambda_primitive.result_kind
+val invariant_returning_kind :
+  Invariant_env.t -> t -> Flambda_primitive.result_kind
 
 val is_dynamically_allocated_set_of_closures : t -> bool
 

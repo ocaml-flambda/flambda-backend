@@ -20,8 +20,7 @@
 
     This module also allows to [meet] two sets of arguments, that is given t1
     and t2 to return the set of arguments that will inline at most as much as
-    either t1 and t2 would.
-*)
+    either t1 and t2 would. *)
 
 type t
 
@@ -29,8 +28,8 @@ val create : round:int -> t
 
 val print : Format.formatter -> t -> unit
 
-(* [meet A B] constructs a set of argument that inline at most as strongly as [A]
-   and [B] would *)
+(* [meet A B] constructs a set of argument that inline at most as strongly as
+   [A] and [B] would *)
 val meet : t -> t -> t
 
 val equal : t -> t -> bool

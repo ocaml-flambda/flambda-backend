@@ -18,14 +18,16 @@
 
 (** Simplification of primitives taking two arguments. *)
 
-val simplify_binary_primitive
-   : Downwards_acc.t
-  -> Flambda_primitive.binary_primitive
-  -> arg1:Simple.t
-  -> arg1_ty:Flambda_type.t
-  -> arg2:Simple.t
-  -> arg2_ty:Flambda_type.t
-  -> Debuginfo.t
-  -> result_var:Var_in_binding_pos.t
-  -> Simplified_named.t * Flambda_type.Typing_env_extension.t
-       * Simple.t list * Downwards_acc.t
+val simplify_binary_primitive :
+  Downwards_acc.t ->
+  Flambda_primitive.binary_primitive ->
+  arg1:Simple.t ->
+  arg1_ty:Flambda_type.t ->
+  arg2:Simple.t ->
+  arg2_ty:Flambda_type.t ->
+  Debuginfo.t ->
+  result_var:Var_in_binding_pos.t ->
+  Simplified_named.t
+  * Flambda_type.Typing_env_extension.t
+  * Simple.t list
+  * Downwards_acc.t
