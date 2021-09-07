@@ -18,9 +18,9 @@
 
 type t = Rec_info_expr.t
 
-let print ppf t = Rec_info_expr.print ppf t
+let [@ocamlformat "disable"] print ppf t = Rec_info_expr.print ppf t
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let apply_renaming t renaming = Rec_info_expr.apply_renaming t renaming
 

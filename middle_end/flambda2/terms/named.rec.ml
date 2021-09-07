@@ -36,7 +36,7 @@ let print_or_elide_debuginfo ppf dbg =
     Debuginfo.print_compact ppf dbg
   end
 
-let print_with_cache ~cache ppf (t : t) =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
   match t with
   | Simple simple -> Simple.print ppf simple
   | Prim (prim, dbg) ->
@@ -52,7 +52,7 @@ let print_with_cache ~cache ppf (t : t) =
   | Rec_info rec_info_expr ->
     Rec_info_expr.print_with_cache ~cache ppf rec_info_expr
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 (* CR mshinwell: It seems that the type [Flambda_primitive.result_kind]
    should move into [K], now it's used here. *)

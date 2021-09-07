@@ -55,7 +55,7 @@ let raise_kind_option_to_string = function
   | Some Reraise -> " (reraise)"
   | Some No_trace -> " (notrace)"
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Push { exn_handler; } ->
@@ -74,7 +74,7 @@ let print ppf t =
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let invariant _env _t = ()
 
@@ -108,7 +108,7 @@ let all_ids_for_export t =
 module Option = struct
   type nonrec t = t option
 
-  let print ppf = function
+  let [@ocamlformat "disable"] print ppf = function
     | None -> ()
     | Some t -> print ppf t
 

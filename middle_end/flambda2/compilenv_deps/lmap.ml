@@ -114,7 +114,7 @@ module Make (T : Thing) : S with type key = T.t = struct
               print_key key print_datum datum))
         l
 
-  let print f fmt m = print_assoc T.print f fmt m
+  let [@ocamlformat "disable"] print f fmt m = print_assoc T.print f fmt m
 
   let rec invariant m = match m with
     | [] -> ()

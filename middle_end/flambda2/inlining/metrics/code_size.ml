@@ -411,7 +411,7 @@ let invalid = 0
 
 let switch switch = 0 + (5 * Switch_expr.num_arms switch)
 
-let print ppf t = Format.fprintf ppf "%d" t
+let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%d" t
 
 let of_int t = t
 let to_int t = t

@@ -78,7 +78,7 @@ module Make(Variable : Container_types.S)
     let unrolling ~remaining_depth = Unrolling { remaining_depth; }
     let do_not_unroll = Do_not_unroll
 
-    let print ppf = function
+    let [@ocamlformat "disable"] print ppf = function
       | Not_unrolling ->
         Format.pp_print_string ppf "Not_unrolling"
       | Unrolling { remaining_depth } ->
@@ -127,7 +127,7 @@ module Make(Variable : Container_types.S)
               unrolling = (Not_unrolling | Unrolling _ | Do_not_unroll) }
     | Var _ | Succ _ | Unroll_to _ -> false
 
-  let rec print ppf = function
+  let [@ocamlformat "disable"] rec print ppf = function
     | Const { depth; unrolling } ->
       begin match unrolling with
       | Not_unrolling ->

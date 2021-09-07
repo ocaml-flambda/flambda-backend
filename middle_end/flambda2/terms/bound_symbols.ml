@@ -26,7 +26,7 @@ module Pattern = struct
   let set_of_closures closure_symbols = Set_of_closures closure_symbols
   let block_like symbol = Block_like symbol
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Code code_id ->
       Format.fprintf ppf "@[<hov 1>(Code@ %a)@]" Code_id.print code_id
@@ -139,11 +139,11 @@ let singleton pattern = [pattern]
 
 let to_list t = t
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print) t
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 (* CR mshinwell: This should have an [invariant] function.  One thing to
    check is that the [closure_symbols] are all distinct. *)

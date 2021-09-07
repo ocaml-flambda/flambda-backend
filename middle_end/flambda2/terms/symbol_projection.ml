@@ -31,7 +31,7 @@ module Projection = struct
     | Project_var { project_from; var; } ->
       Hashtbl.hash (Closure_id.hash project_from, Var_within_closure.hash var)
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Block_load { index; } ->
       Format.fprintf ppf "@[<hov 1>(Block_load@ \
@@ -64,7 +64,7 @@ type t = {
   projection : Projection.t;
 }
 
-let print ppf { symbol; projection; } =
+let [@ocamlformat "disable"] print ppf { symbol; projection; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(symbol@ %a)@]@ \
       @[<hov 1>(projection@ %a)@]\

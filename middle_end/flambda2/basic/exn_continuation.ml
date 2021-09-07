@@ -29,7 +29,7 @@ include Container_types.Make (struct
       Simple.print simple
       Flambda_kind.With_subkind.print kind
 
-  let print ppf { exn_handler; extra_args; } =
+  let [@ocamlformat "disable"] print ppf { exn_handler; extra_args; } =
     match extra_args with
     | [] -> Continuation.print ppf exn_handler
     | _ ->
@@ -72,7 +72,7 @@ include Container_types.Make (struct
   let hash _ = Misc.fatal_error "Exn_continuation.hash not yet implemented"
 end)
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let create ~exn_handler ~extra_args =
   begin match Continuation.sort exn_handler with

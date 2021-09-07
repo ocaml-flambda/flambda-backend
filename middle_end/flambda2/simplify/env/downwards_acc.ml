@@ -33,7 +33,7 @@ type t = {
   demoted_exn_handlers : Continuation.Set.t;
 }
 
-let print ppf
+let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_closure_vars;
         lifted_constants; data_flow; demoted_exn_handlers; } =
   Format.fprintf ppf "@[<hov 1>(\

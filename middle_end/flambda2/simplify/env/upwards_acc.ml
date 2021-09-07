@@ -42,7 +42,7 @@ type t = {
   demoted_exn_handlers : Continuation.Set.t;
 }
 
-let print ppf
+let [@ocamlformat "disable"] print ppf
       { uenv; creation_dacc = _; code_age_relation; lifted_constants;
         name_occurrences; used_closure_vars; all_code = _;
         shareable_constants; cost_metrics; are_rebuilding_terms;

@@ -46,7 +46,7 @@ let print_closure_info fmt (info: closure_info) =
 let print_env_var_info fmt (info: env_var_info) =
   Format.fprintf fmt "@[<h>(o:%d)@]" info.offset
 
-let print fmt env =
+let [@ocamlformat "disable"] print fmt env =
   Format.fprintf fmt "{@[<v>closures: @[<v>%a@]@,env_vars: @[<v>%a@]@]}"
     (Closure_id.Map.print print_closure_info) env.closure_offsets
     (Var_within_closure.Map.print print_env_var_info) env.env_var_offsets

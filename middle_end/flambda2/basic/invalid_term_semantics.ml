@@ -20,7 +20,7 @@ type t =
   | Treat_as_unreachable
   | Halt_and_catch_fire
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Treat_as_unreachable -> Format.pp_print_string ppf "Treat_as_unreachable"
   | Halt_and_catch_fire -> Format.pp_print_string ppf "Halt_and_catch_fire"

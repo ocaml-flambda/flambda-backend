@@ -23,7 +23,7 @@ module Extra_arg = struct
     | New_let_binding_with_named_args of
         Variable.t * (Simple.t list -> Flambda_primitive.t)
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Already_in_scope simple ->
       Format.fprintf ppf "@[<hov 1>(Already_in_scope@ %a)@]"
@@ -39,7 +39,7 @@ module Extra_arg = struct
   module List = struct
     type nonrec t = t list
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       Format.fprintf ppf "(%a)"
         (Format.pp_print_list ~pp_sep:Format.pp_print_space print) t
   end
@@ -50,7 +50,7 @@ type t = {
   extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t;
 }
 
-let print ppf { extra_params; extra_args; } =
+let [@ocamlformat "disable"] print ppf { extra_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(extra_params@ %a)@]@ \
       @[<hov 1>(extra_args@ %a)@]\

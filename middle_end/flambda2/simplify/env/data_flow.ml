@@ -24,7 +24,7 @@ module Reachable_code_ids = struct
     ancestors_of_live_code_ids : Code_id.Set.t;
   }
 
-  let print ppf { live_code_ids; ancestors_of_live_code_ids; } =
+  let [@ocamlformat "disable"] print ppf { live_code_ids; ancestors_of_live_code_ids; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(live_code_ids@ %a)@]@ \
         @[<hov 1>(ancestors_of_live_code_ids@ %a)@]\
@@ -100,7 +100,7 @@ let print_map ppf map =
 let print_extra ppf extra =
   Continuation.Map.print Continuation_extra_params_and_args.print ppf extra
 
-let print ppf { stack; map; extra } =
+let [@ocamlformat "disable"] print ppf { stack; map; extra } =
   Format.fprintf ppf
     "@[<hov 1>(\
       @[<hov 1>(stack %a)@]@ \

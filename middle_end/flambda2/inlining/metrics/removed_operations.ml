@@ -75,7 +75,7 @@ let direct_call_of_indirect =
 let specialized_poly_compare =
   { zero with specialized_poly_compare = 1; }
 
-let print ppf b =
+let [@ocamlformat "disable"] print ppf b =
   Format.fprintf ppf "@[call: %i@ alloc: %i@ \
                       prim: %i@ branch: %i@ \
                       direct: %i@ poly_cmp: %i@ \

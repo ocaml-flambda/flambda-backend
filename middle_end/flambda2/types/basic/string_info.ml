@@ -52,7 +52,7 @@ include Container_types.Make (struct
 
   let hash t = Hashtbl.hash t
 
-  let print ppf { contents; size; } =
+  let [@ocamlformat "disable"] print ppf { contents; size; } =
     match contents with
     | Unknown_or_mutable ->
       Format.fprintf ppf "(size %a)" Targetint_31_63.Imm.print size

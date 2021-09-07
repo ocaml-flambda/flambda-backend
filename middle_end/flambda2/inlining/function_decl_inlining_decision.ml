@@ -49,7 +49,7 @@ let behaviour t =
   | Functor _
   | Speculatively_inlinable _-> Could_possibly_be_inlined
 
-let print fmt = function
+let [@ocamlformat "disable"] print fmt = function
   | Never_inline_attribute ->
     Format.fprintf fmt "Never_inline_attribute"
   | Function_body_too_large large_function_size ->

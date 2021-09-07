@@ -21,7 +21,7 @@ type t =
   | One
   | More_than_one
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Zero -> Format.fprintf ppf "Zero"
   | One -> Format.fprintf ppf "One"

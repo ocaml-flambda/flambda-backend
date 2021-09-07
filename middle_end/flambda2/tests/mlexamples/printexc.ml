@@ -621,7 +621,7 @@ let to_string e =
   | Some s -> s
   | None -> to_string_default e
 
-let print fct arg =
+let [@ocamlformat "disable"] print fct arg =
   try
     fct arg
   with x ->

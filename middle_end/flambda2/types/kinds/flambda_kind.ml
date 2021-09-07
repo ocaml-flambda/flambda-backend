@@ -39,7 +39,7 @@ module Naked_number_kind = struct
     | Naked_int64
     | Naked_nativeint
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
     | Naked_float -> Format.pp_print_string ppf "Naked_float"
@@ -105,7 +105,7 @@ include Container_types.Make (struct
 
   let hash = Hashtbl.hash
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let colour = Flambda_colours.kind () in
     match t with
     | Value ->
@@ -195,7 +195,7 @@ module Standard_int = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
       | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
@@ -252,7 +252,7 @@ module Standard_int_or_float = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
       | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
@@ -314,7 +314,7 @@ module Boxable_number = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Naked_float -> Format.pp_print_string ppf "Naked_float"
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
@@ -357,7 +357,7 @@ module Naked_number = struct
     | Naked_int64 : naked_int64 t
     | Naked_nativeint : naked_nativeint t
 
-  let print (type a) ppf (t : a t) =
+  let [@ocamlformat "disable"] print (type a) ppf (t : a t) =
     match t with
     | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
     | Naked_float -> Format.pp_print_string ppf "Naked_float"
@@ -381,7 +381,7 @@ module With_subkind = struct
     include Container_types.Make (struct
       type nonrec t = t
 
-      let rec print ppf t =
+      let [@ocamlformat "disable"] rec print ppf t =
         let colour = Flambda_colours.subkind () in
         match t with
         | Anything -> ()
@@ -487,7 +487,7 @@ module With_subkind = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf { kind; subkind; } =
+    let [@ocamlformat "disable"] print ppf { kind; subkind; } =
       match kind, subkind with
       | _, Anything -> print ppf kind
       | Value, subkind ->

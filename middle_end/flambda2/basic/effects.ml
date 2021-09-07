@@ -23,7 +23,7 @@ type t =
   | Only_generative_effects of Mutability.t
   | Arbitrary_effects
 
-let print ppf eff =
+let [@ocamlformat "disable"] print ppf eff =
   match eff with
   | No_effects ->
       Format.fprintf ppf "no effects"

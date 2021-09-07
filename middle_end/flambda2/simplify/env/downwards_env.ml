@@ -51,7 +51,7 @@ let print_debuginfo ppf dbg =
   if Debuginfo.is_none dbg then Format.pp_print_string ppf "None"
   else Debuginfo.print_compact ppf dbg
 
-let print ppf { backend = _; round; typing_env;
+let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
                 inlined_debuginfo; can_inline;
                 inlining_state; float_const_prop;
                 at_unit_toplevel; unit_toplevel_exn_continuation;

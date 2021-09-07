@@ -19,7 +19,7 @@
    These relations are expected to be small in the majority of cases. *)
 type t = Code_id.t Code_id.Map.t
 
-let print ppf t = Code_id.Map.print Code_id.print ppf t
+let [@ocamlformat "disable"] print ppf t = Code_id.Map.print Code_id.print ppf t
 
 let empty = Code_id.Map.empty
 

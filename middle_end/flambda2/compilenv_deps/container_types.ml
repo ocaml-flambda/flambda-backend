@@ -118,7 +118,7 @@ module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
   let output oc (a, b) = Printf.fprintf oc " (%a, %a)" A.output a B.output b
   let hash (a, b) = Hashtbl.hash (A.hash a, B.hash b)
   let equal (a1, b1) (a2, b2) = A.equal a1 a2 && B.equal b1 b2
-  let print ppf (a, b) = Format.fprintf ppf " (%a, @ %a)" A.print a B.print b
+  let [@ocamlformat "disable"] print ppf (a, b) = Format.fprintf ppf " (%a, @ %a)" A.print a B.print b
 end
 
 module Make_map (T : Thing) (Set : Set with module T := T) = struct
@@ -176,7 +176,7 @@ module Make_map (T : Thing) (Set : Set with module T := T) = struct
   let map_keys f m =
     of_list (List.map (fun (k, v) -> f k, v) (bindings m))
 
-  let print print_datum ppf t =
+  let [@ocamlformat "disable"] print print_datum ppf t =
     let module Lmap = Lmap.Make (T) in
     Lmap.print print_datum ppf (Lmap.of_list (bindings t))
 
@@ -269,7 +269,7 @@ module Make_set (T : Thing) = struct
       iter (fun v -> Printf.fprintf oc "%a " T.output v) s;
       Printf.fprintf oc ")"
 
-    let print ppf s =
+    let [@ocamlformat "disable"] print ppf s =
       let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" T.print e) s in
       Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s
 

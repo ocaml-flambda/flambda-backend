@@ -35,7 +35,7 @@ type t = {
   combined : Simple.t EP.Map.t;
 }
 
-let print ppf { by_scope; combined; } =
+let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(by_scope@ %a)@]@ \
       @[<hov 1>(combined@ %a)@]\
@@ -89,7 +89,7 @@ end = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | Needs_extra_binding { bound_to; } ->
         Format.fprintf ppf "@[<hov 1>(Needs_extra_binding@ %a)@]"

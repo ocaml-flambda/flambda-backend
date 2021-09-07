@@ -61,7 +61,7 @@ let print_arms ppf arms =
         Apply_cont_expr.print action)
     arms
 
-let print ppf { scrutinee; arms; } =
+let [@ocamlformat "disable"] print ppf { scrutinee; arms; } =
   fprintf ppf
     "@[<v 0>(@<0>%sswitch@<0>%s %a@ @[<v 0>%a@])@]"
     (Flambda_colours.expr_keyword ())
@@ -69,7 +69,7 @@ let print ppf { scrutinee; arms; } =
     Simple.print scrutinee
     print_arms arms
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let invariant _ _ = ()
 

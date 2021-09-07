@@ -91,7 +91,7 @@ module Make(Rec_info_expr : Rec_info_expr0.S)
       ignore (to_1, from2);
       Some (change_depth ~from:from1 ~to_:to_2)
 
-  let print ppf = function
+  let [@ocamlformat "disable"] print ppf = function
     | Id ->
       Format.fprintf ppf "@<0>%sid@<0>%s"
         (Flambda_colours.elide ())

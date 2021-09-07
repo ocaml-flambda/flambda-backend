@@ -21,7 +21,7 @@ type t = {
   already_meeting : Name.Pair.Set.t;
 }
 
-let print ppf { env; already_meeting; } =
+let [@ocamlformat "disable"] print ppf { env; already_meeting; } =
   Format.fprintf ppf
     "@[<hov 1>(\
       @[<hov 1>(env@ %a)@]@ \
