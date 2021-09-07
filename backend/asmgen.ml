@@ -270,7 +270,7 @@ let build_asm_directives () : (module Asm_directives_intf.S) = (
 
 let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
   let asm_directives =
-    if Clflags.debug_thing Clflags.Debug_dwarf_functions then
+    if !Clflags.debug then
       Some (build_asm_directives ())
     else
       None
