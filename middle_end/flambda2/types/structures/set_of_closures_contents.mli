@@ -16,11 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** Descriptions of the entities inside sets of closures:
-    - closures;
-    - closure variables.
-    These descriptions do not necessarily describe the entire contents of any
-    particular set of closures. *)
+(** Descriptions of the entities inside sets of closures: - closures; - closure
+    variables. These descriptions do not necessarily describe the entire
+    contents of any particular set of closures. *)
 
 type t
 
@@ -29,10 +27,13 @@ val create : Closure_id.Set.t -> Var_within_closure.Set.t -> t
 include Container_types.S with type t := t
 
 val subset : t -> t -> bool
+
 val inter : t -> t -> t
+
 val union : t -> t -> t
 
 val closures : t -> Closure_id.Set.t
+
 val closure_vars : t -> Var_within_closure.Set.t
 
 val apply_renaming : t -> Renaming.t -> t

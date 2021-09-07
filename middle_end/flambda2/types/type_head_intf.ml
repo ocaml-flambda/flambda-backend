@@ -18,9 +18,13 @@
 
 module type S = sig
   type type_grammar
+
   type typing_env
+
   type typing_env_extension
+
   type meet_env
+
   type join_env
 
   include Contains_names.S
@@ -31,17 +35,9 @@ module type S = sig
 
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 
-  val meet
-     : meet_env
-    -> t
-    -> t
-    -> (t * typing_env_extension) Or_bottom.t
+  val meet : meet_env -> t -> t -> (t * typing_env_extension) Or_bottom.t
 
-  val join
-     : join_env
-    -> t
-    -> t
-    -> t Or_unknown.t
+  val join : join_env -> t -> t -> t Or_unknown.t
 
   val apply_coercion : t -> Coercion.t -> t Or_bottom.t
 

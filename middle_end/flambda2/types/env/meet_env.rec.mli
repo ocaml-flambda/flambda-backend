@@ -22,19 +22,16 @@ type t
 
 val print : Format.formatter -> t -> unit
 
-val create
-   : Typing_env.t
-  -> t
+val create : Typing_env.t -> t
 
 val env : t -> Typing_env.t
 
-(** Note that we are now in the process of meeting the given two
-    [Simple]s. *)
+(** Note that we are now in the process of meeting the given two [Simple]s. *)
 val now_meeting : t -> Simple.t -> Simple.t -> t
 
 (** Determine whether we are now in the process of meeting the given two
-    [Simple]s.  The arguments do not have to be provided in the same order
-    as when [now_meeting] was called. *)
+    [Simple]s. The arguments do not have to be provided in the same order as
+    when [now_meeting] was called. *)
 val already_meeting : t -> Simple.t -> Simple.t -> bool
 
 (* val with_typing_env : t -> Typing_env.t -> t *)

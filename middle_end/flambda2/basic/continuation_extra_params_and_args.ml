@@ -45,10 +45,10 @@ module Extra_arg = struct
   end
 end
 
-type t = {
-  extra_params : Kinded_parameter.t list;
-  extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t;
-}
+type t =
+  { extra_params : Kinded_parameter.t list;
+    extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
+  }
 
 let [@ocamlformat "disable"] print ppf { extra_params; extra_args; } =
   Format.fprintf ppf "@[<hov 1>(\
@@ -58,61 +58,53 @@ let [@ocamlformat "disable"] print ppf { extra_params; extra_args; } =
     Kinded_parameter.List.print extra_params
     (Apply_cont_rewrite_id.Map.print Extra_arg.List.print) extra_args
 
-let empty = {
-  extra_params = [];
-  extra_args = Apply_cont_rewrite_id.Map.empty;
-}
+let empty = { extra_params = []; extra_args = Apply_cont_rewrite_id.Map.empty }
 
 let is_empty t =
   match t.extra_params with
   | [] ->
     assert (Apply_cont_rewrite_id.Map.is_empty t.extra_args);
     true
-  | _::_ -> false
+  | _ :: _ -> false
 
 let add t ~extra_param ~extra_args =
   let extra_args =
-    if Apply_cont_rewrite_id.Map.is_empty t.extra_args then
+    if Apply_cont_rewrite_id.Map.is_empty t.extra_args
+    then
       Apply_cont_rewrite_id.Map.map (fun extra_args -> [extra_args]) extra_args
     else
-      Apply_cont_rewrite_id.Map.merge (fun id already_extra_args extra_args ->
+      Apply_cont_rewrite_id.Map.merge
+        (fun id already_extra_args extra_args ->
           match already_extra_args, extra_args with
           | None, None -> None
           | Some l, None ->
             Misc.fatal_errorf "Cannot change domain (1) %a %i"
-              Apply_cont_rewrite_id.print id
-              (List.length l)
-          | None, Some _ ->
-            Misc.fatal_error "Cannot change domain"
+              Apply_cont_rewrite_id.print id (List.length l)
+          | None, Some _ -> Misc.fatal_error "Cannot change domain"
           | Some already_extra_args, Some extra_args ->
             Some (extra_args :: already_extra_args))
-        t.extra_args
-        extra_args
+        t.extra_args extra_args
   in
-  { extra_params = extra_param :: t.extra_params;
-    extra_args;
-  }
+  { extra_params = extra_param :: t.extra_params; extra_args }
 
 let concat t1 t2 =
-  if is_empty t2 then t1
-  else if is_empty t1 then t2
-  else begin
+  if is_empty t2
+  then t1
+  else if is_empty t1
+  then t2
+  else
     let extra_args =
-      Apply_cont_rewrite_id.Map.merge (fun id extra_args1 extra_args2 ->
+      Apply_cont_rewrite_id.Map.merge
+        (fun id extra_args1 extra_args2 ->
           match extra_args1, extra_args2 with
           | None, None -> None
-          | Some _, None
-          | None, Some _ ->
+          | Some _, None | None, Some _ ->
             Misc.fatal_errorf "concat: mismatching domains on id %a"
               Apply_cont_rewrite_id.print id
           | Some extra_args1, Some extra_args2 ->
             Some (extra_args1 @ extra_args2))
-        t1.extra_args
-        t2.extra_args
+        t1.extra_args t2.extra_args
     in
-    { extra_params = t1.extra_params @ t2.extra_params;
-      extra_args;
-    }
-  end
+    { extra_params = t1.extra_params @ t2.extra_params; extra_args }
 
 let extra_params t = t.extra_params

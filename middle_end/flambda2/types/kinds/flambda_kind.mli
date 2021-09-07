@@ -20,19 +20,30 @@
 
 (** Empty and known-distinct types. *)
 type empty_naked_immediate = private Naked_immediate
+
 type empty_naked_float = private Naked_float
+
 type empty_naked_int32 = private Naked_int32
+
 type empty_naked_int64 = private Naked_int64
+
 type empty_naked_nativeint = private Naked_nativeint
 
 (** GADT indexes. *)
 type value = private Value
+
 type naked_immediate = empty_naked_immediate * Targetint_31_63.Set.t
+
 type naked_float = empty_naked_float * Numeric_types.Float_by_bit_pattern.Set.t
+
 type naked_int32 = empty_naked_int32 * Numeric_types.Int32.Set.t
+
 type naked_int64 = empty_naked_int64 * Numeric_types.Int64.Set.t
+
 type naked_nativeint = empty_naked_nativeint * Targetint_32_64.Set.t
+
 type fabricated = private Fabricated
+
 type rec_info = private Rec_info
 
 module Naked_number_kind : sig
@@ -48,32 +59,39 @@ end
 
 (** The kinds themselves. *)
 type t = private
-  | Value
-    (** OCaml values that may exist at source level. *)
+  | Value  (** OCaml values that may exist at source level. *)
   | Naked_number of Naked_number_kind.t
-    (** The kind of unboxed numbers and untagged immediates. *)
+      (** The kind of unboxed numbers and untagged immediates. *)
   | Fabricated
-    (** Values which have been introduced by Flambda and are never accessible
-        at the source language level (for example sets of closures). *)
+      (** Values which have been introduced by Flambda and are never accessible
+          at the source language level (for example sets of closures). *)
   | Rec_info
-    (** Recursion depths of identifiers. Like [Fabricated], not accessible at
-        the source level, but also not accessible at run time.  *)
+      (** Recursion depths of identifiers. Like [Fabricated], not accessible at
+          the source level, but also not accessible at run time. *)
 
 type kind = t
 
 (** Constructors for the various kinds. *)
 val value : t
+
 val naked_immediate : t
+
 val naked_float : t
+
 val naked_int32 : t
+
 val naked_int64 : t
+
 val naked_nativeint : t
-(* CR mshinwell: Fabricated kinds are only used in Flambda_static now.  Make
-   a separate type. *)
+
+(* CR mshinwell: Fabricated kinds are only used in Flambda_static now. Make a
+   separate type. *)
 val fabricated : t
+
 val rec_info : t
 
 val is_value : t -> bool
+
 val is_naked_float : t -> bool
 
 (** The kind of the unit value. *)
@@ -82,12 +100,12 @@ val unit : t
 include Container_types.S with type t := t
 
 module Standard_int : sig
-  (** These kinds are known as the "standard integer kinds".  They correspond
-      to the usual representations of tagged immediates, 32-bit, 64-bit and
-      native integers as expected by the operations in [Flambda_primitive].
-      (Boxing of the latter three kinds of integers is handled via explicit
-      boxing and unboxing primitives; as such, the boxed versions are not
-      known as "standard". *)
+  (** These kinds are known as the "standard integer kinds". They correspond to
+      the usual representations of tagged immediates, 32-bit, 64-bit and native
+      integers as expected by the operations in [Flambda_primitive]. (Boxing of
+      the latter three kinds of integers is handled via explicit boxing and
+      unboxing primitives; as such, the boxed versions are not known as
+      "standard". *)
   type t =
     | Tagged_immediate
     | Naked_immediate
@@ -167,34 +185,49 @@ module With_subkind : sig
       | Boxed_nativeint
       | Tagged_immediate
       | Block of { tag : Tag.t; fields : t list }
-      | Float_block of { num_fields : int; }
+      | Float_block of { num_fields : int }
 
     include Container_types.S with type t := t
   end
 
   type kind = t
+
   type t
 
   val create : kind -> Subkind.t -> t
 
   val kind : t -> kind
+
   val subkind : t -> Subkind.t
 
   val has_useful_subkind_info : t -> bool
 
   val any_value : t
+
   val naked_immediate : t
+
   val naked_float : t
+
   val naked_int32 : t
+
   val naked_int64 : t
+
   val naked_nativeint : t
+
   val boxed_float : t
+
   val boxed_int32 : t
+
   val boxed_int64 : t
+
   val boxed_nativeint : t
+
   val tagged_immediate : t
+
   val rec_info : t
+
   val block : Tag.t -> t list -> t
+
   val float_block : num_fields:int -> t
 
   val of_naked_number_kind : Naked_number_kind.t -> t
@@ -209,7 +242,7 @@ module With_subkind : sig
     | Tagged_immediate
     | Rec_info
     | Block of { tag : Tag.t; fields : descr list }
-    | Float_block of { num_fields : int; }
+    | Float_block of { num_fields : int }
 
   val descr : t -> descr
 

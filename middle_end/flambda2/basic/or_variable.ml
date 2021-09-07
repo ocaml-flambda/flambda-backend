@@ -16,9 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t =
-  | Const of 'a
-  | Var of Variable.t
+type 'a t = Const of 'a | Var of Variable.t
 
 let [@ocamlformat "disable"] print print_const ppf t =
   match t with
@@ -42,10 +40,7 @@ let apply_renaming t perm =
   | Const _ -> t
   | Var var ->
     let var' = Renaming.apply_variable perm var in
-    if var == var' then t
-    else Var var'
+    if var == var' then t else Var var'
 
 let value_map t ~default ~f =
-  match t with
-  | Const cst -> f cst
-  | Var _ -> default
+  match t with Const cst -> f cst | Var _ -> default

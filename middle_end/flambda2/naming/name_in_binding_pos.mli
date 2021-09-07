@@ -16,25 +16,29 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** A [Name] equipped with extra information that arises from the name
-    occurring in binding position. *)
+(** A [Name] equipped with extra information that arises from the name occurring
+    in binding position. *)
 
 type t
 
 val create : Name.t -> Name_mode.t -> t
 
 val name : t -> Name.t
+
 val name_mode : t -> Name_mode.t
 
 val var : Var_in_binding_pos.t -> t
+
 val symbol : Symbol.t -> t
 
 val must_be_symbol : t -> Symbol.t
 
-(* CR mshinwell: Ensure naming consistent with Var_in_binding_pos.  Make
+(* CR mshinwell: Ensure naming consistent with Var_in_binding_pos. Make
    constructors and destructors clear. *)
 val to_var : t -> Var_in_binding_pos.t option
+
 val to_name : t -> Name.t
+
 val to_simple : t -> Simple.t
 
 val rename : t -> t

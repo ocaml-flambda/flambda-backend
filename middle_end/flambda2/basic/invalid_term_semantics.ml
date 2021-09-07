@@ -16,9 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t =
-  | Treat_as_unreachable
-  | Halt_and_catch_fire
+type t = Treat_as_unreachable | Halt_and_catch_fire
 
 let [@ocamlformat "disable"] print ppf t =
   match t with

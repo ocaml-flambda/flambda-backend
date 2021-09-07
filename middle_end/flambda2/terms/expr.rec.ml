@@ -38,35 +38,27 @@ module Descr = struct
     match t with
     | Let let_expr ->
       let let_expr' = Let_expr.apply_renaming let_expr perm in
-      if let_expr == let_expr' then t
-      else Let let_expr'
+      if let_expr == let_expr' then t else Let let_expr'
     | Let_cont let_cont ->
       let let_cont' = Let_cont_expr.apply_renaming let_cont perm in
-      if let_cont == let_cont' then t
-      else Let_cont let_cont'
+      if let_cont == let_cont' then t else Let_cont let_cont'
     | Apply apply ->
       let apply' = Apply.apply_renaming apply perm in
-      if apply == apply' then t
-      else Apply apply'
+      if apply == apply' then t else Apply apply'
     | Apply_cont apply_cont ->
       let apply_cont' = Apply_cont.apply_renaming apply_cont perm in
-      if apply_cont == apply_cont' then t
-      else Apply_cont apply_cont'
+      if apply_cont == apply_cont' then t else Apply_cont apply_cont'
     | Switch switch ->
       let switch' = Switch.apply_renaming switch perm in
-      if switch == switch' then t
-      else Switch switch'
+      if switch == switch' then t else Switch switch'
     | Invalid _ -> t
 end
 
-(* CR mshinwell: Work out how to use [With_delayed_permutation] here.
-   There were some problems with double vision etc. last time.  Although
-   we don't want to cache free names here. *)
+(* CR mshinwell: Work out how to use [With_delayed_permutation] here. There were
+   some problems with double vision etc. last time. Although we don't want to
+   cache free names here. *)
 
-type t = {
-  mutable descr : Descr.t;
-  mutable delayed_permutation : Renaming.t;
-}
+type t = { mutable descr : Descr.t; mutable delayed_permutation : Renaming.t }
 
 type descr = Descr.t =
   | Let of Let_expr.t
@@ -76,30 +68,24 @@ type descr = Descr.t =
   | Switch of Switch.t
   | Invalid of Invalid_term_semantics.t
 
-let create descr =
-  { descr;
-    delayed_permutation = Renaming.empty;
-  }
+let create descr = { descr; delayed_permutation = Renaming.empty }
 
 let peek_descr t = t.descr
 
 let descr t =
-  if Renaming.is_empty t.delayed_permutation then begin
-    t.descr
-  end else begin
+  if Renaming.is_empty t.delayed_permutation
+  then t.descr
+  else
     let descr = Descr.apply_renaming t.descr t.delayed_permutation in
     t.descr <- descr;
     t.delayed_permutation <- Renaming.empty;
     descr
-  end
 
 let apply_renaming t perm =
   let delayed_permutation =
     Renaming.compose ~second:perm ~first:t.delayed_permutation
   in
-  { t with
-    delayed_permutation;
-  }
+  { t with delayed_permutation }
 
 let free_names t = Descr.free_names (descr t)
 
@@ -145,36 +131,35 @@ let [@ocamlformat "disable"] print ppf (t : t) =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create_let let_expr = create (Let let_expr)
+
 let create_let_cont let_cont = create (Let_cont let_cont)
+
 let create_apply apply = create (Apply apply)
+
 let create_apply_cont apply_cont = create (Apply_cont apply_cont)
+
 let create_switch switch = create (Switch switch)
 
 let create_invalid ?semantics () =
   let semantics : Invalid_term_semantics.t =
     match semantics with
-    | Some semantics ->
-      semantics
+    | Some semantics -> semantics
     | None ->
-      if Flambda_features.treat_invalid_code_as_unreachable () then
-        Treat_as_unreachable
-      else
-        Halt_and_catch_fire
+      if Flambda_features.treat_invalid_code_as_unreachable ()
+      then Treat_as_unreachable
+      else Halt_and_catch_fire
   in
   create (Invalid semantics)
 
 let bind_parameters_to_args_no_simplification ~params ~args ~body =
-  if List.compare_lengths params args <> 0 then begin
+  if List.compare_lengths params args <> 0
+  then
     Misc.fatal_errorf "Mismatching parameters and arguments: %a and %a"
-      KP.List.print params
-      Simple.List.print args
-  end;
-  ListLabels.fold_left2 (List.rev params) (List.rev args)
-    ~init:body
+      KP.List.print params Simple.List.print args;
+  ListLabels.fold_left2 (List.rev params) (List.rev args) ~init:body
     ~f:(fun expr param arg ->
       let var = Var_in_binding_pos.create (KP.var param) Name_mode.normal in
-      Let_expr.create (Bindable_let_bound.singleton var)
-        (Named.create_simple arg)
-        ~body:expr
-        ~free_names_of_body:Unknown
+      Let_expr.create
+        (Bindable_let_bound.singleton var)
+        (Named.create_simple arg) ~body:expr ~free_names_of_body:Unknown
       |> create_let)

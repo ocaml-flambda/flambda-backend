@@ -16,11 +16,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t =
-  | Zero
-  | One
-  | Many
+type t = Zero | One | Many
 
-val (+) : t -> t -> t
+val ( + ) : t -> t -> t
 
 val linear : t -> bool

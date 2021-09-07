@@ -16,16 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type 'a t =
-  | Unknown
-  | Ok of 'a
-  | Bottom
+type 'a t = Unknown | Ok of 'a | Bottom
 
-val print
-   : (Format.formatter -> 'a -> unit)
-  -> Format.formatter
-  -> 'a t
-  -> unit
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 

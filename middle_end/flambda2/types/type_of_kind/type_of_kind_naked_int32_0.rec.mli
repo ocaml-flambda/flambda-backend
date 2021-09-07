@@ -18,10 +18,11 @@
 
 type t = Int32.Set.t
 
-include Type_head_intf.S
-  with type t := t
-  with type type_grammar := Type_grammar.t
-  with type typing_env := Typing_env.t
-  with type typing_env_extension := Typing_env_extension.t
-  with type meet_env := Meet_env.t
-  with type join_env := Join_env.t
+include
+  Type_head_intf.S
+    with type t := t
+    with type type_grammar := Type_grammar.t
+    with type typing_env := Typing_env.t
+    with type typing_env_extension := Typing_env_extension.t
+    with type meet_env := Meet_env.t
+    with type join_env := Join_env.t

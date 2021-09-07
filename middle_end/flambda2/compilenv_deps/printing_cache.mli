@@ -18,10 +18,10 @@ type t
 
 val create : unit -> t
 
-val with_cache
-   : t 
-  -> Format.formatter
-  -> string
-  -> 'a
-  -> (Format.formatter -> unit -> unit)
-  -> unit
+val with_cache :
+  t ->
+  Format.formatter ->
+  string ->
+  'a ->
+  (Format.formatter -> unit -> unit) ->
+  unit

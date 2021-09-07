@@ -18,24 +18,24 @@
 
 (* CR mshinwell: The name of this module is a bit misleading *)
 
-(** Description of a group of statically-allocated constants discovered
-    during simplification. *)
+(** Description of a group of statically-allocated constants discovered during
+    simplification. *)
 
 module Definition : sig
   type descr = private
     | Code of Code_id.t
-    | Set_of_closures of {
-        denv : Downwards_env.t;
-        closure_symbols_with_types
-          : (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
-        symbol_projections : Symbol_projection.t Variable.Map.t;
-      }
-    | Block_like of {
-        symbol : Symbol.t;
-        denv : Downwards_env.t;
-        ty : Flambda_type.t;
-        symbol_projections : Symbol_projection.t Variable.Map.t;
-      }
+    | Set_of_closures of
+        { denv : Downwards_env.t;
+          closure_symbols_with_types :
+            (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
+          symbol_projections : Symbol_projection.t Variable.Map.t
+        }
+    | Block_like of
+        { symbol : Symbol.t;
+          denv : Downwards_env.t;
+          ty : Flambda_type.t;
+          symbol_projections : Symbol_projection.t Variable.Map.t
+        }
 
   type t
 
@@ -47,21 +47,20 @@ module Definition : sig
 
   val code : Code_id.t -> Rebuilt_static_const.t -> t
 
-  val set_of_closures
-     : Downwards_env.t
-    -> closure_symbols_with_types
-         : (Symbol.t * Flambda_type.t) Closure_id.Lmap.t
-    -> symbol_projections:Symbol_projection.t Variable.Map.t
-    -> Rebuilt_static_const.t
-    -> t
+  val set_of_closures :
+    Downwards_env.t ->
+    closure_symbols_with_types:(Symbol.t * Flambda_type.t) Closure_id.Lmap.t ->
+    symbol_projections:Symbol_projection.t Variable.Map.t ->
+    Rebuilt_static_const.t ->
+    t
 
-  val block_like
-     : Downwards_env.t
-    -> Symbol.t
-    -> Flambda_type.t
-    -> symbol_projections:Symbol_projection.t Variable.Map.t
-    -> Rebuilt_static_const.t
-    -> t
+  val block_like :
+    Downwards_env.t ->
+    Symbol.t ->
+    Flambda_type.t ->
+    symbol_projections:Symbol_projection.t Variable.Map.t ->
+    Rebuilt_static_const.t ->
+    t
 
   val bound_symbols : t -> Bound_symbols.t
 
@@ -76,30 +75,31 @@ val print : Format.formatter -> t -> unit
 
 (** The creation functions take the types of symbols to avoid re-inferring
     them. *)
-val create_block_like
-   : Symbol.t
-  -> symbol_projections:Symbol_projection.t Variable.Map.t
-  -> Rebuilt_static_const.t
-  -> Downwards_env.t
-  -> Flambda_type.t
-  -> t
+val create_block_like :
+  Symbol.t ->
+  symbol_projections:Symbol_projection.t Variable.Map.t ->
+  Rebuilt_static_const.t ->
+  Downwards_env.t ->
+  Flambda_type.t ->
+  t
 
-val create_set_of_closures
-   : Downwards_env.t
-  -> closure_symbols_with_types:(Symbol.t * Flambda_type.t) Closure_id.Lmap.t
-  -> symbol_projections:Symbol_projection.t Variable.Map.t
-  -> Rebuilt_static_const.t
-  -> t
+val create_set_of_closures :
+  Downwards_env.t ->
+  closure_symbols_with_types:(Symbol.t * Flambda_type.t) Closure_id.Lmap.t ->
+  symbol_projections:Symbol_projection.t Variable.Map.t ->
+  Rebuilt_static_const.t ->
+  t
 
-val create_code
-   : Code_id.t
-  -> Rebuilt_static_const.t
-  -> t
+val create_code : Code_id.t -> Rebuilt_static_const.t -> t
 
 val definitions : t -> Definition.t list
+
 val bound_symbols : t -> Bound_symbols.t
+
 val defining_exprs : t -> Rebuilt_static_const.Group.t
+
 val types_of_symbols : t -> (Downwards_env.t * Flambda_type.t) Symbol.Map.t
+
 val symbol_projections : t -> Symbol_projection.t Variable.Map.t
 
 val concat : t list -> t

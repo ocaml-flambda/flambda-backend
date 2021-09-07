@@ -18,9 +18,7 @@
 
 module T = Flambda_type
 
-type t = {
-  continuation_uses : Continuation_uses.t Continuation.Map.t;
-}
+type t = { continuation_uses : Continuation_uses.t Continuation.Map.t }
 
 let [@ocamlformat "disable"] print ppf { continuation_uses; } =
   Format.fprintf ppf "@[<hov 1>(\
@@ -28,9 +26,7 @@ let [@ocamlformat "disable"] print ppf { continuation_uses; } =
       )@]"
     (Continuation.Map.print Continuation_uses.print) continuation_uses
 
-let empty = {
-  continuation_uses = Continuation.Map.empty;
-}
+let empty = { continuation_uses = Continuation.Map.empty }
 
 let get_uses t = t.continuation_uses
 
@@ -38,32 +34,27 @@ let record_continuation_use t cont kind ~env_at_use ~arg_types =
   (* XXX This needs to deal with exn continuation extra-args *)
   let id = Apply_cont_rewrite_id.create () in
   let continuation_uses =
-    Continuation.Map.update cont (function
+    Continuation.Map.update cont
+      (function
         | None ->
           let arity = T.arity_of_list arg_types in
           let uses = Continuation_uses.create cont arity in
-          Some (Continuation_uses.add_use uses kind ~env_at_use id
-            ~arg_types)
+          Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types)
         | Some uses ->
           Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types))
       t.continuation_uses
   in
-  let t : t =
-    { continuation_uses;
-    }
-  in
+  let t : t = { continuation_uses } in
   t, id
 
 let get_typing_env_no_more_than_one_use t k =
   match Continuation.Map.find k t.continuation_uses with
   | exception Not_found -> None
-  | cont_uses ->
-    Continuation_uses.get_typing_env_no_more_than_one_use cont_uses
+  | cont_uses -> Continuation_uses.get_typing_env_no_more_than_one_use cont_uses
 
 let compute_handler_env t ~env_at_fork_plus_params_and_consts
-      ~consts_lifted_during_body cont
-      ~params
-      ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+    ~consts_lifted_during_body cont ~params ~code_age_relation_after_body :
+    Continuation_env_and_param_types.t =
   match Continuation.Map.find cont t.continuation_uses with
   | exception Not_found -> No_uses
   | uses ->
@@ -76,20 +67,17 @@ let num_continuation_uses t cont =
   | exception Not_found -> 0
   | uses -> Continuation_uses.number_of_uses uses
 
-let all_continuations_used t =
-  Continuation.Map.keys t.continuation_uses
+let all_continuations_used t = Continuation.Map.keys t.continuation_uses
 
 let union t1 t2 =
   let continuation_uses =
     Continuation.Map.union
       (fun _ uses1 uses2 -> Some (Continuation_uses.union uses1 uses2))
-      t1.continuation_uses
-      t2.continuation_uses
+      t1.continuation_uses t2.continuation_uses
   in
-  { continuation_uses; }
+  { continuation_uses }
 
 let remove t cont =
-  { continuation_uses = Continuation.Map.remove cont t.continuation_uses;
-  }
+  { continuation_uses = Continuation.Map.remove cont t.continuation_uses }
 
 let delete_continuation_uses = remove

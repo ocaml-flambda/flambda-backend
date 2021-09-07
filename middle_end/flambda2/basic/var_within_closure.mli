@@ -16,10 +16,9 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-(** An identifier, unique across the whole program, that identifies a
-    particular variable within a particular closure.  Only
-    [Project_var], and not [Var], nodes are tagged with these
-    identifiers. *)
+(** An identifier, unique across the whole program, that identifies a particular
+    variable within a particular closure. Only [Project_var], and not [Var],
+    nodes are tagged with these identifiers. *)
 
 include Container_types.S
 
@@ -28,6 +27,7 @@ val wrap : Compilation_unit.t -> Variable.t -> t
 val unwrap : t -> Variable.t
 
 val in_compilation_unit : t -> Compilation_unit.t -> bool
+
 val get_compilation_unit : t -> Compilation_unit.t
 
 val to_string : t -> string

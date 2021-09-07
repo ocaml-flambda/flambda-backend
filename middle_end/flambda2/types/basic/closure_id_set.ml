@@ -20,10 +20,12 @@ type t = Closure_id.Set.t
 
 include Container_types.Make (struct
   include Closure_id.Set
+
   let hash = Hashtbl.hash
 end)
 
 let free_names _t = Name_occurrences.empty
+
 let apply_renaming t _perm = t
 
 let subset t1 t2 = Closure_id.Set.subset t1 t2

@@ -16,9 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type string_contents =
-  | Contents of string
-  | Unknown_or_mutable
+type string_contents = Contents of string | Unknown_or_mutable
 
 type t
 
@@ -26,6 +24,7 @@ type t
 val create : contents:string_contents -> size:Targetint_31_63.Imm.t -> t
 
 val contents : t -> string_contents
+
 val size : t -> Targetint_31_63.Imm.t
 
 include Container_types.S with type t := t

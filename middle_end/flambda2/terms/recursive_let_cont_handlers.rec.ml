@@ -17,40 +17,31 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module T0 = struct
-  type t = {
-      handlers : Continuation_handlers.t;
-      body : Expr.t;
-    }
+  type t = { handlers : Continuation_handlers.t; body : Expr.t }
 
   let invariant _env _t = ()
 
   let [@ocamlformat "disable"] print _ppf _t = Misc.fatal_error "Not yet implemented"
+
   let [@ocamlformat "disable"] print_with_cache ~cache:_ _ppf _t = Misc.fatal_error "Not yet implemented"
 
-  let create ~body handlers =
-    { handlers;
-      body;
-    }
+  let create ~body handlers = { handlers; body }
 
   let handlers t = t.handlers
+
   let body t = t.body
 
-  let free_names { handlers; body; } =
-    Name_occurrences.union (Continuation_handlers.free_names handlers)
+  let free_names { handlers; body } =
+    Name_occurrences.union
+      (Continuation_handlers.free_names handlers)
       (Expr.free_names body)
 
-  let apply_renaming { handlers; body; } perm =
-    let handlers' =
-      Continuation_handlers.apply_renaming handlers perm
-    in
-    let body' =
-      Expr.apply_renaming body perm
-    in
-    { handlers = handlers';
-      body = body';
-    }
+  let apply_renaming { handlers; body } perm =
+    let handlers' = Continuation_handlers.apply_renaming handlers perm in
+    let body' = Expr.apply_renaming body perm in
+    { handlers = handlers'; body = body' }
 
-  let all_ids_for_export { handlers; body; } =
+  let all_ids_for_export { handlers; body } =
     let body_ids = Expr.all_ids_for_export body in
     let handlers_ids = Continuation_handlers.all_ids_for_export handlers in
     Ids_for_export.union body_ids handlers_ids

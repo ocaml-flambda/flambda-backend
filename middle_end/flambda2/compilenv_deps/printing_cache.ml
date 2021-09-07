@@ -20,24 +20,19 @@ module String = struct
 end
 
 module One_cache = struct
-  type t = {
-    prefix : string;
-    mutable next_id : int;
-    mutable printed : (string * Obj.t) list;
-  }
-
-  let create prefix =
-    { prefix;
-      next_id = 0;
-      printed = [];
+  type t =
+    { prefix : string;
+      mutable next_id : int;
+      mutable printed : (string * Obj.t) list
     }
+
+  let create prefix = { prefix; next_id = 0; printed = [] }
 
   let with_cache t ppf obj printer =
     let obj = Obj.repr obj in
     let rec find = function
-      | (name, obj')::printed ->
-        if obj == obj' then Format.fprintf ppf "*%s" name
-        else find printed
+      | (name, obj') :: printed ->
+        if obj == obj' then Format.fprintf ppf "*%s" name else find printed
       | [] ->
         let name = Printf.sprintf "%s%d" t.prefix t.next_id in
         t.next_id <- t.next_id + 1;
@@ -47,13 +42,9 @@ module One_cache = struct
     find t.printed
 end
 
-type t = {
-  mutable by_prefix : One_cache.t String.Map.t;
-}
+type t = { mutable by_prefix : One_cache.t String.Map.t }
 
-let create () = {
-  by_prefix = String.Map.empty;
-}
+let create () = { by_prefix = String.Map.empty }
 
 let with_cache t ppf prefix obj printer =
   match String.Map.find prefix t.by_prefix with
@@ -61,5 +52,4 @@ let with_cache t ppf prefix obj printer =
     let cache = One_cache.create prefix in
     t.by_prefix <- String.Map.add prefix cache t.by_prefix;
     One_cache.with_cache cache ppf obj printer
-  | cache ->
-    One_cache.with_cache cache ppf obj printer
+  | cache -> One_cache.with_cache cache ppf obj printer

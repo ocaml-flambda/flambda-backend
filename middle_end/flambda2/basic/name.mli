@@ -18,7 +18,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include module type of struct include Reg_width_things.Name end
+include module type of struct
+  include Reg_width_things.Name
+end
 
 val map_var : t -> f:(Variable.t -> Variable.t) -> t
 
@@ -63,4 +65,3 @@ module Pair : sig
 
   include Container_types.S with type t := t
 end
-

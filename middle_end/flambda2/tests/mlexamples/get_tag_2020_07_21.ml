@@ -302,13 +302,8 @@ type dst =
   | A299
   | A300
 
-let [@inline always] of_src = function
-  | C1 _ -> A1
-  | C2 _ -> A2
+let[@inline always] of_src = function C1 _ -> A1 | C2 _ -> A2
 
 let test src f g =
-  let dst =
-    if f () then of_src src
-    else A300
-  in
+  let dst = if f () then of_src src else A300 in
   g dst

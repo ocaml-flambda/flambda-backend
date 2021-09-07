@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Maintenance of environments and associated calculations for
-    common subexpression elimination, performed during Simplify. *)
+(** Maintenance of environments and associated calculations for common
+    subexpression elimination, performed during Simplify. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
@@ -32,10 +32,10 @@ val print : Format.formatter -> t -> unit
 
 val empty : t
 
-(** If the [t] already has an equation for the given primitive, then [add]
-    does nothing.  (Expected usage is that this will correspond to outermost
-    bindings taking precedence, but for simplicity, this function does not
-    enforce that.) *)
+(** If the [t] already has an equation for the given primitive, then [add] does
+    nothing. (Expected usage is that this will correspond to outermost bindings
+    taking precedence, but for simplicity, this function does not enforce
+    that.) *)
 val add : t -> P.Eligible_for_cse.t -> bound_to:Simple.t -> Scope.t -> t
 
 val find : t -> P.Eligible_for_cse.t -> Simple.t option
@@ -45,18 +45,18 @@ module Join_result : sig
     { cse_at_join_point : t;
       extra_params : EPA.t;
       extra_equations : T.t Name.Map.t;
-      extra_allowed_names : Name_occurrences.t;
+      extra_allowed_names : Name_occurrences.t
     }
 end
 
 (** [join] adds CSE equations into [cse_at_fork] at the next scope level after
     that given by the [typing_env_at_fork]. *)
-val join
-   : typing_env_at_fork:TE.t
-  -> cse_at_fork:t
-  -> use_info:'a list
-  -> get_typing_env:('a -> TE.t)
-  -> get_rewrite_id:('a -> RI.t)
-  -> get_cse:('a -> t)
-  -> params:KP.t list
-  -> Join_result.t option
+val join :
+  typing_env_at_fork:TE.t ->
+  cse_at_fork:t ->
+  use_info:'a list ->
+  get_typing_env:('a -> TE.t) ->
+  get_rewrite_id:('a -> RI.t) ->
+  get_cse:('a -> t) ->
+  params:KP.t list ->
+  Join_result.t option

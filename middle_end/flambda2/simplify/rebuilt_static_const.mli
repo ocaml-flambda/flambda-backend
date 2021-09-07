@@ -14,81 +14,74 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Static constants, equipped with free name information, as rebuilt by
-    the simplifier.  Definitions of the constants themselves are not kept
-    when not rebuilding terms, but some of the metadata is. *)
+(** Static constants, equipped with free name information, as rebuilt by the
+    simplifier. Definitions of the constants themselves are not kept when not
+    rebuilding terms, but some of the metadata is. *)
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda
 
 type t
+
 type rebuilt_static_const = t
 
 val print : Format.formatter -> t -> unit
 
-val create_code
-   : Are_rebuilding_terms.t
-  -> Code_id.t
-  -> params_and_body:
-     (Rebuilt_expr.Function_params_and_body.t * Name_occurrences.t) Or_deleted.t
-  -> newer_version_of:Code_id.t option
-  -> params_arity:Flambda_arity.With_subkinds.t
-  -> result_arity:Flambda_arity.With_subkinds.t
-  -> stub:bool
-  -> inline:Inline_attribute.t
-  -> is_a_functor:bool
-  -> recursive:Recursive.t
-  -> cost_metrics:Cost_metrics.t
-  -> inlining_arguments:Inlining_arguments.t
-  -> dbg:Debuginfo.t
-  -> is_tupled:bool
-  -> t
+val create_code :
+  Are_rebuilding_terms.t ->
+  Code_id.t ->
+  params_and_body:
+    (Rebuilt_expr.Function_params_and_body.t * Name_occurrences.t) Or_deleted.t ->
+  newer_version_of:Code_id.t option ->
+  params_arity:Flambda_arity.With_subkinds.t ->
+  result_arity:Flambda_arity.With_subkinds.t ->
+  stub:bool ->
+  inline:Inline_attribute.t ->
+  is_a_functor:bool ->
+  recursive:Recursive.t ->
+  cost_metrics:Cost_metrics.t ->
+  inlining_arguments:Inlining_arguments.t ->
+  dbg:Debuginfo.t ->
+  is_tupled:bool ->
+  t
 
 (* This function should be used when a [Code.t] is already in hand, e.g. from
    the input term to the simplifier, rather than when one needs to be
-   constructed.  In the latter case, use [create_code] above, so that [Code]
+   constructed. In the latter case, use [create_code] above, so that [Code]
    values are not constructed unnecessarily. *)
 val create_code' : Code.t -> t
 
 val create_set_of_closures : Are_rebuilding_terms.t -> Set_of_closures.t -> t
 
-val create_block
-   : Are_rebuilding_terms.t
-  -> Tag.Scannable.t
-  -> Mutability.t
-  -> fields:Static_const.Field_of_block.t list
-  -> t
+val create_block :
+  Are_rebuilding_terms.t ->
+  Tag.Scannable.t ->
+  Mutability.t ->
+  fields:Static_const.Field_of_block.t list ->
+  t
 
-val create_boxed_float
-   : Are_rebuilding_terms.t
-  -> Numeric_types.Float_by_bit_pattern.t Or_variable.t
-  -> t
+val create_boxed_float :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float_by_bit_pattern.t Or_variable.t ->
+  t
 
-val create_boxed_int32
-   : Are_rebuilding_terms.t
-  -> Int32.t Or_variable.t
-  -> t
+val create_boxed_int32 : Are_rebuilding_terms.t -> Int32.t Or_variable.t -> t
 
-val create_boxed_int64
-   : Are_rebuilding_terms.t
-  -> Int64.t Or_variable.t
-  -> t
+val create_boxed_int64 : Are_rebuilding_terms.t -> Int64.t Or_variable.t -> t
 
-val create_boxed_nativeint
-   : Are_rebuilding_terms.t
-  -> Targetint_32_64.t Or_variable.t
-  -> t
+val create_boxed_nativeint :
+  Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t -> t
 
-val create_immutable_float_block
-   : Are_rebuilding_terms.t
-  -> Numeric_types.Float_by_bit_pattern.t Or_variable.t list
-  -> t
+val create_immutable_float_block :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
+  t
 
-val create_immutable_float_array
-   : Are_rebuilding_terms.t
-  -> Numeric_types.Float_by_bit_pattern.t Or_variable.t list
-  -> t
+val create_immutable_float_array :
+  Are_rebuilding_terms.t ->
+  Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
+  t
 
 val create_mutable_string : Are_rebuilding_terms.t -> initial_value:string -> t
 
@@ -102,10 +95,7 @@ val is_fully_static : t -> bool
 
 val make_all_code_deleted : t -> t
 
-val make_code_deleted
-   : t
-  -> if_code_id_is_member_of:Code_id.Set.t
-  -> t
+val make_code_deleted : t -> if_code_id_is_member_of:Code_id.Set.t -> t
 
 (** This will return [None] if terms are not being rebuilt. *)
 val to_const : t -> Static_const.t option
@@ -121,14 +111,14 @@ module Group : sig
 
   val free_names : t -> Name_occurrences.t
 
-  (** This function may only be used when rebuilding terms (a fatal error
-      will be produced otherwise). *)
+  (** This function may only be used when rebuilding terms (a fatal error will
+      be produced otherwise). *)
   val to_named : t -> Named.t
 
-  (** This function returns dummy pieces of code for those not rebuilt.
-      Such pieces of code will have all of the correct metadata but a body
-      consisting solely of an [Invalid] expression.  This seems reasonable
-      because inlining is always disabled when in not-rebuilding-terms mode. *)
+  (** This function returns dummy pieces of code for those not rebuilt. Such
+      pieces of code will have all of the correct metadata but a body consisting
+      solely of an [Invalid] expression. This seems reasonable because inlining
+      is always disabled when in not-rebuilding-terms mode. *)
   val pieces_of_code_including_those_not_rebuilt : t -> Code.t Code_id.Map.t
 
   (** This function ignores [Deleted] code. *)
@@ -138,8 +128,8 @@ module Group : sig
 
   val fold_left : t -> init:'a -> f:('a -> rebuilt_static_const -> 'a) -> 'a
 
-  (** [map] and [fold_left] should be used in preference, to avoid
-      allocating intermediate lists. *)
+  (** [map] and [fold_left] should be used in preference, to avoid allocating
+      intermediate lists. *)
   val to_list : t -> rebuilt_static_const list
 
   val concat : t -> t -> t

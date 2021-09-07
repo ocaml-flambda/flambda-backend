@@ -16,9 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type 'a t =
-  | Known of 'a
-  | Unknown
+type 'a t = Known of 'a | Unknown
 
 let [@ocamlformat "disable"] print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in
@@ -42,21 +40,17 @@ let equal equal_contents t1 t2 =
   match t1, t2 with
   | Unknown, Unknown -> true
   | Known contents1, Known contents2 -> equal_contents contents1 contents2
-  | Unknown, Known _
-  | Known _, Unknown -> false
+  | Unknown, Known _ | Known _, Unknown -> false
 
 let map t ~f =
-  match t with
-  | Known contents -> Known (f contents)
-  | Unknown -> Unknown
+  match t with Known contents -> Known (f contents) | Unknown -> Unknown
 
 (* CR mshinwell: Add to [Or_bottom] too *)
 let map_sharing t ~f =
   match t with
   | Known contents ->
     let contents' = f contents in
-    if contents == contents' then t
-    else Known contents'
+    if contents == contents' then t else Known contents'
   | Unknown -> Unknown
 
 let free_names free_names_contents t =

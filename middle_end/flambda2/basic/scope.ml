@@ -18,25 +18,36 @@ include Numeric_types.Int
 
 let initial = 0
 
-let next t =
-  t + 1
+let next t = t + 1
 
 let prev t =
-  if t <= initial then begin
-    Misc.fatal_error "Cannot decrement continuation level past the \
-      initial level"
-  end;
+  if t <= initial
+  then
+    Misc.fatal_error
+      "Cannot decrement continuation level past the initial level";
   t - 1
 
-let (<=) (t1 : t) t2 = t1 <= t2
-let (<) (t1 : t) t2 = t1 < t2
-let (>) (t1 : t) t2 = t1 > t2
-let (>=) (t1 : t) t2 = t1 >= t2
+let ( <= ) (t1 : t) t2 = t1 <= t2
+
+let ( < ) (t1 : t) t2 = t1 < t2
+
+let ( > ) (t1 : t) t2 = t1 > t2
+
+let ( >= ) (t1 : t) t2 = t1 >= t2
 
 let to_int t = t
 
 let max t1 t2 = max t1 t2
 
-module Set = Patricia_tree.Make_set (struct let print = print end)
-module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
+module Set = Patricia_tree.Make_set (struct
+  let print = print
+end)
+
+module Map =
+  Patricia_tree.Make_map
+    (struct
+      let print = print
+    end)
+    (Set)
+
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)

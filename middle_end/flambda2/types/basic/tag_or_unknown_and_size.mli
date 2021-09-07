@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Tag_or_unknown : Container_types.S with type t = Or_unknown.Lift (Tag).t
+module Tag_or_unknown : Container_types.S with type t = Or_unknown.Lift(Tag).t
 
 type t = Tag.t Or_unknown.t * Targetint_31_63.Imm.t
 

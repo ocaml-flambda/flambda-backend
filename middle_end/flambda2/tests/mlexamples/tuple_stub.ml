@@ -1,1 +1,1 @@
-let thd3 (_,_,x) = x
+let thd3 (_, _, x) = x

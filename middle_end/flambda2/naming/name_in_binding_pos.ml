@@ -16,28 +16,20 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = {
-  name : Name.t;
-  name_mode : Name_mode.t;
-}
+type t = { name : Name.t; name_mode : Name_mode.t }
 
-let create name name_mode =
-  { name;
-    name_mode;
-  }
+let create name name_mode = { name; name_mode }
 
 let name t = t.name
+
 let name_mode t = t.name_mode
 
 let var v =
   { name = Name.var (Var_in_binding_pos.var v);
-    name_mode = Var_in_binding_pos.name_mode v;
+    name_mode = Var_in_binding_pos.name_mode v
   }
 
-let symbol sym =
-  { name = Name.symbol sym;
-    name_mode = Name_mode.normal;
-  }
+let symbol sym = { name = Name.symbol sym; name_mode = Name_mode.normal }
 
 let to_var t =
   Name.pattern_match t.name
@@ -59,16 +51,12 @@ include Container_types.Make (struct
       Name.print name
       Name_mode.print name_mode
 
-  let compare
-        { name = name1; name_mode = name_mode1; }
-        { name = name2; name_mode = name_mode2; } =
+  let compare { name = name1; name_mode = name_mode1 }
+      { name = name2; name_mode = name_mode2 } =
     let c = Name.compare name1 name2 in
-    if c <> 0 then c
-    else
-      Name_mode.compare_total_order name_mode1 name_mode2
+    if c <> 0 then c else Name_mode.compare_total_order name_mode1 name_mode2
 
-  let equal t1 t2 =
-    compare t1 t2 = 0
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 
@@ -81,8 +69,5 @@ let must_be_symbol t = Name.must_be_symbol t.name
 
 let rename t =
   Name.pattern_match t.name
-    ~var:(fun var ->
-      { t with
-        name = Name.var (Variable.rename var);
-      })
+    ~var:(fun var -> { t with name = Name.var (Variable.rename var) })
     ~symbol:(fun _ -> t)
