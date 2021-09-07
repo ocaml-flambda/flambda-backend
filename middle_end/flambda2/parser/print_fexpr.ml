@@ -457,7 +457,7 @@ let binop ppf binop a b =
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
   let box_or_unbox verb_not_imm verb_imm (bk : box_kind) =
-    let [@ocamlformat "disable"] print verb obj =
+    let print verb obj =
       Format.fprintf ppf "%%%s_%s" verb obj
     in
     match bk with

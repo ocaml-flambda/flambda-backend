@@ -197,7 +197,7 @@ module Make_list (Bindable : Bindable.S) (Term : Term) = struct
   let [@inline always] pattern_match_pair
         ((names0, term0) as t1) ((names1, term1) as t2) ~f =
     if List.compare_lengths names0 names1 <> 0 then begin
-      let [@ocamlformat "disable"] print ppf t : unit = print ppf t in
+      let print ppf t : unit = print ppf t in
       Misc.fatal_errorf "Cannot concrete a pair of generalised abstractions \
           unless they have the same number of names in binding position:@ \
           %a@ and@ %a"
