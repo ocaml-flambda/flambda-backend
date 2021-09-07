@@ -292,8 +292,8 @@ module Const = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-  module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+  module Set = Patricia_tree.Make_set (struct let print = print end)
+  module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
   (* CR mshinwell: The [Tbl]s will still print integers! *)
   module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
@@ -367,8 +367,8 @@ module Variable = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-  module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+  module Set = Patricia_tree.Make_set (struct let print = print end)
+  module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
   module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
@@ -439,8 +439,8 @@ module Symbol = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-  module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+  module Set = Patricia_tree.Make_set (struct let print = print end)
+  module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
   module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
@@ -486,8 +486,8 @@ module Name = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-  module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+  module Set = Patricia_tree.Make_set (struct let print = print end)
+  module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
   module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 end
 
@@ -618,8 +618,8 @@ module Simple = struct
             has non-identity [Coercion]"
           print t
 
-  module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-  module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+  module Set = Patricia_tree.Make_set (struct let print = print end)
+  module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
   module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t

@@ -37,6 +37,6 @@ let to_int t = t
 
 let max t1 t2 = max t1 t2
 
-module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+module Set = Patricia_tree.Make_set (struct let print = print end)
+module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)

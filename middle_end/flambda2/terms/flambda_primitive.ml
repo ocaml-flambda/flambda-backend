@@ -1855,7 +1855,7 @@ module Eligible_for_cse = struct
     let compare = compare
     let equal = equal
     let hash = hash
-    let [@ocamlformat "disable"] print = print
+    let print = print
     let output = output
   end)
 

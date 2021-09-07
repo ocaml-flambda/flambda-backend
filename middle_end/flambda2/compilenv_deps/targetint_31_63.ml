@@ -44,7 +44,7 @@ module Imm = struct
 
     let output = output
 
-    let [@ocamlformat "disable"] print = print
+    let print = print
 
     let minus_one = -1L
 

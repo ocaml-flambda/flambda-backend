@@ -180,5 +180,5 @@ module Decisions = struct
     rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
   }
 
-  let [@ocamlformat "disable"] print = print
+  let print = print
 end

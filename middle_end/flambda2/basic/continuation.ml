@@ -178,8 +178,8 @@ include Container_types.Make (struct
     print (Format.formatter_of_out_channel chan) t
 end)
 
-module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
-module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
+module Set = Patricia_tree.Make_set (struct let print = print end)
+module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
 (* CR mshinwell: The [Tbl]s will still print integers! *)
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
