@@ -168,9 +168,9 @@ let eq ?(dbg = Debuginfo.none) x y =
 
        We need to impose the side condition because the above equivalence hides
        a subtlety: While [c] is a full-blooded native integer, [m] and [n] are
-       OCaml ints that get sign-extended at run time. That in itself doesn't
-       break the equivalence. The problem is that we intend to compute [m - n]
-       right now, at compile time, while [m] and [n] are one bit shorter. Thus
+       OCaml ints that will be sign-extended between now and run time. That in
+       itself doesn't break the equivalence. The problem is that we intend to
+       compute [m - n] right now, while [m] and [n] are one bit shorter. Thus
        there's a bit of sleight of hand going on: the [m - n] we compute now may
        not be the [m - n] that appears in the equivalence. [m - c], however,
        _is_ subtraction of full native ints (it must be, since [c] can be any
