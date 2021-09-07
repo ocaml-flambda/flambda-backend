@@ -1,7 +1,8 @@
-external minor_words : unit -> (float [@unboxed])
+external minor_words : unit -> (float[@unboxed])
   = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
 
 external ( *. ) : float -> float -> float = "%mulfloat"
+
 external ( -. ) : float -> float -> float = "%subfloat"
 
 let f x foo =

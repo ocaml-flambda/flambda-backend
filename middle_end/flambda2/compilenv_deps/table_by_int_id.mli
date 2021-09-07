@@ -25,8 +25,8 @@ module Id : sig
 
   val without_flags : t -> int
 
-  (** [with_flags] sets all bits of the flags word according to the
-      specified value. *)
+  (** [with_flags] sets all bits of the flags word according to the specified
+      value. *)
   val with_flags : t -> int -> t
 
   val compare : t -> t -> int
@@ -42,7 +42,9 @@ module Make (E : sig
   val flags : int
 
   val print : Format.formatter -> t -> unit
+
   val hash : t -> int
+
   val equal : t -> t -> bool
 end) : sig
   type t

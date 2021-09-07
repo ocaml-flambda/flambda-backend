@@ -37,9 +37,8 @@ let compare eff1 eff2 =
   match eff1, eff2 with
   | No_effects, No_effects -> 0
   | No_effects, (Only_generative_effects _ | Arbitrary_effects) -> -1
-  | Only_generative_effects mut1,
-    Only_generative_effects mut2 ->
-      Mutability.compare mut1 mut2
+  | Only_generative_effects mut1, Only_generative_effects mut2 ->
+    Mutability.compare mut1 mut2
   | Only_generative_effects _, No_effects -> 1
   | Only_generative_effects _, Arbitrary_effects -> -1
   | Arbitrary_effects, Arbitrary_effects -> 0
@@ -49,13 +48,13 @@ let join eff1 eff2 =
   match eff1, eff2 with
   | No_effects, No_effects
   | No_effects, Only_generative_effects _
-  | No_effects, Arbitrary_effects -> eff2
+  | No_effects, Arbitrary_effects ->
+    eff2
   | Only_generative_effects _, No_effects -> eff1
-  | Only_generative_effects mut1,
-    Only_generative_effects mut2 ->
-      Only_generative_effects (Mutability.join mut1 mut2)
+  | Only_generative_effects mut1, Only_generative_effects mut2 ->
+    Only_generative_effects (Mutability.join mut1 mut2)
   | Only_generative_effects _, Arbitrary_effects -> eff2
   | Arbitrary_effects, No_effects
   | Arbitrary_effects, Only_generative_effects _
-  | Arbitrary_effects, Arbitrary_effects -> eff1
-
+  | Arbitrary_effects, Arbitrary_effects ->
+    eff1

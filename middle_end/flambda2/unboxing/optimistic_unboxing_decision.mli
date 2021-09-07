@@ -16,11 +16,11 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** Unfold a continuation parameter's type into an unboxing decision tree.
-    This does not take account of the types of the corresponding arguments
-    at the continuation's use site(s). *)
-val make_optimistic_decision
-   : depth:int
-  -> Flambda_type.Typing_env.t
-  -> param_type:Flambda_type.t
-  -> Unboxing_types.decision
+(** Unfold a continuation parameter's type into an unboxing decision tree. This
+    does not take account of the types of the corresponding arguments at the
+    continuation's use site(s). *)
+val make_optimistic_decision :
+  depth:int ->
+  Flambda_type.Typing_env.t ->
+  param_type:Flambda_type.t ->
+  Unboxing_types.decision

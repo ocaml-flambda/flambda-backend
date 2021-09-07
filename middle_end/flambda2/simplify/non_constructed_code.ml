@@ -16,9 +16,13 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Code0.Make (struct
-    include Unit
-    let all_ids_for_export _ = Ids_for_export.empty
-    let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-  end)
-  (Flambda.Cost_metrics)
+include
+  Code0.Make
+    (struct
+      include Unit
+
+      let all_ids_for_export _ = Ids_for_export.empty
+
+      let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
+    end)
+    (Flambda.Cost_metrics)

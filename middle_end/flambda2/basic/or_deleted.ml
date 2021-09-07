@@ -16,9 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t =
-  | Present of 'a
-  | Deleted
+type 'a t = Present of 'a | Deleted
 
 let [@ocamlformat "disable"] print print_contents ppf t =
   match t with

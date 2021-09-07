@@ -16,8 +16,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** The result of pattern matching on [Recursive_let_cont_handlers]
-    (see above). *)
+(** The result of pattern matching on [Recursive_let_cont_handlers] (see
+    above). *)
 type t
 
 (** Obtain the mapping from continuation to handler. *)
@@ -30,4 +30,5 @@ val domain : t -> Continuation.Set.t
 val contains_exn_handler : t -> bool
 
 include Contains_names.S with type t := t
+
 include Contains_ids.S with type t := t

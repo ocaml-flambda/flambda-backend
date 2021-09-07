@@ -14,14 +14,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** A type language [Variable] equipped with operations that mean it can be
-    used in binding position within a [Name_abstraction] value. *)
+(** A type language [Variable] equipped with operations that mean it can be used
+    in binding position within a [Name_abstraction] value. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t = Variable.t
 
-include Bindable.S
-  with type t := t
-  with module Set = Variable.Set
-  with module Map = Variable.Map
+include
+  Bindable.S
+    with type t := t
+    with module Set = Variable.Set
+    with module Map = Variable.Map

@@ -16,6 +16,4 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t =
-  | Inlinable
-  | Non_inlinable of { escaping : bool; }
+type t = Inlinable | Non_inlinable of { escaping : bool }

@@ -1,16 +1,11 @@
-
 let foobar b x z =
   let f =
-    if b then begin
+    if b
+    then
       let[@inline] bar1 y = x + y in
       Ok bar1
-    end else begin
+    else
       let[@inline] bar2 y = z * x * y in
       Error bar2
-    end
   in
-  match f with
-  | Ok f -> f x
-  | Error f -> f x
-
-
+  match f with Ok f -> f x | Error f -> f x

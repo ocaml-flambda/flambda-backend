@@ -19,23 +19,22 @@
 (** Things that the world does to a primitive application. *)
 type t =
   | No_coeffects
-  (** "No coeffects" means that the primitive does not observe the effects (in
-      the sense described above) of other expressions. For example, it must not
-      read from any mutable storage or call arbitrary external functions.
+      (** "No coeffects" means that the primitive does not observe the effects
+          (in the sense described above) of other expressions. For example, it
+          must not read from any mutable storage or call arbitrary external
+          functions.
 
-      It is assumed in Flambda that, subject to data dependencies,
-      expressions with neither effects nor coeffects may be reordered with
-      respect to other expressions. *)
+          It is assumed in Flambda that, subject to data dependencies,
+          expressions with neither effects nor coeffects may be reordered with
+          respect to other expressions. *)
   | Has_coeffects
-  (** The primitive may be affected by effects from other expressions. *)
+      (** The primitive may be affected by effects from other expressions. *)
 
-val print : Format.formatter -> t -> unit
 (** Print function. *)
+val print : Format.formatter -> t -> unit
 
-val compare : t -> t -> int
 (** Comparison function. *)
+val compare : t -> t -> int
 
-val join : t -> t -> t
 (** Join two coeffects. *)
-
-
+val join : t -> t -> t

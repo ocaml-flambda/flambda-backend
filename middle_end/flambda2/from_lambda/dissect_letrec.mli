@@ -14,15 +14,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Compile let-rec defining non-function values into separate allocation
-    and assignments. *)
+(** Compile let-rec defining non-function values into separate allocation and
+    assignments. *)
 
-type dissected =
-  | Dissected of Lambda.lambda
-  | Unchanged
+type dissected = Dissected of Lambda.lambda | Unchanged
 
+(** [dissect_letrec] assumes that bindings have not been dissected yet. In
+    particular, that no arguments of function call are recursive. *)
 val dissect_letrec :
-  bindings:(Ident.t * Lambda.lambda) list -> body:Lambda.lambda ->
-  dissected
-(** [dissect_letrec] assumes that bindings have not been dissected yet.
-    In particular, that no arguments of function call are recursive. *)
+  bindings:(Ident.t * Lambda.lambda) list -> body:Lambda.lambda -> dissected

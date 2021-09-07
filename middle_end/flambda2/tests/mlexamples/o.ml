@@ -13,9 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-
 module Stdlib = struct
-
-exception Exit
-
+  exception Exit
 end

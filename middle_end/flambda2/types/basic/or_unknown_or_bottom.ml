@@ -16,10 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type 'a t =
-  | Unknown
-  | Ok of 'a
-  | Bottom
+type 'a t = Unknown | Ok of 'a | Bottom
 
 let [@ocamlformat "disable"] print f ppf t =
   match t with
@@ -45,10 +42,7 @@ let map_sharing t ~f =
   | Unknown | Bottom -> t
   | Ok contents ->
     let contents' = f contents in
-    if contents == contents' then t
-    else Ok contents'
+    if contents == contents' then t else Ok contents'
 
 let of_or_unknown (unk : _ Or_unknown.t) : _ t =
-  match unk with
-  | Known contents -> Ok contents
-  | Unknown -> Unknown
+  match unk with Known contents -> Ok contents | Unknown -> Unknown

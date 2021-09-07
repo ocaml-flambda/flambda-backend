@@ -19,10 +19,10 @@
 module VB = Var_in_binding_pos
 
 module T0 = struct
-  type t = {
-    num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
-    body : Expr.t;
-  }
+  type t =
+    { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
+      body : Expr.t
+    }
 
   let [@ocamlformat "disable"] print_with_cache ~cache ppf
         { body; num_normal_occurrences_of_bound_vars = _; } =
@@ -33,42 +33,39 @@ module T0 = struct
 
   let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
-  let free_names { body; num_normal_occurrences_of_bound_vars = _; } =
+  let free_names { body; num_normal_occurrences_of_bound_vars = _ } =
     Expr.free_names body
 
-  let apply_renaming
-        ({ body; num_normal_occurrences_of_bound_vars; } as t) perm =
+  let apply_renaming ({ body; num_normal_occurrences_of_bound_vars } as t) perm
+      =
     let body' = Expr.apply_renaming body perm in
     let changed = ref (body != body') in
     let num_normal_occurrences_of_bound_vars =
-      Variable.Map.fold (fun var num result ->
+      Variable.Map.fold
+        (fun var num result ->
           let var' = Renaming.apply_variable perm var in
-          changed := !changed || (var != var');
+          changed := !changed || var != var';
           Variable.Map.add var' num result)
-        num_normal_occurrences_of_bound_vars
-        Variable.Map.empty
+        num_normal_occurrences_of_bound_vars Variable.Map.empty
     in
-    if not !changed then t
-    else { body = body'; num_normal_occurrences_of_bound_vars; }
+    if not !changed
+    then t
+    else { body = body'; num_normal_occurrences_of_bound_vars }
 
-  let all_ids_for_export { body; num_normal_occurrences_of_bound_vars = _; } =
+  let all_ids_for_export { body; num_normal_occurrences_of_bound_vars = _ } =
     Expr.all_ids_for_export body
 end
 
 module A = Name_abstraction.Make (Bindable_let_bound) (T0)
 
-type t = {
-  name_abstraction : A.t;
-  defining_expr : Named.t;
-}
+type t = { name_abstraction : A.t; defining_expr : Named.t }
 
 let pattern_match t ~f =
-  A.pattern_match t.name_abstraction
-    ~f:(fun bindable_let_bound t0 -> f bindable_let_bound ~body:t0.body)
+  A.pattern_match t.name_abstraction ~f:(fun bindable_let_bound t0 ->
+      f bindable_let_bound ~body:t0.body)
 
 let pattern_match' t ~f =
-  A.pattern_match t.name_abstraction
-    ~f:(fun bindable_let_bound t0 ->
+  A.pattern_match t.name_abstraction ~f:(fun bindable_let_bound t0 ->
       let num_normal_occurrences_of_bound_vars =
         t0.num_normal_occurrences_of_bound_vars
       in
@@ -82,33 +79,27 @@ module Pattern_match_pair_error = struct
 end
 
 let pattern_match_pair t1 t2 ~dynamic ~static =
-  A.pattern_match t1.name_abstraction
-    ~f:(fun bindable_let_bound1 t0_1 ->
+  A.pattern_match t1.name_abstraction ~f:(fun bindable_let_bound1 t0_1 ->
       let body1 = t0_1.body in
-      A.pattern_match t2.name_abstraction
-        ~f:(fun bindable_let_bound2 t0_2 ->
+      A.pattern_match t2.name_abstraction ~f:(fun bindable_let_bound2 t0_2 ->
           let body2 = t0_2.body in
           let dynamic_case () =
             let ans =
-              A.pattern_match_pair
-                t1.name_abstraction
-                t2.name_abstraction
+              A.pattern_match_pair t1.name_abstraction t2.name_abstraction
                 ~f:(fun bindable_let_bound t0_1 t0_2 ->
                   dynamic bindable_let_bound ~body1:t0_1.body ~body2:t0_2.body)
             in
             Ok ans
           in
           match bindable_let_bound1, bindable_let_bound2 with
-          | Bindable_let_bound.Singleton _,
-            Bindable_let_bound.Singleton _ ->
+          | Bindable_let_bound.Singleton _, Bindable_let_bound.Singleton _ ->
             dynamic_case ()
-          | Set_of_closures { closure_vars = vars1; _ },
-            Set_of_closures { closure_vars = vars2; _ } ->
+          | ( Set_of_closures { closure_vars = vars1; _ },
+              Set_of_closures { closure_vars = vars2; _ } ) ->
             if List.compare_lengths vars1 vars2 = 0
             then dynamic_case ()
             else Error Pattern_match_pair_error.Mismatched_let_bindings
-          | Symbols bound_symbols1,
-            Symbols bound_symbols2 ->
+          | Symbols bound_symbols1, Symbols bound_symbols2 ->
             let patterns1 =
               bound_symbols1.bound_symbols |> Bound_symbols.to_list
             in
@@ -120,8 +111,7 @@ let pattern_match_pair t1 t2 ~dynamic ~static =
               let ans = static ~bound_symbols1 ~bound_symbols2 ~body1 ~body2 in
               Ok ans
             else Error Pattern_match_pair_error.Mismatched_let_bindings
-          | _, _ ->
-            Error Pattern_match_pair_error.Mismatched_let_bindings))
+          | _, _ -> Error Pattern_match_pair_error.Mismatched_let_bindings))
 
 (* For printing "let symbol": *)
 
@@ -130,71 +120,70 @@ type flattened_for_printing_descr =
   | Set_of_closures of Symbol.t Closure_id.Lmap.t * Set_of_closures.t
   | Block_like of Symbol.t * Static_const.t
 
-type flattened_for_printing = {
-  second_or_later_binding_within_one_set : bool;
-  second_or_later_rec_binding : bool;
-  descr : flattened_for_printing_descr;
-}
+type flattened_for_printing =
+  { second_or_later_binding_within_one_set : bool;
+    second_or_later_rec_binding : bool;
+    descr : flattened_for_printing_descr
+  }
 
 let shape_colour descr =
   match descr with
   | Code _ -> Flambda_colours.code_id ()
   | Set_of_closures _ | Block_like _ -> Flambda_colours.symbol ()
 
-(* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it
-   doesn't become used soon. *)
+(* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it doesn't
+   become used soon. *)
 
 let flatten_for_printing0 bound_symbols defining_exprs =
   Static_const.Group.match_against_bound_symbols defining_exprs bound_symbols
     ~init:([], false)
-    ~code:(fun (flattened_acc, second_or_later_rec_binding)
-          code_id code ->
+    ~code:(fun (flattened_acc, second_or_later_rec_binding) code_id code ->
       let flattened =
         { second_or_later_binding_within_one_set = false;
           second_or_later_rec_binding;
-          descr = Code (code_id, code);
+          descr = Code (code_id, code)
         }
       in
       flattened_acc @ [flattened], true)
-    ~set_of_closures:(fun (flattened_acc, second_or_later_rec_binding)
-          ~closure_symbols set_of_closures ->
+    ~set_of_closures:
+      (fun (flattened_acc, second_or_later_rec_binding) ~closure_symbols
+           set_of_closures ->
       let flattened =
-        if Set_of_closures.is_empty set_of_closures then []
+        if Set_of_closures.is_empty set_of_closures
+        then []
         else
           let second_or_later_binding_within_one_set = false in
-          [{ second_or_later_binding_within_one_set;
-             second_or_later_rec_binding;
-             descr = Set_of_closures (closure_symbols, set_of_closures);
-          }]
+          [ { second_or_later_binding_within_one_set;
+              second_or_later_rec_binding;
+              descr = Set_of_closures (closure_symbols, set_of_closures)
+            } ]
       in
       flattened_acc @ flattened, true)
-    ~block_like:(fun (flattened_acc, second_or_later_rec_binding)
-          symbol defining_expr ->
+    ~block_like:
+      (fun (flattened_acc, second_or_later_rec_binding) symbol defining_expr ->
       let flattened =
         { second_or_later_binding_within_one_set = false;
           second_or_later_rec_binding;
-          descr = Block_like (symbol, defining_expr);
+          descr = Block_like (symbol, defining_expr)
         }
       in
       flattened_acc @ [flattened], true)
 
 let flatten_for_printing t =
   pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-    match bindable_let_bound with
-    | Symbols { bound_symbols; } ->
-      let flattened, _ =
-        flatten_for_printing0 bound_symbols
-          (Named.must_be_static_consts t.defining_expr)
-      in
-      Some (flattened, body)
-    | Singleton _ | Set_of_closures _ -> None)
+      match bindable_let_bound with
+      | Symbols { bound_symbols } ->
+        let flattened, _ =
+          flatten_for_printing0 bound_symbols
+            (Named.must_be_static_consts t.defining_expr)
+        in
+        Some (flattened, body)
+      | Singleton _ | Set_of_closures _ -> None)
 
 let print_closure_binding ppf (closure_id, sym) =
-  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s %a@]"
-    Symbol.print sym
-    (Flambda_colours.elide ())
-    (Flambda_colours.elide ())
-    Closure_id.print closure_id
+  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s %a@]" Symbol.print sym
+    (Flambda_colours.elide ()) (Flambda_colours.elide ()) Closure_id.print
+    closure_id
 
 let print_flattened_descr_lhs ppf descr =
   match descr with
@@ -202,11 +191,10 @@ let print_flattened_descr_lhs ppf descr =
   | Set_of_closures (closure_symbols, _) ->
     Format.fprintf ppf "@[<hov 0>%a@]"
       (Format.pp_print_list
-        ~pp_sep:(fun ppf () ->
-          Format.fprintf ppf "@<0>%s,@ @<0>%s"
-            (Flambda_colours.elide ())
-            (Flambda_colours.normal ()))
-        print_closure_binding)
+         ~pp_sep:(fun ppf () ->
+           Format.fprintf ppf "@<0>%s,@ @<0>%s" (Flambda_colours.elide ())
+             (Flambda_colours.normal ()))
+         print_closure_binding)
       (Closure_id.Lmap.bindings closure_symbols)
   | Block_like (symbol, _) -> Symbol.print ppf symbol
 
@@ -218,32 +206,25 @@ let print_flattened_descr_rhs ppf descr =
   | Block_like (_, static_const) -> Static_const.print ppf static_const
 
 let print_flattened ppf
-      { second_or_later_binding_within_one_set = _;
-        second_or_later_rec_binding;
-        descr;
-      } =
+    { second_or_later_binding_within_one_set = _;
+      second_or_later_rec_binding;
+      descr
+    } =
   fprintf ppf "@[<hov 0>";
-  (*
-  if second_or_later_rec_binding
-    && not second_or_later_binding_within_one_set
-  then begin
-    fprintf ppf "@<0>%sand_set @<0>%s"
-      (Flambda_colours.elide ())
-      (Flambda_colours.normal ())
-  end else *) if second_or_later_rec_binding then begin
+  (* if second_or_later_rec_binding && not
+     second_or_later_binding_within_one_set then begin fprintf ppf
+     "@<0>%sand_set @<0>%s" (Flambda_colours.elide ()) (Flambda_colours.normal
+     ()) end else *)
+  (if second_or_later_rec_binding
+  then
     fprintf ppf "@<0>%sand @<0>%s"
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
-  end else begin
+  else
     let shape = "\u{25b7}" (* unfilled triangle *) in
-    fprintf ppf "@<0>%s@<1>%s @<0>%s"
-      (shape_colour descr)
-      shape
-      (Flambda_colours.normal ())
-  end;
-  fprintf ppf
-    "%a@<0>%s =@<0>%s@ %a@]"
-    print_flattened_descr_lhs descr
+    fprintf ppf "@<0>%s@<1>%s @<0>%s" (shape_colour descr) shape
+      (Flambda_colours.normal ()));
+  fprintf ppf "%a@<0>%s =@<0>%s@ %a@]" print_flattened_descr_lhs descr
     (Flambda_colours.elide ())
     (Flambda_colours.normal ())
     print_flattened_descr_rhs descr
@@ -251,28 +232,29 @@ let print_flattened ppf
 let flatten_let_symbol t : _ * Expr.t =
   let rec flatten (expr : Expr.t) : _ * Expr.t =
     match Expr.descr expr with
-    | Let t ->
-      begin match flatten_for_printing t with
+    | Let t -> begin
+      match flatten_for_printing t with
       | Some (flattened, body) ->
         let flattened', body = flatten body in
         flattened @ flattened', body
       | None -> [], expr
-      end
+    end
     | _ -> [], expr
   in
   match flatten_for_printing t with
   | Some (flattened, body) ->
     let flattened', body = flatten body in
     flattened @ flattened', body
-  | None -> assert false  (* see below *)
+  | None -> assert false
+(* see below *)
 
-(* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the
-   same flattened type? *)
+(* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the same
+   flattened type? *)
 let print_let_symbol_with_cache ~cache ppf t =
   let rec print_more flattened =
     match flattened with
     | [] -> ()
-    | flat::flattened ->
+    | flat :: flattened ->
       fprintf ppf "@ ";
       print_flattened ppf flat;
       print_more flattened
@@ -280,7 +262,7 @@ let print_let_symbol_with_cache ~cache ppf t =
   let flattened, body = flatten_let_symbol t in
   match flattened with
   | [] -> assert false
-  | flat::flattened ->
+  | flat :: flattened ->
     fprintf ppf "@[<v 1>(@<0>%slet_symbol@<0>%s@ @[<v 0>%a"
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
@@ -339,7 +321,7 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
 let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create bindable_let_bound defining_expr ~body
-      ~(free_names_of_body : _ Or_unknown.t) =
+    ~(free_names_of_body : _ Or_unknown.t) =
   let num_normal_occurrences_of_bound_vars =
     match free_names_of_body with
     | Unknown -> Variable.Map.empty
@@ -348,88 +330,75 @@ let create bindable_let_bound defining_expr ~body
         Bindable_let_bound.free_names bindable_let_bound
       in
       Name_occurrences.fold_variables free_names_of_bindable
-        ~init:Variable.Map.empty
-        ~f:(fun num_occurrences var ->
+        ~init:Variable.Map.empty ~f:(fun num_occurrences var ->
           let num =
-            Name_occurrences.count_variable_normal_mode
-              free_names_of_body var
+            Name_occurrences.count_variable_normal_mode free_names_of_body var
           in
           Variable.Map.add var num num_occurrences)
   in
-  let t0 : T0.t =
-    { num_normal_occurrences_of_bound_vars;
-      body;
-    }
-  in
-  { name_abstraction = A.create bindable_let_bound t0;
-    defining_expr;
-  }
+  let t0 : T0.t = { num_normal_occurrences_of_bound_vars; body } in
+  { name_abstraction = A.create bindable_let_bound t0; defining_expr }
 
 let invariant env t =
   let module E = Invariant_env in
   Named.invariant env t.defining_expr;
   pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-    let env =
-      match t.defining_expr, bindable_let_bound with
-      | Set_of_closures _, Set_of_closures { closure_vars; _ } ->
-        List.fold_left (fun env closure_var ->
-            let closure_var = VB.var closure_var in
-            E.add_variable env closure_var K.value)
-          env
-          closure_vars
-      | Set_of_closures _, Singleton _ ->
-        Misc.fatal_errorf "Cannot bind a [Set_of_closures] to a \
-            [Singleton]:@ %a"
-          print t
-      | _, Set_of_closures _ ->
-        Misc.fatal_errorf "Cannot bind a non-[Set_of_closures] to a \
-            [Set_of_closures]:@ %a"
-          print t
-      | Prim (prim, _dbg), Singleton var ->
-        let var = VB.var var in
-        E.add_variable env var (Flambda_primitive.result_kind' prim)
-      | Simple _simple, Singleton _var -> Misc.fatal_error "To be deleted"
-      | Static_consts _, Symbols _ -> env
-      | Static_consts _, Singleton _ ->
-        Misc.fatal_errorf "Cannot bind a [Static_const] to a [Singleton]:@ %a"
-          print t
-      | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
-        Misc.fatal_errorf "Cannot bind a non-[Static_const] to [Symbols]:@ %a"
-          print t
-      | Rec_info _, Singleton _ -> env
-    in
-    Expr.invariant env body)
+      let env =
+        match t.defining_expr, bindable_let_bound with
+        | Set_of_closures _, Set_of_closures { closure_vars; _ } ->
+          List.fold_left
+            (fun env closure_var ->
+              let closure_var = VB.var closure_var in
+              E.add_variable env closure_var K.value)
+            env closure_vars
+        | Set_of_closures _, Singleton _ ->
+          Misc.fatal_errorf
+            "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a" print t
+        | _, Set_of_closures _ ->
+          Misc.fatal_errorf
+            "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a"
+            print t
+        | Prim (prim, _dbg), Singleton var ->
+          let var = VB.var var in
+          E.add_variable env var (Flambda_primitive.result_kind' prim)
+        | Simple _simple, Singleton _var -> Misc.fatal_error "To be deleted"
+        | Static_consts _, Symbols _ -> env
+        | Static_consts _, Singleton _ ->
+          Misc.fatal_errorf "Cannot bind a [Static_const] to a [Singleton]:@ %a"
+            print t
+        | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
+          Misc.fatal_errorf "Cannot bind a non-[Static_const] to [Symbols]:@ %a"
+            print t
+        | Rec_info _, Singleton _ -> env
+      in
+      Expr.invariant env body)
 
 let defining_expr t = t.defining_expr
 
-let free_names
-      ({ name_abstraction = _; defining_expr; } as t) =
+let free_names ({ name_abstraction = _; defining_expr } as t) =
   pattern_match t ~f:(fun bindable_let_bound ~body ->
-    let from_bindable = Bindable_let_bound.free_names bindable_let_bound in
-    let from_defining_expr =
-      let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
-      Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
-        (Named.free_names defining_expr)
-        name_mode
-    in
-    let from_body = Expr.free_names body in
-    (* CR mshinwell: See comment in expr.rec.ml *)
-    (* Care: there can be recursive bindings. *)
-    Name_occurrences.diff
-      (Name_occurrences.union from_defining_expr from_body)
-      from_bindable)
+      let from_bindable = Bindable_let_bound.free_names bindable_let_bound in
+      let from_defining_expr =
+        let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
+        Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
+          (Named.free_names defining_expr)
+          name_mode
+      in
+      let from_body = Expr.free_names body in
+      (* CR mshinwell: See comment in expr.rec.ml *)
+      (* Care: there can be recursive bindings. *)
+      Name_occurrences.diff
+        (Name_occurrences.union from_defining_expr from_body)
+        from_bindable)
 
-let apply_renaming ({ name_abstraction; defining_expr; } as t) perm =
+let apply_renaming ({ name_abstraction; defining_expr } as t) perm =
   let name_abstraction' = A.apply_renaming name_abstraction perm in
   let defining_expr' = Named.apply_renaming defining_expr perm in
   if name_abstraction == name_abstraction' && defining_expr == defining_expr'
   then t
-  else
-    { name_abstraction = name_abstraction';
-      defining_expr = defining_expr';
-    }
+  else { name_abstraction = name_abstraction'; defining_expr = defining_expr' }
 
-let all_ids_for_export { name_abstraction; defining_expr; } =
+let all_ids_for_export { name_abstraction; defining_expr } =
   let defining_expr_ids = Named.all_ids_for_export defining_expr in
   let name_abstraction_ids = A.all_ids_for_export name_abstraction in
   Ids_for_export.union defining_expr_ids name_abstraction_ids

@@ -20,4 +20,5 @@ module Closure_id_or_unknown = Or_unknown.Lift (Closure_id)
 
 type t = Closure_id_or_unknown.t * Var_within_closure.Set.t
 
-include Container_types.Make_pair (Closure_id_or_unknown) (Var_within_closure_set)
+include
+  Container_types.Make_pair (Closure_id_or_unknown) (Var_within_closure_set)

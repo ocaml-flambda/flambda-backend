@@ -18,6 +18,7 @@ module Calling_convention : sig
   val print : Format.formatter -> t -> unit
 
   val needs_closure_arg : t -> bool
+
   val is_tupled : t -> bool
 
   val params_arity : t -> Flambda_arity.t
@@ -27,11 +28,7 @@ type t
 
 include Contains_ids.S with type t := t
 
-val apply_renaming
-   : Code_id.t Code_id.Map.t
-  -> Renaming.t
-  -> t
-  -> t
+val apply_renaming : Code_id.t Code_id.Map.t -> Renaming.t -> t -> t
 
 val print : Format.formatter -> t -> unit
 

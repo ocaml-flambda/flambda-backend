@@ -20,20 +20,20 @@ module type S = sig
   type variable
 
   module Unrolling_state : sig
-    (** The current state of unrolling. Can be set by an [unroll_to] expression.
-        *)
+    (** The current state of unrolling. Can be set by an [unroll_to]
+        expression. *)
     type t = private
-      | Not_unrolling
-        (** Unrolling has not begun. *)
+      | Not_unrolling  (** Unrolling has not begun. *)
       | Unrolling of { remaining_depth : int }
-        (** Unrolling has begun and will continue until [remaining_depth] is
-            zero. A subsequent [unroll_to] expression may increase the
-            remaining depth. *)
-      | Do_not_unroll
-        (** No unrolling may occur. [unroll_to] has no effect. *)
+          (** Unrolling has begun and will continue until [remaining_depth] is
+              zero. A subsequent [unroll_to] expression may increase the
+              remaining depth. *)
+      | Do_not_unroll  (** No unrolling may occur. [unroll_to] has no effect. *)
 
     val not_unrolling : t
+
     val unrolling : remaining_depth:int -> t
+
     val do_not_unroll : t
 
     val print : Format.formatter -> t -> unit
@@ -47,22 +47,27 @@ module type S = sig
       Forms the right-hand side of a [Let_expr] binding for a depth variable. *)
   type t = private
     | Const of { depth : int Or_infinity.t; unrolling : Unrolling_state.t }
-    | Var of variable
-      (** A variable of kind [Flambda_kind.rec_info]. *)
+    | Var of variable  (** A variable of kind [Flambda_kind.rec_info]. *)
     | Succ of t
-      (** The next depth. If we inline an occurrence with depth [d], then in the
-          inlined body, recursive references will have depth [succ d]. *)
+        (** The next depth. If we inline an occurrence with depth [d], then in
+            the inlined body, recursive references will have depth [succ d]. *)
     | Unroll_to of int * t
-      (** Indicate the depth to which unrolling should proceed. The unroll depth
-          is decremented by [Succ] until it reaches zero, at which
-          point all unrolling should stop. *)
+        (** Indicate the depth to which unrolling should proceed. The unroll
+            depth is decremented by [Succ] until it reaches zero, at which point
+            all unrolling should stop. *)
 
   val initial : t
+
   val unknown : t
+
   val do_not_inline : t
+
   val const : depth:int Or_infinity.t -> unrolling:Unrolling_state.t -> t
+
   val var : variable -> t
+
   val succ : t -> t
+
   val unroll_to : int -> t -> t
 
   val is_obviously_initial : t -> bool
@@ -76,4 +81,4 @@ module type S = sig
   val map_depth_variables : t -> f:(variable -> variable) -> t
 end
 
-module Make(Variable : Container_types.S) : S with type variable = Variable.t
+module Make (Variable : Container_types.S) : S with type variable = Variable.t

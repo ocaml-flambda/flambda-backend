@@ -16,7 +16,8 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-module Id : Id_types.Id = Id_types.Id (struct end)
+module Id : Id_types.Id = Id_types.Id ()
+
 module Unit_id = Id_types.UnitId (Id) (Compilation_unit)
 
 type t = Unit_id.t
@@ -24,5 +25,7 @@ type t = Unit_id.t
 include Container_types.Make (Unit_id)
 
 let create = Unit_id.create
+
 let get_compilation_unit = Unit_id.unit
+
 let name = Unit_id.name

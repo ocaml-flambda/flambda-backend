@@ -36,9 +36,7 @@ val add_innermost : t -> LC.t -> t
 
 val add_outermost : t -> LC.t -> t
 
-val singleton_sorted_array_of_constants
-   : innermost_first:LC.t array
-   -> t
+val singleton_sorted_array_of_constants : innermost_first:LC.t array -> t
 
 (* Use if the order of constants doesn't matter. *)
 val union : t -> t -> t
@@ -46,31 +44,15 @@ val union : t -> t -> t
 val union_ordered : innermost:t -> outermost:t -> t
 
 (* Use if the order of constants doesn't matter. *)
-val fold
-   : t
-  -> init:'a
-  -> f:('a -> LC.t -> 'a)
-  -> 'a
+val fold : t -> init:'a -> f:('a -> LC.t -> 'a) -> 'a
 
-val fold_outermost_first
-   : t
-  -> init:'a
-  -> f:('a -> LC.t -> 'a)
-  -> 'a
+val fold_outermost_first : t -> init:'a -> f:('a -> LC.t -> 'a) -> 'a
 
-val fold_innermost_first
-   : t
-  -> init:'a
-  -> f:('a -> LC.t -> 'a)
-  -> 'a
+val fold_innermost_first : t -> init:'a -> f:('a -> LC.t -> 'a) -> 'a
 
 val all_defined_symbols : t -> Symbol.Set.t
 
-val add_to_denv
-   : ?maybe_already_defined:unit
-  -> DE.t
-  -> t
-  -> DE.t
+val add_to_denv : ?maybe_already_defined:unit -> DE.t -> t -> DE.t
 
 val add_singleton_to_denv : DE.t -> LC.t -> DE.t
 

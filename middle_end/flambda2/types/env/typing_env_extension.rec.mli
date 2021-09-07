@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Typing environment extensions: typing environment levels that are
-    surrounded by a binder that captures defined names as existentials. *)
+(** Typing environment extensions: typing environment levels that are surrounded
+    by a binder that captures defined names as existentials. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
@@ -27,11 +27,7 @@ include Contains_ids.S with type t := t
 
 val print : Format.formatter -> t -> unit
 
-val fold
-   : equation:(Name.t -> Type_grammar.t -> 'a -> 'a)
-  -> t
-  -> 'a
-  -> 'a
+val fold : equation:(Name.t -> Type_grammar.t -> 'a -> 'a) -> t -> 'a -> 'a
 
 val invariant : t -> unit
 
@@ -54,21 +50,16 @@ module With_extra_variables : sig
 
   val print : Format.formatter -> t -> unit
 
-  val fold
-     : variable:(Variable.t -> Flambda_kind.t -> 'a -> 'a)
-    -> equation:(Name.t -> Type_grammar.t -> 'a -> 'a)
-    -> t
-    -> 'a
-    -> 'a
+  val fold :
+    variable:(Variable.t -> Flambda_kind.t -> 'a -> 'a) ->
+    equation:(Name.t -> Type_grammar.t -> 'a -> 'a) ->
+    t ->
+    'a ->
+    'a
 
   val empty : unit -> t
 
-  val add_definition
-     : t
-    -> Variable.t
-    -> Flambda_kind.t
-    -> Type_grammar.t
-    -> t
+  val add_definition : t -> Variable.t -> Flambda_kind.t -> Type_grammar.t -> t
 
   val add_or_replace_equation : t -> Name.t -> Type_grammar.t -> t
 end

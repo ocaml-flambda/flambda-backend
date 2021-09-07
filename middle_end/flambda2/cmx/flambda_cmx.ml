@@ -19,15 +19,15 @@
 open! Simplify_import
 
 let rec load_cmx_file_contents backend comp_unit ~imported_units ~imported_names
-      ~imported_code =
+    ~imported_code =
   match Compilation_unit.Map.find comp_unit !imported_units with
   | typing_env_or_none -> typing_env_or_none
-  | exception Not_found ->
+  | exception Not_found -> (
     let module Backend = (val backend : Flambda_backend_intf.S) in
     match Backend.get_global_info comp_unit with
     | None ->
-      (* To make things easier to think about, we never retry after a .cmx
-         load fails. *)
+      (* To make things easier to think about, we never retry after a .cmx load
+         fails. *)
       imported_units := Compilation_unit.Map.add comp_unit None !imported_units;
       None
     | Some cmx ->
@@ -49,15 +49,15 @@ let rec load_cmx_file_contents backend comp_unit ~imported_units ~imported_names
       imported_code := Exported_code.merge all_code !imported_code;
       let offsets = Flambda_cmx_format.exported_offsets cmx in
       Exported_offsets.import_offsets offsets;
-      imported_units :=
-        Compilation_unit.Map.add comp_unit (Some typing_env) !imported_units;
-      Some typing_env
+      imported_units
+        := Compilation_unit.Map.add comp_unit (Some typing_env) !imported_units;
+      Some typing_env)
 
 let compute_reachable_names_and_code ~module_symbol typing_env code =
   let rec fixpoint names_to_add names_already_added =
     if Name_occurrences.is_empty names_to_add
     then names_already_added
-    else begin
+    else
       let names_already_added =
         Name_occurrences.union names_to_add names_already_added
       in
@@ -89,17 +89,14 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
           names_to_add
       in
       let from_code_ids =
-        Name_occurrences.fold_code_ids names_to_add
-          ~init:Name_occurrences.empty
+        Name_occurrences.fold_code_ids names_to_add ~init:Name_occurrences.empty
           ~f:fold_code_id
       in
       let from_names_and_code_ids =
-        Name_occurrences.fold_names names_to_add
-          ~init:from_code_ids
+        Name_occurrences.fold_names names_to_add ~init:from_code_ids
           ~f:fold_name
       in
       fixpoint from_names_and_code_ids names_already_added
-    end
   in
   let init_names =
     Name_occurrences.singleton_symbol module_symbol Name_mode.normal
@@ -107,30 +104,29 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
   fixpoint init_names Name_occurrences.empty
 
 let prepare_cmx_file_contents ~return_cont_env:cont_uses_env
-      ~return_continuation ~module_symbol ~used_closure_vars all_code =
+    ~return_continuation ~module_symbol ~used_closure_vars all_code =
   match
-    Continuation_uses_env.get_typing_env_no_more_than_one_use
-      cont_uses_env return_continuation
+    Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env
+      return_continuation
   with
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->
-    (* CR mshinwell: We should remove typing information about names that
-       do not occur (transitively) in the type of the module block. *)
+    (* CR mshinwell: We should remove typing information about names that do not
+       occur (transitively) in the type of the module block. *)
     let reachable_names =
       compute_reachable_names_and_code ~module_symbol final_typing_env all_code
     in
-    let all_code =
-      Exported_code.remove_unreachable all_code ~reachable_names
-    in
+    let all_code = Exported_code.remove_unreachable all_code ~reachable_names in
     let final_typing_env =
       TE.clean_for_export final_typing_env ~reachable_names
       |> TE.Serializable.create
     in
     let exported_offsets =
-      (* The offsets computations for newly defined elements will be added
-         after Un_cps_closure *)
+      (* The offsets computations for newly defined elements will be added after
+         Un_cps_closure *)
       Exported_offsets.imported_offsets ()
     in
-    Some (Flambda_cmx_format.create
-            ~final_typing_env ~all_code ~exported_offsets ~used_closure_vars)
+    Some
+      (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
+         ~used_closure_vars)

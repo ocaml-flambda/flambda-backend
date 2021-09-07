@@ -27,8 +27,9 @@ let [@ocamlformat "disable"] print ppf t =
 
 let compare t1 t2 =
   match t1, t2 with
-  | Mutable, Mutable | Immutable, Immutable
-  | Immutable_unique, Immutable_unique -> 0
+  | Mutable, Mutable | Immutable, Immutable | Immutable_unique, Immutable_unique
+    ->
+    0
   | Mutable, (Immutable | Immutable_unique) -> -1
   | Immutable, Immutable_unique -> -1
   | Immutable, Mutable -> 1
@@ -39,9 +40,11 @@ let join t1 t2 =
   | Immutable, Immutable -> Immutable
   | Immutable_unique, Immutable_unique
   | Immutable, Immutable_unique
-  | Immutable_unique, Immutable -> Immutable_unique
+  | Immutable_unique, Immutable ->
+    Immutable_unique
   | Mutable, (Mutable | Immutable | Immutable_unique)
-  | (Immutable | Immutable_unique), Mutable -> Mutable
+  | (Immutable | Immutable_unique), Mutable ->
+    Mutable
 
 (* CR mshinwell: This function should be renamed, or else produce
    Lambda.mutable_flag *)
@@ -52,6 +55,4 @@ let to_lambda t : Asttypes.mutable_flag =
   | Immutable_unique -> Immutable
 
 let is_mutable t =
-  match t with
-  | Mutable -> true
-  | Immutable | Immutable_unique -> false
+  match t with Mutable -> true | Immutable | Immutable_unique -> false

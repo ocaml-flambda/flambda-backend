@@ -17,30 +17,31 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module T0 = Name_abstraction.Make_list (Kinded_parameter) (Expr)
-(* CR mshinwell: This should use [Bindable_continuation].
-   [Exn_continuation] involves extra args, but we never have extra args
-   here! *)
+
+(* CR mshinwell: This should use [Bindable_continuation]. [Exn_continuation]
+   involves extra args, but we never have extra args here! *)
 module T1 = Name_abstraction.Make (Bindable_exn_continuation) (T0)
 module T2 = Name_abstraction.Make (Bindable_continuation) (T1)
-(* CR lmaurer: It would be good to avoid the extra abstraction when a
-   function is known to be non-recursive. Maybe we should flatten all
-   of these into one big [Bindable]? *)
+
+(* CR lmaurer: It would be good to avoid the extra abstraction when a function
+   is known to be non-recursive. Maybe we should flatten all of these into one
+   big [Bindable]? *)
 module A = Name_abstraction.Make (Bindable_variable_in_terms) (T2)
 
-type t = {
-  abst : A.t;
-  dbg : Debuginfo.t;
-  params_arity : Flambda_arity.t;
-  is_my_closure_used : bool Or_unknown.t;
-}
+type t =
+  { abst : A.t;
+    dbg : Debuginfo.t;
+    params_arity : Flambda_arity.t;
+    is_my_closure_used : bool Or_unknown.t
+  }
 
 let invariant _env _t = ()
 
 let create ~return_continuation exn_continuation params ~dbg ~body
-      ~free_names_of_body ~my_closure ~my_depth =
+    ~free_names_of_body ~my_closure ~my_depth =
   let is_my_closure_used =
     Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
-      Name_occurrences.mem_var free_names_of_body my_closure)
+        Name_occurrences.mem_var free_names_of_body my_closure)
   in
   let my_closure =
     Kinded_parameter.create my_closure (K.With_subkind.create K.value Anything)
@@ -49,34 +50,42 @@ let create ~return_continuation exn_continuation params ~dbg ~body
   let t1 = T1.create exn_continuation t0 in
   let t2 = T2.create return_continuation t1 in
   let abst = A.create my_depth t2 in
-  { abst; dbg;
+  { abst;
+    dbg;
     params_arity = Kinded_parameter.List.arity params;
-    is_my_closure_used;
+    is_my_closure_used
   }
 
 let extract_my_closure params_and_my_closure =
   match List.rev params_and_my_closure with
-  | my_closure::params_rev ->
+  | my_closure :: params_rev ->
     List.rev params_rev, Kinded_parameter.var my_closure
-  | [] -> assert false  (* see [create], above. *)
+  | [] -> assert false
+(* see [create], above. *)
 
 let pattern_match t ~f =
   A.pattern_match t.abst ~f:(fun my_depth t2 ->
-    T2.pattern_match t2 ~f:(fun return_continuation t1 ->
-      T1.pattern_match t1 ~f:(fun exn_continuation t0 ->
-        T0.pattern_match t0 ~f:(fun params_and_my_closure body ->
-          let params, my_closure = extract_my_closure params_and_my_closure in
-          f ~return_continuation exn_continuation params ~body ~my_closure
-            ~is_my_closure_used:t.is_my_closure_used ~my_depth))))
+      T2.pattern_match t2 ~f:(fun return_continuation t1 ->
+          T1.pattern_match t1 ~f:(fun exn_continuation t0 ->
+              T0.pattern_match t0 ~f:(fun params_and_my_closure body ->
+                  let params, my_closure =
+                    extract_my_closure params_and_my_closure
+                  in
+                  f ~return_continuation exn_continuation params ~body
+                    ~my_closure ~is_my_closure_used:t.is_my_closure_used
+                    ~my_depth))))
 
 let pattern_match_pair t1 t2 ~f =
   A.pattern_match_pair t1.abst t2.abst ~f:(fun my_depth t2_1 t2_2 ->
-    T2.pattern_match_pair t2_1 t2_2 ~f:(fun return_continuation t1_1 t1_2 ->
-      T1.pattern_match_pair t1_1 t1_2 ~f:(fun exn_continuation t0_1 t0_2 ->
-        T0.pattern_match_pair t0_1 t0_2 ~f:(fun params_and_my_closure body1 body2 ->
-          let params, my_closure = extract_my_closure params_and_my_closure in
-          f ~return_continuation exn_continuation params ~body1 ~body2 ~my_closure
-            ~my_depth))))
+      T2.pattern_match_pair t2_1 t2_2 ~f:(fun return_continuation t1_1 t1_2 ->
+          T1.pattern_match_pair t1_1 t1_2 ~f:(fun exn_continuation t0_1 t0_2 ->
+              T0.pattern_match_pair t0_1 t0_2
+                ~f:(fun params_and_my_closure body1 body2 ->
+                  let params, my_closure =
+                    extract_my_closure params_and_my_closure
+                  in
+                  f ~return_continuation exn_continuation params ~body1 ~body2
+                    ~my_closure ~my_depth))))
 
 let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   pattern_match t
@@ -107,17 +116,17 @@ let [@ocamlformat "disable"] print ppf t =
 
 let params_arity t = t.params_arity
 
-let apply_renaming
-      ({ abst; dbg; params_arity; is_my_closure_used; } as t) perm =
+let apply_renaming ({ abst; dbg; params_arity; is_my_closure_used } as t) perm =
   let abst' = A.apply_renaming abst perm in
-  if abst == abst' then t
-  else { abst = abst'; dbg; params_arity; is_my_closure_used; }
+  if abst == abst'
+  then t
+  else { abst = abst'; dbg; params_arity; is_my_closure_used }
 
-let free_names { abst; params_arity = _; dbg = _; is_my_closure_used = _; } =
+let free_names { abst; params_arity = _; dbg = _; is_my_closure_used = _ } =
   A.free_names abst
 
 let debuginfo { dbg; _ } = dbg
 
 let all_ids_for_export
-      { abst; params_arity = _; dbg = _; is_my_closure_used = _; } =
+    { abst; params_arity = _; dbg = _; is_my_closure_used = _ } =
   A.all_ids_for_export abst

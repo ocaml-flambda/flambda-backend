@@ -16,9 +16,10 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* Code without any function bodies, but with all the associated metadata,
-   e.g. free names. *)
+(* Code without any function bodies, but with all the associated metadata, e.g.
+   free names. *)
 
-include Code_intf.S
-  with type function_params_and_body := unit
-  with type cost_metrics := Flambda.Cost_metrics.t
+include
+  Code_intf.S
+    with type function_params_and_body := unit
+    with type cost_metrics := Flambda.Cost_metrics.t

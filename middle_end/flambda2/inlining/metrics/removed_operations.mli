@@ -20,14 +20,20 @@ type t
 
 val zero : t
 
-val call: t
-val branch: t
-val prim: Flambda_primitive.t -> t
-val alloc: t
-val direct_call_of_indirect: t
+val call : t
+
+val branch : t
+
+val prim : Flambda_primitive.t -> t
+
+val alloc : t
+
+val direct_call_of_indirect : t
+
 val specialized_poly_compare : t
 
-val (+) : t -> t -> t
+val ( + ) : t -> t -> t
+
 val print : Format.formatter -> t -> unit
 
 val evaluate : args:Inlining_arguments.t -> t -> float

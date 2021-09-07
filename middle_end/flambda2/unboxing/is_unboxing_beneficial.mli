@@ -19,6 +19,5 @@
 (* Filter out non beneficial decisions *)
 (* *********************************** *)
 
-val filter_non_beneficial_decisions
-  : Unboxing_types.decision
- -> Unboxing_types.decision
+val filter_non_beneficial_decisions :
+  Unboxing_types.decision -> Unboxing_types.decision

@@ -23,15 +23,12 @@ type t = private
   | Function_body_too_large of Code_size.t
   | Stub
   | Attribute_inline
-  | Small_function of {
-      size: Code_size.t;
-      small_function_size: Code_size.t;
-    }
-  | Speculatively_inlinable of {
-      size: Code_size.t;
-      small_function_size: Code_size.t;
-      large_function_size: Code_size.t;
-    }
+  | Small_function of { size : Code_size.t; small_function_size : Code_size.t }
+  | Speculatively_inlinable of
+      { size : Code_size.t;
+        small_function_size : Code_size.t;
+        large_function_size : Code_size.t
+      }
   | Functor of { size : Code_size.t }
 
 val print : Format.formatter -> t -> unit

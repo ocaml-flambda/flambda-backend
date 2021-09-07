@@ -33,25 +33,20 @@
 
 module type S = sig
   type variable
+
   type rec_info_expr
 
   type t = private
     | Id
-    | Change_depth of {
-        from : rec_info_expr;
-        to_ : rec_info_expr;
-      }
+    | Change_depth of { from : rec_info_expr; to_ : rec_info_expr }
 
-  val change_depth
-    : from:rec_info_expr
-    -> to_:rec_info_expr
-    -> t
+  val change_depth : from:rec_info_expr -> to_:rec_info_expr -> t
 
   val id : t
 
   (* CR lmaurer: This should be renamed to [is_obviously_id] since we can't
-    guarantee in [Change_depth { from; to_ }] that [from] and [to_] are
-    distinct (in any context) *)
+     guarantee in [Change_depth { from; to_ }] that [from] and [to_] are
+     distinct (in any context) *)
   val is_id : t -> bool
 
   val inverse : t -> t
@@ -67,6 +62,7 @@ module type S = sig
   val map_depth_variables : t -> f:(variable -> variable) -> t
 end
 
-module Make(Rec_info_expr : Rec_info_expr0.S)
-  : S with type variable = Rec_info_expr.variable
-       and type rec_info_expr = Rec_info_expr.t
+module Make (Rec_info_expr : Rec_info_expr0.S) :
+  S
+    with type variable = Rec_info_expr.variable
+     and type rec_info_expr = Rec_info_expr.t

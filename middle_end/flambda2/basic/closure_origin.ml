@@ -19,4 +19,5 @@
 include Closure_id
 
 let create t = t
+
 let rename f t = f t
