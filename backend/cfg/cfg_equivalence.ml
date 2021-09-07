@@ -129,15 +129,12 @@ module Make_state (C : Container) : State = struct
          let set1' =
            Label.Set.fold
              (fun lbl acc ->
-                if Label.Tbl.mem cfg.Cfg.blocks lbl then begin
-                  match Label.Tbl.find_opt t.subst lbl with
-                  | Some lbl' -> Label.Set.add lbl' acc
-                  | None ->
-                    different
-                      location
-                      (Printf.sprintf "label %s is not mapped" (Label.to_string lbl))
-                end else
-                  acc)
+                match Label.Tbl.find_opt t.subst lbl with
+                | Some lbl' -> Label.Set.add lbl' acc
+                | None ->
+                  different
+                    location
+                    (Printf.sprintf "label %s is not mapped" (Label.to_string lbl)))
              set1
              Label.Set.empty
          in
@@ -318,12 +315,6 @@ let check_basic
     | Reloadretaddr, Reloadretaddr -> ()
     | Pushtrap { lbl_handler = expected_lbl_handler; },
       Pushtrap { lbl_handler = result_lbl_handler; } ->
-      (* redundant *)
-      State.add_labels_to_check
-        state
-        location
-        expected_lbl_handler
-        result_lbl_handler;
       State.add_to_explore state expected_lbl_handler result_lbl_handler;
     | Poptrap, Poptrap -> ()
     | Prologue, Prologue -> ()
@@ -365,7 +356,7 @@ let rec check_basic_instruction_list
     | (_ :: _), [] ->
       different location "bodies with different sizes (expected is longer)"
     | [], (_ :: _) ->
-      different location "bodies with different sizes (expected is shorter)"
+      different location "bodies with different sizes (result is longer)"
     | (expected_hd :: expected_tl), (result_hd :: result_tl) ->
       check_basic_instruction state location idx expected_hd result_hd;
       check_basic_instruction_list state location (succ idx) expected_tl result_tl
@@ -403,10 +394,7 @@ let check_terminator_instruction
       when Bool.equal is_signed1 is_signed2 && Int.equal imm1 (Int.pred imm2)
         && Label.equal lt1 eq1 && Label.equal eq2 gt2 ->
       State.add_to_explore state lt1 lt2;
-      State.add_to_explore state gt1 gt2;
-      let location = location ^ " (terminator)" in
-      State.add_labels_to_check state location eq1 lt2;
-      State.add_labels_to_check state location gt1 eq2
+      State.add_to_explore state gt1 gt2
     | Switch a1, Switch a2
       when Array.length a1 = Array.length a2 ->
       Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2;
@@ -472,7 +460,7 @@ let rec explore_cfg
         let expected_block = Label.Tbl.find_opt expected.blocks lbl1 in
         let result_block = Label.Tbl.find_opt result.blocks lbl2 in
         match expected_block, result_block with
-        | None, None -> ()
+        | None, None -> assert false
         | None, Some _ ->
           different "graph" "extra block"
         | Some _, None ->

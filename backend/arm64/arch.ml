@@ -170,7 +170,6 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "move32 %a"
         printreg arg.(0)
 
-(* CR xclerc for xclerc: TODO *)
 let equal_addressing_mode left right =
   match left, right with
   | Iindexed left_int, Iindexed right_int ->
