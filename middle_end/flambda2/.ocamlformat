@@ -7,4 +7,5 @@ if-then-else=keyword-first
 parens-tuple=multi-line-only
 space-around-lists=false
 space-around-variants=false
+type-decl=sparse
 wrap-comments=true
