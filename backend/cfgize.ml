@@ -734,9 +734,11 @@ let rec update_liveness
 let fundecl
   : Mach.fundecl
     -> preserve_orig_labels:bool
-    -> prologue_required:(Debuginfo.t * Fdo_info.t) option
+    -> prologue_required:bool
+    -> dbg:Debuginfo.t
+    -> fdo:Fdo_info.t
     -> Cfg_with_layout.t
-  = fun fundecl ~preserve_orig_labels ~prologue_required ->
+  = fun fundecl ~preserve_orig_labels ~prologue_required ~dbg ~fdo ->
     let { Mach.
           fun_name;
           fun_args = _;
@@ -754,8 +756,8 @@ let fundecl
     State.add_block state ~label:(Cfg.entry_label cfg) ~block:{
       start = (Cfg.entry_label cfg);
       body = begin match prologue_required with
-        | None -> []
-        | Some (dbg, fdo) ->
+        | false -> []
+        | true ->
           [{ (make_instruction state ~desc:Cfg.Prologue ~trap_depth:initial_trap_depth)
              with dbg; fdo; }]
       end;

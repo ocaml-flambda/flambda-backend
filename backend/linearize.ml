@@ -401,10 +401,9 @@ let fundecl f =
       Cfgize.fundecl
         f
         ~preserve_orig_labels:false
-        ~prologue_required:(if fun_prologue_required then
-                              Some (fun_body.dbg, fun_body.fdo)
-                            else
-                              None)
+        ~prologue_required:fun_prologue_required
+        ~dbg:(if fun_prologue_required then fun_body.dbg else Debuginfo.none)
+        ~fdo:(if fun_prologue_required then fun_body.fdo else Fdo_info.none)
     in
     let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
     Eliminate_fallthrough_blocks.run expected;
