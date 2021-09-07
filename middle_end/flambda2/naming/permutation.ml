@@ -29,7 +29,7 @@ module Make (N : Container_types.S) = struct
       backwards = N.Map.empty;
     }
 
-  let print ppf { forwards; backwards; } =
+  let [@ocamlformat "disable"] print ppf { forwards; backwards; } =
     Format.fprintf ppf "@[((forwards %a)@ (backwards %a))@]"
       (N.Map.print N.print) forwards
       (N.Map.print N.print) backwards

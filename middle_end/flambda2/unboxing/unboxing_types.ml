@@ -40,7 +40,7 @@ module Extra_param_and_args = struct
     let args = Apply_cont_rewrite_id.Map.add rewrite_id extra_arg t.args in
     { t with args; }
 
-  let print fmt { param; args = _; } =
+  let [@ocamlformat "disable"] print fmt { param; args = _; } =
     Format.fprintf fmt "@[<hv 1>(\
       @[<hov>(param %a)@]@ \
       @[<v 2>(args@ <...>)@]\
@@ -161,7 +161,7 @@ and print_const_ctor_num ppf = function
       Extra_param_and_args.print is_int
       print_decision ctor
 
-let print ppf { decisions; rewrite_ids_seen; } =
+let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
   let pp_sep = Format.pp_print_space in
   let aux ppf (param, decision) =
     Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
@@ -180,5 +180,5 @@ module Decisions = struct
     rewrite_ids_seen : Apply_cont_rewrite_id.Set.t;
   }
 
-  let print = print
+  let [@ocamlformat "disable"] print = print
 end

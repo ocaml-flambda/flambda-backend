@@ -20,7 +20,7 @@ type 'a t =
   | Const of 'a
   | Var of Variable.t
 
-let print print_const ppf t =
+let [@ocamlformat "disable"] print print_const ppf t =
   match t with
   | Const cst -> print_const ppf cst
   | Var var -> Variable.print ppf var

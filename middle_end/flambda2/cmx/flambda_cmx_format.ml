@@ -251,7 +251,7 @@ let print0 ppf t =
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;"
     Exported_offsets.print t.exported_offsets
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let rec print_rest ppf = function
     | [] -> ()
     | t0 :: t ->

@@ -124,7 +124,7 @@ let invariant env t =
 (* CR mshinwell: We might want printing functions that show the delayed
    permutation, etc. *)
 
-let print_with_cache ~cache ppf (t : t) =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
   match descr t with
   | Let let_expr -> Let_expr.print_with_cache ~cache ppf let_expr
   | Let_cont let_cont -> Let_cont_expr.print_with_cache ~cache ppf let_cont
@@ -141,7 +141,7 @@ let print_with_cache ~cache ppf (t : t) =
       Invalid_term_semantics.print semantics
       (Flambda_colours.normal ())
 
-let print ppf (t : t) =
+let [@ocamlformat "disable"] print ppf (t : t) =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create_let let_expr = create (Let let_expr)

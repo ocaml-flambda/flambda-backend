@@ -40,7 +40,7 @@ let print_ea_used ppf t =
           Format.fprintf ppf "%a%a" EA.print ea print_used used))
     t
 
-let print ppf { original_params; used_params; used_extra_params;
+let [@ocamlformat "disable"] print ppf { original_params; used_params; used_extra_params;
                 extra_args;
               } =
   Format.fprintf ppf "@[<hov 1>(\

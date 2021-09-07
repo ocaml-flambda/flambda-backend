@@ -46,7 +46,7 @@ let is_unreachable t are_rebuilding =
     | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _
     | Invalid Halt_and_catch_fire -> false
 
-let print are_rebuilding ppf t =
+let [@ocamlformat "disable"] print are_rebuilding ppf t =
   if ART.do_not_rebuild_terms are_rebuilding then
     Format.fprintf ppf "<unavailable, terms not being rebuilt>"
   else

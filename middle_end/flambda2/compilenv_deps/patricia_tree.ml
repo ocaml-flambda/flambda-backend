@@ -448,7 +448,7 @@ end) = struct
 
   let output _ _ = Misc.fatal_error "output not yet implemented"
 
-  let print ppf s =
+  let [@ocamlformat "disable"] print ppf s =
     let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" Elt.print e) s in
     Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s
 
@@ -1151,7 +1151,7 @@ struct
 
   let map_keys _ _ = Misc.fatal_error "map_keys not yet implemented"
 
-  let print print_datum ppf t =
+  let [@ocamlformat "disable"] print print_datum ppf t =
     if is_empty t then
       Format.fprintf ppf "{}"
     else

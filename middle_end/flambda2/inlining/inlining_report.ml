@@ -86,7 +86,7 @@ let print_debuginfo ppf dbg =
   if Debuginfo.is_none dbg then Format.pp_print_string ppf "None"
   else Debuginfo.print_compact ppf dbg
 
-let rec print ~depth fmt = function
+let [@ocamlformat "disable"] rec print ~depth fmt = function
   (* end of report log *)
   | [] ->
     if depth <> 0 then

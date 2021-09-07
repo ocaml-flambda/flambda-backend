@@ -142,7 +142,7 @@ end = struct
       |> Kind.Map.add Kind.in_types (num_occurrences_in_types t)
       |> Kind.Map.add Kind.phantom (num_occurrences_phantom t)
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(by_kind %a)@]\
           )@]"
@@ -268,7 +268,7 @@ end = struct
       N.Map.singleton name for_one_name
     | Potentially_many map -> map
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     N.Map.print For_one_name.print ppf (map t)
 
   let invariant t =
@@ -626,7 +626,7 @@ let empty = {
   newer_version_of_code_ids = For_code_ids.empty;
 }
 
-let print ppf ({ names; continuations; continuations_with_traps;
+let [@ocamlformat "disable"] print ppf ({ names; continuations; continuations_with_traps;
                  continuations_in_trap_actions;
                  closure_vars; code_ids; newer_version_of_code_ids; } as t) =
   if t = empty then

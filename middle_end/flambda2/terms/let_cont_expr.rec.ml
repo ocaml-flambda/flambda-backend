@@ -27,7 +27,7 @@ type t =
 (* CR mshinwell: A sketch of code for the invariant check is on cps_types. *)
 let invariant _env _t = ()
 
-let print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   let rec gather_let_conts let_conts let_cont =
     match let_cont with
     | Non_recursive { handler; num_free_occurrences = _;
@@ -66,7 +66,7 @@ let print_with_cache ~cache ppf t =
     (List.rev let_conts);
   fprintf ppf ")@]"
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create_non_recursive' ~cont handler ~body

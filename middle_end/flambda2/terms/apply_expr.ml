@@ -39,7 +39,7 @@ module Result_continuation = struct
         | Return k -> Continuation.hash k
         | Never_returns as h -> Hashtbl.hash h
 
-      let print fmt = function
+      let [@ocamlformat "disable"] print fmt = function
         | Return k -> Continuation.print fmt k
         | Never_returns -> Format.fprintf fmt "∅"
 
@@ -74,7 +74,7 @@ type t = {
   probe_name : string option;
 }
 
-let print ppf { callee; continuation; exn_continuation; args; call_kind;
+let [@ocamlformat "disable"] print ppf { callee; continuation; exn_continuation; args; call_kind;
       dbg; inline; inlining_state; probe_name; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
@@ -100,7 +100,7 @@ let print ppf { callee; continuation; exn_continuation; args; call_kind;
       | Some probe_name -> Format.pp_print_string ppf probe_name)
     probe_name
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let invariant env
       ({ callee;

@@ -26,7 +26,7 @@ type t =
   | Is_int of T.t
   | Get_tag of T.t
 
-let print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   match t with
   | Naked_immediates is ->
     Format.fprintf ppf "@[<hov 1>(%a)@]" I.Set.print is
@@ -37,7 +37,7 @@ let print_with_cache ~cache ppf t =
     Format.fprintf ppf "@[<hov 1>(Get_tag@ %a)@]"
       (T.print_with_cache ~cache) ty
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let apply_renaming t renaming =
   match t with

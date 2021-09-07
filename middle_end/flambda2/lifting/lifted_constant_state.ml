@@ -40,7 +40,7 @@ let to_list_outermost_first t =
   in
   to_list t []
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(outermost_first@ %a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space LC.print)
     (to_list_outermost_first t)

@@ -40,7 +40,7 @@ let print_scope_level_and_continuation_in_env ppf (scope_level, cont_in_env) =
     Scope.print scope_level
     Continuation_in_env.print cont_in_env
 
-let print ppf { continuations; exn_continuations; continuation_aliases;
+let [@ocamlformat "disable"] print ppf { continuations; exn_continuations; continuation_aliases;
                 apply_cont_rewrites;
               } =
   Format.fprintf ppf "@[<hov 1>(\

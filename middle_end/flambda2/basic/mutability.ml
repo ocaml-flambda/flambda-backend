@@ -18,7 +18,7 @@
 
 type t = Mutable | Immutable | Immutable_unique
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Mutable -> Format.pp_print_string ppf "Mutable"
   | Immutable -> Format.pp_print_string ppf "Immutable"

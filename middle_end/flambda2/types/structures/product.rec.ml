@@ -32,14 +32,14 @@ module Make (Index : Product_intf.Index) = struct
     kind : Flambda_kind.t;
   }
 
-  let print ppf { components_by_index; kind = _ } =
+  let [@ocamlformat "disable"] print ppf { components_by_index; kind = _ } =
     Format.fprintf ppf
       "@[<hov 1>(\
         @[<hov 1>(components_by_index@ %a)@]\
         )@]"
       (Index.Map.print Type_grammar.print) components_by_index
 
-  let print_with_cache ~cache:_ ppf t = print ppf t
+  let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
   let fields_kind t = t.kind
 
@@ -181,12 +181,12 @@ module Int_indexed = struct
     kind : Flambda_kind.t;
   }
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 1>(%a)@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       (Array.to_list t.fields)
 
-  let print_with_cache ~cache:_ ppf t = print ppf t
+  let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
   let fields_kind t = t.kind
 

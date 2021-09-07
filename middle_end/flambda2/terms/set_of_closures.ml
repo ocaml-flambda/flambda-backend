@@ -21,7 +21,7 @@ type t = {
   closure_elements : Simple.t Var_within_closure.Map.t;
 }
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print_with_cache ~cache ppf
       { function_decls;
         closure_elements;
       } =
@@ -37,7 +37,7 @@ let print_with_cache ~cache ppf
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let output _ _ = Misc.fatal_error "Not yet implemented"
 
@@ -88,7 +88,7 @@ let environment_doesn't_mention_variables t =
   Var_within_closure.Map.for_all (fun _vwc simple -> Simple.is_symbol simple)
     t.closure_elements
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print_with_cache ~cache ppf
       { function_decls;
         closure_elements;
       } =
@@ -109,7 +109,7 @@ let print_with_cache ~cache ppf
       (Function_declarations.print_with_cache ~cache) function_decls
       (Var_within_closure.Map.print Simple.print) closure_elements
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let free_names
       { function_decls;

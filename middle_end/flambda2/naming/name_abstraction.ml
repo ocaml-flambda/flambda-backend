@@ -68,7 +68,7 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
     let fresh_term = Term.apply_renaming term perm in
     f fresh_name fresh_term
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let style = !printing_style in
     pattern_match t ~f:(fun name term ->
       Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
@@ -81,7 +81,7 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
         (Flambda_colours.normal ())
         Term.print term)
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     let style = !printing_style in
     pattern_match t ~f:(fun name term ->
       Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
@@ -174,13 +174,13 @@ module Make_list (Bindable : Bindable.S) (Term : Term) = struct
         (after_binding_position style)
         (Flambda_colours.normal ())
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     pattern_match t ~f:(fun names term ->
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names
         Term.print term)
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     pattern_match t ~f:(fun names term ->
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names
@@ -197,7 +197,7 @@ module Make_list (Bindable : Bindable.S) (Term : Term) = struct
   let [@inline always] pattern_match_pair
         ((names0, term0) as t1) ((names1, term1) as t2) ~f =
     if List.compare_lengths names0 names1 <> 0 then begin
-      let print ppf t : unit = print ppf t in
+      let [@ocamlformat "disable"] print ppf t : unit = print ppf t in
       Misc.fatal_errorf "Cannot concrete a pair of generalised abstractions \
           unless they have the same number of names in binding position:@ \
           %a@ and@ %a"
@@ -304,13 +304,13 @@ module Make_map (Bindable : Bindable.S) (Term : Term) = struct
         (after_binding_position style)
         (Flambda_colours.normal ())
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     pattern_match' t ~f:(fun names term ->
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names
         Term.print term)
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     pattern_match' t ~f:(fun names term ->
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names

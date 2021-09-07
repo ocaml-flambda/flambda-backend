@@ -47,7 +47,7 @@ module Sort = struct
     | Define_root_symbol -> "Define_root_symbol"
     | Toplevel_return -> "Toplevel_return"
 
-  let print ppf t = Format.pp_print_string ppf (to_string t)
+  let [@ocamlformat "disable"] print ppf t = Format.pp_print_string ppf (to_string t)
 
   let equal t1 t2 =
     match t1, t2 with
@@ -72,7 +72,7 @@ module Data = struct
 
   let flags = continuation_flags
 
-  let print ppf { compilation_unit; name; name_stamp; sort;
+  let [@ocamlformat "disable"] print ppf { compilation_unit; name; name_stamp; sort;
                   previous_compilation_units = _; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
@@ -167,7 +167,7 @@ include Container_types.Make (struct
   let hash t =
     Hashtbl.hash t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@<0>%s" (Flambda_colours.continuation ());
     if String.equal (name t) "k"
     then Format.fprintf ppf "k%d" (name_stamp t)
@@ -178,12 +178,12 @@ include Container_types.Make (struct
     print (Format.formatter_of_out_channel chan) t
 end)
 
-module Set = Patricia_tree.Make_set (struct let print = print end)
-module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
+module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
+module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
 (* CR mshinwell: The [Tbl]s will still print integers! *)
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let export t = find_data t
 
@@ -216,7 +216,7 @@ module With_args = struct
       Hashtbl.hash (hash (fst t),
         List.map Variable.hash (snd t))
 
-    let print ppf (cont, vars) =
+    let [@ocamlformat "disable"] print ppf (cont, vars) =
       Format.fprintf ppf "@[(%a, %a)@]"
         print cont
         Variable.print_list vars

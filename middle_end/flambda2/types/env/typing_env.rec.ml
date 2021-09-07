@@ -231,7 +231,7 @@ module One_level = struct
     just_after_level : Cached.t;
   }
 
-  let print_with_cache ~min_binding_time ~cache:_ ppf
+  let [@ocamlformat "disable"] print_with_cache ~min_binding_time ~cache:_ ppf
         { scope = _; level; just_after_level; } =
     let restrict_to = Typing_env_level.defined_names level in
     if Name.Set.is_empty restrict_to then
@@ -342,7 +342,7 @@ end = struct
       next_binding_time;
     }
 
-  let print ppf { defined_symbols;
+  let [@ocamlformat "disable"] print ppf { defined_symbols;
                   code_age_relation;
                   just_after_level;
                   next_binding_time = _;
@@ -466,7 +466,7 @@ let aliases t =
 
 (* CR mshinwell: Should print name occurrence kinds *)
 (* CR mshinwell: Add option to print [aliases] *)
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print_with_cache ~cache ppf
       ({ resolver = _; get_imported_names = _; get_imported_code = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; all_code = _; min_binding_time;
@@ -495,7 +495,7 @@ let print_with_cache ~cache ppf
         levels
         Aliases.print (aliases t))
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let invariant0 ?force _t =

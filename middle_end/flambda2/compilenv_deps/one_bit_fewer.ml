@@ -89,7 +89,7 @@ module Make(I : S) : S with type t = I.t = struct
   let equal = I.equal
   let hash = I.hash
   let output = I.output
-  let print = I.print
+  let [@ocamlformat "disable"] print = I.print
 
   (* sign extension can "correct" an {n} bits value that has
      overflowed over the range of {n-1} bits integer, back into

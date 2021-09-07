@@ -24,7 +24,7 @@ type t = {
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf { closures; closure_vars; } =
+  let [@ocamlformat "disable"] print ppf { closures; closure_vars; } =
     Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(closures@ %a)@]@ \
           @[<hov 1>(closure_vars@ %a)@]\
@@ -89,7 +89,7 @@ module With_closure_id = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf (closure_id, contents) =
+    let [@ocamlformat "disable"] print ppf (closure_id, contents) =
       Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
         Closure_id.print closure_id
         print contents
@@ -114,7 +114,7 @@ module With_closure_id_or_unknown = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf (closure_id_or_unknown, contents) =
+    let [@ocamlformat "disable"] print ppf (closure_id_or_unknown, contents) =
       Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
         (Or_unknown.print Closure_id.print) closure_id_or_unknown
         print contents

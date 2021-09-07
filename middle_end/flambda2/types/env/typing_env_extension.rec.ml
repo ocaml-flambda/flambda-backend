@@ -35,7 +35,7 @@ let print_equations ppf equations =
       ppf equations;
     Format.pp_print_string ppf ")"
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf
     "@[<hov 1>(equations@ @[<v 1>%a@])@]"
     print_equations t.equations
@@ -177,7 +177,7 @@ module With_extra_variables = struct
     equations : Type_grammar.t Name.Map.t;
   }
 
-  let print ppf { existential_vars; equations; } =
+  let [@ocamlformat "disable"] print ppf { existential_vars; equations; } =
     Format.fprintf ppf
       "@[<hov 1>(\
        @[<hov 1>(variables@ @[<hov 1>%a@])@]\

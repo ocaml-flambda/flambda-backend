@@ -128,7 +128,7 @@ module Int32 = struct
     let compare = Int32.compare
     let equal = Int32.equal
     let hash = Hashtbl.hash
-    let print ppf t = Format.fprintf ppf "%ld" t
+    let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
     let output chan t =
       print (Format.formatter_of_out_channel chan) t
   end)
@@ -191,7 +191,7 @@ module Int64 = struct
     let compare = Int64.compare
     let equal t1 t2 = (compare t1 t2 = 0)
     let hash = Hashtbl.hash
-    let print ppf t = Format.fprintf ppf "%Ld" t
+    let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%Ld" t
     let output chan t =
       print (Format.formatter_of_out_channel chan) t
   end)

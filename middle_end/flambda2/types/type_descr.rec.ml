@@ -33,7 +33,7 @@ module Make (Head : Type_head_intf.S
       | No_alias of Head.t Or_unknown_or_bottom.t
       | Equals of Simple.t
 
-    let print_with_cache ~cache ppf t =
+    let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
       let colour = Flambda_colours.top_or_bottom_type () in
       match t with
       | No_alias Unknown ->
@@ -55,7 +55,7 @@ module Make (Head : Type_head_intf.S
           (Flambda_colours.normal ())
           Simple.print simple
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
     let apply_renaming t renaming =
@@ -92,10 +92,10 @@ module Make (Head : Type_head_intf.S
     | No_alias (Ok head) -> Head.all_ids_for_export head
     | Equals simple -> Ids_for_export.from_simple simple
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     Descr.print_with_cache ~cache ppf (descr t)
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let create_no_alias head = create (No_alias head)

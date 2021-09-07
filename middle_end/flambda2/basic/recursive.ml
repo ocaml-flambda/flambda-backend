@@ -18,7 +18,7 @@
 
 type t = Non_recursive | Recursive
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Non_recursive -> Format.pp_print_string ppf "Non_recursive"
   | Recursive -> Format.pp_print_string ppf "Recursive"

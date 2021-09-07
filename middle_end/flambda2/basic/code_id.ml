@@ -30,7 +30,7 @@ module Code_id_data = struct
 
   let flags = 0
 
-  let print ppf { compilation_unit; name; linkage_name; } =
+  let [@ocamlformat "disable"] print ppf { compilation_unit; name; linkage_name; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(compilation_unit@ %a)@]@ \
         @[<hov 1>(name@ %s)@]@ \
@@ -108,7 +108,7 @@ module T0 = struct
   let equal = Id.equal
   let hash = Id.hash
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@<0>%s%a@<0>%s"
       (Flambda_colours.code_id ())
       Linkage_name.print (linkage_name t)
@@ -123,8 +123,8 @@ module T = struct
   include T0
 end
 
-module Set = Patricia_tree.Make_set (struct let print = print end)
-module Map = Patricia_tree.Make_map (struct let print = print end) (Set)
+module Set = Patricia_tree.Make_set (struct let [@ocamlformat "disable"] print = print end)
+module Map = Patricia_tree.Make_map (struct let [@ocamlformat "disable"] print = print end) (Set)
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 module Lmap = Lmap.Make(T)
 

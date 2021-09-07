@@ -15,7 +15,7 @@
 
 type t = Effects.t * Coeffects.t
 
-let print fmt (eff, coeff) =
+let [@ocamlformat "disable"] print fmt (eff, coeff) =
   Format.fprintf fmt "%a * %a" Effects.print eff Coeffects.print coeff
 
 let compare (e1, c1) (e2, c2) =
