@@ -28,10 +28,7 @@ let [@ocamlformat "disable"] print ppf { continuation_uses; } =
 
 let empty = { continuation_uses = Continuation.Map.empty }
 
-let get_uses t = t.continuation_uses
-
 let record_continuation_use t cont kind ~env_at_use ~arg_types =
-  (* XXX This needs to deal with exn continuation extra-args *)
   let id = Apply_cont_rewrite_id.create () in
   let continuation_uses =
     Continuation.Map.update cont
@@ -52,15 +49,10 @@ let get_typing_env_no_more_than_one_use t k =
   | exception Not_found -> None
   | cont_uses -> Continuation_uses.get_typing_env_no_more_than_one_use cont_uses
 
-let compute_handler_env t ~env_at_fork_plus_params_and_consts
-    ~consts_lifted_during_body cont ~params ~code_age_relation_after_body :
-    Continuation_env_and_param_types.t =
+let get_continuation_uses t cont =
   match Continuation.Map.find cont t.continuation_uses with
-  | exception Not_found -> No_uses
-  | uses ->
-    Continuation_uses.compute_handler_env uses ~params
-      ~env_at_fork_plus_params_and_consts ~consts_lifted_during_body
-      ~code_age_relation_after_body
+  | exception Not_found -> None
+  | uses -> Some uses
 
 let num_continuation_uses t cont =
   match Continuation.Map.find cont t.continuation_uses with

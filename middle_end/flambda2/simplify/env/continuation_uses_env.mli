@@ -18,16 +18,13 @@
 
 type t
 
-(** Print a downwards accumulator to a formatter. *)
-
 val print : Format.formatter -> t -> unit
 
 val empty : t
 
 include Continuation_uses_env_intf.S with type t := t
 
-(* CR mshinwell: refine interface *)
-val get_uses : t -> Continuation_uses.t Continuation.Map.t
+val get_continuation_uses : t -> Continuation.t -> Continuation_uses.t option
 
 val remove : t -> Continuation.t -> t
 
