@@ -33,7 +33,7 @@ include Container_types.Make (struct
 
   let hash = Hashtbl.hash
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | [] -> Format.pp_print_string ppf "Nullary"
     | _ ->
@@ -74,7 +74,7 @@ module With_subkinds = struct
 
     let hash = Hashtbl.hash
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       match t with
       | [] -> Format.pp_print_string ppf "Nullary"
       | _ ->

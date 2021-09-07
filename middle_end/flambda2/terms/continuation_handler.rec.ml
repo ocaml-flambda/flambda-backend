@@ -22,14 +22,14 @@ module T0 = struct
     handler : Expr.t;
   }
 
-  let print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf
         { handler; num_normal_occurrences_of_params = _; } =
     fprintf ppf "@[<hov 1>(\
         @[<hov 1>(handler@ %a)@]\
         )@]"
       (Expr.print_with_cache ~cache) handler
 
-  let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let free_names { handler; num_normal_occurrences_of_params = _; } =
     Expr.free_names handler
@@ -139,7 +139,7 @@ let print_using_where_with_cache (recursive : Recursive.t) ~cache ppf k
       (Expr.print_with_cache ~cache) handler;
     fprintf ppf "@]")
 
-let print_with_cache ~cache ppf { abst; is_exn_handler; } =
+let [@ocamlformat "disable"] print_with_cache ~cache ppf { abst; is_exn_handler; } =
   Format.fprintf ppf "@[<hov 1>\
       @[<hov 1>(params_and_handler@ %a)@]@ \
       @[<hov 1>(is_exn_handler@ %b)@]\
@@ -147,7 +147,7 @@ let print_with_cache ~cache ppf { abst; is_exn_handler; } =
     (A.print_with_cache ~cache) abst
     is_exn_handler
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let is_exn_handler t = t.is_exn_handler

@@ -31,7 +31,7 @@ type t =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Singleton var -> Var_in_binding_pos.print ppf var
     | Set_of_closures { name_mode = _; closure_vars; } ->
@@ -61,7 +61,7 @@ include Container_types.Make (struct
     Misc.fatal_error "Bindable_let_bound.output not yet implemented"
 end)
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let free_names t =
   match t with

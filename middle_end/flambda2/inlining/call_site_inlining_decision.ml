@@ -54,7 +54,7 @@ type t =
       threshold: float;
     }
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Environment_says_never_inline ->
     Format.fprintf ppf "Environment_says_never_inline"

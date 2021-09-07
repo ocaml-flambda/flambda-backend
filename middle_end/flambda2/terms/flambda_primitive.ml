@@ -36,7 +36,7 @@ module Block_of_values_field = struct
     | Boxed_int64
     | Boxed_nativeint
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Any_value -> Format.fprintf ppf "Any_value"
     | Immediate -> Format.fprintf ppf "Immediate"
@@ -56,7 +56,7 @@ module Block_kind = struct
        (c.f. [Array_kind.Float_array_opt_dynamic], below) for blocks;
        it is known at compile time whether they are all-float. *)
 
-   let print ppf t =
+   let [@ocamlformat "disable"] print ppf t =
     match t with
     | Values (tag, shape) ->
       Format.fprintf ppf
@@ -92,7 +92,7 @@ module Array_kind = struct
     | Naked_floats
     | Float_array_opt_dynamic
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
@@ -123,7 +123,7 @@ module Duplicate_block_kind = struct
     | Values of { tag : Tag.Scannable.t; length : Targetint_31_63.Imm.t; }
     | Naked_floats of { length : Targetint_31_63.Imm.t; }
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Values { tag; length; } ->
       Format.fprintf ppf
@@ -160,7 +160,7 @@ module Duplicate_array_kind = struct
     | Naked_floats of { length : Targetint_31_63.Imm.t option; }
     | Float_array_opt_dynamic
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Values -> Format.pp_print_string ppf "Values"
@@ -193,7 +193,7 @@ module Block_access_field_kind = struct
     | Any_value
     | Immediate
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Any_value -> Format.pp_print_string ppf "Any_value"
     | Immediate -> Format.pp_print_string ppf "Immediate"
@@ -210,7 +210,7 @@ module Block_access_kind = struct
       }
     | Naked_floats of { size : Targetint_31_63.Imm.t Or_unknown.t; }
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Values { tag; size; field_kind; } ->
       Format.fprintf ppf
@@ -257,7 +257,7 @@ type string_or_bytes = String | Bytes
 module Init_or_assign = struct
   type t = Initialization | Assignment
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let fprintf = Format.fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
@@ -1537,7 +1537,7 @@ include Container_types.Make (struct
 
   let hash _t = Misc.fatal_error "Not implemented"
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let colour =
       match classify_for_printing t with
       | Constructive -> Flambda_colours.prim_constructive ()
@@ -1879,7 +1879,7 @@ module Without_args = struct
     | Ternary of ternary_primitive
     | Variadic of variadic_primitive
 
-  let print ppf (t : t) =
+  let [@ocamlformat "disable"] print ppf (t : t) =
     match t with
     | Nullary prim -> print_nullary_primitive ppf prim
     | Unary prim -> print_unary_primitive ppf prim

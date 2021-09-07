@@ -20,7 +20,7 @@ type 'a t =
   | Present of 'a
   | Deleted
 
-let print print_contents ppf t =
+let [@ocamlformat "disable"] print print_contents ppf t =
   match t with
   | Present contents -> print_contents ppf contents
   | Deleted -> Format.pp_print_string ppf "Deleted"

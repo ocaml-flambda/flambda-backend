@@ -40,7 +40,7 @@ module Function_call = struct
         return_arity : Flambda_arity.With_subkinds.t;
       }
 
-  let print ppf call =
+  let [@ocamlformat "disable"] print ppf call =
     match call with
     | Direct { code_id; closure_id; return_arity; } ->
       fprintf ppf "@[<hov 1>(Direct@ \
@@ -92,7 +92,7 @@ type t =
       is_c_builtin : bool;
     }
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Function call -> Function_call.print ppf call
   | Method { kind; obj; } ->
@@ -109,7 +109,7 @@ let print ppf t =
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 
-let print_with_cache ~cache:_ ppf t =
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t =
   print ppf t
 
 let invariant0 t =

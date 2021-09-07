@@ -21,10 +21,10 @@ module TEE = Typing_env_extension
 
 type t = Int32.Set.t
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[(Naked_int32s@ (%a))@]" Int32.Set.print t
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let apply_renaming t _renaming = t
 

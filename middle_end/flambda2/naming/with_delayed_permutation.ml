@@ -78,8 +78,8 @@ end) = struct
       t.free_names <- Some free_names;
       free_names
 
-  let print_with_cache ~cache ppf t =
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
     Descr.print_with_cache ~cache ppf (descr t)
 
-  let print ppf t = Descr.print ppf (descr t)
+  let [@ocamlformat "disable"] print ppf t = Descr.print ppf (descr t)
 end

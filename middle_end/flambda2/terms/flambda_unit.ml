@@ -41,7 +41,7 @@ let body t = t.body
 let module_symbol t = t.module_symbol
 let used_closure_vars t = t.used_closure_vars
 
-let print ppf
+let [@ocamlformat "disable"] print ppf
       { return_continuation; exn_continuation; body; module_symbol;
         used_closure_vars;
       } =

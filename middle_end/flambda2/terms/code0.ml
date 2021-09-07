@@ -182,7 +182,7 @@ end) = struct
         Format.fprintf ppf "%a" print_contents contents
   end
 
-  let print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf
         { code_id = _; params_and_body; newer_version_of; stub; inline;
           is_a_functor; params_arity; result_arity; recursive;
           free_names_of_params_and_body = _; cost_metrics; inlining_arguments;
@@ -263,7 +263,7 @@ end) = struct
         (Option.print_compact Code_id.print) newer_version_of
         (Flambda_colours.normal ())
 
-  let print ppf code =
+  let [@ocamlformat "disable"] print ppf code =
     print_with_cache ~cache:(Printing_cache.create ()) ppf code
 
   let compare { code_id = code_id1; _ } { code_id = code_id2; _ } =

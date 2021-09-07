@@ -29,7 +29,7 @@ module Args = struct
     threshold : float;
   }
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let { max_inlining_depth; call_cost; alloc_cost; prim_cost; branch_cost;
           indirect_call_cost; poly_compare_cost;
           small_function_size; large_function_size;
@@ -201,7 +201,7 @@ end
 
 type t = Args.t
 
-let print ppf = Args.print ppf
+let [@ocamlformat "disable"] print ppf = Args.print ppf
 
 let max_inlining_depth t = t.Args.max_inlining_depth
 let call_cost t = t.Args.call_cost

@@ -21,7 +21,7 @@ type 'a t =
   | Ok of 'a
   | Bottom
 
-let print f ppf t =
+let [@ocamlformat "disable"] print f ppf t =
   match t with
   | Unknown -> Format.pp_print_string ppf "Unknown"
   | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents

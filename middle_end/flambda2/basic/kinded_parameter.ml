@@ -38,7 +38,7 @@ include Container_types.Make (struct
   let hash { param; kind; } =
     Hashtbl.hash (Variable.hash param, Flambda_kind.With_subkind.hash kind)
 
-  let print ppf { param; kind; } =
+  let [@ocamlformat "disable"] print ppf { param; kind; } =
     Format.fprintf ppf "@[(@<0>%s%a@<0>%s @<1>\u{2237} %a)@]"
       (Flambda_colours.parameter ())
       Variable.print param
@@ -49,7 +49,7 @@ include Container_types.Make (struct
     print (Format.formatter_of_out_channel chan) t
 end)
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let create param kind =
   { param;
@@ -123,7 +123,7 @@ module List = struct
     List.compare_lengths t1 t2 = 0
       && List.for_all2 equal t1 t2
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 0>%a@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print) t
 

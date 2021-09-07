@@ -24,14 +24,14 @@ module T0 = struct
     body : Expr.t;
   }
 
-  let print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf
         { body; num_normal_occurrences_of_bound_vars = _; } =
     fprintf ppf "@[<hov 1>(\
         @[<hov 1>(body@ %a)@]\
         )@]"
       (Expr.print_with_cache ~cache) body
 
-  let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
   let free_names { body; num_normal_occurrences_of_bound_vars = _; } =
     Expr.free_names body
@@ -290,7 +290,7 @@ let print_let_symbol_with_cache ~cache ppf t =
 
 (* For printing all kinds of let-expressions: *)
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print_with_cache ~cache ppf
       ({ name_abstraction = _; defining_expr; } as t) =
   let let_bound_var_colour bindable_let_bound defining_expr =
     let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
@@ -336,7 +336,7 @@ let print_with_cache ~cache ppf
       fprintf ppf "@])@ %a)@]"
         (Expr.print_with_cache ~cache) expr)
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create bindable_let_bound defining_expr ~body
       ~(free_names_of_body : _ Or_unknown.t) =

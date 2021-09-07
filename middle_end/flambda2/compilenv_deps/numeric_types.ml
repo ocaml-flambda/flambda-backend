@@ -21,7 +21,7 @@ module Int_base = Container_types.Make (struct
   let output oc x = Printf.fprintf oc "%i" x
   let hash i = i
   let equal (i : int) j = i = j
-  let print = Format.pp_print_int
+  let [@ocamlformat "disable"] print = Format.pp_print_int
 end)
 
 module Int = struct
@@ -83,7 +83,7 @@ module Float = struct
     let output oc x = Printf.fprintf oc "%f" x
     let hash f = Hashtbl.hash f
     let equal (i : float) j = i = j
-    let print = Format.pp_print_float
+    let [@ocamlformat "disable"] print = Format.pp_print_float
   end)
 end
 
@@ -106,7 +106,7 @@ module Float_by_bit_pattern = struct
     let equal = Int64.equal
     let hash f = Hashtbl.hash f
 
-    let print ppf t = Format.pp_print_float ppf (Int64.float_of_bits t)
+    let [@ocamlformat "disable"] print ppf t = Format.pp_print_float ppf (Int64.float_of_bits t)
     let output chan t = Printf.fprintf chan "%g" (Int64.float_of_bits t)
   end
 
@@ -165,7 +165,7 @@ module Int32 = struct
     let compare x y = Int32.compare x y
     let equal t1 t2 = (compare t1 t2 = 0)
     let hash f = Hashtbl.hash f
-    let print ppf t = Format.fprintf ppf "%ld" t
+    let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
     let output chan t = Printf.fprintf chan "%ld" t
   end
 
@@ -194,7 +194,7 @@ module Int64 = struct
     let compare x y = Int64.compare x y
     let equal t1 t2 = (compare t1 t2 = 0)
     let hash f = Hashtbl.hash f
-    let print ppf t = Format.fprintf ppf "%Ld" t
+    let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%Ld" t
     let output chan t = Printf.fprintf chan "%Ld" t
   end
 

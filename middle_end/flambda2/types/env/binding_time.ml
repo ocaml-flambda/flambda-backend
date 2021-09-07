@@ -17,7 +17,7 @@
 module T = struct
   include Int
 
-  let print = Numeric_types.Int.print
+  let [@ocamlformat "disable"] print = Numeric_types.Int.print
   let output = Numeric_types.Int.output
   let hash = Hashtbl.hash
 end
@@ -78,7 +78,7 @@ module With_name_mode = struct
     else (* Variable out of the allowed scope *)
       Name_mode.in_types
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "(bound at time %d %a)" (binding_time t)
       Name_mode.print (name_mode t)
 

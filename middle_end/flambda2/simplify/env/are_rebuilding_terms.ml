@@ -22,5 +22,5 @@ type t = DE.are_rebuilding_terms
 
 let do_not_rebuild_terms t = not (DE.are_rebuilding_terms_to_bool t)
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "%b" (DE.are_rebuilding_terms_to_bool t)

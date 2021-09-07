@@ -130,7 +130,7 @@ module List = struct
     let hash t =
       Hashtbl.hash (List.map hash t)
 
-    let print ppf t =
+    let [@ocamlformat "disable"] print ppf t =
       (Format.pp_print_list print ~pp_sep:Format.pp_print_space) ppf t
 
     let output chan t =
@@ -174,7 +174,7 @@ module With_kind = struct
     let hash (s, k) =
       Hashtbl.hash (hash s, Flambda_kind.hash k)
 
-    let print ppf (s, k) =
+    let [@ocamlformat "disable"] print ppf (s, k) =
       Format.fprintf ppf "@[(%a@ @<1>\u{2237}@ %a)@]"
         print s
         Flambda_kind.print k

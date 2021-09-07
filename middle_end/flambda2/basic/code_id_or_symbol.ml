@@ -21,7 +21,7 @@ type t =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     match t with
     | Code_id code_id ->
       Format.fprintf ppf "@[<hov 1>(code_id@ %a)@]" Code_id.print code_id

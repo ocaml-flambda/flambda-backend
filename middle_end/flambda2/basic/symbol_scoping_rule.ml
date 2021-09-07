@@ -20,7 +20,7 @@ type t =
 
 let compare = Stdlib.compare
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Syntactic -> Format.pp_print_string ppf "Syntactic"
   | Dominator -> Format.pp_print_string ppf "Dominator"

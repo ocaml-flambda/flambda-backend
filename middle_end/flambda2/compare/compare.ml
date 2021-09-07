@@ -101,7 +101,7 @@ module Comparison = struct
     if cond then t else Different { approximant = approximant () }
   ;;
 
-  let print f ppf t =
+  let [@ocamlformat "disable"] print f ppf t =
     match t with
     | Equivalent -> Format.fprintf ppf "Equivalent"
     | Different { approximant } ->

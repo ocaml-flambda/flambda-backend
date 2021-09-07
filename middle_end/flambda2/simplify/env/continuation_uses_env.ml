@@ -22,7 +22,7 @@ type t = {
   continuation_uses : Continuation_uses.t Continuation.Map.t;
 }
 
-let print ppf { continuation_uses; } =
+let [@ocamlformat "disable"] print ppf { continuation_uses; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuation_uses@ %a)@]\
       )@]"

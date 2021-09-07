@@ -33,7 +33,7 @@ let create kind ~env_at_use:env id ~arg_types =
     env;
   }
 
-let print ppf { env = _; id = _; kind = _; arg_types; } =
+let [@ocamlformat "disable"] print ppf { env = _; id = _; kind = _; arg_types; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(arg_types@ %a)@]@ \
       )@]"

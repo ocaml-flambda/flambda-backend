@@ -34,7 +34,7 @@ let create continuation arity =
     uses = [];
   }
 
-let print ppf { continuation; arity; uses; } =
+let [@ocamlformat "disable"] print ppf { continuation; arity; uses; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuation@ %a)@]@ \
       @[<hov 1>(arity@ %a)@]@ \

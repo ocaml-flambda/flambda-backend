@@ -99,7 +99,7 @@ let invalid () =
   else
     Invalid Halt_and_catch_fire
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Reachable { named; _ } ->
     Named.print ppf (to_named named)
