@@ -95,7 +95,6 @@ end = struct
       Misc.fatal_errorf "Cfgize.State.get_handler_label: unknown handler_id %d"
         handler_id
 
-  (* CR-soon xclerc for xclerc: double check whether it should be reset for each function. *)
   let get_next_instruction_id t =
     let res = t.next_instruction_id in
     t.next_instruction_id <- succ res;
@@ -350,23 +349,6 @@ let can_raise_instrs
   = fun instrs ->
     List.exists can_raise_instr instrs
 
-let can_raise_terminator
-  : Cfg.terminator -> bool
-  = fun terminator ->
-    match terminator with
-    | Never -> false
-    | Always _ -> false
-    | Parity_test _ -> false
-    | Truth_test _ -> false
-    | Float_test _ -> false
-    | Int_test _ -> false
-    | Switch _ -> false
-    | Return -> false
-    | Raise _ -> true
-    | Tailcall (Self _) -> false
-    | Tailcall (Func _) -> true
-    | Call_no_return _ -> true
-
 let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
   match instr.Cfg.desc with
   | Op (Move | Spill | Reload) ->
@@ -412,19 +394,22 @@ let extract_block_info
   = fun state first ~trap_depth ->
     let rec loop (instr : Mach.instruction) acc =
       let return terminator can_raise =
-        let instrs =
-          List.rev (List.filter (fun instr -> not (is_noop_move instr)) acc) in
+        let instrs = List.rev acc in
         let can_raise = can_raise || can_raise_instrs instrs in
         { instrs; last = instr; terminator; can_raise; } in
       match instr.desc with
       | Iop op ->
         begin match basic_or_terminator_of_operation state op with
           | Basic desc ->
-            loop instr.next (copy_instruction state instr ~desc ~trap_depth :: acc)
+            let instr' = copy_instruction state instr ~desc ~trap_depth in
+            if is_noop_move instr' then
+              loop instr.next acc
+            else
+              loop instr.next (instr' :: acc)
           | Terminator terminator ->
             return
               (Some (copy_instruction state instr ~desc:terminator ~trap_depth))
-              (can_raise_terminator terminator)
+              (Linear_to_cfg.can_raise_terminator terminator)
         end
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _
       | Icatch _ | Iexit _ | Itrywith _ ->
@@ -704,32 +689,6 @@ let update_trap_handler_blocks
          | Some block ->
            block.is_trap_handler <- true)
       (State.get_exception_handlers state)
-
-(* CR xclerc for xclerc: double check whether it is necessary/correct/sufficient. *)
-let rec update_liveness
-  : Cfg.t -> unit
-  = fun cfg ->
-    let modified = ref false in
-    Label.Tbl.iter
-      (fun (_label : Label.t) (block : Cfg.basic_block) ->
-         match block.terminator.desc with
-         | Never | Parity_test _ | Truth_test _ | Float_test _
-         | Int_test _ | Switch _ | Return | Raise _ | Tailcall _
-         | Call_no_return _ ->
-           ()
-         | Always next_label ->
-           let next_block = Cfg.get_block_exn cfg next_label in
-           let next_liveness : Reg.Set.t =
-             match next_block.body with
-             | [] -> next_block.terminator.live
-             | { live; _ } :: _ -> live
-           in
-           if not (Reg.Set.equal block.terminator.live next_liveness) then begin
-             modified := true;
-             block.terminator <- { block.terminator with live = next_liveness; };
-           end)
-      cfg.blocks;
-    if !modified then update_liveness cfg
 
 let fundecl
   : Mach.fundecl
