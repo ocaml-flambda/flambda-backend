@@ -70,7 +70,9 @@ val project_tuple :
 val split_direct_over_application :
   Apply_expr.t -> param_arity:Flambda_arity.With_subkinds.t -> Expr.t
 
-type apply_cont_context = Apply_cont_expr | Switch_branch
+type apply_cont_context =
+  | Apply_cont_expr
+  | Switch_branch
 
 val apply_cont_use_kind :
   context:apply_cont_context -> Apply_cont.t -> Continuation_use_kind.t

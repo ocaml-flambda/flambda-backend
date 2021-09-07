@@ -16,7 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type 'a t = Known of 'a | Unknown
+type 'a t =
+  | Known of 'a
+  | Unknown
 
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 

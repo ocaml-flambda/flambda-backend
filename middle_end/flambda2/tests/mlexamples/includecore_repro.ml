@@ -2,7 +2,11 @@ external opaque : 'a -> 'a = "%opaque"
 
 external ( + ) : int -> int -> int = "%addint"
 
-type t = C0 | C1 | B0 of int * int | B1 of int
+type t =
+  | C0
+  | C1
+  | B0 of int * int
+  | B1 of int
 
 type r = { f : t }
 

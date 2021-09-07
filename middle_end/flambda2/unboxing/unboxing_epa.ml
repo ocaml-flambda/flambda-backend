@@ -90,7 +90,9 @@ let unbox_arg (unboxer : Unboxers.unboxer) ~typing_env_at_use arg_being_unboxed
 type variant_argument =
   | Not_a_constant_constructor
   | Maybe_constant_constructor of
-      { is_int : Simple.t; arg_being_unboxed : unboxed_arg }
+      { is_int : Simple.t;
+        arg_being_unboxed : unboxed_arg
+      }
 
 let extra_arg_for_is_int = function
   | Maybe_constant_constructor { is_int; _ } ->

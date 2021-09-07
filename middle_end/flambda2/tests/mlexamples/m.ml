@@ -217,7 +217,15 @@ end
 module Make (Ord : OrderedType) = struct
   type key = Ord.t
 
-  type 'a t = Empty | Node of { l : 'a t; v : key; d : 'a; r : 'a t; h : int }
+  type 'a t =
+    | Empty
+    | Node of
+        { l : 'a t;
+          v : key;
+          d : 'a;
+          r : 'a t;
+          h : int
+        }
 
   let[@inline never] bal _ _ _ _ = assert false
 

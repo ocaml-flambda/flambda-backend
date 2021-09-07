@@ -30,7 +30,9 @@ type at_call_site =
 (** There are two decisions made for each function declaration: one before
     simplifying the body, and one after (this is useful for e.g. recursive
     functions). *)
-type fundecl_pass = Before_simplify | After_simplify
+type fundecl_pass =
+  | Before_simplify
+  | After_simplify
 (**)
 
 type at_function_declaration =

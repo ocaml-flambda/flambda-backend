@@ -1,6 +1,11 @@
-type float_rec = { a : float; b : float }
+type float_rec =
+  { a : float;
+    b : float
+  }
 
-type (_, _) c = F : (float_rec, unit) c | B : (int * int, int * int) c
+type (_, _) c =
+  | F : (float_rec, unit) c
+  | B : (int * int, int * int) c
 
 let f (type x y) (b : (x, y) c) w x (y : y) : x * unit =
   let x : x =

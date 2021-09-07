@@ -1,4 +1,8 @@
-type t = Sheep | Cow | Goat | Horse
+type t =
+  | Sheep
+  | Cow
+  | Goat
+  | Horse
 
 let of_string str =
   match str with

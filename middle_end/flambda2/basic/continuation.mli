@@ -25,7 +25,11 @@ type exported
 include Container_types.S with type t := t
 
 module Sort : sig
-  type t = Normal_or_exn | Return | Define_root_symbol | Toplevel_return
+  type t =
+    | Normal_or_exn
+    | Return
+    | Define_root_symbol
+    | Toplevel_return
 
   val equal : t -> t -> bool
 end

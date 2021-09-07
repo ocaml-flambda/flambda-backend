@@ -58,7 +58,10 @@ end
 
 module A = Name_abstraction.Make (Bindable_let_bound) (T0)
 
-type t = { name_abstraction : A.t; defining_expr : Named.t }
+type t =
+  { name_abstraction : A.t;
+    defining_expr : Named.t
+  }
 
 let pattern_match t ~f =
   A.pattern_match t.name_abstraction ~f:(fun bindable_let_bound t0 ->

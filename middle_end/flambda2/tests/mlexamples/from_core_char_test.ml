@@ -1,4 +1,6 @@
-type ('a, 'b) result = Ok of 'a | Error of 'b
+type ('a, 'b) result =
+  | Ok of 'a
+  | Error of 'b
 
 external string_length : string -> int = "%string_length"
 

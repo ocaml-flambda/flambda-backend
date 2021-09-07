@@ -157,7 +157,9 @@ module type S = sig
 
   type directed_graph = Id.Set.t Id.Map.t
 
-  type component = Has_loop of Id.t list | No_loop of Id.t
+  type component =
+    | Has_loop of Id.t list
+    | No_loop of Id.t
 
   val connected_components_sorted_from_roots_to_leaf :
     directed_graph -> component array
@@ -168,7 +170,9 @@ end
 module Make (Id : Id) = struct
   type directed_graph = Id.Set.t Id.Map.t
 
-  type component = Has_loop of Id.t list | No_loop of Id.t
+  type component =
+    | Has_loop of Id.t list
+    | No_loop of Id.t
 
   (* Ensure that the dependency graph does not have external dependencies. *)
   (* Note: this function is currently not used. *)
@@ -186,7 +190,10 @@ module Make (Id : Id) = struct
           set)
       dependencies
 
-  type numbering = { back : int Id.Map.t; forth : Id.t array }
+  type numbering =
+    { back : int Id.Map.t;
+      forth : Id.t array
+    }
 
   let number graph =
     let size = Id.Map.cardinal graph in

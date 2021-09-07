@@ -96,9 +96,15 @@ and continuation_handler_size ~find_code handler size =
 
 (** * * End for legacy and debugging purposes * *)
 
-type t = { size : Code_size.t; removed : Removed_operations.t }
+type t =
+  { size : Code_size.t;
+    removed : Removed_operations.t
+  }
 
-type code_characteristics = { cost_metrics : t; params_arity : int }
+type code_characteristics =
+  { cost_metrics : t;
+    params_arity : int
+  }
 
 let zero = { size = Code_size.zero; removed = Removed_operations.zero }
 

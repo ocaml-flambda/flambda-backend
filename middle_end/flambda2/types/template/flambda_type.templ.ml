@@ -108,7 +108,10 @@ let is_bottom env t =
   | Naked_int64 _ | Naked_nativeint _ | Rec_info _ ->
     false
 
-type 'a proof = Proved of 'a | Unknown | Invalid
+type 'a proof =
+  | Proved of 'a
+  | Unknown
+  | Invalid
 
 type 'a proof_allowing_kind_mismatch =
   | Proved of 'a

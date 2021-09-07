@@ -22,7 +22,9 @@ let protect_refs =
     set_refs refs;
     f ()
 
-type unification_mode = Expression | Pattern
+type unification_mode =
+  | Expression
+  | Pattern
 
 let umode = ref Expression
 

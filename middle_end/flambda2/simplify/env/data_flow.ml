@@ -56,7 +56,9 @@ type t =
   }
 
 type result =
-  { required_names : Name.Set.t; reachable_code_ids : Reachable_code_ids.t }
+  { required_names : Name.Set.t;
+    reachable_code_ids : Reachable_code_ids.t
+  }
 
 (* Print *)
 (* ***** *)

@@ -47,7 +47,9 @@ let in_a_set_of_closures =
 let in_a_closure code_id return_continuation exn_continuation =
   Closure { code_id; return_continuation; exn_continuation }
 
-type in_or_out_of_closure = In_a_closure | Not_in_a_closure
+type in_or_out_of_closure =
+  | In_a_closure
+  | Not_in_a_closure
 
 let in_or_out_of_closure (t : t) : in_or_out_of_closure =
   match t with

@@ -89,7 +89,9 @@ val abs : t -> t
 val size : int
 
 (** The possible numbers of bits of a target native integer. *)
-type num_bits = Thirty_two | Sixty_four
+type num_bits =
+  | Thirty_two
+  | Sixty_four
 (**)
 
 val num_bits : num_bits
@@ -194,7 +196,9 @@ val to_string : t -> string
     integers. *)
 val unsigned_compare : t -> t -> int
 
-type repr = Int32 of int32 | Int64 of int64
+type repr =
+  | Int32 of int32
+  | Int64 of int64
 
 (** The concrete representation of a native integer. *)
 val repr : t -> repr

@@ -210,7 +210,10 @@ let failwith s = raise (Failure s)
 
 let invalid_arg s = raise (Invalid_argument s)
 
-type backend_type = Native | Bytecode | Other of string
+type backend_type =
+  | Native
+  | Bytecode
+  | Other of string
 (* System interface *)
 
 external get_config : unit -> string * int * bool = "caml_sys_get_config"

@@ -1,4 +1,7 @@
-type t = { foo : int; bar : float }
+type t =
+  { foo : int;
+    bar : float
+  }
 
 let foo b x y =
   let f =

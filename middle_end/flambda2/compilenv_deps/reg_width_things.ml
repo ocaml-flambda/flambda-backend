@@ -215,7 +215,9 @@ end
 
 module Symbol_data = struct
   type t =
-    { compilation_unit : Compilation_unit.t; linkage_name : Linkage_name.t }
+    { compilation_unit : Compilation_unit.t;
+      linkage_name : Linkage_name.t
+    }
 
   let flags = symbol_flags
 
@@ -571,8 +573,10 @@ module Coercion = Coercion0.Make (Rec_info_expr)
 
 module Simple_data = struct
   type t =
-    { simple : Id.t; (* always without [Coercion] *)
-                     coercion : Coercion.t }
+    { simple : Id.t;
+      (* always without [Coercion] *)
+      coercion : Coercion.t
+    }
 
   let flags = simple_flags
 

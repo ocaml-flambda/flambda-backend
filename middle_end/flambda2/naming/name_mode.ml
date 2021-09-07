@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Normal | Phantom | In_types
+type t =
+  | Normal
+  | Phantom
+  | In_types
 
 (* Semilattice:
  *
@@ -108,7 +111,9 @@ let compare_total_order = compare
 let compare _ _ = `Be_explicit_about_total_or_partial_ordering
 
 module Or_absent = struct
-  type t = Absent | Present of kind
+  type t =
+    | Absent
+    | Present of kind
 
   let absent = Absent
 
@@ -156,6 +161,9 @@ module Or_absent = struct
     | Present kind1, Present kind2 -> compare_partial_order kind1 kind2
 end
 
-type descr = t = Normal | Phantom | In_types
+type descr = t =
+  | Normal
+  | Phantom
+  | In_types
 
 let descr t = t

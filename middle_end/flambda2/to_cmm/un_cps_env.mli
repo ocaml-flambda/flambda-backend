@@ -130,7 +130,10 @@ val extra_info : t -> Variable.t -> extra_info option
 (** Translation information for continuations. A continuation may either be
     translated as a static jump, or inlined at its call site. *)
 type cont =
-  | Jump of { types : Cmm.machtype list; cont : int }
+  | Jump of
+      { types : Cmm.machtype list;
+        cont : int
+      }
       (** Static jump, with the given cmm continuation.
 
           The list of machtypes represent the types of arguments expected by the

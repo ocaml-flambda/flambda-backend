@@ -20,7 +20,10 @@ open! Flambda
 module ART = Are_rebuilding_terms
 
 type t =
-  | Normal of { const : Static_const.t; free_names : Name_occurrences.t }
+  | Normal of
+      { const : Static_const.t;
+        free_names : Name_occurrences.t
+      }
   | Non_code_not_rebuilt of { free_names : Name_occurrences.t }
   | Code_not_rebuilt of Non_constructed_code.t
 

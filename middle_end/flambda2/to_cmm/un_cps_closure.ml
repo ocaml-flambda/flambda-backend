@@ -90,7 +90,10 @@ type layout_slot =
   | Infix_header
   | Closure of Closure_id.t
 
-type layout = { startenv : int; slots : (int * layout_slot) list }
+type layout =
+  { startenv : int;
+    slots : (int * layout_slot) list
+  }
 
 module EO = Exported_offsets
 
@@ -220,9 +223,13 @@ module Greedy = struct
 
   (* Internal types *)
 
-  type slot_desc = Closure of Closure_id.t | Env_var of Var_within_closure.t
+  type slot_desc =
+    | Closure of Closure_id.t
+    | Env_var of Var_within_closure.t
 
-  type slot_pos = Assigned of int | Unassigned
+  type slot_pos =
+    | Assigned of int
+    | Unassigned
 
   type set_of_closures =
     { id : int;

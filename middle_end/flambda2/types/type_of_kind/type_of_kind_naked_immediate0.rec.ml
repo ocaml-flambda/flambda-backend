@@ -21,7 +21,10 @@ module T = Type_grammar
 module TE = Typing_env
 module TEE = Typing_env_extension
 
-type t = Naked_immediates of I.Set.t | Is_int of T.t | Get_tag of T.t
+type t =
+  | Naked_immediates of I.Set.t
+  | Is_int of T.t
+  | Get_tag of T.t
 
 let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   match t with

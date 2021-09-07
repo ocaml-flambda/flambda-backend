@@ -1,4 +1,6 @@
-type src = C1 of int | C2 of int
+type src =
+  | C1 of int
+  | C2 of int
 
 type dst =
   | A1

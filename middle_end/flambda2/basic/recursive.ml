@@ -16,7 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Non_recursive | Recursive
+type t =
+  | Non_recursive
+  | Recursive
 
 let [@ocamlformat "disable"] print ppf t =
   match t with

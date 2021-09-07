@@ -19,7 +19,10 @@
 let check_invariants = false
 
 module Make (N : Container_types.S) = struct
-  type t = { forwards : N.t N.Map.t; backwards : N.t N.Map.t }
+  type t =
+    { forwards : N.t N.Map.t;
+      backwards : N.t N.Map.t
+    }
 
   let empty = { forwards = N.Map.empty; backwards = N.Map.empty }
 

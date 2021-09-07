@@ -29,7 +29,10 @@ module type Term = sig
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
-type printing_style = Normal | Brackets | Existential
+type printing_style =
+  | Normal
+  | Brackets
+  | Existential
 
 val set_printing_style : printing_style -> unit
 

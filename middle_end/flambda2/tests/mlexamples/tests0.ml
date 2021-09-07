@@ -1,4 +1,7 @@
-type t = A | B of int | C of int
+type t =
+  | A
+  | B of int
+  | C of int
 
 let f () =
   let x = A in

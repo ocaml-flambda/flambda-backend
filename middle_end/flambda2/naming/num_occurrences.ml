@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = Zero | One | More_than_one
+type t =
+  | Zero
+  | One
+  | More_than_one
 
 let [@ocamlformat "disable"] print ppf t =
   match t with

@@ -23,7 +23,10 @@ module TE = Flambda_type.Typing_env
 module U = One_continuation_use
 
 type t =
-  { continuation : Continuation.t; arity : Flambda_arity.t; uses : U.t list }
+  { continuation : Continuation.t;
+    arity : Flambda_arity.t;
+    uses : U.t list
+  }
 
 let create continuation arity = { continuation; arity; uses = [] }
 

@@ -14,7 +14,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t = Finite of 'a | Infinity
+type 'a t =
+  | Finite of 'a
+  | Infinity
 
 let equal ~f t1 t2 =
   match t1, t2 with

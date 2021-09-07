@@ -300,7 +300,15 @@ end
 module Make (Ord : OrderedType) = struct
   type key = Ord.t
 
-  type 'a t = Empty | Node of { l : 'a t; v : key; d : 'a; r : 'a t; h : int }
+  type 'a t =
+    | Empty
+    | Node of
+        { l : 'a t;
+          v : key;
+          d : 'a;
+          r : 'a t;
+          h : int
+        }
 
   let height = function Empty -> 0 | Node { h } -> h
 
@@ -582,7 +590,9 @@ module Make (Ord : OrderedType) = struct
       let rt, rf = partition p r in
       if pvd then join lt v d rt, concat lf rf else concat lt rt, join lf v d rf
 
-  type 'a enumeration = End | More of key * 'a * 'a t * 'a enumeration
+  type 'a enumeration =
+    | End
+    | More of key * 'a * 'a t * 'a enumeration
 
   let rec cons_enum m e =
     match m with

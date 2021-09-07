@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module IR = struct
-  type simple = Var of Ident.t | Const of Lambda.structured_constant
+  type simple =
+    | Var of Ident.t
+    | Const of Lambda.structured_constant
 
   type exn_continuation =
     { exn_handler : Continuation.t;
@@ -28,7 +30,9 @@ module IR = struct
     | Push of { exn_handler : Continuation.t }
     | Pop of { exn_handler : Continuation.t }
 
-  type user_visible = User_visible | Not_user_visible
+  type user_visible =
+    | User_visible
+    | Not_user_visible
 
   type named =
     | Simple of simple
@@ -42,7 +46,10 @@ module IR = struct
 
   type apply_kind =
     | Function
-    | Method of { kind : Lambda.meth_kind; obj : simple }
+    | Method of
+        { kind : Lambda.meth_kind;
+          obj : simple
+        }
 
   type apply =
     { kind : apply_kind;
@@ -363,7 +370,9 @@ module Function_decls = struct
   end
 
   type t =
-    { function_decls : Function_decl.t list; all_free_idents : Ident.Set.t }
+    { function_decls : Function_decl.t list;
+      all_free_idents : Ident.Set.t
+    }
 
   (* All identifiers free in the bodies of the given function declarations,
      indexed by the identifiers corresponding to the functions themselves. *)

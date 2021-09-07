@@ -8,7 +8,9 @@ external ( && ) : bool -> bool -> bool = "%sequand"
 
 let foo = match getenv "FOO" with exception _ -> false | _ -> true
 
-type t = S of (int -> t * bool) | T of (int -> t * bool)
+type t =
+  | S of (int -> t * bool)
+  | T of (int -> t * bool)
 
 let f b =
   if b

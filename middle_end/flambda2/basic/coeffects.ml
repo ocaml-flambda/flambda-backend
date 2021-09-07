@@ -16,7 +16,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = No_coeffects | Has_coeffects
+type t =
+  | No_coeffects
+  | Has_coeffects
 
 let [@ocamlformat "disable"] print ppf co =
   match co with

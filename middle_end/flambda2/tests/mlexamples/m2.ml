@@ -250,7 +250,12 @@ let min_float = float_of_bits 0x00_10_00_00_00_00_00_00L
 
 let epsilon_float = float_of_bits 0x3C_B0_00_00_00_00_00_00L
 
-type fpclass = FP_normal | FP_subnormal | FP_zero | FP_infinite | FP_nan
+type fpclass =
+  | FP_normal
+  | FP_subnormal
+  | FP_zero
+  | FP_infinite
+  | FP_nan
 
 external classify_float : (float[@unboxed]) -> fpclass
   = "caml_classify_float" "caml_classify_float_unboxed"
@@ -316,7 +321,9 @@ external decr : int ref -> unit = "%decr"
 
 (* Result type *)
 
-type ('a, 'b) result = Ok of 'a | Error of 'b
+type ('a, 'b) result =
+  | Ok of 'a
+  | Error of 'b
 
 (* String conversion functions *)
 
@@ -683,7 +690,9 @@ let _ = register_named_value "Pervasives.do_at_exit" do_at_exit
 
 let[@inline always] f a = print_endline (string_of_int a)
 
-type t = Eq | Neq
+type t =
+  | Eq
+  | Neq
 
 let foo op g =
   let a = false in

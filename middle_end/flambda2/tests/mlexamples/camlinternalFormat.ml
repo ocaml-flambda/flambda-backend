@@ -269,7 +269,12 @@ let min_float = float_of_bits 0x00_10_00_00_00_00_00_00L
 
 let epsilon_float = float_of_bits 0x3C_B0_00_00_00_00_00_00L
 
-type fpclass = FP_normal | FP_subnormal | FP_zero | FP_infinite | FP_nan
+type fpclass =
+  | FP_normal
+  | FP_subnormal
+  | FP_zero
+  | FP_infinite
+  | FP_nan
 
 external classify_float : (float[@unboxed]) -> fpclass
   = "caml_classify_float" "caml_classify_float_unboxed"
@@ -335,7 +340,9 @@ external decr : int ref -> unit = "%decr"
 
 (* Result type *)
 
-type ('a, 'b) result = Ok of 'a | Error of 'b
+type ('a, 'b) result =
+  | Ok of 'a
+  | Error of 'b
 
 (* String conversion functions *)
 
@@ -950,7 +957,10 @@ external hexstring_of_float : float -> int -> char -> string
 (* Tools to pretty-print formats *)
 
 (* Type of extensible character buffers. *)
-type buffer = { mutable ind : int; mutable bytes : bytes }
+type buffer =
+  { mutable ind : int;
+    mutable bytes : bytes
+  }
 
 (* Create a fresh buffer. *)
 let buffer_create init_size = { ind = 0; bytes = Bytes.create init_size }

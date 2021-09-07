@@ -73,7 +73,9 @@ module type S = sig
       not represented in the map. *)
   type directed_graph = Id.Set.t Id.Map.t
 
-  type component = Has_loop of Id.t list | No_loop of Id.t
+  type component =
+    | Has_loop of Id.t list
+    | No_loop of Id.t
 
   val connected_components_sorted_from_roots_to_leaf :
     directed_graph -> component array

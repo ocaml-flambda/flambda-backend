@@ -16,7 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type raise_kind = Regular | Reraise | No_trace
+type raise_kind =
+  | Regular
+  | Reraise
+  | No_trace
 
 let raise_kind_to_int = function Regular -> 0 | Reraise -> 1 | No_trace -> 2
 
@@ -25,7 +28,10 @@ let compare_raise_kind rk1 rk2 =
 
 type t =
   | Push of { exn_handler : Continuation.t }
-  | Pop of { exn_handler : Continuation.t; raise_kind : raise_kind option }
+  | Pop of
+      { exn_handler : Continuation.t;
+        raise_kind : raise_kind option
+      }
 
 let compare t1 t2 =
   match t1, t2 with

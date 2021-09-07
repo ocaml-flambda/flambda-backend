@@ -1,6 +1,8 @@
 external opaque : 'a -> 'a = "%opaque"
 
-type +'a node = Nil | Cons of 'a * 'a t
+type +'a node =
+  | Nil
+  | Cons of 'a * 'a t
 
 and 'a t = unit -> 'a node
 

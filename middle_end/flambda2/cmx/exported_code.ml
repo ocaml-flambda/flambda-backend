@@ -67,7 +67,10 @@ module Calling_convention = struct
 end
 
 type t0 =
-  | Present of { code : C.t; calling_convention : Calling_convention.t }
+  | Present of
+      { code : C.t;
+        calling_convention : Calling_convention.t
+      }
   | Imported of { calling_convention : Calling_convention.t }
 
 type t = t0 Code_id.Map.t

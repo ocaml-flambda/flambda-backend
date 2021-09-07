@@ -113,7 +113,9 @@ module Aliases_of_canonical_element : sig
   val apply_renaming : t -> Renaming.t -> t
 end = struct
   type t =
-    { aliases : Map_to_canonical.t Name_mode.Map.t; all : Map_to_canonical.t }
+    { aliases : Map_to_canonical.t Name_mode.Map.t;
+      all : Map_to_canonical.t
+    }
 
   let invariant { aliases; all } =
     (* The elements in [aliases] have disjoint set of keys. *)
@@ -242,7 +244,10 @@ end = struct
 end
 
 module Alias_set = struct
-  type t = { const : Const.t option; names : Coercion.t Name.Map.t }
+  type t =
+    { const : Const.t option;
+      names : Coercion.t Name.Map.t
+    }
 
   let empty = { const = None; names = Name.Map.empty }
 
@@ -656,7 +661,9 @@ let add_alias_between_canonical_elements t ~canonical_element
     invariant res;
     res
 
-type to_be_demoted = Demote_canonical_element1 | Demote_canonical_element2
+type to_be_demoted =
+  | Demote_canonical_element1
+  | Demote_canonical_element2
 
 let choose_canonical_element_to_be_demoted t ~canonical_element1
     ~canonical_element2 =
@@ -666,7 +673,10 @@ let choose_canonical_element_to_be_demoted t ~canonical_element1
 
 (* CR mshinwell: add submodule *)
 type add_result =
-  { t : t; canonical_element : Simple.t; alias_of_demoted_element : Simple.t }
+  { t : t;
+    canonical_element : Simple.t;
+    alias_of_demoted_element : Simple.t
+  }
 
 let invariant_add_result ~original_t
     { canonical_element; alias_of_demoted_element; t } =

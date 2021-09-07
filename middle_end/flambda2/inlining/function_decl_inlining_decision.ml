@@ -23,7 +23,10 @@ type t =
   | Function_body_too_large of Code_size.t
   | Stub
   | Attribute_inline
-  | Small_function of { size : Code_size.t; small_function_size : Code_size.t }
+  | Small_function of
+      { size : Code_size.t;
+        small_function_size : Code_size.t
+      }
   | Speculatively_inlinable of
       { size : Code_size.t;
         small_function_size : Code_size.t;

@@ -17,7 +17,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { funs : Code_id.t Closure_id.Map.t; in_order : Code_id.t Closure_id.Lmap.t }
+  { funs : Code_id.t Closure_id.Map.t;
+    in_order : Code_id.t Closure_id.Lmap.t
+  }
 
 let invariant _env _t = ()
 

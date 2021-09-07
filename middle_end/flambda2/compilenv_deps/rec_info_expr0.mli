@@ -46,7 +46,10 @@ module type S = sig
   (** An expression for the state of recursive inlining at a given occurrence.
       Forms the right-hand side of a [Let_expr] binding for a depth variable. *)
   type t = private
-    | Const of { depth : int Or_infinity.t; unrolling : Unrolling_state.t }
+    | Const of
+        { depth : int Or_infinity.t;
+          unrolling : Unrolling_state.t
+        }
     | Var of variable  (** A variable of kind [Flambda_kind.rec_info]. *)
     | Succ of t
         (** The next depth. If we inline an occurrence with depth [d], then in

@@ -32,7 +32,9 @@ module Non_inlinable : sig
   val code_id : t -> Code_id.t
 end
 
-type t0 = private Inlinable of Inlinable.t | Non_inlinable of Non_inlinable.t
+type t0 = private
+  | Inlinable of Inlinable.t
+  | Non_inlinable of Non_inlinable.t
 
 type t = t0 Or_unknown_or_bottom.t
 

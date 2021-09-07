@@ -26,7 +26,10 @@ module type Term = sig
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
-type printing_style = Normal | Brackets | Existential
+type printing_style =
+  | Normal
+  | Brackets
+  | Existential
 
 let before_binding_position style =
   match style with

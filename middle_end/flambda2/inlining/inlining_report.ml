@@ -21,9 +21,13 @@ type at_call_site =
   | Unknown_function
   | Non_inlinable_function of { code_id : Code_id.exported }
   | Inlinable_function of
-      { code_id : Code_id.exported; decision : Call_site_inlining_decision.t }
+      { code_id : Code_id.exported;
+        decision : Call_site_inlining_decision.t
+      }
 
-type fundecl_pass = Before_simplify | After_simplify
+type fundecl_pass =
+  | Before_simplify
+  | After_simplify
 
 type at_function_declaration =
   { pass : fundecl_pass;
@@ -52,7 +56,10 @@ type decision =
    denv if the current mutable way proves to be too annoying. *)
 
 (* Individual decisions, with debuginfo *)
-type t = { dbg : Debuginfo.t; decision : decision }
+type t =
+  { dbg : Debuginfo.t;
+    decision : decision
+  }
 
 type metadata = { compilation_unit : Compilation_unit.t }
 

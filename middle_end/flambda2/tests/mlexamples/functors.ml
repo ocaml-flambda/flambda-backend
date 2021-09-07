@@ -37,7 +37,9 @@ end = struct
     val foo : t -> t
   end) =
   struct
-    type t = S | NA of X.t
+    type t =
+      | S
+      | NA of X.t
 
     let s = S
 

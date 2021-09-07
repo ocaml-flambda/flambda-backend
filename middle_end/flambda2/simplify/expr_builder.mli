@@ -108,7 +108,9 @@ val add_wrapper_for_fixed_arity_apply :
   Apply.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
-type rewrite_use_ctx = Apply_cont | Apply_expr of Simple.t list
+type rewrite_use_ctx =
+  | Apply_cont
+  | Apply_expr of Simple.t list
 
 type rewrite_use_result = private
   | Apply_cont of Apply_cont.t

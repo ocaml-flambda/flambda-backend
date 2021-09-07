@@ -8,9 +8,19 @@ module type Foo = sig end
 module Make (F : Foo) = struct
   exception UndecidedLit
 
-  type var = { vid : int; pa : atom; na : atom; level : int }
+  type var =
+    { vid : int;
+      pa : atom;
+      na : atom;
+      level : int
+    }
 
-  and atom = { aid : int; var : var; neg : atom; mutable is_true : bool }
+  and atom =
+    { aid : int;
+      var : var;
+      neg : atom;
+      mutable is_true : bool
+    }
 
   let[@inline] is_true a = a.is_true
 

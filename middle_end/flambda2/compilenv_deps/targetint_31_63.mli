@@ -187,9 +187,14 @@ module Imm : sig
   val to_string : t -> string
 end
 
-type 'a or_wrong = private Ok of 'a | Wrong
+type 'a or_wrong = private
+  | Ok of 'a
+  | Wrong
 
-type t = private { value : Imm.t; print_as_char : bool }
+type t = private
+  { value : Imm.t;
+    print_as_char : bool
+  }
 
 type immediate = t
 

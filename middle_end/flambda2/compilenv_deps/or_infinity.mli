@@ -14,7 +14,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type 'a t = Finite of 'a | Infinity
+type 'a t =
+  | Finite of 'a
+  | Infinity
 
 val compare : f:('a -> 'a -> int) -> 'a t -> 'a t -> int
 
