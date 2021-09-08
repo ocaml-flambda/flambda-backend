@@ -52,6 +52,7 @@ val iter :
   ?code:(id:Code_id.t -> Flambda.Code.t -> unit) ->
   ?set_of_closures:
     (closure_symbols:Symbol.t Closure_id.Lmap.t option ->
+    is_phantom:bool ->
     Flambda.Set_of_closures.t ->
     unit) ->
   t ->
