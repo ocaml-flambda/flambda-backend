@@ -48,13 +48,72 @@ let simple_join typing_env uses ~params =
       let name = Kinded_parameter.name param in
       TE.add_equation handler_env name joined_type)
 
-let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
-    ~params ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+let normal_join denv typing_env params ~env_at_fork_plus_params
+    ~consts_lifted_during_body ~use_envs_with_ids =
   let definition_scope_level =
     DE.get_continuation_scope_level env_at_fork_plus_params
   in
+  let extra_lifted_consts_in_use_envs =
+    LCS.all_defined_symbols consts_lifted_during_body
+  in
+  let use_envs_with_ids' =
+    (* CR mshinwell: Stop allocating this *)
+    List.map
+      (fun (use_env, id, use_kind) -> DE.typing_env use_env, id, use_kind)
+      use_envs_with_ids
+  in
+  let module CSE = Common_subexpression_elimination in
+  let cse_join_result =
+    assert (Scope.equal definition_scope_level (TE.current_scope typing_env));
+    CSE.join ~typing_env_at_fork:typing_env ~cse_at_fork:(DE.cse denv)
+      ~use_info:use_envs_with_ids
+      ~get_typing_env:(fun (use_env, _, _) -> DE.typing_env use_env)
+      ~get_rewrite_id:(fun (_, id, _) -> id)
+      ~get_cse:(fun (use_env, _, _) -> DE.cse use_env)
+      ~params
+  in
+  let extra_params_and_args =
+    match cse_join_result with
+    | None -> Continuation_extra_params_and_args.empty
+    | Some cse_join_result -> cse_join_result.extra_params
+  in
+  let extra_allowed_names =
+    match cse_join_result with
+    | None -> Name_occurrences.empty
+    | Some cse_join_result -> cse_join_result.extra_allowed_names
+  in
+  let env =
+    TE.cut_and_n_way_join typing_env use_envs_with_ids'
+      ~params
+        (* CR-someday mshinwell: If this didn't do Scope.next then TE could
+           probably be slightly more efficient, as it wouldn't need to look at
+           the middle of the three return values from Scope.Map.Split. *)
+      ~unknown_if_defined_at_or_later_than:(Scope.next definition_scope_level)
+      ~extra_lifted_consts_in_use_envs ~extra_allowed_names
+  in
+  let handler_env =
+    env
+    |> TE.add_definitions_of_params ~params:extra_params_and_args.extra_params
+  in
+  let handler_env =
+    match cse_join_result with
+    | None -> handler_env
+    | Some cse_join_result ->
+      Name.Map.fold
+        (fun name ty handler_env -> TE.add_equation handler_env name ty)
+        cse_join_result.extra_equations handler_env
+  in
+  let denv =
+    let denv = DE.with_typing_env denv handler_env in
+    match cse_join_result with
+    | None -> denv
+    | Some cse_join_result -> DE.with_cse denv cse_join_result.cse_at_join_point
+  in
+  denv, extra_params_and_args
+
+let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
+    ~params ~code_age_relation_after_body : Continuation_env_and_param_types.t =
   let need_to_meet_param_types =
-    (* CR mshinwell: Unsure if this is worth doing. *)
     (* If there is information available from the subkinds of the parameters, we
        will need to meet the existing parameter types (e.g. "unknown boxed
        float") with the argument types at each use. *)
@@ -104,15 +163,6 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
       let denv =
         LCS.add_to_denv env_at_fork_plus_params consts_lifted_during_body
       in
-      let extra_lifted_consts_in_use_envs =
-        LCS.all_defined_symbols consts_lifted_during_body
-      in
-      let use_envs_with_ids' =
-        (* CR mshinwell: Stop allocating this *)
-        List.map
-          (fun (use_env, id, use_kind) -> DE.typing_env use_env, id, use_kind)
-          use_envs_with_ids
-      in
       let typing_env = DE.typing_env denv in
       let handler_env, extra_params_and_args =
         if not (Flambda_features.join_points ())
@@ -121,59 +171,8 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
           let denv = DE.with_typing_env denv handler_env in
           denv, Continuation_extra_params_and_args.empty
         else
-          let module CSE = Common_subexpression_elimination in
-          let cse_join_result =
-            assert (
-              Scope.equal definition_scope_level (TE.current_scope typing_env));
-            CSE.join ~typing_env_at_fork:typing_env ~cse_at_fork:(DE.cse denv)
-              ~use_info:use_envs_with_ids
-              ~get_typing_env:(fun (use_env, _, _) -> DE.typing_env use_env)
-              ~get_rewrite_id:(fun (_, id, _) -> id)
-              ~get_cse:(fun (use_env, _, _) -> DE.cse use_env)
-              ~params
-          in
-          let extra_params_and_args =
-            match cse_join_result with
-            | None -> Continuation_extra_params_and_args.empty
-            | Some cse_join_result -> cse_join_result.extra_params
-          in
-          let extra_allowed_names =
-            match cse_join_result with
-            | None -> Name_occurrences.empty
-            | Some cse_join_result -> cse_join_result.extra_allowed_names
-          in
-          let env =
-            TE.cut_and_n_way_join typing_env use_envs_with_ids'
-              ~params
-                (* CR mshinwell: If this didn't do Scope.next then TE could
-                   probably be slightly more efficient, as it wouldn't need to
-                   look at the middle of the three return values from
-                   Scope.Map.Split. *)
-              ~unknown_if_defined_at_or_later_than:
-                (Scope.next definition_scope_level)
-              ~extra_lifted_consts_in_use_envs ~extra_allowed_names
-          in
-          let handler_env =
-            env
-            |> TE.add_definitions_of_params
-                 ~params:extra_params_and_args.extra_params
-          in
-          let handler_env =
-            match cse_join_result with
-            | None -> handler_env
-            | Some cse_join_result ->
-              Name.Map.fold
-                (fun name ty handler_env -> TE.add_equation handler_env name ty)
-                cse_join_result.extra_equations handler_env
-          in
-          let denv =
-            let denv = DE.with_typing_env denv handler_env in
-            match cse_join_result with
-            | None -> denv
-            | Some cse_join_result ->
-              DE.with_cse denv cse_join_result.cse_at_join_point
-          in
-          denv, extra_params_and_args
+          normal_join denv typing_env params ~env_at_fork_plus_params
+            ~consts_lifted_during_body ~use_envs_with_ids
       in
       let denv =
         DE.map_typing_env handler_env ~f:(fun handler_env ->
