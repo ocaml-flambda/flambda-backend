@@ -107,7 +107,6 @@ let load_file ppf name0 =
     if tmp then (try Sys.remove fn with Sys_error _ -> ());
     success
 
-
 let dir_load ppf name = ignore (load_file ppf name)
 
 let _ = Hashtbl.add directive_table "load" (Directive_string (dir_load std_out))
@@ -216,3 +215,13 @@ let _ =
 
   Hashtbl.add directive_table "warn_error"
              (Directive_string (parse_warnings std_out true))
+
+let section_options = "Compiler options"
+
+let _ = add_directive "ppx"
+    (Directive_string(fun s -> Clflags.all_ppx := s :: !Clflags.all_ppx))
+    {
+      section = section_options;
+      doc = "After parsing, pipe the abstract \
+          syntax tree through the preprocessor command.";
+    }
