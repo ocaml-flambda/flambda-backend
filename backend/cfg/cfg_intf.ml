@@ -32,11 +32,10 @@
 module S = struct
   type func_call_operation =
     | Indirect
-    | Direct of
-        { func_symbol : string; }
+    | Direct of { func_symbol : string }
 
   type tail_call_operation =
-    | Self of { destination : Label.t; }
+    | Self of { destination : Label.t }
     | Func of func_call_operation
 
   type external_call_operation =
@@ -50,10 +49,9 @@ module S = struct
     | External of external_call_operation
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo;
+          dbginfo : Debuginfo.alloc_dbginfo
         }
-    | Checkbound of
-        { immediate : int option; }
+    | Checkbound of { immediate : int option }
 
   type operation =
     | Move
@@ -73,7 +71,7 @@ module S = struct
     | Subf
     | Mulf
     | Divf
-    | Compf of Mach.float_comparison  (* CR gyorsh: can merge with float_test? *)
+    | Compf of Mach.float_comparison (* CR gyorsh: can merge with float_test? *)
     | Floatofint
     | Intoffloat
     | Probe of
@@ -99,10 +97,10 @@ module S = struct
     }
 
   (** [int_test] represents all possible outcomes of a comparison between two
-      integers. When [imm] field is [None], compare variables x and y,
-      specified by the arguments of the enclosing [instruction]. When [imm]
-      field is [Some n], compare variable x and immediate [n]. This
-      corresponds to [Mach.Iinttest] and [Mach.Iinttest_imm] in the compiler. *)
+      integers. When [imm] field is [None], compare variables x and y, specified
+      by the arguments of the enclosing [instruction]. When [imm] field is [Some
+      n], compare variable x and immediate [n]. This corresponds to
+      [Mach.Iinttest] and [Mach.Iinttest_imm] in the compiler. *)
   type int_test =
     { lt : Label.t;  (** if x < y (resp. x < n) goto [lt] label *)
       eq : Label.t;  (** if x = y (resp. x = n) goto [eq] label *)
@@ -111,10 +109,10 @@ module S = struct
       imm : int option
     }
 
-  (** [float_test] represents possible outcomes of comparison between
-      arguments x and y of type float. It is not enough to check "=,<,>"
-      because possible outcomes of comparison include "unordered" (see e.g.
-      x86-64 emitter) when the arguments involve NaNs. *)
+  (** [float_test] represents possible outcomes of comparison between arguments
+      x and y of type float. It is not enough to check "=,<,>" because possible
+      outcomes of comparison include "unordered" (see e.g. x86-64 emitter) when
+      the arguments involve NaNs. *)
   type float_test =
     { lt : Label.t;
       eq : Label.t;
@@ -141,19 +139,18 @@ module S = struct
     | Poptrap
     | Prologue
 
-
-   (* Properties of the representation of successors:
-    * - Tests of different types are not mixed. For example, a test that
-    *   compares between variables of type int cannot be combined with a
-    *   float comparison in the same block terminator.
-    * - Total: all possible outcomes of a test have a defined target label
-    * - Disjoint: at most one of the outcomes of a test is true
-    * - Redundancy of labels: more than one outcome of test can lead to the
-    *   same label
-    * - Redundancy of representation of unconditional jump: if all outcomes
-    *   of a test lead to the same label, it can be represented as (Always
-    *   l). For example, [Parity_test {true_=l;false_=l}] can be simplified
-    *   to [(Always l)].  *)
+  (* Properties of the representation of successors:
+   * - Tests of different types are not mixed. For example, a test that
+   *   compares between variables of type int cannot be combined with a
+   *   float comparison in the same block terminator.
+   * - Total: all possible outcomes of a test have a defined target label
+   * - Disjoint: at most one of the outcomes of a test is true
+   * - Redundancy of labels: more than one outcome of test can lead to the
+   *   same label
+   * - Redundancy of representation of unconditional jump: if all outcomes
+   *   of a test lead to the same label, it can be represented as (Always
+   *   l). For example, [Parity_test {true_=l;false_=l}] can be simplified
+   *   to [(Always l)]. *)
   type terminator =
     | Never
     | Always of Label.t

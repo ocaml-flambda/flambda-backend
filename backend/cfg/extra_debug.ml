@@ -46,10 +46,9 @@ let add cl =
    *    Others are created during cfg_to_linear with [fdo] set to [none]. *)
   let update_instr prev (i : _ Cfg.instruction) =
     let dbg =
-      if not (Debuginfo.is_none prev) && (Debuginfo.is_none i.dbg) then
-        prev
-      else
-        i.dbg
+      if (not (Debuginfo.is_none prev)) && Debuginfo.is_none i.dbg
+      then prev
+      else i.dbg
     in
     let fdo = Fdo_info.create ~discriminator:i.id ~dbg in
     dbg, { i with fdo }
@@ -64,4 +63,4 @@ let add cl =
     block.terminator <- new_terminator;
     prev
   in
-  ignore (List.fold_left update_block cfg.fun_dbg layout: Debuginfo.t)
+  ignore (List.fold_left update_block cfg.fun_dbg layout : Debuginfo.t)

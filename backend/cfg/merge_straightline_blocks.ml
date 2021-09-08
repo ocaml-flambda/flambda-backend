@@ -49,51 +49,49 @@
  *  is chosen according to the `Pushtrap` and `Poptrap` instructions executed so far
  *  (as opposed to the information encoded in the graph). *)
 
-let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : bool =
+let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
+    bool =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let merged =
     Label.Tbl.fold
       (fun b1_label (b1_block : Cfg.basic_block) merged ->
-         let b1_successors = Cfg.successor_labels ~normal:true ~exn:false b1_block in
-         match Label.Set.cardinal b1_successors with
-         | 1 ->
-           let b2_label = Label.Set.choose b1_successors in
-           let b2_block = Label.Tbl.find cfg.blocks b2_label in
-           let b2_predecessors = Cfg.predecessor_labels b2_block in
-           if not (Label.equal b1_label b2_label)
-           && (List.compare_length_with b2_predecessors 1 = 0) then begin
-             assert (Label.equal b1_label (List.hd b2_predecessors));
-             (* modify b1 *)
-             b1_block.body <- b1_block.body @ b2_block.body;
-             b1_block.terminator <- b2_block.terminator;
-             b1_block.exns <- Label.Set.union b1_block.exns b2_block.exns;
-             b1_block.can_raise <- b1_block.can_raise || b2_block.can_raise;
-             (* modify b2 *)
-             b2_block.predecessors <- Label.Set.empty;
-             Label.Set.iter
-               (fun (b2_succ_label : Label.t) ->
-                  let b2_succ_block = Cfg.get_block_exn cfg b2_succ_label in
-                  b2_succ_block.predecessors <-
-                    Label.Set.add
-                      b1_label
-                      (Label.Set.remove b2_label b2_succ_block.predecessors))
-               (Cfg.successor_labels ~normal:true ~exn:true b2_block);
-             b2_block.terminator <- { b2_block.terminator with desc = Cfg_intf.S.Never; };
-             b2_block.exns <- Label.Set.empty;
-             true
-           end else
-             merged
-         | _ ->
-           merged)
-      cfg.blocks
-      false
+        let b1_successors =
+          Cfg.successor_labels ~normal:true ~exn:false b1_block
+        in
+        match Label.Set.cardinal b1_successors with
+        | 1 ->
+          let b2_label = Label.Set.choose b1_successors in
+          let b2_block = Label.Tbl.find cfg.blocks b2_label in
+          let b2_predecessors = Cfg.predecessor_labels b2_block in
+          if (not (Label.equal b1_label b2_label))
+             && List.compare_length_with b2_predecessors 1 = 0
+          then begin
+            assert (Label.equal b1_label (List.hd b2_predecessors));
+            (* modify b1 *)
+            b1_block.body <- b1_block.body @ b2_block.body;
+            b1_block.terminator <- b2_block.terminator;
+            b1_block.exns <- Label.Set.union b1_block.exns b2_block.exns;
+            b1_block.can_raise <- b1_block.can_raise || b2_block.can_raise;
+            (* modify b2 *)
+            b2_block.predecessors <- Label.Set.empty;
+            Label.Set.iter
+              (fun (b2_succ_label : Label.t) ->
+                let b2_succ_block = Cfg.get_block_exn cfg b2_succ_label in
+                b2_succ_block.predecessors
+                  <- Label.Set.add b1_label
+                       (Label.Set.remove b2_label b2_succ_block.predecessors))
+              (Cfg.successor_labels ~normal:true ~exn:true b2_block);
+            b2_block.terminator
+              <- { b2_block.terminator with desc = Cfg_intf.S.Never };
+            b2_block.exns <- Label.Set.empty;
+            true
+          end
+          else merged
+        | _ -> merged)
+      cfg.blocks false
   in
-  if merged then
-    merge_blocks true cfg_with_layout
-  else
-    modified
+  if merged then merge_blocks true cfg_with_layout else modified
 
 let run (cfg_with_layout : Cfg_with_layout.t) : unit =
   let modified = merge_blocks false cfg_with_layout in
-  if modified then
-    Eliminate_dead_blocks.run cfg_with_layout
+  if modified then Eliminate_dead_blocks.run cfg_with_layout
