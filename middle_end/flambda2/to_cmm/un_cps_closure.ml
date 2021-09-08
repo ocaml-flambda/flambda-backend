@@ -626,8 +626,12 @@ end
 let compute_offsets env code unit =
   let state = ref (Greedy.create_initial_state env) in
   let used_closure_vars = Flambda_unit.used_closure_vars unit in
-  let aux ~closure_symbols:_ s =
-    state := Greedy.create_slots_for_set !state code used_closure_vars s
+  let aux ~closure_symbols:_ ~is_phantom s =
+    if not is_phantom
+    then
+      (* if the definition is a phantom one, there is no need to attribute a
+         slot. Also a phantom declaration can refer to a dead code_id. *)
+      state := Greedy.create_slots_for_set !state code used_closure_vars s
   in
   Flambda_unit.iter unit ~set_of_closures:aux;
   Misc.try_finally
