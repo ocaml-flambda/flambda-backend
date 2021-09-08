@@ -79,20 +79,9 @@ end
     values during closure conversion, and similarly for static exception
     identifiers. *)
 module Env : sig
-  type function_description =
-    { fd_code_id : Code_id.t;
-      fd_code : Code.t;
-      fd_ret_cont : Continuation.t;
-      fd_exn_cont : Exn_continuation.t;
-      fd_params : Bound_parameter.t list;
-      fd_body : Flambda.Expr.t;
-      fd_closure : Variable.t;
-      fd_depth : Variable.t
-    }
-
   type value_approximation =
     | Value_unknown
-    | Closure_approximation of function_description
+    | Closure_approximation of Code_id.t * Code.t option
     | Block_approximation of value_approximation array
 
   type t
@@ -134,7 +123,7 @@ module Env : sig
 
   val add_value_approximation : t -> Name.t -> value_approximation -> t
 
-  val add_closure_approximation : t -> Name.t -> function_description -> t
+  val add_closure_approximation : t -> Name.t -> Code_id.t * Code.t option -> t
 
   val add_block_approximation : t -> Name.t -> value_approximation array -> t
 

@@ -171,38 +171,65 @@ let find_simples acc env ids =
 module Inlining = struct
   type inlinable_result =
     | Not_inlinable
-    | Inlinable of Env.function_description
+    | Inlinable of Code.t
 
-  let inlinable env name ~(inlined_call : Inlined_attribute.t) =
-    match Env.find_value_approximation env name with
-    | Value_unknown | Block_approximation _ -> Not_inlinable
-    | Closure_approximation approx ->
-      let code = approx.fd_code in
-      let code_size =
-        Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
+  let threshold () =
+    let inline_threshold =
+      Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
+    in
+    (* CR keryan: should probably tweak this value *)
+    let magic_scale_constant = 10. in
+    int_of_float (inline_threshold *. magic_scale_constant)
+
+  (* CR keryan: we need to emit warnings *)
+  let inlinable env apply =
+    let callee = Apply_expr.callee apply in
+    let dbg = Apply_expr.dbg apply in
+    match Env.find_value_approximation env callee with
+    | Value_unknown ->
+      Inlining_report.(record_decision ~dbg (At_call_site Unknown_function));
+      Not_inlinable
+    | Block_approximation _ -> assert false
+    | Closure_approximation (code_id, None) ->
+      Inlining_report.record_decision ~dbg
+        (At_call_site
+           (Inlining_report.Known_function
+              { code_id = Code_id.export code_id;
+                decision = Definition_says_not_to_inline
+              }));
+      Not_inlinable
+    | Closure_approximation (code_id, Some code) ->
+      let fun_params_length =
+        Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
+        |> Flambda_arity.length
       in
-      let inlined : Inlined_attribute.t =
-        match Code.inline code with
-        | Never_inline -> Never_inlined
-        | _ -> inlined_call
-      in
-      let threshold =
-        match inlined with
-        | Default_inlined ->
-          let inline_threshold =
-            Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
-          in
-          (* CR keryan: should probably tweak this value *)
-          let magic_scale_constant = 3. in
-          int_of_float (inline_threshold *. magic_scale_constant)
-        | Always_inlined | Hint_inlined -> max_int
-        | Never_inlined -> min_int
-        | Unroll _ -> assert false
-      in
-      if code_size <= threshold
-         (* && !Clflags.Flambda.Expert.fallback_inlining_heuristic *)
-      then Inlinable approx
-      else Not_inlinable
+      if fun_params_length > List.length (Apply_expr.args apply)
+      then begin
+        Inlining_report.record_decision ~dbg
+          (At_call_site
+             (Inlining_report.Known_function
+                { code_id = Code_id.export code_id;
+                  decision = Definition_says_not_to_inline
+                }));
+        Not_inlinable
+      end
+      else
+        let inlined_call = Apply_expr.inlined apply in
+        let decision, res =
+          match inlined_call with
+          | Never_inlined ->
+            Call_site_inlining_decision.Never_inlined_attribute, Not_inlinable
+          | Always_inlined | Hint_inlined ->
+            Call_site_inlining_decision.Attribute_always, Inlinable code
+          | Default_inlined ->
+            Call_site_inlining_decision.Definition_says_inline, Inlinable code
+          | Unroll _ -> assert false
+        in
+        Inlining_report.record_decision ~dbg
+          (At_call_site
+             (Inlining_report.Known_function
+                { code_id = Code_id.export code_id; decision }));
+        res
 
   (* CR keryan: the remaining functions of the submodule are taken from
      [Inlining_transforms] and adapted to local [Acc]. Some refactoring
@@ -325,12 +352,12 @@ module Inlining = struct
       ~handler_params:wrapper_handler_params ~handler:wrapper_handler
       ~body:body_with_push ~is_exn_handler:true
 
-  let inline acc ~apply ~apply_depth ~func_desc:Env.{ fd_code; _ } =
+  let inline acc ~apply ~apply_depth ~func_desc:code =
     let callee = Apply.callee apply in
     let args = Apply.args apply in
     let apply_return_continuation = Apply.continuation apply in
     let apply_exn_continuation = Apply.exn_continuation apply in
-    let params_and_body = Code.params_and_body fd_code in
+    let params_and_body = Code.params_and_body code in
     Function_params_and_body.pattern_match params_and_body
       ~f:(fun
            ~return_continuation
@@ -342,23 +369,31 @@ module Inlining = struct
            ~my_depth
            ~free_names_of_body
          ->
-        if List.length args <> List.length params
-        then Expr_with_acc.create_apply acc apply
-        else
-          let free_names_of_body =
-            match free_names_of_body with
-            | Unknown ->
-              Misc.fatal_error
-                "Params_and_body needs free_names_of_body in \
-                 [Closure_conversion]"
-            | Known free_names -> free_names
+        let args, remain_args =
+          let rec split l1 l2 =
+            match l1, l2 with
+            | _, [] -> [], l1
+            | [], _ -> assert false
+            | e1 :: l1, _ :: l2 ->
+              let args, remains = split l1 l2 in
+              e1 :: args, remains
           in
-          let make_inlined_body =
-            make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~body
-              ~free_names_of_body ~exn_continuation ~return_continuation
-              ~apply_depth
-          in
-          let acc = Acc.with_free_names Name_occurrences.empty acc in
+          split args params
+        in
+        let free_names_of_body =
+          match free_names_of_body with
+          | Unknown ->
+            Misc.fatal_error
+              "Params_and_body needs free_names_of_body in [Closure_conversion]"
+          | Known free_names -> free_names
+        in
+        let make_inlined_body =
+          make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~body
+            ~free_names_of_body ~exn_continuation ~return_continuation
+            ~apply_depth
+        in
+        let acc = Acc.with_free_names Name_occurrences.empty acc in
+        let body apply_return_continuation acc =
           match Exn_continuation.extra_args apply_exn_continuation with
           | [] ->
             make_inlined_body acc
@@ -368,8 +403,30 @@ module Inlining = struct
           | extra_args ->
             wrap_inlined_body_for_exn_support acc ~extra_args
               ~apply_exn_continuation ~apply_return_continuation
-              ~result_arity:(Code.result_arity fd_code)
-              ~make_inlined_body)
+              ~result_arity:(Code.result_arity code) ~make_inlined_body
+        in
+        match remain_args with
+        | [] -> body apply_return_continuation acc
+        | args ->
+          let wrapper_cont = Continuation.create () in
+          let continuation = Apply.Result_continuation.Return wrapper_cont in
+          let returned_func = Variable.create "func" in
+          let call_kind = Call_kind.indirect_function_call_unknown_arity () in
+          let handler acc =
+            let over_apply =
+              Apply.create ~callee:(Simple.var returned_func)
+                ~continuation:apply_return_continuation apply_exn_continuation
+                ~args ~call_kind (Apply.dbg apply) ~inlined:(Apply.inlined apply)
+                ~inlining_state:(Inlining_state.default ~round:0)
+                ~probe_name:(Apply.probe_name apply)
+            in
+            Expr_with_acc.create_apply acc over_apply
+          in
+          let body = body continuation in
+          Let_cont_with_acc.build_non_recursive acc wrapper_cont
+            ~handler_params:
+              [Bound_parameter.create returned_func K.With_subkind.any_value]
+            ~handler ~body ~is_exn_handler:false)
 end
 
 let close_c_call acc ~let_bound_var
@@ -734,22 +791,24 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
          (fun (param, user_visible, _kind) -> param, user_visible)
          params)
   in
-  let handler_env =
-    match Acc.continuation_known_arguments ~cont:name acc with
-    | None -> handler_env
-    | Some args ->
-      List.fold_left2
-        (fun env arg_approx param ->
-          Env.add_value_approximation env (Name.var param) arg_approx)
-        handler_env args params
-  in
   let handler_params =
     List.map2
       (fun param (_, _, kind) ->
         Bound_parameter.create param (LC.value_kind kind))
       params params_with_kinds
   in
-  let handler acc = handler acc handler_env in
+  let handler acc =
+    let handler_env =
+      match Acc.continuation_known_arguments ~cont:name acc with
+      | None -> handler_env
+      | Some args ->
+        List.fold_left2
+          (fun env arg_approx param ->
+            Env.add_value_approximation env (Name.var param) arg_approx)
+          handler_env args params
+    in
+    handler acc handler_env
+  in
   let body acc = body acc env in
   match recursive with
   | Nonrecursive ->
@@ -798,7 +857,7 @@ let close_apply acc env
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe_name
   in
-  match Inlining.inlinable env callee ~inlined_call with
+  match Inlining.inlinable env apply with
   | Not_inlinable -> Expr_with_acc.create_apply acc apply
   | Inlinable func_desc ->
     Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
@@ -1119,6 +1178,25 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let is_tupled =
     match Function_decl.kind decl with Curried -> false | Tupled -> true
   in
+  let code_size = Cost_metrics.size cost_metrics in
+  let inline_threshold = Inlining.threshold () in
+  let inlining_decision =
+    match inline with
+    | Never_inline ->
+      Function_decl_inlining_decision_type.Never_inline_attribute
+    | Always_inline | Available_inline ->
+      Function_decl_inlining_decision_type.Attribute_inline
+    | _ ->
+      if Code_size.to_int code_size <= inline_threshold
+      then
+        Function_decl_inlining_decision_type.Small_function
+          { size = code_size;
+            small_function_size = Code_size.of_int inline_threshold
+          }
+      else
+        Function_decl_inlining_decision_type.Function_body_too_large
+          (Code_size.of_int inline_threshold)
+  in
   let code =
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
@@ -1129,23 +1207,22 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~dbg ~is_tupled
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
-      ~inlining_decision:Not_yet_decided
+      ~inlining_decision
   in
-  let description =
-    Env.
-      { fd_code_id = code_id;
-        fd_code = code;
-        fd_ret_cont = return_continuation;
-        fd_exn_cont = exn_continuation;
-        fd_params = params;
-        fd_body = body;
-        fd_closure = my_closure;
-        fd_depth = my_depth
-      }
+  let approx =
+    match (inlining_decision : Function_decl_inlining_decision_type.t) with
+    | Attribute_inline | Small_function _ -> Some code
+    | _ -> None
   in
+  Inlining_report.record_decision ~dbg
+    (At_function_declaration
+       { pass = After_closure_conversion;
+         code_id = Code_id.export code_id;
+         decision = inlining_decision
+       });
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
-  acc, Closure_id.Map.add my_closure_id description by_closure_id
+  acc, Closure_id.Map.add my_closure_id (code_id, approx) by_closure_id
 
 let close_functions acc external_env function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -1187,7 +1264,7 @@ let close_functions acc external_env function_declarations =
         Ident.Map.add id closure_id map)
       Ident.Map.empty func_decl_list
   in
-  let acc, funs =
+  let acc, approximations =
     List.fold_left
       (fun (acc, by_closure_id) function_decl ->
         let _, _, acc, expr =
@@ -1203,14 +1280,14 @@ let close_functions acc external_env function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   (* CR lmaurer: funs has arbitrary order (ultimately coming from
      function_declarations) *)
-  let funs, descriptions =
-    let funs, descs =
+  let funs, approximations =
+    let funs, approxs =
       Closure_id.Map.fold
-        (fun cid desc (funs, descs) ->
-          (cid, desc.Env.fd_code_id) :: funs, desc :: descs)
-        funs ([], [])
+        (fun cid (code_id, desc) (funs, approxs) ->
+          (cid, code_id) :: funs, (code_id, desc) :: approxs)
+        approximations ([], [])
     in
-    Closure_id.Lmap.of_list (List.rev funs), List.rev descs
+    Closure_id.Lmap.of_list (List.rev funs), List.rev approxs
   in
   let function_decls = Function_declarations.create funs in
   let closure_elements =
@@ -1223,7 +1300,7 @@ let close_functions acc external_env function_declarations =
         Var_within_closure.Map.add var_within_closure external_simple map)
       var_within_closures_from_idents Var_within_closure.Map.empty
   in
-  acc, Set_of_closures.create function_decls ~closure_elements, descriptions
+  acc, Set_of_closures.create function_decls ~closure_elements, approximations
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) =

@@ -89,20 +89,9 @@ module IR = struct
 end
 
 module Env = struct
-  type function_description =
-    { fd_code_id : Code_id.t;
-      fd_code : Code.t;
-      fd_ret_cont : Continuation.t;
-      fd_exn_cont : Exn_continuation.t;
-      fd_params : Bound_parameter.t list;
-      fd_body : Flambda.Expr.t;
-      fd_closure : Variable.t;
-      fd_depth : Variable.t
-    }
-
   type value_approximation =
     | Value_unknown
-    | Closure_approximation of function_description
+    | Closure_approximation of Code_id.t * Code.t option
     | Block_approximation of value_approximation array
 
   type t =
@@ -245,8 +234,8 @@ module Env = struct
         value_approximations = Name.Map.add name approx t.value_approximations
       }
 
-  let add_closure_approximation t name approx =
-    add_value_approximation t name (Closure_approximation approx)
+  let add_closure_approximation t name (code_id, approx) =
+    add_value_approximation t name (Closure_approximation (code_id, approx))
 
   let add_block_approximation t name approxs =
     if Array.for_all (( = ) Value_unknown) approxs
@@ -688,15 +677,18 @@ module Let_cont_with_acc = struct
 
   let build_non_recursive acc cont ~handler_params ~handler ~body
       ~is_exn_handler =
+    (* We need to evaluate the body before the handler to pass along information
+       on the argument for inlining *)
+    let free_names_of_body, acc, body =
+      Acc.eval_branch_free_names acc ~f:body
+    in
     let cost_metrics_of_handler, handler_free_names, acc, handler =
       Acc.measure_cost_metrics acc ~f:(fun acc ->
           let acc, handler = handler acc in
           Continuation_handler_with_acc.create acc handler_params ~handler
             ~is_exn_handler)
     in
-    let free_names_of_body, acc, body =
-      Acc.eval_branch_free_names acc ~f:body
-    in
+    (* [create_non_recursive] assumes [acc] contains free names of the body *)
     let acc, expr =
       create_non_recursive
         (Acc.with_free_names free_names_of_body acc)
