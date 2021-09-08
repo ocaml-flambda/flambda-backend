@@ -226,6 +226,8 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) 
 
       let make_symbol str = Compilenv.make_symbol (Some str)
 
+      let make_dwarf_linkage_name loc = Compilenv.make_dwarf_linkage_name loc
+
       let get_file_num file_name =
         Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
     end)

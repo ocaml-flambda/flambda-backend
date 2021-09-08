@@ -307,18 +307,22 @@ let scope_matches_closure_id scope closure_id =
     begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
 
 (* Returns a pair of the top-level module and the list of scopes
-   the strictly contain the closure id *)
-let module_and_scopes ~unitname loc id = 
+   (optionally those that strictly contain the closure id) *)
+let module_and_scopes ~unitname ?id loc = 
   match (loc : Debuginfo.Scoped_location.t) with
   | Loc_known { loc = _; scopes } ->
     let scopes = list_of_scopes scopes in
     (* Remove last scope if it matches closure id *)
     let scopes = 
-      match List.rev scopes with
-      | [] -> Misc.fatal_errorf "No location - %s %s" unitname id
-      | last_scope :: rest when scope_matches_closure_id last_scope id -> 
-        List.rev rest
-      | _ -> scopes
+      match id with
+      | None -> scopes
+      | Some id ->
+        begin match List.rev scopes with
+          | [] -> Misc.fatal_errorf "No location - %s %s" unitname id
+          | last_scope :: rest when scope_matches_closure_id last_scope id -> 
+            List.rev rest
+          | _ -> scopes
+        end
     in
     (* If the scope is now empty, use the unitname as the top-level module *)
     begin match scopes with
@@ -327,12 +331,15 @@ let module_and_scopes ~unitname loc id =
     end
   | Loc_unknown -> unitname, []
 
+let remove_caml_prefix unitname = 
+  if begins_with unitname "caml" then
+    String.sub unitname 4 (String.length unitname - 4)
+  else
+    unitname
+
 let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
-  (* Remove caml *)
-  if not (begins_with unitname "caml") then
-    Misc.fatal_error "unitname expected to begin with caml";
-  let unitname = String.sub unitname 4 (String.length unitname - 4) in
-  let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
+  let unitname = remove_caml_prefix unitname in
+  let top_level_module, sub_scopes = module_and_scopes ~unitname ~id loc in
   let namespace_parts name =
     split_on_string name "__" |> List.map (fun part -> Simple part)
   in
@@ -349,6 +356,17 @@ let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
     ]
   in
   mangle_cpp (Scoped parts)
+
+let make_dwarf_linkage_name ?(unitname = current_unit.ui_symbol) (dbg_item : Debuginfo.item) =
+  let unitname = remove_caml_prefix unitname in
+  let loc = Debuginfo.to_location [ dbg_item ] in
+  let sloc =
+    Debuginfo.Scoped_location.of_location
+      ~scopes:dbg_item.dinfo_scopes loc
+  in
+  let top_level_module, sub_scopes = module_and_scopes ~unitname sloc in
+  let parts = split_on_string top_level_module "__" @ sub_scopes in
+  String.concat "." parts
 
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)

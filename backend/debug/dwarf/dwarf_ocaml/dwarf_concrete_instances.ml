@@ -16,7 +16,7 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
   let fun_name = fundecl.fun_name in
   let linkage_name =
     match fundecl.fun_dbg with 
-    | [ item ] -> Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes
+    | [ item ] ->  Params.make_dwarf_linkage_name item
     (* Not sure what to do in the cases below *)
     | [] -> fun_name 
     | _ -> Misc.fatal_errorf "multiple debug entries"

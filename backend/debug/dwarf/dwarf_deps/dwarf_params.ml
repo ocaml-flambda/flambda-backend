@@ -3,5 +3,7 @@ module type S = sig
 
   val make_symbol : string -> string
 
+  val make_dwarf_linkage_name : Debuginfo.item -> string
+
   val get_file_num : string -> int
 end

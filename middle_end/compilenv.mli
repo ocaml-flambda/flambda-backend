@@ -61,6 +61,8 @@ val make_symbol: ?unitname:string -> string option -> string
            (or the current unit). *)
 val make_fun_symbol: ?unitname:string -> Debuginfo.Scoped_location.t -> string -> string
 
+val make_dwarf_linkage_name : ?unitname:string -> Debuginfo.item -> string
+
 val symbol_in_current_unit: string -> bool
         (* Return true if the given asm symbol belongs to the
            current compilation unit, false otherwise. *)
