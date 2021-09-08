@@ -29,22 +29,21 @@ module CL = Cfg_with_layout
 
 let add cl =
   (* Fabricate debug info when missing, because it is required to emit discriminators.
-     Following the semantics of debug_line, remember the last-seen dbg and attach it to
-     instructions that do not have any.
-
-     The following Linear instructions do not need Fdo info,
-     because they are emitted as assembly directives and
-     not as addressible assembly instructions:
-           Lend
-           Lreloadretaddr
-           Llabel
-           Lentertrap
-           Ladjust_trap_depth
-     There is nothing wrong with emitting .loc directives for them,
-     but its redundant.
-     Only Lreloadretaddr has a corresponding Cfg instruction.
-     Others are created during cfg_to_linear with [fdo] set to [none].
-  *)
+   *    Following the semantics of debug_line, remember the last-seen dbg and attach it
+   *    to instructions that do not have any.
+   *
+   *    The following Linear instructions do not need Fdo info,
+   *    because they are emitted as assembly directives and
+   *    not as addressible assembly instructions:
+   *          Lend
+   *          Lreloadretaddr
+   *          Llabel
+   *          Lentertrap
+   *          Ladjust_trap_depth
+   *    There is nothing wrong with emitting .loc directives for them,
+   *    but its redundant.
+   *    Only Lreloadretaddr has a corresponding Cfg instruction.
+   *    Others are created during cfg_to_linear with [fdo] set to [none]. *)
   let update_instr prev (i : _ Cfg.instruction) =
     let dbg =
       if not (Debuginfo.is_none prev) && (Debuginfo.is_none i.dbg) then

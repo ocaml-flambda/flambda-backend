@@ -26,28 +26,28 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 (* Two blocks `b1` and `b2` can be merged if:
-   - `b1` has only one non-exceptional successor, `b2`;
-   - `b2` has only one predecessor, `b1`;
-   - `b1` and `b2` are distinct blocks.
-
-   When the condition is met, `b1` is modified as follows:
-   - its body is set to the concatenation of `b1.body` and `b2.body`;
-   - its terminator becomes the terminator of `b2`;
-   - its `exns`, `can_raise`, and `can_raise_interproc` fields  are set to the "union"
-     of the respective fields in `b1` and `b2`;
-   - (its other fields are left unchanged);
-   and `b2` is modified as follows:
-   - its prececessors are set to empty;
-   - (its other fields are left unchanged).
-
-   As a consequence, `b2` becomes dead.
-
-   Note: by taking the "union" of the `exns`, `can_raise`, and `can_raise_interproc`
-   fields, we are losing a bit of precision as to which handler can be reached from
-   which block. Such a loss of precision may affect e.g. a liveness analysis. This
-   does however not affect the semantics of the code, because at runtime the handler
-   is chosen according to the `Pushtrap` and `Poptrap` instructions executed so far
-   (as opposed to the information encoded in the graph). *)
+ *  - `b1` has only one non-exceptional successor, `b2`;
+ *  - `b2` has only one predecessor, `b1`;
+ *  - `b1` and `b2` are distinct blocks.
+ *
+ *  When the condition is met, `b1` is modified as follows:
+ *  - its body is set to the concatenation of `b1.body` and `b2.body`;
+ *  - its terminator becomes the terminator of `b2`;
+ *  - its `exns`, `can_raise`, and `can_raise_interproc` fields  are set to the "union"
+ *    of the respective fields in `b1` and `b2`;
+ *  - (its other fields are left unchanged);
+ *  and `b2` is modified as follows:
+ *  - its prececessors are set to empty;
+ *  - (its other fields are left unchanged).
+ *
+ *  As a consequence, `b2` becomes dead.
+ *
+ *  Note: by taking the "union" of the `exns`, `can_raise`, and `can_raise_interproc`
+ *  fields, we are losing a bit of precision as to which handler can be reached from
+ *  which block. Such a loss of precision may affect e.g. a liveness analysis. This
+ *  does however not affect the semantics of the code, because at runtime the handler
+ *  is chosen according to the `Pushtrap` and `Poptrap` instructions executed so far
+ *  (as opposed to the information encoded in the graph). *)
 
 let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) : bool =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in

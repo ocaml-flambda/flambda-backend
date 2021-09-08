@@ -466,13 +466,14 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
           block.start
   | Llabel start ->
       (* Not all labels need to start a new block. Keep the translation from
-         linear to cfg simple, and optimize (remove/merge blocks) in a
-         separate pass, because: - correctness of linear to cfg and back is
-         easier to reason about. - the optimizations are easier to implement
-         and reason about on the CFG. - some optimization opportunities
-         cannot be identified in a single pass on the Linear IR, during cfg
-         construction. - optimizations can be enabled by the client of the
-         library whenever needed *)
+       *  linear to cfg simple, and optimize (remove/merge blocks) in a
+       *  separate pass, because:
+       *  - correctness of linear to cfg and back is easier to reason about.
+       *  - the optimizations are easier to implement and reason about on the CFG.
+       *  - some optimization opportunities cannot be identified in a single
+       *  pass on the Linear IR, during cfg  construction.
+       *  - optimizations can be enabled by the client of the library
+       *  whenever needed *)
       if !C.verbose then
         Printf.printf "Llabel start=%d, block.start=%d\n" start block.start;
       (* Labels always cause a new block to be created. If the block prior to

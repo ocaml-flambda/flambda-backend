@@ -141,19 +141,19 @@ module S = struct
     | Poptrap
     | Prologue
 
-  (** Properties of the representation of successors:
 
-      - Tests of different types are not mixed. For example, a test that
-        compares between variables of type int cannot be combined with a
-        float comparison in the same block terminator.
-      - Total: all possible outcomes of a test have a defined target label
-      - Disjoint: at most one of the outcomes of a test is true
-      - Redundancy of labels: more than one outcome of test can lead to the
-        same label
-      - Redundancy of representation of unconditional jump: if all outcomes
-        of a test lead to the same label, it can be represented as (Always
-        l). For example, [Parity_test {true_=l;false_=l}] can be simplified
-        to [(Always l)]. *)
+   (* Properties of the representation of successors:
+    * - Tests of different types are not mixed. For example, a test that
+    *   compares between variables of type int cannot be combined with a
+    *   float comparison in the same block terminator.
+    * - Total: all possible outcomes of a test have a defined target label
+    * - Disjoint: at most one of the outcomes of a test is true
+    * - Redundancy of labels: more than one outcome of test can lead to the
+    *   same label
+    * - Redundancy of representation of unconditional jump: if all outcomes
+    *   of a test lead to the same label, it can be represented as (Always
+    *   l). For example, [Parity_test {true_=l;false_=l}] can be simplified
+    *   to [(Always l)].  *)
   type terminator =
     | Never
     | Always of Label.t
