@@ -88,11 +88,6 @@ let delete_continuation_uses t cont =
   in
   with_continuation_uses_env t ~cont_uses_env
 
-let compute_handler_env t ~env_at_fork_plus_params_and_consts
-    ~consts_lifted_during_body cont ~params =
-  CUE.compute_handler_env t.continuation_uses_env
-    ~env_at_fork_plus_params_and_consts ~consts_lifted_during_body cont ~params
-
 let num_continuation_uses t cont =
   CUE.num_continuation_uses t.continuation_uses_env cont
 

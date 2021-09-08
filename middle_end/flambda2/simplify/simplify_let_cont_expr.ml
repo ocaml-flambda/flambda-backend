@@ -335,13 +335,13 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     TE.code_age_relation (DA.typing_env dacc_after_body)
   in
   let consts_lifted_during_body = DA.get_lifted_constants dacc_after_body in
-  let uses =
-    CUE.compute_handler_env cont_uses_env cont
-      ~params
-        (* CR mshinwell: rename this parameter, the env does not have the
-           constants in it now *)
-      ~env_at_fork_plus_params_and_consts:denv_before_body
-      ~consts_lifted_during_body ~code_age_relation_after_body
+  let uses : Continuation_env_and_param_types.t =
+    match CUE.get_continuation_uses cont_uses_env cont with
+    | None -> No_uses
+    | Some uses ->
+      Join_points.compute_handler_env uses ~params
+        ~env_at_fork_plus_params:denv_before_body ~consts_lifted_during_body
+        ~code_age_relation_after_body
   in
   let dacc =
     (* CR mshinwell: Improve function names to clarify that this function
@@ -789,14 +789,12 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     ~rebuild:rebuild_handler =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
   let arg_types_by_use_id =
-    match
-      Continuation.Map.find cont (CUE.get_uses (DA.continuation_uses_env dacc))
-    with
+    match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: in this case, the continuation is neither recursive, nor
        reachable, and it could be removed. *)
-    | exception Not_found ->
+    | None ->
       ListLabels.map params ~f:(fun _ -> Apply_cont_rewrite_id.Map.empty)
-    | continuation_uses ->
+    | Some continuation_uses ->
       Continuation_uses.get_arg_types_by_use_id continuation_uses
   in
   let extra_params_and_args =
@@ -840,14 +838,12 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
   let dacc = DA.map_denv dacc ~f:DE.set_not_at_unit_toplevel in
   let arg_types_by_use_id_outside_of_handler =
-    match
-      Continuation.Map.find cont (CUE.get_uses (DA.continuation_uses_env dacc))
-    with
+    match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
     (* CR gbury: if this happens, we should rather remove the continuation,
        since it is not reachable. *)
-    | exception Not_found ->
+    | None ->
       ListLabels.map params ~f:(fun _ -> Apply_cont_rewrite_id.Map.empty)
-    | continuation_uses ->
+    | Some continuation_uses ->
       Continuation_uses.get_arg_types_by_use_id continuation_uses
   in
   (* Compute unboxing decisions *)
