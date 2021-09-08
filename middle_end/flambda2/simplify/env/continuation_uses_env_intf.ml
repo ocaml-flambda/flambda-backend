@@ -37,17 +37,6 @@ module type S = sig
   val get_typing_env_no_more_than_one_use :
     t -> Continuation.t -> Flambda_type.Typing_env.t option
 
-  (* CR mshinwell: Add [record_exn_continuation_use]? *)
-
-  val compute_handler_env :
-    t ->
-    env_at_fork_plus_params_and_consts:Downwards_env.t ->
-    consts_lifted_during_body:Lifted_constant_state.t ->
-    Continuation.t ->
-    params:Kinded_parameter.t list ->
-    code_age_relation_after_body:Code_age_relation.t ->
-    Continuation_env_and_param_types.t
-
   val num_continuation_uses : t -> Continuation.t -> int
 
   val all_continuations_used : t -> Continuation.Set.t
