@@ -204,7 +204,7 @@ let basic_or_terminator_of_operation
       Basic (Op (Specific op))
     | Iname_for_debugger _ ->
       Misc.fatal_error "Cfgize.basic_or_terminator_of_operation: \
-                        \"the Iname_for_debugger\" is currently not supported "
+                        \"the Iname_for_debugger\" instruction is currently not supported "
     | Iprobe { name; handler_code_sym; } ->
       Basic (Op (Probe { name; handler_code_sym; }))
     | Iprobe_is_enabled { name; } ->
@@ -651,8 +651,7 @@ let rec add_blocks
           ~next;
         add_next_block ()
       | Itrywith (_, Delayed _, (_, _)) ->
-        (* CR xclerc for xclerc: TODO *)
-        assert false
+        Misc.fatal_error "Cfgize.add_blocks: delayed handler are currently not supported"
       | Iraise raise_kind ->
         terminate_block
           ~trap_actions:[]
