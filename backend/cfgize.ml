@@ -718,6 +718,8 @@ let fundecl
       body = begin match prologue_required with
         | false -> []
         | true ->
+          (* Note: the prologue must come after all `Iname_for_debugger1 instructions
+             (this is currently not a concern because we do not support such instructions). *)
           [{ (make_instruction state ~desc:Cfg.Prologue ~trap_depth:initial_trap_depth)
              with dbg; fdo; }]
       end;
