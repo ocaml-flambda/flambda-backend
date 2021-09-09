@@ -15,11 +15,10 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
   let parent = Dwarf_state.compilation_unit_proto_die state in
   let fun_name = fundecl.fun_name in
   let linkage_name =
-    match fundecl.fun_dbg with 
-    | [ item ] ->  Params.make_dwarf_linkage_name item
-    (* Not sure what to do in the cases below *)
+    match List.rev fundecl.fun_dbg with 
+    | item :: _rest -> Params.make_dwarf_linkage_name item
     | [] -> fun_name 
-    | _ -> Misc.fatal_errorf "multiple debug entries"
+    (* | _ -> Misc.fatal_errorf "multiple debug entries" *)
   in
   let start_sym = Asm_symbol.create_no_mangle fun_name in
   let end_sym = Asm_symbol.create_no_mangle (end_symbol_name fun_name) in
@@ -31,6 +30,8 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
       let (file, line, startchar) = Location.get_pos_info loc.loc_start in
       (Params.get_file_num file, line, startchar)
   in
+  (* Include line number to disambiguate anonymous and shadowed functions *)
+  let linkage_name = Printf.sprintf "%s@%i" linkage_name line in
   let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent)
       ~tag:Subprogram
