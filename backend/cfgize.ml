@@ -693,11 +693,12 @@ let update_trap_handler_blocks
 let fundecl
   : Mach.fundecl
     -> preserve_orig_labels:bool
+    -> simplify_terminators:bool
     -> prologue_required:bool
     -> dbg:Debuginfo.t
     -> fdo:Fdo_info.t
     -> Cfg_with_layout.t
-  = fun fundecl ~preserve_orig_labels ~prologue_required ~dbg ~fdo ->
+  = fun fundecl ~preserve_orig_labels ~simplify_terminators ~prologue_required ~dbg ~fdo ->
     let { Mach.
           fun_name;
           fun_args = _;
@@ -764,5 +765,5 @@ let fundecl
     Eliminate_fallthrough_blocks.run cfg_with_layout;
     Merge_straightline_blocks.run cfg_with_layout;
     Eliminate_dead_blocks.run cfg_with_layout;
-    Simplify_terminator.run cfg;
+    if simplify_terminators then Simplify_terminator.run cfg;
     cfg_with_layout

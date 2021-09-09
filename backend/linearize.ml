@@ -401,6 +401,7 @@ let fundecl f =
       Cfgize.fundecl
         f
         ~preserve_orig_labels:false
+        ~simplify_terminators:true
         ~prologue_required:fun_prologue_required
         ~dbg:(if fun_prologue_required then fun_body.dbg else Debuginfo.none)
         ~fdo:(if fun_prologue_required then fun_body.fdo else Fdo_info.none)
