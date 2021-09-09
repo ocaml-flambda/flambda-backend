@@ -389,6 +389,8 @@ let check_terminator_instruction
       State.add_to_explore state lt1 lt2;
       State.add_to_explore state eq1 eq2;
       State.add_to_explore state gt1 gt2
+    (* The following case is morally the same as the previous one, with a immediate
+       which is off by one. *)
     | Int_test { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1; imm = Some imm1; },
       Int_test { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2; imm = Some imm2; }
       when Bool.equal is_signed1 is_signed2 && Int.equal imm1 (Int.pred imm2)
