@@ -330,12 +330,12 @@ let reset_debug_info () =
   file_pos_nums := [];
   file_pos_num_cnt := 1
 
-let get_file_num ~f file_name =
+let get_file_num ~file_emitter file_name =
   try List.assoc file_name !file_pos_nums
   with Not_found ->
     let file_num = !file_pos_num_cnt in
     incr file_pos_num_cnt;
-    f file_num;
+    file_emitter ~file_num ~file_name;
     file_pos_nums := (file_name,file_num) :: !file_pos_nums;
     file_num
 
@@ -350,11 +350,7 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
         dinfo_char_start = col;
         dinfo_file = file_name; } :: _ ->
       if line > 0 then begin (* PR#6243 *)
-        let file_num =
-          get_file_num
-            ~f:(fun file_num -> file_emitter ~file_num ~file_name)
-            file_name
-        in
+        let file_num = get_file_num ~file_emitter file_name in
         loc_emitter ~file_num ~line ~col ?discriminator ()
       end
   end

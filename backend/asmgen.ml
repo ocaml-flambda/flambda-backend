@@ -227,7 +227,7 @@ let build_dwarf ~asm_directives:(module Asm_directives : Asm_directives_intf.S) 
       let make_symbol str = Compilenv.make_symbol (Some str)
 
       let get_file_num file_name =
-        Emitaux.get_file_num ~f:(fun _file_num -> ()) file_name
+        Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
     end)
   in
   Dwarf.create ~sourcefile ~unit_name ~params 
@@ -238,7 +238,7 @@ let build_asm_directives () : (module Asm_directives_intf.S) = (
       let emit_line str = X86_dsl.D.comment str
 
       let get_file_num file_name =
-        Emitaux.get_file_num ~f:(fun _file_num -> ()) file_name
+        Emitaux.get_file_num ~file_emitter:X86_dsl.D.file file_name
 
       module D = struct
         open X86_ast

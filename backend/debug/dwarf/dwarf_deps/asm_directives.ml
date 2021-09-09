@@ -63,15 +63,6 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
     | MASM -> ()
     | GAS_like 
     | MacOS -> f ()
-
-  (* gas can silently emit corrupted line tables if a .file directive
-     contains a number but an empty filename. *)
-  let file ~file_num ~file_name =
-    let file_name =
-      if String.length file_name = 0 then "none"
-      else file_name
-    in
-    if_not_masm (fun () -> D.file ~file_num ~file_name)
   
   let loc ~file_num ~line ~col =
     if_not_masm (fun () -> D.loc ~file_num ~line ~col ())
@@ -136,7 +127,6 @@ module Make ( A : Asm_directives_intf.Arg ) : Asm_directives_intf.S = struct
       bogus error "line table parameters mismatch") by making sure such sections
       are never empty. *)
     let file_num = A.get_file_num "none" in
-    file ~file_num ~file_name:"none";  (* also PR#7037 *)
     loc ~file_num ~line:1 ~col:1;
     D.text ()
 
