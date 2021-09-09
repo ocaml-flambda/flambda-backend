@@ -84,15 +84,15 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
         if AC.is_raise apply_cont then
           match AC.args apply_cont with
           | [] -> assert false
-          | first_arg :: other_args ->
-            let first_arg_is_used =
+          | exn_bucket :: other_args ->
+            let exn_bucket_is_used =
               Simple.pattern_match
                 ~const:(fun _ -> true)
                 ~name:(fun name ~coercion:_ ->
                     Name.Set.mem name (UA.required_names uacc))
-                first_arg
+                exn_bucket
             in
-            if first_arg_is_used then
+            if exn_bucket_is_used then
               apply_cont
             else
               (* The raise argument must be present, if it is unused, we replace
