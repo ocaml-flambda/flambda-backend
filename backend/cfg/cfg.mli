@@ -129,3 +129,5 @@ val print_basic : out_channel -> basic instruction -> unit
 
 (* CR-someday gyorsh: store label after separately and update after
    reordering. *)
+
+val can_raise_terminator : terminator -> bool

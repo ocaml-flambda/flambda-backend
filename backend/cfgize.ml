@@ -410,7 +410,7 @@ let extract_block_info
           | Terminator terminator ->
             return
               (Some (copy_instruction state instr ~desc:terminator ~trap_depth))
-              (Linear_to_cfg.can_raise_terminator terminator)
+              (Cfg.can_raise_terminator terminator)
         end
       | Iend | Ireturn _ | Iifthenelse _ | Iswitch _
       | Icatch _ | Iexit _ | Itrywith _ ->

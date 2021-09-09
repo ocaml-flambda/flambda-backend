@@ -258,3 +258,11 @@ let print_terminator oc ?(sep = "\n") ti =
   | Raise _ -> Printf.fprintf oc "Raise%s" sep
   | Tailcall (Self _) -> Printf.fprintf oc "Tailcall self%s" sep
   | Tailcall (Func _) -> Printf.fprintf oc "Tailcall%s" sep
+
+let can_raise_terminator (i : terminator) =
+  match i with
+  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return
+  | Tailcall (Self _) ->
+    false

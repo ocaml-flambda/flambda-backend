@@ -209,14 +209,6 @@ let register_block t (block : C.basic_block) traps =
       <- resolve_traps_to_pop t ls @ t.unresolved_traps_to_pop);
   Label.Tbl.add t.cfg.blocks block.start block
 
-let can_raise_terminator (i : C.terminator) =
-  match i with
-  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
-  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return
-  | Tailcall (Self _) ->
-    false
-
 let check_traps t label (block : C.basic_block) =
   match Label.Tbl.find_opt t.trap_stacks label with
   | None -> ()
@@ -393,7 +385,7 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
         Printlinear.instr
         { i with Linear.next = Linear.end_instr });
   block.terminator <- create_instruction t desc ~trap_depth i;
-  if can_raise_terminator desc then record_exn t block traps;
+  if Cfg.can_raise_terminator desc then record_exn t block traps;
   register_block t block traps
 
 let to_basic (mop : Mach.operation) : C.basic =

@@ -27,6 +27,4 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-val can_raise_terminator : Cfg.terminator -> bool
-
 val run : Linear.fundecl -> preserve_orig_labels:bool -> Cfg_with_layout.t
