@@ -100,9 +100,10 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   in
   let tuple_param = Parameter.wrap tuple_param_var in
   Flambda.create_function_declaration ~params:[tuple_param]
-    ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
+    ~body ~stub:true ~inline:Default_inline
     ~specialise:Default_specialise ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
+    ()
 
 let register_const t (constant:Flambda.constant_defining_value) name
     : Flambda.constant_defining_value_block_field * Internal_variable_names.t =
@@ -587,8 +588,6 @@ and close_functions t external_env function_declarations : Flambda.named =
   let all_free_idents = Function_decls.all_free_idents function_declarations in
   let close_one_function map decl =
     let body = Function_decl.body decl in
-    let loc = Function_decl.loc decl in
-    let dbg = Debuginfo.from_location loc in
     let params = Function_decl.params decl in
     (* Create fresh variables for the elements of the closure (cf.
        the comment on [Function_decl.closure_env_without_parameters], above).
@@ -616,11 +615,12 @@ and close_functions t external_env function_declarations : Flambda.named =
       Closure_origin.create (Closure_id.wrap unboxed_version)
     in
     let fun_decl =
-      Flambda.create_function_declaration ~params ~body ~stub ~dbg
+      Flambda.create_function_declaration ~params ~body ~stub
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
+        ()
     in
     match Function_decl.kind decl with
     | Curried -> Variable.Map.add closure_bound_var fun_decl map
