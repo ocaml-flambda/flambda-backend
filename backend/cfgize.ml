@@ -492,7 +492,7 @@ let rec add_blocks
         start;
         body;
         terminator = { term with trap_depth = instr_trap_depth; };
-        predecessors = Label.Set.empty; (* See [update_blocks_with_predecessors] *)
+        predecessors = Label.Set.empty; (* See [Cfg.register_predecessors_for_all_blocks] *)
         trap_depth = (if Option.is_none starts_with_pushtrap then trap_depth else trap_depth - 1);
         exns = if can_raise then exns else Label.Set.empty;
         can_raise;
@@ -657,25 +657,6 @@ let rec add_blocks
           ~trap_actions:[]
           (copy_instruction state last ~desc:(Cfg.Raise raise_kind) ~trap_depth)
 
-let update_blocks_with_predecessors
-  : Cfg.t -> unit
-  = fun cfg ->
-  Label.Tbl.iter
-    (fun block_label block ->
-       let successor_labels = Cfg.successor_labels ~normal:true ~exn:true block in
-       Label.Set.iter
-         (fun successor_label ->
-            match Label.Tbl.find_opt cfg.blocks successor_label with
-            | None ->
-              Misc.fatal_errorf "Cfgize.update_blocks_with_predecessors: inconsistent \
-                                 graph (no block labelled %d)"
-                successor_label
-            | Some successor_block ->
-              successor_block.predecessors <-
-                Label.Set.add block_label successor_block.predecessors)
-         successor_labels)
-    cfg.blocks
-
 let update_trap_handler_blocks
   : State.t -> Cfg.t -> unit
   = fun state cfg ->
@@ -724,7 +705,7 @@ let fundecl
              with dbg; fdo; }]
       end;
       terminator = (copy_instruction_no_reg state fun_body ~desc:(Cfg.Always tailrec_label) ~trap_depth:initial_trap_depth);
-      predecessors = Label.Set.empty; (* See [update_blocks_with_predecessors] *)
+      predecessors = Label.Set.empty; (* See [Cfg.register_predecessors_for_all_blocks] *)
       trap_depth = initial_trap_depth;
       exns = Label.Set.empty;
       can_raise = false;
@@ -735,7 +716,7 @@ let fundecl
       start = tailrec_label;
       body = [];
       terminator = (copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label) ~trap_depth:initial_trap_depth);
-      predecessors = Label.Set.empty; (* See [update_blocks_with_predecessors] *)
+      predecessors = Label.Set.empty; (* See [Cfg.register_predecessors_for_all_blocks] *)
       trap_depth = initial_trap_depth;
       exns = Label.Set.empty;
       can_raise = false;
@@ -751,7 +732,7 @@ let fundecl
       ~trap_depth:initial_trap_depth
       ~next:fallthrough_label;
     update_trap_handler_blocks state cfg;
-    update_blocks_with_predecessors cfg;
+    Cfg.register_predecessors_for_all_blocks cfg;
     let cfg_with_layout =
       Cfg_with_layout.create
         cfg

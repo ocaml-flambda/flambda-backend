@@ -137,6 +137,18 @@ let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 
+let register_predecessors_for_all_blocks (t : t) =
+  Label.Tbl.iter
+    (fun label block ->
+       let targets = successor_labels ~normal:true ~exn:true block in
+       Label.Set.iter
+         (fun target ->
+            let target_block = Label.Tbl.find t.blocks target in
+            target_block.predecessors
+            <- Label.Set.add label target_block.predecessors)
+         targets)
+    t.blocks
+
 (* Printing for debug *)
 
 (* The next 2 functions are copied almost as is from asmcomp/printmach.ml

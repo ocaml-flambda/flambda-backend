@@ -315,18 +315,6 @@ let check_and_register_traps t =
   in
   C.iter_blocks t.cfg ~f
 
-let register_predecessors_for_all_blocks t =
-  Label.Tbl.iter
-    (fun label block ->
-      let targets = C.successor_labels ~normal:true ~exn:true block in
-      Label.Set.iter
-        (fun target ->
-          let target_block = Label.Tbl.find t.cfg.blocks target in
-          target_block.predecessors
-            <- Label.Set.add label target_block.predecessors)
-        targets)
-    t.cfg.blocks
-
 let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
     =
   match insn.desc with
@@ -635,7 +623,7 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
      forward jumps: the blocks do not exist when the jump that reference them is
      processed. *)
   check_and_register_traps t;
-  register_predecessors_for_all_blocks t;
+  Cfg.register_predecessors_for_all_blocks t.cfg;
   (* Layout was constructed in reverse, fix it now: *)
   Cfg_with_layout.create t.cfg ~layout:(List.rev t.layout) ~preserve_orig_labels
     ~new_labels:t.new_labels

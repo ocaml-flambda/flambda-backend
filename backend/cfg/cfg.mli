@@ -107,6 +107,8 @@ val get_block_exn : t -> Label.t -> basic_block
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
+val register_predecessors_for_all_blocks : t -> unit
+
 (** Printing *)
 
 val print_terminator :
