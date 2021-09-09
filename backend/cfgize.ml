@@ -202,8 +202,9 @@ let basic_or_terminator_of_operation
       Basic (Op Intoffloat)
     | Ispecific op ->
       Basic (Op (Specific op))
-    | Iname_for_debugger { ident; which_parameter; provenance; is_assignment; } ->
-      Basic (Op (Name_for_debugger { ident; which_parameter; provenance; is_assignment; }))
+    | Iname_for_debugger _ ->
+      Misc.fatal_error "Cfgize.basic_or_terminator_of_operation: \
+                        \"the Iname_for_debugger\" is currently not supported "
     | Iprobe { name; handler_code_sym; } ->
       Basic (Op (Probe { name; handler_code_sym; }))
     | Iprobe_is_enabled { name; } ->
