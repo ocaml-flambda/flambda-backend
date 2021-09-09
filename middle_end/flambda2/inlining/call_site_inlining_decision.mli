@@ -19,43 +19,42 @@
 open! Flambda.Import
 
 (* CR-someday mshinwell: Maybe have two types, one giving the reasons why
-    something can be inlined, and one giving the reasons why something
-    cannot be inlined. *)
+   something can be inlined, and one giving the reasons why something cannot be
+   inlined. *)
 type t = private
   | Environment_says_never_inline
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded
   | Never_inline_attribute
-  | Speculatively_not_inline of {
-      cost_metrics: Cost_metrics.t;
-      evaluated_to: float;
-      threshold: float;
-    }
+  | Speculatively_not_inline of
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
   | Attribute_always
   | Attribute_unroll of int
   | Definition_says_inline
-  | Speculatively_inline of {
-      cost_metrics: Cost_metrics.t;
-      evaluated_to: float;
-      threshold: float;
-    }
-
+  | Speculatively_inline of
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
 
 val print : Format.formatter -> t -> unit
 
 val report : Format.formatter -> t -> unit
 
 type can_inline = private
-  | Do_not_inline of { warn_if_attribute_ignored : bool; }
-  | Inline of { unroll_to : int option; }
+  | Do_not_inline of { warn_if_attribute_ignored : bool }
+  | Inline of { unroll_to : int option }
 
 val can_inline : t -> can_inline
 
-val make_decision
-   : Downwards_acc.t
-  -> simplify_expr:Expr.t Simplify_common.expr_simplifier
-  -> function_decl:Flambda_type.Function_declaration_type.Inlinable.t
-  -> apply:Apply.t
-  -> return_arity:Flambda_arity.With_subkinds.t
-  -> t
+val make_decision :
+  Downwards_acc.t ->
+  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
+  function_decl:Flambda_type.Function_declaration_type.Inlinable.t ->
+  apply:Apply.t ->
+  return_arity:Flambda_arity.With_subkinds.t ->
+  t

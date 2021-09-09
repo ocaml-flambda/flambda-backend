@@ -18,13 +18,13 @@
 type t =
   | Not_in_a_closure
   | In_a_set_of_closures_but_not_yet_in_a_specific_closure
-  | Closure of {
-      code_id : Code_id.t;
-      return_continuation : Continuation.t;
-      exn_continuation : Exn_continuation.t;
-    }
+  | Closure of
+      { code_id : Code_id.t;
+        return_continuation : Continuation.t;
+        exn_continuation : Exn_continuation.t
+      }
 
-let print ppf = function
+let [@ocamlformat "disable"] print ppf = function
   | Not_in_a_closure ->
     Format.fprintf ppf "not_in_a_closure"
   | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
@@ -40,10 +40,12 @@ let print ppf = function
       Exn_continuation.print exn_continuation
 
 let not_in_a_closure = Not_in_a_closure
+
 let in_a_set_of_closures =
   In_a_set_of_closures_but_not_yet_in_a_specific_closure
+
 let in_a_closure code_id return_continuation exn_continuation =
-  Closure { code_id; return_continuation; exn_continuation; }
+  Closure { code_id; return_continuation; exn_continuation }
 
 type in_or_out_of_closure =
   | In_a_closure
@@ -54,5 +56,6 @@ let in_or_out_of_closure (t : t) : in_or_out_of_closure =
   | Not_in_a_closure -> Not_in_a_closure
   | Closure _ -> In_a_closure
   | In_a_set_of_closures_but_not_yet_in_a_specific_closure ->
-    Misc.fatal_errorf "Expected to be either inside or outside a closure, but \
-      not [In_a_set_of_closures_but_not_yet_in_a_specific_closure]"
+    Misc.fatal_errorf
+      "Expected to be either inside or outside a closure, but not \
+       [In_a_set_of_closures_but_not_yet_in_a_specific_closure]"

@@ -15,13 +15,14 @@
 (**************************************************************************)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
+
 (* CR mshinwell: Fix warning 60! *)
 [@@@ocaml.warning "-60"]
+
 [@@@ocaml.warning "-32"]
 
 module K = Flambda_kind
 module KP = Kinded_parameter
-
 module Apply = Apply_expr
 module Apply_cont = Apply_cont_expr
 module Switch = Switch_expr
@@ -31,12 +32,12 @@ let fprintf = Format.fprintf
 (* -- module rec binding here -- *)
 
 (* CR mshinwell: Consider counting numbers of names in Name_occurrences *)
-(* CR mshinwell: Check that apply_cont is well-formed when there is a
-   trap installation or removal. *)
+(* CR mshinwell: Check that apply_cont is well-formed when there is a trap
+   installation or removal. *)
 (* CR-someday pchambart: for sum types, we should probably add an exhaustive
    pattern in ignores functions to be reminded if a type change *)
 (* CR-someday mshinwell: We should make "direct applications should not have
-   overapplication" be an invariant throughout.  At the moment I think this is
+   overapplication" be an invariant throughout. At the moment I think this is
    only true after [Simplify] has split overapplications. *)
 
 module Function_declarations = Function_declarations

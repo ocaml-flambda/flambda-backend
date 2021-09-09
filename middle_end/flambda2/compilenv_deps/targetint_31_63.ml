@@ -20,15 +20,14 @@ let () =
   match Targetint_32_64.num_bits with
   | Sixty_four -> ()
   | Thirty_two ->
-    if Flambda_features.flambda2_is_enabled () then begin
-      Misc.fatal_error "Flambda 2 does not yet support 32-bit compilation"
-    end
+    if Flambda_features.flambda2_is_enabled ()
+    then Misc.fatal_error "Flambda 2 does not yet support 32-bit compilation"
 
-(* CR mshinwell/gbury:  maybe we might want to consider adding some more checks
-in some of the conversions functions to be more safe and more consistent in the
-handling of overflows ? For instance One_bit_fewer.of_int silently truncates the
-input int to make it fit, whereas we probably want to make it produce an error ?
-*)
+(* CR mshinwell/gbury: maybe we might want to consider adding some more checks
+   in some of the conversions functions to be more safe and more consistent in
+   the handling of overflows ? For instance One_bit_fewer.of_int silently
+   truncates the input int to make it fit, whereas we probably want to make it
+   produce an error ? *)
 
 module Imm = struct
   module T0 = struct
@@ -125,7 +124,8 @@ module Imm = struct
     let to_int_option t =
       let min_int_as_int64 = Int64.of_int Stdlib.min_int in
       let max_int_as_int64 = Int64.of_int Stdlib.max_int in
-      if min_int_as_int64 <= t && t <= max_int_as_int64 then Some (to_int t)
+      if min_int_as_int64 <= t && t <= max_int_as_int64
+      then Some (to_int t)
       else None
 
     let to_int_exn t =
@@ -169,7 +169,7 @@ module T0 = struct
 
   let hash t = Imm.hash t.value
 
-  let print ppf t =
+  let [@ocamlformat "disable"] print ppf t =
     let print_as_char =
       t.print_as_char
       && Imm.compare t.value Imm.zero >= 0
@@ -205,7 +205,8 @@ end
 let cross_product = Pair.create_from_cross_product
 
 let join t1 t2 : t or_wrong =
-  if not (Imm.equal t1.value t2.value) then Wrong
+  if not (Imm.equal t1.value t2.value)
+  then Wrong
   else
     let print_as_char = t1.print_as_char && t2.print_as_char in
     Ok { value = t1.value; print_as_char }
@@ -218,9 +219,7 @@ let join_set t1s t2s =
         match Set.find t1 t2s with
         | exception Not_found -> Set.add t1 result
         | t2 -> (
-          match join t1 t2 with
-          | Wrong -> result
-          | Ok t -> Set.add t result))
+          match join t1 t2 with Wrong -> result | Ok t -> Set.add t result))
       t1s Set.empty
   in
   Set.union join only_in_t2s

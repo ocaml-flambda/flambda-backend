@@ -21,30 +21,27 @@ type raise_kind =
   | Reraise
   | No_trace
 
-let raise_kind_to_int = function
-  | Regular -> 0
-  | Reraise -> 1
-  | No_trace -> 2
+let raise_kind_to_int = function Regular -> 0 | Reraise -> 1 | No_trace -> 2
 
 let compare_raise_kind rk1 rk2 =
   Int.compare (raise_kind_to_int rk1) (raise_kind_to_int rk2)
 
 type t =
-  | Push of { exn_handler : Continuation.t; }
-  | Pop of {
-      exn_handler : Continuation.t;
-      raise_kind : raise_kind option;
-    }
+  | Push of { exn_handler : Continuation.t }
+  | Pop of
+      { exn_handler : Continuation.t;
+        raise_kind : raise_kind option
+      }
 
 let compare t1 t2 =
   match t1, t2 with
-  | Push { exn_handler = exn_handler1; },
-      Push { exn_handler = exn_handler2; } ->
+  | Push { exn_handler = exn_handler1 }, Push { exn_handler = exn_handler2 } ->
     Continuation.compare exn_handler1 exn_handler2
-  | Pop { exn_handler = exn_handler1; raise_kind = raise_kind1; },
-      Pop { exn_handler = exn_handler2; raise_kind = raise_kind2; } ->
+  | ( Pop { exn_handler = exn_handler1; raise_kind = raise_kind1 },
+      Pop { exn_handler = exn_handler2; raise_kind = raise_kind2 } ) ->
     let c = Continuation.compare exn_handler1 exn_handler2 in
-    if c <> 0 then c
+    if c <> 0
+    then c
     else Option.compare compare_raise_kind raise_kind1 raise_kind2
   | Push _, Pop _ -> -1
   | Pop _, Push _ -> 1
@@ -55,7 +52,7 @@ let raise_kind_option_to_string = function
   | Some Reraise -> " (reraise)"
   | Some No_trace -> " (notrace)"
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Push { exn_handler; } ->
@@ -74,33 +71,32 @@ let print ppf t =
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let invariant _env _t = ()
 
 (* Continuations used in trap actions are tracked separately, since sometimes,
-   we don't want to count them as uses.  However they must be tracked for
-   lifting of continuations during [Closure_conversion]. *)
+   we don't want to count them as uses. However they must be tracked for lifting
+   of continuations during [Closure_conversion]. *)
 let free_names = function
-  | Push { exn_handler; }
-  | Pop { exn_handler; raise_kind = _; } ->
+  | Push { exn_handler } | Pop { exn_handler; raise_kind = _ } ->
     Name_occurrences.singleton_continuation_in_trap_action exn_handler
 
 let apply_renaming t perm =
   match t with
-  | Push { exn_handler; } ->
+  | Push { exn_handler } ->
     let exn_handler' = Renaming.apply_continuation perm exn_handler in
-    if exn_handler == exn_handler' then t
-    else Push { exn_handler = exn_handler'; }
-  | Pop { exn_handler; raise_kind; } ->
+    if exn_handler == exn_handler'
+    then t
+    else Push { exn_handler = exn_handler' }
+  | Pop { exn_handler; raise_kind } ->
     let exn_handler' = Renaming.apply_continuation perm exn_handler in
-    if exn_handler == exn_handler' then t
-    else Pop { exn_handler = exn_handler'; raise_kind; }
+    if exn_handler == exn_handler'
+    then t
+    else Pop { exn_handler = exn_handler'; raise_kind }
 
 let exn_handler t =
-  match t with
-  | Push { exn_handler; }
-  | Pop { exn_handler; _ } -> exn_handler
+  match t with Push { exn_handler } | Pop { exn_handler; _ } -> exn_handler
 
 let all_ids_for_export t =
   Ids_for_export.add_continuation Ids_for_export.empty (exn_handler t)
@@ -108,7 +104,7 @@ let all_ids_for_export t =
 module Option = struct
   type nonrec t = t option
 
-  let print ppf = function
+  let [@ocamlformat "disable"] print ppf = function
     | None -> ()
     | Some t -> print ppf t
 
@@ -121,6 +117,5 @@ module Option = struct
     | None -> None
     | Some trap_action ->
       let trap_action' = apply_renaming trap_action renaming in
-      if trap_action == trap_action' then t
-      else Some trap_action'
+      if trap_action == trap_action' then t else Some trap_action'
 end

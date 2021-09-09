@@ -16,63 +16,49 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = {
-  var : Variable.t;
-  name_mode : Name_mode.t;
-}
-
-let create var name_mode =
-  { var;
-    name_mode;
+type t =
+  { var : Variable.t;
+    name_mode : Name_mode.t
   }
 
+let create var name_mode = { var; name_mode }
+
 let var t = t.var
+
 let simple t = Simple.var (var t)
+
 let name_mode t = t.name_mode
 
-let with_var t var = { t with var; }
-let with_name_mode t name_mode = { t with name_mode; }
+let with_var t var = { t with var }
+
+let with_name_mode t name_mode = { t with name_mode }
 
 let rename t = with_var t (Variable.rename t.var)
 
-let apply_renaming t perm =
-  with_var t (Renaming.apply_variable perm t.var)
+let apply_renaming t perm = with_var t (Renaming.apply_variable perm t.var)
 
-let free_names t =
-  Name_occurrences.singleton_variable t.var t.name_mode
+let free_names t = Name_occurrences.singleton_variable t.var t.name_mode
 
 include Container_types.Make (struct
   type nonrec t = t
 
-(*
-  let print ppf { var; name_mode; } =
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(var@ %a)@]@ \
-        @[<hov 1>(name_mode@ %a)@]\
-        )@]"
-      Variable.print var
-      Name_mode.print name_mode
-*)
+  (* let [@ocamlformat "disable"] print ppf { var; name_mode; } = Format.fprintf
+     ppf "@[<hov 1>(\ @[<hov 1>(var@ %a)@]@ \ @[<hov 1>(name_mode@ %a)@]\ )@]"
+     Variable.print var Name_mode.print name_mode *)
 
-  let print ppf { var; name_mode; } =
+  let [@ocamlformat "disable"] print ppf { var; name_mode; } =
     match Name_mode.descr name_mode with
     | Normal -> Variable.print ppf var
     | In_types -> Format.fprintf ppf "@[%a\u{1d749}@]" Variable.print var
     | Phantom -> Variable.print ppf var
-(*
-    | Phantom -> Format.fprintf ppf "@[%a\u{1f47b}@]" Variable.print var
-*)
+  (* | Phantom -> Format.fprintf ppf "@[%a\u{1f47b}@]" Variable.print var *)
 
-  let compare
-        { var = var1; name_mode = name_mode1; }
-        { var = var2; name_mode = name_mode2; } =
+  let compare { var = var1; name_mode = name_mode1 }
+      { var = var2; name_mode = name_mode2 } =
     let c = Variable.compare var1 var2 in
-    if c <> 0 then c
-    else
-      Name_mode.compare_total_order name_mode1 name_mode2
+    if c <> 0 then c else Name_mode.compare_total_order name_mode1 name_mode2
 
-  let equal t1 t2 =
-    compare t1 t2 = 0
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 

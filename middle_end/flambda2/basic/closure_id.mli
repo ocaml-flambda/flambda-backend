@@ -16,14 +16,14 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-(* CR lwhite: "Closure_id" is quite a generic name.  I wonder
-   whether something like "Closure_label" would better capture that it is
-   the label of a projection. *)
+(* CR lwhite: "Closure_id" is quite a generic name. I wonder whether something
+   like "Closure_label" would better capture that it is the label of a
+   projection. *)
 
 (* CR mshinwell: update comment *)
 (** An identifier, unique across the whole program (not just one compilation
-    unit), that identifies a closure within a particular set of closures
-    (viz. [Project_closure]). *)
+    unit), that identifies a closure within a particular set of closures (viz.
+    [Project_closure]). *)
 
 include Container_types.S
 
@@ -34,6 +34,7 @@ val wrap : Compilation_unit.t -> Variable.t -> t
 val unwrap : t -> Variable.t
 
 val in_compilation_unit : t -> Compilation_unit.t -> bool
+
 val get_compilation_unit : t -> Compilation_unit.t
 
 val to_string : t -> string

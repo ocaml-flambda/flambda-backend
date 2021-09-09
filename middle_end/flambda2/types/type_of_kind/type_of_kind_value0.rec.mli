@@ -22,17 +22,19 @@ type t =
   | Boxed_int32 of Type_grammar.t
   | Boxed_int64 of Type_grammar.t
   | Boxed_nativeint of Type_grammar.t
-  | Closures of {
-      by_closure_id : Row_like.For_closures_entry_by_set_of_closures_contents.t;
-    }
+  | Closures of
+      { by_closure_id :
+          Row_like.For_closures_entry_by_set_of_closures_contents.t
+      }
   | String of String_info.Set.t
   (* CR-someday mshinwell: [Array] should know what kind of array it is. *)
-  | Array of { length : Type_grammar.t; }
+  | Array of { length : Type_grammar.t }
 
-include Type_head_intf.S
-  with type t := t
-  with type type_grammar := Type_grammar.t
-  with type typing_env := Typing_env.t
-  with type typing_env_extension := Typing_env_extension.t
-  with type meet_env := Meet_env.t
-  with type join_env := Join_env.t
+include
+  Type_head_intf.S
+    with type t := t
+    with type type_grammar := Type_grammar.t
+    with type typing_env := Typing_env.t
+    with type typing_env_extension := Typing_env_extension.t
+    with type meet_env := Meet_env.t
+    with type join_env := Join_env.t

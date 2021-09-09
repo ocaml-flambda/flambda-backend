@@ -26,6 +26,7 @@ type t
 val create : contents:string_contents -> size:Targetint_31_63.Imm.t -> t
 
 val contents : t -> string_contents
+
 val size : t -> Targetint_31_63.Imm.t
 
 include Container_types.S with type t := t

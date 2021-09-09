@@ -22,29 +22,30 @@ module T = Flambda_type
 module Definition = struct
   type descr =
     | Code of Code_id.t
-    | Set_of_closures of {
-        denv : Downwards_env.t;
-        closure_symbols_with_types
-          : (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
-        symbol_projections : Symbol_projection.t Variable.Map.t;
-      }
-    | Block_like of {
-        symbol : Symbol.t;
-        denv : Downwards_env.t;
-        ty : Flambda_type.t;
-        symbol_projections : Symbol_projection.t Variable.Map.t;
-      }
+    | Set_of_closures of
+        { denv : Downwards_env.t;
+          closure_symbols_with_types :
+            (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
+          symbol_projections : Symbol_projection.t Variable.Map.t
+        }
+    | Block_like of
+        { symbol : Symbol.t;
+          denv : Downwards_env.t;
+          ty : Flambda_type.t;
+          symbol_projections : Symbol_projection.t Variable.Map.t
+        }
 
-  type t = {
-    descr : descr;
-    defining_expr : Rebuilt_static_const.t;
-  }
+  type t =
+    { descr : descr;
+      defining_expr : Rebuilt_static_const.t
+    }
 
   let binds_symbol t sym =
     match t.descr with
     | Code _ -> false
     | Set_of_closures { closure_symbols_with_types; _ } ->
-      Closure_id.Lmap.exists (fun _ (sym', _) -> Symbol.equal sym sym')
+      Closure_id.Lmap.exists
+        (fun _ (sym', _) -> Symbol.equal sym sym')
         closure_symbols_with_types
     | Block_like { symbol; _ } -> Symbol.equal sym symbol
 
@@ -53,12 +54,14 @@ module Definition = struct
     | Code _ -> Rebuilt_static_const.free_names t.defining_expr
     | Set_of_closures { symbol_projections; _ }
     | Block_like { symbol_projections; _ } ->
-      (* The symbols mentioned in any symbol projections must be counted
-         as free names, so that the definition doesn't get placed too high
-         in the code. *)
-      Variable.Map.fold (fun _var proj free_names ->
+      (* The symbols mentioned in any symbol projections must be counted as free
+         names, so that the definition doesn't get placed too high in the
+         code. *)
+      Variable.Map.fold
+        (fun _var proj free_names ->
           Name_occurrences.add_symbol free_names
-            (Symbol_projection.symbol proj) Name_mode.normal)
+            (Symbol_projection.symbol proj)
+            Name_mode.normal)
         symbol_projections
         (Rebuilt_static_const.free_names t.defining_expr)
 
@@ -67,15 +70,14 @@ module Definition = struct
     | Code code_id -> Code_id.print ppf code_id
     | Set_of_closures { closure_symbols_with_types; _ } ->
       let symbols =
-        Closure_id.Lmap.data closure_symbols_with_types
-        |> List.map fst
+        Closure_id.Lmap.data closure_symbols_with_types |> List.map fst
       in
       Format.fprintf ppf "@[<hov 1>(%a)@]"
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Symbol.print)
         symbols
     | Block_like { symbol; _ } -> Symbol.print ppf symbol
 
-  let print ppf { descr; defining_expr; } =
+  let [@ocamlformat "disable"] print ppf { descr; defining_expr; } =
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(descr@ %a)@]@ \
         @[<hov 1>(defining_expr@ %a)@]\
@@ -84,37 +86,28 @@ module Definition = struct
       Rebuilt_static_const.print defining_expr
 
   let descr t = t.descr
+
   let defining_expr t = t.defining_expr
 
   let symbol_projections t =
     match t.descr with
     | Code _ -> Variable.Map.empty
     | Set_of_closures { symbol_projections; _ }
-    | Block_like { symbol_projections; _ } -> symbol_projections
+    | Block_like { symbol_projections; _ } ->
+      symbol_projections
 
-  let code code_id defining_expr =
-    { descr = Code code_id;
-      defining_expr;
-    }
+  let code code_id defining_expr = { descr = Code code_id; defining_expr }
 
-  let set_of_closures denv ~closure_symbols_with_types
-        ~symbol_projections defining_expr =
-    { descr = Set_of_closures {
-        denv;
-        closure_symbols_with_types;
-        symbol_projections;
-      };
-      defining_expr;
+  let set_of_closures denv ~closure_symbols_with_types ~symbol_projections
+      defining_expr =
+    { descr =
+        Set_of_closures { denv; closure_symbols_with_types; symbol_projections };
+      defining_expr
     }
 
   let block_like denv symbol ty ~symbol_projections defining_expr =
-    { descr = Block_like {
-        symbol;
-        denv;
-        ty;
-        symbol_projections;
-      };
-      defining_expr;
+    { descr = Block_like { symbol; denv; ty; symbol_projections };
+      defining_expr
     }
 
   let denv t =
@@ -126,34 +119,34 @@ module Definition = struct
     let module P = Bound_symbols.Pattern in
     match t.descr with
     | Code code_id -> P.code code_id
-    | Set_of_closures { closure_symbols_with_types; _; } ->
+    | Set_of_closures { closure_symbols_with_types; _ } ->
       P.set_of_closures (Closure_id.Lmap.map fst closure_symbols_with_types)
     | Block_like { symbol; _ } -> P.block_like symbol
 
-  let bound_symbols t =
-    Bound_symbols.create [bound_symbols_pattern t]
+  let bound_symbols t = Bound_symbols.create [bound_symbols_pattern t]
 
   let types_of_symbols t =
     match t.descr with
     | Code _ -> Symbol.Map.empty
     | Set_of_closures { denv; closure_symbols_with_types; _ } ->
-      Closure_id.Lmap.fold (fun _closure_id (symbol, ty) types_of_symbols ->
+      Closure_id.Lmap.fold
+        (fun _closure_id (symbol, ty) types_of_symbols ->
           Symbol.Map.add symbol (denv, ty) types_of_symbols)
-        closure_symbols_with_types
-        Symbol.Map.empty
+        closure_symbols_with_types Symbol.Map.empty
     | Block_like { symbol; denv; ty; _ } ->
       Symbol.Map.singleton symbol (denv, ty)
 end
 
-type t = {
-  definitions : Definition.t list;
-  bound_symbols : Bound_symbols.t;
-  defining_exprs : Rebuilt_static_const.Group.t;
-  symbol_projections : Symbol_projection.t Variable.Map.t;
-  is_fully_static : bool;
-}
+type t =
+  { definitions : Definition.t list;
+    bound_symbols : Bound_symbols.t;
+    defining_exprs : Rebuilt_static_const.Group.t;
+    symbol_projections : Symbol_projection.t Variable.Map.t;
+    is_fully_static : bool
+  }
 
 let definitions t = t.definitions
+
 let symbol_projections t = t.symbol_projections
 
 let free_names_of_defining_exprs t =
@@ -161,7 +154,7 @@ let free_names_of_defining_exprs t =
 
 let is_fully_static t = t.is_fully_static
 
-let print ppf
+let [@ocamlformat "disable"] print ppf
       { definitions; bound_symbols = _; defining_exprs = _;
         is_fully_static = _; symbol_projections = _; } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
@@ -177,8 +170,8 @@ let compute_defining_exprs definitions =
   |> Rebuilt_static_const.Group.create
 
 let create_block_like symbol ~symbol_projections defining_expr denv ty =
-  (* CR mshinwell: check that [defining_expr] is not a set of closures
-     or code *)
+  (* CR mshinwell: check that [defining_expr] is not a set of closures or
+     code *)
   let definition =
     Definition.block_like denv symbol ty ~symbol_projections defining_expr
   in
@@ -186,13 +179,12 @@ let create_block_like symbol ~symbol_projections defining_expr denv ty =
   { definitions;
     bound_symbols = compute_bound_symbols definitions;
     defining_exprs = compute_defining_exprs definitions;
-    is_fully_static =
-      Rebuilt_static_const.is_fully_static defining_expr;
-    symbol_projections = Definition.symbol_projections definition;
+    is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
+    symbol_projections = Definition.symbol_projections definition
   }
 
-let create_set_of_closures denv ~closure_symbols_with_types
-      ~symbol_projections defining_expr =
+let create_set_of_closures denv ~closure_symbols_with_types ~symbol_projections
+    defining_expr =
   let definition =
     Definition.set_of_closures denv ~closure_symbols_with_types
       ~symbol_projections defining_expr
@@ -201,9 +193,8 @@ let create_set_of_closures denv ~closure_symbols_with_types
   { definitions;
     bound_symbols = compute_bound_symbols definitions;
     defining_exprs = compute_defining_exprs definitions;
-    is_fully_static =
-      Rebuilt_static_const.is_fully_static defining_expr;
-    symbol_projections = Definition.symbol_projections definition;
+    is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
+    symbol_projections = Definition.symbol_projections definition
   }
 
 let create_code code_id defining_expr =
@@ -212,49 +203,43 @@ let create_code code_id defining_expr =
   { definitions;
     bound_symbols = compute_bound_symbols definitions;
     defining_exprs = compute_defining_exprs definitions;
-    is_fully_static =
-      Rebuilt_static_const.is_fully_static defining_expr;
-    symbol_projections = Definition.symbol_projections definition;
+    is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
+    symbol_projections = Definition.symbol_projections definition
   }
 
 let concat ts =
   let definitions =
-    List.fold_left (fun definitions t ->
-        t.definitions @ definitions)
-      []
-      ts
+    List.fold_left (fun definitions t -> t.definitions @ definitions) [] ts
   in
   let bound_symbols =
-    List.fold_left (fun bound_symbols t ->
+    List.fold_left
+      (fun bound_symbols t ->
         Bound_symbols.concat t.bound_symbols bound_symbols)
-      Bound_symbols.empty
-      ts
+      Bound_symbols.empty ts
   in
   let defining_exprs =
-    List.fold_left (fun defining_exprs t ->
-        Rebuilt_static_const.Group.concat t.defining_exprs
-          defining_exprs)
-      Rebuilt_static_const.Group.empty
-      ts
+    List.fold_left
+      (fun defining_exprs t ->
+        Rebuilt_static_const.Group.concat t.defining_exprs defining_exprs)
+      Rebuilt_static_const.Group.empty ts
   in
   let is_fully_static =
-    List.fold_left (fun is_fully_static t ->
-        t.is_fully_static && is_fully_static)
-      true
-      ts
+    List.fold_left
+      (fun is_fully_static t -> t.is_fully_static && is_fully_static)
+      true ts
   in
   let symbol_projections =
-    List.fold_left (fun symbol_projections t ->
+    List.fold_left
+      (fun symbol_projections t ->
         Variable.Map.disjoint_union ~eq:Symbol_projection.equal
           t.symbol_projections symbol_projections)
-      Variable.Map.empty
-      ts
+      Variable.Map.empty ts
   in
   { definitions;
     bound_symbols;
     defining_exprs;
     is_fully_static;
-    symbol_projections;
+    symbol_projections
   }
 
 let defining_exprs t =
@@ -262,65 +247,56 @@ let defining_exprs t =
     (List.map Definition.defining_expr t.definitions)
 
 let bound_symbols t =
-  Bound_symbols.create
-    (List.map Definition.bound_symbols_pattern t.definitions)
+  Bound_symbols.create (List.map Definition.bound_symbols_pattern t.definitions)
 
 let types_of_symbols t =
-  ListLabels.fold_left t.definitions
-    ~init:Symbol.Map.empty
+  ListLabels.fold_left t.definitions ~init:Symbol.Map.empty
     ~f:(fun types_of_symbols definition ->
-      Symbol.Map.disjoint_union (Definition.types_of_symbols definition)
+      Symbol.Map.disjoint_union
+        (Definition.types_of_symbols definition)
         types_of_symbols)
 
-let all_defined_symbols t =
-  Symbol.Map.keys (types_of_symbols t)
+let all_defined_symbols t = Symbol.Map.keys (types_of_symbols t)
 
 let apply_projection t proj =
   let symbol = Symbol_projection.symbol proj in
   let matching_defining_exprs =
     ListLabels.filter_map t.definitions ~f:(fun definition ->
-      if Definition.binds_symbol definition symbol then
-        Some (Definition.defining_expr definition)
-      else
-        None)
+        if Definition.binds_symbol definition symbol
+        then Some (Definition.defining_expr definition)
+        else None)
   in
   match matching_defining_exprs with
-  | [_] ->
+  | [_] -> (
     let denv, ty = Symbol.Map.find symbol (types_of_symbols t) in
     let typing_env = DE.typing_env denv in
     let proof =
       match Symbol_projection.projection proj with
-      | Block_load { index; } ->
-        T.prove_block_field_simple typing_env
-          ~min_name_mode:Name_mode.normal ty
+      | Block_load { index } ->
+        T.prove_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
           (Targetint_31_63.int index)
-      | Project_var { project_from = _; var; } ->
-        T.prove_project_var_simple typing_env
-          ~min_name_mode:Name_mode.normal ty var
+      | Project_var { project_from = _; var } ->
+        T.prove_project_var_simple typing_env ~min_name_mode:Name_mode.normal ty
+          var
     in
-    begin match proof with
+    match proof with
     | Proved simple -> Some simple
     | Unknown ->
       (* [Simplify_named], which calls this function, requires [Some] to be
          returned iff the projection is from a symbol defined in the same
-         recursive group (see the comment in that module).  As such, if the
-         projection via the types fails, we currently stop.  It seems very
+         recursive group (see the comment in that module). As such, if the
+         projection via the types fails, we currently stop. It seems very
          unlikely that this will happen; we can reconsider in the future if
          necessary. *)
-      Misc.fatal_errorf "Symbol projection@ %a@ produced [Unknown]:@ \
-          type is@ %a@ in env:@ %a"
-        Symbol_projection.print proj
-        T.print ty
-        T.Typing_env.print typing_env
+      Misc.fatal_errorf
+        "Symbol projection@ %a@ produced [Unknown]:@ type is@ %a@ in env:@ %a"
+        Symbol_projection.print proj T.print ty T.Typing_env.print typing_env
     | Invalid ->
-      Misc.fatal_errorf "Symbol projection@ %a@ produced [Invalid],@ \
-          environment is:@ %a"
-        Symbol_projection.print proj
-        T.Typing_env.print typing_env
-    end
+      Misc.fatal_errorf
+        "Symbol projection@ %a@ produced [Invalid],@ environment is:@ %a"
+        Symbol_projection.print proj T.Typing_env.print typing_env)
   | [] -> None
-  | _::_::_ ->
-    Misc.fatal_errorf "Symbol projection@ %a@ matches more than one \
-        constant in:@ %a"
-      Symbol_projection.print proj
-      print t
+  | _ :: _ :: _ ->
+    Misc.fatal_errorf
+      "Symbol projection@ %a@ matches more than one constant in:@ %a"
+      Symbol_projection.print proj print t

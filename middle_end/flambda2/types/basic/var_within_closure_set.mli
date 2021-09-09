@@ -16,9 +16,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(* CR mshinwell: This module is unpleasant.  We should arrange things so that
-   [Var_within_closure.Set.Map] exists.  (This should be easier now that
-   things brought in using "include" can be shadowed.) *)
+(* CR mshinwell: This module is unpleasant. We should arrange things so that
+   [Var_within_closure.Set.Map] exists. (This should be easier now that things
+   brought in using "include" can be shadowed.) *)
 type t = Var_within_closure.Set.t
 
 val empty : t

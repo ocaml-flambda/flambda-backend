@@ -19,21 +19,16 @@
 module DE = Downwards_env
 module T = Flambda_type
 
-type t = {
-  id : Apply_cont_rewrite_id.t;
-  kind : Continuation_use_kind.t;
-  arg_types : T.t list;
-  env : DE.t;
-}
-
-let create kind ~env_at_use:env id ~arg_types =
-  { id;
-    kind;
-    arg_types;
-    env;
+type t =
+  { id : Apply_cont_rewrite_id.t;
+    kind : Continuation_use_kind.t;
+    arg_types : T.t list;
+    env : DE.t
   }
 
-let print ppf { env = _; id = _; kind = _; arg_types; } =
+let create kind ~env_at_use:env id ~arg_types = { id; kind; arg_types; env }
+
+let [@ocamlformat "disable"] print ppf { env = _; id = _; kind = _; arg_types; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(arg_types@ %a)@]@ \
       )@]"
@@ -41,6 +36,9 @@ let print ppf { env = _; id = _; kind = _; arg_types; } =
     arg_types
 
 let id t = t.id
+
 let use_kind t = t.kind
+
 let arg_types t = t.arg_types
+
 let env_at_use t = t.env

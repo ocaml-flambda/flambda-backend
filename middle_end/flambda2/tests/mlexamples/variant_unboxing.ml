@@ -1,13 +1,10 @@
-external (+) : int -> int -> int = "%addint"
+external ( + ) : int -> int -> int = "%addint"
+
 external id : 'a -> 'a = "%opaque"
 
 let f1 b x =
-  let opt =
-    if b then None else Some x
-  in
-  match opt with
-  | None -> 1
-  | Some x -> x
+  let opt = if b then None else Some x in
+  match opt with None -> 1 | Some x -> x
 
 type t =
   | A
@@ -26,11 +23,7 @@ let f2 x y a b =
       (* let _ = id () in *)
       toto
   in
-  match t with
-  | C a -> a
-  | D (a, b) -> a + b
-  | A -> 40
-  | B -> 50
+  match t with C a -> a | D (a, b) -> a + b | A -> 40 | B -> 50
 
 (* Should work with or without unboxing *)
 let f3_returning_a x y a b =
@@ -41,8 +34,4 @@ let f3_returning_a x y a b =
     | false, true -> C a
     | false, false -> D (b, a)
   in
-  match t with
-  | C a -> a
-  | D (_, a) -> a
-  | A
-  | B -> a
+  match t with C a -> a | D (_, a) -> a | A | B -> a

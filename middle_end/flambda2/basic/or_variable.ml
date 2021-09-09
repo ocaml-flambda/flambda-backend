@@ -20,7 +20,7 @@ type 'a t =
   | Const of 'a
   | Var of Variable.t
 
-let print print_const ppf t =
+let [@ocamlformat "disable"] print print_const ppf t =
   match t with
   | Const cst -> print_const ppf cst
   | Var var -> Variable.print ppf var
@@ -42,10 +42,7 @@ let apply_renaming t perm =
   | Const _ -> t
   | Var var ->
     let var' = Renaming.apply_variable perm var in
-    if var == var' then t
-    else Var var'
+    if var == var' then t else Var var'
 
 let value_map t ~default ~f =
-  match t with
-  | Const cst -> f cst
-  | Var _ -> default
+  match t with Const cst -> f cst | Var _ -> default

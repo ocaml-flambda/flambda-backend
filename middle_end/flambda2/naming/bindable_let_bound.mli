@@ -16,23 +16,21 @@
 
 (** Things that a [Let]-expression binds. *)
 
-type symbols = private {
-  bound_symbols : Bound_symbols.t;
-}
+type symbols = private { bound_symbols : Bound_symbols.t }
 
 type t = private
   | Singleton of Var_in_binding_pos.t
-    (** The binding of a single variable, which is statically scoped. *)
-  | Set_of_closures of {
-      name_mode : Name_mode.t;
-      closure_vars : Var_in_binding_pos.t list;
-    }
-    (** The binding of one or more variables to the individual closures in a
-        set of closures.  The variables are statically scoped. *)
+      (** The binding of a single variable, which is statically scoped. *)
+  | Set_of_closures of
+      { name_mode : Name_mode.t;
+        closure_vars : Var_in_binding_pos.t list
+      }
+      (** The binding of one or more variables to the individual closures in a
+          set of closures. The variables are statically scoped. *)
   | Symbols of symbols
-    (** The binding of one or more symbols to statically-allocated constant(s).
-        The scoping of the symbols may either be syntactic, or follow the
-        dominator tree. *)
+      (** The binding of one or more symbols to statically-allocated
+          constant(s). The scoping of the symbols may either be syntactic, or
+          follow the dominator tree. *)
 
 include Bindable.S with type t := t
 
@@ -56,16 +54,10 @@ val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t
 
-val exists_all_bound_vars
-   : t
-  -> f:(Var_in_binding_pos.t -> bool)
-  -> bool
+val exists_all_bound_vars : t -> f:(Var_in_binding_pos.t -> bool) -> bool
 
-val fold_all_bound_vars
-   : t
-  -> init:'a
-  -> f:('a -> Var_in_binding_pos.t -> 'a)
-  -> 'a
+val fold_all_bound_vars :
+  t -> init:'a -> f:('a -> Var_in_binding_pos.t -> 'a) -> 'a
 
 val all_bound_vars : t -> Var_in_binding_pos.Set.t
 

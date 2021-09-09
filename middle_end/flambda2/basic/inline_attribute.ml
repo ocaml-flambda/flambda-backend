@@ -23,7 +23,7 @@ type t =
   | Unroll of int
   | Default_inline
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Always_inline -> fprintf ppf "Always_inline"
@@ -37,11 +37,9 @@ let equal t1 t2 =
   | Always_inline, Always_inline
   | Hint_inline, Hint_inline
   | Never_inline, Never_inline
-  | Default_inline, Default_inline -> true
+  | Default_inline, Default_inline ->
+    true
   | Unroll n1, Unroll n2 -> n1 = n2
   | _, _ -> false
 
-let is_default t =
-  match t with
-  | Default_inline -> true
-  | _ -> false
+let is_default t = match t with Default_inline -> true | _ -> false

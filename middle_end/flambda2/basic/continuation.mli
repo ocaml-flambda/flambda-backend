@@ -19,6 +19,7 @@
 (** The names of continuations. *)
 
 type t = private Table_by_int_id.Id.t
+
 type exported
 
 include Container_types.S with type t := t
@@ -50,10 +51,11 @@ val export : t -> exported
 val import : exported -> t
 
 val map_compilation_unit :
-      (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
+  (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
 
 module With_args : sig
   type nonrec t = t * Variable.t list
+
   include Container_types.S with type t := t
 end
 

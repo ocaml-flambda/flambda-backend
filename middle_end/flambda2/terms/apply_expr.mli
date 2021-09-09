@@ -14,8 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The representation of the application of an OCaml function, OCaml method
-    or external call to a list of arguments. *)
+(** The representation of the application of an OCaml function, OCaml method or
+    external call to a list of arguments. *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
@@ -27,7 +27,6 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 module Result_continuation : sig
-
   type t =
     | Return of Continuation.t
     | Never_returns
@@ -35,21 +34,20 @@ module Result_continuation : sig
   include Container_types.S with type t := t
 
   include Contains_names.S with type t := t
-
 end
 
 (** Create an application expression. *)
-val create
-   : callee:Simple.t
-  -> continuation:Result_continuation.t
-  -> Exn_continuation.t
-  -> args:Simple.t list
-  -> call_kind:Call_kind.t
-  -> Debuginfo.t
-  -> inline:Inline_attribute.t
-  -> inlining_state:Inlining_state.t
-  -> probe_name:string option
-  -> t
+val create :
+  callee:Simple.t ->
+  continuation:Result_continuation.t ->
+  Exn_continuation.t ->
+  args:Simple.t list ->
+  call_kind:Call_kind.t ->
+  Debuginfo.t ->
+  inline:Inline_attribute.t ->
+  inlining_state:Inlining_state.t ->
+  probe_name:string option ->
+  t
 
 (** The function or method being applied. *)
 val callee : t -> Simple.t
@@ -88,12 +86,8 @@ val with_args : t -> Simple.t list -> t
 val with_call_kind : t -> Call_kind.t -> t
 
 (** Change the continuation, callee and arguments of an application. *)
-val with_continuation_callee_and_args
-   : t
-  -> Result_continuation.t
-  -> callee:Simple.t
-  -> args:Simple.t list
-  -> t
+val with_continuation_callee_and_args :
+  t -> Result_continuation.t -> callee:Simple.t -> args:Simple.t list -> t
 
 val inlining_state : t -> Inlining_state.t
 

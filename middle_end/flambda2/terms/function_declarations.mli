@@ -17,22 +17,21 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** The representation of a set of function declarations (possibly mutually
-    recursive).  Such a set encapsulates the declarations themselves,
-    information about their defining environment, and information used
-    specifically for optimization.
+    recursive). Such a set encapsulates the declarations themselves, information
+    about their defining environment, and information used specifically for
+    optimization.
+
     Before a function can be applied it must be "projected" from a set of
-    closures to yield a "closure".  This is done using [Project_closure]
-    (see above).  Given a closure, not only can it be applied, but information
-    about its defining environment can be retrieved (using [Project_var],
-    see above).
+    closures to yield a "closure". This is done using [Project_closure] (see
+    above). Given a closure, not only can it be applied, but information about
+    its defining environment can be retrieved (using [Project_var], see above).
+
     At runtime, a [set_of_closures] corresponds to an OCaml value with tag
-    [Closure_tag] (possibly with inline [Infix_tag](s)).  As an optimization,
-    an operation ([Select_closure]) is provided (see above)
-    which enables one closure within a set to be located given another
-    closure in the same set.  This avoids keeping a pointer to the whole set
-    of closures alive when compiling, for example, mutually-recursive
-    functions.
-*)
+    [Closure_tag] (possibly with inline [Infix_tag](s)). As an optimization, an
+    operation ([Select_closure]) is provided (see above) which enables one
+    closure within a set to be located given another closure in the same set.
+    This avoids keeping a pointer to the whole set of closures alive when
+    compiling, for example, mutually-recursive functions. *)
 type t
 
 (** Printing, invariant checks, name manipulation, etc. *)
@@ -47,8 +46,8 @@ val is_empty : t -> bool
 (** Create a set of function declarations in the given order. *)
 val create : Code_id.t Closure_id.Lmap.t -> t
 
-(** The function(s) defined by the set of function declarations, indexed
-    by closure ID. *)
+(** The function(s) defined by the set of function declarations, indexed by
+    closure ID. *)
 val funs : t -> Code_id.t Closure_id.Map.t
 
 (** The function(s) defined by the set of function declarations, in the order

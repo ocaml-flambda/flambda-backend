@@ -19,6 +19,10 @@ type 'a t =
   | Infinity
 
 val compare : f:('a -> 'a -> int) -> 'a t -> 'a t -> int
+
 val equal : f:('a -> 'a -> bool) -> 'a t -> 'a t -> bool
+
 val hash : f:('a -> int) -> 'a t -> int
-val print : f:(Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
+
+val print :
+  f:(Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit

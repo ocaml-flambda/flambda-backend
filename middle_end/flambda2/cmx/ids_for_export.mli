@@ -15,26 +15,26 @@
 
 module Simple = Reg_width_things.Simple
 
-type t = private {
-  symbols : Symbol.Set.t;
-  variables : Variable.Set.t;
-  simples : Simple.Set.t;
-  consts : Reg_width_things.Const.Set.t;
-  code_ids : Code_id.Set.t;
-  continuations : Continuation.Set.t;
-}
+type t = private
+  { symbols : Symbol.Set.t;
+    variables : Variable.Set.t;
+    simples : Simple.Set.t;
+    consts : Reg_width_things.Const.Set.t;
+    code_ids : Code_id.Set.t;
+    continuations : Continuation.Set.t
+  }
 
 val empty : t
 
-val create
-   : ?symbols: Symbol.Set.t
-  -> ?variables: Variable.Set.t
-  -> ?simples: Simple.Set.t
-  -> ?consts: Reg_width_things.Const.Set.t
-  -> ?code_ids: Code_id.Set.t
-  -> ?continuations: Continuation.Set.t
-  -> unit
-  -> t
+val create :
+  ?symbols:Symbol.Set.t ->
+  ?variables:Variable.Set.t ->
+  ?simples:Simple.Set.t ->
+  ?consts:Reg_width_things.Const.Set.t ->
+  ?code_ids:Code_id.Set.t ->
+  ?continuations:Continuation.Set.t ->
+  unit ->
+  t
 
 val singleton_code_id : Code_id.t -> t
 

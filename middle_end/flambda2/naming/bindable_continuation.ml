@@ -35,7 +35,7 @@ let singleton_occurrence_in_terms t = Name_occurrences.singleton_continuation t
 
 let add_occurrence_in_terms t occs =
   (* This is used to diff the bound names from the free names of the term in
-     Name_abstraction. Setting has_traps to true ensures that the
-     continuations are properly removed from both the regular continuation
-     count and the continuations_with_traps count. *)
+     Name_abstraction. Setting has_traps to true ensures that the continuations
+     are properly removed from both the regular continuation count and the
+     continuations_with_traps count. *)
   Name_occurrences.add_continuation occs t ~has_traps:true

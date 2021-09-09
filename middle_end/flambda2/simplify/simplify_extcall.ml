@@ -26,8 +26,8 @@ type t =
 
 let fun_symbol simple =
   let fail simple =
-    Misc.fatal_errorf
-      "Expected a function symbol, instead of@ %a" Simple.print simple
+    Misc.fatal_errorf "Expected a function symbol, instead of@ %a" Simple.print
+      simple
   in
   Simple.pattern_match simple
     ~name:(fun name ->
@@ -37,7 +37,7 @@ let fun_symbol simple =
     ~const:(fun _ -> fail simple)
 
 let apply_cont cont v ~dbg =
-  let args = [ Simple.name (Name.var v) ] in
+  let args = [Simple.name (Name.var v)] in
   let apply_cont = Apply_cont.create cont ~args ~dbg in
   let free_names = Apply_cont.free_names apply_cont in
   let expr = Expr.create_apply_cont apply_cont in
@@ -53,7 +53,6 @@ let let_prim ~dbg v prim (free_names, body) =
   let expr = Expr.create_let let_expr in
   free_names, expr
 
-
 (* Exported simplification function *)
 (* ******************************** *)
 
@@ -61,10 +60,10 @@ let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
   let v_comp = Variable.create "comp" in
   let tagged = Variable.create "tagged" in
   let _free_names, res =
-    let_prim ~dbg v_comp (P.Binary (cmp_prim, a, b)) @@
-    let_prim ~dbg tagged
-      (P.Unary (Box_number Untagged_immediate, Simple.var v_comp)) @@
-    apply_cont ~dbg cont tagged
+    let_prim ~dbg v_comp (P.Binary (cmp_prim, a, b))
+    @@ let_prim ~dbg tagged
+         (P.Unary (Box_number Untagged_immediate, Simple.var v_comp))
+    @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)
 
@@ -74,71 +73,73 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let v_comp = Variable.create "comp" in
   let tagged = Variable.create "tagged" in
   let _free_names, res =
-    let_prim ~dbg a_naked (P.Unary (Unbox_number kind, a)) @@
-    let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b)) @@
-    let_prim ~dbg v_comp
-      (P.Binary (cmp_prim, Simple.var a_naked, Simple.var b_naked)) @@
-    let_prim ~dbg tagged
-      (P.Unary (Box_number Untagged_immediate, Simple.var v_comp)) @@
-    apply_cont ~dbg cont tagged
+    let_prim ~dbg a_naked (P.Unary (Unbox_number kind, a))
+    @@ let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b))
+    @@ let_prim ~dbg v_comp
+         (P.Binary (cmp_prim, Simple.var a_naked, Simple.var b_naked))
+    @@ let_prim ~dbg tagged
+         (P.Unary (Box_number Untagged_immediate, Simple.var v_comp))
+    @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)
 
-let simplify_comparison
-      ~dbg ~dacc ~cont
-      ~tagged_prim ~float_prim ~boxed_int_prim
-      a b a_ty b_ty =
+let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
+    ~boxed_int_prim a b a_ty b_ty =
   let tenv = DA.typing_env dacc in
-  match T.prove_is_a_boxed_number tenv a_ty,
-        T.prove_is_a_boxed_number tenv b_ty with
+  match
+    T.prove_is_a_boxed_number tenv a_ty, T.prove_is_a_boxed_number tenv b_ty
+  with
   | Proved Untagged_immediate, Proved Untagged_immediate ->
-    simplify_comparison_of_tagged_immediates
-      ~dbg dacc cont a b
+    simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
   | Proved Naked_float, Proved Naked_float ->
-    simplify_comparison_of_boxed_numbers
-      ~dbg dacc cont a b ~kind:Naked_float
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
   | Proved Naked_int32, Proved Naked_int32 ->
-    simplify_comparison_of_boxed_numbers
-      ~dbg dacc cont a b ~kind:Naked_int32
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
   | Proved Naked_int64, Proved Naked_int64 ->
-    simplify_comparison_of_boxed_numbers
-      ~dbg dacc cont a b ~kind:Naked_int64
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int64
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int64)
   | Proved Naked_nativeint, Proved Naked_nativeint ->
-    simplify_comparison_of_boxed_numbers
-      ~dbg dacc cont a b ~kind:Naked_nativeint
+    simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
+      ~kind:Naked_nativeint
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_nativeint)
   (* Kind differences *)
-  | Proved Untagged_immediate,
-    Proved (Naked_float | Naked_nativeint | Naked_int32 | Naked_int64)
-  | Proved Naked_float,
-    Proved (Untagged_immediate | Naked_nativeint | Naked_int32 | Naked_int64)
-  | Proved Naked_int32,
-    Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int64)
-  | Proved Naked_int64,
-    Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32)
-  | Proved Naked_nativeint,
-    Proved (Untagged_immediate | Naked_float | Naked_int32 | Naked_int64)
+  | ( Proved Untagged_immediate,
+      Proved (Naked_float | Naked_nativeint | Naked_int32 | Naked_int64) )
+  | ( Proved Naked_float,
+      Proved (Untagged_immediate | Naked_nativeint | Naked_int32 | Naked_int64)
+    )
+  | ( Proved Naked_int32,
+      Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int64)
+    )
+  | ( Proved Naked_int64,
+      Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32)
+    )
+  | ( Proved Naked_nativeint,
+      Proved (Untagged_immediate | Naked_float | Naked_int32 | Naked_int64) )
   (* One or two of the arguments is not known *)
   | (Unknown | Invalid | Wrong_kind), (Unknown | Invalid | Wrong_kind)
-  | (Unknown | Invalid | Wrong_kind),
-    Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32 | Naked_int64)
-  | Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32 | Naked_int64),
-    (Unknown | Invalid | Wrong_kind)
-    -> Unchanged
+  | ( (Unknown | Invalid | Wrong_kind),
+      Proved
+        ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
+        | Naked_int64 ) )
+  | ( Proved
+        ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
+        | Naked_int64 ),
+      (Unknown | Invalid | Wrong_kind) ) ->
+    Unchanged
 
-
-let simplify_returning_extcall
-      ~dbg ~cont ~exn_cont:_ dacc fun_name args ~arg_types =
+let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
+    ~arg_types =
   match fun_name, args, arg_types with
   (* Polymorphic comparisons *)
   | ".extern__caml_compare", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
       ~float_prim:(Float_comp Yielding_int_like_compare_functions)
-      ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_int_like_compare_functions))
+      ~tagged_prim:
+        (Int_comp (Tagged_immediate, Signed, Yielding_int_like_compare_functions))
       ~boxed_int_prim:(fun kind ->
         Int_comp (kind, Signed, Yielding_int_like_compare_functions))
   | ".extern__caml_equal", [a; b], [a_ty; b_ty] ->
@@ -150,7 +151,8 @@ let simplify_returning_extcall
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
       ~tagged_prim:(Phys_equal (K.value, Neq))
       ~float_prim:(Float_comp (Yielding_bool Neq))
-      ~boxed_int_prim:(fun kind -> Phys_equal (K.Standard_int.to_kind kind, Neq))
+      ~boxed_int_prim:(fun kind ->
+        Phys_equal (K.Standard_int.to_kind kind, Neq))
   | ".extern__caml_lessequal", [a; b], [a_ty; b_ty] ->
     simplify_comparison ~dbg ~dacc ~cont a b a_ty b_ty
       ~float_prim:(Float_comp (Yielding_bool Le))
@@ -171,27 +173,22 @@ let simplify_returning_extcall
       ~float_prim:(Float_comp (Yielding_bool Gt))
       ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Gt))
       ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Gt))
-
   | _ -> Unchanged
-
 
 (* Exported simplification function *)
 (* ******************************** *)
 
-let simplify_extcall dacc apply ~callee_ty:_
-      ~param_arity:_ ~return_arity:_ ~arg_types =
+let simplify_extcall dacc apply ~callee_ty:_ ~param_arity:_ ~return_arity:_
+    ~arg_types =
   let dbg = Apply.dbg apply in
   let args = Apply.args apply in
   let exn_cont = Apply.exn_continuation apply in
   let fun_name =
-    Apply.callee apply
-    |> fun_symbol
-    |> Symbol.linkage_name
+    Apply.callee apply |> fun_symbol |> Symbol.linkage_name
     |> Linkage_name.to_string
   in
   match Apply.continuation apply with
   | Never_returns -> Unchanged
   | Return cont ->
-    simplify_returning_extcall ~dbg ~cont ~exn_cont dacc fun_name args ~arg_types
-
-
+    simplify_returning_extcall ~dbg ~cont ~exn_cont dacc fun_name args
+      ~arg_types

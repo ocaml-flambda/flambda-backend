@@ -19,12 +19,13 @@
 (** A description of the different contexts in which names may occur. *)
 
 type t
+
 type kind = t
 
 val normal : t
 
-(** A name that does not occur in terms (but may be required for the
-    generation of debugging information), but does occur in types. *)
+(** A name that does not occur in terms (but may be required for the generation
+    of debugging information), but does occur in types. *)
 val in_types : t
 
 (** A name that neither occurs in names nor types, but is required for the
@@ -36,6 +37,7 @@ val is_normal : t -> bool
 val is_phantom : t -> bool
 
 val min_in_types : t
+
 val min_in_terms : t
 
 val top : t
@@ -47,12 +49,15 @@ val max_in_terms : t -> t -> t
 include Container_types.S with type t := t
 
 val compare_total_order : t -> t -> int
+
 val compare_partial_order : t -> t -> int option
 
-val compare : t -> t -> [ `Be_explicit_about_total_or_partial_ordering ]
+val compare : t -> t -> [`Be_explicit_about_total_or_partial_ordering]
 
 val to_int : t -> int
+
 val of_int : int -> t
+
 (* CR mshinwell: some of these may not be needed now *)
 val max_to_int : int
 
@@ -69,15 +74,18 @@ module Or_absent : sig
     | Present of kind
 
   val absent : t
+
   val present : kind -> t
 
   val is_present : t -> bool
+
   val is_present_as_normal : t -> bool
 
   include Container_types.S with type t := t
 
   val compare_total_order : t -> t -> int
+
   val compare_partial_order : t -> t -> int option
 
-  val compare : t -> t -> [ `Be_explicit_about_total_or_partial_ordering ]
+  val compare : t -> t -> [`Be_explicit_about_total_or_partial_ordering]
 end

@@ -34,13 +34,13 @@ module Set_of_closures = Flambda.Set_of_closures
 module Static_const = Flambda.Static_const
 module Switch = Flambda.Switch
 module Cost_metrics = Flambda.Cost_metrics
-
 module AC = Apply_cont
 module CH = Continuation_handler
 module CIS = Code_id_or_symbol
 module CUE = Continuation_uses_env
 module DA = Downwards_acc
 module DE = Downwards_env
+module DF = Data_flow
 module EA = Continuation_extra_params_and_args.Extra_arg
 module EB = Expr_builder
 module EPA = Continuation_extra_params_and_args

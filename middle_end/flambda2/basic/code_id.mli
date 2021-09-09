@@ -17,6 +17,7 @@
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
 include Container_types.S
+
 type exported
 
 module Lmap : Lmap.S with type key = t
@@ -24,7 +25,9 @@ module Lmap : Lmap.S with type key = t
 val initialise : unit -> unit
 
 val create : name:string -> Compilation_unit.t -> t
+
 val get_compilation_unit : t -> Compilation_unit.t
+
 val in_compilation_unit : t -> Compilation_unit.t -> bool
 
 val name : t -> string

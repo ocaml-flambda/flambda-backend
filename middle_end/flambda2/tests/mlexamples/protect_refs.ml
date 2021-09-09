@@ -1,11 +1,17 @@
 let rec iter f = function
-    [] -> ()
-  | a::l -> f a; iter f l
+  | [] -> ()
+  | a :: l ->
+    f a;
+    iter f l
 
-type 'a ref = { mutable contents : 'a; }
+type 'a ref = { mutable contents : 'a }
+
 external ref : 'a -> 'a ref = "%makemutable"
+
 external ( ! ) : 'a ref -> 'a = "%field0"
+
 external ( := ) : 'a ref -> 'a -> unit = "%setfield0"
+
 external raise : exn -> 'a = "%raise"
 
 type ref_and_value = R : 'a ref * 'a -> ref_and_value
@@ -22,9 +28,6 @@ type unification_mode =
 
 let umode = ref Expression
 
-let[@inline never] set_mode_pattern f =
-  protect_refs
-    [R (umode, Pattern)] f
+let[@inline never] set_mode_pattern f = protect_refs [R (umode, Pattern)] f
 
-let () =
-  set_mode_pattern (fun () -> ())
+let () = set_mode_pattern (fun () -> ())

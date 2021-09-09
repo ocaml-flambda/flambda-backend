@@ -28,32 +28,29 @@ module Make (Function_params_and_body : sig
 
   val print : Format.formatter -> t -> unit
 
-  val print_with_cache
-     : cache:Printing_cache.t
-    -> Format.formatter
-    -> t
-    -> unit
+  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end) (Cost_metrics : sig
   type t
 
   val print : Format.formatter -> t -> unit
-end) = struct
-  type t = {
-    code_id : Code_id.t;
-    params_and_body : Function_params_and_body.t Or_deleted.t;
-    free_names_of_params_and_body : Name_occurrences.t;
-    newer_version_of : Code_id.t option;
-    params_arity : Flambda_arity.With_subkinds.t;
-    result_arity : Flambda_arity.With_subkinds.t;
-    stub : bool;
-    inline : Inline_attribute.t;
-    is_a_functor : bool;
-    recursive : Recursive.t;
-    cost_metrics : Cost_metrics.t;
-    inlining_arguments : Inlining_arguments.t;
-    dbg : Debuginfo.t;
-    is_tupled : bool;
-  }
+end) =
+struct
+  type t =
+    { code_id : Code_id.t;
+      params_and_body : Function_params_and_body.t Or_deleted.t;
+      free_names_of_params_and_body : Name_occurrences.t;
+      newer_version_of : Code_id.t option;
+      params_arity : Flambda_arity.With_subkinds.t;
+      result_arity : Flambda_arity.With_subkinds.t;
+      stub : bool;
+      inline : Inline_attribute.t;
+      is_a_functor : bool;
+      recursive : Recursive.t;
+      cost_metrics : Cost_metrics.t;
+      inlining_arguments : Inlining_arguments.t;
+      dbg : Debuginfo.t;
+      is_tupled : bool
+    }
 
   let code_id { code_id; _ } = code_id
 
@@ -66,7 +63,8 @@ end) = struct
 
   let params_and_body_must_be_present ~error_context { params_and_body; _ } =
     match params_and_body with
-    | Deleted -> Misc.fatal_errorf "%s: params and body are deleted" error_context
+    | Deleted ->
+      Misc.fatal_errorf "%s: params and body are deleted" error_context
     | Present params_and_body -> params_and_body
 
   let newer_version_of { newer_version_of; _ } = newer_version_of
@@ -96,15 +94,14 @@ end) = struct
       match params_and_body with
       | Deleted -> Name_occurrences.empty
       | Present (params_and_body, free_names) ->
-        if not (Name_occurrences.no_continuations free_names
-                && Name_occurrences.no_variables free_names)
-        then begin
-          Misc.fatal_errorf "Incorrect free names:@ %a@ for creation of code:@ \
-              %a@ =@ %a"
-            Name_occurrences.print free_names
-            Code_id.print code_id
-            Function_params_and_body.print params_and_body
-        end;
+        if not
+             (Name_occurrences.no_continuations free_names
+             && Name_occurrences.no_variables free_names)
+        then
+          Misc.fatal_errorf
+            "Incorrect free names:@ %a@ for creation of code:@ %a@ =@ %a"
+            Name_occurrences.print free_names Code_id.print code_id
+            Function_params_and_body.print params_and_body;
         free_names
     in
     let params_and_body : _ Or_deleted.t =
@@ -114,27 +111,20 @@ end) = struct
     in
     params_and_body, free_names_of_params_and_body
 
-  let create
-        code_id
-        ~(params_and_body : _ Or_deleted.t)
-        ~newer_version_of
-        ~params_arity
-        ~result_arity
-        ~stub
-        ~(inline:Inline_attribute.t)
-        ~is_a_functor
-        ~recursive
-        ~cost_metrics
-        ~inlining_arguments
-        ~dbg
-        ~is_tupled =
-    begin match stub, inline with
-    | true, (Hint_inline | Never_inline | Default_inline)
-    | false, (Never_inline | Default_inline | Always_inline | Hint_inline
-              | Unroll _) -> ()
-    | true, (Always_inline | Unroll _) ->
-      Misc.fatal_error "Stubs may not be annotated as [Always_inline] or \
-        [Unroll]"
+  let create code_id ~(params_and_body : _ Or_deleted.t) ~newer_version_of
+      ~params_arity ~result_arity ~stub ~(inline : Inline_attribute.t)
+      ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+      =
+    begin
+      match stub, inline with
+      | true, (Hint_inline | Never_inline | Default_inline)
+      | ( false,
+          ( Never_inline | Default_inline | Always_inline | Hint_inline
+          | Unroll _ ) ) ->
+        ()
+      | true, (Always_inline | Unroll _) ->
+        Misc.fatal_error
+          "Stubs may not be annotated as [Always_inline] or [Unroll]"
     end;
     let params_and_body, free_names_of_params_and_body =
       check_params_and_body code_id params_and_body
@@ -152,7 +142,7 @@ end) = struct
       cost_metrics;
       inlining_arguments;
       dbg;
-      is_tupled;
+      is_tupled
     }
 
   let with_code_id code_id t = { t with code_id }
@@ -161,7 +151,7 @@ end) = struct
     let params_and_body, free_names_of_params_and_body =
       check_params_and_body t.code_id params_and_body
     in
-    { t with params_and_body; cost_metrics; free_names_of_params_and_body; }
+    { t with params_and_body; cost_metrics; free_names_of_params_and_body }
 
   let with_newer_version_of newer_version_of t = { t with newer_version_of }
 
@@ -169,8 +159,7 @@ end) = struct
     match params_and_body with
     | Or_deleted.Deleted -> Format.fprintf ppf "Deleted"
     | Or_deleted.Present params_and_body ->
-      Function_params_and_body.print_with_cache ~cache ppf
-        params_and_body
+      Function_params_and_body.print_with_cache ~cache ppf params_and_body
 
   module Option = struct
     include Option
@@ -178,11 +167,10 @@ end) = struct
     let print_compact print_contents ppf t =
       match t with
       | None -> Format.pp_print_string ppf "()"
-      | Some contents ->
-        Format.fprintf ppf "%a" print_contents contents
+      | Some contents -> Format.fprintf ppf "%a" print_contents contents
   end
 
-  let print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print_with_cache ~cache ppf
         { code_id = _; params_and_body; newer_version_of; stub; inline;
           is_a_functor; params_arity; result_arity; recursive;
           free_names_of_params_and_body = _; cost_metrics; inlining_arguments;
@@ -263,39 +251,47 @@ end) = struct
         (Option.print_compact Code_id.print) newer_version_of
         (Flambda_colours.normal ())
 
-  let print ppf code =
+  let [@ocamlformat "disable"] print ppf code =
     print_with_cache ~cache:(Printing_cache.create ()) ppf code
 
   let compare { code_id = code_id1; _ } { code_id = code_id2; _ } =
     Code_id.compare code_id1 code_id2
 
   let free_names t =
-    (* [code_id] is only in [t] for the use of [compare]; it doesn't
-        count as a free name. *)
+    (* [code_id] is only in [t] for the use of [compare]; it doesn't count as a
+       free name. *)
     let from_newer_version_of =
       match t.newer_version_of with
       | None -> Name_occurrences.empty
       | Some older ->
-        Name_occurrences.add_newer_version_of_code_id
-          Name_occurrences.empty older Name_mode.normal
+        Name_occurrences.add_newer_version_of_code_id Name_occurrences.empty
+          older Name_mode.normal
     in
     Name_occurrences.union from_newer_version_of t.free_names_of_params_and_body
 
   let apply_renaming
-        ({ code_id; params_and_body; newer_version_of; params_arity = _;
-          result_arity = _; stub = _; inline = _; is_a_functor = _;
-           recursive = _; cost_metrics = _; free_names_of_params_and_body;
-           inlining_arguments = _; dbg = _; is_tupled = _; } as t)
-        perm =
+      ({ code_id;
+         params_and_body;
+         newer_version_of;
+         params_arity = _;
+         result_arity = _;
+         stub = _;
+         inline = _;
+         is_a_functor = _;
+         recursive = _;
+         cost_metrics = _;
+         free_names_of_params_and_body;
+         inlining_arguments = _;
+         dbg = _;
+         is_tupled = _
+       } as t) perm =
     (* inlined and modified version of Option.map to preserve sharing *)
     let newer_version_of' =
       match newer_version_of with
       | None -> newer_version_of
       | Some code_id ->
         let code_id' = Renaming.apply_code_id perm code_id in
-        if code_id == code_id'
-        then newer_version_of
-        else Some code_id'
+        if code_id == code_id' then newer_version_of else Some code_id'
     in
     let code_id' = Renaming.apply_code_id perm code_id in
     let params_and_body' : Function_params_and_body.t Or_deleted.t =
@@ -303,38 +299,47 @@ end) = struct
       | Deleted -> Deleted
       | Present params_and_body_inner ->
         let params_and_body_inner' =
-          Function_params_and_body.apply_renaming
-            params_and_body_inner perm
+          Function_params_and_body.apply_renaming params_and_body_inner perm
         in
-        if params_and_body_inner == params_and_body_inner' then
-          params_and_body
-        else
-          Present params_and_body_inner'
+        if params_and_body_inner == params_and_body_inner'
+        then params_and_body
+        else Present params_and_body_inner'
     in
-    if params_and_body == params_and_body' &&
-      code_id == code_id' &&
-      newer_version_of == newer_version_of' then t
-    else begin
+    if params_and_body == params_and_body'
+       && code_id == code_id'
+       && newer_version_of == newer_version_of'
+    then t
+    else
       let free_names_of_params_and_body' =
         Name_occurrences.apply_renaming free_names_of_params_and_body perm
       in
-      { t with code_id = code_id';
-              params_and_body = params_and_body';
-              newer_version_of = newer_version_of';
-              free_names_of_params_and_body = free_names_of_params_and_body';
+      { t with
+        code_id = code_id';
+        params_and_body = params_and_body';
+        newer_version_of = newer_version_of';
+        free_names_of_params_and_body = free_names_of_params_and_body'
       }
-    end
 
-  let all_ids_for_export { code_id; params_and_body; newer_version_of;
-                          params_arity = _; result_arity = _; stub = _;
-                          inline = _; is_a_functor = _; recursive = _;
-                           cost_metrics = _; free_names_of_params_and_body = _;
-                           inlining_arguments = _; dbg = _; is_tupled = _; } =
+  let all_ids_for_export
+      { code_id;
+        params_and_body;
+        newer_version_of;
+        params_arity = _;
+        result_arity = _;
+        stub = _;
+        inline = _;
+        is_a_functor = _;
+        recursive = _;
+        cost_metrics = _;
+        free_names_of_params_and_body = _;
+        inlining_arguments = _;
+        dbg = _;
+        is_tupled = _
+      } =
     let newer_version_of_ids =
       match newer_version_of with
       | None -> Ids_for_export.empty
-      | Some older ->
-        Ids_for_export.add_code_id Ids_for_export.empty older
+      | Some older -> Ids_for_export.add_code_id Ids_for_export.empty older
     in
     let params_and_body_ids =
       match params_and_body with
@@ -349,10 +354,9 @@ end) = struct
   let make_deleted t =
     { t with
       params_and_body = Deleted;
-      free_names_of_params_and_body = Name_occurrences.empty; }
+      free_names_of_params_and_body = Name_occurrences.empty
+    }
 
   let is_deleted t =
-    match t.params_and_body with
-    | Deleted -> true
-    | Present _ -> false
+    match t.params_and_body with Deleted -> true | Present _ -> false
 end

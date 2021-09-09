@@ -19,17 +19,17 @@
 module T = Flambda_type
 module TE = Flambda_type.Typing_env
 
-type arg_at_use = {
-  arg_type : T.t;
-  typing_env : TE.t;
-}
+type arg_at_use =
+  { arg_type : T.t;
+    typing_env : TE.t
+  }
 
 type t =
   | No_uses
-  | Uses of {
-      handler_env : Downwards_env.t;
-      arg_types_by_use_id : arg_at_use Apply_cont_rewrite_id.Map.t list;
-      extra_params_and_args : Continuation_extra_params_and_args.t;
-      is_single_inlinable_use : bool;
-      escapes : bool;
-    }
+  | Uses of
+      { handler_env : Downwards_env.t;
+        arg_types_by_use_id : arg_at_use Apply_cont_rewrite_id.Map.t list;
+        extra_params_and_args : Continuation_extra_params_and_args.t;
+        is_single_inlinable_use : bool;
+        escapes : bool
+      }

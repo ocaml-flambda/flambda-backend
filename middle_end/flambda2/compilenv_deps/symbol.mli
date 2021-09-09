@@ -17,13 +17,17 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 (** A symbol identifies a constant provided by either:
+
     - another compilation unit; or
+
     - a top-level module.
 
     The linkage name must be globally unique: two compilation units linked in
     the same program must not share a linkage name. *)
 
-include module type of struct include Reg_width_things.Symbol end
+include module type of struct
+  include Reg_width_things.Symbol
+end
 
 val import_for_pack : t -> pack:Compilation_unit.t -> t
 

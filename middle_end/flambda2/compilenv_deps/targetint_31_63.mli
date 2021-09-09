@@ -23,7 +23,8 @@ module Imm : sig
   type t
 
   (* CR mshinwell: Maybe this should move somewhere else let max_array_length =
-     max_wosize () let max_string_length = word_size / 8 * max_array_length - 1 *)
+     max_wosize () let max_string_length = word_size / 8 * max_array_length -
+     1 *)
 
   (** The minimum ocaml integer representable on the target. *)
   val min_value : t
@@ -101,11 +102,12 @@ module Imm : sig
       integer, modulo the size of a target ocaml integer. *)
   val of_int64 : int64 -> t
 
-  (** Convert the given ocaml target integer to a 64-bit integer (type [int64]). *)
+  (** Convert the given ocaml target integer to a 64-bit integer (type
+      [int64]). *)
   val to_int64 : t -> int64
 
-  (** Convert the given target native integer (type [Targetint_32_64.t]) to an ocaml
-      target integer, modulo the size of an ocaml target integer. *)
+  (** Convert the given target native integer (type [Targetint_32_64.t]) to an
+      ocaml target integer, modulo the size of an ocaml target integer. *)
   val of_targetint : Targetint_32_64.t -> t
 
   (** Convert the given ocaml target integer (type [t]) to a target native
@@ -115,7 +117,8 @@ module Imm : sig
   (** Convert the given floating-point number to an ocaml target integer,
       discarding the fractional part (truncate towards 0). The result of the
       conversion is undefined if, after truncation, the number is outside the
-      range \[{!Targetint_31_63.Imm.min_value}, {!Targetint_31_63.Imm.max_value}\]. *)
+      range \[{!Targetint_31_63.Imm.min_value},
+      {!Targetint_31_63.Imm.max_value}\]. *)
   val of_float : float -> t
 
   (** Convert the given target integer to a floating-point number. *)
@@ -159,15 +162,16 @@ module Imm : sig
       32-bit platform and [61] on a 64-bit platform. *)
   val shift_left : t -> int -> t
 
-  (** [Targetint_32_64.shift_right x y] shifts [x] to the right by [y] bits. This is
-      an arithmetic shift: the sign bit of [x] is replicated and inserted in the
-      vacated bits. The result is unspecified if [y < 0] or [y >= bitsize]. *)
+  (** [Targetint_32_64.shift_right x y] shifts [x] to the right by [y] bits.
+      This is an arithmetic shift: the sign bit of [x] is replicated and
+      inserted in the vacated bits. The result is unspecified if [y < 0] or [y
+      >= bitsize]. *)
   val shift_right : t -> int -> t
 
-  (** [Targetint_32_64.shift_right_logical x y] shifts [x] to the right by [y] bits.
-      This is a logical shift: zeroes are inserted in the vacated bits
-      regardless of the sign of [x]. The result is unspecified if [y < 0] or
-      [y >= bitsize]. *)
+  (** [Targetint_32_64.shift_right_logical x y] shifts [x] to the right by [y]
+      bits. This is a logical shift: zeroes are inserted in the vacated bits
+      regardless of the sign of [x]. The result is unspecified if [y < 0] or [y
+      >= bitsize]. *)
   val shift_right_logical : t -> int -> t
 
   (** Returns the smaller integer. *)

@@ -14,15 +14,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Transform an unboxing decision tree into the downwards environment
-    required for simplification. *)
+(** Transform an unboxing decision tree into the downwards environment required
+    for simplification. *)
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Simplify_import
 
-val denv_of_decision
-   : DE.t
-  -> param_var:Variable.t
-  -> Unboxing_types.decision
-  -> DE.t
+val denv_of_decision :
+  DE.t -> param_var:Variable.t -> Unboxing_types.decision -> DE.t

@@ -23,17 +23,17 @@ type unboxed_arg =
   | Poison (* used for recursive calls *)
   | Available of Simple.t
   | Generated of Variable.t
-  | Added_by_wrapper_at_rewrite_use of { nth_arg : int; }
+  | Added_by_wrapper_at_rewrite_use of { nth_arg : int }
 
-val compute_extra_args_for_one_decision_and_use
-   : pass:Unboxing_types.pass
-  -> Apply_cont_rewrite_id.t
-  -> typing_env_at_use:Flambda_type.Typing_env.t
-  -> unboxed_arg
-  -> Unboxing_types.decision
-  -> Unboxing_types.decision
+val compute_extra_args_for_one_decision_and_use :
+  pass:Unboxing_types.pass ->
+  Apply_cont_rewrite_id.t ->
+  typing_env_at_use:Flambda_type.Typing_env.t ->
+  unboxed_arg ->
+  Unboxing_types.decision ->
+  Unboxing_types.decision
 
-val add_extra_params_and_args
-   : Continuation_extra_params_and_args.t
-  -> Unboxing_types.decision
-  -> Continuation_extra_params_and_args.t
+val add_extra_params_and_args :
+  Continuation_extra_params_and_args.t ->
+  Unboxing_types.decision ->
+  Continuation_extra_params_and_args.t

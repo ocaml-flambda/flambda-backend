@@ -20,15 +20,17 @@ type t = string
 
 include Container_types.Make (struct
   include String
+
   let hash = Hashtbl.hash
-  let print ppf t = Format.pp_print_string ppf t
-  let output chan t =
-    print (Format.formatter_of_out_channel chan) t
+
+  let [@ocamlformat "disable"] print ppf t = Format.pp_print_string ppf t
+
+  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let create t = t
+
 let to_string t = t
 
 (* CR mshinwell: this is dire *)
-let rename t =
-  t ^ "_"
+let rename t = t ^ "_"

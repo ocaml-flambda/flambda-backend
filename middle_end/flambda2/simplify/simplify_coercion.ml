@@ -18,10 +18,10 @@
 
 let simplify_coercion dacc (coercion : Coercion.t) =
   match coercion with
-  | Id ->
-    coercion
+  | Id -> coercion
   | Change_depth { from; to_ } ->
     let from' = Simplify_rec_info_expr.simplify_rec_info_expr dacc from in
     let to_' = Simplify_rec_info_expr.simplify_rec_info_expr dacc to_ in
-    if from' == from && to_' == to_ then coercion else
-      Coercion.change_depth ~from:from' ~to_:to_'
+    if from' == from && to_' == to_
+    then coercion
+    else Coercion.change_depth ~from:from' ~to_:to_'

@@ -16,9 +16,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t = No_coeffects | Has_coeffects
+type t =
+  | No_coeffects
+  | Has_coeffects
 
-let print ppf co =
+let [@ocamlformat "disable"] print ppf co =
   match co with
   | No_coeffects -> Format.fprintf ppf "no coeffects"
   | Has_coeffects -> Format.fprintf ppf "has coeffects"
@@ -35,4 +37,5 @@ let join co1 co2 =
   | No_coeffects, No_coeffects -> No_coeffects
   | No_coeffects, Has_coeffects
   | Has_coeffects, Has_coeffects
-  | Has_coeffects, No_coeffects -> Has_coeffects
+  | Has_coeffects, No_coeffects ->
+    Has_coeffects

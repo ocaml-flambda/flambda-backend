@@ -21,12 +21,12 @@ type t
 (** Print a upwards accumulator to a formatter. *)
 val print : Format.formatter -> t -> unit
 
-val create
-   : required_names:Name.Set.t
-  -> reachable_code_ids:(Data_flow.Reachable_code_ids.t Or_unknown.t)
-  -> Upwards_env.t
-  -> Downwards_acc.t
-  -> t
+val create :
+  required_names:Name.Set.t ->
+  reachable_code_ids:Data_flow.Reachable_code_ids.t Or_unknown.t ->
+  Upwards_env.t ->
+  Downwards_acc.t ->
+  t
 
 val creation_dacc : t -> Downwards_acc.t
 
@@ -47,18 +47,13 @@ val lifted_constants : t -> Lifted_constant_state.t
 
 val add_outermost_lifted_constant : t -> Lifted_constant.t -> t
 
-(** Replace the accumulator of lifted constants returned by
-    [lifted_constants]. *)
+(** Replace the accumulator of lifted constants returned by [lifted_constants]. *)
 val with_lifted_constants : t -> Lifted_constant_state.t -> t
 
 val no_lifted_constants : t -> bool
 
 (** Map the environment component of the given upwards accumulator. *)
-val map_uenv
-   : t
-  -> f:(Upwards_env.t
-    -> Upwards_env.t)
-  -> t
+val map_uenv : t -> f:(Upwards_env.t -> Upwards_env.t) -> t
 
 (** Replace the environment component of the given upwards accumulator. *)
 val with_uenv : t -> Upwards_env.t -> t
@@ -87,9 +82,9 @@ val with_cost_metrics : Flambda.Cost_metrics.t -> t -> t
 
 val add_cost_metrics : Flambda.Cost_metrics.t -> t -> t
 
-val notify_added: code_size:Code_size.t -> t -> t
+val notify_added : code_size:Code_size.t -> t -> t
 
-val notify_removed: operation:Removed_operations.t -> t -> t
+val notify_removed : operation:Removed_operations.t -> t -> t
 
 val generate_phantom_lets : t -> bool
 

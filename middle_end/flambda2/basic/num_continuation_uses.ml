@@ -21,13 +21,11 @@ type t =
   | One
   | Many
 
-let (+) t1 t2 =
+let ( + ) t1 t2 =
   match t1, t2 with
   | Zero, Zero -> Zero
   | Zero, One | One, Zero -> One
   | One, One -> Many
   | _, Many | Many, _ -> Many
 
-let linear = function
-  | Zero | One -> true
-  | Many -> false
+let linear = function Zero | One -> true | Many -> false

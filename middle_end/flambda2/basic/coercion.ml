@@ -16,7 +16,7 @@
 
 include Reg_width_things.Coercion
 
-let print_with_cache ~cache:_ ppf t = print ppf t
+let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
 let free_names t =
   match t with
@@ -37,11 +37,12 @@ let free_names_in_types t =
 let apply_renaming t renaming =
   match t with
   | Id -> t
-  | Change_depth { from; to_  } ->
+  | Change_depth { from; to_ } ->
     let new_from = Rec_info_expr.apply_renaming from renaming in
     let new_to_ = Rec_info_expr.apply_renaming to_ renaming in
-    if new_from == from && new_to_ == to_ then t else
-      change_depth ~from:new_from ~to_:new_to_
+    if new_from == from && new_to_ == to_
+    then t
+    else change_depth ~from:new_from ~to_:new_to_
 
 let compose_exn t1 ~then_:t2 =
   match compose t1 ~then_:t2 with
@@ -52,6 +53,7 @@ let compose_exn t1 ~then_:t2 =
 let all_ids_for_export t =
   match t with
   | Id -> Ids_for_export.empty
-  | Change_depth { from; to_; } ->
-    Ids_for_export.union (Rec_info_expr.all_ids_for_export from)
+  | Change_depth { from; to_ } ->
+    Ids_for_export.union
+      (Rec_info_expr.all_ids_for_export from)
       (Rec_info_expr.all_ids_for_export to_)
