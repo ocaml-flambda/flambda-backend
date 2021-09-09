@@ -61,22 +61,22 @@ module type S = sig
       new stack. *)
   val pop : t -> t
 
-  (** [push t d] adds trap handler [d] on top of the stack [t] and returns
-      the resulting stack. *)
+  (** [push t d] adds trap handler [d] on top of the stack [t] and returns the
+      resulting stack. *)
   val push : t -> d -> t
 
-  (** Returns a list representation of the stack [t], with the head of the
-      list representing the top of the stack. Raises [Unresolved] if any part
-      of [t] is [unknown]. *)
+  (** Returns a list representation of the stack [t], with the head of the list
+      representing the top of the stack. Raises [Unresolved] if any part of [t]
+      is [unknown]. *)
   val to_list_exn : t -> d list
 
   (** Returns the top of the stack [t], or [None] if [t] is empty. Raises
       [Unresolved] if the top of [t] is [unknown]. *)
   val top_exn : t -> d option
 
-  (** [unify s1 s2] fails if s1 and s2 do not agree and resolves [unknown]
-      parts of s1 and s2 whenever possible, destructively modifying [s1] and
-      [s2]. Fails if the destructive update would create a cycle in the data
+  (** [unify s1 s2] fails if s1 and s2 do not agree and resolves [unknown] parts
+      of s1 and s2 whenever possible, destructively modifying [s1] and [s2].
+      Fails if the destructive update would create a cycle in the data
       structure. *)
   val unify : t -> t -> unit
 

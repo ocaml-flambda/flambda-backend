@@ -32,14 +32,18 @@ We are planning to move to a model where the patched upstream compiler is mainta
 in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
 We may then use a git submodule to import it into the Flambda backend repo.
 
-## Code formatting for Flambda 2
+## Code formatting
 
-The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) is
+The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and
+Cfg code (in `backend/cfg/`) is
 formatted correctly as per the provided `.ocamlformat` file.  To prepare
 your environment for the correct version of `ocamlformat` you can follow
-the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/flambda2_ocamlformat.yml).  (Note that the OPAM compiler will not
+the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
 be used for the Flambda backend build itself.)  All of the code can be
 formatted using `make fmt` and the check can be run using `make check-fmt`.
+
+Changes to `.ocamlformat` should be made as pull requests that include
+reformatting files as needed.
 
 ## Rebuilding during dev work
 
