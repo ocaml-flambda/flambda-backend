@@ -36,7 +36,7 @@ let rec defines_label (i : Linear.instruction) =
   match i.desc with
   | Lend | Llabel _ -> true
   | Ladjust_trap_depth _ -> defines_label i.next
-  | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _
-  | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lpushtrap _
-  | Lpoptrap | Lraise _ ->
-      false
+  | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _ | Lcondbranch _
+  | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lpushtrap _ | Lpoptrap | Lraise _
+    ->
+    false

@@ -489,16 +489,21 @@ fmt:
 	  $$(find middle_end/flambda2 \
 	    \( -name "*.ml" -or -name "*.mli" \) \
 	    -and \! \( -name "flambda_parser.*" -or -name "flambda_lex.*" \))
+	ocamlformat -i \
+	  $$(find backend/cfg \
+	    \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
-	if [ "$$(git status --porcelain middle_end/)" != "" ]; then \
+	if [ "$$(git status --porcelain middle_end/flambda2)" != "" ] || \
+           [ "$$(git status --porcelain backend/cfg)" != "" ]; then \
 	  echo; \
 	  echo "Tree must be clean before running 'make check-fmt'"; \
 	  exit 1; \
 	fi
 	$(MAKE) fmt
-	if [ "$$(git diff middle_end/)" != "" ]; then \
+	if [ "$$(git diff middle_end/flambda2)" != "" ] || \
+           [ "$$(git diff backend/cfg)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
 	  echo "(the + side of the diff is how it should be formatted)"; \
