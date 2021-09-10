@@ -31,7 +31,10 @@ let for_fundecl ~params:(module Params : Dwarf_params.S) state fundecl =
       (Params.get_file_num file, line, startchar)
   in
   (* Include line number to disambiguate anonymous and shadowed functions *)
-  let linkage_name = Printf.sprintf "%s@%i" linkage_name line in
+  let linkage_name =
+    if line > 0 then Printf.sprintf "%s@%i" linkage_name line
+    else linkage_name 
+  in
   let concrete_instance_proto_die =
     Proto_die.create ~parent:(Some parent)
       ~tag:Subprogram
