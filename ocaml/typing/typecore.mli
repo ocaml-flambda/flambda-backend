@@ -181,6 +181,7 @@ type error =
   | Probe_format
   | Probe_name_too_long of string
   | Probe_name_format of string
+  | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
   | Literal_overflow of string
