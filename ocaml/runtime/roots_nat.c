@@ -274,8 +274,8 @@ void caml_oldify_local_roots (void)
   frame_descr * d;
   uintnat h;
   intnat i, j;
-  int n, ofs;
-  unsigned short * p;
+  unsigned int n, ofs;
+  unsigned int * p;
   value * glob;
   value * root;
   value glob_block;
@@ -320,7 +320,7 @@ void caml_oldify_local_roots (void)
         if (d->retaddr == retaddr) break;
         h = (h+1) & caml_frame_descriptors_mask;
       }
-      if (d->frame_size != 0xFFFF) {
+      if (d->frame_size != 0xFFFFFFFF) {
         /* Scan the roots in this frame */
         for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
           ofs = *p;
@@ -332,7 +332,7 @@ void caml_oldify_local_roots (void)
           Oldify (root);
         }
         /* Move to next frame */
-        sp += (d->frame_size & 0xFFFC);
+        sp += (d->frame_size & 0xFFFFFFFC);
         retaddr = Saved_return_address(sp);
 #ifdef Already_scanned
         /* Stop here if the frame has been scanned during earlier GCs  */
@@ -495,8 +495,10 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
   value * regs;
   frame_descr * d;
   uintnat h;
-  int i, j, n, ofs;
-  unsigned short * p;
+  int i, j;
+  unsigned int n;
+  unsigned int ofs;
+  unsigned int * p;
   value * root;
   struct caml__roots_block *lr;
 
@@ -512,7 +514,7 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
         if (d->retaddr == retaddr) break;
         h = (h+1) & caml_frame_descriptors_mask;
       }
-      if (d->frame_size != 0xFFFF) {
+      if (d->frame_size != 0xFFFFFFFF) {
         /* Scan the roots in this frame */
         for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
           ofs = *p;
@@ -524,7 +526,7 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
           f (*root, root);
         }
         /* Move to next frame */
-        sp += (d->frame_size & 0xFFFC);
+        sp += (d->frame_size & 0xFFFFFFFC);
         retaddr = Saved_return_address(sp);
 #ifdef Mask_already_scanned
         retaddr = Mask_already_scanned(retaddr);

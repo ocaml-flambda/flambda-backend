@@ -87,9 +87,9 @@ struct caml_context {
 
 typedef struct {
   uintnat retaddr;
-  unsigned short frame_size;
-  unsigned short num_live;
-  unsigned short live_ofs[1 /* num_live */];
+  unsigned int frame_size;
+  unsigned int num_live;
+  unsigned int live_ofs[1 /* num_live */];
   /*
     If frame_size & 2, then allocation info follows:
   unsigned char num_allocs;

@@ -191,9 +191,10 @@ let emit_frames a =
         then 3 else 2
     in
     a.efa_code_label fd.fd_lbl;
-    a.efa_16 (fd.fd_frame_size + flags);
-    a.efa_16 (List.length fd.fd_live_offset);
-    List.iter a.efa_16 fd.fd_live_offset;
+    a.efa_32 (Int32.of_int (fd.fd_frame_size + flags));
+    let num_live = List.length fd.fd_live_offset in
+    a.efa_32 (Int32.of_int num_live);
+    List.iter (fun ofs -> a.efa_32 (Int32.of_int ofs)) fd.fd_live_offset;
     begin match fd.fd_debuginfo with
     | _ when flags = 0 ->
       ()

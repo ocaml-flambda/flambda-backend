@@ -45,9 +45,9 @@ frame_descr * caml_next_frame_descriptor(uintnat * pc, char ** sp)
       h = (h+1) & caml_frame_descriptors_mask;
     }
     /* Skip to next frame */
-    if (d->frame_size != 0xFFFF) {
+    if (d->frame_size != 0xFFFFFFFF) {
       /* Regular frame, update sp/pc and return the frame descriptor */
-      *sp += (d->frame_size & 0xFFFC);
+      *sp += (d->frame_size & 0xFFFFFFFC);
       *pc = Saved_return_address(*sp);
 #ifdef Mask_already_scanned
       *pc = Mask_already_scanned(*pc);

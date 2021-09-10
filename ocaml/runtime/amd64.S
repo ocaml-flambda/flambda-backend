@@ -669,8 +669,8 @@ G(caml_system__code_end):
 G(caml_system__frametable):
         .quad   1           /* one descriptor */
         .quad   LBL(107)    /* return address into callback */
-        .value  -1          /* negative frame size => use callback link */
-        .value  0           /* no roots here */
+        .long   -1          /* negative frame size => use callback link */
+        .long   0           /* no roots here */
         .align  EIGHT_ALIGN
         .quad   16
         .quad   0
