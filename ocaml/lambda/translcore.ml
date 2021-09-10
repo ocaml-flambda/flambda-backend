@@ -583,6 +583,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
+         let scopes = enter_anonymous_function ~scopes in
          let fn = Lfunction {kind = Curried;
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
@@ -803,6 +804,7 @@ and transl_apply ~scopes
                         body = lam; attr;
                         loc}
           | lam ->
+              let loc = update_scopes ~f:enter_anonymous_function loc in
               Lfunction{kind = Curried; params = [id_arg, Pgenval];
                         return = Pgenval; body = lam;
                         attr = default_stub_attribute; loc = loc}

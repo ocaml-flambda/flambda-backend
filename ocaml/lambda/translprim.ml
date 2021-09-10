@@ -736,12 +736,23 @@ let transl_primitive loc p env ty path =
   match params with
   | [] -> body
   | _ ->
-      Lfunction{ kind = Curried;
-                 params;
-                 return = Pgenval;
-                 attr = default_stub_attribute;
-                 loc;
-                 body; }
+    let loc =
+      Debuginfo.Scoped_location.update_scopes
+        ~f:(fun ~scopes ->
+          let scopes =
+            Debuginfo.Scoped_location.enter_value_definition ~scopes
+              (Ident.create_local p.prim_name)
+          in
+          Debuginfo.Scoped_location.enter_anonymous_function ~scopes
+        )
+        loc
+    in
+    Lfunction{ kind = Curried;
+                params;
+                return = Pgenval;
+                attr = default_stub_attribute;
+                loc;
+                body; }
 
 let lambda_primitive_needs_event_after = function
   | Prevapply | Pdirapply (* PR#6920 *)

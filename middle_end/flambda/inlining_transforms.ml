@@ -539,6 +539,7 @@ let rewrite_function ~lhs_of_application ~closure_id_being_applied
       ~specialise:function_body.specialise
       ~is_a_functor:function_body.is_a_functor
       ~closure_origin:(Closure_origin.create (Closure_id.wrap new_fun_var))
+      ()
   in
   let new_funs =
     Variable.Map.add new_fun_var new_function_decl state.new_funs
@@ -674,5 +675,6 @@ let inline_by_copying_function_declaration
       in
       let expr = Flambda_utils.bind ~body ~bindings:state.let_bindings in
       let env = E.activate_freshening (E.set_never_inline env) in
+      let env = E.set_inline_debuginfo ~dbg env in
       Some (simplify env r expr)
     end

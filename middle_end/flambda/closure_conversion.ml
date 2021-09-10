@@ -100,9 +100,10 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
   in
   let tuple_param = Parameter.wrap tuple_param_var in
   Flambda.create_function_declaration ~params:[tuple_param]
-    ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
+    ~body ~stub:true ~inline:Default_inline
     ~specialise:Default_specialise ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
+    ()
 
 let register_const t (constant:Flambda.constant_defining_value) name
     : Flambda.constant_defining_value_block_field * Internal_variable_names.t =
@@ -208,7 +209,10 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            contents_kind = block_kind })
   | Lfunction { kind; params; body; attr; loc; } ->
     let name = Names.anon_fn_with_loc loc in
-    let closure_bound_var = Variable.create name in
+    let closure_bound_var =
+      let debug_info = Debuginfo.from_location loc in
+      Variable.create ~debug_info name
+    in
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
        below *)
     let set_of_closures_var = Variable.create Names.set_of_closures in
@@ -258,7 +262,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           | (let_rec_ident,
              Lambda.Lfunction { kind; params; body; attr; loc }) ->
             let closure_bound_var =
-              Variable.create_with_same_name_as_ident let_rec_ident
+              let debug_info = Debuginfo.from_location loc in
+              Variable.create_with_same_name_as_ident ~debug_info let_rec_ident
             in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
@@ -524,7 +529,9 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let st_exn = Static_exception.create () in
     let env = Env.add_static_exception env i st_exn in
     let ids = List.map fst ids in
-    let vars = List.map Variable.create_with_same_name_as_ident ids in
+    let vars =
+      List.map (fun ident -> Variable.create_with_same_name_as_ident ident) ids
+    in
     Static_catch (st_exn, vars, close t env body,
       close t (Env.add_vars env ids vars) handler)
   | Ltrywith (body, id, handler) ->
@@ -581,8 +588,6 @@ and close_functions t external_env function_declarations : Flambda.named =
   let all_free_idents = Function_decls.all_free_idents function_declarations in
   let close_one_function map decl =
     let body = Function_decl.body decl in
-    let loc = Function_decl.loc decl in
-    let dbg = Debuginfo.from_location loc in
     let params = Function_decl.params decl in
     (* Create fresh variables for the elements of the closure (cf.
        the comment on [Function_decl.closure_env_without_parameters], above).
@@ -601,17 +606,21 @@ and close_functions t external_env function_declarations : Flambda.named =
     let param_vars = List.map (Env.find_var closure_env) params in
     let params = List.map Parameter.wrap param_vars in
     let closure_bound_var = Function_decl.closure_bound_var decl in
+    (* The closure_bound_var for a declared function should
+       always have the debug info *)
+    assert (Option.is_some (Variable.debug_info closure_bound_var));
     let unboxed_version = Variable.rename closure_bound_var in
     let body = close t closure_env body in
     let closure_origin =
       Closure_origin.create (Closure_id.wrap unboxed_version)
     in
     let fun_decl =
-      Flambda.create_function_declaration ~params ~body ~stub ~dbg
+      Flambda.create_function_declaration ~params ~body ~stub
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
+        ()
     in
     match Function_decl.kind decl with
     | Curried -> Variable.Map.add closure_bound_var fun_decl map
@@ -662,7 +671,10 @@ and close_let_bound_expression t ?let_rec_ident let_bound_var env
   | Lfunction { kind; params; body; attr; loc; } ->
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
-    let closure_bound_var = Variable.rename let_bound_var in
+    let closure_bound_var =
+      let debug_info = Debuginfo.from_location loc in
+      Variable.rename ~debug_info let_bound_var
+    in
     let decl =
       Function_decl.create ~let_rec_ident ~closure_bound_var ~kind
         ~params:(List.map fst params) ~body ~attr ~loc
