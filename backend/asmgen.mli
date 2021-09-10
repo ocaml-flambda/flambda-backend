@@ -89,3 +89,12 @@ val compile_unit
    -> obj_filename:string
    -> (unit -> unit)
    -> unit
+
+(* First-class module building for DWARF *)
+
+val build_dwarf
+   : asm_directives:(module Asm_directives_intf.S)
+  -> string
+  -> Dwarf_ocaml.Dwarf.t
+
+val build_asm_directives : unit -> (module Asm_directives_intf.S)

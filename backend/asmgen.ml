@@ -295,7 +295,7 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
      when part of a C library, won't be discarded by the linker.
      This is important if a module that uses such a symbol is later
      dynlinked. *)
-  compile_phrase ~ppf_dump
+  compile_phrase ~ppf_dump ?dwarf
     (Cmm_helpers.reference_symbols
        (List.filter_map (fun prim ->
            if not (Primitive.native_name_is_external prim) then None

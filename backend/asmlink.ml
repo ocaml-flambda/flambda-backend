@@ -250,12 +250,28 @@ let make_globals_map units_list =
     interfaces
     defined
 
-let make_startup_file ~ppf_dump units_list =
-  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
+let make_startup_file ~ppf_dump ~filename units_list =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
-  Compilenv.reset "_startup";
-  (* set the name of the "current" compunit *)
-  Emit.begin_assembly ~init_dwarf:(fun () -> ());
+  Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
+  let asm_directives =
+    if !Clflags.debug then
+      Some (Asmgen.build_asm_directives ())
+    else
+      None
+  in
+  Emit.begin_assembly (fun () ->
+    Option.iter
+      (fun (module Asm_directives : Asm_directives_intf.S) ->
+        Asm_label.initialize ~new_label:Cmm.new_label;
+        Asm_directives.initialize ())
+      asm_directives
+  );
+  let dwarf = 
+    Option.map
+      (fun asm_directives -> Asmgen.build_dwarf ~asm_directives filename)
+      asm_directives
+  in
+  let compile_phrase p = Asmgen.compile_phrase ~ppf_dump ?dwarf p in
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in
   compile_phrase (Cmm_helpers.entry_point name_list);
@@ -277,7 +293,7 @@ let make_startup_file ~ppf_dump units_list =
   compile_phrase (Cmm_helpers.frame_table all_names);
   if !Clflags.output_complete_object then
     force_linking_of_startup ~ppf_dump;
-  Emit.end_assembly None
+  Emit.end_assembly dwarf
 
 let make_shared_startup_file ~ppf_dump units =
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
@@ -395,7 +411,7 @@ let link ~ppf_dump objfiles output_name =
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
-      (fun () -> make_startup_file ~ppf_dump units_tolink);
+      (fun () -> make_startup_file ~ppf_dump ~filename:startup units_tolink);
     (* Clear all state and compact before calling the linker, because the linker
        can use a lot of memory, and this reduces the peak memory usage by freeing
        most of the memory from this process before the linker starts using memory.
