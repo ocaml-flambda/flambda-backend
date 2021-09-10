@@ -24,7 +24,7 @@ module VP = Backend_var.With_provenance
 module type I = sig
   val string_block_length : Cmm.expression -> Cmm.expression
   val transl_switch :
-      Debuginfo.t -> Cmm.expression -> int -> int ->
+      Debuginfo.t -> Cmm.value_kind -> Cmm.expression -> int -> int ->
         (int * Cmm.expression) list -> Cmm.expression ->
           Cmm.expression
 end
@@ -85,12 +85,12 @@ module Make(I:I) = struct
     let size = I.string_block_length str in
     Clet(id, size, body)
 
-  let mk_cmp_gen cmp_op id nat ifso ifnot =
+  let mk_cmp_gen cmp_op value_kind id nat ifso ifnot =
     let dbg = Debuginfo.none in
     let test =
       Cop (Ccmpi cmp_op, [ Cvar id; Cconst_natint (nat, dbg) ], dbg)
     in
-    Cifthenelse (test, dbg, ifso, dbg, ifnot, dbg)
+    Cifthenelse (test, dbg, ifso, dbg, ifnot, dbg, value_kind)
 
   let mk_lt = mk_cmp_gen Clt
   let mk_eq = mk_cmp_gen Ceq
@@ -282,20 +282,20 @@ module Make(I:I) = struct
   as match_on_cell can be called in two different contexts :
   from do_compile_pats and top_compile below.
  *)
-    let match_oncell compile_rec str default idx env =
+    let match_oncell value_kind compile_rec str default idx env =
       let id = gen_cell_id () in
       let rec comp_rec env =
         let len = List.length env in
         if len <= 3 then
           List.fold_right
             (fun (key,cases) ifnot ->
-              mk_eq id key
+              mk_eq value_kind id key
                 (compile_rec str default cases)
               ifnot)
             env default
         else
           let lt,midkey,ge = split_env len env in
-          mk_lt id midkey (comp_rec lt) (comp_rec ge) in
+          mk_lt value_kind id midkey (comp_rec lt) (comp_rec ge) in
       mk_let_cell (VP.create id) str idx (comp_rec env)
 
 (*
@@ -304,7 +304,7 @@ module Make(I:I) = struct
   - notice: patterns (and idx) all have the same length
  *)
 
-    let rec do_compile_pats idxs str default cases =
+    let rec do_compile_pats value_kind idxs str default cases =
       if dbg then begin
         pp_match stderr "COMPILE" idxs cases
       end ;
@@ -319,8 +319,8 @@ module Make(I:I) = struct
           begin match idxs with
           | [] -> assert false
           | idx::idxs ->
-              match_oncell
-                (do_compile_pats idxs) str default idx (by_cell cases)
+              match_oncell value_kind
+                (do_compile_pats value_kind idxs) str default idx (by_cell cases)
           end
 
 
@@ -341,19 +341,19 @@ module Make(I:I) = struct
   In that latter case pattern len is string length-1 and is corrected.
  *)
 
-    let compile_by_size dbg from_ind str default cases =
+    let compile_by_size dbg value_kind from_ind str default cases =
       let size_cases =
         List.map
           (fun (len,cases) ->
             let len = len+from_ind in
             let act =
-              do_compile_pats
+              do_compile_pats value_kind
                 (interval from_ind len)
                 str default  cases in
             (len,act))
           (by_size cases) in
       let id = gen_size_id () in
-      let switch = I.transl_switch dbg (Cvar id) 1 max_int size_cases default in
+      let switch = I.transl_switch dbg value_kind (Cvar id) 1 max_int size_cases default in
       mk_let_size (VP.create id) str switch
 
 (*
@@ -361,17 +361,17 @@ module Make(I:I) = struct
   either on size or on first cell, using the
   'least discriminant' heuristics.
  *)
-    let top_compile debuginfo str default cases =
+    let top_compile debuginfo value_kind str default cases =
       let a_len = count_arities_length cases
       and a_fst = count_arities_first cases in
       if a_len <= a_fst then begin
         if dbg then pp_cases stderr "SIZE" cases ;
-        compile_by_size debuginfo 0 str default cases
+        compile_by_size debuginfo value_kind 0 str default cases
       end else begin
         if dbg then pp_cases stderr "FIRST COL" cases ;
         let compile_size_rest str default cases =
-          compile_by_size debuginfo 1 str default cases in
-        match_oncell compile_size_rest str default 0 (by_cell cases)
+          compile_by_size debuginfo value_kind 1 str default cases in
+        match_oncell value_kind compile_size_rest str default 0 (by_cell cases)
       end
 
 (* Module entry point *)
@@ -380,9 +380,9 @@ module Make(I:I) = struct
     | Cexit (_e,[],_traps) ->  k arg
     | _ ->
         let e = next_raise_count () in
-        ccatch (e,[],k (Cexit (Lbl e,[],[])),arg,dbg)
+        ccatch (e,[],k (Cexit (Lbl e,[],[])),arg,dbg, Vval Pgenval)
 
-    let compile dbg str default cases =
+    let compile dbg value_kind str default cases =
 (* We do not attempt to really optimise default=None *)
       let cases,default = match cases,default with
       | (_,e)::cases,None
@@ -392,6 +392,6 @@ module Make(I:I) = struct
         List.rev_map
           (fun (s,act) -> pat_of_string s,act)
           cases in
-      catch dbg default (fun default -> top_compile dbg str default cases)
+      catch dbg default (fun default -> top_compile dbg value_kind str default cases)
 
   end

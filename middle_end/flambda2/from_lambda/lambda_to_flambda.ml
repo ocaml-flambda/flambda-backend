@@ -427,7 +427,7 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
         acc ccenv)
     acc ccenv
 
-let switch_for_if_then_else ~cond ~ifso ~ifnot =
+let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
   (* CR mshinwell: We need to make sure that [cond] is {0, 1}-valued. The
      frontend should have been fixed on this branch for this. *)
   let switch : Lambda.lambda_switch =
@@ -438,7 +438,7 @@ let switch_for_if_then_else ~cond ~ifso ~ifnot =
       sw_failaction = None
     }
   in
-  L.Lswitch (cond, switch, Loc_unknown)
+  L.Lswitch (cond, switch, Loc_unknown, kind)
 
 let transform_primitive env (prim : L.primitive) args loc =
   match prim, args with
@@ -457,7 +457,7 @@ let transform_primitive env (prim : L.primitive) args loc =
                cond,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond)
-                 ~ifso:(L.Lvar const_true) ~ifnot:arg2 ) ))
+                 ~ifso:(L.Lvar const_true) ~ifnot:arg2 ~kind:Pintval ) ))
   | Psequand, [arg1; arg2] ->
     let const_false = Ident.create_local "const_false" in
     let cond = Ident.create_local "cond_sequand" in
@@ -473,7 +473,7 @@ let transform_primitive env (prim : L.primitive) args loc =
                cond,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond) ~ifso:arg2
-                 ~ifnot:(L.Lvar const_false) ) ))
+                 ~ifnot:(L.Lvar const_false) ~kind:Pintval ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
   | (Pidentity | Pbytes_to_string | Pbytes_of_string), [arg] -> Transformed arg
@@ -573,7 +573,9 @@ let rec_catch_for_while_loop env cond body =
             Lifthenelse
               ( Lvar cond_result,
                 Lsequence (body, Lstaticraise (cont, [])),
-                Lconst (Const_base (Const_int 0)) ) ) )
+                Lconst (Const_base (Const_int 0)),
+                Pgenval ) ),
+        Pgenval )
   in
   env, lam
 
@@ -623,8 +625,11 @@ let rec_catch_for_for_loop env ident start stop (dir : Asttypes.direction_flag)
                         Lifthenelse
                           ( subsequent_test,
                             Lstaticraise (cont, [next_value_of_counter]),
-                            L.lambda_unit ) ) ),
-                L.lambda_unit ) ) )
+                            L.lambda_unit,
+                            Pgenval ) ),
+                    Pgenval ),
+                L.lambda_unit,
+                Pgenval ) ) )
   in
   env, lam
 
@@ -921,16 +926,16 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         k_exn
     | Transformed lam -> cps_non_tail acc env ccenv lam k k_exn
   end
-  | Lswitch (scrutinee, switch, _loc) ->
+  | Lswitch (scrutinee, switch, _loc, kind) ->
     let result_var = Ident.create_local "switch_result" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
-      ~params:[result_var, IR.Not_user_visible, Pgenval]
+      ~params:[result_var, IR.Not_user_visible, kind]
       ~body:(fun acc env ccenv after_switch ->
         cps_switch acc env ccenv switch ~scrutinee after_switch k_exn)
       ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
-  | Lstringswitch (scrutinee, cases, default, loc) ->
+  | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps_non_tail acc env ccenv
-      (Matching.expand_stringswitch loc scrutinee cases default)
+      (Matching.expand_stringswitch loc kind scrutinee cases default)
       k k_exn
   | Lstaticraise (static_exn, args) ->
     let continuation = Env.get_static_exn_continuation env static_exn in
@@ -943,7 +948,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         in
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler) ->
+  | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
     let result_var = Ident.create_local "staticcatch_result" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[result_var, IR.Not_user_visible, Pgenval]
@@ -1008,7 +1013,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               k_exn)
           k_exn)
       k_exn
-  | Ltrywith (body, id, handler) ->
+  | Ltrywith (body, id, handler, kind) ->
     let body_result = Ident.create_local "body_result" in
     let result_var = Ident.create_local "try_with_result" in
     let region = Ident.create_local "try_region" in
@@ -1027,7 +1032,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           ~body:(fun acc env ccenv after_continuation ->
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:true
-              ~params:[id, User_visible, Pgenval]
+              ~params:[id, User_visible, kind]
               ~body:(fun acc env ccenv handler_continuation ->
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false
@@ -1052,8 +1057,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
                     cps_tail acc env ccenv handler after_continuation k_exn)))
           ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
-  | Lifthenelse (cond, ifso, ifnot) ->
-    let lam = switch_for_if_then_else ~cond ~ifso ~ifnot in
+  | Lifthenelse (cond, ifso, ifnot, kind) ->
+    let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps_non_tail acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
     let ident = Ident.create_local "sequence" in
@@ -1298,11 +1303,11 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         k_exn
     | Transformed lam -> cps_tail acc env ccenv lam k k_exn
   end
-  | Lswitch (scrutinee, switch, _loc) ->
+  | Lswitch (scrutinee, switch, _loc, _kind) ->
     cps_switch acc env ccenv switch ~scrutinee k k_exn
-  | Lstringswitch (scrutinee, cases, default, loc) ->
+  | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps_tail acc env ccenv
-      (Matching.expand_stringswitch loc scrutinee cases default)
+      (Matching.expand_stringswitch loc kind scrutinee cases default)
       k k_exn
   | Lstaticraise (static_exn, args) ->
     let continuation = Env.get_static_exn_continuation env static_exn in
@@ -1315,7 +1320,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         in
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
-  | Lstaticcatch (body, (static_exn, args), handler) ->
+  | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
     let continuation = Continuation.create () in
     let { Env.body_env; handler_env; extra_params } =
       Env.add_static_exn_continuation env static_exn continuation
@@ -1379,7 +1384,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         in
         CC.close_let acc ccenv new_id User_visible (Simple new_value) ~body)
       k_exn
-  | Ltrywith (body, id, handler) ->
+  | Ltrywith (body, id, handler, _kind) ->
     let body_result = Ident.create_local "body_result" in
     let region = Ident.create_local "try_region" in
     CC.close_let acc ccenv region Not_user_visible Begin_region
@@ -1409,8 +1414,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
             CC.close_let acc ccenv (Ident.create_local "unit")
               Not_user_visible (End_region region) ~body:(fun acc ccenv ->
                 cps_tail acc env ccenv handler k k_exn)))
-  | Lifthenelse (cond, ifso, ifnot) ->
-    let lam = switch_for_if_then_else ~cond ~ifso ~ifnot in
+  | Lifthenelse (cond, ifso, ifnot, kind) ->
+    let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
     cps_tail acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
     let ident = Ident.create_local "sequence" in

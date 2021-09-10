@@ -177,12 +177,14 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       check_variable_is_bound env from_value;
       check_variable_is_bound env to_value;
       loop (add_binding_occurrence env bound_var) body
-    | Static_catch (static_exn, vars, body, handler) ->
+    | Static_catch (static_exn, vars, body, handler, kind) ->
       ignore_static_exception static_exn;
+      ignore_value_kind kind;
       loop env body;
       loop (add_binding_occurrences env vars) handler
-    | Try_with (body, var, handler) ->
+    | Try_with (body, var, handler, kind) ->
       loop env body;
+      ignore_value_kind kind;
       loop (add_binding_occurrence env var) handler
     (* Everything else: *)
     | Var var -> check_variable_is_bound env var
@@ -207,25 +209,28 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       check_variable_is_bound env obj;
       check_variables_are_bound env args;
       ignore_debuginfo dbg
-    | If_then_else (cond, ifso, ifnot) ->
+    | If_then_else (cond, ifso, ifnot, kind) ->
       check_variable_is_bound env cond;
+      ignore_value_kind kind;
       loop env ifso;
       loop env ifnot
-    | Switch (arg, { numconsts; consts; numblocks; blocks; failaction; }) ->
+    | Switch (arg, { numconsts; consts; numblocks; blocks; failaction; kind }) ->
       check_variable_is_bound env arg;
       ignore_int_set numconsts;
       ignore_int_set numblocks;
+      ignore_value_kind kind;
       List.iter (fun (n, e) ->
           ignore_int n;
           loop env e)
         (consts @ blocks);
       Option.iter (loop env) failaction
-    | String_switch (arg, cases, e_opt) ->
+    | String_switch (arg, cases, e_opt, kind) ->
       check_variable_is_bound env arg;
       List.iter (fun (label, case) ->
           ignore_string label;
           loop env case)
         cases;
+      ignore_value_kind kind;
       Option.iter (loop env) e_opt
     | Static_raise (static_exn, es) ->
       ignore_static_exception static_exn;
@@ -622,7 +627,7 @@ let every_static_exception_is_caught flam =
   in
   let rec loop env (flam : Flambda.t) =
     match flam with
-    | Static_catch (i, _, body, handler) ->
+    | Static_catch (i, _, body, handler, _kind) ->
       let env = Static_exception.Set.add i env in
       loop env handler;
       loop env body
@@ -637,7 +642,7 @@ let every_static_exception_is_caught_at_a_single_position flam =
   let caught = ref Static_exception.Set.empty in
   let f (flam : Flambda.t) =
     match flam with
-    | Static_catch (i, _, _body, _handler) ->
+    | Static_catch (i, _, _body, _handler, _kind) ->
       if Static_exception.Set.mem i !caught then
         raise (Static_exception_caught_in_multiple_places i);
       caught := Static_exception.Set.add i !caught
