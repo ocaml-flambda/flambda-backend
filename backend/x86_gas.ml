@@ -274,7 +274,8 @@ let print_line b = function
   | Hidden s -> bprintf b "\t.hidden\t%s" s;
   | Weak s -> bprintf b "\t.weak\t%s" s;
   | Long n -> bprintf b "\t.long\t%a" cst n
-  | NewLabel (s, _) -> bprintf b "%s:" s
+  | New_label (s, _) -> bprintf b "%s:" s
+  | New_line -> ()
   | Quad n -> bprintf b "\t.quad\t%a" cst n
   | Section ([".data" ], _, _) -> bprintf b "\t.data"
   | Section ([".text" ], _, _) -> bprintf b "\t.text"
@@ -294,6 +295,9 @@ let print_line b = function
   | Word n ->
       if system = S_solaris then bprintf b "\t.value\t%a" cst n
       else bprintf b "\t.word\t%a" cst n
+
+  | Uleb128 n -> bprintf b "\t.uleb128\t%a" cst n
+  | Sleb128 n -> bprintf b "\t.sleb128\t%a" cst n
 
   (* gas only *)
   | Cfi_adjust_cfa_offset n -> bprintf b "\t.cfi_adjust_cfa_offset %d" n
@@ -328,6 +332,11 @@ let print_line b = function
   | Mode386
   | Model _
     -> assert false
+  
+  (* MacOS only *)
+  | Direct_assignment (var, c) -> 
+    assert (List.mem Config.system [ "macosx"; "darwin" ]);
+    bprintf b "\t%s = %a" var cst c
 
 let generate_asm oc lines =
   let b = Buffer.create 10000 in

@@ -69,8 +69,11 @@ val compile_implementation_flambda2
 val compile_implementation_linear :
     string -> progname:string -> unit
 
-val compile_phrase :
-    ppf_dump:Format.formatter -> Cmm.phrase -> unit
+val compile_phrase
+  : ?dwarf:Dwarf_ocaml.Dwarf.t 
+  -> ppf_dump:Format.formatter
+  -> Cmm.phrase
+  -> unit
 
 type error =
   | Assembler_error of string
@@ -86,3 +89,12 @@ val compile_unit
    -> obj_filename:string
    -> (unit -> unit)
    -> unit
+
+(* First-class module building for DWARF *)
+
+val build_dwarf
+   : asm_directives:(module Asm_directives_intf.S)
+  -> string
+  -> Dwarf_ocaml.Dwarf.t
+
+val build_asm_directives : unit -> (module Asm_directives_intf.S)

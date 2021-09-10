@@ -1,0 +1,38 @@
+type architecture =
+  | IA32
+  | X86_64
+  | ARM
+  | AArch64
+  | POWER
+  | Z
+
+val architecture : unit -> architecture
+
+type derived_system =
+  | Linux
+  | MinGW_32
+  | MinGW_64
+  | Win32
+  | Win64
+  | Cygwin
+  | MacOS_like
+  | FreeBSD
+  | NetBSD
+  | OpenBSD
+  | Generic_BSD
+  | Solaris
+  | Dragonfly
+  | GNU
+  | BeOS
+  | Unknown
+
+val derived_system : unit -> derived_system
+
+val is_windows : unit -> bool
+
+type assembler =
+  | GAS_like
+  | MacOS
+  | MASM
+
+val assembler : unit -> assembler

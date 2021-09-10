@@ -236,21 +236,24 @@ let print_line b = function
   | Comment s -> bprintf b " ; %s " s
   | Global s -> bprintf b "\tPUBLIC\t%s" s
   | Long n -> bprintf b "\tDWORD\t%a" cst n
-  | NewLabel (s, NONE) -> bprintf b "%s:" s
-  | NewLabel (s, ptr) -> bprintf b "%s LABEL %s" s (string_of_datatype ptr)
+  | New_label (s, NONE) -> bprintf b "%s:" s
+  | New_label (s, ptr) -> bprintf b "%s LABEL %s" s (string_of_datatype ptr)
+  | New_line -> ()
   | Quad n -> bprintf b "\tQWORD\t%a" cst n
   | Section ([".data"], None, []) -> bprintf b "\t.DATA"
   | Section ([".text"], None, []) -> bprintf b "\t.CODE"
   | Section _ -> assert false
   | Space n -> bprintf b "\tBYTE\t%d DUP (?)" n
   | Word n -> bprintf b "\tWORD\t%a" cst n
-
+  | Sleb128 _ | Uleb128 _ ->
+    Misc.fatal_error "Sleb128 and Uleb128 unsupported for MASM"
+    
   (* windows only *)
   | External (s, ptr) -> bprintf b "\tEXTRN\t%s: %s" s (string_of_datatype ptr)
   | Mode386 -> bprintf b "\t.386"
   | Model name -> bprintf b "\t.MODEL %s" name (* name = FLAT *)
 
-  (* gas only *)
+  (* gas / MacOS only *)
   | Cfi_adjust_cfa_offset _
   | Cfi_endproc
   | Cfi_startproc
@@ -264,6 +267,7 @@ let print_line b = function
   | Hidden _
   | Weak _
   | Reloc _
+  | Direct_assignment _
     -> assert false
 
 let generate_asm oc lines =

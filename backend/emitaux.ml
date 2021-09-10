@@ -330,6 +330,15 @@ let reset_debug_info () =
   file_pos_nums := [];
   file_pos_num_cnt := 1
 
+let get_file_num ~file_emitter file_name =
+  try List.assoc file_name !file_pos_nums
+  with Not_found ->
+    let file_num = !file_pos_num_cnt in
+    incr file_pos_num_cnt;
+    file_emitter ~file_num ~file_name;
+    file_pos_nums := (file_name,file_num) :: !file_pos_nums;
+    file_num
+
 (* We only display .file if the file has not been seen before. We
    display .loc for every instruction. *)
 let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
@@ -341,15 +350,8 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
         dinfo_char_start = col;
         dinfo_file = file_name; } :: _ ->
       if line > 0 then begin (* PR#6243 *)
-        let file_num =
-          try List.assoc file_name !file_pos_nums
-          with Not_found ->
-            let file_num = !file_pos_num_cnt in
-            incr file_pos_num_cnt;
-            file_emitter ~file_num ~file_name;
-            file_pos_nums := (file_name,file_num) :: !file_pos_nums;
-            file_num in
-        loc_emitter ~file_num ~line ~col ?discriminator ();
+        let file_num = get_file_num ~file_emitter file_name in
+        loc_emitter ~file_num ~line ~col ?discriminator ()
       end
   end
 
