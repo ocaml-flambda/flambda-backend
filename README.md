@@ -1,6 +1,7 @@
 # The Flambda backend project for OCaml
 
-This repository is for more experimental work, of production quality, on the OCaml compiler.
+This repository is for more experimental work, of production quality, on the middle end
+and backend of the OCaml compiler.
 This is also the home of the Flambda 2 optimiser.
 
 The Flambda backend is currently based on OCaml 4.12.0.
