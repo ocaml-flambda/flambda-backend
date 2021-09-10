@@ -1,7 +1,21 @@
 # Hacking on the Flambda backend
 
 This page is intended to keep track of useful information for people who
-want to modify the Flambda backend.
+want to modify the Flambda backend.  Jump to:
+
+  - [Branches, pull requests, etc.](#branches-pull-requests-etc)
+  - [Upstream subtree](#upstream-subtree)
+  - [Code formatting](#code-formatting)
+  - [Rebuilding during dev work](#rebuilding-during-dev-work)
+  - [Running tests](#running-tests)
+  - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
+  - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+  - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
+  - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
+  - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
+  - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
+  - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
+  - [Installation tree comparison script](#installation-tree-comparison-script)
 
 ## Branches, pull requests, etc.
 
