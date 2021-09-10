@@ -124,7 +124,6 @@ type error =
   | Probe_format
   | Probe_name_too_long of string
   | Probe_name_format of string
-  | Probe_name_undefined of string
   | Probe_is_enabled_format
   | Literal_overflow of string
   | Unknown_literal of string * char
@@ -3753,10 +3752,6 @@ and type_expect_
                        _ } ,
                       _)}]) ->
         check_probe_name name name_loc env;
-        add_delayed_check
-          (fun () ->
-             if not (Env.has_probe name) then
-               raise(Error(name_loc, env, (Probe_name_undefined name))));
         rue {
           exp_desc = Texp_probe_is_enabled {name};
           exp_loc = loc; exp_extra = [];
@@ -5606,11 +5601,6 @@ let report_error ~loc env = function
          Probe names may only contain alphanumeric characters or \
          underscores."
         name
-  | Probe_name_undefined name ->
-      Location.errorf ~loc
-        "Undefined probe name `%s' used in %%probe_is_enabled. \
-         Not found [%%probe \"%s\" ...] in the same compilation unit."
-        name name
   | Probe_format ->
       Location.errorf ~loc
         "Probe points must consist of a name, as a string \
