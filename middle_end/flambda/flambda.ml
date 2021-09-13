@@ -1022,8 +1022,7 @@ let update_function_decl's_params_and_body
     is_a_functor = func_decl.is_a_functor;
   }
 
-
-let create_function_declaration ~params ~body ~stub ~dbg
+let create_function_declaration ~params ~body ~stub
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute) ~is_a_functor
       ~closure_origin
@@ -1046,13 +1045,20 @@ let create_function_declaration ~params ~body ~stub ~dbg
       "Stubs may not be annotated as [Always_specialise]: %a"
       print body
   end;
+  let dbg_origin =
+    match Closure_origin.debug_info closure_origin with
+    | None ->
+      Misc.fatal_errorf "Debug info missing on closure origin %a"
+        Closure_origin.print closure_origin
+    | Some dbg_origin -> dbg_origin
+  in
   { closure_origin;
     params;
     body;
     free_variables = free_variables body;
     free_symbols = free_symbols body;
     stub;
-    dbg;
+    dbg = dbg_origin;
     inline;
     specialise;
     is_a_functor;

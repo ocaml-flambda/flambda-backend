@@ -28,14 +28,17 @@
 
 include Identifiable.S
 
+(** [debug_info] should be set for variables representing functions *)
 val create
    : ?current_compilation_unit:Compilation_unit.t
+  -> ?debug_info:Debuginfo.t
   -> Internal_variable_names.t
   -> t
-val create_with_same_name_as_ident : Ident.t -> t
+val create_with_same_name_as_ident : ?debug_info:Debuginfo.t -> Ident.t -> t
 
 val rename
    : ?current_compilation_unit:Compilation_unit.t
+  -> ?debug_info:Debuginfo.t
   -> t
   -> t
 
@@ -46,6 +49,8 @@ val name : t -> string
 val unique_name : t -> string
 
 val get_compilation_unit : t -> Compilation_unit.t
+
+val debug_info : t -> Debuginfo.t option
 
 val print_list : Format.formatter -> t list -> unit
 val print_opt : Format.formatter -> t option -> unit

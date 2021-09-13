@@ -588,6 +588,9 @@ and to_clambda_closed_set_of_closures t env symbol
       Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol
         (to_clambda t env_body function_decl.body)
     in
+    assert (
+      Option.equal (fun dbg1 dbg2 -> Debuginfo.compare dbg1 dbg2 = 0)
+        (Variable.debug_info id) (Some function_decl.dbg));
     { label = Compilenv.function_label (Closure_id.wrap id);
       arity = Flambda_utils.function_arity function_decl;
       params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
