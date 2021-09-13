@@ -109,6 +109,7 @@ and scst b = function
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg y arg x
+let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg y arg x arg z
 
 let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
@@ -225,6 +226,18 @@ let print_instr b = function
   | SUBSD (arg1, arg2) -> i2 b "subsd" arg1 arg2
   | TEST (arg1, arg2) -> i2 b "test" arg1 arg2
   | UCOMISD (arg1, arg2) -> i2 b "ucomisd" arg1 arg2
+  | VFMADDSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfmadd" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFNMADDSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfnmadd" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFMSUBSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfmsub" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFNMSUBSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfnmsub" ^ order_s ^ "sd") arg1 arg2 arg3
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2 b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2

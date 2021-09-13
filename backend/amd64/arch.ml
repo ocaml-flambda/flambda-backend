@@ -99,9 +99,23 @@ type specific_operation =
         locality: prefetch_temporal_locality_hint;
         addr: addressing_mode;
       }
+  | Ifma of fma
 
 and float_operation =
     Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv
+
+and fma =
+  { negate_product : bool
+  ; negate_addend : bool
+  ; addr : fma_addressing_mode
+  }
+
+and fma_addressing_mode =
+  | Ifma_register
+  | Ifma_mem of { mode : addressing_mode; memory_operand : fma_memory_operand } 
+
+and fma_memory_operand =
+  | Ifma_factor_0 | Ifma_factor_1 | Ifma_summand
 
 (* Sizes, endianness *)
 
@@ -205,6 +219,7 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
+  | Ifma _ -> assert false
 
 let win64 =
   match Config.system with

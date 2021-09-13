@@ -38,6 +38,8 @@ method! class_of_operation op =
     | Ifloat_iround | Ifloat_min | Ifloat_max
     | Icrc32q -> Op_pure
     | Iprefetch _ -> Op_other
+    | Ifma { addr = Ifma_register; _ } -> Op_pure
+    | Ifma { addr = Ifma_mem _ ; _ } -> Op_load
     end
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _

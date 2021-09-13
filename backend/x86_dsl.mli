@@ -204,6 +204,10 @@ module I : sig
   val subsd: arg -> arg -> unit
   val test: arg -> arg -> unit
   val ucomisd: arg -> arg -> unit
+  val vfmaddsd : fmadd_order -> arg -> arg -> arg -> unit
+  val vfnmaddsd : fmadd_order -> arg -> arg -> arg -> unit
+  val vfmsubsd : fmadd_order -> arg -> arg -> arg -> unit
+  val vfnmsubsd : fmadd_order -> arg -> arg -> arg -> unit
   val xchg: arg -> arg -> unit
   val xor: arg -> arg -> unit
   val xorpd: arg -> arg -> unit

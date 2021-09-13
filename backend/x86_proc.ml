@@ -235,6 +235,11 @@ let string_of_rounding = function
   | RoundTruncate -> "roundsd.trunc"
   | RoundNearest -> "roundsd.near"
 
+let string_of_fmadd_order = function
+  | FMADD123 -> "123"
+  | FMADD213 -> "213"
+  | FMADD231 -> "231"
+
 let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f
 

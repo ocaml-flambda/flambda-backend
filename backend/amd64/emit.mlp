@@ -614,6 +614,37 @@ let emit_call_probe_handler_wrapper i ~probe_label =
   let stack_live = Reg.Set.filter Reg.is_stack i.live in
   record_frame stack_live (Dbg_other i.dbg)
 
+let emit_fma 
+  { negate_product
+  ; negate_addend
+  ; addr
+  }
+  i
+  =
+  let variant, a0, a1, a2 =
+    match addr with
+    | Ifma_register ->
+      (* res i 0 = arg i 0 *)
+      FMADD231, arg i 1, arg i 2, res i 0
+    | Ifma_mem { mode; memory_operand = Ifma_summand } ->
+      (* res i 0 = arg i 1 *)
+      FMADD213, (addressing mode REAL8 i 0), arg i 2, res i 0
+    | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->
+      (* res i 0 = arg i 0 *)
+      FMADD231, (addressing mode REAL8 i 1), arg i 2, res i 0
+    | Ifma_mem { mode; memory_operand = Ifma_factor_1 } ->
+      (* res i 0 = arg i 0 *)
+      FMADD231, (addressing mode REAL8 i 2), arg i 1, res i 0
+  in
+  let instr =
+    match negate_product, negate_addend with
+    | false, false -> I.vfmaddsd
+    | false, true -> I.vfmsubsd
+    | true, false -> I.vfnmaddsd
+    | true, true -> I.vfnmsubsd
+  in
+  instr variant a0 a1 a2
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
@@ -870,6 +901,8 @@ let emit_instr fallthrough i =
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
+  | Lop(Ispecific(Ifma fma)) ->
+      emit_fma fma i
   | Lop(Iintop(Iclz { arg_is_non_zero; })) ->
       (* CR-someday gyorsh: can we do it at selection?
          mshinwell: We need to address this and the similar CRs below.

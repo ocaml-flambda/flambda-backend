@@ -335,6 +335,7 @@ let destroyed_at_oper = function
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
+  | Iop (Ispecific (Ifma _))
     ->
     if fp then
 (* prevent any use of the frame pointer ! *)
@@ -398,6 +399,7 @@ let max_register_pressure =
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+  | Ispecific (Ifma _)
     -> consumes ~int:0 ~float:0
 
 (* Pure operations (without any side effect besides updating their result
@@ -423,6 +425,10 @@ let op_is_pure = function
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _) | Iname_for_debugger _
     -> true
+  | Ispecific(Ifma { addr = Ifma_register; _ }) ->
+    true
+  | Ispecific(Ifma { addr = Ifma_mem _; _ }) ->
+    false
 
 (* Layout of the stack frame *)
 

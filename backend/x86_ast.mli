@@ -207,6 +207,15 @@ type instruction =
   | XCHG of arg * arg
   | XOR of arg * arg
   | XORPD of arg * arg
+  | VFMADDSD of fmadd_order * arg * arg * arg
+  | VFMSUBSD of fmadd_order * arg * arg * arg
+  | VFNMADDSD of fmadd_order * arg * arg * arg
+  | VFNMSUBSD of fmadd_order * arg * arg * arg
+
+and fmadd_order =
+  | FMADD123 (* arg[2] = arg[0](r/m) * arg[2] + arg[1] *)
+  | FMADD213 (* arg[2] = arg[1] * arg[2] + arg[0](r/m) *)
+  | FMADD231 (* arg[2] = arg[0](r/m) * arg[1] + arg[2] *)
 
 (* ELF specific *)
 type reloc_type =

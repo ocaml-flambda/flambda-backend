@@ -107,6 +107,7 @@ let i1_s b s x = bprintf b "\t%s%s\t%a" s (suf x) arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg x arg y
 let i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
 let i2_ss b s x y = bprintf b "\t%s%s%s\t%a, %a" s (suf x) (suf y) arg x arg y
+let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg x arg y arg z
 
 let i1_call_jmp b s = function
   (* this is the encoding of jump labels: don't use * *)
@@ -233,6 +234,18 @@ let print_instr b = function
   | SUBSD (arg1, arg2) -> i2 b "subsd" arg1 arg2
   | TEST (arg1, arg2) -> i2_s b "test" arg1 arg2
   | UCOMISD (arg1, arg2) -> i2 b "ucomisd" arg1 arg2
+  | VFMADDSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfmadd" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFNMADDSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfnmadd" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFMSUBSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfmsub" ^ order_s ^ "sd") arg1 arg2 arg3
+  | VFNMSUBSD (order, arg1, arg2, arg3) ->
+    let order_s = string_of_fmadd_order order in
+    i3 b ("vfnmsub" ^ order_s ^ "sd") arg1 arg2 arg3
   | XCHG (arg1, arg2) -> i2 b "xchg" arg1 arg2
   | XOR (arg1, arg2) -> i2_s b "xor" arg1 arg2
   | XORPD (arg1, arg2) -> i2 b "xorpd" arg1 arg2
