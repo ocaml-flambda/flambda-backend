@@ -611,7 +611,7 @@ and simplify_set_of_closures original_env r
     in
     let function_decl =
       Flambda.create_function_declaration ~params:function_decl.params
-        ~body ~stub:function_decl.stub ~dbg:function_decl.dbg
+        ~body ~stub:function_decl.stub
         ~inline:function_decl.inline ~specialise:function_decl.specialise
         ~is_a_functor:function_decl.is_a_functor
         ~closure_origin:function_decl.closure_origin
@@ -843,7 +843,7 @@ and simplify_partial_application env r ~lhs_of_application
       }
     in
     let closure_variable =
-      Variable.rename
+      Variable.rename ~debug_info:dbg
         (Closure_id.unwrap closure_id_being_applied)
     in
     Flambda_utils.make_closure_declaration ~id:closure_variable
@@ -1442,7 +1442,7 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
   in
   let function_decl =
     Flambda.create_function_declaration ~params:function_decl.params
-      ~body ~stub:function_decl.stub ~dbg:function_decl.dbg
+      ~body ~stub:function_decl.stub
       ~inline:function_decl.inline ~specialise:function_decl.specialise
       ~is_a_functor:function_decl.is_a_functor
       ~closure_origin:(Closure_origin.create (Closure_id.wrap new_fun_var))

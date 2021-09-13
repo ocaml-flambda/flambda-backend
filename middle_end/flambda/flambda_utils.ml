@@ -347,7 +347,7 @@ let make_closure_declaration
   let subst_param param = Parameter.map_var subst param in
   let function_declaration =
     Flambda.create_function_declaration ~params:(List.map subst_param params)
-      ~body ~stub ~dbg:Debuginfo.none ~inline:Default_inline
+      ~body ~stub ~inline:Default_inline
       ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
   in

@@ -141,7 +141,7 @@ and import_function_declarations_for_pack_aux units pack
       (fun (function_decl : Flambda.function_declaration) ->
         Flambda.create_function_declaration ~params:function_decl.params
           ~body:(import_code_for_pack units pack function_decl.body)
-          ~stub:function_decl.stub ~dbg:function_decl.dbg
+          ~stub:function_decl.stub
           ~inline:function_decl.inline
           ~specialise:function_decl.specialise
           ~is_a_functor:function_decl.is_a_functor
