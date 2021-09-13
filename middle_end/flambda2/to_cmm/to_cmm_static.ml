@@ -87,31 +87,31 @@ let or_variable f default v cont =
   | Var _ -> f default cont
 
 let make_update env kind symb var i prev_update =
-  let e = Env.get_variable env var in
+  let e, env, _ece = Env.inline_variable env var in
   let address = C.field_address symb i Debuginfo.none in
   let update = C.store kind Lambda.Root_initialization address e in
   match prev_update with
-  | None -> Some update
-  | Some prev_update -> Some (C.sequence prev_update update)
+  | None -> env, Some update
+  | Some prev_update -> env, Some (C.sequence prev_update update)
 
 let rec static_block_updates symb env acc i = function
-  | [] -> acc
+  | [] -> env, acc
   | sv :: r -> begin
     match (sv : SC.Field_of_block.t) with
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env acc (i + 1) r
     | Dynamically_computed var ->
-      let acc = make_update env Cmm.Word_val symb var i acc in
+      let env, acc = make_update env Cmm.Word_val symb var i acc in
       static_block_updates symb env acc (i + 1) r
   end
 
 let rec static_float_array_updates symb env acc i = function
-  | [] -> acc
+  | [] -> env, acc
   | sv :: r -> begin
     match (sv : _ Or_variable.t) with
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
     | Var var ->
-      let acc = make_update env Cmm.Double symb var i acc in
+      let env, acc = make_update env Cmm.Double symb var i acc in
       static_float_array_updates symb env acc (i + 1) r
   end
 
@@ -120,7 +120,7 @@ let static_boxed_number kind env s default emit transl v r updates =
   let aux x cont = emit (name, Cmmgen_state.Global) (transl x) cont in
   let updates =
     match (v : _ Or_variable.t) with
-    | Const _ -> None
+    | Const _ -> env, None
     | Var v -> make_update env kind (C.symbol name) v 0 updates
   in
   R.update_data r (or_variable aux default v), updates
@@ -193,15 +193,15 @@ and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
     let env, contents =
       simple_static env (Var_within_closure.Map.find v elts)
     in
-    let fields, updates =
+    let env, fields, updates =
       match contents with
-      | `Data fields -> fields, updates
+      | `Data fields -> env, fields, updates
       | `Var v ->
         let s = get_whole_closure_symbol s in
-        let updates =
+        let env, updates =
           make_update env Cmm.Word_val (C.symbol (symbol s)) v offset updates
         in
-        [C.cint 1n], updates
+        env, [C.cint 1n], updates
     in
     env, List.rev fields @ acc, offset + 1, updates
   | Closure c ->
@@ -283,7 +283,9 @@ let static_const0 env r ~updates ~params_and_body
         fields (env, [])
     in
     let block = C.emit_block block_name header static_fields in
-    let updates = static_block_updates (C.symbol name) env updates 0 fields in
+    let env, updates =
+      static_block_updates (C.symbol name) env updates 0 fields
+    in
     env, R.set_data r block, updates
   | Code code_id, Code code ->
     if not (Code_id.equal code_id (Code.code_id code))
@@ -303,19 +305,19 @@ let static_const0 env r ~updates ~params_and_body
   | Block_like s, Boxed_float v ->
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
-    let r, updates =
+    let r, (env, updates) =
       static_boxed_number Cmm.Double env s default C.emit_float_constant transl
         v r updates
     in
     env, r, updates
   | Block_like s, Boxed_int32 v ->
-    let r, updates =
+    let r, (env, updates) =
       static_boxed_number Cmm.Word_int env s 0l C.emit_int32_constant Fun.id v r
         updates
     in
     env, r, updates
   | Block_like s, Boxed_int64 v ->
-    let r, updates =
+    let r, (env, updates) =
       static_boxed_number Cmm.Word_int env s 0L C.emit_int64_constant Fun.id v r
         updates
     in
@@ -323,7 +325,7 @@ let static_const0 env r ~updates ~params_and_body
   | Block_like s, Boxed_nativeint v ->
     let default = Targetint_32_64.zero in
     let transl = nativeint_of_targetint in
-    let r, updates =
+    let r, (env, updates) =
       static_boxed_number Cmm.Word_int env s default C.emit_nativeint_constant
         transl v r updates
     in
@@ -339,7 +341,9 @@ let static_const0 env r ~updates ~params_and_body
     let float_array =
       C.emit_float_array_constant (name, Cmmgen_state.Global) static_fields
     in
-    let e = static_float_array_updates (C.symbol name) env updates 0 fields in
+    let env, e =
+      static_float_array_updates (C.symbol name) env updates 0 fields
+    in
     env, R.update_data r float_array, e
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
