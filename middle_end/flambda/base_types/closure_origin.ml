@@ -20,3 +20,4 @@ open! Int_replace_polymorphic_compare
 include Closure_id
 
 let create t = t
+

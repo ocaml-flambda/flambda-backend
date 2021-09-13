@@ -551,7 +551,6 @@ val create_function_declaration
    : params:Parameter.t list
   -> body:t
   -> stub:bool
-  -> dbg:Debuginfo.t
   -> inline:Lambda.inline_attribute
   -> specialise:Lambda.specialise_attribute
   -> is_a_functor:bool

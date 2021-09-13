@@ -588,6 +588,9 @@ and to_clambda_closed_set_of_closures t env symbol
       Un_anf.apply ~ppf_dump:t.ppf_dump ~what:symbol
         (to_clambda t env_body function_decl.body)
     in
+    assert (
+      Option.equal (fun dbg1 dbg2 -> Debuginfo.compare dbg1 dbg2 = 0)
+        (Variable.debug_info id) (Some function_decl.dbg));
     { label = Compilenv.function_label (Closure_id.wrap id);
       arity = Flambda_utils.function_arity function_decl;
       params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
@@ -766,12 +769,15 @@ let convert ~ppf_dump (program, exported_transient) : result =
       t.constants_for_instrumentation
   in
   let exported =
-    Export_info.t_of_transient exported_transient
-      ~program
-      ~local_offset_fun:current_unit.fun_offset_table
-      ~local_offset_fv:current_unit.fv_offset_table
-      ~imported_offset_fun:imported_units.fun_offset_table
-      ~imported_offset_fv:imported_units.fv_offset_table
-      ~constant_closures:current_unit.constant_closures
+    if !Clflags.opaque then
+      Export_info.t_of_opaque_transient exported_transient
+    else
+      Export_info.t_of_transient exported_transient
+        ~program
+        ~local_offset_fun:current_unit.fun_offset_table
+        ~local_offset_fv:current_unit.fv_offset_table
+        ~imported_offset_fun:imported_units.fun_offset_table
+        ~imported_offset_fv:imported_units.fv_offset_table
+        ~constant_closures:current_unit.constant_closures
   in
   { expr; preallocated_blocks; structured_constants; exported; }

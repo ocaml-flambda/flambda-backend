@@ -160,6 +160,8 @@ val t_of_transient
   -> constant_closures:Closure_id.Set.t
   -> t
 
+val t_of_opaque_transient : transient -> t
+
 (** Union of export information.  Verifies that there are no identifier
     clashes. *)
 val merge : t -> t -> t

@@ -534,7 +534,6 @@ let rewrite_function ~lhs_of_application ~closure_id_being_applied
     Flambda.create_function_declaration
       ~params ~body
       ~stub:function_body.stub
-      ~dbg:function_body.dbg
       ~inline:function_body.inline
       ~specialise:function_body.specialise
       ~is_a_functor:function_body.is_a_functor

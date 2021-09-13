@@ -533,7 +533,6 @@ module Make (T : S) = struct
         ~params:wrapper_params
         ~body:wrapper_body
         ~stub:true
-        ~dbg:Debuginfo.none
         ~inline:Default_inline
         ~specialise:Default_specialise
         ~is_a_functor:false
@@ -621,7 +620,6 @@ module Make (T : S) = struct
           ~params:all_params
           ~body:function_decl.body
           ~stub:function_decl.stub
-          ~dbg:function_decl.dbg
           ~inline:function_decl.inline
           ~specialise:function_decl.specialise
           ~is_a_functor:function_decl.is_a_functor

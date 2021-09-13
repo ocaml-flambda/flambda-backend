@@ -19,4 +19,10 @@ open! Int_replace_polymorphic_compare
 
 include Variable
 
+let create ?current_compilation_unit names = create ?current_compilation_unit names
+
+let create_with_same_name_as_ident ident = create_with_same_name_as_ident ident
+
+let rename ?current_compilation_unit t = rename ?current_compilation_unit t
+
 let create_from_variable = rename
