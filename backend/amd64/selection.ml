@@ -480,10 +480,6 @@ method select_floatarith commutative regular_op mem_op args =
       let (addr, arg1) = self#select_addressing chunk loc1 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
                  [arg2; arg1])
-    when commutative ->
-    let (addr, arg1) = self#select_addressing chunk loc1 in
-    (Ispecific(Ifloatarithmem(mem_op, addr)),
-     [arg2; arg1])
   | [arg1; arg2] ->
       (regular_op, [arg1; arg2])
   | _ ->
