@@ -33,6 +33,7 @@
 (copy_files# file_formats/cmx_format.mli)
 
 (copy_files# file_formats/linear_format.ml{,i})
+(copy_files# file_formats/cfg_format.ml{,i})
 
 (copy_files# middle_end/*.ml{,i})
 
@@ -219,6 +220,7 @@
   cfg_equivalence
   ;; file_formats/
   linear_format
+  cfg_format
   ;; asmcomp/debug/
   reg_availability_set
   compute_ranges_intf
@@ -2099,4 +2101,13 @@
   (.ocamloptcomp.objs/native/var_within_closure.cmx
    as
    compiler-libs/var_within_closure.cmx)
-  (.ocamloptcomp.objs/native/variable.cmx as compiler-libs/variable.cmx)))
+  (.ocamloptcomp.objs/native/variable.cmx as compiler-libs/variable.cmx)
+    (cfg_format.mli as compiler-libs/cfg_format.mli)
+    (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
+    (.ocamloptcomp.objs/byte/cfg_format.cmi as compiler-libs/cfg_format.cmi)
+    (.ocamloptcomp.objs/byte/cfg_format.cmo as compiler-libs/cfg_format.cmo)
+    (.ocamloptcomp.objs/byte/cfg_format.cmt as compiler-libs/cfg_format.cmt)
+    (.ocamloptcomp.objs/byte/cfg_format.cmti as compiler-libs/cfg_format.cmti)
+
+))
+
