@@ -178,6 +178,9 @@ let print_addressing printreg addr ppf arg =
       fprintf ppf "%a + %a * %i%s" printreg arg.(0) printreg arg.(1) scale idx
 
 let print_wrapped inner ppf arg =
+  (* CR smuenzel: I think [print_addressing] is probably wrong.
+     It seems to refer to the argument array, even though
+     select_addressing returns a single argument. *)
   fprintf ppf "[%a]" inner [| arg |]
 
 let print_specific_operation printreg op ppf arg =
