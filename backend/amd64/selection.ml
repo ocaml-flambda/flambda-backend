@@ -193,14 +193,6 @@ class selector = object (self)
 
 inherit Selectgen.selector_generic as super
 
-(*
-method! emit_expr env expr =
-  match expr with
-  | Cop (Caddf, [ Cop (Cmulf, _,_); _ ], _) ->
-    ()
-  | expr -> super#emit_expr env expr
-   *)
-
 method! is_immediate op n =
   match op with
   | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound ->
