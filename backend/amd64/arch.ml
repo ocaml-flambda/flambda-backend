@@ -177,12 +177,6 @@ let print_addressing printreg addr ppf arg =
       let idx = if n <> 0 then Printf.sprintf " + %i" n else "" in
       fprintf ppf "%a + %a * %i%s" printreg arg.(0) printreg arg.(1) scale idx
 
-let print_wrapped inner ppf arg =
-  (* CR smuenzel: I think [print_addressing] is probably wrong.
-     It seems to refer to the argument array, even though
-     select_addressing returns a single argument. *)
-  fprintf ppf "[%a]" inner [| arg |]
-
 let print_specific_operation printreg op ppf arg =
   match op with
   | Ilea addr -> print_addressing printreg addr ppf arg
@@ -230,27 +224,44 @@ let print_specific_operation printreg op ppf arg =
       ; negate_addend
       ; addr
       } ->
-      let p0, p1, s =
-        match addr with
-        | Ifma_register -> printreg, printreg, printreg
-        | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->
-          print_wrapped (print_addressing printreg mode)
-        , printreg
-        , printreg
-        | Ifma_mem { mode; memory_operand = Ifma_factor_1 } ->
-          printreg
-        , print_wrapped (print_addressing printreg mode)
-        , printreg
-        | Ifma_mem { mode; memory_operand = Ifma_addend } ->
-          printreg
-        , printreg
-        , print_wrapped (print_addressing printreg mode)
+      let print_wrapped inner ppf arg =
+        fprintf ppf "float64[%a]" inner arg
       in
-      fprintf ppf "fma (%s%a*%a %s %a)"
-        (if negate_product then "-" else "+")
-        p0 arg.(1) p1 arg.(2)
-        (if negate_addend then "-" else "+")
-        s arg.(0)
+      let f (type a b c)
+          (pp0 : Format.formatter -> a -> unit)
+          (p0 :a)
+          pp1
+          (p1 : b)
+          ps
+          (s : c)
+        =
+        fprintf ppf "fma (%s%a*%a %s %a)"
+          (if negate_product then "-" else "+")
+          pp0 p0 pp1 p1
+          (if negate_addend then "-" else "+")
+          ps s
+      in
+      match addr with
+      | Ifma_register ->
+        f printreg arg.(1) printreg arg.(2) printreg arg.(0)
+      | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->
+        let n = num_args_addressing mode in
+        f
+          (print_wrapped (print_addressing printreg mode)) (Array.sub arg 1 n)
+          printreg arg.(n + 1)
+          printreg arg.(0)
+      | Ifma_mem { mode; memory_operand = Ifma_factor_1 } ->
+        let n = num_args_addressing mode in
+        f
+          printreg arg.(1)
+          (print_wrapped (print_addressing printreg mode)) (Array.sub arg 2 n)
+          printreg arg.(0)
+      | Ifma_mem { mode; memory_operand = Ifma_addend } ->
+        let n = num_args_addressing mode in
+        f
+          printreg arg.(n)
+          printreg arg.(n+1)
+          (print_wrapped (print_addressing printreg mode)) (Array.sub arg 0 n)
 
 
 let win64 =
