@@ -212,6 +212,11 @@ let to_goto t =
   then Some (continuation t)
   else None
 
+let is_raise t =
+  match t.trap_action with
+  | Some (Pop { exn_handler; _ }) -> Continuation.equal t.k exn_handler
+  | Some (Push _) | None -> false
+
 let clear_trap_action t = { t with trap_action = None }
 
 let to_one_arg_without_trap_action t =
