@@ -32,6 +32,7 @@ val print_using_where_with_cache :
   Format.formatter ->
   Continuation.t ->
   t ->
+  Num_occurrences.t Or_unknown.t ->
   first:bool ->
   unit
 

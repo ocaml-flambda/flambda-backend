@@ -208,7 +208,12 @@ let must_be_symbols t =
   match t with
   | Symbols symbols -> symbols
   | Singleton _ | Set_of_closures _ ->
-    Misc.fatal_errorf "Bound name is not a [Set_of_closures]:@ %a" print t
+    Misc.fatal_errorf "Bound name is not a [Symbols]:@ %a" print t
+
+let may_be_symbols t =
+  match t with
+  | Symbols symbols -> Some symbols
+  | Singleton _ | Set_of_closures _ -> None
 
 let exists_all_bound_vars t ~f =
   match t with
@@ -236,3 +241,17 @@ let all_bound_vars' t =
   | Set_of_closures { closure_vars; _ } ->
     Variable.Set.of_list (List.map Var_in_binding_pos.var closure_vars)
   | Symbols _ -> Variable.Set.empty
+
+let fold_all_bound_names t ~init ~var ~symbol ~code_id =
+  match t with
+  | Singleton v -> var init v
+  | Set_of_closures { closure_vars; _ } ->
+    ListLabels.fold_left closure_vars ~init ~f:var
+  | Symbols symbols ->
+    Code_id.Set.fold
+      (fun cid acc -> code_id acc cid)
+      (Bound_symbols.code_being_defined symbols.bound_symbols)
+      init
+    |> Symbol.Set.fold
+         (fun s acc -> symbol acc s)
+         (Bound_symbols.being_defined symbols.bound_symbols)

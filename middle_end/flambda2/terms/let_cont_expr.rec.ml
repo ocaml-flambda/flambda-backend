@@ -30,7 +30,7 @@ let invariant _env _t = ()
 let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   let rec gather_let_conts let_conts let_cont =
     match let_cont with
-    | Non_recursive { handler; num_free_occurrences = _;
+    | Non_recursive { handler; num_free_occurrences;
                       is_applied_with_traps = _; } ->
       Non_recursive_let_cont_handler.pattern_match handler
         ~f:(fun k ~(body : Expr.t) ->
@@ -40,7 +40,8 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
             | _ -> let_conts, body
           in
           let handler = Non_recursive_let_cont_handler.handler handler in
-          (k, Recursive.Non_recursive, handler) :: let_conts, body)
+          (k, Recursive.Non_recursive, handler, num_free_occurrences)
+          :: let_conts, body)
     | Recursive handlers ->
       Recursive_let_cont_handlers.pattern_match handlers
         ~f:(fun ~(body : Expr.t) handlers ->
@@ -51,7 +52,8 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
             | _ -> let_conts, body
           in
           let new_let_conts =
-            List.map (fun (k, handler) -> k, Recursive.Recursive, handler)
+            List.map (fun (k, handler) ->
+                k, Recursive.Recursive, handler, Or_unknown.Unknown)
               (Continuation.Map.bindings handlers)
           in
           new_let_conts @ let_conts, body)
@@ -59,9 +61,9 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   let let_conts, body = gather_let_conts [] t in
   fprintf ppf "@[<v 1>(%a@;" (Expr.print_with_cache ~cache) body;
   let first = ref true in
-  List.iter (fun (cont, recursive, handler) ->
+  List.iter (fun (cont, recursive, handler, occurrences) ->
       Continuation_handler.print_using_where_with_cache recursive ~cache
-        ppf cont handler ~first:!first;
+        ppf cont handler occurrences ~first:!first;
       first := false)
     (List.rev let_conts);
   fprintf ppf ")@]"
