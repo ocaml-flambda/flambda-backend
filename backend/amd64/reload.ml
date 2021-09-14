@@ -136,13 +136,25 @@ method! reload_operation op arg res =
       if !Clflags.pic_code || !Clflags.dlcode || Arch.win64
       then super#reload_operation op arg res
       else (arg, res)
+  | Ispecific (Ifma { addr = Ifma_register; _ }) ->
+    let a0 = if stackp arg.(0) then self#makereg arg.(0) else arg.(0) in
+    let a1, a2 =
+      match stackp arg.(1), stackp arg.(2) with
+      | false, false
+      | true, false 
+      | false, true
+        -> arg.(1), arg.(2)
+      | true, true ->
+        arg.(1), self#makereg arg.(0)
+    in
+    [| a0; a1; a2 |], res
   | Iintop (Ipopcnt | Iclz _| Ictz _)
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
                | Iprefetch _
                | Ibswap _| Ifloatsqrtf _
-               | Ifma _)
+               | Ifma { addr = Ifma_mem _ ; _} )
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind|Icall_imm _
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)

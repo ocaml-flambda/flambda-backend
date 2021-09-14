@@ -625,7 +625,27 @@ let emit_fma
     match addr with
     | Ifma_register ->
       (* res i 0 = arg i 0 *)
-      FMADD231, arg i 1, arg i 2, arg i 0
+      let a1 = arg i 1
+      and a2 = arg i 2
+      and a0 = arg i 0
+      in
+      let stackp r =
+        match r with
+          Mem _ -> true
+        | _ -> false
+      in
+      begin match stackp a1, stackp a2, stackp a0 with
+      | (true | false), false, false ->
+        FMADD231, a1, a2, a0
+      | false, false, true ->
+        assert false
+      | false, true, false ->
+        FMADD123, a2, a1, a0
+      | true, _, true
+      | true, true, _
+      | _, true, true
+        -> assert false
+      end
     | Ifma_mem { mode; memory_operand = Ifma_addend } ->
       (* res i 0 = first non-address argument *)
       let n = num_args_addressing mode in
