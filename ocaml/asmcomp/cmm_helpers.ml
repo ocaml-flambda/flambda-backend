@@ -1356,10 +1356,8 @@ let default_prim name =
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
-  let effects, coeffects =
-    if alloc
-    then Primitive.Arbitrary_effects, Primitive.No_coeffects
-    else Primitive.No_effects, Primitive.No_coeffects in
+  let effects = Primitive.Arbitrary_effects in
+  let coeffects = Primitive.Has_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
     ~c_builtin:false

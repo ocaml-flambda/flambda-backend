@@ -1419,7 +1419,7 @@ let int64_native_prim name arity ~alloc =
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   let effects, coeffects =
     if alloc
-    then Primitive.Arbitrary_effects, Primitive.No_coeffects
+    then Primitive.Arbitrary_effects, Primitive.Has_coeffects
     else Primitive.No_effects, Primitive.No_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
