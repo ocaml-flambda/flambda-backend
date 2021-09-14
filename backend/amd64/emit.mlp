@@ -626,7 +626,7 @@ let emit_fma
     | Ifma_register ->
       (* res i 0 = arg i 0 *)
       FMADD231, arg i 1, arg i 2, res i 0
-    | Ifma_mem { mode; memory_operand = Ifma_summand } ->
+    | Ifma_mem { mode; memory_operand = Ifma_addend } ->
       (* res i 0 = arg i 1 *)
       FMADD213, (addressing mode REAL8 i 0), arg i 2, res i 0
     | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->

@@ -148,7 +148,7 @@ let pseudoregs_for_operation op arg res =
                    | Ifma_mem { memory_operand = Ifma_factor_0 | Ifma_factor_1 }
             ; _}) ->
     ([|res.(0); arg.(1); arg.(2)|], res)
-  | Ispecific (Ifma { addr = Ifma_mem { memory_operand = Ifma_summand; _ } ; _}) ->
+  | Ispecific (Ifma { addr = Ifma_mem { memory_operand = Ifma_addend; _ } ; _}) ->
     ([|arg.(1); res.(0); arg.(2)|], res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)

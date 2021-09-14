@@ -115,7 +115,7 @@ and fma_addressing_mode =
   | Ifma_mem of { mode : addressing_mode; memory_operand : fma_memory_operand } 
 
 and fma_memory_operand =
-  | Ifma_factor_0 | Ifma_factor_1 | Ifma_summand
+  | Ifma_factor_0 | Ifma_factor_1 | Ifma_addend
 
 (* Sizes, endianness *)
 
@@ -177,6 +177,9 @@ let print_addressing printreg addr ppf arg =
       let idx = if n <> 0 then Printf.sprintf " + %i" n else "" in
       fprintf ppf "%a + %a * %i%s" printreg arg.(0) printreg arg.(1) scale idx
 
+let print_wrapped inner ppf arg =
+  fprintf ppf "[%a]" inner [| arg |]
+
 let print_specific_operation printreg op ppf arg =
   match op with
   | Ilea addr -> print_addressing printreg addr ppf arg
@@ -219,7 +222,33 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
-  | Ifma _ -> assert false
+  | Ifma
+      { negate_product
+      ; negate_addend
+      ; addr
+      } ->
+      let p0, p1, s =
+        match addr with
+        | Ifma_register -> printreg, printreg, printreg
+        | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->
+          print_wrapped (print_addressing printreg mode)
+        , printreg
+        , printreg
+        | Ifma_mem { mode; memory_operand = Ifma_factor_1 } ->
+          printreg
+        , print_wrapped (print_addressing printreg mode)
+        , printreg
+        | Ifma_mem { mode; memory_operand = Ifma_addend } ->
+          printreg
+        , printreg
+        , print_wrapped (print_addressing printreg mode)
+      in
+      fprintf ppf "fma (%s%a*%a %s %a)"
+        (if negate_product then "-" else "+")
+        p0 arg.(1) p1 arg.(2)
+        (if negate_addend then "-" else "+")
+        s arg.(0)
+
 
 let win64 =
   match Config.system with
