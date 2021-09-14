@@ -145,7 +145,7 @@ method! reload_operation op arg res =
       | false, true
         -> arg.(1), arg.(2)
       | true, true ->
-        arg.(1), self#makereg arg.(0)
+        arg.(1), self#makereg arg.(2)
     in
     [| a0; a1; a2 |], res
   | Iintop (Ipopcnt | Iclz _| Ictz _)
