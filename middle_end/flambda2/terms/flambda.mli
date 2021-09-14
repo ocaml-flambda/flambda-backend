@@ -468,6 +468,8 @@ and Function_params_and_body : sig
       'a) ->
     'a
 
+  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
+
   (** Return the debuginfo associated *)
   val debuginfo : t -> Debuginfo.t
 
@@ -648,6 +650,8 @@ and Code : sig
   val print : Format.formatter -> t -> unit
 
   include Contains_names.S with type t := t
+
+  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
 
   val all_ids_for_export : t -> Ids_for_export.t
 

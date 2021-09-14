@@ -23,6 +23,8 @@ module Make (Function_params_and_body : sig
 
   val apply_renaming : t -> Renaming.t -> t
 
+  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
+
   val print : Format.formatter -> t -> unit
 
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit

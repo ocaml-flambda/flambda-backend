@@ -107,7 +107,7 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
   | Some (bound_var, defining_expr) ->
     Let_with_acc.create acc
       (Bindable_let_bound.singleton bound_var)
-      defining_expr ~body:apply_cont ~free_names_of_body:Unknown
+      defining_expr ~body:apply_cont
     |> Expr_with_acc.create_let
 
 let expression_for_failure acc ~backend exn_cont ~register_const_string
@@ -230,36 +230,23 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
     build_cont acc (List.rev args) []
   | Checked { validity_conditions; primitive; failure; dbg } ->
     let primitive_cont = Continuation.create () in
-    let cost_metrics_of_primitive_handler, acc, primitive_cont_handler =
-      Acc.measure_cost_metrics acc ~f:(fun acc ->
-          let acc, handler =
-            bind_rec acc ~backend exn_cont ~register_const_string primitive dbg
-              cont
-          in
-          Continuation_handler_with_acc.create acc [] ~handler
-            ~free_names_of_handler:Unknown ~is_exn_handler:false)
+    let primitive_handler_expr acc =
+      bind_rec acc ~backend exn_cont ~register_const_string primitive dbg cont
     in
     let failure_cont = Continuation.create () in
-    let cost_metrics_of_failure_handler, acc, failure_cont_handler =
-      Acc.measure_cost_metrics acc ~f:(fun acc ->
-          let acc, handler =
-            expression_for_failure acc ~backend exn_cont ~register_const_string
-              primitive dbg failure
-          in
-          Continuation_handler_with_acc.create acc [] ~handler
-            ~free_names_of_handler:Unknown ~is_exn_handler:false)
+    let failure_handler_expr acc =
+      expression_for_failure acc ~backend exn_cont ~register_const_string
+        primitive dbg failure
     in
-    let acc, check_validity_conditions =
-      let acc, prim_apply_cont = Apply_cont_with_acc.goto acc primitive_cont in
+    let check_validity_conditions =
+      let prim_apply_cont acc =
+        let acc, expr = Apply_cont_with_acc.goto acc primitive_cont in
+        Expr_with_acc.create_apply_cont acc expr
+      in
       List.fold_left
-        (fun (acc, rest) expr_primitive ->
+        (fun condition_passed_expr expr_primitive acc ->
           let condition_passed_cont = Continuation.create () in
-          let cost_metrics_of_handler, acc, condition_passed_cont_handler =
-            Acc.measure_cost_metrics acc ~f:(fun acc ->
-                Continuation_handler_with_acc.create acc [] ~handler:rest
-                  ~free_names_of_handler:Unknown ~is_exn_handler:false)
-          in
-          let acc, body =
+          let body acc =
             bind_rec_primitive acc ~backend exn_cont ~register_const_string
               (Prim expr_primitive) dbg (fun acc prim_result ->
                 let acc, condition_passed =
@@ -273,19 +260,18 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
                           [ Targetint_31_63.bool_true, condition_passed;
                             Targetint_31_63.bool_false, failure ])))
           in
-          Let_cont_with_acc.create_non_recursive acc condition_passed_cont
-            condition_passed_cont_handler ~body ~cost_metrics_of_handler)
-        (Expr_with_acc.create_apply_cont acc prim_apply_cont)
-        validity_conditions
+          Let_cont_with_acc.build_non_recursive acc condition_passed_cont
+            ~handler_params:[] ~handler:condition_passed_expr ~body
+            ~is_exn_handler:false)
+        prim_apply_cont validity_conditions
     in
-    let acc, body =
-      Let_cont_with_acc.create_non_recursive acc failure_cont
-        failure_cont_handler ~body:check_validity_conditions
-        ~cost_metrics_of_handler:cost_metrics_of_failure_handler
+    let body acc =
+      Let_cont_with_acc.build_non_recursive acc failure_cont ~handler_params:[]
+        ~handler:failure_handler_expr ~body:check_validity_conditions
+        ~is_exn_handler:false
     in
-    Let_cont_with_acc.create_non_recursive acc primitive_cont
-      primitive_cont_handler ~body
-      ~cost_metrics_of_handler:cost_metrics_of_primitive_handler
+    Let_cont_with_acc.build_non_recursive acc primitive_cont ~handler_params:[]
+      ~handler:primitive_handler_expr ~body ~is_exn_handler:false
 
 and bind_rec_primitive acc ~backend exn_cont ~register_const_string
     (prim : simple_or_prim) (dbg : Debuginfo.t)
@@ -296,11 +282,9 @@ and bind_rec_primitive acc ~backend exn_cont ~register_const_string
   | Prim p ->
     let var = Variable.create "prim" in
     let var' = VB.create var Name_mode.normal in
-    let cont acc named =
+    let cont acc (named : Named.t) =
       let acc, body = cont acc (Simple.var var) in
-      Let_with_acc.create acc
-        (Bindable_let_bound.singleton var')
-        named ~body ~free_names_of_body:Unknown
+      Let_with_acc.create acc (Bindable_let_bound.singleton var') named ~body
       |> Expr_with_acc.create_let
     in
     bind_rec acc ~backend exn_cont ~register_const_string p dbg cont

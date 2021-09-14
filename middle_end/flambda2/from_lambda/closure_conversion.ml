@@ -25,8 +25,6 @@ module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 module Apply_cont_with_acc = Closure_conversion_aux.Apply_cont_with_acc
 module Let_cont_with_acc = Closure_conversion_aux.Let_cont_with_acc
 module Let_with_acc = Closure_conversion_aux.Let_with_acc
-module Continuation_handler_with_acc =
-  Closure_conversion_aux.Continuation_handler_with_acc
 module Function_decls = Closure_conversion_aux.Function_decls
 module Function_decl = Function_decls.Function_decl
 module K = Flambda_kind
@@ -36,9 +34,7 @@ module VB = Var_in_binding_pos
 
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
-let use_of_symbol_as_simple acc symbol =
-  let acc = Acc.add_symbol_to_free_names ~symbol acc in
-  acc, Simple.symbol symbol
+let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 
 let symbol_for_ident acc env id =
   let symbol = Env.symbol_for_global' env id in
@@ -187,8 +183,17 @@ let close_c_call acc ~let_bound_var
   (* We always replace the original let-binding with an Flambda expression, so
      we call [k] with [None], to get just the closure-converted body of that
      binding. *)
-  let cost_metrics_of_body, acc, body =
+  let cost_metrics_of_body, free_names_of_body, acc, body =
     Acc.measure_cost_metrics acc ~f:(fun acc -> k acc None)
+  in
+  let box_return_value =
+    match prim_native_repr_res with
+    | Same_as_ocaml_repr -> None
+    | Unboxed_float -> Some (P.Box_number Naked_float)
+    | Unboxed_integer Pnativeint -> Some (P.Box_number Naked_nativeint)
+    | Unboxed_integer Pint32 -> Some (P.Box_number Naked_int32)
+    | Unboxed_integer Pint64 -> Some (P.Box_number Naked_int64)
+    | Untagged_int -> Some (P.Box_number Untagged_immediate)
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -196,7 +201,8 @@ let close_c_call acc ~let_bound_var
       when Simple.List.equal
              (Apply_cont_expr.args apply_cont)
              [Simple.var let_bound_var]
-           && Option.is_none (Apply_cont_expr.trap_action apply_cont) ->
+           && Option.is_none (Apply_cont_expr.trap_action apply_cont)
+           && Option.is_none box_return_value ->
       Apply_cont_expr.continuation apply_cont, false
     | _ -> Continuation.create (), true
   in
@@ -218,7 +224,7 @@ let close_c_call acc ~let_bound_var
       (Compilation_unit.external_symbols ())
       (Linkage_name.create prim_name)
   in
-  let call args =
+  let call args acc =
     (* Some C primitives have implementations within Flambda itself. *)
     match prim_native_name with
     | "caml_int64_float_of_bits_unboxed"
@@ -251,7 +257,6 @@ let close_c_call acc ~let_bound_var
             Let_with_acc.create acc bindable
               (Named.create_prim prim dbg)
               ~body:return_result_expr
-              ~free_names_of_body:(Known (Apply_cont.free_names return_result))
             |> Expr_with_acc.create_let
           | [] | _ :: _ ->
             Misc.fatal_errorf "Expected one arg for %s" prim_native_name
@@ -269,9 +274,9 @@ let close_c_call acc ~let_bound_var
       in
       Expr_with_acc.create_apply acc apply
   in
-  let (acc, call) : Acc.t * Expr_with_acc.t =
+  let call : Acc.t -> Acc.t * Expr_with_acc.t =
     List.fold_left2
-      (fun (call : Simple.t list -> Acc.t * Expr_with_acc.t) arg
+      (fun (call : Simple.t list -> Acc.t -> Acc.t * Expr_with_acc.t) arg
            (arg_repr : Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
@@ -283,83 +288,65 @@ let close_c_call acc ~let_bound_var
           | Untagged_int -> Some (P.Unbox_number Untagged_immediate)
         in
         match unbox_arg with
-        | None -> fun args -> call (arg :: args)
+        | None -> fun args acc -> call (arg :: args) acc
         | Some named ->
-          fun args ->
+          fun args acc ->
             let unboxed_arg = Variable.create "unboxed" in
             let unboxed_arg' = VB.create unboxed_arg Name_mode.normal in
-            let acc, body = call (Simple.var unboxed_arg :: args) in
+            let acc, body = call (Simple.var unboxed_arg :: args) acc in
             let named = Named.create_prim (Unary (named, arg)) dbg in
             Let_with_acc.create acc
               (Bindable_let_bound.singleton unboxed_arg')
-              named ~body ~free_names_of_body:Unknown
+              named ~body
             |> Expr_with_acc.create_let)
       call args prim_native_repr_args []
   in
-  let box_unboxed_returns acc ~let_bound_var ~box_return_value body =
+  let wrap_c_call acc ~handler_param ~code_after_call c_call =
+    let return_kind = Flambda_kind.With_subkind.create return_kind Anything in
+    let params = [Kinded_parameter.create handler_param return_kind] in
+    Let_cont_with_acc.build_non_recursive acc return_continuation
+      ~handler_params:params ~handler:code_after_call ~body:c_call
+      ~is_exn_handler:false
+  in
+  let keep_body acc =
+    ( Acc.with_cost_metrics
+        (Cost_metrics.( + ) (Acc.cost_metrics acc) cost_metrics_of_body)
+        (Acc.with_free_names free_names_of_body acc),
+      body )
+  in
+  let box_unboxed_returns ~let_bound_var ~box_return_value =
     let let_bound_var' = VB.create let_bound_var Name_mode.normal in
     let handler_param = Variable.rename let_bound_var in
-    let named =
-      Named.create_prim (Unary (box_return_value, Simple.var handler_param)) dbg
-    in
-    let acc, expr =
+    let body acc =
+      let acc, body = keep_body acc in
+      let named =
+        Named.create_prim
+          (Unary (box_return_value, Simple.var handler_param))
+          dbg
+      in
       Let_with_acc.create acc
         (Bindable_let_bound.singleton let_bound_var')
-        named ~body ~free_names_of_body:Unknown
+        named ~body
       |> Expr_with_acc.create_let
     in
-    acc, expr, handler_param
-  in
-  let wrap_c_call acc ~handler_param ~code_after_call c_call =
-    let cost_metrics_of_handler, acc, after_call =
-      Acc.measure_cost_metrics acc ~f:(fun acc ->
-          let return_kind =
-            Flambda_kind.With_subkind.create return_kind Anything
-          in
-          let params = [Kinded_parameter.create handler_param return_kind] in
-          Continuation_handler_with_acc.create acc params
-            ~handler:
-              code_after_call
-              (* Here and elsewhere in this pass, we specify [Unknown] for free
-                 name sets like this, since the information isn't needed until
-                 the translation to Cmm -- by which point Simplify will have
-                 rebuilt the term and provided the free names. *)
-            ~free_names_of_handler:Unknown ~is_exn_handler:false)
-    in
-    Let_cont_with_acc.create_non_recursive acc return_continuation after_call
-      ~body:c_call ~cost_metrics_of_handler
-  in
-  let keep_body ~cost_metrics_of_body acc =
-    Acc.with_cost_metrics
-      (Cost_metrics.( + ) (Acc.cost_metrics acc) cost_metrics_of_body)
-      acc
-  in
-  let box_return_value =
-    match prim_native_repr_res with
-    | Same_as_ocaml_repr -> None
-    | Unboxed_float -> Some (P.Box_number Naked_float)
-    | Unboxed_integer Pnativeint -> Some (P.Box_number Naked_nativeint)
-    | Unboxed_integer Pint32 -> Some (P.Box_number Naked_int32)
-    | Unboxed_integer Pint64 -> Some (P.Box_number Naked_int64)
-    | Untagged_int -> Some (P.Box_number Untagged_immediate)
+    body, handler_param
   in
   match box_return_value with
   | None ->
     if needs_wrapper
     then
-      let acc = keep_body ~cost_metrics_of_body acc in
-      wrap_c_call acc ~handler_param:let_bound_var ~code_after_call:body call
+      wrap_c_call acc ~handler_param:let_bound_var ~code_after_call:keep_body
+        call
     else
       (* Here the body is discarded. It might be useful to explicitly remove
          anything that has been added to the acc while converting the body.
          However, as we are hitting this code only when body is a goto
          continuation where the only parameter is [let_bound_var] this operation
          would be a noop and we can skip it. *)
-      acc, call
+      call acc
   | Some box_return_value ->
-    let acc = keep_body ~cost_metrics_of_body acc in
-    let acc, code_after_call, handler_param =
-      box_unboxed_returns acc ~let_bound_var ~box_return_value body
+    let code_after_call, handler_param =
+      box_unboxed_returns ~let_bound_var ~box_return_value
     in
     wrap_c_call acc ~handler_param ~code_after_call call
 
@@ -493,7 +480,7 @@ let close_let acc env id user_visible defining_expr
         let var = VB.create var Name_mode.normal in
         Let_with_acc.create acc
           (Bindable_let_bound.singleton var)
-          defining_expr ~body ~free_names_of_body:Unknown
+          defining_expr ~body
         |> Expr_with_acc.create_let)
   in
   close_named acc env ~let_bound_var:var defining_expr cont
@@ -518,28 +505,23 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
          (fun (param, user_visible, _kind) -> param, user_visible)
          params)
   in
-  let params =
+  let handler_params =
     List.map2
       (fun param (_, _, kind) ->
         Kinded_parameter.create param (LC.value_kind kind))
       params params_with_kinds
   in
-  let cost_metrics_of_handler, acc, handler =
-    Acc.measure_cost_metrics acc ~f:(fun acc -> handler acc handler_env)
-  in
-  let acc, handler =
-    Continuation_handler_with_acc.create acc params ~handler
-      ~free_names_of_handler:Unknown ~is_exn_handler
-  in
-  let acc, body = body acc env in
+  let handler acc = handler acc handler_env in
+  let body acc = body acc env in
   match recursive with
   | Nonrecursive ->
-    Let_cont_with_acc.create_non_recursive acc name handler ~body
-      ~cost_metrics_of_handler
+    Let_cont_with_acc.build_non_recursive acc name ~handler_params ~handler
+      ~body ~is_exn_handler
   | Recursive ->
-    let handlers = Continuation.Map.singleton name handler in
-    Let_cont_with_acc.create_recursive acc handlers ~body
-      ~cost_metrics_of_handlers:cost_metrics_of_handler
+    let handlers =
+      Continuation.Map.singleton name (handler, handler_params, is_exn_handler)
+    in
+    Let_cont_with_acc.build_recursive acc ~handlers ~body
 
 let close_apply acc env
     ({ kind;
@@ -586,11 +568,7 @@ let close_apply_cont acc env cont trap_action args : Acc.t * Expr_with_acc.t =
   Expr_with_acc.create_apply_cont acc apply_cont
 
 let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
-  let scrutinee =
-    match Env.find_simple_to_substitute_exn env scrutinee with
-    | simple -> simple
-    | exception Not_found -> Simple.name (Env.find_name env scrutinee)
-  in
+  let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let untag =
@@ -641,12 +619,12 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
     let acc, body =
       Let_with_acc.create acc
         (Bindable_let_bound.singleton comparison_result')
-        compare ~body:switch ~free_names_of_body:Unknown
+        compare ~body:switch
       |> Expr_with_acc.create_let
     in
     Let_with_acc.create acc
       (Bindable_let_bound.singleton untagged_scrutinee')
-      untag ~body ~free_names_of_body:Unknown
+      untag ~body
     |> Expr_with_acc.create_let
   | _, _ ->
     let acc, arms =
@@ -682,7 +660,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
       in
       Let_with_acc.create acc
         (Bindable_let_bound.singleton untagged_scrutinee')
-        untag ~body ~free_names_of_body:Unknown
+        untag ~body
       |> Expr_with_acc.create_let
 
 let close_one_function acc ~external_env ~by_closure_id decl
@@ -694,6 +672,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let dbg = Debuginfo.from_location loc in
   let params = Function_decl.params decl in
   let return = Function_decl.return decl in
+  let return_continuation = Function_decl.return_continuation decl in
   let recursive = Function_decl.recursive decl in
   let my_closure = Variable.create "my_closure" in
   let closure_id = Function_decl.closure_id decl in
@@ -813,17 +792,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
         let named =
           Named.create_prim (Unary (move, my_closure')) Debuginfo.none
         in
-        Let_with_acc.create acc
-          (Bindable_let_bound.singleton var)
-          named ~body ~free_names_of_body:Unknown
+        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
         |> Expr_with_acc.create_let)
       project_closure_to_bind (acc, body)
-  in
-  let acc =
-    Variable.Map.fold
-      (fun _var closure_var acc ->
-        Acc.add_closure_var_to_free_names ~closure_var acc)
-      var_within_closures_to_bind acc
   in
   let acc, body =
     Variable.Map.fold
@@ -837,9 +808,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
                  my_closure' ))
             Debuginfo.none
         in
-        Let_with_acc.create acc
-          (Bindable_let_bound.singleton var)
-          named ~body ~free_names_of_body:Unknown
+        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
         |> Expr_with_acc.create_let)
       var_within_closures_to_bind (acc, body)
   in
@@ -849,9 +818,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
       (Var_in_binding_pos.create next_depth Name_mode.normal)
   in
   let acc, body =
-    Let_with_acc.create acc bound
-      (Named.create_rec_info next_depth_expr)
-      ~body ~free_names_of_body:Unknown
+    Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
     |> Expr_with_acc.create_let
   in
   let cost_metrics = Acc.cost_metrics acc in
@@ -872,10 +839,20 @@ let close_one_function acc ~external_env ~by_closure_id decl
     else LC.inline_attribute (Function_decl.inline decl)
   in
   let params_and_body =
-    Function_params_and_body.create
-      ~return_continuation:(Function_decl.return_continuation decl)
-      exn_continuation params ~dbg ~body ~my_closure ~my_depth
-      ~free_names_of_body:Unknown
+    Function_params_and_body.create ~return_continuation exn_continuation params
+      ~dbg ~body ~my_closure ~my_depth
+      ~free_names_of_body:(Known (Acc.free_names acc))
+  in
+  let acc =
+    List.fold_left
+      (fun acc param ->
+        Acc.remove_var_from_free_names (Kinded_parameter.var param) acc)
+      acc params
+    |> Acc.remove_var_from_free_names my_closure
+    |> Acc.remove_var_from_free_names my_depth
+    |> Acc.remove_continuation_from_free_names return_continuation
+    |> Acc.remove_continuation_from_free_names
+         (Exn_continuation.exn_handler exn_continuation)
   in
   let params_arity = Kinded_parameter.List.arity_with_subkinds params in
   let is_tupled =
@@ -883,8 +860,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   in
   let code =
     Code.create code_id
-      ~params_and_body:
-        (Present (params_and_body, Acc.free_names_of_current_function acc))
+      ~params_and_body:(Present (params_and_body, Acc.free_names acc))
       ~params_arity ~result_arity:[LC.value_kind return] ~stub ~inline
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -938,7 +914,7 @@ let close_functions acc external_env function_declarations =
   let acc, funs =
     List.fold_left
       (fun (acc, by_closure_id) function_decl ->
-        let _, acc, expr =
+        let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
               close_one_function acc ~external_env ~by_closure_id function_decl
                 ~var_within_closures_from_idents ~closure_ids_from_idents
@@ -948,6 +924,7 @@ let close_functions acc external_env function_declarations =
       (acc, Closure_id.Map.empty)
       func_decl_list
   in
+  let acc = Acc.with_free_names Name_occurrences.empty acc in
   (* CR lmaurer: funs has arbitrary order (ultimately coming from
      function_declarations) *)
   let funs = Closure_id.Lmap.of_list (Closure_id.Map.bindings funs) in
@@ -1017,7 +994,7 @@ let close_let_rec acc env ~function_declarations
   let named = Named.create_set_of_closures set_of_closures in
   Let_with_acc.create acc
     (Bindable_let_bound.set_of_closures ~closure_vars)
-    named ~body ~free_names_of_body:Unknown
+    named ~body
   |> Expr_with_acc.create_let
 
 let close_program ~backend ~module_ident ~module_block_size_in_words ~program
@@ -1032,7 +1009,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
   let acc = Acc.empty in
-  let acc, load_fields_body =
+  let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
           let pos_str = string_of_int pos in
@@ -1065,7 +1042,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
       in
       Let_with_acc.create acc
         (Bindable_let_bound.symbols bound_symbols)
-        named ~body:return ~free_names_of_body:Unknown
+        named ~body:return
       |> Expr_with_acc.create_let
     in
     let block_access : P.Block_access_kind.t =
@@ -1087,20 +1064,12 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
                  Simple.const (Reg_width_const.tagged_immediate pos) ))
             Debuginfo.none
         in
-        Let_with_acc.create acc
-          (Bindable_let_bound.singleton var)
-          named ~body ~free_names_of_body:Unknown
+        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
         |> Expr_with_acc.create_let)
       (acc, body) (List.rev field_vars)
   in
-  let cost_metrics_of_handler, acc, load_fields_cont_handler =
-    Acc.measure_cost_metrics acc ~f:(fun acc ->
-        let param =
-          Kinded_parameter.create module_block_var K.With_subkind.any_value
-        in
-        Continuation_handler_with_acc.create acc [param]
-          ~handler:load_fields_body ~free_names_of_handler:Unknown
-          ~is_exn_handler:false)
+  let load_fields_handler_param =
+    [Kinded_parameter.create module_block_var K.With_subkind.any_value]
   in
   let acc, body =
     (* This binds the return continuation that is free (or, at least, not bound)
@@ -1108,9 +1077,10 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
        with fields indexed from zero to [module_block_size_in_words]. The
        handler extracts the fields; the variables bound to such fields are then
        used to define the module block symbol. *)
-    let acc, body = program acc env in
-    Let_cont_with_acc.create_non_recursive acc prog_return_cont
-      load_fields_cont_handler ~body ~cost_metrics_of_handler
+    let body acc = program acc env in
+    Let_cont_with_acc.build_non_recursive acc prog_return_cont
+      ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
+      ~is_exn_handler:false
   in
   let acc, body =
     Code_id.Map.fold
@@ -1124,7 +1094,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
         in
         Let_with_acc.create acc
           (Bindable_let_bound.symbols bound_symbols)
-          defining_expr ~body ~free_names_of_body:Unknown
+          defining_expr ~body
         |> Expr_with_acc.create_let)
       (Acc.code acc) (acc, body)
   in
@@ -1154,7 +1124,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
         in
         Let_with_acc.create acc
           (Bindable_let_bound.symbols bound_symbols)
-          defining_expr ~body ~free_names_of_body:Unknown
+          defining_expr ~body
         |> Expr_with_acc.create_let)
       (acc, body) (Acc.declared_symbols acc)
   in
