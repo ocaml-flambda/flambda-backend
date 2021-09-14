@@ -329,7 +329,6 @@ method maybe_select_fma ~negate ~sub args dbg =
 method select_fma args dbg ~sub =
   match self#maybe_select_fma ~negate:0 args dbg ~sub with
   | None when not sub ->
-    (* CR smuenzel: negate!!!! *)
     self#select_floatarith true Iaddf Ifloatadd args
   | None ->
     self#select_floatarith false Isubf Ifloatsub args
