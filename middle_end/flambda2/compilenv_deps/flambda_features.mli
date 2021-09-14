@@ -16,6 +16,8 @@
 
 val flambda2_is_enabled : unit -> bool
 
+val classic_mode : unit -> bool
+
 val join_points : unit -> bool
 
 val unbox_along_intra_function_control_flow : unit -> bool

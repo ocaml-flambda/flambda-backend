@@ -459,6 +459,7 @@ end
 
 module Flambda2 = struct
   module Default = struct
+    let classic_mode = false
     let join_points = true
     let unbox_along_intra_function_control_flow = true
     let backend_cse_at_toplevel = false
@@ -467,6 +468,7 @@ module Flambda2 = struct
     let unicode = true
   end
 
+  let classic_mode = ref Default.classic_mode
   let join_points = ref Default.join_points
   let unbox_along_intra_function_control_flow =
     ref Default.unbox_along_intra_function_control_flow
@@ -628,6 +630,7 @@ module Flambda2 = struct
   end
 
   let oclassic_flags () =
+    classic_mode := true;
     cse_depth := 2;
     join_points := false;
     unbox_along_intra_function_control_flow := true;

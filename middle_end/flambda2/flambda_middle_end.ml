@@ -89,7 +89,7 @@ let middle_end0 ppf ~prefixname ~backend ~filename ~module_ident
       in
       print_rawflambda ppf flambda;
       check_invariants flambda;
-      if Flambda_features.Expert.fallback_inlining_heuristic ()
+      if Flambda_features.classic_mode ()
       then { cmx = None; unit = flambda; all_code = code }
       else
         let flambda =
