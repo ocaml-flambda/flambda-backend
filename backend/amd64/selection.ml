@@ -471,19 +471,23 @@ method! select_operation op args dbg =
 
 method select_floatarith commutative regular_op mem_op args =
   match args with
-  | [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
-    let (addr, arg2) = self#select_addressing chunk loc2 in
-    (Ispecific(Ifloatarithmem(mem_op, addr)),
-     [arg1; arg2])
+    [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
+      let (addr, arg2) = self#select_addressing chunk loc2 in
+      (Ispecific(Ifloatarithmem(mem_op, addr)),
+                 [arg1; arg2])
   | [Cop(Cload ((Double as chunk), _), [loc1], _); arg2]
+        when commutative ->
+      let (addr, arg1) = self#select_addressing chunk loc1 in
+      (Ispecific(Ifloatarithmem(mem_op, addr)),
+                 [arg2; arg1])
     when commutative ->
     let (addr, arg1) = self#select_addressing chunk loc1 in
     (Ispecific(Ifloatarithmem(mem_op, addr)),
      [arg2; arg1])
   | [arg1; arg2] ->
-    (regular_op, [arg1; arg2])
+      (regular_op, [arg1; arg2])
   | _ ->
-    assert false
+      assert false
 
 method! mark_c_tailcall =
   contains_calls := true
