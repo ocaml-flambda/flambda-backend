@@ -30,15 +30,18 @@ module CL = Cfg_with_layout
 
 let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   let cfg = CL.cfg cfg_with_layout in
-  if
-    Label.equal cfg.entry_label block.start
-    || block.is_trap_handler
-    || List.length block.body > 0
-    || block.can_raise
-    || (match block.terminator.desc with
-        | Tailcall (Self _) -> true
-        | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-        | Switch _ | Return | Raise _ | Tailcall (Func _) | Call_no_return _ -> false)
+  if Label.equal cfg.entry_label block.start
+     || block.is_trap_handler
+     || List.length block.body > 0
+     || block.can_raise
+     ||
+     match block.terminator.desc with
+     | Tailcall (Self _) -> true
+     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+     | Int_test _ | Switch _ | Return | Raise _
+     | Tailcall (Func _)
+     | Call_no_return _ ->
+       false
   then None
   else
     let successors = C.successor_labels ~normal:true ~exn:false block in
