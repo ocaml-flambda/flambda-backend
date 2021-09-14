@@ -412,8 +412,8 @@ method is_simple_expr = function
   | Csequence(e1, e2) -> self#is_simple_expr e1 && self#is_simple_expr e2
   | Cop(op, args, _) ->
       begin match op with
-      (* inlined ops without effects and coeffects are simple
-         if their arguments are *)
+        (* Cextcall without effects and coeffects is simple
+           if its arguments are *)
       | Cextcall { effects = No_effects; coeffects = No_coeffects; } ->
         List.for_all self#is_simple_expr args
         (* The following may have side effects *)
