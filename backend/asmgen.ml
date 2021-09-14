@@ -41,6 +41,11 @@ let pass_dump_linear_if ppf flag message phrase =
   if !flag then fprintf ppf "*** %s@.%a@." message Printlinear.fundecl phrase;
   phrase
 
+let pass_dump_cfg_if ppf flag message c =
+  if !flag then
+    fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
+  c
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
@@ -178,12 +183,17 @@ let compile_fundecl ~ppf_dump fd_cmm =
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ (fun (fd : Linear.fundecl) ->
-      if !use_ocamlcfg then begin
-        let cfg = Linear_to_cfg.run fd ~preserve_orig_labels:true in
+    if !use_ocamlcfg then begin
+      fd
+      ++ Profile.record ~accumulate:true "linear_to_cfg"
+           (Linear_to_cfg.run ~preserve_orig_labels:false)
+      ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
+      ++ Profile.record ~accumulate:true "cfg_to_linear" (fun cfg ->
         let fun_body, fun_tailrec_entry_point_label = Cfg_to_linear.run cfg in
-        { fd with Linear.fun_body; fun_tailrec_entry_point_label; }
-      end else
-        fd)
+        { fd with Linear.fun_body; fun_tailrec_entry_point_label; })
+      ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
+    end else
+      fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear
