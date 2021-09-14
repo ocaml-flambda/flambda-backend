@@ -302,6 +302,25 @@ method maybe_select_fma ~negate ~sub args dbg =
     in
     Some result
   | (neg_p, (`Mul (p0, p1), _))
+  , (neg_s, (_, Cop(Cload (Double, _), [loc], _)))
+  | (neg_s, (_, Cop(Cload (Double, _), [loc], _)))
+  , (neg_p, (`Mul (p0, p1), _)) ->
+    let mode, load = self#select_addressing Double loc in
+    let result =
+      Ispecific
+        (Ifma
+           { negate_product = ((negate + neg_p) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; addr =
+               Ifma_mem
+                 { mode
+                 ; memory_operand = Ifma_addend
+                 }
+           })
+    , [load; p0; p1]
+    in
+    Some result
+  | (neg_p, (`Mul (p0, p1), _))
   , (neg_s, (_, s))
   | (neg_s, (_, s))
   , (neg_p, (`Mul (p0, p1), _)) ->
