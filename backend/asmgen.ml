@@ -123,6 +123,31 @@ let ocamlcfg_verbose =
   | Some "1" -> true
   | Some _ | None -> false
 
+let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
+  if ocamlcfg_verbose then begin
+    Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
+  end;
+  let prologue_required = res.fun_prologue_required in
+  let result =
+    Cfgize.fundecl
+      f
+      ~preserve_orig_labels:false
+      ~simplify_terminators:true
+      ~prologue_required
+      ~dbg:(if prologue_required then res.fun_body.dbg else Debuginfo.none)
+      ~fdo:(if prologue_required then res.fun_body.fdo else Fdo_info.none)
+  in
+  let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
+  Eliminate_fallthrough_blocks.run expected;
+  Merge_straightline_blocks.run expected;
+  Eliminate_dead_blocks.run expected;
+  Simplify_terminator.run (Cfg_with_layout.cfg expected);
+  Cfg_equivalence.check_cfg_with_layout f expected result;
+  if ocamlcfg_verbose then begin
+    Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
+      f.Mach.fun_name;
+  end
+
 let compile_fundecl ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -147,28 +172,8 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
       let res = Linearize.fundecl f in
       (* CR xclerc for xclerc: temporary, for testing. *)
-      if ocamlcfg_verbose then begin
-        Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
-      end;
-      let fun_prologue_required = Proc.prologue_required f in
-      let result =
-        Cfgize.fundecl
-          f
-          ~preserve_orig_labels:false
-          ~simplify_terminators:true
-          ~prologue_required:fun_prologue_required
-          ~dbg:(if fun_prologue_required then res.fun_body.dbg else Debuginfo.none)
-          ~fdo:(if fun_prologue_required then res.fun_body.fdo else Fdo_info.none)
-      in
-      let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
-      Eliminate_fallthrough_blocks.run expected;
-      Merge_straightline_blocks.run expected;
-      Eliminate_dead_blocks.run expected;
-      Simplify_terminator.run (Cfg_with_layout.cfg expected);
-      Cfg_equivalence.check_cfg_with_layout f expected result;
-      if ocamlcfg_verbose then begin
-        Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
-          f.Mach.fun_name;
+      if !Clflags.use_ocamlcfg then begin
+        test_cfgize f res;
       end;
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
