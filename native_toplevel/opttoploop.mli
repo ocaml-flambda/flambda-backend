@@ -164,8 +164,6 @@ val override_sys_argv : string array -> unit
 
 (* JIT hook *)
 
-type res = Ok of Obj.t | Err of string
-
 type evaluation_outcome = Result of Obj.t | Exception of exn
 
 module Jit : sig
