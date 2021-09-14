@@ -147,9 +147,14 @@ let pseudoregs_for_operation op arg res =
       (Ifma { addr = Ifma_register
                    | Ifma_mem { memory_operand = Ifma_factor_0 | Ifma_factor_1 }
             ; _}) ->
-    ([|res.(0); arg.(1); arg.(2)|], res)
-  | Ispecific (Ifma { addr = Ifma_mem { memory_operand = Ifma_addend; _ } ; _}) ->
-    ([|arg.(1); res.(0); arg.(2)|], res)
+    let arg' = Array.copy arg in
+    arg'.(0) <- res.(0);
+    (arg', res)
+  | Ispecific (Ifma { addr = Ifma_mem { memory_operand = Ifma_addend; mode } ; _}) ->
+    let n = num_args_addressing mode in
+    let arg' = Array.copy arg in
+    arg'.(n) <- res.(0);
+    (arg', res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound

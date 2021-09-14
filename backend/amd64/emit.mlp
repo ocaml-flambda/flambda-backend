@@ -625,16 +625,18 @@ let emit_fma
     match addr with
     | Ifma_register ->
       (* res i 0 = arg i 0 *)
-      FMADD231, arg i 1, arg i 2, res i 0
+      FMADD231, arg i 1, arg i 2, arg i 0
     | Ifma_mem { mode; memory_operand = Ifma_addend } ->
-      (* res i 0 = arg i 1 *)
-      FMADD213, (addressing mode REAL8 i 0), arg i 2, res i 0
+      (* res i 0 = first non-address argument *)
+      let n = num_args_addressing mode in
+      FMADD213, (addressing mode REAL8 i 0), arg i (n+1), arg i n
     | Ifma_mem { mode; memory_operand = Ifma_factor_0 } ->
       (* res i 0 = arg i 0 *)
-      FMADD231, (addressing mode REAL8 i 1), arg i 2, res i 0
+      let n = num_args_addressing mode in
+      FMADD231, (addressing mode REAL8 i 1), arg i (n+1), arg i 0
     | Ifma_mem { mode; memory_operand = Ifma_factor_1 } ->
       (* res i 0 = arg i 0 *)
-      FMADD231, (addressing mode REAL8 i 2), arg i 1, res i 0
+      FMADD231, (addressing mode REAL8 i 2), arg i 1, arg i 0
   in
   let instr =
     match negate_product, negate_addend with
