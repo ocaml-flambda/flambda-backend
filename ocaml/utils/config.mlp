@@ -110,6 +110,7 @@ and ast_intf_magic_number = "Caml1999N029"
 and cmxs_magic_number = "Caml1999D029"
 and cmt_magic_number = "Caml1999T029"
 and linear_magic_number = "Caml1999L029"
+and cfg_magic_number = "Caml1999G029"
 
 let interface_suffix = ref ".mli"
 
