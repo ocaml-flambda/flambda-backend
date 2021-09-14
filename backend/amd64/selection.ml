@@ -143,6 +143,13 @@ let pseudoregs_for_operation op arg res =
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
+  | Ispecific
+      (Ifma { addr = Ifma_register
+                   | Ifma_mem { memory_operand = Ifma_factor_0 | Ifma_factor_1 }
+            ; _}) ->
+    ([|res.(0); arg.(1); arg.(2)|], res)
+  | Ispecific (Ifma { addr = Ifma_mem { memory_operand = Ifma_summand; _ } ; _}) ->
+    ([|arg.(1); res.(0); arg.(2)|], res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
@@ -154,7 +161,6 @@ let pseudoregs_for_operation op arg res =
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
-  | Ispecific (Ifma _)
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
@@ -186,6 +192,14 @@ let is_immediate_natint n = n <= 0x7FFF_FFFFn && n >= -0x8000_0000n
 class selector = object (self)
 
 inherit Selectgen.selector_generic as super
+
+(*
+method! emit_expr env expr =
+  match expr with
+  | Cop (Caddf, [ Cop (Cmulf, _,_); _ ], _) ->
+    ()
+  | expr -> super#emit_expr env expr
+   *)
 
 method! is_immediate op n =
   match op with
@@ -245,6 +259,234 @@ method! select_store is_assign addr exp =
     ->
       super#select_store is_assign addr exp
 
+method maybe_select_fma ~negate ~sub args dbg =
+  let sub_adjust = if sub then 1 else 0 in
+  let unwrap_neg ~f = function
+    | Cop(Cnegf, [ arg ], _) -> 1, f arg
+    | arg -> 0, f arg
+  in
+  let split_arg = function
+      [ a; b ] -> a, b
+    | _ -> assert false
+  in
+  let classify x =
+    match x with
+    | Cop(Cmulf
+         , [ Cop(Cload (Double,_), [loc], _)
+           ; p1
+           ]
+         , _)
+    | Cop(Cmulf
+         , [ p1
+           ; Cop(Cload (Double,_), [loc], _)
+           ]
+         , _)
+      -> `Mul_load (loc, p1), x
+    | Cop(Cmulf, [p0; p1], _) -> `Mul (p0, p1), x
+    | other -> `Other, x
+  in
+  let a0, a1 = split_arg args in
+  match unwrap_neg ~f:classify a0
+      , unwrap_neg ~f:classify a1
+  with
+  | (neg_p, (`Mul_load (loc,p), _))
+  , (neg_s, (_,s))
+  | (neg_s, (_,s))
+  , (neg_p, (`Mul_load (loc,p), _))
+    ->
+    let mode, load = self#select_addressing Double loc in
+    let result =
+      Ispecific
+        (Ifma
+           { negate_product = ((negate + neg_p) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; addr =
+               Ifma_mem
+                 { mode
+                 ; memory_operand = Ifma_factor_0
+                 }
+           })
+    , [s; load; p]
+    in
+    Some result
+  | (neg_p, (`Mul (p0, p1), _))
+  , (neg_s, (_, s))
+  | (neg_s, (_, s))
+  , (neg_p, (`Mul (p0, p1), _)) ->
+    let result =
+      Ispecific
+        (Ifma
+           { negate_product = ((negate + neg_p) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; addr = Ifma_register
+           })
+    , [s; p0; p1]
+    in
+    Some result
+  | _ ->
+    None
+
+method select_fma args dbg ~sub =
+  match self#maybe_select_fma ~negate:0 args dbg ~sub with
+  | None when not sub ->
+    (* CR smuenzel: negate!!!! *)
+    self#select_floatarith true Iaddf Ifloatadd args
+  | None ->
+    self#select_floatarith false Isubf Ifloatsub args
+  | Some fma -> fma
+
+(* {[
+method select_addf args dbg =
+  let split_arg = function
+      [ a; b ] -> a, b
+    | _ -> assert false
+  in
+  let rec load_maybe_negated ~n = function
+    | Cop(Cload ((Double as chunk), _), [loc], _) ->
+      Some (chunk,loc,n)
+    | Cop(Cnegf, [ arg ], _) ->
+      load_maybe_negated ~n:(n + 1) arg
+    | _ -> None
+  in
+  let rec mul_maybe_negated ~n = function
+    | Cop (Cmulf, parg, _) ->
+      Some (parg, n)
+    | Cop(Cnegf, [ arg ], _) ->
+      mul_maybe_negated ~n:(n + 1) arg
+    | _ -> None
+  in
+  let maybe_with_load ~parg ~n ~sarg =
+    let parg0, parg1 = split_arg parg in
+    match
+      load_maybe_negated sarg ~n:0
+    , load_maybe_negated parg0 ~n
+    , load_maybe_negated parg1 ~n
+    , parg0
+    , parg1
+    with
+    | None, None, None, _, _ ->
+      Ispecific
+        (Ifma
+           { negate_product = (n mod 2 = 1)
+           ; negate_addend = false
+           ; addr = Ifma_register 
+           })
+    , [ sarg; parg0; parg1 ]
+    | Some (chunk, loc, n_sarg), _, _, parg_a, parg_b ->
+      let (mode, sarg) = self#select_addressing chunk loc in
+      Ispecific
+        (Ifma
+           { negate_product = (n mod 2 = 1)
+           ; negate_addend = (n_sarg mod 2 = 1)
+           ; addr = Ifma_mem { mode; memory_operand = Ifma_factor_0 }
+           })
+    , [ sarg; parg_a; parg_b ]
+    | None, Some (chunk, loc, n), _, _, parg_b
+    | None, _, Some (chunk, loc, n), parg_b, _ ->
+      let (mode, parg_a) = self#select_addressing chunk loc in
+      Ispecific
+        (Ifma
+           { negate_product = (n mod 2 = 1)
+           ; negate_addend = false
+           ; addr = Ifma_mem { mode; memory_operand = Ifma_factor_0 }
+           })
+    , [ sarg; parg_a; parg_b ]
+  in
+  let arg0, arg1 = split_arg args in
+  match
+    mul_maybe_negated arg0 ~n:0
+  , mul_maybe_negated arg1 ~n:0
+  , arg0
+  , arg1
+  with
+  | None, None, _, _ ->
+    self#select_floatarith true Iaddf Ifloatadd args
+  | Some (parg, n), None, _, sarg
+  | None, Some (parg, n), sarg, _ ->
+    maybe_with_load ~parg ~n ~sarg
+  | Some (parg_l, n_l)
+  , Some (parg_r, n_r)
+  , _, _
+    ->
+    let n = n_l + n_r in
+    let parg_l0, parg_l1 = split_arg parg_l in
+    let load_on_left =
+      match load_maybe_negated parg_l0 ~n
+          , load_maybe_negated parg_l1 ~n
+      with
+      | None, None -> false
+      | _ -> true
+    in
+    if load_on_left
+    then maybe_with_load ~parg:parg_l ~n ~sarg:(Cop(Cmulf, parg_r, Debuginfo.none))
+    else maybe_with_load ~parg:parg_r ~n ~sarg:(Cop(Cmulf, parg_l, Debuginfo.none))
+]} *)
+
+
+
+  (* {[
+       match args with
+       | [ Cop (Cmulf, parg, _)
+         ; Cop(Cload ((Double as chunk), _), [sarg_loc], _)
+         ] 
+       | [ Cop(Cload ((Double as chunk), _), [sarg_loc], _)
+         ; Cop (Cmulf, parg, _)
+         ] ->
+         let (mode, sarg) = self#select_addressing chunk sarg_loc in
+         Ispecific
+           (Ifma
+              { negate_product = false
+              ; negate_addend = false
+              ; addr = Ifma_mem { mode; memory_operand = Ifma_summand }
+              })
+       , sarg :: parg
+       | [ Cop (Cmulf, ([ Cop(Cload ((Double as chunk),_), [parg0_loc], _)
+                        ; parg1
+                        ]
+                       |[ parg1
+                        ; Cop(Cload ((Double as chunk),_), [parg0_loc], _)
+                        ]
+                       ), _)
+         ; sarg
+         ]
+       | [ sarg
+         ; Cop (Cmulf, ([ Cop(Cload ((Double as chunk),_), [parg0_loc], _)
+                        ; parg1
+                        ]
+                       |[ parg1
+                        ; Cop(Cload ((Double as chunk),_), [parg0_loc], _)
+                        ]
+                       ), _)]
+         ->
+         let (mode, parg0) = self#select_addressing chunk parg0_loc in
+         Ispecific
+           (Ifma
+              { negate_product = false
+              ; negate_addend = false
+              ; addr = Ifma_mem { mode; memory_operand = Ifma_factor_0 }
+              })
+       , [ sarg; parg0; parg1 ]
+       | [ Cop (Cmulf, parg, _); sarg ]
+       | [ sarg; Cop (Cmulf, parg, _) ] ->
+         Ispecific
+           (Ifma
+              { negate_product = false
+              ; negate_addend = false
+              ; addr = Ifma_register 
+              })
+       , sarg :: parg
+       | [ Cop (Cnegf, [ Cop (Cmulf, parg, _) ], _); sarg ] ->
+         Ispecific
+           (Ifma
+              { negate_product = true
+              ; negate_addend = false
+              ; addr = Ifma_register 
+              })
+       , sarg :: parg
+       | _ ->
+         self#select_floatarith true Iaddf Ifloatadd args
+     ]} *)
+
 method! select_operation op args dbg =
   match op with
   (* Recognize the LEA instruction *)
@@ -257,13 +499,27 @@ method! select_operation op args dbg =
       end
   (* Recognize float arithmetic with memory. *)
   | Caddf ->
-      self#select_floatarith true Iaddf Ifloatadd args
+      self#select_fma ~sub:false args dbg
   | Csubf ->
-      self#select_floatarith false Isubf Ifloatsub args
+      self#select_fma ~sub:true args dbg
   | Cmulf ->
       self#select_floatarith true Imulf Ifloatmul args
   | Cdivf ->
       self#select_floatarith false Idivf Ifloatdiv args
+  | Cnegf ->
+    let from_fma =
+      match args with
+      | [ Cop(Caddf, args, dbg) ] ->
+        self#maybe_select_fma args dbg ~sub:false ~negate:1
+      | [ Cop(Csubf, args, dbg) ] ->
+        self#maybe_select_fma args dbg ~sub:true ~negate:1
+      | _ -> None
+    in
+    begin match from_fma with
+      | Some fma -> fma
+      | None ->
+        super#select_operation op args dbg
+    end
   | Cextcall { func = "sqrt"; alloc = false; } ->
      begin match args with
        [Cop(Cload ((Double as chunk), _), [loc], _dbg)] ->
@@ -352,19 +608,19 @@ method! select_operation op args dbg =
 
 method select_floatarith commutative regular_op mem_op args =
   match args with
-    [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
-      let (addr, arg2) = self#select_addressing chunk loc2 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
-                 [arg1; arg2])
+  | [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
+    let (addr, arg2) = self#select_addressing chunk loc2 in
+    (Ispecific(Ifloatarithmem(mem_op, addr)),
+     [arg1; arg2])
   | [Cop(Cload ((Double as chunk), _), [loc1], _); arg2]
-        when commutative ->
-      let (addr, arg1) = self#select_addressing chunk loc1 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
-                 [arg2; arg1])
+    when commutative ->
+    let (addr, arg1) = self#select_addressing chunk loc1 in
+    (Ispecific(Ifloatarithmem(mem_op, addr)),
+     [arg2; arg1])
   | [arg1; arg2] ->
-      (regular_op, [arg1; arg2])
+    (regular_op, [arg1; arg2])
   | _ ->
-      assert false
+    assert false
 
 method! mark_c_tailcall =
   contains_calls := true
