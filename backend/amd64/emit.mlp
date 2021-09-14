@@ -642,8 +642,8 @@ let emit_fma
     match negate_product, negate_addend with
     | false, false -> I.vfmaddsd
     | false, true -> I.vfmsubsd
-    | true, false -> I.vfnmsubsd
-    | true, true -> I.vfnmaddsd
+    | true, false -> I.vfnmaddsd
+    | true, true -> I.vfnmsubsd
   in
   instr variant a0 a1 a2
 
