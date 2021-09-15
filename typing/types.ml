@@ -43,7 +43,18 @@ and type_desc =
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode
 
-and alloc_mode = Alloc_heap | Alloc_local
+and alloc_mode_const = Heap | Local
+
+and alloc_mode_var = {
+  mutable upper: alloc_mode_const;
+  mutable lower: alloc_mode_const;
+  mutable vlower: alloc_mode_var list;
+  mvid: int;
+}
+
+and alloc_mode =
+  | Amode of alloc_mode_const
+  | Amodevar of alloc_mode_var
 
 and row_desc =
     { row_fields: (label * row_field) list;
@@ -483,19 +494,152 @@ let signature_item_id = function
     -> id
 
 module Alloc_mode = struct
-  type t = alloc_mode = Alloc_heap | Alloc_local
+  type nonrec alloc_mode_const = alloc_mode_const = Heap | Local
+  type t = alloc_mode =
+    | Amode of alloc_mode_const
+    | Amodevar of alloc_mode_var
 
-  let min_mode = Alloc_heap
-  let is_min = function Alloc_heap -> true | _ -> false
+  let local = Amode Local
+  let heap = Amode Heap
+  let of_const = function
+    | Heap -> heap
+    | Local -> local
 
-  let max_mode = Alloc_local
-  let is_max = function Alloc_local -> true | _ -> false
+  let min_mode = heap
+
+  let max_mode = local
+
+  let le a b =
+    match a, b with
+    | Heap, _ | _, Local -> true
+    | Local, Heap -> false
+
+  let join a b =
+    match a, b with
+    | Local, _ | _, Local -> Local
+    | Heap, Heap -> Heap
+
+  let meet a b =
+    match a, b with
+    | Heap, _ | _, Heap -> Heap
+    | Local, Local -> Local
+
+  exception NotSubmode
+(*
+  let pp_c ppf = function
+    | Heap -> Printf.fprintf ppf "0"
+    | Local -> Printf.fprintf ppf "1"
+  let pp_v ppf v =
+    let i = v.mvid in
+    (if i < 26 then Printf.fprintf ppf "%c" (Char.chr (Char.code 'a' + i))
+    else Printf.fprintf ppf "v%d" i);
+    Printf.fprintf ppf "[%a%a]" pp_c v.lower pp_c v.upper
+*)
+  let submode_cv m v =
+    (* Printf.printf "  %a <= %a\n" pp_c m pp_v v; *)
+    if le m v.lower then ()
+    else if not (le m v.upper) then raise NotSubmode
+    else begin
+      let m = join v.lower m in
+      v.lower <- m;
+      if m = v.upper then v.vlower <- []
+    end
+
+  let rec submode_vc v m =
+    (* Printf.printf "  %a <= %a\n" pp_v v pp_c m; *)
+    if le v.upper m then ()
+    else if not (le v.lower m) then raise NotSubmode
+    else begin
+      let m = meet v.upper m in
+      v.upper <- m;
+      v.vlower |> List.iter (fun a ->
+        (* a <= v <= m *)
+        submode_vc a m;
+        v.lower <- join v.lower a.lower;
+      );
+      if v.lower = m then v.vlower <- []
+    end
+
+  let submode_vv a b =
+    (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
+    if le a.upper b.lower then ()
+    else if List.memq a b.vlower then ()
+    else begin
+      submode_vc a b.upper;
+      b.vlower <- a :: b.vlower;
+      submode_cv a.lower b;
+    end
 
   let submode a b =
-    match a, b with
-    | Alloc_heap, _ | _, Alloc_local -> Ok ()
-    | Alloc_local, Alloc_heap -> Error ()
+    match
+      match a, b with
+      | Amode a, Amode b ->
+         if not (le a b) then raise NotSubmode
+      | Amodevar v, Amode c ->
+         (* Printf.printf "%a <= %a\n" pp_v v pp_c c; *)
+         submode_vc v c
+      | Amode c, Amodevar v ->
+         (* Printf.printf "%a <= %a\n" pp_c c pp_v v; *)
+         submode_cv c v
+      | Amodevar a, Amodevar b ->
+         (* Printf.printf "%a <= %a\n" pp_v a pp_v b; *)
+         submode_vv a b
+    with
+    | () -> Ok ()
+    | exception NotSubmode -> Error ()
+
+  let next_id = ref (-1)
+  let fresh () =
+    incr next_id;
+    { upper = Local; lower = Heap; vlower = []; mvid = !next_id }
+
+  let joinvars vars =
+    let v = fresh () in
+    vars |> List.iter (fun v' -> submode_vv v' v);
+    v
 
   let join ms =
-    if List.mem Alloc_local ms then Alloc_local else Alloc_heap
+    let rec aux vars = function
+      | [] ->
+         if vars = [] then heap
+         else Amodevar (joinvars vars)
+      | Amode Heap :: ms -> aux vars ms
+      | Amode Local :: _ -> local
+      | Amodevar v :: ms -> aux (v :: vars) ms
+    in aux [] ms
+
+  let constrain_upper = function
+    | Amode m -> m
+    | Amodevar v ->
+       submode_cv v.upper v;
+       v.upper
+
+  let constrain_lower = function
+    | Amode m -> m
+    | Amodevar v when v.lower = v.upper -> v.lower
+    | Amodevar v ->
+       (* Ensure that each transitive lower bound of v
+          is a direct lower bound of v *)
+       let rec trans v' =
+         if le v'.upper v.lower then ()
+         else if List.memq v' v.vlower then ()
+         else begin
+           v.vlower <- v' :: v.vlower;
+           trans_low v'
+         end
+       and trans_low v' =
+         submode_cv v'.lower v;
+         List.iter trans v'.vlower
+       in
+       List.iter trans_low v.vlower;
+       submode_vc v v.lower;
+       v.lower
+
+  let newvar () = Amodevar (fresh ())
+
+  let check_const = function
+    | Amode m -> Some m
+    | Amodevar v when v.lower = v.upper ->
+       Some v.lower
+    | Amodevar _ -> None
 end

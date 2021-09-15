@@ -201,7 +201,7 @@ and transl_type_aux env policy styp =
     let has_attr a st =
       List.exists (fun at -> at.attr_name.txt = a) st.ptyp_attributes in
     let arg_mode =
-      if has_attr "stack" st1 then Alloc_local else Alloc_heap in
+      if has_attr "stack" st1 then Alloc_mode.local else Alloc_mode.heap in
     (* propagate [@stack] (ugly, should be done in parser) *)
     let rec propagate_stack r =
       match r.ptyp_desc with
@@ -215,9 +215,9 @@ and transl_type_aux env policy styp =
       | _ -> r
     in
     let st2 =
-      if arg_mode = Alloc_local then propagate_stack st2 else st2 in
+      if arg_mode = Alloc_mode.local then propagate_stack st2 else st2 in
     let ret_mode =
-      if has_attr "stackret" st2 then Alloc_local else Alloc_heap in
+      if has_attr "stackret" st2 then Alloc_mode.local else Alloc_mode.heap in
     let cty1 = transl_type env policy st1 in
     let cty2 = transl_type env policy st2 in
     let ty1 = cty1.ctyp_type in

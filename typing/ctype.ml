@@ -3204,9 +3204,8 @@ let filter_arrow env t l =
     Tvar _ ->
       let lv = t.level in
       let t1 = newvar2 lv and t2 = newvar2 lv in
-      (* FIXME mode variables *)
-      let marg = Alloc_heap in
-      let mret = Alloc_heap in
+      let marg = Types.Alloc_mode.newvar () in
+      let mret = Types.Alloc_mode.newvar () in
       let t' = newty2 lv (Tarrow ((l,marg,mret), t1, t2, Cok)) in
       link_type t t';
       (marg, t1, mret, t2)
@@ -3724,11 +3723,8 @@ and eqtype_row rename type_pairs subst env row1 row2 =
     pairs
 
 and eqtype_alloc_mode m1 m2 =
-  match m1, m2 with
-  | Alloc_heap, Alloc_heap | Alloc_local, Alloc_local ->
-     ()
-  | Alloc_heap, Alloc_local | Alloc_local, Alloc_heap ->
-     raise (Unify [])
+  (* FIXME implement properly *)
+  unify_alloc_mode m1 m2
 
 (* Must empty univar_pairs first *)
 let eqtype_list rename type_pairs subst env tl1 tl2 =
@@ -4536,6 +4532,22 @@ let cyclic_abbrev env id ty =
     | _ ->
         false
   in check_cycle [] ty
+
+(* Ensure all mode variables are fully determined *)
+let remove_mode_variables ty =
+  let visited = ref TypeSet.empty in
+  let rec go ty =
+    let ty = repr ty in
+    if TypeSet.mem ty !visited then () else begin
+      visited := TypeSet.add ty !visited;
+      match ty.desc with
+      | Tarrow ((_,marg,mret),targ,tret,_) ->
+         let _ = Types.Alloc_mode.constrain_lower marg in
+         let _ = Types.Alloc_mode.constrain_lower mret in
+         go targ; go tret
+      | _ -> iter_type_expr go ty
+    end
+  in go ty
 
 (* Check for non-generalizable type variables *)
 exception Non_closed0

@@ -84,10 +84,10 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-let transl_alloc_mode : Types.alloc_mode -> Lambda.alloc_mode =
-  function
-  | Alloc_heap -> Alloc_heap
-  | Alloc_local -> Alloc_local
+let transl_alloc_mode (m : Types.alloc_mode) : Lambda.alloc_mode =
+  match Types.Alloc_mode.constrain_upper m with
+  | Heap -> Alloc_heap
+  | Local -> Alloc_local
 
 (* Push the default values under the functional abstractions *)
 (* Also push bindings of module patterns, since this sound *)

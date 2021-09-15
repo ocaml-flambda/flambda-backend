@@ -1578,7 +1578,7 @@ let rec components_of_module_maker
             in
             let vda = { vda_description = decl';
                         vda_address = addr;
-                        vda_mode = Alloc_heap } in
+                        vda_mode = Alloc_mode.heap } in
             c.comp_values <- NameMap.add (Ident.name id) vda c.comp_values;
         | Sig_type(id, decl, _, _) ->
             let fresh_decl =
@@ -1912,7 +1912,7 @@ let add_functor_arg id env =
    functor_args = Ident.add id () env.functor_args;
    summary = Env_functor_arg (env.summary, id)}
 
-let add_value ?check ?(mode = Alloc_heap) id desc env =
+let add_value ?check ?(mode = Alloc_mode.heap) id desc env =
   let addr = value_declaration_address env id desc in
   store_value ?check mode id addr desc env
 
@@ -1959,7 +1959,7 @@ let add_local_type path info env =
 let enter_value ?check name desc env =
   let id = Ident.create_local name in
   let addr = value_declaration_address env id desc in
-  let env = store_value ?check Alloc_heap id addr desc env in
+  let env = store_value ?check Alloc_mode.heap id addr desc env in
   (id, env)
 
 let enter_type ~scope name info env =
@@ -2826,7 +2826,7 @@ let lookup_instance_variable ?(use=true) ~loc name env =
   match IdTbl.find_name_and_modes wrap_value ~mark:use name env.values with
   | (path, locks, Val_bound vda) -> begin
       constrain_modes ~errors:true ~loc env (Lident name)
-        vda.vda_mode locks Alloc_heap;
+        vda.vda_mode locks Alloc_mode.heap;
       let desc = vda.vda_description in
       match desc.val_kind with
       | Val_ivar(mut, cl_num) ->

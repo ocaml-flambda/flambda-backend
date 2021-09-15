@@ -198,6 +198,9 @@ let mk_expected ?explanation ty = { ty; explanation; }
 let case lhs rhs =
   {c_lhs = lhs; c_guard = None; c_rhs = rhs}
 
+let alloc_heap = Alloc_mode.heap (* FIXME ? *)
+let alloc_local = Alloc_mode.local
+
 (* Typing of constants *)
 
 let type_constant = function
@@ -1894,7 +1897,7 @@ let partial_pred ~lev ~splitting_mode ?(explode=0)
   try
     reset_pattern true;
     let typed_p =
-      type_pat Value ~lev ~mode ~alloc_mode:Alloc_heap env p expected_ty in
+      type_pat Value ~lev ~mode ~alloc_mode:alloc_heap env p expected_ty in
     set_state state env;
     (* types are invalidated but we don't need them here *)
     Some typed_p
@@ -1935,8 +1938,16 @@ let add_pattern_variables ?check ?check_as env pv =
     )
     pv env
 
+let has_stack_annot attrs =
+  List.exists (fun a -> a.attr_name.txt = "stack") attrs
+
 let type_pattern category ~lev ~alloc_mode env spat expected_ty =
   reset_pattern true;
+  if has_stack_annot spat.ppat_attributes then
+    begin match Alloc_mode.submode alloc_local alloc_mode with
+    | Ok () -> ()
+    | Error () -> raise (Error (spat.ppat_loc, env, Local_value_escapes))
+    end;
   let new_env = ref env in
   let pat = type_pat category ~lev ~alloc_mode new_env spat expected_ty in
   let pvs = get_ref pattern_variables in
@@ -1949,15 +1960,14 @@ let type_pattern_list
   reset_pattern allow;
   let new_env = ref env in
   let type_pat (attrs, pat) ty =
-    let mode : Alloc_mode.t =
-      if List.exists (fun a -> a.attr_name.txt = "stack") attrs
-      then Alloc_local
-      else Alloc_heap in
-    if no_existentials = At_toplevel then begin
-      match Types.Alloc_mode.submode mode Alloc_heap with
-      | Ok () -> ()
-      | Error _ -> raise (Error(pat.ppat_loc, env, Local_value_escapes))
-    end;
+    let stack_annot = has_stack_annot attrs in
+    let mode =
+      match stack_annot, no_existentials with
+      | true, At_toplevel ->
+         raise (Error(pat.ppat_loc, env, Local_value_escapes))
+      | true, _ -> alloc_local
+      | false, At_toplevel -> alloc_heap
+      | false, _ -> Alloc_mode.newvar () in
     Builtin_attributes.warning_scope ~ppwarning:false attrs
       (fun () ->
          mode,
@@ -1978,7 +1988,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   reset_pattern false;
   let nv = newvar () in
   let pat =
-    type_pat Value ~no_existentials:In_class_args ~alloc_mode:Alloc_heap 
+    type_pat Value ~no_existentials:In_class_args ~alloc_mode:alloc_heap 
       (ref val_env) spat nv in
   if has_variants pat then begin
     Parmatch.pressure_variants val_env [pat];
@@ -2029,7 +2039,7 @@ let type_self_pattern cl_num privty val_env met_env par_env spat =
   reset_pattern false;
   let nv = newvar() in
   let pat =
-    type_pat Value ~no_existentials:In_self_pattern ~alloc_mode:Alloc_heap
+    type_pat Value ~no_existentials:In_self_pattern ~alloc_mode:alloc_heap
       (ref val_env) spat nv in
   List.iter (fun f -> f()) (get_ref pattern_force);
   let meths = ref Meths.empty in
@@ -2249,13 +2259,13 @@ let is_prim ~name funct =
   | _ -> false
 (* Approximate the type of an expression, for better recursion *)
 
-(* FIXME: these need better modes, to allow moded recursive functions *)
 let rec approx_type env sty =
   match sty.ptyp_desc with
     Ptyp_arrow (p, _, sty) ->
       let ty1 = if is_optional p then type_option (newvar ()) else newvar () in
       let ret = approx_type env sty in
-      newty (Tarrow ((p,Alloc_heap,Alloc_heap), ty1, ret, Cok))
+      let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
+      newty (Tarrow ((p,marg,mret), ty1, ret, Cok))
   | Ptyp_tuple args ->
       newty (Ttuple (List.map (approx_type env) args))
   | Ptyp_constr (lid, ctl) ->
@@ -2269,17 +2279,18 @@ let rec approx_type env sty =
       approx_type env sty
   | _ -> newvar ()
 
-(* FIXME: these need better modes, to allow moded recursive functions *)
 let rec type_approx env sexp =
   match sexp.pexp_desc with
     Pexp_let (_, _, e) -> type_approx env e
   | Pexp_fun (p, _, _, e) ->
       let ty = if is_optional p then type_option (newvar ()) else newvar () in
       let ret = type_approx env e in
-      newty (Tarrow((p,Alloc_heap,Alloc_heap), ty, ret, Cok))
+      let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
+      newty (Tarrow((p,marg,mret), ty, ret, Cok))
   | Pexp_function ({pc_rhs=e}::_) ->
       let ret = type_approx env e in
-      newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap), newvar (), ret, Cok))
+      let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
+      newty (Tarrow((Nolabel,marg,mret), newvar (), ret, Cok))
   | Pexp_match (_, {pc_rhs=e}::_) -> type_approx env e
   | Pexp_try (e, _) -> type_approx env e
   | Pexp_tuple l -> newty (Ttuple(List.map (type_approx env) l))
@@ -2758,7 +2769,7 @@ and type_expect_
       assert (sargs <> []);
       begin_def (); (* one more level for non-returning functions *)
       if !Clflags.principal then begin_def ();
-      let funct = type_exp env Alloc_heap sfunct in (* FIXME mode = Alloc_local *)
+      let funct = type_exp env (Alloc_mode.newvar ()) sfunct in
       if !Clflags.principal then begin
           end_def ();
           generalize_structure funct.exp_type
@@ -2792,14 +2803,14 @@ and type_expect_
             check_partial_application false exp)
       end
   | Pexp_match(sarg, caselist) ->
+      let argmode = Alloc_mode.newvar () in
       begin_def ();
-      let arg = type_exp env mode sarg in
+      let arg = type_exp env argmode sarg in
       end_def ();
       if maybe_expansive arg then lower_contravariant env arg.exp_type;
       generalize arg.exp_type;
       let cases, partial =
-        (* FIXME: allow matching on Alloc_local values *)
-        type_cases Computation env Alloc_heap mode
+        type_cases Computation env argmode mode
           arg.exp_type ty_expected_explained true loc caselist in
       re {
         exp_desc = Texp_match(arg, cases, partial);
@@ -2810,7 +2821,7 @@ and type_expect_
   | Pexp_try(sbody, caselist) ->
       let body = type_expect env mode sbody ty_expected_explained in
       let cases, _ =
-        type_cases Value env Alloc_heap mode
+        type_cases Value env alloc_heap mode
           Predef.type_exn ty_expected_explained false loc caselist in
       re {
         exp_desc = Texp_try(body, cases);
@@ -3015,7 +3026,11 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_field(srecord, lid) ->
-      let (record, label, _) = type_label_access env mode srecord lid in
+      let (record, rmode, label, _) = type_label_access env srecord lid in
+      begin match Alloc_mode.submode rmode mode with
+      | Ok () -> ()
+      | Error () -> raise (Error(loc, env, Local_value_escapes))
+      end;
       let (_, ty_arg, ty_res) = instance_label false label in
       unify_exp env record ty_res;
       rue {
@@ -3025,13 +3040,12 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
-      (* FIXME mutable label modes *)
-      let (record, label, expected_type) =
-        type_label_access env Alloc_local srecord lid in
+      let (record, _rmode, label, expected_type) =
+        type_label_access env srecord lid in
       let ty_record =
         if expected_type = None then newvar () else record.exp_type in
       let (label_loc, label, newval) =
-        type_label_exp false env Alloc_heap loc ty_record (lid, label, snewval) in
+        type_label_exp false env alloc_heap loc ty_record (lid, label, snewval) in
       unify_exp env record ty_record;
       if label.lbl_mut = Immutable then
         raise(Error(loc, env, Label_not_mutable lid.txt));
@@ -3056,7 +3070,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_ifthenelse(scond, sifso, sifnot) ->
-      let cond = type_expect env Alloc_local scond
+      let cond = type_expect env alloc_local scond
           (mk_expected ~explanation:If_conditional Predef.type_bool) in
       begin match sifnot with
         None ->
@@ -3091,7 +3105,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_while(scond, sbody) ->
-      let cond = type_expect env Alloc_local scond
+      let cond = type_expect env alloc_local scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool) in
       let body = type_statement ~explanation:While_loop_body env sbody in
       rue {
@@ -3101,9 +3115,9 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_for(param, slow, shigh, dir, sbody) ->
-      let low = type_expect env Alloc_local slow
+      let low = type_expect env alloc_local slow
           (mk_expected ~explanation:For_loop_start_index Predef.type_int) in
-      let high = type_expect env Alloc_local shigh
+      let high = type_expect env alloc_local shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
       let id, new_env =
         match param.ppat_desc with
@@ -3225,7 +3239,7 @@ and type_expect_
       }
   | Pexp_send (e, {txt=met}) ->
       if !Clflags.principal then begin_def ();
-      let obj = type_exp env Alloc_heap e in
+      let obj = type_exp env alloc_heap e in
       let obj_meths = ref None in
       begin try
         let (meth, exp, typ) =
@@ -3277,20 +3291,20 @@ and type_expect_
                                 Texp_ident(Path.Pident method_id,
                                            lid, method_desc);
                                 exp_loc = loc; exp_extra = [];
-                                exp_type = method_type; exp_mode = Alloc_heap; (*FIXME*)
+                                exp_type = method_type; exp_mode = alloc_heap; (*FIXME*)
                                 exp_attributes = []; (* check *)
                                 exp_env = exp_env},
                           [ Nolabel,
                             Some {exp_desc = Texp_ident(path, lid, desc);
                                   exp_loc = obj.exp_loc; exp_extra = [];
-                                  exp_type = desc.val_type; exp_mode = Alloc_heap; (*FIXME*)
+                                  exp_type = desc.val_type; exp_mode = alloc_heap; (*FIXME*)
                                   exp_attributes = []; (* check *)
                                   exp_env = exp_env}
                           ])
                   in
                   (Tmeth_name met, Some (re {exp_desc = exp;
                                              exp_loc = loc; exp_extra = [];
-                                             exp_type = typ; exp_mode = Alloc_heap; (*FIXME*)
+                                             exp_type = typ; exp_mode = alloc_heap; (*FIXME*)
                                              exp_attributes = []; (* check *)
                                              exp_env = exp_env}), typ)
               |  _ ->
@@ -3325,7 +3339,7 @@ and type_expect_
         rue {
           exp_desc = Texp_send(obj, meth, exp);
           exp_loc = loc; exp_extra = [];
-          exp_type = typ; exp_mode = Alloc_heap; (*FIXME*)
+          exp_type = typ; exp_mode = alloc_heap; (*FIXME*)
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       with Unify _ ->
@@ -3354,7 +3368,7 @@ and type_expect_
             rue {
               exp_desc = Texp_new (cl_path, cl, cl_decl);
               exp_loc = loc; exp_extra = [];
-              exp_type = instance ty; exp_mode = Alloc_heap; (*FIXME*)
+              exp_type = instance ty; exp_mode = alloc_heap; (*FIXME*)
               exp_attributes = sexp.pexp_attributes;
               exp_env = env }
         end
@@ -3365,7 +3379,7 @@ and type_expect_
       match mut with
       | Mutable ->
           let newval =
-            type_expect env Alloc_heap snewval (mk_expected (instance ty))
+            type_expect env alloc_heap snewval (mk_expected (instance ty))
           in
           let (path_self, _) =
             Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
@@ -3373,7 +3387,7 @@ and type_expect_
           rue {
             exp_desc = Texp_setinstvar(path_self, path, lab, newval);
             exp_loc = loc; exp_extra = [];
-            exp_type = instance Predef.type_unit; exp_mode = Alloc_heap; (*FIXME*)
+            exp_type = instance Predef.type_unit; exp_mode = alloc_heap; (*FIXME*)
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
       | _ ->
@@ -3470,7 +3484,7 @@ and type_expect_
         exp_env = env }
 
   | Pexp_assert (e) ->
-      let cond = type_expect env Alloc_local e
+      let cond = type_expect env alloc_local e
           (mk_expected ~explanation:Assert_condition Predef.type_bool) in
       let exp_type =
         match cond.exp_desc with
@@ -3504,7 +3518,7 @@ and type_expect_
       rue {
         exp_desc = Texp_object (desc, (*sign,*) meths);
         exp_loc = loc; exp_extra = [];
-        exp_type = sign.csig_self; exp_mode = Alloc_heap; (*FIXME*)
+        exp_type = sign.csig_self; exp_mode = mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env;
       }
@@ -3661,13 +3675,13 @@ and type_expect_
       let op_type = instance op_desc.val_type in
       let spat_params, ty_params = loop slet.pbop_pat (newvar ()) sands in
       let ty_func_result = newvar () in
-      let ty_func = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+      let ty_func = newty (Tarrow((Nolabel,alloc_heap,alloc_heap),
                                   ty_params, ty_func_result, Cok)) in
       let ty_result = newvar () in
       let ty_andops = newvar () in
       let ty_op =
-        newty (Tarrow((Nolabel, Alloc_heap, Alloc_heap), ty_andops,
-          newty (Tarrow((Nolabel, Alloc_heap, Alloc_heap),
+        newty (Tarrow((Nolabel, alloc_heap, alloc_heap), ty_andops,
+          newty (Tarrow((Nolabel, alloc_heap, alloc_heap),
                         ty_func, ty_result, Cok)), Cok))
       in
       begin try
@@ -3767,7 +3781,7 @@ and type_ident env mode ?(recarg=Rejected) lid =
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, desc = type_ident env Alloc_heap lid in
+  let path, desc = type_ident env alloc_heap lid in
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
@@ -3819,7 +3833,7 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
     | Ok () -> ()
     | Error _ -> raise (Error(loc, env, Local_return_value_escapes))
   end else begin
-    match Types.Alloc_mode.submode ret_mode Alloc_heap with
+    match Types.Alloc_mode.submode ret_mode alloc_heap with
     | Ok () -> ()
     | Error _ -> raise (Error(loc, env, Local_return_value_escapes))
   end;
@@ -3862,10 +3876,10 @@ and type_function ?in_function loc attrs env mode ty_expected_explained l caseli
     exp_env = env }
 
 
-and type_label_access env mode srecord lid =
-  (* FIXME mode & mutability *)
+and type_label_access env srecord lid =
   if !Clflags.principal then begin_def ();
-  let record = type_exp ~recarg:Allowed env mode srecord in
+  let lmode = Alloc_mode.newvar () in
+  let record = type_exp ~recarg:Allowed env lmode srecord in
   if !Clflags.principal then begin
     end_def ();
     generalize_structure record.exp_type
@@ -3881,7 +3895,11 @@ and type_label_access env mode srecord lid =
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (Label.disambiguate () lid env expected_type) labels in
-  (record, label, expected_type)
+  let mode =
+    match label.lbl_mut with
+    | Mutable -> alloc_heap
+    | Immutable -> lmode in
+  (record, mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.
@@ -4165,7 +4183,7 @@ and type_label_exp create env mode loc ty_expected
     let arg_mode =
       match label.lbl_mut with
       | Immutable -> mode
-      | Mutable -> Alloc_heap in
+      | Mutable -> alloc_heap in
     let arg = type_argument env arg_mode sarg ty_arg (instance ty_arg) in
     end_def ();
     try
@@ -4350,10 +4368,10 @@ and type_application env app_loc (mode : Alloc_mode.t) funct sargs =
           then
             Location.prerr_warning sarg.pexp_loc
               Warnings.Ignored_extra_argument;
-          (* FIXME: not principal, should introduce mode variables *)
-          let kind = (lbl, Alloc_heap, Alloc_heap) in
+          let marg = Alloc_mode.newvar () and mret = Alloc_mode.newvar () in
+          let kind = (lbl, marg, mret) in
           unify env ty_fun (newty (Tarrow(kind,t1,t2,Clink(ref Cunknown))));
-          (Alloc_heap, t1, Alloc_heap, t2)
+          (marg, t1, mret, t2)
       | Tarrow ((l,marg,mret),t1,t2,_) when l = lbl
         || !Clflags.classic && lbl = Nolabel && not (is_optional l) ->
           (marg, t1, mret, t2)
@@ -4615,7 +4633,7 @@ and type_construct env mode loc lid sarg ty_expected_explained attrs =
 
 and type_statement ?explanation env sexp =
   begin_def();
-  let exp = type_exp env Alloc_local sexp in
+  let exp = type_exp env alloc_local sexp in
   end_def();
   let ty = expand_head env exp.exp_type and tv = newvar() in
   if is_Tvar ty && ty.level > tv.level then
@@ -4683,7 +4701,7 @@ and type_unpacks ?in_function env mode unpacks sbody expected_ty =
       exp_loc;
       exp_attributes;
       exp_extra = [];
-      exp_type = ty; exp_mode = Alloc_heap; (*FIXME*)
+      exp_type = ty; exp_mode = alloc_heap; (*FIXME*)
       exp_env = env }
   ) body tunpacks
 
@@ -4832,7 +4850,7 @@ and type_cases
           | None -> None
           | Some scond ->
               Some
-                (type_unpacks ext_env Alloc_local unpacks scond
+                (type_unpacks ext_env alloc_local unpacks scond
                    (mk_expected ~explanation:When_guard Predef.type_bool))
         in
         let exp =
@@ -5175,9 +5193,9 @@ and type_andops env mode sarg sands expected_ty =
         let ty_arg = newvar () in
         let ty_rest = newvar () in
         let ty_result = newvar() in
-        let ty_rest_fun = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+        let ty_rest_fun = newty (Tarrow((Nolabel,alloc_heap,alloc_heap),
                                         ty_arg, ty_result, Cok)) in
-        let ty_op = newty (Tarrow((Nolabel,Alloc_heap,Alloc_heap),
+        let ty_op = newty (Tarrow((Nolabel,alloc_heap,alloc_heap),
                                   ty_rest, ty_rest_fun, Cok)) in
         begin try
           unify env op_type ty_op
@@ -5233,7 +5251,7 @@ let type_let existential_ctx env rec_flag spat_sexp_list =
 let type_expression env sexp =
   Typetexp.reset_type_variables();
   begin_def();
-  let exp = type_exp env Alloc_heap sexp in
+  let exp = type_exp env alloc_heap sexp in
   end_def();
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type;
@@ -5241,7 +5259,7 @@ let type_expression env sexp =
     Pexp_ident lid ->
       let loc = sexp.pexp_loc in
       (* Special case for keeping type variables when looking-up a variable *)
-      let (_path, desc) = Env.lookup_value ~use:false ~loc lid.txt Alloc_heap env in
+      let (_path, desc) = Env.lookup_value ~use:false ~loc lid.txt alloc_heap env in
       {exp with exp_type = desc.val_type}
   | _ -> exp
 
@@ -5716,6 +5734,6 @@ let () =
   ()
 
 (* drop unnecessary arguments from the external API *)
-let type_expect env e ty = type_expect env Alloc_heap e ty
-let type_exp env e = type_exp env Alloc_heap e
-let type_argument env e t1 t2 = type_argument env Alloc_heap e t1 t2
+let type_expect env e ty = type_expect env alloc_heap e ty
+let type_exp env e = type_exp env alloc_heap e
+let type_argument env e t1 t2 = type_argument env alloc_heap e t1 t2

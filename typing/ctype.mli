@@ -352,6 +352,9 @@ val cyclic_abbrev: Env.t -> Ident.t -> type_expr -> bool
 val is_contractive: Env.t -> Path.t -> bool
 val normalize_type: type_expr -> unit
 
+val remove_mode_variables: type_expr -> unit
+        (* Ensure mode variables are fully determined *)
+
 val closed_schema: Env.t -> type_expr -> bool
         (* Check whether the given type scheme contains no non-generic
            type variables *)

@@ -132,7 +132,7 @@ and type_desc =
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode
 
-and alloc_mode = Alloc_heap | Alloc_local
+and alloc_mode
 
 (** [  `X | `Y ]       (row_closed = true)
     [< `X | `Y ]       (row_closed = true)
@@ -591,17 +591,30 @@ val bound_value_identifiers: signature -> Ident.t list
 val signature_item_id : signature_item -> Ident.t
 
 module Alloc_mode : sig
-  (* Modes are ordered so that Alloc_heap is a submode of Alloc_local *)
-  type t = alloc_mode = Alloc_heap | Alloc_local
+
+  (* Modes are ordered so that [heap] is a submode of [local] *)
+  type t = alloc_mode
+  type alloc_mode_const = Heap | Local
+
+  val heap : t
+  val local : t
+  val of_const : alloc_mode_const -> t
   
   val min_mode : t
-  val is_min : t -> bool
 
   val max_mode : t
-  val is_max : t -> bool
 
   val submode : t -> t -> (unit, unit) result
 
   val join : t list -> t
-end
 
+  (* Force a mode variable to its upper bound *)
+  val constrain_upper : t -> alloc_mode_const
+
+  (* Force a mode variable to its upper bound *)
+  val constrain_lower : t -> alloc_mode_const
+
+  val newvar : unit -> t
+
+  val check_const : t -> alloc_mode_const option
+end

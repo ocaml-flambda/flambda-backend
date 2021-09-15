@@ -1623,12 +1623,12 @@ let path_of_module mexp =
 
 (* Check that all core type schemes in a structure are closed *)
 
-let rec closed_modtype env = function
+let rec check_modtype env f = function
     Mty_ident _ -> true
   | Mty_alias _ -> true
   | Mty_signature sg ->
       let env = Env.add_signature sg env in
-      List.for_all (closed_signature_item env) sg
+      List.for_all (check_signature_item env f) sg
   | Mty_functor(arg_opt, body) ->
       let env =
         match arg_opt with
@@ -1637,25 +1637,36 @@ let rec closed_modtype env = function
         | Named (Some id, param) ->
             Env.add_module ~arg:true id Mp_present param env
       in
-      closed_modtype env body
+      check_modtype env f body
 
-and closed_signature_item env = function
-    Sig_value(_id, desc, _) -> Ctype.closed_schema env desc.val_type
-  | Sig_module(_id, _, md, _, _) -> closed_modtype env md.md_type
+and check_signature_item env f = function
+    Sig_value(_id, desc, _) -> f desc.val_type
+  | Sig_module(_id, _, md, _, _) -> check_modtype env f md.md_type
   | _ -> true
 
 let check_nongen_scheme env sig_item =
+  let check ty =
+    Ctype.remove_mode_variables ty; Ctype.closed_schema env ty
+  in
+  let ok = check_signature_item env check sig_item in
   match sig_item with
-    Sig_value(_id, vd, _) ->
-      if not (Ctype.closed_schema env vd.val_type) then
-        raise (Error (vd.val_loc, env, Non_generalizable vd.val_type))
-  | Sig_module (_id, _, md, _, _) ->
-      if not (closed_modtype env md.md_type) then
-        raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
+    Sig_value(_id, vd, _) when not ok ->
+     raise (Error (vd.val_loc, env, Non_generalizable vd.val_type))
+  | Sig_module (_id, _, md, _, _) when not ok ->
+     raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
   | _ -> ()
 
 let check_nongen_schemes env sg =
   List.iter (check_nongen_scheme env) sg
+
+let closed_modtype env mty =
+  let check ty =
+    Ctype.remove_mode_variables ty; Ctype.closed_schema env ty
+  in check_modtype env check mty
+
+let remove_mode_variables env sg =
+  let rm ty = Ctype.remove_mode_variables ty; true in
+  List.for_all (check_signature_item env rm) sg |> ignore
 
 (* Helpers for typing recursive modules *)
 
@@ -2449,6 +2460,7 @@ let type_toplevel_phrase env s =
   Env.reset_required_globals ();
   let (str, sg, to_remove_from_sg, env) =
     type_structure ~toplevel:true false None env s in
+  remove_mode_variables env sg;
   (str, sg, to_remove_from_sg, env)
 
 let type_module_alias = type_module ~alias:true true false None

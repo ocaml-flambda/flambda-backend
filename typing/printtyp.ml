@@ -485,9 +485,11 @@ let string_of_label = function
   | Labelled s -> s
   | Optional s -> "?"^s
 
-let string_of_alloc_mode = function
-  | Alloc_local -> "Alloc_local"
-  | Alloc_heap -> "Alloc_heap"
+let string_of_alloc_mode m =
+  match Types.Alloc_mode.check_const m with
+  | Some Local -> "Local"
+  | Some Heap -> "Heap"
+  | None -> "<modevar>"
 
 let visited = ref []
 let rec raw_type ppf ty =
@@ -979,15 +981,15 @@ let rec tree_of_typexp sch ty =
             | _ -> Otyp_stuff "<hidden>"
           else tree_of_typexp sch ty1 in
         let t1 =
-          match marg with
-          | Alloc_heap -> t1
-          | Alloc_local -> Otyp_attribute (t1, {oattr_name="stack"})
+          match Alloc_mode.check_const marg with
+          | Some Local -> Otyp_attribute (t1, {oattr_name="stack"})
+          | _ -> t1
         in
         let t2 = tree_of_typexp sch ty2 in
         let t2 =
-          match mret with
-          | Alloc_heap -> t2
-          | Alloc_local -> Otyp_attribute (t2, {oattr_name="stackret"})
+          match Alloc_mode.check_const mret with
+          | Some Local -> Otyp_attribute (t2, {oattr_name="stackret"})
+          | _ -> t2
         in
         Otyp_arrow (lab, t1, t2)
     | Ttuple tyl ->

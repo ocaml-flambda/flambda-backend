@@ -177,7 +177,7 @@ let rec constructor_type constr cty =
   | Cty_signature _ ->
       constr
   | Cty_arrow (l, ty, cty) ->
-      Ctype.newty (Tarrow ((l, Alloc_heap, Alloc_heap),
+      Ctype.newty (Tarrow ((l, Alloc_mode.heap, Alloc_mode.heap),
                            ty, constructor_type constr cty, Cok))
 
 let rec class_body cty =
@@ -212,23 +212,26 @@ let rec abbreviate_class_type path params cty =
 (* Check that all type variables are generalizable *)
 (* Use Env.empty to prevent expansion of recursively defined object types;
    cf. typing-poly/poly.ml *)
+let closed_type ty =
+  Ctype.remove_mode_variables ty; Ctype.closed_schema Env.empty ty
+
 let rec closed_class_type =
   function
     Cty_constr (_, params, _) ->
-      List.for_all (Ctype.closed_schema Env.empty) params
+      List.for_all closed_type params
   | Cty_signature sign ->
-      Ctype.closed_schema Env.empty sign.csig_self
+      closed_type sign.csig_self
         &&
-      Vars.fold (fun _ (_, _, ty) cc -> Ctype.closed_schema Env.empty ty && cc)
+      Vars.fold (fun _ (_, _, ty) cc -> closed_type ty && cc)
         sign.csig_vars
         true
   | Cty_arrow (_, ty, cty) ->
-      Ctype.closed_schema Env.empty ty
+      closed_type ty
         &&
       closed_class_type cty
 
 let closed_class cty =
-  List.for_all (Ctype.closed_schema Env.empty) cty.cty_params
+  List.for_all closed_type cty.cty_params
     &&
   closed_class_type cty.cty_type
 
@@ -758,7 +761,7 @@ and class_field_aux self_loc cl_num self_type meths vars
              (* Read the generalized type *)
              let (_, ty) = Meths.find lab.txt !meths in
              let meth_type = mk_expected (
-               Btype.newgenty (Tarrow((Nolabel, Alloc_heap, Alloc_heap),
+               Btype.newgenty (Tarrow((Nolabel, Alloc_mode.heap, Alloc_mode.heap),
                                       self_type, ty, Cok))
              ) in
              Ctype.raise_nongen_level ();
@@ -786,7 +789,7 @@ and class_field_aux self_loc cl_num self_type meths vars
           Ctype.raise_nongen_level ();
           let meth_type = mk_expected (
             Ctype.newty
-              (Tarrow ((Nolabel, Alloc_heap, Alloc_heap), self_type,
+              (Tarrow ((Nolabel, Alloc_mode.heap, Alloc_mode.heap), self_type,
                        Ctype.instance Predef.type_unit, Cok))
           ) in
           vars := vars_local;
@@ -1046,7 +1049,7 @@ and class_expr_aux cl_num val_env met_env scl =
               Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd);
               exp_loc = Location.none; exp_extra = [];
               exp_type = Ctype.instance vd.val_type;
-              exp_mode = Alloc_heap;
+              exp_mode = Alloc_mode.heap;
               exp_attributes = []; (* check *)
               exp_env = val_env'})
           end
@@ -1119,11 +1122,11 @@ and class_expr_aux cl_num val_env met_env scl =
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
                   let arg = type_argument val_env sarg ty' ty0' in
-                  option_some val_env arg Alloc_heap
+                  option_some val_env arg Alloc_mode.heap
               )
             in
             let eliminate_optional_arg () =
-              Some (option_none val_env ty0 Alloc_heap Location.none)
+              Some (option_none val_env ty0 Alloc_mode.heap Location.none)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1197,7 +1200,7 @@ and class_expr_aux cl_num val_env met_env scl =
                 Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd);
                 exp_loc = Location.none; exp_extra = [];
                 exp_type = Ctype.instance vd.val_type;
-                exp_mode = Alloc_heap;
+                exp_mode = Alloc_mode.heap;
                 exp_attributes = [];
                 exp_env = val_env;
                }
@@ -1284,7 +1287,7 @@ let rec approx_declaration cl =
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar () in
-      Ctype.newty (Tarrow ((l, Alloc_heap, Alloc_heap),
+      Ctype.newty (Tarrow ((l, Alloc_mode.heap, Alloc_mode.heap),
                            arg, approx_declaration cl, Cok))
   | Pcl_let (_, _, cl) ->
       approx_declaration cl
@@ -1298,7 +1301,7 @@ let rec approx_description ct =
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar () in
-      Ctype.newty (Tarrow ((l, Alloc_heap, Alloc_heap),
+      Ctype.newty (Tarrow ((l, Alloc_mode.heap, Alloc_mode.heap),
                            arg, approx_description ct, Cok))
   | _ -> Ctype.newvar ()
 
