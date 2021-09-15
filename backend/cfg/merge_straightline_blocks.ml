@@ -26,9 +26,11 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 (* Two blocks `b1` and `b2` can be merged if:
- *  - `b1` has only one non-exceptional successor, `b2`;
- *  - `b2` has only one predecessor, `b1`;
- *  - `b1` and `b2` are distinct blocks.
+ * - `b1` is not the entry block;
+ * - `b1` has only one non-exceptional successor, `b2`;
+ * - `b2` has only one predecessor, `b1`;
+ * - `b1` and `b2` are distinct blocks;
+ * - the terminator of `b1` is not a tailcall to self.
  *
  *  When the condition is met, `b1` is modified as follows:
  *  - its body is set to the concatenation of `b1.body` and `b2.body`;
@@ -63,8 +65,17 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
           let b2_label = Label.Set.choose b1_successors in
           let b2_block = Label.Tbl.find cfg.blocks b2_label in
           let b2_predecessors = Cfg.predecessor_labels b2_block in
-          if (not (Label.equal b1_label b2_label))
+          if (not (Label.equal b1_label cfg.entry_label))
+             && (not (Label.equal b1_label b2_label))
              && List.compare_length_with b2_predecessors 1 = 0
+             &&
+             match b1_block.terminator.desc with
+             | Tailcall (Self _) -> false
+             | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+             | Int_test _ | Switch _ | Return | Raise _
+             | Tailcall (Func _)
+             | Call_no_return _ ->
+               true
           then begin
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)
