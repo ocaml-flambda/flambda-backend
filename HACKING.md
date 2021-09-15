@@ -59,7 +59,7 @@ formatted using `make fmt` and the check can be run using `make check-fmt`.
 Changes to `.ocamlformat` should be made as pull requests that include
 reformatting files as needed.
 
-In the event that one needs to rebase some patch over formatting changes, here is a reasonably seamless way to proceed:
+In the event that one needs to rebase a patch over formatting changes, here is a reasonably seamless way to proceed:
 
 Assuming a specific formatting commit:
 ```shell
@@ -76,14 +76,14 @@ Then rebase once more on the commit itself:
 ```shell
 git rebase $format_commit -Xtheirs --exec 'make fmt && git commit -a --amend --no-edit'
 ```
-Each commit will be amended with formatting. Any conflict appearing can be resolved automaticaly by choosing our side (hence, `theirs` on a rebase, obviously enough). This is correct assuming the commit contains no semantic changes.
+Each commit will be amended with formatting. Any conflict appearing can be resolved automatically by choosing our side (hence, `theirs` on a rebase, surprisingly enough). This is correct assuming the commit contains no semantic changes.
 
 Finally, finish the rebase as usual up to the desired point:
 ```shell
 git rebase upstream/main
 ```
 
-Depending on the inital changes, it might be needed to do this multiple time for each relevant formatting commit.
+Depending on the initial changes, it might be necessary to do this multiple times for each relevant formatting commit.
 
 ## Rebuilding during dev work
 
