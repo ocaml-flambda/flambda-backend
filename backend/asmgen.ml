@@ -186,7 +186,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
     if !use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
-           (Linear_to_cfg.run ~preserve_orig_labels:false)
+           (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
       ++ Profile.record ~accumulate:true "cfg_to_linear" (fun cfg ->
         let fun_body, fun_tailrec_entry_point_label = Cfg_to_linear.run cfg in
