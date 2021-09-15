@@ -59,6 +59,32 @@ formatted using `make fmt` and the check can be run using `make check-fmt`.
 Changes to `.ocamlformat` should be made as pull requests that include
 reformatting files as needed.
 
+In the event that one needs to rebase a patch over formatting changes, here is a reasonably seamless way to proceed:
+
+Assuming a specific formatting commit:
+```shell
+# main formatting commit for flambda2/ in the repository
+format_commit=331c16734636a218261d4835fb77b38c5788f50a
+```
+
+Rebase as usual until its parent:
+```shell
+git rebase $format_commit~1
+```
+
+Then rebase once more on the commit itself:
+```shell
+git rebase $format_commit -Xtheirs --exec 'make fmt && git commit -a --amend --no-edit'
+```
+Each commit will be amended with formatting. Any conflict appearing can be resolved automatically by choosing our side (hence, `theirs` on a rebase, surprisingly enough). This is correct assuming the commit contains no semantic changes.
+
+Finally, finish the rebase as usual up to the desired point:
+```shell
+git rebase upstream/main
+```
+
+Depending on the initial changes, it might be necessary to do this multiple times for each relevant formatting commit.
+
 ## Rebuilding during dev work
 
 To rebuild after making changes, you can just type `make` (or `make -j16`, etc).
