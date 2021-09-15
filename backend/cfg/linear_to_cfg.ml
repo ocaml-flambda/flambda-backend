@@ -209,14 +209,6 @@ let register_block t (block : C.basic_block) traps =
       <- resolve_traps_to_pop t ls @ t.unresolved_traps_to_pop);
   Label.Tbl.add t.cfg.blocks block.start block
 
-let can_raise_terminator (i : C.terminator) =
-  match i with
-  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
-  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-  | Switch _ | Return
-  | Tailcall (Self _) ->
-    false
-
 let check_traps t label (block : C.basic_block) =
   match Label.Tbl.find_opt t.trap_stacks label with
   | None -> ()
@@ -323,18 +315,6 @@ let check_and_register_traps t =
   in
   C.iter_blocks t.cfg ~f
 
-let register_predecessors_for_all_blocks t =
-  Label.Tbl.iter
-    (fun label block ->
-      let targets = C.successor_labels ~normal:true ~exn:true block in
-      Label.Set.iter
-        (fun target ->
-          let target_block = Label.Tbl.find t.cfg.blocks target in
-          target_block.predecessors
-            <- Label.Set.add label target_block.predecessors)
-        targets)
-    t.cfg.blocks
-
 let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
     =
   match insn.desc with
@@ -393,7 +373,7 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
         Printlinear.instr
         { i with Linear.next = Linear.end_instr });
   block.terminator <- create_instruction t desc ~trap_depth i;
-  if can_raise_terminator desc then record_exn t block traps;
+  if Cfg.can_raise_terminator desc then record_exn t block traps;
   register_block t block traps
 
 let to_basic (mop : Mach.operation) : C.basic =
@@ -643,7 +623,7 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
      forward jumps: the blocks do not exist when the jump that reference them is
      processed. *)
   check_and_register_traps t;
-  register_predecessors_for_all_blocks t;
+  Cfg.register_predecessors_for_all_blocks t.cfg;
   (* Layout was constructed in reverse, fix it now: *)
   Cfg_with_layout.create t.cfg ~layout:(List.rev t.layout) ~preserve_orig_labels
     ~new_labels:t.new_labels

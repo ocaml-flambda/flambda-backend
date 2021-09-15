@@ -26,3 +26,10 @@ let create ~dbg ~discriminator =
       dbg;
       discriminator;
     }
+
+let equal_info left right =
+  Debuginfo.compare left.dbg right.dbg = 0
+  && Int.equal left.discriminator right.discriminator
+
+let equal left right =
+  Option.equal equal_info left right

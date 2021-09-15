@@ -163,3 +163,9 @@ let stack_alignment =
   | "win32" -> 4     (* MSVC *)
   | _ -> 16
   (* PR#6038: GCC and Clang seem to require 16-byte alignment nowadays *)
+
+(* CR xclerc for xclerc: TODO *)
+let equal_addressing_mode _ _ : bool = assert false
+let equal_prefetch_temporal_locality_hint _ _ : bool = assert false
+let equal_float_operation _ _ : bool = assert false
+let equal_specific_operation _ _ : bool = assert false

@@ -129,3 +129,6 @@ val operation_can_raise : operation -> bool
 
 val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
 val equal_trap_stack : trap_stack -> trap_stack -> bool
+
+val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
+val equal_integer_operation : integer_operation -> integer_operation -> bool

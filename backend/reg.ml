@@ -244,3 +244,26 @@ let set_of_array v =
   | n -> let rec add_all i =
            if i >= n then Set.empty else Set.add v.(i) (add_all(i+1))
          in add_all 0
+
+let equal_stack_location left right =
+  match left, right with
+  | Local left, Local right -> Int.equal left right
+  | Incoming left, Incoming right -> Int.equal left right
+  | Outgoing left, Outgoing right -> Int.equal left right
+  | Local _, (Incoming _ | Outgoing _)
+  | Incoming _, (Local _ | Outgoing _)
+  | Outgoing _, (Local _ | Incoming _) ->
+    false
+
+let equal_location left right =
+  match left, right with
+  | Unknown, Unknown -> true
+  | Reg left, Reg right -> Int.equal left right
+  | Stack left, Stack right -> equal_stack_location left right
+  | Unknown, (Reg _ | Stack _)
+  | Reg _, (Unknown | Stack _)
+  | Stack _, (Unknown | Reg _) ->
+    false
+
+let same_loc left right =
+  equal_location left.loc right.loc

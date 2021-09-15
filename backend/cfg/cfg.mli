@@ -107,6 +107,8 @@ val get_block_exn : t -> Label.t -> basic_block
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
+val register_predecessors_for_all_blocks : t -> unit
+
 (** Printing *)
 
 val print_terminator :
@@ -129,3 +131,5 @@ val print_basic : out_channel -> basic instruction -> unit
 
 (* CR-someday gyorsh: store label after separately and update after
    reordering. *)
+
+val can_raise_terminator : terminator -> bool

@@ -366,3 +366,101 @@ let map_shallow f = function
   | Cvar _
     as c ->
       c
+
+let equal_machtype_component left right =
+  match left, right with
+  | Val, Val -> true
+  | Addr, Addr -> true
+  | Int, Int -> true
+  | Float, Float -> true
+  | Val, (Addr | Int | Float)
+  | Addr, (Val | Int | Float)
+  | Int, (Val | Addr | Float)
+  | Float, (Val | Addr | Int) ->
+    false
+
+let equal_exttype left right =
+  match left, right with
+  | XInt, XInt -> true
+  | XInt32, XInt32 -> true
+  | XInt64, XInt64 -> true
+  | XFloat, XFloat -> true
+  | XInt, (XInt32 | XInt64 | XFloat)
+  | XInt32, (XInt | XInt64 | XFloat)
+  | XInt64, (XInt | XInt32 | XFloat)
+  | XFloat, (XInt | XInt32 | XInt64) ->
+    false
+
+let equal_float_comparison left right =
+  match left, right with
+  | CFeq, CFeq -> true
+  | CFneq, CFneq -> true
+  | CFlt, CFlt -> true
+  | CFnlt, CFnlt -> true
+  | CFgt, CFgt -> true
+  | CFngt, CFngt -> true
+  | CFle, CFle -> true
+  | CFnle, CFnle -> true
+  | CFge, CFge -> true
+  | CFnge, CFnge -> true
+  | CFeq, (CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge)
+  | CFneq, (CFeq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge)
+  | CFlt, (CFeq | CFneq | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge)
+  | CFnlt, (CFeq | CFneq | CFlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge)
+  | CFgt, (CFeq | CFneq | CFlt | CFnlt | CFngt | CFle | CFnle | CFge | CFnge)
+  | CFngt, (CFeq | CFneq | CFlt | CFnlt | CFgt | CFle | CFnle | CFge | CFnge)
+  | CFle, (CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFnle | CFge | CFnge)
+  | CFnle, (CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFge | CFnge)
+  | CFge, (CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFnge)
+  | CFnge, (CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge) ->
+    false
+
+let equal_memory_chunk left right =
+  match left, right with
+  | Byte_unsigned, Byte_unsigned -> true
+  | Byte_signed, Byte_signed -> true
+  | Sixteen_unsigned, Sixteen_unsigned -> true
+  | Sixteen_signed, Sixteen_signed -> true
+  | Thirtytwo_unsigned, Thirtytwo_unsigned -> true
+  | Thirtytwo_signed, Thirtytwo_signed -> true
+  | Word_int, Word_int -> true
+  | Word_val, Word_val -> true
+  | Single, Single -> true
+  | Double, Double -> true
+  | Byte_unsigned, (Byte_signed | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
+                   | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+  | Byte_signed, (Byte_unsigned | Sixteen_unsigned | Sixteen_signed | Thirtytwo_unsigned
+                 | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+  | Sixteen_unsigned, (Byte_unsigned | Byte_signed | Sixteen_signed | Thirtytwo_unsigned
+                      | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+  | Sixteen_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Thirtytwo_unsigned
+                    | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+  | Thirtytwo_unsigned, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+                        | Thirtytwo_signed | Word_int | Word_val | Single | Double)
+  | Thirtytwo_signed, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+                      | Thirtytwo_unsigned | Word_int | Word_val | Single | Double)
+  | Word_int, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_val | Single | Double)
+  | Word_val, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+              | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Single | Double)
+  | Single, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Double)
+  | Double, (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val | Single) ->
+    false
+
+let equal_integer_comparison left right =
+  match left, right with
+  | Ceq, Ceq -> true
+  | Cne, Cne -> true
+  | Clt, Clt -> true
+  | Cgt, Cgt -> true
+  | Cle, Cle -> true
+  | Cge, Cge -> true
+  | Ceq, (Cne | Clt | Cgt | Cle | Cge)
+  | Cne, (Ceq | Clt | Cgt | Cle | Cge)
+  | Clt, (Ceq | Cne | Cgt | Cle | Cge)
+  | Cgt, (Ceq | Cne | Clt | Cle | Cge)
+  | Cle, (Ceq | Cne | Clt | Cgt | Cge)
+  | Cge, (Ceq | Cne | Clt | Cgt | Cle) ->
+    false

@@ -1,4 +1,4 @@
-name: flambda2_cfg
+name: flambda1_cfg
 
 on: [push, pull_request]
 
@@ -58,15 +58,15 @@ jobs:
       working-directory: flambda_backend
       run: autoconf
 
-    - name: Configure Flambda backend (Flambda 2 mode)
+    - name: Configure Flambda backend (Flambda 1 mode)
       working-directory: flambda_backend
       run: |
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
-          --enable-middle-end=flambda2 \
+          --enable-middle-end=flambda \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build, install and test Flambda backend (Flambda 2 mode with ocamlcfg)
+    - name: Build, install and test Flambda backend (Flambda 1 mode with ocamlcfg)
       working-directory: flambda_backend
       run: make -j $J ci
       env:
