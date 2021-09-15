@@ -44,7 +44,6 @@ be suitable for upstream submission.
 
 We are planning to move to a model where the patched upstream compiler is maintained
 in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
-We may then use a git submodule to import it into the Flambda backend repo.
 
 ## Code formatting
 
