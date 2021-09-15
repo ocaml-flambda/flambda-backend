@@ -25,7 +25,7 @@ module Env : sig
 
   val handler : t -> cont:int -> arg_num:int -> t
 
-  val jump : t -> cont:int -> arg_num:int -> unit
+  val jump : t -> exit_label:Cmm.exit_label -> arg_num:int -> unit
 
   val report : Format.formatter -> bool
 end = struct
@@ -82,12 +82,15 @@ end = struct
     let bound_handlers = Int.Map.add cont arg_num t.bound_handlers in
     { bound_handlers; }
 
-  let jump t ~cont ~arg_num =
-    match Int.Map.find cont t.bound_handlers with
-    | handler_args ->
-      if arg_num <> handler_args then
-        wrong_arguments cont handler_args arg_num
-    | exception Not_found -> unbound_handler cont
+  let jump t ~exit_label ~arg_num =
+    match (exit_label : Cmm.exit_label) with
+    | Return_lbl -> ()
+    | Lbl cont ->
+      match Int.Map.find cont t.bound_handlers with
+      | handler_args ->
+        if arg_num <> handler_args then
+          wrong_arguments cont handler_args arg_num
+      | exception Not_found -> unbound_handler cont
 
   let print_error ppf error =
     match error with
@@ -164,9 +167,9 @@ let rec check env (expr : Cmm.expression) =
       | Nonrecursive -> env
     in
     List.iter (fun (_, _, handler, _) -> check env_handler handler) handlers
-  | Cexit (cont, args) ->
-    Env.jump env ~cont ~arg_num:(List.length args)
-  | Ctrywith (body, _, handler, _) ->
+  | Cexit (exit_label, args, _trap_actions) ->
+    Env.jump env ~exit_label ~arg_num:(List.length args)
+  | Ctrywith (body, _trywith_kind, _, handler, _) ->
     (* Jumping from inside a trywith body to outside isn't very nice,
        but it's handled correctly by Linearize, as it happens
        when compiling match ... with exception ..., for instance, so it is
