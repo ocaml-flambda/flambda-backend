@@ -11,6 +11,7 @@ want to modify the Flambda backend.  Jump to:
   - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
   - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
   - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
+  - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
   - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
   - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
   - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
@@ -151,6 +152,14 @@ rm -f _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
 PATH=<FLAMBDA_BACKEND>/_build1/install/default/bin:$PATH <DUNE> build --profile=release --build-dir=_build2 --verbose _build2/default/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
 ```
 where `<FLAMBDA_BACKEND>` is the path to your clone and `<DUNE>` is the path to the dune provided to `configure`.
+
+## Bootstrapping the ocaml subtree
+
+This can be done following the usual upstream procedures,
+working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfx`),
+go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
+`make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
+be advisable to clean the whole tree again.
 
 ## Testing the compiler built locally with OPAM
 
