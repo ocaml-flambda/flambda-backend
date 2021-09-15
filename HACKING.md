@@ -180,6 +180,9 @@ needs to exist during the installation step):
 ./configure --prefix=/path/to/cwd/_opam ...
 ```
 
+Note that if the Flambda backend tree is already configured, it should be cleaned
+thoroughly (e.g. `git clean -dfx`) before reconfiguring with a different prefix.
+
 Then build the compiler normally (`make`).
 Once that is done, we're ready to install the compiler:
 
