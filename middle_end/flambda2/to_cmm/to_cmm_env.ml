@@ -456,8 +456,14 @@ let flush_delayed_lets env =
       (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
       order_map e
   in
-  let wrap e = wrap_aux env.pures env.stages e in
-  wrap, { env with stages = []; pures = Variable.Map.empty }
+  (* Only pure bindings that are not to be inlined are flushed now. The
+     remainder are preserved, ensuring that the corresponding expressions are
+     sunk down as far as possible. *)
+  let pures_to_inline, pures_not_to_inline =
+    Variable.Map.partition (fun _ binding -> binding.inline) env.pures
+  in
+  let wrap e = wrap_aux pures_not_to_inline env.stages e in
+  wrap, { env with stages = []; pures = pures_to_inline }
 
 (* Use and Scoping checks *)
 
