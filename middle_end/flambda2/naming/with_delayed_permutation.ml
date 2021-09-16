@@ -21,8 +21,6 @@
 module Make (Descr : sig
   include Contains_names.S
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end) =
 struct
@@ -67,9 +65,6 @@ struct
       let free_names = Descr.free_names descr in
       t.free_names <- Some free_names;
       free_names
-
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    Descr.print_with_cache ~cache ppf (descr t)
 
   let [@ocamlformat "disable"] print ppf t = Descr.print ppf (descr t)
 end

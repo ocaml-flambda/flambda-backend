@@ -36,12 +36,10 @@ let funs_in_order t = t.in_order
 
 let find ({ funs; _ } : t) closure_id = Closure_id.Map.find closure_id funs
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf { in_order; _ } =
+let [@ocamlformat "disable"] print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Closure_id.Lmap.print Code_id.print)
     in_order
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let free_names { funs; _ } =
   Closure_id.Map.fold

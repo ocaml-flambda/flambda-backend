@@ -541,9 +541,6 @@ and Static_const : sig
 
     val create : Static_const.t list -> t
 
-    val print_with_cache :
-      cache:Printing_cache.t -> Format.formatter -> t -> unit
-
     val print : Format.formatter -> t -> unit
 
     val to_list : t -> Static_const.t list

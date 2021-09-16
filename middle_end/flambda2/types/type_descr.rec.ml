@@ -34,30 +34,29 @@ struct
       | No_alias of Head.t Or_unknown_or_bottom.t
       | Equals of Simple.t
 
-    let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+    let print ppf t =
       let colour = Flambda_colours.top_or_bottom_type () in
       match t with
       | No_alias Unknown ->
-        if Flambda_features.unicode () then
-          Format.fprintf ppf "@<0>%s@<1>\u{22a4}@<0>%s"
-            colour (Flambda_colours.normal ())
+        if Flambda_features.unicode ()
+        then
+          Format.fprintf ppf "@<0>%s@<1>\u{22a4}@<0>%s" colour
+            (Flambda_colours.normal ())
         else
           Format.fprintf ppf "@<0>%sT@<0>%s" colour (Flambda_colours.normal ())
       | No_alias Bottom ->
-        if Flambda_features.unicode () then
-          Format.fprintf ppf "@<0>%s@<1>\u{22a5}@<0>%s"
-            colour (Flambda_colours.normal ())
+        if Flambda_features.unicode ()
+        then
+          Format.fprintf ppf "@<0>%s@<1>\u{22a5}@<0>%s" colour
+            (Flambda_colours.normal ())
         else
-          Format.fprintf ppf "@<0>%s_|_@<0>%s" colour (Flambda_colours.normal ())
-      | No_alias (Ok head) -> Head.print_with_cache ~cache ppf head
+          Format.fprintf ppf "@<0>%s_|_@<0>%s" colour
+            (Flambda_colours.normal ())
+      | No_alias (Ok head) -> Head.print ppf head
       | Equals simple ->
-        Format.fprintf ppf "@[(@<0>%s=@<0>%s %a)@]"
-          (Flambda_colours.error ())
+        Format.fprintf ppf "@[(@<0>%s=@<0>%s %a)@]" (Flambda_colours.error ())
           (Flambda_colours.normal ())
           Simple.print simple
-
-    let [@ocamlformat "disable"] print ppf t =
-      print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
     let apply_renaming t renaming =
       if Renaming.is_empty renaming
@@ -91,11 +90,7 @@ struct
     | No_alias (Ok head) -> Head.all_ids_for_export head
     | Equals simple -> Ids_for_export.from_simple simple
 
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    Descr.print_with_cache ~cache ppf (descr t)
-
-  let [@ocamlformat "disable"] print ppf t =
-    print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let print ppf t = Descr.print ppf (descr t)
 
   let create_no_alias head = create (No_alias head)
 

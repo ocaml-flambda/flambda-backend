@@ -25,8 +25,6 @@ module type Term = sig
   include Contains_ids.S with type t := t
 
   val print : Format.formatter -> t -> unit
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
 type printing_style =
@@ -42,8 +40,6 @@ module type Common = sig
   type t
 
   val print : Format.formatter -> t -> unit
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
 module Make (Bindable : Bindable.S) (Term : Term) : sig

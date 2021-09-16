@@ -38,8 +38,6 @@ module Make (Index : Product_intf.Index) = struct
         )@]"
       (Index.Map.print Type_grammar.print) components_by_index
 
-  let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
   let fields_kind t = t.kind
 
   let create kind components_by_index =
@@ -184,8 +182,6 @@ module Int_indexed = struct
     Format.fprintf ppf "@[<hov 1>(%a)@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       (Array.to_list t.fields)
-
-  let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
   let fields_kind t = t.kind
 

@@ -87,7 +87,7 @@ let pattern_match_pair t1 t2 ~f =
                   f ~return_continuation exn_continuation params ~body1 ~body2
                     ~my_closure ~my_depth))))
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print ppf t =
   pattern_match t
     ~f:(fun ~return_continuation exn_continuation params ~body ~my_closure
             ~is_my_closure_used:_ ~my_depth ->
@@ -109,10 +109,7 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
         Bindable_variable_in_terms.print my_depth
         (Flambda_colours.elide ())
         (Flambda_colours.normal ())
-        (Expr.print_with_cache ~cache) body)
-
-let [@ocamlformat "disable"] print ppf t =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
+        Expr.print body)
 
 let params_arity t = t.params_arity
 

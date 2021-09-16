@@ -18,12 +18,6 @@
 
 type t
 
-(* val print_with_cache
- *    : cache:Printing_cache.t
- *   -> Format.formatter
- *   -> t
- *   -> unit *)
-
 val print : Format.formatter -> t -> unit
 
 (* val invariant : t -> unit *)

@@ -108,8 +108,6 @@ include Container_types.Make (struct
   let equal t1 t2 = compare t1 t2 = 0
 end)
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 (* CR mshinwell: Check the sort of [k]. *)
 let create ?trap_action k ~args ~dbg = { k; args; trap_action; dbg }
 

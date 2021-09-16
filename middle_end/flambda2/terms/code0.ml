@@ -29,8 +29,6 @@ module Make (Function_params_and_body : sig
   val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
 
   val print : Format.formatter -> t -> unit
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end) (Cost_metrics : sig
   type t
 
@@ -157,11 +155,11 @@ struct
 
   let with_newer_version_of newer_version_of t = { t with newer_version_of }
 
-  let print_params_and_body_with_cache ~cache ppf params_and_body =
+  let print_params_and_body ppf params_and_body =
     match params_and_body with
     | Or_deleted.Deleted -> Format.fprintf ppf "Deleted"
     | Or_deleted.Present params_and_body ->
-      Function_params_and_body.print_with_cache ~cache ppf params_and_body
+      Function_params_and_body.print ppf params_and_body
 
   module Option = struct
     include Option
@@ -172,7 +170,7 @@ struct
       | Some contents -> Format.fprintf ppf "%a" print_contents contents
   end
 
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print ppf
         { code_id = _; params_and_body; newer_version_of; stub; inline;
           is_a_functor; params_arity; result_arity; recursive;
           free_names_of_params_and_body = _; cost_metrics; inlining_arguments;
@@ -242,7 +240,7 @@ struct
         else Flambda_colours.elide ())
         is_tupled
         (Flambda_colours.normal ())
-        (print_params_and_body_with_cache ~cache) params_and_body
+        print_params_and_body params_and_body
     | Deleted ->
       Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
@@ -252,9 +250,6 @@ struct
         else Flambda_colours.normal ())
         (Option.print_compact Code_id.print) newer_version_of
         (Flambda_colours.normal ())
-
-  let [@ocamlformat "disable"] print ppf code =
-    print_with_cache ~cache:(Printing_cache.create ()) ppf code
 
   let compare { code_id = code_id1; _ } { code_id = code_id2; _ } =
     Code_id.compare code_id1 code_id2

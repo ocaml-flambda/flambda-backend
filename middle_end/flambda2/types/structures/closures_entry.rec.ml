@@ -37,7 +37,7 @@ type t =
 let create ~function_decls ~closure_types ~closure_var_types =
   { function_decls; closure_types; closure_var_types }
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       { function_decls; closure_types; closure_var_types; } =
   Format.fprintf ppf
     "@[<hov 1>(\
@@ -45,11 +45,9 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
       @[<hov 1>(closure_types@ %a)@]@ \
       @[<hov 1>(closure_var_types@ %a)@]\
       )@]"
-    (Closure_id.Map.print (FDT.print_with_cache ~cache)) function_decls
-    (PC.print_with_cache ~cache) closure_types
-    (PV.print_with_cache ~cache) closure_var_types
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+    (Closure_id.Map.print FDT.print) function_decls
+    PC.print closure_types
+    PV.print closure_var_types
 
 let meet env
     { function_decls = function_decls1;

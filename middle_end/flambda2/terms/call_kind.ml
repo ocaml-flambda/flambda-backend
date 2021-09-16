@@ -104,9 +104,6 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t =
-  print ppf t
-
 let direct_function_call code_id closure_id ~return_arity =
   check_arity return_arity;
   Function (Direct { code_id; closure_id; return_arity })

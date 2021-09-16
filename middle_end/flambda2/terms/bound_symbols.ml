@@ -159,8 +159,6 @@ let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print) t
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let being_defined t = List.map Pattern.being_defined t |> Symbol.Set.union_list
 
 let closure_symbols_being_defined t =

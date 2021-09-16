@@ -68,8 +68,6 @@ include Container_types.Make (struct
   let hash _ = Misc.fatal_error "Exn_continuation.hash not yet implemented"
 end)
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let create ~exn_handler ~extra_args =
   begin
     match Continuation.sort exn_handler with

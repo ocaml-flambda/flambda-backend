@@ -202,8 +202,6 @@ module Map =
 (* CR mshinwell: The [Tbl]s will still print integers! *)
 module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let export t = find_data t
 
 let import data = Table.add !grand_table_of_continuations data

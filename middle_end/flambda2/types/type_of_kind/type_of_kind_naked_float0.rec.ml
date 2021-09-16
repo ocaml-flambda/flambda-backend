@@ -24,8 +24,6 @@ type t = Float.Set.t
 let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[(Naked_floats@ (%a))@]" Float.Set.print t
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let apply_renaming t _perm = t
 
 let free_names _t = Name_occurrences.empty

@@ -110,11 +110,7 @@ let print_t0 ppf t0 =
   | Inlinable inlinable -> Inlinable.print ppf inlinable
   | Non_inlinable non_inlinable -> Non_inlinable.print ppf non_inlinable
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t =
-  Or_unknown_or_bottom.print print_t0 ppf t
-
-let [@ocamlformat "disable"] print ppf t =
-  Or_unknown_or_bottom.print print_t0 ppf t
+let print ppf t = Or_unknown_or_bottom.print print_t0 ppf t
 
 let free_names (t : t) =
   match t with

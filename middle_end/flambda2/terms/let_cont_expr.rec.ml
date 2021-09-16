@@ -24,7 +24,7 @@ type t =
       }
   | Recursive of Recursive_let_cont_handlers.t
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print ppf t =
   let rec gather_let_conts let_conts let_cont =
     match let_cont with
     | Non_recursive { handler; num_free_occurrences;
@@ -56,17 +56,14 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
           new_let_conts @ let_conts, body)
   in
   let let_conts, body = gather_let_conts [] t in
-  fprintf ppf "@[<v 1>(%a@;" (Expr.print_with_cache ~cache) body;
+  fprintf ppf "@[<v 1>(%a@;" Expr.print body;
   let first = ref true in
   List.iter (fun (cont, recursive, handler, occurrences) ->
-      Continuation_handler.print_using_where_with_cache recursive ~cache
+      Continuation_handler.print_using_where recursive
         ppf cont handler occurrences ~first:!first;
       first := false)
     (List.rev let_conts);
   fprintf ppf ")@]"
-
-let [@ocamlformat "disable"] print ppf t =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create_non_recursive' ~cont handler ~body
     ~num_free_occurrences_of_cont_in_body:num_free_occurrences

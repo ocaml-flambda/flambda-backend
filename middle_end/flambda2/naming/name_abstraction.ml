@@ -22,8 +22,6 @@ module type Term = sig
   include Contains_ids.S with type t := t
 
   val print : Format.formatter -> t -> unit
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
 type printing_style =
@@ -54,8 +52,6 @@ module type Common = sig
   type t
 
   val print : Format.formatter -> t -> unit
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 end
 
 module Make (Bindable : Bindable.S) (Term : Term) = struct
@@ -81,19 +77,6 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
         (after_binding_position style)
         (Flambda_colours.normal ())
         Term.print term)
-
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    let style = !printing_style in
-    pattern_match t ~f:(fun name term ->
-      Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
-        (Flambda_colours.name_abstraction ())
-        (before_binding_position style)
-        (Flambda_colours.normal ())
-        Bindable.print name
-        (Flambda_colours.name_abstraction ())
-        (after_binding_position style)
-        (Flambda_colours.normal ())
-        (Term.print_with_cache ~cache) term)
 
   let[@inline always] pattern_match_mapi t ~f =
     pattern_match t ~f:(fun fresh_name fresh_term ->
@@ -184,12 +167,6 @@ module Make_list (Bindable : Bindable.S) (Term : Term) = struct
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names
         Term.print term)
-
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    pattern_match t ~f:(fun names term ->
-      Format.fprintf ppf "@[<hov 1>%a@ %a@]"
-        print_bindable_name_list names
-        (Term.print_with_cache ~cache) term)
 
   let[@inline always] pattern_match_mapi t ~f =
     pattern_match t ~f:(fun fresh_names fresh_term ->
@@ -317,12 +294,6 @@ module Make_map (Bindable : Bindable.S) (Term : Term) = struct
       Format.fprintf ppf "@[<hov 1>%a@ %a@]"
         print_bindable_name_list names
         Term.print term)
-
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    pattern_match' t ~f:(fun names term ->
-      Format.fprintf ppf "@[<hov 1>%a@ %a@]"
-        print_bindable_name_list names
-        (Term.print_with_cache ~cache) term)
 
   let apply_renaming t perm =
     match t with
