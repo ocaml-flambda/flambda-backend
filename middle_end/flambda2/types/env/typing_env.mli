@@ -192,6 +192,9 @@ module Serializable : sig
 
   val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
 
+  val create_from_closure_conversion_approx :
+    'a Value_approximation.t Symbol.Map.t -> t
+
   val print : Format.formatter -> t -> unit
 
   val to_typing_env :

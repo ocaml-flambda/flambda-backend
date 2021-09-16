@@ -1,0 +1,20 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_classic_mode_types)
+ (wrapped false)
+ (flags
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_identifiers
+   -open
+   Flambda2_term_basics))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+  stdlib
+  ocamlcommon
+  flambda2_identifiers
+  flambda2_term_basics))
