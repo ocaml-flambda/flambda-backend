@@ -151,7 +151,7 @@ let pseudoregs_for_operation op arg res =
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
-  | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+  | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)

@@ -44,7 +44,7 @@ method! class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
     -> super#class_of_operation op
 
 end

@@ -202,6 +202,8 @@ let basic_or_terminator_of_operation
       Basic (Op Intoffloat)
     | Ispecific op ->
       Basic (Op (Specific op))
+    | Iopaque ->
+      Basic (Op Opaque)
     | Iname_for_debugger _ ->
       Misc.fatal_error "Cfgize.basic_or_terminator_of_operation: \
                         \"the Iname_for_debugger\" instruction is currently not supported "
@@ -332,6 +334,7 @@ let can_raise_operation
     | Probe _ -> true
     | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
     | Specific _ -> false (* CR xclerc for xclerc: double check *)
+    | Opaque -> false
     | Name_for_debugger _ -> false
 
 let can_raise_instr
@@ -358,6 +361,7 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
   | Op (Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _
        | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf
        | Subf | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
+       | Opaque
        | Probe_is_enabled _ | Specific _ | Name_for_debugger _)
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false

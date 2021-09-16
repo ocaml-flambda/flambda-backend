@@ -208,6 +208,7 @@ let dump_op ppf = function
   | Probe { name; handler_code_sym } ->
     Format.fprintf ppf "probe %s %s" name handler_code_sym
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
+  | Opaque -> Format.fprintf ppf "opaque"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
 
 let dump_call ppf = function

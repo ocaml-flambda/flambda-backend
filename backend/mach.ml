@@ -67,6 +67,7 @@ type operation =
   | Icompf of float_comparison
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat
+  | Iopaque
   | Ispecific of Arch.specific_operation
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
@@ -171,7 +172,8 @@ let rec instr_iter f i =
             | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
             | Icompf _
             | Ifloatofint | Iintoffloat
-            | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _) ->
+            | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+            | Iopaque) ->
         instr_iter f i.next
 
 let operation_can_raise op =
