@@ -16,7 +16,7 @@
 
 (** Offsets for closures and environment variables inside sets of closures.
     They're computed for elements defined in the current compilation unit by
-    [Un_cps_closure], and read from cmx files for external symbols. Because an
+    [To_cmm_closure], and read from cmx files for external symbols. Because an
     external cmx can reference elements from another cmx that the current
     compilation cannot see, all offsets read from external cmx files must be
     re-exported. *)

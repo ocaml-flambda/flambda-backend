@@ -22,16 +22,16 @@ open! Flambda.Import
 
 module C = struct
   include Cmm_helpers
-  include Un_cps_helper
+  include To_cmm_helper
 end
 
-module Env = Un_cps_env
+module Env = To_cmm_env
 module SC = Flambda.Static_const
-module R = Un_cps_result
+module R = To_cmm_result
 
-(* CR mshinwell: Share these next functions with Un_cps. Unfortunately there's a
+(* CR mshinwell: Share these next functions with To_cmm. Unfortunately there's a
    name clash with at least one of them ("symbol") with functions already in
-   Un_cps_helper. *)
+   To_cmm_helper. *)
 let symbol s = Linkage_name.to_string (Symbol.linkage_name s)
 
 let tag_targetint t = Targetint_32_64.(add (shift_left t 1) one)
@@ -146,7 +146,7 @@ let rec static_set_of_closures env symbs set prev_update =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
   let elts =
-    Un_cps_closure.filter_closure_vars set
+    To_cmm_closure.filter_closure_vars set
       ~used_closure_vars:(Env.used_closure_vars env)
   in
   let layout =
@@ -185,7 +185,7 @@ and fill_static_layout s symbs decls startenv elts env acc updates i = function
     fill_static_layout s symbs decls startenv elts env acc updates offset r
 
 and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
-  match (slot : Un_cps_closure.layout_slot) with
+  match (slot : To_cmm_closure.layout_slot) with
   | Infix_header ->
     let field = C.cint (C.infix_header (offset + 1)) in
     env, field :: acc, offset + 1, updates

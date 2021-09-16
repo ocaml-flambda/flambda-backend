@@ -16,7 +16,7 @@
 
 (** {1 Effects and coeffects interpretation} *)
 
-(** The classification of expression used by un_cps. *)
+(** The classification of expression used by to_cmm. *)
 type kind =
   | Pure
       (** Pure expressions can be commuted with any other expression, including
@@ -34,7 +34,7 @@ type kind =
       (** Coeffectful expression can commute with other coeffectful expressions
           (and pure expressions), but not with effectful expressions. *)
 
-(** Return the un_cps classification of an expression with the given effects and
+(** Return the to_cmm classification of an expression with the given effects and
     coeffects. *)
 val classify : Effects_and_coeffects.t -> kind
 
@@ -187,16 +187,16 @@ val get_jump_id : t -> Continuation.t -> int
 
 (** {2 Sets of closures and offsets} *)
 
-(** Wrapper around {!Un_cps_closure.closure_offset}. *)
+(** Wrapper around {!To_cmm_closure.closure_offset}. *)
 val closure_offset : t -> Closure_id.t -> Exported_offsets.closure_info option
 
-(** Wrapper around {!Un_cps_closure.env_var_offset}. *)
+(** Wrapper around {!To_cmm_closure.env_var_offset}. *)
 val env_var_offset :
   t -> Var_within_closure.t -> Exported_offsets.env_var_info option
 
-(** Wrapper around {!Un_cps_closure.layout}. *)
+(** Wrapper around {!To_cmm_closure.layout}. *)
 val layout :
-  t -> Closure_id.t list -> Var_within_closure.t list -> Un_cps_closure.layout
+  t -> Closure_id.t list -> Var_within_closure.t list -> To_cmm_closure.layout
 
 (** All closure variables used in the whole program. *)
 val used_closure_vars : t -> Var_within_closure.Set.t Or_unknown.t

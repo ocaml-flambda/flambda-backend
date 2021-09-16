@@ -981,7 +981,7 @@ let mk_flambda2_cse_depth f =
 let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
   "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
   Printf.sprintf " Perform checks on static\n\
-      \     scopes of code IDs and symbols during Un_cps%s\n\
+      \     scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
 ;;
@@ -989,7 +989,7 @@ let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
 let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
   "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
   Printf.sprintf " Do not perform checks\n\
-      \     on static scopes of code IDs and symbols during Un_cps%s\n\
+      \     on static scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_not_default
       Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)

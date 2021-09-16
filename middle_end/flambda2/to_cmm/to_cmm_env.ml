@@ -207,7 +207,7 @@ let gen_variable v =
 
 let add_variable env v v' =
   let v'' = Backend_var.With_provenance.var v' in
-  let vars = Variable.Map.add v (Un_cps_helper.var v'') env.vars in
+  let vars = Variable.Map.add v (To_cmm_helper.var v'') env.vars in
   { env with vars }
 
 let create_variable env v =
@@ -245,7 +245,7 @@ let get_jump_id env k =
 let get_k env k =
   match Continuation.Map.find k env.conts with
   | exception Not_found ->
-    Misc.fatal_errorf "Could not find continuation %a in env during un_cps"
+    Misc.fatal_errorf "Could not find continuation %a in env during to_cmm"
       Continuation.print k
   | res -> res
 
@@ -300,7 +300,7 @@ let env_var_offset env env_var =
   Exported_offsets.env_var_offset env.offsets env_var
 
 let layout env closures env_vars =
-  Un_cps_closure.layout env.offsets closures env_vars
+  To_cmm_closure.layout env.offsets closures env_vars
 
 (* Printing
 
@@ -321,7 +321,7 @@ let next_order =
 
 let classify effs =
   match (effs : Effects_and_coeffects.t) with
-  (* For the purpose of un_cps, generative effects, i.e. allocations, will be
+  (* For the purpose of to_cmm, generative effects, i.e. allocations, will be
      considered to have effects because the mutable state of the gc that
      allocations actually effect can be observed by coeffects performed by
      function calls (particularly coming from the Gc module). *)
@@ -341,7 +341,7 @@ let mk_binding ?extra env inline effs var cmm_expr =
   let cmm_var = gen_variable var in
   let b = { order; inline; effs; cmm_var; cmm_expr } in
   let v = Backend_var.With_provenance.var cmm_var in
-  let e = Un_cps_helper.var v in
+  let e = To_cmm_helper.var v in
   let env = { env with vars = Variable.Map.add var e env.vars } in
   let env =
     match extra with
@@ -377,7 +377,7 @@ let inline_res env b = b.cmm_expr, env, b.effs
 
 let inline_not env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
-  Un_cps_helper.var v', env, Effects_and_coeffects.pure
+  To_cmm_helper.var v', env, Effects_and_coeffects.pure
 
 let inline_not_found env v =
   match Variable.Map.find v env.vars with
@@ -453,7 +453,7 @@ let flush_delayed_lets env =
         order_map stages
     in
     M.fold
-      (fun _ b acc -> Un_cps_helper.letin b.cmm_var b.cmm_expr acc)
+      (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
       order_map e
   in
   let wrap e = wrap_aux env.pures env.stages e in

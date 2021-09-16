@@ -39,7 +39,7 @@ let rec simplify_expr dacc expr ~down_to_up =
     Simplify_switch_expr.simplify_switch ~simplify_let dacc switch ~down_to_up
   | Invalid _ ->
     (* CR mshinwell: Make sure that a program can be simplified to just
-       [Invalid]. [Un_cps] should translate any [Invalid] that it sees as if it
+       [Invalid]. [To_cmm] should translate any [Invalid] that it sees as if it
        were [Halt_and_catch_fire]. *)
     down_to_up dacc ~rebuild:EB.rebuild_invalid
 
