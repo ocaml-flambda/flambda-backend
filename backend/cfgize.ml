@@ -679,30 +679,34 @@ let fundecl
   : Mach.fundecl
     -> preserve_orig_labels:bool
     -> simplify_terminators:bool
-    -> prologue_required:bool
-    -> dbg:Debuginfo.t
-    -> fdo:Fdo_info.t
     -> Cfg_with_layout.t
-  = fun fundecl ~preserve_orig_labels ~simplify_terminators ~prologue_required ~dbg ~fdo ->
+  = fun fundecl ~preserve_orig_labels ~simplify_terminators ->
     let { Mach.
           fun_name;
           fun_args = _;
           fun_body;
-          fun_codegen_options = _;
+          fun_codegen_options;
           fun_dbg;
-          fun_num_stack_slots = _;
-          fun_contains_calls = contains_calls; } = fundecl
+          fun_num_stack_slots;
+          fun_contains_calls } = fundecl
     in
     let initial_trap_depth = 1 in
     let start_label = Cmm.new_label () in
     let tailrec_label = Cmm.new_label () in
-    let cfg = Cfg.create ~fun_name ~fun_dbg in
-    let state = State.make ~fun_name ~tailrec_label ~contains_calls cfg.blocks in
+    let fun_fast = not (List.mem Cmm.Reduce_code_size fun_codegen_options) in
+    let prologue_required =
+        Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots in
+    let cfg = Cfg.create ~fun_name ~fun_dbg ~fun_fast
+                ~fun_contains_calls ~fun_num_stack_slots in
+    let state = State.make ~fun_name ~tailrec_label ~contains_calls:fun_contains_calls
+        cfg.blocks in
     State.add_block state ~label:(Cfg.entry_label cfg) ~block:{
       start = (Cfg.entry_label cfg);
       body = begin match prologue_required with
         | false -> []
         | true ->
+          let dbg = fun_body.dbg in
+          let fdo = Fdo_info.none in
           (* Note: the prologue must come after all `Iname_for_debugger1 instructions
              (this is currently not a concern because we do not support such instructions). *)
           [{ (make_instruction state ~desc:Cfg.Prologue ~trap_depth:initial_trap_depth)

@@ -376,14 +376,34 @@ let run cfg_with_layout =
     in
     next := { Linear_utils.label; insn }
   done;
-  !next.insn, !tailrec_label
+  let fun_contains_calls = cfg.fun_contains_calls in
+  let fun_num_stack_slots = cfg.fun_num_stack_slots in
+  let fun_frame_required =
+    Proc.frame_required ~fun_contains_calls ~fun_num_stack_slots
+  in
+  let fun_prologue_required =
+    Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
+  in
+  { Linear.fun_name = cfg.fun_name;
+    fun_body = !next.insn;
+    fun_tailrec_entry_point_label = !tailrec_label;
+    fun_fast = cfg.fun_fast;
+    fun_dbg = cfg.fun_dbg;
+    fun_contains_calls;
+    fun_num_stack_slots;
+    fun_frame_required;
+    fun_prologue_required
+  }
 
 (** debug print block as assembly *)
 let print_assembly (blocks : Cfg.basic_block list) =
   (* create a fake cfg just for printing these blocks *)
   let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
   let fun_name = "_fun_start_" in
-  let cfg = Cfg.create ~fun_name ~fun_dbg:Debuginfo.none in
+  let cfg =
+    Cfg.create ~fun_name ~fun_dbg:Debuginfo.none ~fun_fast:false
+      ~fun_contains_calls:true ~fun_num_stack_slots:[||]
+  in
   List.iter
     (fun (block : Cfg.basic_block) ->
       Label.Tbl.add cfg.blocks block.start block)
@@ -392,19 +412,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
     Cfg_with_layout.create cfg ~layout ~new_labels:Label.Set.empty
       ~preserve_orig_labels:true
   in
-  let fun_body, fun_tailrec_entry_point_label = run cl in
-  let fundecl =
-    { Linear.fun_name;
-      fun_body;
-      fun_fast = false;
-      fun_dbg = Debuginfo.none;
-      fun_num_stack_slots = Array.make Proc.num_register_classes 0;
-      fun_frame_required = false;
-      fun_prologue_required = false;
-      fun_contains_calls = false;
-      fun_tailrec_entry_point_label
-    }
-  in
+  let fundecl = run cl in
   X86_proc.reset_asm_code ();
   Emit.fundecl fundecl;
   X86_proc.generate_code (Some (X86_gas.generate_asm !Emitaux.output_channel))
