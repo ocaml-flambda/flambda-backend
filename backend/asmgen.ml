@@ -132,15 +132,11 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   if ocamlcfg_verbose then begin
     Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
   end;
-  let prologue_required = res.fun_prologue_required in
   let result =
     Cfgize.fundecl
       f
       ~preserve_orig_labels:false
       ~simplify_terminators:true
-      ~prologue_required
-      ~dbg:(if prologue_required then res.fun_body.dbg else Debuginfo.none)
-      ~fdo:(if prologue_required then res.fun_body.fdo else Fdo_info.none)
   in
   let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
   Eliminate_fallthrough_blocks.run expected;
@@ -188,9 +184,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
-      ++ Profile.record ~accumulate:true "cfg_to_linear" (fun cfg ->
-        let fun_body, fun_tailrec_entry_point_label = Cfg_to_linear.run cfg in
-        { fd with Linear.fun_body; fun_tailrec_entry_point_label; })
+      ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
       fd)

@@ -376,8 +376,12 @@ let check_basic_instruction :
     unit =
  fun state location idx expected result ->
   check_basic state location expected.desc result.desc;
-  check_instruction ~check_live:true ~check_dbg:true ~check_arg:true idx
-    location expected result
+  let check_dbg =
+    match expected.desc with Prologue -> false | _ -> true
+    [@@ocaml.warning "-4"]
+  in
+  check_instruction ~check_live:true ~check_dbg ~check_arg:true idx location
+    expected result
 
 let rec check_basic_instruction_list :
     State.t ->
