@@ -54,5 +54,7 @@ let lambda_to_clambda ~backend ~filename:_ ~prefixname:_ ~ppf_dump
   let clambda_and_constants =
     clambda, [preallocated_block], constants
   in
+  Compiler_hooks.execute Compiler_hooks.Raw_clambda clambda;
+  Compiler_hooks.execute Compiler_hooks.Clambda clambda;
   raw_clambda_dump_if ppf_dump clambda_and_constants;
   clambda_and_constants

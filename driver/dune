@@ -7,3 +7,11 @@
   (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries stdlib ocamloptcomp flambda2)
  (modules optcompile))
+
+(library
+(name compiler_hooks)
+ (modes byte native)
+ (flags (:standard -principal -nostdlib))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries stdlib ocamloptcomp flambda2_terms)
+ (modules compiler_hooks))
