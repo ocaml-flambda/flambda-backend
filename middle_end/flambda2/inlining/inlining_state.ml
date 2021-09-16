@@ -25,7 +25,9 @@ let increment_depth t = { t with depth = t.depth + 1 }
 
 let default ~round = { arguments = Inlining_arguments.create ~round; depth = 0 }
 
-let create ~arguments ~depth = { arguments; depth }
+let create ~arguments ~depth =
+  if depth < 0 then Misc.fatal_errorf "depth must be >= 0: %d" depth;
+  { arguments; depth }
 
 let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(depth@ %d, arguments@ %a)@]"
@@ -44,8 +46,6 @@ let meet t1 t2 =
 
 let equal t1 t2 =
   t1.depth = t2.depth && Inlining_arguments.equal t1.arguments t2.arguments
-
-let invariant t = assert (t.depth >= 0)
 
 let with_arguments arguments t = { t with arguments }
 

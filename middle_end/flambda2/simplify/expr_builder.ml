@@ -524,8 +524,6 @@ let create_switch uacc ~scrutinee ~arms =
     match Targetint_31_63.Map.get_singleton arms with
     | Some (_discriminant, action) -> change_to_apply_cont action
     | None -> (
-      (* CR mshinwell: We should do a partial invariant check here (one which
-         doesn't require [Invariant_env.t]. *)
       let actions =
         Apply_cont_expr.Set.of_list (Targetint_31_63.Map.data arms)
       in

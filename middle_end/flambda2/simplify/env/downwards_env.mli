@@ -26,8 +26,6 @@ type get_imported_code = unit -> Exported_code.t
 
 type t
 
-val invariant : t -> unit
-
 (** Print a human-readable version of the given environment. *)
 val print : Format.formatter -> t -> unit
 

@@ -24,8 +24,6 @@ type t
 
 val empty : t
 
-val invariant : t -> unit
-
 val print : Format.formatter -> t -> unit
 
 val add_non_inlinable_continuation :

@@ -97,8 +97,6 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) (TE.all_code typing_env)
 
-let invariant _t = ()
-
 let create ~round ~backend ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~float_const_prop

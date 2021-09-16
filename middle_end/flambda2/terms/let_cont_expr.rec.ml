@@ -24,9 +24,6 @@ type t =
       }
   | Recursive of Recursive_let_cont_handlers.t
 
-(* CR mshinwell: A sketch of code for the invariant check is on cps_types. *)
-let invariant _env _t = ()
-
 let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
   let rec gather_let_conts let_conts let_cont =
     match let_cont with

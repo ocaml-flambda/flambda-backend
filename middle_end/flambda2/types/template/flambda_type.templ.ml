@@ -57,8 +57,6 @@ type typing_env = Typing_env.t
 
 type typing_env_extension = Typing_env_extension.t
 
-let invariant _env _t = () (* CR mshinwell: implement *)
-
 type 'a type_accessor = Typing_env.t -> 'a
 
 let unknown_types_from_arity arity = List.map (fun kind -> unknown kind) arity

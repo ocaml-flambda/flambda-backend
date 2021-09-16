@@ -101,15 +101,6 @@ let all_ids_for_export t =
   | Switch switch -> Switch.all_ids_for_export switch
   | Invalid _ -> Ids_for_export.empty
 
-let invariant env t =
-  match descr t with
-  | Let let_expr -> Let_expr.invariant env let_expr
-  | Let_cont let_cont -> Let_cont_expr.invariant env let_cont
-  | Apply_cont apply_cont -> Apply_cont.invariant env apply_cont
-  | Apply apply -> Apply.invariant env apply
-  | Switch switch -> Switch.invariant env switch
-  | Invalid _ -> ()
-
 (* CR mshinwell: We might want printing functions that show the delayed
    permutation, etc. *)
 

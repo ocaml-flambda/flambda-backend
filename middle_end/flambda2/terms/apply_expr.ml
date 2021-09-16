@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module K = Flambda_kind
-
 module Result_continuation = struct
   type t =
     | Return of Continuation.t
@@ -101,43 +99,22 @@ let [@ocamlformat "disable"] print ppf { callee; continuation; exn_continuation;
 
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
-let invariant env
+let invariant
     ({ callee;
        continuation;
-       exn_continuation;
-       args;
+       exn_continuation = _;
+       args = _;
        call_kind;
-       dbg;
-       inline;
-       inlining_state;
+       dbg = _;
+       inline = _;
+       inlining_state = _;
        probe_name = _
      } as t) =
-  let unbound_continuation cont reason =
-    Misc.fatal_errorf "Unbound continuation %a in %s: %a" Continuation.print
-      cont reason print t
-  in
-  let module E = Invariant_env in
-  Call_kind.invariant env call_kind;
-  (* let stack = E.current_continuation_stack env in *)
-  E.check_simple_is_bound_and_of_kind env callee K.value;
   begin
     match call_kind with
-    | Function (Direct { code_id = _; closure_id = _; return_arity = _ }) ->
-      (* Note that [return_arity] is checked for all the cases below. *)
-      E.check_simples_are_bound env args
-    | Function Indirect_unknown_arity ->
-      E.check_simples_are_bound_and_of_kind env args K.value
-    | Function (Indirect_known_arity { param_arity; return_arity = _ }) ->
-      ignore (param_arity : Flambda_arity.With_subkinds.t);
-      E.check_simples_are_bound env args
-    | Method { kind; obj } ->
-      ignore (kind : Call_kind.method_kind);
-      E.check_simple_is_bound_and_of_kind env obj K.value;
-      E.check_simples_are_bound_and_of_kind env args K.value
+    | Function _ | Method _
     | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ }
       ->
-      (* CR mshinwell: Check exactly what Cmmgen can compile and then add
-         further checks on [param_arity] and [return_arity] *)
       if not (Simple.is_symbol callee)
       then
         (* CR-someday mshinwell: We could expose indirect C calls at the source
@@ -157,78 +134,24 @@ let invariant env
          call kind arity of %a:@ %a"
         Flambda_arity.With_subkinds.print a print t
   end
-  (* general case *)
-  | Return continuation ->
-    begin
-      match E.find_continuation_opt env continuation with
-      | None -> unbound_continuation continuation "[Apply] term"
-      | Some (arity, kind (*, cont_stack *)) ->
-        begin
-          match kind with
-          | Normal -> ()
-          | Exn_handler ->
-            Misc.fatal_errorf
-              "Continuation %a is an exception handler but is used in this \
-               [Apply] term as a return continuation:@ %a"
-              Continuation.print continuation print t
-        end;
-        let expected_arity = Call_kind.return_arity call_kind in
-        if not
-             (Flambda_arity.With_subkinds.compatible expected_arity
-                ~when_used_at:arity)
-        then
-          Misc.fatal_errorf
-            "Continuation %a called with wrong arity in this [Apply] term: \
-             expected %a but used at %a:@ %a"
-            Continuation.print continuation Flambda_arity.With_subkinds.print
-            expected_arity Flambda_arity.With_subkinds.print arity print t
-        (*; E.Continuation_stack.unify continuation stack cont_stack *)
-    end;
-    begin
-      match
-        E.find_continuation_opt env
-          (Exn_continuation.exn_handler exn_continuation)
-      with
-      | None ->
-        unbound_continuation continuation "[Apply] term exception continuation"
-      | Some (arity, kind (*, cont_stack *)) ->
-        begin
-          match kind with
-          | Normal ->
-            Misc.fatal_errorf
-              "Continuation %a is a normal continuation but is used in this \
-               [Apply] term as an exception handler:@ %a"
-              Continuation.print continuation print t
-          | Exn_handler -> ()
-        end;
-        let expected_arity = [Flambda_kind.With_subkind.any_value] in
-        if not (Flambda_arity.With_subkinds.equal arity expected_arity)
-        then
-          Misc.fatal_errorf
-            "Exception continuation %a named in this [Apply] term has the \
-             wrong arity: expected %a but have %a:@ %a"
-            Continuation.print continuation Flambda_arity.With_subkinds.print
-            expected_arity Flambda_arity.With_subkinds.print arity print t
-        (*; E.Continuation_stack.unify exn_continuation stack cont_stack *)
-    end;
-    ignore (dbg : Debuginfo.t);
-    ignore (inline : Inline_attribute.t);
-    Inlining_state.invariant inlining_state
+  | Return _ -> ()
 
 let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inline
     ~inlining_state ~probe_name =
-  (* CR mshinwell: We should still be able to check some of the invariant
-     properties now. (We can't do them all as we don't have the environment.) *)
-  { callee;
-    continuation;
-    exn_continuation;
-    args;
-    call_kind;
-    dbg;
-    inline;
-    inlining_state;
-    probe_name
-  }
+  let t =
+    { callee;
+      continuation;
+      exn_continuation;
+      args;
+      call_kind;
+      dbg;
+      inline;
+      inlining_state;
+      probe_name
+    }
+  in
+  invariant t;
+  t
 
 let callee t = t.callee
 
@@ -333,12 +256,17 @@ let with_continuations t continuation exn_continuation =
 
 let with_exn_continuation t exn_continuation = { t with exn_continuation }
 
-let with_call_kind t call_kind = { t with call_kind }
+let with_call_kind t call_kind =
+  let t = { t with call_kind } in
+  invariant t;
+  t
 
 let with_args t args = { t with args }
 
 let with_continuation_callee_and_args t continuation ~callee ~args =
-  { t with continuation; callee; args }
+  let t = { t with continuation; callee; args } in
+  invariant t;
+  t
 
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 

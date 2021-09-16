@@ -20,9 +20,6 @@
 
 type t
 
-(** Perform well-formedness checks on the unit. *)
-val invariant : t -> unit
-
 (** Print a unit to a formatter. *)
 val print : Format.formatter -> t -> unit
 

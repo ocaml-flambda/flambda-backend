@@ -36,9 +36,8 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
   else
     let used_or_not extra_param =
       let used =
-        Name_mode.Or_absent.is_present_as_normal
-        @@ Name_occurrences.greatest_name_mode_var free_names
-             (KP.var extra_param)
+        Name_occurrences.greatest_name_mode_var free_names (KP.var extra_param)
+        |> Name_mode.Or_absent.is_present_as_normal
       in
       (* The free_names computation is the reference here, because it records
          precisely what is actually used in the term being rebuilt. The required
@@ -50,19 +49,23 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
          constraints accumulated are an over-approximation of the actual use
          constraints), we check here that all actually-used variables were also
          marked as used by the data_flow analysis. *)
-      let marked_as_required =
-        Name.Set.mem (Name.var (KP.var extra_param)) (UA.required_names uacc)
-      in
-      if used && not marked_as_required
-      then
-        Misc.fatal_errorf
-          "The data_flow analysis marked the extra param %a@ as not required, \
-           but the free_names indicate it is actually used:@ \n\
-           free_names = %a@ \n\
-           handler = %a" KP.print extra_param Name_occurrences.print free_names
-          (RE.print (UA.are_rebuilding_terms uacc))
-          handler;
-      used
+      if not (Flambda_features.check_invariants ())
+      then used
+      else
+        let marked_as_required =
+          Name.Set.mem (Name.var (KP.var extra_param)) (UA.required_names uacc)
+        in
+        if used && not marked_as_required
+        then
+          Misc.fatal_errorf
+            "The data_flow analysis marked the extra param %a@ as not \
+             required, but the free_names indicate it is actually used:@ \n\
+             free_names = %a@ \n\
+             handler = %a" KP.print extra_param Name_occurrences.print
+            free_names
+            (RE.print (UA.are_rebuilding_terms uacc))
+            handler;
+        used
     in
     let extra_params_used_as_normal, extra_params_not_used_as_normal =
       ListLabels.partition extra_params_and_args.extra_params ~f:used_or_not
@@ -100,10 +103,9 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
         match num with
         | Zero -> false
         | One | More_than_one ->
-          (* CR mshinwell: We should guard this check and the one above by an
-             invariants flag *)
           (* Same as above *)
-          if not (Name.Set.mem (Name.var param_var) (UA.required_names uacc))
+          if Flambda_features.check_invariants ()
+             && not (Name.Set.mem (Name.var param_var) (UA.required_names uacc))
           then
             Misc.fatal_errorf
               "The data_flow analysis marked the original param %a@ as not \

@@ -23,13 +23,6 @@ type middle_end_result =
     all_code : Exported_code.t
   }
 
-let check_invariants unit =
-  try Flambda_unit.invariant unit
-  with exn ->
-    Format.eprintf "Unit which failed invariant check:@ %a\n%!"
-      Flambda_unit.print unit;
-    raise exn
-
 let print_rawflambda ppf unit =
   if Flambda_features.dump_rawflambda ()
   then
@@ -88,7 +81,6 @@ let middle_end0 ppf ~prefixname ~backend ~filename ~module_ident
               ~module_block_size_in_words module_initializer)
       in
       print_rawflambda ppf flambda;
-      check_invariants flambda;
       if Flambda_features.classic_mode ()
       then { cmx = None; unit = flambda; all_code = code }
       else

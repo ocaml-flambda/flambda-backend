@@ -56,3 +56,5 @@ let set_of_symbol_set symbols =
   Symbol.Set.fold
     (fun sym free_syms -> Set.add (Symbol sym) free_syms)
     symbols Set.empty
+
+let of_symbol sym = Symbol sym

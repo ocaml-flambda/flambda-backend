@@ -18,8 +18,6 @@
 
 type t = Continuation_handler.t Continuation.Map.t
 
-let invariant _env _t = ()
-
 let [@ocamlformat "disable"] print_with_cache ~cache:_ _ppf _t =
   Misc.fatal_error "Continuation_handlers.print_with_cache not yet implemented"
 
