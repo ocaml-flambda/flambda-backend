@@ -441,7 +441,7 @@ let order_add b acc = M.add b.order b acc
 let order_add_map m acc =
   Variable.Map.fold (fun _ b acc -> order_add b acc) m acc
 
-let flush_delayed_lets env =
+let flush_delayed_lets ?(entering_loop = false) env =
   (* generate a wrapper function to introduce the delayed let-bindings. *)
   let wrap_aux pures stages e =
     let order_map = order_add_map pures M.empty in
@@ -456,8 +456,18 @@ let flush_delayed_lets env =
       (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
       order_map e
   in
-  let wrap e = wrap_aux env.pures env.stages e in
-  wrap, { env with stages = []; pures = Variable.Map.empty }
+  (* Unless entering a loop, only pure bindings that are not to be inlined are
+     flushed now. The remainder are preserved, ensuring that the corresponding
+     expressions are sunk down as far as possible. *)
+  (* CR-someday mshinwell: work out a criterion for allowing substitutions into
+     loops. *)
+  let pures_to_keep, pures_to_flush =
+    if entering_loop
+    then Variable.Map.empty, env.pures
+    else Variable.Map.partition (fun _ binding -> binding.inline) env.pures
+  in
+  let wrap e = wrap_aux pures_to_flush env.stages e in
+  wrap, { env with stages = []; pures = pures_to_keep }
 
 (* Use and Scoping checks *)
 
