@@ -104,10 +104,10 @@ let all_ids_for_export t =
 (* CR mshinwell: We might want printing functions that show the delayed
    permutation, etc. *)
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
+let [@ocamlformat "disable"] print ppf (t : t) =
   match descr t with
-  | Let let_expr -> Let_expr.print_with_cache ~cache ppf let_expr
-  | Let_cont let_cont -> Let_cont_expr.print_with_cache ~cache ppf let_cont
+  | Let let_expr -> Let_expr.print ppf let_expr
+  | Let_cont let_cont -> Let_cont_expr.print ppf let_cont
   | Apply apply ->
     Format.fprintf ppf "@[<hov 1>(@<0>%sapply@<0>%s@ %a)@]"
       (Flambda_colours.expr_keyword ())
@@ -120,9 +120,6 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
       (Flambda_colours.expr_keyword ())
       Invalid_term_semantics.print semantics
       (Flambda_colours.normal ())
-
-let [@ocamlformat "disable"] print ppf (t : t) =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let create_let let_expr = create (Let let_expr)
 

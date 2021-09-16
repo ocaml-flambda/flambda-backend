@@ -22,14 +22,12 @@ module T0 = struct
       handler : Expr.t
     }
 
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print ppf
         { handler; num_normal_occurrences_of_params = _; } =
     fprintf ppf "@[<hov 1>(\
         @[<hov 1>(handler@ %a)@]\
         )@]"
-      (Expr.print_with_cache ~cache) handler
-
-  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+      Expr.print handler
 
   let free_names { handler; num_normal_occurrences_of_params = _ } =
     Expr.free_names handler
@@ -102,7 +100,7 @@ let pattern_match_pair t1 t2 ~f =
             Error
               Pattern_match_pair_error.Parameter_lists_have_different_lengths))
 
-let print_using_where_with_cache (recursive : Recursive.t) ~cache ppf k
+let print_using_where (recursive : Recursive.t) ppf k
     ({ abst = _; is_exn_handler } as t) occurrences ~first =
   let fprintf = Format.fprintf in
   if not first then fprintf ppf "@ ";
@@ -126,20 +124,16 @@ let print_using_where_with_cache (recursive : Recursive.t) ~cache ppf k
         (Or_unknown.print Num_occurrences.print)
         occurrences
         (Flambda_colours.normal ())
-        (Expr.print_with_cache ~cache)
-        handler;
+        Expr.print handler;
       fprintf ppf "@]")
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf { abst; is_exn_handler; } =
+let [@ocamlformat "disable"] print ppf { abst; is_exn_handler; } =
   Format.fprintf ppf "@[<hov 1>\
       @[<hov 1>(params_and_handler@ %a)@]@ \
       @[<hov 1>(is_exn_handler@ %b)@]\
       @]"
-    (A.print_with_cache ~cache) abst
+    A.print abst
     is_exn_handler
-
-let [@ocamlformat "disable"] print ppf t =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let is_exn_handler t = t.is_exn_handler
 

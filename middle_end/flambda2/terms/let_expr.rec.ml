@@ -24,14 +24,12 @@ module T0 = struct
       body : Expr.t
     }
 
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf
+  let [@ocamlformat "disable"] print ppf
         { body; num_normal_occurrences_of_bound_vars = _; } =
     fprintf ppf "@[<hov 1>(\
         @[<hov 1>(body@ %a)@]\
         )@]"
-      (Expr.print_with_cache ~cache) body
-
-  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+      Expr.print body
 
   let free_names { body; num_normal_occurrences_of_bound_vars = _ } =
     Expr.free_names body
@@ -201,7 +199,6 @@ let print_flattened_descr_lhs ppf descr =
       (Closure_id.Lmap.bindings closure_symbols)
   | Block_like (symbol, _) -> Symbol.print ppf symbol
 
-(* CR mshinwell: Use [print_with_cache]? *)
 let print_flattened_descr_rhs ppf descr =
   match descr with
   | Code (_, code) -> Code.print ppf code
@@ -253,7 +250,7 @@ let flatten_let_symbol t : _ * Expr.t =
 
 (* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the same
    flattened type? *)
-let print_let_symbol_with_cache ~cache ppf t =
+let print_let_symbol ppf t =
   let rec print_more flattened =
     match flattened with
     | [] -> ()
@@ -271,11 +268,11 @@ let print_let_symbol_with_cache ~cache ppf t =
       (Flambda_colours.normal ())
       print_flattened flat;
     print_more flattened;
-    fprintf ppf "@]@ %a)@]" (Expr.print_with_cache ~cache) body
+    fprintf ppf "@]@ %a)@]" Expr.print body
 
 (* For printing all kinds of let-expressions: *)
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       ({ name_abstraction = _; defining_expr; } as t) =
   let let_bound_var_colour bindable_let_bound defining_expr =
     let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
@@ -299,14 +296,14 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
               Bindable_let_bound.print bindable_let_bound
               (Flambda_colours.elide ())
               (Flambda_colours.normal ())
-              (Named.print_with_cache ~cache) defining_expr;
+              Named.print defining_expr;
             let_body body
           | Symbols _ -> expr)
     | _ -> expr
   in
   pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
     match bindable_let_bound with
-    | Symbols _ -> print_let_symbol_with_cache ~cache ppf t
+    | Symbols _ -> print_let_symbol ppf t
     | Singleton _ | Set_of_closures _ ->
       fprintf ppf "@[<v 1>(@<0>%slet@<0>%s@ (@[<v 0>\
           @[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
@@ -316,12 +313,9 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
         Bindable_let_bound.print bindable_let_bound
         (Flambda_colours.elide ())
         (Flambda_colours.normal ())
-        (Named.print_with_cache ~cache) defining_expr;
+        Named.print defining_expr;
       let expr = let_body body in
-      fprintf ppf "@])@ %a)@]"
-        (Expr.print_with_cache ~cache) expr)
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+      fprintf ppf "@])@ %a)@]" Expr.print expr)
 
 let create (bindable_let_bound : Bindable_let_bound.t) (defining_expr : Named.t)
     ~body ~(free_names_of_body : _ Or_unknown.t) =

@@ -57,8 +57,6 @@ include Container_types.Make (struct
     Misc.fatal_error "Bindable_let_bound.output not yet implemented"
 end)
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let free_names t =
   match t with
   | Singleton var ->

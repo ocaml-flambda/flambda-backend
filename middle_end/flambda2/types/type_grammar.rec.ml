@@ -37,33 +37,20 @@ type t =
   | Naked_nativeint of T_NN.t
   | Rec_info of T_RI.t
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : Type_grammar.t) =
+let print ppf (t : Type_grammar.t) =
   match t with
-  | Value ty ->
-    Format.fprintf ppf "@[<hov 1>(Val@ %a)@]"
-      (T_V.print_with_cache ~cache) ty
+  | Value ty -> Format.fprintf ppf "@[<hov 1>(Val@ %a)@]" T_V.print ty
   | Naked_immediate ty ->
-    Format.fprintf ppf "@[<hov 1>(Naked_immediate@ %a)@]"
-      (T_NI.print_with_cache ~cache) ty
+    Format.fprintf ppf "@[<hov 1>(Naked_immediate@ %a)@]" T_NI.print ty
   | Naked_float ty ->
-    Format.fprintf ppf "@[<hov 1>(Naked_float@ %a)@]"
-      (T_Nf.print_with_cache ~cache) ty
+    Format.fprintf ppf "@[<hov 1>(Naked_float@ %a)@]" T_Nf.print ty
   | Naked_int32 ty ->
-    Format.fprintf ppf "@[<hov 1>(Naked_int32@ %a)@]"
-      (T_N32.print_with_cache ~cache) ty
+    Format.fprintf ppf "@[<hov 1>(Naked_int32@ %a)@]" T_N32.print ty
   | Naked_int64 ty ->
-    Format.fprintf ppf "@[<hov 1>(Naked_int64@ %a)@]"
-      (T_N64.print_with_cache ~cache) ty
+    Format.fprintf ppf "@[<hov 1>(Naked_int64@ %a)@]" T_N64.print ty
   | Naked_nativeint ty ->
-    Format.fprintf ppf "@[<hov 1>(Naked_nativeint@ %a)@]"
-      (T_NN.print_with_cache ~cache) ty
-  | Rec_info ty ->
-    Format.fprintf ppf "@[<hov 1>(Rec_info@ %a)@]"
-      (T_RI.print_with_cache ~cache) ty
-
-let [@ocamlformat "disable"] print ppf t =
-  let cache : Printing_cache.t = Printing_cache.create () in
-  print_with_cache ~cache ppf t
+    Format.fprintf ppf "@[<hov 1>(Naked_nativeint@ %a)@]" T_NN.print ty
+  | Rec_info ty -> Format.fprintf ppf "@[<hov 1>(Rec_info@ %a)@]" T_RI.print ty
 
 let force_to_kind_value t =
   match t with

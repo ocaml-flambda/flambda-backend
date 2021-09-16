@@ -46,8 +46,6 @@ include Container_types.Make (struct
   let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let create param kind = { param; kind }
 
 let var t = t.param

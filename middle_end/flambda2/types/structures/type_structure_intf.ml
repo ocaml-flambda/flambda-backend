@@ -29,8 +29,6 @@ module type S = sig
 
   type t
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   (* CR mshinwell: Add [bottom] here? Probably [is_bottom] too *)

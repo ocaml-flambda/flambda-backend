@@ -72,8 +72,6 @@ let [@ocamlformat "disable"] print ppf { scrutinee; arms; } =
     Simple.print scrutinee
     print_arms arms
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let create ~scrutinee ~arms = { scrutinee; arms }
 
 let if_then_else ~scrutinee ~if_true ~if_false =

@@ -21,7 +21,7 @@ type t =
     closure_elements : Simple.t Var_within_closure.Map.t
   }
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       { function_decls;
         closure_elements;
       } =
@@ -31,13 +31,13 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
       )@]"
     (Flambda_colours.prim_constructive ())
     (Flambda_colours.normal ())
-    (Function_declarations.print_with_cache ~cache) function_decls
+    (Function_declarations.print) function_decls
     (Var_within_closure.Map.print Simple.print) closure_elements
 
 include Container_types.Make (struct
   type nonrec t = t
 
-  let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let print = print
 
   let output _ _ = Misc.fatal_error "Not yet implemented"
 
@@ -82,7 +82,7 @@ let environment_doesn't_mention_variables t =
     (fun _vwc simple -> Simple.is_symbol simple)
     t.closure_elements
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       { function_decls;
         closure_elements;
       } =
@@ -92,7 +92,7 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
         )@]"
       (Flambda_colours.prim_constructive ())
       (Flambda_colours.normal ())
-      (Function_declarations.print_with_cache ~cache) function_decls
+      (Function_declarations.print) function_decls
   else
     Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ \
         @[<hov 1>%a@]@ \
@@ -100,10 +100,8 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
         )@]"
       (Flambda_colours.prim_constructive ())
       (Flambda_colours.normal ())
-      (Function_declarations.print_with_cache ~cache) function_decls
+      (Function_declarations.print) function_decls
       (Var_within_closure.Map.print Simple.print) closure_elements
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let free_names { function_decls; closure_elements } =
   Name_occurrences.union_list

@@ -71,8 +71,6 @@ let [@ocamlformat "disable"] print ppf t =
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 (* Continuations used in trap actions are tracked separately, since sometimes,
    we don't want to count them as uses. However they must be tracked for lifting
    of continuations during [Closure_conversion]. *)

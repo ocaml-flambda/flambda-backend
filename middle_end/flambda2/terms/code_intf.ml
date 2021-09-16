@@ -92,8 +92,6 @@ module type S = sig
 
   val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val all_ids_for_export : t -> Ids_for_export.t

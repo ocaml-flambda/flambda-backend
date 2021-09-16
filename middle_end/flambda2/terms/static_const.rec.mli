@@ -85,8 +85,6 @@ module Group : sig
 
   val create : static_const list -> t
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val to_list : t -> static_const list

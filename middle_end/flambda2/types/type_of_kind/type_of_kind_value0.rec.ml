@@ -35,7 +35,7 @@ type t =
   | String of String_info.Set.t
   | Array of { length : T.t }
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Variant { blocks; immediates; is_unique } ->
     (* CR mshinwell: Improve so that we elide blocks and/or immediates when
@@ -46,31 +46,29 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
         @[<hov 1>(tagged_imms@ %a)@]\
         )@]"
       (if is_unique then " unique" else "")
-      (Or_unknown.print (Blocks.print_with_cache ~cache)) blocks
-      (Or_unknown.print (T.print_with_cache ~cache)) immediates
+      (Or_unknown.print (Blocks.print)) blocks
+      (Or_unknown.print T.print) immediates
   | Boxed_float naked_ty ->
     Format.fprintf ppf "@[<hov 1>(Boxed_float@ %a)@]"
-      (T.print_with_cache ~cache) naked_ty
+      T.print naked_ty
   | Boxed_int32 naked_ty ->
     Format.fprintf ppf "@[<hov 1>(Boxed_int32@ %a)@]"
-      (T.print_with_cache ~cache) naked_ty
+      T.print naked_ty
   | Boxed_int64 naked_ty ->
     Format.fprintf ppf "@[<hov 1>(Boxed_int64@ %a)@]"
-      (T.print_with_cache ~cache) naked_ty
+      T.print naked_ty
   | Boxed_nativeint naked_ty ->
     Format.fprintf ppf "@[<hov 1>(Boxed_nativeint@ %a)@]"
-      (T.print_with_cache ~cache) naked_ty
+      T.print naked_ty
   | Closures { by_closure_id; } ->
-    Row_like.For_closures_entry_by_set_of_closures_contents.print_with_cache ~cache
+    Row_like.For_closures_entry_by_set_of_closures_contents.print
       ppf by_closure_id
   | String str_infos ->
     Format.fprintf ppf "@[<hov 1>(Strings@ (%a))@]"
       String_info.Set.print str_infos
   | Array { length; } ->
     Format.fprintf ppf "@[<hov 1>(Array@ (length@ %a))@]"
-      (T.print_with_cache ~cache) length
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+      T.print length
 
 let apply_renaming_variant blocks immediates perm =
   let immediates' =

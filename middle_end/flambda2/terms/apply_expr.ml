@@ -97,8 +97,6 @@ let [@ocamlformat "disable"] print ppf { callee; continuation; exn_continuation;
       | Some probe_name -> Format.pp_print_string ppf probe_name)
     probe_name
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let invariant
     ({ callee;
        continuation;

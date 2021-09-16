@@ -24,8 +24,6 @@ module T0 = struct
 
   let [@ocamlformat "disable"] print _ppf _t = Misc.fatal_error "Not yet implemented"
 
-  let [@ocamlformat "disable"] print_with_cache ~cache:_ _ppf _t = Misc.fatal_error "Not yet implemented"
-
   let create ~body handlers = { handlers; body }
 
   let handlers t = t.handlers
