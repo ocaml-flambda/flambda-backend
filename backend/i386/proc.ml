@@ -240,16 +240,16 @@ let op_is_pure = function
 
 (* Layout of the stack frame *)
 
-let frame_required fd =
+let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   let frame_size_at_top_of_function =
     (* cf. [frame_size] in emit.mlp. *)
-    Misc.align (4*fd.fun_num_stack_slots.(0) + 8*fd.fun_num_stack_slots.(1) + 4)
+    Misc.align (4*fun_num_stack_slots.(0) + 8*fun_num_stack_slots.(1) + 4)
       stack_alignment
   in
   frame_size_at_top_of_function > 4
 
-let prologue_required fd =
-  frame_required fd
+let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
+  frame_required ~fun_contains_calls ~fun_num_stack_slots
 
 (* Calling the assembler *)
 
