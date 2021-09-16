@@ -7,17 +7,12 @@ existing translation from clambda to cmm. However, that gave very little control
 to flambda in terms of unboxing, since most optimizations relating to unboxing
 happens during the clambda to cmm translation.
 
-The translation from flambda2 to cmm is currently named `un_cps` for historical
-reasons (because it `un`does the `cps` form of flambda2), but it is expected to
-change toward a less obscure name at one point.
-
-
 ## Overview
 
 See [this file](term_language.md) for a description of the flamdba2 language,
 and [the cmm doc](cmm.md) for an overview of the cmm language.
 
-This section provides an overview of the main tasks of the `un_cps`
+This section provides an overview of the main tasks of the `to_cmm`
 translation. First these "tasks" are listed, and then are explained in details,
 together with their motivations and requirements. The technical aspect of how
 these tasks are implemented will be discussed in the following section).
@@ -70,7 +65,7 @@ and lower these operations are explicit, e.g.:
 
 One good point compared to cmmgen is that we can assume that the flambda
 simplifier will already have unboxed things that can be unboxed, so contrary to
-`cmmgen`, `un_cps` does not need to do the work of trying to find unboxing
+`cmmgen`, `to_cmm` does not need to do the work of trying to find unboxing
 optimizations.
 
 #### "Big" and "small" values
@@ -93,7 +88,7 @@ ocaml values across functions.
 
 "small" values are values which are strictly smaller than register, and whose
 semantics usually need this smaller value space; typically, these are 32-bit
-integers on 64-bit platforms.  For these values, `un_cps` need to choose one
+integers on 64-bit platforms.  For these values, `to_cmm` need to choose one
 encoding into 64-bits registers, and translate the abstract operations from
 flambda2 on these types to concrete operations on registers in a way that
 preserve the expected semantics.
@@ -132,7 +127,7 @@ compared to generating A-normal forms; some of these reasons are:
   Conversely, when this is not the case, the compiler pipeline will
   automatically add a (= 0) comparison, resulting in a few more instructions.
 
-Thus `un_cps` does the following:
+Thus `to_cmm` does the following:
 - remove pure and co-effectful-only expressions which are never used
 - substitute pure and co-effectful-only expressions which are used exactly once
 - if the option is set, substitute effectful expressions which are used exactly once
@@ -178,7 +173,7 @@ not inline sets of closures across modules anymore, and thus all sharing are
 restricted to the current module, there should not be any instance where
 the offset computation can fail.
 
-Currently, `un_cps` implements a greedy algorithm for filling out sets of
+Currently, `to_cmm` implements a greedy algorithm for filling out sets of
 closures and assign offsets. It iterates over closures, assigning the lowest
 offset that is free in all sets of closures where it appears, and then does the
 same for all env vars. While not optimal as it may leave gaps, this should
@@ -198,24 +193,24 @@ flambda2.
 
 ### Organization of the code and main control flow of the translation
 
-`un_cps` translate flambda2 expressions using two traversals of an flambda2
+`to_cmm` translate flambda2 expressions using two traversals of an flambda2
 body.
 
 The first traversal iterates over all sets of closures defined by the body.
 This allows to assign offsets to all members of sets of closures (taking into
 account constraints due to a potential sharing of closures of env vars beetween
-sets of closures), using the code in `un_cps_closure.ml`.
+sets of closures), using the code in `to_cmm_closure.ml`.
 
-After that, `un_cps` operates the second, and main traversal of the
+After that, `to_cmm` operates the second, and main traversal of the
 expression, accumulating information (about continuations, substitutions, etc)
-in an environment (defined in `un_cps_env.ml`), and then returning two
+in an environment (defined in `to_cmm_env.ml`), and then returning two
 values: the resulting cmm expression, and a static result that contains all
 the constants that should be pre-allocated (in comparison, `cmmgen` uses a global
 reference to store that information during translation). This static result
-(defined in `un_cps_result.ml`) will be grown by the translation, by either
+(defined in `to_cmm_result.ml`) will be grown by the translation, by either
 `let_symbol` bindings or sets of closures bindings. Translations of flambda2
 expression that can result in pre-allocation of static constants go through
-the `un_cps_static.ml` file.
+the `to_cmm_static.ml` file.
 
 ### Tagging and unboxing
 
@@ -225,7 +220,7 @@ of values, e.g. boxed integers are identified with their size, tagged integers
 are differentiated from untagged integers, ... . Together with information
 about what the cmm primitives expect (i.e. which primitive expect or return
 a tagged integer, and which deal with untagged integers), this offers a
-rather comprehensive way for `un_cps` to know when or where to tag/untag
+rather comprehensive way for `to_cmm` to know when or where to tag/untag
 things. See the following for more details:
 - `middle_end/flambda/terms/flambda_primitive.ml` for the data about kinds
   consumed/returned by flambda primitives (particularly the
@@ -234,11 +229,11 @@ things. See the following for more details:
   (this is still a TODO)
 
 Unboxing is also straightforward: as mentioned earlier, flambda2 already
-takes care of identifying and applying all the unboxing we want, so `un_cps`
+takes care of identifying and applying all the unboxing we want, so `to_cmm`
 only introduces the boxing and unboxing as needed, using the same information
 as for tagging/untagging.
 
-For the concrete implementation, `un_cps` mostly re-uses code from
+For the concrete implementation, `to_cmm` mostly re-uses code from
 `cmm_helpers`.
 
 ### "Big" and "small" values
@@ -254,13 +249,13 @@ bits and its higher bits, and then carried on two registers.  Handling these
 is relatively straightforward since the low-level operations are already
 written in `cmm_helpers`.
 
-A difference between `cmmgen` and `un_cps` is that flambda2 has explicit
+A difference between `cmmgen` and `to_cmm` is that flambda2 has explicit
 box/unbox operations on these, and as such, where `cmmgen` is in control of the
 boxing and thus most of the time generate calls to function that handle the
-boxed version of Int64s, `un_cps` actually has to mostly deal with unboxed
+boxed version of Int64s, `to_cmm` actually has to mostly deal with unboxed
 Int64, and generate calls that handle the unboxed variant.
 
-Currently, there may be some cases in `un_cps` that will raise a fatal error
+Currently, there may be some cases in `to_cmm` that will raise a fatal error
 because there was not yet an unboxed version of the required function in the
 runtime.
 
@@ -298,8 +293,8 @@ a trap mechanism to mirror that of flambda2.
 
 ### Let-binding substitution
 
-This is the most complex part of `un_cps` and also the part most sensitive
-to changes (even innocuous changes in `un_cps` might break becasue of this).
+This is the most complex part of `to_cmm` and also the part most sensitive
+to changes (even innocuous changes in `to_cmm` might break becasue of this).
 The goal is to substitute let-bound variable's bodies during translation, because
 it allows for more optimizations. There are two technical challenges
 with this:
@@ -309,7 +304,7 @@ with this:
   continuations, in which case the expression might be evaluated more than once).
 
 Most of the code to deal with this is in the definition of the translation
-environment in `un_cps_env`: the environment accumulates all let-bindings
+environment in `to_cmm_env`: the environment accumulates all let-bindings
 (whether that can be substituted or not), since we have to be able to
 substitute through a non-substitutable binding. A nice consequence of that is
 that translating a let-binding can then be tail-rec, which is very useful.
@@ -322,7 +317,7 @@ Let-bindings are stored in the environment in a few structures:
   or a single effectful binding.
 These two structures are used to store enough information to perform substitution
 if needed. Additionally, another map is used to relate all flambda2 variables to
-corresponding cmm variables. This mapping is used when `un_cps` decides not to
+corresponding cmm variables. This mapping is used when `to_cmm` decides not to
 substitute a variable's body.
 
 When a let-bound variable has to be translated, a special env lookup is used,

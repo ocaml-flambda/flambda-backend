@@ -419,7 +419,7 @@ let create_let_symbols uacc lifted_constant ~body =
              symbol" that we've just created, we'll always end up here, avoiding
              any problem about where to do the projection versus the
              initialisation of a possibly-recursive group of symbols. We may end
-             up with a "variable = variable" [Let] here, but [Un_cps] (or a
+             up with a "variable = variable" [Let] here, but [To_cmm] (or a
              subsequent pass of [Simplify]) will remove it. This is the same
              situation as when continuations are inlined; we can't use a name
              permutation to resolve the problem as both [var] and [var'] may

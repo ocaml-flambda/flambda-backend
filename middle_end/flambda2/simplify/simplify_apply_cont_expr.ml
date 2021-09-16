@@ -30,7 +30,7 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
        isn't the correct accumulator and environment any more. However there's
        no need to simplify the inlined body except to make use of
        parameter-to-argument bindings; we just leave them for a subsequent round
-       of [Simplify] or [Un_cps] to clean up. *)
+       of [Simplify] or [To_cmm] to clean up. *)
     let args = AC.args apply_cont in
     if List.compare_lengths params args <> 0
     then

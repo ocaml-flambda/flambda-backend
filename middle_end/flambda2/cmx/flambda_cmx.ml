@@ -124,7 +124,7 @@ let prepare_cmx_file_contents ~return_cont_env:cont_uses_env
     in
     let exported_offsets =
       (* The offsets computations for newly defined elements will be added after
-         Un_cps_closure *)
+         To_cmm_closure *)
       Exported_offsets.imported_offsets ()
     in
     Some
