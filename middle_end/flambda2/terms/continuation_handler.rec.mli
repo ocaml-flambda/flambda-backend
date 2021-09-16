@@ -21,7 +21,6 @@
     continuation handler. *)
 type t
 
-(** Printing, invariant checks, name manipulation, etc. *)
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t

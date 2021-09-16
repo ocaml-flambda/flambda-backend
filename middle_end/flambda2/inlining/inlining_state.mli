@@ -36,8 +36,6 @@ val is_depth_exceeded : t -> bool
 
 val meet : t -> t -> t
 
-val invariant : t -> unit
-
 val with_arguments : Inlining_arguments.t -> t -> t
 
 val arguments : t -> Inlining_arguments.t

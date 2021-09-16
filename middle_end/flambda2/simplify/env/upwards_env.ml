@@ -23,8 +23,6 @@ type t =
     apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t
   }
 
-let invariant _t = ()
-
 let empty =
   { continuations = Continuation.Map.empty;
     exn_continuations = Exn_continuation.Map.empty;

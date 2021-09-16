@@ -51,8 +51,6 @@ type t =
     is_exn_handler : bool
   }
 
-let invariant _env _t = ()
-
 let create params ~handler ~(free_names_of_handler : _ Or_unknown.t)
     ~is_exn_handler =
   let num_normal_occurrences_of_params =

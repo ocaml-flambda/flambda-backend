@@ -19,7 +19,6 @@
 (** The alpha-equivalence classes of expressions that bind variables. *)
 type t
 
-(** Printing, invariant checks, name manipulation, etc. *)
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t

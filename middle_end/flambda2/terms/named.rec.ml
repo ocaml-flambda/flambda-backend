@@ -59,31 +59,6 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
 
 let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
-(* CR mshinwell: It seems that the type [Flambda_primitive.result_kind] should
-   move into [K], now it's used here. *)
-let invariant_returning_kind env t : Flambda_primitive.result_kind =
-  try
-    let module E = Invariant_env in
-    match t with
-    | Simple simple -> Singleton (E.kind_of_simple env simple)
-    | Set_of_closures set_of_closures ->
-      Set_of_closures.invariant env set_of_closures;
-      Singleton K.fabricated
-    | Prim (prim, dbg) ->
-      Flambda_primitive.invariant env prim;
-      ignore (dbg : Debuginfo.t);
-      Flambda_primitive.result_kind prim
-    | Static_consts _ ->
-      (* CR mshinwell: This isn't really right, there can be multiple
-         constants *)
-      Singleton K.value
-    | Rec_info _ -> Singleton K.rec_info
-  with Misc.Fatal_error ->
-    Misc.fatal_errorf "(during invariant checks) Context is:@ %a" print t
-
-let invariant env t =
-  ignore (invariant_returning_kind env t : Flambda_primitive.result_kind)
-
 let free_names t =
   match t with
   | Simple simple -> Simple.free_names simple

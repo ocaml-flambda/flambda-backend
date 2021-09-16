@@ -36,8 +36,6 @@ type t =
     free_names_of_body : Name_occurrences.t Or_unknown.t
   }
 
-let invariant _env _t = ()
-
 let create ~return_continuation exn_continuation params ~dbg ~body
     ~free_names_of_body ~my_closure ~my_depth =
   let is_my_closure_used =

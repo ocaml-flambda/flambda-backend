@@ -22,8 +22,6 @@ module T0 = struct
       body : Expr.t
     }
 
-  let invariant _env _t = ()
-
   let [@ocamlformat "disable"] print _ppf _t = Misc.fatal_error "Not yet implemented"
 
   let [@ocamlformat "disable"] print_with_cache ~cache:_ _ppf _t = Misc.fatal_error "Not yet implemented"
@@ -51,8 +49,6 @@ module T0 = struct
 end
 
 include Name_abstraction.Make_list (Bindable_continuation) (T0)
-
-let invariant _env _t = ()
 
 let create ~body handlers =
   let bound = Continuation_handlers.domain handlers in

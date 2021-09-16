@@ -24,7 +24,5 @@ module type S = sig
 
   val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 
-  val invariant : Invariant_env.t -> t -> unit
-
   include Contains_names.S with type t := t
 end

@@ -34,8 +34,6 @@ val print : Format.formatter -> t -> unit
 
 val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 
-val invariant : Invariant_env.t -> t -> unit
-
 val arity_of_list : t list -> Flambda_arity.t
 
 type typing_env

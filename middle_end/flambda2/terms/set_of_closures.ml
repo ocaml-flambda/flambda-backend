@@ -57,9 +57,6 @@ include Container_types.Make (struct
   let equal t1 t2 = compare t1 t2 = 0
 end)
 
-(* CR mshinwell: A sketch of code for the invariant check is on cps_types. *)
-let invariant _env _t = ()
-
 let empty =
   { function_decls = Function_declarations.empty;
     closure_elements = Var_within_closure.Map.empty

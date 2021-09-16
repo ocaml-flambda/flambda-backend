@@ -103,8 +103,6 @@ struct
   let [@ocamlformat "disable"] print ppf t =
     print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
-  let _invariant _t = ()
-
   let create_bottom () = { known_tags = Tag.Map.empty; other_tags = Bottom }
 
   let create_exactly tag index maps_to =

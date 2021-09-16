@@ -43,8 +43,6 @@ let free_names t = free_names_in_mode t Name_mode.normal
 
 let free_names_in_types t = free_names_in_mode t Name_mode.in_types
 
-let invariant _ _ = ()
-
 let rec all_ids_for_export = function
   | Const _ -> Ids_for_export.empty
   | Var dv -> Ids_for_export.add_variable Ids_for_export.empty dv

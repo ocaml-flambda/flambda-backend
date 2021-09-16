@@ -26,7 +26,6 @@ module Field_of_block : sig
     | Dynamically_computed of Variable.t
         (** The value of the given variable. *)
 
-  (** Printing, total ordering, etc. *)
   include Container_types.S with type t := t
 
   include Contains_names.S with type t := t
