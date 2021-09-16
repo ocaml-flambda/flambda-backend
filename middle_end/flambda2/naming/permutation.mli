@@ -25,8 +25,6 @@ module Make (N : Container_types.S) : sig
 
   val print : Format.formatter -> t -> unit
 
-  val invariant : t -> unit
-
   val is_empty : t -> bool
 
   val apply : t -> N.t -> N.t

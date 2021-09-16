@@ -21,8 +21,6 @@ type t =
     in_order : Code_id.t Closure_id.Lmap.t
   }
 
-let invariant _env _t = ()
-
 let empty = { funs = Closure_id.Map.empty; in_order = Closure_id.Lmap.empty }
 
 let is_empty { funs; _ } = Closure_id.Map.is_empty funs

@@ -56,15 +56,6 @@ module Function_call = struct
         Flambda_arity.With_subkinds.print param_arity
         Flambda_arity.With_subkinds.print return_arity
 
-  let invariant t =
-    match t with
-    | Direct { code_id = _; closure_id = _; return_arity } ->
-      check_arity return_arity
-    | Indirect_unknown_arity -> ()
-    | Indirect_known_arity { param_arity; return_arity } ->
-      check_arity param_arity;
-      check_arity return_arity
-
   let return_arity call =
     match call with
     | Direct { return_arity; _ } | Indirect_known_arity { return_arity; _ } ->
@@ -116,36 +107,27 @@ let [@ocamlformat "disable"] print ppf t =
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t =
   print ppf t
 
-let invariant0 t =
-  match t with
-  | Function call -> Function_call.invariant call
-  | Method { kind = _; obj = _ } -> ()
-  | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
-    (* CR gbury: these were removed because there didn't seem to be any problem
-       with 0-arity c-calls check_arity param_arity; check_arity
-       return_arity; *)
-    ()
-
-let invariant _env t = invariant0 t
-
 let direct_function_call code_id closure_id ~return_arity =
-  let t = Function (Direct { code_id; closure_id; return_arity }) in
-  invariant0 t;
-  t
+  check_arity return_arity;
+  Function (Direct { code_id; closure_id; return_arity })
 
 let indirect_function_call_unknown_arity () = Function Indirect_unknown_arity
 
 let indirect_function_call_known_arity ~param_arity ~return_arity =
-  let t = Function (Indirect_known_arity { param_arity; return_arity }) in
-  invariant0 t;
-  t
+  check_arity return_arity;
+  Function (Indirect_known_arity { param_arity; return_arity })
 
 let method_call kind ~obj = Method { kind; obj }
 
 let c_call ~alloc ~param_arity ~return_arity ~is_c_builtin =
-  let t = C_call { alloc; param_arity; return_arity; is_c_builtin } in
-  invariant0 t;
-  t
+  begin
+    match return_arity with
+    | [] | [_] -> ()
+    | _ :: _ :: _ ->
+      Misc.fatal_errorf "Illegal return arity for C call: %a"
+        Flambda_arity.print return_arity
+  end;
+  C_call { alloc; param_arity; return_arity; is_c_builtin }
 
 let return_arity t =
   match t with

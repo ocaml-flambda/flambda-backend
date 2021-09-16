@@ -74,24 +74,6 @@ let [@ocamlformat "disable"] print ppf { scrutinee; arms; } =
 
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
-let invariant _ _ = ()
-
-(* let invariant env ({ scrutinee; arms; } as t) = let module E = Invariant_env
-   in let unbound_continuation cont reason = Misc.fatal_errorf "Unbound
-   continuation %a in %s: %a" Continuation.print cont reason print t in
-   E.check_simple_is_bound_and_of_kind env scrutinee K.fabricated; assert
-   (Targetint_31_63.Map.cardinal arms >= 2); let check _arm k = match
-   E.find_continuation_opt env k with | None -> unbound_continuation k "[Switch]
-   term" | Some (arity, kind (*, cont_stack *)) -> (* let current_stack =
-   E.current_continuation_stack env in E.Continuation_stack.unify k cont_stack
-   current_stack; *) begin match kind with | Normal -> () | Exn_handler ->
-   Misc.fatal_errorf "Continuation %a is an exception handler \ but is used in
-   this [Switch] as a normal continuation:@ %a" Continuation.print k print t
-   end; if List.length arity <> 0 then begin Misc.fatal_errorf "Continuation %a
-   is used in this [Switch] \ and thus must have arity [], but has arity %a"
-   Continuation.print k Flambda_arity.print arity end in
-   Targetint_31_63.Map.iter check arms *)
-
 let create ~scrutinee ~arms = { scrutinee; arms }
 
 let if_then_else ~scrutinee ~if_true ~if_false =

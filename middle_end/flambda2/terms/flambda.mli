@@ -41,7 +41,6 @@ module rec Expr : sig
       bound [Variable]s and [Continuation]s. *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   val all_ids_for_export : t -> Ids_for_export.t
@@ -103,7 +102,6 @@ and Named : sig
     | Rec_info of Rec_info_expr.t
         (** Definition of a state of recursive inlining. *)
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   (** Convert a register-width value into the defining expression of a [Let]. *)
@@ -158,7 +156,6 @@ and Let_expr : sig
       equivalence). *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   val create :
@@ -240,7 +237,6 @@ and Let_cont_expr : sig
         }
     | Recursive of Recursive_let_cont_handlers.t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   (** Create a definition of a non-recursive continuation. If the continuation
@@ -271,7 +267,6 @@ and Non_recursive_let_cont_handler : sig
       single non-recursive continuation handler over a body. *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   (** Deconstruct a continuation binding to get the name of the bound
@@ -293,7 +288,6 @@ and Continuation_handler : sig
       information about such handler. *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   (** Create the representation of a single continuation handler. *)
@@ -354,7 +348,6 @@ and Recursive_let_cont_handlers : sig
       body and their own handler code. *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   (** Deconstruct a continuation binding to get the bound continuations,
@@ -405,7 +398,6 @@ and Function_params_and_body : sig
       [Select_closure]. *)
   type t
 
-  (** Printing, invariant checks, name manipulation, etc. *)
   include Expr_std.S with type t := t
 
   include Contains_ids.S with type t := t
@@ -490,7 +482,6 @@ and Static_const : sig
       | Dynamically_computed of Variable.t
           (** The value of the given variable. *)
 
-    (** Printing, total ordering, etc. *)
     include Container_types.S with type t := t
 
     include Contains_names.S with type t := t

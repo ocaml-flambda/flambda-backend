@@ -77,8 +77,6 @@ end = struct
 
     val print : Format.formatter -> t -> unit
 
-    val invariant : t -> unit
-
     val equal : t -> t -> bool
 
     val one_occurrence : Kind.t -> t
@@ -145,8 +143,6 @@ end = struct
           @[<hov 1>(by_kind %a)@]\
           )@]"
         (Kind.Map.print Format.pp_print_int) (to_map t)
-
-    let invariant _t = ()
 
     let equal t1 t2 = t1 == t2
 
@@ -264,13 +260,6 @@ end = struct
 
   let [@ocamlformat "disable"] print ppf t =
     N.Map.print For_one_name.print ppf (map t)
-
-  let invariant t =
-    if Flambda_features.check_invariants ()
-    then
-      N.Map.iter
-        (fun _name for_one_name -> For_one_name.invariant for_one_name)
-        (map t)
 
   let equal t1 t2 =
     match t1, t2 with
@@ -395,9 +384,7 @@ end = struct
             Some (For_one_name.union for_one_name1 for_one_name2))
           map1 map2
       in
-      let t = Potentially_many map in
-      invariant t;
-      t
+      Potentially_many map
 
   let keys t =
     match t with

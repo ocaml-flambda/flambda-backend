@@ -85,8 +85,6 @@ let exn_handler t = t.exn_handler
 
 let extra_args t = t.extra_args
 
-let invariant _env _t = ()
-
 let free_names { exn_handler; extra_args } =
   let extra_args = List.map (fun (simple, _kind) -> simple) extra_args in
   Name_occurrences.union

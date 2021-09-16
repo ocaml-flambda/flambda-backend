@@ -62,8 +62,6 @@ let [@ocamlformat "disable"] print ppf
     (Or_unknown.print Var_within_closure.Set.print) used_closure_vars
     Flambda.Expr.print body
 
-let invariant _t = ()
-
 let apply_renaming
     { return_continuation;
       exn_continuation;

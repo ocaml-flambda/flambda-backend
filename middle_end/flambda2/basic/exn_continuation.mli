@@ -23,7 +23,6 @@
 
 type t
 
-(** Printing, invariant checks, name manipulation, etc. *)
 include Container_types.S with type t := t
 
 include Expr_std.S with type t := t

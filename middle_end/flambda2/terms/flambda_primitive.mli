@@ -368,8 +368,6 @@ type t =
 
 type primitive_application = t
 
-val invariant : Invariant_env.t -> t -> unit
-
 include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
@@ -477,11 +475,9 @@ module Eligible_for_cse : sig
 
   val filter_map_args : t -> f:(Simple.t -> Simple.t option) -> t option
 
-  (** Total ordering, equality, printing, sets, maps etc. *)
   include Container_types.S with type t := t
 end
 
-(** Total ordering, printing, sets, maps etc. *)
 include Container_types.S with type t := t
 
 val equal : t -> t -> bool

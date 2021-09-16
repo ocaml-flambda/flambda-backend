@@ -110,48 +110,6 @@ end)
 
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
 
-let invariant _env _ = ()
-(* let invariant env ({ k; args; trap_action; dbg=_; } as t) = let module E =
-   Invariant_env in let unbound_continuation cont reason = Misc.fatal_errorf
-   "Unbound continuation %a in %s: %a" Continuation.print cont reason print t in
-   let args_arity = List.map (fun arg -> E.kind_of_simple env arg) args in let
-   arity, kind (*, cont_stack *) = match E.find_continuation_opt env k with |
-   Some result -> result | None -> unbound_continuation k "[Apply_cont] term" in
-   (* let stack = E.current_continuation_stack env in E.Continuation_stack.unify
-   cont stack cont_stack; *) (* XXX This check can't be equality any more *) if
-   not (Flambda_arity.With_subkinds.equal args_arity arity) then begin
-   Misc.fatal_errorf "Continuation %a called with wrong arity in \ this
-   [Apply_cont] term: expected %a but found %a:@ %a" Continuation.print k
-   Flambda_arity.print arity Flambda_arity.print args_arity print t end; begin
-   match kind with | Normal_or_exn -> () | Exn_handler -> Misc.fatal_errorf
-   "Continuation %a is an exception handler \ but is used in this [Apply_cont]
-   term as a normal continuation:@ \ %a" Continuation.print k print t end; let
-   check_exn_handler exn_handler = match E.find_continuation_opt env exn_handler
-   with | None -> unbound_continuation exn_handler "[Apply] trap handler" | Some
-   (arity, kind (*, cont_stack *)) -> begin match kind with | Exn_handler -> ()
-   | Normal_or_exn -> Misc.fatal_errorf "Continuation %a is a normal
-   continuation \ but is used in the trap action of this [Apply] term as an \
-   exception handler:@ %a" Continuation.print exn_handler print t end; assert
-   (not (Continuation.equal k exn_handler)); let expected_arity = [K.value] in
-   if not (Flambda_arity.equal arity expected_arity) then begin
-   Misc.fatal_errorf "Exception handler continuation %a has \ the wrong arity
-   for the trap handler action of this \ [Apply] term: expected %a but found
-   %a:@ %a" Continuation.print k Flambda_arity.print expected_arity
-   Flambda_arity.print arity print t end; () (* cont_stack *) in (* let
-   current_stack = E.current_continuation_stack env in *) (* CR mshinwell for
-   pchambart: We need to fix this. I've removed the trap IDs since we don't need
-   them for compilation, and they would be another kind of name that needs
-   freshening (which is weird since they don't have any binding site). *) (* let
-   stack, cont_stack = *) match trap_action with | None -> () (*current_stack,
-   cont_stack *) | Some (Push { exn_handler }) -> check_exn_handler exn_handler
-   (* let cont_stack = check_exn_handler exn_handler in
-   E.Continuation_stack.push id exn_handler current_stack, cont_stack *) | Some
-   (Pop { exn_handler; raise_kind = _; }) -> check_exn_handler exn_handler
-
-   (* let cont_stack = check_exn_handler exn_handler in current_stack,
-   E.Continuation_stack.push id exn_handler cont_stack *) (* in
-   E.Continuation_stack.unify cont stack cont_stack current_stack *) *)
-
 (* CR mshinwell: Check the sort of [k]. *)
 let create ?trap_action k ~args ~dbg = { k; args; trap_action; dbg }
 

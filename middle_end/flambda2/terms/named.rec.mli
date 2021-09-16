@@ -33,7 +33,6 @@ type t = private
   | Rec_info of Rec_info_expr.t
       (** Definition of a state of recursive inlining. *)
 
-(** Printing, invariant checks, name manipulation, etc. *)
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
@@ -71,9 +70,6 @@ val unbox_value :
 val dummy_value : Flambda_kind.t -> t
 
 val at_most_generative_effects : t -> bool
-
-val invariant_returning_kind :
-  Invariant_env.t -> t -> Flambda_primitive.result_kind
 
 val is_dynamically_allocated_set_of_closures : t -> bool
 

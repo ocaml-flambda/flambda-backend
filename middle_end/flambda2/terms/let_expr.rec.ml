@@ -323,8 +323,33 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
 
 let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
-let create bindable_let_bound defining_expr ~body
-    ~(free_names_of_body : _ Or_unknown.t) =
+let create (bindable_let_bound : Bindable_let_bound.t) (defining_expr : Named.t)
+    ~body ~(free_names_of_body : _ Or_unknown.t) =
+  begin
+    match defining_expr, bindable_let_bound with
+    | Prim _, Singleton _
+    | Simple _, Singleton _
+    | Rec_info _, Singleton _
+    | Set_of_closures _, Set_of_closures _ ->
+      ()
+    | Set_of_closures _, Singleton _ ->
+      Misc.fatal_errorf
+        "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a =@ %a"
+        Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+    | _, Set_of_closures _ ->
+      Misc.fatal_errorf
+        "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a =@ %a"
+        Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+    | Static_consts _, Symbols _ -> ()
+    | Static_consts _, Singleton _ ->
+      Misc.fatal_errorf
+        "Cannot bind a [Static_const] to a [Singleton]:@ %a =@ %a"
+        Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+    | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
+      Misc.fatal_errorf
+        "Cannot bind a non-[Static_const] to [Symbols]:@ %a =@ %a"
+        Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+  end;
   let num_normal_occurrences_of_bound_vars =
     match free_names_of_body with
     | Unknown -> Variable.Map.empty
@@ -341,40 +366,6 @@ let create bindable_let_bound defining_expr ~body
   in
   let t0 : T0.t = { num_normal_occurrences_of_bound_vars; body } in
   { name_abstraction = A.create bindable_let_bound t0; defining_expr }
-
-let invariant env t =
-  let module E = Invariant_env in
-  Named.invariant env t.defining_expr;
-  pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-      let env =
-        match t.defining_expr, bindable_let_bound with
-        | Set_of_closures _, Set_of_closures { closure_vars; _ } ->
-          List.fold_left
-            (fun env closure_var ->
-              let closure_var = VB.var closure_var in
-              E.add_variable env closure_var K.value)
-            env closure_vars
-        | Set_of_closures _, Singleton _ ->
-          Misc.fatal_errorf
-            "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a" print t
-        | _, Set_of_closures _ ->
-          Misc.fatal_errorf
-            "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a"
-            print t
-        | Prim (prim, _dbg), Singleton var ->
-          let var = VB.var var in
-          E.add_variable env var (Flambda_primitive.result_kind' prim)
-        | Simple _simple, Singleton _var -> Misc.fatal_error "To be deleted"
-        | Static_consts _, Symbols _ -> env
-        | Static_consts _, Singleton _ ->
-          Misc.fatal_errorf "Cannot bind a [Static_const] to a [Singleton]:@ %a"
-            print t
-        | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
-          Misc.fatal_errorf "Cannot bind a non-[Static_const] to [Symbols]:@ %a"
-            print t
-        | Rec_info _, Singleton _ -> env
-      in
-      Expr.invariant env body)
 
 let defining_expr t = t.defining_expr
 

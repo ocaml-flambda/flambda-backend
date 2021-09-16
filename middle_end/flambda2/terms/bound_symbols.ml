@@ -89,6 +89,14 @@ module Pattern = struct
       |> Code_id_or_symbol.set_of_symbol_set
     | Block_like symbol -> Code_id_or_symbol.Set.singleton (Symbol symbol)
 
+  let everything_being_defined_as_list t =
+    match t with
+    | Code code_id -> [Code_id_or_symbol.Code_id code_id]
+    | Set_of_closures closure_symbols ->
+      closure_symbols |> Closure_id.Lmap.data
+      |> List.map Code_id_or_symbol.of_symbol
+    | Block_like symbol -> [Code_id_or_symbol.Symbol symbol]
+
   let for_all_everything_being_defined t ~f =
     match t with
     | Code code_id -> f (Code_id_or_symbol.Code_id code_id)
@@ -120,7 +128,28 @@ type t = Pattern.t list
 
 let empty = []
 
-let create pattern_list = pattern_list
+let check_pattern_list_invariant pattern_list =
+  (* Check that there are no repeated bindings of symbols or code IDs. *)
+  let everything_being_defined =
+    List.map Pattern.everything_being_defined_as_list pattern_list
+    |> List.concat
+  in
+  let everything_being_defined_as_set =
+    Code_id_or_symbol.Set.of_list everything_being_defined
+  in
+  if List.compare_length_with everything_being_defined
+       (Code_id_or_symbol.Set.cardinal everything_being_defined_as_set)
+     <> 0
+  then
+    Misc.fatal_errorf
+      "Illegal pattern list (duplicate code IDs or symbols):@ %a"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print)
+      pattern_list
+
+let create pattern_list =
+  if Flambda_features.check_invariants ()
+  then check_pattern_list_invariant pattern_list;
+  pattern_list
 
 let singleton pattern = [pattern]
 
@@ -131,11 +160,6 @@ let [@ocamlformat "disable"] print ppf t =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print) t
 
 let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
-(* CR mshinwell: This should have an [invariant] function. One thing to check is
-   that the [closure_symbols] are all distinct. *)
-
-let invariant _ _ = ()
 
 let being_defined t = List.map Pattern.being_defined t |> Symbol.Set.union_list
 

@@ -25,3 +25,5 @@ val compilation_unit : t -> Compilation_unit.t
 val set_of_code_id_set : Code_id.Set.t -> Set.t
 
 val set_of_symbol_set : Symbol.Set.t -> Set.t
+
+val of_symbol : Symbol.t -> t
