@@ -20,20 +20,19 @@ module Flambda1_compilation_unit = Compilation_unit
 module Flambda1_linkage_name = Linkage_name
 
 module Compilation_unit = struct
-  include Flambda2_compilenv_deps.Compilation_unit
+  include Flambda2.Compilation_unit
 
   let of_flambda1_compilation_unit comp_unit =
     let ident = Flambda1_compilation_unit.get_persistent_ident comp_unit in
     let linkage_name =
       comp_unit |> Flambda1_compilation_unit.get_linkage_name
-      |> Flambda1_linkage_name.to_string
-      |> Flambda2_compilenv_deps.Linkage_name.create
+      |> Flambda1_linkage_name.to_string |> Flambda2.Linkage_name.create
     in
     create ident linkage_name
 end
 
-module Linkage_name = Flambda2_compilenv_deps.Linkage_name
-module Symbol = Flambda2_compilenv_deps.Symbol
+module Linkage_name = Flambda2.Linkage_name
+module Symbol = Flambda2.Symbol
 
 let symbol_for_module_block id =
   assert (Ident.global id);

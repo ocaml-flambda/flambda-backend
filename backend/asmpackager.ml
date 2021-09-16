@@ -212,22 +212,23 @@ let build_package_cmx members cmxfile =
                Compilation_unit.Set.add
                  (Compilenv.unit_for_global unit_id) set)
             Compilation_unit.Set.empty units) in
-  let pack_units2 : Flambda2_compilenv_deps.Compilation_unit.Set.t lazy_t =
-    let unit_for_global ident : Flambda2_compilenv_deps.Compilation_unit.t =
-      let linkage_name : Flambda2_compilenv_deps.Linkage_name.t =
+  let pack_units2 : Flambda2.Compilation_unit.Set.t lazy_t =
+    let unit_for_global ident : Flambda2.Compilation_unit.t =
+      let linkage_name : Flambda2.Linkage_name.t =
         ident
         |> Compilenv.unit_for_global
         |> Compilation_unit.get_linkage_name
         |> Linkage_name.to_string
-        |> Flambda2_compilenv_deps.Linkage_name.create in
-      Flambda2_compilenv_deps.Compilation_unit.create ident linkage_name in
-    let open Flambda2_compilenv_deps in
+        |> Flambda2.Linkage_name.create in
+      Flambda2.Compilation_unit.create ident linkage_name in
     lazy (List.fold_left
             (fun set info ->
-               let unit_id : Ident.t = Compilenv.unit_id_from_name info.ui_name in
-               Compilation_unit.Set.add
+               let unit_id : Ident.t =
+                 Compilenv.unit_id_from_name info.ui_name
+               in
+               Flambda2.Compilation_unit.Set.add
                  (unit_for_global unit_id) set)
-            Compilation_unit.Set.empty units) in
+            Flambda2.Compilation_unit.Set.empty units) in
   let units : Cmx_format.unit_infos list =
     if Config.flambda then
       List.map (fun info ->
@@ -254,7 +255,7 @@ let build_package_cmx members cmxfile =
       in
       Flambda1 ui_export_info
     else if Config.flambda2 then
-      let pack = Flambda2_compilenv_deps.Compilation_unit.get_current_exn () in
+      let pack = Flambda2.Compilation_unit.get_current_exn () in
       let flambda_export_info =
         List.fold_left (fun acc info ->
             Flambda2.Flambda_cmx_format.merge
