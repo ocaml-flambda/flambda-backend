@@ -141,7 +141,8 @@ let check_pattern_list_invariant pattern_list =
        (Code_id_or_symbol.Set.cardinal everything_being_defined_as_set)
      <> 0
   then
-    Misc.fatal_errorf "Illegal pattern list:@ %a"
+    Misc.fatal_errorf
+      "Illegal pattern list (duplicate code IDs or symbols):@ %a"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print)
       pattern_list
 

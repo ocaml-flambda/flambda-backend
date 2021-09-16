@@ -112,7 +112,7 @@ let invariant
      } as t) =
   begin
     match call_kind with
-    | Function _ | Method _
+    | Function _ | Method _ -> ()
     | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ }
       ->
       if not (Simple.is_symbol callee)
