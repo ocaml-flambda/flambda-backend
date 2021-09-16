@@ -66,26 +66,29 @@ let is_trap_handler t label =
 
 (* Printing utilities for debug *)
 
-let print t oc msg =
-  Printf.fprintf oc "cfg for %s\n" msg;
-  Printf.fprintf oc "%s\n" t.cfg.fun_name;
-  Printf.fprintf oc "layout.length=%d\n" (List.length t.layout);
-  Printf.fprintf oc "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
+let dump ppf t ~msg =
+  let open Format in
+  fprintf ppf "\ncfg for %s\n" msg;
+  fprintf ppf "%s\n" t.cfg.fun_name;
+  fprintf ppf "layout.length=%d\n" (List.length t.layout);
+  fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
-    Printf.fprintf oc "\n%d:\n" label;
-    List.iter (Cfg.print_basic oc) block.body;
-    Cfg.print_terminator oc block.terminator;
-    Printf.fprintf oc "\npredecessors:";
-    Label.Set.iter (Printf.fprintf oc " %d") block.predecessors;
-    Printf.fprintf oc "\nsuccessors:";
-    Label.Set.iter (Printf.fprintf oc " %d")
+    fprintf ppf "\n%d:\n" label;
+    List.iter (Cfg.dump_basic ppf) block.body;
+    Cfg.dump_terminator ppf block.terminator;
+    fprintf ppf "\npredecessors:";
+    Label.Set.iter (fprintf ppf " %d") block.predecessors;
+    fprintf ppf "\nsuccessors:";
+    Label.Set.iter (fprintf ppf " %d")
       (Cfg.successor_labels ~normal:true ~exn:false block);
-    Printf.fprintf oc "\nexn-successors:";
-    Label.Set.iter (Printf.fprintf oc " %d")
+    fprintf ppf "\nexn-successors:";
+    Label.Set.iter (fprintf ppf " %d")
       (Cfg.successor_labels ~normal:false ~exn:true block)
   in
   List.iter print_block t.layout
+
+let print t oc msg = Printf.fprintf oc "%s" (Format.asprintf "%a" (dump ~msg) t)
 
 let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
     ?annotate_succ oc =

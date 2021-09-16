@@ -59,3 +59,5 @@ val save_as_dot :
   unit
 
 val print : t -> out_channel -> string -> unit
+
+val dump : Format.formatter -> t -> msg:string -> unit

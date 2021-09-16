@@ -59,6 +59,7 @@ let main() =
      "-S", Arg.Set write_asm_file,
        " Output file to filename.s (default is stdout)";
      "-g", Arg.Set Clflags.debug, "";
+     "-dcfg", Arg.Set dump_cfg, "";
      "-dcmm", Arg.Set dump_cmm, "";
      "-dcse", Arg.Set dump_cse, "";
      "-dsel", Arg.Set dump_selection, "";
