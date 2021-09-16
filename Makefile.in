@@ -301,8 +301,6 @@ runtest-upstream:
 	  _runtest/compilerlibs
 	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmxa \
 	  _runtest/compilerlibs
-	cp _build2/default/middle_end/flambda2/compilenv_deps/flambda2_compilenv_deps.cma \
-	  _runtest/compilerlibs
 	cp _build2/default/middle_end/flambda2/flambda2.cma \
 	  _runtest/compilerlibs
 	cp _build2/default/middle_end/flambda2/backend_intf/flambda2_backend_impl.cma \
