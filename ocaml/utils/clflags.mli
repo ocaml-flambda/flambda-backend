@@ -216,6 +216,7 @@ val insn_sched_default : bool
 
 module Flambda2 : sig
   module Default : sig
+    val classic_mode : bool
     val join_points : bool
     val unbox_along_intra_function_control_flow : bool
     val backend_cse_at_toplevel : bool
@@ -225,6 +226,7 @@ module Flambda2 : sig
     val unicode : bool
   end
 
+  val classic_mode : bool ref
   val join_points : bool ref
   val unbox_along_intra_function_control_flow : bool ref
   val backend_cse_at_toplevel : bool ref
