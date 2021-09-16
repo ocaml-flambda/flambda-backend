@@ -43,6 +43,5 @@ module type S = sig
 
   val set_global_info : Flambda_cmx_format.t -> unit
 
-  val get_global_info :
-    Flambda2_compilenv_deps.Compilation_unit.t -> Flambda_cmx_format.t option
+  val get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option
 end
