@@ -247,6 +247,7 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
   | Specific expected_spec, Specific result_spec
     when Arch.equal_specific_operation expected_spec result_spec ->
     ()
+  | Opaque, Opaque -> ()
   | ( Name_for_debugger
         { ident = left_ident;
           which_parameter = left_which_parameter;

@@ -77,6 +77,7 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
       | Intoffloat -> Iintoffloat
       | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
+      | Opaque -> Iopaque
       | Specific op -> Ispecific op
       | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
         ->

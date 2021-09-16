@@ -79,6 +79,7 @@ module S = struct
           handler_code_sym : string
         }
     | Probe_is_enabled of { name : string }
+    | Opaque
     | Specific of Arch.specific_operation
     | Name_for_debugger of
         { ident : Ident.t;

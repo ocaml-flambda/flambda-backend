@@ -141,6 +141,7 @@ method! reload_operation op arg res =
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+  | Iopaque
     -> (* Other operations: all args and results in registers *)
       super#reload_operation op arg res
 

@@ -204,6 +204,7 @@ and operation =
                    or equal to the bound. *)
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
+  | Copaque (* Sys.opaque_identity *)
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
