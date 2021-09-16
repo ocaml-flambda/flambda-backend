@@ -340,19 +340,19 @@ let reserved_stack_space_required () =
   | ELF32 -> false
   | ELF64v1 | ELF64v2 -> true
 
-let frame_required fd =
+let frame_required ~fun_contains_calls ~fun_num_stack_slots =
   let is_elf32 =
     match abi with
     | ELF32 -> true
     | ELF64v1 | ELF64v2 -> false
   in
   reserved_stack_space_required ()
-    || fd.fun_num_stack_slots.(0) > 0
-    || fd.fun_num_stack_slots.(1) > 0
-    || (fd.fun_contains_calls && is_elf32)
+    || fun_num_stack_slots.(0) > 0
+    || fun_num_stack_slots.(1) > 0
+    || (fun_contains_calls && is_elf32)
 
-let prologue_required fd =
-  frame_required fd
+let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
+  frame_required ~fun_contains_calls ~fun_num_stack_slots
 
 (* Calling the assembler *)
 
