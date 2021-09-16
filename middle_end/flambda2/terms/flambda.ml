@@ -575,7 +575,7 @@ end = struct
   (* CR lmaurer: It would be good to avoid the extra abstraction when a function
      is known to be non-recursive. Maybe we should flatten all of these into one
      big [Bindable]? *)
-  module A = Name_abstraction.Make (Bindable_variable_in_terms) (T2)
+  module A = Name_abstraction.Make (Var_in_binding_pos) (T2)
 
   type t =
     { abst : A.t;
@@ -598,7 +598,9 @@ end = struct
     let t0 = T0.create (params @ [my_closure]) body in
     let t1 = T1.create exn_continuation t0 in
     let t2 = T2.create return_continuation t1 in
-    let abst = A.create my_depth t2 in
+    let abst =
+      A.create (Var_in_binding_pos.create my_depth Name_mode.normal) t2
+    in
     { abst;
       dbg;
       params_arity = Kinded_parameter.List.arity params;
@@ -623,7 +625,7 @@ end = struct
                     in
                     f ~return_continuation exn_continuation params ~body
                       ~my_closure ~is_my_closure_used:t.is_my_closure_used
-                      ~my_depth))))
+                      ~my_depth:(Var_in_binding_pos.var my_depth)))))
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1.abst t2.abst ~f:(fun my_depth t2_1 t2_2 ->
@@ -636,7 +638,8 @@ end = struct
                       extract_my_closure params_and_my_closure
                     in
                     f ~return_continuation exn_continuation params ~body1 ~body2
-                      ~my_closure ~my_depth))))
+                      ~my_closure
+                      ~my_depth:(Var_in_binding_pos.var my_depth)))))
 
   let [@ocamlformat "disable"] print ppf t =
     pattern_match t
@@ -657,7 +660,7 @@ end = struct
           Kinded_parameter.List.print params
           Kinded_parameter.print my_closure
           (Flambda_colours.depth_variable ())
-          Bindable_variable_in_terms.print my_depth
+          Variable.print my_depth
           (Flambda_colours.elide ())
           (Flambda_colours.normal ())
           Expr.print body)
