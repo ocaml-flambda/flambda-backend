@@ -19,4 +19,5 @@ val check_cfg_with_layout :
  *  and terminators.)
  *
  *  Caveat: the check currently ignores the live sets and debug information
- *  on all terminators, and the input registers on `Always _` terminators. *)
+ *  on all terminators, the debug information on function prologue,
+ *  and the input registers on `Always _` terminators. *)

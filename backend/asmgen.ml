@@ -132,15 +132,11 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   if ocamlcfg_verbose then begin
     Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
   end;
-  let prologue_required = res.fun_prologue_required in
   let result =
     Cfgize.fundecl
       f
       ~preserve_orig_labels:false
       ~simplify_terminators:true
-      ~prologue_required
-      ~dbg:(if prologue_required then res.fun_body.dbg else Debuginfo.none)
-      ~fdo:(if prologue_required then res.fun_body.fdo else Fdo_info.none)
   in
   let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
   Eliminate_fallthrough_blocks.run expected;
