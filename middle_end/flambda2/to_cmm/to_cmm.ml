@@ -669,8 +669,8 @@ let rec expr env res e =
 
 and let_expr env res t =
   Let.pattern_match' t
-    ~f:(fun bindable_let_bound ~num_normal_occurrences_of_bound_vars ~body ->
-      let mode = Bindable_let_bound.name_mode bindable_let_bound in
+    ~f:(fun bound_pattern ~num_normal_occurrences_of_bound_vars ~body ->
+      let mode = Bound_pattern.name_mode bound_pattern in
       match Name_mode.descr mode with
       | In_types ->
         Misc.fatal_errorf
@@ -678,7 +678,7 @@ and let_expr env res t =
       | Phantom -> expr env res body
       | Normal -> (
         let e = Let.defining_expr t in
-        match bindable_let_bound, e with
+        match bound_pattern, e with
         (* Correct cases *)
         | Singleton v, Simple s ->
           let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s
@@ -751,14 +751,14 @@ and bind_simple (env, res) v ~num_normal_occurrences_of_bound_vars s =
   let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr effs, res
 
 and let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s =
-  let v = Var_in_binding_pos.var v in
+  let v = Bound_var.var v in
   let env, res =
     bind_simple (env, res) v ~num_normal_occurrences_of_bound_vars s
   in
   expr env res body
 
 and let_expr_prim body env res v ~num_normal_occurrences_of_bound_vars p dbg =
-  let v = Var_in_binding_pos.var v in
+  let v = Bound_var.var v in
   let cmm_expr, extra, env, effs = prim env dbg p in
   let effs = Ece.join effs (Flambda_primitive.effects_and_coeffects p) in
   let env =
@@ -1318,7 +1318,7 @@ and let_static_set_of_closures env res body closure_vars s =
   let closure_symbols =
     List.map2
       (fun cid v ->
-        let v = Var_in_binding_pos.var v in
+        let v = Bound_var.var v in
         (* rename v just to have a different name for the symbol and the
            variable *)
         let name = Variable.unique_name (Variable.rename v) in
@@ -1346,7 +1346,7 @@ and let_static_set_of_closures env res body closure_vars s =
   let env =
     List.fold_left2
       (fun acc cid v ->
-        let v = Var_in_binding_pos.var v in
+        let v = Bound_var.var v in
         let sym = symbol (Closure_id.Map.find cid closure_symbols) in
         let sym_cmm = C.symbol sym in
         Env.bind_variable acc v Ece.pure false sym_cmm)
@@ -1384,7 +1384,7 @@ and let_dynamic_set_of_closures env res body closure_vars
   let env =
     List.fold_left2
       (fun acc cid v ->
-        let v = Var_in_binding_pos.var v in
+        let v = Bound_var.var v in
         let e, effs = get_closure_by_offset env soc_cmm_var cid in
         let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
       env

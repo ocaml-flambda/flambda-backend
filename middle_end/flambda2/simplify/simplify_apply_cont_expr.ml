@@ -43,8 +43,8 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
     let bindings_outermost_first =
       ListLabels.map2 params args ~f:(fun param arg ->
           let let_bound =
-            Var_in_binding_pos.create (KP.var param) Name_mode.normal
-            |> Bindable_let_bound.singleton
+            Bound_var.create (KP.var param) Name_mode.normal
+            |> Bound_pattern.singleton
           in
           let named = Named.create_simple arg in
           { Simplify_named_result.let_bound;

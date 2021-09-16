@@ -30,7 +30,7 @@ module Function_decl = Function_decls.Function_decl
 module K = Flambda_kind
 module LC = Lambda_conversions
 module P = Flambda_primitive
-module VB = Var_in_binding_pos
+module VB = Bound_var
 
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
@@ -244,8 +244,8 @@ let close_c_call acc ~let_bound_var
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
-            let result' = Var_in_binding_pos.create result Name_mode.normal in
-            let bindable = Bindable_let_bound.singleton result' in
+            let result' = Bound_var.create result Name_mode.normal in
+            let bindable = Bound_pattern.singleton result' in
             let prim = P.Unary (Reinterpret_int64_as_float, arg) in
             let acc, return_result =
               Apply_cont_with_acc.create acc return_continuation
@@ -296,7 +296,7 @@ let close_c_call acc ~let_bound_var
             let acc, body = call (Simple.var unboxed_arg :: args) acc in
             let named = Named.create_prim (Unary (named, arg)) dbg in
             Let_with_acc.create acc
-              (Bindable_let_bound.singleton unboxed_arg')
+              (Bound_pattern.singleton unboxed_arg')
               named ~body
             |> Expr_with_acc.create_let)
       call args prim_native_repr_args []
@@ -325,7 +325,7 @@ let close_c_call acc ~let_bound_var
           dbg
       in
       Let_with_acc.create acc
-        (Bindable_let_bound.singleton let_bound_var')
+        (Bound_pattern.singleton let_bound_var')
         named ~body
       |> Expr_with_acc.create_let
     in
@@ -479,7 +479,7 @@ let close_let acc env id user_visible defining_expr
       | Some defining_expr ->
         let var = VB.create var Name_mode.normal in
         Let_with_acc.create acc
-          (Bindable_let_bound.singleton var)
+          (Bound_pattern.singleton var)
           defining_expr ~body
         |> Expr_with_acc.create_let)
   in
@@ -618,12 +618,12 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
     in
     let acc, body =
       Let_with_acc.create acc
-        (Bindable_let_bound.singleton comparison_result')
+        (Bound_pattern.singleton comparison_result')
         compare ~body:switch
       |> Expr_with_acc.create_let
     in
     Let_with_acc.create acc
-      (Bindable_let_bound.singleton untagged_scrutinee')
+      (Bound_pattern.singleton untagged_scrutinee')
       untag ~body
     |> Expr_with_acc.create_let
   | _, _ ->
@@ -659,7 +659,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
           Expr_with_acc.create_switch acc (Switch.create ~scrutinee ~arms)
       in
       Let_with_acc.create acc
-        (Bindable_let_bound.singleton untagged_scrutinee')
+        (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
       |> Expr_with_acc.create_let
 
@@ -792,7 +792,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
         let named =
           Named.create_prim (Unary (move, my_closure')) Debuginfo.none
         in
-        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
         |> Expr_with_acc.create_let)
       project_closure_to_bind (acc, body)
   in
@@ -808,14 +808,14 @@ let close_one_function acc ~external_env ~by_closure_id decl
                  my_closure' ))
             Debuginfo.none
         in
-        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
         |> Expr_with_acc.create_let)
       var_within_closures_to_bind (acc, body)
   in
   let next_depth_expr = Rec_info_expr.succ (Rec_info_expr.var my_depth) in
   let bound =
-    Bindable_let_bound.singleton
-      (Var_in_binding_pos.create next_depth Name_mode.normal)
+    Bound_pattern.singleton
+      (Bound_var.create next_depth Name_mode.normal)
   in
   let acc, body =
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
@@ -993,7 +993,7 @@ let close_let_rec acc env ~function_declarations
   let acc, body = body acc env in
   let named = Named.create_set_of_closures set_of_closures in
   Let_with_acc.create acc
-    (Bindable_let_bound.set_of_closures ~closure_vars)
+    (Bound_pattern.set_of_closures ~closure_vars)
     named ~body
   |> Expr_with_acc.create_let
 
@@ -1041,7 +1041,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
         Named.create_static_consts (Static_const.Group.create [static_const])
       in
       Let_with_acc.create acc
-        (Bindable_let_bound.symbols bound_symbols)
+        (Bound_pattern.symbols bound_symbols)
         named ~body:return
       |> Expr_with_acc.create_let
     in
@@ -1064,7 +1064,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
                  Simple.const (Reg_width_const.tagged_immediate pos) ))
             Debuginfo.none
         in
-        Let_with_acc.create acc (Bindable_let_bound.singleton var) named ~body
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
         |> Expr_with_acc.create_let)
       (acc, body) (List.rev field_vars)
   in
@@ -1093,7 +1093,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
           Static_const.Group.create [static_const] |> Named.create_static_consts
         in
         Let_with_acc.create acc
-          (Bindable_let_bound.symbols bound_symbols)
+          (Bound_pattern.symbols bound_symbols)
           defining_expr ~body
         |> Expr_with_acc.create_let)
       (Acc.code acc) (acc, body)
@@ -1123,7 +1123,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
           Static_const.Group.create [static_const] |> Named.create_static_consts
         in
         Let_with_acc.create acc
-          (Bindable_let_bound.symbols bound_symbols)
+          (Bound_pattern.symbols bound_symbols)
           defining_expr ~body
         |> Expr_with_acc.create_let)
       (acc, body) (Acc.declared_symbols acc)

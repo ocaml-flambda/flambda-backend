@@ -511,9 +511,9 @@ module Let_with_acc = struct
     in
     let free_names_of_body = Or_unknown.Known (Acc.free_names acc) in
     let acc =
-      Bindable_let_bound.fold_all_bound_names let_bound ~init:acc
+      Bound_pattern.fold_all_bound_names let_bound ~init:acc
         ~var:(fun acc var ->
-          Acc.remove_var_from_free_names (Var_in_binding_pos.var var) acc)
+          Acc.remove_var_from_free_names (Bound_var.var var) acc)
         ~symbol:(fun acc s -> Acc.remove_symbol_from_free_names s acc)
         ~code_id:(fun acc cid -> Acc.remove_code_id_from_free_names cid acc)
     in

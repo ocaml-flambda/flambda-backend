@@ -42,7 +42,7 @@ val term_not_rebuilt : unit -> t
 
 val create_let :
   Are_rebuilding_terms.t ->
-  Bindable_let_bound.t ->
+  Bound_pattern.t ->
   Named.t ->
   body:t ->
   free_names_of_body:Name_occurrences.t ->
@@ -114,7 +114,7 @@ val create_invalid : unit -> t
 
 val bind_no_simplification :
   Are_rebuilding_terms.t ->
-  bindings:(Var_in_binding_pos.t * Code_size.t * Named.t) list ->
+  bindings:(Bound_var.t * Code_size.t * Named.t) list ->
   body:t ->
   cost_metrics_of_body:Cost_metrics.t ->
   free_names_of_body:Name_occurrences.t ->

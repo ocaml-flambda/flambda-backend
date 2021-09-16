@@ -19,11 +19,11 @@
 type symbols = private { bound_symbols : Bound_symbols.t }
 
 type t = private
-  | Singleton of Var_in_binding_pos.t
+  | Singleton of Bound_var.t
       (** The binding of a single variable, which is statically scoped. *)
   | Set_of_closures of
       { name_mode : Name_mode.t;
-        closure_vars : Var_in_binding_pos.t list
+        closure_vars : Bound_var.t list
       }
       (** The binding of one or more variables to the individual closures in a
           set of closures. The variables are statically scoped. *)
@@ -36,17 +36,17 @@ include Bindable.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val singleton : Var_in_binding_pos.t -> t
+val singleton : Bound_var.t -> t
 
-val set_of_closures : closure_vars:Var_in_binding_pos.t list -> t
+val set_of_closures : closure_vars:Bound_var.t list -> t
 
 val symbols : Bound_symbols.t -> t
 
-val must_be_singleton : t -> Var_in_binding_pos.t
+val must_be_singleton : t -> Bound_var.t
 
-val must_be_singleton_opt : t -> Var_in_binding_pos.t option
+val must_be_singleton_opt : t -> Bound_var.t option
 
-val must_be_set_of_closures : t -> Var_in_binding_pos.t list
+val must_be_set_of_closures : t -> Bound_var.t list
 
 val must_be_symbols : t -> symbols
 
@@ -56,19 +56,19 @@ val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t
 
-val exists_all_bound_vars : t -> f:(Var_in_binding_pos.t -> bool) -> bool
+val exists_all_bound_vars : t -> f:(Bound_var.t -> bool) -> bool
 
 val fold_all_bound_vars :
-  t -> init:'a -> f:('a -> Var_in_binding_pos.t -> 'a) -> 'a
+  t -> init:'a -> f:('a -> Bound_var.t -> 'a) -> 'a
 
-val all_bound_vars : t -> Var_in_binding_pos.Set.t
+val all_bound_vars : t -> Bound_var.Set.t
 
 val all_bound_vars' : t -> Variable.Set.t
 
 val fold_all_bound_names :
   t ->
   init:'a ->
-  var:('a -> Var_in_binding_pos.t -> 'a) ->
+  var:('a -> Bound_var.t -> 'a) ->
   symbol:('a -> Symbol.t -> 'a) ->
   code_id:('a -> Code_id.t -> 'a) ->
   'a

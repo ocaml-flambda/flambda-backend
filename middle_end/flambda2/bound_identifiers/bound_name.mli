@@ -27,15 +27,15 @@ val name : t -> Name.t
 
 val name_mode : t -> Name_mode.t
 
-val var : Var_in_binding_pos.t -> t
+val var : Bound_var.t -> t
 
 val symbol : Symbol.t -> t
 
 val must_be_symbol : t -> Symbol.t
 
-(* CR mshinwell: Ensure naming consistent with Var_in_binding_pos. Make
+(* CR mshinwell: Ensure naming consistent with Bound_var. Make
    constructors and destructors clear. *)
-val to_var : t -> Var_in_binding_pos.t option
+val to_var : t -> Bound_var.t option
 
 val to_name : t -> Name.t
 

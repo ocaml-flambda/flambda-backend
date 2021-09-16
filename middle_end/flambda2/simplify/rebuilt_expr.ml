@@ -144,16 +144,16 @@ let bind_no_simplification are_rebuilding ~bindings ~body ~cost_metrics_of_body
        ->
       let expr =
         create_let are_rebuilding
-          (Bindable_let_bound.singleton var)
+          (Bound_pattern.singleton var)
           defining_expr ~body:expr ~free_names_of_body:free_names
       in
       let free_names =
         Name_occurrences.union
           (Named.free_names defining_expr)
-          (Name_occurrences.remove_var free_names (Var_in_binding_pos.var var))
+          (Name_occurrences.remove_var free_names (Bound_var.var var))
       in
       let is_phantom =
-        Name_mode.is_phantom (Var_in_binding_pos.name_mode var)
+        Name_mode.is_phantom (Bound_var.name_mode var)
       in
       let cost_metrics_of_defining_expr =
         Cost_metrics.from_size size_of_defining_expr

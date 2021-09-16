@@ -243,7 +243,7 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
           Closure_id.Lmap.fold
             (fun closure_id symbol closure_bound_names_all_sets ->
               Closure_id.Map.add closure_id
-                (Name_in_binding_pos.symbol symbol)
+                (Bound_name.symbol symbol)
                 closure_bound_names_all_sets)
             closure_symbols Closure_id.Map.empty
         in

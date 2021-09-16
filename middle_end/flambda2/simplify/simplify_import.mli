@@ -60,4 +60,4 @@ module TE = Flambda_type.Typing_env
 module TEE = Flambda_type.Typing_env_extension
 module UA = Upwards_acc
 module UE = Upwards_env
-module VB = Var_in_binding_pos
+module VB = Bound_var

@@ -73,8 +73,8 @@ let try_cse dacc ~original_prim ~simplified_args_with_tys ~min_name_mode
       Not_applied dacc
 
 let simplify_primitive dacc (prim : P.t) dbg ~result_var =
-  let min_name_mode = Var_in_binding_pos.name_mode result_var in
-  let result_var' = Var_in_binding_pos.var result_var in
+  let min_name_mode = Bound_var.name_mode result_var in
+  let result_var' = Bound_var.var result_var in
   let args_rev, found_invalid =
     ListLabels.fold_left (P.args prim) ~init:([], false)
       ~f:(fun (args_rev, found_invalid) arg ->

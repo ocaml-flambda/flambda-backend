@@ -302,13 +302,13 @@ let rec subst_expr env e =
   | Invalid _ -> e
 
 and subst_let_expr env let_expr =
-  Let_expr.pattern_match let_expr ~f:(fun bindable_let_bound ~body ->
-      let bindable_let_bound =
-        subst_bindable_let_bound env bindable_let_bound
+  Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
+      let bound_pattern =
+        subst_bound_pattern env bound_pattern
       in
       let defining_expr = subst_named env (Let_expr.defining_expr let_expr) in
       let body = subst_expr env body in
-      Let.create bindable_let_bound defining_expr ~body
+      Let.create bound_pattern defining_expr ~body
         ~free_names_of_body:Unknown
       |> Expr.create_let)
 
@@ -324,11 +324,11 @@ and subst_named env (n : Named.t) =
 and subst_static_consts env (g : Static_const.Group.t) =
   Static_const.Group.map g ~f:(subst_static_const env)
 
-and subst_bindable_let_bound env (blb : Bindable_let_bound.t) =
+and subst_bound_pattern env (blb : Bound_pattern.t) =
   match blb with
   | Symbols { bound_symbols } ->
     let bound_symbols = subst_bound_symbols env bound_symbols in
-    Bindable_let_bound.symbols bound_symbols
+    Bound_pattern.symbols bound_symbols
   | _ -> blb
 
 and subst_bound_symbols env bound_symbols =
@@ -1064,7 +1064,7 @@ and let_exprs env let_expr1 let_expr2 : Expr.t Comparison.t =
   let named1 = Let_expr.defining_expr let_expr1 in
   let named2 = Let_expr.defining_expr let_expr2 in
   Let_expr.pattern_match_pair let_expr1 let_expr2
-    ~dynamic:(fun bindable_let_bound ~body1 ~body2 : Expr.t Comparison.t ->
+    ~dynamic:(fun bound_pattern ~body1 ~body2 : Expr.t Comparison.t ->
       let named_comp = named_exprs env named1 named2 in
       let body_comp = exprs env body1 body2 in
       match named_comp, body_comp with
@@ -1073,7 +1073,7 @@ and let_exprs env let_expr1 let_expr2 : Expr.t Comparison.t =
         let defining_expr = Comparison.approximant named_comp ~default:named2 in
         let body = Comparison.approximant body_comp ~default:body2 in
         let approximant =
-          Let_expr.create bindable_let_bound defining_expr ~body
+          Let_expr.create bound_pattern defining_expr ~body
             ~free_names_of_body:Unknown
           |> Expr.create_let
         in
@@ -1091,8 +1091,8 @@ and let_exprs env let_expr1 let_expr2 : Expr.t Comparison.t =
     Comparison.Different { approximant = subst_let_expr env let_expr1 }
 
 and let_symbol_exprs env
-    ((bound_symbols1 : Bindable_let_bound.symbols), static_consts1, body1)
-    ((bound_symbols2 : Bindable_let_bound.symbols), static_consts2, body2) :
+    ((bound_symbols1 : Bound_pattern.symbols), static_consts1, body1)
+    ((bound_symbols2 : Bound_pattern.symbols), static_consts2, body2) :
     Expr.t Comparison.t =
   let ok = ref true in
   let bound_symbols1 = bound_symbols1.bound_symbols in
@@ -1118,7 +1118,7 @@ and let_symbol_exprs env
   else
     let approximant =
       Let.create
-        (Bindable_let_bound.symbols bound_symbols1')
+        (Bound_pattern.symbols bound_symbols1')
         (Named.create_static_consts static_consts1')
         ~body:body1' ~free_names_of_body:Unknown
       |> Expr.create_let
