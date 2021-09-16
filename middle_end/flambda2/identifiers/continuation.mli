@@ -42,8 +42,6 @@ val name : t -> string
 
 val name_stamp : t -> int
 
-val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
 val sort : t -> Sort.t
 
 val export : t -> exported

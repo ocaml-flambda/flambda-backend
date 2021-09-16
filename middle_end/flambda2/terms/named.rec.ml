@@ -41,7 +41,7 @@ let print_or_elide_debuginfo ppf dbg =
     Debuginfo.print_compact ppf dbg
   end
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
+let [@ocamlformat "disable"] print ppf (t : t) =
   match t with
   | Simple simple -> Simple.print ppf simple
   | Prim (prim, dbg) ->
@@ -51,13 +51,11 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf (t : t) =
       print_or_elide_debuginfo dbg
       (Flambda_colours.normal ())
   | Set_of_closures set_of_closures ->
-    Set_of_closures.print_with_cache ~cache ppf set_of_closures
+    Set_of_closures.print ppf set_of_closures
   | Static_consts consts ->
-    Static_const.Group.print_with_cache ~cache ppf consts
+    Static_const.Group.print ppf consts
   | Rec_info rec_info_expr ->
-    Rec_info_expr.print_with_cache ~cache ppf rec_info_expr
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+    Rec_info_expr.print ppf rec_info_expr
 
 let free_names t =
   match t with

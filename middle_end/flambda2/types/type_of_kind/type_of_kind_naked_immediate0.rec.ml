@@ -26,18 +26,11 @@ type t =
   | Is_int of T.t
   | Get_tag of T.t
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+let print ppf t =
   match t with
-  | Naked_immediates is ->
-    Format.fprintf ppf "@[<hov 1>(%a)@]" I.Set.print is
-  | Is_int ty ->
-    Format.fprintf ppf "@[<hov 1>(Is_int@ %a)@]"
-      (T.print_with_cache ~cache) ty
-  | Get_tag ty ->
-    Format.fprintf ppf "@[<hov 1>(Get_tag@ %a)@]"
-      (T.print_with_cache ~cache) ty
-
-let [@ocamlformat "disable"] print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  | Naked_immediates is -> Format.fprintf ppf "@[<hov 1>(%a)@]" I.Set.print is
+  | Is_int ty -> Format.fprintf ppf "@[<hov 1>(Is_int@ %a)@]" T.print ty
+  | Get_tag ty -> Format.fprintf ppf "@[<hov 1>(Get_tag@ %a)@]" T.print ty
 
 let apply_renaming t renaming =
   match t with

@@ -24,8 +24,6 @@ type t = Int64.Set.t
 let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[(Naked_int64s@ (%a))@]" Int64.Set.print t
 
-let [@ocamlformat "disable"] print_with_cache ~cache:_ ppf t = print ppf t
-
 let apply_renaming t _renaming = t
 
 let free_names _t = Name_occurrences.empty

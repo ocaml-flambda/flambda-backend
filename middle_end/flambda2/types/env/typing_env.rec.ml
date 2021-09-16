@@ -79,19 +79,6 @@ end = struct
          (fun name _ -> Name.Set.mem name restrict_to)
          t.names_to_types)
 
-  (* let _print_with_cache ~cache ppf { names_to_types; aliases; } =
-     Format.fprintf ppf "@[<hov 1>(\ @[<hov 1>(names_to_types@ %a)@]@ \ @[<hov
-     1>(aliases@ %a)@]\ )@]" (Name.Map.print (Type_grammar.print_with_cache
-     ~cache)) names_to_types Aliases.print aliases
-
-     let _invariant t = let canonical_names = Aliases.canonical_names t.aliases
-     in Name.Set.iter (fun name -> match Name.Map.find name t.names_to_types
-     with | exception Not_found -> Misc.fatal_errorf "Canonical name %a not in
-     [names_to_types]" Name.print name | ty -> match Type_grammar.get_alias ty
-     with | None -> () | Some alias_of -> Misc.fatal_errorf "Canonical name %a
-     has an alias type: =%a" Name.print name Simple.print alias_of)
-     canonical_names *)
-
   (* CR mshinwell: add [invariant] function *)
 
   let empty =
@@ -206,7 +193,7 @@ module One_level = struct
       just_after_level : Cached.t
     }
 
-  let [@ocamlformat "disable"] print_with_cache ~min_binding_time ~cache:_ ppf
+  let [@ocamlformat "disable"] print ~min_binding_time ppf
         { scope = _; level; just_after_level; } =
     let restrict_to = Typing_env_level.defined_names level in
     if Name.Set.is_empty restrict_to then
@@ -445,7 +432,7 @@ let aliases t = Cached.aliases (One_level.just_after_level t.current_level)
 
 (* CR mshinwell: Should print name occurrence kinds *)
 (* CR mshinwell: Add option to print [aliases] *)
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       ({ resolver = _; get_imported_names = _; get_imported_code = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; all_code = _; min_binding_time;
@@ -460,22 +447,18 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
       Scope.Map.filter (fun _ level -> not (One_level.is_empty level))
         levels
     in
-    Printing_cache.with_cache cache ppf "env" t (fun ppf () ->
-      Format.fprintf ppf
-        "@[<hov 1>(\
-            @[<hov 1>(defined_symbols@ %a)@]@ \
-            @[<hov 1>(code_age_relation@ %a)@]@ \
-            @[<hov 1>(levels@ %a)@]@ \
-            @[<hov 1>(aliases@ %a)@]\
-            )@]"
-        Symbol.Set.print defined_symbols
-        Code_age_relation.print code_age_relation
-        (Scope.Map.print (One_level.print_with_cache ~min_binding_time ~cache))
-        levels
-        Aliases.print (aliases t))
-
-let [@ocamlformat "disable"] print ppf t =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
+    Format.fprintf ppf
+      "@[<hov 1>(\
+          @[<hov 1>(defined_symbols@ %a)@]@ \
+          @[<hov 1>(code_age_relation@ %a)@]@ \
+          @[<hov 1>(levels@ %a)@]@ \
+          @[<hov 1>(aliases@ %a)@]\
+          )@]"
+      Symbol.Set.print defined_symbols
+      Code_age_relation.print code_age_relation
+      (Scope.Map.print (One_level.print ~min_binding_time))
+      levels
+      Aliases.print (aliases t)
 
 let invariant0 ?force _t =
   if Flambda_features.check_invariants ()

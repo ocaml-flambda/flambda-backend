@@ -25,9 +25,8 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val print_using_where_with_cache :
+val print_using_where :
   Recursive.t ->
-  cache:Printing_cache.t ->
   Format.formatter ->
   Continuation.t ->
   t ->

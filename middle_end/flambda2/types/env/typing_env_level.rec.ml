@@ -31,26 +31,23 @@ let defined_names t = Name.set_of_var_set (Variable.Map.keys t.defined_vars)
    -> false | Some var -> Variable.Map.mem var t.defined_vars && not
    (Name.Map.mem name t.equations) *)
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf
+(* CR mshinwell: print symbol projections along with tidying up this function *)
+let print_equations ppf equations =
+  let equations = Name.Map.bindings equations in
+  match equations with
+  | [] -> Format.pp_print_string ppf "()"
+  | _ :: _ ->
+    Format.pp_print_string ppf "(";
+    Format.pp_print_list ~pp_sep:Format.pp_print_space
+      (fun ppf (name, ty) ->
+        Format.fprintf ppf "@[<hov 1>%a@ :@ %a@]" Name.print name
+          Type_grammar.print ty)
+      ppf equations;
+    Format.pp_print_string ppf ")"
+
+let [@ocamlformat "disable"] print ppf
       { defined_vars; binding_times = _; equations;
         symbol_projections = _; } =
-  (* CR mshinwell: print symbol projections along with tidying up this
-     function *)
-  let print_equations ppf equations =
-    let equations = Name.Map.bindings equations in
-    match equations with
-    | [] -> Format.pp_print_string ppf "()"
-    | _::_ ->
-      Format.pp_print_string ppf "(";
-      Format.pp_print_list ~pp_sep:Format.pp_print_space
-        (fun ppf (name, ty) ->
-          Format.fprintf ppf
-            "@[<hov 1>%a@ :@ %a@]"
-            Name.print name
-            (Type_grammar.print_with_cache ~cache) ty)
-        ppf equations;
-      Format.pp_print_string ppf ")"
-  in
   (* CR mshinwell: Print [defined_vars] when not called from
      [Typing_env.print] *)
   if Variable.Map.is_empty defined_vars then
@@ -67,9 +64,6 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf
         )@]"
       Variable.Set.print (Variable.Map.keys defined_vars) (* XXX *)
       print_equations equations
-
-let [@ocamlformat "disable"] print ppf t =
-  print_with_cache ~cache:(Printing_cache.create ()) ppf t
 
 let fold_on_defined_vars f t init =
   Binding_time.Map.fold

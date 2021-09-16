@@ -33,8 +33,6 @@ module type S = sig
 
   val print : Format.formatter -> t -> unit
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val meet : meet_env -> t -> t -> (t * typing_env_extension) Or_bottom.t
 
   val join : join_env -> t -> t -> t Or_unknown.t

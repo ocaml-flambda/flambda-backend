@@ -30,8 +30,6 @@ module type S = sig
 
   val print : Format.formatter -> t -> unit
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val rename : t -> t
 
   val name_permutation : t -> guaranteed_fresh:t -> Renaming.t

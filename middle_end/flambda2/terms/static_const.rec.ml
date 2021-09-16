@@ -103,13 +103,13 @@ type t =
 
 type static_const = t
 
-let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
+let [@ocamlformat "disable"] print ppf t =
   match t with
   | Code code ->
     fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
       (Flambda_colours.static_part ())
       (Flambda_colours.normal ())
-      (Code.print_with_cache ~cache) code
+      (Code.print) code
   | Set_of_closures set ->
     fprintf ppf "@[<hov 1>(@<0>%sSet_of_closures@<0>%s@ %a)@]"
       (Flambda_colours.static_part ())
@@ -176,8 +176,7 @@ let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
 include Container_types.Make (struct
   type nonrec t = t
 
-  let [@ocamlformat "disable"] print ppf t =
-    print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let print = print
 
   let compare t1 t2 =
     match t1, t2 with
@@ -446,12 +445,6 @@ module Group = struct
   let to_list t = t
 
   let empty = []
-
-  let [@ocamlformat "disable"] print_with_cache ~cache ppf t =
-    Format.fprintf ppf "@[<hov 1>(%a)@]"
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space
-        (print_with_cache ~cache))
-      t
 
   let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 1>(%a)@]"

@@ -21,8 +21,6 @@
 module Make (Descr : sig
   include Contains_names.S
 
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end) : sig
   type t
@@ -39,8 +37,6 @@ end) : sig
   val peek_descr : t -> Descr.t
 
   include Contains_names.S with type t := t
-
-  val print_with_cache : cache:Printing_cache.t -> Format.formatter -> t -> unit
 
   val print : Format.formatter -> t -> unit
 end
