@@ -853,7 +853,7 @@ and let_cont_rec env res conts body =
      recursive cont (aka a loop), as it would increase the number of times the
      computation is performed (even if there is only one syntactic
      occurrence) *)
-  let wrap, env = Env.flush_delayed_lets env in
+  let wrap, env = Env.flush_delayed_lets ~entering_loop:true env in
   (* Compute the environment for jump ids *)
   let map = Continuation_handlers.to_map conts in
   let env =
