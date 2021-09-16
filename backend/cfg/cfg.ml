@@ -183,93 +183,94 @@ let intop (op : Mach.integer_operation) =
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> assert false
 
-let print_op oc = function
-  | Move -> Printf.fprintf oc "mov"
-  | Spill -> Printf.fprintf oc "spill"
-  | Reload -> Printf.fprintf oc "reload"
-  | Const_int n -> Printf.fprintf oc "const_int %nd" n
-  | Const_float f -> Printf.fprintf oc "const_float %Ld" f
-  | Const_symbol s -> Printf.fprintf oc "const_symbol %s" s
-  | Stackoffset n -> Printf.fprintf oc "stackoffset %d" n
-  | Load _ -> Printf.fprintf oc "load"
-  | Store _ -> Printf.fprintf oc "store"
-  | Intop op -> Printf.fprintf oc "intop %s" (intop op)
-  | Intop_imm (op, n) -> Printf.fprintf oc "intop %s %d" (intop op) n
-  | Negf -> Printf.fprintf oc "negf"
-  | Absf -> Printf.fprintf oc "absf"
-  | Addf -> Printf.fprintf oc "addf"
-  | Subf -> Printf.fprintf oc "subf"
-  | Mulf -> Printf.fprintf oc "mulf"
-  | Divf -> Printf.fprintf oc "divf"
-  | Compf _ -> Printf.fprintf oc "compf"
-  | Floatofint -> Printf.fprintf oc "floattoint"
-  | Intoffloat -> Printf.fprintf oc "intoffloat"
-  | Specific _ -> Printf.fprintf oc "specific"
+let dump_op ppf = function
+  | Move -> Format.fprintf ppf "mov"
+  | Spill -> Format.fprintf ppf "spill"
+  | Reload -> Format.fprintf ppf "reload"
+  | Const_int n -> Format.fprintf ppf "const_int %nd" n
+  | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
+  | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s
+  | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
+  | Load _ -> Format.fprintf ppf "load"
+  | Store _ -> Format.fprintf ppf "store"
+  | Intop op -> Format.fprintf ppf "intop %s" (intop op)
+  | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
+  | Negf -> Format.fprintf ppf "negf"
+  | Absf -> Format.fprintf ppf "absf"
+  | Addf -> Format.fprintf ppf "addf"
+  | Subf -> Format.fprintf ppf "subf"
+  | Mulf -> Format.fprintf ppf "mulf"
+  | Divf -> Format.fprintf ppf "divf"
+  | Compf _ -> Format.fprintf ppf "compf"
+  | Floatofint -> Format.fprintf ppf "floattoint"
+  | Intoffloat -> Format.fprintf ppf "intoffloat"
+  | Specific _ -> Format.fprintf ppf "specific"
   | Probe { name; handler_code_sym } ->
-    Printf.fprintf oc "probe %s %s" name handler_code_sym
-  | Probe_is_enabled { name } -> Printf.fprintf oc "probe_is_enabled %s" name
-  | Name_for_debugger _ -> Printf.fprintf oc "name_for_debugger"
+    Format.fprintf ppf "probe %s %s" name handler_code_sym
+  | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
+  | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
 
-let print_call oc = function
+let dump_call ppf = function
   | P prim_call -> (
     match prim_call with
     | External { func_symbol : string; _ } ->
-      Printf.fprintf oc "external %s" func_symbol
-    | Alloc { bytes : int; _ } -> Printf.fprintf oc "alloc %d" bytes
-    | Checkbound _ -> Printf.fprintf oc "checkbound")
+      Format.fprintf ppf "external %s" func_symbol
+    | Alloc { bytes : int; _ } -> Format.fprintf ppf "alloc %d" bytes
+    | Checkbound _ -> Format.fprintf ppf "checkbound")
   | F func_call -> (
     match func_call with
-    | Indirect -> Printf.fprintf oc "indirect"
+    | Indirect -> Format.fprintf ppf "indirect"
     | Direct { func_symbol : string; _ } ->
-      Printf.fprintf oc "direct %s" func_symbol)
+      Format.fprintf ppf "direct %s" func_symbol)
 
-let print_basic oc i =
-  Printf.fprintf oc "%d: " i.id;
+let dump_basic ppf i =
+  let open Format in
+  fprintf ppf "%d: " i.id;
   match i.desc with
-  | Op op -> print_op oc op
+  | Op op -> dump_op ppf op
   | Call call ->
-    Printf.fprintf oc "Call ";
-    print_call oc call
-  | Reloadretaddr -> Printf.fprintf oc "Reloadretaddr"
-  | Pushtrap { lbl_handler } ->
-    Printf.fprintf oc "Pushtrap handler=%d" lbl_handler
-  | Poptrap -> Printf.fprintf oc "Poptrap"
-  | Prologue -> Printf.fprintf oc "Prologue"
+    fprintf ppf "Call ";
+    dump_call ppf call
+  | Reloadretaddr -> fprintf ppf "Reloadretaddr"
+  | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
+  | Poptrap -> fprintf ppf "Poptrap"
+  | Prologue -> fprintf ppf "Prologue"
 
-let print_terminator oc ?(sep = "\n") ti =
-  Printf.fprintf oc "%d: " ti.id;
+let dump_terminator ppf ?(sep = "\n") ti =
+  let open Format in
+  fprintf ppf "%d: " ti.id;
   match ti.desc with
-  | Never -> Printf.fprintf oc "deadend%s" sep
-  | Always l -> Printf.fprintf oc "goto %d%s" l sep
+  | Never -> fprintf ppf "deadend%s" sep
+  | Always l -> fprintf ppf "goto %d%s" l sep
   | Parity_test { ifso; ifnot } ->
-    Printf.fprintf oc "if even goto %d%sif odd goto %d%s" ifso sep ifnot sep
+    fprintf ppf "if even goto %d%sif odd goto %d%s" ifso sep ifnot sep
   | Truth_test { ifso; ifnot } ->
-    Printf.fprintf oc "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
+    fprintf ppf "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
   | Float_test { lt; eq; gt; uo } ->
-    Printf.fprintf oc "if < goto %d%s" lt sep;
-    Printf.fprintf oc "if = goto %d%s" eq sep;
-    Printf.fprintf oc "if > goto %d%s" gt sep;
-    Printf.fprintf oc "if uo goto %d%s" uo sep
+    fprintf ppf "if < goto %d%s" lt sep;
+    fprintf ppf "if = goto %d%s" eq sep;
+    fprintf ppf "if > goto %d%s" gt sep;
+    fprintf ppf "if uo goto %d%s" uo sep
   | Int_test { lt; eq; gt; is_signed; imm } ->
     let cmp =
       Printf.sprintf " %s%s"
         (if is_signed then "s" else "u")
         (match imm with None -> "" | Some i -> " " ^ Int.to_string i)
     in
-    Printf.fprintf oc "if <%s goto %d%s" cmp lt sep;
-    Printf.fprintf oc "if =%s goto %d%s" cmp eq sep;
-    Printf.fprintf oc "if >%s goto %d%s" cmp gt sep
+    fprintf ppf "if <%s goto %d%s" cmp lt sep;
+    fprintf ppf "if =%s goto %d%s" cmp eq sep;
+    fprintf ppf "if >%s goto %d%s" cmp gt sep
   | Switch labels ->
-    Printf.fprintf oc "switch%s" sep;
+    fprintf ppf "switch%s" sep;
     for i = 0 to Array.length labels - 1 do
-      Printf.fprintf oc "case %d: goto %d%s" i labels.(i) sep
+      fprintf ppf "case %d: goto %d%s" i labels.(i) sep
     done
   | Call_no_return { func_symbol : string; _ } ->
-    Printf.fprintf oc "Call_no_return %s%s" func_symbol sep
-  | Return -> Printf.fprintf oc "Return%s" sep
-  | Raise _ -> Printf.fprintf oc "Raise%s" sep
-  | Tailcall (Self _) -> Printf.fprintf oc "Tailcall self%s" sep
-  | Tailcall (Func _) -> Printf.fprintf oc "Tailcall%s" sep
+    fprintf ppf "Call_no_return %s%s" func_symbol sep
+  | Return -> fprintf ppf "Return%s" sep
+  | Raise _ -> fprintf ppf "Raise%s" sep
+  | Tailcall (Self _) -> fprintf ppf "Tailcall self%s" sep
+  | Tailcall (Func _) -> fprintf ppf "Tailcall%s" sep
 
 let can_raise_terminator (i : terminator) =
   match i with
@@ -278,3 +279,9 @@ let can_raise_terminator (i : terminator) =
   | Switch _ | Return
   | Tailcall (Self _) ->
     false
+
+let print_basic oc i =
+  Format.kasprintf (Printf.fprintf oc "%s") "%a" dump_basic i
+
+let print_terminator oc ?sep ti =
+  Format.kasprintf (Printf.fprintf oc "%s") "%a" (dump_terminator ?sep) ti
