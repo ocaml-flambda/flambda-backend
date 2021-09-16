@@ -1536,7 +1536,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
     k_exn
 
 let lambda_to_flambda ~backend ~module_ident ~module_block_size_in_words
-    (lam : Lambda.lambda) : Flambda_unit.t =
+    (lam : Lambda.lambda) : Flambda_unit.t * Exported_code.t =
   let current_unit_id =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in

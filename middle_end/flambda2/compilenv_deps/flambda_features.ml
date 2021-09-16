@@ -16,6 +16,8 @@
 
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
+let classic_mode () = !Clflags.Flambda2.classic_mode
+
 let join_points () = !Clflags.Flambda2.join_points
 
 let unbox_along_intra_function_control_flow () =
