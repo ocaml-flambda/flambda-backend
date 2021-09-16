@@ -45,16 +45,13 @@ include Container_types.Make (struct
   (* The following would only be required if using [Name_abstraction.Make_map],
      which we don't with this module. *)
 
-  let compare _ _ =
-    Misc.fatal_error "Bound_pattern.compare not yet implemented"
+  let compare _ _ = Misc.fatal_error "Bound_pattern.compare not yet implemented"
 
-  let equal _ _ =
-    Misc.fatal_error "Bound_pattern.equal not yet implemented"
+  let equal _ _ = Misc.fatal_error "Bound_pattern.equal not yet implemented"
 
   let hash _ = Misc.fatal_error "Bound_pattern.hash not yet implemented"
 
-  let output _ _ =
-    Misc.fatal_error "Bound_pattern.output not yet implemented"
+  let output _ _ = Misc.fatal_error "Bound_pattern.output not yet implemented"
 end)
 
 let free_names t =
@@ -85,9 +82,7 @@ let apply_renaming t perm =
     if var == var' then t else Singleton var'
   | Set_of_closures { name_mode; closure_vars } ->
     let closure_vars' =
-      map_sharing
-        (fun var -> Bound_var.apply_renaming var perm)
-        closure_vars
+      map_sharing (fun var -> Bound_var.apply_renaming var perm) closure_vars
     in
     if closure_vars == closure_vars'
     then t
@@ -101,12 +96,10 @@ let apply_renaming t perm =
 let all_ids_for_export t =
   match t with
   | Singleton var ->
-    Ids_for_export.add_variable Ids_for_export.empty
-      (Bound_var.var var)
+    Ids_for_export.add_variable Ids_for_export.empty (Bound_var.var var)
   | Set_of_closures { name_mode = _; closure_vars } ->
     List.fold_left
-      (fun ids var ->
-        Ids_for_export.add_variable ids (Bound_var.var var))
+      (fun ids var -> Ids_for_export.add_variable ids (Bound_var.var var))
       Ids_for_export.empty closure_vars
   | Symbols { bound_symbols } -> Bound_symbols.all_ids_for_export bound_symbols
 
@@ -123,8 +116,7 @@ let rename t =
 let add_to_name_permutation t1 ~guaranteed_fresh:t2 perm =
   match t1, t2 with
   | Singleton var1, Singleton var2 ->
-    Renaming.add_fresh_variable perm
-      (Bound_var.var var1)
+    Renaming.add_fresh_variable perm (Bound_var.var var1)
       ~guaranteed_fresh:(Bound_var.var var2)
   | ( Set_of_closures { name_mode = _; closure_vars = closure_vars1 },
       Set_of_closures { name_mode = _; closure_vars = closure_vars2 } ) ->
@@ -132,8 +124,7 @@ let add_to_name_permutation t1 ~guaranteed_fresh:t2 perm =
     then
       List.fold_left2
         (fun perm var1 var2 ->
-          Renaming.add_fresh_variable perm
-            (Bound_var.var var1)
+          Renaming.add_fresh_variable perm (Bound_var.var var1)
             ~guaranteed_fresh:(Bound_var.var var2))
         perm closure_vars1 closure_vars2
     else
@@ -166,8 +157,7 @@ let set_of_closures ~closure_vars =
     Set_of_closures { name_mode; closure_vars }
   | _ ->
     Misc.fatal_errorf "Inconsistent name occurrence kinds:@ %a"
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space
-         Bound_var.print)
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Bound_var.print)
       closure_vars
 
 let symbols bound_symbols = Symbols { bound_symbols }
@@ -229,8 +219,7 @@ let fold_all_bound_vars t ~init ~f =
 let all_bound_vars t =
   match t with
   | Singleton var -> Bound_var.Set.singleton var
-  | Set_of_closures { closure_vars; _ } ->
-    Bound_var.Set.of_list closure_vars
+  | Set_of_closures { closure_vars; _ } -> Bound_var.Set.of_list closure_vars
   | Symbols _ -> Bound_var.Set.empty
 
 let all_bound_vars' t =

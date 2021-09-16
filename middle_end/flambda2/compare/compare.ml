@@ -303,13 +303,10 @@ let rec subst_expr env e =
 
 and subst_let_expr env let_expr =
   Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
-      let bound_pattern =
-        subst_bound_pattern env bound_pattern
-      in
+      let bound_pattern = subst_bound_pattern env bound_pattern in
       let defining_expr = subst_named env (Let_expr.defining_expr let_expr) in
       let body = subst_expr env body in
-      Let.create bound_pattern defining_expr ~body
-        ~free_names_of_body:Unknown
+      Let.create bound_pattern defining_expr ~body ~free_names_of_body:Unknown
       |> Expr.create_let)
 
 and subst_named env (n : Named.t) =

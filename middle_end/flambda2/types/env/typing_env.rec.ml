@@ -811,8 +811,7 @@ let find_symbol_projection t var = Cached.find_symbol_projection (cached t) var
 
 let add_definition t (name : Bound_name.t) kind =
   let name_mode = Bound_name.name_mode name in
-  Name.pattern_match
-    (Bound_name.name name)
+  Name.pattern_match (Bound_name.name name)
     ~var:(fun var -> add_variable_definition t var kind name_mode)
     ~symbol:(fun sym ->
       if not (Name_mode.equal name_mode Name_mode.normal)
@@ -1084,9 +1083,7 @@ let add_definitions_of_params t ~params =
   List.fold_left
     (fun t param ->
       let name =
-        Bound_name.create
-          (Kinded_parameter.name param)
-          Name_mode.normal
+        Bound_name.create (Kinded_parameter.name param) Name_mode.normal
       in
       add_definition t name
         (Flambda_kind.With_subkind.kind (Kinded_parameter.kind param)))

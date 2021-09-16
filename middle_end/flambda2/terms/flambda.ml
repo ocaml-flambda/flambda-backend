@@ -598,9 +598,7 @@ end = struct
     let t0 = T0.create (params @ [my_closure]) body in
     let t1 = T1.create exn_continuation t0 in
     let t2 = T2.create return_continuation t1 in
-    let abst =
-      A.create (Bound_var.create my_depth Name_mode.normal) t2
-    in
+    let abst = A.create (Bound_var.create my_depth Name_mode.normal) t2 in
     { abst;
       dbg;
       params_arity = Kinded_parameter.List.arity params;
@@ -638,8 +636,7 @@ end = struct
                       extract_my_closure params_and_my_closure
                     in
                     f ~return_continuation exn_continuation params ~body1 ~body2
-                      ~my_closure
-                      ~my_depth:(Bound_var.var my_depth)))))
+                      ~my_closure ~my_depth:(Bound_var.var my_depth)))))
 
   let [@ocamlformat "disable"] print ppf t =
     pattern_match t
@@ -1240,8 +1237,8 @@ end = struct
         let expr = let_body body in
         fprintf ppf "@])@ %a)@]" Expr.print expr)
 
-  let create (bound_pattern : Bound_pattern.t)
-      (defining_expr : Named.t) ~body ~(free_names_of_body : _ Or_unknown.t) =
+  let create (bound_pattern : Bound_pattern.t) (defining_expr : Named.t) ~body
+      ~(free_names_of_body : _ Or_unknown.t) =
     begin
       match defining_expr, bound_pattern with
       | Prim _, Singleton _
@@ -1272,9 +1269,7 @@ end = struct
       match free_names_of_body with
       | Unknown -> Variable.Map.empty
       | Known free_names_of_body ->
-        let free_names_of_bindable =
-          Bound_pattern.free_names bound_pattern
-        in
+        let free_names_of_bindable = Bound_pattern.free_names bound_pattern in
         Name_occurrences.fold_variables free_names_of_bindable
           ~init:Variable.Map.empty ~f:(fun num_occurrences var ->
             let num =

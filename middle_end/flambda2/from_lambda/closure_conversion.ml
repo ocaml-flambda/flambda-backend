@@ -814,8 +814,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   in
   let next_depth_expr = Rec_info_expr.succ (Rec_info_expr.var my_depth) in
   let bound =
-    Bound_pattern.singleton
-      (Bound_var.create next_depth Name_mode.normal)
+    Bound_pattern.singleton (Bound_var.create next_depth Name_mode.normal)
   in
   let acc, body =
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body

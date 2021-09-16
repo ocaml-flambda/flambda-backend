@@ -61,9 +61,7 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     |> Expr.create_let
   in
   let body =
-    let bound =
-      Bound_pattern.singleton (VB.create my_depth Name_mode.normal)
-    in
+    let bound = Bound_pattern.singleton (VB.create my_depth Name_mode.normal) in
     Let.create bound
       (Named.create_rec_info rec_info)
       ~body ~free_names_of_body:Unknown

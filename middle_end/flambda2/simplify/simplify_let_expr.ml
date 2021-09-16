@@ -235,8 +235,8 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   (* Simplify the defining expression. *)
   let simplify_named_result, removed_operations =
-    Simplify_named.simplify_named dacc bound_pattern
-      (L.defining_expr let_expr) ~simplify_toplevel
+    Simplify_named.simplify_named dacc bound_pattern (L.defining_expr let_expr)
+      ~simplify_toplevel
   in
   let dacc = Simplify_named_result.dacc simplify_named_result in
   (* First accumulate variable, symbol and code ID usage information. *)

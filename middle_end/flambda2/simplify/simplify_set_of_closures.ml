@@ -109,9 +109,7 @@ end = struct
         let var = Variable.create "clos_var" in
         let env_inside_function =
           let var = Bound_var.create var NM.in_types in
-          TE.add_definition env_inside_function
-            (Bound_name.var var)
-            K.value
+          TE.add_definition env_inside_function (Bound_name.var var) K.value
         in
         let type_prior_to_sets =
           (* See comment below about [degraded_closure_vars]. *)
@@ -153,8 +151,7 @@ end = struct
       List.map
         (fun closure_bound_names_inside ->
           Closure_id.Map.map
-            (fun name ->
-              T.alias_type_of K.value (Bound_name.to_simple name))
+            (fun name -> T.alias_type_of K.value (Bound_name.to_simple name))
             closure_bound_names_inside)
         closure_bound_names_all_sets_inside
     in
@@ -702,8 +699,7 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
   let closure_types_by_bound_name =
     let closure_types_via_aliases =
       Closure_id.Map.map
-        (fun name ->
-          T.alias_type_of K.value (Bound_name.to_simple name))
+        (fun name -> T.alias_type_of K.value (Bound_name.to_simple name))
         closure_bound_names
     in
     Closure_id.Map.fold
@@ -858,9 +854,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
             let typ = T.alias_type_of K.value simple in
             DE.add_variable denv bound_var typ
           in
-          let bindings =
-            Bound_var.Map.add bound_var closure_symbol bindings
-          in
+          let bindings = Bound_var.Map.add bound_var closure_symbol bindings in
           denv, bindings)
       closure_bound_vars
       (denv, Bound_var.Map.empty)
@@ -1001,9 +995,7 @@ let type_closure_elements_for_previously_lifted_set dacc ~min_name_mode
 
 let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     set_of_closures =
-  let closure_bound_vars =
-    Bound_pattern.must_be_set_of_closures bound_vars
-  in
+  let closure_bound_vars = Bound_pattern.must_be_set_of_closures bound_vars in
   (* CR mshinwell: This should probably be handled differently, but will require
      some threading through *)
   let min_name_mode = Bound_pattern.name_mode bound_vars in
@@ -1011,9 +1003,8 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     List.fold_left2
       (fun (closure_bound_vars, closure_bound_vars_inverse) closure_id var ->
         ( Closure_id.Map.add closure_id var closure_bound_vars,
-          Variable.Map.add
-            (Bound_var.var var)
-            closure_id closure_bound_vars_inverse ))
+          Variable.Map.add (Bound_var.var var) closure_id
+            closure_bound_vars_inverse ))
       (Closure_id.Map.empty, Variable.Map.empty)
       (Set_of_closures.function_decls set_of_closures
       |> Function_declarations.funs_in_order |> Closure_id.Lmap.keys)

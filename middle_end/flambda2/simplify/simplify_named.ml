@@ -171,8 +171,8 @@ let create_lifted_constant (dacc, lifted_constants)
    ensures that the returned [dacc] is equipped with the free name information
    for such sets. See comment in [Simplify_let_expr], function [rebuild_let]. *)
 
-let simplify_named0 dacc (bound_pattern : Bound_pattern.t)
-    (named : Named.t) ~simplify_toplevel =
+let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
+    ~simplify_toplevel =
   match named with
   | Simple simple ->
     let bound_var = Bound_pattern.must_be_singleton bound_pattern in
@@ -375,6 +375,5 @@ let simplify_named dacc bound_pattern named ~simplify_toplevel =
        accumulator:@ %a\n"
       (Flambda_colours.error ())
       (Flambda_colours.normal ())
-      Bound_pattern.print bound_pattern Named.print named DA.print
-      dacc;
+      Bound_pattern.print bound_pattern Named.print named DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt

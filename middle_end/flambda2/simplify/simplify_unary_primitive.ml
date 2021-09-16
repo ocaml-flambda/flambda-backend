@@ -91,8 +91,7 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
         ~deconstructing:closure_ty
         ~shape:
           (T.closure_with_at_least_this_closure_var ~this_closure:closure_id
-             closure_element
-             ~closure_element_var:(Bound_var.var result_var))
+             closure_element ~closure_element_var:(Bound_var.var result_var))
         ~result_var ~result_kind:K.value
     in
     reachable, env_extension, DA.add_use_of_closure_var dacc closure_element
@@ -118,9 +117,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ~deconstructing:boxed_number_ty ~shape ~result_var ~result_kind
   in
   let box_prim : P.t =
-    Unary
-      ( Box_number boxable_number_kind,
-        Simple.var (Bound_var.var result_var) )
+    Unary (Box_number boxable_number_kind, Simple.var (Bound_var.var result_var))
   in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->

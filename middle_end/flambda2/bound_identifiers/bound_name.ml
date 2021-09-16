@@ -28,9 +28,7 @@ let name t = t.name
 let name_mode t = t.name_mode
 
 let var v =
-  { name = Name.var (Bound_var.var v);
-    name_mode = Bound_var.name_mode v
-  }
+  { name = Name.var (Bound_var.var v); name_mode = Bound_var.name_mode v }
 
 let symbol sym = { name = Name.symbol sym; name_mode = Name_mode.normal }
 

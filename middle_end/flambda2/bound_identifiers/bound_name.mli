@@ -33,8 +33,8 @@ val symbol : Symbol.t -> t
 
 val must_be_symbol : t -> Symbol.t
 
-(* CR mshinwell: Ensure naming consistent with Bound_var. Make
-   constructors and destructors clear. *)
+(* CR mshinwell: Ensure naming consistent with Bound_var. Make constructors and
+   destructors clear. *)
 val to_var : t -> Bound_var.t option
 
 val to_name : t -> Name.t
