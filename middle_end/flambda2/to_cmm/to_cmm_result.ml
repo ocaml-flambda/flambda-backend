@@ -16,7 +16,7 @@
 
 module C = struct
   include Cmm_helpers
-  include Un_cps_helper
+  include To_cmm_helper
 end
 
 type t =
@@ -57,7 +57,7 @@ let set_data r l =
   update_data r (function
     | [] -> l
     | _ ->
-      Misc.fatal_errorf "Un_cps_result.set_data: %s"
+      Misc.fatal_errorf "To_cmm_result.set_data: %s"
         "about to lose some translated static data items")
 
 let add_gc_roots r l = { r with gc_roots = l @ r.gc_roots }

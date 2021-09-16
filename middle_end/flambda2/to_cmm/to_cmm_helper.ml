@@ -615,7 +615,7 @@ let gc_root_table syms =
 
 (* Get constant tables from cmmgen_state
 
-   The Un_cps translation uses functions from cmm_helpers which populate some
+   The To_cmm translation uses functions from cmm_helpers which populate some
    mutable state in cmmgen_state, so we have to get the created constants. *)
 
 let flush_cmmgen_state () =

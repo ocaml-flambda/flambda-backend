@@ -219,7 +219,7 @@ let close_c_call acc ~let_bound_var
     let prim_name =
       if String.equal prim_native_name "" then prim_name else prim_native_name
     in
-    (* CR mshinwell: fix "extern" mess (see Un_cps) *)
+    (* CR mshinwell: fix "extern" mess (see To_cmm) *)
     Symbol.create
       (Compilation_unit.external_symbols ())
       (Linkage_name.create prim_name)

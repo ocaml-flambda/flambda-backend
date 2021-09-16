@@ -15,9 +15,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Flambda.Import
-module Env = Un_cps_env
+module Env = To_cmm_env
 module Ece = Effects_and_coeffects
-module R = Un_cps_result
+module R = To_cmm_result
 
 (* Notes:
 
@@ -32,7 +32,7 @@ module R = Un_cps_result
 (* Cmm helpers *)
 module C = struct
   include Cmm_helpers
-  include Un_cps_helper
+  include To_cmm_helper
 end
 
 (* Shortcuts for useful cmm machtypes *)
@@ -397,7 +397,7 @@ let binary_float_comp_primitive_yielding_int _env dbg x y =
 
 let nullary_primitive _env dbg prim : _ * Cmm.expression =
   match (prim : Flambda_primitive.nullary_primitive) with
-  | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in un_cps"
+  | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
   | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
 
 let unary_primitive env dbg f arg =
@@ -452,7 +452,7 @@ let unary_primitive env dbg f arg =
     | Some _, None | None, Some _ | None, None ->
       (* Note that if a closure var is missing from a set of closures
          environment, then [Env.closure_offset] might return [None], even though
-         the set of closures has been seen by [Un_cps_closure]. *)
+         the set of closures has been seen by [To_cmm_closure]. *)
       None, C.unreachable)
 
 let binary_primitive env dbg f x y =
@@ -715,7 +715,7 @@ and let_symbol env res bound_symbols consts body =
     Env.add_to_scope env (Bound_symbols.everything_being_defined bound_symbols)
   in
   let env, res, update_opt =
-    Un_cps_static.static_consts env res ~params_and_body bound_symbols consts
+    To_cmm_static.static_consts env res ~params_and_body bound_symbols consts
   in
   match update_opt with
   | None ->
@@ -730,7 +730,7 @@ and let_set_of_closures env res body closure_vars
   let fun_decls = Set_of_closures.function_decls s in
   let decls = Function_declarations.funs_in_order fun_decls in
   let elts =
-    Un_cps_closure.filter_closure_vars s
+    To_cmm_closure.filter_closure_vars s
       ~used_closure_vars:(Env.used_closure_vars env)
   in
   if Var_within_closure.Map.is_empty elts
@@ -967,7 +967,7 @@ and apply_call env e =
     if not (check_arity param_arity args)
     then
       Misc.fatal_errorf
-        "Un_cps expects indirect_known_arity calls to be full applications in \
+        "To_cmm expects indirect_known_arity calls to be full applications in \
          order to translate it"
     else
       let f, env, _ = simple env f in
@@ -1328,7 +1328,7 @@ and let_static_set_of_closures env res body closure_vars s =
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
-    Un_cps_static.static_set_of_closures env closure_symbols s None
+    To_cmm_static.static_set_of_closures env closure_symbols s None
   in
   (* As there is no env vars for the set of closures, there must be no
      updates *)
@@ -1341,7 +1341,7 @@ and let_static_set_of_closures env res body closure_vars s =
   (* update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for closure ids. CR gbury: inline the
-     variables (require to extend un_cps_enc to inline pure variables more than
+     variables (require to extend to_cmm_enc to inline pure variables more than
      once). *)
   let env =
     List.fold_left2
@@ -1410,7 +1410,7 @@ and fill_layout decls startenv elts env effs acc i = function
     fill_layout decls startenv elts env effs acc offset r
 
 and fill_slot decls startenv elts env acc offset slot =
-  match (slot : Un_cps_closure.layout_slot) with
+  match (slot : To_cmm_closure.layout_slot) with
   | Infix_header ->
     let field = C.alloc_infix_header (offset + 1) Debuginfo.none in
     field :: acc, offset + 1, env, Ece.pure
@@ -1444,7 +1444,7 @@ and fill_slot decls startenv elts env acc offset slot =
       acc, offset + 3, env, Ece.pure
 
 and fill_up_to j acc i =
-  if i > j then Misc.fatal_errorf "Problem while filling up a closure in un_cps";
+  if i > j then Misc.fatal_errorf "Problem while filling up a closure in to_cmm";
   if i = j then acc else fill_up_to j (C.int 1 :: acc) (i + 1)
 
 (* Translate a function declaration. *)
@@ -1504,7 +1504,7 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
   let functions_info = middle_end_result.all_code in
   Profile.record_call "flambda_to_cmm" (fun () ->
       let offsets =
-        Un_cps_closure.compute_offsets offsets functions_info unit
+        To_cmm_closure.compute_offsets offsets functions_info unit
       in
       begin
         match middle_end_result.cmx with

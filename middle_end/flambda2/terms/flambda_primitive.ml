@@ -302,7 +302,7 @@ let reading_from_an_array (array_kind : Array_kind.t)
     match array_kind with
     | Immediates | Values | Naked_floats -> No_effects
     | Float_array_opt_dynamic ->
-      (* See [Un_cps_helpers.array_load] and [Cmm_helpers.float_array_ref]. If
+      (* See [To_cmm_helpers.array_load] and [Cmm_helpers.float_array_ref]. If
          the array (dynamically) has tag [Double_array_tag], then the read will
          allocate. [Immutable] here means that the returned float itself is
          immutable. *)
