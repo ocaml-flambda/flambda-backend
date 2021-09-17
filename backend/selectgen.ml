@@ -352,7 +352,7 @@ module Effect_and_coeffect : sig
 
   val effect_only : Effect.t -> t
   val coeffect_only : Coeffect.t -> t
-  val effect_and_coeffect : Effect.t -> Coeffect.t -> t
+  val create : Effect.t -> Coeffect.t -> t
 
   val join : t -> t -> t
   val join_list_map : 'a list -> ('a -> t) -> t
@@ -364,12 +364,12 @@ end = struct
 
   let effect (e, _ce) = e
   let coeffect (_e, ce) = ce
-  let effect_and_coeffect e ce = e, ce
 
   let pure_and_copure (e, ce) = Effect.pure e && Coeffect.copure ce
 
   let effect_only e = e, Coeffect.None
   let coeffect_only ce = Effect.None, ce
+  let create e ce = e, ce
 
   let join (e1, ce1) (e2, ce2) =
     Effect.join e1 e2, Coeffect.join ce1 ce2
@@ -460,7 +460,7 @@ method effects_of exp =
     let from_op =
       match op with
       | Cextcall { effects = e; coeffects = ce; } ->
-        EC.effect_and_coeffect (select_effects e) (select_coeffects ce)
+        EC.create (select_effects e) (select_coeffects ce)
       | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
       | Calloc -> EC.none
       | Cstore _ -> EC.effect_only Effect.Arbitrary
