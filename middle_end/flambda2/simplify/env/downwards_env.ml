@@ -220,15 +220,12 @@ let enter_set_of_closures
 
 let define_variable t var kind =
   let typing_env =
-    let var = Name_in_binding_pos.var var in
+    let var = Bound_name.var var in
     TE.add_definition t.typing_env var kind
   in
   let variables_defined_at_toplevel =
     if t.at_unit_toplevel
-    then
-      Variable.Set.add
-        (Var_in_binding_pos.var var)
-        t.variables_defined_at_toplevel
+    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
     else t.variables_defined_at_toplevel
   in
   { t with typing_env; variables_defined_at_toplevel }
@@ -237,12 +234,10 @@ let add_name t name ty =
   let typing_env =
     TE.add_equation
       (TE.add_definition t.typing_env name (T.kind ty))
-      (Name_in_binding_pos.name name)
-      ty
+      (Bound_name.name name) ty
   in
   let variables_defined_at_toplevel =
-    Name.pattern_match
-      (Name_in_binding_pos.name name)
+    Name.pattern_match (Bound_name.name name)
       ~var:(fun var ->
         if t.at_unit_toplevel
         then Variable.Set.add var t.variables_defined_at_toplevel
@@ -253,18 +248,15 @@ let add_name t name ty =
 
 let add_variable0 t var ty ~at_unit_toplevel =
   let typing_env =
-    let var' = Name_in_binding_pos.var var in
+    let var' = Bound_name.var var in
     TE.add_equation
       (TE.add_definition t.typing_env var' (T.kind ty))
-      (Name.var (Var_in_binding_pos.var var))
+      (Name.var (Bound_var.var var))
       ty
   in
   let variables_defined_at_toplevel =
     if at_unit_toplevel
-    then
-      Variable.Set.add
-        (Var_in_binding_pos.var var)
-        t.variables_defined_at_toplevel
+    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
     else t.variables_defined_at_toplevel
   in
   { t with typing_env; variables_defined_at_toplevel }
@@ -282,7 +274,7 @@ let mem_variable t var = TE.mem t.typing_env (Name.var var)
 
 let define_symbol t sym kind =
   let typing_env =
-    let sym = Name_in_binding_pos.create (Name.symbol sym) Name_mode.normal in
+    let sym = Bound_name.create (Name.symbol sym) Name_mode.normal in
     TE.add_definition t.typing_env sym kind
   in
   { t with typing_env }
@@ -293,7 +285,7 @@ let define_symbol_if_undefined t sym kind =
 let add_symbol t sym ty =
   let typing_env =
     let sym = Name.symbol sym in
-    let sym' = Name_in_binding_pos.create sym Name_mode.normal in
+    let sym' = Bound_name.create sym Name_mode.normal in
     TE.add_equation (TE.add_definition t.typing_env sym' (T.kind ty)) sym ty
   in
   { t with typing_env }
@@ -317,8 +309,7 @@ let find_symbol_projection t var = TE.find_symbol_projection t.typing_env var
 let define_name t name kind =
   let typing_env = TE.add_definition t.typing_env name kind in
   let variables_defined_at_toplevel =
-    Name.pattern_match
-      (Name_in_binding_pos.name name)
+    Name.pattern_match (Bound_name.name name)
       ~var:(fun var ->
         if t.at_unit_toplevel
         then Variable.Set.add var t.variables_defined_at_toplevel
@@ -328,7 +319,7 @@ let define_name t name kind =
   { t with typing_env; variables_defined_at_toplevel }
 
 let define_name_if_undefined t name kind =
-  if TE.mem t.typing_env (Name_in_binding_pos.to_name name)
+  if TE.mem t.typing_env (Bound_name.to_name name)
   then t
   else define_name t name kind
 
@@ -342,14 +333,14 @@ let add_equation_on_name t name ty =
 let define_parameters t ~params =
   List.fold_left
     (fun t param ->
-      let var = Var_in_binding_pos.create (KP.var param) Name_mode.normal in
+      let var = Bound_var.create (KP.var param) Name_mode.normal in
       define_variable t var (K.With_subkind.kind (KP.kind param)))
     t params
 
 let define_parameters_as_bottom t ~params =
   List.fold_left
     (fun t param ->
-      let var = Var_in_binding_pos.create (KP.var param) Name_mode.normal in
+      let var = Bound_var.create (KP.var param) Name_mode.normal in
       let kind = K.With_subkind.kind (KP.kind param) in
       let t = define_variable t var kind in
       add_equation_on_variable t (KP.var param) (T.bottom kind))
@@ -368,7 +359,7 @@ let add_parameters ?at_unit_toplevel t params ~param_types =
   in
   List.fold_left2
     (fun t param param_type ->
-      let var = Var_in_binding_pos.create (KP.var param) Name_mode.normal in
+      let var = Bound_var.create (KP.var param) Name_mode.normal in
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
@@ -391,18 +382,15 @@ let mark_parameters_as_toplevel t params =
 let add_variable_and_extend_typing_environment t var ty env_extension =
   (* This is a combined operation to reduce allocation. *)
   let typing_env =
-    let var' = Name_in_binding_pos.var var in
+    let var' = Bound_name.var var in
     TE.add_equation
       (TE.add_definition t.typing_env var' (T.kind ty))
-      (Name.var (Var_in_binding_pos.var var))
+      (Name.var (Bound_var.var var))
       ty
   in
   let variables_defined_at_toplevel =
     if t.at_unit_toplevel
-    then
-      Variable.Set.add
-        (Var_in_binding_pos.var var)
-        t.variables_defined_at_toplevel
+    then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
     else t.variables_defined_at_toplevel
   in
   let typing_env = TE.add_env_extension typing_env env_extension in

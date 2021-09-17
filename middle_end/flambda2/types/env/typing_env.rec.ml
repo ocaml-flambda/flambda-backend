@@ -809,17 +809,16 @@ let add_symbol_projection t var proj =
 
 let find_symbol_projection t var = Cached.find_symbol_projection (cached t) var
 
-let add_definition t (name : Name_in_binding_pos.t) kind =
-  let name_mode = Name_in_binding_pos.name_mode name in
-  Name.pattern_match
-    (Name_in_binding_pos.name name)
+let add_definition t (name : Bound_name.t) kind =
+  let name_mode = Bound_name.name_mode name in
+  Name.pattern_match (Bound_name.name name)
     ~var:(fun var -> add_variable_definition t var kind name_mode)
     ~symbol:(fun sym ->
       if not (Name_mode.equal name_mode Name_mode.normal)
       then
         Misc.fatal_errorf
           "Cannot define symbol %a with name mode that is not `normal'"
-          Name_in_binding_pos.print name;
+          Bound_name.print name;
       add_symbol_definition t sym)
 
 let invariant_for_alias (t : t) name ty =
@@ -1084,9 +1083,7 @@ let add_definitions_of_params t ~params =
   List.fold_left
     (fun t param ->
       let name =
-        Name_in_binding_pos.create
-          (Kinded_parameter.name param)
-          Name_mode.normal
+        Bound_name.create (Kinded_parameter.name param) Name_mode.normal
       in
       add_definition t name
         (Flambda_kind.With_subkind.kind (Kinded_parameter.kind param)))

@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda.Import
-module BLB = Bindable_let_bound
+module BLB = Bound_pattern
 module KP = Kinded_parameter
 module LC = Lifted_constant
 module LCS = Lifted_constant_state
@@ -25,7 +25,7 @@ module P = Flambda_primitive
 module RE = Rebuilt_expr
 module UA = Upwards_acc
 module UE = Upwards_env
-module VB = Var_in_binding_pos
+module VB = Bound_var
 
 type let_creation_result =
   | Defining_expr_deleted_at_compile_time
@@ -262,7 +262,7 @@ let make_new_let_bindings uacc
           } ->
         let defining_expr = Simplified_named.to_named defining_expr in
         let expr, uacc, creation_result =
-          match (let_bound : Bindable_let_bound.t) with
+          match (let_bound : Bound_pattern.t) with
           | Singleton _ | Set_of_closures _ ->
             create_let uacc let_bound defining_expr ~free_names_of_defining_expr
               ~body:expr ~cost_metrics_of_defining_expr
@@ -272,7 +272,7 @@ let make_new_let_bindings uacc
             Misc.fatal_errorf
               "Mismatch between bound name(s) and defining expression:@ %a@ =@ \
                %a"
-              Bindable_let_bound.print let_bound Named.print defining_expr
+              Bound_pattern.print let_bound Named.print defining_expr
         in
         let uacc =
           match creation_result with
@@ -296,7 +296,7 @@ let make_new_let_bindings uacc
 let create_raw_let_symbol uacc bound_symbols static_consts ~body =
   (* Upon entry to this function, [UA.name_occurrences uacc] must precisely
      indicate the free names of [body]. *)
-  let bindable = Bindable_let_bound.symbols bound_symbols in
+  let bindable = Bound_pattern.symbols bound_symbols in
   let free_names_of_static_consts =
     Rebuilt_static_const.Group.free_names static_consts
   in
@@ -582,7 +582,7 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
           | Already_in_scope simple -> simple, [], Name_occurrences.empty
           | New_let_binding (temp, prim) ->
             let extra_let =
-              ( Var_in_binding_pos.create temp Name_mode.normal,
+              ( Bound_var.create temp Name_mode.normal,
                 Code_size.prim prim,
                 Named.create_prim prim Debuginfo.none )
             in
@@ -597,7 +597,7 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
                    since they are already named."
             in
             let extra_let =
-              ( Var_in_binding_pos.create temp Name_mode.normal,
+              ( Bound_var.create temp Name_mode.normal,
                 Code_size.prim prim,
                 Named.create_prim prim Debuginfo.none )
             in

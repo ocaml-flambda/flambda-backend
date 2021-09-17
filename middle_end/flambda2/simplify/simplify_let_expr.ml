@@ -191,7 +191,7 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     then DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
-      (* CR gbury: use Bindable_let_bound.fold_all_bound_vars instead of a match
+      (* CR gbury: use Bound_pattern.fold_all_bound_vars instead of a match
          here. *)
       match binding.let_bound with
       | Singleton v ->
@@ -227,7 +227,7 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~f:(record_new_defining_expression_binding_for_data_flow dacc)
 
 let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
-    bindable_let_bound ~body =
+    bound_pattern ~body =
   let module L = Flambda.Let in
   (* Remember then clear the lifted constants memory in [DA] so we can easily
      find out which constants are generated during simplification of the
@@ -235,8 +235,8 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   (* Simplify the defining expression. *)
   let simplify_named_result, removed_operations =
-    Simplify_named.simplify_named dacc bindable_let_bound
-      (L.defining_expr let_expr) ~simplify_toplevel
+    Simplify_named.simplify_named dacc bound_pattern (L.defining_expr let_expr)
+      ~simplify_toplevel
   in
   let dacc = Simplify_named_result.dacc simplify_named_result in
   (* First accumulate variable, symbol and code ID usage information. *)

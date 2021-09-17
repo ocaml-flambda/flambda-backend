@@ -28,15 +28,13 @@ let name t = t.name
 let name_mode t = t.name_mode
 
 let var v =
-  { name = Name.var (Var_in_binding_pos.var v);
-    name_mode = Var_in_binding_pos.name_mode v
-  }
+  { name = Name.var (Bound_var.var v); name_mode = Bound_var.name_mode v }
 
 let symbol sym = { name = Name.symbol sym; name_mode = Name_mode.normal }
 
 let to_var t =
   Name.pattern_match t.name
-    ~var:(fun var -> Some (Var_in_binding_pos.create var t.name_mode))
+    ~var:(fun var -> Some (Bound_var.create var t.name_mode))
     ~symbol:(fun _sym -> None)
 
 let to_name t = t.name

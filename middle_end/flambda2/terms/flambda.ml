@@ -479,9 +479,9 @@ end = struct
         KP.List.print params Simple.List.print args;
     ListLabels.fold_left2 (List.rev params) (List.rev args) ~init:body
       ~f:(fun expr param arg ->
-        let var = Var_in_binding_pos.create (KP.var param) Name_mode.normal in
+        let var = Bound_var.create (KP.var param) Name_mode.normal in
         Let_expr.create
-          (Bindable_let_bound.singleton var)
+          (Bound_pattern.singleton var)
           (Named.create_simple arg) ~body:expr ~free_names_of_body:Unknown
         |> create_let)
 end
@@ -567,15 +567,15 @@ and Function_params_and_body : sig
 end = struct
   module T0 = Name_abstraction.Make_list (Kinded_parameter) (Expr)
 
-  (* CR mshinwell: This should use [Bindable_continuation]. [Exn_continuation]
+  (* CR mshinwell: This should use [Bound_continuation]. [Exn_continuation]
      involves extra args, but we never have extra args here! *)
-  module T1 = Name_abstraction.Make (Bindable_exn_continuation) (T0)
-  module T2 = Name_abstraction.Make (Bindable_continuation) (T1)
+  module T1 = Name_abstraction.Make (Bound_exn_continuation) (T0)
+  module T2 = Name_abstraction.Make (Bound_continuation) (T1)
 
   (* CR lmaurer: It would be good to avoid the extra abstraction when a function
      is known to be non-recursive. Maybe we should flatten all of these into one
      big [Bindable]? *)
-  module A = Name_abstraction.Make (Bindable_variable_in_terms) (T2)
+  module A = Name_abstraction.Make (Bound_var) (T2)
 
   type t =
     { abst : A.t;
@@ -598,7 +598,7 @@ end = struct
     let t0 = T0.create (params @ [my_closure]) body in
     let t1 = T1.create exn_continuation t0 in
     let t2 = T2.create return_continuation t1 in
-    let abst = A.create my_depth t2 in
+    let abst = A.create (Bound_var.create my_depth Name_mode.normal) t2 in
     { abst;
       dbg;
       params_arity = Kinded_parameter.List.arity params;
@@ -623,7 +623,7 @@ end = struct
                     in
                     f ~return_continuation exn_continuation params ~body
                       ~my_closure ~is_my_closure_used:t.is_my_closure_used
-                      ~my_depth))))
+                      ~my_depth:(Bound_var.var my_depth)))))
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1.abst t2.abst ~f:(fun my_depth t2_1 t2_2 ->
@@ -636,7 +636,7 @@ end = struct
                       extract_my_closure params_and_my_closure
                     in
                     f ~return_continuation exn_continuation params ~body1 ~body2
-                      ~my_closure ~my_depth))))
+                      ~my_closure ~my_depth:(Bound_var.var my_depth)))))
 
   let [@ocamlformat "disable"] print ppf t =
     pattern_match t
@@ -657,7 +657,7 @@ end = struct
           Kinded_parameter.List.print params
           Kinded_parameter.print my_closure
           (Flambda_colours.depth_variable ())
-          Bindable_variable_in_terms.print my_depth
+          Variable.print my_depth
           (Flambda_colours.elide ())
           (Flambda_colours.normal ())
           Expr.print body)
@@ -890,7 +890,7 @@ and Let_expr : sig
   include Contains_ids.S with type t := t
 
   val create :
-    Bindable_let_bound.t ->
+    Bound_pattern.t ->
     Named.t ->
     body:Expr.t ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
@@ -901,12 +901,12 @@ and Let_expr : sig
 
   (** Look inside the [Let] by choosing a member of the alpha-equivalence
       class. *)
-  val pattern_match : t -> f:(Bindable_let_bound.t -> body:Expr.t -> 'a) -> 'a
+  val pattern_match : t -> f:(Bound_pattern.t -> body:Expr.t -> 'a) -> 'a
 
   val pattern_match' :
     t ->
     f:
-      (Bindable_let_bound.t ->
+      (Bound_pattern.t ->
       num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
       body:Expr.t ->
       'a) ->
@@ -927,10 +927,10 @@ and Let_expr : sig
   val pattern_match_pair :
     t ->
     t ->
-    dynamic:(Bindable_let_bound.t -> body1:Expr.t -> body2:Expr.t -> 'a) ->
+    dynamic:(Bound_pattern.t -> body1:Expr.t -> body2:Expr.t -> 'a) ->
     static:
-      (bound_symbols1:Bindable_let_bound.symbols ->
-      bound_symbols2:Bindable_let_bound.symbols ->
+      (bound_symbols1:Bound_pattern.symbols ->
+      bound_symbols2:Bound_pattern.symbols ->
       body1:Expr.t ->
       body2:Expr.t ->
       'a) ->
@@ -972,7 +972,7 @@ end = struct
       Expr.all_ids_for_export body
   end
 
-  module A = Name_abstraction.Make (Bindable_let_bound) (T0)
+  module A = Name_abstraction.Make (Bound_pattern) (T0)
 
   type t =
     { name_abstraction : A.t;
@@ -980,15 +980,15 @@ end = struct
     }
 
   let pattern_match t ~f =
-    A.pattern_match t.name_abstraction ~f:(fun bindable_let_bound t0 ->
-        f bindable_let_bound ~body:t0.body)
+    A.pattern_match t.name_abstraction ~f:(fun bound_pattern t0 ->
+        f bound_pattern ~body:t0.body)
 
   let pattern_match' t ~f =
-    A.pattern_match t.name_abstraction ~f:(fun bindable_let_bound t0 ->
+    A.pattern_match t.name_abstraction ~f:(fun bound_pattern t0 ->
         let num_normal_occurrences_of_bound_vars =
           t0.num_normal_occurrences_of_bound_vars
         in
-        f bindable_let_bound ~num_normal_occurrences_of_bound_vars ~body:t0.body)
+        f bound_pattern ~num_normal_occurrences_of_bound_vars ~body:t0.body)
 
   module Pattern_match_pair_error = struct
     type t = Mismatched_let_bindings
@@ -998,20 +998,20 @@ end = struct
   end
 
   let pattern_match_pair t1 t2 ~dynamic ~static =
-    A.pattern_match t1.name_abstraction ~f:(fun bindable_let_bound1 t0_1 ->
+    A.pattern_match t1.name_abstraction ~f:(fun bound_pattern1 t0_1 ->
         let body1 = t0_1.body in
-        A.pattern_match t2.name_abstraction ~f:(fun bindable_let_bound2 t0_2 ->
+        A.pattern_match t2.name_abstraction ~f:(fun bound_pattern2 t0_2 ->
             let body2 = t0_2.body in
             let dynamic_case () =
               let ans =
                 A.pattern_match_pair t1.name_abstraction t2.name_abstraction
-                  ~f:(fun bindable_let_bound t0_1 t0_2 ->
-                    dynamic bindable_let_bound ~body1:t0_1.body ~body2:t0_2.body)
+                  ~f:(fun bound_pattern t0_1 t0_2 ->
+                    dynamic bound_pattern ~body1:t0_1.body ~body2:t0_2.body)
               in
               Ok ans
             in
-            match bindable_let_bound1, bindable_let_bound2 with
-            | Bindable_let_bound.Singleton _, Bindable_let_bound.Singleton _ ->
+            match bound_pattern1, bound_pattern2 with
+            | Bound_pattern.Singleton _, Bound_pattern.Singleton _ ->
               dynamic_case ()
             | ( Set_of_closures { closure_vars = vars1; _ },
                 Set_of_closures { closure_vars = vars2; _ } ) ->
@@ -1091,8 +1091,8 @@ end = struct
         flattened_acc @ [flattened], true)
 
   let flatten_for_printing t =
-    pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-        match bindable_let_bound with
+    pattern_match t ~f:(fun (bound_pattern : Bound_pattern.t) ~body ->
+        match bound_pattern with
         | Symbols { bound_symbols } ->
           let flattened, _ =
             flatten_for_printing0 bound_symbols
@@ -1194,8 +1194,8 @@ end = struct
 
   let [@ocamlformat "disable"] print ppf
         ({ name_abstraction = _; defining_expr; } as t) =
-    let let_bound_var_colour bindable_let_bound defining_expr =
-      let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
+    let let_bound_var_colour bound_pattern defining_expr =
+      let name_mode = Bound_pattern.name_mode bound_pattern in
       if Name_mode.is_phantom name_mode then Flambda_colours.elide ()
       else match (defining_expr : Named.t) with
         | Rec_info _ ->
@@ -1207,13 +1207,13 @@ end = struct
       match Expr.descr expr with
       | Let ({ name_abstraction = _; defining_expr; } as t) ->
         pattern_match t
-          ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-            match bindable_let_bound with
+          ~f:(fun (bound_pattern : Bound_pattern.t) ~body ->
+            match bound_pattern with
             | Singleton _ | Set_of_closures _ ->
               fprintf ppf
                 "@ @[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
-                (let_bound_var_colour bindable_let_bound defining_expr)
-                Bindable_let_bound.print bindable_let_bound
+                (let_bound_var_colour bound_pattern defining_expr)
+                Bound_pattern.print bound_pattern
                 (Flambda_colours.elide ())
                 (Flambda_colours.normal ())
                 Named.print defining_expr;
@@ -1221,26 +1221,26 @@ end = struct
             | Symbols _ -> expr)
       | _ -> expr
     in
-    pattern_match t ~f:(fun (bindable_let_bound : Bindable_let_bound.t) ~body ->
-      match bindable_let_bound with
+    pattern_match t ~f:(fun (bound_pattern : Bound_pattern.t) ~body ->
+      match bound_pattern with
       | Symbols _ -> print_let_symbol ppf t
       | Singleton _ | Set_of_closures _ ->
         fprintf ppf "@[<v 1>(@<0>%slet@<0>%s@ (@[<v 0>\
             @[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
           (Flambda_colours.expr_keyword ())
           (Flambda_colours.normal ())
-          (let_bound_var_colour bindable_let_bound defining_expr)
-          Bindable_let_bound.print bindable_let_bound
+          (let_bound_var_colour bound_pattern defining_expr)
+          Bound_pattern.print bound_pattern
           (Flambda_colours.elide ())
           (Flambda_colours.normal ())
           Named.print defining_expr;
         let expr = let_body body in
         fprintf ppf "@])@ %a)@]" Expr.print expr)
 
-  let create (bindable_let_bound : Bindable_let_bound.t)
-      (defining_expr : Named.t) ~body ~(free_names_of_body : _ Or_unknown.t) =
+  let create (bound_pattern : Bound_pattern.t) (defining_expr : Named.t) ~body
+      ~(free_names_of_body : _ Or_unknown.t) =
     begin
-      match defining_expr, bindable_let_bound with
+      match defining_expr, bound_pattern with
       | Prim _, Singleton _
       | Simple _, Singleton _
       | Rec_info _, Singleton _
@@ -1249,29 +1249,27 @@ end = struct
       | Set_of_closures _, Singleton _ ->
         Misc.fatal_errorf
           "Cannot bind a [Set_of_closures] to a [Singleton]:@ %a =@ %a"
-          Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+          Bound_pattern.print bound_pattern Named.print defining_expr
       | _, Set_of_closures _ ->
         Misc.fatal_errorf
           "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a =@ \
            %a"
-          Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+          Bound_pattern.print bound_pattern Named.print defining_expr
       | Static_consts _, Symbols _ -> ()
       | Static_consts _, Singleton _ ->
         Misc.fatal_errorf
           "Cannot bind a [Static_const] to a [Singleton]:@ %a =@ %a"
-          Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+          Bound_pattern.print bound_pattern Named.print defining_expr
       | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
         Misc.fatal_errorf
           "Cannot bind a non-[Static_const] to [Symbols]:@ %a =@ %a"
-          Bindable_let_bound.print bindable_let_bound Named.print defining_expr
+          Bound_pattern.print bound_pattern Named.print defining_expr
     end;
     let num_normal_occurrences_of_bound_vars =
       match free_names_of_body with
       | Unknown -> Variable.Map.empty
       | Known free_names_of_body ->
-        let free_names_of_bindable =
-          Bindable_let_bound.free_names bindable_let_bound
-        in
+        let free_names_of_bindable = Bound_pattern.free_names bound_pattern in
         Name_occurrences.fold_variables free_names_of_bindable
           ~init:Variable.Map.empty ~f:(fun num_occurrences var ->
             let num =
@@ -1280,15 +1278,15 @@ end = struct
             Variable.Map.add var num num_occurrences)
     in
     let t0 : T0.t = { num_normal_occurrences_of_bound_vars; body } in
-    { name_abstraction = A.create bindable_let_bound t0; defining_expr }
+    { name_abstraction = A.create bound_pattern t0; defining_expr }
 
   let defining_expr t = t.defining_expr
 
   let free_names ({ name_abstraction = _; defining_expr } as t) =
-    pattern_match t ~f:(fun bindable_let_bound ~body ->
-        let from_bindable = Bindable_let_bound.free_names bindable_let_bound in
+    pattern_match t ~f:(fun bound_pattern ~body ->
+        let from_bindable = Bound_pattern.free_names bound_pattern in
         let from_defining_expr =
-          let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
+          let name_mode = Bound_pattern.name_mode bound_pattern in
           Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
             (Named.free_names defining_expr)
             name_mode
@@ -1555,7 +1553,7 @@ and Non_recursive_let_cont_handler : sig
   val create : Continuation.t -> body:Expr.t -> Continuation_handler.t -> t
 end = struct
   module Continuation_and_body =
-    Name_abstraction.Make (Bindable_continuation) (Expr)
+    Name_abstraction.Make (Bound_continuation) (Expr)
 
   type t =
     { continuation_and_body : Continuation_and_body.t;
@@ -1660,7 +1658,7 @@ end = struct
       Ids_for_export.union body_ids handlers_ids
   end
 
-  include Name_abstraction.Make_list (Bindable_continuation) (T0)
+  include Name_abstraction.Make_list (Bound_continuation) (T0)
 
   let create ~body handlers =
     let bound = Continuation_handlers.domain handlers in
@@ -2309,8 +2307,8 @@ end = struct
   let rec expr_size ~find_code expr size =
     match Expr.descr expr with
     | Let let_expr ->
-      Let_expr.pattern_match let_expr ~f:(fun bindable_let_bound ~body ->
-          let name_mode = Bindable_let_bound.name_mode bindable_let_bound in
+      Let_expr.pattern_match let_expr ~f:(fun bound_pattern ~body ->
+          let name_mode = Bound_pattern.name_mode bound_pattern in
           let size =
             if Name_mode.is_phantom name_mode
             then size

@@ -50,7 +50,7 @@ val simplify_projection :
   original_term:Named.t ->
   deconstructing:Flambda_type.t ->
   shape:Flambda_type.t ->
-  result_var:Var_in_binding_pos.t ->
+  result_var:Bound_var.t ->
   result_kind:Flambda_kind.t ->
   Simplified_named.t * Flambda_type.Typing_env_extension.t * Downwards_acc.t
 

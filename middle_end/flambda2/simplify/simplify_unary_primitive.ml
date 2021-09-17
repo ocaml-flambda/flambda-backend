@@ -56,7 +56,7 @@ let simplify_select_closure ~move_from ~move_to dacc ~original_term ~arg:closure
   (* Format.eprintf "Select_closure %a -> %a, closure type:@ %a@ dacc:@ %a\n%!"
      Closure_id.print move_from Closure_id.print move_to T.print closure_ty
      DA.print dacc; *)
-  let result = Simple.var (Var_in_binding_pos.var result_var) in
+  let result = Simple.var (Bound_var.var result_var) in
   let closures =
     Closure_id.Map.empty
     |> Closure_id.Map.add move_from closure
@@ -69,7 +69,7 @@ let simplify_select_closure ~move_from ~move_to dacc ~original_term ~arg:closure
 
 let simplify_project_var closure_id closure_element ~min_name_mode dacc
     ~original_term ~arg:_closure ~arg_ty:closure_ty ~result_var =
-  let result_var' = Var_in_binding_pos.var result_var in
+  let result_var' = Bound_var.var result_var in
   let typing_env = DA.typing_env dacc in
   match
     T.prove_project_var_simple typing_env ~min_name_mode closure_ty
@@ -91,8 +91,7 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
         ~deconstructing:closure_ty
         ~shape:
           (T.closure_with_at_least_this_closure_var ~this_closure:closure_id
-             closure_element
-             ~closure_element_var:(Var_in_binding_pos.var result_var))
+             closure_element ~closure_element_var:(Bound_var.var result_var))
         ~result_var ~result_kind:K.value
     in
     reachable, env_extension, DA.add_use_of_closure_var dacc closure_element
@@ -100,7 +99,7 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
 let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     ~original_term ~arg ~arg_ty:boxed_number_ty ~result_var =
   let shape, result_kind =
-    let result_var = Var_in_binding_pos.var result_var in
+    let result_var = Bound_var.var result_var in
     match boxable_number_kind with
     | Naked_float ->
       T.boxed_float_alias_to ~naked_float:result_var, K.naked_float
@@ -118,9 +117,7 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ~deconstructing:boxed_number_ty ~shape ~result_var ~result_kind
   in
   let box_prim : P.t =
-    Unary
-      ( Box_number boxable_number_kind,
-        Simple.var (Var_in_binding_pos.var result_var) )
+    Unary (Box_number boxable_number_kind, Simple.var (Bound_var.var result_var))
   in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
@@ -141,13 +138,13 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) dacc
     | Untagged_immediate -> T.tag_immediate naked_number_ty
   in
   ( Simplified_named.reachable original_term,
-    TEE.one_equation (Name.var (Var_in_binding_pos.var result_var)) ty,
+    TEE.one_equation (Name.var (Bound_var.var result_var)) ty,
     dacc )
 
 let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
   (* CR mshinwell: Check [scrutinee_ty] (e.g. its kind)? *)
-  let name = Name.var (Var_in_binding_pos.var result_var) in
+  let name = Name.var (Bound_var.var result_var) in
   let env_extension = TEE.one_equation name (make_shape scrutinee) in
   Simplified_named.reachable original_term, env_extension, dacc
 
@@ -163,7 +160,7 @@ let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
 
 let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
     ~result_var =
-  let result = Simple.var (Var_in_binding_pos.var result_var) in
+  let result = Simple.var (Bound_var.var result_var) in
   Simplify_common.simplify_projection dacc ~original_term
     ~deconstructing:array_ty
     ~shape:(T.array_of_length ~length:(T.alias_type_of K.value result))
@@ -173,7 +170,7 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
    a projection (cf. "array length"). *)
 let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
     =
-  let name = Name.var (Var_in_binding_pos.var result_var) in
+  let name = Name.var (Bound_var.var result_var) in
   let typing_env = DA.typing_env dacc in
   match T.prove_strings typing_env str_ty with
   | Proved str_infos -> (
@@ -201,7 +198,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
 module Unary_int_arith (I : A.Int_number_kind) = struct
   let simplify (op : P.unary_int_arith_op) dacc ~original_term ~arg:_ ~arg_ty
       ~result_var =
-    let result = Name.var (Var_in_binding_pos.var result_var) in
+    let result = Name.var (Bound_var.var result_var) in
     let denv = DA.denv dacc in
     let typing_env = DE.typing_env denv in
     let proof = I.unboxed_prover typing_env arg_ty in
@@ -249,7 +246,7 @@ module Unary_int_arith_naked_nativeint = Unary_int_arith (A.For_nativeints)
 module Make_simplify_int_conv (N : A.Number_kind) = struct
   let simplify ~(dst : K.Standard_int_or_float.t) dacc ~original_term ~arg:_
       ~arg_ty ~result_var =
-    let result = Name.var (Var_in_binding_pos.var result_var) in
+    let result = Name.var (Bound_var.var result_var) in
     let denv = DA.denv dacc in
     let typing_env = DE.typing_env denv in
     if K.Standard_int_or_float.equal N.kind dst
@@ -339,7 +336,7 @@ module Simplify_int_conv_naked_nativeint =
   Make_simplify_int_conv (A.For_nativeints)
 
 let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
-  let result = Name.var (Var_in_binding_pos.var result_var) in
+  let result = Name.var (Bound_var.var result_var) in
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
   let proof = T.prove_equals_tagged_immediates typing_env arg_ty in
@@ -386,7 +383,7 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 
 let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     ~result_var =
-  let result = Name.var (Var_in_binding_pos.var result_var) in
+  let result = Name.var (Bound_var.var result_var) in
   let typing_env = DE.typing_env (DA.denv dacc) in
   let proof = T.prove_naked_int64s typing_env arg_ty in
   match proof with
@@ -409,7 +406,7 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
 let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     ~arg:_ ~arg_ty ~result_var =
   let module F = Numeric_types.Float_by_bit_pattern in
-  let result = Name.var (Var_in_binding_pos.var result_var) in
+  let result = Name.var (Bound_var.var result_var) in
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
   let proof = T.prove_naked_floats typing_env arg_ty in
@@ -442,8 +439,8 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
 
 let simplify_unary_primitive dacc (prim : P.unary_primitive) ~arg ~arg_ty dbg
     ~result_var =
-  let min_name_mode = Var_in_binding_pos.name_mode result_var in
-  let result_var' = Var_in_binding_pos.var result_var in
+  let min_name_mode = Bound_var.name_mode result_var in
+  let result_var' = Bound_var.var result_var in
   let original_prim : P.t = Unary (prim, arg) in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =

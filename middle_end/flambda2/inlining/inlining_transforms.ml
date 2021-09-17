@@ -20,7 +20,7 @@ open! Simplify_import
 module DA = Downwards_acc
 module DE = Downwards_env
 module I = Flambda_type.Function_declaration_type.Inlinable
-module VB = Var_in_binding_pos
+module VB = Bound_var
 
 let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     ~rec_info ~body ~exn_continuation ~return_continuation
@@ -51,7 +51,7 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
   in
   let body =
     Let.create
-      (Bindable_let_bound.singleton (VB.create my_closure Name_mode.normal))
+      (Bound_pattern.singleton (VB.create my_closure Name_mode.normal))
       (Named.create_simple callee)
       ~body
         (* Here and below, we don't need to give any name occurrence information
@@ -61,9 +61,7 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     |> Expr.create_let
   in
   let body =
-    let bound =
-      Bindable_let_bound.singleton (VB.create my_depth Name_mode.normal)
-    in
+    let bound = Bound_pattern.singleton (VB.create my_depth Name_mode.normal) in
     Let.create bound
       (Named.create_rec_info rec_info)
       ~body ~free_names_of_body:Unknown

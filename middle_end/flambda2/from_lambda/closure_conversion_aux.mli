@@ -273,11 +273,7 @@ end
 
 module Let_with_acc : sig
   val create :
-    Acc.t ->
-    Bindable_let_bound.t ->
-    Named.t ->
-    body:Expr_with_acc.t ->
-    Acc.t * Let.t
+    Acc.t -> Bound_pattern.t -> Named.t -> body:Expr_with_acc.t -> Acc.t * Let.t
 end
 
 module Let_cont_with_acc : sig

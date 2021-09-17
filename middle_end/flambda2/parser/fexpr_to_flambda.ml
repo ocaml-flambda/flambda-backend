@@ -521,14 +521,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       List.map binding_to_var_and_closure_binding bindings
     in
     let closure_vars, env =
-      let convert_binding env (var, _) : Var_in_binding_pos.t * env =
+      let convert_binding env (var, _) : Bound_var.t * env =
         let var, env = fresh_var env var in
-        let var = Var_in_binding_pos.create var Name_mode.normal in
+        let var = Bound_var.create var Name_mode.normal in
         var, env
       in
       map_accum_left convert_binding env vars_and_closure_bindings
     in
-    let bound = Bindable_let_bound.set_of_closures ~closure_vars in
+    let bound = Bound_pattern.set_of_closures ~closure_vars in
     let named =
       let closure_bindings = List.map snd vars_and_closure_bindings in
       set_of_closures env closure_bindings closure_elements
@@ -548,8 +548,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let named = defining_expr env d in
     let id, env = fresh_var env var in
     let body = expr env body in
-    let var = Var_in_binding_pos.create id Name_mode.normal in
-    let bound = Bindable_let_bound.singleton var in
+    let var = Bound_var.create id Name_mode.normal in
+    let bound = Bound_pattern.singleton var in
     Flambda.Let.create bound named ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let
   | Let_cont { recursive; body; bindings = [{ name; params; sort; handler }] }
@@ -803,7 +803,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let body = expr env body in
     Flambda.Let.create
-      (Bindable_let_bound.symbols bound_symbols)
+      (Bound_pattern.symbols bound_symbols)
       (Flambda.Named.create_static_consts static_consts)
       ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let

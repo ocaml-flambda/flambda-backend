@@ -24,7 +24,7 @@ open! Simplify_import
     right-hand side of a [Let] binding. *)
 val simplify_non_lifted_set_of_closures :
   Downwards_acc.t ->
-  Bindable_let_bound.t ->
+  Bound_pattern.t ->
   Set_of_closures.t ->
   simplify_toplevel:Simplify_common.simplify_toplevel ->
   Simplify_named_result.t
@@ -35,6 +35,6 @@ val simplify_lifted_sets_of_closures :
   Downwards_acc.t ->
   all_sets_of_closures_and_symbols:
     (Symbol.t Closure_id.Lmap.t * Set_of_closures.t) list ->
-  closure_bound_names_all_sets:Name_in_binding_pos.t Closure_id.Map.t list ->
+  closure_bound_names_all_sets:Bound_name.t Closure_id.Map.t list ->
   simplify_toplevel:Simplify_common.simplify_toplevel ->
   Bound_symbols.t * Rebuilt_static_const.Group.t * Downwards_acc.t

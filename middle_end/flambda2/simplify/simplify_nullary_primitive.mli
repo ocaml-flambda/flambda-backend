@@ -21,7 +21,7 @@ val simplify_nullary_primitive :
   Downwards_acc.t ->
   Flambda_primitive.nullary_primitive ->
   Debuginfo.t ->
-  result_var:Var_in_binding_pos.t ->
+  result_var:Bound_var.t ->
   Simplified_named.t
   * Flambda_type.Typing_env_extension.t
   * Simple.t list

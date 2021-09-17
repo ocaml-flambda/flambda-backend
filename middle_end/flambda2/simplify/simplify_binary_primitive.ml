@@ -77,7 +77,7 @@ module Binary_arith_like (N : Binary_arith_like_sig) : sig
     arg1_ty:Flambda_type.t ->
     arg2:Simple.t ->
     arg2_ty:Flambda_type.t ->
-    result_var:Var_in_binding_pos.t ->
+    result_var:Bound_var.t ->
     Simplified_named.t * TEE.t * DA.t
 end = struct
   module Possible_result = struct
@@ -115,7 +115,7 @@ end = struct
   let simplify op dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty
       ~result_var =
     let module PR = Possible_result in
-    let result = Name.var (Var_in_binding_pos.var result_var) in
+    let result = Name.var (Bound_var.var result_var) in
     let denv = DA.denv dacc in
     let typing_env = DE.typing_env denv in
     let proof1 = N.prover_lhs typing_env arg1_ty in
@@ -912,7 +912,7 @@ let simplify_immutable_block_load (access_kind : P.Block_access_kind.t)
     | Values _ -> K.value
     | Naked_floats _ -> K.naked_float
   in
-  let result_var' = Var_in_binding_pos.var result_var in
+  let result_var' = Bound_var.var result_var in
   let unchanged () =
     let ty = T.unknown result_kind in
     let env_extension = TEE.one_equation (Name.var result_var') ty in
@@ -987,7 +987,7 @@ let simplify_immutable_block_load (access_kind : P.Block_access_kind.t)
 
 let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  let result = Name.var (Var_in_binding_pos.var result_var) in
+  let result = Name.var (Bound_var.var result_var) in
   let const bool =
     let env_extension =
       TEE.one_equation result
@@ -1065,8 +1065,8 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
 
 let simplify_binary_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg1_ty
     ~arg2 ~arg2_ty dbg ~result_var =
-  let result_var' = Var_in_binding_pos.var result_var in
-  let min_name_mode = Var_in_binding_pos.name_mode result_var in
+  let result_var' = Bound_var.var result_var in
+  let min_name_mode = Bound_var.name_mode result_var in
   let original_prim : P.t = Binary (prim, arg1, arg2) in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =

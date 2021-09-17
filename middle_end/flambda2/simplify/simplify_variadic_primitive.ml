@@ -114,7 +114,7 @@ let simplify_make_block_of_floats dacc _prim dbg
 
 let simplify_variadic_primitive dacc (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
-  let result_var' = Var_in_binding_pos.var result_var in
+  let result_var' = Bound_var.var result_var in
   match prim with
   | Make_block (Values (tag, shape), mutable_or_immutable) ->
     simplify_make_block_of_values dacc prim dbg tag ~shape ~mutable_or_immutable
