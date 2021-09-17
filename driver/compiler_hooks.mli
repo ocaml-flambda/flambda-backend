@@ -16,33 +16,49 @@
 open Misc
 open Compile_common
 
-type _ language =
-  | Parse_tree_intf : Parsetree.signature language
-  | Parse_tree_impl : Parsetree.structure language
-  | Typecheck_intf : Typedtree.signature language
-  | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) language
-  | Raw_lambda : Lambda.program language
-  | Lambda : Lambda.program language
+(* Hooks allow to inspect the IR produced by a pass without altering
+   the compilation pipeline.
+
+   Hooks are allowed to inspect the data but are prohibited from
+   altering it. If one hook were to mutate the data there's no guarantee
+   of how the compiler would behave.
+   Several hooks can be registered for the same pass. There's no guarantees
+   on the order of execution of hooks.
+*)
+
+type _ pass =
+  | Parse_tree_intf : Parsetree.signature pass
+  | Parse_tree_impl : Parsetree.structure pass
+  | Typecheck_intf : Typedtree.signature pass
+  | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Raw_lambda : Lambda.program pass
+  | Lambda : Lambda.program pass
   (* CR-someday poechsel: use flambda2 *)
-  | Raw_flambda2 : Flambda2_terms.Flambda_unit.t language
-  | Flambda2 : Flambda2_terms.Flambda_unit.t language
-  | Raw_flambda1 : Flambda.program language
-  | Flambda1 : Flambda.program language
-  | Raw_clambda : Clambda.ulambda language
-  | Clambda : Clambda.ulambda language
+  | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
+  | Flambda2 : Flambda2_terms.Flambda_unit.t pass
+  | Raw_flambda1 : Flambda.program pass
+  | Flambda1 : Flambda.program pass
+  | Raw_clambda : Clambda.ulambda pass
+  | Clambda : Clambda.ulambda pass
 
-  | Mach_combine : Mach.fundecl language
-  | Mach_cse : Mach.fundecl language
-  | Mach_spill : Mach.fundecl language
-  | Mach_live : Mach.fundecl language
-  | Mach_reload : Mach.fundecl language
-  | Mach_sel : Mach.fundecl language
-  | Mach_split : Mach.fundecl language
-  | Linear : Linear.fundecl language
-  | Cmm : Cmm.phrase list language
+  | Mach_combine : Mach.fundecl pass
+  | Mach_cse : Mach.fundecl pass
+  | Mach_spill : Mach.fundecl pass
+  | Mach_live : Mach.fundecl pass
+  | Mach_reload : Mach.fundecl pass
+  | Mach_sel : Mach.fundecl pass
+  | Mach_split : Mach.fundecl pass
+  | Linear : Linear.fundecl pass
+  | Cfg : Cfg_with_layout.t pass
+  | Cmm : Cmm.phrase list pass
 
-val register : 'a language -> ('a -> unit) -> unit
+(* Register a new hook for [pass]. *)
+val register : 'a pass -> ('a -> unit) -> unit
 
-val execute : 'a language -> 'a -> unit
+(* Execute the hooks registered for [pass]. *)
+val execute : 'a pass -> 'a -> unit
 
-val execute_and_pipe : 'a language -> 'a -> 'a
+val execute_and_pipe : 'a pass -> 'a -> 'a
+
+(* Remove all hooks registered for [pass] *)
+val clear : 'a pass -> unit

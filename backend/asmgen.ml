@@ -168,9 +168,9 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "selection" Selection.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
+  ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
-  ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
@@ -179,8 +179,8 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
   ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
   ++ Profile.record ~accumulate:true "spill" Spill.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
   ++ Profile.record ~accumulate:true "liveness" liveness
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
   ++ pass_dump_if ppf_dump dump_spill "After spilling"
   ++ Profile.record ~accumulate:true "split" Split.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
@@ -196,18 +196,19 @@ let compile_fundecl ~ppf_dump fd_cmm =
       end;
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ (fun (fd : Linear.fundecl) ->
     if !use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
+      ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
       fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
-  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear
   ++ emit_fundecl
@@ -283,8 +284,8 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
 
 let end_gen_implementation ?toplevel ~ppf_dump clambda =
   end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
-      Profile.record "cmm" Cmmgen.compunit clambda
-      |> Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm)
+    Profile.record "cmm" Cmmgen.compunit clambda
+    |> Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm)
 
 type middle_end =
      backend:(module Backend_intf.S)
