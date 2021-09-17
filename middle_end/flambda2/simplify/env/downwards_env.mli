@@ -84,11 +84,11 @@ val symbols_currently_being_defined : t -> Symbol.Set.t
 
 val typing_env : t -> Flambda_type.Typing_env.t
 
-val define_variable : t -> Var_in_binding_pos.t -> Flambda_kind.t -> t
+val define_variable : t -> Bound_var.t -> Flambda_kind.t -> t
 
-val add_name : t -> Name_in_binding_pos.t -> Flambda_type.t -> t
+val add_name : t -> Bound_name.t -> Flambda_type.t -> t
 
-val add_variable : t -> Var_in_binding_pos.t -> Flambda_type.t -> t
+val add_variable : t -> Bound_var.t -> Flambda_type.t -> t
 
 val add_equation_on_variable : t -> Variable.t -> Flambda_type.t -> t
 
@@ -106,9 +106,9 @@ val find_symbol : t -> Symbol.t -> Flambda_type.t
 
 val add_equation_on_symbol : t -> Symbol.t -> Flambda_type.t -> t
 
-val define_name : t -> Name_in_binding_pos.t -> Flambda_kind.t -> t
+val define_name : t -> Bound_name.t -> Flambda_kind.t -> t
 
-val define_name_if_undefined : t -> Name_in_binding_pos.t -> Flambda_kind.t -> t
+val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation_on_name : t -> Name.t -> Flambda_type.t -> t
 
@@ -135,11 +135,7 @@ val add_parameters_with_unknown_types' :
 val mark_parameters_as_toplevel : t -> Kinded_parameter.t list -> t
 
 val add_variable_and_extend_typing_environment :
-  t ->
-  Var_in_binding_pos.t ->
-  Flambda_type.t ->
-  Flambda_type.Typing_env_extension.t ->
-  t
+  t -> Bound_var.t -> Flambda_type.t -> Flambda_type.Typing_env_extension.t -> t
 
 val with_typing_env : t -> Flambda_type.Typing_env.t -> t
 

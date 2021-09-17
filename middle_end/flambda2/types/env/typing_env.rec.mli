@@ -43,7 +43,7 @@ val increment_scope : t -> t
 
 val all_code : t -> Flambda.Code.t Code_id.Map.t
 
-val add_definition : t -> Name_in_binding_pos.t -> Flambda_kind.t -> t
+val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
 (** The caller is to ensure that the supplied type is the most precise available
     for the given name. *)

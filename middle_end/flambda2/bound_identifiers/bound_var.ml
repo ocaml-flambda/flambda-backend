@@ -14,7 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
   { var : Variable.t;
@@ -38,6 +38,9 @@ let rename t = with_var t (Variable.rename t.var)
 let apply_renaming t perm = with_var t (Renaming.apply_variable perm t.var)
 
 let free_names t = Name_occurrences.singleton_variable t.var t.name_mode
+
+let all_ids_for_export { var; name_mode = _ } =
+  Ids_for_export.add_variable Ids_for_export.empty var
 
 include Container_types.Make (struct
   type nonrec t = t
@@ -64,3 +67,22 @@ include Container_types.Make (struct
 
   let output _ _ = Misc.fatal_error "Not yet implemented"
 end)
+
+let add_to_name_permutation { var; name_mode = _ } ~guaranteed_fresh perm =
+  let { var = guaranteed_fresh; name_mode = _ } = guaranteed_fresh in
+  Renaming.add_fresh_variable perm var ~guaranteed_fresh
+
+let name_permutation t ~guaranteed_fresh =
+  add_to_name_permutation t ~guaranteed_fresh Renaming.empty
+
+let name_mode_must_be_normal ({ var = _; name_mode } as t) =
+  if not (Name_mode.is_normal name_mode)
+  then Misc.fatal_errorf "Wrong name mode for variable: %a" print t
+
+let singleton_occurrence_in_terms ({ var; name_mode = _ } as t) =
+  name_mode_must_be_normal t;
+  Name_occurrences.singleton_variable var Name_mode.normal
+
+let add_occurrence_in_terms ({ var; name_mode = _ } as t) occs =
+  name_mode_must_be_normal t;
+  Name_occurrences.add_variable occs var Name_mode.normal

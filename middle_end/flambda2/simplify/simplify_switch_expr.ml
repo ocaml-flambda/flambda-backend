@@ -160,7 +160,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     let dacc = DA.delete_continuation_uses dacc dest in
     let bound_to = Variable.create "tagged_scrutinee" in
     let body = make_body ~tagged_scrutinee:(Simple.var bound_to) in
-    let bound_to = Var_in_binding_pos.create bound_to NM.normal in
+    let bound_to = Bound_var.create bound_to NM.normal in
     let defining_expr =
       Named.create_prim
         (Unary (Box_number Untagged_immediate, scrutinee))
@@ -168,7 +168,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     in
     let let_expr =
       Let.create
-        (Bindable_let_bound.singleton bound_to)
+        (Bound_pattern.singleton bound_to)
         defining_expr ~body ~free_names_of_body:Unknown
     in
     simplify_let dacc let_expr ~down_to_up:(fun _dacc ~rebuild ->
@@ -219,7 +219,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
                 Debuginfo.none
             in
             let bound =
-              VB.create not_scrutinee NM.normal |> Bindable_let_bound.singleton
+              VB.create not_scrutinee NM.normal |> Bound_pattern.singleton
             in
             let body =
               Apply_cont.create dest ~args:[not_scrutinee'] ~dbg

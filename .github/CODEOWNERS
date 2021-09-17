@@ -40,7 +40,7 @@ middle_end/flambda2/compilenv_deps      @mshinwell @gbury
 middle_end/flambda2/from_lambda         @lthls @mshinwell
 middle_end/flambda2/inlining            @poechsel @lukemaurer
 middle_end/flambda2/lifting             @mshinwell @chambart
-middle_end/flambda2/naming              @mshinwell @lthls
+middle_end/flambda2/nominal             @mshinwell @lthls
 middle_end/flambda2/simplify            @mshinwell @gbury
 middle_end/flambda2/terms               @mshinwell @lthls
 middle_end/flambda2/to_cmm              @gbury @lthls

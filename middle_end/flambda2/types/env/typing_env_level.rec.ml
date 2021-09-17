@@ -176,8 +176,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
                   else
                     let kind = Variable.Map.find var level.defined_vars in
                     Typing_env.add_definition base_env
-                      (Name_in_binding_pos.var
-                         (Var_in_binding_pos.create var Name_mode.in_types))
+                      (Bound_name.var (Bound_var.create var Name_mode.in_types))
                       kind)
                 vars base_env)
             level.binding_times base_env

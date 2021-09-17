@@ -37,7 +37,7 @@ let predefined_exception_typing_env ~backend ~resolver ~get_imported_names
   let typing_env =
     Symbol.Set.fold
       (fun sym typing_env ->
-        TE.add_definition typing_env (Name_in_binding_pos.symbol sym) K.value)
+        TE.add_definition typing_env (Bound_name.symbol sym) K.value)
       Backend.all_predefined_exception_symbols
       (TE.create ~resolver ~get_imported_names ~get_imported_code)
   in

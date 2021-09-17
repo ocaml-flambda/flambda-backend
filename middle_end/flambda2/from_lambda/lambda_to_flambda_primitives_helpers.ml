@@ -19,7 +19,7 @@
 open! Flambda.Import
 open Closure_conversion_aux
 module P = Flambda_primitive
-module VB = Var_in_binding_pos
+module VB = Bound_var
 
 (* May be useful for compiling out bounds checks: type bounds_check_result = |
    In_range | Out_of_range
@@ -106,7 +106,7 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
   | None -> acc, apply_cont
   | Some (bound_var, defining_expr) ->
     Let_with_acc.create acc
-      (Bindable_let_bound.singleton bound_var)
+      (Bound_pattern.singleton bound_var)
       defining_expr ~body:apply_cont
     |> Expr_with_acc.create_let
 
@@ -162,7 +162,7 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
           dbg
       in
       let extra_let_binding =
-        Var_in_binding_pos.create exn_bucket Name_mode.normal, named
+        Bound_var.create exn_bucket Name_mode.normal, named
       in
       raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
         (Some extra_let_binding)
@@ -284,7 +284,7 @@ and bind_rec_primitive acc ~backend exn_cont ~register_const_string
     let var' = VB.create var Name_mode.normal in
     let cont acc (named : Named.t) =
       let acc, body = cont acc (Simple.var var) in
-      Let_with_acc.create acc (Bindable_let_bound.singleton var') named ~body
+      Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
       |> Expr_with_acc.create_let
     in
     bind_rec acc ~backend exn_cont ~register_const_string p dbg cont

@@ -20,7 +20,7 @@
 
 val simplify_named :
   Downwards_acc.t ->
-  Bindable_let_bound.t ->
+  Bound_pattern.t ->
   Flambda.Named.t ->
   simplify_toplevel:Simplify_common.simplify_toplevel ->
   Simplify_named_result.t * Removed_operations.t

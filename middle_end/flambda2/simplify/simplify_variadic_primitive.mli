@@ -23,7 +23,7 @@ val simplify_variadic_primitive :
   Flambda_primitive.variadic_primitive ->
   args_with_tys:(Simple.t * Flambda_type.t) list ->
   Debuginfo.t ->
-  result_var:Var_in_binding_pos.t ->
+  result_var:Bound_var.t ->
   Simplified_named.t
   * Flambda_type.Typing_env_extension.t
   * Simple.t list

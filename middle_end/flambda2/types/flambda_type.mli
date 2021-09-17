@@ -92,7 +92,7 @@ module Typing_env : sig
 
   val all_code : t -> Flambda.Code.t Code_id.Map.t
 
-  val add_definition : t -> Name_in_binding_pos.t -> Flambda_kind.t -> t
+  val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
   val add_definitions_of_params : t -> params:Kinded_parameter.t list -> t
 
@@ -210,7 +210,7 @@ val meet_shape :
   Typing_env.t ->
   t ->
   shape:t ->
-  result_var:Var_in_binding_pos.t ->
+  result_var:Bound_var.t ->
   result_kind:Flambda_kind.t ->
   Typing_env_extension.t Or_bottom.t
 

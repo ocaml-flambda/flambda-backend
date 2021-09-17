@@ -159,7 +159,7 @@ and Let_expr : sig
   include Expr_std.S with type t := t
 
   val create :
-    Bindable_let_bound.t ->
+    Bound_pattern.t ->
     Named.t ->
     body:Expr.t ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
@@ -170,12 +170,12 @@ and Let_expr : sig
 
   (** Look inside the [Let] by choosing a member of the alpha-equivalence
       class. *)
-  val pattern_match : t -> f:(Bindable_let_bound.t -> body:Expr.t -> 'a) -> 'a
+  val pattern_match : t -> f:(Bound_pattern.t -> body:Expr.t -> 'a) -> 'a
 
   val pattern_match' :
     t ->
     f:
-      (Bindable_let_bound.t ->
+      (Bound_pattern.t ->
       num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
       body:Expr.t ->
       'a) ->
@@ -196,10 +196,10 @@ and Let_expr : sig
   val pattern_match_pair :
     t ->
     t ->
-    dynamic:(Bindable_let_bound.t -> body1:Expr.t -> body2:Expr.t -> 'a) ->
+    dynamic:(Bound_pattern.t -> body1:Expr.t -> body2:Expr.t -> 'a) ->
     static:
-      (bound_symbols1:Bindable_let_bound.symbols ->
-      bound_symbols2:Bindable_let_bound.symbols ->
+      (bound_symbols1:Bound_pattern.symbols ->
+      bound_symbols2:Bound_pattern.symbols ->
       body1:Expr.t ->
       body2:Expr.t ->
       'a) ->

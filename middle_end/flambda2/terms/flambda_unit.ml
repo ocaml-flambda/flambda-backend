@@ -133,16 +133,16 @@ module Iter = struct
     | Switch e' -> switch f_c f_s e'
     | Invalid e' -> invalid f_c f_s e'
 
-  and named let_expr (bindable_let_bound : Bindable_let_bound.t) f_c f_s n =
+  and named let_expr (bound_pattern : Bound_pattern.t) f_c f_s n =
     match (n : Named.t) with
     | Simple _ | Prim _ | Rec_info _ -> ()
     | Set_of_closures s ->
       let is_phantom =
-        Name_mode.is_phantom (Bindable_let_bound.name_mode bindable_let_bound)
+        Name_mode.is_phantom (Bound_pattern.name_mode bound_pattern)
       in
       f_s ~closure_symbols:None ~is_phantom s
     | Static_consts consts -> (
-      match bindable_let_bound with
+      match bound_pattern with
       | Symbols { bound_symbols; _ } ->
         static_consts f_c f_s bound_symbols consts
       | Singleton _ | Set_of_closures _ ->
@@ -150,9 +150,9 @@ module Iter = struct
           Let.print let_expr)
 
   and let_expr f_c f_s t =
-    Let.pattern_match t ~f:(fun bindable_let_bound ~body ->
+    Let.pattern_match t ~f:(fun bound_pattern ~body ->
         let e = Let.defining_expr t in
-        named t bindable_let_bound f_c f_s e;
+        named t bound_pattern f_c f_s e;
         expr f_c f_s body)
 
   and let_cont f_c f_s = function

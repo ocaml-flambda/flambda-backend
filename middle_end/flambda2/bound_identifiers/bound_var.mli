@@ -16,22 +16,20 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-include Exn_continuation
+type t
 
-let add_to_name_permutation t ~guaranteed_fresh perm =
-  Renaming.add_fresh_continuation perm (exn_handler t)
-    ~guaranteed_fresh:(exn_handler guaranteed_fresh)
+val create : Variable.t -> Name_mode.t -> t
 
-let name_permutation t ~guaranteed_fresh =
-  add_to_name_permutation t ~guaranteed_fresh Renaming.empty
+val var : t -> Variable.t
 
-let singleton_occurrence_in_terms t =
-  Name_occurrences.singleton_continuation (exn_handler t)
+val simple : t -> Simple.t
 
-let add_occurrence_in_terms t occs =
-  (* See the comment in Bindable_continuation.add_occurrence_in_terms *)
-  Name_occurrences.add_continuation occs (exn_handler t) ~has_traps:true
+val name_mode : t -> Name_mode.t
 
-let rename t =
-  let exn_handler = Continuation.rename (exn_handler t) in
-  create ~exn_handler ~extra_args:(extra_args t)
+val with_name_mode : t -> Name_mode.t -> t
+
+include Container_types.S with type t := t
+
+include Contains_names.S with type t := t
+
+include Bindable.S with type t := t

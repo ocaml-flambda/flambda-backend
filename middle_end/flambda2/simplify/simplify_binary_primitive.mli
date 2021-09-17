@@ -26,7 +26,7 @@ val simplify_binary_primitive :
   arg2:Simple.t ->
   arg2_ty:Flambda_type.t ->
   Debuginfo.t ->
-  result_var:Var_in_binding_pos.t ->
+  result_var:Bound_var.t ->
   Simplified_named.t
   * Flambda_type.Typing_env_extension.t
   * Simple.t list

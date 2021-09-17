@@ -130,7 +130,7 @@ module Env : sig
 
   val bind_var : t -> Variable.t -> Fexpr.variable * t
 
-  val bind_var_in_binding_pos : t -> Var_in_binding_pos.t -> Fexpr.variable * t
+  val bind_bound_var : t -> Bound_var.t -> Fexpr.variable * t
 
   val bind_symbol : t -> Symbol.t -> Fexpr.symbol * t
 
@@ -265,7 +265,7 @@ end = struct
     let v, variables = Variable_name_map.bind t.variables v in
     v, { t with variables }
 
-  let bind_var_in_binding_pos t v = bind_var t (v |> Var_in_binding_pos.var)
+  let bind_bound_var t v = bind_var t (v |> Bound_var.var)
 
   let bind_symbol t s =
     let is_local =
@@ -616,7 +616,7 @@ and let_expr env le =
 
 and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body :
     Fexpr.expr =
-  let vars, body_env = map_accum_left Env.bind_var_in_binding_pos env vars in
+  let vars, body_env = map_accum_left Env.bind_bound_var env vars in
   let body = expr body_env body in
   let defining_exprs, closure_elements =
     match defining_expr with

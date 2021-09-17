@@ -85,9 +85,9 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply ~callee's_code
   let expr =
     List.fold_right
       (fun (v, defining_expr) body ->
-        let var_bind = Var_in_binding_pos.create v Name_mode.normal in
+        let var_bind = Bound_var.create v Name_mode.normal in
         Let.create
-          (Bindable_let_bound.singleton var_bind)
+          (Bound_pattern.singleton var_bind)
           defining_expr ~body ~free_names_of_body:Unknown
         |> Expr.create_let)
       vars_and_fields apply_expr
@@ -347,7 +347,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             in
             let expr =
               Let.create
-                (Bindable_let_bound.singleton arg)
+                (Bound_pattern.singleton arg)
                 (Named.create_prim prim dbg)
                 ~body:expr ~free_names_of_body:Unknown
               |> Expr.create_let
@@ -405,7 +405,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let expr =
     let wrapper_var = VB.create wrapper_var Name_mode.normal in
     let closure_vars = [wrapper_var] in
-    let bound = Bindable_let_bound.set_of_closures ~closure_vars in
+    let bound = Bound_pattern.set_of_closures ~closure_vars in
     let body =
       Let.create bound
         (Named.create_set_of_closures wrapper_taking_remaining_args)
@@ -420,7 +420,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     (* Since we are only generating a "let code" binding and not a "let symbol",
        it doesn't matter if we are not at toplevel. *)
     Let.create
-      (Bindable_let_bound.symbols bound_symbols)
+      (Bound_pattern.symbols bound_symbols)
       (Named.create_static_consts static_consts)
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let

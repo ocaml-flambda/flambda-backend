@@ -39,7 +39,7 @@ let meet env t1 t2 : _ Or_bottom.t =
   meet meet_env t1 t2
 
 let meet_shape env t ~shape ~result_var ~result_kind : _ Or_bottom.t =
-  let result = Name_in_binding_pos.var result_var in
+  let result = Bound_name.var result_var in
   let env = Typing_env.add_definition env result result_kind in
   match meet env t shape with
   | Bottom -> Bottom
@@ -650,7 +650,7 @@ let prove_is_a_boxed_nativeint env t : _ proof_allowing_kind_mismatch =
 
 let prove_boxed_floats env t : _ proof =
   let result_var = Variable.create "result" in
-  let result_var' = Var_in_binding_pos.create result_var Name_mode.normal in
+  let result_var' = Bound_var.create result_var Name_mode.normal in
   let result_simple = Simple.var result_var in
   let result_kind = K.naked_float in
   let shape = box_float (alias_type_of result_kind result_simple) in
@@ -659,7 +659,7 @@ let prove_boxed_floats env t : _ proof =
   | Ok env_extension ->
     let env =
       Typing_env.add_definition env
-        (Name_in_binding_pos.create (Name.var result_var) Name_mode.normal)
+        (Bound_name.create (Name.var result_var) Name_mode.normal)
         result_kind
     in
     let env = Typing_env.add_env_extension env env_extension in
@@ -668,7 +668,7 @@ let prove_boxed_floats env t : _ proof =
 
 let prove_boxed_int32s env t : _ proof =
   let result_var = Variable.create "result" in
-  let result_var' = Var_in_binding_pos.create result_var Name_mode.normal in
+  let result_var' = Bound_var.create result_var Name_mode.normal in
   let result_simple = Simple.var result_var in
   let result_kind = K.naked_int32 in
   let shape = box_int32 (alias_type_of result_kind result_simple) in
@@ -677,7 +677,7 @@ let prove_boxed_int32s env t : _ proof =
   | Ok env_extension ->
     let env =
       Typing_env.add_definition env
-        (Name_in_binding_pos.create (Name.var result_var) Name_mode.normal)
+        (Bound_name.create (Name.var result_var) Name_mode.normal)
         result_kind
     in
     let env = Typing_env.add_env_extension env env_extension in
@@ -686,7 +686,7 @@ let prove_boxed_int32s env t : _ proof =
 
 let prove_boxed_int64s env t : _ proof =
   let result_var = Variable.create "result" in
-  let result_var' = Var_in_binding_pos.create result_var Name_mode.normal in
+  let result_var' = Bound_var.create result_var Name_mode.normal in
   let result_simple = Simple.var result_var in
   let result_kind = K.naked_int64 in
   let shape = box_int64 (alias_type_of result_kind result_simple) in
@@ -695,7 +695,7 @@ let prove_boxed_int64s env t : _ proof =
   | Ok env_extension ->
     let env =
       Typing_env.add_definition env
-        (Name_in_binding_pos.create (Name.var result_var) Name_mode.normal)
+        (Bound_name.create (Name.var result_var) Name_mode.normal)
         result_kind
     in
     let env = Typing_env.add_env_extension env env_extension in
@@ -704,7 +704,7 @@ let prove_boxed_int64s env t : _ proof =
 
 let prove_boxed_nativeints env t : _ proof =
   let result_var = Variable.create "result" in
-  let result_var' = Var_in_binding_pos.create result_var Name_mode.normal in
+  let result_var' = Bound_var.create result_var Name_mode.normal in
   let result_simple = Simple.var result_var in
   let result_kind = K.naked_nativeint in
   let shape = box_nativeint (alias_type_of result_kind result_simple) in
@@ -713,7 +713,7 @@ let prove_boxed_nativeints env t : _ proof =
   | Ok env_extension ->
     let env =
       Typing_env.add_definition env
-        (Name_in_binding_pos.create (Name.var result_var) Name_mode.normal)
+        (Bound_name.create (Name.var result_var) Name_mode.normal)
         result_kind
     in
     let env = Typing_env.add_env_extension env env_extension in

@@ -19,7 +19,7 @@
 open! Simplify_import
 
 let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
-    (prim : P.t) args bindable_let_bound ~bound_var named =
+    (prim : P.t) args bound_pattern ~bound_var named =
   (* Projections from symbols bound to variables are important to remember,
      since if such a variable occurs in a set of closures environment or other
      value that can potentially be lifted, the knowledge that the variable is
@@ -65,7 +65,7 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
           ~var:(fun _ ~coercion:_ -> None)
       | [] | _ :: _ ->
         Misc.fatal_errorf "Expected one argument:@ %a@ =@ %a"
-          Bindable_let_bound.print bindable_let_bound Named.print named
+          Bound_pattern.print bound_pattern Named.print named
     end
     | Binary (Block_load _, _, _) when can_record_proj -> begin
       match args with
@@ -85,11 +85,11 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
             | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
             | Naked_nativeint _ ->
               Misc.fatal_errorf "Kind error for [Block_load] index:@ %a@ =@ %a"
-                Bindable_let_bound.print bindable_let_bound Named.print named)
+                Bound_pattern.print bound_pattern Named.print named)
           ~name:(fun _ ~coercion:_ -> None)
       | [] | _ :: _ ->
         Misc.fatal_errorf "Expected two arguments:@ %a@ =@ %a"
-          Bindable_let_bound.print bindable_let_bound Named.print named
+          Bound_pattern.print bound_pattern Named.print named
     end
     | Unary
         ( ( Duplicate_block _ | Duplicate_array _ | Is_int | Get_tag
@@ -115,7 +115,7 @@ let record_any_symbol_projection dacc (defining_expr : Simplified_named.t)
   match proj with
   | None -> dacc
   | Some proj ->
-    let var = Var_in_binding_pos.var bound_var in
+    let var = Bound_var.var bound_var in
     DA.map_denv dacc ~f:(fun denv -> DE.add_symbol_projection denv var proj)
 
 let create_lifted_constant (dacc, lifted_constants)
@@ -171,12 +171,12 @@ let create_lifted_constant (dacc, lifted_constants)
    ensures that the returned [dacc] is equipped with the free name information
    for such sets. See comment in [Simplify_let_expr], function [rebuild_let]. *)
 
-let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
-    (named : Named.t) ~simplify_toplevel =
+let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
+    ~simplify_toplevel =
   match named with
   | Simple simple ->
-    let bound_var = Bindable_let_bound.must_be_singleton bindable_let_bound in
-    let min_name_mode = Var_in_binding_pos.name_mode bound_var in
+    let bound_var = Bound_pattern.must_be_singleton bound_pattern in
+    let min_name_mode = Bound_var.name_mode bound_var in
     let ty = S.simplify_simple dacc simple ~min_name_mode in
     let new_simple = T.get_alias_exn ty in
     let dacc = DA.add_variable dacc bound_var ty in
@@ -185,10 +185,10 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
       then Simplified_named.reachable named
       else Simplified_named.reachable (Named.create_simple simple)
     in
-    Simplify_named_result.have_simplified_to_single_term dacc bindable_let_bound
+    Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
       defining_expr ~original_defining_expr:named
   | Prim (prim, dbg) ->
-    let bound_var = Bindable_let_bound.must_be_singleton bindable_let_bound in
+    let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let term, env_extension, simplified_args, dacc =
       (* [simplified_args] has to be returned from [simplify_primitive] because
          in at least one case (for [Project_var]), the simplifier may return
@@ -219,7 +219,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
          doesn't arise that much, and won't be an issue once we can lift
          [Dominator]-scoped bindings. *)
       P.only_generative_effects prim
-      && Name_mode.is_normal (Var_in_binding_pos.name_mode bound_var)
+      && Name_mode.is_normal (Bound_var.name_mode bound_var)
     in
     let defining_expr, dacc, ty =
       Reification.try_to_reify dacc term ~bound_to:bound_var
@@ -232,16 +232,16 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
     in
     let dacc =
       record_any_symbol_projection dacc defining_expr prim simplified_args
-        bindable_let_bound ~bound_var named
+        bound_pattern ~bound_var named
     in
-    Simplify_named_result.have_simplified_to_single_term dacc bindable_let_bound
+    Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
       defining_expr ~original_defining_expr:named
   | Set_of_closures set_of_closures ->
     Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
-      bindable_let_bound set_of_closures ~simplify_toplevel
+      bound_pattern set_of_closures ~simplify_toplevel
   | Static_consts static_consts ->
-    let { Bindable_let_bound.bound_symbols } =
-      Bindable_let_bound.must_be_symbols bindable_let_bound
+    let { Bound_pattern.bound_symbols } =
+      Bound_pattern.must_be_symbols bound_pattern
     in
     let binds_symbols = Bound_symbols.binds_symbols bound_symbols in
     if binds_symbols && not (DE.at_unit_toplevel (DA.denv dacc))
@@ -249,7 +249,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
       Misc.fatal_errorf
         "[Let] binding symbols is only allowed at the toplevel of compilation \
          units (not even at the toplevel of function bodies):@ %a@ =@ %a"
-        Bindable_let_bound.print bindable_let_bound Named.print named;
+        Bound_pattern.print bound_pattern Named.print named;
     let non_closure_symbols_being_defined =
       Bound_symbols.non_closure_symbols_being_defined bound_symbols
     in
@@ -288,7 +288,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
     (* We could simplify away things like [let depth x = y in ...], but those
        don't actually happen (as of this writing). We could also do CSE,
        though. *)
-    let bound_var = Bindable_let_bound.must_be_singleton bindable_let_bound in
+    let bound_var = Bound_pattern.must_be_singleton bound_pattern in
     let new_rec_info_expr =
       Simplify_rec_info_expr.simplify_rec_info_expr dacc rec_info_expr
     in
@@ -299,7 +299,7 @@ let simplify_named0 dacc (bindable_let_bound : Bindable_let_bound.t)
       then Simplified_named.reachable named
       else Simplified_named.reachable (Named.create_rec_info new_rec_info_expr)
     in
-    Simplify_named_result.have_simplified_to_single_term dacc bindable_let_bound
+    Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
       defining_expr ~original_defining_expr:named
 
 let removed_operations (named : Named.t) result =
@@ -361,10 +361,10 @@ let removed_operations (named : Named.t) result =
   end
   | Rec_info _ -> zero
 
-let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
+let simplify_named dacc bound_pattern named ~simplify_toplevel =
   try
     let simplified_named =
-      simplify_named0 ~simplify_toplevel dacc bindable_let_bound named
+      simplify_named0 ~simplify_toplevel dacc bound_pattern named
     in
     simplified_named, removed_operations named simplified_named
   with Misc.Fatal_error ->
@@ -375,6 +375,5 @@ let simplify_named dacc bindable_let_bound named ~simplify_toplevel =
        accumulator:@ %a\n"
       (Flambda_colours.error ())
       (Flambda_colours.normal ())
-      Bindable_let_bound.print bindable_let_bound Named.print named DA.print
-      dacc;
+      Bound_pattern.print bound_pattern Named.print named DA.print dacc;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
