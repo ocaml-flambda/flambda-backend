@@ -207,6 +207,16 @@ let create_code code_id defining_expr =
     symbol_projections = Definition.symbol_projections definition
   }
 
+let create_definition definition =
+  let definitions = [definition] in
+  { definitions;
+    bound_symbols = compute_bound_symbols definitions;
+    defining_exprs = compute_defining_exprs definitions;
+    is_fully_static =
+      Rebuilt_static_const.is_fully_static (Definition.defining_expr definition);
+    symbol_projections = Definition.symbol_projections definition
+  }
+
 let concat ts =
   let definitions =
     List.fold_left (fun definitions t -> t.definitions @ definitions) [] ts

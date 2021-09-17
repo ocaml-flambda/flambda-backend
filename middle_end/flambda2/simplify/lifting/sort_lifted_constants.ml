@@ -59,7 +59,8 @@ let build_dep_graph lifted_constants =
             (fun being_defined (dep_graph, code_id_or_symbol_to_const) ->
               let dep_graph = CIS.Map.add being_defined deps dep_graph in
               let code_id_or_symbol_to_const =
-                CIS.Map.add being_defined lifted_constant
+                CIS.Map.add being_defined
+                  (Lifted_constant.create_definition definition)
                   code_id_or_symbol_to_const
               in
               dep_graph, code_id_or_symbol_to_const)

@@ -92,6 +92,8 @@ val create_set_of_closures :
 
 val create_code : Code_id.t -> Rebuilt_static_const.t -> t
 
+val create_definition : Definition.t -> t
+
 val definitions : t -> Definition.t list
 
 val bound_symbols : t -> Bound_symbols.t
