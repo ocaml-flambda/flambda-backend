@@ -2787,6 +2787,22 @@ let transl_builtin name args dbg =
     Some(Cop(Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
     Some(Cop(Cstore (Double, Assignment), args, dbg))
+  | "caml_native_pointer_load_unsigned_int8" ->
+    Some(Cop(Cload (Byte_unsigned, Mutable), args, dbg))
+  | "caml_native_pointer_load_signed_int8" ->
+    Some(Cop(Cload (Byte_signed, Mutable), args, dbg))
+  | "caml_native_pointer_load_unsigned_int16" ->
+    Some(Cop(Cload (Sixteen_unsigned, Mutable), args, dbg))
+  | "caml_native_pointer_load_signed_int16" ->
+    Some(Cop(Cload (Sixteen_signed, Mutable), args, dbg))
+  | "caml_native_pointer_store_unsigned_int8" ->
+    Some(Cop(Cstore (Byte_unsigned, Assignment), args, dbg))
+  | "caml_native_pointer_store_signed_int8" ->
+    Some(Cop(Cstore (Byte_signed, Assignment), args, dbg))
+  | "caml_native_pointer_store_unsigned_int16" ->
+    Some(Cop(Cstore (Sixteen_unsigned, Assignment), args, dbg))
+  | "caml_native_pointer_store_signed_int16" ->
+    Some(Cop(Cstore (Sixteen_signed, Assignment), args, dbg))
   (* Ext_pointer: handled as tagged int *)
   | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->
@@ -2806,6 +2822,22 @@ let transl_builtin name args dbg =
     ext_pointer_load Double name args dbg
   | "caml_ext_pointer_store_unboxed_float" ->
     ext_pointer_store Double name args dbg
+  | "caml_ext_pointer_load_unsigned_int8" ->
+    ext_pointer_load Byte_unsigned name args dbg
+  | "caml_ext_pointer_load_signed_int8" ->
+    ext_pointer_load Byte_signed name args dbg
+  | "caml_ext_pointer_load_unsigned_int16" ->
+    ext_pointer_load Sixteen_unsigned name args dbg
+  | "caml_ext_pointer_load_signed_int16" ->
+    ext_pointer_load Sixteen_signed name args dbg
+  | "caml_ext_pointer_store_unsigned_int8" ->
+    ext_pointer_store Byte_unsigned name args dbg
+  | "caml_ext_pointer_store_signed_int8" ->
+    ext_pointer_store Byte_signed name args dbg
+  | "caml_ext_pointer_store_unsigned_int16" ->
+    ext_pointer_store Sixteen_unsigned name args dbg
+  | "caml_ext_pointer_store_signed_int16" ->
+    ext_pointer_store Sixteen_signed name args dbg
   (* Bigstring prefetch *)
   | "caml_prefetch_write_high_bigstring_untagged" ->
     bigstring_prefetch ~is_write:true High args dbg
