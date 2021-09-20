@@ -1,8 +1,9 @@
 (library
-  (name flambda_backend_driver)
-  (modes byte native)
-  (flags (:standard -principal -nostdlib))
-  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
-  (libraries stdlib ocamloptcomp flambda2_to_cmm flambda2_backend_impl
-    flambda2)
-  (modules optcompile))
+ (name flambda_backend_driver)
+ (modes byte native)
+ (flags
+  (:standard -principal -nostdlib))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries stdlib ocamloptcomp flambda2)
+ (modules optcompile))

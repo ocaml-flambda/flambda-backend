@@ -54,7 +54,7 @@ val concat : t -> t -> t
 val n_way_join :
   env_at_fork:Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t * t) list ->
-  params:Kinded_parameter.t list ->
+  params:Bound_parameter.t list ->
   extra_lifted_consts_in_use_envs:Symbol.Set.t ->
   extra_allowed_names:Name_occurrences.t ->
   t

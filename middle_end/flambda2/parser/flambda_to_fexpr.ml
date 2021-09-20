@@ -423,14 +423,14 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
   List.map kind_with_subkind a
 
-let kinded_parameter env (kp : Kinded_parameter.t) :
+let kinded_parameter env (kp : Bound_parameter.t) :
     Fexpr.kinded_parameter * Env.t =
   let k =
-    match kind_with_subkind (Kinded_parameter.kind kp) with
+    match kind_with_subkind (Bound_parameter.kind kp) with
     | Any_value -> None
     | k -> Some k
   in
-  let param, env = Env.bind_var env (Kinded_parameter.var kp) in
+  let param, env = Env.bind_var env (Bound_parameter.var kp) in
   { param; kind = k }, env
 
 let targetint_ocaml (i : Targetint_31_63.Imm.t) : Fexpr.targetint =
@@ -727,7 +727,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
             Flambda.Function_params_and_body.pattern_match params_and_body
               ~f:(fun
                    ~return_continuation
-                   exn_continuation
+                   ~exn_continuation
                    params
                    ~body
                    ~my_closure
@@ -741,8 +741,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
                   Env.bind_named_continuation env return_continuation
                 in
                 let exn_cont, env =
-                  Env.bind_named_continuation env
-                    (Exn_continuation.exn_handler exn_continuation)
+                  Env.bind_named_continuation env exn_continuation
                 in
                 let params, env = map_accum_left kinded_parameter env params in
                 let closure_var, env = Env.bind_var env my_closure in

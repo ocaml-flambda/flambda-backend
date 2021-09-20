@@ -540,7 +540,7 @@ let machtype_of_kind k =
   | Fabricated | Rec_info -> assert false
 
 let machtype_of_kinded_parameter p =
-  Kinded_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
+  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 
 let machtype_of_return_arity = function
   (* Functions that never return have arity 0. In that case, we use the most
@@ -582,7 +582,7 @@ let wrap_extcall_result (l : Flambda_kind.t list) =
 (* Function calls and continuations *)
 
 let var_list env l =
-  let flambda_vars = List.map Kinded_parameter.var l in
+  let flambda_vars = List.map Bound_parameter.var l in
   let env, cmm_vars = Env.create_variables env flambda_vars in
   let vars =
     List.map2 (fun v v' -> v, machtype_of_kinded_parameter v') cmm_vars l
@@ -648,7 +648,7 @@ let function_args vars my_closure ~(is_my_closure_used : _ Or_unknown.t) =
   if is_my_closure_used
   then
     let last_arg =
-      Kinded_parameter.create my_closure Flambda_kind.With_subkind.any_value
+      Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
     in
     vars @ [last_arg]
   else vars
@@ -892,7 +892,7 @@ and continuation_arg_tys h =
 
 and continuation_handler env res h =
   let args, _, handler = continuation_handler_split h in
-  let arity = Kinded_parameter.List.arity args in
+  let arity = Bound_parameter.List.arity args in
   let env, vars = var_list env args in
   let e, res = expr env res handler in
   vars, arity, e, res
@@ -1058,7 +1058,7 @@ and wrap_cont env res effs call e =
           handler_body = body;
           handler_params_occurrences
         } ->
-      let var = Kinded_parameter.var param in
+      let var = Bound_parameter.var param in
       let env =
         let_expr_bind env var
           ~num_normal_occurrences_of_bound_vars:handler_params_occurrences call
@@ -1158,7 +1158,7 @@ and apply_cont_inline env res e k args handler_body handler_params
       List.fold_left2
         (fun env_and_res param ->
           bind_simple env_and_res
-            (Kinded_parameter.var param)
+            (Bound_parameter.var param)
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
         (env, res) handler_params args
     in
@@ -1453,7 +1453,7 @@ and params_and_body env res fun_name p =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation:k
-         k_exn
+         ~exn_continuation:k_exn
          vars
          ~body
          ~my_closure
@@ -1463,7 +1463,6 @@ and params_and_body env res fun_name p =
        ->
       try
         let args = function_args vars my_closure ~is_my_closure_used in
-        let k_exn = Exn_continuation.exn_handler k_exn in
         (* Init the env and create a jump id for the ret closure in case a trap
            action is attached to one of tis call *)
         let env = Env.enter_function_def env k k_exn in
@@ -1480,8 +1479,7 @@ and params_and_body env res fun_name p =
            exn cont %a and body:@ %a\n"
           (Flambda_colours.error ())
           (Flambda_colours.normal ())
-          fun_name Continuation.print k Exn_continuation.print k_exn Expr.print
-          body;
+          fun_name Continuation.print k Continuation.print k_exn Expr.print body;
         raise e)
 
 (* CR gbury: for the future, try and rearrange the generated cmm code to move
@@ -1495,20 +1493,16 @@ and params_and_body env res fun_name p =
 
 (* Compilation units *)
 
-let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
-  let unit = middle_end_result.unit in
+let unit ~make_symbol unit cmx ~all_code =
   let offsets =
-    match middle_end_result.cmx with
+    match cmx with
     | None -> Exported_offsets.imported_offsets ()
     | Some cmx -> Flambda_cmx_format.exported_offsets cmx
   in
-  let functions_info = middle_end_result.all_code in
   Profile.record_call "flambda_to_cmm" (fun () ->
-      let offsets =
-        To_cmm_closure.compute_offsets offsets functions_info unit
-      in
+      let offsets = To_cmm_closure.compute_offsets offsets all_code unit in
       begin
-        match middle_end_result.cmx with
+        match cmx with
         | None ->
           ()
           (* Either opaque was passed, or there is no need to export offsets *)
@@ -1522,7 +1516,7 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
          arrange that the return continuation turns into "return unit". (Module
          initialisers return the unit value). *)
       let env =
-        Env.mk offsets functions_info dummy_k
+        Env.mk offsets all_code dummy_k
           ~exn_continuation:(Flambda_unit.exn_continuation unit)
           ~used_closure_vars
       in
@@ -1530,7 +1524,7 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
         (* Note: the environment would be used if we needed to compile the
            handler, but since it's constant we don't need it *)
         var_list env
-          [ Kinded_parameter.create (Variable.create "*ret*")
+          [ Bound_parameter.create (Variable.create "*ret*")
               Flambda_kind.With_subkind.any_value ]
       in
       let return_cont, env =
@@ -1557,6 +1551,5 @@ let unit (middle_end_result : Flambda_middle_end.middle_end_result) =
       let data, gc_roots, functions = R.to_cmm res in
       let cmm_data = C.flush_cmmgen_state () in
       let roots = List.map symbol gc_roots in
-      (C.gc_root_table roots :: data) @ cmm_data @ functions @ [entry]
-      (* Misc.fatal_error "To be continued" *)
-      (* let functions = program_functions offsets used_closure_vars unit in *))
+      (C.gc_root_table ~make_symbol roots :: data)
+      @ cmm_data @ functions @ [entry])

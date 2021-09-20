@@ -59,7 +59,6 @@ open Closure_conversion_aux
 
 val bind_rec :
   Acc.t ->
-  backend:(module Flambda_backend_intf.S) ->
   Exn_continuation.t option ->
   register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
   expr_primitive ->

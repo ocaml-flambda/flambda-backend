@@ -15,4 +15,9 @@
 (* Translate Flambda compilation units into Cmm *)
 
 (** Translate a compilation unit. *)
-val unit : Flambda_middle_end.middle_end_result -> Cmm.phrase list
+val unit :
+  make_symbol:(?unitname:string -> string option -> string) ->
+  Flambda_unit.t ->
+  Flambda_cmx_format.t option ->
+  all_code:Exported_code.t ->
+  Cmm.phrase list

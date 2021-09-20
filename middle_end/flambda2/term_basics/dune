@@ -1,0 +1,31 @@
+(include_subdirs unqualified)
+
+; Modules in this library cannot depend on Flambda2_types.
+
+(library
+ (name flambda2_term_basics)
+ (wrapped true)
+ (flags
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_algorithms
+   -open
+   Flambda2_identifiers
+   -open
+   Flambda2_kinds
+   -open
+   Flambda2_nominal
+   -open
+   Flambda2_numbers))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+  stdlib
+  ocamlcommon
+  flambda2_algorithms
+  flambda2_identifiers
+  flambda2_kinds
+  flambda2_nominal
+  flambda2_numbers))

@@ -19,8 +19,8 @@
 open! Simplify_import
 
 type used_extra_params =
-  { extra_params_used_as_normal : KP.t list;
-    extra_params_not_used_as_normal : KP.t list
+  { extra_params_used_as_normal : BP.t list;
+    extra_params_not_used_as_normal : BP.t list
   }
 
 let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
@@ -36,7 +36,7 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
   else
     let used_or_not extra_param =
       let used =
-        Name_occurrences.greatest_name_mode_var free_names (KP.var extra_param)
+        Name_occurrences.greatest_name_mode_var free_names (BP.var extra_param)
         |> Name_mode.Or_absent.is_present_as_normal
       in
       (* The free_names computation is the reference here, because it records
@@ -53,7 +53,7 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
       then used
       else
         let marked_as_required =
-          Name.Set.mem (Name.var (KP.var extra_param)) (UA.required_names uacc)
+          Name.Set.mem (Name.var (BP.var extra_param)) (UA.required_names uacc)
         in
         if used && not marked_as_required
         then
@@ -61,7 +61,7 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
             "The data_flow analysis marked the extra param %a@ as not \
              required, but the free_names indicate it is actually used:@ \n\
              free_names = %a@ \n\
-             handler = %a" KP.print extra_param Name_occurrences.print
+             handler = %a" BP.print extra_param Name_occurrences.print
             free_names
             (RE.print (UA.are_rebuilding_terms uacc))
             handler;
@@ -73,8 +73,8 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
     { extra_params_used_as_normal; extra_params_not_used_as_normal }
 
 type used_params =
-  { params_used_as_normal : KP.t list;
-    params_not_used_as_normal : KP.t list
+  { params_used_as_normal : BP.t list;
+    params_not_used_as_normal : BP.t list
   }
 
 let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
@@ -96,7 +96,7 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
       end
       else begin
         first := false;
-        let param_var = KP.var param in
+        let param_var = BP.var param in
         let num =
           Name_occurrences.count_variable_normal_mode free_names param_var
         in
@@ -111,7 +111,7 @@ let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
               "The data_flow analysis marked the original param %a@ as not \
                required, but the free_names indicate it is actually used:@ \n\
                free_names = %a@ \n\
-               handler = %a" KP.print param Name_occurrences.print free_names
+               handler = %a" BP.print param Name_occurrences.print free_names
               (RE.print (UA.are_rebuilding_terms uacc))
               handler;
           true
@@ -156,12 +156,12 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       | Some rewrite ->
         let used_params_set = Apply_cont_rewrite.used_params rewrite in
         let used_params, unused_params =
-          List.partition (fun param -> KP.Set.mem param used_params_set) params
+          List.partition (fun param -> BP.Set.mem param used_params_set) params
         in
         let used_extra_params = Apply_cont_rewrite.used_extra_params rewrite in
         let new_phantom_params =
           List.filter
-            (fun param -> Name_occurrences.mem_var free_names (KP.var param))
+            (fun param -> Name_occurrences.mem_var free_names (BP.var param))
             unused_params
         in
         uacc, used_params @ used_extra_params, new_phantom_params
@@ -181,17 +181,17 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       in
       let new_phantom_params =
         List.filter
-          (fun param -> Name_occurrences.mem_var free_names (KP.var param))
+          (fun param -> Name_occurrences.mem_var free_names (BP.var param))
           (params_not_used_as_normal @ extra_params_not_used_as_normal)
       in
       let rewrite =
         Apply_cont_rewrite.create
           ~original_params:
             params (* CR mshinwell: We should stop this set/list translation *)
-          ~used_params:(KP.Set.of_list params_used_as_normal)
+          ~used_params:(BP.Set.of_list params_used_as_normal)
           ~extra_params:extra_params_and_args.extra_params
           ~extra_args:extra_params_and_args.extra_args
-          ~used_extra_params:(KP.Set.of_list extra_params_used_as_normal)
+          ~used_extra_params:(BP.Set.of_list extra_params_used_as_normal)
       in
       let uacc =
         UA.map_uenv uacc ~f:(fun uenv ->
@@ -205,8 +205,8 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     let bindings_outermost_first =
       List.map
         (fun param ->
-          let v = KP.var param in
-          let k = K.With_subkind.kind (KP.kind param) in
+          let v = BP.var param in
+          let k = K.With_subkind.kind (BP.kind param) in
           let var = Bound_var.create v Name_mode.phantom in
           let let_bound = Bound_pattern.singleton var in
           let prim = Flambda_primitive.(Nullary (Optimised_out k)) in
@@ -294,7 +294,7 @@ let rebuild_non_recursive_let_cont_handler cont
               | Some _ -> Unknown
               | None ->
                 let args = Apply_cont.args apply_cont in
-                let params = List.map KP.simple params in
+                let params = List.map BP.simple params in
                 if Misc.Stdlib.List.compare Simple.compare args params = 0
                 then Alias_for (Apply_cont.continuation apply_cont)
                 else Unknown
@@ -306,10 +306,10 @@ let rebuild_non_recursive_let_cont_handler cont
         in
         match behaviour with
         | Unreachable ->
-          let arity = KP.List.arity_with_subkinds params in
+          let arity = BP.List.arity_with_subkinds params in
           UE.add_unreachable_continuation uenv cont scope arity
         | Alias_for alias_for ->
-          let arity = KP.List.arity_with_subkinds params in
+          let arity = BP.List.arity_with_subkinds params in
           UE.add_continuation_alias uenv cont arity ~alias_for
         | Unknown ->
           UE.add_non_inlinable_continuation uenv cont scope ~params
@@ -323,7 +323,7 @@ let rebuild_non_recursive_let_cont_handler cont
         (params @ EPA.extra_params extra_params_and_args)
         ~init:(UA.name_occurrences uacc)
         ~f:(fun name_occurrences param ->
-          KP.var param |> Name_occurrences.remove_var name_occurrences)
+          BP.var param |> Name_occurrences.remove_var name_occurrences)
     in
     UA.with_name_occurrences uacc ~name_occurrences
   in
@@ -652,7 +652,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont (Kinded_parameter.List.vars params))
+      ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
   in
   (* Before the upwards traversal of the body, we do the downwards traversal of
      the handler. *)
@@ -745,7 +745,7 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope_level
     let name_occurrences =
       ListLabels.fold_left params ~init:(UA.name_occurrences uacc)
         ~f:(fun name_occurrences param ->
-          KP.var param |> Name_occurrences.remove_var name_occurrences)
+          BP.var param |> Name_occurrences.remove_var name_occurrences)
     in
     UA.with_name_occurrences uacc ~name_occurrences
   in
@@ -758,14 +758,14 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   let required_names = UA.required_names uacc in
   let used_params_list =
     ListLabels.filter params ~f:(fun param ->
-        Name.Set.mem (Name.var (KP.var param)) required_names)
+        Name.Set.mem (Name.var (BP.var param)) required_names)
   in
-  let used_params = KP.Set.of_list used_params_list in
+  let used_params = BP.Set.of_list used_params_list in
   let used_extra_params_list =
     ListLabels.filter extra_params_and_args.extra_params ~f:(fun param ->
-        Name.Set.mem (Name.var (KP.var param)) required_names)
+        Name.Set.mem (Name.var (BP.var param)) required_names)
   in
-  let used_extra_params = KP.Set.of_list used_extra_params_list in
+  let used_extra_params = BP.Set.of_list used_extra_params_list in
   let rewrite =
     Apply_cont_rewrite.create ~original_params:params ~used_params
       ~extra_params:extra_params_and_args.extra_params
@@ -824,7 +824,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~original_cont_scope_level ~down_to_up =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont (Kinded_parameter.List.vars params))
+      ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
   in
   let denv, _arg_types =
     (* XXX These don't have the same scope level as the non-recursive case *)
@@ -854,7 +854,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   (* Compute unboxing decisions *)
   let param_types =
     ListLabels.map params ~f:(fun param ->
-        Flambda_type.unknown_with_subkind (KP.kind param))
+        Flambda_type.unknown_with_subkind (BP.kind param))
   in
   let denv, unboxing_decisions =
     Unbox_continuation_params.make_decisions ~continuation_is_recursive:true

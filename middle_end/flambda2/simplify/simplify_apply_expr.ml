@@ -252,7 +252,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       List.map
         (fun kind ->
           let param = Variable.create "param" in
-          Kinded_parameter.create param kind)
+          Bound_parameter.create param kind)
         remaining_param_arity
     in
     let call_kind =
@@ -312,7 +312,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       in
       let callee = arg applied_callee in
       let args =
-        List.map arg applied_args @ List.map KP.simple remaining_params
+        List.map arg applied_args @ List.map BP.simple remaining_params
       in
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
@@ -353,7 +353,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (List.rev applied_values)
     in
     let params_and_body =
-      Function_params_and_body.create ~return_continuation exn_continuation
+      (* Note that [exn_continuation] has no extra args -- see above. *)
+      Function_params_and_body.create ~return_continuation
+        ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         remaining_params ~body ~dbg ~my_closure ~my_depth
         ~free_names_of_body:Unknown
     in
@@ -368,7 +370,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Code.create code_id
           ~params_and_body:(Present (params_and_body, free_names))
           ~newer_version_of:None
-          ~params_arity:(KP.List.arity_with_subkinds remaining_params)
+          ~params_arity:(BP.List.arity_with_subkinds remaining_params)
           ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
           ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))

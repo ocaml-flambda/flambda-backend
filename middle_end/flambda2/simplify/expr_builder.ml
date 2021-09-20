@@ -18,7 +18,7 @@
 
 open! Flambda.Import
 module BLB = Bound_pattern
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module LC = Lifted_constant
 module LCS = Lifted_constant_state
 module P = Flambda_primitive
@@ -564,14 +564,14 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
     Misc.fatal_errorf
       "Arguments to this [Apply_cont]@ (%a)@ do not match@ [original_params] \
        (%a):@ %a"
-      Apply_cont.print apply_cont KP.List.print original_params
+      Apply_cont.print apply_cont BP.List.print original_params
       Simple.List.print args;
   let original_params_with_args = List.combine original_params args in
   let args =
     let used_params = Apply_cont_rewrite.used_params rewrite in
     List.filter_map
       (fun (original_param, arg) ->
-        if KP.Set.mem original_param used_params then Some arg else None)
+        if BP.Set.mem original_param used_params then Some arg else None)
       original_params_with_args
   in
   let extra_args_list = Apply_cont_rewrite.extra_args rewrite id in
@@ -648,14 +648,14 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
   let original_params = Apply_cont_rewrite.original_params rewrite in
-  let original_params_arity = KP.List.arity_with_subkinds original_params in
+  let original_params_arity = BP.List.arity_with_subkinds original_params in
   if not
        (Flambda_arity.With_subkinds.equal exn_cont_arity original_params_arity)
   then
     Misc.fatal_errorf
       "Arity of exception continuation %a does not match@ [original_params] \
        (%a)"
-      Exn_continuation.print exn_cont KP.List.print original_params;
+      Exn_continuation.print exn_cont BP.List.print original_params;
   assert (List.length exn_cont_arity >= 1);
   let pre_existing_extra_params_with_args =
     List.combine (List.tl original_params)
@@ -665,7 +665,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
     let used_params = Apply_cont_rewrite.used_params rewrite in
     List.filter_map
       (fun (pre_existing_extra_param, arg) ->
-        if KP.Set.mem pre_existing_extra_param used_params
+        if BP.Set.mem pre_existing_extra_param used_params
         then Some arg
         else None)
       pre_existing_extra_params_with_args
@@ -689,7 +689,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
     List.map2
       (fun param (arg : Continuation_extra_params_and_args.Extra_arg.t) ->
         match arg with
-        | Already_in_scope simple -> simple, KP.kind param
+        | Already_in_scope simple -> simple, BP.kind param
         | New_let_binding _ | New_let_binding_with_named_args _ ->
           Misc.fatal_error "[New_let_binding] not expected here")
       used_extra_params extra_args_list
@@ -750,7 +750,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
       in
       let free_names =
         ListLabels.fold_left params ~init:free_names ~f:(fun free_names param ->
-            Name_occurrences.remove_var free_names (Kinded_parameter.var param))
+            Name_occurrences.remove_var free_names (Bound_parameter.var param))
       in
       New_wrapper (new_cont, new_handler, free_names, cost_metrics)
     in
@@ -759,8 +759,8 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
       (* In this case, any generated [Apply_cont] will sit inside a wrapper that
          binds [kinded_params]. *)
       let params = List.map (fun _kind -> Variable.create "param") arity in
-      let params = List.map2 KP.create params arity in
-      let args = List.map KP.simple params in
+      let params = List.map2 BP.create params arity in
+      let args = List.map BP.simple params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx = Apply_expr args in
       match rewrite_use uacc rewrite use_id ~ctx apply_cont with

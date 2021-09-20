@@ -37,7 +37,7 @@ module VB = Bound_var
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 
 let symbol_for_ident acc env id =
-  let symbol = Env.symbol_for_global' env id in
+  let symbol = Env.symbol_for_global env id in
   use_of_symbol_as_simple acc symbol
 
 let register_const0 acc constant name =
@@ -305,7 +305,7 @@ let close_c_call acc ~let_bound_var
   in
   let wrap_c_call acc ~handler_param ~code_after_call c_call =
     let return_kind = Flambda_kind.With_subkind.create return_kind Anything in
-    let params = [Kinded_parameter.create handler_param return_kind] in
+    let params = [Bound_parameter.create handler_param return_kind] in
     Let_cont_with_acc.build_non_recursive acc return_continuation
       ~handler_params:params ~handler:code_after_call ~body:c_call
       ~is_exn_handler:false
@@ -423,7 +423,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     Expr_with_acc.create_apply_cont acc apply_cont
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
-      ~backend:(Env.backend env)
+      ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg k
 
@@ -455,8 +455,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (Box_number Untagged_immediate, Prim (Unary (Get_tag, Simple named)))
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc ~backend:(Env.backend env)
-      None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -510,7 +509,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   let handler_params =
     List.map2
       (fun param (_, _, kind) ->
-        Kinded_parameter.create param (LC.value_kind kind))
+        Bound_parameter.create param (LC.value_kind kind))
       params params_with_kinds
   in
   let handler acc = handler acc handler_env in
@@ -758,7 +757,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   in
   let params =
     List.map
-      (fun (var, kind) -> Kinded_parameter.create var (LC.value_kind kind))
+      (fun (var, kind) -> Bound_parameter.create var (LC.value_kind kind))
       param_vars
   in
   let acc = Acc.with_seen_a_function acc false in
@@ -827,6 +826,10 @@ let close_one_function acc ~external_env ~by_closure_id decl
     close_exn_continuation acc external_env
       (Function_decl.exn_continuation decl)
   in
+  assert (
+    match Exn_continuation.extra_args exn_continuation with
+    | [] -> true
+    | _ :: _ -> false);
   let inline : Inline_attribute.t =
     (* We make a decision based on [fallback_inlining_heuristic] here to try to
        mimic Closure's behaviour as closely as possible, particularly when there
@@ -840,14 +843,15 @@ let close_one_function acc ~external_env ~by_closure_id decl
     else LC.inline_attribute (Function_decl.inline decl)
   in
   let params_and_body =
-    Function_params_and_body.create ~return_continuation exn_continuation params
-      ~dbg ~body ~my_closure ~my_depth
+    Function_params_and_body.create ~return_continuation
+      ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+      params ~dbg ~body ~my_closure ~my_depth
       ~free_names_of_body:(Known (Acc.free_names acc))
   in
   let acc =
     List.fold_left
       (fun acc param ->
-        Acc.remove_var_from_free_names (Kinded_parameter.var param) acc)
+        Acc.remove_var_from_free_names (Bound_parameter.var param) acc)
       acc params
     |> Acc.remove_var_from_free_names my_closure
     |> Acc.remove_var_from_free_names my_depth
@@ -855,7 +859,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
     |> Acc.remove_continuation_from_free_names
          (Exn_continuation.exn_handler exn_continuation)
   in
-  let params_arity = Kinded_parameter.List.arity_with_subkinds params in
+  let params_arity = Bound_parameter.List.arity_with_subkinds params in
   let is_tupled =
     match Function_decl.kind decl with Curried -> false | Tupled -> true
   in
@@ -998,18 +1002,17 @@ let close_let_rec acc env ~function_declarations
     named ~body
   |> Expr_with_acc.create_let
 
-let close_program ~backend ~module_ident ~module_block_size_in_words ~program
-    ~prog_return_cont ~exn_continuation =
-  let module Backend = (val backend : Flambda_backend_intf.S) in
-  let env = Env.empty ~backend in
+let close_program ~symbol_for_global ~big_endian ~module_ident
+    ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
+  let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
+  let env = Env.create ~symbol_for_global ~big_endian in
   let module_symbol =
-    Backend.symbol_for_global'
-      (Ident.create_persistent (Ident.name module_ident))
+    symbol_for_global (Ident.create_persistent (Ident.name module_ident))
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let acc = Acc.empty in
+  let acc = Acc.create ~symbol_for_global in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
@@ -1071,7 +1074,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
-    [Kinded_parameter.create module_block_var K.With_subkind.any_value]
+    [Bound_parameter.create module_block_var K.With_subkind.any_value]
   in
   let acc, body =
     (* This binds the return continuation that is free (or, at least, not bound)

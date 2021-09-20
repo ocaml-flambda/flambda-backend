@@ -26,7 +26,7 @@ type cont =
         cont : int
       }
   | Inline of
-      { handler_params : Kinded_parameter.t list;
+      { handler_params : Bound_parameter.t list;
         handler_body : Flambda.Expr.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t
       }

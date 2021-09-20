@@ -1535,8 +1535,9 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
       switch_expr acc ccenv)
     k_exn
 
-let lambda_to_flambda ~backend ~module_ident ~module_block_size_in_words
-    (lam : Lambda.lambda) : Flambda_unit.t * Exported_code.t =
+let lambda_to_flambda ~symbol_for_global ~big_endian ~module_ident
+    ~module_block_size_in_words (lam : Lambda.lambda) :
+    Flambda_unit.t * Exported_code.t =
   let current_unit_id =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in
@@ -1548,5 +1549,6 @@ let lambda_to_flambda ~backend ~module_ident ~module_block_size_in_words
   let toplevel acc ccenv =
     cps_tail acc env ccenv lam return_continuation exn_continuation
   in
-  CC.close_program ~backend ~module_ident ~module_block_size_in_words
-    ~program:toplevel ~prog_return_cont:return_continuation ~exn_continuation
+  CC.close_program ~symbol_for_global ~big_endian ~module_ident
+    ~module_block_size_in_words ~program:toplevel
+    ~prog_return_cont:return_continuation ~exn_continuation

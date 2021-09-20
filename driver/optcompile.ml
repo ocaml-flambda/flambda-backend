@@ -47,19 +47,17 @@ let flambda_and_flambda2 i typed ~compile_implementation =
         ~required_globals;
       Compilenv.save_unit_info (cmx i)))
 
-let flambda2 i ~flambda2_backend ~flambda2_to_cmm typed =
+let flambda2_ i ~flambda2 typed =
   flambda_and_flambda2 i typed
     ~compile_implementation:(fun ~module_ident ~main_module_block_size ~code
           ~required_globals ->
       Asmgen.compile_implementation_flambda2
-        ~backend:flambda2_backend
         ~filename:i.source_file
         ~prefixname:i.output_prefix
         ~size:main_module_block_size
         ~module_ident
         ~module_initializer:code
-        ~middle_end:Flambda2.Flambda_middle_end.middle_end
-        ~flambda2_to_cmm
+        ~flambda2
         ~ppf_dump:i.ppf_dump
         ~required_globals
         ())
@@ -108,14 +106,13 @@ let emit i =
   Compilenv.reset ?packname:!Clflags.for_package i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
-let implementation ~backend ~flambda2_backend ~flambda2_to_cmm
-      ~start_from ~source_file ~output_prefix =
+let implementation ~backend ~flambda2 ~start_from ~source_file ~output_prefix =
   let backend info typed =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
     then flambda info backend typed
     else if Config.flambda2
-    then flambda2 info ~flambda2_backend ~flambda2_to_cmm typed
+    then flambda2_ info ~flambda2 typed
     else clambda info backend typed
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->

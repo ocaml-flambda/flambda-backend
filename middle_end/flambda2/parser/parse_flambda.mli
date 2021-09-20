@@ -16,6 +16,6 @@ val make_compilation_unit :
   Compilation_unit.t
 
 val parse :
-  backend:(module Flambda_backend_intf.S) ->
+  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
   string ->
   (Flambda_unit.t, error) result

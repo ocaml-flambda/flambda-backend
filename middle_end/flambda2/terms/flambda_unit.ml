@@ -200,7 +200,7 @@ module Iter = struct
           Function_params_and_body.pattern_match params_and_body
             ~f:(fun
                  ~return_continuation:_
-                 _
+                 ~exn_continuation:_
                  _
                  ~body
                  ~my_closure:_

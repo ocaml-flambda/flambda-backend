@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module BP = Kinded_parameter
+module BP = Bound_parameter
 
 type t =
   { return_continuation : Continuation.t;
@@ -48,18 +48,11 @@ let create ~return_continuation ~exn_continuation ~params ~my_closure ~my_depth
     Misc.fatal_errorf
       "Names provided to [Bound_parameters.create] must be disjoint:@ %a"
       BP.List.print params;
-  (match Exn_continuation.extra_args exn_continuation with
-  | [] -> ()
-  | _ :: _ ->
-    Misc.fatal_error
-      "Exception continuation for a function cannot have extra args");
-  let exn_continuation = Exn_continuation.exn_handler exn_continuation in
   { return_continuation; exn_continuation; params; my_closure; my_depth }
 
 let return_continuation t = t.return_continuation
 
-let exn_continuation t =
-  Exn_continuation.create ~exn_handler:t.exn_continuation ~extra_args:[]
+let exn_continuation t = t.exn_continuation
 
 let params t = t.params
 

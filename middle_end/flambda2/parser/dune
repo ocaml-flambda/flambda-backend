@@ -8,63 +8,128 @@
 ; parser.
 
 (rule
-  (mode    fallback)
-  ;(mode    promote)
-  (target  flambda_lex.ml)
-  (deps    flambda_lex.mll)
-  (action  (run ocamllex -q %{deps})))
+ (mode fallback)
+ ;(mode    promote)
+ (target flambda_lex.ml)
+ (deps flambda_lex.mll)
+ (action
+  (run ocamllex -q %{deps})))
 
 (rule
-  (mode   fallback)
-  ;(mode   promote)
-  (target flambda_parser.ml)
-  (deps   flambda_parser_in.ml)
-  (action (with-stdin-from %{deps}
-            (with-stdout-to %{target}
-              (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+ (mode fallback)
+ ;(mode   promote)
+ (target flambda_parser.ml)
+ (deps flambda_parser_in.ml)
+ (action
+  (with-stdin-from
+   %{deps}
+   (with-stdout-to
+    %{target}
+    (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
 
 (rule
-  (mode   fallback)
-  ;(mode   promote)
-  (target flambda_parser.mli)
-  (deps   flambda_parser_in.mli)
-  (action (with-stdin-from %{deps}
-            (with-stdout-to %{target}
-              (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+ (mode fallback)
+ ;(mode   promote)
+ (target flambda_parser.mli)
+ (deps flambda_parser_in.mli)
+ (action
+  (with-stdin-from
+   %{deps}
+   (with-stdout-to
+    %{target}
+    (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
 
 (rule
-  (targets flambda_parser_in.ml
-           flambda_parser_in.mli)
-  (deps    flambda_parser.mly)
-  (action  (run menhir --table %{deps} --base flambda_parser_in)))
+ (targets flambda_parser_in.ml flambda_parser_in.mli)
+ (deps flambda_parser.mly)
+ (action
+  (run menhir --table %{deps} --base flambda_parser_in)))
 
 ; NOTE: flambda_parser.messages is massively out of date. No need to activate
 ; this rule unless you've fixed it (thanks!).
-(rule
-  (mode   fallback)
-  ;(mode   promote)
-  (target flambda_parser_messages.ml)
-  (deps   flambda_parser.messages flambda_parser.mly)
-  (action (with-stdout-to %{target}
-            (run menhir --compile-errors %{deps}))))
-
-(alias (name list-errors))
 
 (rule
-  (alias  list-errors)
-  (target flambda_parser.new-messages)
-  (deps   flambda_parser.mly)
-  (mode   promote)
-  (action (with-stdout-to %{target}
-            (run menhir --list-errors %{deps}))))
+ (mode fallback)
+ ;(mode   promote)
+ (target flambda_parser_messages.ml)
+ (deps flambda_parser.messages flambda_parser.mly)
+ (action
+  (with-stdout-to
+   %{target}
+   (run menhir --compile-errors %{deps}))))
 
-(alias (name check-errors))
+(alias
+ (name list-errors))
 
 (rule
-  (alias  check-errors)
-  (deps   flambda_parser.mly
-          flambda_parser.messages
-          flambda_parser.new-messages)
-  (action (run menhir flambda_parser.mly
-            --compare-errors flambda_parser.messages
-            --compare-errors flambda_parser.new-messages)))
+ (alias list-errors)
+ (target flambda_parser.new-messages)
+ (deps flambda_parser.mly)
+ (mode promote)
+ (action
+  (with-stdout-to
+   %{target}
+   (run menhir --list-errors %{deps}))))
+
+(alias
+ (name check-errors))
+
+(rule
+ (alias check-errors)
+ (deps
+  flambda_parser.mly
+  flambda_parser.messages
+  flambda_parser.new-messages)
+ (action
+  (run
+   menhir
+   flambda_parser.mly
+   --compare-errors
+   flambda_parser.messages
+   --compare-errors
+   flambda_parser.new-messages)))
+
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_parser)
+ (wrapped true)
+ (flags
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_bound_identifiers
+   -open
+   Flambda2_identifiers
+   -open
+   Flambda2_kinds
+   -open
+   Flambda2_term_basics
+   -open
+   Flambda2_terms
+   -open
+   Flambda2_algorithms
+   -open
+   Flambda2_numbers
+   -open
+   Flambda2_lattices
+   -open
+   Flambda2_nominal))
+ (ocamlopt_flags
+  (:standard -O3))
+ (modules
+  (:standard \ flambda_parser_in))
+ ; ignore inputs to sed
+ (libraries
+  stdlib
+  ocamlcommon
+  flambda2_algorithms
+  flambda2_terms
+  flambda2_bound_identifiers
+  flambda2_identifiers
+  flambda2_kinds
+  flambda2_term_basics
+  flambda2_numbers
+  flambda2_lattices
+  flambda2_nominal))

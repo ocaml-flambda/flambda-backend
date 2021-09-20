@@ -77,7 +77,7 @@ val print_decision : Format.formatter -> decision -> unit
 
 module Decisions : sig
   type t =
-    { decisions : (KP.t * decision) list;
+    { decisions : (BP.t * decision) list;
       rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
     }
 

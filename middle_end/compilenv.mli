@@ -99,7 +99,7 @@ val get_global_info' : Ident.t -> Cmx_format.export_info option
         (* Middle-end-agnostic means of getting the export info found in the
            .cmx file of the given unit. *)
 
-val flambda2_set_export_info : Flambda2.Flambda_cmx_format.t -> unit
+val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)
 
 val need_curry_fun: int -> unit

@@ -26,17 +26,17 @@ val print : Format.formatter -> t -> unit
 
 val create :
   return_continuation:Continuation.t ->
-  exn_continuation:Exn_continuation.t ->
-  params:Kinded_parameter.t list ->
+  exn_continuation:Continuation.t ->
+  params:Bound_parameter.t list ->
   my_closure:Variable.t ->
   my_depth:Variable.t ->
   t
 
 val return_continuation : t -> Continuation.t
 
-val exn_continuation : t -> Exn_continuation.t
+val exn_continuation : t -> Continuation.t
 
-val params : t -> Kinded_parameter.t list
+val params : t -> Bound_parameter.t list
 
 val my_closure : t -> Variable.t
 

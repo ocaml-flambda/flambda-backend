@@ -16,15 +16,16 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Simplify_import
+open! Flambda
+module T = Flambda_type
+module TE = Flambda_type.Typing_env
 
-let rec load_cmx_file_contents backend comp_unit ~imported_units ~imported_names
-    ~imported_code =
+let rec load_cmx_file_contents ~get_global_info comp_unit ~imported_units
+    ~imported_names ~imported_code =
   match Compilation_unit.Map.find comp_unit !imported_units with
   | typing_env_or_none -> typing_env_or_none
   | exception Not_found -> (
-    let module Backend = (val backend : Flambda_backend_intf.S) in
-    match Backend.get_global_info comp_unit with
+    match get_global_info comp_unit with
     | None ->
       (* To make things easier to think about, we never retry after a .cmx load
          fails. *)
@@ -32,8 +33,8 @@ let rec load_cmx_file_contents backend comp_unit ~imported_units ~imported_names
       None
     | Some cmx ->
       let resolver comp_unit =
-        load_cmx_file_contents backend comp_unit ~imported_names ~imported_code
-          ~imported_units
+        load_cmx_file_contents ~get_global_info comp_unit ~imported_names
+          ~imported_code ~imported_units
       in
       let get_imported_names () = !imported_names in
       let typing_env, all_code =
@@ -101,12 +102,9 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
   in
   fixpoint init_names Name_occurrences.empty
 
-let prepare_cmx_file_contents ~return_cont_env:cont_uses_env
-    ~return_continuation ~module_symbol ~used_closure_vars all_code =
-  match
-    Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env
-      return_continuation
-  with
+let prepare_cmx_file_contents ~final_typing_env ~module_symbol
+    ~used_closure_vars all_code =
+  match final_typing_env with
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->

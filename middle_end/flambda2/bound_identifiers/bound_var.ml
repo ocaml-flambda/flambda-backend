@@ -25,8 +25,6 @@ let create var name_mode = { var; name_mode }
 
 let var t = t.var
 
-let simple t = Simple.var (var t)
-
 let name_mode t = t.name_mode
 
 let with_var t var = { t with var }

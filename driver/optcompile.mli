@@ -17,14 +17,18 @@
 
 val interface: source_file:string -> output_prefix:string -> unit
 
-val implementation:
-   backend:(module Backend_intf.S)
-   -> flambda2_backend:(module Flambda2__Flambda_backend_intf.S)
-   -> flambda2_to_cmm:(
-         Flambda2__Flambda_middle_end.middle_end_result
-      -> Cmm.phrase list)
-   -> start_from:Clflags.Compiler_pass.t
-   -> source_file:string -> output_prefix:string -> unit
+val implementation
+   : backend:(module Backend_intf.S)
+  -> flambda2:(
+    ppf_dump:Format.formatter ->
+    prefixname:string ->
+    filename:string ->
+    module_ident:Ident.t ->
+    module_block_size_in_words:int ->
+    module_initializer:Lambda.lambda ->
+    Cmm.phrase list)
+  -> start_from:Clflags.Compiler_pass.t
+  -> source_file:string -> output_prefix:string -> unit
 
 (** {2 Internal functions} **)
 

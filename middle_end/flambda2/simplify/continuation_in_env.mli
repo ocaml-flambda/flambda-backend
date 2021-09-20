@@ -18,7 +18,7 @@
 
 type t =
   | Linearly_used_and_inlinable of
-      { params : Kinded_parameter.t list;
+      { params : Bound_parameter.t list;
             (** To avoid re-opening name abstractions, we store the opened
                 parameters and handler here. Note that the properties of
                 [Name_abstraction] mean that this is safe even if the expression

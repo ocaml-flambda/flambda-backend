@@ -234,13 +234,15 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
             ~used_closure_vars:Unknown ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
+        (* CR mshinwell: These functions for adding continuations could do with
+           a bit more thought regarding non-exn/exn versions *)
         let uenv = UE.add_exn_continuation UE.empty exn_continuation scope in
         let uenv =
           match Apply.continuation apply with
           | Never_returns -> uenv
           | Return return_continuation ->
-            UE.add_return_continuation uenv return_continuation scope
-              return_arity
+            UE.add_function_return_or_exn_continuation uenv return_continuation
+              scope return_arity
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids:Unknown uenv dacc

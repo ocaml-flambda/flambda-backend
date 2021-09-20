@@ -649,8 +649,8 @@ let find_or_missing t name =
 let find_params t params =
   List.map
     (fun param ->
-      let name = Kinded_parameter.name param in
-      let kind = Flambda_kind.With_subkind.kind (Kinded_parameter.kind param) in
+      let name = Bound_parameter.name param in
+      let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind param) in
       find t name (Some kind))
     params
 
@@ -1069,10 +1069,10 @@ let add_definitions_of_params t ~params =
   List.fold_left
     (fun t param ->
       let name =
-        Bound_name.create (Kinded_parameter.name param) Name_mode.normal
+        Bound_name.create (Bound_parameter.name param) Name_mode.normal
       in
       add_definition t name
-        (Flambda_kind.With_subkind.kind (Kinded_parameter.kind param)))
+        (Flambda_kind.With_subkind.kind (Bound_parameter.kind param)))
     t params
 
 let check_params_and_types ~params ~param_types =
@@ -1081,7 +1081,7 @@ let check_params_and_types ~params ~param_types =
   then
     Misc.fatal_errorf
       "Mismatch between number of [params] and [param_types]:@ (%a)@ and@ %a"
-      Kinded_parameter.List.print params
+      Bound_parameter.List.print params
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Type_grammar.print)
       param_types
 
@@ -1089,17 +1089,15 @@ let add_equations_on_params t ~params ~param_types =
   check_params_and_types ~params ~param_types;
   List.fold_left2
     (fun t param param_type ->
-      add_equation t (Kinded_parameter.name param) param_type)
+      add_equation t (Bound_parameter.name param) param_type)
     t params param_types
 
 let meet_equations_on_params t ~params ~param_types =
   check_params_and_types ~params ~param_types;
   List.fold_left2
     (fun t param param_type ->
-      let kind =
-        Kinded_parameter.kind param |> Flambda_kind.With_subkind.kind
-      in
-      let name = Kinded_parameter.name param in
+      let kind = Bound_parameter.kind param |> Flambda_kind.With_subkind.kind in
+      let name = Bound_parameter.name param in
       let existing_type = find t name (Some kind) in
       let env = Meet_env.create t in
       match Type_grammar.meet env existing_type param_type with

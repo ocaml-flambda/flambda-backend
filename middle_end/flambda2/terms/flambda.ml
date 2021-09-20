@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module K = Flambda_kind
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module Apply = Apply_expr
 module Apply_cont = Apply_cont_expr
 module Switch = Switch_expr
@@ -58,7 +58,7 @@ and Continuation_handler : sig
   (** Create a value of type [t] given information about a continuation
       handler. *)
   val create :
-    Kinded_parameter.t list ->
+    Bound_parameter.t list ->
     handler:Expr.t ->
     free_names_of_handler:Name_occurrences.t Or_unknown.t ->
     is_exn_handler:bool ->
@@ -70,14 +70,14 @@ and Continuation_handler : sig
   val pattern_match' :
     t ->
     f:
-      (Kinded_parameter.t list ->
+      (Bound_parameter.t list ->
       num_normal_occurrences_of_params:Num_occurrences.t Variable.Map.t ->
       handler:Expr.t ->
       'a) ->
     'a
 
   val pattern_match :
-    t -> f:(Kinded_parameter.t list -> handler:Expr.t -> 'a) -> 'a
+    t -> f:(Bound_parameter.t list -> handler:Expr.t -> 'a) -> 'a
 
   module Pattern_match_pair_error : sig
     type t = Parameter_lists_have_different_lengths
@@ -90,7 +90,7 @@ and Continuation_handler : sig
   val pattern_match_pair :
     t ->
     t ->
-    f:(Kinded_parameter.t list -> handler1:Expr.t -> handler2:Expr.t -> 'a) ->
+    f:(Bound_parameter.t list -> handler1:Expr.t -> handler2:Expr.t -> 'a) ->
     ('a, Pattern_match_pair_error.t) Result.t
 
   (** Whether the continuation is an exception handler.
@@ -150,7 +150,7 @@ end = struct
       | Known free_names_of_handler ->
         ListLabels.fold_left params ~init:Variable.Map.empty
           ~f:(fun num_occurrences param ->
-            let var = Kinded_parameter.var param in
+            let var = Bound_parameter.var param in
             let num =
               Name_occurrences.count_variable_normal_mode free_names_of_handler
                 var
@@ -218,7 +218,7 @@ end = struct
           (if is_exn_handler then "[eh]" else "")
           (Flambda_colours.normal ());
         if List.length params > 0
-        then fprintf ppf " %a" Kinded_parameter.List.print params;
+        then fprintf ppf " %a" Bound_parameter.List.print params;
         fprintf ppf "@<0>%s #%a:@<0>%s@ %a" (Flambda_colours.elide ())
           (Or_unknown.print Num_occurrences.print)
           occurrences
@@ -344,10 +344,7 @@ and Expr : sig
   val create_invalid : ?semantics:Invalid_term_semantics.t -> unit -> t
 
   val bind_parameters_to_args_no_simplification :
-    params:Kinded_parameter.t list ->
-    args:Simple.t list ->
-    body:Expr.t ->
-    Expr.t
+    params:Bound_parameter.t list -> args:Simple.t list -> body:Expr.t -> Expr.t
 end = struct
   module Descr = struct
     type t =
@@ -477,10 +474,10 @@ end = struct
     if List.compare_lengths params args <> 0
     then
       Misc.fatal_errorf "Mismatching parameters and arguments: %a and %a"
-        KP.List.print params Simple.List.print args;
+        BP.List.print params Simple.List.print args;
     ListLabels.fold_left2 (List.rev params) (List.rev args) ~init:body
       ~f:(fun expr param arg ->
-        let var = Bound_var.create (KP.var param) Name_mode.normal in
+        let var = Bound_var.create (BP.var param) Name_mode.normal in
         Let_expr.create
           (Bound_pattern.singleton var)
           (Named.create_simple arg) ~body:expr ~free_names_of_body:Unknown
@@ -507,8 +504,8 @@ and Function_params_and_body : sig
       relations thereon, over the given body. *)
   val create :
     return_continuation:Continuation.t ->
-    Exn_continuation.t ->
-    Kinded_parameter.t list ->
+    exn_continuation:Continuation.t ->
+    Bound_parameter.t list ->
     dbg:Debuginfo.t ->
     body:Expr.t ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
@@ -526,10 +523,10 @@ and Function_params_and_body : sig
              jump once the result of the function has been computed. If the
              continuation takes more than one argument then the backend will
              compile the function so that it returns multiple values. *) ->
-      Exn_continuation.t
-      (** To where we must jump if application of the function raises an
-          exception. *) ->
-      Kinded_parameter.t list ->
+      exn_continuation:Continuation.t
+        (** To where we must jump if application of the function raises an
+            exception. *) ->
+      Bound_parameter.t list ->
       body:Expr.t ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
@@ -550,10 +547,10 @@ and Function_params_and_body : sig
              jump once the result of the function has been computed. If the
              continuation takes more than one argument then the backend will
              compile the function so that it returns multiple values. *) ->
-      Exn_continuation.t
-      (** To where we must jump if application of the function raises an
-          exception. *) ->
-      Kinded_parameter.t list ->
+      exn_continuation:Continuation.t
+        (** To where we must jump if application of the function raises an
+            exception. *) ->
+      Bound_parameter.t list ->
       body1:Expr.t ->
       body2:Expr.t ->
       my_closure:Variable.t ->
@@ -603,7 +600,7 @@ end = struct
       is_my_closure_used : bool Or_unknown.t
     }
 
-  let create ~return_continuation exn_continuation params ~dbg ~body
+  let create ~return_continuation ~exn_continuation params ~dbg ~body
       ~free_names_of_body ~my_closure ~my_depth =
     let is_my_closure_used =
       Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
@@ -617,7 +614,7 @@ end = struct
     let abst = A.create bound_for_function base in
     { abst;
       dbg;
-      params_arity = Kinded_parameter.List.arity params;
+      params_arity = Bound_parameter.List.arity params;
       is_my_closure_used
     }
 
@@ -626,7 +623,8 @@ end = struct
         f
           ~return_continuation:
             (Bound_for_function.return_continuation bound_for_function)
-          (Bound_for_function.exn_continuation bound_for_function)
+          ~exn_continuation:
+            (Bound_for_function.exn_continuation bound_for_function)
           (Bound_for_function.params bound_for_function)
           ~body:expr
           ~my_closure:(Bound_for_function.my_closure bound_for_function)
@@ -644,7 +642,8 @@ end = struct
         f
           ~return_continuation:
             (Bound_for_function.return_continuation bound_for_function)
-          (Bound_for_function.exn_continuation bound_for_function)
+          ~exn_continuation:
+            (Bound_for_function.exn_continuation bound_for_function)
           (Bound_for_function.params bound_for_function)
           ~body1 ~body2
           ~my_closure:(Bound_for_function.my_closure bound_for_function)
@@ -652,10 +651,10 @@ end = struct
 
   let [@ocamlformat "disable"] print ppf t =
     pattern_match t
-      ~f:(fun ~return_continuation exn_continuation params ~body ~my_closure
+      ~f:(fun ~return_continuation ~exn_continuation params ~body ~my_closure
               ~is_my_closure_used:_ ~my_depth ~free_names_of_body:_ ->
         let my_closure =
-          Kinded_parameter.create my_closure
+          Bound_parameter.create my_closure
             (K.With_subkind.create K.value Anything)
         in
         fprintf ppf
@@ -665,9 +664,9 @@ end = struct
           (Flambda_colours.lambda ())
           (Flambda_colours.normal ())
           Continuation.print return_continuation
-          Exn_continuation.print exn_continuation
-          Kinded_parameter.List.print params
-          Kinded_parameter.print my_closure
+          Continuation.print exn_continuation
+          Bound_parameter.List.print params
+          Bound_parameter.print my_closure
           (Flambda_colours.depth_variable ())
           Variable.print my_depth
           (Flambda_colours.elide ())

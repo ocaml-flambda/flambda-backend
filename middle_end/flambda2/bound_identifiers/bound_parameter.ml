@@ -70,7 +70,7 @@ let apply_renaming ({ param = _; kind } as t) perm =
     (Renaming.apply_name perm (name t))
     ~var:(fun var -> create var kind)
     ~symbol:(fun _ ->
-      Misc.fatal_errorf "Illegal name permutation on [Kinded_parameter]: %a"
+      Misc.fatal_errorf "Illegal name permutation on [Bound_parameter]: %a"
         Renaming.print perm)
 
 let all_ids_for_export { param; kind = _ } =

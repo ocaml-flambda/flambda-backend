@@ -1,0 +1,23 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_lattices)
+ (wrapped true)
+ (flags
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_algorithms
+   -open
+   Flambda2_nominal
+   -open
+   Flambda2_ui))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+  stdlib
+  ocamlcommon
+  flambda2_algorithms
+  flambda2_nominal
+  flambda2_ui))
