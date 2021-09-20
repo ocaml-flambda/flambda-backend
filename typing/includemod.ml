@@ -133,8 +133,10 @@ let try_expand_modtype_path env path =
     Env.find_modtype_expansion path env
   with Not_found -> raise Dont_match
 
-let expand_module_alias env cxt path =
-  try (Env.find_module path env).md_type
+let expand_module_alias ~strengthen env cxt path =
+  try
+    if strengthen then Env.find_strengthened_module ~aliasable:true path env
+    else (Env.find_module path env).md_type
   with Not_found ->
     raise(Error[cxt, env, Unbound_module_path path])
 
@@ -287,7 +289,7 @@ and try_modtypes ~loc env ~mark cxt subst mty1 mty2 =
       with Env.Error (Env.Missing_module (_, _, path)) ->
         raise (Error[cxt, env, Unbound_module_path path])
       in
-      let mty1 = expand_module_alias env cxt p1 in
+      let mty1 = expand_module_alias ~strengthen:false env cxt p1 in
       strengthened_modtypes ~loc ~aliasable:true env ~mark cxt
         subst mty1 p1 mty2
   | (Mty_ident p1, Mty_ident p2) ->
