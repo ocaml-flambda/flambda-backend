@@ -434,6 +434,7 @@ and Function_params_and_body : sig
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
       my_depth:Variable.t ->
+      free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
     'a
 
@@ -459,8 +460,6 @@ and Function_params_and_body : sig
       my_depth:Variable.t ->
       'a) ->
     'a
-
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
 
   (** Return the debuginfo associated *)
   val debuginfo : t -> Debuginfo.t
@@ -638,8 +637,6 @@ and Code : sig
   val print : Format.formatter -> t -> unit
 
   include Contains_names.S with type t := t
-
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
 
   val all_ids_for_export : t -> Ids_for_export.t
 

@@ -23,8 +23,6 @@ module Make (Function_params_and_body : sig
 
   val apply_renaming : t -> Renaming.t -> t
 
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
-
   val print : Format.formatter -> t -> unit
 end) (Cost_metrics : sig
   type t

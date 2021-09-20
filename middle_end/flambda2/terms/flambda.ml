@@ -533,6 +533,7 @@ and Function_params_and_body : sig
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
       my_depth:Variable.t ->
+      free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
     'a
 
@@ -559,13 +560,37 @@ and Function_params_and_body : sig
       'a) ->
     'a
 
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
-
   val params_arity : t -> Flambda_arity.t
 
   val debuginfo : t -> Debuginfo.t
 end = struct
-  module T0 = Name_abstraction.Make_list (Kinded_parameter) (Expr)
+  module Base = struct
+    type t =
+      { expr : Expr.t;
+        free_names : Name_occurrences.t Or_unknown.t
+      }
+
+    let print fmt { expr; free_names = _ } =
+      Format.fprintf fmt "%a" Expr.print expr
+
+    let free_names { expr; free_names } =
+      match free_names with
+      | Known free_names -> free_names
+      | Unknown -> Expr.free_names expr
+
+    let apply_renaming { expr; free_names } perm =
+      let expr = Expr.apply_renaming expr perm in
+      let free_names =
+        Or_unknown.map free_names ~f:(fun free_names ->
+            Name_occurrences.apply_renaming free_names perm)
+      in
+      { expr; free_names }
+
+    let all_ids_for_export { expr; free_names = _ } =
+      Expr.all_ids_for_export expr
+  end
+
+  module T0 = Name_abstraction.Make_list (Kinded_parameter) (Base)
 
   (* CR mshinwell: This should use [Bound_continuation]. [Exn_continuation]
      involves extra args, but we never have extra args here! *)
@@ -581,8 +606,7 @@ end = struct
     { abst : A.t;
       dbg : Debuginfo.t;
       params_arity : Flambda_arity.t;
-      is_my_closure_used : bool Or_unknown.t;
-      free_names_of_body : Name_occurrences.t Or_unknown.t
+      is_my_closure_used : bool Or_unknown.t
     }
 
   let create ~return_continuation exn_continuation params ~dbg ~body
@@ -595,15 +619,15 @@ end = struct
       Kinded_parameter.create my_closure
         (K.With_subkind.create K.value Anything)
     in
-    let t0 = T0.create (params @ [my_closure]) body in
+    let base : Base.t = { expr = body; free_names = free_names_of_body } in
+    let t0 = T0.create (params @ [my_closure]) base in
     let t1 = T1.create exn_continuation t0 in
     let t2 = T2.create return_continuation t1 in
     let abst = A.create (Bound_var.create my_depth Name_mode.normal) t2 in
     { abst;
       dbg;
       params_arity = Kinded_parameter.List.arity params;
-      is_my_closure_used;
-      free_names_of_body
+      is_my_closure_used
     }
 
   let extract_my_closure params_and_my_closure =
@@ -617,13 +641,15 @@ end = struct
     A.pattern_match t.abst ~f:(fun my_depth t2 ->
         T2.pattern_match t2 ~f:(fun return_continuation t1 ->
             T1.pattern_match t1 ~f:(fun exn_continuation t0 ->
-                T0.pattern_match t0 ~f:(fun params_and_my_closure body ->
+                T0.pattern_match t0
+                  ~f:(fun params_and_my_closure { expr; free_names } ->
                     let params, my_closure =
                       extract_my_closure params_and_my_closure
                     in
-                    f ~return_continuation exn_continuation params ~body
+                    f ~return_continuation exn_continuation params ~body:expr
                       ~my_closure ~is_my_closure_used:t.is_my_closure_used
-                      ~my_depth:(Bound_var.var my_depth)))))
+                      ~my_depth:(Bound_var.var my_depth)
+                      ~free_names_of_body:free_names))))
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1.abst t2.abst ~f:(fun my_depth t2_1 t2_2 ->
@@ -631,7 +657,11 @@ end = struct
             T1.pattern_match_pair t1_1 t1_2
               ~f:(fun exn_continuation t0_1 t0_2 ->
                 T0.pattern_match_pair t0_1 t0_2
-                  ~f:(fun params_and_my_closure body1 body2 ->
+                  ~f:(fun
+                       params_and_my_closure
+                       { expr = body1; free_names = _ }
+                       { expr = body2; free_names = _ }
+                     ->
                     let params, my_closure =
                       extract_my_closure params_and_my_closure
                     in
@@ -641,7 +671,7 @@ end = struct
   let [@ocamlformat "disable"] print ppf t =
     pattern_match t
       ~f:(fun ~return_continuation exn_continuation params ~body ~my_closure
-              ~is_my_closure_used:_ ~my_depth ->
+              ~is_my_closure_used:_ ~my_depth ~free_names_of_body:_ ->
         let my_closure =
           Kinded_parameter.create my_closure
             (K.With_subkind.create K.value Anything)
@@ -664,51 +694,20 @@ end = struct
 
   let params_arity t = t.params_arity
 
-  let apply_renaming
-      ({ abst; dbg; params_arity; is_my_closure_used; free_names_of_body } as t)
-      perm =
+  let apply_renaming ({ abst; dbg; params_arity; is_my_closure_used } as t) perm
+      =
     let abst' = A.apply_renaming abst perm in
     if abst == abst'
     then t
-    else
-      let free_names_of_body' =
-        Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
-            Name_occurrences.apply_renaming free_names_of_body perm)
-      in
-      { abst = abst';
-        dbg;
-        params_arity;
-        is_my_closure_used;
-        free_names_of_body = free_names_of_body'
-      }
+    else { abst = abst'; dbg; params_arity; is_my_closure_used }
 
-  let free_names
-      { abst;
-        params_arity = _;
-        dbg = _;
-        is_my_closure_used = _;
-        free_names_of_body = _
-      } =
+  let free_names { abst; params_arity = _; dbg = _; is_my_closure_used = _ } =
     A.free_names abst
-
-  let free_names_of_body
-      { abst = _;
-        params_arity = _;
-        dbg = _;
-        is_my_closure_used = _;
-        free_names_of_body
-      } =
-    free_names_of_body
 
   let debuginfo { dbg; _ } = dbg
 
   let all_ids_for_export
-      { abst;
-        params_arity = _;
-        dbg = _;
-        is_my_closure_used = _;
-        free_names_of_body = _
-      } =
+      { abst; params_arity = _; dbg = _; is_my_closure_used = _ } =
     A.all_ids_for_export abst
 end
 
@@ -2368,6 +2367,7 @@ end = struct
                      ~my_closure:_
                      ~is_my_closure_used:_
                      ~my_depth:_
+                     ~free_names_of_body:_
                    -> expr_size ~find_code body size)
             | Deleted -> size
           in

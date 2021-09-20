@@ -90,8 +90,6 @@ module type S = sig
 
   include Contains_names.S with type t := t
 
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
-
   val print : Format.formatter -> t -> unit
 
   val all_ids_for_export : t -> Ids_for_export.t

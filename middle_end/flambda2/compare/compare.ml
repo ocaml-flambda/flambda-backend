@@ -395,11 +395,12 @@ and subst_params_and_body env params_and_body =
          ~my_closure
          ~is_my_closure_used:_
          ~my_depth
+         ~free_names_of_body
        ->
       let body = subst_expr env body in
       let dbg = Function_params_and_body.debuginfo params_and_body in
       Function_params_and_body.create ~return_continuation exn_continuation
-        params ~dbg ~body ~my_closure ~free_names_of_body:Unknown ~my_depth)
+        params ~dbg ~body ~my_closure ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with

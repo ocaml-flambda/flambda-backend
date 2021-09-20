@@ -459,6 +459,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
            ~my_closure
            ~is_my_closure_used:_
            ~my_depth
+           ~free_names_of_body:_
          ->
         let dacc =
           dacc_inside_function context ~used_closure_vars ~shareable_constants
