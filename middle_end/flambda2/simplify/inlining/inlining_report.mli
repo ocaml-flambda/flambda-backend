@@ -15,17 +15,11 @@
 (** Report inlining decisions *)
 
 type at_call_site =
-  | Unknown_function  (** Function call where the function's type is unknown. *)
-  | Non_inlinable_function of
-      { code_id : Code_id.exported  (** code id of the callee *) }
-      (** Function call where the function's type is known, but was marked as
-          non-inlinable. *)
-  | Inlinable_function of
+  | Known_function of
       { code_id : Code_id.exported;  (** code id of the callee *)
         decision : Call_site_inlining_decision.t
-      }
-      (** Function call where the function's type is known, and was marked as
-          inlinable. *)
+      }  (** Function call where the function's type is known *)
+  | Unknown_function  (** Function call where the function's type is unknown. *)
 
 (** There are two decisions made for each function declaration: one before
     simplifying the body, and one after (this is useful for e.g. recursive

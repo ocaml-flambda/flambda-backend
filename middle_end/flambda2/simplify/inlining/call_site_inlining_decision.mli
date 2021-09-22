@@ -23,6 +23,7 @@ open! Flambda.Import
    inlined. *)
 type t = private
   | Missing_code
+  | Definition_says_not_to_inline
   | Environment_says_never_inline
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
@@ -47,7 +48,10 @@ val print : Format.formatter -> t -> unit
 val report : Format.formatter -> t -> unit
 
 type can_inline = private
-  | Do_not_inline of { warn_if_attribute_ignored : bool }
+  | Do_not_inline of
+      { warn_if_attribute_ignored : bool;
+        because_of_definition : bool
+      }
   | Inline of { unroll_to : int option }
 
 val can_inline : t -> can_inline

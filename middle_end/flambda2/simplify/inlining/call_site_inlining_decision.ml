@@ -34,6 +34,7 @@ module UE = Upwards_env
 
 type t =
   | Missing_code
+  | Definition_says_not_to_inline
   | Environment_says_never_inline
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
@@ -57,6 +58,8 @@ let [@ocamlformat "disable"] print ppf t =
   match t with
   | Missing_code ->
     Format.fprintf ppf "Missing_code"
+  | Definition_says_not_to_inline->
+    Format.fprintf ppf "Definition_says_not_to_inline"
   | Environment_says_never_inline ->
     Format.fprintf ppf "Environment_says_never_inline"
   | Unrolling_depth_exceeded ->
@@ -99,20 +102,29 @@ let [@ocamlformat "disable"] print ppf t =
       threshold
 
 type can_inline =
-  | Do_not_inline of { warn_if_attribute_ignored : bool }
+  | Do_not_inline of
+      { warn_if_attribute_ignored : bool;
+        because_of_definition : bool
+      }
   | Inline of { unroll_to : int option }
 
 let can_inline (t : t) : can_inline =
   match t with
   | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded | Speculatively_not_inline _
+  | Definition_says_not_to_inline ->
+    (* If there's an inline attribute on this, something's gone wrong *)
+    Do_not_inline
+      { warn_if_attribute_ignored = true; because_of_definition = true }
   | Never_inline_attribute ->
     (* If there's an inline attribute on this, something's gone wrong *)
-    Do_not_inline { warn_if_attribute_ignored = true }
+    Do_not_inline
+      { warn_if_attribute_ignored = true; because_of_definition = true }
   | Unrolling_depth_exceeded ->
     (* If there's an [@unrolled] attribute on this, then we'll ignore the
        attribute when we stop unrolling, which is fine *)
-    Do_not_inline { warn_if_attribute_ignored = false }
+    Do_not_inline
+      { warn_if_attribute_ignored = false; because_of_definition = true }
   | Attribute_unroll unroll_to -> Inline { unroll_to = Some unroll_to }
   | Definition_says_inline | Speculatively_inline _ | Attribute_always ->
     Inline { unroll_to = None }
@@ -122,6 +134,11 @@ let report_reason fmt t =
   | Missing_code ->
     Format.fprintf fmt
       "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
+  | Definition_says_not_to_inline ->
+    Format.fprintf fmt
+      "this@ function@ was@ decided@ never@ to@ be@ inlinable@ at@ its@ \
+       definition@ site (annotated@ by@ [@inlined never]@ or@ determined@ to@ \
+       be@ too@ big)"
   | Environment_says_never_inline ->
     Format.fprintf fmt "the@ environment@ says@ never@ to@ inline"
   | Unrolling_depth_exceeded ->
@@ -239,17 +256,13 @@ let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
   match DE.find_code denv (I.code_id function_decl) with
   | None -> Missing_code
   | Some code ->
-    let must_be_inlined =
-      let behaviour =
-        Code.inlining_decision code
-        |> Function_decl_inlining_decision_type.behaviour
-      in
-      match behaviour with
-      | Must_be_inlined -> true
-      | Cannot_be_inlined | Could_possibly_be_inlined -> false
-    in
-    if must_be_inlined
+    let function_decl_decision = Code.inlining_decision code in
+    if Function_decl_inlining_decision_type.must_be_inlined
+         function_decl_decision
     then Definition_says_inline
+    else if Function_decl_inlining_decision_type.cannot_be_inlined
+              function_decl_decision
+    then Definition_says_not_to_inline
     else if env_prohibits_inlining
     then Environment_says_never_inline
     else
