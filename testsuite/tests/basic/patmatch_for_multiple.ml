@@ -12,16 +12,16 @@ match (3, 2, 1) with
 ;;
 [%%expect{|
 (let
-  (*match*/88 = 3
-   *match*/89 = 2
-   *match*/90 = 1
-   *match*/91 = *match*/88
-   *match*/92 = *match*/89
-   *match*/93 = *match*/90)
+  (*match*/268 = 3
+   *match*/269 = 2
+   *match*/270 = 1
+   *match*/271 = *match*/268
+   *match*/272 = *match*/269
+   *match*/273 = *match*/270)
   (catch
     (catch
-      (catch (if (!= *match*/92 3) (exit 3) (exit 1)) with (3)
-        (if (!= *match*/91 1) (exit 2) (exit 1)))
+      (catch (if (!= *match*/272 3) (exit 3) (exit 1)) with (3)
+        (if (!= *match*/271 1) (exit 2) (exit 1)))
      with (2) 0)
    with (1) 1))
 - : bool = false
@@ -36,24 +36,25 @@ match (3, 2, 1) with
 ;;
 [%%expect{|
 (let
-  (*match*/96 = 3
-   *match*/97 = 2
-   *match*/98 = 1
-   *match*/99 = (makeblock 0 *match*/96 *match*/97 *match*/98))
+  (*match*/276 = 3
+   *match*/277 = 2
+   *match*/278 = 1
+   *match*/279 = (makeblock 0 *match*/276 *match*/277 *match*/278))
   (catch
     (catch
-      (let (*match*/100 =a (field 0 *match*/99))
+      (let (*match*/280 =a (field 0 *match*/279))
         (catch
-          (let (*match*/101 =a (field 1 *match*/99))
-            (if (!= *match*/101 3) (exit 7)
-              (let (*match*/102 =a (field 2 *match*/99)) (exit 5 *match*/99))))
+          (let (*match*/281 =a (field 1 *match*/279))
+            (if (!= *match*/281 3) (exit 7)
+              (let (*match*/282 =a (field 2 *match*/279))
+                (exit 5 *match*/279))))
          with (7)
-          (if (!= *match*/100 1) (exit 6)
+          (if (!= *match*/280 1) (exit 6)
             (let
-              (*match*/104 =a (field 2 *match*/99)
-               *match*/103 =a (field 1 *match*/99))
-              (exit 5 *match*/99)))))
+              (*match*/284 =a (field 2 *match*/279)
+               *match*/283 =a (field 1 *match*/279))
+              (exit 5 *match*/279)))))
      with (6) 0)
-   with (5 x/94[0: [int], [int], [int]]) (seq (ignore x/94) 1)))
+   with (5 x/274[0: [int], [int], [int]]) (seq (ignore x/274) 1)))
 - : bool = false
 |}];;
