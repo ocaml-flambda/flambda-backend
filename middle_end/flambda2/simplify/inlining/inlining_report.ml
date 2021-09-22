@@ -18,12 +18,11 @@
    method, c-calls, or function with no precise enough type to inline). *)
 
 type at_call_site =
-  | Unknown_function
-  | Non_inlinable_function of { code_id : Code_id.exported }
-  | Inlinable_function of
+  | Known_function of
       { code_id : Code_id.exported;
         decision : Call_site_inlining_decision.t
       }
+  | Unknown_function
 
 type fundecl_pass =
   | Before_simplify
@@ -112,16 +111,7 @@ let [@ocamlformat "disable"] rec print ~depth fmt = function
       "The function call has not been inlined"
       "because the optimizer had not enough information about the function";
     print ~depth fmt r
-  | { decision = At_call_site (Non_inlinable_function { code_id; });
-      dbg; } :: r ->
-    Format.fprintf fmt "%a @[<v>%s of %s{%a}@ @ %s@ %s@]@\n@\n"
-      stars depth
-      (if depth = 0 then "Toplevel application" else "Application")
-      Code_id.(name (import code_id)) print_debuginfo dbg
-      "The function call has not been inlined"
-      "because its definition was deemed not inlinable";
-    print ~depth fmt r
-  | { decision = At_call_site (Inlinable_function { code_id; decision; });
+  | { decision = At_call_site (Known_function { code_id; decision; });
       dbg; } :: r ->
     Format.fprintf fmt "%a @[<v>%s of %s{%a}@ @ %a@]@\n@\n"
       stars depth

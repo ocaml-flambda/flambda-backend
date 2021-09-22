@@ -37,9 +37,6 @@ val print : Format.formatter -> t -> unit
 
 val report : Format.formatter -> t -> unit
 
-type inlining_behaviour = private
-  | Cannot_be_inlined
-  | Must_be_inlined
-  | Could_possibly_be_inlined
+val must_be_inlined : t -> bool
 
-val behaviour : t -> inlining_behaviour
+val cannot_be_inlined : t -> bool

@@ -126,3 +126,13 @@ let report fmt t =
     | Could_possibly_be_inlined -> "could"
     | Must_be_inlined -> "must")
     report_decision t
+
+let must_be_inlined t =
+  match behaviour t with
+  | Must_be_inlined -> true
+  | Cannot_be_inlined | Could_possibly_be_inlined -> false
+
+let cannot_be_inlined t =
+  match behaviour t with
+  | Cannot_be_inlined -> true
+  | Must_be_inlined | Could_possibly_be_inlined -> false
