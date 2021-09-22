@@ -38,7 +38,7 @@ type fundecl_pass =
 type at_function_declaration =
   { pass : fundecl_pass;
     code_id : Code_id.exported;  (** code id of the function being declared *)
-    decision : Function_decl_inlining_decision.t
+    decision : Function_decl_inlining_decision_type.t
   }
 
 (** This defines the various kinds of decisions related to inlining that will be
