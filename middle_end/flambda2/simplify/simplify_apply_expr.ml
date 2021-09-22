@@ -144,9 +144,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_decl_opt
         Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
           ~function_decl ~return_arity:result_arity
       in
-      let code_id =
-        T.Function_declaration_type.Inlinable.code_id function_decl
-      in
+      let code_id = T.Function_declaration_type.T0.code_id function_decl in
       Inlining_report.record_decision
         (At_call_site
            (Inlinable_function { code_id = Code_id.export code_id; decision }))
@@ -379,7 +377,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
           ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
-          ~dbg ~is_tupled:false
+          ~dbg ~is_tupled:false ~inlining_decision:Stub
       in
       Static_const.Code code
     in
@@ -703,8 +701,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
        [closures_entry] structure in the type does indeed contain the closure in
        question. *)
     match func_decl_type with
-    | Ok (Inlinable inlinable) -> (
-      let module I = T.Function_declaration_type.Inlinable in
+    | Ok func_decl_type0 -> (
+      let module I = T.Function_declaration_type.T0 in
       let callee's_code_id_from_call_kind =
         match call with
         | Direct { code_id; closure_id; _ } ->
@@ -718,9 +716,13 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
           Some code_id
         | Indirect_unknown_arity | Indirect_known_arity _ -> None
       in
-      let callee's_code_id_from_type = I.code_id inlinable in
+      let callee's_code_id_from_type = I.code_id func_decl_type0 in
       match DE.find_code denv callee's_code_id_from_type with
-      | None -> type_unavailable ()
+      | None ->
+        (* This will happen e.g. if the code age relation used in [meet] and
+           [join] for function declaration types returns [Deleted] code for a
+           code ID in another unit. *)
+        type_unavailable ()
       | Some callee's_code ->
         let must_be_detupled =
           call_must_be_detupled (Code.is_tupled callee's_code)
@@ -730,27 +732,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
           ~callee's_closure_id ~arg_types
           ~result_arity:(Code.result_arity callee's_code)
           ~recursive:(Code.recursive callee's_code)
-          ~must_be_detupled (Some inlinable) ~down_to_up ~type_unavailable)
-    | Ok (Non_inlinable non_inlinable) -> (
-      let module N = T.Function_declaration_type.Non_inlinable in
-      let callee's_code_id_from_type = N.code_id non_inlinable in
-      let callee's_code_id_from_call_kind =
-        match call with
-        | Direct { code_id; _ } -> Some code_id
-        | Indirect_unknown_arity | Indirect_known_arity _ -> None
-      in
-      match DE.find_code denv callee's_code_id_from_type with
-      | None -> type_unavailable ()
-      | Some callee's_code_from_type ->
-        let must_be_detupled =
-          call_must_be_detupled (Code.is_tupled callee's_code_from_type)
-        in
-        simplify_direct_function_call ~simplify_expr dacc apply
-          ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-          ~callee's_closure_id ~arg_types
-          ~result_arity:(Code.result_arity callee's_code_from_type)
-          ~recursive:(Code.recursive callee's_code_from_type)
-          ~must_be_detupled None ~down_to_up ~type_unavailable)
+          ~must_be_detupled (Some func_decl_type0) ~down_to_up ~type_unavailable
+      )
     | Bottom ->
       let rebuild uacc ~after_rebuild =
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in

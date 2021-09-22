@@ -19,7 +19,7 @@
 open! Simplify_import
 module DA = Downwards_acc
 module DE = Downwards_env
-module I = Flambda_type.Function_declaration_type.Inlinable
+module I = Flambda_type.Function_declaration_type.T0
 module VB = Bound_var
 
 let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth

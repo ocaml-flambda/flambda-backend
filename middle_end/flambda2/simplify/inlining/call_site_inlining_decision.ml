@@ -33,6 +33,7 @@ module UE = Upwards_env
    non-fallback-inlining cases. *)
 
 type t =
+  | Missing_code
   | Environment_says_never_inline
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
@@ -54,6 +55,8 @@ type t =
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
+  | Missing_code ->
+    Format.fprintf ppf "Missing_code"
   | Environment_says_never_inline ->
     Format.fprintf ppf "Environment_says_never_inline"
   | Unrolling_depth_exceeded ->
@@ -101,7 +104,7 @@ type can_inline =
 
 let can_inline (t : t) : can_inline =
   match t with
-  | Environment_says_never_inline | Max_inlining_depth_exceeded
+  | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded | Speculatively_not_inline _
   | Never_inline_attribute ->
     (* If there's an inline attribute on this, something's gone wrong *)
@@ -116,6 +119,9 @@ let can_inline (t : t) : can_inline =
 
 let report_reason fmt t =
   match (t : t) with
+  | Missing_code ->
+    Format.fprintf fmt
+      "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
   | Environment_says_never_inline ->
     Format.fprintf fmt "the@ environment@ says@ never@ to@ inline"
   | Unrolling_depth_exceeded ->
@@ -159,7 +165,7 @@ let report fmt t =
 (* CR mshinwell: This parameter needs to be configurable *)
 let max_rec_depth = 1
 
-module I = Flambda_type.Function_declaration_type.Inlinable
+module I = Flambda_type.Function_declaration_type.T0
 
 let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
     =
@@ -230,25 +236,39 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
 let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
-  if I.must_be_inlined function_decl
-  then Definition_says_inline
-  else if env_prohibits_inlining
-  then Environment_says_never_inline
-  else
-    let cost_metrics =
-      speculative_inlining ~apply dacc ~simplify_expr ~return_arity
-        ~function_decl
+  match DE.find_code denv (I.code_id function_decl) with
+  | None -> Missing_code
+  | Some code ->
+    let must_be_inlined =
+      let behaviour =
+        Code.inlining_decision code
+        |> Function_decl_inlining_decision_type.behaviour
+      in
+      match behaviour with
+      | Must_be_inlined -> true
+      | Cannot_be_inlined | Could_possibly_be_inlined -> false
     in
-    let args =
-      Apply.inlining_arguments apply
-      |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
-    in
-    let evaluated_to = Cost_metrics.evaluate ~args cost_metrics in
-    let threshold = Inlining_arguments.threshold args in
-    let is_under_inline_threshold = Float.compare evaluated_to threshold <= 0 in
-    if is_under_inline_threshold
-    then Speculatively_inline { cost_metrics; evaluated_to; threshold }
-    else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
+    if must_be_inlined
+    then Definition_says_inline
+    else if env_prohibits_inlining
+    then Environment_says_never_inline
+    else
+      let cost_metrics =
+        speculative_inlining ~apply dacc ~simplify_expr ~return_arity
+          ~function_decl
+      in
+      let args =
+        Apply.inlining_arguments apply
+        |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
+      in
+      let evaluated_to = Cost_metrics.evaluate ~args cost_metrics in
+      let threshold = Inlining_arguments.threshold args in
+      let is_under_inline_threshold =
+        Float.compare evaluated_to threshold <= 0
+      in
+      if is_under_inline_threshold
+      then Speculatively_inline { cost_metrics; evaluated_to; threshold }
+      else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
 
 let make_decision dacc ~simplify_expr ~function_decl ~apply ~return_arity : t =
   let function_decl_rec_info = I.rec_info function_decl in

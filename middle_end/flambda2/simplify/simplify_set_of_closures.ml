@@ -35,19 +35,9 @@ let find_code denv code_id =
        a set of closures"
       Code_id.print code_id
 
-let function_decl_type ~pass denv old_code_id code ?new_code_id rec_info =
+let function_decl_type old_code_id ?new_code_id rec_info =
   let code_id = Option.value new_code_id ~default:old_code_id in
-  (* Slap the new code id (if any) on the old code, since we want to use the old
-     code's inlining arguments, metrics, etc. *)
-  let code = Code.with_code_id code_id code in
-  let func_decl_type, decision =
-    T.create_function_declaration ~code ~rec_info
-  in
-  Inlining_report.record_decision
-    (At_function_declaration
-       { code_id = Code_id.export code_id; pass; decision })
-    ~dbg:(DE.add_inlined_debuginfo' denv (Code.dbg code));
-  func_decl_type
+  T.create_function_declaration code_id ~rec_info
 
 module Context_for_multiple_sets_of_closures : sig
   (* This module deals with a sub-problem of the problem of simplifying multiple
@@ -172,8 +162,14 @@ end = struct
                      currently being defined has an unknown recursion depth *)
                   T.unknown K.rec_info
                 in
-                function_decl_type ~pass:Inlining_report.Before_simplify denv
-                  old_code_id code ~new_code_id rec_info)
+                Inlining_report.record_decision
+                  (At_function_declaration
+                     { code_id = Code_id.export old_code_id;
+                       pass = Before_simplify;
+                       decision = Code.inlining_decision code
+                     })
+                  ~dbg:(Code.dbg code);
+                function_decl_type old_code_id ~new_code_id rec_info)
               (Function_declarations.funs function_decls)
           in
           Closure_id.Map.mapi
@@ -564,6 +560,21 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
   let new_code_id =
     Code_id.Map.find old_code_id (C.old_to_new_code_ids_all_sets context)
   in
+  let inlining_decision =
+    let decision =
+      Function_decl_inlining_decision.make_decision ~inlining_arguments
+        ~inline:(Code.inline code) ~stub:(Code.stub code) ~cost_metrics
+        ~is_a_functor:(Code.is_a_functor code)
+    in
+    let dbg =
+      DE.add_inlined_debuginfo' (DA.denv dacc_after_body) (Code.dbg code)
+    in
+    Inlining_report.record_decision
+      (At_function_declaration
+         { code_id = Code_id.export code_id; pass = After_simplify; decision })
+      ~dbg;
+    decision
+  in
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
@@ -574,29 +585,15 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
       ~result_arity:(Code.result_arity code) ~stub:(Code.stub code)
       ~inline:(Code.inline code) ~is_a_functor:(Code.is_a_functor code)
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
-      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
+      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~inlining_decision
   in
   let function_type =
-    (* When not rebuilding terms we always give a non-inlinable function type,
-       since the body is not available for inlining, but we would still like to
-       generate direct calls to the function *)
-    match Rebuilt_static_const.to_const code with
-    | None -> T.create_non_inlinable_function_declaration ~code_id:new_code_id
-    | Some const -> begin
-      match Static_const.to_code const with
-      | Some code ->
-        let rec_info =
-          (* This is the intrinsic type of the function as seen outside its own
-             scope, so its [Rec_info] needs to say its depth is zero *)
-          T.this_rec_info Rec_info_expr.initial
-        in
-        function_decl_type ~pass:Inlining_report.After_simplify
-          (DA.denv dacc_after_body) new_code_id code rec_info
-      | None ->
-        Misc.fatal_errorf
-          "Expected [Code] from [Rebuilt_static_const.create_code] but got@ %a"
-          Static_const.print const
-    end
+    let rec_info =
+      (* This is the intrinsic type of the function as seen outside its own
+         scope, so its [Rec_info] needs to say its depth is zero *)
+      T.this_rec_info Rec_info_expr.initial
+    in
+    function_decl_type new_code_id rec_info
   in
   { new_code_id;
     code;

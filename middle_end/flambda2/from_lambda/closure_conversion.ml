@@ -864,7 +864,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
-      ~dbg ~is_tupled
+      ~dbg ~is_tupled ~inlining_decision:Not_yet_decided
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in

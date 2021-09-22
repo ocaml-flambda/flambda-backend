@@ -49,7 +49,8 @@ struct
       cost_metrics : Cost_metrics.t;
       inlining_arguments : Inlining_arguments.t;
       dbg : Debuginfo.t;
-      is_tupled : bool
+      is_tupled : bool;
+      inlining_decision : Function_decl_inlining_decision_type.t
     }
 
   let code_id { code_id; _ } = code_id
@@ -89,6 +90,8 @@ struct
 
   let is_tupled { is_tupled; _ } = is_tupled
 
+  let inlining_decision { inlining_decision; _ } = inlining_decision
+
   let check_params_and_body code_id (params_and_body : _ Or_deleted.t) =
     let free_names_of_params_and_body =
       match params_and_body with
@@ -114,7 +117,7 @@ struct
   let create code_id ~(params_and_body : _ Or_deleted.t) ~newer_version_of
       ~params_arity ~result_arity ~stub ~(inline : Inline_attribute.t)
       ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-      =
+      ~inlining_decision =
     begin
       match stub, inline with
       | true, (Hint_inline | Never_inline | Default_inline)
@@ -142,7 +145,8 @@ struct
       cost_metrics;
       inlining_arguments;
       dbg;
-      is_tupled
+      is_tupled;
+      inlining_decision
     }
 
   let with_code_id code_id t = { t with code_id }
@@ -174,7 +178,7 @@ struct
         { code_id = _; params_and_body; newer_version_of; stub; inline;
           is_a_functor; params_arity; result_arity; recursive;
           free_names_of_params_and_body = _; cost_metrics; inlining_arguments;
-          dbg; is_tupled; } =
+          dbg; is_tupled; inlining_decision; } =
     let module C = Flambda_colours in
     match params_and_body with
     | Present _ ->
@@ -189,7 +193,8 @@ struct
           @[<hov 1>(cost_metrics@ %a)@]@ \
           @[<hov 1>(inlining_arguments@ %a)@]@ \
           @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
-          @[<hov 1>@<0>%s(is_tupled @ %b)@<0>%s@]@ \
+          @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
+          @[<hov 1>(inlining_decision@ %a)@]@ \
           %a\
           )@]"
         (if Option.is_none newer_version_of then Flambda_colours.elide ()
@@ -240,6 +245,7 @@ struct
         else Flambda_colours.elide ())
         is_tupled
         (Flambda_colours.normal ())
+        Function_decl_inlining_decision_type.print inlining_decision
         print_params_and_body params_and_body
     | Deleted ->
       Format.fprintf ppf "@[<hov 1>(\
@@ -287,7 +293,8 @@ struct
          free_names_of_params_and_body;
          inlining_arguments = _;
          dbg = _;
-         is_tupled = _
+         is_tupled = _;
+         inlining_decision = _
        } as t) perm =
     (* inlined and modified version of Option.map to preserve sharing *)
     let newer_version_of' =
@@ -338,7 +345,8 @@ struct
         free_names_of_params_and_body = _;
         inlining_arguments = _;
         dbg = _;
-        is_tupled = _
+        is_tupled = _;
+        inlining_decision = _
       } =
     let newer_version_of_ids =
       match newer_version_of with
