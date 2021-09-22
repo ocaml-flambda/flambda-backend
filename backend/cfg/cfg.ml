@@ -180,7 +180,7 @@ let intop (op : Mach.integer_operation) =
   | Iadd -> " + "
   | Isub -> " - "
   | Imul -> " * "
-  | Imulh -> " *h "
+  | Imulh { signed : bool } -> " *h" ^ if signed then " " else "u "
   | Idiv -> " div "
   | Imod -> " mod "
   | Iand -> " & "

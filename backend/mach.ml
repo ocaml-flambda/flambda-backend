@@ -25,7 +25,7 @@ type integer_comparison =
   | Iunsigned of Cmm.integer_comparison
 
 type integer_operation =
-    Iadd | Isub | Imul | Imulh | Idiv | Imod
+    Iadd | Isub | Imul | Imulh  of { signed: bool }  | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Iclz of { arg_is_non_zero: bool; }
   | Ictz of { arg_is_non_zero: bool; }
@@ -258,7 +258,7 @@ let equal_integer_operation left right =
   | Iadd,  Iadd  -> true
   | Isub,  Isub  -> true
   | Imul,  Imul  -> true
-  | Imulh, Imulh -> true
+  | Imulh { signed = l }, Imulh  { signed = r } -> Bool.equal l r
   | Idiv,  Idiv  -> true
   | Imod,  Imod  -> true
   | Iand,  Iand  -> true
@@ -276,38 +276,38 @@ let equal_integer_operation left right =
   | Ipopcnt, Ipopcnt -> true
   | Icomp left, Icomp right -> equal_integer_comparison left right
   | Icheckbound, Icheckbound -> true
-  | Iadd, (Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+  | Iadd, (Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Isub, (Iadd | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+  | Isub, (Iadd | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Imul, (Iadd | Isub | Imulh | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+  | Imul, (Iadd | Isub | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Imulh, (Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+  | Imulh _, (Iadd | Isub | Imul | Idiv | Imod | Iand | Ior | Ixor | Ilsl
            | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Idiv, (Iadd | Isub | Imul | Imulh | Imod | Iand | Ior | Ixor | Ilsl
+  | Idiv, (Iadd | Isub | Imul | Imulh _ | Imod | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Imod, (Iadd | Isub | Imul | Imulh | Idiv | Iand | Ior | Ixor | Ilsl
+  | Imod, (Iadd | Isub | Imul | Imulh _ | Idiv | Iand | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Iand, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Ior | Ixor | Ilsl
+  | Iand, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Ior | Ixor | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ior, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ixor | Ilsl
+  | Ior, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ixor | Ilsl
          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ixor, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ilsl
+  | Ixor, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ilsl
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ilsl, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Ilsl, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ilsr, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Ilsr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Iasr, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Iasr, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Iclz _, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Iclz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
             | Ilsl | Ilsr | Iasr | Ictz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ictz _, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Ictz _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
             | Ilsl | Ilsr | Iasr | Iclz _ | Ipopcnt | Icomp _ | Icheckbound)
-  | Ipopcnt, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Ipopcnt, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
              | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Icomp _ | Icheckbound)
-  | Icomp _, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Icomp _, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
              | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icheckbound)
-  | Icheckbound, (Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior
+  | Icheckbound, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior
                  | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _) ->
     false

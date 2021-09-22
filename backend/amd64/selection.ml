@@ -102,10 +102,10 @@ let pseudoregs_for_operation op arg res =
      (rax, rbx, rcx or rdx). Keep it simple, just force the argument in rax. *)
   | Ispecific(Ibswap 16) ->
       ([| rax |], [| rax |])
-  (* For imulq, first arg must be in rax, rax is clobbered, and result is in
-     rdx. *)
   | Ispecific (Ibswap _) -> assert false
-  | Iintop(Imulh) ->
+  (* For imulh, first arg must be in rax, rax is clobbered, and result is in
+     rdx. *)
+  | Iintop(Imulh _) ->
       ([| rax; arg.(1) |], [| rdx |])
   | Ispecific(Ifloatarithmem(_,_)) ->
       let arg' = Array.copy arg in
@@ -144,7 +144,7 @@ let pseudoregs_for_operation op arg res =
     ([|res.(0); arg.(1)|], res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
-  | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
+  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)

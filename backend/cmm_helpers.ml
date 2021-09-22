@@ -472,7 +472,8 @@ let rec div_int c1 c2 is_safe dbg =
               res = t + sign-bit(c1)
         *)
         bind "dividend" c1 (fun c1 ->
-          let t = Cop(Cmulhi, [c1; natint_const_untagged dbg m], dbg) in
+          let t = Cop(Cmulhi { signed = true},
+                      [c1; natint_const_untagged dbg m], dbg) in
           let t = if m < 0n then Cop(Caddi, [t; c1], dbg) else t in
           let t =
             if p > 0 then Cop(Casr, [t; Cconst_int (p, dbg)], dbg) else t
@@ -2276,6 +2277,10 @@ let popcnt bi arg dbg =
   if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
     Cop(Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
 
+let mulhi bi ~signed args dbg =
+  let op = Cmulhi { signed } in
+  if_operation_supported_bi bi op ~f:(fun () -> Cop (op, args, dbg))
+
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* let pfield_computed = addr_array_ref *)
@@ -2766,6 +2771,10 @@ let transl_builtin name args dbg =
     ctz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
   | "caml_nativeint_ctz_nonzero_unboxed_to_untagged" ->
     ctz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
+  | "caml_signed_int64_mulh_unboxed" ->
+    mulhi ~signed:true Pint64 args dbg
+  | "caml_unsigned_int64_mulh_unboxed" ->
+    mulhi ~signed:false Pint64 args dbg
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some(int_as_pointer (one_arg name args) dbg)

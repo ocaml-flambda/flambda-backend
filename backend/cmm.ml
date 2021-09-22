@@ -181,7 +181,7 @@ and operation =
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
-  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }

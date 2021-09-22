@@ -80,7 +80,7 @@ let is_unary_op = function
   | Iclz _
   | Ictz _
   | Ipopcnt -> true
-  | Iadd | Isub | Imul | Imulh | Idiv | Imod
+  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
   | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
   | Icomp _
   | Icheckbound
@@ -90,7 +90,7 @@ let intop = function
   | Iadd -> " + "
   | Isub -> " - "
   | Imul -> " * "
-  | Imulh -> " *h "
+  | Imulh { signed } -> " *h "^(if signed then "" else "u")
   | Idiv -> " div "
   | Imod -> " mod "
   | Iand -> " & "
