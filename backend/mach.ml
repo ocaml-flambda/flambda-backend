@@ -258,7 +258,8 @@ let equal_integer_operation left right =
   | Iadd,  Iadd  -> true
   | Isub,  Isub  -> true
   | Imul,  Imul  -> true
-  | Imulh { signed = l }, Imulh  { signed = r } -> Bool.equal l r
+  | Imulh { signed = left }, Imulh  { signed = right } ->
+    Bool.equal left right
   | Idiv,  Idiv  -> true
   | Imod,  Imod  -> true
   | Iand,  Iand  -> true

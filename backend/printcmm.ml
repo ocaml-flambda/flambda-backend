@@ -164,7 +164,7 @@ let operation d = function
   | Caddi -> "+"
   | Csubi -> "-"
   | Cmuli -> "*"
-  | Cmulhi { signed } -> "*h"^(if signed then "s" else "")
+  | Cmulhi { signed } -> "*h"^(if signed then "" else "u")
   | Cdivi -> "/"
   | Cmodi -> "mod"
   | Cand -> "and"
