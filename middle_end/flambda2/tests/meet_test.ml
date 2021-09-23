@@ -1,5 +1,5 @@
 module K = Flambda_kind
-module T = Flambda_type
+module T = Flambda2_types
 module TE = T.Typing_env
 module TEE = T.Typing_env_extension
 
@@ -17,7 +17,7 @@ let test_meet_chains_two_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         ~fields:[T.any_tagged_immediate ()])
+         ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -50,7 +50,7 @@ let test_meet_chains_three_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         ~fields:[T.any_tagged_immediate ()])
+         ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in

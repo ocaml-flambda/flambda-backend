@@ -25,8 +25,8 @@ module BP = Bound_parameter
 module NM = Name_mode
 module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
 module List = ListLabels
 
 type t =
@@ -188,12 +188,12 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                   let aliases =
                     TE.aliases_of_simple env_at_use ~min_name_mode:NM.normal
                       bound_to
-                    |> Aliases.Alias_set.filter ~f:(fun simple ->
+                    |> TE.Alias_set.filter ~f:(fun simple ->
                            not (is_param simple))
                   in
                   (* CR lmaurer: Do we need to make sure there's only one alias?
                      If not, we can use [Aliases.Alias_set.find_best] here. *)
-                  Aliases.Alias_set.get_singleton aliases
+                  TE.Alias_set.get_singleton aliases
               in
               match bound_to with
               | None -> eligible

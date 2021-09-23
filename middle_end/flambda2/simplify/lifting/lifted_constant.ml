@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module DE = Downwards_env
-module T = Flambda_type
+module T = Flambda2_types
 
 module Definition = struct
   type descr =
@@ -25,13 +25,13 @@ module Definition = struct
     | Set_of_closures of
         { denv : Downwards_env.t;
           closure_symbols_with_types :
-            (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
+            (Symbol.t * Flambda2_types.t) Closure_id.Lmap.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
     | Block_like of
         { symbol : Symbol.t;
           denv : Downwards_env.t;
-          ty : Flambda_type.t;
+          ty : Flambda2_types.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
 

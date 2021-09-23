@@ -63,7 +63,7 @@ let simplify_make_block_of_values dacc _prim dbg tag ~shape
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-      | Mutable -> T.any_value ()
+      | Mutable -> T.any_value
     in
     let env_extension = TEE.one_equation (Name.var result_var) ty in
     Simplified_named.reachable term, env_extension, args, dacc
@@ -107,7 +107,7 @@ let simplify_make_block_of_floats dacc _prim dbg
         T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float ~fields
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float ~fields
-      | Mutable -> T.any_value ()
+      | Mutable -> T.any_value
     in
     let env_extension = TEE.one_equation (Name.var result_var) ty in
     Simplified_named.reachable term, env_extension, args, dacc

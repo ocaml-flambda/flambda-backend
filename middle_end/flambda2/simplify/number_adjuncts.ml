@@ -18,7 +18,7 @@
 
 open! Flambda.Import
 module K = Flambda_kind
-module T = Flambda_type
+module T = Flambda2_types
 module Float_by_bit_pattern = Numeric_types.Float_by_bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
@@ -69,11 +69,13 @@ module type Number_kind_common = sig
   val kind : K.Standard_int_or_float.t
 
   val unboxed_prover :
-    (Flambda_type.t -> Num.Set.t Flambda_type.proof) Flambda_type.type_accessor
+    Flambda2_types.Typing_env.t ->
+    Flambda2_types.t ->
+    Num.Set.t Flambda2_types.proof
 
-  val this_unboxed : Num.t -> Flambda_type.t
+  val this_unboxed : Num.t -> Flambda2_types.t
 
-  val these_unboxed : Num.Set.t -> Flambda_type.t
+  val these_unboxed : Num.Set.t -> Flambda2_types.t
 
   val term_unboxed : Num.t -> Flambda.Named.t
 end
@@ -118,13 +120,15 @@ module type Boxable = sig
   val boxable_number_kind : K.Boxable_number.t
 
   val boxed_prover :
-    (Flambda_type.t -> Num.Set.t Flambda_type.proof) Flambda_type.type_accessor
+    Flambda2_types.Typing_env.t ->
+    Flambda2_types.t ->
+    Num.Set.t Flambda2_types.proof
 
-  val this_boxed : Num.t -> Flambda_type.t
+  val this_boxed : Num.t -> Flambda2_types.t
 
-  val these_boxed : Num.Set.t -> Flambda_type.t
+  val these_boxed : Num.Set.t -> Flambda2_types.t
 
-  val box : Flambda_type.t -> Flambda_type.t
+  val box : Flambda2_types.t -> Flambda2_types.t
 
   type naked_number_kind
 end

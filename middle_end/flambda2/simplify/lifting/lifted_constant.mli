@@ -27,13 +27,13 @@ module Definition : sig
     | Set_of_closures of
         { denv : Downwards_env.t;
           closure_symbols_with_types :
-            (Symbol.t * Flambda_type.t) Closure_id.Lmap.t;
+            (Symbol.t * Flambda2_types.t) Closure_id.Lmap.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
     | Block_like of
         { symbol : Symbol.t;
           denv : Downwards_env.t;
-          ty : Flambda_type.t;
+          ty : Flambda2_types.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
 
@@ -49,7 +49,7 @@ module Definition : sig
 
   val set_of_closures :
     Downwards_env.t ->
-    closure_symbols_with_types:(Symbol.t * Flambda_type.t) Closure_id.Lmap.t ->
+    closure_symbols_with_types:(Symbol.t * Flambda2_types.t) Closure_id.Lmap.t ->
     symbol_projections:Symbol_projection.t Variable.Map.t ->
     Rebuilt_static_const.t ->
     t
@@ -57,7 +57,7 @@ module Definition : sig
   val block_like :
     Downwards_env.t ->
     Symbol.t ->
-    Flambda_type.t ->
+    Flambda2_types.t ->
     symbol_projections:Symbol_projection.t Variable.Map.t ->
     Rebuilt_static_const.t ->
     t
@@ -80,12 +80,12 @@ val create_block_like :
   symbol_projections:Symbol_projection.t Variable.Map.t ->
   Rebuilt_static_const.t ->
   Downwards_env.t ->
-  Flambda_type.t ->
+  Flambda2_types.t ->
   t
 
 val create_set_of_closures :
   Downwards_env.t ->
-  closure_symbols_with_types:(Symbol.t * Flambda_type.t) Closure_id.Lmap.t ->
+  closure_symbols_with_types:(Symbol.t * Flambda2_types.t) Closure_id.Lmap.t ->
   symbol_projections:Symbol_projection.t Variable.Map.t ->
   Rebuilt_static_const.t ->
   t
@@ -100,7 +100,7 @@ val bound_symbols : t -> Bound_symbols.t
 
 val defining_exprs : t -> Rebuilt_static_const.Group.t
 
-val types_of_symbols : t -> (Downwards_env.t * Flambda_type.t) Symbol.Map.t
+val types_of_symbols : t -> (Downwards_env.t * Flambda2_types.t) Symbol.Map.t
 
 val symbol_projections : t -> Symbol_projection.t Variable.Map.t
 

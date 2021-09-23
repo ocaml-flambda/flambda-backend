@@ -29,13 +29,13 @@ module type S = sig
     Continuation.t ->
     Continuation_use_kind.t ->
     env_at_use:Downwards_env.t ->
-    arg_types:Flambda_type.t list ->
+    arg_types:Flambda2_types.t list ->
     t * Apply_cont_rewrite_id.t
 
   val delete_continuation_uses : t -> Continuation.t -> t
 
   val get_typing_env_no_more_than_one_use :
-    t -> Continuation.t -> Flambda_type.Typing_env.t option
+    t -> Continuation.t -> Flambda2_types.Typing_env.t option
 
   val num_continuation_uses : t -> Continuation.t -> int
 

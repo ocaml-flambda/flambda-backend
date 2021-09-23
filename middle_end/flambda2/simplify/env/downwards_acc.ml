@@ -19,7 +19,7 @@
 module CUE = Continuation_uses_env
 module DE = Downwards_env
 module LCS = Lifted_constant_state
-module TE = Flambda_type.Typing_env
+module TE = Flambda2_types.Typing_env
 
 type t =
   { denv : DE.t;

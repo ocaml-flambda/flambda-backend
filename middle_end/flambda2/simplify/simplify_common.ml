@@ -22,7 +22,7 @@ module DE = Downwards_env
 module K = Flambda_kind
 module BP = Bound_parameter
 module P = Flambda_primitive
-module T = Flambda_type
+module T = Flambda2_types
 module TEE = T.Typing_env_extension
 module UA = Upwards_acc
 module UE = Upwards_env
@@ -88,7 +88,7 @@ let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in
   match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
-  | Bottom -> Simplified_named.invalid (), TEE.empty (), dacc
+  | Bottom -> Simplified_named.invalid (), TEE.empty, dacc
   | Ok env_extension ->
     Simplified_named.reachable original_term, env_extension, dacc
 

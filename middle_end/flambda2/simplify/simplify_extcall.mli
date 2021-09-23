@@ -24,8 +24,8 @@ type t =
 val simplify_extcall :
   Downwards_acc.t ->
   Flambda.Apply.t ->
-  callee_ty:Flambda_type.t ->
+  callee_ty:Flambda2_types.t ->
   param_arity:Flambda_arity.t ->
   return_arity:Flambda_arity.t ->
-  arg_types:Flambda_type.t list ->
+  arg_types:Flambda2_types.t list ->
   t

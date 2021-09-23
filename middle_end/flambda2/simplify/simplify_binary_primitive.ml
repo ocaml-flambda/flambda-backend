@@ -48,9 +48,9 @@ module type Binary_arith_like_sig = sig
 
   val term : Result.t -> Named.t
 
-  val prover_lhs : (T.t -> Lhs.Set.t T.proof) T.type_accessor
+  val prover_lhs : T.Typing_env.t -> T.t -> Lhs.Set.t T.proof
 
-  val prover_rhs : (T.t -> Rhs.Set.t T.proof) T.type_accessor
+  val prover_rhs : T.Typing_env.t -> T.t -> Rhs.Set.t T.proof
 
   type op
 
@@ -74,9 +74,9 @@ module Binary_arith_like (N : Binary_arith_like_sig) : sig
     original_term:Named.t ->
     Debuginfo.t ->
     arg1:Simple.t ->
-    arg1_ty:Flambda_type.t ->
+    arg1_ty:Flambda2_types.t ->
     arg2:Simple.t ->
-    arg2_ty:Flambda_type.t ->
+    arg2_ty:Flambda2_types.t ->
     result_var:Bound_var.t ->
     Simplified_named.t * TEE.t * DA.t
 end = struct
@@ -254,12 +254,12 @@ end = struct
 
   let unknown _ =
     match kind with
-    | Tagged_immediate -> T.any_tagged_immediate ()
-    | Naked_immediate -> T.any_naked_immediate ()
-    | Naked_float -> T.any_naked_float ()
-    | Naked_int32 -> T.any_naked_int32 ()
-    | Naked_int64 -> T.any_naked_int64 ()
-    | Naked_nativeint -> T.any_naked_nativeint ()
+    | Tagged_immediate -> T.any_tagged_immediate
+    | Naked_immediate -> T.any_naked_immediate
+    | Naked_float -> T.any_naked_float
+    | Naked_int32 -> T.any_naked_int32
+    | Naked_int64 -> T.any_naked_int64
+    | Naked_nativeint -> T.any_naked_nativeint
 
   let these = I.these_unboxed
 
@@ -406,12 +406,12 @@ end = struct
 
   let unknown _ =
     match kind with
-    | Tagged_immediate -> T.any_tagged_immediate ()
-    | Naked_immediate -> T.any_naked_immediate ()
-    | Naked_float -> T.any_naked_float ()
-    | Naked_int32 -> T.any_naked_int32 ()
-    | Naked_int64 -> T.any_naked_int64 ()
-    | Naked_nativeint -> T.any_naked_nativeint ()
+    | Tagged_immediate -> T.any_tagged_immediate
+    | Naked_immediate -> T.any_naked_immediate
+    | Naked_float -> T.any_naked_float
+    | Naked_int32 -> T.any_naked_int32
+    | Naked_int64 -> T.any_naked_int64
+    | Naked_nativeint -> T.any_naked_nativeint
 
   let these = I.these_unboxed
 
@@ -674,7 +674,7 @@ end = struct
 
   let prover_rhs = T.prove_naked_floats
 
-  let unknown _ = T.any_naked_float ()
+  let unknown _ = T.any_naked_float
 
   let these = T.these_naked_floats
 
@@ -859,7 +859,7 @@ end = struct
 
   let prover_rhs = I.unboxed_prover
 
-  let unknown _ = T.any_naked_immediate ()
+  let unknown _ = T.any_naked_immediate
 
   let these = T.these_naked_immediates
 

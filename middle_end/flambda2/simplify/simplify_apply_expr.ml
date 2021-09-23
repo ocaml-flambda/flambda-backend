@@ -121,14 +121,14 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_decl
+let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect =
   let inlined =
     (* CR mshinwell: Make sure no other warnings or inlining report decisions
        get emitted when not rebuilding terms. *)
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
-        ~function_decl ~return_arity:result_arity
+        ~function_type ~return_arity:result_arity
     in
     if not (DA.do_not_rebuild_terms dacc)
     then
@@ -157,7 +157,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_decl
       None
     | Inline { unroll_to } ->
       let dacc, inlined =
-        Inlining_transforms.inline dacc ~apply ~unroll_to function_decl
+        Inlining_transforms.inline dacc ~apply ~unroll_to function_type
       in
       Some (dacc, inlined)
   in
@@ -613,7 +613,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       let dacc, use_id =
         DA.record_continuation_use dacc cont
           (Non_inlinable { escaping = true })
-          ~env_at_use ~arg_types:[T.any_value ()]
+          ~env_at_use ~arg_types:[T.any_value]
       in
       Call_kind.indirect_function_call_unknown_arity (), use_id, dacc
     | Indirect_known_arity { param_arity; return_arity } ->
@@ -701,51 +701,43 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   (* CR mshinwell: Should this be using [meet_shape], like for primitives? *)
   let denv = DA.denv dacc in
   match T.prove_single_closures_entry (DE.typing_env denv) callee_ty with
-  | Proved (callee's_closure_id, _closures_entry, func_decl_type) -> begin
-    (* CR mshinwell: We should check that the [set_of_closures] in the
-       [closures_entry] structure in the type does indeed contain the closure in
-       question. *)
-    match func_decl_type with
-    | Ok func_decl_type0 -> (
-      let module I = T.Function_declaration_type.T0 in
-      let callee's_code_id_from_call_kind =
-        match call with
-        | Direct { code_id; closure_id; _ } ->
-          if not (Closure_id.equal closure_id callee's_closure_id)
-          then
-            Misc.fatal_errorf
-              "Closure ID %a in application doesn't match closure ID %a \
-               discovered via typing.@ Application:@ %a"
-              Closure_id.print closure_id Closure_id.print callee's_closure_id
-              Apply.print apply;
-          Some code_id
-        | Indirect_unknown_arity | Indirect_known_arity _ -> None
+  | Proved (callee's_closure_id, _closures_entry, func_decl_type) -> (
+    let module (* CR mshinwell: We should check that the [set_of_closures] in
+                  the [closures_entry] structure in the type does indeed contain
+                  the closure in question. *)
+        FT =
+      T.Function_type
+    in
+    let callee's_code_id_from_call_kind =
+      match call with
+      | Direct { code_id; closure_id; _ } ->
+        if not (Closure_id.equal closure_id callee's_closure_id)
+        then
+          Misc.fatal_errorf
+            "Closure ID %a in application doesn't match closure ID %a \
+             discovered via typing.@ Application:@ %a"
+            Closure_id.print closure_id Closure_id.print callee's_closure_id
+            Apply.print apply;
+        Some code_id
+      | Indirect_unknown_arity | Indirect_known_arity _ -> None
+    in
+    let callee's_code_id_from_type = FT.code_id func_decl_type in
+    match DE.find_code denv callee's_code_id_from_type with
+    | None ->
+      (* This will happen e.g. if the code age relation used in [meet] and
+         [join] for function declaration types returns [Deleted] code for a code
+         ID in another unit. *)
+      type_unavailable ()
+    | Some callee's_code ->
+      let must_be_detupled =
+        call_must_be_detupled (Code.is_tupled callee's_code)
       in
-      let callee's_code_id_from_type = I.code_id func_decl_type0 in
-      match DE.find_code denv callee's_code_id_from_type with
-      | None ->
-        (* This will happen e.g. if the code age relation used in [meet] and
-           [join] for function declaration types returns [Deleted] code for a
-           code ID in another unit. *)
-        type_unavailable ()
-      | Some callee's_code ->
-        let must_be_detupled =
-          call_must_be_detupled (Code.is_tupled callee's_code)
-        in
-        simplify_direct_function_call ~simplify_expr dacc apply
-          ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-          ~callee's_closure_id ~arg_types
-          ~result_arity:(Code.result_arity callee's_code)
-          ~recursive:(Code.recursive callee's_code)
-          ~must_be_detupled func_decl_type0 ~down_to_up ~type_unavailable)
-    | Bottom ->
-      let rebuild uacc ~after_rebuild =
-        let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
-        EB.rebuild_invalid uacc ~after_rebuild
-      in
-      down_to_up dacc ~rebuild
-    | Unknown -> type_unavailable ()
-  end
+      simplify_direct_function_call ~simplify_expr dacc apply
+        ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
+        ~callee's_closure_id ~arg_types
+        ~result_arity:(Code.result_arity callee's_code)
+        ~recursive:(Code.recursive callee's_code)
+        ~must_be_detupled func_decl_type ~down_to_up ~type_unavailable)
   | Unknown -> type_unavailable ()
   | Invalid ->
     let rebuild uacc ~after_rebuild =
@@ -817,7 +809,7 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   let dacc, use_id =
     DA.record_continuation_use dacc apply_cont
       (Non_inlinable { escaping = true })
-      ~env_at_use:denv ~arg_types:[T.any_value ()]
+      ~env_at_use:denv ~arg_types:[T.any_value]
   in
   let dacc, exn_cont_use_id =
     DA.record_continuation_use dacc

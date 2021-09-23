@@ -37,7 +37,7 @@ let find_code denv code_id =
 
 let function_decl_type old_code_id ?new_code_id rec_info =
   let code_id = Option.value new_code_id ~default:old_code_id in
-  T.create_function_declaration code_id ~rec_info
+  Or_unknown_or_bottom.Ok (T.Function_type.create code_id ~rec_info)
 
 module Context_for_multiple_sets_of_closures : sig
   (* This module deals with a sub-problem of the problem of simplifying multiple
@@ -104,11 +104,11 @@ end = struct
         let type_prior_to_sets =
           (* See comment below about [degraded_closure_vars]. *)
           if Var_within_closure.Set.mem clos_var degraded_closure_vars
-          then T.any_value ()
+          then T.any_value
           else type_prior_to_sets
         in
         let env_extension =
-          T.make_suitable_for_environment type_prior_to_sets env_prior_to_sets
+          T.make_suitable_for_environment env_prior_to_sets type_prior_to_sets
             ~suitable_for:env_inside_function ~bind_to:(Name.var var)
         in
         let env_inside_function =
@@ -420,7 +420,7 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants ~params
 type simplify_function_result =
   { new_code_id : Code_id.t;
     code : Rebuilt_static_const.t;
-    function_type : T.Function_declaration_type.t;
+    function_type : T.Function_type.t Or_unknown_or_bottom.t;
     dacc_after_body : DA.t;
     uacc_after_upwards_traversal : UA.t
   }
@@ -477,7 +477,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
               |> DE.map_typing_env ~f:(fun typing_env ->
                      let code_age_relation =
                        (* CR mshinwell: Tidy up propagation to avoid union *)
-                       Code_age_relation.union
+                       T.Code_age_relation.union
                          (TE.code_age_relation typing_env)
                          code_age_relation
                      in

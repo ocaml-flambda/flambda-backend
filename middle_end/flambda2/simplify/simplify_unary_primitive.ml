@@ -397,7 +397,7 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     let env_extension = TEE.one_equation result ty in
     Simplified_named.reachable original_term, env_extension, dacc
   | Unknown ->
-    let env_extension = TEE.one_equation result (T.any_naked_float ()) in
+    let env_extension = TEE.one_equation result T.any_naked_float in
     Simplified_named.reachable original_term, env_extension, dacc
   | Invalid ->
     let env_extension = TEE.one_equation result (T.bottom K.naked_float) in

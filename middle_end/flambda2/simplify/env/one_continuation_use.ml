@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module DE = Downwards_env
-module T = Flambda_type
+module T = Flambda2_types
 
 type t =
   { id : Apply_cont_rewrite_id.t;
@@ -32,7 +32,7 @@ let [@ocamlformat "disable"] print ppf { env = _; id = _; kind = _; arg_types; }
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(arg_types@ %a)@]@ \
       )@]"
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space Flambda_type.print)
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Flambda2_types.print)
     arg_types
 
 let id t = t.id

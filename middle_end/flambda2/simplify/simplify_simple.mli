@@ -20,11 +20,11 @@
 
 (** This function is guaranteed to return an alias type. *)
 val simplify_simple :
-  Downwards_acc.t -> Simple.t -> min_name_mode:Name_mode.t -> Flambda_type.t
+  Downwards_acc.t -> Simple.t -> min_name_mode:Name_mode.t -> Flambda2_types.t
 
 type simplify_simples_result = private
   { simples : Simple.t list;
-    simple_tys : Flambda_type.t list
+    simple_tys : Flambda2_types.t list
   }
 
 val simplify_simples :
