@@ -58,7 +58,7 @@ let [@ocamlformat "disable"] print ppf t =
   match t with
   | Missing_code ->
     Format.fprintf ppf "Missing_code"
-  | Definition_says_not_to_inline->
+  | Definition_says_not_to_inline ->
     Format.fprintf ppf "Definition_says_not_to_inline"
   | Environment_says_never_inline ->
     Format.fprintf ppf "Environment_says_never_inline"
@@ -113,11 +113,11 @@ let can_inline (t : t) : can_inline =
   | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded | Speculatively_not_inline _
   | Definition_says_not_to_inline ->
-    (* If there's an inline attribute on this, something's gone wrong *)
+    (* If there's an [@inlined] attribute on this, something's gone wrong *)
     Do_not_inline
       { warn_if_attribute_ignored = true; because_of_definition = true }
   | Never_inline_attribute ->
-    (* If there's an inline attribute on this, something's gone wrong *)
+    (* If there's an [@inlined] attribute on this, something's gone wrong *)
     Do_not_inline
       { warn_if_attribute_ignored = true; because_of_definition = true }
   | Unrolling_depth_exceeded ->
@@ -136,9 +136,9 @@ let report_reason fmt t =
       "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
   | Definition_says_not_to_inline ->
     Format.fprintf fmt
-      "this@ function@ was@ decided@ never@ to@ be@ inlinable@ at@ its@ \
-       definition@ site (annotated@ by@ [@inlined never]@ or@ determined@ to@ \
-       be@ too@ big)"
+      "this@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
+       never@ be@ inlinable@ (either@ annotated@ with@ [@inline never]@ or@ \
+       size@ in excess of@ the@ large@ function@ threshold)"
   | Environment_says_never_inline ->
     Format.fprintf fmt "the@ environment@ says@ never@ to@ inline"
   | Unrolling_depth_exceeded ->

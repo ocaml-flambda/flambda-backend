@@ -123,14 +123,8 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
 let simplify_direct_full_application ~simplify_expr dacc apply function_decl
     ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect =
   let inlined =
-    (* (* CR mshinwell: Make sure no other warnings or inlining report decisions
-       get emitted when not rebuilding terms. *) if not (DA.do_not_rebuild_terms
-       dacc) then begin Inlining_report.record_decision (At_call_site
-       (Non_inlinable_function { code_id = Code_id.export callee's_code_id }))
-       ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
-       warn_not_inlined_if_needed apply "[@inlined] attribute was not used on
-       this function application (the \ optimizer decided not to inline the
-       function given its definition)" end; None *)
+    (* CR mshinwell: Make sure no other warnings or inlining report decisions
+       get emitted when not rebuilding terms. *)
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
         ~function_decl ~return_arity:result_arity
