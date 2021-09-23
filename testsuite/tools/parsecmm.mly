@@ -378,7 +378,7 @@ binaryop:
   | GEF                         { Ccmpf CFge }
   | NGEF                        { Ccmpf CFnge }
   | CHECKBOUND                  { Ccheckbound }
-  | MULH SIGNED                 { (Cmulhi {signed = true}) }
+  | MULH                        { (Cmulhi {signed = true}) }
   | MULH UNSIGNED               { (Cmulhi {signed = false}) }
 ;
 sequence:
