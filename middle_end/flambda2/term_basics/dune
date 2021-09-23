@@ -16,6 +16,8 @@
    -open
    Flambda2_kinds
    -open
+   Flambda2_lattices
+   -open
    Flambda2_nominal
    -open
    Flambda2_numbers))
@@ -27,5 +29,6 @@
   flambda2_algorithms
   flambda2_identifiers
   flambda2_kinds
+  flambda2_lattices
   flambda2_nominal
   flambda2_numbers))
