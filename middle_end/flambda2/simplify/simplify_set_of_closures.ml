@@ -162,10 +162,13 @@ end = struct
                      currently being defined has an unknown recursion depth *)
                   T.unknown K.rec_info
                 in
+                let dbg_including_inlining_stack =
+                  DE.add_inlined_debuginfo' denv (Code.dbg code)
+                in
                 Inlining_report.record_decision
                   (At_function_declaration
                      { code_id = Code_id.export old_code_id;
-                       pass = Before_simplify;
+                       pass = Before_simplify { dbg_including_inlining_stack };
                        decision = Code.inlining_decision code
                      })
                   ~dbg:(Code.dbg code);

@@ -25,7 +25,7 @@ type at_call_site =
     simplifying the body, and one after (this is useful for e.g. recursive
     functions). *)
 type fundecl_pass =
-  | Before_simplify
+  | Before_simplify of { dbg_including_inlining_stack : Debuginfo.t }
   | After_simplify
 (**)
 

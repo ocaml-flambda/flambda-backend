@@ -25,7 +25,7 @@ type at_call_site =
   | Unknown_function
 
 type fundecl_pass =
-  | Before_simplify
+  | Before_simplify of { dbg_including_inlining_stack : Debuginfo.t }
   | After_simplify
 
 type at_function_declaration =
@@ -86,7 +86,7 @@ let [@ocamlformat "disable"] rec print ~depth fmt = function
 
   (* Entering a function declaration (possibly nested) *)
   | { dbg; decision = At_function_declaration {
-      pass = Before_simplify; code_id; decision; } } :: r ->
+      pass = Before_simplify _; code_id; decision; } } :: r ->
     Format.fprintf fmt "%a Definition of %s{%a}@\n"
       stars depth Code_id.(name (import code_id)) print_debuginfo dbg;
     Format.fprintf fmt "%a @[<v>Before simplification:@ @ %a@]@\n@\n"
