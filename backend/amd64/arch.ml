@@ -227,13 +227,8 @@ let print_specific_operation printreg op ppf arg =
       let print_wrapped inner ppf arg =
         fprintf ppf "float64[%a]" inner arg
       in
-      let f (type a b c)
-          (pp0 : Format.formatter -> a -> unit)
-          (p0 :a)
-          pp1
-          (p1 : b)
-          ps
-          (s : c)
+      let f (type a b c) (pp0 : Format.formatter -> a -> unit)
+          (p0 : a) pp1 (p1 : b) ps (s : c)
         =
         fprintf ppf "fma (%s%a*%a %s %a)"
           (if negate_product then "-" else "+")

@@ -258,31 +258,28 @@ method! select_store is_assign addr exp =
 
 method maybe_select_fma ~negate ~sub args dbg =
   let sub_adjust = if sub then 1 else 0 in
-  let unwrap_neg n ~f = function
-    | Cop(Cnegf, [ arg ], _) -> (n + 1), f arg
-    | arg -> (n + 0), f arg
-  in
-  let split_arg = function
-      [ a; b ] -> a, b
-    | _ -> assert false
+  let rec unwrap_neg n ~f = function
+    | Cop(Cnegf, [ arg ], _) -> unwrap_neg (n + 1) ~f arg
+    | arg -> (negate + n), f arg
   in
   let classify x =
     match x with
     | Cop(Cmulf
-         , [ Cop(Cload (Double,_), [loc], _)
-           ; p1
-           ]
-         , _)
-    | Cop(Cmulf
-         , [ p1
-           ; Cop(Cload (Double,_), [loc], _)
-           ]
+         , ([ Cop(Cload (Double,_), [loc], _)
+            ; p1
+            ]
+           |
+            [ p1
+            ; Cop(Cload (Double,_), [loc], _)
+            ])
          , _)
       -> `Mul_load (loc, p1), x
     | Cop(Cmulf, [p0; p1], _) -> `Mul (p0, p1), x
     | other -> `Other, x
   in
-  let a0, a1 = split_arg args in
+  let a0, a1 =
+    match args with | [a; b] -> a,b | _ -> assert false
+  in
   match
     unwrap_neg 0 ~f:classify a0
   , unwrap_neg sub_adjust ~f:classify a1
@@ -296,8 +293,8 @@ method maybe_select_fma ~negate ~sub args dbg =
     let result =
       Ispecific
         (Ifma
-           { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s) mod 2 = 1)
+           { negate_product = neg_p mod 2 = 1
+           ; negate_addend = neg_s mod 2 = 1
            ; addr =
                Ifma_mem
                  { mode
@@ -315,8 +312,8 @@ method maybe_select_fma ~negate ~sub args dbg =
     let result =
       Ispecific
         (Ifma
-           { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s) mod 2 = 1)
+           { negate_product = neg_p mod 2 = 1
+           ; negate_addend = neg_s mod 2 = 1
            ; addr =
                Ifma_mem
                  { mode
@@ -333,8 +330,8 @@ method maybe_select_fma ~negate ~sub args dbg =
     let result =
       Ispecific
         (Ifma
-           { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s) mod 2 = 1)
+           { negate_product = neg_p mod 2 = 1
+           ; negate_addend = neg_s mod 2 = 1
            ; addr = Ifma_register
            })
     , [s; p0; p1]
