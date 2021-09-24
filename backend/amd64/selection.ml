@@ -258,9 +258,9 @@ method! select_store is_assign addr exp =
 
 method maybe_select_fma ~negate ~sub args dbg =
   let sub_adjust = if sub then 1 else 0 in
-  let unwrap_neg ~f = function
-    | Cop(Cnegf, [ arg ], _) -> 1, f arg
-    | arg -> 0, f arg
+  let unwrap_neg n ~f = function
+    | Cop(Cnegf, [ arg ], _) -> (n + 1), f arg
+    | arg -> (n + 0), f arg
   in
   let split_arg = function
       [ a; b ] -> a, b
@@ -283,8 +283,9 @@ method maybe_select_fma ~negate ~sub args dbg =
     | other -> `Other, x
   in
   let a0, a1 = split_arg args in
-  match unwrap_neg ~f:classify a0
-      , unwrap_neg ~f:classify a1
+  match
+    unwrap_neg 0 ~f:classify a0
+  , unwrap_neg sub_adjust ~f:classify a1
   with
   | (neg_p, (`Mul_load (loc,p), _))
   , (neg_s, (_,s))
@@ -296,7 +297,7 @@ method maybe_select_fma ~negate ~sub args dbg =
       Ispecific
         (Ifma
            { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s) mod 2 = 1)
            ; addr =
                Ifma_mem
                  { mode
@@ -315,7 +316,7 @@ method maybe_select_fma ~negate ~sub args dbg =
       Ispecific
         (Ifma
            { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s) mod 2 = 1)
            ; addr =
                Ifma_mem
                  { mode
@@ -333,7 +334,7 @@ method maybe_select_fma ~negate ~sub args dbg =
       Ispecific
         (Ifma
            { negate_product = ((negate + neg_p) mod 2 = 1)
-           ; negate_addend = ((negate + neg_s + sub_adjust) mod 2 = 1)
+           ; negate_addend = ((negate + neg_s) mod 2 = 1)
            ; addr = Ifma_register
            })
     , [s; p0; p1]
