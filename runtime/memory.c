@@ -692,7 +692,7 @@ CAMLexport void caml_local_region_end(intnat reg)
 }
 
 //#define Local_init_wsz 64
-#define Local_init_wsz (64*1024*1024)
+#define Local_init_wsz (4096)
 void caml_local_realloc()
 {
   intnat new_bsize;
