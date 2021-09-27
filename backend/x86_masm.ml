@@ -181,6 +181,8 @@ let print_instr b = function
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2 b "lea" arg1 arg2
   | LEAVE -> i0 b "leave"
+  | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
+  | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2
   | MOV (Imm n as arg1, Reg64 r) when
       n >= 0x8000_0000L && n <= 0xFFFF_FFFFL ->
       (* Work-around a bug in ml64.  Use a mov to the corresponding

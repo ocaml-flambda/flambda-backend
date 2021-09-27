@@ -53,6 +53,8 @@ open Mach
      Ispecific(Irdtsc)          R
      Ispecific(Irdpmc)          R       R           (Arg1 = rcx)
      Ispecific(Ifloat_iround)   R       S
+     Ispecific(Ifloat_min)      R       R       S   (and Res = Arg1)
+     Ispecific(Ifloat_max)      R       R       S   (and Res = Arg1)
 
    Conditional branches:
      Iinttest                           S       R
@@ -116,6 +118,7 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
+  | Ispecific(Ifloat_min | Ifloat_max)
   | Ispecific Icrc32q ->
     (* First argument and result must be in the same register.
        Second argument can be either in a register or on stack. *)

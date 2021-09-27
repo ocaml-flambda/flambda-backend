@@ -147,7 +147,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ifloat_iround
+              |Ifloat_iround|Ifloat_min|Ifloat_max
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
@@ -168,6 +168,12 @@ let one_arg name args =
   | [arg] -> arg
   | _ ->
     Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
+
+let two_args name args =
+  match args with
+  | [arg1; arg2] -> arg1, arg2
+  | _ ->
+    Misc.fatal_errorf "Selection: expected exactly 2 arguments for %s" name
 
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
@@ -281,6 +287,14 @@ method! select_operation op args dbg =
           Ispecific Icrc32q, args
       | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
          Ispecific Ifloat_iround, args
+      | "caml_float_min_unboxed", [|Float|] ->
+         (* swap the order of arguments to match C stubs behavior on Nan *)
+         let arg0, arg1 = two_args "minsd" args in
+         Ispecific Ifloat_min, [ arg1; arg0 ]
+      | "caml_float_max_unboxed", [|Float|] ->
+         (* swap the order of arguments to match C stubs behavior on NaN *)
+         let arg0, arg1 = two_args "maxsd" args in
+         Ispecific Ifloat_max, [ arg1; arg0 ]
       | _ ->
         super#select_operation op args dbg
       end
