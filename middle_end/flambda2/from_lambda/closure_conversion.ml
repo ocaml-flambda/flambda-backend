@@ -749,7 +749,11 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> begin
           match Env.find_value_approximation body_env block with
           | Value_unknown -> body_env
-          | Closure_approximation _ -> assert false
+          | Closure_approximation _ ->
+            Misc.fatal_errorf
+              "Closure approximation found when block approximation was \
+               expected in [Closure_conversion]: %a"
+              Named.print defining_expr
           | Block_approximation approx ->
             let approx : Env.value_approximation =
               Simple.pattern_match field
