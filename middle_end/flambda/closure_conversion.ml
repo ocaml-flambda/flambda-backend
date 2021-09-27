@@ -41,10 +41,10 @@ let add_default_argument_wrappers lam =
   let f (lam : Lambda.lambda) : Lambda.lambda =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
-        Lfunction {kind; params; body = fbody; attr; loc}, body) ->
+        Lfunction {kind; params; body = fbody; attr; loc; mode}, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return:Pgenval ~attr ~loc
+          ~body:fbody ~return:Pgenval ~attr ~loc ~mode
       with
       | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -58,9 +58,9 @@ let add_default_argument_wrappers lam =
           List.flatten
             (List.map
                (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc}) ->
+                 | (id, Lambda.Lfunction {kind; params; body; attr; loc; mode}) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return:Pgenval ~attr ~loc
+                     ~return:Pgenval ~attr ~loc ~mode
                  | _ -> assert false)
                defs)
         in

@@ -94,6 +94,7 @@ and ufunction = {
   body   : ulambda;
   dbg    : Debuginfo.t;
   env    : Backend_var.t option;
+  mode   : Lambda.alloc_mode;
 }
 
 and ulambda_switch =

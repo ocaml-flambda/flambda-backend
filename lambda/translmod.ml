@@ -124,6 +124,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         is_a_functor = true;
                         stub = true; };
                loc = loc;
+               mode = Alloc_heap;
                body = apply_coercion
                    loc Strict cc_res
                    (Lapply{
@@ -495,6 +496,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       stub = false;
     };
     loc;
+    mode = Alloc_heap;
     body;
   }
 

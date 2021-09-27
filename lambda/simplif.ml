@@ -210,8 +210,8 @@ let simplify_exits lam =
   | Lapply ap ->
       Lapply{ap with ap_func = simplif ap.ap_func;
                      ap_args = List.map simplif ap.ap_args}
-  | Lfunction{kind; params; return; body = l; attr; loc} ->
-     Lfunction{kind; params; return; body = simplif l; attr; loc}
+  | Lfunction{kind; params; return; body = l; attr; loc; mode} ->
+     Lfunction{kind; params; return; body = simplif l; attr; loc; mode}
   | Llet(str, kind, v, l1, l2) -> Llet(str, kind, v, simplif l1, simplif l2)
   | Lletrec(bindings, body) ->
       Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
@@ -523,9 +523,9 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
-  | Lfunction{kind; params; return=return1; body = l; attr; loc} ->
+  | Lfunction{kind; params; return=return1; body = l; attr; loc; mode} ->
       begin match simplif l with
-        Lfunction{kind=Curried; params=params'; return=return2; body; attr; loc}
+        Lfunction{kind=Curried; params=params'; return=return2; body; attr; loc; mode}
         when kind = Curried && optimize &&
              List.length params + List.length params' <= Lambda.max_arity() ->
           (* The return type is the type of the value returned after
@@ -533,9 +533,9 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-          Lfunction{kind; params = params @ params'; return; body; attr; loc}
+          Lfunction{kind; params = params @ params'; return; body; attr; loc; mode}
       | body ->
-          Lfunction{kind; params; return = return1; body; attr; loc}
+          Lfunction{kind; params; return = return1; body; attr; loc; mode}
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -710,7 +710,7 @@ and list_emit_tail_infos is_tail =
    'Some' constructor, only to deconstruct it immediately in the
    function's body. *)
 
-let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
+let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc ~mode =
   let rec aux map = function
     | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
         Ident.name optparam = "*opt*" && List.mem_assoc optparam params
@@ -749,16 +749,16 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
         let inner_fun =
           Lfunction { kind = Curried;
             params = List.map (fun id -> id, Pgenval) new_ids;
-            return; body; attr; loc; }
+            return; body; attr; loc; mode }
         in
         (wrapper_body, (inner_id, inner_fun))
   in
   try
     let body, inner = aux [] body in
     let attr = default_stub_attribute in
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc}); inner]
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode}); inner]
   with Exit ->
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc})]
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode})]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

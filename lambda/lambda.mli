@@ -300,7 +300,8 @@ and lfunction =
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
-    loc : scoped_location; }
+    loc : scoped_location;
+    mode : alloc_mode }
 
 and lambda_apply =
   { ap_func : lambda;

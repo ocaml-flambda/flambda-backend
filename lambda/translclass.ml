@@ -35,12 +35,12 @@ let lfunction params body =
       Lfunction {kind = Curried; params = params @ params';
                  return = Pgenval;
                  body = body'; attr;
-                 loc}
+                 loc; mode = Alloc_heap}
   |  _ ->
       Lfunction {kind = Curried; params; return = Pgenval;
                  body;
                  attr = default_function_attribute;
-                 loc = Loc_unknown}
+                 loc = Loc_unknown; mode = Alloc_heap}
 
 let lapply ap =
   match ap.ap_func with
@@ -184,7 +184,8 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                     attr = default_function_attribute;
                     loc = of_location ~scopes pat.pat_loc;
                     body = Matching.for_function ~scopes pat.pat_loc
-                             None (Lvar param) [pat, rem] partial}
+                             None (Lvar param) [pat, rem] partial;
+                    mode = Alloc_heap }
        in
        begin match obj_init with
          Lfunction {kind = Curried; params; body = rem} -> build params rem
@@ -445,7 +446,8 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                    attr = default_function_attribute;
                    loc = of_location ~scopes pat.pat_loc;
                    body = Matching.for_function ~scopes pat.pat_loc
-                            None (Lvar param) [pat, rem] partial}
+                            None (Lvar param) [pat, rem] partial;
+                   mode = Alloc_heap}
       in
       (path, path_lam,
        match obj_init with
@@ -798,6 +800,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                    attr = default_function_attribute;
                                    loc = Loc_unknown;
                                    return = Pgenval;
+                                   mode = Alloc_heap;
                                    params = [cla, Pgenval]; body = cl_init}) in
     Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
@@ -820,6 +823,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                   attr = default_function_attribute;
                                   loc = Loc_unknown;
                                   return = Pgenval;
+                                  mode = Alloc_heap;
                                   params = [cla, Pgenval]; body = cl_init};
            lambda_unit; lenvs],
          Loc_unknown)
@@ -876,6 +880,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = Loc_unknown;
+                   mode = Alloc_heap;
                    body = def_ids cla cl_init}, lam)
   and lcache lam =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
@@ -900,6 +905,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            kind = Curried;
            attr = default_function_attribute;
            loc = Loc_unknown;
+           mode = Alloc_heap;
            return = Pgenval;
            params = [cla, Pgenval];
            body = def_ids cla cl_init;

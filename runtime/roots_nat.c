@@ -336,6 +336,7 @@ void caml_oldify_local_roots (void)
     value start = Val_hp(hp), end = Val_hp((header_t*)Caml_state->local_top);
     while (hp < (header_t*)Caml_state->local_top) {
       header_t hd = Hd_hp(hp);
+      if (caml_scan_roots_hook != NULL) abort(); /* FIXME systhreads support */
       CAMLassert(Tag_hd(hd) != Infix_tag);
       if (Tag_hd(hd) < No_scan_tag) {
         i = 0;
@@ -536,6 +537,7 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
     value start = Val_hp(hp), end = Val_hp((header_t*)Caml_state->local_top);
     while (hp < (header_t*)Caml_state->local_top) {
       header_t hd = Hd_hp(hp);
+      if (caml_scan_roots_hook != NULL) abort(); /* FIXME systhreads support */
       CAMLassert(Tag_hd(hd) != Infix_tag);
       if (Tag_hd(hd) < No_scan_tag) {
         i = 0;

@@ -29,10 +29,7 @@ val noleak : int -> int = <fun>
 let (!) : ('a ref[@stack]) -> 'a =
   fun r -> r.contents
 [%%expect{|
-Line 2, characters 11-12:
-2 |   fun r -> r.contents
-               ^
-Error: The value r is local, so cannot be used here as it might escape
+val ( ! ) : ('a ref [@stack]) -> 'a = <fun>
 |}]
 
 
@@ -152,10 +149,8 @@ let apply3_stack x =
   let[@stack] g = f4 x x x in
   g x
 [%%expect{|
-Line 3, characters 2-3:
-3 |   g x x
-      ^
-Error: The value g is local, so cannot be used here as it might escape
+val apply2_stack : int -> int = <fun>
+val apply3_stack : int -> int = <fun>
 |}]
 
 (*
@@ -281,10 +276,10 @@ let bug1 () =
   let[@stack] bar = foo ~b:"hello" in
   bar ~a:"world"
 [%%expect{|
-Line 4, characters 2-5:
+Line 4, characters 2-16:
 4 |   bar ~a:"world"
-      ^^^
-Error: The value bar is local, so cannot be used here as it might escape
+      ^^^^^^^^^^^^^^
+Error: This locally-allocated return value escapes
 |}]
 type ('a, 'b) b_sfn = b:('a[@stack]) -> 'b
 let bug2 () =
@@ -293,10 +288,17 @@ let bug2 () =
   bar ~a:"world"
 [%%expect{|
 type ('a, 'b) b_sfn = b:('a [@stack]) -> 'b
-Line 5, characters 2-5:
-5 |   bar ~a:"world"
-      ^^^
-Error: The value bar is local, so cannot be used here as it might escape
+val bug2 : unit -> c:int -> unit = <fun>
+|}]
+let bug3 () =
+  let foo : a:(string[@stack]) -> (string, c:int -> unit) b_sfn = fun ~a ~b -> fun ~c -> print_string a in
+  let[@stack] bar = foo ~b:"hello" in
+  bar ~a:"world"
+[%%expect{|
+Line 2, characters 102-103:
+2 |   let foo : a:(string[@stack]) -> (string, c:int -> unit) b_sfn = fun ~a ~b -> fun ~c -> print_string a in
+                                                                                                          ^
+Error: The value a is local, so cannot be used here as it might escape
 |}]
 
 
@@ -351,13 +353,14 @@ let heap_closure () =
       let[@stack] _baz = foo in
       () in
     fn2 () in
+  let _force_heap = ref fn in
   fn ()
 
 [%%expect{|
-Line 5, characters 25-28:
-5 |       let[@stack] _baz = foo in
-                             ^^^
-Error: The value foo is local, so cannot be used inside a closure that might escape
+Line 8, characters 24-26:
+8 |   let _force_heap = ref fn in
+                            ^^
+Error: The value fn is local, so cannot be used here as it might escape
 |}]
 
 let local_closure () =
@@ -370,10 +373,7 @@ let local_closure () =
   fn ()
 
 [%%expect{|
-Line 7, characters 4-7:
-7 |     fn2 () in
-        ^^^
-Error: The value fn2 is local, so cannot be used here as it might escape
+val local_closure : unit -> unit = <fun>
 |}]
 
 (*
@@ -432,21 +432,15 @@ let use_locally (f : ('a[@stack]) -> 'a) (x : 'a) = f x
 let use_locally' : (('a [@stack]) -> 'a [@stack]) -> 'a -> 'a = fun f x -> f x
 [%%expect{|
 val use_locally : (('a [@stack]) -> 'a) -> 'a -> 'a = <fun>
-Line 3, characters 75-76:
-3 | let use_locally' : (('a [@stack]) -> 'a [@stack]) -> 'a -> 'a = fun f x -> f x
-                                                                               ^
-Error: The value f is local, so cannot be used here as it might escape
+val use_locally' : (('a [@stack]) -> 'a [@stack]) -> ('a -> 'a [@stackret]) =
+  <fun>
 |}]
 
 let no_leak = use_locally (fun x -> 1) 42
 let no_leak' = use_locally' (fun x -> 1) 42
 [%%expect{|
 val no_leak : int = 1
-Line 2, characters 15-27:
-2 | let no_leak' = use_locally' (fun x -> 1) 42
-                   ^^^^^^^^^^^^
-Error: Unbound value use_locally'
-Hint: Did you mean use_locally?
+val no_leak' : int = 1
 |}]
 
 let leak_id =
@@ -483,11 +477,10 @@ let leak_ref_3 =
   let[@stack] r = ref None in
   use_locally' (fun x -> let[@stack] _ = r in r.contents <- Some x; x) 42
 [%%expect{|
-Line 3, characters 2-14:
+Line 3, characters 65-66:
 3 |   use_locally' (fun x -> let[@stack] _ = r in r.contents <- Some x; x) 42
-      ^^^^^^^^^^^^
-Error: Unbound value use_locally'
-Hint: Did you mean use_locally?
+                                                                     ^
+Error: The value x is local, so cannot be used here as it might escape
 |}]
 
 

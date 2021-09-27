@@ -740,7 +740,8 @@ let transl_primitive loc p env ty path =
                  return = Pgenval;
                  attr = default_stub_attribute;
                  loc;
-                 body; }
+                 body;
+                 mode = Alloc_heap (*FIXME*) }
 
 let lambda_primitive_needs_event_after = function
   | Prevapply | Pdirapply (* PR#6920 *)

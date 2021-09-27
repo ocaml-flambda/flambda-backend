@@ -1955,19 +1955,33 @@ let type_pattern category ~lev ~alloc_mode env spat expected_ty =
   (pat, !new_env, get_ref pattern_force, pvs, unpacks)
 
 let type_pattern_list
-    category no_existentials env spatl expected_tys allow
+    category rec_mode_var no_existentials env spatl expected_tys allow
   =
   reset_pattern allow;
   let new_env = ref env in
   let type_pat (attrs, pat) ty =
     let stack_annot = has_stack_annot attrs in
     let mode =
-      match stack_annot, no_existentials with
-      | true, At_toplevel ->
-         raise (Error(pat.ppat_loc, env, Local_value_escapes))
-      | true, _ -> alloc_local
-      | false, At_toplevel -> alloc_heap
-      | false, _ -> Alloc_mode.newvar () in
+      match no_existentials with
+      | At_toplevel ->
+         if stack_annot then
+           raise (Error(pat.ppat_loc, env, Local_value_escapes));
+         alloc_heap
+      | _ ->
+         match stack_annot, rec_mode_var with
+         | false, None ->
+            Alloc_mode.newvar ()
+         | false, Some v ->
+            (* All members of a 'let rec' share a mode variable *)
+            v
+         | true, None ->
+            alloc_local
+         | true, Some v ->
+            begin match Alloc_mode.submode alloc_local v with
+            | Ok () -> ()
+            | Error _ -> assert false end;
+            alloc_local
+    in
     Builtin_attributes.warning_scope ~ppwarning:false attrs
       (fun () ->
          mode,
@@ -1988,7 +2002,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   reset_pattern false;
   let nv = newvar () in
   let pat =
-    type_pat Value ~no_existentials:In_class_args ~alloc_mode:alloc_heap 
+    type_pat Value ~no_existentials:In_class_args ~alloc_mode:alloc_heap
       (ref val_env) spat nv in
   if has_variants pat then begin
     Parmatch.pressure_variants val_env [pat];
@@ -4949,8 +4963,13 @@ and type_let
         | _ -> spat)
       spat_sexp_list in
   let nvs = List.map (fun _ -> newvar ()) spatl in
+  let rec_mode_var =
+    match rec_flag with
+    | Recursive -> Some (Alloc_mode.newvar ())
+    | Nonrecursive -> None in
   let (pat_list, new_env, force, pvs, unpacks) =
-    type_pattern_list Value existential_context env spatl nvs allow in
+    type_pattern_list Value rec_mode_var existential_context
+      env spatl nvs allow in
   let attrs_list = List.map fst spatl in
   let is_recursive = (rec_flag = Recursive) in
   (* If recursive, first unify with an approximation of the expression *)

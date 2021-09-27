@@ -377,6 +377,16 @@ let rec transl env e =
       Cconst_symbol (sym, dbg)
   | Uclosure(fundecls, clos_vars) ->
       let startenv = fundecls_size fundecls in
+      let mode =
+        Option.get @@
+        List.fold_left (fun s { mode; dbg; _ } ->
+          match s with
+          | None -> Some mode
+          | Some m' ->
+             if (mode <> m') then
+               Misc.fatal_errorf "Inconsistent modes in let rec at %s"
+                 (Debuginfo.to_string dbg);
+             s) None fundecls in
       let rec transl_fundecls pos = function
           [] ->
             List.map (transl env) clos_vars
@@ -405,7 +415,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
+      make_alloc ~mode dbg Obj.closure_tag (transl_fundecls 0 fundecls)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in

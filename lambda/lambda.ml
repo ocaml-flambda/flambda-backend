@@ -316,7 +316,8 @@ and lfunction =
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
-    loc: scoped_location; }
+    loc: scoped_location;
+    mode: alloc_mode }
 
 and lambda_apply =
   { ap_func : lambda;
@@ -841,8 +842,8 @@ let shallow_map f = function
         ap_inlined;
         ap_specialised;
       }
-  | Lfunction { kind; params; return; body; attr; loc; } ->
-      Lfunction { kind; params; return; body = f body; attr; loc; }
+  | Lfunction { kind; params; return; body; attr; loc; mode } ->
+      Lfunction { kind; params; return; body = f body; attr; loc; mode }
   | Llet (str, k, v, e1, e2) ->
       Llet (str, k, v, f e1, f e2)
   | Lletrec (idel, e2) ->
