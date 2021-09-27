@@ -858,6 +858,8 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Ifloatsqrtf addr)) ->
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
+  | Lop(Ispecific Ifloat_iround) ->
+     I.cvtsd2si (arg i 0) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->

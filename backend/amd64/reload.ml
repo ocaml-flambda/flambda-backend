@@ -52,6 +52,7 @@ open Mach
      Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
      Ispecific(Irdtsc)          R
      Ispecific(Irdpmc)          R       R           (Arg1 = rcx)
+     Ispecific(Ifloat_iround)   R       S
 
    Conditional branches:
      Iinttest                           S       R
@@ -89,6 +90,7 @@ method! reload_operation op arg res =
       (* This add will be turned into a lea; args and results must be
          in registers *)
       super#reload_operation op arg res
+  | Ispecific Ifloat_iround
   | Iintop_imm (Icomp _, _) ->
       (* The argument(s) can be either in register or on stack.
          The result must be in a register. *)
@@ -135,7 +137,7 @@ method! reload_operation op arg res =
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-               | Iprefetch _
+               | Iprefetch _ 
                | Ibswap _| Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind|Icall_imm _
   | Icompf _

@@ -117,6 +117,7 @@ module I : sig
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
   val crc32 : arg -> arg -> unit
+  val cvtsd2si: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit

@@ -83,6 +83,8 @@ type specific_operation =
   | Ibswap of int                      (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
+  | Ifloat_iround                      (* Rounds a [float] to an [int64]
+                                          using the current rounding mode *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
   | Izextend32                         (* 32 to 64 bit conversion with zero
@@ -170,6 +172,7 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
   | Isqrtf ->
       fprintf ppf "sqrtf %a" printreg arg.(0)
+  | Ifloat_iround -> fprintf ppf "float_iround %a" printreg arg.(0)
   | Ifloatsqrtf addr ->
      fprintf ppf "sqrtf float64[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
