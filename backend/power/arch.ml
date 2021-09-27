@@ -117,8 +117,5 @@ let print_specific_operation printreg op ppf arg =
   | Ialloc_far { bytes; _ } ->
       fprintf ppf "alloc_far %d" bytes
 
-(* CR xclerc for xclerc: TODO *)
-let equal_addressing_mode _ _ : bool = assert false
-let equal_prefetch_temporal_locality_hint _ _ : bool = assert false
-let equal_float_operation _ _ : bool = assert false
-let equal_specific_operation _ _ : bool = assert false
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right
