@@ -170,12 +170,6 @@ let one_arg name args =
   | _ ->
     Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
 
-let two_args name args =
-  match args with
-  | [arg1; arg2] -> arg1, arg2
-  | _ ->
-    Misc.fatal_errorf "Selection: expected exactly 2 arguments for %s" name
-
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_ops =
