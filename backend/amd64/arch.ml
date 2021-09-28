@@ -73,6 +73,8 @@ type prefetch_info = {
   addr: addressing_mode;
 }
 
+type rounding_mode = Half_to_even | Down | Up | Towards_zero
+
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
   | Istore_int of nativeint * addressing_mode * bool
@@ -85,6 +87,8 @@ type specific_operation =
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ifloat_iround                      (* Rounds a [float] to an [int64]
                                           using the current rounding mode *)
+  | Ifloat_round of rounding_mode      (* Round [float] to an integer [float]
+                                          using the specified mode *)
   | Ifloat_min                         (* Return min of two floats *)
   | Ifloat_max                         (* Return max of two floats *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
@@ -144,6 +148,12 @@ let string_of_prefetch_temporal_locality_hint = function
   | Moderate -> "moderate"
   | High -> "high"
 
+let string_of_rounding_mode = function
+  | Half_to_even -> "half_to_even"
+  | Down -> "down"
+  | Up -> "up"
+  | Towards_zero -> "truncate"
+
 let print_addressing printreg addr ppf arg =
   match addr with
   | Ibased(s, 0) ->
@@ -175,6 +185,9 @@ let print_specific_operation printreg op ppf arg =
   | Isqrtf ->
       fprintf ppf "sqrtf %a" printreg arg.(0)
   | Ifloat_iround -> fprintf ppf "float_iround %a" printreg arg.(0)
+  | Ifloat_round mode ->
+     fprintf ppf "float_round %s %a" (string_of_rounding_mode mode)
+       printreg arg.(0)
   | Ifloat_min -> fprintf ppf "float_min %a %a" printreg arg.(0) printreg arg.(1)
   | Ifloat_max -> fprintf ppf "float_max %a %a" printreg arg.(0) printreg arg.(1)
   | Ifloatsqrtf addr ->

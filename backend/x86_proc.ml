@@ -235,6 +235,12 @@ let string_of_rounding = function
   | RoundTruncate -> "roundsd.trunc"
   | RoundNearest -> "roundsd.near"
 
+let imm_of_rounding = function
+  | RoundNearest -> Imm 8L
+  | RoundDown -> Imm 9L
+  | RoundUp -> Imm 10L
+  | RoundTruncate -> Imm 11L
+
 let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f
 

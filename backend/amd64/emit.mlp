@@ -378,6 +378,12 @@ let cond = function
   | Iunsigned Cle -> BE  | Iunsigned Cgt -> A
   | Iunsigned Clt -> B   | Iunsigned Cge -> AE
 
+let rounding_mode = function
+  | Half_to_even -> RoundNearest
+  | Down -> RoundDown
+  | Up -> RoundUp
+  | Towards_zero -> RoundTruncate
+
 (* Output an = 0 or <> 0 test. *)
 
 let output_test_zero arg =
@@ -862,6 +868,8 @@ let emit_instr fallthrough i =
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
   | Lop(Ispecific Ifloat_iround) ->
      I.cvtsd2si (arg i 0) (res i 0)
+  | Lop(Ispecific(Ifloat_round mode)) ->
+     I.roundsd (rounding_mode mode) (arg i 0) (res i 0)
   | Lop(Ispecific Ifloat_min) ->
      I.minsd (arg i 1) (res i 0)
   | Lop(Ispecific Ifloat_max) ->

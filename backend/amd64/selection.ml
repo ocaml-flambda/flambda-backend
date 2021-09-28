@@ -148,7 +148,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ifloat_iround
+              |Ifloat_iround|Ifloat_round _
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
@@ -287,6 +287,14 @@ method! select_operation op args dbg =
           Ispecific Icrc32q, args
       | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
          Ispecific Ifloat_iround, args
+      | "caml_float_round_half_to_even_unboxed", [|Float|] ->
+         Ispecific (Ifloat_round Half_to_even), args
+      | "caml_float_round_up_unboxed", [|Float|] ->
+         Ispecific (Ifloat_round Up), args
+      | "caml_float_round_down_unboxed", [|Float|] ->
+         Ispecific (Ifloat_round Down), args
+      | "caml_float_round_towards_zero_unboxed", [|Float|] ->
+         Ispecific (Ifloat_round Towards_zero), args
       | "caml_float_min_unboxed", [|Float|] ->
          Ispecific Ifloat_min, args
       | "caml_float_max_unboxed", [|Float|] ->

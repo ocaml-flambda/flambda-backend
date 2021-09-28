@@ -202,6 +202,7 @@ module I = struct
   let rdtsc () = emit (RDTSC)
   let rdpmc () = emit (RDPMC)
   let ret () = emit RET
+  let roundsd r x y = emit (ROUNDSD (r, x, y))
   let sal x y = emit (SAL (x, y))
   let sar x y = emit (SAR (x, y))
   let set cond x = emit (SET (cond, x))
