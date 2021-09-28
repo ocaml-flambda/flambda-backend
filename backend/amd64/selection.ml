@@ -139,6 +139,7 @@ let pseudoregs_for_operation op arg res =
      and the result is in edx (high) and eax (low).
      Make it simple and force the argument in rcx, and rax and rdx clobbered *)
     ([| rcx |], res)
+  | Ispecific (Ifloat_min | Ifloat_max)
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
     ([|res.(0); arg.(1)|], res)
@@ -147,7 +148,7 @@ let pseudoregs_for_operation op arg res =
   | Iintop_imm ((Imulh|Idiv|Imod|Icomp _|Icheckbound
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
-              |Ifloat_iround|Ifloat_min|Ifloat_max
+              |Ifloat_iround
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
