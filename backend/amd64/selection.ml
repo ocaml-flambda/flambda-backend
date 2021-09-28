@@ -271,6 +271,11 @@ method! select_operation op args dbg =
      | _ ->
          assert false
     end
+  | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
+               ty = [|Int|]; ty_args = [XFloat] }
+  | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
+               ty = [|Float|]; ty_args = [XInt64] } ->
+     Imove, args
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
