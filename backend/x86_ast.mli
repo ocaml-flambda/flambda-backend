@@ -171,6 +171,8 @@ type instruction =
   | JMP of arg
   | LEA of arg * arg
   | LEAVE
+  | MAXSD of arg * arg
+  | MINSD of arg * arg
   | MOV of arg * arg
   | MOVAPD of arg * arg
   | MOVD of arg * arg
