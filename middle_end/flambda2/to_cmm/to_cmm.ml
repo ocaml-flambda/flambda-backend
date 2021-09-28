@@ -1459,6 +1459,7 @@ and params_and_body env res fun_name p =
          ~my_closure
          ~is_my_closure_used
          ~my_depth:_
+         ~free_names_of_body:_
        ->
       try
         let args = function_args vars my_closure ~is_my_closure_used in

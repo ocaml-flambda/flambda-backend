@@ -26,8 +26,6 @@ module Make (Function_params_and_body : sig
 
   val apply_renaming : t -> Renaming.t -> t
 
-  val free_names_of_body : t -> Name_occurrences.t Or_unknown.t
-
   val print : Format.formatter -> t -> unit
 end) (Cost_metrics : sig
   type t
@@ -265,13 +263,6 @@ struct
           older Name_mode.normal
     in
     Name_occurrences.union from_newer_version_of t.free_names_of_params_and_body
-
-  let free_names_of_body t =
-    let params_and_body =
-      params_and_body_must_be_present
-        ~error_context:"Accessing free_names_of_body" t
-    in
-    Function_params_and_body.free_names_of_body params_and_body
 
   let apply_renaming
       ({ code_id;

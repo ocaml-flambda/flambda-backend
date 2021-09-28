@@ -214,6 +214,7 @@ let inline dacc ~apply ~unroll_to function_decl =
          ~my_closure
          ~is_my_closure_used:_
          ~my_depth
+         ~free_names_of_body:_
        ->
       let make_inlined_body =
         make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
