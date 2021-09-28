@@ -731,6 +731,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
                    ~my_closure
                    ~is_my_closure_used:_
                    ~my_depth
+                   ~free_names_of_body:_
                    :
                    Fexpr.params_and_body
                  ->

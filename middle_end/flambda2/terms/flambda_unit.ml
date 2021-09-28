@@ -206,6 +206,7 @@ module Iter = struct
                  ~my_closure:_
                  ~is_my_closure_used:_
                  ~my_depth:_
+                 ~free_names_of_body:_
                -> expr f_c f_s body))
       ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
         f_s ~closure_symbols:(Some closure_symbols) ~is_phantom:false
