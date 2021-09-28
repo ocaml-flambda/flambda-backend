@@ -289,13 +289,9 @@ method! select_operation op args dbg =
       | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
          Ispecific Ifloat_iround, args
       | "caml_float_min_unboxed", [|Float|] ->
-         (* swap the order of arguments to match C stubs behavior on Nan *)
-         let arg0, arg1 = two_args "minsd" args in
-         Ispecific Ifloat_min, [ arg1; arg0 ]
+         Ispecific Ifloat_min, args
       | "caml_float_max_unboxed", [|Float|] ->
-         (* swap the order of arguments to match C stubs behavior on NaN *)
-         let arg0, arg1 = two_args "maxsd" args in
-         Ispecific Ifloat_max, [ arg1; arg0 ]
+         Ispecific Ifloat_max, args
       | _ ->
         super#select_operation op args dbg
       end
