@@ -64,6 +64,10 @@ type directive_fun =
    | Directive_ident of (Longident.t -> unit)
    | Directive_bool of (bool -> unit)
 
+type directive_info = {
+  section: string;
+  doc: string;
+}
 
 let remembered = ref Ident.empty
 
@@ -256,7 +260,7 @@ let load_lambda ppf ~module_ident ~required_globals lam size =
   if Config.flambda2 then begin
     let backend = (module Flambda2_backend_impl : Flambda2.Flambda_backend_intf.S) in
     let middle_end = Flambda2.Flambda_middle_end.middle_end in
-    let flambda2_to_cmm = Flambda2_to_cmm.Un_cps.unit in
+    let flambda2_to_cmm = Flambda2_to_cmm.To_cmm.unit in
     Asmgen.compile_implementation_flambda2 () ~toplevel:need_symbol
       ~backend ~filename ~prefixname:filename
       ~middle_end ~ppf_dump:ppf
@@ -299,7 +303,7 @@ let load_lambda ppf ~module_ident ~required_globals lam size =
 let pr_item =
   Printtyp.print_items
     (fun env -> function
-      | Sig_value(id, {val_kind = Val_reg; val_type}, _) ->
+       | Sig_value(id, {val_kind = Val_reg; val_type; _}, _) ->
           Some (outval_of_value env (toplevel_value id) val_type)
       | _ -> None
     )
@@ -321,7 +325,14 @@ let print_exception_outcome ppf exn =
 (* The table of toplevel directives.
    Filled by functions from module topdirs. *)
 
-let directive_table = (Hashtbl.create 13 : (string, directive_fun) Hashtbl.t)
+let directive_table = (Hashtbl.create 23 : (string, directive_fun) Hashtbl.t)
+
+let directive_info_table =
+  (Hashtbl.create 23 : (string, directive_info) Hashtbl.t)
+
+let add_directive name dir_fun dir_info =
+  Hashtbl.add directive_table name dir_fun;
+  Hashtbl.add directive_info_table name dir_info
 
 (* Give a name to an unnamed expression *)
 
@@ -452,7 +463,7 @@ let execute_phrase print_outcome ppf phr =
       with x ->
         toplevel_env := oldenv; raise x
       end
-  | Ptop_dir {pdir_name = {Location.txt = dir_name}; pdir_arg } ->
+  | Ptop_dir {pdir_name = {Location.txt = dir_name; _}; pdir_arg; _ } ->
       let d =
         try Some (Hashtbl.find directive_table dir_name)
         with Not_found -> None
@@ -464,8 +475,8 @@ let execute_phrase print_outcome ppf phr =
       | Some d ->
           match d, pdir_arg with
           | Directive_none f, None -> f (); true
-          | Directive_string f, Some {pdira_desc = Pdir_string s} -> f s; true
-          | Directive_int f, Some {pdira_desc = Pdir_int (n,None)} ->
+          | Directive_string f, Some {pdira_desc = Pdir_string s; _} -> f s; true
+          | Directive_int f, Some {pdira_desc = Pdir_int (n,None); _} ->
              begin match Int_literal_converter.int n with
              | n -> f n; true
              | exception _ ->
@@ -474,12 +485,12 @@ let execute_phrase print_outcome ppf phr =
                        dir_name;
                false
              end
-          | Directive_int _, Some {pdira_desc = Pdir_int (_, Some _)} ->
+          | Directive_int _, Some {pdira_desc = Pdir_int (_, Some _); _} ->
               fprintf ppf "Wrong integer literal for directive `%s'.@."
                 dir_name;
               false
-          | Directive_ident f, Some {pdira_desc = Pdir_ident lid} -> f lid; true
-          | Directive_bool f, Some {pdira_desc = Pdir_bool b} -> f b; true
+          | Directive_ident f, Some {pdira_desc = Pdir_ident lid; _} -> f lid; true
+          | Directive_bool f, Some {pdira_desc = Pdir_bool b; _} -> f b; true
           | _ ->
               fprintf ppf "Wrong type of argument for directive `%s'.@."
                 dir_name;

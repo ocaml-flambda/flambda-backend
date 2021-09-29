@@ -21,11 +21,7 @@ type 'a t =
   | Ok of 'a
   | Bottom
 
-val print
-   : (Format.formatter -> 'a -> unit)
-  -> Format.formatter
-  -> 'a t
-  -> unit
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 

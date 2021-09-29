@@ -20,7 +20,7 @@ type 'a t =
   | Known of 'a
   | Unknown
 
-let print f ppf t =
+let [@ocamlformat "disable"] print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in
   match t with
   | Known contents -> Format.fprintf ppf "@[<hov 1>%a@]" f contents
@@ -42,21 +42,17 @@ let equal equal_contents t1 t2 =
   match t1, t2 with
   | Unknown, Unknown -> true
   | Known contents1, Known contents2 -> equal_contents contents1 contents2
-  | Unknown, Known _
-  | Known _, Unknown -> false
+  | Unknown, Known _ | Known _, Unknown -> false
 
 let map t ~f =
-  match t with
-  | Known contents -> Known (f contents)
-  | Unknown -> Unknown
+  match t with Known contents -> Known (f contents) | Unknown -> Unknown
 
 (* CR mshinwell: Add to [Or_bottom] too *)
 let map_sharing t ~f =
   match t with
   | Known contents ->
     let contents' = f contents in
-    if contents == contents' then t
-    else Known contents'
+    if contents == contents' then t else Known contents'
   | Unknown -> Unknown
 
 let free_names free_names_contents t =
@@ -80,7 +76,7 @@ module Lift (I : Container_types.S) = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf t = print I.print ppf t
+    let [@ocamlformat "disable"] print ppf t = print I.print ppf t
 
     let compare t1 t2 = compare I.compare t1 t2
 

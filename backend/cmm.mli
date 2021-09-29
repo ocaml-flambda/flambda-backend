@@ -204,6 +204,7 @@ and operation =
                    or equal to the bound. *)
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
+  | Copaque (* Sys.opaque_identity *)
 
 (** Every basic block should have a corresponding [Debuginfo.t] for its
     beginning. *)
@@ -290,3 +291,9 @@ val map_tail: (expression -> expression) -> expression -> expression
 
 val map_shallow: (expression -> expression) -> expression -> expression
   (** Apply the transformation to each immediate sub-expression. *)
+
+val equal_machtype_component : machtype_component -> machtype_component -> bool
+val equal_exttype : exttype -> exttype -> bool
+val equal_float_comparison : float_comparison -> float_comparison -> bool
+val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
+val equal_integer_comparison : integer_comparison -> integer_comparison -> bool

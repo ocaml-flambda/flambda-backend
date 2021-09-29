@@ -477,9 +477,11 @@ let emit_global_label s =
 
 let move (src : Reg.t) (dst : Reg.t) =
   if src.loc <> dst.loc then
-    begin match src.typ, src.loc, dst.loc with
-    | Float, Reg.Reg _, Reg.Reg _ -> I.movapd (reg src) (reg dst)
-    | Float, _, _ -> I.movsd (reg src) (reg dst)
+    begin match src.typ, src.loc, dst.typ, dst.loc with
+    | Float, Reg.Reg _, Float, Reg.Reg _ -> I.movapd (reg src) (reg dst)
+    | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
+    | Float, Reg.Reg _, Int, _
+    | Int, _, Float, Reg.Reg _ -> I.movq (reg src) (reg dst)
     | _ -> I.mov (reg src) (reg dst)
     end
 
@@ -831,6 +833,8 @@ let emit_instr fallthrough i =
       I.cvtsi2sd  (arg i 0)  (res i 0)
   | Lop(Iintoffloat) ->
       I.cvttsd2si (arg i 0) (res i 0)
+  | Lop(Iopaque) ->
+      assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific(Ilea addr)) ->
       I.lea (addressing addr NONE i 0) (res i 0)
   | Lop(Ispecific(Istore_int(n, addr, _))) ->
@@ -856,6 +860,12 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Ifloatsqrtf addr)) ->
       I.xorpd (res i 0) (res i 0); (* avoid partial register stall *)
       I.sqrtsd (addressing addr REAL8 i 0) (res i 0)
+  | Lop(Ispecific Ifloat_iround) ->
+     I.cvtsd2si (arg i 0) (res i 0)
+  | Lop(Ispecific Ifloat_min) ->
+     I.minsd (arg i 1) (res i 0)
+  | Lop(Ispecific Ifloat_max) ->
+     I.maxsd (arg i 1) (res i 0)
   | Lop(Ispecific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
   | Lop(Ispecific(Izextend32)) ->
@@ -1384,12 +1394,17 @@ let emit_probe_handler_wrapper p =
   emit_function_type_and_size wrap_label
 
 let emit_probe_notes0 () =
-  begin match system with
-  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
-  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
-    D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
-  | S_macosx -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]
-  end;
+  let is_macosx_system =
+    match system with
+    | S_macosx -> (* CR-someday gyorsh: emit dtrace format on mac *) true
+    | S_gnu | S_solaris | S_linux_elf | S_bsd_elf
+    | S_beos | S_linux  -> false
+    | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown ->
+      Misc.fatal_error "emit_probe_notes: unexpected system"
+  in
+  (match is_macosx_system with
+   | false -> D.section [".note.stapsdt"] (Some "?") [ "\"note\"" ]
+   | true -> D.section ["__DATA";"__note_stapsdt"] None ["regular"]);
   let stap_arg arg =
     let arg_name =
       match arg.loc with
@@ -1431,14 +1446,9 @@ let emit_probe_notes0 () =
     D.align 4;
     def_label c;
     D.qword (ConstLabel (emit_label p.probe_label));
-    begin match system with
-    | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
-    | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
-      D.qword (ConstLabel "_.stapsdt.base")
-    | S_macosx ->
-      (* CR-soon gyorsh: emit dtrace format on mac  *)
-      D.qword (const 0)
-    end;
+    (match is_macosx_system with
+     | false -> D.qword (ConstLabel "_.stapsdt.base")
+     | true -> D.qword (const 0));
     D.qword (ConstLabel semaphore_label);
     D.bytes "ocaml.1\000";
     D.bytes (probe_name ^ "\000");
@@ -1447,24 +1457,18 @@ let emit_probe_notes0 () =
     D.align 4;
   in
   List.iter describe_one_probe !probes;
-  begin match system with
-  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
-  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
-    D.section [".stapsdt.base"] (Some "aG")
-      ["\"progbits\""; ".stapsdt.base"; "comdat"];
-    D.weak "_.stapsdt.base";
-    D.hidden "_.stapsdt.base";
-    D.label "_.stapsdt.base";
-    D.space 1;
-    D.size "_.stapsdt.base" (const 1)
-  | S_macosx -> ()
-  end;
-  begin match system with
-  | S_gnu | S_cygwin | S_solaris | S_win32 | S_linux_elf | S_bsd_elf
-  | S_beos | S_mingw | S_win64 | S_linux | S_mingw64 | S_unknown ->
-    D.section [".probes"] (Some "wa") ["\"progbits\""];
-  | S_macosx -> D.section ["__TEXT";"__probes"] None ["regular"]
-  end;
+  (match is_macosx_system with
+   | false ->
+     D.section [".stapsdt.base"] (Some "aG")
+       ["\"progbits\""; ".stapsdt.base"; "comdat"];
+     D.weak "_.stapsdt.base";
+     D.hidden "_.stapsdt.base";
+     D.label "_.stapsdt.base";
+     D.space 1;
+     D.size "_.stapsdt.base" (const 1);
+     D.section [".probes"] (Some "wa") ["\"progbits\""]
+   | true ->
+     D.section ["__TEXT";"__probes"] None ["regular"]);
   D.align 2;
   String.Map.iter (fun _ label ->
       D.weak label;

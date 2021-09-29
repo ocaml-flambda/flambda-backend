@@ -20,7 +20,7 @@
 
 module type S = sig
   (** Compute the symbol for the given identifier. *)
-  val symbol_for_global' : (Ident.t -> Symbol.t)
+  val symbol_for_global' : Ident.t -> Symbol.t
 
   val all_predefined_exception_symbols : Symbol.Set.t
 
@@ -28,21 +28,20 @@ module type S = sig
 
   val invalid_argument : Symbol.t
 
-  (** The natural size of an integer on the target architecture
-      (cf. [Arch.size_int] in the native code backend). *)
+  (** The natural size of an integer on the target architecture (cf.
+      [Arch.size_int] in the native code backend). *)
   val size_int : int
 
   (** [true] iff the target architecture is big endian. *)
   val big_endian : bool
 
-  (** The maximum number of arguments that is reasonable for a function
-      to have.  This should be fewer than the threshold that causes non-self
-      tail call optimization to be inhibited (in particular, if it would
-      entail passing arguments on the stack; see [Selectgen]). *)
+  (** The maximum number of arguments that is reasonable for a function to have.
+      This should be fewer than the threshold that causes non-self tail call
+      optimization to be inhibited (in particular, if it would entail passing
+      arguments on the stack; see [Selectgen]). *)
   val max_sensible_number_of_arguments : int
 
   val set_global_info : Flambda_cmx_format.t -> unit
-  val get_global_info
-     : Flambda2_compilenv_deps.Compilation_unit.t
-    -> Flambda_cmx_format.t option
+
+  val get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option
 end

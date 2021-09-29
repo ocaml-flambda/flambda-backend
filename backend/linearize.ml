@@ -370,10 +370,14 @@ let add_prologue first_insn prologue_required =
   skip_naming_ops first_insn
 
 let fundecl f =
-  let fun_prologue_required = Proc.prologue_required f in
-  let contains_calls = f.Mach.fun_contains_calls in
+  let fun_contains_calls = f.Mach.fun_contains_calls in
+  let fun_num_stack_slots = f.Mach.fun_num_stack_slots in
+  let fun_prologue_required =
+    Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots in
+  let fun_frame_required =
+    Proc.frame_required ~fun_contains_calls ~fun_num_stack_slots in
   let fun_tailrec_entry_point_label, fun_body =
-    add_prologue (linear f.Mach.fun_body end_instr contains_calls)
+    add_prologue (linear f.Mach.fun_body end_instr fun_contains_calls)
       fun_prologue_required
   in
   { fun_name = f.Mach.fun_name;
@@ -381,8 +385,8 @@ let fundecl f =
     fun_fast = not (List.mem Cmm.Reduce_code_size f.Mach.fun_codegen_options);
     fun_dbg  = f.Mach.fun_dbg;
     fun_tailrec_entry_point_label = Some fun_tailrec_entry_point_label;
-    fun_contains_calls = contains_calls;
-    fun_num_stack_slots = f.Mach.fun_num_stack_slots;
-    fun_frame_required = Proc.frame_required f;
+    fun_contains_calls;
+    fun_num_stack_slots;
+    fun_frame_required;
     fun_prologue_required;
   }

@@ -263,3 +263,6 @@ let is_immediate n =
     s := !s + 2
   done;
   !s <= m
+
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right

@@ -22,6 +22,7 @@ let empty = Var_within_closure.Set.empty
 
 include Container_types.Make (struct
   include Var_within_closure.Set
+
   let hash = Hashtbl.hash
 end)
 

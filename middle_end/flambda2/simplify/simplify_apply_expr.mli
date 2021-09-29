@@ -18,6 +18,6 @@
 
 open! Flambda
 
-val simplify_apply
-   : simplify_expr:Expr.t Simplify_common.expr_simplifier
-  -> Apply.t Simplify_common.expr_simplifier
+val simplify_apply :
+  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
+  Apply.t Simplify_common.expr_simplifier

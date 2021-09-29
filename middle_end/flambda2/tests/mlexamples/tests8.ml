@@ -4,8 +4,9 @@ type +'a node =
 
 and 'a t = unit -> 'a node
 
-let rec map_foo f seq () = match seq() with
+let rec map_foo f seq () =
+  match seq () with
   | Nil -> Nil
   | Cons (x, next) ->
-    Cons (f x,
-      fun () -> (map_foo [@inlined never]) (fun x -> x) (fun () -> Nil) ())
+    Cons
+      (f x, fun () -> (map_foo [@inlined never]) (fun x -> x) (fun () -> Nil) ())

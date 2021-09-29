@@ -16,21 +16,20 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** Simplification of Flambda programs: inlining, specialisation,
-    unboxing and so forth.
+(** Simplification of Flambda programs: inlining, specialisation, unboxing and
+    so forth.
 
     Readers interested in the function inlining strategy should read the
-    [Inlining_decision] module first.
-*)
+    [Inlining_decision] module first. *)
 
-type simplify_result = private {
-  cmx : Flambda_cmx_format.t option;
-  unit : Flambda_unit.t;
-  all_code : Exported_code.t;
-}
+type simplify_result = private
+  { cmx : Flambda_cmx_format.t option;
+    unit : Flambda_unit.t;
+    all_code : Exported_code.t
+  }
 
-val run
-   : backend:(module Flambda_backend_intf.S)
-  -> round:int
-  -> Flambda_unit.t
-  -> simplify_result
+val run :
+  backend:(module Flambda_backend_intf.S) ->
+  round:int ->
+  Flambda_unit.t ->
+  simplify_result

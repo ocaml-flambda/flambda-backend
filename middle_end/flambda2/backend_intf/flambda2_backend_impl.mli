@@ -16,4 +16,4 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Flambda_backend_intf.S
+include Flambda2.Flambda_backend_intf.S

@@ -278,6 +278,9 @@ runtest-upstream:
 	# replace backend-specific testsuite/tools with their new versions
 	rm _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
+	# replace backend-specific testsuite/tests/asmgen with their new versions
+	rm _runtest/testsuite/tests/asmgen/*
+	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
 	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
 	(cd _runtest && ln -s ../ocaml/Makefile.build_config Makefile.build_config)
 	(cd _runtest && ln -s ../ocaml/Makefile.config_if_required Makefile.config_if_required)
@@ -300,8 +303,6 @@ runtest-upstream:
 	cp _build2/install/default/lib/ocaml/compiler-libs/*.a \
 	  _runtest/compilerlibs
 	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmxa \
-	  _runtest/compilerlibs
-	cp _build2/default/middle_end/flambda2/compilenv_deps/flambda2_compilenv_deps.cma \
 	  _runtest/compilerlibs
 	cp _build2/default/middle_end/flambda2/flambda2.cma \
 	  _runtest/compilerlibs
@@ -483,3 +484,32 @@ ci:
 	$(MAKE) runtest
 	$(MAKE) runtest-upstream
 
+.PHONY: fmt
+fmt:
+	ocamlformat -i \
+	  $$(find middle_end/flambda2 \
+	    \( -name "*.ml" -or -name "*.mli" \) \
+	    -and \! \( -name "flambda_parser.*" -or -name "flambda_lex.*" \))
+	ocamlformat -i \
+	  $$(find backend/cfg \
+	    \( -name "*.ml" -or -name "*.mli" \))
+
+.PHONY: check-fmt
+check-fmt:
+	if [ "$$(git status --porcelain middle_end/flambda2)" != "" ] || \
+           [ "$$(git status --porcelain backend/cfg)" != "" ]; then \
+	  echo; \
+	  echo "Tree must be clean before running 'make check-fmt'"; \
+	  exit 1; \
+	fi
+	$(MAKE) fmt
+	if [ "$$(git diff middle_end/flambda2)" != "" ] || \
+           [ "$$(git diff backend/cfg)" != "" ]; then \
+	  echo; \
+	  echo "The following code was not formatted correctly:"; \
+	  echo "(the + side of the diff is how it should be formatted)"; \
+	  echo "(working copy now contains correctly-formatted code)"; \
+	  echo; \
+	  git diff --no-ext-diff; \
+	  exit 1; \
+	fi

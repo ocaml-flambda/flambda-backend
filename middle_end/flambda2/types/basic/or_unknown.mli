@@ -20,11 +20,7 @@ type 'a t =
   | Known of 'a
   | Unknown
 
-val print
-   : (Format.formatter -> 'a -> unit)
-  -> Format.formatter
-  -> 'a t
-  -> unit
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
 val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
@@ -38,11 +34,7 @@ val free_names : ('a -> Name_occurrences.t) -> 'a t -> Name_occurrences.t
 
 val all_ids_for_export : ('a -> Ids_for_export.t) -> 'a t -> Ids_for_export.t
 
-val apply_renaming
-   : 'a t
-  -> Renaming.t
-  -> ('a -> Renaming.t -> 'a)
-  -> 'a t
+val apply_renaming : 'a t -> Renaming.t -> ('a -> Renaming.t -> 'a) -> 'a t
 
 module Lift (I : Container_types.S) : sig
   type nonrec t = I.t t

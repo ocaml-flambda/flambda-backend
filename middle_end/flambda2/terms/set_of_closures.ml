@@ -16,12 +16,12 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = {
-  function_decls : Function_declarations.t;
-  closure_elements : Simple.t Var_within_closure.Map.t;
-}
+type t =
+  { function_decls : Function_declarations.t;
+    closure_elements : Simple.t Var_within_closure.Map.t
+  }
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       { function_decls;
         closure_elements;
       } =
@@ -31,64 +31,58 @@ let print_with_cache ~cache ppf
       )@]"
     (Flambda_colours.prim_constructive ())
     (Flambda_colours.normal ())
-    (Function_declarations.print_with_cache ~cache) function_decls
+    (Function_declarations.print) function_decls
     (Var_within_closure.Map.print Simple.print) closure_elements
 
 include Container_types.Make (struct
   type nonrec t = t
 
-  let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+  let print = print
 
   let output _ _ = Misc.fatal_error "Not yet implemented"
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 
   let compare
-        { function_decls = function_decls1;
-          closure_elements = closure_elements1;
-        }
-        { function_decls = function_decls2;
-          closure_elements = closure_elements2;
-        } =
+      { function_decls = function_decls1; closure_elements = closure_elements1 }
+      { function_decls = function_decls2; closure_elements = closure_elements2 }
+      =
     let c = Function_declarations.compare function_decls1 function_decls2 in
-    if c <> 0 then c
+    if c <> 0
+    then c
     else
-      Var_within_closure.Map.compare Simple.compare
-        closure_elements1 closure_elements2
+      Var_within_closure.Map.compare Simple.compare closure_elements1
+        closure_elements2
 
-  let equal t1 t2 = (compare t1 t2 = 0)
+  let equal t1 t2 = compare t1 t2 = 0
 end)
-
-(* CR mshinwell: A sketch of code for the invariant check is on cps_types. *)
-let invariant _env _t = ()
 
 let empty =
   { function_decls = Function_declarations.empty;
-    closure_elements = Var_within_closure.Map.empty;
+    closure_elements = Var_within_closure.Map.empty
   }
 
-let is_empty { function_decls; closure_elements; } =
+let is_empty { function_decls; closure_elements } =
   Function_declarations.is_empty function_decls
-    && Var_within_closure.Map.is_empty closure_elements
+  && Var_within_closure.Map.is_empty closure_elements
 
 let create function_decls ~closure_elements =
-  (* CR mshinwell: Make sure invariant checks are applied here, e.g. that
-     the set of closures is indeed closed. *)
-  { function_decls;
-    closure_elements;
-  }
+  (* CR mshinwell: Make sure invariant checks are applied here, e.g. that the
+     set of closures is indeed closed. *)
+  { function_decls; closure_elements }
 
 let function_decls t = t.function_decls
+
 let closure_elements t = t.closure_elements
 
-let has_empty_environment t =
-  Var_within_closure.Map.is_empty t.closure_elements
+let has_empty_environment t = Var_within_closure.Map.is_empty t.closure_elements
 
 let environment_doesn't_mention_variables t =
-  Var_within_closure.Map.for_all (fun _vwc simple -> Simple.is_symbol simple)
+  Var_within_closure.Map.for_all
+    (fun _vwc simple -> Simple.is_symbol simple)
     t.closure_elements
 
-let print_with_cache ~cache ppf
+let [@ocamlformat "disable"] print ppf
       { function_decls;
         closure_elements;
       } =
@@ -98,7 +92,7 @@ let print_with_cache ~cache ppf
         )@]"
       (Flambda_colours.prim_constructive ())
       (Flambda_colours.normal ())
-      (Function_declarations.print_with_cache ~cache) function_decls
+      (Function_declarations.print) function_decls
   else
     Format.fprintf ppf "@[<hov 1>(%sset_of_closures%s@ \
         @[<hov 1>%a@]@ \
@@ -106,58 +100,39 @@ let print_with_cache ~cache ppf
         )@]"
       (Flambda_colours.prim_constructive ())
       (Flambda_colours.normal ())
-      (Function_declarations.print_with_cache ~cache) function_decls
+      (Function_declarations.print) function_decls
       (Var_within_closure.Map.print Simple.print) closure_elements
 
-let print ppf t = print_with_cache ~cache:(Printing_cache.create ()) ppf t
+let free_names { function_decls; closure_elements } =
+  Name_occurrences.union_list
+    [ Function_declarations.free_names function_decls;
+      Simple.List.free_names (Var_within_closure.Map.data closure_elements) ]
 
-let free_names
-      { function_decls;
-        closure_elements;
-      } =
-  Name_occurrences.union_list [
-    Function_declarations.free_names function_decls;
-    Simple.List.free_names (Var_within_closure.Map.data closure_elements);
-  ]
-
-let apply_renaming
-      ({ function_decls;
-         closure_elements;
-       } as t) renaming =
+let apply_renaming ({ function_decls; closure_elements } as t) renaming =
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
   in
   let closure_elements' =
-    Var_within_closure.Map.filter_map (fun var simple ->
+    Var_within_closure.Map.filter_map
+      (fun var simple ->
         if Renaming.closure_var_is_used renaming var
         then Some (Simple.apply_renaming simple renaming)
         else None)
       closure_elements
   in
-  if function_decls == function_decls'
-    && closure_elements == closure_elements'
+  if function_decls == function_decls' && closure_elements == closure_elements'
   then t
   else
-    { function_decls = function_decls';
-      closure_elements = closure_elements';
-    }
+    { function_decls = function_decls'; closure_elements = closure_elements' }
 
-let all_ids_for_export
-      { function_decls;
-        closure_elements;
-      } =
+let all_ids_for_export { function_decls; closure_elements } =
   let function_decls_ids =
     Function_declarations.all_ids_for_export function_decls
   in
-  Var_within_closure.Map.fold (fun _closure_var simple ids ->
-      Ids_for_export.add_simple ids simple)
-    closure_elements
-    function_decls_ids
+  Var_within_closure.Map.fold
+    (fun _closure_var simple ids -> Ids_for_export.add_simple ids simple)
+    closure_elements function_decls_ids
 
 let filter_function_declarations t ~f =
-  let function_decls =
-    Function_declarations.filter t.function_decls ~f
-  in
-  { t with
-    function_decls;
-  }
+  let function_decls = Function_declarations.filter t.function_decls ~f in
+  { t with function_decls }

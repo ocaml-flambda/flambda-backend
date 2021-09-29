@@ -278,13 +278,13 @@ let op_is_pure = function
 
 (* Layout of the stack *)
 
-let frame_required fd =
-  fd.fun_contains_calls
-  || fd.fun_num_stack_slots.(0) > 0
-  || fd.fun_num_stack_slots.(1) > 0
+let frame_required ~fun_contains_calls ~fun_num_stack_slots =
+  fun_contains_calls
+  || fun_num_stack_slots.(0) > 0
+  || fun_num_stack_slots.(1) > 0
 
-let prologue_required fd =
-  frame_required fd
+let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
+  frame_required ~fun_contains_calls ~fun_num_stack_slots
 
 (* See
    https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md *)
@@ -334,5 +334,5 @@ let operation_supported = function
   | Cfloatofint | Cintoffloat | Ccmpf _
   | Craise _
   | Ccheckbound
-  | Cprobe _ | Cprobe_is_enabled _
+  | Cprobe _ | Cprobe_is_enabled _ | Copaque
     -> true

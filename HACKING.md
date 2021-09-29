@@ -1,7 +1,22 @@
 # Hacking on the Flambda backend
 
 This page is intended to keep track of useful information for people who
-want to modify the Flambda backend.
+want to modify the Flambda backend.  Jump to:
+
+  - [Branches, pull requests, etc.](#branches-pull-requests-etc)
+  - [Upstream subtree](#upstream-subtree)
+  - [Code formatting](#code-formatting)
+  - [Rebuilding during dev work](#rebuilding-during-dev-work)
+  - [Running tests](#running-tests)
+  - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
+  - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+  - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
+  - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
+  - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
+  - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
+  - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
+  - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
+  - [Installation tree comparison script](#installation-tree-comparison-script)
 
 ## Branches, pull requests, etc.
 
@@ -30,7 +45,45 @@ be suitable for upstream submission.
 
 We are planning to move to a model where the patched upstream compiler is maintained
 in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
-We may then use a git submodule to import it into the Flambda backend repo.
+
+## Code formatting
+
+The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and
+Cfg code (in `backend/cfg/`) is
+formatted correctly as per the provided `.ocamlformat` file.  To prepare
+your environment for the correct version of `ocamlformat` you can follow
+the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
+be used for the Flambda backend build itself.)  All of the code can be
+formatted using `make fmt` and the check can be run using `make check-fmt`.
+
+Changes to `.ocamlformat` should be made as pull requests that include
+reformatting files as needed.
+
+In the event that one needs to rebase a patch over formatting changes, here is a reasonably seamless way to proceed:
+
+Assuming a specific formatting commit:
+```shell
+# main formatting commit for flambda2/ in the repository
+format_commit=331c16734636a218261d4835fb77b38c5788f50a
+```
+
+Rebase as usual until its parent:
+```shell
+git rebase $format_commit~1
+```
+
+Then rebase once more on the commit itself:
+```shell
+git rebase $format_commit -Xtheirs --exec 'make fmt && git commit -a --amend --no-edit'
+```
+Each commit will be amended with formatting. Any conflict appearing can be resolved automatically by choosing our side (hence, `theirs` on a rebase, surprisingly enough). This is correct assuming the commit contains no semantic changes.
+
+Finally, finish the rebase as usual up to the desired point:
+```shell
+git rebase upstream/main
+```
+
+Depending on the initial changes, it might be necessary to do this multiple times for each relevant formatting commit.
 
 ## Rebuilding during dev work
 
@@ -100,12 +153,21 @@ PATH=<FLAMBDA_BACKEND>/_build1/install/default/bin:$PATH <DUNE> build --profile=
 ```
 where `<FLAMBDA_BACKEND>` is the path to your clone and `<DUNE>` is the path to the dune provided to `configure`.
 
-## Testing the compiler built locally with opam
+## Bootstrapping the ocaml subtree
 
-It is possible to create an `opam` switch with the Flambda backend compiler.
+This can be done following the usual upstream procedures,
+working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfx`),
+go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
+`make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
+be advisable to clean the whole tree again.
+
+## Testing the compiler built locally with OPAM
+
+It is possible to create a OPAM switch with the Flambda backend compiler.
 
 First, you'll need to install the `opam-custom-install` plugin. See
 [here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
+(This can be done in any OPAM switch, e.g. a standard 4.12.0 switch.)
 
 Then you'll need to create an empty switch. The recommended way is to use a
 local switch in the Flambda backend directory:
@@ -113,6 +175,11 @@ local switch in the Flambda backend directory:
 ```shell
 opam switch create . --empty
 ```
+
+(A global switch can also be used, in which case the `--prefix` argument
+to `configure` given below needs to point at the switch directory under the OPAM root.
+It is also necessary to `opam switch` to the new switch and then update the current
+environment with `opam env` after the above `opam switch create` command.)
 
 The Flambda backend must also be configured with this switch as prefix
 (this can be done before actually creating the switch, the directory only
@@ -122,6 +189,9 @@ needs to exist during the installation step):
 ./configure --prefix=/path/to/cwd/_opam ...
 ```
 
+Note that if the Flambda backend tree is already configured, it should be cleaned
+thoroughly (e.g. `git clean -dfx`) before reconfiguring with a different prefix.
+
 Then build the compiler normally (`make`).
 Once that is done, we're ready to install the compiler:
 
@@ -130,7 +200,9 @@ opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
 ```
 
 The exact version doesn't matter that much, but the version number should
-match the one in the Flambda backend tree.
+match the one in the Flambda backend tree.  (The name of the package given
+here is independent of the name of the switch.)
+
 To finish the installation, `opam install ocaml` will install the remaining
 auxiliary packages necessary for a regular switch. After that, normal opam
 packages can be installed the usual way.
@@ -174,7 +246,7 @@ can still be provided for portability.
 Follow the steps below to first update the
 [ocaml_intrinsics](https://github.com/janestreet/ocaml_intrinsics)
 library, and then the compiler.
-  
+
 - Choose existing .ml file or add a new one.
 - Add `external` declaration of the function with two C stubs:
   for bytecode and native implementations.

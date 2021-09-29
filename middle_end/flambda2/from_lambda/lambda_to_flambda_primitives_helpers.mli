@@ -24,17 +24,23 @@ type expr_primitive =
   | Simple of Simple.t
   | Nullary of Flambda_primitive.nullary_primitive
   | Unary of Flambda_primitive.unary_primitive * simple_or_prim
-  | Binary of Flambda_primitive.binary_primitive
-      * simple_or_prim * simple_or_prim
-  | Ternary of Flambda_primitive.ternary_primitive
-      * simple_or_prim * simple_or_prim * simple_or_prim
-  | Variadic of Flambda_primitive.variadic_primitive * (simple_or_prim list)
-  | Checked of { validity_conditions : expr_primitive list;
-                 (** The [validity_conditions] return untagged immediates
-                     representing boolean values. *)
-                 primitive : expr_primitive;
-                 failure : failure; (* Predefined exception *)
-                 dbg : Debuginfo.t }
+  | Binary of
+      Flambda_primitive.binary_primitive * simple_or_prim * simple_or_prim
+  | Ternary of
+      Flambda_primitive.ternary_primitive
+      * simple_or_prim
+      * simple_or_prim
+      * simple_or_prim
+  | Variadic of Flambda_primitive.variadic_primitive * simple_or_prim list
+  | Checked of
+      { validity_conditions : expr_primitive list;
+            (** The [validity_conditions] return untagged immediates
+                representing boolean values. *)
+        primitive : expr_primitive;
+        failure : failure;
+        (* Predefined exception *)
+        dbg : Debuginfo.t
+      }
 
 and simple_or_prim =
   | Simple of Simple.t
@@ -44,24 +50,19 @@ val caml_ml_array_bound_error : Symbol.t
 
 val print_expr_primitive : Format.formatter -> expr_primitive -> unit
 
-val print_simple_or_prim
-   : Format.formatter
-  -> simple_or_prim
-  -> unit
+val print_simple_or_prim : Format.formatter -> simple_or_prim -> unit
 
-val print_list_of_simple_or_prim
-   : Format.formatter
-  -> simple_or_prim list
-  -> unit
+val print_list_of_simple_or_prim :
+  Format.formatter -> simple_or_prim list -> unit
 
 open Closure_conversion_aux
 
-val bind_rec
-   : Acc.t
-  -> backend:(module Flambda_backend_intf.S)
-  -> Exn_continuation.t option
-  -> register_const_string:(Acc.t -> string -> Acc.t * Symbol.t)
-  -> expr_primitive
-  -> Debuginfo.t
-  -> (Acc.t -> Flambda.Named.t -> Acc.t * Expr_with_acc.t)
-  -> Acc.t * Expr_with_acc.t
+val bind_rec :
+  Acc.t ->
+  backend:(module Flambda_backend_intf.S) ->
+  Exn_continuation.t option ->
+  register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
+  expr_primitive ->
+  Debuginfo.t ->
+  (Acc.t -> Flambda.Named.t -> Acc.t * Expr_with_acc.t) ->
+  Acc.t * Expr_with_acc.t

@@ -15,18 +15,23 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t
+
 type binding_time = t
 
 include Container_types.S with type t := t
 
 val consts_and_discriminants : t (* CR mshinwell: rename *)
+
 val symbols : t
+
 val imported_variables : t
 
 val earliest_var : t
+
 val succ : t -> t
 
 val strictly_earlier : t -> than:t -> bool
+
 val equal : t -> t -> bool
 
 module With_name_mode : sig

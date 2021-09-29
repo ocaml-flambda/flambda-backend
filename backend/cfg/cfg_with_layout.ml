@@ -46,14 +46,13 @@ let new_labels t = t.new_labels
 let set_layout t layout =
   let cur_layout = Label.Set.of_list t.layout in
   let new_layout = Label.Set.of_list layout in
-  if
-    not
-      ( Label.Set.equal cur_layout new_layout
-      && Label.equal (List.hd layout) t.cfg.entry_label )
+  if not
+       (Label.Set.equal cur_layout new_layout
+       && Label.equal (List.hd layout) t.cfg.entry_label)
   then
     Misc.fatal_error
-      "Cfg set_layout: new layout is not a permutation of the current \
-       layout, or first label is not entry";
+      "Cfg set_layout: new layout is not a permutation of the current layout, \
+       or first label is not entry";
   t.layout <- layout
 
 let remove_block t label =
@@ -67,26 +66,29 @@ let is_trap_handler t label =
 
 (* Printing utilities for debug *)
 
-let print t oc msg =
-  Printf.fprintf oc "cfg for %s\n" msg;
-  Printf.fprintf oc "%s\n" t.cfg.fun_name;
-  Printf.fprintf oc "layout.length=%d\n" (List.length t.layout);
-  Printf.fprintf oc "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
+let dump ppf t ~msg =
+  let open Format in
+  fprintf ppf "\ncfg for %s\n" msg;
+  fprintf ppf "%s\n" t.cfg.fun_name;
+  fprintf ppf "layout.length=%d\n" (List.length t.layout);
+  fprintf ppf "blocks.length=%d\n" (Label.Tbl.length t.cfg.blocks);
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
-    Printf.fprintf oc "\n%d:\n" label;
-    List.iter (Cfg.print_basic oc) block.body;
-    Cfg.print_terminator oc block.terminator;
-    Printf.fprintf oc "\npredecessors:";
-    Label.Set.iter (Printf.fprintf oc " %d") block.predecessors;
-    Printf.fprintf oc "\nsuccessors:";
-    Label.Set.iter (Printf.fprintf oc " %d")
+    fprintf ppf "\n%d:\n" label;
+    List.iter (Cfg.dump_basic ppf) block.body;
+    Cfg.dump_terminator ppf block.terminator;
+    fprintf ppf "\npredecessors:";
+    Label.Set.iter (fprintf ppf " %d") block.predecessors;
+    fprintf ppf "\nsuccessors:";
+    Label.Set.iter (fprintf ppf " %d")
       (Cfg.successor_labels ~normal:true ~exn:false block);
-    Printf.fprintf oc "\nexn-successors:";
-    Label.Set.iter (Printf.fprintf oc " %d")
+    fprintf ppf "\nexn-successors:";
+    Label.Set.iter (fprintf ppf " %d")
       (Cfg.successor_labels ~normal:false ~exn:true block)
   in
   List.iter print_block t.layout
+
+let print t oc msg = Printf.fprintf oc "%s" (Format.asprintf "%a" (dump ~msg) t)
 
 let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
     ?annotate_succ oc =
@@ -108,10 +110,11 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
       label show_index (List.length block.body)
       (if block.is_trap_handler then ":eh" else "")
       (annotate_block label);
-    if show_instr then (
-      (* CR-someday gyorsh: Printing instruction using Printlinear doesn't
-         work because of special characters like { } that need to be escaped.
-         Should use sexp to print or implement a special printer. *)
+    if show_instr
+    then (
+      (* CR-someday gyorsh: Printing instruction using Printlinear doesn't work
+         because of special characters like { } that need to be escaped. Should
+         use sexp to print or implement a special printer. *)
       Printf.fprintf oc "\npreds:";
       Label.Set.iter (Printf.fprintf oc " %d") block.predecessors;
       Printf.fprintf oc "\\l";
@@ -121,22 +124,23 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
           Printf.fprintf oc "\\l")
         block.body;
       Cfg.print_terminator oc ~sep:"\\l" block.terminator;
-      Printf.fprintf oc "\\l" );
+      Printf.fprintf oc "\\l");
     Printf.fprintf oc "\"]\n";
     Label.Set.iter
       (fun l ->
         Printf.fprintf oc "%s->%s[%s]\n" (name label) (name l)
           (annotate_succ label l))
       (Cfg.successor_labels ~normal:true ~exn:false block);
-    if show_exn then (
+    if show_exn
+    then (
       Label.Set.iter
         (fun l ->
-          Printf.fprintf oc "%s->%s [style=dashed %s]\n" (name label)
-            (name l) (annotate_succ label l))
+          Printf.fprintf oc "%s->%s [style=dashed %s]\n" (name label) (name l)
+            (annotate_succ label l))
         (Cfg.successor_labels ~normal:false ~exn:true block);
-      if Cfg.can_raise_interproc block then
-        Printf.fprintf oc "%s->%s [style=dashed]\n" (name label)
-          "placeholder" )
+      if Cfg.can_raise_interproc block
+      then
+        Printf.fprintf oc "%s->%s [style=dashed]\n" (name label) "placeholder")
   in
   (* print all the blocks, even if they don't appear in the layout *)
   List.iteri
@@ -144,7 +148,8 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
       let block = Label.Tbl.find t.cfg.blocks label in
       print_block_dot label block (Some index))
     t.layout;
-  if List.length t.layout < Label.Tbl.length t.cfg.blocks then
+  if List.length t.layout < Label.Tbl.length t.cfg.blocks
+  then
     Label.Tbl.iter
       (fun label block ->
         match List.find_opt (fun lbl -> Label.equal label lbl) t.layout with
@@ -156,14 +161,13 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
 let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
   let filename =
     Printf.sprintf "%s%s%s.dot"
-      (* some of all the special characters that confuse assemblers also
-         confuse dot. get rid of them.*)
+      (* some of all the special characters that confuse assemblers also confuse
+         dot. get rid of them.*)
       (X86_proc.string_of_symbol "" t.cfg.fun_name)
       (if msg = "" then "" else ".")
       msg
   in
-  if !Cfg.verbose then
-    Printf.printf "Writing cfg for %s to %s\n" msg filename;
+  if !Cfg.verbose then Printf.printf "Writing cfg for %s to %s\n" msg filename;
   let oc = open_out filename in
   Misc.try_finally
     (fun () ->

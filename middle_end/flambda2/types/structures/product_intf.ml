@@ -18,8 +18,11 @@ module type S_base = sig
   type t
 
   type flambda_type
+
   type typing_env
+
   type meet_env
+
   type typing_env_extension
 
   module Index : Container_types.S
@@ -30,21 +33,20 @@ module type S_base = sig
 
   val components : t -> flambda_type list
 
-  val map_types
-     : t
-    -> f:(flambda_type -> flambda_type Or_bottom.t)
-    -> t Or_bottom.t
+  val map_types :
+    t -> f:(flambda_type -> flambda_type Or_bottom.t) -> t Or_bottom.t
 
   val project : t -> Index.t -> flambda_type Or_unknown.t
 
   val fields_kind : t -> Flambda_kind.t
 
-  include Type_structure_intf.S
-    with type t := t
-    with type flambda_type := flambda_type
-    with type typing_env := typing_env
-    with type meet_env := meet_env
-    with type typing_env_extension := typing_env_extension
+  include
+    Type_structure_intf.S
+      with type t := t
+      with type flambda_type := flambda_type
+      with type typing_env := typing_env
+      with type meet_env := meet_env
+      with type typing_env_extension := typing_env_extension
 end
 
 module type S = sig

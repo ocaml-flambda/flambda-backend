@@ -20,10 +20,8 @@ module TEE = Typing_env_extension
 
 type t = Targetint_32_64.Set.t
 
-let print ppf t =
+let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[(Naked_nativeints@ (%a))@]" Targetint_32_64.Set.print t
-
-let print_with_cache ~cache:_ ppf t = print ppf t
 
 let apply_renaming t _renaming = t
 
@@ -32,15 +30,12 @@ let free_names _t = Name_occurrences.empty
 let all_ids_for_export _t = Ids_for_export.empty
 
 let apply_coercion t coercion : _ Or_bottom.t =
-  if Coercion.is_id coercion then Ok t
-  else Bottom
+  if Coercion.is_id coercion then Ok t else Bottom
 
 let eviscerate _ : _ Or_unknown.t = Unknown
 
 let meet _env t1 t2 : _ Or_bottom.t =
   let t = Targetint_32_64.Set.inter t1 t2 in
-  if Targetint_32_64.Set.is_empty t then Bottom
-  else Ok (t, TEE.empty ())
+  if Targetint_32_64.Set.is_empty t then Bottom else Ok (t, TEE.empty ())
 
-let join _env t1 t2 : _ Or_unknown.t =
-  Known (Targetint_32_64.Set.union t1 t2)
+let join _env t1 t2 : _ Or_unknown.t = Known (Targetint_32_64.Set.union t1 t2)

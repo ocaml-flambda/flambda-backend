@@ -287,18 +287,18 @@ let max_register_pressure = function
 let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _)
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
   | Ispecific(Ishiftcheckbound _) -> false
   | _ -> true
 
 (* Layout of the stack *)
-let frame_required fd =
-  fd.fun_contains_calls
-    || fd.fun_num_stack_slots.(0) > 0
-    || fd.fun_num_stack_slots.(1) > 0
+let frame_required ~fun_contains_calls ~fun_num_stack_slots =
+  fun_contains_calls
+    || fun_num_stack_slots.(0) > 0
+    || fun_num_stack_slots.(1) > 0
 
-let prologue_required fd =
-  frame_required fd
+let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
+  frame_required ~fun_contains_calls ~fun_num_stack_slots
 
 (* Calling the assembler *)
 
@@ -322,5 +322,5 @@ let operation_supported = function
   | Cfloatofint | Cintoffloat | Ccmpf _
   | Craise _
   | Ccheckbound
-  | Cprobe _ | Cprobe_is_enabled _
+  | Cprobe _ | Cprobe_is_enabled _ | Copaque
     -> true

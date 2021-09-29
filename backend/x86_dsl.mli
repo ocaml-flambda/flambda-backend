@@ -117,6 +117,7 @@ module I : sig
   val comisd: arg -> arg -> unit
   val cqo: unit -> unit
   val crc32 : arg -> arg -> unit
+  val cvtsd2si: arg -> arg -> unit
   val cvtsd2ss: arg -> arg -> unit
   val cvtsi2sd: arg -> arg -> unit
   val cvtss2sd: arg -> arg -> unit
@@ -172,9 +173,12 @@ module I : sig
   val jne: arg -> unit
   val jp: arg -> unit
   val lea: arg -> arg -> unit
+  val maxsd: arg -> arg -> unit
+  val minsd: arg -> arg -> unit
   val mov: arg -> arg -> unit
   val movapd: arg -> arg -> unit
   val movd: arg -> arg -> unit
+  val movq: arg -> arg -> unit
   val movsd: arg -> arg -> unit
   val movss: arg -> arg -> unit
   val movsx: arg -> arg -> unit

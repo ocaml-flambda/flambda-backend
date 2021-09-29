@@ -52,6 +52,9 @@ open Mach
      Ispecific(Icrc32q)         R       R       S   (and Res = Arg1)
      Ispecific(Irdtsc)          R
      Ispecific(Irdpmc)          R       R           (Arg1 = rcx)
+     Ispecific(Ifloat_iround)   R       S
+     Ispecific(Ifloat_min)      R       R       S   (and Res = Arg1)
+     Ispecific(Ifloat_max)      R       R       S   (and Res = Arg1)
 
    Conditional branches:
      Iinttest                           S       R
@@ -89,6 +92,7 @@ method! reload_operation op arg res =
       (* This add will be turned into a lea; args and results must be
          in registers *)
       super#reload_operation op arg res
+  | Ispecific Ifloat_iround
   | Iintop_imm (Icomp _, _) ->
       (* The argument(s) can be either in register or on stack.
          The result must be in a register. *)
@@ -114,6 +118,7 @@ method! reload_operation op arg res =
       if stackp res.(0)
       then (let r = self#makereg res.(0) in (arg, [|r|]))
       else (arg, res)
+  | Ispecific(Ifloat_min | Ifloat_max)
   | Ispecific Icrc32q ->
     (* First argument and result must be in the same register.
        Second argument can be either in a register or on stack. *)
@@ -135,12 +140,13 @@ method! reload_operation op arg res =
   | Ispecific  (Isqrtf | Isextend32 | Izextend32 | Ilea _
                | Istore_int (_, _, _)
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-               | Iprefetch _
+               | Iprefetch _ 
                | Ibswap _| Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind|Icall_imm _
   | Icompf _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
+  | Iopaque
     -> (* Other operations: all args and results in registers *)
       super#reload_operation op arg res
 

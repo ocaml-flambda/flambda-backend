@@ -19,18 +19,13 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 (** This function is guaranteed to return an alias type. *)
-val simplify_simple
-   : Downwards_acc.t
-  -> Simple.t
-  -> min_name_mode:Name_mode.t
-  -> Flambda_type.t
+val simplify_simple :
+  Downwards_acc.t -> Simple.t -> min_name_mode:Name_mode.t -> Flambda_type.t
 
-type simplify_simples_result = private {
-  simples : Simple.t list;
-  simple_tys : Flambda_type.t list;
-}
+type simplify_simples_result = private
+  { simples : Simple.t list;
+    simple_tys : Flambda_type.t list
+  }
 
-val simplify_simples
-   : Downwards_acc.t
-  -> Simple.t list
-  -> simplify_simples_result
+val simplify_simples :
+  Downwards_acc.t -> Simple.t list -> simplify_simples_result

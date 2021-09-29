@@ -41,6 +41,11 @@ let pass_dump_linear_if ppf flag message phrase =
   if !flag then fprintf ppf "*** %s@.%a@." message Printlinear.fundecl phrase;
   phrase
 
+let pass_dump_cfg_if ppf flag message c =
+  if !flag then
+    fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
+  c
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
@@ -118,6 +123,32 @@ let rec regalloc ~ppf_dump round fd =
 
 let (++) x f = f x
 
+let ocamlcfg_verbose =
+  match Sys.getenv_opt "OCAMLCFG_VERBOSE" with
+  | Some "1" -> true
+  | Some _ | None -> false
+
+let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
+  if ocamlcfg_verbose then begin
+    Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
+  end;
+  let result =
+    Cfgize.fundecl
+      f
+      ~preserve_orig_labels:false
+      ~simplify_terminators:true
+  in
+  let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
+  Eliminate_fallthrough_blocks.run expected;
+  Merge_straightline_blocks.run expected;
+  Eliminate_dead_blocks.run expected;
+  Simplify_terminator.run (Cfg_with_layout.cfg expected);
+  Cfg_equivalence.check_cfg_with_layout f expected result;
+  if ocamlcfg_verbose then begin
+    Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
+      f.Mach.fun_name;
+  end
+
 let compile_fundecl ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -139,15 +170,24 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "liveness" liveness
   ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
-  ++ Profile.record ~accumulate:true "linearize" Linearize.fundecl
+  ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
+      let res = Linearize.fundecl f in
+      (* CR xclerc for xclerc: temporary, for testing. *)
+      if !Clflags.use_ocamlcfg then begin
+        test_cfgize f res;
+      end;
+      res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ (fun (fd : Linear.fundecl) ->
-      if !use_ocamlcfg then begin
-        let cfg = Linear_to_cfg.run fd ~preserve_orig_labels:true in
-        let fun_body, fun_tailrec_entry_point_label = Cfg_to_linear.run cfg in
-        { fd with Linear.fun_body; fun_tailrec_entry_point_label; }
-      end else
-        fd)
+    if !use_ocamlcfg then begin
+      fd
+      ++ Profile.record ~accumulate:true "linear_to_cfg"
+           (Linear_to_cfg.run ~preserve_orig_labels:true)
+      ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
+      ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
+      ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
+    end else
+      fd)
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear

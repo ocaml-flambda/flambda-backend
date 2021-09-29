@@ -35,6 +35,7 @@ method! class_of_operation op =
     | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
     | Ibswap _ | Isqrtf -> super#class_of_operation op
     | Irdtsc | Irdpmc -> Op_other
+    | Ifloat_iround | Ifloat_min | Ifloat_max
     | Icrc32q -> Op_pure
     | Iprefetch _ -> Op_other
     end
@@ -44,7 +45,7 @@ method! class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
     -> super#class_of_operation op
 
 end

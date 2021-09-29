@@ -16,14 +16,14 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = private {
-  immediates : Type_grammar.t Or_unknown.t;
-  blocks : Row_like.For_blocks.t Or_unknown.t;
-  is_unique : bool;
-}
+type t = private
+  { immediates : Type_grammar.t Or_unknown.t;
+    blocks : Row_like.For_blocks.t Or_unknown.t;
+    is_unique : bool
+  }
 
-val create
-   : is_unique:bool
-  -> immediates:Type_grammar.t Or_unknown.t
-  -> blocks:Row_like.For_blocks.t Or_unknown.t
-  -> t
+val create :
+  is_unique:bool ->
+  immediates:Type_grammar.t Or_unknown.t ->
+  blocks:Row_like.For_blocks.t Or_unknown.t ->
+  t

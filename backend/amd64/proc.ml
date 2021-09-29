@@ -317,6 +317,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
                  | Iprefetch _
+                 | Ifloat_iround | Ifloat_min | Ifloat_max
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
@@ -331,7 +332,7 @@ let destroyed_at_oper = function
        | Ifloatofint | Iintoffloat
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
-       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _)
+       | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
     ->
@@ -358,7 +359,7 @@ let safe_register_pressure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
-  | Iprobe _ | Iprobe_is_enabled _
+  | Iprobe _ | Iprobe_is_enabled _ | Iopaque
     -> if fp then 10 else 11
 
 let max_register_pressure =
@@ -393,9 +394,10 @@ let max_register_pressure =
   | Istackoffset _ | Iload (_, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
+             | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
     -> consumes ~int:0 ~float:0
 
 (* Pure operations (without any side effect besides updating their result
@@ -404,9 +406,10 @@ let max_register_pressure =
 let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) -> false
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
   | Ispecific(Iprefetch _) -> false
-  | Ispecific(Ilea _ | Isextend32 | Izextend32) -> true
+  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround
+             | Ifloat_min | Ifloat_max) -> true
   | Ispecific(Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false
@@ -423,12 +426,12 @@ let op_is_pure = function
 
 (* Layout of the stack frame *)
 
-let frame_required fd =
-  fp || fd.fun_contains_calls ||
-  fd.fun_num_stack_slots.(0) > 0 || fd.fun_num_stack_slots.(1) > 0
+let frame_required ~fun_contains_calls ~fun_num_stack_slots =
+  fp || fun_contains_calls ||
+  fun_num_stack_slots.(0) > 0 || fun_num_stack_slots.(1) > 0
 
-let prologue_required fd =
-  frame_required fd
+let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
+  frame_required ~fun_contains_calls ~fun_num_stack_slots
 
 (* Calling the assembler *)
 
@@ -453,5 +456,5 @@ let operation_supported = function
   | Cfloatofint | Cintoffloat | Ccmpf _
   | Craise _
   | Ccheckbound
-  | Cprobe _ | Cprobe_is_enabled _
+  | Cprobe _ | Cprobe_is_enabled _ | Copaque
     -> true

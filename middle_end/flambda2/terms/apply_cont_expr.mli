@@ -14,24 +14,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The representation of the application of a continuation.  In the
-    zero-arity case this is just "goto". *)
+(** The representation of the application of a continuation. In the zero-arity
+    case this is just "goto". *)
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t
 
-(** Printing, invariant checks, name manipulation, etc. *)
 include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val create
-   : ?trap_action:Trap_action.t
-  -> Continuation.t
-  -> args:Simple.t list
-  -> dbg:Debuginfo.t
-  -> t
+val create :
+  ?trap_action:Trap_action.t ->
+  Continuation.t ->
+  args:Simple.t list ->
+  dbg:Debuginfo.t ->
+  t
 
 val goto : Continuation.t -> t
 
@@ -46,13 +45,14 @@ val debuginfo : t -> Debuginfo.t
 (* CR mshinwell: Use "with" not "update" *)
 val update_continuation : t -> Continuation.t -> t
 
-val update_continuation_and_args
-   : t
-  -> Continuation.t
-  -> args:Simple.t list
-  -> t
+val update_continuation_and_args :
+  t -> Continuation.t -> args:Simple.t list -> t
 
 val update_args : t -> args:Simple.t list -> t
+
+val with_debuginfo : t -> dbg:Debuginfo.t -> t
+
+val is_raise : t -> bool
 
 val is_goto : t -> bool
 

@@ -190,6 +190,8 @@ let print_instr b = function
   | JMP arg -> i1_call_jmp b "jmp" arg
   | LEA (arg1, arg2) -> i2_s b "lea" arg1 arg2
   | LEAVE -> i0 b "leave"
+  | MAXSD (arg1, arg2) -> i2 b "maxsd" arg1 arg2
+  | MINSD (arg1, arg2) -> i2 b "minsd" arg1 arg2
   | MOV ((Imm n as arg1), (Reg64 _ as arg2))
     when not (n <= 0x7FFF_FFFFL && n >= -0x8000_0000L) ->
       i2 b "movabsq" arg1 arg2
@@ -198,6 +200,7 @@ let print_instr b = function
   | MOV (arg1, arg2) -> i2_s b "mov" arg1 arg2
   | MOVAPD (arg1, arg2) -> i2 b "movapd" arg1 arg2
   | MOVD (arg1, arg2) -> i2 b "movd" arg1 arg2
+  | MOVQ (arg1, arg2) -> i2 b "movq" arg1 arg2
   | MOVLPD (arg1, arg2) -> i2 b "movlpd" arg1 arg2
   | MOVSD (arg1, arg2) -> i2 b "movsd" arg1 arg2
   | MOVSS (arg1, arg2) -> i2 b "movss" arg1 arg2

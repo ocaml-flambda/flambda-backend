@@ -83,6 +83,10 @@ type specific_operation =
   | Ibswap of int                      (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
+  | Ifloat_iround                      (* Rounds a [float] to an [int64]
+                                          using the current rounding mode *)
+  | Ifloat_min                         (* Return min of two floats *)
+  | Ifloat_max                         (* Return max of two floats *)
   | Isextend32                         (* 32 to 64 bit conversion with sign
                                           extension *)
   | Izextend32                         (* 32 to 64 bit conversion with zero
@@ -170,6 +174,9 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "[%a] +:= %i" (print_addressing printreg addr) arg n
   | Isqrtf ->
       fprintf ppf "sqrtf %a" printreg arg.(0)
+  | Ifloat_iround -> fprintf ppf "float_iround %a" printreg arg.(0)
+  | Ifloat_min -> fprintf ppf "float_min %a %a" printreg arg.(0) printreg arg.(1)
+  | Ifloat_max -> fprintf ppf "float_max %a %a" printreg arg.(0) printreg arg.(1)
   | Ifloatsqrtf addr ->
      fprintf ppf "sqrtf float64[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
@@ -221,3 +228,6 @@ let float_cond_and_need_swap cond =
   | CFnle -> NLEf, false
   | CFge  -> LEf,  true
   | CFnge -> NLEf, true
+
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right

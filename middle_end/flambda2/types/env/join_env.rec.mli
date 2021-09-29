@@ -20,11 +20,8 @@ type t
 
 (* val print : Format.formatter -> t -> unit *)
 
-val create
-   : Typing_env.t
-  -> left_env:Typing_env.t
-  -> right_env:Typing_env.t
-  -> t
+val create :
+  Typing_env.t -> left_env:Typing_env.t -> right_env:Typing_env.t -> t
 
 (* val create_for_meet : Meet_env.t -> t *)
 

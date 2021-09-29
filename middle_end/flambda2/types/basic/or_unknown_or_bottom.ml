@@ -21,7 +21,7 @@ type 'a t =
   | Ok of 'a
   | Bottom
 
-let print f ppf t =
+let [@ocamlformat "disable"] print f ppf t =
   match t with
   | Unknown -> Format.pp_print_string ppf "Unknown"
   | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents
@@ -45,10 +45,7 @@ let map_sharing t ~f =
   | Unknown | Bottom -> t
   | Ok contents ->
     let contents' = f contents in
-    if contents == contents' then t
-    else Ok contents'
+    if contents == contents' then t else Ok contents'
 
 let of_or_unknown (unk : _ Or_unknown.t) : _ t =
-  match unk with
-  | Known contents -> Ok contents
-  | Unknown -> Unknown
+  match unk with Known contents -> Ok contents | Unknown -> Unknown

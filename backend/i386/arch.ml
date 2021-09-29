@@ -163,3 +163,6 @@ let stack_alignment =
   | "win32" -> 4     (* MSVC *)
   | _ -> 16
   (* PR#6038: GCC and Clang seem to require 16-byte alignment nowadays *)
+
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right

@@ -169,3 +169,6 @@ let print_specific_operation printreg op ppf arg =
   | Imove32 ->
       fprintf ppf "move32 %a"
         printreg arg.(0)
+
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right

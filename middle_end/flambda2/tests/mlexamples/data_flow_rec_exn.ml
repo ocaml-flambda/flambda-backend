@@ -1,5 +1,4 @@
-let do_stuff env =
-  assert false
+let do_stuff env = assert false
 
 let stuff env =
   (* r fails to be removed right now because the call to do_stuff
@@ -12,4 +11,4 @@ let stuff env =
     with _ ->
       r := Sys.opaque_identity None;
       ()
-  done;
+  done

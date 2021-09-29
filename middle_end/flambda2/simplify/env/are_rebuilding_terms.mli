@@ -16,9 +16,8 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** Flag indicating whether terms are being rebuilt during simplification.
-    This is not just [bool] to enforce that the setting in [DE] is used
-    everywhere. *)
+(** Flag indicating whether terms are being rebuilt during simplification. This
+    is not just [bool] to enforce that the setting in [DE] is used everywhere. *)
 
 type t = Downwards_env.are_rebuilding_terms
 

@@ -18,12 +18,6 @@
 
 type t
 
-(* val print_with_cache
- *    : cache:Printing_cache.t
- *   -> Format.formatter
- *   -> t
- *   -> unit *)
-
 val print : Format.formatter -> t -> unit
 
 (* val invariant : t -> unit *)
@@ -36,15 +30,10 @@ val is_empty : t -> bool
 
 val defined_names : t -> Name.Set.t
 
-(*
-val defines_name_but_no_equations : t -> Name.t -> bool
-*)
+(* val defines_name_but_no_equations : t -> Name.t -> bool *)
 
-val fold_on_defined_vars
-   : (Variable.t -> Flambda_kind.t -> 'a -> 'a)
-  -> t
-  -> 'a
-  -> 'a
+val fold_on_defined_vars :
+  (Variable.t -> Flambda_kind.t -> 'a -> 'a) -> t -> 'a -> 'a
 
 val equations : t -> Type_grammar.t Name.Map.t
 
@@ -62,16 +51,15 @@ val concat : t -> t -> t
 
 (* val meet : Meet_env.t -> t -> t -> t *)
 
-val n_way_join
-   : env_at_fork:Typing_env.t
-  -> (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t
-       * t) list
-  -> params:Kinded_parameter.t list
-  -> extra_lifted_consts_in_use_envs:Symbol.Set.t
-  -> extra_allowed_names:Name_occurrences.t
-  -> t
+val n_way_join :
+  env_at_fork:Typing_env.t ->
+  (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t * t) list ->
+  params:Kinded_parameter.t list ->
+  extra_lifted_consts_in_use_envs:Symbol.Set.t ->
+  extra_allowed_names:Name_occurrences.t ->
+  t
 
 (* CR vlaviron: this is only needed because Typing_env_extension creates a
-   Name_abstraction over it. These functions should not be called, as levels
-   are not exported. *)
+   Name_abstraction over it. These functions should not be called, as levels are
+   not exported. *)
 include Contains_ids.S with type t := t

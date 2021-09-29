@@ -163,6 +163,7 @@ let oper_result_type = function
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
+  | Copaque -> typ_val
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -351,6 +352,7 @@ module Effect_and_coeffect : sig
 
   val effect_only : Effect.t -> t
   val coeffect_only : Coeffect.t -> t
+  val create : Effect.t -> Coeffect.t -> t
 
   val join : t -> t -> t
   val join_list_map : 'a list -> ('a -> t) -> t
@@ -367,6 +369,7 @@ end = struct
 
   let effect_only e = e, Coeffect.None
   let coeffect_only ce = Effect.None, ce
+  let create e ce = e, ce
 
   let join (e1, ce1) (e2, ce2) =
     Effect.join e1 e2, Coeffect.join ce1 ce2
@@ -376,6 +379,16 @@ end = struct
     | [] -> none
     | x::xs -> List.fold_left (fun acc x -> join acc (f x)) (f x) xs
 end
+
+let select_effects (e : Cmm.effects) : Effect.t =
+  match e with
+  | No_effects -> None
+  | Arbitrary_effects -> Arbitrary
+
+let select_coeffects (e : Cmm.coeffects) : Coeffect.t =
+  match e with
+  | No_coeffects -> None
+  | Has_coeffects -> Arbitrary
 
 (* The default instruction selection class *)
 
@@ -399,9 +412,13 @@ method is_simple_expr = function
   | Csequence(e1, e2) -> self#is_simple_expr e1 && self#is_simple_expr e2
   | Cop(op, args, _) ->
       begin match op with
+        (* Cextcall with neither effects nor coeffects is simple
+           if its arguments are *)
+      | Cextcall { effects = No_effects; coeffects = No_coeffects; } ->
+        List.for_all self#is_simple_expr args
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Cprobe _
-      | Cprobe_is_enabled _ -> false
+      | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
@@ -442,7 +459,9 @@ method effects_of exp =
   | Cop (op, args, _) ->
     let from_op =
       match op with
-      | Capply _ | Cextcall _ | Cprobe _ -> EC.arbitrary
+      | Cextcall { effects = e; coeffects = ce; } ->
+        EC.create (select_effects e) (select_coeffects ce)
+      | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
       | Calloc -> EC.none
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cprefetch _ -> EC.arbitrary
@@ -759,6 +778,13 @@ method emit_expr (env:environment) exp =
           self#insert_debug env  (Iraise k) dbg rd [||];
           set_traps_for_raise env;
           None
+      end
+  | Cop(Copaque, args, dbg) ->
+      begin match self#emit_parts_list env args with
+        None -> None
+      | Some (simple_args, env) ->
+         let rs = self#emit_tuple env simple_args in
+         Some (self#insert_op_debug env Iopaque dbg rs rs)
       end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with

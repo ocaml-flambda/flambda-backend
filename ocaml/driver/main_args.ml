@@ -799,6 +799,10 @@ let mk_dcamlprimc f =
   "-dcamlprimc", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_dcfg f =
+  "-dcfg", Arg.Unit f, " (undocumented)"
+;;
+
 let mk_dcmm f =
   "-dcmm", Arg.Unit f, " (undocumented)"
 ;;
@@ -977,7 +981,7 @@ let mk_flambda2_cse_depth f =
 let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
   "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
   Printf.sprintf " Perform checks on static\n\
-      \     scopes of code IDs and symbols during Un_cps%s\n\
+      \     scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
 ;;
@@ -985,7 +989,7 @@ let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
 let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
   "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
   Printf.sprintf " Do not perform checks\n\
-      \     on static scopes of code IDs and symbols during Un_cps%s\n\
+      \     on static scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_not_default
       Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
@@ -1388,6 +1392,7 @@ module type Optcommon_options = sig
   val _dflambda_verbose : unit -> unit
   val _drawclambda : unit -> unit
   val _dclambda : unit -> unit
+  val _dcfg : unit -> unit
   val _dcmm : unit -> unit
   val _dsel : unit -> unit
   val _dcombine : unit -> unit
@@ -1867,6 +1872,7 @@ struct
     mk_dfexpr F._dfexpr;
     mk_dflexpect F._dflexpect;
     mk_dclosure_offsets F._dclosure_offsets;
+    mk_dcfg F._dcfg;
     mk_dcmm F._dcmm;
     mk_dsel F._dsel;
     mk_dcombine F._dcombine;
@@ -2040,6 +2046,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dclambda F._dclambda;
     mk_drawflambda F._drawflambda;
     mk_dflambda F._dflambda;
+    mk_dcfg F._dcfg;
     mk_dcmm F._dcmm;
     mk_dsel F._dsel;
     mk_dcombine F._dcombine;
@@ -2219,6 +2226,7 @@ module Default = struct
     let _dalloc = set dump_regalloc
     let _davail () = dump_avail := true
     let _dclambda = set dump_clambda
+    let _dcfg = set dump_cfg
     let _dcmm = set dump_cmm
     let _dcombine = set dump_combine
     let _dcse = set dump_cse

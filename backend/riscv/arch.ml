@@ -83,3 +83,6 @@ let print_specific_operation printreg op ppf arg =
   | Imultsubf true ->
       fprintf ppf "-f (%a *f %a -f %a)"
         printreg arg.(0) printreg arg.(1) printreg arg.(2)
+
+let equal_addressing_mode left right = left = right
+let equal_specific_operation left right = left = right

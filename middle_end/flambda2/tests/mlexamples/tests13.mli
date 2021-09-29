@@ -1,4 +1,3 @@
-
 type +'a node =
   | Nil
   | Cons of 'a * 'a t
