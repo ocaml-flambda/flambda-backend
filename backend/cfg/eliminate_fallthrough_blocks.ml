@@ -33,7 +33,6 @@ let is_fallthrough_block cfg_with_layout (block : C.basic_block) =
   if Label.equal cfg.entry_label block.start
      || block.is_trap_handler
      || List.length block.body > 0
-     || block.can_raise
      ||
      match block.terminator.desc with
      | Tailcall (Self _) -> true
