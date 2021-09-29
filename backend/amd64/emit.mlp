@@ -398,12 +398,18 @@ let emit_float_test cmp i lbl =
      comisd traps on QNaN and SNaN but ucomisd traps on SNaN only.
   *)
   match cmp with
+  | CFeq when arg i 1 = arg i 0 ->
+      I.ucomisd (arg i 1) (arg i 0);
+      I.j NP lbl
   | CFeq ->
       let next = new_label() in
       I.ucomisd (arg i 1) (arg i 0);
       I.jp (label next);          (* skip if unordered *)
       I.je lbl;                   (* branch taken if x=y *)
       def_label next
+  | CFneq when arg i 1 = arg i 0 ->
+      I.ucomisd (arg i 1) (arg i 0);
+      I.jp lbl
   | CFneq ->
       I.ucomisd (arg i 1) (arg i 0);
       I.jp lbl;                   (* branch taken if unordered *)
