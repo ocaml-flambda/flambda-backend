@@ -275,7 +275,7 @@ let equal_float_operation left right =
   | Ifloatdiv, Ifloatdiv -> true
   | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
-let equal_rouding_mode left right =
+let equal_rounding_mode left right =
   match left, right with
   | Half_to_even, Half_to_even -> true
   | Down, Down -> true
@@ -310,7 +310,7 @@ let equal_specific_operation left right =
   | Icrc32q, Icrc32q ->
     true
   | Ifloat_iround, Ifloat_iround -> true
-  | Ifloat_round x, Ifloat_round y -> true
+  | Ifloat_round x, Ifloat_round y -> equal_rounding_mode x y
   | Ifloat_min, Ifloat_min -> true
   | Ifloat_max, Ifloat_max -> true
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
