@@ -286,6 +286,9 @@ let equal_specific_operation left right =
     true
   | Icrc32q, Icrc32q ->
     true
+  | Ifloat_iround, Ifloat_iround -> true
+  | Ifloat_min, Ifloat_min -> true
+  | Ifloat_max, Ifloat_max -> true
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
     Bool.equal left_is_write right_is_write
@@ -293,5 +296,6 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
+    | Ifloat_iround | Ifloat_min | Ifloat_max
     | Icrc32q | Iprefetch _), _ ->
     false
