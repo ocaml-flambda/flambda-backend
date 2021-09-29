@@ -275,6 +275,15 @@ let equal_float_operation left right =
   | Ifloatdiv, Ifloatdiv -> true
   | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
+let equal_rouding_mode left right =
+  match left, right with
+  | Half_to_even, Half_to_even -> true
+  | Down, Down -> true
+  | Up, Up -> true
+  | Towards_zero, Towards_zero -> true
+  | Current, Current -> true
+  | (Half_to_even | Down | Up | Towards_zero | Current), _ -> false
+
 let equal_specific_operation left right =
   match left, right with
   | Ilea x, Ilea y -> equal_addressing_mode x y
@@ -301,6 +310,7 @@ let equal_specific_operation left right =
   | Icrc32q, Icrc32q ->
     true
   | Ifloat_iround, Ifloat_iround -> true
+  | Ifloat_round x, Ifloat_round y -> true
   | Ifloat_min, Ifloat_min -> true
   | Ifloat_max, Ifloat_max -> true
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
@@ -310,6 +320,6 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-    | Ifloat_iround | Ifloat_min | Ifloat_max
+    | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
     | Icrc32q | Iprefetch _), _ ->
     false
