@@ -107,6 +107,7 @@ let i1_s b s x = bprintf b "\t%s%s\t%a" s (suf x) arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg x arg y
 let i2_s b s x y = bprintf b "\t%s%s\t%a, %a" s (suf y) arg x arg y
 let i2_ss b s x y = bprintf b "\t%s%s%s\t%a, %a" s (suf x) (suf y) arg x arg y
+let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg x arg y arg z
 
 let i1_call_jmp b s = function
   (* this is the encoding of jump labels: don't use * *)
@@ -223,7 +224,7 @@ let print_instr b = function
   | RDTSC -> i0 b "rdtsc"
   | RDPMC -> i0 b "rdpmc"
   | RET ->  i0 b "ret"
-  | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2
+  | ROUNDSD (r, arg1, arg2) -> i3 b "roundsd" (imm_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2_s b "sal" arg1 arg2
   | SAR (arg1, arg2) -> i2_s b "sar" arg1 arg2
   | SET (c, arg) -> i1 b ("set" ^ string_of_condition c) arg

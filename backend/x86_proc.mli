@@ -31,6 +31,7 @@ val string_of_condition: condition -> string
 val string_of_float_condition: float_condition -> string
 val string_of_symbol: (*prefix*) string -> string -> string
 val string_of_rounding: rounding -> string
+val imm_of_rounding: rounding -> arg
 val string_of_prefetch_temporal_locality_hint:
   prefetch_temporal_locality_hint -> string
 val buf_bytes_directive:
