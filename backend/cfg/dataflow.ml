@@ -173,7 +173,18 @@ let run_dead_code : Cfg_with_layout.t -> unit =
     (fun label { Dead_code.before; _ } ->
       match before with
       | Reachable -> ()
-      | Unreachable -> Disconnect_block.disconnect cfg_with_layout label)
+      | Unreachable ->
+        let block = Cfg.get_block_exn cfg label in
+        block.predecessors <- Label.Set.empty;
+        Label.Set.iter
+          (fun succ_label ->
+            let succ_block = Cfg.get_block_exn cfg succ_label in
+            succ_block.predecessors
+              <- Label.Set.remove label succ_block.predecessors)
+          (Cfg.successor_labels ~normal:true ~exn:true block);
+        block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
+        block.exns <- Label.Set.empty;
+        Cfg_with_layout.remove_block cfg_with_layout label)
     (Dead_code.run cfg ~init ());
   (* CR xclerc for xclerc: temporary. *)
   Eliminate_dead_blocks.run cfg_with_layout
