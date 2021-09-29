@@ -206,6 +206,7 @@
   cfg_intf
   cfg_to_linear
   cfg_with_layout
+  dataflow
   disconnect_block
   eliminate_dead_blocks
   eliminate_fallthrough_blocks

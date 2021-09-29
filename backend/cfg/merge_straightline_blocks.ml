@@ -105,4 +105,4 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
 
 let run (cfg_with_layout : Cfg_with_layout.t) : unit =
   let modified = merge_blocks false cfg_with_layout in
-  if modified then Eliminate_dead_blocks.run cfg_with_layout
+  if modified then Dataflow.run_dead_code cfg_with_layout
