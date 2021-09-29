@@ -295,6 +295,8 @@ method! select_operation op args dbg =
          Ispecific (Ifloat_round Down), args
       | "caml_float_round_towards_zero_unboxed", [|Float|] ->
          Ispecific (Ifloat_round Towards_zero), args
+      | "caml_float_round_current_unboxed", [|Float|] ->
+         Ispecific (Ifloat_round Current), args
       | "caml_float_min_unboxed", [|Float|] ->
          Ispecific Ifloat_min, args
       | "caml_float_max_unboxed", [|Float|] ->

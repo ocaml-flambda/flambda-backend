@@ -40,6 +40,7 @@ type rounding =
   | RoundDown
   | RoundNearest
   | RoundTruncate
+  | RoundCurrent
 
 type constant =
   | Const of int64

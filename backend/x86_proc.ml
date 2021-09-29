@@ -234,6 +234,7 @@ let string_of_rounding = function
   | RoundUp -> "roundsd.up"
   | RoundTruncate -> "roundsd.trunc"
   | RoundNearest -> "roundsd.near"
+  | RoundCurrent -> "roundsd"
 
 (* Control fields for [roundsd] operation is specified as a 4-bit immediate:
    bit 3: whether to signal Precision Floating-Point Exception.
@@ -245,6 +246,7 @@ let imm_of_rounding = function
   | RoundDown -> Imm 9L
   | RoundUp -> Imm 10L
   | RoundTruncate -> Imm 11L
+  | RoundCurrent -> Imm 12L
 
 let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f

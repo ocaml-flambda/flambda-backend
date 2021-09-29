@@ -73,7 +73,7 @@ type prefetch_info = {
   addr: addressing_mode;
 }
 
-type rounding_mode = Half_to_even | Down | Up | Towards_zero
+type rounding_mode = Half_to_even | Down | Up | Towards_zero | Current
 
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
@@ -153,6 +153,7 @@ let string_of_rounding_mode = function
   | Down -> "down"
   | Up -> "up"
   | Towards_zero -> "truncate"
+  | Current -> "current"
 
 let print_addressing printreg addr ppf arg =
   match addr with

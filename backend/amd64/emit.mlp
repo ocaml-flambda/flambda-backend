@@ -383,6 +383,7 @@ let rounding_mode = function
   | Down -> RoundDown
   | Up -> RoundUp
   | Towards_zero -> RoundTruncate
+  | Current -> RoundCurrent
 
 (* Output an = 0 or <> 0 test. *)
 
