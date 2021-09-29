@@ -109,6 +109,7 @@ and scst b = function
 let i0 b s = bprintf b "\t%s" s
 let i1 b s x = bprintf b "\t%s\t%a" s arg x
 let i2 b s x y = bprintf b "\t%s\t%a, %a" s arg y arg x
+let i3 b s x y z = bprintf b "\t%s\t%a, %a, %a" s arg x arg y arg z
 
 let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
@@ -215,7 +216,7 @@ let print_instr b = function
   | RDTSC  -> i0 b "rdtsc"
   | RDPMC -> i0 b "rdpmc"
   | RET -> i0 b "ret"
-  | ROUNDSD (r, arg1, arg2) -> i2 b (string_of_rounding r) arg1 arg2
+  | ROUNDSD (r, arg1, arg2) -> i3 b "roundsd" (imm_of_rounding r) arg1 arg2
   | SAL (arg1, arg2) -> i2 b "sal" arg1 arg2
   | SAR (arg1, arg2) -> i2 b "sar" arg1 arg2
   | SET (c, arg) -> i1 b ("set" ^ string_of_condition c) arg

@@ -234,6 +234,19 @@ let string_of_rounding = function
   | RoundUp -> "roundsd.up"
   | RoundTruncate -> "roundsd.trunc"
   | RoundNearest -> "roundsd.near"
+  | RoundCurrent -> "roundsd"
+
+(* Control fields for [roundsd] operation is specified as a 4-bit immediate:
+   bit 3: whether to signal Precision Floating-Point Exception.
+   bit 2: if set, select rounding mode from MXCSR.RC, else use bits 0 and 1.
+   bits 0 and 1: rounding mode, according to  Table 4-17 of
+   Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 2. *)
+let imm_of_rounding = function
+  | RoundNearest -> Imm 8L
+  | RoundDown -> Imm 9L
+  | RoundUp -> Imm 10L
+  | RoundTruncate -> Imm 11L
+  | RoundCurrent -> Imm 12L
 
 let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f

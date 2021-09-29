@@ -195,6 +195,7 @@ module I : sig
   val rdtsc: unit -> unit
   val rdpmc: unit -> unit
   val ret: unit -> unit
+  val roundsd : rounding -> arg -> arg -> unit
   val sal: arg -> arg -> unit
   val sar: arg -> arg -> unit
   val set: condition -> arg -> unit
