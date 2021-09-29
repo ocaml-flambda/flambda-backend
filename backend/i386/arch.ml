@@ -164,5 +164,54 @@ let stack_alignment =
   | _ -> 16
   (* PR#6038: GCC and Clang seem to require 16-byte alignment nowadays *)
 
-let equal_addressing_mode left right = left = right
-let equal_specific_operation left right = left = right
+let equal_addressing_mode left right =
+  match left, right with
+  | Ibased (left_sym, left_displ), Ibased (right_sym, right_displ) ->
+    String.equal left_sym right_sym && Int.equal left_displ right_displ
+  | Iindexed left_displ, Iindexed right_displ ->
+    Int.equal left_displ right_displ
+  | Iindexed2 left_displ, Iindexed2 right_displ ->
+    Int.equal left_displ right_displ
+  | Iscaled (left_scale, left_displ), Iscaled (right_scale, right_displ) ->
+    Int.equal left_scale right_scale && Int.equal left_displ right_displ
+  | Iindexed2scaled (left_scale, left_displ), Iindexed2scaled (right_scale, right_displ) ->
+    Int.equal left_scale right_scale && Int.equal left_displ right_displ
+  | (Ibased _ | Iindexed _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _), _ ->
+    false
+
+let equal_float_operation left right =
+  match left, right with
+  | Ifloatadd, Ifloatadd -> true
+  | Ifloatsub, Ifloatsub -> true
+  | Ifloatsubrev, Ifloatsubrev -> true
+  | Ifloatmul, Ifloatmul -> true
+  | Ifloatdiv, Ifloatdiv -> true
+  | Ifloatdivrev, Ifloatdivrev -> true
+  | (Ifloatadd | Ifloatsub | Ifloatsubrev
+    | Ifloatmul | Ifloatdiv | Ifloatdivrev), _ ->
+    false
+
+let equal_specific_operation left right =
+  match left, right with
+  | Ilea x, Ilea y -> equal_addressing_mode x y
+  | Istore_int (x, x', x''), Istore_int (y, y', y'') ->
+    Nativeint.equal x y && equal_addressing_mode x' y' && Bool.equal x'' y''
+  | Istore_symbol (x, x', x''), Istore_symbol (y, y', y'') ->
+    String.equal x y && equal_addressing_mode x' y' && Bool.equal x'' y''
+  | Ioffset_loc (x, x'), Ioffset_loc (y, y') ->
+    Int.equal x y && equal_addressing_mode x' y'
+  | Ipush, Ipush -> true
+  | Ipush_int x, Ipush_int y -> Nativeint.equal x y
+  | Ipush_symbol x, Ipush_symbol y -> String.equal x y
+  | Ipush_load x, Ipush_load y -> equal_addressing_mode x y
+  | Ipush_load_float x, Ipush_load_float y -> equal_addressing_mode x y
+  | Isubfrev, Isubfrev -> true
+  | Idivfrev, Idivfrev -> true
+  | Ifloatarithmem (x, x', x''), Ifloatarithmem (y, y', y'') ->
+    Bool.equal x y &&
+    equal_float_operation x' y' && equal_addressing_mode x'' y''
+  | Ifloatspecial x, Ifloatspecial y -> String.equal x y
+  | (Ilea _ | Istore_int _ | Istore_symbol _ | Ioffset_loc _
+    | Ipush | Ipush_int _ | Ipush_symbol _ | Ipush_load _ | Ipush_load_float _
+    | Isubfrev | Idivfrev |   Ifloatarithmem _ | Ifloatspecial _), _ ->
+    false

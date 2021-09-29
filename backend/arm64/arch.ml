@@ -170,5 +170,52 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "move32 %a"
         printreg arg.(0)
 
-let equal_addressing_mode left right = left = right
-let equal_specific_operation left right = left = right
+let equal_addressing_mode left right =
+  match left, right with
+  | Iindexed left_int, Iindexed right_int ->
+    Int.equal left_int right_int
+  | Ibased (left_string, left_int), Ibased (right_string, right_int) ->
+    String.equal left_string right_string
+    && Int.equal left_int right_int
+  | (Iindexed _ | Ibased _), _ -> false
+
+let equal_arith_operation left right =
+  match left, right with
+  | Ishiftadd, Ishiftadd -> true
+  | Ishiftsub, Ishiftsub -> true
+  | (Ishiftadd | Ishiftsub), _ -> false
+
+let equal_specific_operation left right =
+  match left, right with
+  | Ifar_alloc { bytes = left_bytes; dbginfo = _; },
+    Ifar_alloc { bytes = right_bytes; dbginfo = _; } ->
+    Int.equal left_bytes right_bytes
+  | Ifar_intop_checkbound, Ifar_intop_checkbound -> true
+  | Ifar_intop_imm_checkbound { bound = left_bound; },
+    Ifar_intop_imm_checkbound { bound = right_bound; } ->
+    Int.equal left_bound right_bound
+  | Ishiftarith (left_arith_operation, left_int),
+    Ishiftarith (right_arith_operation, right_int) ->
+    equal_arith_operation left_arith_operation right_arith_operation
+    && Int.equal left_int right_int
+  | Ishiftcheckbound { shift = left_shift; },
+    Ishiftcheckbound { shift = right_shift; } ->
+    Int.equal left_shift right_shift
+  | Ifar_shiftcheckbound { shift = left_shift; },
+    Ifar_shiftcheckbound { shift = right_shift; } ->
+    Int.equal left_shift right_shift
+  | Imuladd, Imuladd -> true
+  | Imulsub, Imulsub -> true
+  | Inegmulf, Inegmulf -> true
+  | Imuladdf, Imuladdf -> true
+  | Inegmuladdf, Inegmuladdf -> true
+  | Imulsubf, Imulsubf -> true
+  | Inegmulsubf, Inegmulsubf -> true
+  | Isqrtf, Isqrtf -> true
+  | Ibswap left_int, Ibswap right_int -> Int.equal left_int right_int
+  | Imove32, Imove32 -> true
+  | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
+    | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
+    | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
+    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32), _ -> false
+

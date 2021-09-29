@@ -117,5 +117,22 @@ let print_specific_operation printreg op ppf arg =
   | Ialloc_far { bytes; _ } ->
       fprintf ppf "alloc_far %d" bytes
 
-let equal_addressing_mode left right = left = right
-let equal_specific_operation left right = left = right
+let equal_addressing_mode left right =
+  match left, right with
+  | Ibased (x,x'), Ibased (y,y') ->
+    String.equal x y && Int.equal x' y'
+  | Iindexed x, Iindexed y -> Int.equal x y
+  | Iindexed2,  Iindexed2 -> true
+  | (Ibased _ | Iindexed _ | Iindexed2), _ -> false
+
+
+let equal_specific_operation left right =
+    match left, right with
+  | Imultaddf, Imultaddf -> true
+  | Imultsubf, Imultsubf -> true
+  | Ialloc_far { bytes = x; dbginfo = x' },
+    Ialloc_far { bytes = y; dbginfo = y' } ->
+    (* CR-someday gyorsh: implement equal_alloc_debuginfo *)
+    Int.equal x y && x' = y'
+  | (Imultaddf | Imultsubf |Ialloc_far _), _ -> false
+
