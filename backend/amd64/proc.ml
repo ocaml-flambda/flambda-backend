@@ -319,7 +319,8 @@ let destroyed_at_oper = function
                  | Iprefetch _
                  | Ifloat_round _
                  | Ifloat_iround | Ifloat_min | Ifloat_max
-                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
+                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _
+                 | Ifloatarithconst _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
   | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl
@@ -398,7 +399,7 @@ let max_register_pressure =
              | Ifloat_round _
              | Ifloat_iround | Ifloat_min | Ifloat_max
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
+             | Ibswap _ | Ifloatsqrtf _ | Isqrtf | Ifloatarithconst _)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
     -> consumes ~int:0 ~float:0
 
@@ -411,7 +412,7 @@ let op_is_pure = function
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
   | Ispecific(Iprefetch _) -> false
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
-             | Ifloat_min | Ifloat_max) -> true
+             | Ifloat_min | Ifloat_max | Ifloatarithconst _) -> true
   | Ispecific(Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false

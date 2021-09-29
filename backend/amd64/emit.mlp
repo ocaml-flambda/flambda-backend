@@ -364,7 +364,7 @@ let instr_for_floatop = function
   | Idivf -> I.divsd
   | _ -> assert false
 
-let instr_for_floatarithmem = function
+let instr_for_floatarith = function
   | Ifloatadd -> I.addsd
   | Ifloatsub -> I.subsd
   | Ifloatmul -> I.mulsd
@@ -855,7 +855,10 @@ let emit_instr fallthrough i =
   | Lop(Ispecific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
   | Lop(Ispecific(Ifloatarithmem(op, addr))) ->
-      instr_for_floatarithmem op (addressing addr REAL8 i 1) (res i 0)
+      instr_for_floatarith op (addressing addr REAL8 i 1) (res i 0)
+  | Lop(Ispecific(Ifloatarithconst(op, f))) ->
+      let lbl = add_float_constant f in
+      instr_for_floatarith op (mem64_rip NONE (emit_label lbl)) (res i 0)
   | Lop(Ispecific(Ibswap 16)) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)

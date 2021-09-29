@@ -82,6 +82,8 @@ type specific_operation =
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
+  | Ifloatarithconst of float_operation * int64
+                                       (* Float arith operation with constant *)
   | Ibswap of int                      (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
@@ -174,6 +176,12 @@ let print_addressing printreg addr ppf arg =
       let idx = if n <> 0 then Printf.sprintf " + %i" n else "" in
       fprintf ppf "%a + %a * %i%s" printreg arg.(0) printreg arg.(1) scale idx
 
+let float_op_name = function
+  | Ifloatadd -> "+f"
+  | Ifloatsub -> "-f"
+  | Ifloatmul -> "*f"
+  | Ifloatdiv -> "/f"
+
 let print_specific_operation printreg op ppf arg =
   match op with
   | Ilea addr -> print_addressing printreg addr ppf arg
@@ -195,14 +203,12 @@ let print_specific_operation printreg op ppf arg =
      fprintf ppf "sqrtf float64[%a]"
              (print_addressing printreg addr) [|arg.(0)|]
   | Ifloatarithmem(op, addr) ->
-      let op_name = function
-      | Ifloatadd -> "+f"
-      | Ifloatsub -> "-f"
-      | Ifloatmul -> "*f"
-      | Ifloatdiv -> "/f" in
-      fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
+      fprintf ppf "%a %s float64[%a]" printreg arg.(0) (float_op_name op)
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
+  | Ifloatarithconst(op, f) ->
+      fprintf ppf "%a %s %F" printreg arg.(0) (float_op_name op)
+                   (Int64.float_of_bits f)
   | Ibswap i ->
       fprintf ppf "bswap_%i %a" i printreg arg.(0)
   | Isextend32 ->
@@ -293,6 +299,8 @@ let equal_specific_operation left right =
     Int.equal x y && equal_addressing_mode x' y'
   | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
     equal_float_operation x y && equal_addressing_mode x' y'
+  | Ifloatarithconst (x, x'), Ifloatarithconst (y, y') ->
+    equal_float_operation x y && Int64.equal x' y'
   | Ibswap left, Ibswap right ->
     Int.equal left right
   | Isqrtf, Isqrtf ->
@@ -321,5 +329,5 @@ let equal_specific_operation left right =
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
     | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
-    | Icrc32q | Iprefetch _), _ ->
+    | Icrc32q | Iprefetch _ | Ifloatarithconst _), _ ->
     false

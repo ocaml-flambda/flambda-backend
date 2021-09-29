@@ -96,6 +96,7 @@ let pseudoregs_for_operation op arg res =
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf
+  | Ispecific(Ifloatarithconst _)
   | Ispecific(Ibswap (32|64)) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
@@ -370,6 +371,12 @@ method select_floatarith commutative regular_op mem_op args =
       let (addr, arg1) = self#select_addressing chunk loc1 in
       (Ispecific(Ifloatarithmem(mem_op, addr)),
                  [arg2; arg1])
+  | [arg1; Cconst_float(n, _dbg) ] when n <> 0.0 ->
+      let f = Int64.bits_of_float n in
+      (Ispecific(Ifloatarithconst(mem_op, f)), [ arg1 ])
+  | [Cconst_float(n, _dbg); arg2] when n <> 0.0 && commutative ->
+      let f = Int64.bits_of_float n in
+      (Ispecific(Ifloatarithconst(mem_op, f)), [ arg2 ])
   | [arg1; arg2] ->
       (regular_op, [arg1; arg2])
   | _ ->
