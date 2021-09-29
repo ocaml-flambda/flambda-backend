@@ -229,5 +229,73 @@ let float_cond_and_need_swap cond =
   | CFge  -> LEf,  true
   | CFnge -> NLEf, true
 
-let equal_addressing_mode left right = left = right
-let equal_specific_operation left right = left = right
+
+let equal_addressing_mode left right =
+  match left, right with
+  | Ibased (left_sym, left_displ), Ibased (right_sym, right_displ) ->
+    String.equal left_sym right_sym && Int.equal left_displ right_displ
+  | Iindexed left_displ, Iindexed right_displ ->
+    Int.equal left_displ right_displ
+  | Iindexed2 left_displ, Iindexed2 right_displ ->
+    Int.equal left_displ right_displ
+  | Iscaled (left_scale, left_displ), Iscaled (right_scale, right_displ) ->
+    Int.equal left_scale right_scale && Int.equal left_displ right_displ
+  | Iindexed2scaled (left_scale, left_displ), Iindexed2scaled (right_scale, right_displ) ->
+    Int.equal left_scale right_scale && Int.equal left_displ right_displ
+  | (Ibased _ | Iindexed _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _), _ ->
+    false
+
+let equal_prefetch_temporal_locality_hint left right =
+  match left, right with
+  | Nonlocal, Nonlocal -> true
+  | Low, Low -> true
+  | Moderate, Moderate -> true
+  | High, High -> true
+  | (Nonlocal | Low | Moderate | High), _ -> false
+
+let equal_float_operation left right =
+  match left, right with
+  | Ifloatadd, Ifloatadd -> true
+  | Ifloatsub, Ifloatsub -> true
+  | Ifloatmul, Ifloatmul -> true
+  | Ifloatdiv, Ifloatdiv -> true
+  | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
+
+let equal_specific_operation left right =
+  match left, right with
+  | Ilea x, Ilea y -> equal_addressing_mode x y
+  | Istore_int (x, x', x''), Istore_int (y, y', y'') ->
+    Nativeint.equal x y && equal_addressing_mode x' y' && Bool.equal x'' y''
+  | Ioffset_loc (x, x'), Ioffset_loc (y, y') ->
+    Int.equal x y && equal_addressing_mode x' y'
+  | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
+    equal_float_operation x y && equal_addressing_mode x' y'
+  | Ibswap left, Ibswap right ->
+    Int.equal left right
+  | Isqrtf, Isqrtf ->
+    true
+  | Ifloatsqrtf left, Ifloatsqrtf right ->
+    equal_addressing_mode left right
+  | Isextend32, Isextend32 ->
+    true
+  | Izextend32, Izextend32 ->
+    true
+  | Irdtsc, Irdtsc ->
+    true
+  | Irdpmc, Irdpmc ->
+    true
+  | Icrc32q, Icrc32q ->
+    true
+  | Ifloat_iround, Ifloat_iround -> true
+  | Ifloat_min, Ifloat_min -> true
+  | Ifloat_max, Ifloat_max -> true
+  | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
+    Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
+    Bool.equal left_is_write right_is_write
+    && equal_prefetch_temporal_locality_hint left_locality right_locality
+    && equal_addressing_mode left_addr right_addr
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
+    | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
+    | Ifloat_iround | Ifloat_min | Ifloat_max
+    | Icrc32q | Iprefetch _), _ ->
+    false

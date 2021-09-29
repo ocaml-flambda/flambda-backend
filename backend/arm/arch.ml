@@ -264,5 +264,52 @@ let is_immediate n =
   done;
   !s <= m
 
-let equal_addressing_mode left right = left = right
-let equal_specific_operation left right = left = right
+let equal_addressing_mode left right =
+  match left, right with
+  | Iindexed left, Iindexed right -> Int.equal left right
+
+let equal_arith_operation left right =
+  match left, right with
+  | Ishiftadd, Ishiftadd -> true
+  | Ishiftsub, Ishiftsub -> true
+  | Ishiftsubrev, Ishiftsubrev -> true
+  | Ishiftand, Ishiftand -> true
+  | Ishiftor, Ishiftor -> true
+  | Ishiftxor, Ishiftxor -> true
+  | (Ishiftadd | Ishiftsub | Ishiftsubrev
+    | Ishiftand | Ishiftor | Ishiftxor), _ ->
+    false
+
+let equal_shift_operation left right =
+  match left, right with
+  | Ishiftlogicalleft, Ishiftlogicalleft -> true
+  | Ishiftlogicalright, Ishiftlogicalright -> true
+  | Ishiftarithmeticright, Ishiftarithmeticright -> true
+  | (Ishiftlogicalleft | Ishiftlogicalright | Ishiftarithmeticright), _ ->
+    false
+
+let equal_specific_operation left right =
+  match left, right with
+  | Ishiftarith (left_arith_operation, left_shift_operation, left_int),
+    Ishiftarith (right_arith_operation, right_shift_operation, right_int) ->
+    equal_arith_operation left_arith_operation right_arith_operation
+    && equal_shift_operation left_shift_operation right_shift_operation
+    && Int.equal left_int right_int
+  | Ishiftcheckbound (left_shift_operation, left_int),
+    Ishiftcheckbound (right_shift_operation, right_int) ->
+    equal_shift_operation left_shift_operation right_shift_operation
+    && Int.equal left_int right_int
+  | Irevsubimm left, Irevsubimm right -> true
+  | Imulhadd, Imulhadd -> true
+  | Imuladd, Imuladd -> true
+  | Imulsub, Imulsub -> true
+  | Inegmulf, Inegmulf -> true
+  | Imuladdf, Imuladdf -> true
+  | Inegmuladdf, Inegmuladdf -> true
+  | Imulsubf, Imulsubf -> true
+  | Inegmulsubf, Inegmulsubf -> true
+  | Isqrtf, Isqrtf -> true
+  | Ibswap left, Ibswap right -> Int.equal left right
+  | (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd
+    | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf
+    | Isqrtf | Ibswap _), _ -> false
