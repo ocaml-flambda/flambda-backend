@@ -169,22 +169,30 @@ let run_dead_code : Cfg_with_layout.t -> unit =
   let init { Cfg.start; _ } =
     if is_entry_label start then Domain.Reachable else Domain.Unreachable
   in
-  Label.Tbl.iter
-    (fun label { Dead_code.before; _ } ->
-      match before with
-      | Reachable -> ()
-      | Unreachable ->
-        let block = Cfg.get_block_exn cfg label in
-        block.predecessors <- Label.Set.empty;
-        Label.Set.iter
-          (fun succ_label ->
+  let unreachable_labels =
+    Label.Tbl.fold
+      (fun label { Dead_code.before; _ } acc ->
+         match before with
+         | Reachable -> acc
+         | Unreachable -> Label.Set.add label acc)
+      (Dead_code.run cfg ~init ())
+      Label.Set.empty
+  in
+  Label.Set.iter
+    (fun label ->
+       let block = Cfg.get_block_exn cfg label in
+       block.predecessors <- Label.Set.empty;
+       Label.Set.iter
+         (fun succ_label ->
             let succ_block = Cfg.get_block_exn cfg succ_label in
-            succ_block.predecessors
-              <- Label.Set.remove label succ_block.predecessors)
-          (Cfg.successor_labels ~normal:true ~exn:true block);
-        block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
-        block.exns <- Label.Set.empty;
-        Cfg_with_layout.remove_block cfg_with_layout label)
-    (Dead_code.run cfg ~init ());
+            succ_block.predecessors <- Label.Set.remove label succ_block.predecessors)
+         (Cfg.successor_labels ~normal:true ~exn:true block);
+       block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
+       block.exns <- Label.Set.empty)
+    unreachable_labels;
+  Label.Set.iter
+    (fun label ->
+       Cfg_with_layout.remove_block cfg_with_layout label)
+    unreachable_labels;
   (* CR xclerc for xclerc: temporary. *)
   Eliminate_dead_blocks.run cfg_with_layout
