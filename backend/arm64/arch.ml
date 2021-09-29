@@ -177,23 +177,13 @@ let equal_addressing_mode left right =
   | Ibased (left_string, left_int), Ibased (right_string, right_int) ->
     String.equal left_string right_string
     && Int.equal left_int right_int
-  | Iindexed _, Ibased _
-  | Ibased _, Iindexed _ ->
-    false
-
-let equal_prefetch_temporal_locality_hint _ _ : bool =
-  assert false
-
-let equal_float_operation _ _ : bool =
-  assert false
+  | (Iindexed _ | Ibased _), _ -> false
 
 let equal_arith_operation left right =
   match left, right with
   | Ishiftadd, Ishiftadd -> true
   | Ishiftsub, Ishiftsub -> true
-  | Ishiftadd, Ishiftsub
-  | Ishiftsub, Ishiftadd ->
-    false
+  | (Ishiftadd | Ishiftsub), _ -> false
 
 let equal_specific_operation left right =
   match left, right with
@@ -224,62 +214,8 @@ let equal_specific_operation left right =
   | Isqrtf, Isqrtf -> true
   | Ibswap left_int, Ibswap right_int -> Int.equal left_int right_int
   | Imove32, Imove32 -> true
-  | Ifar_alloc _, (Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-                  | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub
-                  | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf
-                  | Ibswap _ | Imove32)
-  | Ifar_intop_checkbound, (Ifar_alloc _ | Ifar_intop_imm_checkbound _ | Ishiftarith _
-                           | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-                           | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
-                           | Inegmulsubf | Isqrtf | Ibswap _ | Imove32)
-  | Ifar_intop_imm_checkbound _, (Ifar_alloc _ | Ifar_intop_checkbound | Ishiftarith _
-                                 | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-                                 | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
-                                 | Inegmulsubf | Isqrtf | Ibswap _ | Imove32)
-  | Ishiftarith _, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-                   | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub
-                   | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf
-                   | Ibswap _ | Imove32)
-  | Ishiftcheckbound _, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-                        | Ishiftarith _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub
-                        | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf
-                        | Isqrtf | Ibswap _ | Imove32)
-  | Ifar_shiftcheckbound _, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-                            | Ishiftarith _ | Ishiftcheckbound _ | Imuladd | Imulsub
-                            | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf
-                            | Isqrtf | Ibswap _ | Imove32)
-  | Imuladd, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-             | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imulsub | Inegmulf | Imuladdf
-             | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32)
-  | Imulsub, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-             | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Inegmulf | Imuladdf
-             | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32)
-  | Inegmulf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-              | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub | Imuladdf
-              | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32)
-  | Imuladdf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ |
-               Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-              | Imulsub | Inegmulf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf
-              | Ibswap _ | Imove32)
-  | Inegmuladdf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-                 | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-                 | Imulsub | Inegmulf | Imuladdf | Imulsubf | Inegmulsubf | Isqrtf
-                 | Ibswap _ | Imove32)
-  | Imulsubf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-              | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-              | Imulsub | Inegmulf | Imuladdf | Inegmuladdf  | Inegmulsubf | Isqrtf
-              | Ibswap _ | Imove32)
-  | Inegmulsubf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
-                 | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd
-                 | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Isqrtf | Ibswap _
-                 | Imove32)
-  | Isqrtf, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-            | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub | Inegmulf
-            | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Ibswap _ | Imove32)
-  | Ibswap _, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-              | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub | Inegmulf
-              | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Imove32)
-  | Imove32, (Ifar_alloc _ | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _ | Ishiftarith _
-             | Ishiftcheckbound _ | Ifar_shiftcheckbound _ | Imuladd | Imulsub | Inegmulf
-             | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _) ->
-    false
+  | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
+    | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
+    | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
+    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32), _ -> false
+

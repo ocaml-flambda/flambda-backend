@@ -242,11 +242,7 @@ let equal_addressing_mode left right =
     Int.equal left_scale right_scale && Int.equal left_displ right_displ
   | Iindexed2scaled (left_scale, left_displ), Iindexed2scaled (right_scale, right_displ) ->
     Int.equal left_scale right_scale && Int.equal left_displ right_displ
-  | Ibased _,  (Iindexed _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _)
-  | Iindexed _, (Ibased _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _)
-  | Iindexed2 _, (Ibased _  | Iindexed _ | Iscaled _ | Iindexed2scaled _)
-  | Iscaled _, (Ibased _  | Iindexed _ | Iindexed2 _ | Iindexed2scaled _)
-  | Iindexed2scaled _, (Ibased _ | Iindexed _ | Iindexed2 _ | Iscaled _) ->
+  | (Ibased _ | Iindexed _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _), _ ->
     false
 
 let equal_prefetch_temporal_locality_hint left right =
@@ -255,11 +251,7 @@ let equal_prefetch_temporal_locality_hint left right =
   | Low, Low -> true
   | Moderate, Moderate -> true
   | High, High -> true
-  | Nonlocal, (Low | Moderate | High)
-  | Low, (Nonlocal | Moderate | High)
-  | Moderate, (Nonlocal | Low | High)
-  | High, (Nonlocal | Low | Moderate) ->
-    false
+  | (Nonlocal | Low | Moderate | High), _ -> false
 
 let equal_float_operation left right =
   match left, right with
@@ -267,11 +259,7 @@ let equal_float_operation left right =
   | Ifloatsub, Ifloatsub -> true
   | Ifloatmul, Ifloatmul -> true
   | Ifloatdiv, Ifloatdiv -> true
-  | Ifloatadd, (Ifloatsub | Ifloatmul | Ifloatdiv)
-  | Ifloatsub, (Ifloatadd | Ifloatmul | Ifloatdiv)
-  | Ifloatmul, (Ifloatadd | Ifloatsub | Ifloatdiv)
-  | Ifloatdiv, (Ifloatadd | Ifloatsub | Ifloatmul) ->
-    false
+  | (Ifloatadd | Ifloatsub | Ifloatmul | Ifloatdiv), _ -> false
 
 let equal_specific_operation left right =
   match left, right with
@@ -303,43 +291,7 @@ let equal_specific_operation left right =
     Bool.equal left_is_write right_is_write
     && equal_prefetch_temporal_locality_hint left_locality right_locality
     && equal_addressing_mode left_addr right_addr
-  | Ilea _, (Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isqrtf
-            | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-            | Iprefetch _)
-  | Istore_int _, (Ilea _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isqrtf
-                  | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-                  | Iprefetch _)
-  | Ioffset_loc _, (Ilea _ | Istore_int _ | Ifloatarithmem _ | Ibswap _ | Isqrtf
-                   | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-                   | Iprefetch _)
-  | Ifloatarithmem _, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ibswap _ | Isqrtf
-                      | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-                      | Iprefetch _)
-  | Ibswap _, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isqrtf
-              | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-              | Iprefetch _)
-  | Isqrtf, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-            | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-            | Iprefetch _)
-  | Ifloatsqrtf _, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ |
-                    Ibswap _ | Isqrtf | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-                   | Iprefetch _)
-  | Isextend32, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-                | Isqrtf | Ifloatsqrtf _ | Izextend32 | Irdtsc | Irdpmc | Icrc32q
-                | Iprefetch _)
-  | Izextend32, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-                | Isqrtf | Ifloatsqrtf _ | Isextend32 | Irdtsc | Irdpmc | Icrc32q
-                | Iprefetch _)
-  | Irdtsc, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-            | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdpmc | Icrc32q
-            | Iprefetch _)
-  | Irdpmc, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-            | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Icrc32q
-            | Iprefetch _)
-  | Icrc32q, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-             | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-             | Iprefetch _)
-  | Iprefetch _, (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
-                 | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-                 | Icrc32q) ->
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
+    | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
+    | Icrc32q | Iprefetch _), _ ->
     false

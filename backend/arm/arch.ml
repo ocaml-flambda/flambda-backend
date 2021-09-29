@@ -268,12 +268,6 @@ let equal_addressing_mode left right =
   match left, right with
   | Iindexed left, Iindexed right -> Int.equal left right
 
-let equal_prefetch_temporal_locality_hint _ _ : bool =
-  assert false
-
-let equal_float_operation _ _ : bool =
-  assert false
-
 let equal_arith_operation left right =
   match left, right with
   | Ishiftadd, Ishiftadd -> true
@@ -282,12 +276,8 @@ let equal_arith_operation left right =
   | Ishiftand, Ishiftand -> true
   | Ishiftor, Ishiftor -> true
   | Ishiftxor, Ishiftxor -> true
-  | Ishiftadd, (Ishiftsub | Ishiftsubrev | Ishiftand | Ishiftor | Ishiftxor)
-  | Ishiftsub, (Ishiftadd | Ishiftsubrev | Ishiftand | Ishiftor | Ishiftxor)
-  | Ishiftsubrev, (Ishiftadd | Ishiftsub | Ishiftand | Ishiftor | Ishiftxor)
-  | Ishiftand, (Ishiftadd | Ishiftsub | Ishiftsubrev | Ishiftor | Ishiftxor)
-  | Ishiftor, (Ishiftadd | Ishiftsub | Ishiftsubrev | Ishiftand | Ishiftxor)
-  | Ishiftxor, (Ishiftadd | Ishiftsub | Ishiftsubrev | Ishiftand | Ishiftor) ->
+  | (Ishiftadd | Ishiftsub | Ishiftsubrev
+    | Ishiftand | Ishiftor | Ishiftxor), _ ->
     false
 
 let equal_shift_operation left right =
@@ -295,9 +285,7 @@ let equal_shift_operation left right =
   | Ishiftlogicalleft, Ishiftlogicalleft -> true
   | Ishiftlogicalright, Ishiftlogicalright -> true
   | Ishiftarithmeticright, Ishiftarithmeticright -> true
-  | Ishiftlogicalleft, (Ishiftlogicalright | Ishiftarithmeticright)
-  | Ishiftlogicalright, (Ishiftlogicalleft | Ishiftarithmeticright)
-  | Ishiftarithmeticright, (Ishiftlogicalleft | Ishiftlogicalright) ->
+  | (Ishiftlogicalleft | Ishiftlogicalright | Ishiftarithmeticright), _ ->
     false
 
 let equal_specific_operation left right =
@@ -322,17 +310,6 @@ let equal_specific_operation left right =
   | Inegmulsubf, Inegmulsubf -> true
   | Isqrtf, Isqrtf -> true
   | Ibswap left, Ibswap right -> Int.equal left right
-  | Ishiftarith _, (Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Ishiftcheckbound _, (Ishiftarith _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Irevsubimm _, (Ishiftarith _ | Ishiftcheckbound _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Imulhadd, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Imuladd, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Imulsub, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Inegmulf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Imuladdf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Inegmuladdf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Imulsubf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Inegmulsubf | Isqrtf | Ibswap _)
-  | Inegmulsubf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Isqrtf | Ibswap _)
-  | Isqrtf, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Ibswap _)
-  | Ibswap _, (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf) ->
-    false
+  | (Ishiftarith _ | Ishiftcheckbound _ | Irevsubimm _ | Imulhadd | Imuladd
+    | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf
+    | Isqrtf | Ibswap _), _ -> false
