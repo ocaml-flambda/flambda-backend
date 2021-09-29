@@ -278,6 +278,9 @@ runtest-upstream:
 	# replace backend-specific testsuite/tools with their new versions
 	rm _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
+	# replace backend-specific testsuite/tests/asmgen with their new versions
+	rm _runtest/testsuite/tests/asmgen/*
+	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
 	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
 	(cd _runtest && ln -s ../ocaml/Makefile.build_config Makefile.build_config)
 	(cd _runtest && ln -s ../ocaml/Makefile.config_if_required Makefile.config_if_required)
