@@ -43,7 +43,6 @@ type t =
     symbols_currently_being_defined : Symbol.Set.t;
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
-    closure_var_uses : Var_within_closure.Set.t;
     do_not_rebuild_terms : bool;
     closure_info : Closure_info.t
   }
@@ -59,7 +58,7 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
                 symbols_currently_being_defined;
                 variables_defined_at_toplevel; cse;
-                closure_var_uses; do_not_rebuild_terms; closure_info;
+                do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation;
               } =
   Format.fprintf ppf "@[<hov 1>(\
@@ -75,7 +74,6 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
       @[<hov 1>(symbols_currently_being_defined@ %a)@]@ \
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
-      @[<hov 1>(closure_var_uses@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(code@ %a)@]\
@@ -92,7 +90,6 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
     Symbol.Set.print symbols_currently_being_defined
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
-    Var_within_closure.Set.print closure_var_uses
     do_not_rebuild_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) (TE.all_code typing_env)
@@ -114,7 +111,6 @@ let create ~round ~backend ~(resolver : resolver)
     symbols_currently_being_defined = Symbol.Set.empty;
     variables_defined_at_toplevel = Variable.Set.empty;
     cse = CSE.empty;
-    closure_var_uses = Var_within_closure.Set.empty;
     do_not_rebuild_terms = false;
     closure_info = Closure_info.not_in_a_closure
   }
@@ -196,7 +192,6 @@ let enter_set_of_closures
       symbols_currently_being_defined;
       variables_defined_at_toplevel;
       cse = _;
-      closure_var_uses = _;
       do_not_rebuild_terms;
       closure_info = _
     } =
@@ -213,7 +208,6 @@ let enter_set_of_closures
     symbols_currently_being_defined;
     variables_defined_at_toplevel;
     cse = CSE.empty;
-    closure_var_uses = Var_within_closure.Set.empty;
     do_not_rebuild_terms;
     closure_info = Closure_info.in_a_set_of_closures
   }
@@ -472,16 +466,6 @@ let add_cse t prim ~bound_to =
 let find_cse t prim = CSE.find t.cse prim
 
 let with_cse t cse = { t with cse }
-
-let add_use_of_closure_var t closure_var =
-  { t with
-    closure_var_uses = Var_within_closure.Set.add closure_var t.closure_var_uses
-  }
-
-let closure_var_uses t = t.closure_var_uses
-
-let without_closure_var_uses t =
-  { t with closure_var_uses = Var_within_closure.Set.empty }
 
 let set_do_not_rebuild_terms_and_disable_inlining t =
   { t with do_not_rebuild_terms = true; can_inline = false }
