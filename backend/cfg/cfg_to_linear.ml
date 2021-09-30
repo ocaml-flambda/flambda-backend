@@ -67,13 +67,7 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
       | Store (c, m, b) -> Istore (c, m, b)
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)
-      | Negf -> Inegf
-      | Absf -> Iabsf
-      | Addf -> Iaddf
-      | Subf -> Isubf
-      | Mulf -> Imulf
-      | Divf -> Idivf
-      | Compf c -> Icompf c
+      | Floatop op -> Ifloatop op
       | Floatofint -> Ifloatofint
       | Intoffloat -> Iintoffloat
       | Probe { name; handler_code_sym } -> Iprobe { name; handler_code_sym }

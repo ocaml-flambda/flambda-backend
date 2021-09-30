@@ -329,8 +329,8 @@ let destroyed_at_oper = function
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
                | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
                | Double ), _, _))
-  | Iop(Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-       | Icompf _
+  | Iop(Ifloatop(Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Icompf _))
+  | Iop(Imove | Ispill | Ireload
        | Ifloatofint | Iintoffloat
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
        | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
@@ -356,8 +356,7 @@ let destroyed_at_reloadretaddr = [| |]
 let safe_register_pressure = function
     Iextcall _ -> if win64 then if fp then 7 else 8 else 0
   | Ialloc _ | Imove | Ispill | Ireload
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat
-  | Icompf _
+  | Ifloatop _ | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
@@ -382,7 +381,7 @@ let max_register_pressure =
     consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
   | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
     consumes ~int:1 ~float:0
-  | Istore(Single, _, _) | Icompf _ ->
+  | Istore(Single, _, _) | Ifloatop(Icompf _) ->
     consumes ~int:0 ~float:1
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
@@ -392,7 +391,8 @@ let max_register_pressure =
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
             | Double ),
             _, _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Imove | Ispill | Ireload
+  | Ifloatop (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _)
@@ -426,8 +426,7 @@ let op_is_pure = function
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
+  | Imove | Ispill | Ireload | Ifloatop _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _) | Iname_for_debugger _
     -> true

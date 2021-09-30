@@ -86,6 +86,10 @@ let is_unary_op = function
   | Icheckbound
     -> false
 
+let is_unary_floatop = function
+  | Inegf | Iabsf -> true
+  | Iaddf | Isubf | Imulf | Idivf | Icompf _ -> false
+
 let intop = function
   | Iadd -> " + "
   | Isub -> " - "
@@ -104,6 +108,15 @@ let intop = function
   | Ipopcnt -> "popcnt "
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> Printf.sprintf "check > "
+
+let floatop = function
+  | Inegf -> "-f "
+  | Iabsf -> "absf "
+  | Iaddf -> " +f "
+  | Isubf -> " -f "
+  | Imulf -> " *f "
+  | Idivf -> " /f "
+  | Icompf cmp -> floatcomp cmp
 
 let test tst ppf arg =
   match tst with
@@ -158,13 +171,15 @@ let operation op arg ppf res =
         fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
       end
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
-  | Icompf cmp -> fprintf ppf "%a%s%a" reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Inegf -> fprintf ppf "-f %a" reg arg.(0)
-  | Iabsf -> fprintf ppf "absf %a" reg arg.(0)
-  | Iaddf -> fprintf ppf "%a +f %a" reg arg.(0) reg arg.(1)
-  | Isubf -> fprintf ppf "%a -f %a" reg arg.(0) reg arg.(1)
-  | Imulf -> fprintf ppf "%a *f %a" reg arg.(0) reg arg.(1)
-  | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
+  | Ifloatop(op) ->
+     if is_unary_floatop op then
+       begin
+        assert (Array.length arg = 1);
+        fprintf ppf "%s%a" (floatop op) reg arg.(0)
+      end else begin
+        assert (Array.length arg = 2);
+        fprintf ppf "%a%s%a" reg arg.(0) (floatop op) reg arg.(1)
+      end
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
   | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)

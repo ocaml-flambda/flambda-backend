@@ -172,13 +172,7 @@ let basic_or_terminator_of_operation :
          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
         imm ) ->
     Basic (Op (Intop_imm (op, imm)))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
+  | Ifloatop op -> Basic (Op (Floatop op))
   | Ifloatofint -> Basic (Op Floatofint)
   | Iintoffloat -> Basic (Op Intoffloat)
   | Ispecific op -> Basic (Op (Specific op))
@@ -317,10 +311,9 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
     Reg.same_loc instr.Cfg.arg.(0) instr.Cfg.res.(0)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region )
+      | Store _ | Intop _ | Intop_imm _ | Floatop _ | Floatofint | Intoffloat
+      | Probe _ | Opaque | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Begin_region | End_region)
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

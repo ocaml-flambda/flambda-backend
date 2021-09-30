@@ -201,6 +201,16 @@ let intop (op : Mach.integer_operation) =
   | Icomp cmp -> intcomp cmp
   | Icheckbound -> assert false
 
+let floatop op =
+  match (op : Mach.float_operation) with
+  | Inegf -> " negf "
+  | Iabsf -> " absf "
+  | Iaddf -> " addf "
+  | Isubf -> " subf "
+  | Imulf -> " mulf "
+  | Idivf -> " divf "
+  | Icompf cmp -> Printf.sprintf "compf %sf" (Printcmm.float_comparison cmp)
+
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
@@ -213,13 +223,7 @@ let dump_op ppf = function
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
   | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
-  | Negf -> Format.fprintf ppf "negf"
-  | Absf -> Format.fprintf ppf "absf"
-  | Addf -> Format.fprintf ppf "addf"
-  | Subf -> Format.fprintf ppf "subf"
-  | Mulf -> Format.fprintf ppf "mulf"
-  | Divf -> Format.fprintf ppf "divf"
-  | Compf _ -> Format.fprintf ppf "compf"
+  | Floatop op -> Format.fprintf ppf "floatop %s" (floatop op)
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Specific _ -> Format.fprintf ppf "specific"

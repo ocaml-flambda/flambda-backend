@@ -38,6 +38,10 @@ type integer_operation =
 
 type float_comparison = Cmm.float_comparison
 
+type float_operation =
+  | Icompf of float_comparison
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+
 type test =
     Itruetest
   | Ifalsetest
@@ -69,8 +73,7 @@ type operation =
                 mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_operation
   | Ifloatofint | Iintoffloat
   | Iopaque
   | Ispecific of Arch.specific_operation
@@ -135,3 +138,4 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
+val equal_float_operation : float_operation -> float_operation -> bool

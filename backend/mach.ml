@@ -35,6 +35,10 @@ type integer_operation =
 
 type float_comparison = Cmm.float_comparison
 
+type float_operation =
+  | Icompf of float_comparison
+  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+
 type test =
     Itruetest
   | Ifalsetest
@@ -65,8 +69,7 @@ type operation =
                 mode : Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
-  | Icompf of float_comparison
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop of float_operation
   | Ifloatofint | Iintoffloat
   | Iopaque
   | Ispecific of Arch.specific_operation
@@ -171,8 +174,7 @@ let rec instr_iter f i =
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _
-            | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-            | Icompf _
+            | Ifloatop _
             | Ifloatofint | Iintoffloat
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
             | Iopaque
@@ -315,3 +317,15 @@ let equal_integer_operation left right =
   | Icheckbound, (Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior
                  | Ixor | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _) ->
     false
+
+let equal_float_operation left right =
+  match left, right with
+  | Icompf left_comp, Icompf right_comp
+       when Cmm.equal_float_comparison left_comp right_comp -> true
+  | Inegf, Inegf -> true
+  | Iabsf, Iabsf -> true
+  | Iaddf, Iaddf -> true
+  | Isubf, Isubf -> true
+  | Imulf, Imulf -> true
+  | Idivf, Idivf -> true
+  | (Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf), _ -> false

@@ -116,7 +116,7 @@ method! reload_operation op arg res =
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
       (arg, res)
   | Iintop_imm ((Ipopcnt | Iclz _ | Ictz _), _) -> assert false
-  | Iintop(Imul) | Iaddf | Isubf | Imulf | Idivf ->
+  | Iintop(Imul) | Ifloatop (Iaddf | Isubf | Imulf | Idivf) ->
       (* First argument (= result) must be in register, second arg
          can reside in the stack *)
       if stackp arg.(0)
@@ -153,8 +153,8 @@ method! reload_operation op arg res =
                | Ipause
                | Iprefetch _
                | Ibswap _| Ifloatsqrtf _)
-  | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind|Icall_imm _
-  | Icompf _
+  | Imove|Ispill|Ireload|Ifloatop(Inegf|Iabsf|Icompf _)
+  | Iconst_float _|Icall_ind|Icall_imm _
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Iopaque

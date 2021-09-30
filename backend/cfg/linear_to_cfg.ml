@@ -397,13 +397,7 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Iconst_int n -> Op (Const_int n)
   | Iconst_float n -> Op (Const_float n)
   | Iconst_symbol n -> Op (Const_symbol n)
-  | Inegf -> Op Negf
-  | Iabsf -> Op Absf
-  | Iaddf -> Op Addf
-  | Isubf -> Op Subf
-  | Imulf -> Op Mulf
-  | Idivf -> Op Divf
-  | Icompf c -> Op (Compf c)
+  | Ifloatop op -> Op (Floatop op)
   | Ifloatofint -> Op Floatofint
   | Iintoffloat -> Op Intoffloat
   | Iopaque -> Op Opaque
@@ -598,9 +592,9 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       in
       add_terminator t block i desc ~trap_depth ~traps;
       create_blocks t i.next block ~trap_depth ~traps
-    | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-    | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+    | Imove | Ispill | Ireload | Ifloatop _ | Ifloatofint | Iintoffloat
+    | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_ind | Icall_imm _
+    | Iextcall _ | Istackoffset _
     | Iload (_, _)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _

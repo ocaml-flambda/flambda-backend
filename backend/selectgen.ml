@@ -615,13 +615,13 @@ method select_operation op args _dbg =
   | (Caddv, _) -> self#select_arith_comm Iadd args
   | (Cadda, _) -> self#select_arith_comm Iadd args
   | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> (Icompf comp, args)
-  | (Cnegf, _) -> (Inegf, args)
-  | (Cabsf, _) -> (Iabsf, args)
-  | (Caddf, _) -> (Iaddf, args)
-  | (Csubf, _) -> (Isubf, args)
-  | (Cmulf, _) -> (Imulf, args)
-  | (Cdivf, _) -> (Idivf, args)
+  | (Ccmpf comp, _) -> self#select_floatarith_comp comp args
+  | (Cnegf, _) -> self#select_floatarith Inegf args
+  | (Cabsf, _) -> self#select_floatarith Iabsf args
+  | (Caddf, _) -> self#select_floatarith Iaddf args
+  | (Csubf, _) -> self#select_floatarith Isubf args
+  | (Cmulf, _) -> self#select_floatarith Imulf args
+  | (Cdivf, _) -> self#select_floatarith Idivf args
   | (Cfloatofint, _) -> (Ifloatofint, args)
   | (Cintoffloat, _) -> (Iintoffloat, args)
   | (Ccheckbound, _) ->
@@ -655,6 +655,12 @@ method private select_arith_comp cmp = function
       (Iintop_imm(Icomp(swap_intcomp cmp), n), [arg])
   | args ->
       (Iintop(Icomp cmp), args)
+
+method private select_floatarith op args =
+  (Ifloatop op, args)
+
+method private select_floatarith_comp op args =
+  (Ifloatop(Icompf op), args)
 
 (* Instruction selection for conditionals *)
 

@@ -243,8 +243,7 @@ method class_of_operation op =
   | Iintop _ -> Op_pure
   | Iintop_imm(Icheckbound, _) -> Op_checkbound
   | Iintop_imm(_, _) -> Op_pure
-  | Icompf _
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Ifloatop _
   | Ifloatofint | Iintoffloat -> Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_pure
