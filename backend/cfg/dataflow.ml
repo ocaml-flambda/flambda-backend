@@ -58,11 +58,14 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     let exception_ = Some (T.exception_ value.before) in
     { value with after; exception_ }
 
-  let create : Cfg.t -> init:(Cfg.basic_block -> domain * bool) -> value Label.Tbl.t * Label.Set.t ref =
+  let create :
+      Cfg.t ->
+      init:(Cfg.basic_block -> domain * bool) ->
+      value Label.Tbl.t * Label.Set.t ref =
    fun cfg ~init ->
     (* CR xclerc for xclerc: what should be the initial size? *)
-   let map = Label.Tbl.create 32 in
-   let set = ref Label.Set.empty in
+    let map = Label.Tbl.create 32 in
+    let set = ref Label.Set.empty in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         let before, in_work_set = init block in
         let after = None in
@@ -164,40 +167,39 @@ end
 module Dead_code = Forward (Domain) (Transfer)
 
 let run_dead_code : Cfg_with_layout.t -> unit =
-  fun cfg_with_layout ->
+ fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let is_entry_label label = Label.equal label cfg.entry_label in
   let is_trap_handler label = (Cfg.get_block_exn cfg label).is_trap_handler in
   let init { Cfg.start; _ } =
-    if is_entry_label start || is_trap_handler start then
-      Domain.Reachable, true
-    else
-      Domain.Unreachable, false
+    if is_entry_label start || is_trap_handler start
+    then Domain.Reachable, true
+    else Domain.Unreachable, false
   in
   let unreachable_labels =
     Label.Tbl.fold
       (fun label { Dead_code.before; _ } acc ->
-         match before with
-         | Reachable -> acc
-         | Unreachable -> Label.Set.add label acc)
+        match before with
+        | Reachable -> acc
+        | Unreachable -> Label.Set.add label acc)
       (Dead_code.run cfg ~init ())
       Label.Set.empty
   in
   Label.Set.iter
     (fun label ->
-       let block = Cfg.get_block_exn cfg label in
-       block.predecessors <- Label.Set.empty;
-       Label.Set.iter
-         (fun succ_label ->
-            let succ_block = Cfg.get_block_exn cfg succ_label in
-            succ_block.predecessors <- Label.Set.remove label succ_block.predecessors)
-         (Cfg.successor_labels ~normal:true ~exn:true block);
-       block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
-       block.exns <- Label.Set.empty)
+      let block = Cfg.get_block_exn cfg label in
+      block.predecessors <- Label.Set.empty;
+      Label.Set.iter
+        (fun succ_label ->
+          let succ_block = Cfg.get_block_exn cfg succ_label in
+          succ_block.predecessors
+            <- Label.Set.remove label succ_block.predecessors)
+        (Cfg.successor_labels ~normal:true ~exn:true block);
+      block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
+      block.exns <- Label.Set.empty)
     unreachable_labels;
   Label.Set.iter
-    (fun label ->
-       Cfg_with_layout.remove_block cfg_with_layout label)
+    (fun label -> Cfg_with_layout.remove_block cfg_with_layout label)
     unreachable_labels;
   (* CR xclerc for xclerc: temporary. *)
   Eliminate_dead_blocks.run cfg_with_layout
