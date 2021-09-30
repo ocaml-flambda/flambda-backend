@@ -19,14 +19,20 @@
 (** Dumping and restoring of simplification environment information to and from
     .cmx files. *)
 
-val load_cmx_file_contents :
+type loader
+
+val create_loader :
   get_global_info:
     (Flambda2_identifiers.Compilation_unit.t -> Flambda_cmx_format.t option) ->
-  Compilation_unit.t ->
-  imported_units:Flambda2_types.Typing_env.t option Compilation_unit.Map.t ref ->
-  imported_names:Name.Set.t ref ->
-  imported_code:Exported_code.t ref ->
-  Flambda2_types.Typing_env.t option
+  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
+  loader
+
+val get_imported_names : loader -> unit -> Name.Set.t
+
+val get_imported_code : loader -> unit -> Exported_code.t
+
+val load_cmx_file_contents :
+  loader -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
 val prepare_cmx_file_contents :
   final_typing_env:Flambda2_types.Typing_env.t option ->

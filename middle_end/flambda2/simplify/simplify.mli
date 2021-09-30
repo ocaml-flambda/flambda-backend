@@ -30,8 +30,7 @@ type simplify_result = private
   }
 
 val run :
-  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
-  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option) ->
+  cmx_loader:Flambda_cmx.loader ->
   round:int ->
   Flambda_unit.t ->
   simplify_result

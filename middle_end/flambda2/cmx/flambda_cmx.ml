@@ -20,23 +20,27 @@ module EC = Exported_code
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
-let rec load_cmx_file_contents ~get_global_info comp_unit ~imported_units
-    ~imported_names ~imported_code =
-  match Compilation_unit.Map.find comp_unit !imported_units with
+type loader =
+  { get_global_info : Compilation_unit.t -> Flambda_cmx_format.t option;
+    mutable imported_names : Name.Set.t;
+    mutable imported_code : Exported_code.t;
+    mutable imported_units : TE.t option Compilation_unit.Map.t
+  }
+
+let rec load_cmx_file_contents loader comp_unit =
+  match Compilation_unit.Map.find comp_unit loader.imported_units with
   | typing_env_or_none -> typing_env_or_none
   | exception Not_found -> (
-    match get_global_info comp_unit with
+    match loader.get_global_info comp_unit with
     | None ->
       (* To make things easier to think about, we never retry after a .cmx load
          fails. *)
-      imported_units := Compilation_unit.Map.add comp_unit None !imported_units;
+      loader.imported_units
+        <- Compilation_unit.Map.add comp_unit None loader.imported_units;
       None
     | Some cmx ->
-      let resolver comp_unit =
-        load_cmx_file_contents ~get_global_info comp_unit ~imported_names
-          ~imported_code ~imported_units
-      in
-      let get_imported_names () = !imported_names in
+      let resolver comp_unit = load_cmx_file_contents loader comp_unit in
+      let get_imported_names () = loader.imported_names in
       let typing_env, all_code =
         Flambda_cmx_format.import_typing_env_and_code cmx
       in
@@ -44,13 +48,60 @@ let rec load_cmx_file_contents ~get_global_info comp_unit ~imported_units
         TE.Serializable.to_typing_env ~resolver ~get_imported_names typing_env
       in
       let newly_imported_names = TE.name_domain typing_env in
-      imported_names := Name.Set.union newly_imported_names !imported_names;
-      imported_code := EC.merge all_code !imported_code;
+      loader.imported_names
+        <- Name.Set.union newly_imported_names loader.imported_names;
+      loader.imported_code <- EC.merge all_code loader.imported_code;
       let offsets = Flambda_cmx_format.exported_offsets cmx in
       Exported_offsets.import_offsets offsets;
-      imported_units
-        := Compilation_unit.Map.add comp_unit (Some typing_env) !imported_units;
+      loader.imported_units
+        <- Compilation_unit.Map.add comp_unit (Some typing_env)
+             loader.imported_units;
       Some typing_env)
+
+let all_predefined_exception_symbols ~symbol_for_global =
+  Predef.all_predef_exns
+  |> List.map (fun ident ->
+         symbol_for_global
+           ?comp_unit:(Some (Compilation_unit.predefined_exception ()))
+           ident)
+  |> Symbol.Set.of_list
+
+let predefined_exception_typing_env ~symbol_for_global loader =
+  let comp_unit = Compilation_unit.get_current_exn () in
+  Compilation_unit.set_current (Compilation_unit.predefined_exception ());
+  let resolver comp_unit = load_cmx_file_contents loader comp_unit in
+  let get_imported_names () = loader.imported_names in
+  let typing_env =
+    Symbol.Set.fold
+      (fun sym typing_env ->
+        TE.add_definition typing_env (Bound_name.symbol sym) Flambda_kind.value)
+      (all_predefined_exception_symbols ~symbol_for_global)
+      (TE.create ~resolver ~get_imported_names)
+  in
+  Compilation_unit.set_current comp_unit;
+  typing_env
+
+let create_loader ~get_global_info ~symbol_for_global =
+  let loader =
+    { get_global_info;
+      imported_names = Name.Set.empty;
+      imported_code = Exported_code.empty;
+      imported_units = Compilation_unit.Map.empty
+    }
+  in
+  let predefined_exception_typing_env =
+    predefined_exception_typing_env ~symbol_for_global loader
+  in
+  loader.imported_units
+    <- Compilation_unit.Map.singleton
+         (Compilation_unit.predefined_exception ())
+         (Some predefined_exception_typing_env);
+  loader.imported_names <- TE.name_domain predefined_exception_typing_env;
+  loader
+
+let get_imported_names loader () = loader.imported_names
+
+let get_imported_code loader () = loader.imported_code
 
 let compute_reachable_names_and_code ~module_symbol typing_env code =
   let rec fixpoint names_to_add names_already_added =
