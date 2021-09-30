@@ -2779,10 +2779,16 @@ let transl_builtin name args dbg =
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
     Some(Cop(Cstore (Word_int, Assignment), args, dbg))
+  | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
     Some(Cop(Cload (Thirtytwo_signed, Mutable), args, dbg))
+  | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
     Some(Cop(Cstore (Thirtytwo_signed, Assignment), args, dbg))
+  | "caml_native_pointer_load_unsigned_int32" ->
+    Some(Cop(Cload (Thirtytwo_unsigned, Mutable), args, dbg))
+  | "caml_native_pointer_store_unsigned_int32" ->
+    Some(Cop(Cstore (Thirtytwo_unsigned, Assignment), args, dbg))
   | "caml_native_pointer_load_unboxed_float" ->
     Some(Cop(Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
@@ -2814,10 +2820,16 @@ let transl_builtin name args dbg =
     ext_pointer_load Word_int name args dbg
   | "caml_ext_pointer_store_unboxed_int64" when size_int = 8 ->
     ext_pointer_store Word_int name args dbg
+  | "caml_ext_pointer_load_signed_int32"
   | "caml_ext_pointer_load_unboxed_int32" ->
     ext_pointer_load Thirtytwo_signed name args dbg
+  | "caml_ext_pointer_store_signed_int32"
   | "caml_ext_pointer_store_unboxed_int32" ->
     ext_pointer_store Thirtytwo_signed name args dbg
+  | "caml_ext_pointer_load_unsigned_int32" ->
+    ext_pointer_load Thirtytwo_unsigned name args dbg
+  | "caml_ext_pointer_store_unsigned_int32" ->
+    ext_pointer_store Thirtytwo_unsigned name args dbg
   | "caml_ext_pointer_load_unboxed_float" ->
     ext_pointer_load Double name args dbg
   | "caml_ext_pointer_store_unboxed_float" ->
