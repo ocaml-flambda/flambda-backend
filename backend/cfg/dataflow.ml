@@ -32,7 +32,7 @@ module type S = sig
   val run :
     Cfg.t ->
     ?max_iteration:int ->
-    init:(Cfg.basic_block -> domain) ->
+    init:(Cfg.basic_block -> domain * bool) ->
     unit ->
     value Label.Tbl.t
 end
@@ -58,16 +58,18 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     let exception_ = Some (T.exception_ value.before) in
     { value with after; exception_ }
 
-  let create : Cfg.t -> init:(Cfg.basic_block -> domain) -> value Label.Tbl.t =
+  let create : Cfg.t -> init:(Cfg.basic_block -> domain * bool) -> value Label.Tbl.t * Label.Set.t ref =
    fun cfg ~init ->
     (* CR xclerc for xclerc: what should be the initial size? *)
-    let res : value Label.Tbl.t = Label.Tbl.create 32 in
+   let map = Label.Tbl.create 32 in
+   let set = ref Label.Set.empty in
     Cfg.iter_blocks cfg ~f:(fun label block ->
-        let before = init block in
+        let before, in_work_set = init block in
         let after = None in
         let exception_ = None in
-        Label.Tbl.replace res label { before; after; exception_ });
-    res
+        Label.Tbl.replace map label { before; after; exception_ };
+        if in_work_set then set := Label.Set.add label !set);
+    map, set
 
   let remove_and_return : Cfg.t -> Label.Set.t ref -> Cfg.basic_block =
    fun cfg set ->
@@ -81,12 +83,11 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
   let run :
       Cfg.t ->
       ?max_iteration:int ->
-      init:(Cfg.basic_block -> domain) ->
+      init:(Cfg.basic_block -> domain * bool) ->
       unit ->
       value Label.Tbl.t =
    fun cfg ?(max_iteration = max_int) ~init () ->
-    let res = create cfg ~init in
-    let work_set = ref (Label.Set.singleton cfg.entry_label) in
+    let res, work_set = create cfg ~init in
     let iteration = ref 0 in
     while (not (Label.Set.is_empty !work_set)) && !iteration < max_iteration do
       incr iteration;
@@ -163,11 +164,15 @@ end
 module Dead_code = Forward (Domain) (Transfer)
 
 let run_dead_code : Cfg_with_layout.t -> unit =
- fun cfg_with_layout ->
+  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let is_entry_label label = Label.equal label cfg.entry_label in
+  let is_trap_handler label = (Cfg.get_block_exn cfg label).is_trap_handler in
   let init { Cfg.start; _ } =
-    if is_entry_label start then Domain.Reachable else Domain.Unreachable
+    if is_entry_label start || is_trap_handler start then
+      Domain.Reachable, true
+    else
+      Domain.Unreachable, false
   in
   let unreachable_labels =
     Label.Tbl.fold

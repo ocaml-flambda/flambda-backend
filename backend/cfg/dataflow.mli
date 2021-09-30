@@ -30,7 +30,7 @@ module type S = sig
   val run :
     Cfg.t ->
     ?max_iteration:int ->
-    init:(Cfg.basic_block -> domain) ->
+    init:(Cfg.basic_block -> domain * bool) ->
     unit ->
     value Label.Tbl.t
 end
