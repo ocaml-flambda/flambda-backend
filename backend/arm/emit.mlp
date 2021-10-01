@@ -195,7 +195,7 @@ let name_for_int_operation = function
     Iadd  -> "adds"
   | Isub  -> "subs"
   | Imul  -> "mul"
-  | Imulh -> "smmul"
+  | Imulh { signed = true } -> "smmul"
   | Iand  -> "ands"
   | Ior   -> "orrs"
   | Ixor  -> "eors"
@@ -717,8 +717,10 @@ let emit_instr i =
         let op = name_for_shift_operation shiftop in
         `	cmp	{emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}, {emit_string op} #{emit_int n}\n`;
         `	bcs	{emit_label lbl}\n`; 2
-    | Lop(Iintop Imulh) when !arch < ARMv6 ->
+    | Lop(Iintop Imulh { signed = true }) when !arch < ARMv6 ->
         `	smull	r12, {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`; 1
+    | Lop(Iintop Imulh { signed = false }) ->
+        `	umull	r12, {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`; 1
     | Lop(Ispecific Imulhadd) ->
         `	smmla	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`; 1
     | Lop(Iintop op) ->

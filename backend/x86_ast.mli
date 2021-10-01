@@ -167,6 +167,7 @@ type instruction =
   | HLT
   | IDIV of arg
   | IMUL of arg * arg option
+  | MUL of arg * arg option
   | INC of arg
   | J of condition * arg
   | JMP of arg

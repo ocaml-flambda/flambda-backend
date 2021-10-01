@@ -375,7 +375,8 @@ let name_for_int_comparison = function
 let name_for_intop = function
     Iadd  -> "add"
   | Imul  -> if ppc64 then "mulld" else "mullw"
-  | Imulh -> if ppc64 then "mulhd" else "mulhw"
+  | Imulh { signed = true } -> if ppc64 then "mulhd" else "mulhw"
+  | Imulh { signed = false } -> if ppc64 then "mulhdu" else "mulhwu"
   | Idiv  -> if ppc64 then "divd" else "divw"
   | Iand  -> "and"
   | Ior   -> "or"

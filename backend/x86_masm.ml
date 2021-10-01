@@ -177,6 +177,8 @@ let print_instr b = function
   | IDIV arg -> i1 b "idiv" arg
   | IMUL (arg, None) -> i1 b "imul" arg
   | IMUL (arg1, Some arg2) -> i2 b "imul" arg1 arg2
+  | MUL (arg, None) -> i1 b "mul" arg
+  | MUL (arg1, Some arg2) -> i2 b "mul" arg1 arg2
   | INC arg -> i1 b "inc" arg
   | J (c, arg) -> i1_call_jmp b ("j" ^ string_of_condition c) arg
   | JMP arg -> i1_call_jmp b "jmp" arg

@@ -439,7 +439,12 @@ let emit_instr i =
         `{emit_label lbl_after_alloc}:`;
         `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
 
-    | Lop(Iintop Imulh) ->
+    | Lop(Iintop (Imulh { signed = false })) ->
+       `	lgr	%r1, {emit_reg i.arg.(0)}\n`;
+       `	mlgr	%r0, {emit_reg i.arg.(1)}\n`;
+         (* r0:r1 is 128-bit unsigned product; r0 is the high bits *)
+       `	lgr	{emit_reg i.res.(0)}, %r0\n`
+    | Lop(Iintop (Imulh { signed = true })) ->
        (* Hacker's Delight section 8.3:
             mul-high-signed(a, b) = mul-high-unsigned(a, b)
                                     - a  if b < 0
@@ -535,7 +540,7 @@ let emit_instr i =
     | Lop(Iintop_imm(Imul, n)) ->
         assert (i.arg.(0).loc = i.res.(0).loc);
           `	msgfi	{emit_reg i.res.(0)}, {emit_int n}\n`
-    | Lop(Iintop_imm((Imulh | Idiv | Imod), _)) ->
+    | Lop(Iintop_imm((Imulh _ | Idiv | Imod), _)) ->
         assert false
     | Lop(Iintop_imm((Ipopcnt | Iclz _ | Ictz _), _)) ->
         fatal_error ("Operation not supported.")

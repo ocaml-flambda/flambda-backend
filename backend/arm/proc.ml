@@ -297,7 +297,9 @@ let destroyed_at_oper = function
       destroyed_at_alloc
   | Iop(Iconst_symbol _) when !Clflags.pic_code ->
       [| phys_reg 3; phys_reg 8 |]  (* r3 and r12 destroyed *)
-  | Iop(Iintop Imulh) when !arch < ARMv6 ->
+  | Iop(Iintop Imulh { signed = false }) ->
+      [| phys_reg 8 |]              (* r12 destroyed *)
+  | Iop(Iintop Imulh { signed = true }) when !arch < ARMv6 ->
       [| phys_reg 8 |]              (* r12 destroyed *)
   | Iop(Iintop (Icomp _) | Iintop_imm(Icomp _, _))
     when !arch >= ARMv8 && !thumb ->
@@ -318,7 +320,8 @@ let safe_register_pressure = function
     Iextcall _ -> if abi = EABI then 0 else 4
   | Ialloc _ -> if abi = EABI then 0 else 7
   | Iconst_symbol _ when !Clflags.pic_code -> 7
-  | Iintop Imulh when !arch < ARMv6 -> 8
+  | Iintop Imulh { signed = false } -> 8
+  | Iintop Imulh { signed = true } when !arch < ARMv6 -> 8
   | _ -> 9
 
 let max_register_pressure = function
@@ -327,7 +330,8 @@ let max_register_pressure = function
   | Iconst_symbol _ when !Clflags.pic_code -> [| 7; 16; 32 |]
   | Iintoffloat | Ifloatofint
   | Iload(Single, _) | Istore(Single, _, _) -> [| 9; 15; 31 |]
-  | Iintop Imulh when !arch < ARMv6 -> [| 8; 16; 32 |]
+  | Iintop Imulh { signed = false } -> [| 8; 16; 32 |]
+  | Iintop Imulh { signed = true } when !arch < ARMv6 -> [| 8; 16; 32 |]
   | _ -> [| 9; 16; 32 |]
 
 (* Pure operations (without any side effect besides updating their result
@@ -367,7 +371,7 @@ let operation_supported = function
   | Cprefetch _
     -> false   (* Not implemented *)
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
-  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf

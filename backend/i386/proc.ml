@@ -204,7 +204,7 @@ let destroyed_at_oper = function
   | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call
   | Iop(Iintop(Idiv | Imod)) -> [| eax; edx |]
   | Iop(Ialloc _) -> [| eax; ebx |]
-  | Iop(Iintop Imulh) -> [| eax |]
+  | Iop(Iintop Imulh _) -> [| eax |]
   | Iop(Iintop(Icomp _) | Iintop_imm(Icomp _, _)) -> [| eax |]
   | Iop(Iintoffloat) -> [| eax |]
   | Iop(Icompf _) -> [| eax |]
@@ -263,7 +263,7 @@ let operation_supported = function
   | Cprefetch _
     -> false   (* Not implemented *)
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
-  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _
   | Cnegf | Cabsf | Caddf | Csubf | Cmulf | Cdivf

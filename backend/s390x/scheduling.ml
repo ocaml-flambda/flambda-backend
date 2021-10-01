@@ -51,7 +51,8 @@ method! reload_retaddr_latency = 4
 
 method oper_issue_cycles = function
   | Ialloc _ -> 4
-  | Iintop(Imulh) -> 15
+  | Iintop(Imulh { signed = true } ) -> 15
+  | Iintop(Imulh { signed = false } ) -> 10
   | Iintop(Idiv|Imod) -> 20
   | Iintop(Icomp _) -> 4
   | Iintop_imm(Icomp _, _) -> 4

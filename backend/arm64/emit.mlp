@@ -524,7 +524,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Ishiftcheckbound _)) -> 2
     | Lop (Ispecific (Ifar_shiftcheckbound _)) -> 3
     | Lop (Iintop Imod) -> 2
-    | Lop (Iintop Imulh) -> 1
+    | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
     | Lop (Iintop_imm _) -> 1
     | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
@@ -843,8 +843,10 @@ let emit_instr i =
     | Lop(Iintop Imod) ->
         `	sdiv	{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	msub	{emit_reg i.res.(0)}, {emit_reg reg_tmp1}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iintop Imulh) ->
+    | Lop(Iintop (Imulh { signed = true })) ->
         `	smulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Iintop (Imulh { signed = false })) ->
+        `	umulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Iintop op) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`

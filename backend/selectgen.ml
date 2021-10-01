@@ -150,7 +150,7 @@ let oper_result_type = function
   | Calloc -> typ_val
   | Cstore (_c, _) -> typ_void
   | Cprefetch _ -> typ_void
-  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi |
+  | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi |
     Cand | Cor | Cxor | Clsl | Clsr | Casr |
     Cclz _ | Cctz _ | Cpopcnt |
     Ccmpi _ | Ccmpa _ | Ccmpf _ -> typ_int
@@ -421,7 +421,7 @@ method is_simple_expr = function
       | Cprobe_is_enabled _ | Copaque -> false
       | Cprefetch _ -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
-      | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
+      | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cclz _ | Cctz _ | Cpopcnt
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
@@ -469,7 +469,7 @@ method effects_of exp =
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
       | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
-      | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
+      | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
       | Cclz _ | Cctz _ | Cpopcnt
       | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf | Cabsf
       | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat | Ccmpf _ ->
@@ -567,7 +567,7 @@ method select_operation op args _dbg =
   | (Caddi, _) -> self#select_arith_comm Iadd args
   | (Csubi, _) -> self#select_arith Isub args
   | (Cmuli, _) -> self#select_arith_comm Imul args
-  | (Cmulhi, _) -> self#select_arith_comm Imulh args
+  | (Cmulhi { signed }, _) -> self#select_arith_comm (Imulh {signed}) args
   | (Cdivi, _) -> (Iintop Idiv, args)
   | (Cmodi, _) -> (Iintop Imod, args)
   | (Cand, _) -> self#select_arith_comm Iand args

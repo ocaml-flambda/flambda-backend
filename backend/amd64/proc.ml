@@ -309,7 +309,7 @@ let destroyed_at_oper = function
         -> [| rax; rdx |]
   | Iop(Istore(Single, _, _)) -> [| rxmm15 |]
   | Iop(Ialloc _) -> destroyed_at_alloc
-  | Iop(Iintop(Imulh | Icomp _) | Iintop_imm((Icomp _), _))
+  | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
@@ -322,7 +322,7 @@ let destroyed_at_oper = function
                  | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
-  | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl
+  | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
                    | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
                    | Icheckbound),_))
   | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
@@ -381,9 +381,9 @@ let max_register_pressure =
     consumes ~int:1 ~float:0
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
-  | Iintop(Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+  | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh | Iand | Ior | Ixor | Ilsl | Ilsr
+  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
                 | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
   | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
@@ -416,9 +416,9 @@ let op_is_pure = function
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false
   | Iprobe _ | Iprobe_is_enabled _-> false
-  | Iintop(Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor
+  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
                | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
@@ -450,7 +450,7 @@ let operation_supported = function
   | Cpopcnt -> !popcnt_support
   | Cprefetch _
   | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
-  | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
+  | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz _ | Cctz _
   | Ccmpi _ | Caddv | Cadda | Ccmpa _

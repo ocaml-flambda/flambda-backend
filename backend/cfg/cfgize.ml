@@ -160,11 +160,11 @@ let basic_or_terminator_of_operation :
   | Iintop_imm (Icheckbound, i) ->
     Basic (Call (P (Checkbound { immediate = Some i })))
   | Iintop
-      (( Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+      (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
     Basic (Op (Intop op))
   | Iintop_imm
-      ( (( Iadd | Isub | Imul | Imulh | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+      ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
          | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
         imm ) ->
     Basic (Op (Intop_imm (op, imm)))
