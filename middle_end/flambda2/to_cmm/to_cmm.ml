@@ -1239,7 +1239,7 @@ and match_var_with_extra_info env simple : Env.extra_info option =
 and cmm_arith_size e =
   match (e : Cmm.expression) with
   | Cop
-      ( ( Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor | Cxor
+      ( ( Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor
         | Clsl | Clsr | Casr ),
         l,
         _ ) ->

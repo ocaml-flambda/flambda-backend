@@ -675,8 +675,10 @@ let emit_instr fallthrough i =
   | Lop(Iintop(Ilsl | Ilsr | Iasr as op)) ->
       (* We have i.arg.(0) = i.res.(0) and i.arg.(1) = %ecx *)
       instr_for_intop op cl (reg i.res.(0))
-  | Lop(Iintop Imulh) ->
+  | Lop(Iintop (Imulh { signed = true })) ->
       I.imul (reg i.arg.(1)) None
+  | Lop(Iintop (Imulh { signed = false })) ->
+      I.mul (reg i.arg.(1)) None
   | Lop(Iintop op) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (reg i.arg.(1)) (reg i.res.(0))

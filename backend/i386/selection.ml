@@ -119,7 +119,7 @@ let pseudoregs_for_operation op arg res =
       (res, res, false)
   (* For imull, first arg must be in eax, eax is clobbered, and result is in
      edx. *)
-  | Iintop(Imulh) ->
+  | Iintop(Imulh _) ->
       ([| eax; arg.(1) |], [| edx |], true)
   (* For shifts with variable shift count, second arg must be in ecx *)
   | Iintop(Ilsl|Ilsr|Iasr) ->

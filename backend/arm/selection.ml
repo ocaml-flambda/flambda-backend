@@ -67,7 +67,9 @@ let pseudoregs_for_operation op arg res =
      forced to be r12 in proc.ml, which means that neither rdhi and rn can
      be r12.  To keep things simple, we force both of those two to specific
      hard regs: rdhi in r6 and rn in r7. *)
-  | Iintop Imulh when !arch < ARMv6 ->
+  | Iintop Imulh { signed = true } when !arch < ARMv6 ->
+      ([| r7; arg.(1) |], [| r6 |])
+  | Iintop Imulh { signed = false } ->
       ([| r7; arg.(1) |], [| r6 |])
   (* Soft-float Iabsf and Inegf: arg.(0) and res.(0) must be the same *)
   | Iabsf | Inegf when !fpu = Soft ->
@@ -160,11 +162,12 @@ method select_shift_arith op dbg arithop arithrevop args =
   | args ->
       begin match super#select_operation op args dbg with
       (* Recognize multiply high and add *)
-        (Iintop Iadd, [Cop(Cmulhi, args, _); arg3])
-      | (Iintop Iadd, [arg3; Cop(Cmulhi, args, _)]) as op_args
+        (Iintop Iadd, [Cop(Cmulhi { signed = true }, args, _); arg3])
+      | (Iintop Iadd, [arg3; Cop(Cmulhi { signed = true }, args, _)]) as op_args
         when !arch >= ARMv6 ->
-          begin match self#select_operation Cmulhi args dbg with
-            (Iintop Imulh, [arg1; arg2]) ->
+          begin
+            match self#select_operation (Cmulhi { signed = true }) args dbg with
+            (Iintop Imulh { signed = true }, [arg1; arg2]) ->
               (Ispecific Imulhadd, [arg1; arg2; arg3])
           | _ -> op_args
           end

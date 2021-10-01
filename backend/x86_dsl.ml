@@ -168,6 +168,7 @@ module I = struct
   let hlt () = emit HLT
   let idiv x = emit (IDIV x)
   let imul x y = emit (IMUL (x, y))
+  let mul x y = emit (MUL (x, y))
   let inc x = emit (INC x)
   let j cond x = emit (J (cond, x))
   let ja = j A
