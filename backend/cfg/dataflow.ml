@@ -3,7 +3,11 @@ open! Int_replace_polymorphic_compare
 module type Domain = sig
   type t
 
+  val bot : t
+
   val equal : t -> t -> bool
+
+  val lessequal : t -> t -> bool
 
   val join : t -> t -> t
 
@@ -139,10 +143,19 @@ module Domain = struct
     | Reachable
     | Unreachable
 
+  let bot = Unreachable
+
   let equal left right =
     match left, right with
     | Reachable, Reachable | Unreachable, Unreachable -> true
     | Reachable, Unreachable | Unreachable, Reachable -> false
+
+  let lessequal left right =
+    match left, right with
+    | Reachable, Reachable -> true
+    | Reachable, Unreachable -> false
+    | Unreachable, Reachable -> true
+    | Unreachable, Unreachable -> true
 
   let join left right =
     match left, right with

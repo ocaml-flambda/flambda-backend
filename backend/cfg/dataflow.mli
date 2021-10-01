@@ -1,7 +1,11 @@
 module type Domain = sig
   type t
 
+  val bot : t
+
   val equal : t -> t -> bool
+
+  val lessequal : t -> t -> bool
 
   val join : t -> t -> t
 

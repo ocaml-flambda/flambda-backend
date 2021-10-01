@@ -853,9 +853,6 @@
   (.ocamloptcomp.objs/byte/cfg_with_layout.cmti
    as
    compiler-libs/cfg_with_layout.cmti)
-  (.ocamloptcomp.objs/byte/disconnect_block.cmi
-   as
-   compiler-libs/disconnect_block.cmi)
   (.ocamloptcomp.objs/byte/dataflow.cmi
    as
    compiler-libs/dataflow.cmi)
