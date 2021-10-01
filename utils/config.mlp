@@ -77,6 +77,7 @@ let flambda = %%FLAMBDA%%
 let flambda2 = %%FLAMBDA2%%
 let with_flambda_invariants = %%WITH_FLAMBDA_INVARIANTS%%
 
+let with_cmm_invariants = %%WITH_CMM_INVARIANTS%%
 let flambda_backend = true
 
 let safe_string = %%FORCE_SAFE_STRING%%
