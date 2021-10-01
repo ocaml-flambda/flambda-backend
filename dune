@@ -487,6 +487,7 @@
   (cfg.mli as compiler-libs/cfg.mli)
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
+  (dataflow.mli as compiler-libs/dataflow.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
   (eliminate_fallthrough_blocks.mli
@@ -855,6 +856,21 @@
   (.ocamloptcomp.objs/byte/disconnect_block.cmi
    as
    compiler-libs/disconnect_block.cmi)
+  (.ocamloptcomp.objs/byte/dataflow.cmi
+   as
+   compiler-libs/dataflow.cmi)
+  (.ocamloptcomp.objs/byte/dataflow.cmo
+   as
+   compiler-libs/dataflow.cmo)
+  (.ocamloptcomp.objs/byte/dataflow.cmt
+   as
+   compiler-libs/dataflow.cmt)
+  (.ocamloptcomp.objs/byte/dataflow.cmti
+   as
+   compiler-libs/dataflow.cmti)
+  (.ocamloptcomp.objs/byte/disconnect_block.cmi
+   as
+   compiler-libs/disconnect_block.cmi)
   (.ocamloptcomp.objs/byte/disconnect_block.cmo
    as
    compiler-libs/disconnect_block.cmo)
@@ -1049,6 +1065,9 @@
   (.ocamloptcomp.objs/native/cfg_with_layout.cmx
    as
    compiler-libs/cfg_with_layout.cmx)
+  (.ocamloptcomp.objs/native/dataflow.cmx
+   as
+   compiler-libs/dataflow.cmx)
   (.ocamloptcomp.objs/native/disconnect_block.cmx
    as
    compiler-libs/disconnect_block.cmx)
