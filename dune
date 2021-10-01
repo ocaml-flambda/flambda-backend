@@ -164,6 +164,7 @@
   branch_relaxation_intf
   cfgize
   cmm_helpers
+  cmm_invariants
   cmm
   cmmgen
   cmmgen_state
@@ -439,6 +440,7 @@
   (branch_relaxation.mli as compiler-libs/branch_relaxation.mli)
   (cfgize.mli as compiler-libs/cfgize.mli)
   (cmm_helpers.mli as compiler-libs/cmm_helpers.mli)
+  (cmm_invariants.mli as compiler-libs/cmm_invariants.mli)
   (cmm.mli as compiler-libs/cmm.mli)
   (cmmgen.mli as compiler-libs/cmmgen.mli)
   (cmmgen_state.mli as compiler-libs/cmmgen_state.mli)
@@ -611,6 +613,12 @@
   (.ocamloptcomp.objs/byte/cmm_helpers.cmti
    as
    compiler-libs/cmm_helpers.cmti)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmi as compiler-libs/cmm_invariants.cmi)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmo as compiler-libs/cmm_invariants.cmo)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmt as compiler-libs/cmm_invariants.cmt)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmti
+   as
+   compiler-libs/cmm_invariants.cmti)
   (.ocamloptcomp.objs/byte/cmmgen.cmi as compiler-libs/cmmgen.cmi)
   (.ocamloptcomp.objs/byte/cmmgen.cmo as compiler-libs/cmmgen.cmo)
   (.ocamloptcomp.objs/byte/cmmgen.cmt as compiler-libs/cmmgen.cmt)
@@ -989,6 +997,9 @@
   (.ocamloptcomp.objs/native/cmm_helpers.cmx
    as
    compiler-libs/cmm_helpers.cmx)
+  (.ocamloptcomp.objs/native/cmm_invariants.cmx
+   as
+   compiler-libs/cmm_invariants.cmx)
   (.ocamloptcomp.objs/native/cmmgen.cmx as compiler-libs/cmmgen.cmx)
   (.ocamloptcomp.objs/native/cmmgen_state.cmx
    as
