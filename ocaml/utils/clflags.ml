@@ -382,17 +382,18 @@ type extension = Comprehensions
 let extensions = ref ([] : extension list) (* -extensions *)
 let set_standard () = extensions := []
 
+let string_of_extension = function
+| Comprehensions -> "comprehensions"
+
+let extension_of_string = function
+| "comprehensions" -> Comprehensions
+| extn ->  raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+
 let add_extension extn =
-  let extension =
-    match String.lowercase_ascii extn with
-    "comprehensions" -> Comprehensions
-    | _ ->  raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
-  in
+  let extension = extension_of_string (String.lowercase_ascii extn) in
   extensions := extension::!extensions
 
 let is_extension_enabled ext = List.mem ext !extensions
-let string_of_extension = function
-| Comprehensions -> "comprehensions"
 
 let dump_into_file = ref false (* -dump-into-file *)
 

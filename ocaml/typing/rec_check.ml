@@ -845,7 +845,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe_is_enabled _ -> empty
 
 and comprehension comp_types=
-  (List.concat_map (fun {clauses; guard}  ->
+  List.concat_map (fun {clauses; guard}  ->
       let clauses =
         List.concat_map (fun comp_type ->
           match comp_type with
@@ -854,16 +854,16 @@ and comprehension comp_types=
               expression low << Dereference;
               expression high << Dereference;
             ]
-          | In (_, _in) ->
+          | In (_, in_) ->
             [
-              expression _in << Dereference;
+              expression in_ << Dereference;
             ]
         ) clauses
       in
       match guard with
       | None -> clauses
       | Some guard -> (expression guard << Dereference)::clauses)
-  comp_types)
+  comp_types
 
 and binding_op : Typedtree.binding_op -> term_judg =
   fun bop ->

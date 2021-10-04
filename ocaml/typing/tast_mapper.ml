@@ -241,7 +241,7 @@ let expr sub x =
   let exp_extra = List.map (tuple3 extra id id) x.exp_extra in
   let exp_env = sub.env sub x.exp_env in
   let map_comprehension comp_types=
-      (List.map (fun {clauses; guard}  ->
+      List.map (fun {clauses; guard}  ->
         let clauses =
           List.map (fun comp_type ->
             match comp_type with
@@ -251,7 +251,7 @@ let expr sub x =
           ) clauses
         in
         {clauses; guard=(Option.map (sub.expr sub) guard)}
-      ) comp_types)
+      ) comp_types
   in
   let exp_desc =
     match x.exp_desc with

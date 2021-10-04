@@ -612,7 +612,7 @@ let split_cases env cases =
     | vp, ep -> add_case vals case vp, add_case exns case ep
   ) cases ([], [])
 
-let type_for_loop_index ~loc ~env ~param ty=
+let type_for_loop_index ~loc ~env ~param ty =
   match param.ppat_desc with
   | Ppat_any -> Ident.create_local "_for", env
   | Ppat_var {txt} ->
@@ -3111,7 +3111,7 @@ and type_expect_
       let high = type_expect env shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
       let id, new_env =
-        type_for_loop_index ~loc ~env ~param  Predef.type_int
+        type_for_loop_index ~loc ~env ~param Predef.type_int
       in
       let body = type_statement ~explanation:For_loop_body new_env sbody in
       rue {
@@ -5221,7 +5221,7 @@ and type_andops env sarg sands expected_ty =
       let high = type_expect env shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
       let id, new_env =
-        type_for_loop_index ~loc ~env:body_env ~param  Predef.type_int
+        type_for_loop_index ~loc ~env:body_env ~param Predef.type_int
       in
       From_to(id, param, low, high, dir), new_env
     | In (param, siter) ->
@@ -5255,8 +5255,8 @@ and type_andops env sarg sands expected_ty =
     comp, env
 
   and type_comprehension_block ~env ~loc
-      ~comp:({clauses; guard} :  Extensions.comprehension) ~container_type  =
-    let new_comps, new_env  = List.fold_right
+      ~comp:({clauses; guard} : Extensions.comprehension) ~container_type  =
+    let new_comps, new_env = List.fold_right
       (fun comp_type (comps, body_env)->
         let comp, new_env =
           type_comprehension_clause ~body_env ~env ~loc
@@ -5271,7 +5271,7 @@ and type_andops env sarg sands expected_ty =
 
   and type_comprehension_list ~loc ~env ~container_type ~comp_typell =
     let comps, new_env = List.fold_right
-      (fun (comp) (comps, env) ->
+      (fun comp (comps, env) ->
           let new_comps, new_env  =
             type_comprehension_block
               ~env ~loc ~comp ~container_type
@@ -5753,7 +5753,7 @@ let report_error ~loc env = function
   | Extension_not_enabled(ext) ->
     let name = Clflags.string_of_extension ext in
     Location.errorf ~loc
-        "Extension \"%s\" must be enabled to use this feature." name
+        "Extension %s must be enabled to use this feature." name
   | Literal_overflow ty ->
       Location.errorf ~loc
         "Integer literal exceeds the range of representable integers of type %s"

@@ -3,7 +3,7 @@ open! Stdlib
 let rev = List.rev;;
 
 let map_cons f l acc =
-  List.fold_left (fun acc el -> (f el acc )) acc l
+  List.fold_left (fun acc el -> (f el acc)) acc l
 
 let map_from_to_cons  f from to_ acc=
   let rec loop f from to_ acc =

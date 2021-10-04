@@ -388,7 +388,7 @@ let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
   let map_comprehension comp_types=
-      (List.map (fun {clauses; guard}  ->
+      List.map (fun {clauses; guard}  ->
         let clauses =
           List.map (fun comp_type ->
             match comp_type with
@@ -399,7 +399,7 @@ let expression sub exp =
         in
         ({clauses; guard=(Option.map (sub.expr sub) guard)}
             : Extensions.comprehension )
-      ) comp_types)
+      ) comp_types
   in
   let desc =
     match exp.exp_desc with
@@ -472,15 +472,15 @@ let expression sub exp =
     | Texp_while (exp1, exp2) ->
         Pexp_while (sub.expr sub exp1, sub.expr sub exp2)
     | Texp_list_comprehension(exp1, type_comp) ->
-      Pexp_extension (
+      Pexp_extension
       (Extensions.payload_of_extension_expr ~loc
         (Extensions.Eexp_list_comprehension(
-          sub.expr sub exp1, map_comprehension type_comp))))
+          sub.expr sub exp1, map_comprehension type_comp)))
     | Texp_arr_comprehension(exp1, type_comp) ->
-      Pexp_extension (
+      Pexp_extension
         (Extensions.payload_of_extension_expr ~loc
           (Extensions.Eexp_arr_comprehension(
-            sub.expr sub exp1, map_comprehension type_comp))))
+            sub.expr sub exp1, map_comprehension type_comp)))
     | Texp_for (_id, name, exp1, exp2, dir, exp3) ->
         Pexp_for (name,
           sub.expr sub exp1, sub.expr sub exp2,

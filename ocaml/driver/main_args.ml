@@ -720,11 +720,11 @@ let mk_dump_into_file f =
 ;;
 
 let mk_extensions f =
-  "-extensions", Arg.String f, " list of extensions."
+  "-extensions", Arg.String f, "<extension> Enables the extension."
 ;;
 
 let mk_standard f =
-  "-standard", Arg.Unit f, " distable all default extensions."
+  "-standard", Arg.Unit f, " Disable all default extensions."
 ;;
 
 let mk_dparsetree f =

@@ -11,32 +11,31 @@ and comprehension =
 }
 
 and comprehension_clause =
-(*[ body for i = E2 to E3 ]      (flag = Upto)
- [ body for i = E2 downto E3 ]  (flag = downto)*)
+(*[ ... for i = E2 to E3 ]      (flag = Upto)
+  [ ... for i = E2 downto E3 ]  (flag = downto)*)
 | From_to of pattern * expression *
    expression * Asttypes.direction_flag
-(*[ body for i in E2 ]      *)
+(*[ ... for i in E2 ]      *)
 | In of pattern * expression
 
 
 type error =
-  | Extension_not_existent
+  | Extension_not_existent of string
   | Illegal_comprehension_extension_construct
 
 exception Error of Location.t * error
 
 
 let structure_item_of_expr_desc ~loc expr_desc =
-  {
-    pstr_desc=Pstr_eval(
-      {
-        pexp_desc=expr_desc;
-        pexp_loc=loc;
-        pexp_loc_stack=[];
-        pexp_attributes=[];
-      }, []);
-    pstr_loc=loc;
-  }
+  let expr =
+    {
+      pexp_desc=expr_desc;
+      pexp_loc=loc;
+      pexp_loc_stack=[];
+      pexp_attributes=[];
+    }
+  in
+  Ast_helper.Str.eval ~loc expr
 
 let structure_item_of_expr ~loc expr =
   {
@@ -45,14 +44,23 @@ let structure_item_of_expr ~loc expr =
   }
 
 let map_comprehension ~loc extension_name body comp_list : extension=
+  (*This is unreachable and just used as a place holder.*)
+  let unreachable =
+    {
+      pexp_desc=Pexp_unreachable;
+      pexp_loc=loc;
+      pexp_loc_stack=[];
+      pexp_attributes=[];
+    }
+  in
   let list =
-    (List.map (fun {clauses; guard}  ->
+    List.map (fun {clauses; guard}  ->
       let clauses =
         List.map (fun comp_type ->
           let expr_desc =
           match comp_type with
           | From_to (p, e2, e3, dir) ->
-            Pexp_for(p, e2, e3, dir, e2 (*This is arbitrary and unused.*))
+            Pexp_for(p, e2, e3, dir, unreachable)
           | In (p, e2) ->
             Pexp_let(Nonrecursive,
               [{
@@ -60,7 +68,7 @@ let map_comprehension ~loc extension_name body comp_list : extension=
                 pvb_expr=e2;
                 pvb_attributes=[];
                 pvb_loc=loc;
-              }], e2 (*This is arbitrary and unused.*))
+              }], unreachable)
           in
           structure_item_of_expr_desc ~loc expr_desc
         ) clauses
@@ -69,13 +77,13 @@ let map_comprehension ~loc extension_name body comp_list : extension=
         match guard with
         | None ->
           let payload = PStr(clauses) in
-          { txt="block"; loc; }, payload
+          { txt="extension_comprehension_block"; loc; }, payload
         | Some guard ->
           let payload = PStr((structure_item_of_expr ~loc guard)::clauses) in
-          { txt="guarded_block"; loc; }, payload
+          { txt="extension_comprehension_guarded_block"; loc; }, payload
       in
       structure_item_of_expr_desc ~loc (Pexp_extension(extension))
-    ) comp_list)
+    ) comp_list
   in
   let payload = PStr((structure_item_of_expr ~loc body)::list) in
   { txt=extension_name; loc; }, payload
@@ -94,8 +102,12 @@ let unwrap_structure ~loc = function
 
 let unmap_comprehension ~loc payload =
   let str = unwrap_structure ~loc payload in
-  let body = unwrap_expression ~loc ((List.hd str).pstr_desc) in
-  let str = List.tl str in
+  let get_hd_and_tl = function
+    | [] -> Misc.fatal_error "Unexpected sturcture in comprehension extension."
+    | hd::tl -> hd, tl
+  in
+  let str_hd, str_tl = get_hd_and_tl str in
+  let body = unwrap_expression ~loc (str_hd.pstr_desc) in
   let comp = List.map (fun {pstr_desc; pstr_loc=_;}  ->
     let name, payload =
       unwrap_extension ~loc (unwrap_expression ~loc pstr_desc).pexp_desc
@@ -103,11 +115,11 @@ let unmap_comprehension ~loc payload =
     let str = unwrap_structure ~loc payload in
     let str, guard =
       match name.txt with
-      | "block" ->  str, None
-      | "guarded_block" ->
-        let guard = unwrap_expression ~loc ((List.hd str).pstr_desc) in
-        let str = List.tl str in
-        str, Some guard
+      | "extension_comprehension_block" ->  str, None
+      | "extension_comprehension_guarded_block" ->
+        let str_hd, str_tl = get_hd_and_tl str in
+        let guard = unwrap_expression ~loc (str_hd.pstr_desc) in
+        str_tl, Some guard
       | _ -> raise(Error(loc, Illegal_comprehension_extension_construct))
     in
     let clauses =
@@ -125,8 +137,7 @@ let unmap_comprehension ~loc payload =
         ) str
     in
     { clauses; guard; }
-
-  ) str
+  ) str_tl
   in
   body, comp
 
@@ -144,12 +155,12 @@ let extension_expr_of_payload ~loc ((name, payload) : extension) =
   | "extension.arr_comprehension" ->
     let body, comp = unmap_comprehension ~loc payload in
     Eexp_arr_comprehension(body, comp)
-  | _ -> raise(Error(loc, Extension_not_existent))
+  | extension_name -> raise(Error(loc, Extension_not_existent extension_name))
 
 
 let report_error ~loc = function
-  | Extension_not_existent ->
-    Location.errorf ~loc "Extension does not exsist."
+  | Extension_not_existent extension_name ->
+    Location.errorf ~loc "Extension %s does not exsist." extension_name
   | Illegal_comprehension_extension_construct ->
     Location.errorf ~loc "Wrong extension sytax for comprehensions."
 

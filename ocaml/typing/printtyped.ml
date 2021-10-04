@@ -310,7 +310,6 @@ and comprehension i ppf comp_types=
   List.iter (fun {clauses; guard}  ->
     List.iter (fun comp_type ->
       match comp_type with
-      (*Todo: What todo with the Parsetree.patttern?*)
       | From_to (s, _, e2, e3, df) ->
         line i ppf "From_to \"%a\" %a\n" fmt_ident s fmt_direction_flag df;
         expression i ppf e2;

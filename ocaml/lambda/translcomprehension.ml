@@ -71,7 +71,7 @@ let transl_arr_clause ~transl_exp ~scopes ~loc clause body =
 
 (* Generate code to iterate over a comprehension block, along with some
    initialising bindings.  The bindings will also bind the given
-   [length_var] ident to the total number2 of iterations in the
+   [length_var] ident to the total number of iterations in the
    block. *)
 let iterate_arr_block ~transl_exp ~loc ~scopes
       {clauses; guard} length_var body =
@@ -124,6 +124,9 @@ let blit_array_prim ~loc src src_pos dst dst_pos len =
 let make_array ~loc ~kind ~size ~array =
   match kind with
   | Pgenarray ->
+      (* This array can be Immutable since it is empty and will later be 
+         replaced when an example value (to create the array) is known.
+         That is also why the biding is a Variable. *)
       let init = Lprim(Pmakearray(Pgenarray, Immutable), [] ,loc) in
       binding Variable Pgenval array init
   | Pintarray | Paddrarray ->
@@ -423,7 +426,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
         (from_var, transl_exp ~scopes e2)::(to_var, transl_exp ~scopes e3)::mats
       in
       param, pval, args, func, body, mats
-    | In (pat, _in) ->
+    | In (pat, in_) ->
       let pat_id = Ident.create_local "pat" in
       let pval = Typeopt.value_kind pat.pat_env pat.pat_type in
       let in_var = Ident.create_local "in_var" in
@@ -432,12 +435,12 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
       let body =
         Matching.for_let ~scopes pat.pat_loc (Lvar(pat_id)) pat body
       in
-      let mats = (in_var, transl_exp ~scopes _in)::mats in
+      let mats = (in_var, transl_exp ~scopes in_)::mats in
       pat_id , pval, args, func, body, mats
   in
   let fn =
     Lfunction {kind = Curried;
-              params= (param, pval)::[acc_var, Pgenval];
+              params= [param, pval; acc_var, Pgenval];
               return = Pgenval;
               attr = default_function_attribute;
               loc = loc;
@@ -453,7 +456,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
     ap_probe=None;
   }, new_acc, mats
 
-let transl_list_comprehension body blocks ~scopes ~loc ~transl_exp  =
+let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
   let acc_var = Ident.create_local "acc" in
   let bdy =
     Lprim(
@@ -481,7 +484,7 @@ let transl_list_comprehension body blocks ~scopes ~loc ~transl_exp  =
         body, acc_var)
     (bdy, acc_var) blocks
   in
-  Llet(Alias, Pgenval, res_var, int 0, (*Empty list.*)
+  Llet(Alias, Pintval, res_var, int 0, (*Empty list.*)
     Lapply{
         ap_loc=loc;
         ap_func=comp_rev ();
