@@ -433,7 +433,7 @@ make the whole environment Bottom (if one of the non-existential variables ends
 up having this special value or being related to one of them, then the whole
 environment becomes Bottom). This special kind of value is sometimes called
 Poison in other settings.
-In practice this means that existential variables from one side are only
+In practice this means that existential variables from one side only are
 re-introduced in the result with roughly the same type as on the side they were
 present in.
 
