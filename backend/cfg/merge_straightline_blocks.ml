@@ -30,11 +30,11 @@
  * - `b1` has only one non-exceptional successor, `b2`;
  * - `b2` has only one predecessor, `b1`;
  * - `b1` and `b2` are distinct blocks;
- * - the terminator of `b1` is not a tailcall to self.
+ * - the terminator of `b1` is pure
  *
  *  When the condition is met, `b1` is modified as follows:
  *  - its body is set to the concatenation of `b1.body` and `b2.body`;
- *  - its terminator becomes the terminator of `b2`;
+ *  - its terminator is replaced by the terminator of `b2`;
  *  - its `exns`, `can_raise`, and `can_raise_interproc` fields  are set to the "union"
  *    of the respective fields in `b1` and `b2`;
  *  - (its other fields are left unchanged);
@@ -68,14 +68,7 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
           if (not (Label.equal b1_label cfg.entry_label))
              && (not (Label.equal b1_label b2_label))
              && List.compare_length_with b2_predecessors 1 = 0
-             &&
-             match b1_block.terminator.desc with
-             | Tailcall (Self _) -> false
-             | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-             | Int_test _ | Switch _ | Return | Raise _
-             | Tailcall (Func _)
-             | Call_no_return _ ->
-               true
+             && Cfg.is_pure_terminator b1_block.terminator.desc
           then begin
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)

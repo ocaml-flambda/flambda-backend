@@ -134,7 +134,6 @@ module S = struct
 
   type basic =
     | Op of operation
-    | Call of call_operation
     | Reloadretaddr
     | Pushtrap of { lbl_handler : Label.t }
     | Poptrap
@@ -164,6 +163,10 @@ module S = struct
     | Raise of Lambda.raise_kind
     | Tailcall of tail_call_operation
     | Call_no_return of external_call_operation
+    | Call of
+        { call : call_operation;
+          return : Label.t
+        }
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

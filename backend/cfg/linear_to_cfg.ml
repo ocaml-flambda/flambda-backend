@@ -362,10 +362,11 @@ let block_is_registered t (block : C.basic_block) =
 let add_terminator t (block : C.basic_block) (i : L.instruction)
     (desc : C.terminator) ~trap_depth ~traps =
   (* All terminators are followed by a label, except branches we created for
-     fallthroughs in Linear. *)
+     fallthroughs in Linear and Call instructions. *)
   (match desc with
   | Never -> Misc.fatal_error "Cannot add terminator: Never"
   | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ -> ()
+  | Call _ -> ()
   | Switch _ | Return | Raise _ | Tailcall _ | Call_no_return _ ->
     if not (Linear_utils.defines_label i.next)
     then
@@ -378,22 +379,15 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
 
 let to_basic (mop : Mach.operation) : C.basic =
   match mop with
-  | Icall_ind -> Call (F Indirect)
-  | Icall_imm { func } -> Call (F (Direct { func_symbol = func }))
-  | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
-    Call (P (External { func_symbol = func; alloc; ty_args; ty_res }))
-  | Iintop Icheckbound -> Call (P (Checkbound { immediate = None }))
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ipopcnt | Iclz _ | Ictz _ | Ilsr | Iasr | Icomp _ ) as op) ->
     Op (Intop op)
-  | Iintop_imm (Icheckbound, i) -> Call (P (Checkbound { immediate = Some i }))
   | Iintop_imm
       ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
          | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
         i ) ->
     Op (Intop_imm (op, i))
-  | Ialloc { bytes; dbginfo } -> Call (P (Alloc { bytes; dbginfo }))
   | Iprobe { name; handler_code_sym } -> Op (Probe { name; handler_code_sym })
   | Iprobe_is_enabled { name } -> Op (Probe_is_enabled { name })
   | Istackoffset i -> Op (Stackoffset i)
@@ -418,7 +412,10 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Ispecific op -> Op (Specific op)
   | Iname_for_debugger { ident; which_parameter; provenance; is_assignment } ->
     Op (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
-  | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } ->
+  | Icall_ind | Icall_imm _
+  | Iintop Icheckbound
+  | Iintop_imm (Icheckbound, _)
+  | Ialloc _ | Itailcall_ind | Itailcall_imm _ | Iextcall _ ->
     assert false
 
 let rec adjust_traps (i : L.instruction) ~trap_depth ~traps =
@@ -582,6 +579,12 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     block.body <- create_instruction t desc i ~trap_depth :: block.body;
     create_blocks t i.next block ~trap_depth ~traps
   | Lop mop -> (
+    let create_call call =
+      let fallthrough = get_or_make_label t i.next in
+      let desc = C.Call { call; return = fallthrough.label } in
+      add_terminator t block i desc ~trap_depth ~traps;
+      create_blocks t fallthrough.insn block ~trap_depth ~traps
+    in
     match mop with
     | Itailcall_ind ->
       let desc = C.Tailcall (Func Indirect) in
@@ -604,13 +607,26 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       in
       add_terminator t block i desc ~trap_depth ~traps;
       create_blocks t i.next block ~trap_depth ~traps
+    | Iextcall { func; alloc; ty_args; ty_res; returns = true } ->
+      create_call (P (External { func_symbol = func; alloc; ty_args; ty_res }))
+    | Icall_ind -> create_call (F Indirect)
+    | Icall_imm { func } -> create_call (F (Direct { func_symbol = func }))
+    | Iintop Icheckbound -> create_call (P (Checkbound { immediate = None }))
+    | Iintop_imm (Icheckbound, i) ->
+      create_call (P (Checkbound { immediate = Some i }))
+    | Ialloc { bytes; dbginfo } -> create_call (P (Alloc { bytes; dbginfo }))
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
     | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+    | Iconst_symbol _ | Istackoffset _
     | Iload (_, _)
     | Istore (_, _, _)
-    | Ialloc _ | Iintop _
-    | Iintop_imm (_, _)
+    | Iintop
+        ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
+        | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
+    | Iintop_imm
+        ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
+          _ )
     | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _
     | Iname_for_debugger _ ->
       let desc = to_basic mop in

@@ -43,15 +43,6 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
   | Reloadretaddr -> Lreloadretaddr
   | Pushtrap { lbl_handler } -> Lpushtrap { lbl_handler }
   | Poptrap -> Lpoptrap
-  | Call (F Indirect) -> Lop Icall_ind
-  | Call (F (Direct { func_symbol })) -> Lop (Icall_imm { func = func_symbol })
-  | Call (P (External { func_symbol; alloc; ty_args; ty_res })) ->
-    Lop
-      (Iextcall { func = func_symbol; alloc; ty_args; ty_res; returns = true })
-  | Call (P (Checkbound { immediate = None })) -> Lop (Iintop Icheckbound)
-  | Call (P (Checkbound { immediate = Some i })) ->
-    Lop (Iintop_imm (Icheckbound, i))
-  | Call (P (Alloc { bytes; dbginfo })) -> Lop (Ialloc { bytes; dbginfo })
   | Op op ->
     let op : Mach.operation =
       match op with
@@ -162,21 +153,36 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
       then [L.Lbranch l1]
       else [L.Lcondbranch (c1, l1); L.Lbranch l2]
   in
+  let simple d = [d], None in
   let desc_list, tailrec_label =
     match terminator.desc with
-    | Return -> [L.Lreturn], None
-    | Raise kind -> [L.Lraise kind], None
-    | Tailcall (Func Indirect) -> [L.Lop Itailcall_ind], None
+    | Return -> simple L.Lreturn
+    | Raise kind -> simple (L.Lraise kind)
+    | Tailcall (Func Indirect) -> simple (L.Lop Itailcall_ind)
     | Tailcall (Func (Direct { func_symbol })) ->
-      [L.Lop (Itailcall_imm { func = func_symbol })], None
+      simple (L.Lop (Itailcall_imm { func = func_symbol }))
     | Tailcall (Self { destination }) ->
       [L.Lop (Itailcall_imm { func = Cfg.fun_name cfg })], Some destination
     | Call_no_return { func_symbol; alloc; ty_args; ty_res } ->
-      ( [ L.Lop
+      simple
+        (L.Lop
+           (Iextcall
+              { func = func_symbol; alloc; ty_args; ty_res; returns = false }))
+    | Call { call; return } ->
+      let desc =
+        match call with
+        | F Indirect -> L.Lop Icall_ind
+        | F (Direct { func_symbol }) -> L.Lop (Icall_imm { func = func_symbol })
+        | P (External { func_symbol; alloc; ty_args; ty_res }) ->
+          L.Lop
             (Iextcall
-               { func = func_symbol; alloc; ty_args; ty_res; returns = false })
-        ],
-        None )
+               { func = func_symbol; alloc; ty_args; ty_res; returns = true })
+        | P (Checkbound { immediate = None }) -> L.Lop (Iintop Icheckbound)
+        | P (Checkbound { immediate = Some i }) ->
+          L.Lop (Iintop_imm (Icheckbound, i))
+        | P (Alloc { bytes; dbginfo }) -> L.Lop (Ialloc { bytes; dbginfo })
+      in
+      desc :: branch_or_fallthrough return, None
     | Switch labels -> [L.Lswitch labels], None
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough label, None
@@ -311,7 +317,8 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       match prev_block.terminator.desc with
       | Switch _ -> true
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
-      | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _ ->
+      | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+      | Call _ ->
         (* If the label came from the original [Linear] code, preserve it for
            checking that the conversion from [Linear] to [Cfg] and back is the
            identity; and for various assertions in reorder. *)

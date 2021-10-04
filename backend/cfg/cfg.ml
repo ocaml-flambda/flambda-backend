@@ -71,6 +71,7 @@ let successor_labels_normal ti =
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall (Func _) -> Label.Set.empty
   | Call_no_return _ -> Label.Set.empty
+  | Call { return; call = _ } -> Label.Set.singleton return
   | Never -> Label.Set.empty
   | Always l -> Label.Set.singleton l
   | Parity_test { ifso; ifnot } | Truth_test { ifso; ifnot } ->
@@ -118,6 +119,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Float_test { lt; eq; gt; uo } ->
         Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
+      | Call { call; return } -> Call { call; return = f return }
       | Tailcall (Self { destination }) ->
         Tailcall (Self { destination = f destination })
       | Tailcall (Func Indirect)
@@ -241,9 +243,6 @@ let dump_basic ppf i =
   fprintf ppf "%d: " i.id;
   match i.desc with
   | Op op -> dump_op ppf op
-  | Call call ->
-    fprintf ppf "Call ";
-    dump_call ppf call
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
@@ -278,6 +277,8 @@ let dump_terminator ppf ?(sep = "\n") ti =
     for i = 0 to Array.length labels - 1 do
       fprintf ppf "case %d: goto %d%s" i labels.(i) sep
     done
+  | Call { call; return } ->
+    fprintf ppf "Call %a; goto %d%s" dump_call call return sep
   | Call_no_return { func_symbol : string; _ } ->
     fprintf ppf "Call_no_return %s%s" func_symbol sep
   | Return -> fprintf ppf "Return%s" sep
@@ -287,11 +288,19 @@ let dump_terminator ppf ?(sep = "\n") ti =
 
 let can_raise_terminator (i : terminator) =
   match i with
-  | Raise _ | Tailcall (Func _) | Call_no_return _ -> true
+  | Raise _ | Tailcall (Func _) | Call _ | Call_no_return _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return
   | Tailcall (Self _) ->
     false
+
+(* CR gyorsh: fix for memory operands *)
+let is_pure_terminator desc =
+  match (desc : terminator) with
+  | Raise _ | Call_no_return _ | Call _ | Tailcall _ -> false
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return ->
+    true
 
 let print_basic oc i =
   Format.kasprintf (Printf.fprintf oc "%s") "%a" dump_basic i

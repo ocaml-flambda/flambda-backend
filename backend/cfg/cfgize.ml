@@ -124,69 +124,6 @@ end = struct
   let get_exception_handlers t = t.exception_handlers
 end
 
-type basic_or_terminator =
-  | Basic of Cfg.basic
-  | Terminator of Cfg.terminator
-
-let basic_or_terminator_of_operation :
-    State.t -> Mach.operation -> basic_or_terminator =
- fun state op ->
-  match op with
-  | Imove -> Basic (Op Move)
-  | Ispill -> Basic (Op Spill)
-  | Ireload -> Basic (Op Reload)
-  | Iconst_int i -> Basic (Op (Const_int i))
-  | Iconst_float f -> Basic (Op (Const_float f))
-  | Iconst_symbol s -> Basic (Op (Const_symbol s))
-  | Icall_ind -> Basic (Call (F Indirect))
-  | Icall_imm { func } -> Basic (Call (F (Direct { func_symbol = func })))
-  | Itailcall_ind -> Terminator (Tailcall (Func Indirect))
-  | Itailcall_imm { func } ->
-    Terminator
-      (Tailcall
-         (if String.equal (State.get_fun_name state) func
-         then Self { destination = State.get_tailrec_label state }
-         else Func (Direct { func_symbol = func })))
-  | Iextcall { func; ty_res; ty_args; alloc; returns } ->
-    let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
-    if returns
-    then Basic (Call (P (External external_call)))
-    else Terminator (Call_no_return external_call)
-  | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
-  | Iload (mem, mode) -> Basic (Op (Load (mem, mode)))
-  | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
-  | Ialloc { bytes; dbginfo } -> Basic (Call (P (Alloc { bytes; dbginfo })))
-  | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
-  | Iintop_imm (Icheckbound, i) ->
-    Basic (Call (P (Checkbound { immediate = Some i })))
-  | Iintop
-      (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-       | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
-    Basic (Op (Intop op))
-  | Iintop_imm
-      ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
-        imm ) ->
-    Basic (Op (Intop_imm (op, imm)))
-  | Icompf comp -> Basic (Op (Compf comp))
-  | Inegf -> Basic (Op Negf)
-  | Iabsf -> Basic (Op Absf)
-  | Iaddf -> Basic (Op Addf)
-  | Isubf -> Basic (Op Subf)
-  | Imulf -> Basic (Op Mulf)
-  | Idivf -> Basic (Op Divf)
-  | Ifloatofint -> Basic (Op Floatofint)
-  | Iintoffloat -> Basic (Op Intoffloat)
-  | Ispecific op -> Basic (Op (Specific op))
-  | Iopaque -> Basic (Op Opaque)
-  | Iname_for_debugger _ ->
-    Misc.fatal_error
-      "Cfgize.basic_or_terminator_of_operation: \"the Iname_for_debugger\" \
-       instruction is currently not supported "
-  | Iprobe { name; handler_code_sym } ->
-    Basic (Op (Probe { name; handler_code_sym }))
-  | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
-
 let float_test_of_float_comparison :
     Cmm.float_comparison ->
     label_false:Label.t ->
@@ -337,7 +274,6 @@ let can_raise_instr : Cfg.basic Cfg.instruction -> bool =
  fun instr ->
   match instr.desc with
   | Op op -> can_raise_operation op
-  | Call _ -> true
   | Reloadretaddr -> false
   | Pushtrap _ -> false
   | Poptrap -> false
@@ -356,7 +292,7 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
       | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
       | Probe_is_enabled _ | Specific _ | Name_for_debugger _ )
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 
 let rec get_end : Mach.instruction -> Mach.instruction =
@@ -389,19 +325,70 @@ let extract_block_info :
       let can_raise = can_raise || can_raise_instrs instrs in
       { instrs; last = instr; terminator; can_raise }
     in
+    let basic (desc : Cfg.basic) =
+      let instr' = copy_instruction state instr ~desc ~trap_depth in
+      if is_noop_move instr'
+      then loop instr.next acc
+      else loop instr.next (instr' :: acc)
+    in
+    let terminator terminator =
+      return
+        (Some (copy_instruction state instr ~desc:terminator ~trap_depth))
+        (Cfg.can_raise_terminator terminator)
+    in
     match instr.desc with
-    | Iop op -> begin
-      match basic_or_terminator_of_operation state op with
-      | Basic desc ->
-        let instr' = copy_instruction state instr ~desc ~trap_depth in
-        if is_noop_move instr'
-        then loop instr.next acc
-        else loop instr.next (instr' :: acc)
-      | Terminator terminator ->
-        return
-          (Some (copy_instruction state instr ~desc:terminator ~trap_depth))
-          (Cfg.can_raise_terminator terminator)
-    end
+    | Iop Imove -> basic (Op Move)
+    | Iop Ispill -> basic (Op Spill)
+    | Iop Ireload -> basic (Op Reload)
+    | Iop (Iconst_int i) -> basic (Op (Const_int i))
+    | Iop (Iconst_float f) -> basic (Op (Const_float f))
+    | Iop (Iconst_symbol s) -> basic (Op (Const_symbol s))
+    | Iop Itailcall_ind -> terminator (Tailcall (Func Indirect))
+    | Iop (Itailcall_imm { func }) ->
+      terminator
+        (Tailcall
+           (if String.equal (State.get_fun_name state) func
+           then Self { destination = State.get_tailrec_label state }
+           else Func (Direct { func_symbol = func })))
+    | Iop (Istackoffset ofs) -> basic (Op (Stackoffset ofs))
+    | Iop (Iload (mem, mode)) -> basic (Op (Load (mem, mode)))
+    | Iop (Istore (mem, mode, assignment)) ->
+      basic (Op (Store (mem, mode, assignment)))
+    | Iop
+        (Iintop
+          (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+           | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op))
+      ->
+      basic (Op (Intop op))
+    | Iop
+        (Iintop_imm
+          ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+             | Ilsl | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
+            imm )) ->
+      basic (Op (Intop_imm (op, imm)))
+    | Iop (Icompf comp) -> basic (Op (Compf comp))
+    | Iop Inegf -> basic (Op Negf)
+    | Iop Iabsf -> basic (Op Absf)
+    | Iop Iaddf -> basic (Op Addf)
+    | Iop Isubf -> basic (Op Subf)
+    | Iop Imulf -> basic (Op Mulf)
+    | Iop Idivf -> basic (Op Divf)
+    | Iop Ifloatofint -> basic (Op Floatofint)
+    | Iop Iintoffloat -> basic (Op Intoffloat)
+    | Iop (Ispecific op) -> basic (Op (Specific op))
+    | Iop Iopaque -> basic (Op Opaque)
+    | Iop (Iname_for_debugger _) ->
+      Misc.fatal_error
+        "Cfgize.extract_block_info: \"the Iname_for_debugger\" instruction is \
+         currently not supported "
+    | Iop (Iprobe { name; handler_code_sym }) ->
+      basic (Op (Probe { name; handler_code_sym }))
+    | Iop (Iprobe_is_enabled { name }) -> basic (Op (Probe_is_enabled { name }))
+    | Iop
+        ( Icall_ind | Icall_imm _ | Iextcall _ | Ialloc _
+        | Iintop Icheckbound
+        | Iintop_imm (Icheckbound, _) ) ->
+      return None true
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ ->
       return None false
@@ -477,7 +464,7 @@ let rec add_blocks :
         else body
       | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
-      | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
+      | Cfg.Tailcall _ | Cfg.Call_no_return _ | Cfg.Call _ ->
         body
     in
     State.add_block state ~label:start
@@ -511,11 +498,47 @@ let rec add_blocks :
       in
       start, add_next_block
   in
+  let call call =
+    let return, add_next_block = prepare_next_block () in
+    let desc = Cfg.Call { call; return } in
+    terminate_block ~trap_actions:[]
+      (copy_instruction state last ~desc ~trap_depth);
+    add_next_block ()
+  in
   match terminator with
   | Some terminator -> terminate_block ~trap_actions:[] terminator
   | None -> (
     match last.desc with
-    | Iop _ ->
+    | Iop Icall_ind -> call (F Indirect)
+    | Iop (Icall_imm { func }) -> call (F (Direct { func_symbol = func }))
+    | Iop (Iextcall { func; ty_res; ty_args; alloc; returns }) ->
+      let external_call = { Cfg.func_symbol = func; alloc; ty_res; ty_args } in
+      if returns
+      then call (P (External external_call))
+      else
+        let desc = Cfg.Call_no_return external_call in
+        terminate_block ~trap_actions:[]
+          (copy_instruction state last ~desc ~trap_depth)
+    | Iop (Ialloc { bytes; dbginfo }) -> call (P (Alloc { bytes; dbginfo }))
+    | Iop (Iintop Icheckbound) -> call (P (Checkbound { immediate = None }))
+    | Iop (Iintop_imm (Icheckbound, i)) ->
+      call (P (Checkbound { immediate = Some i }))
+    | Iop
+        ( Iintop
+            ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+            | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
+        | Iintop_imm
+            ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+              | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
+              _ )
+        | Imove | Ispill | Ireload | Itailcall_ind | Inegf | Iabsf | Iaddf
+        | Isubf | Imulf | Idivf | Ifloatofint | Iintoffloat | Iopaque
+        | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Itailcall_imm _
+        | Istackoffset _
+        | Iload (_, _)
+        | Istore (_, _, _)
+        | Icompf _ | Ispecific _ | Iname_for_debugger _ | Iprobe _
+        | Iprobe_is_enabled _ ) ->
       Misc.fatal_error "Cfgize.extract_block_info: Iop with no terminator"
     | Iend ->
       if Label.equal next fallthrough_label

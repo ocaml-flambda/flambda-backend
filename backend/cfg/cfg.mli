@@ -148,3 +148,5 @@ val print_basic : out_channel -> basic instruction -> unit
    reordering. *)
 
 val can_raise_terminator : terminator -> bool
+
+val is_pure_terminator : terminator -> bool
