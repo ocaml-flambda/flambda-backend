@@ -293,6 +293,52 @@ let can_raise_terminator (i : terminator) =
   | Tailcall (Self _) ->
     false
 
+let can_raise_operation : operation -> bool = function
+  | Move -> false
+  | Spill -> false
+  | Reload -> false
+  | Const_int _ -> false
+  | Const_float _ -> false
+  | Const_symbol _ -> false
+  | Stackoffset _ -> false
+  | Load _ -> false
+  | Store _ -> false
+  | Intop _ -> false
+  | Intop_imm _ -> false
+  | Negf -> false
+  | Absf -> false
+  | Addf -> false
+  | Subf -> false
+  | Mulf -> false
+  | Divf -> false
+  | Compf _ -> false
+  | Floatofint -> false
+  | Intoffloat -> false
+  | Probe _ -> true
+  | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
+  | Specific _ -> false (* CR xclerc for xclerc: double check *)
+  | Opaque -> false
+  | Name_for_debugger _ -> false
+
+let can_raise_basic : basic -> bool = function
+  | Op op -> can_raise_operation op
+  | Call _ -> true
+  | Reloadretaddr -> false
+  | Pushtrap _ -> false
+  | Poptrap -> false
+  | Prologue -> false
+
+(* CR gyorsh: [is_pure_terminator] is not the same as [can_raise_terminator]
+   because of [Tailcal Self] which is not pure but marked as cannot raise at the
+   moment, which we might want to reconsider later. *)
+let is_pure_terminator desc =
+  match (desc : terminator) with
+  | Raise _ | Call_no_return _ | Tailcall _ -> false
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return ->
+    (* CR gyorsh: fix for memory operands *)
+    true
+
 let print_basic oc i =
   Format.kasprintf (Printf.fprintf oc "%s") "%a" dump_basic i
 

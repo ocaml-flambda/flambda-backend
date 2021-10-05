@@ -28,6 +28,7 @@
 (* Two blocks `b1` and `b2` can be merged if:
  * - `b1` is not the entry block;
  * - `b1` has only one non-exceptional successor, `b2`;
+ * - `b1` cannot raise
  * - `b2` has only one predecessor, `b1`;
  * - `b1` and `b2` are distinct blocks;
  * - the terminator of `b1` is not a tailcall to self.
@@ -35,7 +36,8 @@
  *  When the condition is met, `b1` is modified as follows:
  *  - its body is set to the concatenation of `b1.body` and `b2.body`;
  *  - its terminator becomes the terminator of `b2`;
- *  - its `exns`, `can_raise`, and `can_raise_interproc` fields  are set to the "union"
+ *  - its `can_raise` is set to that of `b2`;
+ *  - its `exns`, and `can_raise_interproc` fields  are set to the "union"
  *    of the respective fields in `b1` and `b2`;
  *  - (its other fields are left unchanged);
  *  and `b2` is modified as follows:
@@ -51,6 +53,9 @@
  *  is chosen according to the `Pushtrap` and `Poptrap` instructions executed so far
  *  (as opposed to the information encoded in the graph). *)
 
+(* CR gyorsh: with the new requirement on b1 (that it cannot raise) this pass is
+   even closer to eliminate_fallthrough_blocks. the only different I think is
+   that b1's body need not be empty here. *)
 let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
     bool =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -68,21 +73,15 @@ let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
           if (not (Label.equal b1_label cfg.entry_label))
              && (not (Label.equal b1_label b2_label))
              && List.compare_length_with b2_predecessors 1 = 0
-             &&
-             match b1_block.terminator.desc with
-             | Tailcall (Self _) -> false
-             | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-             | Int_test _ | Switch _ | Return | Raise _
-             | Tailcall (Func _)
-             | Call_no_return _ ->
-               true
+             && Cfg.is_pure_terminator b1_block.terminator.desc
+             && not b1_block.can_raise
           then begin
             assert (Label.equal b1_label (List.hd b2_predecessors));
             (* modify b1 *)
             b1_block.body <- b1_block.body @ b2_block.body;
             b1_block.terminator <- b2_block.terminator;
             b1_block.exns <- Label.Set.union b1_block.exns b2_block.exns;
-            b1_block.can_raise <- b1_block.can_raise || b2_block.can_raise;
+            b1_block.can_raise <- b2_block.can_raise;
             (* modify b2 *)
             b2_block.predecessors <- Label.Set.empty;
             Label.Set.iter

@@ -307,48 +307,6 @@ let copy_instruction_no_reg :
   let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
 
-let can_raise_operation : Cfg.operation -> bool =
- fun op ->
-  match op with
-  | Move -> false
-  | Spill -> false
-  | Reload -> false
-  | Const_int _ -> false
-  | Const_float _ -> false
-  | Const_symbol _ -> false
-  | Stackoffset _ -> false
-  | Load _ -> false
-  | Store _ -> false
-  | Intop _ -> false
-  | Intop_imm _ -> false
-  | Negf -> false
-  | Absf -> false
-  | Addf -> false
-  | Subf -> false
-  | Mulf -> false
-  | Divf -> false
-  | Compf _ -> false
-  | Floatofint -> false
-  | Intoffloat -> false
-  | Probe _ -> true
-  | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
-  | Specific _ -> false (* CR xclerc for xclerc: double check *)
-  | Opaque -> false
-  | Name_for_debugger _ -> false
-
-let can_raise_instr : Cfg.basic Cfg.instruction -> bool =
- fun instr ->
-  match instr.desc with
-  | Op op -> can_raise_operation op
-  | Call _ -> true
-  | Reloadretaddr -> false
-  | Pushtrap _ -> false
-  | Poptrap -> false
-  | Prologue -> false
-
-let can_raise_instrs : Cfg.basic Cfg.instruction list -> bool =
- fun instrs -> List.exists can_raise_instr instrs
-
 let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
   match instr.Cfg.desc with
   | Op (Move | Spill | Reload) ->
@@ -385,9 +343,8 @@ type block_info =
 let extract_block_info : State.t -> Mach.instruction -> block_info =
  fun state first ->
   let rec loop (instr : Mach.instruction) acc =
-    let return terminator can_raise =
-      let instrs = List.rev acc in
-      let can_raise = can_raise || can_raise_instrs instrs in
+    let return terminator can_raise instrs =
+      let instrs = List.rev instrs in
       { instrs; last = instr; terminator; can_raise }
     in
     match instr.desc with
@@ -397,16 +354,21 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
         let instr' = copy_instruction state instr ~desc in
         if is_noop_move instr'
         then loop instr.next acc
-        else loop instr.next (instr' :: acc)
+        else
+          let acc = instr' :: acc in
+          if Cfg.can_raise_basic desc
+          then return None true acc
+          else loop instr.next acc
       | Terminator terminator ->
         return
           (Some (copy_instruction state instr ~desc:terminator))
           (Cfg.can_raise_terminator terminator)
+          acc
     end
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ ->
-      return None false
-    | Iraise _ -> return None true
+      return None false acc
+    | Iraise _ -> return None true acc
   in
   loop first []
 
@@ -491,8 +453,15 @@ let rec add_blocks :
   | Some terminator -> terminate_block ~trap_actions:[] terminator
   | None -> (
     match last.desc with
-    | Iop _ ->
-      Misc.fatal_error "Cfgize.extract_block_info: Iop with no terminator"
+    | Iop op ->
+      if not (Mach.operation_can_raise op)
+      then
+        Misc.fatal_error
+          "Cfgize.extract_block_info: unexpected Iop with no terminator";
+      let next, add_next_block = prepare_next_block () in
+      terminate_block ~trap_actions:[]
+        (copy_instruction state last ~desc:(Cfg.Always next) ~trap_depth);
+      add_next_block ()
     | Iend ->
       if Label.equal next fallthrough_label
       then
