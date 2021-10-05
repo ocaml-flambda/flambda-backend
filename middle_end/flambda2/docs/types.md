@@ -57,7 +57,7 @@ representation might end up the same.
 multiple distinct valid pointers (unlike the other blocks, which always
 define a single valid pointer). So a closure block contains a number of
 functions, and a number of environment entries. The functions are indexed by
-a closure identifier (or closure_id), an unique name generated during
+a closure identifier (or closure_id), a unique name generated during
 compilation of OCaml functions. The actual contents of the function are only
 important for inlining, so we'll assume here that it's roughly a pointer to
 some piece of code, without any more details. The environment entries are
@@ -171,7 +171,7 @@ minimal allowed size, so this product must be extended when joining or meeting
 with compatible indices of different sizes. This also means that reduction
 becomes an issue (we want overlapping indices to be coherent), and that the
 join algorithm cannot be complete (roughly speaking, joining an element with a
-single know tag t but unknown size, with an element with a known size sz but
+single known tag t but unknown size, with an element with a known size sz but
 unknown tag, will result in an abstract element that allows values that have
 both a tag different from t and a size different from sz).
 However this seems to work reasonably well in practice.
@@ -205,7 +205,7 @@ We have various relational domains tracking projections.
 Block projections relate variables that represent regular blocks with variables
 that represent one of their fields, closure projections do the same for closures
 and environment entries, and boxed numbers also define projections between the
-baxed value and its unboxed contents.
+boxed value and its unboxed contents.
 
 #### Get_tag and Is_int relational domains
 
@@ -343,7 +343,7 @@ the alias relation is symmetrical and this causes various kinds of problems:
 cycles, different but equivalent representations...
 To get around these issues, we use a total order on names (based in part on
 binding times, meaning the variables defined earlier will compare smaller than
-variables defined later). This allows us the define the canonical element of
+variables defined later). This allows us to define the canonical element of
 a set of aliases, and we maintain the invariant that canonical elements will
 always have abstract elements associated to them in the environment (and not
 an alias equation), and non-canonical elements will always have an alias
@@ -440,7 +440,7 @@ present in.
 After that, the join algorithms for the various abstract domains are
 straightforward. The main source of additional complexity occurs when
 encoutering types that are equalities.
-Roughly speaking, when joining two types, if none is an equality the the join
+Roughly speaking, when joining two types, if none is an equality the join
 is the result of the join of the corresponding abstract elements. If only one
 is an equality, then we use the full environment in which the equality occurs
 to reduce the equality to an abstract element, and join it with the abstract
@@ -463,7 +463,7 @@ And because our domain is conceptually a reduced product, the meet operation
 has to perform a reduction as well. Here is a simple example illustrating the
 issue:
 
-```
+```ocaml
 type 'a t = T of 'a
 let block = T x in
 (* Before *)
@@ -492,7 +492,7 @@ abstract elements that directly returns the joined result, for the meet
 algorithm a single traversal cannot perform all the necessary reduction steps.
 Instead, we've introduced a concept of environment extensions. These extensions
 encode extra constraints that need to be applied to the main environment, and
-beacuse of that although in theory an extension is just another environment,
+because of that although in theory an extension is just another environment,
 in practice it is linked with the environment it is generated for.
 This allows the actual representation of extensions to be more lightweight
 than normal environments.
@@ -653,7 +653,7 @@ for defining `Typing_env` part of the recursive definition.
 The reason why we need that recursion is that the types (of type
 `Type_grammar.t`) describe the information we have about some value in
 a given environment. Since this information is relational (either in the
-forma of aliases, such as "this value is equal to the contents of this
+form of aliases, such as "this value is equal to the contents of this
 variable", or in the form of compound values, such as "this value is
 constructed by combining these other values"), then a type is only valid in
 a given environment, and so many functions for manipulating a type need
