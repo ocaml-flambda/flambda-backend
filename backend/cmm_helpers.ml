@@ -1045,14 +1045,41 @@ let rec low_32 dbg = function
    (if the word size is 32, this is a no-op) *)
 let sign_extend_32 dbg e =
   if size_int = 4 then e else
-    Cop(Casr, [Cop(Clsl, [low_32 dbg e; Cconst_int(32, dbg)], dbg);
-               Cconst_int(32, dbg)], dbg)
+  match low_32 dbg e with
+  | Cop(Cload ((Thirtytwo_unsigned|Thirtytwo_signed), mut), args, dbg) ->
+     Cop(Cload (Thirtytwo_signed, mut), args, dbg)
+  | e ->
+     Cop(Casr, [Cop(Clsl, [e; Cconst_int(32, dbg)], dbg);
+                Cconst_int(32, dbg)], dbg)
 
 (* zero_extend_32 zero-extends values from 32 bits to the word size.
    (if the word size is 32, this is a no-op) *)
 let zero_extend_32 dbg e =
   if size_int = 4 then e else
-    Cop(Cand, [low_32 dbg e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
+  match low_32 dbg e with
+  | Cop(Cload ((Thirtytwo_signed|Thirtytwo_unsigned), mut), args, dbg) ->
+     Cop(Cload (Thirtytwo_unsigned, mut), args, dbg)
+  | e ->
+     Cop(Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
+
+
+let and_int e1 e2 dbg =
+  let is_mask32 = function
+    | Cconst_natint (0xFFFF_FFFFn, _) -> true
+    | Cconst_int (n,_) -> Nativeint.of_int n = 0xFFFF_FFFFn
+    | _ -> false
+  in
+  match e1, e2 with
+  | e, m when is_mask32 m -> zero_extend_32 dbg e
+  | m, e when is_mask32 m -> zero_extend_32 dbg e
+  | e1, e2 ->
+     Cop (Cand, [e1; e2], dbg)
+
+let or_int e1 e2 dbg =
+  Cop (Cor, [e1; e2], dbg)
+
+let xor_int e1 e2 dbg =
+  Cop (Cxor, [e1; e2], dbg)
 
 (* Boxed integers *)
 
@@ -2374,14 +2401,14 @@ let mod_int_caml is_safe arg1 arg2 dbg =
             (untag_int arg2 dbg) is_safe dbg) dbg
 
 let and_int_caml arg1 arg2 dbg =
-  Cop(Cand, [arg1; arg2], dbg)
+  and_int arg1 arg2 dbg
 
 let or_int_caml arg1 arg2 dbg =
-  Cop(Cor, [arg1; arg2], dbg)
+  or_int arg1 arg2 dbg
 
 let xor_int_caml arg1 arg2 dbg =
-  Cop(Cor, [Cop(Cxor, [ignore_low_bit_int arg1;
-                       ignore_low_bit_int arg2], dbg);
+  Cop(Cor, [xor_int (ignore_low_bit_int arg1)
+                    (ignore_low_bit_int arg2) dbg;
             Cconst_int (1, dbg)], dbg)
 
 let lsl_int_caml arg1 arg2 dbg =
