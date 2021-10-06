@@ -5172,43 +5172,32 @@ and type_andops env sarg sands expected_ty =
 
   and type_extension ~loc ~env ~ty_expected ~sexp = function
   | Extensions.Eexp_list_comprehension (sbody, comp_typell) ->
-    if !Clflags.principal then begin_def ();
-    let without_list_ty = Ctype.newvar ()  in
-    unify_exp_types loc env
-      (instance (Predef.type_list without_list_ty)) (instance ty_expected);
-    if !Clflags.principal then begin
-      end_def();
-      generalize_structure without_list_ty;
-    end;
-    let comp_type, new_env =
-      type_comprehension_list
-        ~loc ~env ~container_type:Predef.type_list ~comp_typell
-    in
-    let body = type_expect new_env sbody (mk_expected without_list_ty) in
-    re {
-      exp_desc = Texp_list_comprehension (body, comp_type);
-      exp_loc = loc; exp_extra = [];
-      exp_type = instance (Predef.type_list body.exp_type);
-      exp_attributes = sexp.pexp_attributes;
-      exp_env = env }
-  | Extensions.Eexp_arr_comprehension (sbody, comp_typell) ->
+    type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell
+      ~container_type:Predef.type_list ~build:(fun body comp_type ->
+          Texp_list_comprehension (body, comp_type))
+| Extensions.Eexp_arr_comprehension (sbody, comp_typell) ->
+    type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell
+      ~container_type:Predef.type_array ~build:(fun body comp_type ->
+          Texp_arr_comprehension (body, comp_type))
+
+  and type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell 
+      ~container_type ~build =
     if !Clflags.principal then begin_def ();
     let without_arr_ty = Ctype.newvar ()  in
     unify_exp_types loc env
-      (instance (Predef.type_array without_arr_ty)) (instance ty_expected);
+      (instance (container_type without_arr_ty)) (instance ty_expected);
     if !Clflags.principal then begin
       end_def();
       generalize_structure without_arr_ty;
     end;
     let comp_type, new_env =
-      type_comprehension_list
-        ~loc ~env ~container_type:Predef.type_array ~comp_typell
+      type_comprehension_list ~loc ~env ~container_type ~comp_typell
     in
     let body = type_expect new_env sbody (mk_expected without_arr_ty) in
     re {
-      exp_desc = Texp_arr_comprehension (body, comp_type);
+      exp_desc = build body comp_type;
       exp_loc = loc; exp_extra = [];
-      exp_type = instance (Predef.type_array body.exp_type);
+      exp_type = instance (container_type body.exp_type);
       exp_attributes = sexp.pexp_attributes;
       exp_env = env }
 
