@@ -217,14 +217,14 @@ module Acc = struct
       shareable_constants : Symbol.t Flambda.Static_const.Map.t;
       code : Flambda.Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
-      cost_metrics : Flambda.Cost_metrics.t;
+      cost_metrics : Cost_metrics.t;
       seen_a_function : bool
     }
 
   let cost_metrics t = t.cost_metrics
 
   let increment_metrics metrics t =
-    { t with cost_metrics = Flambda.Cost_metrics.( + ) t.cost_metrics metrics }
+    { t with cost_metrics = Cost_metrics.( + ) t.cost_metrics metrics }
 
   let with_cost_metrics cost_metrics t = { t with cost_metrics }
 
@@ -237,7 +237,7 @@ module Acc = struct
       shareable_constants = Flambda.Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
-      cost_metrics = Flambda.Cost_metrics.zero;
+      cost_metrics = Cost_metrics.zero;
       seen_a_function = false
     }
 
@@ -303,7 +303,7 @@ module Acc = struct
 
   let measure_cost_metrics acc ~f =
     let saved_cost_metrics = cost_metrics acc in
-    let acc = with_cost_metrics Flambda.Cost_metrics.zero acc in
+    let acc = with_cost_metrics Cost_metrics.zero acc in
     let free_names, acc, return = eval_branch_free_names acc ~f in
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return

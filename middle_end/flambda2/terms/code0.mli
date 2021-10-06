@@ -24,11 +24,5 @@ module Make (Function_params_and_body : sig
   val apply_renaming : t -> Renaming.t -> t
 
   val print : Format.formatter -> t -> unit
-end) (Cost_metrics : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
 end) :
-  Code_intf.S
-    with type function_params_and_body := Function_params_and_body.t
-    with type cost_metrics := Cost_metrics.t
+  Code_intf.S with type function_params_and_body := Function_params_and_body.t

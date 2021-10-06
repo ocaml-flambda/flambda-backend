@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Flambda.Import
-
 val make_decision :
   inlining_arguments:Inlining_arguments.t ->
   inline:Inline_attribute.t ->

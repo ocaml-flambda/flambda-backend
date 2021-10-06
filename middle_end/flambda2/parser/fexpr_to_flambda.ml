@@ -786,7 +786,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           inline |> Option.value ~default:Inline_attribute.Default_inline
         in
         let cost_metrics =
-          Flambda.Cost_metrics.from_size (Code_size.of_int code_size)
+          Cost_metrics.from_size (Code_size.of_int code_size)
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)

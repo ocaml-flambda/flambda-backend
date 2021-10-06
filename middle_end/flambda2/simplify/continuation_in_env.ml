@@ -21,7 +21,7 @@ type t =
       { params : Kinded_parameter.t list;
         handler : Rebuilt_expr.t;
         free_names_of_handler : Name_occurrences.t;
-        cost_metrics_of_handler : Flambda.Cost_metrics.t
+        cost_metrics_of_handler : Cost_metrics.t
       }
   | Non_inlinable_zero_arity of { handler : Rebuilt_expr.t Or_unknown.t }
   | Non_inlinable_non_zero_arity of { arity : Flambda_arity.With_subkinds.t }
