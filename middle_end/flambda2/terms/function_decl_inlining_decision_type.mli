@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2013--2021 OCamlPro SAS                                    *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,14 +14,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Flambda.Import
+type t =
+  | Not_yet_decided
+  | Never_inline_attribute
+  | Function_body_too_large of Code_size.t
+  | Stub
+  | Attribute_inline
+  | Small_function of
+      { size : Code_size.t;
+        small_function_size : Code_size.t
+      }
+  | Speculatively_inlinable of
+      { size : Code_size.t;
+        small_function_size : Code_size.t;
+        large_function_size : Code_size.t
+      }
+  | Functor of { size : Code_size.t }
 
-val make_decision :
-  inlining_arguments:Inlining_arguments.t ->
-  inline:Inline_attribute.t ->
-  stub:bool ->
-  cost_metrics:Cost_metrics.t ->
-  is_a_functor:bool ->
-  Function_decl_inlining_decision_type.t
+val print : Format.formatter -> t -> unit
+
+val report : Format.formatter -> t -> unit
+
+val must_be_inlined : t -> bool
+
+val cannot_be_inlined : t -> bool
