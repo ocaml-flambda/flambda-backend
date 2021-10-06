@@ -18,8 +18,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Flambda.Import
-
 type t
 
 val empty : t

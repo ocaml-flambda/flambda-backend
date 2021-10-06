@@ -33,7 +33,7 @@ type t =
     name_occurrences : Name_occurrences.t;
     used_closure_vars : Name_occurrences.t;
     shareable_constants : Symbol.t Static_const.Map.t;
-    cost_metrics : Flambda.Cost_metrics.t;
+    cost_metrics : Cost_metrics.t;
     are_rebuilding_terms : ART.t;
     generate_phantom_lets : bool;
     required_names : Name.Set.t;
@@ -67,7 +67,7 @@ let [@ocamlformat "disable"] print ppf
     Name_occurrences.print name_occurrences
     Name_occurrences.print used_closure_vars
     (Static_const.Map.print Symbol.print) shareable_constants
-    Flambda.Cost_metrics.print cost_metrics
+    Cost_metrics.print cost_metrics
     ART.print are_rebuilding_terms
     generate_phantom_lets
     Name.Set.print required_names
@@ -89,7 +89,7 @@ let create ~required_names ~reachable_code_ids uenv dacc =
        [Let_cont]). *)
     used_closure_vars = DA.used_closure_vars dacc;
     shareable_constants = DA.shareable_constants dacc;
-    cost_metrics = Flambda.Cost_metrics.zero;
+    cost_metrics = Cost_metrics.zero;
     are_rebuilding_terms;
     generate_phantom_lets;
     required_names;
@@ -157,24 +157,20 @@ let remove_all_occurrences_of_free_names t to_remove =
   let name_occurrences = Name_occurrences.diff t.name_occurrences to_remove in
   { t with name_occurrences }
 
-let clear_cost_metrics t = { t with cost_metrics = Flambda.Cost_metrics.zero }
+let clear_cost_metrics t = { t with cost_metrics = Cost_metrics.zero }
 
 let with_cost_metrics cost_metrics t = { t with cost_metrics }
 
 let notify_added ~code_size t =
-  { t with
-    cost_metrics = Flambda.Cost_metrics.notify_added ~code_size t.cost_metrics
-  }
+  { t with cost_metrics = Cost_metrics.notify_added ~code_size t.cost_metrics }
 
 let notify_removed ~operation t =
   { t with
-    cost_metrics = Flambda.Cost_metrics.notify_removed ~operation t.cost_metrics
+    cost_metrics = Cost_metrics.notify_removed ~operation t.cost_metrics
   }
 
 let add_cost_metrics cost_metrics t =
-  { t with
-    cost_metrics = Flambda.Cost_metrics.( + ) t.cost_metrics cost_metrics
-  }
+  { t with cost_metrics = Cost_metrics.( + ) t.cost_metrics cost_metrics }
 
 let generate_phantom_lets t = t.generate_phantom_lets
 
