@@ -137,8 +137,7 @@ let report_reason fmt t =
   | Definition_says_not_to_inline ->
     Format.fprintf fmt
       "this@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
-       never@ be@ inlinable@ (either@ annotated@ with@ [@inline never]@ or@ \
-       size@ in excess of@ the@ large@ function@ threshold)"
+       never@ be@ inlinable"
   | Environment_says_never_inline ->
     Format.fprintf fmt "the@ environment@ says@ never@ to@ inline"
   | Unrolling_depth_exceeded ->
@@ -270,12 +269,14 @@ let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
         speculative_inlining ~apply dacc ~simplify_expr ~return_arity
           ~function_decl
       in
-      let args =
+      let inlining_args =
         Apply.inlining_arguments apply
         |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
       in
-      let evaluated_to = Cost_metrics.evaluate ~args cost_metrics in
-      let threshold = Inlining_arguments.threshold args in
+      let evaluated_to =
+        Cost_metrics.evaluate ~args:inlining_args cost_metrics
+      in
+      let threshold = Inlining_arguments.threshold inlining_args in
       let is_under_inline_threshold =
         Float.compare evaluated_to threshold <= 0
       in

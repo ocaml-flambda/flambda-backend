@@ -129,10 +129,13 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_decl
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
         ~function_decl ~return_arity:result_arity
     in
-    Inlining_report.record_decision
-      (At_call_site
-         (Known_function { code_id = Code_id.export callee's_code_id; decision }))
-      ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
+    if not (DA.do_not_rebuild_terms dacc)
+    then
+      Inlining_report.record_decision
+        (At_call_site
+           (Known_function
+              { code_id = Code_id.export callee's_code_id; decision }))
+        ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
     match Call_site_inlining_decision.can_inline decision with
     | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
       (* emission of the warning at this point should not happen, if it does,
