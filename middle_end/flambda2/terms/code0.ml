@@ -16,9 +16,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR mshinwell: We should be able to remove the parameterisation over
-   [Cost_metrics] once e.g. [Cost_metrics.expr_size] has gone. *)
-
 module Make (Function_params_and_body : sig
   type t
 
