@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Flambda.Import
-
 let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
     ~is_a_functor : Function_decl_inlining_decision_type.t =
   (* At present, we follow Closure, taking inlining decisions without first

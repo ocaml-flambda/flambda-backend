@@ -16,19 +16,12 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR mshinwell: We should be able to remove the parameterisation over
-   [Cost_metrics] once e.g. [Cost_metrics.expr_size] has gone. *)
-
 module Make (Function_params_and_body : sig
   type t
 
   include Contains_ids.S with type t := t
 
   val apply_renaming : t -> Renaming.t -> t
-
-  val print : Format.formatter -> t -> unit
-end) (Cost_metrics : sig
-  type t
 
   val print : Format.formatter -> t -> unit
 end) =

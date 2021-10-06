@@ -752,8 +752,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
           Present params_and_body
       in
       let code_size =
-        Flambda.Code.cost_metrics code
-        |> Flambda.Cost_metrics.size |> Code_size.to_int
+        Flambda.Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
       in
       Code
         { id = code_id;

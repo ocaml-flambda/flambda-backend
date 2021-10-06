@@ -25,8 +25,6 @@ module type S = sig
 
   type function_params_and_body
 
-  type cost_metrics
-
   val code_id : t -> Code_id.t
 
   val params_and_body : t -> function_params_and_body Or_deleted.t
@@ -50,7 +48,7 @@ module type S = sig
 
   val recursive : t -> Recursive.t
 
-  val cost_metrics : t -> cost_metrics
+  val cost_metrics : t -> Cost_metrics.t
 
   val inlining_arguments : t -> Inlining_arguments.t
 
@@ -70,7 +68,7 @@ module type S = sig
     inline:Inline_attribute.t ->
     is_a_functor:bool ->
     recursive:Recursive.t ->
-    cost_metrics:cost_metrics ->
+    cost_metrics:Cost_metrics.t ->
     inlining_arguments:Inlining_arguments.t ->
     dbg:Debuginfo.t ->
     is_tupled:bool ->
@@ -81,7 +79,7 @@ module type S = sig
 
   val with_params_and_body :
     (function_params_and_body * Name_occurrences.t) Or_deleted.t ->
-    cost_metrics:cost_metrics ->
+    cost_metrics:Cost_metrics.t ->
     t ->
     t
 
