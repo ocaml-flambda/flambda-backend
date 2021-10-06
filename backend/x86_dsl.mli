@@ -161,7 +161,7 @@ module I : sig
   val hlt: unit -> unit
   val idiv: arg -> unit
   val imul: arg -> arg option -> unit
-  val mul: arg -> arg option -> unit
+  val mul: arg -> unit
   val inc: arg -> unit
   val j: condition -> arg -> unit
   val ja: arg -> unit
