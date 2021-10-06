@@ -953,7 +953,7 @@ type reification_result =
   | Lift of to_lift
   | Lift_set_of_closures of
       { closure_id : Closure_id.t;
-        function_decls : Function_declaration_type.Inlinable.t Closure_id.Map.t;
+        function_decls : Function_declaration_type.T0.t Closure_id.Map.t;
         closure_vars : Simple.t Var_within_closure.Map.t
       }
   | Simple of Simple.t
@@ -1107,9 +1107,8 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
               | Bottom -> function_decls_with_closure_vars
               | Ok function_decl -> (
                 match function_decl with
-                | Bottom | Unknown | Ok (Non_inlinable _) ->
-                  function_decls_with_closure_vars
-                | Ok (Inlinable inlinable_decl) ->
+                | Bottom | Unknown -> function_decls_with_closure_vars
+                | Ok t0 ->
                   (* CR mshinwell: We're ignoring [coercion] *)
                   let closure_var_types =
                     Closures_entry.closure_var_types closures_entry
@@ -1143,8 +1142,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                      <> Var_within_closure.Map.cardinal closure_var_simples
                   then function_decls_with_closure_vars
                   else
-                    Closure_id.Map.add closure_id
-                      (inlinable_decl, closure_var_simples)
+                    Closure_id.Map.add closure_id (t0, closure_var_simples)
                       function_decls_with_closure_vars))
             closure_ids Closure_id.Map.empty
         in

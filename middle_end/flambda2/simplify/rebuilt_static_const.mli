@@ -44,6 +44,7 @@ val create_code :
   inlining_arguments:Inlining_arguments.t ->
   dbg:Debuginfo.t ->
   is_tupled:bool ->
+  inlining_decision:Function_decl_inlining_decision_type.t ->
   t
 
 (* This function should be used when a [Code.t] is already in hand, e.g. from

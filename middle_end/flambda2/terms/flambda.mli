@@ -607,6 +607,8 @@ and Code : sig
 
   val is_tupled : t -> bool
 
+  val inlining_decision : t -> Function_decl_inlining_decision_type.t
+
   val create :
     Code_id.t ->
     params_and_body:
@@ -622,6 +624,7 @@ and Code : sig
     inlining_arguments:Inlining_arguments.t ->
     dbg:Debuginfo.t ->
     is_tupled:bool ->
+    inlining_decision:Function_decl_inlining_decision_type.t ->
     t
 
   val with_code_id : Code_id.t -> t -> t

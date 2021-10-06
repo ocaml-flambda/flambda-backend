@@ -120,53 +120,45 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   in
   after_rebuild expr uacc
 
-let simplify_direct_full_application ~simplify_expr dacc apply function_decl_opt
+let simplify_direct_full_application ~simplify_expr dacc apply function_decl
     ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect =
   let inlined =
-    match function_decl_opt with
-    | None ->
-      (* CR mshinwell: Make sure no other warnings or inlining report decisions
-         get emitted when not rebuilding terms. *)
-      if not (DA.do_not_rebuild_terms dacc)
-      then begin
-        Inlining_report.record_decision
-          (At_call_site
-             (Non_inlinable_function
-                { code_id = Code_id.export callee's_code_id }))
-          ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
-        warn_not_inlined_if_needed apply
-          "[@inlined] attribute was not used on this function application (the \
-           optimizer decided not to inline the function given its definition)"
-      end;
-      None
-    | Some function_decl -> (
-      let decision =
-        Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
-          ~function_decl ~return_arity:result_arity
-      in
-      let code_id =
-        T.Function_declaration_type.Inlinable.code_id function_decl
-      in
+    (* CR mshinwell: Make sure no other warnings or inlining report decisions
+       get emitted when not rebuilding terms. *)
+    let decision =
+      Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
+        ~function_decl ~return_arity:result_arity
+    in
+    if not (DA.do_not_rebuild_terms dacc)
+    then
       Inlining_report.record_decision
         (At_call_site
-           (Inlinable_function { code_id = Code_id.export code_id; decision }))
+           (Known_function
+              { code_id = Code_id.export callee's_code_id; decision }))
         ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
-      match Call_site_inlining_decision.can_inline decision with
-      | Do_not_inline { warn_if_attribute_ignored } ->
-        (* emission of the warning at this point should not happen, if it does,
-           then that means that {Inlining_decision.make_decision_for_call_site}
-           did not honour the attributes on the call site *)
-        if warn_if_attribute_ignored && not (DA.do_not_rebuild_terms dacc)
+    match Call_site_inlining_decision.can_inline decision with
+    | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
+      (* emission of the warning at this point should not happen, if it does,
+         then that means that {Inlining_decision.make_decision_for_call_site}
+         did not honour the attributes on the call site *)
+      if warn_if_attribute_ignored && not (DA.do_not_rebuild_terms dacc)
+      then
+        if because_of_definition
         then
+          warn_not_inlined_if_needed apply
+            "[@inlined] attribute was not used on this function application \
+             (the optimizer decided not to inline the function given its \
+             definition)"
+        else
           warn_not_inlined_if_needed apply
             "[@inlined] attribute was not used on this function \
              application{Do_not_inline}";
-        None
-      | Inline { unroll_to } ->
-        let dacc, inlined =
-          Inlining_transforms.inline dacc ~apply ~unroll_to function_decl
-        in
-        Some (dacc, inlined))
+      None
+    | Inline { unroll_to } ->
+      let dacc, inlined =
+        Inlining_transforms.inline dacc ~apply ~unroll_to function_decl
+      in
+      Some (dacc, inlined)
   in
   match inlined with
   | Some (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
@@ -379,7 +371,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
           ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
-          ~dbg ~is_tupled:false
+          ~dbg ~is_tupled:false ~inlining_decision:Stub
       in
       Static_const.Code code
     in
@@ -472,7 +464,7 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_closure_id ~result_arity ~recursive ~arg_types:_ ~must_be_detupled
-    function_decl_opt ~down_to_up ~type_unavailable =
+    function_decl ~down_to_up ~type_unavailable =
   begin
     match Apply.probe_name apply, Apply.inline apply with
     | None, _ | Some _, Never_inline -> ()
@@ -539,7 +531,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         if provided_num_args = num_params
         then
           simplify_direct_full_application ~simplify_expr dacc apply
-            function_decl_opt ~callee's_code_id ~result_arity ~down_to_up
+            function_decl ~callee's_code_id ~result_arity ~down_to_up
             ~coming_from_indirect
         else if provided_num_args > num_params
         then
@@ -703,8 +695,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
        [closures_entry] structure in the type does indeed contain the closure in
        question. *)
     match func_decl_type with
-    | Ok (Inlinable inlinable) -> (
-      let module I = T.Function_declaration_type.Inlinable in
+    | Ok func_decl_type0 -> (
+      let module I = T.Function_declaration_type.T0 in
       let callee's_code_id_from_call_kind =
         match call with
         | Direct { code_id; closure_id; _ } ->
@@ -718,9 +710,13 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
           Some code_id
         | Indirect_unknown_arity | Indirect_known_arity _ -> None
       in
-      let callee's_code_id_from_type = I.code_id inlinable in
+      let callee's_code_id_from_type = I.code_id func_decl_type0 in
       match DE.find_code denv callee's_code_id_from_type with
-      | None -> type_unavailable ()
+      | None ->
+        (* This will happen e.g. if the code age relation used in [meet] and
+           [join] for function declaration types returns [Deleted] code for a
+           code ID in another unit. *)
+        type_unavailable ()
       | Some callee's_code ->
         let must_be_detupled =
           call_must_be_detupled (Code.is_tupled callee's_code)
@@ -730,27 +726,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
           ~callee's_closure_id ~arg_types
           ~result_arity:(Code.result_arity callee's_code)
           ~recursive:(Code.recursive callee's_code)
-          ~must_be_detupled (Some inlinable) ~down_to_up ~type_unavailable)
-    | Ok (Non_inlinable non_inlinable) -> (
-      let module N = T.Function_declaration_type.Non_inlinable in
-      let callee's_code_id_from_type = N.code_id non_inlinable in
-      let callee's_code_id_from_call_kind =
-        match call with
-        | Direct { code_id; _ } -> Some code_id
-        | Indirect_unknown_arity | Indirect_known_arity _ -> None
-      in
-      match DE.find_code denv callee's_code_id_from_type with
-      | None -> type_unavailable ()
-      | Some callee's_code_from_type ->
-        let must_be_detupled =
-          call_must_be_detupled (Code.is_tupled callee's_code_from_type)
-        in
-        simplify_direct_function_call ~simplify_expr dacc apply
-          ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-          ~callee's_closure_id ~arg_types
-          ~result_arity:(Code.result_arity callee's_code_from_type)
-          ~recursive:(Code.recursive callee's_code_from_type)
-          ~must_be_detupled None ~down_to_up ~type_unavailable)
+          ~must_be_detupled func_decl_type0 ~down_to_up ~type_unavailable)
     | Bottom ->
       let rebuild uacc ~after_rebuild =
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in

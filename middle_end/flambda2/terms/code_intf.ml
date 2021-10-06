@@ -58,6 +58,8 @@ module type S = sig
 
   val is_tupled : t -> bool
 
+  val inlining_decision : t -> Function_decl_inlining_decision_type.t
+
   val create :
     Code_id.t (** needed for [compare], although useful otherwise too *) ->
     params_and_body:(function_params_and_body * Name_occurrences.t) Or_deleted.t ->
@@ -72,6 +74,7 @@ module type S = sig
     inlining_arguments:Inlining_arguments.t ->
     dbg:Debuginfo.t ->
     is_tupled:bool ->
+    inlining_decision:Function_decl_inlining_decision_type.t ->
     t
 
   val with_code_id : Code_id.t -> t -> t
