@@ -343,15 +343,6 @@ val primitive_boxed_int_of_standard_int :
 
 (** {2 Arithmetic/Logic operations} *)
 
-val and_ :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
-val or_ : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
-(** Logical operations. *)
-val xor_ :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
 val lsl_int_caml_raw :
   ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
 

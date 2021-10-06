@@ -149,12 +149,6 @@ let unary op ?(dbg = Debuginfo.none) x = Cmm.Cop (op, [x], dbg)
 
 let binary op ?(dbg = Debuginfo.none) x y = Cmm.Cop (op, [x; y], dbg)
 
-let and_ = binary Cmm.Cand
-
-let or_ = binary Cmm.Cor
-
-let xor_ = binary Cmm.Cxor
-
 let eq ?(dbg = Debuginfo.none) x y =
   match x, y with
   | Cmm.Cconst_int (n, _), Cmm.Cop (Csubi, [Cconst_int (m, _); c], _)
