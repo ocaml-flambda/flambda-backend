@@ -246,18 +246,18 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | Naked_int32, Mul ->
     C.sign_extend_32 dbg (C.mul_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
   | Naked_int32, Xor ->
-    C.sign_extend_32 dbg (C.xor_ ~dbg (C.low_32 dbg x) (C.low_32 dbg y))
+    C.sign_extend_32 dbg (C.xor_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
   | Naked_int32, And ->
-    C.sign_extend_32 dbg (C.and_ ~dbg (C.low_32 dbg x) (C.low_32 dbg y))
+    C.sign_extend_32 dbg (C.and_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
   | Naked_int32, Or ->
-    C.sign_extend_32 dbg (C.or_ ~dbg (C.low_32 dbg x) (C.low_32 dbg y))
+    C.sign_extend_32 dbg (C.or_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
   (* Naked ints *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Add -> C.add_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Sub -> C.sub_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Mul -> C.mul_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), And -> C.and_ ~dbg x y
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Or -> C.or_ ~dbg x y
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Xor -> C.xor_ ~dbg x y
+  | (Naked_int64 | Naked_nativeint | Naked_immediate), And -> C.and_int x y dbg
+  | (Naked_int64 | Naked_nativeint | Naked_immediate), Or -> C.or_int x y dbg
+  | (Naked_int64 | Naked_nativeint | Naked_immediate), Xor -> C.xor_int x y dbg
   (* Division and modulo need some extra care *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
     let bi = C.primitive_boxed_int_of_standard_int kind in
@@ -410,7 +410,7 @@ let unary_primitive env dbg f arg =
     ( None,
       C.extcall ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" typ_val [arg] )
-  | Is_int -> None, C.and_ ~dbg arg (C.int ~dbg 1)
+  | Is_int -> None, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, C.get_tag arg dbg
   | Array_length array_kind -> None, C.array_length ~dbg array_kind arg
   | Bigarray_length { dimension } ->

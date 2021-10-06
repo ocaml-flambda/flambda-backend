@@ -122,6 +122,10 @@ val div_int :
 val mod_int :
   expression -> expression -> Lambda.is_safe -> Debuginfo.t -> expression
 
+val and_int : expression -> expression -> Debuginfo.t -> expression
+val or_int  : expression -> expression -> Debuginfo.t -> expression
+val xor_int : expression -> expression -> Debuginfo.t -> expression
+
 (** Integer tagging. [tag_int x = (x lsl 1) + 1] *)
 val tag_int : expression -> Debuginfo.t -> expression
 

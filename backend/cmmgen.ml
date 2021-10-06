@@ -1039,17 +1039,17 @@ and transl_prim_2 env p arg1 arg2 dbg =
                       (transl_unbox_int dbg env bi arg2)
                       bi dbg)
   | Pandbint bi ->
-      box_int dbg bi (Cop(Cand,
-                     [transl_unbox_int_low dbg env bi arg1;
-                      transl_unbox_int_low dbg env bi arg2], dbg))
+      box_int dbg bi (and_int
+                        (transl_unbox_int_low dbg env bi arg1)
+                        (transl_unbox_int_low dbg env bi arg2) dbg)
   | Porbint bi ->
-      box_int dbg bi (Cop(Cor,
-                     [transl_unbox_int_low dbg env bi arg1;
-                      transl_unbox_int_low dbg env bi arg2], dbg))
+      box_int dbg bi (or_int
+                        (transl_unbox_int_low dbg env bi arg1)
+                        (transl_unbox_int_low dbg env bi arg2) dbg)
   | Pxorbint bi ->
-      box_int dbg bi (Cop(Cxor,
-                     [transl_unbox_int_low dbg env bi arg1;
-                      transl_unbox_int_low dbg env bi arg2], dbg))
+      box_int dbg bi (xor_int
+                        (transl_unbox_int_low dbg env bi arg1)
+                        (transl_unbox_int_low dbg env bi arg2) dbg)
   | Plslbint bi ->
       box_int dbg bi (lsl_int
                         (transl_unbox_int_low dbg env bi arg1)
