@@ -74,7 +74,6 @@ module Typing_env : sig
   val create :
     resolver:(Compilation_unit.t -> t option) ->
     get_imported_names:(unit -> Name.Set.t) ->
-    get_imported_code:(unit -> Exported_code.t) ->
     t
 
   val closure_env : t -> t
@@ -89,8 +88,6 @@ module Typing_env : sig
   val current_scope : t -> Scope.t
 
   val increment_scope : t -> t
-
-  val all_code : t -> Flambda.Code.t Code_id.Map.t
 
   val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
@@ -149,16 +146,8 @@ module Typing_env : sig
     flambda_type ->
     Simple.t
 
-  val define_code :
-    t ->
-    new_code_id:Code_id.t ->
-    old_code_id:Code_id.t option ->
-    Flambda.Code.t ->
-    t
-
-  val mem_code : t -> Code_id.t -> bool
-
-  val find_code : t -> Code_id.t -> Flambda.Code.t option
+  val add_to_code_age_relation :
+    t -> new_code_id:Code_id.t -> old_code_id:Code_id.t option -> t
 
   val code_age_relation : t -> Code_age_relation.t
 
@@ -193,7 +182,6 @@ module Typing_env : sig
       t ->
       resolver:(Compilation_unit.t -> typing_env option) ->
       get_imported_names:(unit -> Name.Set.t) ->
-      get_imported_code:(unit -> Exported_code.t) ->
       typing_env
 
     val all_ids_for_export : t -> Ids_for_export.t

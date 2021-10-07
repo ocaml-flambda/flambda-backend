@@ -44,7 +44,9 @@ type t =
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
     do_not_rebuild_terms : bool;
-    closure_info : Closure_info.t
+    closure_info : Closure_info.t;
+    get_imported_code : unit -> Exported_code.t;
+    all_code : Flambda.Code.t Code_id.Map.t
   }
 
 let print_debuginfo ppf dbg =
@@ -59,7 +61,8 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
                 symbols_currently_being_defined;
                 variables_defined_at_toplevel; cse;
                 do_not_rebuild_terms; closure_info;
-                unit_toplevel_return_continuation;
+                unit_toplevel_return_continuation; all_code;
+                get_imported_code = _;
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -76,7 +79,7 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
-      @[<hov 1>(code@ %a)@]\
+      @[<hov 1>(all_code@ %a)@]\
       )@]"
     round
     TE.print typing_env
@@ -92,7 +95,7 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
     CSE.print cse
     do_not_rebuild_terms
     Closure_info.print closure_info
-    (Code_id.Map.print Code.print) (TE.all_code typing_env)
+    (Code_id.Map.print Code.print) all_code
 
 let create ~round ~backend ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
@@ -100,7 +103,7 @@ let create ~round ~backend ~(resolver : resolver)
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation =
   { backend;
     round;
-    typing_env = TE.create ~resolver ~get_imported_names ~get_imported_code;
+    typing_env = TE.create ~resolver ~get_imported_names;
     inlined_debuginfo = Debuginfo.none;
     can_inline = true;
     inlining_state = Inlining_state.default ~round;
@@ -112,7 +115,9 @@ let create ~round ~backend ~(resolver : resolver)
     variables_defined_at_toplevel = Variable.Set.empty;
     cse = CSE.empty;
     do_not_rebuild_terms = false;
-    closure_info = Closure_info.not_in_a_closure
+    closure_info = Closure_info.not_in_a_closure;
+    all_code = Code_id.Map.empty;
+    get_imported_code
   }
 
 let resolver t = TE.resolver t.typing_env
@@ -193,7 +198,9 @@ let enter_set_of_closures
       variables_defined_at_toplevel;
       cse = _;
       do_not_rebuild_terms;
-      closure_info = _
+      closure_info = _;
+      get_imported_code;
+      all_code
     } =
   { backend;
     round;
@@ -209,7 +216,9 @@ let enter_set_of_closures
     variables_defined_at_toplevel;
     cse = CSE.empty;
     do_not_rebuild_terms;
-    closure_info = Closure_info.in_a_set_of_closures
+    closure_info = Closure_info.in_a_set_of_closures;
+    get_imported_code;
+    all_code
   }
 
 let define_variable t var kind =
@@ -417,7 +426,13 @@ let check_simple_is_bound t (simple : Simple.t) =
     ~name:(fun name ~coercion:_ -> check_name_is_bound t name)
     ~const:(fun _ -> ())
 
-let mem_code t code_id = TE.mem_code t.typing_env code_id
+let mem_code t id =
+  Code_id.Map.mem id t.all_code || Exported_code.mem id (t.get_imported_code ())
+
+let find_code t id =
+  match Code_id.Map.find id t.all_code with
+  | exception Not_found -> Exported_code.find_code (t.get_imported_code ()) id
+  | code -> Some code
 
 let check_code_id_is_bound t code_id =
   if not (mem_code t code_id)
@@ -437,13 +452,11 @@ let define_code t ~code_id ~code =
     Misc.fatal_errorf "Code ID %a does not match code ID in@ %a" Code_id.print
       code_id Code.print code;
   let typing_env =
-    TE.define_code t.typing_env ~new_code_id:code_id
+    TE.add_to_code_age_relation t.typing_env ~new_code_id:code_id
       ~old_code_id:(Code.newer_version_of code)
-      code
   in
-  { t with typing_env }
-
-let find_code t id = TE.find_code t.typing_env id
+  let all_code = Code_id.Map.add code_id code t.all_code in
+  { t with typing_env; all_code }
 
 let set_inlined_debuginfo t dbg = { t with inlined_debuginfo = dbg }
 
