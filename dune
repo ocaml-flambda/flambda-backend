@@ -1087,7 +1087,19 @@
   (.ocamloptcomp.objs/native/trap_stack.cmx as compiler-libs/trap_stack.cmx)
   (.ocamloptcomp.objs/native/cfg_equivalence.cmx
    as
-   compiler-libs/cfg_equivalence.cmx)))
+   compiler-libs/cfg_equivalence.cmx)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmi as compiler-libs/flambda2.cmi)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmt as compiler-libs/flambda2.cmt)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_middle_end.cmi as compiler-libs/flambda2__Flambda_middle_end.cmi)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_middle_end.cmt as compiler-libs/flambda2__Flambda_middle_end.cmt)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_backend_intf.cmi as compiler-libs/flambda2__Flambda_backend_intf.cmi)
+   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_backend_intf.cmti as compiler-libs/flambda2__Flambda_backend_intf.cmti)
+   (middle_end/flambda2/backend_intf/.flambda2_backend_impl.objs/byte/flambda2_backend_impl.cmi as compiler-libs/flambda2_backend_impl.cmi)
+   (middle_end/flambda2/backend_intf/.flambda2_backend_impl.objs/byte/flambda2_backend_impl.cmt as compiler-libs/flambda2_backend_impl.cmt)
+   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmi as compiler-libs/flambda2_to_cmm.cmi)
+   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmt as compiler-libs/flambda2_to_cmm.cmt)
+   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmi as compiler-libs/flambda2_to_cmm__To_cmm.cmi)
+   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmt as compiler-libs/flambda2_to_cmm__To_cmm.cmt)))
 
 (install
  (section lib)
