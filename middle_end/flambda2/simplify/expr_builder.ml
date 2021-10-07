@@ -519,6 +519,9 @@ let create_switch uacc ~scrutinee ~arms =
         UA.add_free_names uacc (Apply_cont.free_names action)
         |> UA.notify_added ~code_size:(Code_size.apply_cont action)
       in
+      (* The resulting [Debuginfo] on the [Apply_cont] will be arbitrarily
+         chosen from amongst the [Debuginfo] values on the arms, but this seems
+         fine. *)
       RE.create_apply_cont action, uacc
     in
     match Targetint_31_63.Map.get_singleton arms with
