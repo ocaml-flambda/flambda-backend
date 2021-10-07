@@ -279,8 +279,7 @@ let subst_rec_info_expr _env ri =
 
 let subst_field env (field : Field_of_static_block.t) =
   match field with
-  | Symbol symbol ->
-    Field_of_static_block.Symbol (subst_symbol env symbol)
+  | Symbol symbol -> Field_of_static_block.Symbol (subst_symbol env symbol)
   | Tagged_immediate _ | Dynamically_computed _ -> field
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
@@ -866,16 +865,13 @@ let bound_symbols env bound_symbols1 bound_symbols2 :
   |> Comparison.map ~f:Bound_symbols.create
 
 let fields env (field1 : Field_of_static_block.t)
-    (field2 : Field_of_static_block.t) :
-    Field_of_static_block.t Comparison.t =
+    (field2 : Field_of_static_block.t) : Field_of_static_block.t Comparison.t =
   match field1, field2 with
   | Symbol symbol1, Symbol symbol2 ->
     symbols env symbol1 symbol2
-    |> Comparison.map ~f:(fun symbol1' ->
-           Field_of_static_block.Symbol symbol1')
+    |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
   | _, _ ->
-    Comparator.of_predicate ~f:Field_of_static_block.equal env field1
-      field2
+    Comparator.of_predicate ~f:Field_of_static_block.equal env field1 field2
 
 let blocks env block1 block2 =
   triples

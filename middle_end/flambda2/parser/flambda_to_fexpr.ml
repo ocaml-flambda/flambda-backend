@@ -557,8 +557,8 @@ let set_of_closures env sc =
   let elts = match elts with [] -> None | _ -> Some elts in
   fun_decls, elts
 
-let field_of_block env (field : Field_of_static_block.t) :
-    Fexpr.field_of_block =
+let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
+    =
   match field with
   | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
   | Tagged_immediate imm ->

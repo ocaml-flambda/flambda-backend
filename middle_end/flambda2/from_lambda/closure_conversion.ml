@@ -59,8 +59,8 @@ let register_const0 acc constant name =
     acc, symbol
   | symbol -> acc, symbol
 
-let register_const acc constant name :
-    Acc.t * Field_of_static_block.t * string =
+let register_const acc constant name : Acc.t * Field_of_static_block.t * string
+    =
   let acc, symbol = register_const0 acc constant name in
   acc, Symbol symbol, name
 
@@ -1020,8 +1020,7 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
       let static_const : Static_const.t =
         let field_vars =
           List.map
-            (fun (_, var) : Field_of_static_block.t ->
-              Dynamically_computed var)
+            (fun (_, var) : Field_of_static_block.t -> Dynamically_computed var)
             field_vars
         in
         Block (module_block_tag, Immutable, field_vars)
