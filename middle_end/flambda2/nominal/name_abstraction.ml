@@ -24,61 +24,72 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
+type ('bindable, 'term) t = 'bindable * 'term
+
 module Make (Bindable : Bindable.S) (Term : Term) = struct
-  type t = Bindable.t * Term.t
+  type nonrec t = (Bindable.t, Term.t) t
 
-  let create name term = name, term
+  let create bindable term = bindable, term
 
-  let[@inline always] pattern_match (name, term) ~f =
-    let fresh_name = Bindable.rename name in
-    let perm = Bindable.name_permutation name ~guaranteed_fresh:fresh_name in
+  let[@inline always] pattern_match (bindable, term) ~f =
+    let fresh_bindable = Bindable.rename bindable in
+    let perm =
+      Bindable.name_permutation bindable ~guaranteed_fresh:fresh_bindable
+    in
     let fresh_term = Term.apply_renaming term perm in
-    f fresh_name fresh_term
+    f fresh_bindable fresh_term
 
-  let [@ocamlformat "disable"] print ppf t =
-    pattern_match t ~f:(fun name term ->
-      Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
-        (Flambda_colours.name_abstraction ())
-        "["
-        (Flambda_colours.normal ())
-        Bindable.print name
-        (Flambda_colours.name_abstraction ())
-        "]"
-        (Flambda_colours.normal ())
-        Term.print term)
+  (* CR-someday: Use modular implicits to allow let<> to be used throughout the
+     codebase. *)
+  let[@inline always] ( let<> ) t f =
+    pattern_match t ~f:(fun bindable term -> f (bindable, term))
 
-  let[@inline always] pattern_match_mapi t ~f =
-    pattern_match t ~f:(fun fresh_name fresh_term ->
-        let new_term = f fresh_name fresh_term in
-        fresh_name, new_term)
+  let print ppf ((unfreshened_bindable, unfreshened_term) as t) =
+    let<> freshened_bindable, freshened_term = t in
+    let bindable, term =
+      if Flambda_features.freshen_when_printing ()
+      then freshened_bindable, freshened_term
+      else unfreshened_bindable, unfreshened_term
+    in
+    Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
+      (Flambda_colours.name_abstraction ())
+      "["
+      (Flambda_colours.normal ())
+      Bindable.print bindable
+      (Flambda_colours.name_abstraction ())
+      "]"
+      (Flambda_colours.normal ())
+      Term.print term
 
-  let[@inline always] pattern_match_map t ~f =
-    pattern_match_mapi t ~f:(fun _fresh_name fresh_term -> f fresh_term)
-
-  let[@inline always] pattern_match_pair (name0, term0) (name1, term1) ~f =
-    let fresh_name = Bindable.rename name0 in
-    let perm0 = Bindable.name_permutation name0 ~guaranteed_fresh:fresh_name in
-    let perm1 = Bindable.name_permutation name1 ~guaranteed_fresh:fresh_name in
+  let[@inline always] pattern_match_pair (bindable0, term0) (bindable1, term1)
+      ~f =
+    let fresh_bindable = Bindable.rename bindable0 in
+    let perm0 =
+      Bindable.name_permutation bindable0 ~guaranteed_fresh:fresh_bindable
+    in
+    let perm1 =
+      Bindable.name_permutation bindable1 ~guaranteed_fresh:fresh_bindable
+    in
     let fresh_term0 = Term.apply_renaming term0 perm0 in
     let fresh_term1 = Term.apply_renaming term1 perm1 in
-    f fresh_name fresh_term0 fresh_term1
+    f fresh_bindable fresh_term0 fresh_term1
 
-  let apply_renaming ((name, term) as t) perm =
+  let apply_renaming ((bindable, term) as t) perm =
     if Renaming.is_empty perm
     then t
     else
-      let name = Bindable.apply_renaming name perm in
-      let term = Term.apply_renaming term perm in
-      name, term
+      let bindable' = Bindable.apply_renaming bindable perm in
+      let term' = Term.apply_renaming term perm in
+      if bindable == bindable' && term == term' then t else bindable', term'
 
-  let free_names (name, term) =
-    let in_binding_position = Bindable.free_names name in
+  let free_names (bindable, term) =
+    let in_binding_position = Bindable.free_names bindable in
     let free_in_term = Term.free_names term in
     Name_occurrences.diff free_in_term in_binding_position
 
-  let all_ids_for_export (name, term) =
+  let all_ids_for_export (bindable, term) =
     Ids_for_export.union
-      (Bindable.all_ids_for_export name)
+      (Bindable.all_ids_for_export bindable)
       (Term.all_ids_for_export term)
 end
 [@@inline always]

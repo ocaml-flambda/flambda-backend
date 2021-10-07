@@ -1207,6 +1207,10 @@ let mk_dclosure_offsets f =
   "-dclosure-offsets", Arg.Unit f, " Dump closure offsets (Flambda 2 only)"
 ;;
 
+let mk_dfreshen f =
+  "-dfreshen", Arg.Unit f, " Freshen bound names when printing (Flambda 2 only)"
+;;
+
 module type Common_options = sig
   val _absname : unit -> unit
   val _alert : string -> unit
@@ -1460,6 +1464,7 @@ module type Optcommon_options = sig
   val _dfexpr : unit -> unit
   val _dflexpect : unit -> unit
   val _dclosure_offsets : unit -> unit
+  val _dfreshen : unit -> unit
 end;;
 
 module type Optcomp_options = sig
@@ -1878,6 +1883,7 @@ struct
     mk_dfexpr F._dfexpr;
     mk_dflexpect F._dflexpect;
     mk_dclosure_offsets F._dclosure_offsets;
+    mk_dfreshen F._dfreshen;
     mk_dcfg F._dcfg;
     mk_dcmm F._dcmm;
     mk_dsel F._dsel;
@@ -2043,6 +2049,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dfexpr F._dfexpr;
     mk_dflexpect F._dflexpect;
     mk_dclosure_offsets F._dclosure_offsets;
+    mk_dfreshen F._dfreshen;
 
     mk_dsource F._dsource;
     mk_dparsetree F._dparsetree;
@@ -2431,6 +2438,7 @@ module Default = struct
     let _dfexpr = set Flambda2.Dump.fexpr
     let _dflexpect = set Flambda2.Dump.flexpect
     let _dclosure_offsets = set Flambda2.Dump.closure_offsets
+    let _dfreshen = set Flambda2.Dump.freshen
   end
 
   module Compiler = struct

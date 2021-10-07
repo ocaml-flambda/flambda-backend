@@ -242,6 +242,7 @@ module Flambda2 : sig
     val fexpr : bool ref
     val flexpect : bool ref
     val closure_offsets : bool ref
+    val freshen : bool ref
   end
 
   module Expert : sig

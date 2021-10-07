@@ -268,6 +268,7 @@ module type Optcommon_options = sig
   val _dfexpr : unit -> unit
   val _dflexpect : unit -> unit
   val _dclosure_offsets : unit -> unit
+  val _dfreshen : unit -> unit
 end;;
 
 module type Optcomp_options = sig
