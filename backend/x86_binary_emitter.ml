@@ -1277,12 +1277,14 @@ let emit_prefetch b ~is_write ~hint rm =
   | (false, _, (Mem _ | Mem64_RIP _)) ->
     (* PREFETCHT0 m8, PREFETCHT1 m8, PREFETCHT1 m8 and PREFETCHNTA m8 *)
     emit_mod_rm_reg b no_rex [ 0x0F; 0x18 ] rm (rd_of_prefetch_hint hint)
-  | (true, (T0 | T1), (Mem _ | Mem64_RIP _)) ->
-    (* PREFETCHW m8 and PREFETCHWT1 m8 *)
-    (* X86_gas seems to also emit prefetchwt1 if hint is [T2 | Nta], not sure
-       whether such instruction is ever produced. If so I assume we should
-       behave similarly. *)
+  | (true, T0, (Mem _ | Mem64_RIP _)) ->
+    (* PREFETCHW m8 *)
     emit_mod_rm_reg b no_rex [ 0x0F; 0x0D ] rm (rd_of_prefetch_hint hint)
+  | (true, (T1 | T2 | Nta), (Mem _ | Mem64_RIP _)) ->
+    (* PREFETCHWT1 m8 *)
+    (* This sticks to X86_gas' behaviour which emit prefetchwt1 if hint is
+       [T2 | Nta] *)
+    emit_mod_rm_reg b no_rex [ 0x0F; 0x0D ] rm (rd_of_prefetch_hint T1)
   | _ -> assert false
 
 let emit_rdtsc b = buf_opcodes b [ 0x0F; 0x31 ]
