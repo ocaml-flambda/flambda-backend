@@ -16,12 +16,13 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = unit Code0.t
+type t = Flambda.Function_params_and_body.t Code0.t
 
 let code_id = Code0.code_id
 
-let is_deleted t =
-  match Code0.params_and_body t with Deleted -> true | Present () -> false
+let params_and_body = Code0.params_and_body
+
+let params_and_body_must_be_present = Code0.params_and_body_must_be_present
 
 let newer_version_of = Code0.newer_version_of
 
@@ -47,26 +48,39 @@ let is_tupled = Code0.is_tupled
 
 let inlining_decision = Code0.inlining_decision
 
-let create code_id ~(free_names_of_params_and_body : _ Or_deleted.t)
-    ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~inlining_decision =
-  let params_and_body : _ Or_deleted.t =
-    match free_names_of_params_and_body with
-    | Deleted -> Deleted
-    | Present free_names_of_params_and_body ->
-      Present ((), free_names_of_params_and_body)
-  in
-  Code0.create ~print_function_params_and_body:Unit.print code_id
-    ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub ~inline
-    ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~inlining_decision
+let create code_id ~params_and_body ~newer_version_of ~params_arity
+    ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
+    ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
+  Code0.create
+    ~print_function_params_and_body:Flambda.Function_params_and_body.print
+    code_id ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub
+    ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+    ~is_tupled ~inlining_decision
+
+let with_code_id = Code0.with_code_id
+
+let with_params_and_body =
+  Code0.with_params_and_body
+    ~print_function_params_and_body:Flambda.Function_params_and_body.print
+
+let with_newer_version_of = Code0.with_newer_version_of
 
 let make_deleted = Code0.make_deleted
 
-let print = Code0.print ~print_function_params_and_body:Unit.print
+let is_deleted = Code0.is_deleted
 
 let free_names = Code0.free_names
 
 let apply_renaming =
-  Code0.apply_renaming ~apply_renaming_function_params_and_body:(fun () _ -> ())
+  Code0.apply_renaming
+    ~apply_renaming_function_params_and_body:
+      Flambda.Function_params_and_body.apply_renaming
+
+let print =
+  Code0.print
+    ~print_function_params_and_body:Flambda.Function_params_and_body.print
+
+let all_ids_for_export =
+  Code0.all_ids_for_export
+    ~all_ids_for_export_function_params_and_body:
+      Flambda.Function_params_and_body.all_ids_for_export

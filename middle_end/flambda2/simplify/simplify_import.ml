@@ -18,7 +18,7 @@
 
 module Apply = Flambda.Apply
 module Apply_cont = Flambda.Apply_cont
-module Code = Flambda.Code
+module Code = Code
 module Const = Reg_width_const
 module Continuation_handler = Flambda.Continuation_handler
 module Continuation_handlers = Flambda.Continuation_handlers

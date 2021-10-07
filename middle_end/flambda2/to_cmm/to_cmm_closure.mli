@@ -36,7 +36,7 @@ val filter_closure_vars :
   Simple.t Var_within_closure.Map.t
 
 (* val map_on_function_decl :
- *   (string -> Closure_id.t -> Flambda.Code_id.t -> 'a) ->
+ *   (string -> Closure_id.t -> Code_id.t -> 'a) ->
  *   Flambda_unit.t -> 'a Closure_id.Map.t
  * (\** Map a function on each function body exactly once, and return the
  *     resulting mapping. *\) *)

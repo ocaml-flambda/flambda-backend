@@ -16,7 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Flambda.Import
 module DE = Downwards_env
 module LC = Lifted_constant
 module T = Flambda_type
