@@ -983,14 +983,15 @@ let emit_imul b dst src =
   | _ -> assert false
 
 let emit_mul b ~src =
+  let opcode_extension = 4 in
   match src with
   | ((Reg8H _ | Reg8L _ | Mem {typ = BYTE; _} | Mem64_RIP (BYTE, _, _)) as rm) ->
-    emit_mod_rm_reg b rex [ 0xF6 ] rm 4
+    emit_mod_rm_reg b rex [ 0xF6 ] rm opcode_extension
   | ((Reg16 _ | Mem {typ = WORD; _} | Mem64_RIP (WORD, _, _)) as rm)
   | ((Reg32 _ | Mem {typ = DWORD; _} | Mem64_RIP (DWORD, _, _)) as rm) ->
-    emit_mod_rm_reg b no_rex [ 0xF7 ] rm 4
+    emit_mod_rm_reg b no_rex [ 0xF7 ] rm opcode_extension
   | ((Reg64 _ | Mem {typ = QWORD; _} | Mem64_RIP (QWORD, _, _)) as rm) ->
-    emit_mod_rm_reg b rexw [ 0xF7 ] rm 4
+    emit_mod_rm_reg b rexw [ 0xF7 ] rm opcode_extension
   | _ -> assert false
 
 let emit_idiv b dst =
