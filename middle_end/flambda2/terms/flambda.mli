@@ -472,20 +472,6 @@ and Static_const : sig
   (** Language terms that represent statically-allocated values, bound to
       symbols. *)
 
-  module Field_of_block : sig
-    (** Inhabitants (of kind [Value]) of fields of statically-allocated blocks. *)
-    type t =
-      | Symbol of Symbol.t  (** The address of the given symbol. *)
-      | Tagged_immediate of Targetint_31_63.t
-          (** The given tagged immediate. *)
-      | Dynamically_computed of Variable.t
-          (** The value of the given variable. *)
-
-    include Container_types.S with type t := t
-
-    include Contains_names.S with type t := t
-  end
-
   (* CR mshinwell: Somewhere there should be an invariant check that code has no
      free names. *)
 
@@ -494,7 +480,7 @@ and Static_const : sig
   type t =
     | Code of Code.t
     | Set_of_closures of Set_of_closures.t
-    | Block of Tag.Scannable.t * Mutability.t * Field_of_block.t list
+    | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
     | Boxed_int32 of Int32.t Or_variable.t
     | Boxed_int64 of Int64.t Or_variable.t

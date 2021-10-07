@@ -17,11 +17,10 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Simplify_import
-module Field_of_block = Static_const.Field_of_block
 
 (* CR-someday mshinwell: Finish improved simplification using types *)
 
-let simplify_field_of_block dacc (field : Field_of_block.t) =
+let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   match field with
   | Symbol sym -> field, T.alias_type_of K.value (Simple.symbol sym)
   | Tagged_immediate i -> field, T.this_tagged_immediate i
@@ -35,11 +34,11 @@ let simplify_field_of_block dacc (field : Field_of_block.t) =
            block *)
         assert (Coercion.is_id coercion);
         Name.pattern_match name
-          ~var:(fun var -> Field_of_block.Dynamically_computed var, ty)
-          ~symbol:(fun sym -> Field_of_block.Symbol sym, ty))
+          ~var:(fun var -> Field_of_static_block.Dynamically_computed var, ty)
+          ~symbol:(fun sym -> Field_of_static_block.Symbol sym, ty))
       ~const:(fun const ->
         match Reg_width_const.descr const with
-        | Tagged_immediate imm -> Field_of_block.Tagged_immediate imm, ty
+        | Tagged_immediate imm -> Field_of_static_block.Tagged_immediate imm, ty
         | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
         | Naked_nativeint _ ->
           (* CR mshinwell: This should be "invalid" and propagate up *)
