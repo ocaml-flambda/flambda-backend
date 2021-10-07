@@ -17,7 +17,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Simplify_import
-module Field_of_static_block = Field_of_static_block
 
 (* CR-someday mshinwell: Finish improved simplification using types *)
 
