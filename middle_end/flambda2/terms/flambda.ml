@@ -1680,26 +1680,12 @@ end
 and Static_const : sig
   (** Language terms that represent statically-allocated values. *)
 
-  module Field_of_block : sig
-    (** Inhabitants (of kind [Value]) of fields of statically-allocated blocks. *)
-    type t =
-      | Symbol of Symbol.t  (** The address of the given symbol. *)
-      | Tagged_immediate of Targetint_31_63.t
-          (** The given tagged immediate. *)
-      | Dynamically_computed of Variable.t
-          (** The value of the given variable. *)
-
-    include Container_types.S with type t := t
-
-    include Contains_names.S with type t := t
-  end
-
   (** The static structure of a symbol, possibly with holes, ready to be filled
       with values computed at runtime. *)
   type t =
     | Code of Code.t
     | Set_of_closures of Set_of_closures.t
-    | Block of Tag.Scannable.t * Mutability.t * Field_of_block.t list
+    | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
     | Boxed_int32 of Int32.t Or_variable.t
     | Boxed_int64 of Int64.t Or_variable.t
@@ -1780,76 +1766,10 @@ and Static_const : sig
 end = struct
   let fprintf = Format.fprintf
 
-  module Field_of_block = struct
-    type t =
-      | Symbol of Symbol.t
-      | Tagged_immediate of Targetint_31_63.t
-      | Dynamically_computed of Variable.t
-
-    include Container_types.Make (struct
-      type nonrec t = t
-
-      let compare t1 t2 =
-        match t1, t2 with
-        | Symbol s1, Symbol s2 -> Symbol.compare s1 s2
-        | Tagged_immediate t1, Tagged_immediate t2 ->
-          Targetint_31_63.compare t1 t2
-        | Dynamically_computed v1, Dynamically_computed v2 ->
-          Variable.compare v1 v2
-        | Symbol _, Tagged_immediate _ -> -1
-        | Tagged_immediate _, Symbol _ -> 1
-        | Symbol _, Dynamically_computed _ -> -1
-        | Dynamically_computed _, Symbol _ -> 1
-        | Tagged_immediate _, Dynamically_computed _ -> -1
-        | Dynamically_computed _, Tagged_immediate _ -> 1
-
-      let equal t1 t2 = compare t1 t2 = 0
-
-      let hash t =
-        match t with
-        | Symbol symbol -> Hashtbl.hash (0, Symbol.hash symbol)
-        | Tagged_immediate immediate ->
-          Hashtbl.hash (1, Targetint_31_63.hash immediate)
-        | Dynamically_computed var -> Hashtbl.hash (2, Variable.hash var)
-
-      let print ppf t =
-        match t with
-        | Symbol symbol -> Symbol.print ppf symbol
-        | Tagged_immediate immediate -> Targetint_31_63.print ppf immediate
-        | Dynamically_computed var -> Variable.print ppf var
-
-      let output chan t = print (Format.formatter_of_out_channel chan) t
-    end)
-
-    let apply_renaming t renaming =
-      match t with
-      | Tagged_immediate _ -> t
-      | Symbol symbol ->
-        let symbol' = Renaming.apply_symbol renaming symbol in
-        if symbol == symbol' then t else Symbol symbol'
-      | Dynamically_computed var ->
-        let var' = Renaming.apply_variable renaming var in
-        if var == var' then t else Dynamically_computed var'
-
-    let free_names t =
-      match t with
-      | Dynamically_computed var ->
-        Name_occurrences.singleton_variable var Name_mode.normal
-      | Symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
-      | Tagged_immediate _ -> Name_occurrences.empty
-
-    let all_ids_for_export t =
-      match t with
-      | Dynamically_computed var ->
-        Ids_for_export.add_variable Ids_for_export.empty var
-      | Symbol sym -> Ids_for_export.add_symbol Ids_for_export.empty sym
-      | Tagged_immediate _ -> Ids_for_export.empty
-  end
-
   type t =
     | Code of Code.t
     | Set_of_closures of Set_of_closures.t
-    | Block of Tag.Scannable.t * Mutability.t * Field_of_block.t list
+    | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
     | Boxed_int32 of Int32.t Or_variable.t
     | Boxed_int64 of Int64.t Or_variable.t
@@ -1885,7 +1805,7 @@ end = struct
         (Flambda_colours.normal ())
         Tag.Scannable.print tag
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
-          Field_of_block.print) fields
+          Field_of_static_block.print) fields
     | Boxed_float or_var ->
       fprintf ppf "@[<hov 1>(@<0>%sBoxed_float@<0>%s@ %a)@]"
         (Flambda_colours.static_part ())
@@ -1951,7 +1871,9 @@ end = struct
           let c = Mutability.compare mut1 mut2 in
           if c <> 0
           then c
-          else Misc.Stdlib.List.compare Field_of_block.compare fields1 fields2
+          else
+            Misc.Stdlib.List.compare Field_of_static_block.compare fields1
+              fields2
       | Boxed_float or_var1, Boxed_float or_var2 ->
         Or_variable.compare Numeric_types.Float_by_bit_pattern.compare or_var1
           or_var2
@@ -2008,7 +1930,7 @@ end = struct
     | Block (_tag, _mut, fields) ->
       List.fold_left
         (fun fvs field ->
-          Name_occurrences.union fvs (Field_of_block.free_names field))
+          Name_occurrences.union fvs (Field_of_static_block.free_names field))
         Name_occurrences.empty fields
     | Boxed_float or_var -> Or_variable.free_names or_var
     | Boxed_int32 or_var -> Or_variable.free_names or_var
@@ -2040,7 +1962,9 @@ end = struct
         let fields =
           List.map
             (fun field ->
-              let field' = Field_of_block.apply_renaming field renaming in
+              let field' =
+                Field_of_static_block.apply_renaming field renaming
+              in
               if not (field == field') then changed := true;
               field')
             fields
@@ -2097,7 +2021,8 @@ end = struct
     | Block (_tag, _mut, fields) ->
       List.fold_left
         (fun ids field ->
-          Ids_for_export.union ids (Field_of_block.all_ids_for_export field))
+          Ids_for_export.union ids
+            (Field_of_static_block.all_ids_for_export field))
         Ids_for_export.empty fields
     | Boxed_float (Var var)
     | Boxed_int32 (Var var)

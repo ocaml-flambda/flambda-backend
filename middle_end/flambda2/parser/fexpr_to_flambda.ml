@@ -336,8 +336,7 @@ let name env (s : Fexpr.name) : Name.t =
   end
   | Symbol sym -> Name.symbol (get_symbol env sym)
 
-let field_of_block env (v : Fexpr.field_of_block) :
-    Flambda.Static_const.Field_of_block.t =
+let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
   match v with
   | Symbol s -> Symbol (get_symbol env s)
   | Tagged_immediate i ->

@@ -73,7 +73,7 @@ let simple_static env s =
     ~const:(fun c -> env, `Data (const_static env c))
 
 let static_value env v =
-  match (v : SC.Field_of_block.t) with
+  match (v : Field_of_static_block.t) with
   | Symbol s ->
     ( Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s),
       C.symbol_address (symbol s) )
@@ -97,7 +97,7 @@ let make_update env kind symb var i prev_update =
 let rec static_block_updates symb env acc i = function
   | [] -> env, acc
   | sv :: r -> begin
-    match (sv : SC.Field_of_block.t) with
+    match (sv : Field_of_static_block.t) with
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env acc (i + 1) r
     | Dynamically_computed var ->

@@ -83,7 +83,7 @@ let create_block are_rebuilding tag is_mutable ~fields =
       ListLabels.fold_left fields ~init:Name_occurrences.empty
         ~f:(fun free_names field ->
           Name_occurrences.union free_names
-            (Static_const.Field_of_block.free_names field))
+            (Field_of_static_block.free_names field))
     in
     Non_code_not_rebuilt { free_names }
   else create_normal_non_code (Block (tag, is_mutable, fields))
