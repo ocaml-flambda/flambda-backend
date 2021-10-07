@@ -287,15 +287,6 @@ let static_const0 env r ~updates ~params_and_body
       static_block_updates (C.symbol name) env updates 0 fields
     in
     env, R.set_data r block, updates
-  | Code code_id, Code code ->
-    if not (Code_id.equal code_id (Code.code_id code))
-    then
-      Misc.fatal_errorf "Code ID mismatch:@ %a@ =@ %a"
-        Bound_symbols.Pattern.print bound_symbols Static_const.print
-        static_const;
-    (* Nothing needs doing here as we've already added the code to the
-       environment. *)
-    env, r, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let r, updates, env =
       preallocate_set_of_closures (r, updates, env) ~closure_symbols
@@ -350,7 +341,7 @@ let static_const0 env r ~updates ~params_and_body
     let name = symbol s in
     let data = C.emit_string_constant (name, Cmmgen_state.Global) str in
     env, R.update_data r data, updates
-  | Block_like _, (Code _ | Set_of_closures _) ->
+  | Block_like _, Set_of_closures _ ->
     Misc.fatal_errorf
       "[Code] and [Set_of_closures] cannot be bound by [Block_like] bindings:@ \
        %a"
@@ -366,14 +357,30 @@ let static_const0 env r ~updates ~params_and_body
   | Code _, Set_of_closures _ ->
     Misc.fatal_errorf "Sets of closures cannot be bound by [Code] bindings:@ %a"
       SC.print static_const
-  | Set_of_closures _, Code _ ->
-    Misc.fatal_errorf
-      "Pieces of code cannot be bound by [Set_of_closures] bindings:@ %a"
-      SC.print static_const
 
-let static_const env r ~updates ~params_and_body bound_symbols static_const =
+let static_const_or_code env r ~updates ~params_and_body
+    (bound_symbols : Bound_symbols.Pattern.t)
+    (static_const_or_code : Static_const_or_code.t) =
   let env, r, updates =
-    static_const0 env r ~updates ~params_and_body bound_symbols static_const
+    match bound_symbols, static_const_or_code with
+    | (Block_like _ | Set_of_closures _), Static_const static_const ->
+      static_const0 env r ~updates ~params_and_body bound_symbols static_const
+    | Code code_id, Code code ->
+      if not (Code_id.equal code_id (Code.code_id code))
+      then
+        Misc.fatal_errorf "Code ID mismatch:@ %a@ =@ %a"
+          Bound_symbols.Pattern.print bound_symbols Code.print code;
+      (* Nothing needs doing here as we've already added the code to the
+         environment. *)
+      env, r, updates
+    | Code _, Static_const static_const ->
+      Misc.fatal_errorf "Only code can be bound by [Code] bindings:@ %a@ =@ %a"
+        Bound_symbols.Pattern.print bound_symbols SC.print static_const
+    | (Set_of_closures _ | Block_like _), Code code ->
+      Misc.fatal_errorf
+        "Pieces of code cannot be bound by [Block_like] or [Set_of_closures] \
+         bindings:@ %a@ =@ %a"
+        Bound_symbols.Pattern.print bound_symbols Code.print code
   in
   env, R.archive_data r, updates
 
@@ -381,28 +388,29 @@ let static_consts0 env r ~params_and_body bound_symbols static_consts =
   (* We cannot both build the environment and compile any functions in one
      traversal, as the bodies may contain direct calls to the code IDs being
      defined. *)
-  let static_consts' = Static_const.Group.to_list static_consts in
+  let static_consts' = Static_const_group.to_list static_consts in
   let bound_symbols' = Bound_symbols.to_list bound_symbols in
   if not (List.compare_lengths bound_symbols' static_consts' = 0)
   then
     Misc.fatal_errorf
       "Mismatch between [Bound_symbols] and [Static_const]s:@ %a@ =@ %a"
-      Bound_symbols.print bound_symbols Static_const.Group.print static_consts;
+      Bound_symbols.print bound_symbols Static_const_group.print static_consts;
   let env =
     ListLabels.fold_left static_consts' ~init:env ~f:(fun env static_const ->
-        match Static_const.to_code static_const with
+        match Static_const_or_code.to_code static_const with
         | None -> env
         | Some code -> update_env_for_code env code)
   in
   let r =
     ListLabels.fold_left static_consts' ~init:r ~f:(fun r static_const ->
-        match Static_const.to_code static_const with
+        match Static_const_or_code.to_code static_const with
         | None -> r
         | Some code -> add_functions env ~params_and_body r code)
   in
   ListLabels.fold_left2 bound_symbols' static_consts' ~init:(env, r, None)
     ~f:(fun (env, r, updates) bound_symbol_pat const ->
-      static_const env r ~updates ~params_and_body bound_symbol_pat const)
+      static_const_or_code env r ~updates ~params_and_body bound_symbol_pat
+        const)
 
 let static_consts env r ~params_and_body bound_symbols static_consts =
   try
@@ -414,7 +422,7 @@ let static_consts env r ~params_and_body bound_symbols static_consts =
        gc_roots all symbols who have an associated computation (and thus are not
        fully_static). *)
     let roots =
-      if Static_const.Group.is_fully_static static_consts
+      if Static_const_group.is_fully_static static_consts
       then []
       else Bound_symbols.gc_roots bound_symbols
     in

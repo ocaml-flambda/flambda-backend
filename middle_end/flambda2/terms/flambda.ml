@@ -1053,7 +1053,7 @@ end = struct
      become used soon. *)
 
   let flatten_for_printing0 bound_symbols defining_exprs =
-    Static_const.Group.match_against_bound_symbols defining_exprs bound_symbols
+    Static_const_group.match_against_bound_symbols defining_exprs bound_symbols
       ~init:([], false)
       ~code:(fun (flattened_acc, second_or_later_rec_binding) code_id code ->
         let flattened =
@@ -1320,7 +1320,7 @@ and Named : sig
     | Set_of_closures of Set_of_closures.t
         (** Definition of a set of (dynamically allocated) possibly
             mutually-recursive closures. *)
-    | Static_consts of Static_const.Group.t
+    | Static_consts of Static_const_group.t
         (** Definition of one or more symbols representing statically-allocated
             constants (including sets of closures). *)
     (* CR mshinwell: Add comment regarding ordering, recursion, etc. *)
@@ -1343,7 +1343,7 @@ and Named : sig
 
   (** Convert one or more statically-allocated constants into the defining
       expression of a [Let]. *)
-  val create_static_consts : Static_const.Group.t -> t
+  val create_static_consts : Static_const_group.t -> t
 
   (** Convert one or more expressions for recursion state into the defining
       expression of a [Let]. *)
@@ -1371,13 +1371,13 @@ and Named : sig
       statically-allocated constants. *)
   val is_static_consts : t -> bool
 
-  val must_be_static_consts : t -> Static_const.Group.t
+  val must_be_static_consts : t -> Static_const_group.t
 end = struct
   type t =
     | Simple of Simple.t
     | Prim of Flambda_primitive.t * Debuginfo.t
     | Set_of_closures of Set_of_closures.t
-    | Static_consts of Static_const.Group.t
+    | Static_consts of Static_const_group.t
     | Rec_info of Rec_info_expr.t
 
   let create_simple simple = Simple simple
@@ -1410,7 +1410,7 @@ end = struct
     | Set_of_closures set_of_closures ->
       Set_of_closures.print ppf set_of_closures
     | Static_consts consts ->
-      Static_const.Group.print ppf consts
+      Static_const_group.print ppf consts
     | Rec_info rec_info_expr ->
       Rec_info_expr.print ppf rec_info_expr
 
@@ -1419,7 +1419,7 @@ end = struct
     | Simple simple -> Simple.free_names simple
     | Prim (prim, _dbg) -> Flambda_primitive.free_names prim
     | Set_of_closures set -> Set_of_closures.free_names set
-    | Static_consts consts -> Static_const.Group.free_names consts
+    | Static_consts consts -> Static_const_group.free_names consts
     | Rec_info rec_info_expr -> Rec_info_expr.free_names rec_info_expr
 
   let apply_renaming t perm =
@@ -1434,7 +1434,7 @@ end = struct
       let set' = Set_of_closures.apply_renaming set perm in
       if set == set' then t else Set_of_closures set'
     | Static_consts consts ->
-      let consts' = Static_const.Group.apply_renaming consts perm in
+      let consts' = Static_const_group.apply_renaming consts perm in
       if consts == consts' then t else Static_consts consts'
     | Rec_info rec_info_expr ->
       let rec_info_expr' = Rec_info_expr.apply_renaming rec_info_expr perm in
@@ -1445,7 +1445,7 @@ end = struct
     | Simple simple -> Ids_for_export.from_simple simple
     | Prim (prim, _dbg) -> Flambda_primitive.all_ids_for_export prim
     | Set_of_closures set -> Set_of_closures.all_ids_for_export set
-    | Static_consts consts -> Static_const.Group.all_ids_for_export consts
+    | Static_consts consts -> Static_const_group.all_ids_for_export consts
     | Rec_info rec_info_expr -> Rec_info_expr.all_ids_for_export rec_info_expr
 
   let box_value name (kind : Flambda_kind.t) dbg : t * Flambda_kind.t =
@@ -1683,7 +1683,6 @@ and Static_const : sig
   (** The static structure of a symbol, possibly with holes, ready to be filled
       with values computed at runtime. *)
   type t =
-    | Code of Code.t
     | Set_of_closures of Set_of_closures.t
     | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
@@ -1696,8 +1695,6 @@ and Static_const : sig
         Numeric_types.Float_by_bit_pattern.t Or_variable.t list
     | Mutable_string of { initial_value : string }
     | Immutable_string of string
-
-  type static_const = t
 
   include Container_types.S with type t := t
 
@@ -1711,63 +1708,17 @@ and Static_const : sig
 
   val must_be_set_of_closures : t -> Set_of_closures.t
 
-  val to_code : t -> Code.t option
-
   val match_against_bound_symbols_pattern :
     t ->
     Bound_symbols.Pattern.t ->
-    code:(Code_id.t -> Code.t -> 'a) ->
     set_of_closures:
       (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
     block_like:(Symbol.t -> t -> 'a) ->
     'a
-
-  (* CR mshinwell: This should probably move to its own file. *)
-  module Group : sig
-    type t
-
-    include Contains_names.S with type t := t
-
-    include Contains_ids.S with type t := t
-
-    val empty : t
-
-    val create : static_const list -> t
-
-    val print : Format.formatter -> t -> unit
-
-    val to_list : t -> static_const list
-
-    val concat : t -> t -> t
-
-    val map : t -> f:(static_const -> static_const) -> t
-
-    val match_against_bound_symbols :
-      t ->
-      Bound_symbols.t ->
-      init:'a ->
-      code:('a -> Code_id.t -> Code.t -> 'a) ->
-      set_of_closures:
-        ('a ->
-        closure_symbols:Symbol.t Closure_id.Lmap.t ->
-        Set_of_closures.t ->
-        'a) ->
-      block_like:('a -> Symbol.t -> static_const -> 'a) ->
-      'a
-
-    (** This function ignores [Deleted] code. *)
-    val pieces_of_code : t -> Code.t Code_id.Map.t
-
-    (** This function ignores [Deleted] code. *)
-    val pieces_of_code' : t -> Code.t list
-
-    val is_fully_static : t -> bool
-  end
 end = struct
   let fprintf = Format.fprintf
 
   type t =
-    | Code of Code.t
     | Set_of_closures of Set_of_closures.t
     | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
@@ -1781,15 +1732,8 @@ end = struct
     | Mutable_string of { initial_value : string }
     | Immutable_string of string
 
-  type static_const = t
-
   let [@ocamlformat "disable"] print ppf t =
     match t with
-    | Code code ->
-      fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
-        (Flambda_colours.static_part ())
-        (Flambda_colours.normal ())
-        (Code.print) code
     | Set_of_closures set ->
       fprintf ppf "@[<hov 1>(@<0>%sSet_of_closures@<0>%s@ %a)@]"
         (Flambda_colours.static_part ())
@@ -1860,7 +1804,6 @@ end = struct
 
     let compare t1 t2 =
       match t1, t2 with
-      | Code code1, Code code2 -> Code.compare code1 code2
       | Set_of_closures set1, Set_of_closures set2 ->
         Set_of_closures.compare set1 set2
       | Block (tag1, mut1, fields1), Block (tag2, mut2, fields2) ->
@@ -1897,8 +1840,6 @@ end = struct
         String.compare s1 s2
       | Block _, _ -> -1
       | _, Block _ -> 1
-      | Code _, _ -> -1
-      | _, Code _ -> 1
       | Set_of_closures _, _ -> -1
       | _, Set_of_closures _ -> 1
       | Boxed_float _, _ -> -1
@@ -1925,7 +1866,6 @@ end = struct
 
   let free_names t =
     match t with
-    | Code code -> Code.free_names code
     | Set_of_closures set -> Set_of_closures.free_names set
     | Block (_tag, _mut, fields) ->
       List.fold_left
@@ -1951,9 +1891,6 @@ end = struct
     then t
     else
       match t with
-      | Code code ->
-        let code' = Code.apply_renaming code renaming in
-        if code == code' then t else Code code'
       | Set_of_closures set ->
         let set' = Set_of_closures.apply_renaming set renaming in
         if set == set' then t else Set_of_closures set'
@@ -2016,7 +1953,6 @@ end = struct
 
   let all_ids_for_export t =
     match t with
-    | Code code -> Code.all_ids_for_export code
     | Set_of_closures set -> Set_of_closures.all_ids_for_export set
     | Block (_tag, _mut, fields) ->
       List.fold_left
@@ -2056,9 +1992,6 @@ end = struct
   let can_share0 t =
     match t with
     | Block (_, Immutable, _)
-    | Code _
-    (* Code will never actually be shared since the [compare] function looks at
-       the code ID. *)
     | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
     | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
     | Immutable_string _ ->
@@ -2067,32 +2000,18 @@ end = struct
 
   let can_share t = can_share0 t && is_fully_static t
 
-  let to_code t =
-    match t with
-    | Code code -> Some code
-    | Set_of_closures _ | Block _ | Boxed_float _ | Boxed_int32 _
-    | Boxed_int64 _ | Boxed_nativeint _ | Immutable_float_block _
-    | Immutable_float_array _ | Immutable_string _ | Mutable_string _ ->
-      None
-
   let must_be_set_of_closures t =
     match t with
     | Set_of_closures set -> set
-    | Block _ | Code _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+    | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
     | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
     | Immutable_string _ | Mutable_string _ ->
       Misc.fatal_errorf "Not a set of closures:@ %a" print t
 
   let match_against_bound_symbols_pattern t (pat : Bound_symbols.Pattern.t)
-      ~code:code_callback ~set_of_closures:set_of_closures_callback
-      ~block_like:block_like_callback =
+      ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback
+      =
     match t, pat with
-    | Code code, Code code_id ->
-      if not (Code_id.equal (Code.code_id code) code_id)
-      then
-        Misc.fatal_errorf "Mismatch on declared code IDs:@ %a@ =@ %a"
-          Bound_symbols.Pattern.print pat print t;
-      code_callback code_id code
     | Set_of_closures set_of_closures, Set_of_closures closure_symbols ->
       let closure_ids =
         Set_of_closures.function_decls set_of_closures
@@ -2113,7 +2032,6 @@ end = struct
         | Immutable_string _ | Mutable_string _ ),
         Block_like symbol ) ->
       block_like_callback symbol t
-    | Code _, (Set_of_closures _ | Block_like _)
     | Set_of_closures _, (Code _ | Block_like _)
     | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
         | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
@@ -2121,63 +2039,222 @@ end = struct
         (Code _ | Set_of_closures _) ) ->
       Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
         Bound_symbols.Pattern.print pat print t
+end
 
-  module Group = struct
-    type nonrec t = t list
+and Static_const_or_code : sig
+  type t =
+    | Code of Code.t
+    | Static_const of Static_const.t
 
-    let create static_consts = static_consts
+  include Container_types.S with type t := t
 
-    let to_list t = t
+  include Contains_names.S with type t := t
 
-    let empty = []
+  include Contains_ids.S with type t := t
 
-    let [@ocamlformat "disable"] print ppf t =
-      Format.fprintf ppf "@[<hov 1>(%a)@]"
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space print) t
+  val print : Format.formatter -> t -> unit
 
-    let free_names t = List.map free_names t |> Name_occurrences.union_list
+  val can_share : t -> bool
 
-    let apply_renaming t renaming =
-      List.map (fun static_const -> apply_renaming static_const renaming) t
+  val is_fully_static : t -> bool
 
-    let all_ids_for_export t =
-      List.map all_ids_for_export t |> Ids_for_export.union_list
+  val to_code : t -> Code.t option
 
-    let match_against_bound_symbols t bound_symbols ~init ~code:code_callback
-        ~set_of_closures:set_of_closures_callback
-        ~block_like:block_like_callback =
-      let bound_symbol_pats = Bound_symbols.to_list bound_symbols in
-      if List.compare_lengths t bound_symbol_pats <> 0
+  val match_against_bound_symbols_pattern :
+    t ->
+    Bound_symbols.Pattern.t ->
+    code:(Code_id.t -> Code.t -> 'a) ->
+    set_of_closures:
+      (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
+    block_like:(Symbol.t -> Static_const.t -> 'a) ->
+    'a
+end = struct
+  type t =
+    | Code of Code.t
+    | Static_const of Static_const.t
+
+  let print ppf t =
+    match t with
+    | Code code ->
+      fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
+        (Flambda_colours.static_part ())
+        (Flambda_colours.normal ())
+        Code.print code
+    | Static_const const -> Static_const.print ppf const
+
+  include Container_types.Make (struct
+    type nonrec t = t
+
+    let print = print
+
+    let compare t1 t2 =
+      match t1, t2 with
+      | Code code1, Code code2 -> Code.compare code1 code2
+      | Static_const const1, Static_const const2 ->
+        Static_const.compare const1 const2
+      | Code _, Static_const _ -> -1
+      | Static_const _, Code _ -> 1
+
+    let equal t1 t2 = compare t1 t2 = 0
+
+    let hash _t = Misc.fatal_error "Not yet implemented"
+
+    let output _ _ = Misc.fatal_error "Not yet implemented"
+  end)
+
+  let free_names t =
+    match t with
+    | Code code -> Code.free_names code
+    | Static_const const -> Static_const.free_names const
+
+  let apply_renaming t renaming =
+    if Renaming.is_empty renaming
+    then t
+    else
+      match t with
+      | Code code ->
+        let code' = Code.apply_renaming code renaming in
+        if code == code' then t else Code code'
+      | Static_const const ->
+        let const' = Static_const.apply_renaming const renaming in
+        if const == const' then t else Static_const const'
+
+  let all_ids_for_export t =
+    match t with
+    | Code code -> Code.all_ids_for_export code
+    | Static_const const -> Static_const.all_ids_for_export const
+
+  let can_share t =
+    match t with
+    | Code _ ->
+      (* Code will never actually be shared since the [compare] function looks
+         at the code ID. *)
+      true
+    | Static_const const -> Static_const.can_share const
+
+  let is_fully_static t =
+    match t with
+    | Code _ -> true
+    | Static_const const -> Static_const.is_fully_static const
+
+  let to_code t = match t with Code code -> Some code | Static_const _ -> None
+
+  let match_against_bound_symbols_pattern (t : t)
+      (pat : Bound_symbols.Pattern.t) ~code:code_callback ~set_of_closures
+      ~block_like =
+    match t, pat with
+    | Code code, Code code_id ->
+      if not (Code_id.equal (Code.code_id code) code_id)
       then
-        Misc.fatal_errorf
-          "Mismatch between length of [Bound_symbols.t] and [Static_const.t \
-           list]:@ %a@ =@ %a"
-          Bound_symbols.print bound_symbols print t;
-      ListLabels.fold_left2 t bound_symbol_pats ~init
-        ~f:(fun acc static_const bound_symbols_pat ->
-          match_against_bound_symbols_pattern static_const bound_symbols_pat
-            ~code:(fun code_id code -> code_callback acc code_id code)
-            ~set_of_closures:(fun ~closure_symbols set_of_closures ->
-              set_of_closures_callback acc ~closure_symbols set_of_closures)
-            ~block_like:(fun symbol static_const ->
-              block_like_callback acc symbol static_const))
+        Misc.fatal_errorf "Mismatch on declared code IDs:@ %a@ =@ %a"
+          Bound_symbols.Pattern.print pat print t;
+      code_callback code_id code
+    | Static_const const, (Set_of_closures _ | Block_like _) ->
+      Static_const.match_against_bound_symbols_pattern const pat
+        ~set_of_closures ~block_like
+    | Static_const _, Code _ | Code _, (Set_of_closures _ | Block_like _) ->
+      Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
+        Bound_symbols.Pattern.print pat print t
+end
 
-    let pieces_of_code t =
-      List.filter_map to_code t
-      |> List.filter_map (fun code ->
-             if Code.is_deleted code
-             then None
-             else Some (Code.code_id code, code))
-      |> Code_id.Map.of_list
+and Static_const_group : sig
+  type t
 
-    let pieces_of_code' t = pieces_of_code t |> Code_id.Map.data
+  include Contains_names.S with type t := t
 
-    let is_fully_static t = List.for_all is_fully_static t
+  include Contains_ids.S with type t := t
 
-    let concat t1 t2 = t1 @ t2
+  val empty : t
 
-    let map t ~f = List.map f t
-  end
+  val create : Static_const_or_code.t list -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val to_list : t -> Static_const_or_code.t list
+
+  val concat : t -> t -> t
+
+  val map : t -> f:(Static_const_or_code.t -> Static_const_or_code.t) -> t
+
+  val match_against_bound_symbols :
+    t ->
+    Bound_symbols.t ->
+    init:'a ->
+    code:('a -> Code_id.t -> Code.t -> 'a) ->
+    set_of_closures:
+      ('a ->
+      closure_symbols:Symbol.t Closure_id.Lmap.t ->
+      Set_of_closures.t ->
+      'a) ->
+    block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
+    'a
+
+  (** This function ignores [Deleted] code. *)
+  val pieces_of_code : t -> Code.t Code_id.Map.t
+
+  (** This function ignores [Deleted] code. *)
+  val pieces_of_code' : t -> Code.t list
+
+  val is_fully_static : t -> bool
+end = struct
+  type nonrec t = Static_const_or_code.t list
+
+  let create static_consts = static_consts
+
+  let to_list t = t
+
+  let empty = []
+
+  let [@ocamlformat "disable"] print ppf t =
+    Format.fprintf ppf "@[<hov 1>(%a)@]"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Static_const_or_code.print) t
+
+  let free_names t =
+    List.map Static_const_or_code.free_names t |> Name_occurrences.union_list
+
+  let apply_renaming t renaming =
+    List.map
+      (fun static_const ->
+        Static_const_or_code.apply_renaming static_const renaming)
+      t
+
+  let all_ids_for_export t =
+    List.map Static_const_or_code.all_ids_for_export t
+    |> Ids_for_export.union_list
+
+  let match_against_bound_symbols t bound_symbols ~init ~code:code_callback
+      ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback
+      =
+    let bound_symbol_pats = Bound_symbols.to_list bound_symbols in
+    if List.compare_lengths t bound_symbol_pats <> 0
+    then
+      Misc.fatal_errorf
+        "Mismatch between length of [Bound_symbols.t] and [Static_const.t \
+         list]:@ %a@ =@ %a"
+        Bound_symbols.print bound_symbols print t;
+    ListLabels.fold_left2 t bound_symbol_pats ~init
+      ~f:(fun acc static_const bound_symbols_pat ->
+        Static_const_or_code.match_against_bound_symbols_pattern static_const
+          bound_symbols_pat
+          ~code:(fun code_id code -> code_callback acc code_id code)
+          ~set_of_closures:(fun ~closure_symbols set_of_closures ->
+            set_of_closures_callback acc ~closure_symbols set_of_closures)
+          ~block_like:(fun symbol static_const ->
+            block_like_callback acc symbol static_const))
+
+  let pieces_of_code t =
+    List.filter_map Static_const_or_code.to_code t
+    |> List.filter_map (fun code ->
+           if Code.is_deleted code then None else Some (Code.code_id code, code))
+    |> Code_id.Map.of_list
+
+  let pieces_of_code' t = pieces_of_code t |> Code_id.Map.data
+
+  let is_fully_static t = List.for_all Static_const_or_code.is_fully_static t
+
+  let concat t1 t2 = t1 @ t2
+
+  let map t ~f = List.map f t
 end
 
 (* CR mshinwell: Consider counting numbers of names in Name_occurrences *)
@@ -2210,5 +2287,7 @@ module Import = struct
   module Recursive_let_cont_handlers = Recursive_let_cont_handlers
   module Set_of_closures = Set_of_closures
   module Static_const = Static_const
+  module Static_const_group = Static_const_group
+  module Static_const_or_code = Static_const_or_code
   module Switch = Switch
 end

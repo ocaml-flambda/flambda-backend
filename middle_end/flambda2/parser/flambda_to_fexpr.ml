@@ -1,5 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Flambda.Import
+
 (* CR-someday mshinwell: share with Fexpr_to_flambda / move to Stdlib *)
 let map_accum_left f env l =
   let next (acc, env) x =
@@ -575,7 +577,7 @@ let static_const env (sc : Flambda.Static_const.t) : Fexpr.static_data =
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
-  | Code _ | Set_of_closures _ -> assert false
+  | Set_of_closures _ -> assert false
   | Boxed_float f -> Boxed_float (or_variable float env f)
   | Boxed_int32 i -> Boxed_int32 (or_variable Fun.id env i)
   | Boxed_int64 i -> Boxed_int64 (or_variable Fun.id env i)
@@ -644,7 +646,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
   let static_consts =
     match defining_expr with
     | Flambda.Named.Static_consts static_consts ->
-      static_consts |> Flambda.Static_const.Group.to_list
+      static_consts |> Flambda.Static_const_group.to_list
     | _ -> assert false
   in
   let bound_symbols = bound_symbols |> Bound_symbols.to_list in
@@ -667,15 +669,15 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
     List.fold_left bind_names env bound_symbols
   in
   let translate_const (pat : Bound_symbols.Pattern.t)
-      (const : Flambda.Static_const.t) : Fexpr.symbol_binding =
+      (const : Flambda.Static_const_or_code.t) : Fexpr.symbol_binding =
     match pat, const with
-    | Block_like symbol, _ ->
+    | Block_like symbol, Static_const const ->
       (* This is a binding occurrence, but it should have been added
        * already during the first pass *)
       let symbol = Env.find_symbol_exn env symbol in
       let defining_expr = static_const env const in
       Data { symbol; defining_expr }
-    | Set_of_closures closure_symbols, Set_of_closures set ->
+    | Set_of_closures closure_symbols, Static_const (Set_of_closures set) ->
       let fun_decls, elements = set_of_closures env set in
       let symbols_by_closure_id =
         closure_symbols |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
@@ -767,7 +769,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         }
     | _, _ ->
       Misc.fatal_errorf "Mismatched pattern and constant: %a vs. %a"
-        Bound_symbols.Pattern.print pat Flambda.Static_const.print const
+        Bound_symbols.Pattern.print pat Flambda.Static_const_or_code.print const
   in
   let bindings = List.map2 translate_const bound_symbols static_consts in
   let body = expr env body in

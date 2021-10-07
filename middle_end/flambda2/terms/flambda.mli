@@ -96,7 +96,7 @@ and Named : sig
     | Set_of_closures of Set_of_closures.t
         (** Definition of a set of (dynamically allocated) possibly
             mutually-recursive closures. *)
-    | Static_consts of Static_const.Group.t
+    | Static_consts of Static_const_group.t
         (** Definition of one or more symbols representing statically-allocated
             constants (including sets of closures). *)
     | Rec_info of Rec_info_expr.t
@@ -116,7 +116,7 @@ and Named : sig
 
   (** Convert one or more statically-allocated constants into the defining
       expression of a [Let]. *)
-  val create_static_consts : Static_const.Group.t -> t
+  val create_static_consts : Static_const_group.t -> t
 
   (** Convert one or more expressions for recursion state into the defining
       expression of a [Let]. *)
@@ -145,7 +145,7 @@ and Named : sig
       statically-allocated constants. *)
   val is_static_consts : t -> bool
 
-  val must_be_static_consts : t -> Static_const.Group.t
+  val must_be_static_consts : t -> Static_const_group.t
 
   val at_most_generative_effects : t -> bool
 end
@@ -478,7 +478,6 @@ and Static_const : sig
   (** The static structure of a symbol, possibly with holes, ready to be filled
       with values computed at runtime. *)
   type t =
-    | Code of Code.t
     | Set_of_closures of Set_of_closures.t
     | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
     | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
@@ -502,59 +501,76 @@ and Static_const : sig
 
   val can_share : t -> bool
 
-  val to_code : t -> Code.t option
-
   val must_be_set_of_closures : t -> Set_of_closures.t
 
   val match_against_bound_symbols_pattern :
     t ->
     Bound_symbols.Pattern.t ->
-    code:(Code_id.t -> Code.t -> 'a) ->
     set_of_closures:
       (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
     block_like:(Symbol.t -> t -> 'a) ->
     'a
+end
 
-  module Group : sig
-    type t
+and Static_const_or_code : sig
+  type nonrec t =
+    | Code of Code.t
+    | Static_const of Static_const.t
 
-    include Contains_names.S with type t := t
+  include Container_types.S with type t := t
 
-    include Contains_ids.S with type t := t
+  include Contains_names.S with type t := t
 
-    val empty : t
+  include Contains_ids.S with type t := t
 
-    val create : Static_const.t list -> t
+  val print : Format.formatter -> t -> unit
 
-    val print : Format.formatter -> t -> unit
+  val can_share : t -> bool
 
-    val to_list : t -> Static_const.t list
+  val is_fully_static : t -> bool
 
-    val concat : t -> t -> t
+  val to_code : t -> Code.t option
+end
 
-    val map : t -> f:(Static_const.t -> Static_const.t) -> t
+and Static_const_group : sig
+  type t
 
-    val match_against_bound_symbols :
-      t ->
-      Bound_symbols.t ->
-      init:'a ->
-      code:('a -> Code_id.t -> Code.t -> 'a) ->
-      set_of_closures:
-        ('a ->
-        closure_symbols:Symbol.t Closure_id.Lmap.t ->
-        Set_of_closures.t ->
-        'a) ->
-      block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
-      'a
+  include Contains_names.S with type t := t
 
-    (** This function ignores [Deleted] code. *)
-    val pieces_of_code : t -> Code.t Code_id.Map.t
+  include Contains_ids.S with type t := t
 
-    (** This function ignores [Deleted] code. *)
-    val pieces_of_code' : t -> Code.t list
+  val empty : t
 
-    val is_fully_static : t -> bool
-  end
+  val create : Static_const_or_code.t list -> t
+
+  val print : Format.formatter -> t -> unit
+
+  val to_list : t -> Static_const_or_code.t list
+
+  val concat : t -> t -> t
+
+  val map : t -> f:(Static_const_or_code.t -> Static_const_or_code.t) -> t
+
+  val match_against_bound_symbols :
+    t ->
+    Bound_symbols.t ->
+    init:'a ->
+    code:('a -> Code_id.t -> Code.t -> 'a) ->
+    set_of_closures:
+      ('a ->
+      closure_symbols:Symbol.t Closure_id.Lmap.t ->
+      Set_of_closures.t ->
+      'a) ->
+    block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
+    'a
+
+  (** This function ignores [Deleted] code. *)
+  val pieces_of_code : t -> Code.t Code_id.Map.t
+
+  (** This function ignores [Deleted] code. *)
+  val pieces_of_code' : t -> Code.t list
+
+  val is_fully_static : t -> bool
 end
 
 and Code : sig
@@ -657,5 +673,7 @@ module Import : sig
   module Recursive_let_cont_handlers = Recursive_let_cont_handlers
   module Set_of_closures = Set_of_closures
   module Static_const = Static_const
+  module Static_const_group = Static_const_group
+  module Static_const_or_code = Static_const_or_code
   module Switch = Switch
 end
