@@ -203,7 +203,7 @@ The exact version doesn't matter that much, but the version number should
 match the one in the Flambda backend tree.  (The name of the package given
 here is independent of the name of the switch.)
 
-To finish the installation, `opam install ocaml` will install the remaining
+To finish the installation, `opam install ocaml.4.12.0` will install the remaining
 auxiliary packages necessary for a regular switch. After that, normal opam
 packages can be installed the usual way.
 
