@@ -26,7 +26,7 @@ let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
         ~f:(fun
              (field : T.var_or_symbol_or_tagged_immediate)
              :
-             Static_const.Field_of_block.t
+             Field_of_static_block.t
            ->
           match field with
           | Var var -> Dynamically_computed var

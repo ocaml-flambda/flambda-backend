@@ -59,7 +59,7 @@ val create_block :
   Are_rebuilding_terms.t ->
   Tag.Scannable.t ->
   Mutability.t ->
-  fields:Static_const.Field_of_block.t list ->
+  fields:Field_of_static_block.t list ->
   t
 
 val create_boxed_float :
