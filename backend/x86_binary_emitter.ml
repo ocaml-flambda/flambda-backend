@@ -24,17 +24,9 @@ type section = {
 
 type data_size = B8 | B16 | B32 | B64
 
-module IntSet = Set.Make (struct
-  type t = int
+module IntSet = Set.Make (Int)
 
-  let compare : t -> t -> int = compare
-end)
-
-module StringMap = Map.Make (struct
-    type t = string
-
-    let compare = String.compare
-  end)
+module StringMap = Map.Make (String)
 
 let print_old_arg ppf = function
   | Imm _ -> Format.fprintf ppf "Imm"
