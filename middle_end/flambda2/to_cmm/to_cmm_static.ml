@@ -26,7 +26,7 @@ module C = struct
 end
 
 module Env = To_cmm_env
-module SC = Flambda.Static_const
+module SC = Static_const
 module R = To_cmm_result
 
 (* CR mshinwell: Share these next functions with To_cmm. Unfortunately there's a

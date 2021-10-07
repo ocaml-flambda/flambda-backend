@@ -571,7 +571,7 @@ let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
   match ov with Const c -> Const (f c) | Var v -> Var (Env.find_var_exn env v)
 
-let static_const env (sc : Flambda.Static_const.t) : Fexpr.static_data =
+let static_const env (sc : Static_const.t) : Fexpr.static_data =
   match sc with
   | Block (tag, mutability, fields) ->
     let tag = tag |> Tag.Scannable.to_int in
@@ -646,7 +646,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
   let static_consts =
     match defining_expr with
     | Flambda.Named.Static_consts static_consts ->
-      static_consts |> Flambda.Static_const_group.to_list
+      static_consts |> Static_const_group.to_list
     | _ -> assert false
   in
   let bound_symbols = bound_symbols |> Bound_symbols.to_list in
@@ -669,7 +669,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
     List.fold_left bind_names env bound_symbols
   in
   let translate_const (pat : Bound_symbols.Pattern.t)
-      (const : Flambda.Static_const_or_code.t) : Fexpr.symbol_binding =
+      (const : Static_const_or_code.t) : Fexpr.symbol_binding =
     match pat, const with
     | Block_like symbol, Static_const const ->
       (* This is a binding occurrence, but it should have been added
@@ -769,7 +769,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         }
     | _, _ ->
       Misc.fatal_errorf "Mismatched pattern and constant: %a vs. %a"
-        Bound_symbols.Pattern.print pat Flambda.Static_const_or_code.print const
+        Bound_symbols.Pattern.print pat Static_const_or_code.print const
   in
   let bindings = List.map2 translate_const bound_symbols static_consts in
   let body = expr env body in
