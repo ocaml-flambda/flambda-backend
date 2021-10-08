@@ -82,6 +82,42 @@ Line 2, characters 12-13:
 Error: Unbound value z
 |}];;
 
+[() for i in [1]];;
+[%%expect{|
+Line 1, characters 8-9:
+1 | [() for i in [1]];;
+            ^
+Warning 26 [unused-var]: unused variable i.
+- : unit list = [()]
+|}];;
+
+[|() for i in [|1|]|];;
+[%%expect{|
+Line 1, characters 9-10:
+1 | [|() for i in [|1|]|];;
+             ^
+Warning 26 [unused-var]: unused variable i.
+- : unit array = [|()|]
+|}];;
+
+[() for i = 0 to 10] [@warning "+a"];;
+[%%expect{|
+Line 1, characters 0-20:
+1 | [() for i = 0 to 10] [@warning "+a"];;
+    ^^^^^^^^^^^^^^^^^^^^
+Warning 35 [unused-for-index]: unused for-loop index i.
+- : unit list = [(); (); (); (); (); (); (); (); (); (); ()]
+|}];;
+
+[|() for i = 0 to 10|] [@warning "+a"];;
+[%%expect{|
+Line 1, characters 0-22:
+1 | [|() for i = 0 to 10|] [@warning "+a"];;
+    ^^^^^^^^^^^^^^^^^^^^^^
+Warning 35 [unused-for-index]: unused for-loop index i.
+- : unit array = [|(); (); (); (); (); (); (); (); (); (); ()|]
+|}];;
+
 (*List construction tests.*)
 
 [i for i = 0 to 10];;
