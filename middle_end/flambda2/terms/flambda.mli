@@ -481,8 +481,6 @@ and Static_const_or_code : sig
 
   val print : Format.formatter -> t -> unit
 
-  val can_share : t -> bool
-
   val is_fully_static : t -> bool
 
   val to_code : t -> Code.t option

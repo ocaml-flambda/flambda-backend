@@ -170,8 +170,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       dacc )
   | Set_of_closures _ ->
     Misc.fatal_errorf
-      "[Code] and [Set_of_closures] cannot be bound by a [Block_like] \
-       binding:@ %a"
+      "[Set_of_closures] values cannot be bound by a [Block_like] binding:@ %a"
       SC.print static_const
 
 let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts

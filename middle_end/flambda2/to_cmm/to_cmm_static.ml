@@ -343,8 +343,7 @@ let static_const0 env r ~updates ~params_and_body
     env, R.update_data r data, updates
   | Block_like _, Set_of_closures _ ->
     Misc.fatal_errorf
-      "[Code] and [Set_of_closures] cannot be bound by [Block_like] bindings:@ \
-       %a"
+      "[Set_of_closures] values cannot be bound by [Block_like] bindings:@ %a"
       SC.print static_const
   | ( (Code _ | Set_of_closures _),
       ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _

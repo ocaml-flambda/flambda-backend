@@ -1690,8 +1690,6 @@ and Static_const_or_code : sig
 
   val print : Format.formatter -> t -> unit
 
-  val can_share : t -> bool
-
   val is_fully_static : t -> bool
 
   val to_code : t -> Code.t option
@@ -1759,14 +1757,6 @@ end = struct
     match t with
     | Code code -> Code.all_ids_for_export code
     | Static_const const -> Static_const.all_ids_for_export const
-
-  let can_share t =
-    match t with
-    | Code _ ->
-      (* Code will never actually be shared since the [compare] function looks
-         at the code ID. *)
-      true
-    | Static_const const -> Static_const.can_share const
 
   let is_fully_static t =
     match t with
