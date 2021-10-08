@@ -24,30 +24,6 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
-type printing_style =
-  | Normal
-  | Brackets
-  | Existential
-
-let before_binding_position style =
-  match style with
-  | Normal -> "\u{0418}"
-  | Brackets -> "["
-  | Existential -> "\u{2203} "
-
-let after_binding_position style =
-  match style with Normal -> "." | Brackets -> "]" | Existential -> "."
-
-let printing_style = ref Brackets
-
-let set_printing_style new_style = printing_style := new_style
-
-let with_printing_style new_style ~f =
-  let old_style = !printing_style in
-  printing_style := new_style;
-  f ();
-  printing_style := old_style
-
 module type Common = sig
   type t
 
@@ -66,15 +42,14 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
     f fresh_name fresh_term
 
   let [@ocamlformat "disable"] print ppf t =
-    let style = !printing_style in
     pattern_match t ~f:(fun name term ->
       Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
         (Flambda_colours.name_abstraction ())
-        (before_binding_position style)
+        "["
         (Flambda_colours.normal ())
         Bindable.print name
         (Flambda_colours.name_abstraction ())
-        (after_binding_position style)
+        "]"
         (Flambda_colours.normal ())
         Term.print term)
 

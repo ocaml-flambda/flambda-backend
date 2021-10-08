@@ -27,15 +27,6 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
-type printing_style =
-  | Normal
-  | Brackets
-  | Existential
-
-val set_printing_style : printing_style -> unit
-
-val with_printing_style : printing_style -> f:(unit -> unit) -> unit
-
 module type Common = sig
   type t
 
