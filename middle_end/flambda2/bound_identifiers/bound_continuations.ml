@@ -53,12 +53,3 @@ let name_permutation t1 ~guaranteed_fresh:t2 =
     assert (List.compare_lengths t1 t2 <> 0);
     Misc.fatal_errorf "Continuations are of differing lengths:@ %a@ and@ %a"
       print t1 print t2
-
-let add_to_name_permutation t1 ~guaranteed_fresh renaming =
-  Renaming.compose
-    ~second:(name_permutation t1 ~guaranteed_fresh)
-    ~first:renaming
-
-let singleton_occurrence_in_terms = free_names
-
-let add_occurrence_in_terms t occs = Name_occurrences.union (free_names t) occs

@@ -24,12 +24,6 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
-module type Common = sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-end
-
 module Make (Bindable : Bindable.S) (Term : Term) = struct
   type t = Bindable.t * Term.t
 
@@ -78,7 +72,7 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
       name, term
 
   let free_names (name, term) =
-    let in_binding_position = Bindable.singleton_occurrence_in_terms name in
+    let in_binding_position = Bindable.free_names name in
     let free_in_term = Term.free_names term in
     Name_occurrences.diff free_in_term in_binding_position
 

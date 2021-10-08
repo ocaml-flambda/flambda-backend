@@ -27,12 +27,6 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
-module type Common = sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-end
-
 module Make (Bindable : Bindable.S) (Term : Term) : sig
   (** The type [t] is the equivalent of an atom abstraction construction
       "[--]--" in nominal sets. *)
@@ -41,7 +35,7 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
 
   include Contains_ids.S with type t := t
 
-  include Common with type t := t
+  val print : Format.formatter -> t -> unit
 
   val create : Bindable.t -> Term.t -> t
 

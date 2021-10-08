@@ -25,13 +25,6 @@ let add_to_name_permutation t ~guaranteed_fresh perm =
 let name_permutation t ~guaranteed_fresh =
   add_to_name_permutation t ~guaranteed_fresh Renaming.empty
 
-let singleton_occurrence_in_terms t =
-  Name_occurrences.singleton_continuation (exn_handler t)
-
-let add_occurrence_in_terms t occs =
-  (* See the comment in Bound_continuation.add_occurrence_in_terms *)
-  Name_occurrences.add_continuation occs (exn_handler t) ~has_traps:true
-
 let rename t =
   let exn_handler = Continuation.rename (exn_handler t) in
   create ~exn_handler ~extra_args:(extra_args t)

@@ -31,10 +31,3 @@ val to_list : t -> Kinded_parameter.t list
 val rename : t -> t
 
 val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
-
-val add_to_name_permutation :
-  t -> guaranteed_fresh:t -> Renaming.t -> Renaming.t
-
-val singleton_occurrence_in_terms : t -> Name_occurrences.t
-
-val add_occurrence_in_terms : t -> Name_occurrences.t -> Name_occurrences.t
