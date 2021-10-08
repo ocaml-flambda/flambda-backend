@@ -644,9 +644,8 @@ and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body :
 
 and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
   let static_consts =
-    match defining_expr with
-    | Flambda.Named.Static_consts static_consts ->
-      static_consts |> Static_const_group.to_list
+    match (defining_expr : Named.t) with
+    | Static_consts static_consts -> static_consts |> Static_const_group.to_list
     | _ -> assert false
   in
   let bound_symbols = bound_symbols |> Bound_symbols.to_list in

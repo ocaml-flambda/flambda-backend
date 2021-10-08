@@ -36,34 +36,125 @@ module Switch = Switch_expr
 
     - no re-normalisation of terms is required when substituting an application
     for an inlined body (unlike in ANF form). *)
+
+type expr = private
+  { mutable descr : expr_descr;
+    mutable delayed_permutation : Renaming.t
+  }
+
+and expr_descr = private
+  | Let of let_expr
+      (** Bind variable(s) or symbol(s). There can be no effect on control flow
+          (save for asynchronous operations such as the invocation of finalisers
+          or signal handlers as a result of reaching a safe point). *)
+  | Let_cont of let_cont_expr  (** Define one or more continuations. *)
+  | Apply of Apply.t
+      (** Call an OCaml function, external function or method. *)
+  | Apply_cont of Apply_cont.t
+      (** Call a continuation, optionally adding or removing exception trap
+          frames from the stack, which thus allows for the raising of
+          exceptions. *)
+  | Switch of Switch.t  (** Conditional control flow. *)
+  | Invalid of Invalid_term_semantics.t
+      (** Code proved type-incorrect and therefore unreachable. *)
+
+and let_expr_t0 = private
+  { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
+    body : expr
+  }
+
+and let_expr = private
+  { name_abstraction : (Bound_pattern.t, let_expr_t0) Name_abstraction.t;
+    defining_expr : named
+  }
+
+and named = private
+  | Simple of Simple.t
+      (** Things that fit in a register (variables, symbols, constants). These
+          do not have to be [Let]-bound but are allowed here for convenience. *)
+  | Prim of Flambda_primitive.t * Debuginfo.t
+      (** Primitive operations (arithmetic, memory access, allocation, etc). *)
+  | Set_of_closures of Set_of_closures.t
+      (** Definition of a set of (dynamically allocated) possibly
+          mutually-recursive closures. *)
+  | Static_consts of static_const_group
+      (** Definition of one or more symbols representing statically-allocated
+          constants (including sets of closures). *)
+  | Rec_info of Rec_info_expr.t
+      (** Definition of a state of recursive inlining. *)
+
+and let_cont_expr = private
+  | Non_recursive of
+      { handler : non_recursive_let_cont_handler;
+        num_free_occurrences : Num_occurrences.t Or_unknown.t;
+            (** [num_free_occurrences] can be used, for example, to decide
+                whether to inline out a linearly-used continuation. It will
+                always be strictly greater than zero. *)
+        is_applied_with_traps : bool
+            (** [is_applied_with_traps] is used to prevent inlining of
+                continuations that are applied with a trap action *)
+      }
+  | Recursive of recursive_let_cont_handlers
+
+and non_recursive_let_cont_handler = private
+  { continuation_and_body : (Bound_continuation.t, expr) Name_abstraction.t;
+    handler : continuation_handler
+  }
+
+and recursive_let_cont_handlers_t0 = private
+  { handlers : continuation_handlers;
+    body : expr
+  }
+
+and recursive_let_cont_handlers =
+  private
+  (Bound_continuations.t, recursive_let_cont_handlers_t0) Name_abstraction.t
+
+and function_params_and_body_base = private
+  { expr : expr;
+    free_names : Name_occurrences.t Or_unknown.t
+  }
+
+and function_params_and_body = private
+  { abst :
+      (Bound_for_function.t, function_params_and_body_base) Name_abstraction.t;
+    dbg : Debuginfo.t;
+    params_arity : Flambda_arity.t;
+    is_my_closure_used : bool Or_unknown.t
+  }
+
+and continuation_handler_t0 = private
+  { num_normal_occurrences_of_params : Num_occurrences.t Variable.Map.t;
+    handler : expr
+  }
+
+and continuation_handler = private
+  { cont_handler_abst :
+      (Bound_parameters.t, continuation_handler_t0) Name_abstraction.t;
+    is_exn_handler : bool
+  }
+
+and continuation_handlers = private continuation_handler Continuation.Map.t
+
+and static_const_or_code =
+  | Code of function_params_and_body Code0.t
+  | Static_const of Static_const.t
+
+and static_const_group = private static_const_or_code list
+
 module rec Expr : sig
   (** The type of equivalence classes of expressions up to alpha-renaming of
       bound [Variable]s and [Continuation]s. *)
-  type t
+  type t = expr
+
+  type descr = expr_descr
 
   include Expr_std.S with type t := t
 
   val all_ids_for_export : t -> Ids_for_export.t
 
-  type descr = private
-    | Let of Let_expr.t
-        (** Bind variable(s) or symbol(s). There can be no effect on control
-            flow (save for asynchronous operations such as the invocation of
-            finalisers or signal handlers as a result of reaching a safe
-            point). *)
-    | Let_cont of Let_cont_expr.t  (** Define one or more continuations. *)
-    | Apply of Apply.t
-        (** Call an OCaml function, external function or method. *)
-    | Apply_cont of Apply_cont.t
-        (** Call a continuation, optionally adding or removing exception trap
-            frames from the stack, which thus allows for the raising of
-            exceptions. *)
-    | Switch of Switch.t  (** Conditional control flow. *)
-    | Invalid of Invalid_term_semantics.t
-        (** Code proved type-incorrect and therefore unreachable. *)
-
   (** Extract the description of an expression. *)
-  val descr : t -> descr
+  val descr : t -> expr_descr
 
   val create_let : Let_expr.t -> t
 
@@ -84,20 +175,7 @@ end
 
 and Named : sig
   (** The defining expressions of [Let] bindings. *)
-  type t = private
-    | Simple of Simple.t
-        (** Things that fit in a register (variables, symbols, constants). These
-            do not have to be [Let]-bound but are allowed here for convenience. *)
-    | Prim of Flambda_primitive.t * Debuginfo.t
-        (** Primitive operations (arithmetic, memory access, allocation, etc). *)
-    | Set_of_closures of Set_of_closures.t
-        (** Definition of a set of (dynamically allocated) possibly
-            mutually-recursive closures. *)
-    | Static_consts of Static_const_group.t
-        (** Definition of one or more symbols representing statically-allocated
-            constants (including sets of closures). *)
-    | Rec_info of Rec_info_expr.t
-        (** Definition of a state of recursive inlining. *)
+  type t = named
 
   include Expr_std.S with type t := t
 
@@ -151,7 +229,7 @@ and Let_expr : sig
   (** The alpha-equivalence classes of expressions that bind variables; and the
       expressions that bind symbols (which are not treated up to alpha
       equivalence). *)
-  type t
+  type t = let_expr
 
   include Expr_std.S with type t := t
 
@@ -221,18 +299,7 @@ and Let_cont_expr : sig
       such continuations, so long as [Simplify] is run afterwards to inline them
       out and turn the resulting single [Recursive] handler into a
       [Non_recursive] one. *)
-  type t = private
-    | Non_recursive of
-        { handler : Non_recursive_let_cont_handler.t;
-          num_free_occurrences : Num_occurrences.t Or_unknown.t;
-              (** [num_free_occurrences] can be used, for example, to decide
-                  whether to inline out a linearly-used continuation. It will
-                  always be strictly greater than zero. *)
-          is_applied_with_traps : bool
-              (** [is_applied_with_traps] is used to prevent inlining of
-                  continuations that are applied with a trap action *)
-        }
-    | Recursive of Recursive_let_cont_handlers.t
+  type t = let_cont_expr
 
   include Expr_std.S with type t := t
 
@@ -262,7 +329,7 @@ end
 and Non_recursive_let_cont_handler : sig
   (** The representation of the alpha-equivalence class of the binding of a
       single non-recursive continuation handler over a body. *)
-  type t
+  type t = non_recursive_let_cont_handler
 
   include Expr_std.S with type t := t
 
@@ -283,7 +350,7 @@ and Continuation_handler : sig
   (** The alpha-equivalence class of the binding of a list of parameters around
       an expression, forming a continuation handler, together with auxiliary
       information about such handler. *)
-  type t
+  type t = continuation_handler
 
   include Expr_std.S with type t := t
 
@@ -343,7 +410,7 @@ and Recursive_let_cont_handlers : sig
   (** The representation of the alpha-equivalence class of a group of possibly
       (mutually-) recursive continuation handlers that are bound both over a
       body and their own handler code. *)
-  type t
+  type t = recursive_let_cont_handlers
 
   include Expr_std.S with type t := t
 
@@ -368,7 +435,7 @@ end
 and Continuation_handlers : sig
   (** The result of pattern matching on [Recursive_let_cont_handlers] (see
       above). *)
-  type t
+  type t = continuation_handlers
 
   (** Obtain the mapping from continuation to handler. *)
   val to_map : t -> Continuation_handler.t Continuation.Map.t
@@ -393,7 +460,7 @@ and Function_params_and_body : sig
       need to go via a [Project_var] (from [my_closure]); accesses to any other
       simultaneously-defined functions need to go likewise via a
       [Select_closure]. *)
-  type t
+  type t = function_params_and_body
 
   include Expr_std.S with type t := t
 
@@ -466,9 +533,7 @@ and Function_params_and_body : sig
 end
 
 and Static_const_or_code : sig
-  type nonrec t =
-    | Code of Function_params_and_body.t Code0.t
-    | Static_const of Static_const.t
+  type t = static_const_or_code
 
   include Container_types.S with type t := t
 
@@ -484,7 +549,7 @@ and Static_const_or_code : sig
 end
 
 and Static_const_group : sig
-  type t
+  type t = static_const_group
 
   include Contains_names.S with type t := t
 

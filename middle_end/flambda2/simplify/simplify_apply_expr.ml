@@ -364,7 +364,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         ~name:(Closure_id.to_string callee's_closure_id ^ "_partial")
         (Compilation_unit.get_current_exn ())
     in
-    let code =
+    let code : Static_const_or_code.t =
       let free_names = Function_params_and_body.free_names params_and_body in
       let code =
         Code.create code_id
@@ -376,7 +376,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false ~inlining_decision:Stub
       in
-      Static_const_or_code.Code code
+      Code code
     in
     let function_decls =
       Function_declarations.create

@@ -1125,16 +1125,17 @@ and static_consts env (const1 : Static_const_or_code.t)
   match const1, const2 with
   | Code code1, Code code2 ->
     codes env code1 code2
-    |> Comparison.map ~f:(fun code1' -> Static_const_or_code.Code code1')
+    |> Comparison.map ~f:(fun code1' : Static_const_or_code.t -> Code code1')
   | ( Static_const (Block (tag1, mut1, fields1)),
       Static_const (Block (tag2, mut2, fields2)) ) ->
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
-    |> Comparison.map ~f:(fun (tag1', mut1', fields1') ->
-           Static_const_or_code.Static_const (Block (tag1', mut1', fields1')))
+    |> Comparison.map
+         ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
+           Static_const (Block (tag1', mut1', fields1')))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
-    |> Comparison.map ~f:(fun set1' ->
-           Static_const_or_code.Static_const (Set_of_closures set1'))
+    |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->
+           Static_const (Set_of_closures set1'))
   | _, _ ->
     if Static_const_or_code.equal const1 const2
     then Equivalent
