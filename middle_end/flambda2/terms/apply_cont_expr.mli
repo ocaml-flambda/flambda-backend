@@ -64,4 +64,5 @@ val clear_trap_action : t -> t
 
 val to_one_arg_without_trap_action : t -> Simple.t option
 
+(** Note that [compare] ignores the [Debuginfo.t]. *)
 include Container_types.S with type t := t
