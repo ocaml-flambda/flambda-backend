@@ -364,15 +364,17 @@ and subst_code env (code : Code.t) : Code.t =
     match Code.params_and_body code with
     | Or_deleted.Present params_and_body ->
       let params_and_body = subst_params_and_body env params_and_body in
-      let names_and_closure_vars names =
+      let _names_and_closure_vars names =
         Name_occurrences.(
           union
             (restrict_to_closure_vars names)
             (with_only_names_and_code_ids names |> without_code_ids))
       in
       let free_names =
-        Flambda.Function_params_and_body.free_names params_and_body
-        |> names_and_closure_vars
+        (* CR mshinwell: This needs fixing XXX *)
+        Name_occurrences.empty
+        (* Flambda.Function_params_and_body.free_names params_and_body |>
+           names_and_closure_vars *)
       in
       Or_deleted.Present (params_and_body, free_names)
     | Or_deleted.Deleted -> Or_deleted.Deleted
@@ -1184,7 +1186,9 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            | Present params_and_body ->
              Present
                ( params_and_body,
-                 Function_params_and_body.free_names params_and_body )
+                 (* CR mshinwell: This needs fixing XXX *)
+                 Name_occurrences.empty
+                 (* Function_params_and_body.free_names params_and_body *) )
          in
          code1
          |> Code.with_code_id (Code.code_id code2)

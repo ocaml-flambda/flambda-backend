@@ -31,7 +31,9 @@ type rebuilt_static_const = t
 
 let create_normal_non_code const =
   Normal
-    { const = Static_const const; free_names = Static_const.free_names const }
+    { const = Static_const_or_code.create_static_const const;
+      free_names = Static_const.free_names const
+    }
 
 let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
     ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
@@ -67,16 +69,26 @@ let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
         ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
         ~inlining_arguments ~dbg ~is_tupled ~inlining_decision
     in
-    Normal { const = Code code; free_names = Code.free_names code }
+    Normal
+      { const = Static_const_or_code.create_code code;
+        free_names = Code.free_names code
+      }
 
 let create_code' code =
-  Normal { const = Code code; free_names = Code.free_names code }
+  Normal
+    { const = Static_const_or_code.create_code code;
+      free_names = Code.free_names code
+    }
 
 let create_set_of_closures are_rebuilding set =
   let free_names = Set_of_closures.free_names set in
   if ART.do_not_rebuild_terms are_rebuilding
   then Non_code_not_rebuilt { free_names }
-  else Normal { const = Static_const (Set_of_closures set); free_names }
+  else
+    Normal
+      { const = Static_const_or_code.create_static_const (Set_of_closures set);
+        free_names
+      }
 
 let create_block are_rebuilding tag is_mutable ~fields =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -152,7 +164,9 @@ let map_set_of_closures t ~f =
       | Set_of_closures set_of_closures ->
         let set_of_closures = f set_of_closures in
         Normal
-          { const = Static_const (Set_of_closures set_of_closures);
+          { const =
+              Static_const_or_code.create_static_const
+                (Set_of_closures set_of_closures);
             free_names = Set_of_closures.free_names set_of_closures
           }
       | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
@@ -191,7 +205,7 @@ let make_all_code_deleted t =
     | None -> t
     | Some code ->
       let code = Code.make_deleted code in
-      let const : Static_const_or_code.t = Code code in
+      let const = Static_const_or_code.create_code code in
       Normal { const; free_names = Code.free_names code }
   end
   | Non_code_not_rebuilt _ -> t
@@ -207,7 +221,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
       if Code_id.Set.mem (Code.code_id code) if_code_id_is_member_of
       then
         let code = Code.make_deleted code in
-        let const : Static_const_or_code.t = Code code in
+        let const = Static_const_or_code.create_code code in
         Normal { const; free_names = Code.free_names code }
       else t
   end

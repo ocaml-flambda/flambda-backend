@@ -16,19 +16,12 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(* CR mshinwell: Work out how to auto-generate this file. *)
+(** The grammar of the Flambda 2 term language, represented up to
+    alpha-conversion of bound variables and continuations.
 
-(** The terms of the intermediate language used for tree-based analysis and
-    optimisation. *)
-
-module Apply = Apply_expr
-module Apply_cont = Apply_cont_expr
-module Switch = Switch_expr
-
-(** The basic structure of the language ensures that:
-
-    - every intermediate value (and in particular every potential constant that
-    we may want to lift) has a name;
+    The basic structure of the language ensures that: - every intermediate value
+    (and in particular every potential constant that we may want to lift) has a
+    name;
 
     - every point to which we might wish to jump has a name;
 
@@ -37,10 +30,14 @@ module Switch = Switch_expr
     - no re-normalisation of terms is required when substituting an application
     for an inlined body (unlike in ANF form). *)
 
-type expr = private
-  { mutable descr : expr_descr;
-    mutable delayed_permutation : Renaming.t
-  }
+module Apply = Apply_expr
+module Apply_cont = Apply_cont_expr
+module Switch = Switch_expr
+
+(** Modules may be found further down the file giving operations on the abstract
+    types that follow. *)
+
+type expr
 
 and expr_descr = private
   | Let of let_expr
@@ -58,16 +55,9 @@ and expr_descr = private
   | Invalid of Invalid_term_semantics.t
       (** Code proved type-incorrect and therefore unreachable. *)
 
-and let_expr_t0 = private
-  { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
-    body : expr
-  }
+and let_expr
 
-and let_expr = private
-  { name_abstraction : (Bound_pattern.t, let_expr_t0) Name_abstraction.t;
-    defining_expr : named
-  }
-
+(** The defining expressions of [Let]-bindings. *)
 and named = private
   | Simple of Simple.t
       (** Things that fit in a register (variables, symbols, constants). These
@@ -96,67 +86,33 @@ and let_cont_expr = private
       }
   | Recursive of recursive_let_cont_handlers
 
-and non_recursive_let_cont_handler = private
-  { continuation_and_body : (Bound_continuation.t, expr) Name_abstraction.t;
-    handler : continuation_handler
-  }
+and non_recursive_let_cont_handler
 
-and recursive_let_cont_handlers_t0 = private
-  { handlers : continuation_handlers;
-    body : expr
-  }
+and recursive_let_cont_handlers
 
-and recursive_let_cont_handlers =
-  private
-  (Bound_continuations.t, recursive_let_cont_handlers_t0) Name_abstraction.t
+and function_params_and_body
 
-and function_params_and_body_base = private
-  { expr : expr;
-    free_names : Name_occurrences.t Or_unknown.t
-  }
-
-and function_params_and_body = private
-  { abst :
-      (Bound_for_function.t, function_params_and_body_base) Name_abstraction.t;
-    dbg : Debuginfo.t;
-    params_arity : Flambda_arity.t;
-    is_my_closure_used : bool Or_unknown.t
-  }
-
-and continuation_handler_t0 = private
-  { num_normal_occurrences_of_params : Num_occurrences.t Variable.Map.t;
-    handler : expr
-  }
-
-and continuation_handler = private
-  { cont_handler_abst :
-      (Bound_parameters.t, continuation_handler_t0) Name_abstraction.t;
-    is_exn_handler : bool
-  }
-
-and continuation_handlers = private continuation_handler Continuation.Map.t
-
-and static_const_or_code =
+and static_const_or_code = private
   | Code of function_params_and_body Code0.t
   | Static_const of Static_const.t
 
-and static_const_group = private static_const_or_code list
+and static_const_group
 
-module rec Expr : sig
+module Expr : sig
   (** The type of equivalence classes of expressions up to alpha-renaming of
       bound [Variable]s and [Continuation]s. *)
   type t = expr
 
   type descr = expr_descr
 
-  include Expr_std.S with type t := t
+  include Expr_std.S_no_free_names with type t := t
 
   val all_ids_for_export : t -> Ids_for_export.t
 
   (** Extract the description of an expression. *)
   val descr : t -> expr_descr
 
-  val create_let : Let_expr.t -> t
+  val create_let : let_expr -> t
 
   (** Create an application expression. *)
   val create_apply : Apply.t -> t
@@ -170,10 +126,10 @@ module rec Expr : sig
   val create_invalid : ?semantics:Invalid_term_semantics.t -> unit -> t
 
   val bind_parameters_to_args_no_simplification :
-    params:Bound_parameter.t list -> args:Simple.t list -> body:Expr.t -> Expr.t
+    params:Bound_parameter.t list -> args:Simple.t list -> body:expr -> expr
 end
 
-and Named : sig
+module Named : sig
   (** The defining expressions of [Let] bindings. *)
   type t = named
 
@@ -191,7 +147,7 @@ and Named : sig
 
   (** Convert one or more statically-allocated constants into the defining
       expression of a [Let]. *)
-  val create_static_consts : Static_const_group.t -> t
+  val create_static_consts : static_const_group -> t
 
   (** Convert one or more expressions for recursion state into the defining
       expression of a [Let]. *)
@@ -200,12 +156,12 @@ and Named : sig
   (** Build an expression boxing the name. The returned kind is the one of the
       unboxed version. *)
   val box_value :
-    Name.t -> Flambda_kind.t -> Debuginfo.t -> Named.t * Flambda_kind.t
+    Name.t -> Flambda_kind.t -> Debuginfo.t -> named * Flambda_kind.t
 
   (** Build an expression unboxing the name. The returned kind is the one of the
       unboxed version. *)
   val unbox_value :
-    Name.t -> Flambda_kind.t -> Debuginfo.t -> Named.t * Flambda_kind.t
+    Name.t -> Flambda_kind.t -> Debuginfo.t -> named * Flambda_kind.t
 
   (** Return a defining expression for a [Let] which is kind-correct, but not
       necessarily type-correct, at the given kind. *)
@@ -220,39 +176,39 @@ and Named : sig
       statically-allocated constants. *)
   val is_static_consts : t -> bool
 
-  val must_be_static_consts : t -> Static_const_group.t
+  val must_be_static_consts : t -> static_const_group
 
   val at_most_generative_effects : t -> bool
 end
 
-and Let_expr : sig
+module Let_expr : sig
   (** The alpha-equivalence classes of expressions that bind variables; and the
       expressions that bind symbols (which are not treated up to alpha
       equivalence). *)
   type t = let_expr
 
-  include Expr_std.S with type t := t
+  include Expr_std.S_no_free_names with type t := t
 
   val create :
     Bound_pattern.t ->
-    Named.t ->
-    body:Expr.t ->
+    named ->
+    body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     t
 
   (** The defining expression of the [Let]. *)
-  val defining_expr : t -> Named.t
+  val defining_expr : t -> named
 
   (** Look inside the [Let] by choosing a member of the alpha-equivalence
       class. *)
-  val pattern_match : t -> f:(Bound_pattern.t -> body:Expr.t -> 'a) -> 'a
+  val pattern_match : t -> f:(Bound_pattern.t -> body:expr -> 'a) -> 'a
 
   val pattern_match' :
     t ->
     f:
       (Bound_pattern.t ->
       num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
-      body:Expr.t ->
+      body:expr ->
       'a) ->
     'a
 
@@ -271,17 +227,92 @@ and Let_expr : sig
   val pattern_match_pair :
     t ->
     t ->
-    dynamic:(Bound_pattern.t -> body1:Expr.t -> body2:Expr.t -> 'a) ->
+    dynamic:(Bound_pattern.t -> body1:expr -> body2:expr -> 'a) ->
     static:
       (bound_symbols1:Bound_pattern.symbols ->
       bound_symbols2:Bound_pattern.symbols ->
-      body1:Expr.t ->
-      body2:Expr.t ->
+      body1:expr ->
+      body2:expr ->
       'a) ->
     ('a, Pattern_match_pair_error.t) Result.t
 end
 
-and Let_cont_expr : sig
+module Continuation_handler : sig
+  (** The alpha-equivalence class of the binding of a list of parameters around
+      an expression, forming a continuation handler, together with auxiliary
+      information about such handler. *)
+  type t
+
+  val apply_renaming : t -> Renaming.t -> t
+
+  (** Create the representation of a single continuation handler. *)
+  val create :
+    Bound_parameter.t list ->
+    handler:expr ->
+    free_names_of_handler:Name_occurrences.t Or_unknown.t ->
+    is_exn_handler:bool ->
+    t
+
+  (** Choose a member of the alpha-equivalence class to enable examination of
+      the parameters and the code over which they are scoped. *)
+  val pattern_match' :
+    t ->
+    f:
+      (Bound_parameter.t list ->
+      num_normal_occurrences_of_params:Num_occurrences.t Variable.Map.t ->
+      handler:expr ->
+      'a) ->
+    'a
+
+  val pattern_match :
+    t -> f:(Bound_parameter.t list -> handler:expr -> 'a) -> 'a
+
+  module Pattern_match_pair_error : sig
+    type t = Parameter_lists_have_different_lengths
+
+    val to_string : t -> string
+  end
+
+  (** Choose members of two bindings' alpha-equivalence classes using the same
+      parameters. *)
+  val pattern_match_pair :
+    t ->
+    t ->
+    f:(Bound_parameter.t list -> handler1:expr -> handler2:expr -> 'a) ->
+    ('a, Pattern_match_pair_error.t) Result.t
+
+  (** Whether the continuation is an exception handler.
+
+      Continuations used as exception handlers are always [Non_recursive]. To
+      enable identification of them in passes not invoked from [Simplify] (where
+      they could be identified by looking at the [Apply_cont]s that reference
+      them) they are marked explicitly.
+
+      Continuations used as exception handlers may have more than one parameter
+      (see [Exn_continuation]).
+
+      (Relevant piece of background info: the backend cannot compile
+      simultaneously-defined continuations when one or more of them is an
+      exception handler.) *)
+  val is_exn_handler : t -> bool
+end
+
+module Continuation_handlers : sig
+  (** The result of pattern matching on [Recursive_let_cont_handlers] (see
+      above). *)
+  type t
+
+  (** Obtain the mapping from continuation to handler. *)
+  val to_map : t -> Continuation_handler.t Continuation.Map.t
+
+  (** The domain of [to_map t]. *)
+  val domain : t -> Continuation.Set.t
+
+  (** Whether any of the continuations are exception handlers. *)
+  val contains_exn_handler : t -> bool
+end
+
+module Let_cont_expr : sig
   (** Values of type [t] represent alpha-equivalence classes of the definitions
       * of continuations: * let_cont [name] [args] = [handler] in [body] * or
       using an alternative notation: * [body] * where [name] [args] = [handler]
@@ -301,7 +332,7 @@ and Let_cont_expr : sig
       [Non_recursive] one. *)
   type t = let_cont_expr
 
-  include Expr_std.S with type t := t
+  include Expr_std.S_no_free_names with type t := t
 
   (** Create a definition of a non-recursive continuation. If the continuation
       does not occur free in the [body], then just the [body] is returned,
@@ -309,145 +340,69 @@ and Let_cont_expr : sig
   val create_non_recursive :
     Continuation.t ->
     Continuation_handler.t ->
-    body:Expr.t ->
+    body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
-    Expr.t
+    expr
 
   val create_non_recursive' :
     cont:Continuation.t ->
     Continuation_handler.t ->
-    body:Expr.t ->
+    body:expr ->
     num_free_occurrences_of_cont_in_body:Num_occurrences.t Or_unknown.t ->
     is_applied_with_traps:bool ->
-    Expr.t
+    expr
 
   (** Create a definition of a set of possibly-recursive continuations. *)
   val create_recursive :
-    Continuation_handler.t Continuation.Map.t -> body:Expr.t -> Expr.t
+    Continuation_handler.t Continuation.Map.t -> body:expr -> expr
 end
 
-and Non_recursive_let_cont_handler : sig
+module Non_recursive_let_cont_handler : sig
   (** The representation of the alpha-equivalence class of the binding of a
       single non-recursive continuation handler over a body. *)
   type t = non_recursive_let_cont_handler
 
-  include Expr_std.S with type t := t
+  val apply_renaming : t -> Renaming.t -> t
 
   (** Deconstruct a continuation binding to get the name of the bound
       continuation and the expression over which it is scoped. *)
-  val pattern_match : t -> f:(Continuation.t -> body:Expr.t -> 'a) -> 'a
+  val pattern_match : t -> f:(Continuation.t -> body:expr -> 'a) -> 'a
 
   (** Deconstruct two continuation bindings using the same name. *)
   val pattern_match_pair :
-    t -> t -> f:(Continuation.t -> body1:Expr.t -> body2:Expr.t -> 'a) -> 'a
+    t -> t -> f:(Continuation.t -> body1:expr -> body2:expr -> 'a) -> 'a
 
   (** Obtain the continuation itself (rather than the body over which it is
       scoped). *)
   val handler : t -> Continuation_handler.t
 end
 
-and Continuation_handler : sig
-  (** The alpha-equivalence class of the binding of a list of parameters around
-      an expression, forming a continuation handler, together with auxiliary
-      information about such handler. *)
-  type t = continuation_handler
-
-  include Expr_std.S with type t := t
-
-  (** Create the representation of a single continuation handler. *)
-  val create :
-    Bound_parameter.t list ->
-    handler:Expr.t ->
-    free_names_of_handler:Name_occurrences.t Or_unknown.t ->
-    is_exn_handler:bool ->
-    t
-
-  (** Choose a member of the alpha-equivalence class to enable examination of
-      the parameters and the code over which they are scoped. *)
-  val pattern_match' :
-    t ->
-    f:
-      (Bound_parameter.t list ->
-      num_normal_occurrences_of_params:Num_occurrences.t Variable.Map.t ->
-      handler:Expr.t ->
-      'a) ->
-    'a
-
-  val pattern_match :
-    t -> f:(Bound_parameter.t list -> handler:Expr.t -> 'a) -> 'a
-
-  module Pattern_match_pair_error : sig
-    type t = Parameter_lists_have_different_lengths
-
-    val to_string : t -> string
-  end
-
-  (** Choose members of two bindings' alpha-equivalence classes using the same
-      parameters. *)
-  val pattern_match_pair :
-    t ->
-    t ->
-    f:(Bound_parameter.t list -> handler1:Expr.t -> handler2:Expr.t -> 'a) ->
-    ('a, Pattern_match_pair_error.t) Result.t
-
-  (** Whether the continuation is an exception handler.
-
-      Continuations used as exception handlers are always [Non_recursive]. To
-      enable identification of them in passes not invoked from [Simplify] (where
-      they could be identified by looking at the [Apply_cont]s that reference
-      them) they are marked explicitly.
-
-      Continuations used as exception handlers may have more than one parameter
-      (see [Exn_continuation]).
-
-      (Relevant piece of background info: the backend cannot compile
-      simultaneously-defined continuations when one or more of them is an
-      exception handler.) *)
-  val is_exn_handler : t -> bool
-end
-
-and Recursive_let_cont_handlers : sig
+module Recursive_let_cont_handlers : sig
   (** The representation of the alpha-equivalence class of a group of possibly
       (mutually-) recursive continuation handlers that are bound both over a
       body and their own handler code. *)
   type t = recursive_let_cont_handlers
 
-  include Expr_std.S with type t := t
+  val apply_renaming : t -> Renaming.t -> t
 
   (** Deconstruct a continuation binding to get the bound continuations,
       together with the expressions and handlers over which they are scoped. *)
-  val pattern_match :
-    t -> f:(body:Expr.t -> Continuation_handlers.t -> 'a) -> 'a
+  val pattern_match : t -> f:(body:expr -> Continuation_handlers.t -> 'a) -> 'a
 
   (** Deconstruct two continuation bindings using the same bound continuations. *)
   val pattern_match_pair :
     t ->
     t ->
     f:
-      (body1:Expr.t ->
-      body2:Expr.t ->
+      (body1:expr ->
+      body2:expr ->
       Continuation_handlers.t ->
       Continuation_handlers.t ->
       'a) ->
     'a
 end
 
-and Continuation_handlers : sig
-  (** The result of pattern matching on [Recursive_let_cont_handlers] (see
-      above). *)
-  type t = continuation_handlers
-
-  (** Obtain the mapping from continuation to handler. *)
-  val to_map : t -> Continuation_handler.t Continuation.Map.t
-
-  (** The domain of [to_map t]. *)
-  val domain : t -> Continuation.Set.t
-
-  (** Whether any of the continuations are exception handlers. *)
-  val contains_exn_handler : t -> bool
-end
-
-and Function_params_and_body : sig
+module Function_params_and_body : sig
   (** A name abstraction that comprises a function's parameters (together with
       any relations between them), the code of the function, and the
       [my_closure] variable. It also includes the return and exception
@@ -462,7 +417,7 @@ and Function_params_and_body : sig
       [Select_closure]. *)
   type t = function_params_and_body
 
-  include Expr_std.S with type t := t
+  include Expr_std.S_no_free_names with type t := t
 
   include Contains_ids.S with type t := t
 
@@ -473,7 +428,7 @@ and Function_params_and_body : sig
     exn_continuation:Continuation.t ->
     Bound_parameter.t list ->
     dbg:Debuginfo.t ->
-    body:Expr.t ->
+    body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
     my_depth:Variable.t ->
@@ -494,7 +449,7 @@ and Function_params_and_body : sig
         (** To where we must jump if application of the function raises an
             exception. *) ->
       Bound_parameter.t list ->
-      body:Expr.t ->
+      body:expr ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
       my_depth:Variable.t ->
@@ -518,8 +473,8 @@ and Function_params_and_body : sig
         (** To where we must jump if application of the function raises an
             exception. *) ->
       Bound_parameter.t list ->
-      body1:Expr.t ->
-      body2:Expr.t ->
+      body1:expr ->
+      body2:expr ->
       my_closure:Variable.t ->
       my_depth:Variable.t ->
       'a) ->
@@ -532,7 +487,7 @@ and Function_params_and_body : sig
   val params_arity : t -> Flambda_arity.t
 end
 
-and Static_const_or_code : sig
+module Static_const_or_code : sig
   type t = static_const_or_code
 
   include Container_types.S with type t := t
@@ -545,10 +500,14 @@ and Static_const_or_code : sig
 
   val is_fully_static : t -> bool
 
+  val create_code : Function_params_and_body.t Code0.t -> t
+
+  val create_static_const : Static_const.t -> t
+
   val to_code : t -> Function_params_and_body.t Code0.t option
 end
 
-and Static_const_group : sig
+module Static_const_group : sig
   type t = static_const_group
 
   include Contains_names.S with type t := t

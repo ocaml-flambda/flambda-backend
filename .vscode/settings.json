@@ -1,6 +1,6 @@
 {
         "ocaml.sandbox": {
                 "kind": "opam",
-                "switch": "4.12.0"
+                "switch": "4.12-built-with-flambda2"
         }
 }

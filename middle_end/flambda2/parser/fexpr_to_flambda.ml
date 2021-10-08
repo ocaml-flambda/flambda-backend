@@ -676,27 +676,30 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let bound_symbols = bound_symbols |> Bound_symbols.create in
     let static_const env (b : Fexpr.symbol_binding) :
         Flambda.Static_const_or_code.t =
+      let static_const const =
+        Flambda.Static_const_or_code.create_static_const const
+      in
       match b with
       | Data { symbol = _; defining_expr = def } -> begin
         match def with
         | Block { tag; mutability; elements = args } ->
           let tag = Tag.Scannable.create_exn tag in
-          Static_const
+          static_const
             (Block (tag, mutability, List.map (field_of_block env) args))
-        | Boxed_float f -> Static_const (Boxed_float (or_variable float env f))
-        | Boxed_int32 i -> Static_const (Boxed_int32 (or_variable Fun.id env i))
-        | Boxed_int64 i -> Static_const (Boxed_int64 (or_variable Fun.id env i))
+        | Boxed_float f -> static_const (Boxed_float (or_variable float env f))
+        | Boxed_int32 i -> static_const (Boxed_int32 (or_variable Fun.id env i))
+        | Boxed_int64 i -> static_const (Boxed_int64 (or_variable Fun.id env i))
         | Boxed_nativeint i ->
-          Static_const (Boxed_nativeint (or_variable targetint env i))
+          static_const (Boxed_nativeint (or_variable targetint env i))
         | Immutable_float_block elements ->
-          Static_const
+          static_const
             (Immutable_float_block (List.map (or_variable float env) elements))
         | Immutable_float_array elements ->
-          Static_const
+          static_const
             (Immutable_float_array (List.map (or_variable float env) elements))
         | Mutable_string { initial_value = s } ->
-          Static_const (Mutable_string { initial_value = s })
-        | Immutable_string s -> Static_const (Immutable_string s)
+          static_const (Mutable_string { initial_value = s })
+        | Immutable_string s -> static_const (Immutable_string s)
       end
       | Set_of_closures { bindings; elements } ->
         let fun_decls =
@@ -705,7 +708,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             bindings
         in
         let set = set_of_closures env fun_decls elements in
-        Static_const (Set_of_closures set)
+        static_const (Set_of_closures set)
       | Closure _ -> assert false (* should have been filtered out above *)
       | Code
           { id;
@@ -778,15 +781,17 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             in
             (* CR lmaurer: Add
              * [Name_occurrences.with_only_names_and_closure_vars] *)
-            let names_and_closure_vars names =
+            let _names_and_closure_vars names =
               Name_occurrences.(
                 union
                   (restrict_to_closure_vars names)
                   (with_only_names_and_code_ids names |> without_code_ids))
             in
             let free_names =
-              Flambda.Function_params_and_body.free_names params_and_body
-              |> names_and_closure_vars
+              (* CR mshinwell: This needs fixing XXX *)
+              Name_occurrences.empty
+              (* Flambda.Function_params_and_body.free_names params_and_body |>
+                 names_and_closure_vars *)
             in
             Present (params_and_body, free_names)
         in
@@ -806,7 +811,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~dbg:Debuginfo.none ~is_tupled
             ~inlining_decision:Never_inline_attribute
         in
-        Code code
+        Flambda.Static_const_or_code.create_code code
     in
     let static_consts =
       List.map (static_const env) bindings |> Flambda.Static_const_group.create
