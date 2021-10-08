@@ -65,7 +65,7 @@ stage1: ocaml-stage1-config.status stage0 \
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) build --profile=release --build-dir=_build1 @install
+	  $(dune) build --root=. --profile=release --build-dir=_build1 @install
 	(cd _build1/install/default/bin && \
 	  rm -f ocamllex && \
 	  ln -s ocamllex.opt ocamllex)
@@ -83,7 +83,7 @@ stage2: ocaml-stage2-config.status stage1
 	(cd ocaml && ./config.status)
 	PATH=$(stage1_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) build --profile=release --build-dir=_build2 @install
+	  $(dune) build --root=. --profile=release --build-dir=_build2 @install
 
 # This target is like a polling version of upstream "make ocamlopt" (based
 # on the stage1 target, above).
@@ -97,7 +97,7 @@ hacking: ocaml-stage1-config.status stage0 \
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) build -w --profile=release --build-dir=_build1 @install
+	  $(dune) build --root=. -w --profile=release --build-dir=_build1 @install
 
 
 ## Test compilation of backend-specific parts
@@ -117,7 +117,7 @@ check_arch: ocaml-stage1-config.status stage0 \
 	@echo "========= CHECKING backend/$(ARCH) =============="
 	rm -f $(ARCH_SPECIFIC)
 	PATH=$(stage0_prefix)/bin:$$PATH \
-	  $(dune) build --profile=release --build-dir=_build1 ocamloptcomp.cma
+	  $(dune) build --root=. --profile=release --build-dir=_build1 ocamloptcomp.cma
 	rm -f $(ARCH_SPECIFIC)
 
 .PHONY: check_all_arches
@@ -265,7 +265,7 @@ runtest:
 	# such as running "ocamlopt" rather than one of the stage2 binaries).
 	PATH=$(stage1_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) runtest --profile=release --build-dir=_build2
+	  $(dune) runtest --root=. --profile=release --build-dir=_build2
 
 # The following horror will be removed when work to allow the testsuite to
 # run on an installed tree (led by David Allsopp) is completed.
@@ -405,11 +405,11 @@ runtest-upstream:
 	# This might be causing a spurious rebuild of the runtime
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) build --profile=release --build-dir=_build1 \
+	  $(dune) build --root=. --profile=release --build-dir=_build1 \
 	  ocaml/tools/cmpbyt.bc
 	PATH=$(stage0_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
-	  $(dune) build --profile=release --build-dir=_build1 \
+	  $(dune) build --root=. --profile=release --build-dir=_build1 \
 	  ocaml/ocamltest/ocamltest.byte
 	cp _build1/default/ocaml/tools/cmpbyt.bc _runtest/tools/cmpbyt
 	# We should build the native ocamltest too.
