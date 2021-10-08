@@ -68,31 +68,3 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
   val pattern_match_pair :
     t -> t -> f:(Bindable.t -> Term.t -> Term.t -> 'a) -> 'a
 end
-
-module Make_list (Bindable : Bindable.S) (Term : Term) : sig
-  (** The type [t] is the equivalent of a "generalised abstraction" construction
-      with an ordered list containing disjoint elements, represented as a
-      separated product, in binding position. *)
-
-  include Contains_names.S
-
-  include Contains_ids.S with type t := t
-
-  include Common with type t := t
-
-  val create : Bindable.t list -> Term.t -> t
-
-  (** Concretion of an abstraction at fresh names. *)
-  val pattern_match : t -> f:(Bindable.t list -> Term.t -> 'a) -> 'a
-
-  (** Concretion of an abstraction at fresh names followed by reconstruction of
-      the abstraction. *)
-  val pattern_match_map : t -> f:(Term.t -> Term.t) -> t
-
-  (** Like [pattern_match_map] but also provides the fresh names to [f]. *)
-  val pattern_match_mapi : t -> f:(Bindable.t list -> Term.t -> Term.t) -> t
-
-  (** Concretion of a pair of abstractions at the same fresh [Bindable]s. *)
-  val pattern_match_pair :
-    t -> t -> f:(Bindable.t list -> Term.t -> Term.t -> 'a) -> 'a
-end

@@ -23,8 +23,6 @@ module Simple := Reg_width_things.Simple
 (** A parameter (to a function, continuation, etc.) together with its kind. *)
 type t
 
-include Bindable.S with type t := t
-
 (** Create a kinded parameter. *)
 val create : Variable.t -> Flambda_kind.With_subkind.t -> t
 
@@ -50,10 +48,18 @@ val equal_kinds : t -> t -> bool
 
 val rename : t -> t
 
+include Container_types.S with type t := t
+
+include Contains_names.S with type t := t
+
+include Contains_ids.S with type t := t
+
 module List : sig
   type nonrec t = t list
 
   include Contains_names.S with type t := t
+
+  include Contains_ids.S with type t := t
 
   val create : (Variable.t * Flambda_kind.With_subkind.t) list -> t
 

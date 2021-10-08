@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2013--2021 OCamlPro SAS                                    *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,29 +14,25 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** The signature of "name-like things" that may occur in binding position
-    inside [Name_abstraction] constructs. *)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+type t
 
-module type S = sig
-  type t
+include Contains_names.S with type t := t
 
-  include Contains_names.S with type t := t
+include Contains_ids.S with type t := t
 
-  include Contains_ids.S with type t := t
+val print : Format.formatter -> t -> unit
 
-  val print : Format.formatter -> t -> unit
+val create : Continuation.t list -> t
 
-  val rename : t -> t
+val rename : t -> t
 
-  val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
+val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
 
-  val add_to_name_permutation :
-    t -> guaranteed_fresh:t -> Renaming.t -> Renaming.t
+val add_to_name_permutation :
+  t -> guaranteed_fresh:t -> Renaming.t -> Renaming.t
 
-  (* CR mshinwell: Check why this and [free_names] are here *)
-  val singleton_occurrence_in_terms : t -> Name_occurrences.t
+val singleton_occurrence_in_terms : t -> Name_occurrences.t
 
-  val add_occurrence_in_terms : t -> Name_occurrences.t -> Name_occurrences.t
-end
+val add_occurrence_in_terms : t -> Name_occurrences.t -> Name_occurrences.t

@@ -135,7 +135,7 @@ end = struct
       Expr.all_ids_for_export handler
   end
 
-  module A = Name_abstraction.Make_list (Kinded_parameter) (T0)
+  module A = Name_abstraction.Make (Bound_parameters) (T0)
 
   type t =
     { abst : A.t;
@@ -158,18 +158,20 @@ end = struct
             Variable.Map.add var num num_occurrences)
     in
     let t0 : T0.t = { num_normal_occurrences_of_params; handler } in
-    let abst = A.create params t0 in
+    let abst = A.create (Bound_parameters.create params) t0 in
     { abst; is_exn_handler }
 
   let pattern_match' t ~f =
     A.pattern_match t.abst
       ~f:(fun params { handler; num_normal_occurrences_of_params } ->
-        f params ~num_normal_occurrences_of_params ~handler)
+        f
+          (Bound_parameters.to_list params)
+          ~num_normal_occurrences_of_params ~handler)
 
   let pattern_match t ~f =
     A.pattern_match t.abst
       ~f:(fun params { handler; num_normal_occurrences_of_params = _ } ->
-        f params ~handler)
+        f (Bound_parameters.to_list params) ~handler)
 
   module Pattern_match_pair_error = struct
     type t = Parameter_lists_have_different_lengths
@@ -191,7 +193,8 @@ end = struct
                      params
                      { handler = handler1; _ }
                      { handler = handler2; _ }
-                   -> Ok (f params ~handler1 ~handler2))
+                   ->
+                  Ok (f (Bound_parameters.to_list params) ~handler1 ~handler2))
             else
               Error
                 Pattern_match_pair_error.Parameter_lists_have_different_lengths))
@@ -588,7 +591,7 @@ end = struct
       Expr.all_ids_for_export expr
   end
 
-  module T0 = Name_abstraction.Make_list (Kinded_parameter) (Base)
+  module T0 = Name_abstraction.Make (Bound_parameters) (Base)
 
   (* CR mshinwell: This should use [Bound_continuation]. [Exn_continuation]
      involves extra args, but we never have extra args here! *)
@@ -618,7 +621,7 @@ end = struct
         (K.With_subkind.create K.value Anything)
     in
     let base : Base.t = { expr = body; free_names = free_names_of_body } in
-    let t0 = T0.create (params @ [my_closure]) base in
+    let t0 = T0.create (Bound_parameters.create (params @ [my_closure])) base in
     let t1 = T1.create exn_continuation t0 in
     let t2 = T2.create return_continuation t1 in
     let abst = A.create (Bound_var.create my_depth Name_mode.normal) t2 in
@@ -642,7 +645,8 @@ end = struct
                 T0.pattern_match t0
                   ~f:(fun params_and_my_closure { expr; free_names } ->
                     let params, my_closure =
-                      extract_my_closure params_and_my_closure
+                      extract_my_closure
+                        (Bound_parameters.to_list params_and_my_closure)
                     in
                     f ~return_continuation exn_continuation params ~body:expr
                       ~my_closure ~is_my_closure_used:t.is_my_closure_used
@@ -661,7 +665,8 @@ end = struct
                        { expr = body2; free_names = _ }
                      ->
                     let params, my_closure =
-                      extract_my_closure params_and_my_closure
+                      extract_my_closure
+                        (Bound_parameters.to_list params_and_my_closure)
                     in
                     f ~return_continuation exn_continuation params ~body1 ~body2
                       ~my_closure ~my_depth:(Bound_var.var my_depth)))))
@@ -1655,12 +1660,14 @@ end = struct
       Ids_for_export.union body_ids handlers_ids
   end
 
-  include Name_abstraction.Make_list (Bound_continuation) (T0)
+  include Name_abstraction.Make (Bound_continuations) (T0)
 
   let create ~body handlers =
     let bound = Continuation_handlers.domain handlers in
     let handlers0 = T0.create ~body handlers in
-    create (Continuation.Set.elements bound) handlers0
+    create
+      (Bound_continuations.create (Continuation.Set.elements bound))
+      handlers0
 
   let pattern_match t ~f =
     pattern_match t ~f:(fun _bound handlers0 ->
