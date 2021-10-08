@@ -309,13 +309,17 @@ parsing/docstrings.cmi : \
     parsing/location.cmi
 parsing/extensions.cmo : \
     parsing/parsetree.cmi \
+    utils/misc.cmi \
     parsing/location.cmi \
     parsing/asttypes.cmi \
+    parsing/ast_helper.cmi \
     parsing/extensions.cmi
 parsing/extensions.cmx : \
     parsing/parsetree.cmi \
+    utils/misc.cmx \
     parsing/location.cmx \
     parsing/asttypes.cmi \
+    parsing/ast_helper.cmx \
     parsing/extensions.cmi
 parsing/extensions.cmi : \
     utils/warnings.cmi \
