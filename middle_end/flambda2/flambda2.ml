@@ -162,10 +162,13 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       "Cannot compile on targets where floats are not word-width when the \
        float array optimisation is enabled";
   let run () =
-    let raw_flambda, code, offsets =
+    let cmx_loader =
+      Flambda_cmx.create_loader ~get_global_info ~symbol_for_global
+    in
+    let raw_flambda, code, cmx, offsets =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~symbol_for_global
-            ~big_endian:Arch.big_endian ~module_ident
+            ~big_endian:Arch.big_endian ~cmx_loader ~module_ident
             ~module_block_size_in_words module_initializer)
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
@@ -181,7 +184,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
               \               the offsets for closure elements"
           | Known closure_offsets -> closure_offsets
         in
-        raw_flambda, exported_offsets, None, code
+        raw_flambda, exported_offsets, cmx, code
       else
         let raw_flambda =
           if Flambda_features.Debug.permute_every_name ()
@@ -189,9 +192,6 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
           else raw_flambda
         in
         let round = 0 in
-        let cmx_loader =
-          Flambda_cmx.create_loader ~get_global_info ~symbol_for_global
-        in
         let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
               Simplify.run ~cmx_loader ~round raw_flambda)

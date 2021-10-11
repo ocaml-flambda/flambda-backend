@@ -51,7 +51,9 @@ let run_expect_test ~symbol_for_global ~get_global_info ~extension ~filename
     Fexpr_to_flambda.conv ~symbol_for_global ~module_ident before
   in
   check_invariants before_fl;
-  let cmx_loader = Flambda_cmx.create_loader ~symbol_for_global ~get_global_info in
+  let cmx_loader =
+    Flambda_cmx.create_loader ~symbol_for_global ~get_global_info
+  in
   let { Simplify.unit = actual_fl; _ } =
     Simplify.run ~cmx_loader ~round:0 before_fl
   in

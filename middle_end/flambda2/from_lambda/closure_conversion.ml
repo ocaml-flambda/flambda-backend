@@ -1579,10 +1579,10 @@ let bind_code all_code acc body =
       |> Expr_with_acc.create_let)
     (acc, body) components
 
-let close_program ~symbol_for_global ~big_endian ~module_ident
+let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
   let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
-  let env = Env.create ~symbol_for_global ~big_endian in
+  let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
   let module_symbol =
     symbol_for_global (Ident.create_persistent (Ident.name module_ident))
   in
@@ -1669,6 +1669,18 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
       ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
       ~is_exn_handler:false
   in
+  let module_block_approximation =
+    match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+    | Some [approx] -> approx
+    | Some l ->
+      Format.eprintf "%a, approx len: %d\n" Continuation.print prog_return_cont
+        (List.length l);
+      assert false
+    | _ ->
+      Format.eprintf "%a, approx len: none\n" Continuation.print
+        prog_return_cont;
+      Value_approximation.Value_unknown
+  in
   let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
      lifted constants not in the scope of any other [Let_symbol] binding get put
@@ -1684,6 +1696,15 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
           "first_const"
       in
       acc
+  in
+  let symbols_approximations =
+    List.fold_left
+      (fun sa (symbol, _) ->
+        (* CR Keryan: for now only constants are lifted. It will need refinement
+           with thelifting of closed functions *)
+        Symbol.Map.add symbol Value_approximation.Value_unknown sa)
+      (Symbol.Map.singleton module_symbol module_block_approximation)
+      (Acc.declared_symbols acc)
   in
   let acc, body =
     List.fold_left
@@ -1705,6 +1726,21 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
+  let used_closure_vars =
+    (* let vs = *)
+    Name_occurrences.closure_vars (Acc.free_names acc)
+    (*in Format.eprintf "%a\n" Var_within_closure.Set.print vs;
+     * vs *)
+  in
+  let all_code =
+    Exported_code.add_code
+      ~keep_code:(fun _ -> true)
+      (Acc.code acc) Exported_code.empty
+  in
+  let cmx =
+    Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
+      ~used_closure_vars all_code
+  in
   let exported_offsets =
     Or_unknown.map (Acc.closure_offsets acc) ~f:(fun offsets ->
         (* CR gbury: would it be possible to use the free_names from the acc to
@@ -1719,8 +1755,7 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
         offsets)
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_closure_vars:Unknown,
-    Exported_code.add_code
-      ~keep_code:(fun _ -> false)
-      (Acc.code acc) Exported_code.empty,
+      ~module_symbol ~used_closure_vars:(Known used_closure_vars),
+    all_code,
+    cmx,
     exported_offsets )

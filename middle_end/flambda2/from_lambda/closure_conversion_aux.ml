@@ -103,6 +103,8 @@ module Env = struct
       current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
       value_approximations : Code.t Value_approximation.t Name.Map.t;
+      approximation_for_external_symbol :
+        Symbol.t -> Code.t Value_approximation.t;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
       inlining_history_tracker : Inlining_history.Tracker.t
@@ -116,7 +118,17 @@ module Env = struct
 
   let current_depth t = t.current_depth
 
-  let create ~symbol_for_global ~big_endian =
+  let approximation_loader loader =
+    let externals = ref Symbol.Map.empty in
+    fun symbol ->
+      match Symbol.Map.find symbol !externals with
+      | approx -> approx
+      | exception Not_found ->
+        let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        externals := Symbol.Map.add symbol approx !externals;
+        approx
+
+  let create ~symbol_for_global ~big_endian ~cmx_loader =
     let compilation_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
@@ -124,6 +136,7 @@ module Env = struct
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
+      approximation_for_external_symbol = approximation_loader cmx_loader;
       symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
@@ -138,6 +151,7 @@ module Env = struct
         symbol_for_global;
         current_depth;
         value_approximations;
+        approximation_for_external_symbol;
         big_endian;
         path_to_root;
         inlining_history_tracker
@@ -153,6 +167,7 @@ module Env = struct
       current_unit_id;
       current_depth;
       value_approximations;
+      approximation_for_external_symbol;
       symbol_for_global;
       big_endian;
       path_to_root;
@@ -257,7 +272,10 @@ module Env = struct
       ~const:(fun _ -> Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
         try Name.Map.find name t.value_approximations
-        with Not_found -> Value_approximation.Value_unknown)
+        with Not_found ->
+          Name.pattern_match name
+            ~var:(fun _ -> Value_approximation.Value_unknown)
+            ~symbol:t.approximation_for_external_symbol)
 
   let add_approximation_alias t name alias =
     match find_value_approximation t (Simple.name name) with
@@ -389,9 +407,10 @@ module Acc = struct
 
   let remove_continuation_from_free_names cont t =
     { t with
-      free_names = Name_occurrences.remove_continuation t.free_names cont;
-      continuation_applications =
-        Continuation.Map.remove cont t.continuation_applications
+      free_names =
+        Name_occurrences.remove_continuation t.free_names cont
+        (* continuation_applications =
+         *   Continuation.Map.remove cont t.continuation_applications *)
     }
 
   let remove_code_id_from_free_names code_id t =

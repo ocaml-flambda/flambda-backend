@@ -87,7 +87,11 @@ end
 module Env : sig
   type t
 
-  val create : symbol_for_global:(Ident.t -> Symbol.t) -> big_endian:bool -> t
+  val create :
+    symbol_for_global:(Ident.t -> Symbol.t) ->
+    big_endian:bool ->
+    cmx_loader:Flambda_cmx.loader ->
+    t
 
   val clear_local_bindings : t -> t
 

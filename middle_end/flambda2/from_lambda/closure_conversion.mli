@@ -67,9 +67,13 @@ val close_switch :
 val close_program :
   symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
   big_endian:bool ->
+  cmx_loader:Flambda_cmx.loader ->
   module_ident:Ident.t ->
   module_block_size_in_words:int ->
   program:(Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) ->
   prog_return_cont:Continuation.t ->
   exn_continuation:Continuation.t ->
-  Flambda_unit.t * Exported_code.t * Exported_offsets.t Or_unknown.t
+  Flambda_unit.t
+  * Exported_code.t
+  * Flambda_cmx_format.t option
+  * Exported_offsets.t Or_unknown.t
