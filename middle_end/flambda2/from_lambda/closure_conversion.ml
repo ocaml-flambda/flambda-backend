@@ -1038,7 +1038,9 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
         Bound_symbols.singleton (Bound_symbols.Pattern.block_like module_symbol)
       in
       let named =
-        Named.create_static_consts (Static_const.Group.create [static_const])
+        Named.create_static_consts
+          (Static_const_group.create
+             [Static_const_or_code.Static_const static_const])
       in
       Let_with_acc.create acc
         (Bound_pattern.symbols bound_symbols)
@@ -1088,9 +1090,9 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
         let bound_symbols =
           Bound_symbols.singleton (Bound_symbols.Pattern.code code_id)
         in
-        let static_const : Static_const.t = Code code in
+        let static_const : Static_const_or_code.t = Code code in
         let defining_expr =
-          Static_const.Group.create [static_const] |> Named.create_static_consts
+          Static_const_group.create [static_const] |> Named.create_static_consts
         in
         Let_with_acc.create acc
           (Bound_pattern.symbols bound_symbols)
@@ -1120,7 +1122,9 @@ let close_program ~backend ~module_ident ~module_block_size_in_words ~program
           Bound_symbols.singleton (Bound_symbols.Pattern.block_like symbol)
         in
         let defining_expr =
-          Static_const.Group.create [static_const] |> Named.create_static_consts
+          Static_const_group.create
+            [Static_const_or_code.Static_const static_const]
+          |> Named.create_static_consts
         in
         Let_with_acc.create acc
           (Bound_pattern.symbols bound_symbols)

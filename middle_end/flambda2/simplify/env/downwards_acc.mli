@@ -79,14 +79,14 @@ val clear_lifted_constants : t -> t
 
 val set_lifted_constants : t -> Lifted_constant_state.t -> t
 
-val find_shareable_constant : t -> Flambda.Static_const.t -> Symbol.t option
+val find_shareable_constant : t -> Static_const.t -> Symbol.t option
 
-val consider_constant_for_sharing : t -> Symbol.t -> Flambda.Static_const.t -> t
+val consider_constant_for_sharing : t -> Symbol.t -> Static_const.t -> t
 
 val with_shareable_constants :
-  t -> shareable_constants:Symbol.t Flambda.Static_const.Map.t -> t
+  t -> shareable_constants:Symbol.t Static_const.Map.t -> t
 
-val shareable_constants : t -> Symbol.t Flambda.Static_const.Map.t
+val shareable_constants : t -> Symbol.t Static_const.Map.t
 
 val add_use_of_closure_var : t -> Var_within_closure.t -> t
 

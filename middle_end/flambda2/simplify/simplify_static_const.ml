@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Flambda.Import
 open! Simplify_import
 
 (* CR-someday mshinwell: Finish improved simplification using types *)
@@ -167,26 +168,25 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         (DA.are_rebuilding_terms dacc)
         str,
       dacc )
-  | Code _ | Set_of_closures _ ->
+  | Set_of_closures _ ->
     Misc.fatal_errorf
-      "[Code] and [Set_of_closures] cannot be bound by a [Block_like] \
-       binding:@ %a"
+      "[Set_of_closures] values cannot be bound by a [Block_like] binding:@ %a"
       SC.print static_const
 
 let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
     ~simplify_toplevel =
   let bound_symbols_list = Bound_symbols.to_list bound_symbols in
-  let static_consts_list = Static_const.Group.to_list static_consts in
+  let static_consts_list = Static_const_group.to_list static_consts in
   if List.compare_lengths bound_symbols_list static_consts_list <> 0
   then
     Misc.fatal_errorf "Bound symbols don't match static constants:@ %a@ =@ %a"
-      Bound_symbols.print bound_symbols Static_const.Group.print static_consts;
+      Bound_symbols.print bound_symbols Static_const_group.print static_consts;
   (* The closure symbols are bound recursively across all of the definitions. We
      can start by giving these type [Unknown], since simplification of the
      constants that are neither pieces of code nor closures will not look at the
      structure of these closure symbols' definitions. *)
   let dacc =
-    Static_const.Group.match_against_bound_symbols static_consts bound_symbols
+    Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:dacc
       ~set_of_closures:(fun dacc ~closure_symbols _ ->
         Closure_id.Lmap.fold
@@ -202,7 +202,7 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
      We can do that here because we're not simplifying the code (which may
      contain recursive references to symbols and/or code IDs being defined). *)
   let bound_symbols', static_consts', dacc =
-    Static_const.Group.match_against_bound_symbols static_consts bound_symbols
+    Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:([], [], dacc)
       ~code:(fun (bound_symbols, static_consts, dacc) code_id code ->
         let dacc =
@@ -231,7 +231,7 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
   (* We now collect together all of the closures, from all of the sets being
      defined, and simplify them together. *)
   let closure_bound_names_all_sets, all_sets_of_closures_and_symbols =
-    Static_const.Group.match_against_bound_symbols static_consts bound_symbols
+    Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:([], [])
       ~code:(fun acc _ _ -> acc)
       ~block_like:(fun acc _ _ -> acc)

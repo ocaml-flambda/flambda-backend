@@ -190,7 +190,7 @@ module Iter = struct
   and invalid _ _ _ = ()
 
   and static_consts f_c f_s bound_symbols static_consts =
-    Static_const.Group.match_against_bound_symbols static_consts bound_symbols
+    Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:()
       ~code:(fun () code_id (code : Code.t) ->
         f_c ~id:code_id code;

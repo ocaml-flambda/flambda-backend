@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Flambda.Import
 open! Simplify_import
 
 let fail_if_probe apply =
@@ -373,7 +374,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false ~inlining_decision:Stub
       in
-      Static_const.Code code
+      Static_const_or_code.Code code
     in
     let function_decls =
       Function_declarations.create
@@ -408,7 +409,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let bound_symbols =
       Bound_symbols.singleton (Bound_symbols.Pattern.code code_id)
     in
-    let static_consts = Static_const.Group.create [code] in
+    let static_consts = Static_const_group.create [code] in
     (* Since we are only generating a "let code" binding and not a "let symbol",
        it doesn't matter if we are not at toplevel. *)
     Let.create

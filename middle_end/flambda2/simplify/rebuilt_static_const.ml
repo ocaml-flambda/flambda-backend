@@ -21,7 +21,7 @@ module ART = Are_rebuilding_terms
 
 type t =
   | Normal of
-      { const : Static_const.t;
+      { const : Static_const_or_code.t;
         free_names : Name_occurrences.t
       }
   | Non_code_not_rebuilt of { free_names : Name_occurrences.t }
@@ -30,7 +30,8 @@ type t =
 type rebuilt_static_const = t
 
 let create_normal_non_code const =
-  Normal { const; free_names = Static_const.free_names const }
+  Normal
+    { const = Static_const const; free_names = Static_const.free_names const }
 
 let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
     ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
@@ -74,7 +75,7 @@ let create_set_of_closures are_rebuilding set =
   let free_names = Set_of_closures.free_names set in
   if ART.do_not_rebuild_terms are_rebuilding
   then Non_code_not_rebuilt { free_names }
-  else Normal { const = Set_of_closures set; free_names }
+  else Normal { const = Static_const (Set_of_closures set); free_names }
 
 let create_block are_rebuilding tag is_mutable ~fields =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -144,16 +145,19 @@ let map_set_of_closures t ~f =
   match t with
   | Normal { const; _ } -> begin
     match const with
-    | Set_of_closures set_of_closures ->
-      let set_of_closures = f set_of_closures in
-      Normal
-        { const = Set_of_closures set_of_closures;
-          free_names = Set_of_closures.free_names set_of_closures
-        }
-    | Code _ | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
-    | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-    | Mutable_string _ | Immutable_string _ ->
-      t
+    | Code _ -> t
+    | Static_const const -> (
+      match const with
+      | Set_of_closures set_of_closures ->
+        let set_of_closures = f set_of_closures in
+        Normal
+          { const = Static_const (Set_of_closures set_of_closures);
+            free_names = Set_of_closures.free_names set_of_closures
+          }
+      | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+      | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
+      | Mutable_string _ | Immutable_string _ ->
+        t)
   end
   | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> t
 
@@ -172,7 +176,7 @@ let to_const t =
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
-  | Normal { const; _ } -> Static_const.print ppf const
+  | Normal { const; _ } -> Static_const_or_code.print ppf const
   | Non_code_not_rebuilt { free_names = _; } ->
     Format.fprintf ppf "Non_code_not_rebuilt"
   | Code_not_rebuilt code ->
@@ -182,11 +186,11 @@ let [@ocamlformat "disable"] print ppf t =
 let make_all_code_deleted t =
   match t with
   | Normal { const; _ } -> begin
-    match Static_const.to_code const with
+    match Static_const_or_code.to_code const with
     | None -> t
     | Some code ->
       let code = Code.make_deleted code in
-      let const : Static_const.t = Code code in
+      let const : Static_const_or_code.t = Code code in
       Normal { const; free_names = Code.free_names code }
   end
   | Non_code_not_rebuilt _ -> t
@@ -196,13 +200,13 @@ let make_all_code_deleted t =
 let make_code_deleted t ~if_code_id_is_member_of =
   match t with
   | Normal { const; _ } -> begin
-    match Static_const.to_code const with
+    match Static_const_or_code.to_code const with
     | None -> t
     | Some code ->
       if Code_id.Set.mem (Code.code_id code) if_code_id_is_member_of
       then
         let code = Code.make_deleted code in
-        let const : Static_const.t = Code code in
+        let const : Static_const_or_code.t = Code code in
         Normal { const; free_names = Code.free_names code }
       else t
   end
@@ -247,13 +251,13 @@ module Group = struct
         | Non_code_not_rebuilt _ | Code_not_rebuilt _ ->
           Misc.fatal_error
             "Cannot extract static constants when not rebuilding terms")
-    |> Static_const.Group.create |> Named.create_static_consts
+    |> Static_const_group.create |> Named.create_static_consts
 
   let pieces_of_code_for_cmx t =
     let consts =
       ListLabels.filter_map t.consts ~f:(fun const ->
           match const with
-          | Normal { const; _ } -> Static_const.to_code const
+          | Normal { const; _ } -> Static_const_or_code.to_code const
           | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None)
     in
     consts
@@ -276,7 +280,7 @@ module Group = struct
     let consts =
       ListLabels.filter_map t.consts ~f:(fun const ->
           match const with
-          | Normal { const; _ } -> Static_const.to_code const
+          | Normal { const; _ } -> Static_const_or_code.to_code const
           | Non_code_not_rebuilt _ -> None
           | Code_not_rebuilt code ->
             let module NCC = Non_constructed_code in

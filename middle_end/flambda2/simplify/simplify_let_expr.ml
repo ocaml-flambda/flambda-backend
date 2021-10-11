@@ -127,7 +127,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
   | Set_of_closures { closure_symbols_with_types; _ } -> (
     let expr = D.defining_expr definition in
     match Rebuilt_static_const.to_const expr with
-    | Some const ->
+    | Some (Static_const const) ->
       let set_of_closures = Static_const.must_be_set_of_closures const in
       let free_names =
         Name_occurrences.union being_defined
@@ -138,7 +138,7 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
       Closure_id.Lmap.fold
         (record_one_closure_binding_for_data_flow ~free_names ~closure_elements)
         closure_symbols_with_types data_flow
-    | None ->
+    | None | Some (Code _) ->
       let free_names =
         Name_occurrences.union being_defined (D.free_names definition)
       in

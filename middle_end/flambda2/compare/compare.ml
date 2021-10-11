@@ -317,8 +317,8 @@ and subst_named env (n : Named.t) =
   | Static_consts sc -> Named.create_static_consts (subst_static_consts env sc)
   | Rec_info ri -> Named.create_rec_info (subst_rec_info_expr env ri)
 
-and subst_static_consts env (g : Static_const.Group.t) =
-  Static_const.Group.map g ~f:(subst_static_const env)
+and subst_static_consts env (g : Static_const_group.t) =
+  Static_const_group.map g ~f:(subst_static_const env)
 
 and subst_bound_pattern env (blb : Bound_pattern.t) =
   match blb with
@@ -348,14 +348,15 @@ and subst_pattern env (pattern : Bound_symbols.Pattern.t) :
   | Block_like symbol -> Bound_symbols.Pattern.block_like symbol
   | Code code_id -> Bound_symbols.Pattern.code code_id
 
-and subst_static_const env (static_const : Static_const.t) : Static_const.t =
+and subst_static_const env (static_const : Static_const_or_code.t) :
+    Static_const_or_code.t =
   match static_const with
   | Code code -> Code (subst_code env code)
-  | Block (tag, mut, fields) ->
+  | Static_const (Block (tag, mut, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Block (tag, mut, fields)
-  | Set_of_closures set_of_closures ->
-    Set_of_closures (subst_set_of_closures env set_of_closures)
+    Static_const (Block (tag, mut, fields))
+  | Static_const (Set_of_closures set_of_closures) ->
+    Static_const (Set_of_closures (subst_set_of_closures env set_of_closures))
   | _ -> static_const
 
 and subst_code env (code : Code.t) : Code.t =
@@ -1095,11 +1096,11 @@ and let_symbol_exprs env
     bound_symbols env bound_symbols1 bound_symbols2
     |> Comparison.chain ~ok ~if_equivalent:bound_symbols2
   in
-  let static_consts_comp : Static_const.Group.t Comparison.t =
+  let static_consts_comp : Static_const_group.t Comparison.t =
     lists ~f:static_consts ~subst:subst_static_const ~subst_snd:false env
-      (static_consts1 |> Static_const.Group.to_list)
-      (static_consts2 |> Static_const.Group.to_list)
-    |> Comparison.map ~f:Static_const.Group.create
+      (static_consts1 |> Static_const_group.to_list)
+      (static_consts2 |> Static_const_group.to_list)
+    |> Comparison.map ~f:Static_const_group.create
   in
   let static_consts1' =
     Comparison.chain static_consts_comp ~ok ~if_equivalent:static_consts2
@@ -1119,21 +1120,23 @@ and let_symbol_exprs env
     in
     Different { approximant }
 
-and static_consts env (const1 : Static_const.t) (const2 : Static_const.t) :
-    Static_const.t Comparison.t =
+and static_consts env (const1 : Static_const_or_code.t)
+    (const2 : Static_const_or_code.t) : Static_const_or_code.t Comparison.t =
   match const1, const2 with
   | Code code1, Code code2 ->
     codes env code1 code2
-    |> Comparison.map ~f:(fun code1' -> Static_const.Code code1')
-  | Block (tag1, mut1, fields1), Block (tag2, mut2, fields2) ->
+    |> Comparison.map ~f:(fun code1' -> Static_const_or_code.Code code1')
+  | ( Static_const (Block (tag1, mut1, fields1)),
+      Static_const (Block (tag2, mut2, fields2)) ) ->
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
     |> Comparison.map ~f:(fun (tag1', mut1', fields1') ->
-           Static_const.Block (tag1', mut1', fields1'))
-  | Set_of_closures set1, Set_of_closures set2 ->
+           Static_const_or_code.Static_const (Block (tag1', mut1', fields1')))
+  | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
-    |> Comparison.map ~f:(fun set1' -> Static_const.Set_of_closures set1')
+    |> Comparison.map ~f:(fun set1' ->
+           Static_const_or_code.Static_const (Set_of_closures set1'))
   | _, _ ->
-    if Static_const.equal const1 const2
+    if Static_const_or_code.equal const1 const2
     then Equivalent
     else Different { approximant = subst_static_const env const1 }
 

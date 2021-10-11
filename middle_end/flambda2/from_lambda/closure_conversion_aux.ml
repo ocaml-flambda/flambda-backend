@@ -213,8 +213,8 @@ end
 
 module Acc = struct
   type t =
-    { declared_symbols : (Symbol.t * Flambda.Static_const.t) list;
-      shareable_constants : Symbol.t Flambda.Static_const.Map.t;
+    { declared_symbols : (Symbol.t * Static_const.t) list;
+      shareable_constants : Symbol.t Static_const.Map.t;
       code : Flambda.Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       cost_metrics : Cost_metrics.t;
@@ -234,7 +234,7 @@ module Acc = struct
 
   let empty =
     { declared_symbols = [];
-      shareable_constants = Flambda.Static_const.Map.empty;
+      shareable_constants = Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       cost_metrics = Cost_metrics.zero;
@@ -255,7 +255,7 @@ module Acc = struct
 
   let add_shareable_constant ~symbol ~constant t =
     let shareable_constants =
-      Flambda.Static_const.Map.add constant symbol t.shareable_constants
+      Static_const.Map.add constant symbol t.shareable_constants
     in
     { t with shareable_constants }
 
