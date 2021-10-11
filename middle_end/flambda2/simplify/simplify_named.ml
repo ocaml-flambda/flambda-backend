@@ -136,8 +136,8 @@ let create_lifted_constant (dacc, lifted_constants)
     in
     let dacc =
       match Rebuilt_static_const.to_const static_const with
-      | None -> dacc
-      | Some static_const ->
+      | None | Some (Code _) -> dacc
+      | Some (Static_const static_const) ->
         DA.consider_constant_for_sharing dacc symbol static_const
     in
     let dacc =

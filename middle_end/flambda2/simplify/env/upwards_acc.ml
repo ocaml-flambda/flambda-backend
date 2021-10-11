@@ -22,7 +22,6 @@ module DE = Downwards_env
 module LCS = Lifted_constant_state
 module TE = Flambda_type.Typing_env
 module UE = Upwards_env
-module Static_const = Flambda.Static_const
 
 type t =
   { uenv : UE.t;

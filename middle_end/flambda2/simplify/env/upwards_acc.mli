@@ -62,7 +62,7 @@ val remember_code_for_cmx : t -> Flambda.Code.t Code_id.Map.t -> t
 
 val all_code : t -> Exported_code.t
 
-val shareable_constants : t -> Symbol.t Flambda.Static_const.Map.t
+val shareable_constants : t -> Symbol.t Static_const.Map.t
 
 val name_occurrences : t -> Name_occurrences.t
 
