@@ -148,7 +148,7 @@ let name_permutation
           Renaming.add_variable renaming (BP.var param1) (BP.var param2))
         renaming params1 params2
     with Invalid_argument _ ->
-      assert (List.compare_lengths params1 params1 <> 0);
+      assert (List.compare_lengths params1 params2 <> 0);
       Misc.fatal_errorf "Parameter lists are of differing lengths:@ %a@ and@ %a"
         print t1 print t2
   in
