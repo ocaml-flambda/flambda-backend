@@ -200,6 +200,11 @@ let make_params env params =
   in
     List.map make_param params
 
+let has_nonlocal_attr attributes =
+  List.exists
+    (fun attr -> String.equal attr.attr_name.txt "nonlocal")
+    attributes
+
 let transl_labels env closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -226,8 +231,17 @@ let transl_labels env closed lbls =
       (fun ld ->
          let ty = ld.ld_type.ctyp_type in
          let ty = match ty.desc with Tpoly(t,[]) -> t | _ -> ty in
+         let nlcl =
+           if has_nonlocal_attr ld.ld_attributes then Types.Nonlocal
+           else begin
+             match ld.ld_mutable with
+             | Mutable -> Types.Nonlocal
+             | Immutable -> Types.Not_nonlocal
+           end
+         in
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
+          ld_nonlocal = nlcl;
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;

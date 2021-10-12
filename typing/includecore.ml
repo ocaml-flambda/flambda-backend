@@ -137,6 +137,7 @@ let choose_other ord first second =
 type label_mismatch =
   | Type
   | Mutability of position
+  | Nonlocality of position
 
 type record_mismatch =
   | Label_mismatch of Types.label_declaration
@@ -185,6 +186,10 @@ let report_label_mismatch first second ppf err =
   | Type -> pr "The types are not equal."
   | Mutability ord ->
       pr "%s is mutable and %s is not."
+        (String.capitalize_ascii  (choose ord first second))
+        (choose_other ord first second)
+  | Nonlocality ord ->
+      pr "%s is nonlocal and %s is not."
         (String.capitalize_ascii  (choose ord first second))
         (choose_other ord first second)
 
@@ -337,11 +342,17 @@ and compare_labels env params1 params2
       if ld1.ld_mutable <> ld2.ld_mutable
       then
         let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-        Some (Mutability  ord)
-      else
-        if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
-        then None
-        else Some (Type : label_mismatch)
+        Some (Mutability ord)
+      else begin
+        match ld1.ld_nonlocal, ld2.ld_nonlocal with
+        | Nonlocal, Not_nonlocal -> Some (Nonlocality First)
+        | Not_nonlocal, Nonlocal -> Some (Nonlocality Second)
+        | Nonlocal, Nonlocal
+        | Not_nonlocal, Not_nonlocal ->
+          if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
+          then None
+          else Some (Type : label_mismatch)
+      end
 
 and compare_records ~loc env params1 params2 n
     (labels1 : Types.label_declaration list)

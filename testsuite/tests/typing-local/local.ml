@@ -855,3 +855,124 @@ Line 1, characters 37-51:
                                          ^^^^^^^^^^^^^^
 Error: This locally-allocated value escapes
 |}]
+
+(* Fields have the same mode unless they are nonlocal or mutable *)
+
+type 'a imm = { imm : 'a }
+type 'a mut = { mutable mut : 'a }
+type 'a nlcl = { nonlocal_ nlcl : 'a }
+[%%expect{|
+type 'a imm = { imm : 'a; }
+type 'a mut = { mutable mut : 'a; }
+type 'a nlcl = { nonlocal_ nlcl : 'a; }
+|}]
+
+let foo (local_ x) = x.imm
+[%%expect{|
+Line 1, characters 21-26:
+1 | let foo (local_ x) = x.imm
+                         ^^^^^
+Error: This locally-allocated value escapes
+|}]
+let foo (local_ x) = x.mut
+[%%expect{|
+val foo : local_ 'a mut -> 'a = <fun>
+|}]
+let foo (local_ x) = x.nlcl
+[%%expect{|
+val foo : local_ 'a nlcl -> 'a = <fun>
+|}]
+
+let foo (local_ { imm }) = imm
+[%%expect{|
+Line 1, characters 27-30:
+1 | let foo (local_ { imm }) = imm
+                               ^^^
+Error: Cannot return locally-allocated value without explicit "local_" annotation
+|}]
+let foo (local_ { mut }) = mut
+[%%expect{|
+val foo : local_ 'a mut -> 'a = <fun>
+|}]
+let foo (local_ { nlcl }) = nlcl
+[%%expect{|
+val foo : local_ 'a nlcl -> 'a = <fun>
+|}]
+
+let foo (local_ imm) =
+  let _ = { imm } in
+  ()
+[%%expect{|
+val foo : local_ 'a -> unit = <fun>
+|}]
+let foo (local_ mut) =
+  let _ = { mut } in
+  ()
+[%%expect{|
+Line 2, characters 12-15:
+2 |   let _ = { mut } in
+                ^^^
+Error: The value mut is local, so cannot be used here as it might escape
+|}]
+let foo (local_ nlcl) =
+  let _ = { nlcl } in
+  ()
+[%%expect{|
+Line 2, characters 12-16:
+2 |   let _ = { nlcl } in
+                ^^^^
+Error: The value nlcl is local, so cannot be used here as it might escape
+|}]
+
+(* Nonlocality is preserved in module inclusion *)
+module M : sig
+  type t = { nonlocal_ foo : string }
+end = struct
+  type t = { foo : string }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { foo : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { foo : string; } end
+       is not included in
+         sig type t = { nonlocal_ foo : string; } end
+       Type declarations do not match:
+         type t = { foo : string; }
+       is not included in
+         type t = { nonlocal_ foo : string; }
+       Fields do not match:
+         foo : string;
+       is not compatible with:
+         nonlocal_ foo : string;
+       The second is nonlocal and the first is not.
+|}]
+
+module M : sig
+  type t = { foo : string }
+end = struct
+  type t = { nonlocal_ foo : string }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { nonlocal_ foo : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { nonlocal_ foo : string; } end
+       is not included in
+         sig type t = { foo : string; } end
+       Type declarations do not match:
+         type t = { nonlocal_ foo : string; }
+       is not included in
+         type t = { foo : string; }
+       Fields do not match:
+         nonlocal_ foo : string;
+       is not compatible with:
+         foo : string;
+       The first is nonlocal and the second is not.
+|}]

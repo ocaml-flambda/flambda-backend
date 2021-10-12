@@ -1334,7 +1334,8 @@ and tree_of_constructor cd =
       (name, args, Some ret)
 
 and tree_of_label l =
-  (Ident.name l.ld_id, l.ld_mutable = Mutable, tree_of_typexp false l.ld_type)
+  (Ident.name l.ld_id, l.ld_mutable = Mutable, l.ld_nonlocal = Nonlocal,
+   tree_of_typexp false l.ld_type)
 
 let constructor ppf c =
   reset_except_context ();

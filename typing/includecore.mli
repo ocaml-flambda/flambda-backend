@@ -25,6 +25,7 @@ type position = Ctype.Unification_trace.position = First | Second
 type label_mismatch =
   | Type
   | Mutability of position
+  | Nonlocality of position
 
 type record_mismatch =
   | Label_mismatch of label_declaration * label_declaration * label_mismatch

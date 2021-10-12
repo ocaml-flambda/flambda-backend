@@ -197,6 +197,17 @@ let maybe_curry_typ typ =
       else mktyp_curry typ
   | _ -> typ
 
+let nonlocal_loc = mknoloc "nonlocal"
+
+let nonlocal_attr =
+  Attr.mk ~loc:Location.none nonlocal_loc (PStr [])
+
+let mkld_nonlocal ld =
+  { ld with pld_attributes = nonlocal_attr :: ld.pld_attributes }
+
+let mkld_nonlocal_if p ld =
+  if p then mkld_nonlocal ld else ld
+
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
    one world to the other *)
@@ -659,6 +670,7 @@ let mk_directive ~loc name arg =
 %token FUN
 %token FUNCTION
 %token FUNCTOR
+%token NONLOCAL
 %token GREATER
 %token GREATERRBRACE
 %token GREATERRBRACKET
@@ -3121,18 +3133,23 @@ label_declarations:
   | label_declaration_semi label_declarations   { $1 :: $2 }
 ;
 label_declaration:
-    mutable_flag mkrhs(label) COLON poly_type_no_attr attributes
+    mutable_or_nonlocal_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
-        Type.field $2 $4 ~mut:$1 ~attrs:$5 ~loc:(make_loc $sloc) ~info }
+        let mut, nlcl = $1 in
+        mkld_nonlocal_if nlcl
+          (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info) }
 ;
 label_declaration_semi:
-    mutable_flag mkrhs(label) COLON poly_type_no_attr attributes SEMI attributes
+    mutable_or_nonlocal_flag mkrhs(label) COLON poly_type_no_attr attributes
+      SEMI attributes
       { let info =
           match rhs_info $endpos($5) with
           | Some _ as info_before_semi -> info_before_semi
           | None -> symbol_info $endpos
        in
-       Type.field $2 $4 ~mut:$1 ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info }
+       let mut, nlcl = $1 in
+       mkld_nonlocal_if nlcl
+         (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info) }
 ;
 
 /* Type Extensions */
@@ -3695,6 +3712,11 @@ mutable_flag:
     /* empty */                                 { Immutable }
   | MUTABLE                                     { Mutable }
 ;
+mutable_or_nonlocal_flag:
+    /* empty */                                 { Immutable, false }
+  | MUTABLE                                     { Mutable, false }
+  | NONLOCAL                                      { Immutable, true }
+;
 virtual_flag:
     /* empty */                                 { Concrete }
   | VIRTUAL                                     { Virtual }
@@ -3774,6 +3796,7 @@ single_attr_id:
   | FUN { "fun" }
   | FUNCTION { "function" }
   | FUNCTOR { "functor" }
+  | NONLOCAL { "nonlocal_" }
   | IF { "if" }
   | IN { "in" }
   | INCLUDE { "include" }
@@ -3781,7 +3804,7 @@ single_attr_id:
   | INITIALIZER { "initializer" }
   | LAZY { "lazy" }
   | LET { "let" }
-  | LOCAL { "local" }
+  | LOCAL { "local_" }
   | MATCH { "match" }
   | METHOD { "method" }
   | MODULE { "module" }

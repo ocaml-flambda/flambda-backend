@@ -1376,7 +1376,7 @@ and type_pat_aux
          alloc_mode:_ -> env:_ -> _ -> _ -> (k general_pattern -> r) -> r
   = fun category ~no_existentials ~mode
       ~alloc_mode ~env sp expected_ty k ->
-  let type_pat category ?(mode=mode) ?(env=env) =
+  let type_pat category ?(mode=mode) ?(alloc_mode=alloc_mode) ?(env=env) =
     type_pat category ~no_existentials ~mode ~alloc_mode ~env
   in
   let loc = sp.ppat_loc in
@@ -1735,7 +1735,12 @@ and type_pat_aux
         end_def ();
         generalize_structure ty_res;
         generalize_structure ty_arg;
-        type_pat Value sarg ty_arg (fun arg ->
+        let alloc_mode =
+          match label.lbl_nonlocal with
+          | Nonlocal -> alloc_heap
+          | Not_nonlocal -> alloc_mode
+        in
+        type_pat Value ~alloc_mode sarg ty_arg (fun arg ->
           k (label_lid, label, arg))
       in
       let make_record_pat lbl_pat_list =
@@ -4016,9 +4021,10 @@ and type_label_access env srecord lid =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (Label.disambiguate () lid env expected_type) labels in
   let mode =
-    match label.lbl_mut with
-    | Mutable -> alloc_heap
-    | Immutable -> lmode in
+    match label.lbl_nonlocal with
+    | Nonlocal -> alloc_heap
+    | Not_nonlocal -> lmode
+  in
   (record, mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
@@ -4267,7 +4273,6 @@ and type_format loc str env =
   with Failure msg ->
     raise (Error (loc, env, Invalid_format msg))
 
-(* FIXME mode & mutability *)
 and type_label_exp create env mode loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
@@ -4301,9 +4306,10 @@ and type_label_exp create env mode loc ty_expected
   let arg =
     let snap = if vars = [] then None else Some (Btype.snapshot ()) in
     let arg_mode =
-      match label.lbl_mut with
-      | Immutable -> mode
-      | Mutable -> alloc_heap in
+      match label.lbl_nonlocal with
+      | Nonlocal -> alloc_heap
+      | Not_nonlocal -> mode
+    in
     let arg =
       type_argument env (Nontail arg_mode) sarg ty_arg (instance ty_arg)
     in

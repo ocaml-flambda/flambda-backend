@@ -266,10 +266,15 @@ and record_representation =
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
 
+and nonlocal_flag =
+  | Nonlocal
+  | Not_nonlocal
+
 and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutable_flag;
+    ld_nonlocal: nonlocal_flag;
     ld_type: type_expr;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
@@ -464,6 +469,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_nonlocal: nonlocal_flag;        (* Is this a global field? *)
     lbl_pos: int;                       (* Position in block *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for this record *)

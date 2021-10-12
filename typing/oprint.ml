@@ -425,8 +425,9 @@ and print_typargs ppf =
       pp_print_char ppf ')';
       pp_close_box ppf ();
       pp_print_space ppf ()
-and print_out_label ppf (name, mut, arg) =
-  fprintf ppf "@[<2>%s%s :@ %a@];" (if mut then "mutable " else "") name
+and print_out_label ppf (name, mut, nlcl, arg) =
+  fprintf ppf "@[<2>%s%s%s :@ %a@];" (if mut then "mutable " else "")
+    (if nlcl && not mut then "nonlocal_ " else "") name
     print_out_type arg
 
 let out_label = ref print_out_label
