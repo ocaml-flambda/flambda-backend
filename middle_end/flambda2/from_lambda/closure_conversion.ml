@@ -1672,14 +1672,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
     | Some [approx] -> approx
-    | Some l ->
-      Format.eprintf "%a, approx len: %d\n" Continuation.print prog_return_cont
-        (List.length l);
-      assert false
-    | _ ->
-      Format.eprintf "%a, approx len: none\n" Continuation.print
-        prog_return_cont;
-      Value_approximation.Value_unknown
+    | _ -> assert false
   in
   let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
@@ -1726,16 +1719,12 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
-  let used_closure_vars =
-    (* let vs = *)
-    Name_occurrences.closure_vars (Acc.free_names acc)
-    (*in Format.eprintf "%a\n" Var_within_closure.Set.print vs;
-     * vs *)
-  in
+  let used_closure_vars = Name_occurrences.closure_vars (Acc.free_names acc) in
   let all_code =
-    Exported_code.add_code
+    Exported_code.add_code (Acc.code acc)
       ~keep_code:(fun _ -> true)
-      (Acc.code acc) Exported_code.empty
+      (Exported_code.mark_as_imported
+         (Flambda_cmx.get_imported_code cmx_loader ()))
   in
   let cmx =
     Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations

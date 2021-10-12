@@ -709,22 +709,19 @@ end
 module Let_cont_with_acc = struct
   let create_non_recursive acc cont handler ~body ~free_names_of_body
       ~cost_metrics_of_handler =
-    match Name_occurrences.count_continuation free_names_of_body cont with
-    | Zero when not (Continuation_handler.is_exn_handler handler) -> acc, body
-    | _ ->
-      let acc =
-        Acc.increment_metrics
-          (Cost_metrics.increase_due_to_let_cont_non_recursive
-             ~cost_metrics_of_handler)
-          acc
-      in
-      let expr =
-        (* This function only uses continuations of [free_names_of_body] *)
-        Let_cont.create_non_recursive cont handler ~body
-          ~free_names_of_body:(Known free_names_of_body)
-      in
-      let acc = Acc.remove_continuation_from_free_names cont acc in
-      acc, expr
+    let acc =
+      Acc.increment_metrics
+        (Cost_metrics.increase_due_to_let_cont_non_recursive
+           ~cost_metrics_of_handler)
+        acc
+    in
+    let expr =
+      (* This function only uses continuations of [free_names_of_body] *)
+      Let_cont.create_non_recursive cont handler ~body
+        ~free_names_of_body:(Known free_names_of_body)
+    in
+    let acc = Acc.remove_continuation_from_free_names cont acc in
+    acc, expr
 
   let create_recursive acc handlers ~body ~cost_metrics_of_handlers =
     let acc =
@@ -774,17 +771,22 @@ module Let_cont_with_acc = struct
     let free_names_of_body, acc, body =
       Acc.eval_branch_free_names acc ~f:body
     in
+    let body_acc = acc in
     let cost_metrics_of_handler, handler_free_names, acc, handler =
       Acc.measure_cost_metrics acc ~f:(fun acc ->
           let acc, handler = handler acc in
           Continuation_handler_with_acc.create acc handler_params ~handler
             ~is_exn_handler)
     in
-    (* [create_non_recursive] assumes [acc] contains free names of the body *)
-    let acc, expr =
-      create_non_recursive
-        (Acc.with_free_names free_names_of_body acc)
-        cont handler ~body ~free_names_of_body ~cost_metrics_of_handler
-    in
-    Acc.add_free_names handler_free_names acc, expr
+    match Name_occurrences.count_continuation free_names_of_body cont with
+    | Zero when not (Continuation_handler.is_exn_handler handler) ->
+      Acc.with_free_names free_names_of_body body_acc, body
+    | _ ->
+      (* [create_non_recursive] assumes [acc] contains free names of the body *)
+      let acc, expr =
+        create_non_recursive
+          (Acc.with_free_names free_names_of_body acc)
+          cont handler ~body ~free_names_of_body ~cost_metrics_of_handler
+      in
+      Acc.add_free_names handler_free_names acc, expr
 end
