@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2018--2019 OCamlPro SAS                                    *)
-(*   Copyright 2018--2019 Jane Street Group LLC                           *)
+(*   Copyright 2013--2021 OCamlPro SAS                                    *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,19 +14,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-include Continuation
+module BP = Kinded_parameter
+include BP.List
 
-let free_names t = Name_occurrences.singleton_continuation t
+let create params =
+  let params_set = BP.Set.of_list params in
+  if List.length params <> BP.Set.cardinal params_set
+  then
+    Misc.fatal_errorf
+      "Names provided to [Bound_parameters.create] must be disjoint:@ %a"
+      BP.List.print params;
+  params
 
-let apply_renaming t perm = Renaming.apply_continuation perm t
+let to_list t = t
 
-let all_ids_for_export t =
-  Ids_for_export.add_continuation Ids_for_export.empty t
-
-let add_to_name_permutation t ~guaranteed_fresh perm =
-  Renaming.add_fresh_continuation perm t ~guaranteed_fresh
-
-let name_permutation t ~guaranteed_fresh =
-  add_to_name_permutation t ~guaranteed_fresh Renaming.empty
+let name_permutation t1 ~guaranteed_fresh:t2 =
+  try
+    List.fold_left2
+      (fun renaming param1 param2 ->
+        Renaming.add_variable renaming (BP.var param1) (BP.var param2))
+      Renaming.empty t1 t2
+  with Invalid_argument _ ->
+    assert (List.compare_lengths t1 t2 <> 0);
+    Misc.fatal_errorf "Parameter lists are of differing lengths:@ %a@ and@ %a"
+      print t1 print t2
