@@ -74,15 +74,3 @@ let add_to_name_permutation { var; name_mode = _ } ~guaranteed_fresh perm =
 
 let name_permutation t ~guaranteed_fresh =
   add_to_name_permutation t ~guaranteed_fresh Renaming.empty
-
-let name_mode_must_be_normal ({ var = _; name_mode } as t) =
-  if not (Name_mode.is_normal name_mode)
-  then Misc.fatal_errorf "Wrong name mode for variable: %a" print t
-
-let singleton_occurrence_in_terms ({ var; name_mode = _ } as t) =
-  name_mode_must_be_normal t;
-  Name_occurrences.singleton_variable var Name_mode.normal
-
-let add_occurrence_in_terms ({ var; name_mode = _ } as t) occs =
-  name_mode_must_be_normal t;
-  Name_occurrences.add_variable occs var Name_mode.normal

@@ -76,19 +76,6 @@ let apply_renaming ({ param = _; kind } as t) perm =
 let all_ids_for_export { param; kind = _ } =
   Ids_for_export.add_variable Ids_for_export.empty param
 
-let add_to_name_permutation t ~guaranteed_fresh perm =
-  Renaming.add_fresh_variable perm (var t)
-    ~guaranteed_fresh:(var guaranteed_fresh)
-
-let name_permutation t ~guaranteed_fresh =
-  add_to_name_permutation t ~guaranteed_fresh Renaming.empty
-
-let singleton_occurrence_in_terms t =
-  Name_occurrences.singleton_variable (var t) Name_mode.normal
-
-let add_occurrence_in_terms t occs =
-  Name_occurrences.add_variable occs (var t) Name_mode.normal
-
 module List = struct
   type nonrec t = t list
 
@@ -126,4 +113,7 @@ module List = struct
 
   let apply_renaming t perm =
     List.map (fun param -> apply_renaming param perm) t
+
+  let all_ids_for_export t =
+    Ids_for_export.union_list (List.map all_ids_for_export t)
 end

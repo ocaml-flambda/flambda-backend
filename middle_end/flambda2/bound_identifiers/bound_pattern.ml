@@ -137,10 +137,6 @@ let add_to_name_permutation t1 ~guaranteed_fresh:t2 perm =
 let name_permutation t ~guaranteed_fresh =
   add_to_name_permutation t ~guaranteed_fresh Renaming.empty
 
-let singleton_occurrence_in_terms t = free_names t
-
-let add_occurrence_in_terms t occs = Name_occurrences.union (free_names t) occs
-
 let singleton var = Singleton var
 
 let set_of_closures ~closure_vars =
