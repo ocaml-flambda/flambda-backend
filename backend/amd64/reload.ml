@@ -93,6 +93,12 @@ method! reload_operation op arg res =
       (* This add will be turned into a lea; args and results must be
          in registers *)
       super#reload_operation op arg res
+  | Iintop_imm (Imul, _) ->
+      (* First argument (= result) must be in register *)
+      if stackp arg.(0) then
+        let r = self#makereg arg.(0) in
+        ([|r|],[|r|])
+      else (arg, res)
   | Ispecific Ifloat_iround
   | Ispecific (Ifloat_round _)
   | Iintop_imm (Icomp _, _) ->
