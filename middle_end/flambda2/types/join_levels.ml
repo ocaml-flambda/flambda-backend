@@ -62,8 +62,7 @@ let join_types ~params ~env_at_fork envs_with_levels =
       env_at_fork envs_with_levels
   in
   (* Special handling for parameters: they're defined in [env_at_fork], but
-     their type (Unknown) is only a placeholder until we compute the actual
-     join.
+     their type (Bottom) is only a placeholder until we compute the actual join.
 
      So we start the join with equations binding the parameters to Bottom, to
      make sure we end up with the right type in the end. *)

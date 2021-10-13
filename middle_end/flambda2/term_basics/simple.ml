@@ -69,7 +69,7 @@ let without_coercion t =
   pattern_match t ~name:(fun n ~coercion:_ -> name n) ~const
 
 let apply_coercion t applied_coercion =
-  if Coercion.is_id applied_coercion
+  if Coercion.is_id applied_coercion || is_const t
   then Some t
   else
     Coercion.compose (coercion t) ~then_:applied_coercion

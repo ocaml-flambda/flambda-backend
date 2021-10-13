@@ -32,7 +32,6 @@ open Or_unknown.Let_syntax
 
 let add_equation (simple : Simple.t) ty_of_simple env_extension =
   match Simple.must_be_name simple with
-  (* CR mshinwell: Does this need to use some kind of [meet_equation]? *)
   | Some (name, coercion_from_name_to_simple) ->
     let coercion_from_simple_to_name =
       Coercion.inverse coercion_from_name_to_simple

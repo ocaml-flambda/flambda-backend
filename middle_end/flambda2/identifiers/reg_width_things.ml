@@ -697,7 +697,7 @@ module Simple = struct
   end
 
   let with_coercion t new_coercion =
-    if Coercion.is_id new_coercion
+    if Coercion.is_id new_coercion || Id.flags t = const_flags
     then t
     else if Coercion.is_id (coercion t)
     then
