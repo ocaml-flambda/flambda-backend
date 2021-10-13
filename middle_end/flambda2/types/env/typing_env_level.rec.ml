@@ -198,12 +198,12 @@ let join_types ~params ~env_at_fork envs_with_levels =
   let initial_joined_types =
     let bottom_ty param =
       Type_grammar.bottom
-        (Flambda_kind.With_subkind.kind (Kinded_parameter.kind param))
+        (Flambda_kind.With_subkind.kind (Bound_parameter.kind param))
     in
     List.fold_left
       (fun initial_types param ->
         Name.Map.add
-          (Kinded_parameter.name param)
+          (Bound_parameter.name param)
           (bottom_ty param) initial_types)
       Name.Map.empty params
   in
@@ -418,10 +418,10 @@ let check_join_inputs ~env_at_fork _envs_with_levels ~params
      environment. *)
   List.iter
     (fun param ->
-      if not (Typing_env.mem env_at_fork (Kinded_parameter.name param))
+      if not (Typing_env.mem env_at_fork (Bound_parameter.name param))
       then
         Misc.fatal_errorf "Parameter %a not defined in [env_at_fork] at join"
-          Kinded_parameter.print param)
+          Bound_parameter.print param)
     params;
   Symbol.Set.iter
     (fun symbol ->

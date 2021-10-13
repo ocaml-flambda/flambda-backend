@@ -33,7 +33,6 @@ val print : Format.formatter -> t -> unit
     unit. *)
 val create :
   round:int ->
-  backend:(module Flambda_backend_intf.S) ->
   resolver:resolver ->
   get_imported_names:get_imported_names ->
   get_imported_code:get_imported_code ->
@@ -41,10 +40,6 @@ val create :
   unit_toplevel_exn_continuation:Continuation.t ->
   unit_toplevel_return_continuation:Continuation.t ->
   t
-
-(** Obtain the first-class module that gives information about the compiler
-    backend being used for compilation. *)
-val backend : t -> (module Flambda_backend_intf.S)
 
 val resolver : t -> Compilation_unit.t -> Flambda_type.Typing_env.t option
 
@@ -112,27 +107,27 @@ val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation_on_name : t -> Name.t -> Flambda_type.t -> t
 
-val define_parameters : t -> params:Kinded_parameter.t list -> t
+val define_parameters : t -> params:Bound_parameter.t list -> t
 
-val define_parameters_as_bottom : t -> params:Kinded_parameter.t list -> t
+val define_parameters_as_bottom : t -> params:Bound_parameter.t list -> t
 
 val add_parameters :
   ?at_unit_toplevel:bool ->
   t ->
-  Kinded_parameter.t list ->
+  Bound_parameter.t list ->
   param_types:Flambda_type.t list ->
   t
 
 val add_parameters_with_unknown_types :
-  ?at_unit_toplevel:bool -> t -> Kinded_parameter.t list -> t
+  ?at_unit_toplevel:bool -> t -> Bound_parameter.t list -> t
 
 val add_parameters_with_unknown_types' :
   ?at_unit_toplevel:bool ->
   t ->
-  Kinded_parameter.t list ->
+  Bound_parameter.t list ->
   t * Flambda_type.t list
 
-val mark_parameters_as_toplevel : t -> Kinded_parameter.t list -> t
+val mark_parameters_as_toplevel : t -> Bound_parameter.t list -> t
 
 val add_variable_and_extend_typing_environment :
   t -> Bound_var.t -> Flambda_type.t -> Flambda_type.Typing_env_extension.t -> t
@@ -199,7 +194,12 @@ val are_rebuilding_terms : t -> are_rebuilding_terms
 
 val are_rebuilding_terms_to_bool : are_rebuilding_terms -> bool
 
-val enter_closure : Code_id.t -> Continuation.t -> Exn_continuation.t -> t -> t
+val enter_closure :
+  Code_id.t ->
+  return_continuation:Continuation.t ->
+  exn_continuation:Continuation.t ->
+  t ->
+  t
 
 val closure_info : t -> Closure_info.t
 

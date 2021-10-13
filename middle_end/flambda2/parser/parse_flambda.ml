@@ -154,14 +154,16 @@ let make_compilation_unit ~extension ~filename ?(tag = "") () =
   let id = Ident.create_persistent name in
   Compilation_unit.create id linkage_name
 
-let parse ~backend filename =
+let parse ~symbol_for_global filename =
   parse_fexpr filename
   |> Result.map (fun fexpr ->
          let comp_unit = make_compilation_unit ~extension:".fl" ~filename () in
          let old_comp_unit = Compilation_unit.get_current () in
          Compilation_unit.set_current comp_unit;
          let module_ident = Compilation_unit.get_persistent_ident comp_unit in
-         let flambda = Fexpr_to_flambda.conv ~backend ~module_ident fexpr in
+         let flambda =
+           Fexpr_to_flambda.conv ~symbol_for_global ~module_ident fexpr
+         in
          begin
            match old_comp_unit with
            | Some old_comp_unit -> Compilation_unit.set_current old_comp_unit

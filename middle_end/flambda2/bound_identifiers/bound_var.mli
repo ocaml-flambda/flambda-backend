@@ -22,8 +22,6 @@ val create : Variable.t -> Name_mode.t -> t
 
 val var : t -> Variable.t
 
-val simple : t -> Simple.t
-
 val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t

@@ -423,7 +423,7 @@ end
 module Make_map (Key : sig
   val print : Format.formatter -> int -> unit
 end)
-(Set : Container_types.Set with module T := Numeric_types.Int) =
+(Set : Container_types.Set with module T := Numbers.Int) =
 struct
   type key = int
 

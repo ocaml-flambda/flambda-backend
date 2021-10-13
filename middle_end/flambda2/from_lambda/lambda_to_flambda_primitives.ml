@@ -290,11 +290,13 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
         dbg
       }
 
-let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
+let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     (dbg : Debuginfo.t) : H.expr_primitive =
   let args = List.map (fun arg : H.simple_or_prim -> Simple arg) args in
-  let module B = (val backend : Flambda_backend_intf.S) in
-  let size_int = B.size_int in
+  let size_int =
+    assert (Targetint.size mod 8 = 0);
+    Targetint.size / 8
+  in
   match prim, args with
   | Pmakeblock (tag, mutability, shape), _ ->
     let tag = Tag.Scannable.create_exn tag in
@@ -937,7 +939,7 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
     (* CR pchambart: It's not obvious when this one should be converted.
        mshinwell: Have put an implementation here for now. *)
     match const with
-    | Big_endian -> Simple (Simple.const_bool B.big_endian)
+    | Big_endian -> Simple (Simple.const_bool big_endian)
     | Word_size ->
       Simple (Simple.const_int (Targetint_31_63.Imm.of_int (8 * size_int)))
     | Int_size ->
@@ -1193,10 +1195,10 @@ let convert_lprim ~backend (prim : L.primitive) (args : Simple.t list)
 module Acc = Closure_conversion_aux.Acc
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
-let convert_and_bind acc ~backend exn_cont ~register_const_string
+let convert_and_bind acc ~big_endian exn_cont ~register_const_string
     (prim : L.primitive) ~(args : Simple.t list) (dbg : Debuginfo.t)
     (cont : Acc.t -> Flambda.Named.t option -> Acc.t * Expr_with_acc.t) :
     Acc.t * Expr_with_acc.t =
-  let expr = convert_lprim ~backend prim args dbg in
-  H.bind_rec acc ~backend exn_cont ~register_const_string expr dbg
-    (fun acc named -> cont acc (Some named))
+  let expr = convert_lprim ~big_endian prim args dbg in
+  H.bind_rec acc exn_cont ~register_const_string expr dbg (fun acc named ->
+      cont acc (Some named))

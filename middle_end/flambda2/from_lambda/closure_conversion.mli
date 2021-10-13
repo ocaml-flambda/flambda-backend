@@ -65,7 +65,8 @@ val close_switch :
   Acc.t -> Env.t -> Ident.t -> IR.switch -> Acc.t * Expr_with_acc.t
 
 val close_program :
-  backend:(module Flambda_backend_intf.S) ->
+  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
+  big_endian:bool ->
   module_ident:Ident.t ->
   module_block_size_in_words:int ->
   program:(Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) ->

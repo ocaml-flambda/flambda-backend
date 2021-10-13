@@ -79,10 +79,7 @@ module rec Expr : sig
   val create_invalid : ?semantics:Invalid_term_semantics.t -> unit -> t
 
   val bind_parameters_to_args_no_simplification :
-    params:Kinded_parameter.t list ->
-    args:Simple.t list ->
-    body:Expr.t ->
-    Expr.t
+    params:Bound_parameter.t list -> args:Simple.t list -> body:Expr.t -> Expr.t
 end
 
 and Named : sig
@@ -292,7 +289,7 @@ and Continuation_handler : sig
 
   (** Create the representation of a single continuation handler. *)
   val create :
-    Kinded_parameter.t list ->
+    Bound_parameter.t list ->
     handler:Expr.t ->
     free_names_of_handler:Name_occurrences.t Or_unknown.t ->
     is_exn_handler:bool ->
@@ -303,14 +300,14 @@ and Continuation_handler : sig
   val pattern_match' :
     t ->
     f:
-      (Kinded_parameter.t list ->
+      (Bound_parameter.t list ->
       num_normal_occurrences_of_params:Num_occurrences.t Variable.Map.t ->
       handler:Expr.t ->
       'a) ->
     'a
 
   val pattern_match :
-    t -> f:(Kinded_parameter.t list -> handler:Expr.t -> 'a) -> 'a
+    t -> f:(Bound_parameter.t list -> handler:Expr.t -> 'a) -> 'a
 
   module Pattern_match_pair_error : sig
     type t = Parameter_lists_have_different_lengths
@@ -323,7 +320,7 @@ and Continuation_handler : sig
   val pattern_match_pair :
     t ->
     t ->
-    f:(Kinded_parameter.t list -> handler1:Expr.t -> handler2:Expr.t -> 'a) ->
+    f:(Bound_parameter.t list -> handler1:Expr.t -> handler2:Expr.t -> 'a) ->
     ('a, Pattern_match_pair_error.t) Result.t
 
   (** Whether the continuation is an exception handler.
@@ -406,8 +403,8 @@ and Function_params_and_body : sig
       relations thereon, over the given body. *)
   val create :
     return_continuation:Continuation.t ->
-    Exn_continuation.t ->
-    Kinded_parameter.t list ->
+    exn_continuation:Continuation.t ->
+    Bound_parameter.t list ->
     dbg:Debuginfo.t ->
     body:Expr.t ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
@@ -426,10 +423,10 @@ and Function_params_and_body : sig
              jump once the result of the function has been computed. If the
              continuation takes more than one argument then the backend will
              compile the function so that it returns multiple values. *) ->
-      Exn_continuation.t
-      (** To where we must jump if application of the function raises an
-          exception. *) ->
-      Kinded_parameter.t list ->
+      exn_continuation:Continuation.t
+        (** To where we must jump if application of the function raises an
+            exception. *) ->
+      Bound_parameter.t list ->
       body:Expr.t ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
@@ -450,10 +447,10 @@ and Function_params_and_body : sig
              jump once the result of the function has been computed. If the
              continuation takes more than one argument then the backend will
              compile the function so that it returns multiple values. *) ->
-      Exn_continuation.t
-      (** To where we must jump if application of the function raises an
-          exception. *) ->
-      Kinded_parameter.t list ->
+      exn_continuation:Continuation.t
+        (** To where we must jump if application of the function raises an
+            exception. *) ->
+      Bound_parameter.t list ->
       body1:Expr.t ->
       body2:Expr.t ->
       my_closure:Variable.t ->

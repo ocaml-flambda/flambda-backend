@@ -29,7 +29,8 @@ type simplify_result = private
   }
 
 val run :
-  backend:(module Flambda_backend_intf.S) ->
+  symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->
+  get_global_info:(Compilation_unit.t -> Flambda_cmx_format.t option) ->
   round:int ->
   Flambda_unit.t ->
   simplify_result

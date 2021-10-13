@@ -39,8 +39,6 @@ let to_var t =
 
 let to_name t = t.name
 
-let to_simple t = Simple.name t.name
-
 include Container_types.Make (struct
   type nonrec t = t
 

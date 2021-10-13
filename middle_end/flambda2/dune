@@ -2,12 +2,37 @@
 
 (library
  (name flambda2)
- (wrapped true)
+ (wrapped false)
  (flags
-  (:standard -principal -nostdlib))
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_cmx
+   -open
+   Flambda2_from_lambda
+   -open
+   Flambda2_parser
+   -open
+   Flambda2_simplify
+   -open
+   Flambda2_terms
+   -open
+   Flambda2_to_cmm
+   -open
+   Flambda2_ui))
  (ocamlopt_flags
   (:standard -O3))
- (modules
-  (:standard \ flambda_parser_in)) ; ignore inputs to sed
- (modules_without_implementation flambda_backend_intf)
- (libraries stdlib ocamlcommon ocamlbytecomp))
+ (modules flambda2)
+ (libraries
+  stdlib
+  ocamlcommon
+  ocamlbytecomp
+  ocamloptcomp
+  flambda2_cmx
+  flambda2_from_lambda
+  flambda2_parser
+  flambda2_simplify
+  flambda2_terms
+  flambda2_to_cmm
+  flambda2_ui))

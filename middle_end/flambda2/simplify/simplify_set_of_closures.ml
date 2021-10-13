@@ -141,7 +141,8 @@ end = struct
       List.map
         (fun closure_bound_names_inside ->
           Closure_id.Map.map
-            (fun name -> T.alias_type_of K.value (Bound_name.to_simple name))
+            (fun name ->
+              T.alias_type_of K.value (Simple.name (Bound_name.to_name name)))
             closure_bound_names_inside)
         closure_bound_names_all_sets_inside
     in
@@ -452,7 +453,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
     Function_params_and_body.pattern_match params_and_body
       ~f:(fun
            ~return_continuation
-           exn_continuation
+           ~exn_continuation
            params
            ~body
            ~my_closure
@@ -472,7 +473,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
         let dacc =
           DA.map_denv dacc ~f:(fun denv ->
               denv
-              |> DE.enter_closure code_id return_continuation exn_continuation
+              |> DE.enter_closure code_id ~return_continuation ~exn_continuation
               |> DE.map_typing_env ~f:(fun typing_env ->
                      let code_age_relation =
                        (* CR mshinwell: Tidy up propagation to avoid union *)
@@ -490,7 +491,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
         (* CR mshinwell: DE.no_longer_defining_symbol is redundant now? *)
         match
           C.simplify_toplevel context dacc body ~return_continuation
-            exn_continuation ~return_arity:(Code.result_arity code)
+            ~exn_continuation ~return_arity:(Code.result_arity code)
             ~return_cont_scope:Scope.initial
             ~exn_cont_scope:(Scope.next Scope.initial)
         with
@@ -501,7 +502,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
           let free_names_of_body = UA.name_occurrences uacc in
           let params_and_body =
             RE.Function_params_and_body.create ~free_names_of_body
-              ~return_continuation exn_continuation params ~dbg ~body
+              ~return_continuation ~exn_continuation params ~dbg ~body
               ~my_closure ~my_depth
           in
           (* Free names of the code = free names of the body minus the return
@@ -513,7 +514,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
           in
           let free_names_of_code =
             Name_occurrences.remove_continuation free_names_of_code
-              (Exn_continuation.exn_handler exn_continuation)
+              exn_continuation
           in
           let free_names_of_code =
             Name_occurrences.remove_var free_names_of_code my_closure
@@ -522,7 +523,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
             Name_occurrences.remove_var free_names_of_code my_depth
           in
           let free_names_of_code =
-            Name_occurrences.diff free_names_of_code (KP.List.free_names params)
+            Name_occurrences.diff free_names_of_code (BP.List.free_names params)
           in
           let free_names_of_code =
             Name_occurrences.diff free_names_of_code
@@ -539,7 +540,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
                %a@ \n\
                Simplified version:@ fun %a %a %a ->@ \n\
               \  %a" Name_occurrences.print free_names_of_code Code_id.print
-              code_id KP.List.print params Variable.print my_closure
+              code_id BP.List.print params Variable.print my_closure
               Variable.print my_depth
               (RE.print (UA.are_rebuilding_terms uacc))
               body;
@@ -553,8 +554,8 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
              %a,@ body:@ %a@ with downwards accumulator:@ %a\n"
             (Flambda_colours.error ())
             (Flambda_colours.normal ())
-            Closure_id.print closure_id Kinded_parameter.List.print params
-            Continuation.print return_continuation Exn_continuation.print
+            Closure_id.print closure_id Bound_parameter.List.print params
+            Continuation.print return_continuation Continuation.print
             exn_continuation Variable.print my_closure Expr.print body DA.print
             dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
@@ -700,7 +701,8 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
   let closure_types_by_bound_name =
     let closure_types_via_aliases =
       Closure_id.Map.map
-        (fun name -> T.alias_type_of K.value (Bound_name.to_simple name))
+        (fun name ->
+          T.alias_type_of K.value (Simple.name (Bound_name.name name)))
         closure_bound_names
     in
     Closure_id.Map.fold

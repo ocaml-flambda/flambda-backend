@@ -32,9 +32,7 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     | Never_returns -> perm
   in
   let perm =
-    Renaming.add_continuation perm
-      (Exn_continuation.exn_handler exn_continuation)
-      apply_exn_continuation
+    Renaming.add_continuation perm exn_continuation apply_exn_continuation
   in
   let callee, rec_info =
     match unroll_to with
@@ -129,7 +127,7 @@ let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
           |> Expr.create_apply_cont
         in
         Continuation_handler.create
-          (Kinded_parameter.List.create kinded_params)
+          (Bound_parameter.List.create kinded_params)
           ~handler ~free_names_of_handler:Unknown ~is_exn_handler:false
       in
       let new_apply_return_continuation =
@@ -144,7 +142,7 @@ let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
   in
   let wrapper_handler =
     let param = Variable.create "exn" in
-    let kinded_params = [KP.create param K.With_subkind.any_value] in
+    let kinded_params = [BP.create param K.With_subkind.any_value] in
     let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
     let handler =
@@ -208,7 +206,7 @@ let inline dacc ~apply ~unroll_to function_decl =
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
-         exn_continuation
+         ~exn_continuation
          params
          ~body
          ~my_closure
@@ -221,7 +219,6 @@ let inline dacc ~apply ~unroll_to function_decl =
           ~rec_info ~body ~exn_continuation ~return_continuation
       in
       let expr =
-        assert (Exn_continuation.extra_args exn_continuation = []);
         match Exn_continuation.extra_args apply_exn_continuation with
         | [] ->
           make_inlined_body

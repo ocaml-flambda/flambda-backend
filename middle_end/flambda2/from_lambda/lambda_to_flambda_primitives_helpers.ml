@@ -110,9 +110,8 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
       defining_expr ~body:apply_cont
     |> Expr_with_acc.create_let
 
-let expression_for_failure acc ~backend exn_cont ~register_const_string
-    primitive dbg (failure : failure) =
-  let module B = (val backend : Flambda_backend_intf.S) in
+let expression_for_failure acc exn_cont ~register_const_string primitive dbg
+    (failure : failure) =
   let exn_cont =
     match exn_cont with
     | Some exn_cont -> exn_cont
@@ -124,8 +123,11 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
   in
   match failure with
   | Division_by_zero ->
+    let division_by_zero =
+      (Acc.symbol_for_global acc) Predef.ident_division_by_zero
+    in
     raise_exn_for_failure acc ~dbg exn_cont
-      (Simple.symbol B.division_by_zero)
+      (Simple.symbol division_by_zero)
       None
   | Index_out_of_bounds ->
     if true
@@ -150,8 +152,22 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
       let exn_bucket = Variable.create "exn_bucket" in
       (* CR mshinwell: Share this text with elsewhere. *)
       let acc, error_text = register_const_string acc "index out of bounds" in
+      let invalid_argument =
+        (* [Predef.invalid_argument] is not exposed; the following avoids a
+           change to the frontend. *)
+        let matches ident =
+          String.equal (Ident.name ident) "Invalid_argument"
+        in
+        let invalid_argument =
+          match List.find matches Predef.all_predef_exns with
+          | exception Not_found ->
+            Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
+          | ident -> ident
+        in
+        (Acc.symbol_for_global acc) invalid_argument
+      in
       let contents_of_exn_bucket =
-        [Simple.symbol B.invalid_argument; Simple.symbol error_text]
+        [Simple.symbol invalid_argument; Simple.symbol error_text]
       in
       let named =
         Named.create_prim
@@ -167,9 +183,8 @@ let expression_for_failure acc ~backend exn_cont ~register_const_string
       raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
         (Some extra_let_binding)
 
-let rec bind_rec acc ~backend exn_cont ~register_const_string
-    (prim : expr_primitive) (dbg : Debuginfo.t)
-    (cont : Acc.t -> Named.t -> Acc.t * Expr_with_acc.t) :
+let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
+    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Acc.t * Expr_with_acc.t) :
     Acc.t * Expr_with_acc.t =
   match prim with
   | Simple simple ->
@@ -183,18 +198,16 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
       let named = Named.create_prim (Unary (prim, arg)) dbg in
       cont acc named
     in
-    bind_rec_primitive acc ~backend exn_cont ~register_const_string arg dbg cont
+    bind_rec_primitive acc exn_cont ~register_const_string arg dbg cont
   | Binary (prim, arg1, arg2) ->
     let cont acc (arg2 : Simple.t) =
       let cont acc (arg1 : Simple.t) =
         let named = Named.create_prim (Binary (prim, arg1, arg2)) dbg in
         cont acc named
       in
-      bind_rec_primitive acc ~backend exn_cont ~register_const_string arg1 dbg
-        cont
+      bind_rec_primitive acc exn_cont ~register_const_string arg1 dbg cont
     in
-    bind_rec_primitive acc ~backend exn_cont ~register_const_string arg2 dbg
-      cont
+    bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
   | Ternary (prim, arg1, arg2, arg3) ->
     let cont acc (arg3 : Simple.t) =
       let cont acc (arg2 : Simple.t) =
@@ -204,14 +217,11 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
           in
           cont acc named
         in
-        bind_rec_primitive acc ~backend exn_cont ~register_const_string arg1 dbg
-          cont
+        bind_rec_primitive acc exn_cont ~register_const_string arg1 dbg cont
       in
-      bind_rec_primitive acc ~backend exn_cont ~register_const_string arg2 dbg
-        cont
+      bind_rec_primitive acc exn_cont ~register_const_string arg2 dbg cont
     in
-    bind_rec_primitive acc ~backend exn_cont ~register_const_string arg3 dbg
-      cont
+    bind_rec_primitive acc exn_cont ~register_const_string arg3 dbg cont
   | Variadic (prim, args) ->
     let cont acc args =
       let named = Named.create_prim (Variadic (prim, args)) dbg in
@@ -224,19 +234,18 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
         let cont acc arg =
           build_cont acc args_to_convert (arg :: converted_args)
         in
-        bind_rec_primitive acc ~backend exn_cont ~register_const_string arg dbg
-          cont
+        bind_rec_primitive acc exn_cont ~register_const_string arg dbg cont
     in
     build_cont acc (List.rev args) []
   | Checked { validity_conditions; primitive; failure; dbg } ->
     let primitive_cont = Continuation.create () in
     let primitive_handler_expr acc =
-      bind_rec acc ~backend exn_cont ~register_const_string primitive dbg cont
+      bind_rec acc exn_cont ~register_const_string primitive dbg cont
     in
     let failure_cont = Continuation.create () in
     let failure_handler_expr acc =
-      expression_for_failure acc ~backend exn_cont ~register_const_string
-        primitive dbg failure
+      expression_for_failure acc exn_cont ~register_const_string primitive dbg
+        failure
     in
     let check_validity_conditions =
       let prim_apply_cont acc =
@@ -247,7 +256,7 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
         (fun condition_passed_expr expr_primitive acc ->
           let condition_passed_cont = Continuation.create () in
           let body acc =
-            bind_rec_primitive acc ~backend exn_cont ~register_const_string
+            bind_rec_primitive acc exn_cont ~register_const_string
               (Prim expr_primitive) dbg (fun acc prim_result ->
                 let acc, condition_passed =
                   Apply_cont_with_acc.goto acc condition_passed_cont
@@ -273,7 +282,7 @@ let rec bind_rec acc ~backend exn_cont ~register_const_string
     Let_cont_with_acc.build_non_recursive acc primitive_cont ~handler_params:[]
       ~handler:primitive_handler_expr ~body ~is_exn_handler:false
 
-and bind_rec_primitive acc ~backend exn_cont ~register_const_string
+and bind_rec_primitive acc exn_cont ~register_const_string
     (prim : simple_or_prim) (dbg : Debuginfo.t)
     (cont : Acc.t -> Simple.t -> Acc.t * Expr_with_acc.t) :
     Acc.t * Expr_with_acc.t =
@@ -287,4 +296,4 @@ and bind_rec_primitive acc ~backend exn_cont ~register_const_string
       Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
       |> Expr_with_acc.create_let
     in
-    bind_rec acc ~backend exn_cont ~register_const_string p dbg cont
+    bind_rec acc exn_cont ~register_const_string p dbg cont

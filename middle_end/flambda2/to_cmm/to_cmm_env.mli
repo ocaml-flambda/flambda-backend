@@ -140,7 +140,7 @@ type cont =
           The list of machtypes represent the types of arguments expected by the
           catch handler. *)
   | Inline of
-      { handler_params : Kinded_parameter.t list;
+      { handler_params : Bound_parameter.t list;
         handler_body : Flambda.Expr.t;
         handler_params_occurrences : Num_occurrences.t Variable.Map.t
       }
@@ -158,7 +158,7 @@ val add_jump_cont : t -> Cmm.machtype list -> Continuation.t -> int * t
 val add_inline_cont :
   t ->
   Continuation.t ->
-  Kinded_parameter.t list ->
+  Bound_parameter.t list ->
   handler_params_occurrences:Num_occurrences.t Variable.Map.t ->
   Flambda.Expr.t ->
   t

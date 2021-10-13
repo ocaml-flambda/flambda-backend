@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module BP = Kinded_parameter
+module BP = Bound_parameter
 include BP.List
 
 let create params =

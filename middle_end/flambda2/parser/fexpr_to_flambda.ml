@@ -570,7 +570,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
           let var, env = fresh_var env param in
           let param =
-            Kinded_parameter.create var (value_kind_with_subkind_opt kind)
+            Bound_parameter.create var (value_kind_with_subkind_opt kind)
           in
           env, param :: args)
         params (env, [])
@@ -750,7 +750,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
                 (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
                   let var, env = fresh_var env param in
                   let param =
-                    Kinded_parameter.create var
+                    Bound_parameter.create var
                       (value_kind_with_subkind_opt kind)
                   in
                   param, env)
@@ -763,11 +763,17 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
                 ~arity:(List.length result_arity)
             in
             let exn_continuation, env = fresh_exn_cont env exn_cont in
+            assert (
+              match Exn_continuation.extra_args exn_continuation with
+              | [] -> true
+              | _ :: _ -> false);
             let body = expr env body in
             let dbg = Debuginfo.none in
             let params_and_body =
               Flambda.Function_params_and_body.create ~return_continuation
-                exn_continuation params ~body ~my_closure ~my_depth ~dbg
+                ~exn_continuation:
+                  (Exn_continuation.exn_handler exn_continuation)
+                params ~body ~my_closure ~my_depth ~dbg
                 ~free_names_of_body:Unknown
             in
             (* CR lmaurer: Add
@@ -901,10 +907,10 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
   in
   go env unit.body
 
-let conv ~backend ~module_ident (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
-  let module Backend = (val backend : Flambda_backend_intf.S) in
+let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
+    Flambda_unit.t =
   let module_symbol =
-    Backend.symbol_for_global'
+    symbol_for_global ?comp_unit:None
       (Ident.create_persistent (Ident.name module_ident))
   in
   let env = init_env () in

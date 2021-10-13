@@ -86,7 +86,7 @@ let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
           else Is_unboxing_beneficial.filter_non_beneficial_decisions decision
         in
         let denv =
-          Build_unboxing_denv.denv_of_decision denv ~param_var:(KP.var param)
+          Build_unboxing_denv.denv_of_decision denv ~param_var:(BP.var param)
             decision
         in
         (* Compute the set of rewrite ids that have been considered when

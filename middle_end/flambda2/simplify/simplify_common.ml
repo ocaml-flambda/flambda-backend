@@ -20,7 +20,7 @@ open! Flambda
 module DA = Downwards_acc
 module DE = Downwards_env
 module K = Flambda_kind
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module P = Flambda_primitive
 module T = Flambda_type
 module TEE = T.Typing_env_extension
@@ -46,7 +46,7 @@ type simplify_toplevel =
   Expr.t ->
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
-  Exn_continuation.t ->
+  exn_continuation:Continuation.t ->
   return_cont_scope:Scope.t ->
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t
@@ -65,7 +65,9 @@ let is_self_tail_call dacc apply =
       } -> (
     (* 1st check: exn continuations match *)
     let apply_exn_cont = Apply.exn_continuation apply in
-    Exn_continuation.equal fun_exn_cont apply_exn_cont
+    Exn_continuation.equal
+      (Exn_continuation.create ~exn_handler:fun_exn_cont ~extra_args:[])
+      apply_exn_cont
     (* 2nd check: return continuations match *)
     && begin
          match Apply.continuation apply with
@@ -135,7 +137,7 @@ let split_direct_over_application apply ~param_arity =
   in
   let after_full_application = Continuation.create () in
   let after_full_application_handler =
-    let func_param = KP.create func_var K.With_subkind.any_value in
+    let func_param = BP.create func_var K.With_subkind.any_value in
     let free_names_of_expr = Apply.free_names perform_over_application in
     Continuation_handler.create [func_param]
       ~handler:(Expr.create_apply perform_over_application)
