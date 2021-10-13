@@ -42,6 +42,7 @@ open Mach
      Iintop(others)             R       R       S
                             or  S       S       R
      Iintop_imm(Iadd, n)/lea    R       R
+     Iintop_imm(Imul, n)        R       R
      Iintop_imm(Icomp _)        R       S
      Iintop_imm(others)         S       S
      Inegf...Idivf              R       R       S
@@ -95,9 +96,8 @@ method! reload_operation op arg res =
       super#reload_operation op arg res
   | Iintop_imm (Imul, _) ->
       (* First argument (= result) must be in register *)
-      if stackp arg.(0) then
-        let r = self#makereg arg.(0) in
-        ([|r|],[|r|])
+      if stackp arg.(0)
+      then let r = self#makereg arg.(0) in ([|r|],[|r|])
       else (arg, res)
   | Ispecific Ifloat_iround
   | Ispecific (Ifloat_round _)
