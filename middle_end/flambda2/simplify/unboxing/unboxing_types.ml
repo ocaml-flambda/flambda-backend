@@ -80,7 +80,7 @@ and decision =
   | Do_not_unbox of do_not_unbox_reason
 
 type decisions =
-  { decisions : (KP.t * decision) list;
+  { decisions : (BP.t * decision) list;
     rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
   }
 
@@ -146,7 +146,7 @@ let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
   let pp_sep = Format.pp_print_space in
   let aux ppf (param, decision) =
     Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
-      KP.print param print_decision decision
+      BP.print param print_decision decision
   in
   Format.fprintf ppf "@[<hov 1>(\
     @[<hov 1>(decisions@ %a)@]@ \
@@ -157,7 +157,7 @@ let [@ocamlformat "disable"] print ppf { decisions; rewrite_ids_seen; } =
 
 module Decisions = struct
   type t = decisions =
-    { decisions : (KP.t * decision) list;
+    { decisions : (BP.t * decision) list;
       rewrite_ids_seen : Apply_cont_rewrite_id.Set.t
     }
 

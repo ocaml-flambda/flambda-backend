@@ -14,16 +14,56 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
-include module type of struct
-  include Reg_width_things.Rec_info_expr
+module Pattern : sig
+  type t = private
+    | Code of Code_id.t
+    | Set_of_closures of Symbol.t Closure_id.Lmap.t
+    | Block_like of Symbol.t
+
+  val code : Code_id.t -> t
+
+  val set_of_closures : Symbol.t Closure_id.Lmap.t -> t
+
+  val block_like : Symbol.t -> t
+
+  val print : Format.formatter -> t -> unit
 end
 
-include Expr_std.S with type t := t
+type t
 
-val free_names : t -> Name_occurrences.t
+val empty : t
 
-val free_names_in_types : t -> Name_occurrences.t
+val create : Pattern.t list -> t
+
+val singleton : Pattern.t -> t
+
+val to_list : t -> Pattern.t list
+
+val being_defined : t -> Symbol.Set.t
+
+val code_being_defined : t -> Code_id.Set.t
+
+val binds_code : t -> bool
+
+val binds_symbols : t -> bool
+
+val non_closure_symbols_being_defined : t -> Symbol.Set.t
+
+val closure_symbols_being_defined : t -> Symbol.Set.t
+
+val everything_being_defined : t -> Code_id_or_symbol.Set.t
+
+val for_all_everything_being_defined :
+  t -> f:(Code_id_or_symbol.t -> bool) -> bool
+
+val concat : t -> t -> t
+
+val gc_roots : t -> Symbol.t list
+
+val print : Format.formatter -> t -> unit
+
+include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t

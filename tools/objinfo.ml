@@ -172,7 +172,7 @@ let print_cmx_infos (ui, crc) =
   | Flambda2 (Some cmx) ->
     printf "Flambda 2 export information:\n";
     flush stdout;
-    Format.printf "%a\n%!" Flambda2.Flambda_cmx_format.print cmx
+    Format.printf "%a\n%!" Flambda2_cmx.Flambda_cmx_format.print cmx
   end;
   let pr_funs _ fns =
     List.iter (fun arity -> printf " %d" arity) fns in

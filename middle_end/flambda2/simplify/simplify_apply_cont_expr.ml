@@ -37,13 +37,13 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
       Misc.fatal_errorf
         "Parameter list@ [%a]@ does not match argument list@ [%a]@ when \
          inlining at [Apply_cont]:@ %a@ Handler to inline:@ %a"
-        KP.List.print params Simple.List.print args Apply_cont.print apply_cont
+        BP.List.print params Simple.List.print args Apply_cont.print apply_cont
         (RE.print (UA.are_rebuilding_terms uacc))
         handler;
     let bindings_outermost_first =
       ListLabels.map2 params args ~f:(fun param arg ->
           let let_bound =
-            Bound_var.create (KP.var param) Name_mode.normal
+            Bound_var.create (BP.var param) Name_mode.normal
             |> Bound_pattern.singleton
           in
           let named = Named.create_simple arg in

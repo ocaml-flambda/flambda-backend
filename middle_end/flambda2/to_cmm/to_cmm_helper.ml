@@ -600,8 +600,8 @@ let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
 
 (* Gc root table *)
 
-let gc_root_table syms =
-  let table_symbol = Compilenv.make_symbol (Some "gc_roots") in
+let gc_root_table ~make_symbol syms =
+  let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
   cdata
     (define_symbol ~global:true table_symbol
     @ List.map symbol_address syms

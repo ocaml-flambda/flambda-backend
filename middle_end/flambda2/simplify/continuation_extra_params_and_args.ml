@@ -46,7 +46,7 @@ module Extra_arg = struct
 end
 
 type t =
-  { extra_params : Kinded_parameter.t list;
+  { extra_params : Bound_parameter.t list;
     extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
   }
 
@@ -55,7 +55,7 @@ let [@ocamlformat "disable"] print ppf { extra_params; extra_args; } =
       @[<hov 1>(extra_params@ %a)@]@ \
       @[<hov 1>(extra_args@ %a)@]\
       )@]"
-    Kinded_parameter.List.print extra_params
+    Bound_parameter.List.print extra_params
     (Apply_cont_rewrite_id.Map.print Extra_arg.List.print) extra_args
 
 let empty = { extra_params = []; extra_args = Apply_cont_rewrite_id.Map.empty }

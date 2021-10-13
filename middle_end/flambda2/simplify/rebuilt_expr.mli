@@ -59,8 +59,8 @@ module Function_params_and_body : sig
 
   val create :
     return_continuation:Continuation.t ->
-    Exn_continuation.t ->
-    Kinded_parameter.t list ->
+    exn_continuation:Continuation.t ->
+    Bound_parameter.t list ->
     dbg:Debuginfo.t ->
     body:rebuilt_expr ->
     free_names_of_body:Name_occurrences.t ->
@@ -78,7 +78,7 @@ module Continuation_handler : sig
 
   val create :
     Are_rebuilding_terms.t ->
-    Kinded_parameter.t list ->
+    Bound_parameter.t list ->
     handler:rebuilt_expr ->
     free_names_of_handler:Name_occurrences.t ->
     is_exn_handler:bool ->

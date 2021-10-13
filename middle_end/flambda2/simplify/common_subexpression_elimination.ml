@@ -21,7 +21,7 @@ module EA = Continuation_extra_params_and_args.Extra_arg
 module EP = Flambda_primitive.Eligible_for_cse
 module EPA = Continuation_extra_params_and_args
 module K = Flambda_kind
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module NM = Name_mode
 module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id
@@ -112,7 +112,7 @@ end
 
 let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
     (extra_bindings : EPA.t) extra_equations =
-  let params = KP.List.name_set params in
+  let params = BP.List.name_set params in
   let is_param simple =
     Simple.pattern_match simple
       ~name:(fun name ~coercion:_ -> Name.Set.mem name params)
@@ -136,9 +136,9 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                 (* If [param] has an extra equation associated to it, we
                    shouldn't propagate equations on it as it will mess with the
                    application of constraints later *)
-                if Name.Map.mem (KP.name param) extra_equations
+                if Name.Map.mem (BP.name param) extra_equations
                 then None
-                else Some (KP.simple param)
+                else Some (BP.simple param)
               | Already_in_scope _ | New_let_binding _
               | New_let_binding_with_named_args _ ->
                 find_name simple params args
@@ -229,7 +229,7 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       let prim_result_kind = P.result_kind' (EP.to_primitive prim) in
       let var = Variable.create "cse_param" in
       let extra_param =
-        KP.create var (K.With_subkind.create prim_result_kind Anything)
+        BP.create var (K.With_subkind.create prim_result_kind Anything)
       in
       let bound_to = RI.Map.map Rhs_kind.bound_to bound_to_map in
       let cse = EP.Map.add prim (Simple.var var) cse in

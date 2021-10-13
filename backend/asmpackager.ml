@@ -80,7 +80,7 @@ let check_units members =
 (* Make the .o file for the package *)
 
 let make_package_object ~ppf_dump members targetobj targetname coercion
-      ~backend ~flambda2_backend ~flambda2_to_cmm =
+      ~backend ~flambda2 =
   Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -106,14 +106,12 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
       in
       let module_initializer = Simplif.simplify_lambda module_initializer in
       Asmgen.compile_implementation_flambda2
-        ~backend:flambda2_backend
         ~filename:targetname
         ~prefixname
         ~size:main_module_block_size
         ~module_ident
         ~module_initializer
-        ~middle_end:Flambda2__Flambda_middle_end.middle_end
-        ~flambda2_to_cmm
+        ~flambda2
         ~ppf_dump
         ~required_globals:required_globals
         ()
@@ -169,7 +167,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
 
 (* Make the .cmx file for the package *)
 
-let get_export_info_flambda2 ui : Flambda2.Flambda_cmx_format.t option =
+let get_export_info_flambda2 ui : Flambda2_cmx.Flambda_cmx_format.t option =
   assert(Config.flambda2);
   match ui.ui_export_info with
   | Clambda _ -> assert false
@@ -212,23 +210,23 @@ let build_package_cmx members cmxfile =
                Compilation_unit.Set.add
                  (Compilenv.unit_for_global unit_id) set)
             Compilation_unit.Set.empty units) in
-  let pack_units2 : Flambda2.Compilation_unit.Set.t lazy_t =
-    let unit_for_global ident : Flambda2.Compilation_unit.t =
-      let linkage_name : Flambda2.Linkage_name.t =
+  let pack_units2 : Flambda2_identifiers.Compilation_unit.Set.t lazy_t =
+    let unit_for_global ident : Flambda2_identifiers.Compilation_unit.t =
+      let linkage_name : Flambda2_identifiers.Linkage_name.t =
         ident
         |> Compilenv.unit_for_global
         |> Compilation_unit.get_linkage_name
         |> Linkage_name.to_string
-        |> Flambda2.Linkage_name.create in
-      Flambda2.Compilation_unit.create ident linkage_name in
+        |> Flambda2_identifiers.Linkage_name.create in
+      Flambda2_identifiers.Compilation_unit.create ident linkage_name in
     lazy (List.fold_left
             (fun set info ->
                let unit_id : Ident.t =
                  Compilenv.unit_id_from_name info.ui_name
                in
-               Flambda2.Compilation_unit.Set.add
+               Flambda2_identifiers.Compilation_unit.Set.add
                  (unit_for_global unit_id) set)
-            Flambda2.Compilation_unit.Set.empty units) in
+            Flambda2_identifiers.Compilation_unit.Set.empty units) in
   let units : Cmx_format.unit_infos list =
     if Config.flambda then
       List.map (fun info ->
@@ -255,14 +253,16 @@ let build_package_cmx members cmxfile =
       in
       Flambda1 ui_export_info
     else if Config.flambda2 then
-      let pack = Flambda2.Compilation_unit.get_current_exn () in
+      let pack = Flambda2_identifiers.Compilation_unit.get_current_exn () in
       let flambda_export_info =
         List.fold_left (fun acc info ->
-            Flambda2.Flambda_cmx_format.merge
-              (Flambda2.Flambda_cmx_format.update_for_pack ~pack_units:(Lazy.force pack_units2) ~pack
+            Flambda2_cmx.Flambda_cmx_format.merge
+              (Flambda2_cmx.Flambda_cmx_format.update_for_pack
+                 ~pack_units:(Lazy.force pack_units2) ~pack
                  (get_export_info_flambda2 info))
               acc)
-          (Flambda2.Flambda_cmx_format.update_for_pack ~pack_units:(Lazy.force pack_units2) ~pack
+          (Flambda2_cmx.Flambda_cmx_format.update_for_pack
+             ~pack_units:(Lazy.force pack_units2) ~pack
              (get_export_info_flambda2 ui))
           units
       in
@@ -297,8 +297,7 @@ let build_package_cmx members cmxfile =
 (* Make the .cmx and the .o for the package *)
 
 let package_object_files ~ppf_dump files targetcmx
-                         targetobj targetname coercion ~backend
-                         ~flambda2_backend ~flambda2_to_cmm =
+                         targetobj targetname coercion ~backend ~flambda2 =
   let pack_path =
     match !Clflags.for_package with
     | None -> targetname
@@ -306,13 +305,12 @@ let package_object_files ~ppf_dump files targetcmx
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   make_package_object ~ppf_dump members targetobj targetname coercion ~backend
-    ~flambda2_backend ~flambda2_to_cmm;
+    ~flambda2;
   build_package_cmx members targetcmx
 
 (* The entry point *)
 
-let package_files ~ppf_dump initial_env files targetcmx ~backend
-      ~flambda2_backend ~flambda2_to_cmm =
+let package_files ~ppf_dump initial_env files targetcmx ~backend ~flambda2 =
   let files =
     List.map
       (fun f ->
@@ -331,7 +329,7 @@ let package_files ~ppf_dump initial_env files targetcmx ~backend
       let coercion =
         Typemod.package_units initial_env files targetcmi targetname in
       package_object_files ~ppf_dump files targetcmx targetobj targetname
-        coercion ~backend ~flambda2_backend ~flambda2_to_cmm
+        coercion ~backend ~flambda2
     )
     ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)
 

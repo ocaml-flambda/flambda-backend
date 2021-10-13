@@ -53,15 +53,15 @@ module Calling_convention = struct
     && Bool.equal is_tupled1 is_tupled2
 
   let compute ~params_and_body ~is_tupled =
-    let f ~return_continuation:_ _exn_continuation params ~body:_ ~my_closure:_
-        ~(is_my_closure_used : _ Or_unknown.t) ~my_depth:_ ~free_names_of_body:_
-        =
+    let f ~return_continuation:_ ~exn_continuation:_ params ~body:_
+        ~my_closure:_ ~(is_my_closure_used : _ Or_unknown.t) ~my_depth:_
+        ~free_names_of_body:_ =
       let is_my_closure_used =
         match is_my_closure_used with
         | Unknown -> true
         | Known is_my_closure_used -> is_my_closure_used
       in
-      let params_arity = Kinded_parameter.List.arity params in
+      let params_arity = Bound_parameter.List.arity params in
       { needs_closure_arg = is_my_closure_used; params_arity; is_tupled }
     in
     P.pattern_match params_and_body ~f

@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module Int = Numeric_types.Int
+module Int = Numbers.Int
 
 module Id = struct
   include Int

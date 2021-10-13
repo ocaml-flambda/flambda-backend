@@ -18,7 +18,7 @@
 
 type t =
   | Linearly_used_and_inlinable of
-      { params : Kinded_parameter.t list;
+      { params : Bound_parameter.t list;
         handler : Rebuilt_expr.t;
         free_names_of_handler : Name_occurrences.t;
         cost_metrics_of_handler : Cost_metrics.t
@@ -52,7 +52,7 @@ let arity t =
         free_names_of_handler = _;
         cost_metrics_of_handler = _
       } ->
-    Kinded_parameter.List.arity_with_subkinds params
+    Bound_parameter.List.arity_with_subkinds params
   | Non_inlinable_zero_arity _ -> []
   | Non_inlinable_non_zero_arity { arity }
   | Toplevel_or_function_return_or_exn_continuation { arity }

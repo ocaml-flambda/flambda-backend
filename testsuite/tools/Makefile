@@ -35,7 +35,25 @@ codegen_DIRS = parsing utils typing middle_end bytecomp lambda asmcomp
 codegen_OCAMLFLAGS = $(addprefix -I $(TOPDIR)/, $(codegen_DIRS)) -w +40 -g
 
 codegen_LIBS = $(addprefix $(COMPILERLIBSDIR)/,\
-  ocamlcommon flambda2_backend_impl flambda2 ocamloptcomp)
+  ocamlcommon \
+  flambda2_cmx \
+  flambda2_ui \
+  flambda2_algorithms \
+  flambda2_identifiers \
+  flambda2_numbers \
+  flambda2_types \
+  flambda2_nominal \
+  flambda2_bound_identifiers \
+  flambda2_kinds \
+  flambda2_lattices \
+  flambda2_term_basics \
+  flambda2_terms \
+  flambda2_parser \
+  flambda2_from_lambda \
+  flambda2_simplify \
+  flambda2_to_cmm \
+  ocamloptcomp \
+  flambda2)
 
 codegen_OBJECTS = $(addsuffix .cmo,\
   parsecmmaux parsecmm lexcmm codegen_main)

@@ -304,13 +304,32 @@ runtest-upstream:
 	  _runtest/compilerlibs
 	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmxa \
 	  _runtest/compilerlibs
-	cp _build2/default/middle_end/flambda2/flambda2.cma \
-	  _runtest/compilerlibs
-	cp _build2/default/middle_end/flambda2/backend_intf/flambda2_backend_impl.cma \
-	  _runtest/compilerlibs
 	mkdir _runtest/toplevel
 	cp _build2/default/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \
 	  _runtest/toplevel/
+	for lib in \
+	  ui \
+	  algorithms \
+	  lattices \
+	  numbers \
+	  identifiers \
+	  kinds \
+	  nominal \
+	  bound_identifiers \
+	  term_basics \
+	  terms \
+	  from_lambda \
+	  cmx \
+	  types \
+	  simplify \
+	  to_cmm \
+	  parser; \
+	do \
+	  cp _build2/default/middle_end/flambda2/$$lib/flambda2_$${lib}.cma \
+	    _runtest/compilerlibs; \
+	done
+	cp _build2/default/middle_end/flambda2/flambda2.cma \
+	  _runtest/compilerlibs
 	# Various directories are put on the -I paths by tools/Makefile;
 	# utils/ is one such, so we just dump the .cm* files in there for
 	# various things.

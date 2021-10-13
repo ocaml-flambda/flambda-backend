@@ -39,8 +39,6 @@ val to_var : t -> Bound_var.t option
 
 val to_name : t -> Name.t
 
-val to_simple : t -> Simple.t
-
 val rename : t -> t
 
 val is_symbol : t -> bool

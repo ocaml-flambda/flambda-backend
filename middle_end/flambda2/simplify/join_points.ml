@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module DE = Downwards_env
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module LCS = Lifted_constant_state
 module T = Flambda_type
 module TE = Flambda_type.Typing_env
@@ -28,7 +28,7 @@ let simple_join denv typing_env uses ~params =
      unboxing, but not really anything more. *)
   let bottom_types =
     ListLabels.map params ~f:(fun param ->
-        KP.kind param |> Flambda_kind.With_subkind.kind |> T.bottom)
+        BP.kind param |> Flambda_kind.With_subkind.kind |> T.bottom)
   in
   let joined_types =
     ListLabels.fold_left uses ~init:bottom_types ~f:(fun joined_types use ->
@@ -46,7 +46,7 @@ let simple_join denv typing_env uses ~params =
   let handler_env =
     ListLabels.fold_left2 params joined_types ~init:typing_env
       ~f:(fun handler_env param joined_type ->
-        let name = KP.name param in
+        let name = BP.name param in
         TE.add_equation handler_env name joined_type)
   in
   let denv = DE.with_typing_env denv handler_env in
@@ -125,7 +125,7 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
        float") with the argument types at each use. *)
     List.exists
       (fun param ->
-        KP.kind param |> Flambda_kind.With_subkind.has_useful_subkind_info)
+        BP.kind param |> Flambda_kind.With_subkind.has_useful_subkind_info)
       params
   in
   let uses_list = Continuation_uses.get_uses uses in

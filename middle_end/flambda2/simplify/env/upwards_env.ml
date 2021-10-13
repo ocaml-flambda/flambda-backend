@@ -84,7 +84,7 @@ let add_non_inlinable_continuation t cont scope ~params ~handler =
   match params with
   | [] -> add_continuation0 t cont scope (Non_inlinable_zero_arity { handler })
   | _ :: _ ->
-    let arity = Kinded_parameter.List.arity_with_subkinds params in
+    let arity = Bound_parameter.List.arity_with_subkinds params in
     add_continuation0 t cont scope (Non_inlinable_non_zero_arity { arity })
 
 let add_unreachable_continuation t cont scope arity =
@@ -127,7 +127,7 @@ let add_linearly_used_inlinable_continuation t cont scope ~params ~handler
     (Linearly_used_and_inlinable
        { handler; free_names_of_handler; params; cost_metrics_of_handler })
 
-let add_return_continuation t cont scope arity =
+let add_function_return_or_exn_continuation t cont scope arity =
   add_continuation0 t cont scope
     (Toplevel_or_function_return_or_exn_continuation { arity })
 
@@ -145,18 +145,6 @@ let add_exn_continuation t exn_cont scope =
     Exn_continuation.Map.add exn_cont scope t.exn_continuations
   in
   { t with continuations; exn_continuations }
-
-let check_continuation_is_bound t cont =
-  if not (Continuation.Map.mem cont t.continuations)
-  then
-    Misc.fatal_errorf "Unbound continuation %a in environment:@ %a"
-      Continuation.print cont print t
-
-let check_exn_continuation_is_bound t exn_cont =
-  if not (Exn_continuation.Map.mem exn_cont t.exn_continuations)
-  then
-    Misc.fatal_errorf "Unbound exception continuation %a in environment:@ %a"
-      Exn_continuation.print exn_cont print t
 
 let add_apply_cont_rewrite t cont rewrite =
   if Continuation.Map.mem cont t.apply_cont_rewrites

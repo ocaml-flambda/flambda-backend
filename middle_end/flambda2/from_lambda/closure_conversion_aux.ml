@@ -93,35 +93,34 @@ module Env = struct
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
       simples_to_substitute : Simple.t Ident.Map.t;
-      backend : (module Flambda_backend_intf.S);
       current_unit_id : Ident.t;
-      symbol_for_global' : Ident.t -> Symbol.t
+      symbol_for_global : Ident.t -> Symbol.t;
+      big_endian : bool
     }
-
-  let backend t = t.backend
 
   let current_unit_id t = t.current_unit_id
 
-  let symbol_for_global' t = t.symbol_for_global'
+  let symbol_for_global t = t.symbol_for_global
 
-  let empty ~backend =
-    let module Backend = (val backend : Flambda_backend_intf.S) in
+  let big_endian t = t.big_endian
+
+  let create ~symbol_for_global ~big_endian =
     let compilation_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
       simples_to_substitute = Ident.Map.empty;
-      backend;
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
-      symbol_for_global' = Backend.symbol_for_global'
+      symbol_for_global;
+      big_endian
     }
 
   let clear_local_bindings
       { variables = _;
         globals;
         simples_to_substitute;
-        backend;
         current_unit_id;
-        symbol_for_global'
+        symbol_for_global;
+        big_endian
       } =
     let simples_to_substitute =
       Ident.Map.filter
@@ -131,9 +130,9 @@ module Env = struct
     { variables = Ident.Map.empty;
       globals;
       simples_to_substitute;
-      backend;
       current_unit_id;
-      symbol_for_global'
+      symbol_for_global;
+      big_endian
     }
 
   let add_var t id var = { t with variables = Ident.Map.add id var t.variables }
@@ -218,7 +217,8 @@ module Acc = struct
       code : Flambda.Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       cost_metrics : Cost_metrics.t;
-      seen_a_function : bool
+      seen_a_function : bool;
+      symbol_for_global : Ident.t -> Symbol.t
     }
 
   let cost_metrics t = t.cost_metrics
@@ -232,13 +232,14 @@ module Acc = struct
 
   let with_seen_a_function t seen_a_function = { t with seen_a_function }
 
-  let empty =
+  let create ~symbol_for_global =
     { declared_symbols = [];
       shareable_constants = Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
       cost_metrics = Cost_metrics.zero;
-      seen_a_function = false
+      seen_a_function = false;
+      symbol_for_global
     }
 
   let declared_symbols t = t.declared_symbols
@@ -307,6 +308,8 @@ module Acc = struct
     let free_names, acc, return = eval_branch_free_names acc ~f in
     let cost_metrics = cost_metrics acc in
     cost_metrics, free_names, with_cost_metrics saved_cost_metrics acc, return
+
+  let symbol_for_global t = t.symbol_for_global
 end
 
 module Function_decls = struct
@@ -528,7 +531,7 @@ module Continuation_handler_with_acc = struct
     let acc =
       List.fold_left
         (fun acc param ->
-          Acc.remove_var_from_free_names (Kinded_parameter.var param) acc)
+          Acc.remove_var_from_free_names (Bound_parameter.var param) acc)
         acc parameters
     in
     ( acc,

@@ -17,13 +17,12 @@
 module Make_set (_ : sig
   val print : Format.formatter -> int -> unit
 end) : sig
-  include Container_types.Set with module T := Numeric_types.Int
+  include Container_types.Set with module T := Numbers.Int
 end
 
 module Make_map (_ : sig
   val print : Format.formatter -> int -> unit
 end)
-(Set : Container_types.Set with module T := Numeric_types.Int) : sig
-  include
-    Container_types.Map with module T := Numeric_types.Int with module Set = Set
+(Set : Container_types.Set with module T := Numbers.Int) : sig
+  include Container_types.Map with module T := Numbers.Int with module Set = Set
 end

@@ -1,0 +1,10 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_algorithms)
+ (wrapped true)
+ (flags
+  (:standard -principal -nostdlib))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries stdlib ocamlcommon))

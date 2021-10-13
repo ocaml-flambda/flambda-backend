@@ -488,7 +488,10 @@ val cfunction : Cmm.fundecl -> Cmm.phrase
 val cdata : Cmm.data_item list -> Cmm.phrase
 
 (** Create the gc root table from a list of root symbols. *)
-val gc_root_table : string list -> Cmm.phrase
+val gc_root_table :
+  make_symbol:(?unitname:string -> string option -> string) ->
+  string list ->
+  Cmm.phrase
 
 (** Prepend constants that were populated in cmmgen_state (mostly by indirect
     use through functions from Cmm_helpers). *)

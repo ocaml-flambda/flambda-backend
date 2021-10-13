@@ -44,7 +44,7 @@ let rec simplify_expr dacc expr ~down_to_up =
     down_to_up dacc ~rebuild:EB.rebuild_invalid
 
 and simplify_toplevel dacc expr ~return_continuation ~return_arity
-    exn_continuation ~return_cont_scope ~exn_cont_scope =
+    ~exn_continuation ~return_cont_scope ~exn_cont_scope =
   (* The usage analysis needs a continuation whose handler holds the toplevel
      code of the function. Since such a continuation does not exist, we create a
      dummy one here. *)
@@ -77,8 +77,7 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
         in
         let ({ required_names; reachable_code_ids } : Data_flow.result) =
           Data_flow.analyze data_flow ~code_age_relation ~used_closure_vars
-            ~return_continuation
-            ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+            ~return_continuation ~exn_continuation
         in
         (* The code_id part of the data_flow analysis is correct only at
            toplevel where all the code_ids are, so when in a closure, we state
@@ -90,11 +89,12 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
           | Not_in_a_closure -> Known reachable_code_ids
         in
         let uenv =
-          UE.add_return_continuation UE.empty return_continuation
-            return_cont_scope return_arity
+          UE.add_function_return_or_exn_continuation UE.empty
+            return_continuation return_cont_scope return_arity
         in
         let uenv =
-          UE.add_exn_continuation uenv exn_continuation exn_cont_scope
+          UE.add_function_return_or_exn_continuation uenv exn_continuation
+            exn_cont_scope [K.With_subkind.any_value]
         in
         let uacc = UA.create ~required_names ~reachable_code_ids uenv dacc in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
@@ -105,7 +105,6 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
      [Simplify_set_of_closures]. *)
   Name_occurrences.fold_continuations_including_in_trap_actions
     (UA.name_occurrences uacc) ~init:() ~f:(fun () cont ->
-      let exn_continuation = Exn_continuation.exn_handler exn_continuation in
       if (not (Continuation.equal cont return_continuation))
          && not (Continuation.equal cont exn_continuation)
       then

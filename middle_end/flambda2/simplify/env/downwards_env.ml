@@ -19,7 +19,7 @@
 open! Flambda.Import
 module CSE = Common_subexpression_elimination
 module K = Flambda_kind
-module KP = Kinded_parameter
+module BP = Bound_parameter
 module T = Flambda_type
 module TE = Flambda_type.Typing_env
 
@@ -30,8 +30,7 @@ type get_imported_names = unit -> Name.Set.t
 type get_imported_code = unit -> Exported_code.t
 
 type t =
-  { backend : (module Flambda_backend_intf.S);
-    round : int;
+  { round : int;
     typing_env : TE.t;
     inlined_debuginfo : Debuginfo.t;
     can_inline : bool;
@@ -54,7 +53,7 @@ let print_debuginfo ppf dbg =
   then Format.pp_print_string ppf "None"
   else Debuginfo.print_compact ppf dbg
 
-let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
+let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
                 inlining_state; float_const_prop;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
@@ -97,12 +96,11 @@ let [@ocamlformat "disable"] print ppf { backend = _; round; typing_env;
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
 
-let create ~round ~backend ~(resolver : resolver)
+let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~float_const_prop
     ~unit_toplevel_exn_continuation ~unit_toplevel_return_continuation =
-  { backend;
-    round;
+  { round;
     typing_env = TE.create ~resolver ~get_imported_names;
     inlined_debuginfo = Debuginfo.none;
     can_inline = true;
@@ -121,8 +119,6 @@ let create ~round ~backend ~(resolver : resolver)
   }
 
 let resolver t = TE.resolver t.typing_env
-
-let backend t = t.backend
 
 let typing_env t = t.typing_env
 
@@ -184,8 +180,7 @@ let symbol_is_currently_being_defined t symbol =
 let symbols_currently_being_defined t = t.symbols_currently_being_defined
 
 let enter_set_of_closures
-    { backend;
-      round;
+    { round;
       typing_env;
       inlined_debuginfo = _;
       can_inline;
@@ -202,8 +197,7 @@ let enter_set_of_closures
       get_imported_code;
       all_code
     } =
-  { backend;
-    round;
+  { round;
     typing_env = TE.closure_env typing_env;
     inlined_debuginfo = Debuginfo.none;
     can_inline;
@@ -336,17 +330,17 @@ let add_equation_on_name t name ty =
 let define_parameters t ~params =
   List.fold_left
     (fun t param ->
-      let var = Bound_var.create (KP.var param) Name_mode.normal in
-      define_variable t var (K.With_subkind.kind (KP.kind param)))
+      let var = Bound_var.create (BP.var param) Name_mode.normal in
+      define_variable t var (K.With_subkind.kind (BP.kind param)))
     t params
 
 let define_parameters_as_bottom t ~params =
   List.fold_left
     (fun t param ->
-      let var = Bound_var.create (KP.var param) Name_mode.normal in
-      let kind = K.With_subkind.kind (KP.kind param) in
+      let var = Bound_var.create (BP.var param) Name_mode.normal in
+      let kind = K.With_subkind.kind (BP.kind param) in
       let t = define_variable t var kind in
-      add_equation_on_variable t (KP.var param) (T.bottom kind))
+      add_equation_on_variable t (BP.var param) (T.bottom kind))
     t params
 
 let add_parameters ?at_unit_toplevel t params ~param_types =
@@ -354,7 +348,7 @@ let add_parameters ?at_unit_toplevel t params ~param_types =
   then
     Misc.fatal_errorf
       "Mismatch between number of [params] and [param_types]:@ (%a)@ and@ %a"
-      Kinded_parameter.List.print params
+      Bound_parameter.List.print params
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       param_types;
   let at_unit_toplevel =
@@ -362,14 +356,14 @@ let add_parameters ?at_unit_toplevel t params ~param_types =
   in
   List.fold_left2
     (fun t param param_type ->
-      let var = Bound_var.create (KP.var param) Name_mode.normal in
+      let var = Bound_var.create (BP.var param) Name_mode.normal in
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
 let add_parameters_with_unknown_types' ?at_unit_toplevel t params =
   let param_types =
     ListLabels.map params ~f:(fun param ->
-        T.unknown_with_subkind (KP.kind param))
+        T.unknown_with_subkind (BP.kind param))
   in
   add_parameters ?at_unit_toplevel t params ~param_types, param_types
 
@@ -378,7 +372,7 @@ let add_parameters_with_unknown_types ?at_unit_toplevel t params =
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
-    Variable.Set.union t.variables_defined_at_toplevel (KP.List.var_set params)
+    Variable.Set.union t.variables_defined_at_toplevel (BP.List.var_set params)
   in
   { t with variables_defined_at_toplevel }
 
@@ -491,10 +485,10 @@ let are_rebuilding_terms t = not t.do_not_rebuild_terms
 
 let are_rebuilding_terms_to_bool are_rebuilding = are_rebuilding
 
-let enter_closure code_id return_continuation exn_continuation t =
+let enter_closure code_id ~return_continuation ~exn_continuation t =
   { t with
     closure_info =
-      Closure_info.in_a_closure code_id return_continuation exn_continuation
+      Closure_info.in_a_closure code_id ~return_continuation ~exn_continuation
   }
 
 let closure_info t = t.closure_info

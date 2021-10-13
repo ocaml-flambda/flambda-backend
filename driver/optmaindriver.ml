@@ -38,7 +38,7 @@ let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
 module Options = Main_args.Make_optcomp_options (Main_args.Default.Optmain)
 
-let main argv ppf ~flambda2_backend ~flambda2_to_cmm =
+let main argv ppf ~flambda2 =
   native_code := true;
   match
     Compenv.readenv ppf Before_args;
@@ -54,7 +54,7 @@ let main argv ppf ~flambda2_backend ~flambda2_to_cmm =
     begin try
       Compenv.process_deferred_actions
         (ppf,
-         Optcompile.implementation ~backend ~flambda2_backend ~flambda2_to_cmm,
+         Optcompile.implementation ~backend ~flambda2,
          Optcompile.interface,
          ".cmx",
          ".cmxa");
@@ -98,7 +98,7 @@ let main argv ppf ~flambda2_backend ~flambda2_to_cmm =
       Compmisc.with_ppf_dump ~file_prefix:target (fun ppf_dump ->
         Asmpackager.package_files ~ppf_dump (Compmisc.initial_env ())
           (Compenv.get_objfiles ~with_ocamlparam:false) target ~backend
-          ~flambda2_backend ~flambda2_to_cmm);
+          ~flambda2);
       Warnings.check_fatal ();
     end
     else if !shared then begin

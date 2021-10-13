@@ -234,7 +234,7 @@
   ; The driver should be in here too, but is not at present.  This might
   ; be tricky because it has a different name...
   )
- (libraries ocamlcommon stdlib flambda2))
+ (libraries ocamlcommon stdlib flambda2_identifiers flambda2_cmx))
 
 (executable
  (name flambda_backend_main)
@@ -256,8 +256,8 @@
   flambda_backend_driver
   memtrace
   flambda2
+  flambda2_ui
   flambda2_to_cmm
-  flambda2_backend_impl
   ocamloptcomp
   ocamlcommon
   stdlib)
@@ -277,8 +277,8 @@
   flambda_backend_driver
   memtrace
   flambda2
+  flambda2_ui
   flambda2_to_cmm
-  flambda2_backend_impl
   ocamloptcomp
   ocamlcommon
   stdlib
@@ -291,10 +291,24 @@
   (run
    %{dep:tools/merge_dot_a_files.sh}
    %{targets}
-   %{dep:middle_end/flambda2/flambda2.a}
-   %{dep:ocamloptcomp.a}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.a}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.a}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.a}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.a}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.a}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
+   %{dep:middle_end/flambda2/types/flambda2_types.a}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
-   %{dep:middle_end/flambda2/backend_intf/flambda2_backend_impl.a})))
+   %{dep:middle_end/flambda2/parser/flambda2_parser.a}
+   %{dep:ocamloptcomp.a}
+   %{dep:middle_end/flambda2/flambda2.a})))
 
 (rule
  (targets ocamloptcomp_with_flambda2.cmxa)
@@ -302,10 +316,24 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
-   %{dep:middle_end/flambda2/flambda2.cmxa}
-   %{dep:ocamloptcomp.cmxa}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cmxa}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.cmxa}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
+   %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
-   %{dep:middle_end/flambda2/backend_intf/flambda2_backend_impl.cmxa})))
+   %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
+   %{dep:ocamloptcomp.cmxa}
+   %{dep:middle_end/flambda2/flambda2.cmxa})))
 
 (install
  (files
@@ -615,9 +643,15 @@
   (.ocamloptcomp.objs/byte/cmm_helpers.cmti
    as
    compiler-libs/cmm_helpers.cmti)
-  (.ocamloptcomp.objs/byte/cmm_invariants.cmi as compiler-libs/cmm_invariants.cmi)
-  (.ocamloptcomp.objs/byte/cmm_invariants.cmo as compiler-libs/cmm_invariants.cmo)
-  (.ocamloptcomp.objs/byte/cmm_invariants.cmt as compiler-libs/cmm_invariants.cmt)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmi
+   as
+   compiler-libs/cmm_invariants.cmi)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmo
+   as
+   compiler-libs/cmm_invariants.cmo)
+  (.ocamloptcomp.objs/byte/cmm_invariants.cmt
+   as
+   compiler-libs/cmm_invariants.cmt)
   (.ocamloptcomp.objs/byte/cmm_invariants.cmti
    as
    compiler-libs/cmm_invariants.cmti)
@@ -826,10 +860,18 @@
   (.ocamloptcomp.objs/byte/x86_proc.cmo as compiler-libs/x86_proc.cmo)
   (.ocamloptcomp.objs/byte/x86_proc.cmt as compiler-libs/x86_proc.cmt)
   (.ocamloptcomp.objs/byte/x86_proc.cmti as compiler-libs/x86_proc.cmti)
-  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmi as compiler-libs/x86_binary_emitter.cmi)
-  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmo as compiler-libs/x86_binary_emitter.cmo)
-  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmt as compiler-libs/x86_binary_emitter.cmt)
-  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmti as compiler-libs/x86_binary_emitter.cmti)
+  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmi
+   as
+   compiler-libs/x86_binary_emitter.cmi)
+  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmo
+   as
+   compiler-libs/x86_binary_emitter.cmo)
+  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmt
+   as
+   compiler-libs/x86_binary_emitter.cmt)
+  (.ocamloptcomp.objs/byte/x86_binary_emitter.cmti
+   as
+   compiler-libs/x86_binary_emitter.cmti)
   (.ocamloptcomp.objs/byte/fdo_info.cmi as compiler-libs/fdo_info.cmi)
   (.ocamloptcomp.objs/byte/fdo_info.cmo as compiler-libs/fdo_info.cmo)
   (.ocamloptcomp.objs/byte/fdo_info.cmt as compiler-libs/fdo_info.cmt)
@@ -1056,7 +1098,9 @@
   (.ocamloptcomp.objs/native/x86_gas.cmx as compiler-libs/x86_gas.cmx)
   (.ocamloptcomp.objs/native/x86_masm.cmx as compiler-libs/x86_masm.cmx)
   (.ocamloptcomp.objs/native/x86_proc.cmx as compiler-libs/x86_proc.cmx)
-  (.ocamloptcomp.objs/native/x86_binary_emitter.cmx as compiler-libs/x86_binary_emitter.cmx)
+  (.ocamloptcomp.objs/native/x86_binary_emitter.cmx
+   as
+   compiler-libs/x86_binary_emitter.cmx)
   (.ocamloptcomp.objs/native/fdo_info.cmx as compiler-libs/fdo_info.cmx)
   (.ocamloptcomp.objs/native/cfg.cmx as compiler-libs/cfg.cmx)
   (.ocamloptcomp.objs/native/cfg_intf.cmx as compiler-libs/cfg_intf.cmx)
@@ -1095,18 +1139,24 @@
   (.ocamloptcomp.objs/native/cfg_equivalence.cmx
    as
    compiler-libs/cfg_equivalence.cmx)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmi as compiler-libs/flambda2.cmi)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmt as compiler-libs/flambda2.cmt)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_middle_end.cmi as compiler-libs/flambda2__Flambda_middle_end.cmi)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_middle_end.cmt as compiler-libs/flambda2__Flambda_middle_end.cmt)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_backend_intf.cmi as compiler-libs/flambda2__Flambda_backend_intf.cmi)
-   (middle_end/flambda2/.flambda2.objs/byte/flambda2__Flambda_backend_intf.cmti as compiler-libs/flambda2__Flambda_backend_intf.cmti)
-   (middle_end/flambda2/backend_intf/.flambda2_backend_impl.objs/byte/flambda2_backend_impl.cmi as compiler-libs/flambda2_backend_impl.cmi)
-   (middle_end/flambda2/backend_intf/.flambda2_backend_impl.objs/byte/flambda2_backend_impl.cmt as compiler-libs/flambda2_backend_impl.cmt)
-   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmi as compiler-libs/flambda2_to_cmm.cmi)
-   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmt as compiler-libs/flambda2_to_cmm.cmt)
-   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmi as compiler-libs/flambda2_to_cmm__To_cmm.cmi)
-   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmt as compiler-libs/flambda2_to_cmm__To_cmm.cmt)))
+  (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmi
+   as
+   compiler-libs/flambda2.cmi)
+  (middle_end/flambda2/.flambda2.objs/byte/flambda2.cmt
+   as
+   compiler-libs/flambda2.cmt)
+  (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmi
+   as
+   compiler-libs/flambda2_to_cmm.cmi)
+  (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm.cmt
+   as
+   compiler-libs/flambda2_to_cmm.cmt)
+  (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmi
+   as
+   compiler-libs/flambda2_to_cmm__To_cmm.cmi)
+  (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmt
+   as
+   compiler-libs/flambda2_to_cmm__To_cmm.cmt)))
 
 (install
  (section lib)

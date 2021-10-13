@@ -38,7 +38,7 @@ type simplify_toplevel =
   Expr.t ->
   return_continuation:Continuation.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
-  Exn_continuation.t ->
+  exn_continuation:Continuation.t ->
   return_cont_scope:Scope.t ->
   exn_cont_scope:Scope.t ->
   Rebuilt_expr.t * Upwards_acc.t

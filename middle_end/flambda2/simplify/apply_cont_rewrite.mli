@@ -32,20 +32,20 @@ val print : Format.formatter -> t -> unit
 (** [extra_args] (and hence [extra_params]) must be given in order: later
     extra-args may refer to earlier extra-args, but not vice-versa. *)
 val create :
-  original_params:Kinded_parameter.t list ->
-  used_params:Kinded_parameter.Set.t ->
-  extra_params:Kinded_parameter.t list ->
+  original_params:Bound_parameter.t list ->
+  used_params:Bound_parameter.Set.t ->
+  extra_params:Bound_parameter.t list ->
   extra_args:
     Continuation_extra_params_and_args.Extra_arg.t list
     Apply_cont_rewrite_id.Map.t ->
-  used_extra_params:Kinded_parameter.Set.t ->
+  used_extra_params:Bound_parameter.Set.t ->
   t
 
-val original_params : t -> Kinded_parameter.t list
+val original_params : t -> Bound_parameter.t list
 
-val used_params : t -> Kinded_parameter.Set.t
+val used_params : t -> Bound_parameter.Set.t
 
-val used_extra_params : t -> Kinded_parameter.t list
+val used_extra_params : t -> Bound_parameter.t list
 
 val extra_args :
   t ->

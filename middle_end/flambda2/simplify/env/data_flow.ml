@@ -649,7 +649,7 @@ module Dependency_graph = struct
             (fun _ extra_args t ->
               List.fold_left2
                 (fun t extra_param extra_arg ->
-                  let src = Name.var (Kinded_parameter.var extra_param) in
+                  let src = Name.var (Bound_parameter.var extra_param) in
                   match
                     (extra_arg : Continuation_extra_params_and_args.Extra_arg.t)
                   with

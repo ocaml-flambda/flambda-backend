@@ -46,7 +46,7 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
     for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> t
 
-val add_definitions_of_params : t -> params:Kinded_parameter.t list -> t
+val add_definitions_of_params : t -> params:Bound_parameter.t list -> t
 
 val add_symbol_definition : t -> Symbol.t -> t
 
@@ -57,10 +57,10 @@ val add_symbol_projection : t -> Variable.t -> Symbol_projection.t -> t
 val find_symbol_projection : t -> Variable.t -> Symbol_projection.t option
 
 val add_equations_on_params :
-  t -> params:Kinded_parameter.t list -> param_types:Type_grammar.t list -> t
+  t -> params:Bound_parameter.t list -> param_types:Type_grammar.t list -> t
 
 val meet_equations_on_params :
-  t -> params:Kinded_parameter.t list -> param_types:Type_grammar.t list -> t
+  t -> params:Bound_parameter.t list -> param_types:Type_grammar.t list -> t
 
 (** If the kind of the name is known, it should be specified, otherwise it can
     be omitted. Such omission will cause an error if the name satisfies
@@ -69,7 +69,7 @@ val find : t -> Name.t -> Flambda_kind.t option -> Type_grammar.t
 
 val find_or_missing : t -> Name.t -> Type_grammar.t option
 
-val find_params : t -> Kinded_parameter.t list -> Type_grammar.t list
+val find_params : t -> Bound_parameter.t list -> Type_grammar.t list
 
 val variable_is_from_missing_cmx_file : t -> Name.t -> bool
 
@@ -122,7 +122,7 @@ val with_code_age_relation : t -> Code_age_relation.t -> t
 val cut_and_n_way_join :
   t ->
   (t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
-  params:Kinded_parameter.t list ->
+  params:Bound_parameter.t list ->
   unknown_if_defined_at_or_later_than:Scope.t ->
   extra_lifted_consts_in_use_envs:Symbol.Set.t ->
   extra_allowed_names:Name_occurrences.t ->

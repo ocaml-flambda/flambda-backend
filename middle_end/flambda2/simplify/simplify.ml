@@ -16,12 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR mshinwell: Fix warning 60 *)
-[@@@ocaml.warning "-60"]
-
 open! Simplify_import
-
-(* -- module rec binding here -- *)
 
 type simplify_result =
   { cmx : Flambda_cmx_format.t option;
@@ -29,22 +24,29 @@ type simplify_result =
     all_code : Exported_code.t
   }
 
-let predefined_exception_typing_env ~backend ~resolver ~get_imported_names =
-  let module Backend = (val backend : Flambda_backend_intf.S) in
+let all_predefined_exception_symbols ~symbol_for_global =
+  Predef.all_predef_exns
+  |> List.map (fun ident ->
+         symbol_for_global
+           ?comp_unit:(Some (Compilation_unit.predefined_exception ()))
+           ident)
+  |> Symbol.Set.of_list
+
+let predefined_exception_typing_env ~symbol_for_global ~resolver
+    ~get_imported_names =
   let comp_unit = Compilation_unit.get_current_exn () in
   Compilation_unit.set_current (Compilation_unit.predefined_exception ());
   let typing_env =
     Symbol.Set.fold
       (fun sym typing_env ->
         TE.add_definition typing_env (Bound_name.symbol sym) K.value)
-      Backend.all_predefined_exception_symbols
+      (all_predefined_exception_symbols ~symbol_for_global)
       (TE.create ~resolver ~get_imported_names)
   in
   Compilation_unit.set_current comp_unit;
   typing_env
 
-let run ~backend ~round unit =
-  let module Backend = (val backend : Flambda_backend_intf.S) in
+let run ~symbol_for_global ~get_global_info ~round unit =
   let return_continuation = FU.return_continuation unit in
   let exn_continuation = FU.exn_continuation unit in
   let module_symbol = FU.module_symbol unit in
@@ -52,13 +54,14 @@ let run ~backend ~round unit =
   let imported_code = ref Exported_code.empty in
   let imported_units = ref Compilation_unit.Map.empty in
   let resolver comp_unit =
-    Flambda_cmx.load_cmx_file_contents backend comp_unit ~imported_names
-      ~imported_code ~imported_units
+    Flambda_cmx.load_cmx_file_contents ~get_global_info comp_unit
+      ~imported_names ~imported_code ~imported_units
   in
   let get_imported_names () = !imported_names in
   let get_imported_code () = !imported_code in
   let predefined_exception_typing_env =
-    predefined_exception_typing_env ~backend ~resolver ~get_imported_names
+    predefined_exception_typing_env ~symbol_for_global ~resolver
+      ~get_imported_names
   in
   imported_units
     := Compilation_unit.Map.add
@@ -68,7 +71,7 @@ let run ~backend ~round unit =
     := Name.Set.union !imported_names
          (TE.name_domain predefined_exception_typing_env);
   let denv =
-    DE.create ~round ~backend ~resolver ~get_imported_names ~get_imported_code
+    DE.create ~round ~resolver ~get_imported_names ~get_imported_code
       ~float_const_prop:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation
@@ -79,11 +82,8 @@ let run ~backend ~round unit =
   let denv = DE.increment_continuation_scope_level denv in
   let dacc = DA.create denv Continuation_uses_env.empty in
   let body, uacc =
-    let exn_continuation =
-      Exn_continuation.create ~exn_handler:exn_continuation ~extra_args:[]
-    in
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
-      ~return_arity:[K.With_subkind.any_value] exn_continuation
+      ~return_arity:[K.With_subkind.any_value] ~exn_continuation
       ~return_cont_scope ~exn_cont_scope
   in
   let body = Rebuilt_expr.to_expr body (UA.are_rebuilding_terms uacc) in
@@ -96,7 +96,11 @@ let run ~backend ~round unit =
              term:@ %a"
             Variable.print var Expr.print body)
         ~symbol:(fun _symbol -> ()));
-  let return_cont_env = DA.continuation_uses_env (UA.creation_dacc uacc) in
+  let final_typing_env =
+    let cont_uses_env = DA.continuation_uses_env (UA.creation_dacc uacc) in
+    Continuation_uses_env.get_typing_env_no_more_than_one_use cont_uses_env
+      return_continuation
+  in
   let all_code =
     Exported_code.merge (UA.all_code uacc)
       (Exported_code.mark_as_imported !imported_code)
@@ -105,8 +109,8 @@ let run ~backend ~round unit =
     UA.name_occurrences uacc |> Name_occurrences.closure_vars
   in
   let cmx =
-    Flambda_cmx.prepare_cmx_file_contents ~return_cont_env ~return_continuation
-      ~module_symbol ~used_closure_vars all_code
+    Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
+      ~used_closure_vars all_code
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~module_symbol ~body

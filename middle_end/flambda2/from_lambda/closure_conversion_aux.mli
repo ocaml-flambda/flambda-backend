@@ -81,7 +81,7 @@ end
 module Env : sig
   type t
 
-  val empty : backend:(module Flambda_backend_intf.S) -> t
+  val create : symbol_for_global:(Ident.t -> Symbol.t) -> big_endian:bool -> t
 
   val clear_local_bindings : t -> t
 
@@ -116,18 +116,18 @@ module Env : sig
 
   val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
 
-  val backend : t -> (module Flambda_backend_intf.S)
-
   val current_unit_id : t -> Ident.t
 
-  val symbol_for_global' : t -> Ident.t -> Symbol.t
+  val symbol_for_global : t -> Ident.t -> Symbol.t
+
+  val big_endian : t -> bool
 end
 
 (** Used to pipe some data through closure conversion *)
 module Acc : sig
   type t
 
-  val empty : t
+  val create : symbol_for_global:(Ident.t -> Symbol.t) -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
@@ -173,6 +173,8 @@ module Acc : sig
      in acc *)
   val measure_cost_metrics :
     t -> f:(t -> t * 'a) -> Cost_metrics.t * Name_occurrences.t * t * 'a
+
+  val symbol_for_global : t -> Ident.t -> Symbol.t
 end
 
 (** Used to represent information about a set of function declarations during
@@ -279,7 +281,7 @@ module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
     handlers:
-      ((Acc.t -> Acc.t * Expr_with_acc.t) * Kinded_parameter.t list * bool)
+      ((Acc.t -> Acc.t * Expr_with_acc.t) * Bound_parameter.t list * bool)
       Continuation.Map.t ->
     body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     Acc.t * Expr_with_acc.t
@@ -287,7 +289,7 @@ module Let_cont_with_acc : sig
   val build_non_recursive :
     Acc.t ->
     Continuation.t ->
-    handler_params:Kinded_parameter.t list ->
+    handler_params:Bound_parameter.t list ->
     handler:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     is_exn_handler:bool ->
