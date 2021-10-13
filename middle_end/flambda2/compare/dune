@@ -12,5 +12,5 @@
    -open
    Flambda2_algorithms))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O2))
  (libraries stdlib ocamlcommon flambda2_algorithms flambda2_terms))

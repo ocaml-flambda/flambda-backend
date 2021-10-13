@@ -6,5 +6,5 @@
  (flags
   (:standard -principal -nostdlib))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O2))
  (libraries stdlib ocamlcommon))

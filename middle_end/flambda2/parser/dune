@@ -117,7 +117,7 @@
    -open
    Flambda2_nominal))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O2))
  (modules
   (:standard \ flambda_parser_in))
  ; ignore inputs to sed

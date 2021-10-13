@@ -20,7 +20,7 @@
    -open
    Flambda2_numbers))
  (ocamlopt_flags
-  (:standard -O3))
+  (:standard -O2))
  (libraries
   stdlib
   ocamlcommon
