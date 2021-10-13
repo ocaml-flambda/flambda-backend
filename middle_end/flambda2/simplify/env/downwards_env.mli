@@ -185,11 +185,7 @@ val set_do_not_rebuild_terms_and_disable_inlining : t -> t
 
 val set_rebuild_terms : t -> t
 
-type are_rebuilding_terms
-
-val are_rebuilding_terms : t -> are_rebuilding_terms
-
-val are_rebuilding_terms_to_bool : are_rebuilding_terms -> bool
+val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val enter_closure :
   Code_id.t ->
@@ -207,3 +203,11 @@ val set_inlining_arguments : Inlining_arguments.t -> t -> t
 val enter_inlined_apply : called_code:Code.t -> apply:Apply.t -> t -> t
 
 val generate_phantom_lets : t -> bool
+
+val inlining_history_tracker : t -> Inlining_history.Tracker.t
+
+val set_inlining_history_tracker : Inlining_history.Tracker.t -> t -> t
+
+val relative_history : t -> Inlining_history.Relative.t
+
+val inlining_depth : t -> int

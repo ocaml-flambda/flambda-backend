@@ -24,6 +24,8 @@ val from_size : Code_size.t -> t
 
 val size : t -> Code_size.t
 
+val removed : t -> Removed_operations.t
+
 val print : Format.formatter -> t -> unit
 
 val ( + ) : t -> t -> t

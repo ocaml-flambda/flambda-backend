@@ -173,6 +173,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply)
+      ~relative_history:(Apply.relative_history apply)
   in
   let perform_over_application_free_names =
     Apply.free_names perform_over_application

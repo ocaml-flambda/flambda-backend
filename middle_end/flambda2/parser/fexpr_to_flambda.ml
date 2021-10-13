@@ -825,6 +825,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
             ~inlining_decision:Never_inline_attribute
+            ~absolute_history:(Inlining_history.Absolute.empty ())
+            ~relative_history:Inlining_history.Relative.empty
         in
         Flambda.Static_const_or_code.create_code code
     in
@@ -903,6 +905,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
+        ~relative_history:Inlining_history.Relative.empty
     in
     Flambda.Expr.create_apply apply
   | Invalid { message } -> Flambda.Expr.create_invalid (Message message)

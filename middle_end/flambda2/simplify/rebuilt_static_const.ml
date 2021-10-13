@@ -59,7 +59,7 @@ let create_code are_rebuilding code_id ~params_and_body
     ~num_trailing_local_params ~result_arity ~result_types
     ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
     ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision =
+    ~inlining_decision ~absolute_history ~relative_history =
   if ART.do_not_rebuild_terms are_rebuilding
   then
     let non_constructed_code =
@@ -67,7 +67,8 @@ let create_code are_rebuilding code_id ~params_and_body
         ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
         ~result_types ~contains_no_escaping_local_allocs ~stub ~inline
         ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-        ~is_tupled ~is_my_closure_used ~inlining_decision
+        ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
+        ~relative_history
     in
     Code_not_rebuilt non_constructed_code
   else
@@ -80,7 +81,8 @@ let create_code are_rebuilding code_id ~params_and_body
         ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
         ~result_types ~contains_no_escaping_local_allocs ~stub ~inline
         ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-        ~is_tupled ~is_my_closure_used ~inlining_decision
+        ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
+        ~relative_history
     in
     Normal
       { const = Static_const_or_code.create_code code;
@@ -342,7 +344,9 @@ module Group = struct
                ~inlining_arguments:(NCC.inlining_arguments code)
                ~dbg:(NCC.dbg code) ~is_tupled:(NCC.is_tupled code)
                ~is_my_closure_used:(NCC.is_my_closure_used code)
-               ~inlining_decision:(NCC.inlining_decision code)))
+               ~inlining_decision:(NCC.inlining_decision code)
+               ~absolute_history:(NCC.absolute_history code)
+               ~relative_history:(NCC.relative_history code)))
     |> List.map (fun code -> Code.code_id code, code)
     |> Code_id.Map.of_list
 

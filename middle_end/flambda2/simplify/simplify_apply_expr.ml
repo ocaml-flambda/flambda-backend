@@ -79,6 +79,9 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     match over_application_args with
     | [] -> Expr.create_apply apply
     | _ ->
+      (* [apply] already got a correct relative_history and
+         [split_direct_over_application] infers the relative history from the
+         one on [apply] so there's nothing to do here. *)
       Simplify_common.split_direct_over_application apply ~param_arity
         ~result_arity ~apply_alloc_mode ~contains_no_escaping_local_allocs
   in
@@ -124,8 +127,8 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   after_rebuild expr uacc
 
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
-    ~callee's_code_id ~params_arity ~result_arity ~result_types ~down_to_up
-    ~coming_from_indirect =
+    ~params_arity ~result_arity ~result_types ~down_to_up ~coming_from_indirect
+    ~callee's_code_metadata =
   let inlined =
     (* CR mshinwell for poechsel: Make sure no other warnings or inlining report
        decisions get emitted when not rebuilding terms. *)
@@ -133,13 +136,19 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
         ~function_type ~return_arity:result_arity
     in
-    if not (DA.do_not_rebuild_terms dacc)
+    let unrolling_depth =
+      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
+        (Call_site_inlining_decision.get_rec_info dacc ~function_type)
+    in
+    if Are_rebuilding_terms.are_rebuilding
+         (DE.are_rebuilding_terms (DA.denv dacc))
     then
-      Inlining_report.record_decision
-        (At_call_site
-           (Known_function
-              { code_id = Code_id.export callee's_code_id; decision }))
-        ~dbg:(DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply));
+      Inlining_report.record_decision_at_call_site_for_known_function
+        ~pass:Inlining_report.Before_simplify ~unrolling_depth
+        ~callee:(Code_metadata.absolute_history callee's_code_metadata)
+        ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
+        ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
+        ~apply decision;
     match Call_site_inlining_decision_type.can_inline decision with
     | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
       (* emission of the warning at this point should not happen, if it does,
@@ -394,11 +403,19 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       let args =
         List.map arg applied_args @ List.map BP.simple remaining_params
       in
+
+      (* Under-applications are converted in full applications. Let's assume
+         that [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
+         let foo_partial x y z = foo a b c x y z in foo_partial
+
+         The call to [foo] as an empty relative history as it was defined right
+         after [foo_partial]. The definition of [foo_partial] will inherit the
+         relative history of the original code. *)
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
-          ~probe_name:None
+          ~probe_name:None ~relative_history:Inlining_history.Relative.empty
       in
       let cost_metrics =
         Cost_metrics.from_size (Code_size.apply full_application)
@@ -445,11 +462,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         remaining_params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
     in
-    let code_id =
-      Code_id.create
-        ~name:(Closure_id.to_string callee's_closure_id ^ "_partial")
-        (Compilation_unit.get_current_exn ())
+    let name = Closure_id.to_string callee's_closure_id ^ "_partial" in
+    let absolute_history, relative_history =
+      DE.inlining_history_tracker (DA.denv dacc)
+      |> Inlining_history.Tracker.fundecl
+           ~function_relative_history:Inlining_history.Relative.empty ~dbg ~name
     in
+    let code_id = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
     let code : Static_const_or_code.t =
       let code =
         Code.create code_id ~params_and_body
@@ -462,7 +481,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~dbg ~is_tupled:false
           ~is_my_closure_used:
             (Function_params_and_body.is_my_closure_used params_and_body)
-          ~inlining_decision:Stub
+          ~inlining_decision:Stub ~absolute_history ~relative_history
       in
       Static_const_or_code.create_code code
     in
@@ -638,8 +657,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       if provided_num_args = num_params
       then
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
-          ~callee's_code_id ~params_arity ~result_arity ~result_types
-          ~down_to_up ~coming_from_indirect
+          ~params_arity ~result_arity ~result_types ~down_to_up
+          ~coming_from_indirect ~callee's_code_metadata
       else if provided_num_args > num_params
       then
         simplify_direct_over_application ~simplify_expr dacc apply
@@ -686,8 +705,12 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
     | Return continuation -> continuation
   in
   let denv = DA.denv dacc in
-  Inlining_report.record_decision (At_call_site Unknown_function)
-    ~dbg:(DE.add_inlined_debuginfo denv (Apply.dbg apply));
+  if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
+  then
+    Inlining_report.record_decision_at_call_site_for_unknown_function
+      ~pass:Inlining_report.Before_simplify
+      ~tracker:(DE.inlining_history_tracker denv)
+      ~apply ();
   let env_at_use = denv in
   let dacc = record_free_names_of_apply_as_used dacc apply in
   let dacc, exn_cont_use_id =
@@ -879,6 +902,10 @@ let simplify_apply_shared dacc apply =
       (DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply))
       ~inlined:(Apply.inlined apply) ~inlining_state
       ~probe_name:(Apply.probe_name apply)
+      ~relative_history:
+        (Inlining_history.Relative.concat
+           (DE.relative_history (DA.denv dacc))
+           (Apply.relative_history apply))
   in
   dacc, callee_ty, apply, arg_types
 

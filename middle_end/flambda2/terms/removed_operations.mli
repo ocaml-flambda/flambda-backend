@@ -16,7 +16,15 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t
+type t = private
+  { call : int;
+    alloc : int;
+    prim : int;
+    branch : int;
+    direct_call_of_indirect : int;
+    specialized_poly_compare : int;
+    requested_inline : int
+  }
 
 val zero : t
 

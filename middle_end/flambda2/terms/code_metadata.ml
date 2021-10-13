@@ -33,7 +33,9 @@ type t =
     dbg : Debuginfo.t;
     is_tupled : bool;
     is_my_closure_used : bool;
-    inlining_decision : Function_decl_inlining_decision_type.t
+    inlining_decision : Function_decl_inlining_decision_type.t;
+    absolute_history : Inlining_history.Absolute.t;
+    relative_history : Inlining_history.Relative.t
   }
 
 let code_id { code_id; _ } = code_id
@@ -78,10 +80,15 @@ let inlining_decision { inlining_decision; _ } = inlining_decision
 let contains_no_escaping_local_allocs { contains_no_escaping_local_allocs; _ } =
   contains_no_escaping_local_allocs
 
+let absolute_history { absolute_history; _ } = absolute_history
+
+let relative_history { relative_history; _ } = relative_history
+
 let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     ~result_arity ~result_types ~contains_no_escaping_local_allocs ~stub
     ~(inline : Inline_attribute.t) ~is_a_functor ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
+    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision
+    ~absolute_history ~relative_history =
   begin
     match stub, inline with
     | true, (Available_inline | Never_inline | Default_inline)
@@ -115,7 +122,9 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
     dbg;
     is_tupled;
     is_my_closure_used;
-    inlining_decision
+    inlining_decision;
+    absolute_history;
+    relative_history
   }
 
 let with_code_id code_id t = { t with code_id }
@@ -138,7 +147,7 @@ let [@ocamlformat "disable"] print ppf
         params_arity; num_trailing_local_params; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
-        dbg; is_tupled; is_my_closure_used; inlining_decision; } =
+        dbg; is_tupled; is_my_closure_used; inlining_decision; absolute_history; relative_history} =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
@@ -156,7 +165,9 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      @[<hov 1>(inlining_decision@ %a)@]\
+      @[<hov 1>(inlining_decision@ %a)@]@ \
+      @[<hov 1>(absolute_history@ %a)@]@ \
+      @[<hov 1>(relative_history@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide ()
     else Flambda_colours.normal ())
@@ -211,6 +222,8 @@ let [@ocamlformat "disable"] print ppf
     (Flambda_colours.normal ())
     is_my_closure_used
     Function_decl_inlining_decision_type.print inlining_decision
+    Inlining_history.Absolute.print absolute_history
+    Inlining_history.Relative.print relative_history
 
 let free_names
     { code_id = _;
@@ -229,7 +242,9 @@ let free_names
       dbg = _;
       is_tupled = _;
       is_my_closure_used = _;
-      inlining_decision = _
+      inlining_decision = _;
+      absolute_history = _;
+      relative_history = _
     } =
   (* [code_id] is only in [t.code_metadata] for the use of [compare]; it doesn't
      count as a free name. *)
@@ -262,7 +277,9 @@ let apply_renaming
        dbg = _;
        is_tupled = _;
        is_my_closure_used = _;
-       inlining_decision = _
+       inlining_decision = _;
+       absolute_history = _;
+       relative_history = _
      } as t) perm =
   (* inlined and modified version of Option.map to preserve sharing *)
   let newer_version_of' =
@@ -302,7 +319,9 @@ let all_ids_for_export
       dbg = _;
       is_tupled = _;
       is_my_closure_used = _;
-      inlining_decision = _
+      inlining_decision = _;
+      absolute_history = _;
+      relative_history = _
     } =
   let ids =
     let newer_version_of_ids =
@@ -331,7 +350,9 @@ let approx_equal
       dbg = dbg1;
       is_tupled = is_tupled1;
       is_my_closure_used = is_my_closure_used1;
-      inlining_decision = inlining_decision1
+      inlining_decision = inlining_decision1;
+      absolute_history = absolute_history1;
+      relative_history = relative_history1
     }
     { code_id = code_id2;
       newer_version_of = newer_version_of2;
@@ -349,7 +370,9 @@ let approx_equal
       dbg = dbg2;
       is_tupled = is_tupled2;
       is_my_closure_used = is_my_closure_used2;
-      inlining_decision = inlining_decision2
+      inlining_decision = inlining_decision2;
+      absolute_history = absolute_history2;
+      relative_history = relative_history2
     } =
   Code_id.equal code_id1 code_id2
   && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
@@ -369,6 +392,8 @@ let approx_equal
   && Bool.equal is_my_closure_used1 is_my_closure_used2
   && Function_decl_inlining_decision_type.equal inlining_decision1
        inlining_decision2
+  && Inlining_history.Absolute.compare absolute_history1 absolute_history2 = 0
+  && Inlining_history.Relative.compare relative_history1 relative_history2 = 0
 
 let map_result_types ({ result_types; _ } as t) ~f =
   { t with result_types = Result_types.map_result_types result_types ~f }

@@ -15,10 +15,12 @@
 (**************************************************************************)
 
 module Acc = Closure_conversion_aux.Acc
+module Env = Closure_conversion_aux.Env
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
 val convert_and_bind :
   Acc.t ->
+  Env.t ->
   big_endian:bool ->
   Exn_continuation.t option ->
   register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->

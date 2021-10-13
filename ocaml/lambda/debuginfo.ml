@@ -29,7 +29,7 @@ module Scoped_location = struct
 
   type scopes =
     | Empty
-    | Cons of {item: scope_item; str: string; str_fun: string}
+    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
 
   let str = function
     | Empty -> ""
@@ -39,8 +39,8 @@ module Scoped_location = struct
     | Empty -> "(fun)"
     | Cons r -> r.str_fun
 
-  let cons item str =
-    Cons {item; str; str_fun = str ^ ".(fun)"}
+  let cons scopes item str name =
+    Cons {item; str; str_fun = str ^ ".(fun)"; name; prev = scopes}
 
   let empty_scopes = Empty
 
@@ -63,16 +63,16 @@ module Scoped_location = struct
 
   let enter_anonymous_function ~scopes =
     let str = str_fun scopes in
-    Cons {item = Sc_anonymous_function; str; str_fun = str}
+    Cons {item = Sc_anonymous_function; str; str_fun = str; name = ""; prev = scopes}
 
   let enter_value_definition ~scopes id =
-    cons Sc_value_definition (dot scopes (Ident.name id))
+    cons scopes Sc_value_definition (dot scopes (Ident.name id)) (Ident.name id)
 
   let enter_module_definition ~scopes id =
-    cons Sc_module_definition (dot scopes (Ident.name id))
+    cons scopes Sc_module_definition (dot scopes (Ident.name id)) (Ident.name id)
 
   let enter_class_definition ~scopes id =
-    cons Sc_class_definition (dot scopes (Ident.name id))
+    cons scopes Sc_class_definition (dot scopes (Ident.name id)) (Ident.name id)
 
   let enter_method_definition ~scopes (s : Asttypes.label) =
     let str =
@@ -80,12 +80,12 @@ module Scoped_location = struct
       | Cons {item = Sc_class_definition; _} -> dot ~sep:"#" scopes s
       | _ -> dot scopes s
     in
-    cons Sc_method_definition str
+    cons scopes Sc_method_definition str s
 
-  let enter_lazy ~scopes = cons Sc_lazy (str scopes)
-
+  let enter_lazy ~scopes = cons scopes Sc_lazy (str scopes) ""
+  
   let enter_partial_or_eta_wrapper ~scopes =
-    cons Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)")
+    cons scopes Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)") ""
 
   let string_of_scopes = function
     | Empty -> "<unknown>"

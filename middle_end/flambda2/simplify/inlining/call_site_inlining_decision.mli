@@ -25,3 +25,8 @@ val make_decision :
   apply:Apply.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   Call_site_inlining_decision_type.t
+
+val get_rec_info :
+  Downwards_acc.t ->
+  function_type:Flambda2_types.Function_type.t ->
+  Rec_info_expr.t

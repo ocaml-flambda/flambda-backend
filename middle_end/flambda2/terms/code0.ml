@@ -65,6 +65,10 @@ let inlining_decision t = Code_metadata.inlining_decision t.code_metadata
 let contains_no_escaping_local_allocs t =
   Code_metadata.contains_no_escaping_local_allocs t.code_metadata
 
+let absolute_history t = Code_metadata.absolute_history t.code_metadata
+
+let relative_history t = Code_metadata.relative_history t.code_metadata
+
 let check_free_names_of_params_and_body ~print_function_params_and_body code_id
     ~params_and_body ~free_names_of_params_and_body =
   if not
@@ -81,7 +85,7 @@ let create ~print_function_params_and_body code_id ~params_and_body
     ~num_trailing_local_params ~result_arity ~result_types
     ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
     ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision =
+    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history =
   begin
     match stub, inline with
     | true, (Available_inline | Never_inline | Default_inline)
@@ -100,7 +104,7 @@ let create ~print_function_params_and_body code_id ~params_and_body
       ~num_trailing_local_params ~result_arity ~result_types
       ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
       ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-      ~inlining_decision
+      ~inlining_decision ~absolute_history ~relative_history
   in
   { params_and_body; free_names_of_params_and_body; code_metadata }
 

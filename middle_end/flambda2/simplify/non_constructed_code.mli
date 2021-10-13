@@ -57,6 +57,10 @@ val inlining_decision : t -> Function_decl_inlining_decision_type.t
 
 val contains_no_escaping_local_allocs : t -> bool
 
+val absolute_history : t -> Inlining_history.Absolute.t
+
+val relative_history : t -> Inlining_history.Relative.t
+
 val create :
   Code_id.t ->
   free_names_of_params_and_body:Name_occurrences.t ->
@@ -76,6 +80,8 @@ val create :
   is_tupled:bool ->
   is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
+  absolute_history:Inlining_history.Absolute.t ->
+  relative_history:Inlining_history.Relative.t ->
   t
 
 include Contains_names.S with type t := t

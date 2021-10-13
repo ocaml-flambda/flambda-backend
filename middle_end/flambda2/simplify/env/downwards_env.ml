@@ -44,7 +44,8 @@ type t =
     do_not_rebuild_terms : bool;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
-    all_code : Code.t Code_id.Map.t
+    all_code : Code.t Code_id.Map.t;
+    inlining_history_tracker : Inlining_history.Tracker.t
   }
 
 let print_debuginfo ppf dbg =
@@ -59,7 +60,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 variables_defined_at_toplevel; cse;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
-                get_imported_code = _;
+                get_imported_code = _; inlining_history_tracker = _;
               } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(round@ %d)@]@ \
@@ -110,7 +111,8 @@ let create ~round ~(resolver : resolver)
     do_not_rebuild_terms = false;
     closure_info = Closure_info.not_in_a_closure;
     all_code = Code_id.Map.empty;
-    get_imported_code
+    get_imported_code;
+    inlining_history_tracker = Inlining_history.Tracker.empty ()
   }
 
 let all_code t = t.all_code
@@ -144,6 +146,14 @@ let get_inlining_state t = t.inlining_state
 
 let set_inlining_state t inlining_state = { t with inlining_state }
 
+let inlining_history_tracker t = t.inlining_history_tracker
+
+let relative_history t =
+  Inlining_history.Tracker.relative t.inlining_history_tracker
+
+let set_inlining_history_tracker inlining_history_tracker t =
+  { t with inlining_history_tracker }
+
 let increment_continuation_scope t =
   { t with typing_env = TE.increment_scope t.typing_env }
 
@@ -165,7 +175,8 @@ let enter_set_of_closures
       do_not_rebuild_terms;
       closure_info = _;
       get_imported_code;
-      all_code
+      all_code;
+      inlining_history_tracker
     } =
   { round;
     typing_env = TE.closure_env typing_env;
@@ -181,7 +192,8 @@ let enter_set_of_closures
     do_not_rebuild_terms;
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
-    all_code
+    all_code;
+    inlining_history_tracker
   }
 
 let define_variable t var kind =
@@ -448,11 +460,8 @@ let set_do_not_rebuild_terms_and_disable_inlining t =
 
 let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 
-type are_rebuilding_terms = bool
-
-let are_rebuilding_terms t = not t.do_not_rebuild_terms
-
-let are_rebuilding_terms_to_bool are_rebuilding = are_rebuilding
+let are_rebuilding_terms t =
+  Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
 
 let enter_closure code_id ~return_continuation ~exn_continuation t =
   { t with
@@ -464,6 +473,8 @@ let closure_info t = t.closure_info
 
 let inlining_arguments { inlining_state; _ } =
   Inlining_state.arguments inlining_state
+
+let inlining_depth { inlining_state; _ } = Inlining_state.depth inlining_state
 
 let set_inlining_arguments arguments t =
   { t with
@@ -480,7 +491,13 @@ let enter_inlined_apply ~called_code ~apply t =
     inlined_debuginfo = Apply.dbg apply;
     inlining_state =
       t.inlining_state |> Inlining_state.increment_depth
-      |> Inlining_state.with_arguments arguments
+      |> Inlining_state.with_arguments arguments;
+    inlining_history_tracker =
+      Inlining_history.Tracker.enter_inlined_apply
+        ~callee:(Code.absolute_history called_code)
+        ~dbg:(Apply.dbg apply)
+        ~apply_relative_history:(Apply.relative_history apply)
+        t.inlining_history_tracker
   }
 
 let generate_phantom_lets t =
@@ -488,4 +505,4 @@ let generate_phantom_lets t =
   && Flambda_features.Expert.phantom_lets ()
   (* It would be a waste of time generating phantom lets when not rebuilding
      terms, since they have no effect on cost metrics. *)
-  && are_rebuilding_terms t
+  && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)

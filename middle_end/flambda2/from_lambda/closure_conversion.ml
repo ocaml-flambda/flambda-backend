@@ -184,33 +184,31 @@ module Inlining = struct
   (* CR keryan: we need to emit warnings *)
   let inlinable env apply =
     let callee = Apply_expr.callee apply in
-    let dbg = Apply_expr.dbg apply in
+    let tracker = Env.inlining_history_tracker env in
+    let are_rebuilding_terms = Are_rebuilding_terms.of_bool true in
     match Env.find_value_approximation env callee with
     | Value_unknown ->
-      Inlining_report.(record_decision ~dbg (At_call_site Unknown_function));
+      Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
+        ~apply ~pass:After_closure_conversion ();
       Not_inlinable
     | Block_approximation _ -> assert false
-    | Closure_approximation (code_id, None) ->
-      Inlining_report.record_decision ~dbg
-        (At_call_site
-           (Inlining_report.Known_function
-              { code_id = Code_id.export code_id;
-                decision = Definition_says_not_to_inline
-              }));
+    | Closure_approximation (_code_id, None) ->
+      Inlining_report.record_decision_at_call_site_for_known_function ~tracker
+        ~apply ~pass:After_closure_conversion ~unrolling_depth:None
+        ~callee:(Inlining_history.Absolute.empty ())
+        ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Closure_approximation (code_id, Some code) ->
+    | Closure_approximation (_code_id, Some code) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
       in
       if fun_params_length > List.length (Apply_expr.args apply)
       then begin
-        Inlining_report.record_decision ~dbg
-          (At_call_site
-             (Inlining_report.Known_function
-                { code_id = Code_id.export code_id;
-                  decision = Definition_says_not_to_inline
-                }));
+        Inlining_report.record_decision_at_call_site_for_known_function ~tracker
+          ~apply ~pass:After_closure_conversion ~unrolling_depth:None
+          ~callee:(Code.absolute_history code)
+          ~are_rebuilding_terms Definition_says_not_to_inline;
         Not_inlinable
       end
       else
@@ -227,10 +225,10 @@ module Inlining = struct
               Inlinable code )
           | Unroll _ -> assert false
         in
-        Inlining_report.record_decision ~dbg
-          (At_call_site
-             (Inlining_report.Known_function
-                { code_id = Code_id.export code_id; decision }));
+        Inlining_report.record_decision_at_call_site_for_known_function ~tracker
+          ~apply ~pass:After_closure_conversion ~unrolling_depth:None
+          ~callee:(Code.absolute_history code)
+          ~are_rebuilding_terms decision;
         res
 
   let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
@@ -377,6 +375,7 @@ module Inlining = struct
               ~inlined:(Apply.inlined apply)
               ~inlining_state:(Inlining_state.default ~round:0)
               ~probe_name:(Apply.probe_name apply)
+              ~relative_history:(Apply.relative_history apply)
           in
           let perform_over_application acc =
             match needs_region with
@@ -443,7 +442,7 @@ module Inlining = struct
             |> Expr_with_acc.create_let))
 end
 
-let close_c_call acc ~let_bound_var
+let close_c_call acc env ~let_bound_var
     ({ prim_name;
        prim_arity;
        prim_alloc;
@@ -548,7 +547,7 @@ let close_c_call acc ~let_bound_var
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None
+          ~probe_name:None ~relative_history:(Env.relative_history env)
       in
       Expr_with_acc.create_apply acc apply
   in
@@ -663,7 +662,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    close_c_call acc ~let_bound_var prim ~args exn_continuation dbg k
+    close_c_call acc env ~let_bound_var prim ~args exn_continuation dbg k
   | Pgetglobal id, [] ->
     let is_predef_exn = Ident.is_predef id in
     if not (is_predef_exn || not (Ident.same id (Env.current_unit_id env)))
@@ -743,7 +742,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
+    Lambda_to_flambda_primitives.convert_and_bind acc env exn_continuation
       ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg k
@@ -778,7 +777,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
         ( Box_number (Untagged_immediate, Heap),
           Prim (Unary (Get_tag, Simple named)) )
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -786,7 +785,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Nullary Begin_region
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -795,7 +794,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -960,7 +959,7 @@ let close_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name
+      ~probe_name ~relative_history:(Env.relative_history env)
   in
   if Flambda_features.classic_mode ()
   then
@@ -1165,14 +1164,27 @@ let close_one_function acc ~external_env ~by_closure_id decl
     in
     Env.add_simple_to_substitute_map env_with_vars simples_for_project_closure
   in
-  let closure_env =
+  let closure_env_without_history =
     List.fold_right
       (fun (id, _) env ->
         let env, _var = Env.add_var_like env id User_visible in
         env)
       params closure_env_without_parameters
   in
-  let closure_env = Env.with_depth closure_env my_depth in
+  let closure_env = Env.with_depth closure_env_without_history my_depth in
+  let closure_env, absolute_history, relative_history =
+    let tracker = Env.inlining_history_tracker closure_env_without_history in
+    let absolute, relative =
+      Inlining_history.Tracker.fundecl_of_scoped_location
+        ~name:(Closure_id.name closure_id)
+        ~path_to_root:(Env.path_to_root closure_env)
+        loc tracker
+    in
+    ( Env.use_inlining_history_tracker closure_env_without_history
+        (Inlining_history.Tracker.inside_function absolute),
+      absolute,
+      relative )
+  in
   (* CR-someday pchambart: eta-expansion wrappers for primitives are not marked
      as stubs but certainly should be. *)
   let stub = Function_decl.stub decl in
@@ -1322,17 +1334,15 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~dbg ~is_tupled
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
-      ~inlining_decision
+      ~inlining_decision ~absolute_history ~relative_history
   in
   let approx =
     if Flambda_features.classic_mode ()
     then begin
-      Inlining_report.record_decision ~dbg
-        (At_function_declaration
-           { pass = After_closure_conversion;
-             code_id = Code_id.export code_id;
-             decision = inlining_decision
-           });
+      Inlining_report.record_decision_at_function_definition ~absolute_history
+        ~code_metadata:(Code.code_metadata code) ~pass:After_closure_conversion
+        ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
+        inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
       then Some code
       else None

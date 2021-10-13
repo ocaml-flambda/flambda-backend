@@ -108,7 +108,9 @@ module Env = struct
       current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
       value_approximations : value_approximation Name.Map.t;
-      big_endian : bool
+      big_endian : bool;
+      path_to_root : Debuginfo.Scoped_location.t;
+      inlining_history_tracker : Inlining_history.Tracker.t
     }
 
   let current_unit_id t = t.current_unit_id
@@ -128,7 +130,9 @@ module Env = struct
       current_depth = None;
       value_approximations = Name.Map.empty;
       symbol_for_global;
-      big_endian
+      big_endian;
+      path_to_root = Debuginfo.Scoped_location.Loc_unknown;
+      inlining_history_tracker = Inlining_history.Tracker.empty ()
     }
 
   let clear_local_bindings
@@ -139,7 +143,9 @@ module Env = struct
         symbol_for_global;
         current_depth;
         value_approximations;
-        big_endian
+        big_endian;
+        path_to_root;
+        inlining_history_tracker
       } =
     let simples_to_substitute =
       Ident.Map.filter
@@ -153,7 +159,9 @@ module Env = struct
       current_depth;
       value_approximations;
       symbol_for_global;
-      big_endian
+      big_endian;
+      path_to_root;
+      inlining_history_tracker
     }
 
   let with_depth t depth_var = { t with current_depth = Some depth_var }
@@ -260,6 +268,22 @@ module Env = struct
     match find_value_approximation t (Simple.name name) with
     | Value_unknown -> t
     | approx -> add_value_approximation t alias approx
+
+  let use_path_to_root t path_to_root =
+    if path_to_root = Debuginfo.Scoped_location.Loc_unknown
+    then t
+    else { t with path_to_root }
+
+  let path_to_root { path_to_root; _ } = path_to_root
+
+  let use_inlining_history_tracker t inlining_history_tracker =
+    { t with inlining_history_tracker }
+
+  let inlining_history_tracker { inlining_history_tracker; _ } =
+    inlining_history_tracker
+
+  let relative_history { inlining_history_tracker; _ } =
+    Inlining_history.Tracker.relative inlining_history_tracker
 end
 
 module Acc = struct

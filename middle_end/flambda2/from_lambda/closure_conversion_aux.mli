@@ -147,6 +147,16 @@ module Env : sig
   val symbol_for_global : t -> Ident.t -> Symbol.t
 
   val big_endian : t -> bool
+
+  val use_path_to_root : t -> Debuginfo.Scoped_location.t -> t
+
+  val path_to_root : t -> Debuginfo.Scoped_location.t
+
+  val use_inlining_history_tracker : t -> Inlining_history.Tracker.t -> t
+
+  val inlining_history_tracker : t -> Inlining_history.Tracker.t
+
+  val relative_history : t -> Inlining_history.Relative.t
 end
 
 (** Used to pipe some data through closure conversion *)

@@ -49,6 +49,8 @@ val create_code :
   is_tupled:bool ->
   is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
+  absolute_history:Inlining_history.Absolute.t ->
+  relative_history:Inlining_history.Relative.t ->
   t
 
 (* This function should be used when a [Code.t] is already in hand, e.g. from

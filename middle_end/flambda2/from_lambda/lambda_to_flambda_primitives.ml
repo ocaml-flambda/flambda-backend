@@ -1254,12 +1254,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc
+module Env = Closure_conversion_aux.Env
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
-let convert_and_bind acc ~big_endian exn_cont ~register_const_string
+let convert_and_bind acc env ~big_endian exn_cont ~register_const_string
     (prim : L.primitive) ~(args : Simple.t list) (dbg : Debuginfo.t)
     (cont : Acc.t -> Flambda.Named.t option -> Acc.t * Expr_with_acc.t) :
     Acc.t * Expr_with_acc.t =
   let expr = convert_lprim ~big_endian prim args dbg in
-  H.bind_rec acc exn_cont ~register_const_string expr dbg (fun acc named ->
+  H.bind_rec acc env exn_cont ~register_const_string expr dbg (fun acc named ->
       cont acc (Some named))

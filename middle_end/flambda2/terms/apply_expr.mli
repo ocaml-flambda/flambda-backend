@@ -46,6 +46,7 @@ val create :
   inlined:Inlined_attribute.t ->
   inlining_state:Inlining_state.t ->
   probe_name:string option ->
+  relative_history:Inlining_history.Relative.t ->
   t
 
 (** The function or method being applied. *)
@@ -93,3 +94,5 @@ val inlining_state : t -> Inlining_state.t
 val inlining_arguments : t -> Inlining_arguments.t
 
 val probe_name : t -> string option
+
+val relative_history : t -> Inlining_history.Relative.t

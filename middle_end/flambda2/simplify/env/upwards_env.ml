@@ -20,7 +20,7 @@ type t =
   { continuations : (Scope.t * Continuation_in_env.t) Continuation.Map.t;
     continuation_aliases : Continuation.t Continuation.Map.t;
     apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t;
-    are_rebuilding_terms : Downwards_env.are_rebuilding_terms
+    are_rebuilding_terms : Are_rebuilding_terms.t
   }
 
 let create are_rebuilding_terms =

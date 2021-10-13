@@ -43,6 +43,6 @@ type t =
       { arity : Flambda_arity.With_subkinds.t }
   | Unreachable of { arity : Flambda_arity.With_subkinds.t }
 
-val print : Downwards_env.are_rebuilding_terms -> Format.formatter -> t -> unit
+val print : Are_rebuilding_terms.t -> Format.formatter -> t -> unit
 
 val arity : t -> Flambda_arity.With_subkinds.t

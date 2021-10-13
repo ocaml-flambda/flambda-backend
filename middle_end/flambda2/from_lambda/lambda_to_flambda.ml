@@ -1608,6 +1608,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
       (Variable.create_with_same_name_as_ident fid)
   in
   let body acc ccenv =
+    let ccenv = CCenv.use_path_to_root ccenv loc in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~closure_id ~kind ~params

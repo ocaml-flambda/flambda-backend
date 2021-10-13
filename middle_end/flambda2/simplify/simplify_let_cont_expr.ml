@@ -333,9 +333,9 @@ let rebuild_non_recursive_let_cont_handler cont
 
 let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     ~dacc_after_body cont params ~(handler : Expr.t) ~prior_lifted_constants
-    ~inlining_state_at_let_cont ~inlined_debuginfo_at_let_cont ~scope
-    ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
-    ~prior_cont_uses_env ~down_to_up =
+    ~inlining_state_at_let_cont ~inlined_debuginfo_at_let_cont
+    ~history_tracker_at_let_cont ~scope ~is_exn_handler ~denv_for_toplevel_check
+    ~unit_toplevel_exn_cont ~prior_cont_uses_env ~down_to_up =
   let cont_uses_env = DA.continuation_uses_env dacc_after_body in
   let code_age_relation_after_body =
     TE.code_age_relation (DA.typing_env dacc_after_body)
@@ -477,6 +477,9 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
            linear inlinable use of the continuation). We need to make sure the
            handler is simplified using the depth at the [Let_cont]. *)
         DE.set_inlining_state denv inlining_state_at_let_cont
+      in
+      let denv =
+        DE.set_inlining_history_tracker history_tracker_at_let_cont denv
       in
       (* Likewise, the inlined debuginfo may need restoring. *)
       DE.set_inlined_debuginfo denv inlined_debuginfo_at_let_cont
@@ -645,8 +648,9 @@ let after_downwards_traversal_of_non_recursive_let_cont_handler ~down_to_up
 let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
     ~prior_lifted_constants ~inlining_state_at_let_cont
-    ~inlined_debuginfo_at_let_cont ~scope ~is_exn_handler ~prior_cont_uses_env
-    cont params ~handler ~down_to_up dacc_after_body ~rebuild:rebuild_body =
+    ~history_tracker_at_let_cont ~inlined_debuginfo_at_let_cont ~scope
+    ~is_exn_handler ~prior_cont_uses_env cont params ~handler ~down_to_up
+    dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
@@ -658,6 +662,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     ~inlining_state_at_let_cont ~inlined_debuginfo_at_let_cont ~scope
     ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
     ~prior_cont_uses_env
+    ~history_tracker_at_let_cont
       (* After doing the downwards traversal of the handler, we continue the
          downwards traversal of any surrounding expression (which would have to
          be a [Let_cont]; as such, there's no problem with returning the [DE]
@@ -681,6 +686,9 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
   in
   let inlining_state_at_let_cont = DE.get_inlining_state (DA.denv dacc) in
   let inlined_debuginfo_at_let_cont = DE.get_inlined_debuginfo (DA.denv dacc) in
+  let history_tracker_at_let_cont =
+    DE.inlining_history_tracker (DA.denv dacc)
+  in
   let scope = DE.get_continuation_scope (DA.denv dacc) in
   let is_exn_handler = CH.is_exn_handler cont_handler in
   let denv_before_body =
@@ -706,7 +714,8 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
          ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
          ~prior_lifted_constants ~inlining_state_at_let_cont
          ~inlined_debuginfo_at_let_cont ~scope ~is_exn_handler
-         ~prior_cont_uses_env cont params ~handler ~down_to_up)
+         ~prior_cont_uses_env cont params ~handler ~down_to_up
+         ~history_tracker_at_let_cont)
 
 let simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
     ~down_to_up cont ~body =

@@ -149,14 +149,15 @@ end = struct
             closure_bound_names_inside)
         closure_bound_names_all_sets_inside
     in
+
     let closure_types_inside_functions =
       List.map2
         (fun set_of_closures
              (closure_types_via_aliases, closure_element_types_inside_function) ->
           let function_decls = Set_of_closures.function_decls set_of_closures in
           let all_function_decls_in_set =
-            Closure_id.Map.map
-              (fun old_code_id ->
+            Closure_id.Map.mapi
+              (fun closure_id old_code_id ->
                 let code_or_metadata = DE.find_code_exn denv old_code_id in
                 let new_code_id =
                   match code_or_metadata with
@@ -172,17 +173,18 @@ end = struct
                 let code_metadata =
                   code_or_metadata |> Code_or_metadata.code_metadata
                 in
-                let dbg = Code_metadata.dbg code_metadata in
-                let dbg_including_inlining_stack =
-                  DE.add_inlined_debuginfo denv dbg
+                let absolute_history, _relative_history =
+                  DE.inlining_history_tracker denv
+                  |> Inlining_history.Tracker.fundecl
+                       ~dbg:(Code_metadata.dbg code_metadata)
+                       ~function_relative_history:
+                         (Code_metadata.relative_history code_metadata)
+                       ~name:(Closure_id.name closure_id)
                 in
-                Inlining_report.record_decision
-                  (At_function_declaration
-                     { code_id = Code_id.export old_code_id;
-                       pass = Before_simplify { dbg_including_inlining_stack };
-                       decision = Code_metadata.inlining_decision code_metadata
-                     })
-                  ~dbg;
+                Inlining_report.record_decision_at_function_definition
+                  ~absolute_history ~code_metadata ~pass:Before_simplify
+                  ~are_rebuilding_terms:(DE.are_rebuilding_terms denv)
+                  (Code_metadata.inlining_decision code_metadata);
                 function_decl_type old_code_id ~new_code_id rec_info)
               (Function_declarations.funs function_decls)
           in
@@ -390,11 +392,16 @@ module C = Context_for_multiple_sets_of_closures
 
 let dacc_inside_function context ~used_closure_vars ~shareable_constants
     ~closure_offsets ~params ~my_closure ~my_depth closure_id
-    ~closure_bound_names_inside_function ~inlining_arguments =
+    ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
         let denv = DE.add_parameters_with_unknown_types denv params in
         let denv = DE.set_inlining_arguments inlining_arguments denv in
+        let denv =
+          DE.set_inlining_history_tracker
+            (Inlining_history.Tracker.inside_function absolute_history)
+            denv
+        in
         let denv =
           match
             Closure_id.Map.find closure_id closure_bound_names_inside_function
@@ -435,8 +442,15 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
     ~closure_offsets closure_id code_id code
     ~closure_bound_names_inside_function code_age_relation
     ~lifted_consts_prev_functions =
+  let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
   let inlining_arguments_from_denv =
-    C.dacc_prior_to_sets context |> DA.denv |> DE.inlining_arguments
+    denv_prior_to_sets |> DE.inlining_arguments
+  in
+  let absolute_history, relative_history =
+    DE.inlining_history_tracker denv_prior_to_sets
+    |> Inlining_history.Tracker.fundecl ~dbg:(Code.dbg code)
+         ~function_relative_history:(Code.relative_history code)
+         ~name:(Closure_id.name closure_id)
   in
   (* Compute the set of inlining_arguments used to define this function by
      taking the "least powerful" set between the one set in the environment and
@@ -479,6 +493,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
           dacc_inside_function context ~used_closure_vars ~shareable_constants
             ~closure_offsets ~params ~my_closure ~my_depth closure_id
             ~closure_bound_names_inside_function ~inlining_arguments
+            ~absolute_history
         in
         if not (DA.no_lifted_constants dacc)
         then
@@ -593,13 +608,10 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
         ~inline:(Code.inline code) ~stub:(Code.stub code) ~cost_metrics
         ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
     in
-    let dbg =
-      DE.add_inlined_debuginfo (DA.denv dacc_after_body) (Code.dbg code)
-    in
-    Inlining_report.record_decision
-      (At_function_declaration
-         { code_id = Code_id.export code_id; pass = After_simplify; decision })
-      ~dbg;
+    Inlining_report.record_decision_at_function_definition ~absolute_history
+      ~code_metadata:(Code.code_metadata code) ~pass:After_simplify
+      ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc_after_body)
+      decision;
     decision
   in
   let lifted_consts_this_function =
@@ -684,7 +696,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
       ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
       ~is_tupled:(Code.is_tupled code)
       ~is_my_closure_used:(Code.is_my_closure_used code)
-      ~inlining_decision
+      ~inlining_decision ~absolute_history ~relative_history
   in
   { new_code_id;
     code = Some code;
