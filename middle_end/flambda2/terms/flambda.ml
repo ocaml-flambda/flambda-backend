@@ -1005,7 +1005,7 @@ end = struct
   (* For printing "let symbol": *)
 
   type flattened_for_printing_descr =
-    | Code of Code_id.t * Function_params_and_body.t Code0.t
+    | Code of Function_params_and_body.t Code0.t
     | Set_of_closures of Symbol.t Closure_id.Lmap.t * Set_of_closures.t
     | Block_like of Symbol.t * Static_const.t
 
@@ -1026,11 +1026,11 @@ end = struct
   let flatten_for_printing0 bound_symbols defining_exprs =
     Static_const_group.match_against_bound_symbols defining_exprs bound_symbols
       ~init:([], false)
-      ~code:(fun (flattened_acc, second_or_later_rec_binding) code_id code ->
+      ~code:(fun (flattened_acc, second_or_later_rec_binding) _code_id code ->
         let flattened =
           { second_or_later_binding_within_one_set = false;
             second_or_later_rec_binding;
-            descr = Code (code_id, code)
+            descr = Code code
           }
         in
         flattened_acc @ [flattened], true)
@@ -1076,7 +1076,7 @@ end = struct
 
   let print_flattened_descr_lhs ppf descr =
     match descr with
-    | Code (code_id, _) -> Code_id.print ppf code_id
+    | Code code -> Code_id.print ppf (Code0.code_id code)
     | Set_of_closures (closure_symbols, _) ->
       Format.fprintf ppf "@[<hov 0>%a@]"
         (Format.pp_print_list
@@ -1089,7 +1089,7 @@ end = struct
 
   let print_flattened_descr_rhs ppf descr =
     match descr with
-    | Code (_, code) ->
+    | Code code ->
       Code0.print ~print_function_params_and_body:Function_params_and_body.print
         ppf code
     | Set_of_closures (_, set) -> Set_of_closures.print ppf set

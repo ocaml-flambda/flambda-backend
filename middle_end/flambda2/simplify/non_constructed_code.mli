@@ -16,8 +16,8 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* Code without any function bodies, but with all the associated metadata, e.g.
-   free names. *)
+(** Code without any function bodies, but with all the associated metadata, e.g.
+    free names. *)
 
 type t = unit Code0.t
 

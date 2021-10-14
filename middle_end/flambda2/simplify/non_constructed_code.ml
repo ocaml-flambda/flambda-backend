@@ -20,8 +20,7 @@ type t = unit Code0.t
 
 let code_id = Code0.code_id
 
-let is_deleted t =
-  match Code0.params_and_body t with Deleted -> true | Present () -> false
+let is_deleted = Code0.is_deleted
 
 let newer_version_of = Code0.newer_version_of
 
