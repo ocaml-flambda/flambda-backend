@@ -34,6 +34,8 @@
 
 (copy_files# file_formats/linear_format.ml{,i})
 
+(copy_files# file_formats/cfg_format.ml{,i})
+
 (copy_files# middle_end/*.ml{,i})
 
 (copy_files# middle_end/closure/*.ml{,i})
@@ -221,6 +223,7 @@
   cfg_equivalence
   ;; file_formats/
   linear_format
+  cfg_format
   ;; asmcomp/debug/
   reg_availability_set
   compute_ranges_intf
@@ -507,6 +510,7 @@
   (x86_proc.mli as compiler-libs/x86_proc.mli)
   (x86_binary_emitter.mli as compiler-libs/x86_binary_emitter.mli)
   (linear_format.mli as compiler-libs/linear_format.mli)
+  (cfg_format.mli as compiler-libs/cfg_format.mli)
   (reg_availability_set.mli as compiler-libs/reg_availability_set.mli)
   (available_regs.mli as compiler-libs/available_regs.mli)
   (reg_with_debug_info.mli as compiler-libs/reg_with_debug_info.mli)
@@ -545,9 +549,10 @@
   (.ocamloptcomp.objs/byte/linear_format.cmti
    as
    compiler-libs/linear_format.cmti)
-  (.ocamloptcomp.objs/native/linear_format.cmx
-   as
-   compiler-libs/linear_format.cmx)
+  (.ocamloptcomp.objs/byte/cfg_format.cmi as compiler-libs/cfg_format.cmi)
+  (.ocamloptcomp.objs/byte/cfg_format.cmo as compiler-libs/cfg_format.cmo)
+  (.ocamloptcomp.objs/byte/cfg_format.cmt as compiler-libs/cfg_format.cmt)
+  (.ocamloptcomp.objs/byte/cfg_format.cmti as compiler-libs/cfg_format.cmti)
   (.ocamloptcomp.objs/byte/afl_instrument.cmi
    as
    compiler-libs/afl_instrument.cmi)
@@ -2179,4 +2184,8 @@
   (.ocamloptcomp.objs/native/var_within_closure.cmx
    as
    compiler-libs/var_within_closure.cmx)
-  (.ocamloptcomp.objs/native/variable.cmx as compiler-libs/variable.cmx)))
+  (.ocamloptcomp.objs/native/variable.cmx as compiler-libs/variable.cmx)
+  (.ocamloptcomp.objs/native/linear_format.cmx
+   as
+   compiler-libs/linear_format.cmx)
+  (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)))

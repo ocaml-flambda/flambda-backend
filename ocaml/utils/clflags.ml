@@ -420,18 +420,17 @@ let unboxed_types = ref false
 
 (* This is used by the -save-ir-after option. *)
 module Compiler_ir = struct
-  type t = Linear
+  type t = Linear | Cfg
 
   let all = [
-    Linear;
+    Linear; Cfg
   ]
 
-  let extension t =
-    let ext =
-    match t with
-      | Linear -> "linear"
-    in
-    ".cmir-" ^ ext
+  let to_string = function
+    | Linear -> "linear"
+    | Cfg -> "cfg"
+
+  let extension t = ".cmir-" ^ (to_string t)
 
   (** [extract_extension_with_pass filename] returns the IR whose extension
       is a prefix of the extension of [filename], and the suffix,
@@ -699,24 +698,27 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling | Emit
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
+    | Simplify_cfg -> "simplify_cfg"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
+    | "simplify_cfg" -> Some Simplify_cfg
     | _ -> None
 
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Simplify_cfg -> 49
     | Scheduling -> 50
     | Emit -> 60
 
@@ -725,16 +727,19 @@ module Compiler_pass = struct
     Typing;
     Scheduling;
     Emit;
+    Simplify_cfg;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
     | Scheduling -> true
     | Emit -> true
-    | _ -> false
+    | Simplify_cfg -> true
+    | Parsing | Typing -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
     | Scheduling -> true
+    | Simplify_cfg -> true
     | _ -> false
 
   let available_pass_names ~filter ~native =
@@ -749,11 +754,13 @@ module Compiler_pass = struct
   let to_output_filename t ~prefix =
     match t with
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
-    | _ -> Misc.fatal_error "Not supported"
+    | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
+    | Emit | Parsing | Typing -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
     match Compiler_ir.extract_extension_with_pass name with
     | Some (Linear, _) -> Some Emit
+    | Some (Cfg, _) -> None
     | None -> None
 end
 
