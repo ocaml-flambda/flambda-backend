@@ -45,10 +45,11 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
     pattern_match t ~f:(fun bindable term -> f (bindable, term))
 
   let print ppf ((unfreshened_bindable, unfreshened_term) as t) =
-    let<> freshened_bindable, freshened_term = t in
     let bindable, term =
       if Flambda_features.freshen_when_printing ()
-      then freshened_bindable, freshened_term
+      then
+        let<> freshened_bindable, freshened_term = t in
+        freshened_bindable, freshened_term
       else unfreshened_bindable, unfreshened_term
     in
     Format.fprintf ppf "@[<hov 1>%s@<1>%s%s%a%s@<1>%s%s@ %a@]"
