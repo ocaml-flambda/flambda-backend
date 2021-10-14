@@ -258,6 +258,17 @@ let t_of_transient transient
     constant_closures;
   }
 
+let t_of_opaque_transient transient =
+  { sets_of_closures = transient.sets_of_closures;
+    values = transient.values;
+    symbol_id = transient.symbol_id;
+    invariant_params = transient.invariant_params;
+    recursive = transient.recursive;
+    offset_fun = empty.offset_fun;
+    offset_fv = empty.offset_fv;
+    constant_closures = empty.constant_closures;
+  }
+
 let merge (t1 : t) (t2 : t) : t =
   let eidmap_disjoint_union ?eq map1 map2 =
     Compilation_unit.Map.merge (fun _id map1 map2 ->
