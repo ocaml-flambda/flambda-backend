@@ -429,11 +429,11 @@ let read_one_param ppf position name v =
       Flambda2.Inlining.poly_compare_cost
   | "flambda2-inline-small-function-size" ->
     Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-small-function-size'"
+      "Bad syntax in OCAMLPARAM for 'flambda2-inline-small-function-size'"
       Flambda2.Inlining.small_function_size
   | "flambda2-inline-large-function-size" ->
     Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-large-function-size'"
+      "Bad syntax in OCAMLPARAM for 'flambda2-inline-large-function-size'"
       Flambda2.Inlining.large_function_size
   | "flambda2-inline-threshold" ->
     Float_arg_helper.parse v
