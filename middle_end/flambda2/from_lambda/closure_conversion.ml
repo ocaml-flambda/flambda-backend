@@ -1672,7 +1672,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_approximation =
     match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
     | Some [approx] -> approx
-    | _ -> assert false
+    | _ -> Value_approximation.Value_unknown
   in
   let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
@@ -1694,7 +1694,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     List.fold_left
       (fun sa (symbol, _) ->
         (* CR Keryan: for now only constants are lifted. It will need refinement
-           with thelifting of closed functions *)
+           with the lifting of closed functions *)
         Symbol.Map.add symbol Value_approximation.Value_unknown sa)
       (Symbol.Map.singleton module_symbol module_block_approximation)
       (Acc.declared_symbols acc)
@@ -1744,7 +1744,9 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
         offsets)
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_closure_vars:(Known used_closure_vars),
+      ~module_symbol ~used_closure_vars:Unknown,
+    (* CR keryan: this should use [used_closure_vars] as well but it doesn't
+       work well with cmx from simplify yet (issue #331) *)
     all_code,
     cmx,
     exported_offsets )
