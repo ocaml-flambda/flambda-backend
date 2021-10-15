@@ -485,6 +485,7 @@ module Flambda2 = struct
     let fexpr = ref false
     let flexpect = ref false
     let closure_offsets = ref false
+    let freshen = ref false
   end
 
   module Expert = struct

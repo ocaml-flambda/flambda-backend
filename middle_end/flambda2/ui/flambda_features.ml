@@ -64,6 +64,8 @@ let dump_flexpect () = !Clflags.Flambda2.Dump.flexpect
 
 let dump_closure_offsets () = !Clflags.Flambda2.Dump.closure_offsets
 
+let freshen_when_printing () = !Clflags.Flambda2.Dump.freshen
+
 module Inlining = struct
   module I = Clflags.Int_arg_helper
   module F = Clflags.Float_arg_helper
