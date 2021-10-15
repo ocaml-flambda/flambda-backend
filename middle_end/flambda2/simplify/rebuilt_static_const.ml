@@ -39,16 +39,17 @@ let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
     ~inlining_decision =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let params_and_body =
+    let free_names_of_params_and_body : _ Or_deleted.t =
       match params_and_body with
       | Present (_, free_names_of_params_and_body) ->
-        Or_deleted.Present ((), free_names_of_params_and_body)
-      | Deleted -> Or_deleted.Deleted
+        Present free_names_of_params_and_body
+      | Deleted -> Deleted
     in
     let non_constructed_code =
-      Non_constructed_code.create code_id ~params_and_body ~newer_version_of
-        ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
-        ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~inlining_decision
+      Non_constructed_code.create code_id ~free_names_of_params_and_body
+        ~newer_version_of ~params_arity ~result_arity ~stub ~inline
+        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+        ~is_tupled ~inlining_decision
     in
     Code_not_rebuilt non_constructed_code
   else
@@ -284,9 +285,9 @@ module Group = struct
             let module NCC = Non_constructed_code in
             (* See comment in the .mli. *)
             let params_and_body : _ Or_deleted.t =
-              match NCC.params_and_body code with
-              | Deleted -> Deleted
-              | Present () ->
+              if NCC.is_deleted code
+              then Deleted
+              else
                 Present
                   ( Lazy.force function_params_and_body_for_code_not_rebuilt,
                     Name_occurrences.empty )

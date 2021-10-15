@@ -214,7 +214,7 @@ module Acc = struct
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       shareable_constants : Symbol.t Static_const.Map.t;
-      code : Flambda.Code.t Code_id.Map.t;
+      code : Code.t Code_id.Map.t;
       free_names : Name_occurrences.t;
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;

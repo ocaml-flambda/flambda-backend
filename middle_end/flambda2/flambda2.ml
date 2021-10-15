@@ -182,7 +182,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       | exception Not_found -> ()
       | _ ->
         Exported_code.iter all_code (fun id code ->
-            let size = Flambda.Code.cost_metrics code in
+            let size = Code.cost_metrics code in
             Format.fprintf Format.std_formatter "%a %a\n"
               Flambda2_identifiers.Code_id.print id Cost_metrics.print size)
     end;

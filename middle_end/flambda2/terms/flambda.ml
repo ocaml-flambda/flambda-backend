@@ -24,19 +24,7 @@ module Switch = Switch_expr
 
 let fprintf = Format.fprintf
 
-module rec Code : sig
-  (** A piece of code, comprising of the parameters and body of a function,
-      together with a field indicating whether the piece of code is a newer
-      version of one that existed previously (and may still exist), for example
-      after a round of simplification. *)
-
-  include
-    Code_intf.S with type function_params_and_body := Function_params_and_body.t
-end = struct
-  include Code0.Make (Function_params_and_body)
-end
-
-and Continuation_handler : sig
+module rec Continuation_handler : sig
   (** The representation of the alpha-equivalence class of bindings of a list of
       parameters, with associated relations thereon, over the code of a
       continuation handler. *)
@@ -1017,7 +1005,7 @@ end = struct
   (* For printing "let symbol": *)
 
   type flattened_for_printing_descr =
-    | Code of Code_id.t * Code.t
+    | Code of Function_params_and_body.t Code0.t
     | Set_of_closures of Symbol.t Closure_id.Lmap.t * Set_of_closures.t
     | Block_like of Symbol.t * Static_const.t
 
@@ -1038,11 +1026,11 @@ end = struct
   let flatten_for_printing0 bound_symbols defining_exprs =
     Static_const_group.match_against_bound_symbols defining_exprs bound_symbols
       ~init:([], false)
-      ~code:(fun (flattened_acc, second_or_later_rec_binding) code_id code ->
+      ~code:(fun (flattened_acc, second_or_later_rec_binding) _code_id code ->
         let flattened =
           { second_or_later_binding_within_one_set = false;
             second_or_later_rec_binding;
-            descr = Code (code_id, code)
+            descr = Code code
           }
         in
         flattened_acc @ [flattened], true)
@@ -1088,7 +1076,7 @@ end = struct
 
   let print_flattened_descr_lhs ppf descr =
     match descr with
-    | Code (code_id, _) -> Code_id.print ppf code_id
+    | Code code -> Code_id.print ppf (Code0.code_id code)
     | Set_of_closures (closure_symbols, _) ->
       Format.fprintf ppf "@[<hov 0>%a@]"
         (Format.pp_print_list
@@ -1101,7 +1089,9 @@ end = struct
 
   let print_flattened_descr_rhs ppf descr =
     match descr with
-    | Code (_, code) -> Code.print ppf code
+    | Code code ->
+      Code0.print ~print_function_params_and_body:Function_params_and_body.print
+        ppf code
     | Set_of_closures (_, set) -> Set_of_closures.print ppf set
     | Block_like (_, static_const) -> Static_const.print ppf static_const
 
@@ -1664,7 +1654,7 @@ end
 
 and Static_const_or_code : sig
   type t =
-    | Code of Code.t
+    | Code of Function_params_and_body.t Code0.t
     | Static_const of Static_const.t
 
   include Container_types.S with type t := t
@@ -1677,19 +1667,19 @@ and Static_const_or_code : sig
 
   val is_fully_static : t -> bool
 
-  val to_code : t -> Code.t option
+  val to_code : t -> Function_params_and_body.t Code0.t option
 
   val match_against_bound_symbols_pattern :
     t ->
     Bound_symbols.Pattern.t ->
-    code:(Code_id.t -> Code.t -> 'a) ->
+    code:(Code_id.t -> Function_params_and_body.t Code0.t -> 'a) ->
     set_of_closures:
       (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
     block_like:(Symbol.t -> Static_const.t -> 'a) ->
     'a
 end = struct
   type t =
-    | Code of Code.t
+    | Code of Function_params_and_body.t Code0.t
     | Static_const of Static_const.t
 
   let print ppf t =
@@ -1698,7 +1688,9 @@ end = struct
       fprintf ppf "@[<hov 1>(@<0>%sCode@<0>%s@ %a)@]"
         (Flambda_colours.static_part ())
         (Flambda_colours.normal ())
-        Code.print code
+        (Code0.print
+           ~print_function_params_and_body:Function_params_and_body.print)
+        code
     | Static_const const -> Static_const.print ppf const
 
   include Container_types.Make (struct
@@ -1708,7 +1700,7 @@ end = struct
 
     let compare t1 t2 =
       match t1, t2 with
-      | Code code1, Code code2 -> Code.compare code1 code2
+      | Code code1, Code code2 -> Code0.compare code1 code2
       | Static_const const1, Static_const const2 ->
         Static_const.compare const1 const2
       | Code _, Static_const _ -> -1
@@ -1723,7 +1715,7 @@ end = struct
 
   let free_names t =
     match t with
-    | Code code -> Code.free_names code
+    | Code code -> Code0.free_names code
     | Static_const const -> Static_const.free_names const
 
   let apply_renaming t renaming =
@@ -1732,7 +1724,11 @@ end = struct
     else
       match t with
       | Code code ->
-        let code' = Code.apply_renaming code renaming in
+        let code' =
+          Code0.apply_renaming
+            ~apply_renaming_function_params_and_body:
+              Function_params_and_body.apply_renaming code renaming
+        in
         if code == code' then t else Code code'
       | Static_const const ->
         let const' = Static_const.apply_renaming const renaming in
@@ -1740,7 +1736,10 @@ end = struct
 
   let all_ids_for_export t =
     match t with
-    | Code code -> Code.all_ids_for_export code
+    | Code code ->
+      Code0.all_ids_for_export
+        ~all_ids_for_export_function_params_and_body:
+          Function_params_and_body.all_ids_for_export code
     | Static_const const -> Static_const.all_ids_for_export const
 
   let is_fully_static t =
@@ -1755,7 +1754,7 @@ end = struct
       ~block_like =
     match t, pat with
     | Code code, Code code_id ->
-      if not (Code_id.equal (Code.code_id code) code_id)
+      if not (Code_id.equal (Code0.code_id code) code_id)
       then
         Misc.fatal_errorf "Mismatch on declared code IDs:@ %a@ =@ %a"
           Bound_symbols.Pattern.print pat print t;
@@ -1791,7 +1790,7 @@ and Static_const_group : sig
     t ->
     Bound_symbols.t ->
     init:'a ->
-    code:('a -> Code_id.t -> Code.t -> 'a) ->
+    code:('a -> Code_id.t -> Function_params_and_body.t Code0.t -> 'a) ->
     set_of_closures:
       ('a ->
       closure_symbols:Symbol.t Closure_id.Lmap.t ->
@@ -1801,10 +1800,10 @@ and Static_const_group : sig
     'a
 
   (** This function ignores [Deleted] code. *)
-  val pieces_of_code : t -> Code.t Code_id.Map.t
+  val pieces_of_code : t -> Function_params_and_body.t Code0.t Code_id.Map.t
 
   (** This function ignores [Deleted] code. *)
-  val pieces_of_code' : t -> Code.t list
+  val pieces_of_code' : t -> Function_params_and_body.t Code0.t list
 
   val is_fully_static : t -> bool
 end = struct
@@ -1856,7 +1855,9 @@ end = struct
   let pieces_of_code t =
     List.filter_map Static_const_or_code.to_code t
     |> List.filter_map (fun code ->
-           if Code.is_deleted code then None else Some (Code.code_id code, code))
+           if Code0.is_deleted code
+           then None
+           else Some (Code0.code_id code, code))
     |> Code_id.Map.of_list
 
   let pieces_of_code' t = pieces_of_code t |> Code_id.Map.data
@@ -1885,7 +1886,6 @@ module Set_of_closures = Set_of_closures
 module Import = struct
   module Apply = Apply
   module Apply_cont = Apply_cont
-  module Code = Code
   module Continuation_handler = Continuation_handler
   module Continuation_handlers = Continuation_handlers
   module Expr = Expr

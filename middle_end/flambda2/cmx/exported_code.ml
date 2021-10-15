@@ -14,7 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module C = Flambda.Code
+module C = Code
 module P = Flambda.Function_params_and_body
 
 module Calling_convention = struct
