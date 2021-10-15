@@ -69,15 +69,11 @@ let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
   | _, Known contents when contents_is_bottom contents -> Bottom
   | _, Unknown -> Ok (or_unknown1, TEE.empty)
   | Unknown, _ -> Ok (or_unknown2, TEE.empty)
-  | Known contents1, Known contents2 -> (
-    let result =
-      let<+ contents, env_extension = meet_contents env contents1 contents2 in
-      Or_unknown.Known contents, env_extension
-    in
-    match result with
-    | Bottom | Ok (Unknown, _) -> result
-    | Ok (Known contents, _env_extension) ->
-      if contents_is_bottom contents then Bottom else result)
+  | Known contents1, Known contents2 ->
+    let<* contents, env_extension = meet_contents env contents1 contents2 in
+    if contents_is_bottom contents
+    then Bottom
+    else Ok (Or_unknown.Known contents, env_extension)
 
 let[@inline always] join_unknown join_contents (env : Join_env.t)
     (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
