@@ -155,12 +155,13 @@ module Iter = struct
         named t bound_pattern f_c f_s e;
         expr f_c f_s body)
 
-  and let_cont f_c f_s = function
-    | Let_cont.Non_recursive { handler; _ } ->
+  and let_cont f_c f_s (let_cont : Flambda.Let_cont.t) =
+    match let_cont with
+    | Non_recursive { handler; _ } ->
       Non_recursive_let_cont_handler.pattern_match handler ~f:(fun k ~body ->
           let h = Non_recursive_let_cont_handler.handler handler in
           let_cont_aux f_c f_s k h body)
-    | Let_cont.Recursive handlers ->
+    | Recursive handlers ->
       Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
           assert (not (Continuation_handlers.contains_exn_handler conts));
           let_cont_rec f_c f_s conts body)

@@ -772,15 +772,15 @@ and decide_inline_cont h k ~num_free_occurrences ~is_applied_with_traps =
   && (not is_applied_with_traps)
   && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
 
-and let_cont env res = function
-  | Let_cont.Non_recursive
-      { handler; num_free_occurrences; is_applied_with_traps } ->
+and let_cont env res (let_cont : Flambda.Let_cont.t) =
+  match let_cont with
+  | Non_recursive { handler; num_free_occurrences; is_applied_with_traps } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun k ~body ->
         let h = Non_recursive_let_cont_handler.handler handler in
         if decide_inline_cont h k ~num_free_occurrences ~is_applied_with_traps
         then let_cont_inline env res k h body
         else let_cont_jump env res k h body)
-  | Let_cont.Recursive handlers ->
+  | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
         assert (not (Continuation_handlers.contains_exn_handler conts));
         let_cont_rec env res conts body)

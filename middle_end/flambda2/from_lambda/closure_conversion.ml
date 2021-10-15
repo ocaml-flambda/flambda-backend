@@ -1042,8 +1042,7 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
       in
       let named =
         Named.create_static_consts
-          (Static_const_group.create
-             [Static_const_or_code.Static_const static_const])
+          (Static_const_group.create [Static_const static_const])
       in
       Let_with_acc.create acc
         (Bound_pattern.symbols bound_symbols)
@@ -1125,8 +1124,7 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
           Bound_symbols.singleton (Bound_symbols.Pattern.block_like symbol)
         in
         let defining_expr =
-          Static_const_group.create
-            [Static_const_or_code.Static_const static_const]
+          Static_const_group.create [Static_const static_const]
           |> Named.create_static_consts
         in
         Let_with_acc.create acc
