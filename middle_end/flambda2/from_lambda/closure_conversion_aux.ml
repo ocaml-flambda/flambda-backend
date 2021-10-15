@@ -491,11 +491,11 @@ end
 module Let_with_acc = struct
   let create acc let_bound named ~body =
     let cost_metrics_of_defining_expr =
-      match named with
-      | Named.Prim (prim, _) -> Code_size.prim prim |> Cost_metrics.from_size
-      | Named.Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
-      | Named.Static_consts _consts -> Cost_metrics.zero
-      | Named.Set_of_closures set_of_closures ->
+      match (named : Named.t) with
+      | Prim (prim, _) -> Code_size.prim prim |> Cost_metrics.from_size
+      | Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
+      | Static_consts _consts -> Cost_metrics.zero
+      | Set_of_closures set_of_closures ->
         let code_mapping = Acc.code acc in
         Cost_metrics.set_of_closures
           ~find_code_characteristics:(fun code_id ->
@@ -504,7 +504,7 @@ module Let_with_acc = struct
               params_arity = List.length (Code.params_arity code)
             })
           set_of_closures
-      | Named.Rec_info _ -> Cost_metrics.zero
+      | Rec_info _ -> Cost_metrics.zero
     in
     let acc =
       Acc.increment_metrics

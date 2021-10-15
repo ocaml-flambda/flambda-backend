@@ -24,11 +24,94 @@ module Switch = Switch_expr
 
 let fprintf = Format.fprintf
 
+type expr =
+  { mutable descr : expr_descr;
+    mutable delayed_permutation : Renaming.t
+  }
+
+and expr_descr =
+  | Let of let_expr
+  | Let_cont of let_cont_expr
+  | Apply of Apply.t
+  | Apply_cont of Apply_cont.t
+  | Switch of Switch.t
+  | Invalid of Invalid_term_semantics.t
+
+and let_expr_t0 =
+  { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
+    body : expr
+  }
+
+and let_expr =
+  { name_abstraction : (Bound_pattern.t, let_expr_t0) Name_abstraction.t;
+    defining_expr : named
+  }
+
+and named =
+  | Simple of Simple.t
+  | Prim of Flambda_primitive.t * Debuginfo.t
+  | Set_of_closures of Set_of_closures.t
+  | Static_consts of static_const_group
+  | Rec_info of Rec_info_expr.t
+
+and let_cont_expr =
+  | Non_recursive of
+      { handler : non_recursive_let_cont_handler;
+        num_free_occurrences : Num_occurrences.t Or_unknown.t;
+        is_applied_with_traps : bool
+      }
+  | Recursive of recursive_let_cont_handlers
+
+and non_recursive_let_cont_handler =
+  { continuation_and_body : (Bound_continuation.t, expr) Name_abstraction.t;
+    handler : continuation_handler
+  }
+
+and recursive_let_cont_handlers_t0 =
+  { handlers : continuation_handlers;
+    body : expr
+  }
+
+and recursive_let_cont_handlers =
+  (Bound_continuations.t, recursive_let_cont_handlers_t0) Name_abstraction.t
+
+and function_params_and_body_base =
+  { expr : expr;
+    free_names : Name_occurrences.t Or_unknown.t
+  }
+
+and function_params_and_body =
+  { abst :
+      (Bound_for_function.t, function_params_and_body_base) Name_abstraction.t;
+    dbg : Debuginfo.t;
+    params_arity : Flambda_arity.t;
+    is_my_closure_used : bool Or_unknown.t
+  }
+
+and continuation_handler_t0 =
+  { num_normal_occurrences_of_params : Num_occurrences.t Variable.Map.t;
+    handler : expr
+  }
+
+and continuation_handler =
+  { cont_handler_abst :
+      (Bound_parameters.t, continuation_handler_t0) Name_abstraction.t;
+    is_exn_handler : bool
+  }
+
+and continuation_handlers = continuation_handler Continuation.Map.t
+
+and static_const_or_code =
+  | Code of function_params_and_body Code0.t
+  | Static_const of Static_const.t
+
+and static_const_group = static_const_or_code list
+
 module rec Continuation_handler : sig
   (** The representation of the alpha-equivalence class of bindings of a list of
       parameters, with associated relations thereon, over the code of a
       continuation handler. *)
-  type t
+  type t = continuation_handler
 
   include Expr_std.S with type t := t
 
@@ -97,10 +180,7 @@ module rec Continuation_handler : sig
   val is_exn_handler : t -> bool
 end = struct
   module T0 = struct
-    type t =
-      { num_normal_occurrences_of_params : Num_occurrences.t Variable.Map.t;
-        handler : Expr.t
-      }
+    type t = continuation_handler_t0
 
     let [@ocamlformat "disable"] print ppf
           { handler; num_normal_occurrences_of_params = _; } =
@@ -125,10 +205,7 @@ end = struct
 
   module A = Name_abstraction.Make (Bound_parameters) (T0)
 
-  type t =
-    { abst : A.t;
-      is_exn_handler : bool
-    }
+  type t = continuation_handler
 
   let create params ~handler ~(free_names_of_handler : _ Or_unknown.t)
       ~is_exn_handler =
@@ -146,18 +223,18 @@ end = struct
             Variable.Map.add var num num_occurrences)
     in
     let t0 : T0.t = { num_normal_occurrences_of_params; handler } in
-    let abst = A.create (Bound_parameters.create params) t0 in
-    { abst; is_exn_handler }
+    let cont_handler_abst = A.create (Bound_parameters.create params) t0 in
+    { cont_handler_abst; is_exn_handler }
 
   let pattern_match' t ~f =
-    A.pattern_match t.abst
+    A.pattern_match t.cont_handler_abst
       ~f:(fun params { handler; num_normal_occurrences_of_params } ->
         f
           (Bound_parameters.to_list params)
           ~num_normal_occurrences_of_params ~handler)
 
   let pattern_match t ~f =
-    A.pattern_match t.abst
+    A.pattern_match t.cont_handler_abst
       ~f:(fun params { handler; num_normal_occurrences_of_params = _ } ->
         f (Bound_parameters.to_list params) ~handler)
 
@@ -176,7 +253,7 @@ end = struct
                [Name_abstraction.Make_list]? *)
             if List.compare_lengths params1 params2 = 0
             then
-              A.pattern_match_pair t1.abst t2.abst
+              A.pattern_match_pair t1.cont_handler_abst t2.cont_handler_abst
                 ~f:(fun
                      params
                      { handler = handler1; _ }
@@ -188,7 +265,7 @@ end = struct
                 Pattern_match_pair_error.Parameter_lists_have_different_lengths))
 
   let print_using_where (recursive : Recursive.t) ppf k
-      ({ abst = _; is_exn_handler } as t) occurrences ~first =
+      ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
     let fprintf = Format.fprintf in
     if not first then fprintf ppf "@ ";
     pattern_match t ~f:(fun params ~handler ->
@@ -214,30 +291,32 @@ end = struct
           Expr.print handler;
         fprintf ppf "@]")
 
-  let [@ocamlformat "disable"] print ppf { abst; is_exn_handler; } =
+  let [@ocamlformat "disable"] print ppf { cont_handler_abst; is_exn_handler; } =
     Format.fprintf ppf "@[<hov 1>\
         @[<hov 1>(params_and_handler@ %a)@]@ \
         @[<hov 1>(is_exn_handler@ %b)@]\
         @]"
-      A.print abst
+      A.print cont_handler_abst
       is_exn_handler
 
   let is_exn_handler t = t.is_exn_handler
 
-  let free_names t = A.free_names t.abst
+  let free_names t = A.free_names t.cont_handler_abst
 
-  let apply_renaming ({ abst; is_exn_handler } as t) perm =
-    let abst' = A.apply_renaming abst perm in
-    if abst == abst' then t else { abst = abst'; is_exn_handler }
+  let apply_renaming ({ cont_handler_abst; is_exn_handler } as t) perm =
+    let cont_handler_abst' = A.apply_renaming cont_handler_abst perm in
+    if cont_handler_abst == cont_handler_abst'
+    then t
+    else { cont_handler_abst = cont_handler_abst'; is_exn_handler }
 
-  let all_ids_for_export { abst; is_exn_handler = _ } =
-    A.all_ids_for_export abst
+  let all_ids_for_export { cont_handler_abst; is_exn_handler = _ } =
+    A.all_ids_for_export cont_handler_abst
 end
 
 and Continuation_handlers : sig
   (** The result of pattern matching on [Recursive_let_cont_handlers] (see
       above). *)
-  type t
+  type t = continuation_handlers
 
   (** Obtain the mapping from continuation to handler. *)
   val to_map : t -> Continuation_handler.t Continuation.Map.t
@@ -252,7 +331,7 @@ and Continuation_handlers : sig
 
   include Contains_ids.S with type t := t
 end = struct
-  type t = Continuation_handler.t Continuation.Map.t
+  type t = continuation_handlers
 
   let to_map t = t
 
@@ -290,28 +369,13 @@ end
 
 and Expr : sig
   (** The type of alpha-equivalence classes of expressions. *)
-  type t
+  type t = expr
 
   include Expr_std.S with type t := t
 
   include Contains_ids.S with type t := t
 
-  type descr = private
-    | Let of Let_expr.t
-        (** Bind variable(s) or symbol(s). There can be no effect on control
-            flow (save for asynchronous operations such as the invocation of
-            finalisers or signal handlers as a result of reaching a safe
-            point). *)
-    | Let_cont of Let_cont_expr.t  (** Define one or more continuations. *)
-    | Apply of Apply.t
-        (** Call an OCaml function, external function or method. *)
-    | Apply_cont of Apply_cont.t
-        (** Call a continuation, optionally adding or removing exception trap
-            frames from the stack, which thus allows for the raising of
-            exceptions. *)
-    | Switch of Switch.t  (** Conditional control flow. *)
-    | Invalid of Invalid_term_semantics.t
-        (** Code proved type-incorrect and therefore unreachable. *)
+  type descr = expr_descr
 
   (** Extract the description of an expression. *)
   val descr : t -> descr
@@ -335,14 +399,6 @@ and Expr : sig
     params:Bound_parameter.t list -> args:Simple.t list -> body:Expr.t -> Expr.t
 end = struct
   module Descr = struct
-    type t =
-      | Let of Let_expr.t
-      | Let_cont of Let_cont_expr.t
-      | Apply of Apply.t
-      | Apply_cont of Apply_cont.t
-      | Switch of Switch.t
-      | Invalid of Invalid_term_semantics.t
-
     let free_names t =
       match t with
       | Let let_expr -> Let_expr.free_names let_expr
@@ -376,18 +432,9 @@ end = struct
      were some problems with double vision etc. last time. Although we don't
      want to cache free names here. *)
 
-  type t =
-    { mutable descr : Descr.t;
-      mutable delayed_permutation : Renaming.t
-    }
+  type t = expr
 
-  type descr = Descr.t =
-    | Let of Let_expr.t
-    | Let_cont of Let_cont_expr.t
-    | Apply of Apply.t
-    | Apply_cont of Apply_cont.t
-    | Switch of Switch.t
-    | Invalid of Invalid_term_semantics.t
+  type descr = expr_descr
 
   let create descr = { descr; delayed_permutation = Renaming.empty }
 
@@ -482,7 +529,7 @@ and Function_params_and_body : sig
       need to go via a [Project_var] (from [my_closure]); accesses to any other
       simultaneously-defined functions need to go likewise via a
       [Select_closure]. *)
-  type t
+  type t = function_params_and_body
 
   include Expr_std.S with type t := t
 
@@ -551,10 +598,7 @@ and Function_params_and_body : sig
   val debuginfo : t -> Debuginfo.t
 end = struct
   module Base = struct
-    type t =
-      { expr : Expr.t;
-        free_names : Name_occurrences.t Or_unknown.t
-      }
+    type t = function_params_and_body_base
 
     let print fmt { expr; free_names = _ } =
       Format.fprintf fmt "%a" Expr.print expr
@@ -581,12 +625,7 @@ end = struct
 
   module A = Name_abstraction.Make (Bound_for_function) (Base)
 
-  type t =
-    { abst : A.t;
-      dbg : Debuginfo.t;
-      params_arity : Flambda_arity.t;
-      is_my_closure_used : bool Or_unknown.t
-    }
+  type t = function_params_and_body
 
   let create ~return_continuation ~exn_continuation params ~dbg ~body
       ~free_names_of_body ~my_closure ~my_depth =
@@ -698,17 +737,7 @@ and Let_cont_expr : sig
       such continuations, so long as [Simplify] is run afterwards to inline them
       out and turn the resulting single [Recursive] handler into a
       [Non_recursive] one. *)
-  type t = private
-    | Non_recursive of
-        { handler : Non_recursive_let_cont_handler.t;
-          num_free_occurrences : Num_occurrences.t Or_unknown.t;
-              (** [num_free_occurrences] can be used, for example, to decide
-                  whether to inline out a linearly-used continuation. *)
-          is_applied_with_traps : bool
-              (** [is_applied_with_traps] is used to prevent inlining of
-                  continuations that are applied with a trap action *)
-        }
-    | Recursive of Recursive_let_cont_handlers.t
+  type t = let_cont_expr
 
   include Expr_std.S with type t := t
 
@@ -736,13 +765,7 @@ and Let_cont_expr : sig
   val create_recursive :
     Continuation_handler.t Continuation.Map.t -> body:Expr.t -> Expr.t
 end = struct
-  type t =
-    | Non_recursive of
-        { handler : Non_recursive_let_cont_handler.t;
-          num_free_occurrences : Num_occurrences.t Or_unknown.t;
-          is_applied_with_traps : bool
-        }
-    | Recursive of Recursive_let_cont_handlers.t
+  type t = let_cont_expr
 
   let print ppf t =
     let rec gather_let_conts let_conts let_cont =
@@ -851,7 +874,7 @@ end
 
 and Let_expr : sig
   (** The alpha-equivalence classes of expressions that bind variables. *)
-  type t
+  type t = let_expr
 
   include Expr_std.S with type t := t
 
@@ -905,10 +928,7 @@ and Let_expr : sig
     ('a, Pattern_match_pair_error.t) Result.t
 end = struct
   module T0 = struct
-    type t =
-      { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
-        body : Expr.t
-      }
+    type t = let_expr_t0
 
     let [@ocamlformat "disable"] print ppf
           { body; num_normal_occurrences_of_bound_vars = _; } =
@@ -942,10 +962,7 @@ end = struct
 
   module A = Name_abstraction.Make (Bound_pattern) (T0)
 
-  type t =
-    { name_abstraction : A.t;
-      defining_expr : Named.t
-    }
+  type t = let_expr
 
   let pattern_match t ~f =
     A.pattern_match t.name_abstraction ~f:(fun bound_pattern t0 ->
@@ -1284,21 +1301,7 @@ end
 
 and Named : sig
   (** The defining expressions of [Let] bindings. *)
-  type t = private
-    | Simple of Simple.t
-        (** Things that fit in a register (variables, symbols, constants). These
-            do not have to be [Let]-bound but are allowed here for convenience. *)
-    | Prim of Flambda_primitive.t * Debuginfo.t
-        (** Primitive operations (arithmetic, memory access, allocation, etc). *)
-    | Set_of_closures of Set_of_closures.t
-        (** Definition of a set of (dynamically allocated) possibly
-            mutually-recursive closures. *)
-    | Static_consts of Static_const_group.t
-        (** Definition of one or more symbols representing statically-allocated
-            constants (including sets of closures). *)
-    (* CR mshinwell: Add comment regarding ordering, recursion, etc. *)
-    | Rec_info of Rec_info_expr.t
-        (** Definition of a state of recursive inlining. *)
+  type t = named
 
   include Expr_std.S with type t := t
 
@@ -1346,12 +1349,7 @@ and Named : sig
 
   val must_be_static_consts : t -> Static_const_group.t
 end = struct
-  type t =
-    | Simple of Simple.t
-    | Prim of Flambda_primitive.t * Debuginfo.t
-    | Set_of_closures of Set_of_closures.t
-    | Static_consts of Static_const_group.t
-    | Rec_info of Rec_info_expr.t
+  type t = named
 
   let create_simple simple = Simple simple
 
@@ -1502,7 +1500,7 @@ end
 and Non_recursive_let_cont_handler : sig
   (** The representation of the alpha-equivalence class of the binding of a
       single non-recursive continuation handler over a body. *)
-  type t
+  type t = non_recursive_let_cont_handler
 
   include Expr_std.S with type t := t
 
@@ -1525,10 +1523,7 @@ end = struct
   module Continuation_and_body =
     Name_abstraction.Make (Bound_continuation) (Expr)
 
-  type t =
-    { continuation_and_body : Continuation_and_body.t;
-      handler : Continuation_handler.t
-    }
+  type t = non_recursive_let_cont_handler
 
   let print _ppf _t = Misc.fatal_error "Not yet implemented"
 
@@ -1573,7 +1568,7 @@ and Recursive_let_cont_handlers : sig
   (** The representation of the alpha-equivalence class of a group of possibly
       (mutually-) recursive continuation handlers that are bound both over a
       body and their own handler code. *)
-  type t
+  type t = recursive_let_cont_handlers
 
   include Expr_std.S with type t := t
 
@@ -1599,18 +1594,11 @@ and Recursive_let_cont_handlers : sig
   val create : body:Expr.t -> Continuation_handlers.t -> t
 end = struct
   module T0 = struct
-    type t =
-      { handlers : Continuation_handlers.t;
-        body : Expr.t
-      }
+    type t = recursive_let_cont_handlers_t0
 
     let print _ppf _t = Misc.fatal_error "Not yet implemented"
 
     let create ~body handlers = { handlers; body }
-
-    let handlers t = t.handlers
-
-    let body t = t.body
 
     let free_names { handlers; body } =
       Name_occurrences.union
@@ -1630,6 +1618,8 @@ end = struct
 
   include Name_abstraction.Make (Bound_continuations) (T0)
 
+  type t = recursive_let_cont_handlers
+
   let create ~body handlers =
     let bound = Continuation_handlers.domain handlers in
     let handlers0 = T0.create ~body handlers in
@@ -1638,24 +1628,19 @@ end = struct
       handlers0
 
   let pattern_match t ~f =
-    pattern_match t ~f:(fun _bound handlers0 ->
-        let body = T0.body handlers0 in
-        let handlers = T0.handlers handlers0 in
-        f ~body handlers)
+    pattern_match t ~f:(fun _bound { handlers; body } -> f ~body handlers)
 
   let pattern_match_pair t1 t2 ~f =
-    pattern_match_pair t1 t2 ~f:(fun _bound handlers0_1 handlers0_2 ->
-        let body1 = T0.body handlers0_1 in
-        let body2 = T0.body handlers0_2 in
-        let handlers1 = T0.handlers handlers0_1 in
-        let handlers2 = T0.handlers handlers0_2 in
-        f ~body1 ~body2 handlers1 handlers2)
+    pattern_match_pair t1 t2
+      ~f:(fun
+           _bound
+           { body = body1; handlers = handlers1 }
+           { body = body2; handlers = handlers2 }
+         -> f ~body1 ~body2 handlers1 handlers2)
 end
 
 and Static_const_or_code : sig
-  type t =
-    | Code of Function_params_and_body.t Code0.t
-    | Static_const of Static_const.t
+  type t = static_const_or_code
 
   include Container_types.S with type t := t
 
@@ -1678,9 +1663,7 @@ and Static_const_or_code : sig
     block_like:(Symbol.t -> Static_const.t -> 'a) ->
     'a
 end = struct
-  type t =
-    | Code of Function_params_and_body.t Code0.t
-    | Static_const of Static_const.t
+  type t = static_const_or_code
 
   let print ppf t =
     match t with
@@ -1768,7 +1751,7 @@ end = struct
 end
 
 and Static_const_group : sig
-  type t
+  type t = static_const_group
 
   include Contains_names.S with type t := t
 
@@ -1807,7 +1790,7 @@ and Static_const_group : sig
 
   val is_fully_static : t -> bool
 end = struct
-  type nonrec t = Static_const_or_code.t list
+  type t = static_const_group
 
   let create static_consts = static_consts
 
