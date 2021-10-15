@@ -62,6 +62,8 @@ val dump_flexpect : unit -> bool
 
 val dump_closure_offsets : unit -> bool
 
+val freshen_when_printing : unit -> bool
+
 module Inlining : sig
   val max_depth : round:int -> int
 

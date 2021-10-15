@@ -27,11 +27,14 @@ module type Term = sig
   val print : Format.formatter -> t -> unit
 end
 
+type ('bindable, 'term) t
+
 module Make (Bindable : Bindable.S) (Term : Term) : sig
   (** The type [t] is the equivalent of an atom abstraction construction
       "[--]--" in nominal sets. *)
+  type nonrec t = (Bindable.t, Term.t) t
 
-  include Contains_names.S
+  include Contains_names.S with type t := t
 
   include Contains_ids.S with type t := t
 
@@ -41,13 +44,6 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
 
   (** Concretion of an abstraction at a fresh name. *)
   val pattern_match : t -> f:(Bindable.t -> Term.t -> 'a) -> 'a
-
-  (** Concretion of an abstraction at a fresh name followed by reconstruction of
-      the abstraction. *)
-  val pattern_match_map : t -> f:(Term.t -> Term.t) -> t
-
-  (** Like [pattern_match_map] but also provides the fresh name to [f]. *)
-  val pattern_match_mapi : t -> f:(Bindable.t -> Term.t -> Term.t) -> t
 
   (** Concretion of a pair of abstractions at the same fresh name. *)
   val pattern_match_pair :
