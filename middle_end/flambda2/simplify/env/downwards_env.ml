@@ -45,7 +45,7 @@ type t =
     do_not_rebuild_terms : bool;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
-    all_code : Flambda.Code.t Code_id.Map.t
+    all_code : Code.t Code_id.Map.t
   }
 
 let print_debuginfo ppf dbg =

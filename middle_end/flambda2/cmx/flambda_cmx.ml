@@ -16,7 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Flambda
 module T = Flambda_type
 module TE = Flambda_type.Typing_env
 

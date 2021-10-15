@@ -133,7 +133,7 @@ module Acc : sig
 
   val shareable_constants : t -> Symbol.t Static_const.Map.t
 
-  val code : t -> Flambda.Code.t Code_id.Map.t
+  val code : t -> Code.t Code_id.Map.t
 
   val free_names : t -> Name_occurrences.t
 
@@ -146,7 +146,7 @@ module Acc : sig
   val add_shareable_constant :
     symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
-  val add_code : code_id:Code_id.t -> code:Flambda.Code.t -> t -> t
+  val add_code : code_id:Code_id.t -> code:Code.t -> t -> t
 
   val add_free_names : Name_occurrences.t -> t -> t
 

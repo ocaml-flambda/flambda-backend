@@ -698,29 +698,28 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
     | Code code_id, Code code ->
       let code_id = Env.find_code_id_exn env code_id in
       let newer_version_of =
-        Option.map (Env.find_code_id_exn env)
-          (Flambda.Code.newer_version_of code)
+        Option.map (Env.find_code_id_exn env) (Code.newer_version_of code)
       in
       let param_arity =
-        match Flambda.Code.params_and_body code with
-        | Deleted -> Some (arity (Flambda.Code.params_arity code))
+        match Code.params_and_body code with
+        | Deleted -> Some (arity (Code.params_arity code))
         | Present _ -> None
         (* arity will be determined from params *)
       in
       let ret_arity =
-        match arity (Flambda.Code.result_arity code) with
+        match arity (Code.result_arity code) with
         | [Any_value] -> None
         | other -> Some other
       in
-      let recursive = recursive_flag (Flambda.Code.recursive code) in
+      let recursive = recursive_flag (Code.recursive code) in
       let inline =
-        match Flambda.Code.inline code with
+        match Code.inline code with
         | Default_inline -> None
         | other -> Some other
       in
-      let is_tupled = Flambda.Code.is_tupled code in
+      let is_tupled = Code.is_tupled code in
       let params_and_body : Fexpr.params_and_body Fexpr.or_deleted =
-        match Flambda.Code.params_and_body code with
+        match Code.params_and_body code with
         | Deleted -> Deleted
         | Present params_and_body ->
           let params_and_body =
@@ -753,7 +752,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
           Present params_and_body
       in
       let code_size =
-        Flambda.Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
+        Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
       in
       Code
         { id = code_id;
