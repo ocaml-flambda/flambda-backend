@@ -42,16 +42,11 @@ include Container_types.Make (struct
           )@]"
         Bound_symbols.print bound_symbols
 
-  (* The following would only be required if using [Name_abstraction.Make_map],
-     which we don't with this module. *)
-
   let compare _ _ = Misc.fatal_error "Bound_pattern.compare not yet implemented"
 
   let equal _ _ = Misc.fatal_error "Bound_pattern.equal not yet implemented"
 
   let hash _ = Misc.fatal_error "Bound_pattern.hash not yet implemented"
-
-  let output _ _ = Misc.fatal_error "Bound_pattern.output not yet implemented"
 end)
 
 let free_names t =

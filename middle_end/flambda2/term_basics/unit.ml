@@ -28,8 +28,6 @@ include Container_types.Make (struct
   let hash () = 0
 
   let [@ocamlformat "disable"] print ppf () = Format.pp_print_string ppf "()"
-
-  let output chan () = output_string chan "()"
 end)
 
 let free_names _ = Name_occurrences.empty

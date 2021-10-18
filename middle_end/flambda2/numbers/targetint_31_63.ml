@@ -41,8 +41,6 @@ module Imm = struct
 
     let hash = hash
 
-    let output = output
-
     let print = print
 
     let minus_one = -1L
@@ -178,8 +176,6 @@ module T0 = struct
     if print_as_char then
       Format.fprintf ppf "%C" (Char.chr (Imm.bottom_byte_to_int t.value))
     else Format.fprintf ppf "%a" Imm.print t.value
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end
 
 module Self = Container_types.Make (T0)

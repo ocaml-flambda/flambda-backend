@@ -1382,8 +1382,6 @@ module Static_const_or_code = struct
     let equal t1 t2 = compare t1 t2 = 0
 
     let hash _t = Misc.fatal_error "Not yet implemented"
-
-    let output _ _ = Misc.fatal_error "Not yet implemented"
   end)
 
   let free_names t =

@@ -31,8 +31,6 @@ include Container_types.Make (struct
 
   let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[tag_%d@]" t
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let min_tag = 0

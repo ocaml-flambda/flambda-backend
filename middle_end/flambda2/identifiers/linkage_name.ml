@@ -24,8 +24,6 @@ include Container_types.Make (struct
   let hash = Hashtbl.hash
 
   let [@ocamlformat "disable"] print ppf t = Format.pp_print_string ppf t
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let create t = t

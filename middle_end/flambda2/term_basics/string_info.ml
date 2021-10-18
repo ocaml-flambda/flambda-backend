@@ -62,6 +62,4 @@ include Container_types.Make (struct
       Format.fprintf ppf "(size %a) (contents \"%S\"%s)"
         Targetint_31_63.Imm.print size
         s dots
-
-  let output _ _ = Misc.fatal_error "Not yet implemented"
 end)

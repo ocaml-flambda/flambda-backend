@@ -115,8 +115,6 @@ module T0 = struct
       (Flambda_colours.code_id ())
       Linkage_name.print (linkage_name t)
       (Flambda_colours.normal ())
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end
 
 include T0

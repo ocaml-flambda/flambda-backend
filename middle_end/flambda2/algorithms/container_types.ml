@@ -21,8 +21,6 @@ module type Thing_no_hash = sig
 
   include Map.OrderedType with type t := t
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end
 
@@ -33,8 +31,6 @@ module type Thing = sig
 
   include Map.OrderedType with type t := t
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end
 
@@ -42,8 +38,6 @@ module type Set = sig
   module T : Set.OrderedType
 
   include Set.S with type elt = T.t
-
-  val output : out_channel -> t -> unit
 
   val print : Format.formatter -> t -> unit
 
@@ -154,8 +148,6 @@ module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
   let compare (a1, b1) (a2, b2) =
     let c = A.compare a1 a2 in
     if c <> 0 then c else B.compare b1 b2
-
-  let output oc (a, b) = Printf.fprintf oc " (%a, %a)" A.output a B.output b
 
   let hash (a, b) = Hashtbl.hash (A.hash a, B.hash b)
 
@@ -299,11 +291,6 @@ end
 
 module Make_set (T : Thing_no_hash) = struct
   include Set.Make [@inlined hint] (T)
-
-  let output oc s =
-    Printf.fprintf oc " ( ";
-    iter (fun v -> Printf.fprintf oc "%a " T.output v) s;
-    Printf.fprintf oc ")"
 
   let [@ocamlformat "disable"] print ppf s =
     let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" T.print e) s in

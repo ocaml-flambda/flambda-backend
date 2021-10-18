@@ -85,8 +85,6 @@ include Container_types.Make (struct
       print_or_elide_debuginfo dbg
       (Flambda_colours.normal ())
 
-  let output _ _ = Misc.fatal_error "Not yet implemented"
-
   let hash _ = Misc.fatal_error "Not yet implemented"
 
   let compare { k = k1; args = args1; trap_action = trap_action1; dbg = _ }

@@ -37,8 +37,6 @@ include Container_types.Make (struct
 
   let equal t1 t2 = compare t1 t2 = 0
 
-  let output _ _ = Misc.fatal_error "Not yet implemented"
-
   let hash _ = Misc.fatal_error "Not yet implemented"
 end)
 

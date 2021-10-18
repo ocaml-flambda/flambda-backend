@@ -62,8 +62,6 @@ include Container_types.Make (struct
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash _ = Misc.fatal_error "Not yet implemented"
-
-  let output _ _ = Misc.fatal_error "Not yet implemented"
 end)
 
 let add_to_name_permutation { var; name_mode = _ } ~guaranteed_fresh perm =

@@ -24,8 +24,6 @@ module type Thing_no_hash = sig
 
   include Map.OrderedType with type t := t
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end
 
@@ -36,8 +34,6 @@ module type Thing = sig
 
   include Map.OrderedType with type t := t
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 end
 
@@ -47,8 +43,6 @@ module type Set = sig
   module T : Set.OrderedType
 
   include Set.S with type elt = T.t
-
-  val output : out_channel -> t -> unit
 
   val print : Format.formatter -> t -> unit
 

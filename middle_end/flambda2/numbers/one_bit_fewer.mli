@@ -7,8 +7,6 @@ module type S = sig
 
   val hash : t -> int
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val min_value : t
@@ -100,8 +98,6 @@ module Make : functor (I : S) -> sig
   val equal : t -> t -> bool
 
   val hash : t -> int
-
-  val output : out_channel -> t -> unit
 
   val print : Format.formatter -> t -> unit
 

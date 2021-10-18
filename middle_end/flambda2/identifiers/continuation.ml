@@ -184,8 +184,6 @@ include Container_types.Make (struct
     then Format.fprintf ppf "k%d" (name_stamp t)
     else Format.fprintf ppf "%s/%d" (name t) (name_stamp t);
     Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 module Set = Patricia_tree.Make_set (struct
@@ -235,7 +233,5 @@ module With_args = struct
       Format.fprintf ppf "@[(%a, %a)@]"
         print cont
         Variable.print_list vars
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 end

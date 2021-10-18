@@ -116,8 +116,6 @@ end = struct
         | Exactly _, (Simple _ | Prim _) -> 1
 
       let print _ _ = Misc.fatal_error "Not implemented"
-
-      let output _ _ = Misc.fatal_error "Not implemented"
     end)
   end
 
