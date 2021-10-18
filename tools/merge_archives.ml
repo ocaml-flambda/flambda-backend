@@ -14,8 +14,30 @@
 
 module String_set = Set.Make (String)
 
-let merge_cma ~target:_ ~archives:_ =
-  failwith "not yet implemented"
+let merge_cma ~target ~archives =
+  (* This is rather tightly tied to the internals of [Bytelibrarian]. *)
+  Clflags.link_everything := false;
+  Clflags.custom_runtime := false;
+  Clflags.no_auto_link := false;
+  Clflags.ccobjs := [];
+  Clflags.all_ccopts := [];
+  Clflags.dllibs := [];
+  List.iter
+    (fun archive -> Load_path.add_dir (Filename.dirname archive))
+    archives;
+  let error reporter err =
+    Format.eprintf "Error whilst merging .cma files:@ %a\n%!" reporter err;
+    exit 1
+  in
+  try
+    Bytelibrarian.create_archive archives target;
+    Warnings.check_fatal ()
+  with
+  | Bytelibrarian.Error err -> error Bytelibrarian.report_error err
+  | Bytelink.Error err -> error Bytelink.report_error err
+  | Warnings.Errors ->
+    (* Warnings should already have been printed to stderr. *)
+    exit 1
 
 let read_cmxa filename =
   let chan = open_in_bin filename in
@@ -33,7 +55,7 @@ let merge_cmxa0 ~archives =
   let magic =
     match String_set.elements (String_set.of_list magics) with
     | [magic] -> magic
-    | _::_ -> failwith "Archives do not agree on the .cmxa magic number"
+    | _ :: _ -> failwith "Archives do not agree on the .cmxa magic number"
     | [] -> assert false
   in
   let _, lib_units, lib_ccobjs, lib_ccopts =
@@ -41,15 +63,14 @@ let merge_cmxa0 ~archives =
       (fun (lib_names, lib_units, lib_ccobjs, lib_ccopts)
            (cmxa : Cmx_format.library_infos) ->
         let new_lib_names =
-          List.map (fun ((cmx : Cmx_format.unit_infos), _) -> cmx.ui_name)
+          List.map
+            (fun ((cmx : Cmx_format.unit_infos), _) -> cmx.ui_name)
             cmxa.lib_units
-          |>
-          String_set.of_list
+          |> String_set.of_list
         in
         let already_defined = String_set.inter new_lib_names lib_names in
-        if not (String_set.is_empty already_defined) then begin
-          failwith "Archives contain multiply-defined units"
-        end;
+        if not (String_set.is_empty already_defined)
+        then failwith "Archives contain multiply-defined units";
         let lib_names = String_set.union new_lib_names lib_names in
         let lib_units = lib_units @ cmxa.lib_units in
         let cmxa_lib_ccobjs = String_set.of_list cmxa.lib_ccobjs in
@@ -60,10 +81,7 @@ let merge_cmxa0 ~archives =
       cmxa_list
   in
   let cmxa : Cmx_format.library_infos =
-    { lib_units;
-      lib_ccobjs = String_set.elements lib_ccobjs;
-      lib_ccopts;
-    }
+    { lib_units; lib_ccobjs = String_set.elements lib_ccobjs; lib_ccopts }
   in
   magic, cmxa
 
@@ -74,11 +92,11 @@ let merge_cmxa ~target ~archives =
   output_value chan cmxa;
   close_out chan
 
-let has_extension archive ~ext =
-  Filename.check_suffix archive ("." ^ ext)
+let has_extension archive ~ext = Filename.check_suffix archive ("." ^ ext)
 
 let syntax () =
-  Printf.eprintf "syntax: %s TARGET-CMX-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
+  Printf.eprintf
+    "syntax: %s OCAMLOPT-BINARY TARGET-CMA-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
     Sys.argv.(0);
   Printf.eprintf "Please provide only .cma files or only .cmxa files.";
   exit 1
@@ -87,8 +105,7 @@ let () =
   if Array.length Sys.argv < 3 then syntax ();
   let target = Sys.argv.(1) in
   let archives =
-    Array.sub Sys.argv 2 (Array.length Sys.argv - 2)
-    |> Array.to_list
+    Array.sub Sys.argv 2 (Array.length Sys.argv - 2) |> Array.to_list
   in
   let all_cma =
     List.for_all (fun archive -> has_extension archive ~ext:"cma") archives

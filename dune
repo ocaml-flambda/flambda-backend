@@ -288,6 +288,9 @@
   runtime_native)
  (modules flambda_backend_main_native))
 
+; The input archives (.a, .cma and .cmxa) to the following three rules
+; must be kept in sync with each other and in a topological order.
+
 (rule
  (targets ocamloptcomp_with_flambda2.a)
  (action
@@ -296,22 +299,47 @@
    %{targets}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
-   %{dep:middle_end/flambda2/lattices/flambda2_lattices.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
-   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
    %{dep:middle_end/flambda2/nominal/flambda2_nominal.a}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.a}
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.a}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
    %{dep:middle_end/flambda2/terms/flambda2_terms.a}
-   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
-   %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
    %{dep:middle_end/flambda2/types/flambda2_types.a}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
-   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
    %{dep:ocamloptcomp.a}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
+
+(rule
+ (targets ocamloptcomp_with_flambda2.cma)
+ (action
+  (run
+   %{dep:tools/merge_archives.exe}
+   %{targets}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cma}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.cma}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cma}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cma}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.cma}
+   %{dep:middle_end/flambda2/types/flambda2_types.cma}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
+   %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
+   %{dep:ocamloptcomp.cma}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
+   %{dep:middle_end/flambda2/flambda2.cma})))
 
 (rule
  (targets ocamloptcomp_with_flambda2.cmxa)
@@ -321,21 +349,21 @@
    %{targets}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
-   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
-   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
    %{dep:middle_end/flambda2/nominal/flambda2_nominal.cmxa}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cmxa}
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
-   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
-   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
    %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
-   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:ocamloptcomp.cmxa}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
 
 (install
@@ -348,9 +376,7 @@
 
 (install
  (files
-  (ocamloptcomp.cma as compiler-libs/ocamloptcomp.cma)
-  ; CR mshinwell: There is currently no ocamloptcomp+Flambda2 merged
-  ; archive for bytecode.
+  (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
  (section lib)

@@ -512,6 +512,7 @@ fmt:
 	ocamlformat -i \
 	  $$(find backend/cfg \
 	    \( -name "*.ml" -or -name "*.mli" \))
+	ocamlformat -i tools/merge_archives.ml
 
 .PHONY: check-fmt
 check-fmt:
@@ -523,7 +524,8 @@ check-fmt:
 	fi
 	$(MAKE) fmt
 	if [ "$$(git diff middle_end/flambda2)" != "" ] || \
-           [ "$$(git diff backend/cfg)" != "" ]; then \
+           [ "$$(git diff backend/cfg)" != "" ] || \
+           [ "$$(git diff tools/merge_archives.ml)" != "" ]; then \
 	  echo; \
 	  echo "The following code was not formatted correctly:"; \
 	  echo "(the + side of the diff is how it should be formatted)"; \
