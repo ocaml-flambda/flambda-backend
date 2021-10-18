@@ -1072,6 +1072,17 @@ let with_only_variables { names; _ } =
 let with_only_names_and_code_ids { names; code_ids; _ } =
   { empty with names; code_ids }
 
+let without_names_or_continuations
+    { names = _;
+      continuations = _;
+      continuations_with_traps = _;
+      continuations_in_trap_actions = _;
+      closure_vars;
+      code_ids;
+      newer_version_of_code_ids
+    } =
+  { empty with closure_vars; code_ids; newer_version_of_code_ids }
+
 let without_code_ids t =
   { t with
     code_ids = For_code_ids.empty;

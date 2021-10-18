@@ -304,7 +304,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let exn_continuation =
       Apply.exn_continuation apply |> Exn_continuation.without_extra_args
     in
-    let body, cost_metrics_of_body =
+    let body, cost_metrics_of_body, free_names =
+      (* [free_names] is going to be the free names of the whole resulting
+         function params and body (i.e. as seen from outside the lambda). *)
       let arg = function
         | Const const -> Simple.const const
         | Symbol symbol -> Simple.symbol symbol
@@ -324,9 +326,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Cost_metrics.from_size (Code_size.apply full_application)
       in
       List.fold_left
-        (fun (expr, cost_metrics) applied_value ->
+        (fun (expr, cost_metrics, free_names) applied_value ->
           match applied_value with
-          | Const _ | Symbol _ -> expr, cost_metrics
+          | Const _ | Symbol _ -> expr, cost_metrics, free_names
           | In_closure { var; closure_var; value = _ } ->
             let arg = VB.create var Name_mode.normal in
             let prim =
@@ -338,6 +340,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             let cost_metrics_of_defining_expr =
               Cost_metrics.from_size (Code_size.prim prim)
             in
+            let free_names =
+              Name_occurrences.add_closure_var free_names closure_var NM.normal
+            in
             let expr =
               Let.create
                 (Bound_pattern.singleton arg)
@@ -348,8 +353,12 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
             ( expr,
               Cost_metrics.( + ) cost_metrics
                 (Cost_metrics.increase_due_to_let_expr ~is_phantom:false
-                   ~cost_metrics_of_defining_expr) ))
-        (Expr.create_apply full_application, cost_metrics)
+                   ~cost_metrics_of_defining_expr),
+              free_names ))
+        ( Expr.create_apply full_application,
+          cost_metrics,
+          Apply.free_names full_application
+          |> Name_occurrences.without_names_or_continuations )
         (List.rev applied_values)
     in
     let params_and_body =
@@ -365,7 +374,6 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (Compilation_unit.get_current_exn ())
     in
     let code : Static_const_or_code.t =
-      let free_names = Function_params_and_body.free_names params_and_body in
       let code =
         Code.create code_id
           ~params_and_body:(Present (params_and_body, free_names))
@@ -376,7 +384,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false ~inlining_decision:Stub
       in
-      Code code
+      Static_const_or_code.create_code code
     in
     let function_decls =
       Function_declarations.create
