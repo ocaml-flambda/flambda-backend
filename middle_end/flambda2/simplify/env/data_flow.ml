@@ -544,7 +544,11 @@ module Dependency_graph = struct
       match (used_closure_vars : _ Or_unknown.t) with
       | Unknown -> fun _ -> true
       | Known used_closure_vars ->
-        Name_occurrences.mem_closure_var used_closure_vars
+        (fun closure_var ->
+          (not
+             (Compilation_unit.is_current
+                (Var_within_closure.get_compilation_unit closure_var)))
+          || Name_occurrences.mem_closure_var used_closure_vars closure_var)
     in
     let t =
       Var_within_closure.Map.fold
