@@ -760,7 +760,14 @@ let close_let acc env id user_visible defining_expr
                 ~const:(fun const ->
                   match Reg_width_things.Const.descr const with
                   | Tagged_immediate i ->
-                    approx.(Targetint_31_63.(Imm.to_int (to_targetint i)))
+                    let i = Targetint_31_63.(Imm.to_int (to_targetint i)) in
+                    if i >= Array.length approx
+                    then
+                      Misc.fatal_errorf
+                        "Trying to access the %dth field of a block \
+                         approximation of length %d."
+                        i (Array.length approx);
+                    approx.(i)
                   | _ -> Env.Value_unknown)
                 ~name:(fun _ ~coercion:_ -> Env.Value_unknown)
             in
