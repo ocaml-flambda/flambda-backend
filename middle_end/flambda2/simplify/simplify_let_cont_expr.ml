@@ -330,11 +330,10 @@ let rebuild_non_recursive_let_cont_handler cont
   after_rebuild cont_handler ~handler_expr:handler (UA.with_uenv uacc uenv)
 
 let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
-    ~dacc_after_body cont params ~(handler : Expr.t) (cont_handler : CH.t)
-    ~prior_lifted_constants ~inlining_state_at_let_cont
-    ~inlined_debuginfo_at_let_cont ~scope ~is_exn_handler
-    ~denv_for_toplevel_check ~unit_toplevel_exn_cont ~prior_cont_uses_env
-    ~down_to_up =
+    ~dacc_after_body cont params ~(handler : Expr.t) ~prior_lifted_constants
+    ~inlining_state_at_let_cont ~inlined_debuginfo_at_let_cont ~scope
+    ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
+    ~prior_cont_uses_env ~down_to_up =
   let cont_uses_env = DA.continuation_uses_env dacc_after_body in
   let code_age_relation_after_body =
     TE.code_age_relation (DA.typing_env dacc_after_body)
@@ -396,8 +395,8 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         then
           (* This should be prevented by [Simplify_apply_cont_expr]. *)
           Misc.fatal_errorf
-            "Exception handlers should never be marked as [Inlinable]:@ %a"
-            CH.print cont_handler;
+            "Exception handlers should never be marked as [Inlinable]:@ %a@ %a"
+            Continuation.print cont Expr.print handler;
         handler_env, extra_params_and_args, false, dacc
       | Normal_or_exn | Define_root_symbol ->
         let old_is_exn_handler = is_exn_handler in
@@ -433,8 +432,8 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
           (* This should be prevented by [Simplify_apply_cont_expr]. *)
           Misc.fatal_errorf
             "Exception handlers should never be marked as [Return] or \
-             [Toplevel_return]:@ %a"
-            CH.print cont_handler;
+             [Toplevel_return]:@ %a@ %a"
+            Continuation.print cont Expr.print handler;
         handler_env, extra_params_and_args, false, dacc
     in
     let dacc =
@@ -648,8 +647,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
     ~prior_lifted_constants ~inlining_state_at_let_cont
     ~inlined_debuginfo_at_let_cont ~scope ~is_exn_handler ~prior_cont_uses_env
-    cont params cont_handler ~handler ~down_to_up dacc_after_body
-    ~rebuild:rebuild_body =
+    cont params ~handler ~down_to_up dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
@@ -657,7 +655,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
   (* Before the upwards traversal of the body, we do the downwards traversal of
      the handler. *)
   simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
-    ~dacc_after_body cont params ~handler cont_handler ~prior_lifted_constants
+    ~dacc_after_body cont params ~handler ~prior_lifted_constants
     ~inlining_state_at_let_cont ~inlined_debuginfo_at_let_cont ~scope
     ~is_exn_handler ~denv_for_toplevel_check ~unit_toplevel_exn_cont
     ~prior_cont_uses_env
@@ -709,7 +707,7 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
          ~denv_before_body ~denv_for_toplevel_check ~unit_toplevel_exn_cont
          ~prior_lifted_constants ~inlining_state_at_let_cont
          ~inlined_debuginfo_at_let_cont ~scope ~is_exn_handler
-         ~prior_cont_uses_env cont params cont_handler ~handler ~down_to_up)
+         ~prior_cont_uses_env cont params ~handler ~down_to_up)
 
 let simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
     ~down_to_up cont ~body =

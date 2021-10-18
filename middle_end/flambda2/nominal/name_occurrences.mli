@@ -137,6 +137,8 @@ val with_only_variables : t -> t
 
 val with_only_names_and_code_ids : t -> t
 
+val without_names_or_continuations : t -> t
+
 val mem_var : t -> Variable.t -> bool
 
 val mem_symbol : t -> Symbol.t -> bool

@@ -24,3 +24,11 @@ module type S = sig
 
   include Contains_names.S with type t := t
 end
+
+module type S_no_free_names = sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+
+  val apply_renaming : t -> Renaming.t -> t
+end
