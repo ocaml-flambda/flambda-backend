@@ -1957,7 +1957,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv, true
       in
-      let newenv = Env.add_lock Alloc_mode.heap newenv in
+      let newenv = Env.add_lock Value_mode.global newenv in
       let body = type_module sttn funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);

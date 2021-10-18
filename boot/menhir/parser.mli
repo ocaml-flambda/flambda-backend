@@ -86,6 +86,7 @@ type token =
   | GREATERRBRACKET
   | GREATERRBRACE
   | GREATER
+  | GLOBAL
   | FUNCTOR
   | FUNCTION
   | FUN

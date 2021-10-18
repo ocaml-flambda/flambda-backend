@@ -56,6 +56,7 @@ let keyword_table =
     "fun", FUN;
     "function", FUNCTION;
     "functor", FUNCTOR;
+    "global_", GLOBAL;
     "if", IF;
     "in", IN;
     "include", INCLUDE;

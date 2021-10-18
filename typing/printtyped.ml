@@ -314,10 +314,11 @@ and expression i ppf x =
                       expression_extra i ppf extra attrs; i+1)
       (i+1) x.exp_extra
   in
-  (match Types.Alloc_mode.check_const x.exp_mode with
-  | Some Heap -> ()
-  | Some Local -> line i ppf "alloc_mode local\n"
-  | None -> line i ppf "alloc_mode <modevar>\n");
+  (match Types.Value_mode.check_const x.exp_mode with
+  | Some Global -> line i ppf "value_mode global\n"
+  | Some Regional -> line i ppf "value_mode regional\n"
+  | Some Local -> line i ppf "value_mode local\n"
+  | None -> line i ppf "value_mode <modevar>\n");
   match x.exp_desc with
   | Texp_ident (li,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;

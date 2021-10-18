@@ -197,16 +197,32 @@ let maybe_curry_typ typ =
       else mktyp_curry typ
   | _ -> typ
 
+let global_loc = mknoloc "global"
+
+let global_attr =
+  Attr.mk ~loc:Location.none global_loc (PStr [])
+
 let nonlocal_loc = mknoloc "nonlocal"
 
 let nonlocal_attr =
   Attr.mk ~loc:Location.none nonlocal_loc (PStr [])
 
+let mkld_global ld =
+  { ld with pld_attributes = global_attr :: ld.pld_attributes }
+
 let mkld_nonlocal ld =
   { ld with pld_attributes = nonlocal_attr :: ld.pld_attributes }
 
-let mkld_nonlocal_if p ld =
-  if p then mkld_nonlocal ld else ld
+type global_flag =
+  | Global
+  | Nonlocal
+  | Nothing
+
+let mkld_global_maybe gbl ld =
+  match gbl with
+  | Global -> mkld_global ld
+  | Nonlocal -> mkld_nonlocal ld
+  | Nothing -> ld
 
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
@@ -670,7 +686,7 @@ let mk_directive ~loc name arg =
 %token FUN
 %token FUNCTION
 %token FUNCTOR
-%token NONLOCAL
+%token GLOBAL
 %token GREATER
 %token GREATERRBRACE
 %token GREATERRBRACKET
@@ -715,6 +731,7 @@ let mk_directive ~loc name arg =
 %token MODULE
 %token MUTABLE
 %token NEW
+%token NONLOCAL
 %token NONREC
 %token OBJECT
 %token OF
@@ -3133,22 +3150,22 @@ label_declarations:
   | label_declaration_semi label_declarations   { $1 :: $2 }
 ;
 label_declaration:
-    mutable_or_nonlocal_flag mkrhs(label) COLON poly_type_no_attr attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       { let info = symbol_info $endpos in
-        let mut, nlcl = $1 in
-        mkld_nonlocal_if nlcl
+        let mut, gbl = $1 in
+        mkld_global_maybe gbl
           (Type.field $2 $4 ~mut ~attrs:$5 ~loc:(make_loc $sloc) ~info) }
 ;
 label_declaration_semi:
-    mutable_or_nonlocal_flag mkrhs(label) COLON poly_type_no_attr attributes
+    mutable_or_global_flag mkrhs(label) COLON poly_type_no_attr attributes
       SEMI attributes
       { let info =
           match rhs_info $endpos($5) with
           | Some _ as info_before_semi -> info_before_semi
           | None -> symbol_info $endpos
        in
-       let mut, nlcl = $1 in
-       mkld_nonlocal_if nlcl
+       let mut, gbl = $1 in
+       mkld_global_maybe gbl
          (Type.field $2 $4 ~mut ~attrs:($5 @ $7) ~loc:(make_loc $sloc) ~info) }
 ;
 
@@ -3712,10 +3729,11 @@ mutable_flag:
     /* empty */                                 { Immutable }
   | MUTABLE                                     { Mutable }
 ;
-mutable_or_nonlocal_flag:
-    /* empty */                                 { Immutable, false }
-  | MUTABLE                                     { Mutable, false }
-  | NONLOCAL                                      { Immutable, true }
+mutable_or_global_flag:
+    /* empty */                                 { Immutable, Nothing }
+  | MUTABLE                                     { Mutable, Nothing }
+  | GLOBAL                                      { Immutable, Global }
+  | NONLOCAL                                    { Immutable, Nonlocal }
 ;
 virtual_flag:
     /* empty */                                 { Concrete }

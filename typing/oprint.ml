@@ -425,10 +425,15 @@ and print_typargs ppf =
       pp_print_char ppf ')';
       pp_close_box ppf ();
       pp_print_space ppf ()
-and print_out_label ppf (name, mut, nlcl, arg) =
-  fprintf ppf "@[<2>%s%s%s :@ %a@];" (if mut then "mutable " else "")
-    (if nlcl && not mut then "nonlocal_ " else "") name
-    print_out_type arg
+and print_out_label ppf (name, mut_or_gbl, arg) =
+  let flag =
+    match mut_or_gbl with
+    | Ogom_mutable -> "mutable "
+    | Ogom_global -> "global_ "
+    | Ogom_nonlocal -> "nonlocal_ "
+    | Ogom_immutable -> ""
+  in
+  fprintf ppf "@[<2>%s%s :@ %a@];" flag name print_out_type arg
 
 let out_label = ref print_out_label
 

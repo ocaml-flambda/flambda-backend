@@ -137,7 +137,7 @@ let choose_other ord first second =
 type label_mismatch =
   | Type
   | Mutability of position
-  | Nonlocality of position
+  | Nonlocality of position * bool
 
 type record_mismatch =
   | Label_mismatch of Types.label_declaration
@@ -188,9 +188,14 @@ let report_label_mismatch first second ppf err =
       pr "%s is mutable and %s is not."
         (String.capitalize_ascii  (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality ord ->
-      pr "%s is nonlocal and %s is not."
+  | Nonlocality(ord, nonlocal) ->
+      let sort =
+        if nonlocal then "nonlocal"
+        else "global"
+      in
+      pr "%s is %s and %s is not."
         (String.capitalize_ascii  (choose ord first second))
+        sort
         (choose_other ord first second)
 
 let report_record_mismatch first second decl ppf err =
@@ -344,11 +349,18 @@ and compare_labels env params1 params2
         let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
         Some (Mutability ord)
       else begin
-        match ld1.ld_nonlocal, ld2.ld_nonlocal with
-        | Nonlocal, Not_nonlocal -> Some (Nonlocality First)
-        | Not_nonlocal, Nonlocal -> Some (Nonlocality Second)
+        match ld1.ld_global, ld2.ld_global with
+        | Global, (Nonlocal | Unrestricted) ->
+          Some (Nonlocality(First, false))
+        | (Nonlocal | Unrestricted), Global ->
+          Some (Nonlocality(Second, false))
+        | Nonlocal, Unrestricted ->
+          Some (Nonlocality(First, true))
+        | Unrestricted, Nonlocal ->
+          Some (Nonlocality(Second, true))
+        | Global, Global
         | Nonlocal, Nonlocal
-        | Not_nonlocal, Not_nonlocal ->
+        | Unrestricted, Unrestricted ->
           if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
           then None
           else Some (Type : label_mismatch)

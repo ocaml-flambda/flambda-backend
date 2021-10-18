@@ -200,6 +200,11 @@ let make_params env params =
   in
     List.map make_param params
 
+let has_global_attr attributes =
+  List.exists
+    (fun attr -> String.equal attr.attr_name.txt "global")
+    attributes
+
 let has_nonlocal_attr attributes =
   List.exists
     (fun attr -> String.equal attr.attr_name.txt "nonlocal")
@@ -231,17 +236,20 @@ let transl_labels env closed lbls =
       (fun ld ->
          let ty = ld.ld_type.ctyp_type in
          let ty = match ty.desc with Tpoly(t,[]) -> t | _ -> ty in
-         let nlcl =
-           if has_nonlocal_attr ld.ld_attributes then Types.Nonlocal
-           else begin
-             match ld.ld_mutable with
-             | Mutable -> Types.Nonlocal
-             | Immutable -> Types.Not_nonlocal
-           end
+         let gbl =
+           match ld.ld_mutable with
+           | Mutable -> Types.Global
+           | Immutable ->
+               if has_global_attr ld.ld_attributes then
+                 Types.Global
+               else if has_nonlocal_attr ld.ld_attributes then
+                 Types.Nonlocal
+               else
+                 Types.Unrestricted
          in
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
-          ld_nonlocal = nlcl;
+          ld_global = gbl;
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;

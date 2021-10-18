@@ -163,14 +163,16 @@ let has_attr s styp =
 let rec extract_params styp =
   let final styp =
     let ret_mode =
-      if has_attr "stack" styp then Alloc_mode.local else Alloc_mode.heap
+      if has_attr "stack" styp then Alloc_mode.local
+      else Alloc_mode.global
     in
     [], styp, ret_mode
   in
   match styp.ptyp_desc with
   | Ptyp_arrow (l, a, r) ->
       let arg_mode =
-        if has_attr "stack" a then Alloc_mode.local else Alloc_mode.heap
+        if has_attr "stack" a then Alloc_mode.local
+        else Alloc_mode.global
       in
       let params, ret, ret_mode =
         if has_attr "curry" r then final r
@@ -246,7 +248,7 @@ and transl_type_aux env policy styp =
           ctyp (Ttyp_arrow (l, arg_cty, arg_cty)) ty
         | [] -> transl_type env policy ret
       in
-      loop Alloc_mode.heap args
+      loop Alloc_mode.global args
   | Ptyp_tuple stl ->
     assert (List.length stl >= 2);
     let ctys = List.map (transl_type env policy) stl in

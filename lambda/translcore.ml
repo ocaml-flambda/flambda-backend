@@ -84,9 +84,10 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-let transl_alloc_mode (m : Types.alloc_mode) : Lambda.alloc_mode =
-  match Types.Alloc_mode.constrain_upper m with
-  | Heap -> Alloc_heap
+let transl_value_mode mode : Lambda.alloc_mode =
+  let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
+  match Types.Alloc_mode.constrain_upper alloc_mode with
+  | Global -> Alloc_heap
   | Local -> Alloc_local
 
 let join_mode a b =
@@ -271,7 +272,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_constant cst ->
       Lconst(Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
-      transl_let ~scopes ~mode:(transl_alloc_mode e.exp_mode) rec_flag
+      transl_let ~scopes ~mode:(transl_value_mode e.exp_mode) rec_flag
         pat_expr_list
         (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial; } ->
@@ -309,7 +310,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let e = { e with exp_desc = Texp_apply(funct, oargs) } in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised
-             lam ~mode:(transl_alloc_mode e.exp_mode)
+             lam ~mode:(transl_value_mode e.exp_mode)
              extra_args (of_location ~scopes e.exp_loc))
       end
   | Texp_apply(funct, oargs) ->
@@ -325,7 +326,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let e = { e with exp_desc = Texp_apply(funct, oargs) } in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised
-           (transl_exp ~scopes funct) ~mode:(transl_alloc_mode e.exp_mode)
+           (transl_exp ~scopes funct) ~mode:(transl_value_mode e.exp_mode)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, pat_expr_list, partial) ->
       transl_match ~scopes e arg pat_expr_list partial
@@ -340,7 +341,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
         Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_alloc_mode e.exp_mode),
+                         transl_value_mode e.exp_mode),
               ll,
               (of_location ~scopes e.exp_loc))
       end
@@ -359,7 +360,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             Lconst(Const_block(n, List.map extract_constant ll))
           with Not_constant ->
             Lprim(Pmakeblock(n, Immutable, Some shape,
-                             transl_alloc_mode e.exp_mode),
+                             transl_value_mode e.exp_mode),
                   ll,
                   of_location ~scopes e.exp_loc)
           end
@@ -369,7 +370,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           if is_const then lam
           else
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_alloc_mode e.exp_mode),
+                             transl_value_mode e.exp_mode),
                   lam :: ll, of_location ~scopes e.exp_loc)
       end
   | Texp_extension_constructor (_, path) ->
@@ -385,13 +386,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
                                    extract_constant lam]))
           with Not_constant ->
             Lprim(Pmakeblock(0, Immutable, None,
-                             transl_alloc_mode e.exp_mode),
+                             transl_value_mode e.exp_mode),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression} ->
       transl_record ~scopes e.exp_loc e.exp_env
-        (transl_alloc_mode e.exp_mode)
+        (transl_value_mode e.exp_mode)
         fields representation extended_expression
   | Texp_field(arg, _, lbl) ->
       let targ = transl_exp ~scopes arg in
@@ -423,7 +424,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_array expr_list ->
       let kind = array_kind e in
       let ll = transl_list ~scopes expr_list in
-      let mode = transl_alloc_mode e.exp_mode in
+      let mode = transl_value_mode e.exp_mode in
       begin try
         (* For native code the decision as to which compilation strategy to
            use is made later.  This enables the Flambda passes to lift certain
@@ -587,7 +588,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
          Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                          transl_alloc_mode e.exp_mode),
+                          transl_value_mode e.exp_mode),
                 [transl_exp ~scopes e], of_location ~scopes e.exp_loc)
       | `Identifier `Forward_value ->
          (* CR-someday mshinwell: Consider adding a new primitive
@@ -598,7 +599,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             value may subsequently turn into an immediate... *)
          Lprim (Popaque,
                 [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                                  transl_alloc_mode e.exp_mode),
+                                  transl_value_mode e.exp_mode),
                        [transl_exp ~scopes e],
                        of_location ~scopes e.exp_loc)],
                 of_location ~scopes e.exp_loc)
@@ -606,7 +607,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
-         let mode = transl_alloc_mode e.exp_mode in (* FIXME test *)
+         let mode = transl_value_mode e.exp_mode in (* FIXME test *)
          let fn = Lfunction {kind = Curried {nlocal=0};
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
@@ -716,7 +717,7 @@ and transl_apply ~scopes
   =
   let bound_modes =
     List.map (function
-        | (_,Some e) -> transl_alloc_mode e.exp_mode
+        | (_,Some e) -> transl_value_mode e.exp_mode
         | (_,None) -> Alloc_heap) sargs in
   let lapply funct args =
     match funct with
@@ -808,8 +809,8 @@ and transl_curried_function
                      partial = partial'; };
                exp_env; exp_type; exp_loc; exp_mode}}]
       when arity < max_arity ->
-      let arg_mode = transl_alloc_mode pat.pat_mode in
-      let curry_mode = transl_alloc_mode exp_mode in
+      let arg_mode = transl_value_mode pat.pat_mode in
+      let curry_mode = transl_value_mode exp_mode in
       (* Lfunctions must have local returns after the first local arg/ret *)
       if not (sub_mode mode curry_mode && sub_mode arg_mode curry_mode) then
         (* Cannot curry here *)
@@ -879,11 +880,11 @@ and transl_tupled_function
               let first_case_kinds =
                 List.map (fun pat -> value_kind pat.pat_env pat.pat_type) pats
               in
-              let ret_mode = transl_alloc_mode rhs.exp_mode in
+              let ret_mode = transl_value_mode rhs.exp_mode in
               ret_mode,
               List.fold_left
                 (fun kinds (pats, _, rhs) ->
-                   assert (transl_alloc_mode rhs.exp_mode = ret_mode);
+                   assert (transl_value_mode rhs.exp_mode = ret_mode);
                    List.map2 (fun kind pat ->
                        value_kind_union kind
                          (value_kind pat.pat_env pat.pat_type))
@@ -913,13 +914,13 @@ and transl_function0
       | {c_lhs=pat;c_rhs} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
-        let arg_mode = transl_alloc_mode pat.pat_mode in
-        let ret_mode = transl_alloc_mode c_rhs.exp_mode in
+        let arg_mode = transl_value_mode pat.pat_mode in
+        let ret_mode = transl_value_mode c_rhs.exp_mode in
         arg_mode,
         ret_mode,
         List.fold_left (fun k {c_lhs=pat;c_rhs} ->
-          assert (transl_alloc_mode pat.pat_mode = arg_mode);
-          assert (transl_alloc_mode c_rhs.exp_mode = ret_mode);
+          assert (transl_value_mode pat.pat_mode = arg_mode);
+          assert (transl_value_mode c_rhs.exp_mode = ret_mode);
           Typeopt.value_kind_union k
             (value_kind pat.pat_env pat.pat_type))
           (value_kind pat.pat_env pat.pat_type) other_cases
@@ -934,7 +935,7 @@ and transl_function0
        (transl_cases ~scopes cases) partial)
 
 and transl_function ~scopes e param cases partial =
-  let mode = transl_alloc_mode e.exp_mode in
+  let mode = transl_value_mode e.exp_mode in
   let ((kind, params, return, ret_mode), body) =
     event_function ~scopes e
       (function repr ->
@@ -975,7 +976,7 @@ and transl_bound_exp ~scopes ~in_structure pat expr =
 and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
   pat_expr_list =
   let bound_modes =
-    List.map (fun vb -> transl_alloc_mode vb.vb_expr.exp_mode) pat_expr_list in
+    List.map (fun vb -> transl_value_mode vb.vb_expr.exp_mode) pat_expr_list in
   match rec_flag with
     Nonrecursive ->
       let rec transl = function
@@ -1003,7 +1004,7 @@ and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
         let lam =
           Translattribute.add_function_attributes lam vb_loc vb_attributes
         in
-        begin match transl_alloc_mode expr.exp_mode, lam with
+        begin match transl_value_mode expr.exp_mode, lam with
         | Alloc_heap, _ -> ()
         | Alloc_local, Lfunction _ -> ()
         | _ -> Misc.fatal_error "transl_let: local recursive non-function"

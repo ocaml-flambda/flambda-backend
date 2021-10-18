@@ -485,12 +485,6 @@ let string_of_label = function
   | Labelled s -> s
   | Optional s -> "?"^s
 
-let string_of_alloc_mode m =
-  match Types.Alloc_mode.check_const m with
-  | Some Local -> "Local"
-  | Some Heap -> "Heap"
-  | None -> "<modevar>"
-
 let visited = ref []
 let rec raw_type ppf ty =
   let ty = safe_repr [] ty in
@@ -503,8 +497,8 @@ and raw_type_list tl = raw_list raw_type tl
 and raw_type_desc ppf = function
     Tvar name -> fprintf ppf "Tvar %a" print_name name
   | Tarrow((l,arg,ret),t1,t2,c) ->
-      fprintf ppf "@[<hov1>Tarrow((\"%s\",%s,%s),@,%a,@,%a,@,%s)@]"
-        (string_of_label l) (string_of_alloc_mode arg) (string_of_alloc_mode ret)
+      fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
+        (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
         raw_type t1 raw_type t2
         (safe_commu_repr [] c)
   | Ttuple tl ->
@@ -982,14 +976,14 @@ let rec tree_of_typexp sch ty =
           else tree_of_typexp sch ty1 in
         let am =
           match Alloc_mode.check_const marg with
-          | Some Heap -> Oam_global
+          | Some Global -> Oam_global
           | Some Local -> Oam_local
           | None -> Oam_unknown
         in
         let t2 = tree_of_typexp sch ty2 in
         let rm =
           match Alloc_mode.check_const mret with
-          | Some Heap -> Oam_global
+          | Some Global -> Oam_global
           | Some Local -> Oam_local
           | None -> Oam_unknown
         in
@@ -1334,8 +1328,14 @@ and tree_of_constructor cd =
       (name, args, Some ret)
 
 and tree_of_label l =
-  (Ident.name l.ld_id, l.ld_mutable = Mutable, l.ld_nonlocal = Nonlocal,
-   tree_of_typexp false l.ld_type)
+  let gom =
+    match l.ld_mutable, l.ld_global with
+    | Mutable, _ -> Ogom_mutable
+    | Immutable, Global -> Ogom_global
+    | Immutable, Nonlocal -> Ogom_nonlocal
+    | Immutable, Unrestricted -> Ogom_immutable
+  in
+  (Ident.name l.ld_id, gom, tree_of_typexp false l.ld_type)
 
 let constructor ppf c =
   reset_except_context ();

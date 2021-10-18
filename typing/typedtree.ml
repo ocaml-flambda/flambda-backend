@@ -40,7 +40,7 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
-    pat_mode: alloc_mode;
+    pat_mode: Value_mode.t;
     pat_env: Env.t;
     pat_attributes: attribute list;
    }
@@ -86,7 +86,7 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attribute list) list;
     exp_type: type_expr;
-    exp_mode: alloc_mode;
+    exp_mode: Value_mode.t;
     exp_env: Env.t;
     exp_attributes: attribute list;
    }

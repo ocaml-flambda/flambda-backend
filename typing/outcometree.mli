@@ -58,6 +58,12 @@ type out_value =
 
 type out_type_param = string * (Asttypes.variance * Asttypes.injectivity)
 
+type out_mutable_or_global =
+  | Ogom_mutable
+  | Ogom_global
+  | Ogom_nonlocal
+  | Ogom_immutable
+
 type out_type =
   | Otyp_abstract
   | Otyp_open
@@ -67,7 +73,7 @@ type out_type =
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of (string * out_type) list * bool option
-  | Otyp_record of (string * bool * bool * out_type) list
+  | Otyp_record of (string * out_mutable_or_global * out_type) list
   | Otyp_stuff of string
   | Otyp_sum of (string * out_type list * out_type option) list
   | Otyp_tuple of out_type list

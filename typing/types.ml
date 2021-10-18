@@ -43,7 +43,7 @@ and type_desc =
 and arrow_desc =
   arg_label * alloc_mode * alloc_mode
 
-and alloc_mode_const = Heap | Local
+and alloc_mode_const = Global | Local
 
 and alloc_mode_var = {
   mutable upper: alloc_mode_const;
@@ -266,15 +266,16 @@ and record_representation =
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
 
-and nonlocal_flag =
+and global_flag =
+  | Global
   | Nonlocal
-  | Not_nonlocal
+  | Unrestricted
 
 and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutable_flag;
-    ld_nonlocal: nonlocal_flag;
+    ld_global: global_flag;
     ld_type: type_expr;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
@@ -469,7 +470,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
-    lbl_nonlocal: nonlocal_flag;        (* Is this a global field? *)
+    lbl_global: global_flag;        (* Is this a global field? *)
     lbl_pos: int;                       (* Position in block *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for this record *)
@@ -500,40 +501,40 @@ let signature_item_id = function
     -> id
 
 module Alloc_mode = struct
-  type nonrec alloc_mode_const = alloc_mode_const = Heap | Local
+  type nonrec const = alloc_mode_const = Global | Local
   type t = alloc_mode =
-    | Amode of alloc_mode_const
+    | Amode of const
     | Amodevar of alloc_mode_var
 
+  let global = Amode Global
   let local = Amode Local
-  let heap = Amode Heap
   let of_const = function
-    | Heap -> heap
+    | Global -> global
     | Local -> local
 
-  let min_mode = heap
+  let min_mode = global
 
   let max_mode = local
 
   let le a b =
     match a, b with
-    | Heap, _ | _, Local -> true
-    | Local, Heap -> false
+    | Global, _ | _, Local -> true
+    | Local, Global -> false
 
   let join a b =
     match a, b with
     | Local, _ | _, Local -> Local
-    | Heap, Heap -> Heap
+    | Global, Global -> Global
 
   let meet a b =
     match a, b with
-    | Heap, _ | _, Heap -> Heap
+    | Global, _ | _, Global -> Global
     | Local, Local -> Local
 
   exception NotSubmode
 (*
   let pp_c ppf = function
-    | Heap -> Printf.fprintf ppf "0"
+    | Global -> Printf.fprintf ppf "0"
     | Local -> Printf.fprintf ppf "1"
   let pp_v ppf v =
     let i = v.mvid in
@@ -594,6 +595,11 @@ module Alloc_mode = struct
     | () -> Ok ()
     | exception NotSubmode -> Error ()
 
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error () -> invalid_arg "submode_exn"
+
   let equate a b =
     match submode a b, submode b a with
     | Ok (), Ok () -> Ok ()
@@ -602,19 +608,32 @@ module Alloc_mode = struct
   let next_id = ref (-1)
   let fresh () =
     incr next_id;
-    { upper = Local; lower = Heap; vlower = []; mvid = !next_id }
+    { upper = Local; lower = Global; vlower = []; mvid = !next_id }
+
+  let rec all_equal v = function
+    | [] -> true
+    | v' :: rest ->
+        if v == v' then all_equal v rest
+        else false
 
   let joinvars vars =
-    let v = fresh () in
-    vars |> List.iter (fun v' -> submode_vv v' v);
-    v
+    match vars with
+    | [] -> global
+    | v :: rest ->
+      let v =
+        if all_equal v rest then v
+        else begin
+          let v = fresh () in
+          List.iter (fun v' -> submode_vv v' v) vars;
+          v
+        end
+      in
+      Amodevar v
 
   let join ms =
     let rec aux vars = function
-      | [] ->
-         if vars = [] then heap
-         else Amodevar (joinvars vars)
-      | Amode Heap :: ms -> aux vars ms
+      | [] -> joinvars vars
+      | Amode Global :: ms -> aux vars ms
       | Amode Local :: _ -> local
       | Amodevar v :: ms -> aux (v :: vars) ms
     in aux [] ms
@@ -625,26 +644,28 @@ module Alloc_mode = struct
        submode_cv v.upper v;
        v.upper
 
+  let compress_vlower v =
+    (* Ensure that each transitive lower bound of v
+       is a direct lower bound of v *)
+    let rec trans v' =
+      if le v'.upper v.lower then ()
+      else if List.memq v' v.vlower then ()
+      else begin
+        v.vlower <- v' :: v.vlower;
+        trans_low v'
+      end
+    and trans_low v' =
+      submode_cv v'.lower v;
+      List.iter trans v'.vlower
+    in
+    List.iter trans_low v.vlower
+
   let constrain_lower = function
     | Amode m -> m
-    | Amodevar v when v.lower = v.upper -> v.lower
     | Amodevar v ->
-       (* Ensure that each transitive lower bound of v
-          is a direct lower bound of v *)
-       let rec trans v' =
-         if le v'.upper v.lower then ()
-         else if List.memq v' v.vlower then ()
-         else begin
-           v.vlower <- v' :: v.vlower;
-           trans_low v'
-         end
-       and trans_low v' =
-         submode_cv v'.lower v;
-         List.iter trans v'.vlower
-       in
-       List.iter trans_low v.vlower;
-       submode_vc v v.lower;
-       v.lower
+        compress_vlower v;
+        submode_vc v v.lower;
+        v.lower
 
   let newvar () = Amodevar (fresh ())
 
@@ -653,4 +674,169 @@ module Alloc_mode = struct
     | Amodevar v when v.lower = v.upper ->
        Some v.lower
     | Amodevar _ -> None
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print_var_id ppf v =
+    Format.fprintf ppf "?%i" v.mvid
+
+  let print_var ppf v =
+    compress_vlower v;
+    if v.lower = v.upper then begin
+      print_const ppf v.lower
+    end else if v.vlower = [] then begin
+      print_var_id ppf v
+    end else begin
+      Format.fprintf ppf "%a[> %a]"
+        print_var_id v
+        (Format.pp_print_list print_var_id) v.vlower
+    end
+
+  let print ppf = function
+    | Amode m -> print_const ppf m
+    | Amodevar v -> print_var ppf v
+
+end
+
+module Value_mode = struct
+
+  type const =
+   | Global
+   | Regional
+   | Local
+
+  let r_as_l : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Local
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let r_as_g : const -> Alloc_mode.const = function
+    | Global -> Global
+    | Regional -> Global
+    | Local -> Local
+  [@@warning "-unused-value-declaration"]
+
+  let of_alloc_consts
+        ~(r_as_l : Alloc_mode.const)
+        ~(r_as_g : Alloc_mode.const) =
+    match r_as_l, r_as_g with
+    | Global, Global -> Global
+    | Global, Local -> assert false
+    | Local, Global -> Regional
+    | Local, Local -> Local
+
+  type t =
+    { r_as_l : Alloc_mode.t;
+      (* [r_as_l] is the image of the mode under the [r_as_l] function *)
+      r_as_g : Alloc_mode.t;
+      (* [r_as_g] is the image of the mode under the [r_as_g] function.
+         Always less than [r_as_l]. *) }
+
+  let global =
+    let r_as_l = Alloc_mode.global in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let regional =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.global in
+    { r_as_l; r_as_g }
+
+  let local =
+    let r_as_l = Alloc_mode.local in
+    let r_as_g = Alloc_mode.local in
+    { r_as_l; r_as_g }
+
+  let of_const = function
+    | Global -> global
+    | Regional -> regional
+    | Local -> local
+
+  let max_mode =
+    let r_as_l = Alloc_mode.max_mode in
+    let r_as_g = Alloc_mode.max_mode in
+    { r_as_l; r_as_g }
+
+  let min_mode =
+    let r_as_l = Alloc_mode.min_mode in
+    let r_as_g = Alloc_mode.min_mode in
+    { r_as_l; r_as_g }
+
+  let of_alloc mode =
+    let r_as_l = mode in
+    let r_as_g = mode in
+    { r_as_l; r_as_g }
+
+  let local_to_regional t = { t with r_as_g = Alloc_mode.global }
+
+  let regional_to_global t = { t with r_as_l = t.r_as_g }
+
+  let regional_to_local t = { t with r_as_g = t.r_as_l }
+
+  let global_to_regional t = { t with r_as_l = Alloc_mode.local }
+
+  let regional_to_global_alloc t = t.r_as_g
+
+  let regional_to_local_alloc t = t.r_as_l
+
+  type error =
+    | Regionality
+    | Locality
+
+  let submode t1 t2 =
+    match Alloc_mode.submode t1.r_as_l t2.r_as_l with
+    | Error () -> Error Regionality
+    | Ok () as ok -> begin
+        match Alloc_mode.submode t1.r_as_g t2.r_as_g with
+        | Ok () -> ok
+        | Error () -> Error Locality
+      end
+
+  let join ts =
+    let r_as_l = Alloc_mode.join (List.map (fun t -> t.r_as_l) ts) in
+    let r_as_g = Alloc_mode.join (List.map (fun t -> t.r_as_g) ts) in
+    { r_as_l; r_as_g }
+
+  let constrain_upper t =
+    let r_as_l = Alloc_mode.constrain_upper t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_upper t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let constrain_lower t =
+    let r_as_l = Alloc_mode.constrain_lower t.r_as_l in
+    let r_as_g = Alloc_mode.constrain_lower t.r_as_g in
+    of_alloc_consts ~r_as_l ~r_as_g
+
+  let newvar () =
+    let r_as_l = Alloc_mode.newvar () in
+    let r_as_g = Alloc_mode.newvar () in
+    Alloc_mode.submode_exn r_as_g r_as_l;
+    { r_as_l; r_as_g }
+
+  let check_const t =
+    match Alloc_mode.check_const t.r_as_l with
+    | None -> None
+    | Some r_as_l ->
+      match Alloc_mode.check_const t.r_as_g with
+      | None -> None
+      | Some r_as_g ->
+        Some (of_alloc_consts ~r_as_l ~r_as_g)
+
+  let print_const ppf = function
+    | Global -> Format.fprintf ppf "Global"
+    | Regional -> Format.fprintf ppf "Regional"
+    | Local -> Format.fprintf ppf "Local"
+
+  let print ppf t =
+    match check_const t with
+    | Some const -> print_const ppf const
+    | None ->
+        Format.fprintf ppf
+          "@[<2>r_as_l: %a@ r_as_g: %a@]"
+          Alloc_mode.print t.r_as_l
+          Alloc_mode.print t.r_as_g
+
 end

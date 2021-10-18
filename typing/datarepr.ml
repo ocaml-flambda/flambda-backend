@@ -186,7 +186,7 @@ let none = {desc = Ttuple []; level = -1; scope = Btype.generic_level; id = -1}
                                         (* Clearly ill-formed type *)
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
-    lbl_mut = Immutable; lbl_nonlocal = Not_nonlocal;
+    lbl_mut = Immutable; lbl_global = Unrestricted;
     lbl_pos = (-1); lbl_all = [||]; lbl_repres = Record_regular;
     lbl_private = Public;
     lbl_loc = Location.none;
@@ -204,7 +204,7 @@ let label_descrs ty_res lbls repres priv =
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
-            lbl_nonlocal = l.ld_nonlocal;
+            lbl_global = l.ld_global;
             lbl_pos = num;
             lbl_all = all_labels;
             lbl_repres = repres;

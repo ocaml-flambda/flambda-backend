@@ -262,7 +262,7 @@ let label_declaration copy_scope s l =
   {
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
-    ld_nonlocal = l.ld_nonlocal;
+    ld_global = l.ld_global;
     ld_type = typexp copy_scope s l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
