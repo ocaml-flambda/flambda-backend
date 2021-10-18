@@ -90,6 +90,9 @@ let get_current_exn () =
 
 let get_current_id_exn () = get_persistent_ident (get_current_exn ())
 
+let is_current cu =
+  match !current with None -> false | Some current -> equal cu current
+
 let predefined_exception_t =
   create
     (Ident.create_persistent ".predef_exn")

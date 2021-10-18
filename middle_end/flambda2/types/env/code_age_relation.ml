@@ -79,13 +79,12 @@ let join ~target_t ~resolver t1 t2 id1 id2 : _ Or_unknown.t =
   else
     let id1_to_root = all_ids_up_to_root ~resolver t1 id1 in
     let id2_to_root = all_ids_up_to_root ~resolver t2 id2 in
-    let shared_ids =
-      Code_id.Set.inter id1_to_root id2_to_root
-    in
+    let shared_ids = Code_id.Set.inter id1_to_root id2_to_root in
     let shared_ids_in_scope =
-      Code_id.Set.filter (fun id ->
+      Code_id.Set.filter
+        (fun id ->
           let is_imported =
-            not Compilation_unit.(equal (get_current_exn ()) (Code_id.get_compilation_unit id))
+            not (Compilation_unit.is_current (Code_id.get_compilation_unit id))
           in
           is_imported || Code_id.Map.mem id target_t)
         shared_ids
