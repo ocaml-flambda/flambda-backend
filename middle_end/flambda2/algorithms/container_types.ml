@@ -16,6 +16,16 @@
 
 [@@@ocaml.warning "-55"]
 
+module type Thing_no_hash = sig
+  type t
+
+  include Map.OrderedType with type t := t
+
+  val output : out_channel -> t -> unit
+
+  val print : Format.formatter -> t -> unit
+end
+
 module type Thing = sig
   type t
 
@@ -287,31 +297,27 @@ module Make_map (T : Thing) (Set : Set with module T := T) = struct
 end
 [@@inline always]
 
-module Make_set (T : Thing) = struct
-  module T0 = struct
-    include Set.Make [@inlined hint] (T)
+module Make_set (T : Thing_no_hash) = struct
+  include Set.Make [@inlined hint] (T)
 
-    let output oc s =
-      Printf.fprintf oc " ( ";
-      iter (fun v -> Printf.fprintf oc "%a " T.output v) s;
-      Printf.fprintf oc ")"
+  let output oc s =
+    Printf.fprintf oc " ( ";
+    iter (fun v -> Printf.fprintf oc "%a " T.output v) s;
+    Printf.fprintf oc ")"
 
-    let [@ocamlformat "disable"] print ppf s =
-      let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" T.print e) s in
-      Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s
+  let [@ocamlformat "disable"] print ppf s =
+    let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" T.print e) s in
+    Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s
 
-    let to_string s = Format.asprintf "%a" print s
+  let to_string s = Format.asprintf "%a" print s
 
-    let of_list l =
-      match l with
-      | [] -> empty
-      | [t] -> singleton t
-      | t :: q -> List.fold_left (fun acc e -> add e acc) (singleton t) q
+  let of_list l =
+    match l with
+    | [] -> empty
+    | [t] -> singleton t
+    | t :: q -> List.fold_left (fun acc e -> add e acc) (singleton t) q
 
-    let map f s = of_list (List.map f (elements s))
-  end
-
-  include T0
+  let map f s = of_list (List.map f (elements s))
 
   let rec union_list ts =
     match ts with [] -> empty | t :: ts -> union t (union_list ts)

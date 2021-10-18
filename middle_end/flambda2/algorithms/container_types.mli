@@ -19,6 +19,16 @@
     {b Warning:} this module is unstable and part of
     {{!Compiler_libs}compiler-libs}. *)
 
+module type Thing_no_hash = sig
+  type t
+
+  include Map.OrderedType with type t := t
+
+  val output : out_channel -> t -> unit
+
+  val print : Format.formatter -> t -> unit
+end
+
 module type Thing = sig
   type t
 
@@ -58,6 +68,8 @@ module type Set = sig
 
   val get_singleton : t -> elt option
 end
+
+module Make_set (T : Thing_no_hash) : Set with module T := T
 
 module type Map = sig
   module T : Map.OrderedType
