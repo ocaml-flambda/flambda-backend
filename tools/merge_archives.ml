@@ -78,7 +78,7 @@ let has_extension archive ~ext =
   Filename.check_suffix archive ("." ^ ext)
 
 let syntax () =
-  Printf.eprintf "syntax: %s TARGET-CMX-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
+  Printf.eprintf "syntax: %s TARGET-CMA-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
     Sys.argv.(0);
   Printf.eprintf "Please provide only .cma files or only .cmxa files.";
   exit 1
