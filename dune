@@ -288,6 +288,9 @@
   runtime_native)
  (modules flambda_backend_main_native))
 
+; The input archives (.a, .cma and .cmxa) to the following three rules
+; must be kept in sync with each other and in a topological order.
+
 (rule
  (targets ocamloptcomp_with_flambda2.a)
  (action
