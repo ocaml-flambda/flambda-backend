@@ -14,7 +14,22 @@
 
 module String_set = Set.Make (String)
 
-let merge_cma ~target:_ ~archives:_ = failwith "not yet implemented"
+let merge_cma ~target ~archives =
+  (* This is rather tightly tied to the internals of [Bytelibrarian]. *)
+  Clflags.link_everything := false;
+  Clflags.custom_runtime := false;
+  Clflags.no_auto_link := false;
+  Clflags.ccobjs := [];
+  Clflags.all_ccopts := [];
+  Clflags.dllibs := [];
+  List.iter
+    (fun archive -> Load_path.add_dir (Filename.dirname archive))
+    archives;
+  try Bytelibrarian.create_archive archives target
+  with Bytelibrarian.Error error ->
+    Format.eprintf "Error whilst merging .cma files:@ %a\n%!"
+      Bytelibrarian.report_error error;
+    exit 1
 
 let read_cmxa filename =
   let chan = open_in_bin filename in
@@ -72,7 +87,8 @@ let merge_cmxa ~target ~archives =
 let has_extension archive ~ext = Filename.check_suffix archive ("." ^ ext)
 
 let syntax () =
-  Printf.eprintf "syntax: %s TARGET-CMA-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
+  Printf.eprintf
+    "syntax: %s OCAMLOPT-BINARY TARGET-CMA-OR-CMXA-FILE CMA-OR-CMXA-FILES\n"
     Sys.argv.(0);
   Printf.eprintf "Please provide only .cma files or only .cmxa files.";
   exit 1
