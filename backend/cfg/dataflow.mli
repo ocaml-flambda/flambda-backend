@@ -1,11 +1,13 @@
+[@@@ocaml.warning "+a-4-30-40-41-42"]
+
 module type Domain = sig
   type t
 
+  val top : t
+
   val bot : t
 
-  val equal : t -> t -> bool
-
-  val lessequal : t -> t -> bool
+  val compare : t -> t -> int
 
   val join : t -> t -> t
 
@@ -15,28 +17,32 @@ end
 module type Transfer = sig
   type domain
 
-  val basic : domain -> Cfg.basic Cfg.instruction -> domain
+  type t = {
+    normal : domain;
+    exceptional : domain;
+  }
 
-  val terminator : domain -> Cfg.terminator Cfg.instruction -> domain
+  val basic : domain -> Cfg.basic Cfg.instruction -> t
 
-  val exception_ : domain -> domain
+  val terminator : domain -> Cfg.terminator Cfg.instruction -> t
 end
 
 module type S = sig
   type domain
 
-  type value =
-    { before : domain;
-      after : domain option;
-      exception_ : domain option
-    }
+  type init = {
+    value : domain;
+    in_work_set : bool;
+  }
+
+  type map = domain Label.Tbl.t
 
   val run :
     Cfg.t ->
     ?max_iteration:int ->
-    init:(Cfg.basic_block -> domain * bool) ->
+    init:(Cfg.basic_block -> init) ->
     unit ->
-    value Label.Tbl.t
+    (map, map) Result.t
 end
 
 module Forward (D : Domain) (_ : Transfer with type domain = D.t) :
