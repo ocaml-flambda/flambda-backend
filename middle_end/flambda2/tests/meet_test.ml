@@ -1,16 +1,23 @@
+open Flambda2_bound_identifiers
+open Flambda2_cmx
+open Flambda2_identifiers
+open Flambda2_kinds
+open Flambda2_nominal
+open Flambda2_numbers
+open Flambda2_term_basics
+open Flambda2_types
 module K = Flambda_kind
 module T = Flambda_type
 module TE = T.Typing_env
 module TEE = T.Typing_env_extension
 
-let resolver _ = None
-
-let get_imported_names () = Name.Set.empty
-
-let get_imported_code () = Exported_code.empty
+let create_env () =
+  let resolver _ = None in
+  let get_imported_names () = Name.Set.empty in
+  TE.create ~resolver ~get_imported_names
 
 let test_meet_chains_two_vars () =
-  let env = TE.create ~resolver ~get_imported_names ~get_imported_code in
+  let env = create_env () in
   let var1 = Variable.create "var1" in
   let var1' = Bound_var.create var1 Name_mode.normal in
   let env = TE.add_definition env (Bound_name.var var1') K.value in
@@ -43,7 +50,7 @@ let test_meet_chains_two_vars () =
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
 let test_meet_chains_three_vars () =
-  let env = TE.create ~resolver ~get_imported_names ~get_imported_code in
+  let env = create_env () in
   let var1 = Variable.create "var1" in
   let var1' = Bound_var.create var1 Name_mode.normal in
   let env = TE.add_definition env (Bound_name.var var1') K.value in
@@ -81,7 +88,7 @@ let test_meet_chains_three_vars () =
     Format.eprintf "Final situation:@ %a\n%!" TE.print env
 
 let meet_variants_don't_lose_aliases () =
-  let env = TE.create ~resolver ~get_imported_names ~get_imported_code in
+  let env = create_env () in
   let define env v =
     let v' = Bound_var.create v Name_mode.normal in
     TE.add_definition env (Bound_name.var v') K.value
@@ -136,7 +143,7 @@ let test_meet_two_blocks () =
     TE.add_definition env (Bound_name.var v') K.value
   in
   let defines env l = List.fold_left define env l in
-  let env = TE.create ~resolver ~get_imported_names ~get_imported_code in
+  let env = create_env () in
   let block1 = Variable.create "block1" in
   let field1 = Variable.create "field1" in
   let block2 = Variable.create "block2" in

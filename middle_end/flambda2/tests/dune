@@ -1,14 +1,12 @@
-(executable
- (name meet_test)
+(tests
+ (names meet_test)
  (modes native)
- (flags (:standard -principal -nostdlib -cclib "-I ../../runtime"))
- (libraries ocamloptcomp ocamloptcommon ocamlmiddleend flambda ocamlcommon runtimeopt stdlib)
- (modules meet_test))
+ (flags (:standard -principal -nostdlib))
+ (libraries
+  stdlib runtime_native ocamloptcomp ocamlcommon
+  flambda2_bound_identifiers flambda2_cmx flambda2_identifiers flambda2_kinds
+  flambda2_nominal flambda2_numbers flambda2_term_basics flambda2_types))
 
 (include_subdirs no)
 
-(alias
-  (name world)
-  (deps
-    meet_test.exe
-  ))
+(dirs mlexamples tools)
