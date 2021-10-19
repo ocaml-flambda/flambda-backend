@@ -17,10 +17,10 @@ end
 module type Transfer = sig
   type domain
 
-  type t = {
-    normal : domain;
-    exceptional : domain;
-  }
+  type t =
+    { normal : domain;
+      exceptional : domain
+    }
 
   val basic : domain -> Cfg.basic Cfg.instruction -> t
 
@@ -30,10 +30,10 @@ end
 module type S = sig
   type domain
 
-  type init = {
-    value : domain;
-    in_work_set : bool;
-  }
+  type init =
+    { value : domain;
+      in_work_set : bool
+    }
 
   type map = domain Label.Tbl.t
 

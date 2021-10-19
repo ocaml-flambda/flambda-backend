@@ -19,10 +19,10 @@ end
 module type Transfer = sig
   type domain
 
-  type t = {
-    normal : domain;
-    exceptional : domain;
-  }
+  type t =
+    { normal : domain;
+      exceptional : domain
+    }
 
   val basic : domain -> Cfg.basic Cfg.instruction -> t
 
@@ -32,10 +32,10 @@ end
 module type S = sig
   type domain
 
-  type init = {
-    value : domain;
-    in_work_set : bool;
-  }
+  type init =
+    { value : domain;
+      in_work_set : bool
+    }
 
   type map = domain Label.Tbl.t
 
@@ -50,23 +50,24 @@ end
 module Forward (D : Domain) (T : Transfer with type domain = D.t) :
   S with type domain = D.t = struct
   type domain = D.t
+
   type transfer = T.t
 
-  type init = {
-    value : domain;
-    in_work_set : bool;
-  }
+  type init =
+    { value : domain;
+      in_work_set : bool
+    }
 
   type map = domain Label.Tbl.t
 
   module WorkSetElement = struct
-    type t = {
-      label : Label.t;
-      value : domain;
-    }
-    let compare
-        { label = left_label; value = left_value; }
-        { label = right_label; value = right_value; } =
+    type t =
+      { label : Label.t;
+        value : domain
+      }
+
+    let compare { label = left_label; value = left_value }
+        { label = right_label; value = right_value } =
       match Label.compare left_label right_label with
       | 0 -> D.compare left_value right_value
       | res -> res
@@ -75,35 +76,34 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
   module WorkSet = Set.Make (WorkSetElement)
 
   let transfer_block : domain -> Cfg.basic_block -> transfer =
-    fun value block ->
+   fun value block ->
     let transfer f (acc_normal, acc_exceptional) instr =
-      let { T.normal; exceptional; } = f acc_normal instr in
+      let { T.normal; exceptional } = f acc_normal instr in
       normal, D.join exceptional acc_exceptional
     in
     let normal, exceptional =
-      transfer
-        T.terminator
-        ((ListLabels.fold_left block.body ~init:(value, value) ~f:(transfer T.basic)))
+      transfer T.terminator
+        (ListLabels.fold_left block.body ~init:(value, value)
+           ~f:(transfer T.basic))
         block.terminator
     in
-    { normal; exceptional; }
+    { normal; exceptional }
 
-  let create :
-      Cfg.t ->
-      init:(Cfg.basic_block -> init) ->
-      map * WorkSet.t ref =
+  let create : Cfg.t -> init:(Cfg.basic_block -> init) -> map * WorkSet.t ref =
    fun cfg ~init ->
     (* CR xclerc for xclerc: what should be the initial size? *)
     let map = Label.Tbl.create 32 in
     let set = ref WorkSet.empty in
     Cfg.iter_blocks cfg ~f:(fun label block ->
-        let { value; in_work_set; } = init block in
+        let { value; in_work_set } = init block in
         Label.Tbl.replace map label value;
-        if in_work_set then set := WorkSet.add { WorkSetElement.label; value; } !set);
+        if in_work_set
+        then set := WorkSet.add { WorkSetElement.label; value } !set);
     map, set
 
-  let remove_and_return : Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
-    fun cfg set ->
+  let remove_and_return :
+      Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
+   fun cfg set ->
     let element = WorkSet.choose !set in
     set := WorkSet.remove element !set;
     element, Cfg.get_block_exn cfg element.label
@@ -120,27 +120,29 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
       incr iteration;
       let element, block = remove_and_return cfg work_set in
-      let { normal; exceptional; } : T.t = transfer_block element.value block in
+      let ({ normal; exceptional } : T.t) =
+        transfer_block element.value block
+      in
       let update ~normal ~exn new_value : unit =
         Label.Set.iter
           (fun successor_label ->
-             let old_value = Label.Tbl.find res successor_label in
-             if D.compare old_value new_value <> 0 then begin
-               Label.Tbl.replace res successor_label new_value;
-               work_set := WorkSet.add {
-                   WorkSetElement.label = successor_label;
-                   value = new_value;
-                 } !work_set
-             end)
+            let old_value = Label.Tbl.find res successor_label in
+            if D.compare old_value new_value <> 0
+            then begin
+              Label.Tbl.replace res successor_label new_value;
+              work_set
+                := WorkSet.add
+                     { WorkSetElement.label = successor_label;
+                       value = new_value
+                     }
+                     !work_set
+            end)
           (Cfg.successor_labels ~normal ~exn block)
       in
       update ~normal:true ~exn:false normal;
-      update ~normal:false ~exn:true exceptional;
+      update ~normal:false ~exn:true exceptional
     done;
-    if (!iteration < max_iteration) then
-      Result.Ok res
-    else
-      Result.Error res
+    if !iteration < max_iteration then Result.Ok res else Result.Error res
 end
 
 (* CR xclerc for xclerc: move the code below to another module *)
@@ -174,14 +176,14 @@ end
 module Transfer = struct
   type domain = Domain.t
 
-  type t = {
-    normal : domain;
-    exceptional : domain;
-  }
+  type t =
+    { normal : domain;
+      exceptional : domain
+    }
 
-  let basic value _ = { normal = value; exceptional = value; }
+  let basic value _ = { normal = value; exceptional = value }
 
-  let terminator value _ = { normal = value; exceptional = value; }
+  let terminator value _ = { normal = value; exceptional = value }
 end
 
 module Dataflow = Forward (Domain) (Transfer)
@@ -193,34 +195,34 @@ let run_dead_code : Cfg_with_layout.t -> unit =
   let is_trap_handler label = (Cfg.get_block_exn cfg label).is_trap_handler in
   let init { Cfg.start; _ } =
     if is_entry_label start || is_trap_handler start
-    then { Dataflow.value = Domain.Reachable; in_work_set = true; }
-    else { Dataflow.value = Domain.Unreachable; in_work_set = false; }
+    then { Dataflow.value = Domain.Reachable; in_work_set = true }
+    else { Dataflow.value = Domain.Unreachable; in_work_set = false }
   in
   match Dataflow.run cfg ~init () with
   | Result.Error _ ->
-    Misc.fatal_error "Dataflow.run_dead_code: forward analysis did not reach a fix-point";
+    Misc.fatal_error
+      "Dataflow.run_dead_code: forward analysis did not reach a fix-point"
   | Result.Ok map ->
     let unreachable_labels =
       Label.Tbl.fold
         (fun label value acc ->
-           match value with
-           | Domain.Reachable -> acc
-           | Domain.Unreachable -> Label.Set.add label acc)
-        map
-        Label.Set.empty
+          match value with
+          | Domain.Reachable -> acc
+          | Domain.Unreachable -> Label.Set.add label acc)
+        map Label.Set.empty
     in
     Label.Set.iter
       (fun label ->
-         let block = Cfg.get_block_exn cfg label in
-         block.predecessors <- Label.Set.empty;
-         Label.Set.iter
-           (fun succ_label ->
-              let succ_block = Cfg.get_block_exn cfg succ_label in
-              succ_block.predecessors
+        let block = Cfg.get_block_exn cfg label in
+        block.predecessors <- Label.Set.empty;
+        Label.Set.iter
+          (fun succ_label ->
+            let succ_block = Cfg.get_block_exn cfg succ_label in
+            succ_block.predecessors
               <- Label.Set.remove label succ_block.predecessors)
-           (Cfg.successor_labels ~normal:true ~exn:true block);
-         block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
-         block.exns <- Label.Set.empty)
+          (Cfg.successor_labels ~normal:true ~exn:true block);
+        block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
+        block.exns <- Label.Set.empty)
       unreachable_labels;
     Label.Set.iter
       (fun label -> Cfg_with_layout.remove_block cfg_with_layout label)
