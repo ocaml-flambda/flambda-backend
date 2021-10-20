@@ -406,10 +406,11 @@ and meet_head_of_kind_naked_nativeint _env t1 t2 : _ Or_bottom.t =
   let t = Targetint_32_64.Set.inter t1 t2 in
   if Targetint_32_64.Set.is_empty t then Bottom else Ok (t, TEE.empty)
 
-and meet_head_of_kind_rec_info _env t1 t2 : _ Or_bottom.t =
+and meet_head_of_kind_rec_info _env t1 _t2 : _ Or_bottom.t =
   (* CR-someday lmaurer: This could be doing things like discovering two depth
      variables are equal *)
-  if Rec_info_expr.equal t1 t2 then Ok (t1, TEE.empty) else Bottom
+  (* Arbitrary choice: *)
+  Ok (t1, TEE.empty)
 
 and meet_row_like :
       'index 'maps_to 'row_tag 'known.
