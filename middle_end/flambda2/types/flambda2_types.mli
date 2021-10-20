@@ -266,7 +266,7 @@ val make_suitable_for_environment :
   bind_to:Name.t ->
   Typing_env_extension.With_extra_variables.t
 
-val apply_coercion : flambda_type -> Coercion.t -> flambda_type Or_bottom.t
+val apply_coercion : flambda_type -> Coercion.t -> flambda_type
 
 (** Construct a bottom type of the given kind. *)
 val bottom : Flambda_kind.t -> t

@@ -891,11 +891,7 @@ and add_equation t name ty ~(meet_type : meet_type) =
   let coercion_from_ty_to_bare_lhs =
     Coercion.inverse coercion_from_bare_lhs_to_ty
   in
-  let ty =
-    match TG.apply_coercion ty coercion_from_ty_to_bare_lhs with
-    | Bottom -> MTC.bottom (TG.kind ty)
-    | Ok ty -> ty
-  in
+  let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
   (* Beware: if we're about to add the equation on a name which is different
      from the one that the caller passed in, then we need to make sure that the
      type we assign to that name is the most precise available. This
@@ -1054,10 +1050,7 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   in
   let ty =
     if Simple.has_coercion simple
-    then
-      match (TG.apply_coercion ty (Simple.coercion simple) : _ Or_bottom.t) with
-      | Ok ty -> ty
-      | Bottom -> MTC.bottom (TG.kind ty)
+    then TG.apply_coercion ty (Simple.coercion simple)
     else ty
   in
   let kind = TG.kind ty in

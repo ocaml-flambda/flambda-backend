@@ -37,9 +37,7 @@ let add_equation (simple : Simple.t) ty_of_simple env_extension =
       Coercion.inverse coercion_from_name_to_simple
     in
     let ty_of_name =
-      match TG.apply_coercion ty_of_simple coercion_from_simple_to_name with
-      | Ok ty -> ty
-      | Bottom -> MTC.bottom_like ty_of_simple
+      TG.apply_coercion ty_of_simple coercion_from_simple_to_name
     in
     TEE.add_or_replace_equation env_extension name ty_of_name
   | None -> env_extension

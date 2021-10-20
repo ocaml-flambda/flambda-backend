@@ -128,7 +128,7 @@ val kind : t -> Flambda_kind.t
 
 val alias_type_of : Flambda_kind.t -> Simple.t -> t
 
-val apply_coercion : t -> Coercion.t -> t Or_bottom.t
+val apply_coercion : t -> Coercion.t -> t
 
 val get_alias_exn : t -> Simple.t
 

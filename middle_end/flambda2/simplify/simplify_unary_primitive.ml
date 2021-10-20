@@ -80,6 +80,19 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
     let env_extension = TEE.one_equation (Name.var result_var') ty in
     Simplified_named.invalid (), env_extension, dacc
   | Proved simple ->
+    (* Owing to the semantics of [Simplify_set_of_closures] when computing the
+       types of closure variables -- in particular because it allows depth
+       variables to exist in such types that are not in scope in the body of the
+       function -- we need to ensure that any [Simple] retrieved here from the
+       closure environment is simplified. This will ensure that if it is not in
+       scope, any associated coercion will be erased appropriately. *)
+    let simple =
+      if Coercion.is_id (Simple.coercion simple)
+      then simple
+      else
+        let ty = S.simplify_simple dacc simple ~min_name_mode in
+        T.get_alias_exn ty
+    in
     let reachable = Simplified_named.reachable (Named.create_simple simple) in
     let env_extension =
       TEE.one_equation (Name.var result_var') (T.alias_type_of K.value simple)
