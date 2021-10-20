@@ -99,8 +99,8 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
         Label.Tbl.replace map label value;
         if in_work_set
         then set := WorkSet.add { WorkSetElement.label; value } !set);
-    if WorkSet.is_empty !set then
-      Misc.fatal_error "Dataflow.Forward.create: empty initial work set";
+    if WorkSet.is_empty !set
+    then Misc.fatal_error "Dataflow.Forward.create: empty initial work set";
     map, set
 
   let remove_and_return :
@@ -128,8 +128,8 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
       let update ~normal ~exn value =
         Label.Set.iter
           (fun successor_label ->
-             let old_value = Label.Tbl.find res successor_label in
-             let new_value = D.join old_value value in
+            let old_value = Label.Tbl.find res successor_label in
+            let new_value = D.join old_value value in
             if D.compare old_value new_value <> 0
             then begin
               Label.Tbl.replace res successor_label new_value;
