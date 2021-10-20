@@ -844,8 +844,18 @@ and all_ids_for_export_env_extension { equations } =
         name)
     equations Ids_for_export.empty
 
-(* CR-someday mshinwell: The [apply_coercion] functions could be generalised to
-   a mapping function over types. *)
+(* We need to be very careful here. A non-trivial coercion expects to be dealing
+   with some very specific type. As of this writing, the only non-trivial
+   coercions are depth changes, so they operate on closures. Thus if we see
+   something like [(t1, t2) @ depth 0 -> 3], where [@] is the coerce operator
+   and [depth 0 -> 3] is just some non-trivial coercion, _this is a type error_
+   and we should return bottom.
+
+   If we ever need to apply coercions inside (for instance) tuples, this isn't
+   hard so long as we introduce tuples _of coercions_. Then [(t1, t2) @ (co1,
+   co2)] is just [(t1 @ co1, t2 @ co2)]. Any bit of type syntax should be
+   liftable: a coercion on blocks has a coercion for each field, a coercion on
+   variants has a coercion for each branch, etc. *)
 let rec apply_coercion t coercion : t Or_bottom.t =
   if Coercion.is_id coercion
   then Ok t
@@ -916,56 +926,26 @@ and apply_coercion_head_of_kind_value head coercion : _ Or_bottom.t =
     if by_closure_id == by_closure_id'
     then head
     else Closures { by_closure_id = by_closure_id' }
-  | Variant { is_unique; blocks; immediates } ->
-    let found_bottom_immediates = ref false in
-    let immediates' =
-      let>+ immediates = immediates in
-      match apply_coercion immediates coercion with
-      | Bottom ->
-        found_bottom_immediates := true;
-        immediates
-      | Ok immediates -> immediates
-    in
-    let found_bottom_blocks = ref false in
-    let blocks' =
-      let>+ blocks = blocks in
-      match apply_coercion_row_like_for_blocks blocks coercion with
-      | Bottom ->
-        found_bottom_blocks := true;
-        blocks
-      | Ok blocks -> blocks
-    in
-    if !found_bottom_immediates && !found_bottom_blocks
-    then Bottom
-    else if immediates == immediates' && blocks == blocks'
-    then Ok head
-    else Ok (Variant { is_unique; blocks = blocks'; immediates = immediates' })
-  | Boxed_float t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Boxed_float t'
-  | Boxed_int32 t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Boxed_int32 t'
-  | Boxed_int64 t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Boxed_int64 t'
-  | Boxed_nativeint t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Boxed_nativeint t'
-  | String _ -> if Coercion.is_id coercion then Ok head else Bottom
-  | Array { length } ->
-    let<+ length' = apply_coercion length coercion in
-    if length == length' then head else Array { length = length' }
+  | Variant _ ->
+    (* See the comment on [apply_coercion]. The situation for variants (sums) is
+       similar to that for tuples (products): we would want a coercion for each
+       branch. *)
+    if Coercion.is_id coercion then Ok head else Bottom
+  | Boxed_float _ ->
+    (* Even if we had coercions that would act on float constants, we would want
+       to have a [Boxed_float] wrapper that would lift a float coercion to a
+       value coercion. *)
+    if Coercion.is_id coercion then Ok head else Bottom
+  | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _ | String _ ->
+    (* Similarly, we don't have lifted coercions for these. *)
+    if Coercion.is_id coercion then Ok head else Bottom
+  | Array { length = _ } ->
+    (* This one's a bit more obvious: we wouldn't want to accidentally treat a
+       coercion on integers as a coercion on array lengths. *)
+    if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_immediate head coercion : _ Or_bottom.t =
-  match head with
-  | Naked_immediates _ -> if Coercion.is_id coercion then Ok head else Bottom
-  | Is_int t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Is_int t'
-  | Get_tag t ->
-    let<+ t' = apply_coercion t coercion in
-    if t == t' then head else Get_tag t'
+  if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_float head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
@@ -986,7 +966,8 @@ and apply_coercion_head_of_kind_rec_info head coercion : _ Or_bottom.t =
 
 and apply_coercion_row_like :
       'index 'maps_to 'row_tag 'known.
-      apply_coercion_maps_to:('maps_to -> Coercion.t -> 'maps_to Or_bottom.t) ->
+      apply_coercion_maps_to:
+        ('row_tag option -> 'maps_to -> Coercion.t -> 'maps_to Or_bottom.t) ->
       known:'known ->
       other:('index, 'maps_to) row_like_case Or_bottom.t ->
       is_empty_map_known:('known -> bool) ->
@@ -1002,8 +983,8 @@ and apply_coercion_row_like :
      coercion ->
   let known =
     filter_map_known
-      (fun _ { maps_to; index; env_extension } ->
-        match apply_coercion_maps_to maps_to coercion with
+      (fun row_tag { maps_to; index; env_extension } ->
+        match apply_coercion_maps_to (Some row_tag) maps_to coercion with
         | Bottom -> None
         | Ok maps_to -> (
           match apply_coercion_env_extension env_extension coercion with
@@ -1015,7 +996,7 @@ and apply_coercion_row_like :
     match other with
     | Bottom -> Bottom
     | Ok { maps_to; index; env_extension } ->
-      let<* maps_to = apply_coercion_maps_to maps_to coercion in
+      let<* maps_to = apply_coercion_maps_to None maps_to coercion in
       let<+ env_extension =
         apply_coercion_env_extension env_extension coercion
       in
@@ -1024,16 +1005,6 @@ and apply_coercion_row_like :
   if row_like_is_bottom ~known ~other ~is_empty_map_known
   then Bottom
   else Ok (known, other)
-
-and apply_coercion_row_like_for_blocks { known_tags; other_tags } coercion :
-    row_like_for_blocks Or_bottom.t =
-  let<+ known, other =
-    apply_coercion_row_like
-      ~apply_coercion_maps_to:apply_coercion_int_indexed_product
-      ~known:known_tags ~other:other_tags ~is_empty_map_known:Tag.Map.is_empty
-      ~filter_map_known:Tag.Map.filter_map coercion
-  in
-  { known_tags = known; other_tags = other }
 
 and apply_coercion_row_like_for_closures { known_closures; other_closures }
     coercion : row_like_for_closures Or_bottom.t =
@@ -1046,14 +1017,49 @@ and apply_coercion_row_like_for_closures { known_closures; other_closures }
   in
   { known_closures = known; other_closures = other }
 
-and apply_coercion_closures_entry
+and apply_coercion_closures_entry row_tag
     { function_types; closure_types; closure_var_types } coercion :
     _ Or_bottom.t =
   let bottom = ref false in
+  let function_coercion =
+    (* We're being naughty here. Properly, a coercion acting on a row-like type
+       should itself be row-like, with one sub-coercion per row (generalizing
+       the example in the comment on [apply_coercion]). Then, what _should_
+       happen here is that we pull out the sub-coercion corresponding to
+       [row_tag] and apply it. But we don't have a row-like - all we have is
+       either the identity or a [change_depth] coercion. Thus we cheat and let
+       the same [change_depth] coercion apply at _either_ the level of the
+       variant-like closure type _or_ the level of a component function type.
+       Since we only expect coercions to apply in cases where there's a single
+       branch (either [my_closure], a known projection out of [my_closure], or a
+       [let] binding arising from inlining a known function), we're getting away
+       with it for the time being.
+
+       This is why we don't similarly recurse into variants (or blocks): in
+       general, a coercion acting on a variant or block _does not_ act directly
+       on the components; rather, it should contain sub-coercions that do - and
+       we don't currently have any such compound coercions. (See the comment on
+       [apply_coercion].)
+
+       CR-someday lmaurer: Fix this if necessary. It's unlikely to be worthwhile
+       to do so before we already have row-like coercions for other reasons. *)
+    ignore (row_tag : Closure_id.t option);
+    coercion
+  in
   let function_types =
+    (* Somewhat hackily apply the same coercion to everything in the set of
+       closures. After all, we're only adjusting recursion depth, and all
+       closures in the same set have the same depth.
+
+       CR lmaurer: Check that this is consistent with the simplifier's behavior.
+       In particular, [select_closure] should return a closure at the same depth
+       as the original closure.
+
+       Exhaustingly, this is _entirely orthogonal_ to the issue with closures
+       having row-like types. *)
     Closure_id.Map.map
       (fun function_type ->
-        match apply_coercion_function_type function_type coercion with
+        match apply_coercion_function_type function_type function_coercion with
         | Ok function_type -> function_type
         | Bottom ->
           bottom := true;
@@ -1065,18 +1071,28 @@ and apply_coercion_closures_entry
   then Bottom
   else
     let<* closure_types =
-      apply_coercion_closure_id_indexed_product closure_types coercion
+      apply_coercion_to_closure_types_in_set closure_types coercion
     in
     let<+ closure_var_types =
-      apply_coercion_var_within_closure_indexed_product closure_var_types
-        coercion
+      apply_coercion_to_closure_var_types_in_set closure_var_types coercion
     in
     { function_types; closure_types; closure_var_types }
 
-and apply_coercion_closure_id_indexed_product
+and apply_coercion_to_closure_types_in_set
     ({ closure_id_components_by_index } as product) coercion : _ Or_bottom.t =
   let found_bottom = ref false in
   let closure_id_components_by_index' =
+    (* Again, just apply the same coercion to everything in the set of closures
+       (see comment on [function_types] above).
+
+       We're _also_ once again conflating the coercion applied to the
+       variant-like closure type with the coercion applied to the row. If we had
+       row-like coercions, we would instead construct a singleton for each
+       closure (just as [product] has a singleton row-like type for each
+       closure).
+
+       CR-someday lmaurer: Fix this once we fix [apply_coercion_closures_entry]
+       (presumably by adding row-like coercions). *)
     Closure_id.Map.map_sharing
       (fun t ->
         match apply_coercion t coercion with
@@ -1092,41 +1108,13 @@ and apply_coercion_closure_id_indexed_product
   then Ok product
   else Ok { closure_id_components_by_index = closure_id_components_by_index' }
 
-and apply_coercion_var_within_closure_indexed_product
-    ({ var_within_closure_components_by_index } as product) coercion :
-    _ Or_bottom.t =
-  let found_bottom = ref false in
-  let var_within_closure_components_by_index' =
-    Var_within_closure.Map.map_sharing
-      (fun t ->
-        match apply_coercion t coercion with
-        | Bottom ->
-          found_bottom := true;
-          t
-        | Ok t -> t)
-      var_within_closure_components_by_index
-  in
-  if !found_bottom
-  then Bottom
-  else if var_within_closure_components_by_index
-          == var_within_closure_components_by_index'
-  then Ok product
-  else
-    Ok
-      { var_within_closure_components_by_index =
-          var_within_closure_components_by_index'
-      }
-
-and apply_coercion_int_indexed_product { fields; kind } coercion : _ Or_bottom.t
+and apply_coercion_to_closure_var_types_in_set product _coercion : _ Or_bottom.t
     =
-  let found_bottom = ref false in
-  let fields = Array.copy fields in
-  for i = 0 to Array.length fields - 1 do
-    match apply_coercion fields.(i) coercion with
-    | Bottom -> found_bottom := true
-    | Ok typ -> fields.(i) <- typ
-  done;
-  if !found_bottom then Bottom else Ok { fields; kind }
+  (* The coercion applies only to the function type, not the environment. For
+     example, changing the depth of a closure [inner] that refers to some other
+     closure [outer] (with which it's not mutually recursive) only changes the
+     depth of [inner]. *)
+  Ok product
 
 and apply_coercion_function_type
     (function_type : function_type Or_unknown_or_bottom.t)
