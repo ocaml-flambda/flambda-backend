@@ -16,8 +16,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR mshinwell: Use this module in [Expr] *)
-
 type 'descr t =
   { mutable descr : 'descr;
     mutable delayed_permutation : Renaming.t;

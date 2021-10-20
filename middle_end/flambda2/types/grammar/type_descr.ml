@@ -111,9 +111,9 @@ end = struct
           (Simple.free_names simple) Name_mode.in_types
   end
 
-  module WDP = With_delayed_permutation
+  module WDR = With_delayed_renaming
 
-  type 'head t = 'head Descr.t WDP.t Or_unknown_or_bottom.t
+  type 'head t = 'head Descr.t WDR.t Or_unknown_or_bottom.t
 
   let[@inline always] descr ~apply_renaming_head ~free_names_head (t : _ t) :
       _ Descr.t Or_unknown_or_bottom.t =
@@ -122,14 +122,14 @@ end = struct
     | Bottom -> Bottom
     | Ok wdp ->
       Ok
-        (WDP.descr
+        (WDR.descr
            ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
            ~free_names_descr:(Descr.free_names ~free_names_head)
            wdp)
 
-  let create head : _ t = Ok (WDP.create (Descr.No_alias head))
+  let create head : _ t = Ok (WDR.create (Descr.No_alias head))
 
-  let create_equals simple : _ t = Ok (WDP.create (Descr.Equals simple))
+  let create_equals simple : _ t = Ok (WDR.create (Descr.Equals simple))
 
   let bottom : _ t = Bottom
 
@@ -148,11 +148,11 @@ end = struct
     | Ok wdp -> (
       (* This uses [peek_descr] first to avoid unnecessary application of
          permutations. *)
-      match WDP.peek_descr wdp with
+      match WDR.peek_descr wdp with
       | No_alias _ -> raise Not_found
       | Equals _ -> (
         match
-          WDP.descr
+          WDR.descr
             ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
             ~free_names_descr:(Descr.free_names ~free_names_head)
             wdp
@@ -164,14 +164,14 @@ end = struct
     match t with
     | Unknown | Bottom -> t
     | Ok wdp ->
-      let wdp' = WDP.apply_renaming wdp renaming in
+      let wdp' = WDR.apply_renaming wdp renaming in
       if wdp == wdp' then t else Ok wdp'
 
   let free_names ~apply_renaming_head ~free_names_head (t : _ t) =
     match t with
     | Unknown | Bottom -> Name_occurrences.empty
     | Ok wdp ->
-      WDP.free_names
+      WDR.free_names
         ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
         ~free_names_descr:(Descr.free_names ~free_names_head)
         wdp
