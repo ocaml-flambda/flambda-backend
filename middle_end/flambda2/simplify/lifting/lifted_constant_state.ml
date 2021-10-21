@@ -130,11 +130,11 @@ let add_to_denv ?maybe_already_defined denv lifted =
             else
               let sym = Name.symbol sym in
               let env_extension =
-                (* CR mshinwell: Sometimes we might already have the types "made
-                   suitable" in the [closure_env] field of the typing
-                   environment, perhaps? For example when lifted constants'
-                   types are coming out of a closure into the enclosing
-                   scope. *)
+                (* CR-someday mshinwell: Sometimes we might already have the
+                   types "made suitable" in the [closure_env] field of the
+                   typing environment, perhaps? For example when lifted
+                   constants' types are coming out of a closure into the
+                   enclosing scope. *)
                 T.make_suitable_for_environment
                   (DE.typing_env denv_at_definition)
                   typ ~suitable_for:typing_env ~bind_to:sym
