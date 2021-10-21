@@ -24,10 +24,29 @@ type t =
       { const : Static_const_or_code.t;
         free_names : Name_occurrences.t
       }
-  | Non_code_not_rebuilt of { free_names : Name_occurrences.t }
+  | Block_not_rebuilt of { free_names : Name_occurrences.t }
+  | Set_of_closures_not_rebuilt of { free_names : Name_occurrences.t }
   | Code_not_rebuilt of Non_constructed_code.t
 
 type rebuilt_static_const = t
+
+let is_block t =
+  match t with
+  | Normal { const; _ } -> Static_const_or_code.is_block const
+  | Block_not_rebuilt _ -> true
+  | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ -> false
+
+let is_set_of_closures t =
+  match t with
+  | Normal { const; _ } -> Static_const_or_code.is_set_of_closures const
+  | Set_of_closures_not_rebuilt _ -> true
+  | Code_not_rebuilt _ | Block_not_rebuilt _ -> false
+
+let is_code t =
+  match t with
+  | Normal { const; _ } -> Static_const_or_code.is_code const
+  | Code_not_rebuilt _ -> true
+  | Set_of_closures_not_rebuilt _ | Block_not_rebuilt _ -> false
 
 let create_normal_non_code const =
   Normal
@@ -73,7 +92,7 @@ let create_code' code =
 let create_set_of_closures are_rebuilding set =
   let free_names = Set_of_closures.free_names set in
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names }
+  then Set_of_closures_not_rebuilt { free_names }
   else
     Normal
       { const = Static_const_or_code.create_static_const (Set_of_closures set);
@@ -89,27 +108,27 @@ let create_block are_rebuilding tag is_mutable ~fields =
           Name_occurrences.union free_names
             (Field_of_static_block.free_names field))
     in
-    Non_code_not_rebuilt { free_names }
+    Block_not_rebuilt { free_names }
   else create_normal_non_code (Block (tag, is_mutable, fields))
 
 let create_boxed_float are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Or_variable.free_names or_var }
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (Boxed_float or_var)
 
 let create_boxed_int32 are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Or_variable.free_names or_var }
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (Boxed_int32 or_var)
 
 let create_boxed_int64 are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Or_variable.free_names or_var }
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (Boxed_int64 or_var)
 
 let create_boxed_nativeint are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Or_variable.free_names or_var }
+  then Block_not_rebuilt { free_names = Or_variable.free_names or_var }
   else create_normal_non_code (Boxed_nativeint or_var)
 
 let create_immutable_float_block are_rebuilding fields =
@@ -120,7 +139,7 @@ let create_immutable_float_block are_rebuilding fields =
         ~f:(fun free_names field ->
           Name_occurrences.union free_names (Or_variable.free_names field))
     in
-    Non_code_not_rebuilt { free_names }
+    Block_not_rebuilt { free_names }
   else create_normal_non_code (Immutable_float_block fields)
 
 let create_immutable_float_array are_rebuilding fields =
@@ -131,17 +150,17 @@ let create_immutable_float_array are_rebuilding fields =
         ~f:(fun free_names field ->
           Name_occurrences.union free_names (Or_variable.free_names field))
     in
-    Non_code_not_rebuilt { free_names }
+    Block_not_rebuilt { free_names }
   else create_normal_non_code (Immutable_float_array fields)
 
 let create_mutable_string are_rebuilding ~initial_value =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Name_occurrences.empty }
+  then Block_not_rebuilt { free_names = Name_occurrences.empty }
   else create_normal_non_code (Mutable_string { initial_value })
 
 let create_immutable_string are_rebuilding str =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Name_occurrences.empty }
+  then Block_not_rebuilt { free_names = Name_occurrences.empty }
   else create_normal_non_code (Immutable_string str)
 
 let map_set_of_closures t ~f =
@@ -164,26 +183,32 @@ let map_set_of_closures t ~f =
       | Mutable_string _ | Immutable_string _ ->
         t)
   end
-  | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> t
+  | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->
+    t
 
 let free_names t =
   match t with
   | Normal { free_names; _ } -> free_names
-  | Non_code_not_rebuilt { free_names } -> free_names
+  | Block_not_rebuilt { free_names }
+  | Set_of_closures_not_rebuilt { free_names } ->
+    free_names
   | Code_not_rebuilt code -> Non_constructed_code.free_names code
 
 let is_fully_static t = Name_occurrences.no_variables (free_names t)
 
 let to_const t =
   match t with
-  | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None
+  | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->
+    None
   | Normal { const; _ } -> Some const
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
   | Normal { const; _ } -> Static_const_or_code.print ppf const
-  | Non_code_not_rebuilt { free_names = _; } ->
-    Format.fprintf ppf "Non_code_not_rebuilt"
+  | Block_not_rebuilt { free_names = _; } ->
+    Format.fprintf ppf "Block_not_rebuilt"
+  | Set_of_closures_not_rebuilt { free_names = _; } ->
+    Format.fprintf ppf "Set_of_closures_not_rebuilt"
   | Code_not_rebuilt code ->
     Format.fprintf ppf "@[<hov 1>(Code_not_rebuilt@ %a)@]"
       Non_constructed_code.print code
@@ -201,7 +226,7 @@ let make_all_code_deleted t =
     | None -> t
     | Some _code -> deleted_code
   end
-  | Non_code_not_rebuilt _ -> t
+  | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ -> t
   | Code_not_rebuilt _ -> deleted_code
 
 let make_code_deleted t ~if_code_id_is_member_of =
@@ -214,7 +239,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
       then deleted_code
       else t
   end
-  | Non_code_not_rebuilt _ -> t
+  | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ -> t
   | Code_not_rebuilt code ->
     if Code_id.Set.mem
          (Non_constructed_code.code_id code)
@@ -252,7 +277,8 @@ module Group = struct
     ListLabels.map t.consts ~f:(fun (const : rebuilt_static_const) ->
         match const with
         | Normal { const; _ } -> const
-        | Non_code_not_rebuilt _ | Code_not_rebuilt _ ->
+        | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _
+        | Code_not_rebuilt _ ->
           Misc.fatal_error
             "Cannot extract static constants when not rebuilding terms")
     |> Static_const_group.create |> Named.create_static_consts
@@ -264,7 +290,9 @@ module Group = struct
           match Static_const_or_code.to_code const with
           | None -> None
           | Some code -> Some (Code.code_id code, code))
-        | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None)
+        | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _
+        | Code_not_rebuilt _ ->
+          None)
     |> Code_id.Map.of_list
 
   let function_params_and_body_for_code_not_rebuilt =
@@ -280,7 +308,7 @@ module Group = struct
     ListLabels.filter_map t.consts ~f:(fun const ->
         match const with
         | Normal { const; _ } -> Static_const_or_code.to_code const
-        | Non_code_not_rebuilt _ -> None
+        | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ -> None
         | Code_not_rebuilt code ->
           let module NCC = Non_constructed_code in
           (* See comment in the .mli. *)

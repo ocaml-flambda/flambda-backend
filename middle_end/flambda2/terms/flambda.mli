@@ -496,6 +496,12 @@ module Static_const_or_code : sig
 
   val is_fully_static : t -> bool
 
+  val is_block : t -> bool
+
+  val is_set_of_closures : t -> bool
+
+  val is_code : t -> bool
+
   val create_code : Function_params_and_body.t Code0.t -> t
 
   val deleted_code : t
