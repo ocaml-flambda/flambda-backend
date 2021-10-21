@@ -16,8 +16,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
 
 let rec load_cmx_file_contents ~get_global_info comp_unit ~imported_units
     ~imported_names ~imported_code =

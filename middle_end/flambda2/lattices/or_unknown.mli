@@ -26,6 +26,8 @@ val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
 val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 
+val bind : 'a t -> f:('a -> 'b t) -> 'b t
+
 val map : 'a t -> f:('a -> 'b) -> 'b t
 
 val map_sharing : 'a t -> f:('a -> 'a) -> 'a t
@@ -40,4 +42,10 @@ module Lift (I : Container_types.S) : sig
   type nonrec t = I.t t
 
   include Container_types.S with type t := t
+end
+
+module Let_syntax : sig
+  val ( let>* ) : 'a t -> ('a -> 'b t) -> 'b t
+
+  val ( let>+ ) : 'a t -> ('a -> 'b) -> 'b t
 end

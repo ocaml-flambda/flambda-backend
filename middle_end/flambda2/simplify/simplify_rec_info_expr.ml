@@ -19,7 +19,7 @@
 module DA = Downwards_acc
 module DE = Downwards_env
 module K = Flambda_kind
-module T = Flambda_type
+module T = Flambda2_types
 module TE = T.Typing_env
 
 let compute_succ ~(depth : int Or_infinity.t)

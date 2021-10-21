@@ -48,11 +48,11 @@ val is_self_tail_call : Downwards_acc.t -> Apply_expr.t -> bool
 val simplify_projection :
   Downwards_acc.t ->
   original_term:Named.t ->
-  deconstructing:Flambda_type.t ->
-  shape:Flambda_type.t ->
+  deconstructing:Flambda2_types.t ->
+  shape:Flambda2_types.t ->
   result_var:Bound_var.t ->
   result_kind:Flambda_kind.t ->
-  Simplified_named.t * Flambda_type.Typing_env_extension.t * Downwards_acc.t
+  Simplified_named.t * Flambda2_types.Typing_env_extension.t * Downwards_acc.t
 
 val update_exn_continuation_extra_args :
   Upwards_acc.t ->

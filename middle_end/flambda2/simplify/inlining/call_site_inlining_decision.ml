@@ -181,9 +181,9 @@ let report fmt t =
 (* CR mshinwell: This parameter needs to be configurable *)
 let max_rec_depth = 1
 
-module I = Flambda_type.Function_declaration_type.T0
+module FT = Flambda2_types.Function_type
 
-let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
+let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
     =
   let dacc = DA.set_do_not_rebuild_terms_and_disable_inlining dacc in
   (* CR-someday poechsel: [Inlining_transforms.inline] is preparing the body for
@@ -197,7 +197,7 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
        inside of [speculative_inlining] we will always have [unroll_to] = None.
        We are not disabling unrolling when speculating, it just happens that no
        unrolling can happen while speculating right now. *)
-    Inlining_transforms.inline dacc ~apply ~unroll_to:None function_decl
+    Inlining_transforms.inline dacc ~apply ~unroll_to:None function_type
   in
   let scope = DE.get_continuation_scope_level (DA.denv dacc) in
   let dummy_toplevel_cont =
@@ -251,10 +251,10 @@ let speculative_inlining dacc ~apply ~function_decl ~simplify_expr ~return_arity
   in
   UA.cost_metrics uacc
 
-let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
+let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
-  match DE.find_code denv (I.code_id function_decl) with
+  match DE.find_code denv (FT.code_id function_type) with
   | None -> Missing_code
   | Some code ->
     let function_decl_decision = Code.inlining_decision code in
@@ -269,7 +269,7 @@ let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
     else
       let cost_metrics =
         speculative_inlining ~apply dacc ~simplify_expr ~return_arity
-          ~function_decl
+          ~function_type
       in
       let inlining_args =
         Apply.inlining_arguments apply
@@ -286,12 +286,10 @@ let might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity : t =
       then Speculatively_inline { cost_metrics; evaluated_to; threshold }
       else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
 
-let make_decision dacc ~simplify_expr ~function_decl ~apply ~return_arity : t =
-  let function_decl_rec_info = I.rec_info function_decl in
-  let function_decl_rec_info =
-    match
-      Flambda_type.prove_rec_info (DA.typing_env dacc) function_decl_rec_info
-    with
+let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
+  let rec_info = FT.rec_info function_type in
+  let rec_info =
+    match Flambda2_types.prove_rec_info (DA.typing_env dacc) rec_info with
     | Proved rec_info -> rec_info
     | Unknown -> Rec_info_expr.unknown
     | Invalid -> Rec_info_expr.do_not_inline
@@ -315,13 +313,12 @@ let make_decision dacc ~simplify_expr ~function_decl ~apply ~return_arity : t =
        Here we're performing step _2_ (but only, of course, if we performed step
        1 in a previous call to this function). *)
     let unrolling_depth =
-      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
-        function_decl_rec_info
+      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc rec_info
     in
     match unrolling_depth with
     | Some 0 -> Unrolling_depth_exceeded
     | Some _ ->
-      might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity
+      might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity
     | None -> (
       (* CR lmaurer: This seems semantically dodgy: If we really think of a free
          depth variable as [Unknown], then we shouldn't be considering inlining
@@ -343,13 +340,13 @@ let make_decision dacc ~simplify_expr ~function_decl ~apply ~return_arity : t =
         match inline with
         | Never_inline -> assert false
         | Default_inline ->
-          if Simplify_rec_info_expr.depth_may_be_at_least dacc
-               function_decl_rec_info (max_rec_depth + 1)
+          if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
+               (max_rec_depth + 1)
           then Recursion_depth_exceeded
           else
-            might_inline dacc ~apply ~function_decl ~simplify_expr ~return_arity
+            might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity
         | Unroll unroll_to ->
-          if Simplify_rec_info_expr.can_unroll dacc function_decl_rec_info
+          if Simplify_rec_info_expr.can_unroll dacc rec_info
           then
             (* This sets off step 1 in the comment above; see
                [Inlining_transforms] for how [unroll_to] is ultimately

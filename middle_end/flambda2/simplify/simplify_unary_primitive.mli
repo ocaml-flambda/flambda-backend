@@ -22,10 +22,10 @@ val simplify_unary_primitive :
   Downwards_acc.t ->
   Flambda_primitive.unary_primitive ->
   arg:Simple.t ->
-  arg_ty:Flambda_type.t ->
+  arg_ty:Flambda2_types.t ->
   Debuginfo.t ->
   result_var:Bound_var.t ->
   Simplified_named.t
-  * Flambda_type.Typing_env_extension.t
+  * Flambda2_types.Typing_env_extension.t
   * Simple.t list
   * Downwards_acc.t

@@ -31,3 +31,9 @@ val value_map : 'a t -> bottom:'b -> f:('a -> 'b) -> 'b
 val all : 'a t list -> 'a list t
 
 val bind : 'a t -> f:('a -> 'b t) -> 'b t
+
+module Let_syntax : sig
+  val ( let<* ) : 'a t -> ('a -> 'b t) -> 'b t
+
+  val ( let<+ ) : 'a t -> ('a -> 'b) -> 'b t
+end

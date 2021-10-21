@@ -21,14 +21,14 @@
 type t
 
 val create :
-  final_typing_env:Flambda_type.Typing_env.Serializable.t ->
+  final_typing_env:Flambda2_types.Typing_env.Serializable.t ->
   all_code:Exported_code.t ->
   exported_offsets:Exported_offsets.t ->
   used_closure_vars:Var_within_closure.Set.t ->
   t
 
 val import_typing_env_and_code :
-  t -> Flambda_type.Typing_env.Serializable.t * Exported_code.t
+  t -> Flambda2_types.Typing_env.Serializable.t * Exported_code.t
 
 val exported_offsets : t -> Exported_offsets.t
 

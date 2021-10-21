@@ -31,7 +31,7 @@ type table_data =
 
 type t0 =
   { original_compilation_unit : Compilation_unit.t;
-    final_typing_env : Flambda_type.Typing_env.Serializable.t;
+    final_typing_env : Flambda2_types.Typing_env.Serializable.t;
     all_code : Exported_code.t;
     exported_offsets : Exported_offsets.t;
     used_closure_vars : Var_within_closure.Set.t;
@@ -42,7 +42,7 @@ type t = t0 list
 
 let create ~final_typing_env ~all_code ~exported_offsets ~used_closure_vars =
   let typing_env_exported_ids =
-    Flambda_type.Typing_env.Serializable.all_ids_for_export final_typing_env
+    Flambda2_types.Typing_env.Serializable.all_ids_for_export final_typing_env
   in
   let all_code_exported_ids = Exported_code.all_ids_for_export all_code in
   let exported_ids =
@@ -127,7 +127,7 @@ let import_typing_env_and_code0 t =
       ~continuations ~used_closure_vars
   in
   let typing_env =
-    Flambda_type.Typing_env.Serializable.apply_renaming t.final_typing_env
+    Flambda2_types.Typing_env.Serializable.apply_renaming t.final_typing_env
       renaming
   in
   let all_code = Exported_code.apply_renaming code_ids renaming t.all_code in
@@ -142,7 +142,7 @@ let import_typing_env_and_code t =
       (fun (typing_env, code) t0 ->
         let typing_env0, code0 = import_typing_env_and_code0 t0 in
         let typing_env =
-          Flambda_type.Typing_env.Serializable.merge typing_env typing_env0
+          Flambda2_types.Typing_env.Serializable.merge typing_env typing_env0
         in
         let code = Exported_code.merge code code0 in
         typing_env, code)
@@ -219,7 +219,7 @@ let print0 ppf t =
   Compilation_unit.set_current t.original_compilation_unit;
   let typing_env, code = import_typing_env_and_code0 t in
   Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
-    Flambda_type.Typing_env.Serializable.print typing_env;
+    Flambda2_types.Typing_env.Serializable.print typing_env;
   Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
   Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print
     t.exported_offsets

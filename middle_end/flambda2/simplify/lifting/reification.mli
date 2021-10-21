@@ -24,4 +24,4 @@ val try_to_reify :
   bound_to:Bound_var.t ->
   kind_of_bound_to:Flambda_kind.t ->
   allow_lifting:bool ->
-  Simplified_named.t * Downwards_acc.t * Flambda_type.t
+  Simplified_named.t * Downwards_acc.t * Flambda2_types.t

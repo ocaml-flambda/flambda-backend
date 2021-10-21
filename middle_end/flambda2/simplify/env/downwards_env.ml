@@ -20,10 +20,10 @@ open! Flambda.Import
 module CSE = Common_subexpression_elimination
 module K = Flambda_kind
 module BP = Bound_parameter
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
 
-type resolver = Compilation_unit.t -> Flambda_type.Typing_env.t option
+type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
 type get_imported_names = unit -> Name.Set.t
 

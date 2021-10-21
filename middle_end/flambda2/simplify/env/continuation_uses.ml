@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module DE = Downwards_env
-module T = Flambda_type
+module T = Flambda2_types
 module U = One_continuation_use
 
 type t =

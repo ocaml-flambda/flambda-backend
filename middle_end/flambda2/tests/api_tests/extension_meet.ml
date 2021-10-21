@@ -1,6 +1,6 @@
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
-module TEE = Flambda_type.Typing_env_extension
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
+module TEE = Flambda2_types.Typing_env_extension
 
 let test_recursive_meet () =
   let env =

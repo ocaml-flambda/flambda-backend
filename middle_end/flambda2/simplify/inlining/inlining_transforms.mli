@@ -22,5 +22,5 @@ val inline :
   Downwards_acc.t ->
   apply:Apply.t ->
   unroll_to:int option ->
-  Flambda_type.Function_declaration_type.T0.t ->
+  Flambda2_types.Function_type.t ->
   Downwards_acc.t * Expr.t

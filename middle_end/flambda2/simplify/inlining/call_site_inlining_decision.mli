@@ -59,7 +59,7 @@ val can_inline : t -> can_inline
 val make_decision :
   Downwards_acc.t ->
   simplify_expr:Expr.t Simplify_common.expr_simplifier ->
-  function_decl:Flambda_type.Function_declaration_type.T0.t ->
+  function_type:Flambda2_types.Function_type.t ->
   apply:Apply.t ->
   return_arity:Flambda_arity.With_subkinds.t ->
   t

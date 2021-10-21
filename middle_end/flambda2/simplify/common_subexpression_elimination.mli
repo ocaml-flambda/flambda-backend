@@ -23,8 +23,8 @@ module EPA = Continuation_extra_params_and_args
 module BP = Bound_parameter
 module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
 
 type t
 

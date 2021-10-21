@@ -19,7 +19,7 @@
 open! Simplify_import
 module DA = Downwards_acc
 module DE = Downwards_env
-module I = Flambda_type.Function_declaration_type.T0
+module FT = Flambda2_types.Function_type
 module VB = Bound_var
 
 let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
@@ -185,7 +185,7 @@ let inline dacc ~apply ~unroll_to function_decl =
   (* CR mshinwell: Add meet constraint to the return continuation *)
   let denv = DA.denv dacc in
   let code =
-    match DE.find_code denv (I.code_id function_decl) with
+    match DE.find_code denv (FT.code_id function_decl) with
     | Some code -> code
     | None ->
       Misc.fatal_errorf
@@ -194,7 +194,7 @@ let inline dacc ~apply ~unroll_to function_decl =
         Apply.print apply
   in
   let rec_info =
-    match T.prove_rec_info (DE.typing_env denv) (I.rec_info function_decl) with
+    match T.prove_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
     | Proved rec_info -> rec_info
     | Unknown -> Rec_info_expr.unknown
     | Invalid -> Rec_info_expr.do_not_inline

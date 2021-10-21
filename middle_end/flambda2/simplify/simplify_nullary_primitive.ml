@@ -36,7 +36,7 @@ let simplify_nullary_primitive dacc (prim : P.nullary_primitive) dbg ~result_var
     Simplified_named.reachable named, env_extension, [], dacc
   | Probe_is_enabled { name = _ } ->
     let named = Named.create_prim (Nullary prim) dbg in
-    let ty = T.any_naked_bool () in
+    let ty = T.any_naked_bool in
     let var = Name.var (Bound_var.var result_var) in
     let env_extension = TEE.one_equation var ty in
     Simplified_named.reachable named, env_extension, [], dacc

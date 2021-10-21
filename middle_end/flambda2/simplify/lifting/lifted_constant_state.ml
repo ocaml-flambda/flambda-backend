@@ -18,7 +18,7 @@
 
 module DE = Downwards_env
 module LC = Lifted_constant
-module T = Flambda_type
+module T = Flambda2_types
 module TE = T.Typing_env
 
 type t =
@@ -135,9 +135,9 @@ let add_to_denv ?maybe_already_defined denv lifted =
                    environment, perhaps? For example when lifted constants'
                    types are coming out of a closure into the enclosing
                    scope. *)
-                T.make_suitable_for_environment typ
+                T.make_suitable_for_environment
                   (DE.typing_env denv_at_definition)
-                  ~suitable_for:typing_env ~bind_to:sym
+                  typ ~suitable_for:typing_env ~bind_to:sym
               in
               TE.add_env_extension_with_extra_variables typing_env env_extension)
           types_of_symbols typing_env)
