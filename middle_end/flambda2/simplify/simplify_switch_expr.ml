@@ -185,8 +185,6 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
             in
             expr, uacc))
   in
-  (* CR mshinwell: Here and elsewhere [UA.name_occurrences] should be empty
-     (maybe except for closure vars? -- check). We should add asserts. *)
   let body, uacc =
     if Targetint_31_63.Map.cardinal arms < 1
     then
