@@ -862,9 +862,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
         let typ = DE.find_symbol denv symbol in
         symbol, typ)
       closure_symbols_map
-    (* CR mshinwell: Add conversions between Map and Lmap *)
-    |> Closure_id.Map.to_seq
-    |> Closure_id.Lmap.of_seq
+    |> Closure_id.Map.to_seq |> Closure_id.Lmap.of_seq
   in
   let dacc = introduce_code dacc code in
   let set_of_closures_lifted_constant =
