@@ -164,7 +164,7 @@ end = struct
                 in
                 let dbg = Code_metadata.dbg code_metadata in
                 let dbg_including_inlining_stack =
-                  DE.add_inlined_debuginfo' denv dbg
+                  DE.add_inlined_debuginfo denv dbg
                 in
                 Inlining_report.record_decision
                   (At_function_declaration
@@ -570,7 +570,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
         ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
     in
     let dbg =
-      DE.add_inlined_debuginfo' (DA.denv dacc_after_body) (Code.dbg code)
+      DE.add_inlined_debuginfo (DA.denv dacc_after_body) (Code.dbg code)
     in
     Inlining_report.record_decision
       (At_function_declaration

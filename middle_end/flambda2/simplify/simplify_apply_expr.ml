@@ -135,7 +135,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         (At_call_site
            (Known_function
               { code_id = Code_id.export callee's_code_id; decision }))
-        ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
+        ~dbg:(DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply));
     match Call_site_inlining_decision_type.can_inline decision with
     | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
       (* emission of the warning at this point should not happen, if it does,
@@ -586,7 +586,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
   in
   let denv = DA.denv dacc in
   Inlining_report.record_decision (At_call_site Unknown_function)
-    ~dbg:(DE.add_inlined_debuginfo' denv (Apply.dbg apply));
+    ~dbg:(DE.add_inlined_debuginfo denv (Apply.dbg apply));
   let env_at_use = denv in
   let dacc = record_free_names_of_apply_as_used dacc apply in
   let dacc, exn_cont_use_id =
@@ -766,7 +766,7 @@ let simplify_apply_shared dacc apply =
       ~continuation:(Apply.continuation apply)
       (Apply.exn_continuation apply)
       ~args ~call_kind:(Apply.call_kind apply)
-      (DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply))
+      (DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply))
       ~inlined:(Apply.inlined apply) ~inlining_state
       ~probe_name:(Apply.probe_name apply)
   in

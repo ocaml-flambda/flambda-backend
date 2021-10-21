@@ -154,6 +154,6 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
       use_kind ~env_at_use:(DA.denv dacc) ~arg_types
   in
   let dbg = AC.debuginfo apply_cont in
-  let dbg = DE.add_inlined_debuginfo' (DA.denv dacc) dbg in
+  let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
   let apply_cont = AC.with_debuginfo apply_cont ~dbg in
   down_to_up dacc ~rebuild:(rebuild_apply_cont apply_cont ~args ~rewrite_id)

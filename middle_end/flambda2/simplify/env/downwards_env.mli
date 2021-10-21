@@ -160,7 +160,7 @@ val find_code_exn : t -> Code_id.t -> Code_or_metadata.t
 
 val set_inlined_debuginfo : t -> Debuginfo.t -> t
 
-val add_inlined_debuginfo' : t -> Debuginfo.t -> Debuginfo.t
+val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 
 val get_inlined_debuginfo : t -> Debuginfo.t
 
