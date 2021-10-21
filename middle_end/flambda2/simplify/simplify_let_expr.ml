@@ -46,9 +46,12 @@ let rebuild_let simplify_named_result removed_operations
       (* See the comment in [simplify_let], below; this case is analogous. *)
       lifted_constants_from_defining_expr
     | Not_in_a_closure ->
-      (* CR gbury: do only if we are actually rebuilding terms *)
-      LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
-        ~f:(keep_lifted_constant_only_if_used uacc)
+      if Are_rebuilding_terms.do_not_rebuild_terms
+           (UA.are_rebuilding_terms uacc)
+      then lifted_constants_from_defining_expr
+      else
+        LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
+          ~f:(keep_lifted_constant_only_if_used uacc)
   in
   let lifted_constants_from_defining_expr =
     Sort_lifted_constants.sort lifted_constants_from_defining_expr
