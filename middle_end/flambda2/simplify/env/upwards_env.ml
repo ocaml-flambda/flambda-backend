@@ -146,10 +146,3 @@ let delete_apply_cont_rewrite t cont =
   { t with
     apply_cont_rewrites = Continuation.Map.remove cont t.apply_cont_rewrites
   }
-
-let will_inline_continuation t cont =
-  match find_continuation t cont with
-  | Linearly_used_and_inlinable _ -> true
-  | Non_inlinable_zero_arity _ | Non_inlinable_non_zero_arity _
-  | Toplevel_or_function_return_or_exn_continuation _ | Unreachable _ ->
-    false
