@@ -66,7 +66,7 @@ end
 module type Number_kind_common = sig
   module Num : Container_types.S
 
-  val kind : K.Standard_int_or_float.t
+  val standard_int_or_float_kind : K.Standard_int_or_float.t
 
   val unboxed_prover :
     Flambda2_types.Typing_env.t ->
@@ -216,7 +216,7 @@ module For_tagged_immediates : Int_number_kind = struct
       Targetint_31_63.Imm.to_targetint (Targetint_31_63.to_targetint t)
   end
 
-  let kind : K.Standard_int_or_float.t = Tagged_immediate
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Tagged_immediate
 
   let standard_int_kind : K.Standard_int.t = Tagged_immediate
 
@@ -289,7 +289,7 @@ module For_naked_immediates : Int_number_kind = struct
       Targetint_31_63.Imm.to_targetint (Targetint_31_63.to_targetint t)
   end
 
-  let kind : K.Standard_int_or_float.t = Naked_immediate
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_immediate
 
   let standard_int_kind : K.Standard_int.t = Naked_immediate
 
@@ -335,7 +335,7 @@ module For_floats : Boxable_number_kind = struct
     let to_naked_nativeint t = Targetint_32_64.of_float (to_float t)
   end
 
-  let kind : K.Standard_int_or_float.t = Naked_float
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_float
 
   let boxable_number_kind = K.Boxable_number.Naked_float
 
@@ -404,7 +404,7 @@ module For_int32s : Boxable_int_number_kind = struct
     let to_naked_nativeint t = Targetint_32_64.of_int32 t
   end
 
-  let kind : K.Standard_int_or_float.t = Naked_int32
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_int32
 
   let standard_int_kind : K.Standard_int.t = Naked_int32
 
@@ -475,7 +475,7 @@ module For_int64s : Boxable_int_number_kind = struct
     let to_naked_nativeint t = Targetint_32_64.of_int64 t
   end
 
-  let kind : K.Standard_int_or_float.t = Naked_int64
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_int64
 
   let standard_int_kind : K.Standard_int.t = Naked_int64
 
@@ -542,7 +542,7 @@ module For_nativeints : Boxable_int_number_kind = struct
     let to_naked_nativeint t = t
   end
 
-  let kind : K.Standard_int_or_float.t = Naked_nativeint
+  let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_nativeint
 
   let standard_int_kind : K.Standard_int.t = Naked_nativeint
 

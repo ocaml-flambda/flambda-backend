@@ -257,7 +257,7 @@ end = struct
      unlike for floats. *)
   let ok_to_evaluate _env = true
 
-  let kind = I.kind
+  let kind = I.standard_int_or_float_kind
 
   let result_kind = K.Standard_int_or_float.to_kind kind
 
@@ -408,7 +408,7 @@ end = struct
 
   type op = P.int_shift_op
 
-  let kind = I.kind
+  let kind = I.standard_int_or_float_kind
 
   let result_kind = K.Standard_int_or_float.to_kind kind
 
@@ -518,7 +518,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.kind
+  let kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -597,7 +597,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.kind
+  let kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -864,7 +864,7 @@ end = struct
 
   type op = P.equality_comparison
 
-  let kind = I.kind
+  let kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
