@@ -428,9 +428,6 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   let result_unknown () =
     let ty = T.unknown K.naked_float in
     let env_extension = TEE.one_equation result ty in
-    (* CR mshinwell: If this says [invalid] not [reachable] then a function that
-       just returns the negation of its float argument will fail to compile.
-       This may indicate a bug elsewhere. *)
     Simplified_named.reachable original_term, env_extension, dacc
   in
   let result_invalid () =

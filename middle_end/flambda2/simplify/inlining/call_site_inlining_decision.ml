@@ -24,7 +24,8 @@ module TE = T.Typing_env
 module UA = Upwards_acc
 module UE = Upwards_env
 
-(* CR mshinwell: We need to emit [Warnings.Inlining_impossible] as required.
+(* CR mshinwell for poechsel: We need to emit [Warnings.Inlining_impossible] as
+   required.
 
    When in fallback-inlining mode: if we want to follow Closure we should not
    complain about function declarations with e.g. [@inline always] if the
@@ -34,9 +35,9 @@ module UE = Upwards_env
    once [Inlining_impossible] handling is implemented for the
    non-fallback-inlining cases. *)
 
-(* CR mshinwell: Overhaul handling of the inlining depth tracking so that it
-   takes into account the depth of closures (or code), as per conversation with
-   lwhite. *)
+(* CR-someday mshinwell: Overhaul handling of the inlining depth tracking so
+   that it takes into account the depth of closures (or code), as per
+   conversation with lwhite. *)
 
 module FT = Flambda2_types.Function_type
 
