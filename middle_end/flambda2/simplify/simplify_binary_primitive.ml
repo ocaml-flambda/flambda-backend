@@ -430,6 +430,7 @@ end = struct
 
   let term = I.term_unboxed
 
+  (* CR-someday mshinwell: One day this should maybe be in a standard library *)
   module Pair = struct
     type nonrec t = Lhs.t * Rhs.t
 
