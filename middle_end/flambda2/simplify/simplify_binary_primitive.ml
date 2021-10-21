@@ -41,8 +41,7 @@ module type Binary_arith_like_sig = sig
 
   val cross_product : Lhs.Set.t -> Rhs.Set.t -> Pair.Set.t
 
-  (* CR mshinwell: Rename to [arg_kind] *)
-  val kind : K.Standard_int_or_float.t
+  val arg_kind : K.Standard_int_or_float.t
 
   val result_kind : K.t
 
@@ -185,7 +184,7 @@ end = struct
                 Some (PR.Set.add (Simple other_side) possible_results)
               | Negation_of_the_other_side ->
                 let standard_int_kind : K.Standard_int.t =
-                  match N.kind with
+                  match N.arg_kind with
                   | Tagged_immediate -> Tagged_immediate
                   | Naked_immediate -> Naked_immediate
                   | Naked_int32 -> Naked_int32
@@ -257,16 +256,16 @@ end = struct
      unlike for floats. *)
   let ok_to_evaluate _env = true
 
-  let kind = I.standard_int_or_float_kind
+  let arg_kind = I.standard_int_or_float_kind
 
-  let result_kind = K.Standard_int_or_float.to_kind kind
+  let result_kind = K.Standard_int_or_float.to_kind arg_kind
 
   let prover_lhs = I.unboxed_prover
 
   let prover_rhs = I.unboxed_prover
 
   let unknown _ =
-    match kind with
+    match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float -> T.any_naked_float
@@ -408,9 +407,9 @@ end = struct
 
   type op = P.int_shift_op
 
-  let kind = I.standard_int_or_float_kind
+  let arg_kind = I.standard_int_or_float_kind
 
-  let result_kind = K.Standard_int_or_float.to_kind kind
+  let result_kind = K.Standard_int_or_float.to_kind arg_kind
 
   let ok_to_evaluate _env = true
 
@@ -419,7 +418,7 @@ end = struct
   let prover_rhs = T.prove_naked_immediates
 
   let unknown _ =
-    match kind with
+    match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float -> T.any_naked_float
@@ -518,7 +517,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.standard_int_or_float_kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -597,7 +596,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.standard_int_or_float_kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -679,7 +678,7 @@ end = struct
 
   type op = P.binary_float_arith_op
 
-  let kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = K.Standard_int_or_float.Naked_float
 
   let result_kind = K.naked_float
 
@@ -773,7 +772,7 @@ end = struct
 
   type op = P.comparison P.comparison_behaviour
 
-  let kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = K.Standard_int_or_float.Naked_float
 
   let result_kind = K.naked_immediate
 
@@ -864,7 +863,7 @@ end = struct
 
   type op = P.equality_comparison
 
-  let kind = I.standard_int_or_float_kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
