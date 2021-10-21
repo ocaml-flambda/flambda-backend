@@ -20,13 +20,7 @@ open! Simplify_import
 
 let simplify_make_block_of_values dacc prim dbg tag ~shape
     ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
-  let denv = DA.denv dacc in
   let args, _arg_tys = List.split args_with_tys in
-  let invalid () =
-    let ty = T.bottom K.value in
-    let env_extension = TEE.one_equation (Name.var result_var) ty in
-    Simplified_named.invalid (), env_extension, args, dacc
-  in
   (if List.compare_lengths shape args <> 0
   then
     let original_prim : P.t = Variadic (prim, args) in
@@ -34,81 +28,61 @@ let simplify_make_block_of_values dacc prim dbg tag ~shape
       "GC value_kind indications in [Make_block] don't match up 1:1 with \
        arguments:@ %a"
       P.print original_prim);
-  let found_bottom = ref false in
   let fields =
     List.map2
       (fun ((arg : Simple.t), arg_ty) _block_of_values_kind ->
         (* CR mshinwell: There should be a meet against a skeleton type computed
            from [block_of_values_kind]. *)
-        if T.is_bottom (DE.typing_env denv) arg_ty then found_bottom := true;
         Simple.pattern_match arg
           ~const:(fun _ -> arg_ty)
           ~name:(fun _ ~coercion:_ -> T.alias_type_of K.value arg))
       args_with_tys shape
   in
-  if !found_bottom
-  then invalid ()
-  else begin
-    assert (List.compare_lengths fields shape = 0);
-    let term : Named.t =
-      Named.create_prim
-        (Variadic (Make_block (Values (tag, shape), mutable_or_immutable), args))
-        dbg
-    in
-    let tag = Tag.Scannable.to_tag tag in
-    let ty =
-      match mutable_or_immutable with
-      | Immutable ->
-        T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
-      | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-      | Mutable -> T.any_value
-    in
-    let env_extension = TEE.one_equation (Name.var result_var) ty in
-    Simplified_named.reachable term, env_extension, args, dacc
-  end
+  assert (List.compare_lengths fields shape = 0);
+  let term : Named.t =
+    Named.create_prim
+      (Variadic (Make_block (Values (tag, shape), mutable_or_immutable), args))
+      dbg
+  in
+  let tag = Tag.Scannable.to_tag tag in
+  let ty =
+    match mutable_or_immutable with
+    | Immutable ->
+      T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
+    | Immutable_unique ->
+      T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
+    | Mutable -> T.any_value
+  in
+  let env_extension = TEE.one_equation (Name.var result_var) ty in
+  Simplified_named.reachable term, env_extension, args, dacc
 
 let simplify_make_block_of_floats dacc _prim dbg
     ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
-  let denv = DA.denv dacc in
   let args = List.map fst args_with_tys in
-  let invalid () =
-    let ty = T.bottom K.value in
-    let env_extension = TEE.one_equation (Name.var result_var) ty in
-    Simplified_named.invalid (), env_extension, args, dacc
-  in
-  let found_bottom = ref false in
   let fields =
     List.map
       (fun ((arg : Simple.t), arg_ty) ->
-        (* CR gbury: we should review all similar pieces of code in the file and
-           aim to remove the T.is_bottom checks (kind of like #336 did in the
-           simplifier). *)
-        if T.is_bottom (DE.typing_env denv) arg_ty then found_bottom := true;
         Simple.pattern_match arg
           ~const:(fun _ -> arg_ty)
           ~name:(fun _ ~coercion:_ -> T.alias_type_of K.naked_float arg))
       args_with_tys
   in
-  if !found_bottom
-  then invalid ()
-  else
-    let term : Named.t =
-      Named.create_prim
-        (Variadic (Make_block (Naked_floats, mutable_or_immutable), args))
-        dbg
-    in
-    let tag = Tag.double_array_tag in
-    let ty =
-      match mutable_or_immutable with
-      | Immutable ->
-        T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float ~fields
-      | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float ~fields
-      | Mutable -> T.any_value
-    in
-    let env_extension = TEE.one_equation (Name.var result_var) ty in
-    Simplified_named.reachable term, env_extension, args, dacc
+  let term : Named.t =
+    Named.create_prim
+      (Variadic (Make_block (Naked_floats, mutable_or_immutable), args))
+      dbg
+  in
+  let tag = Tag.double_array_tag in
+  let ty =
+    match mutable_or_immutable with
+    | Immutable ->
+      T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float ~fields
+    | Immutable_unique ->
+      T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float ~fields
+    | Mutable -> T.any_value
+  in
+  let env_extension = TEE.one_equation (Name.var result_var) ty in
+  Simplified_named.reachable term, env_extension, args, dacc
 
 let simplify_variadic_primitive dacc (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
