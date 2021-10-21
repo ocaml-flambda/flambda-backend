@@ -207,8 +207,8 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
         might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
           ~return_arity
       | None -> (
-        (* CR lmaurer: This seems semantically dodgy: If we really think of a
-           free depth variable as [Unknown], then we shouldn't be considering
+        (* lmaurer: This seems semantically dodgy: If we really think of a free
+           depth variable as [Unknown], then we shouldn't be considering
            inlining here, because we don't _know_ that we're not unrolling. The
            behavior is what we want, though (and is consistent with FLambda 1):
            If there's a free depth variable, that means this is an internal
