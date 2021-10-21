@@ -57,3 +57,5 @@ val add_to_denv : ?maybe_already_defined:unit -> DE.t -> t -> DE.t
 val add_singleton_to_denv : DE.t -> LC.t -> DE.t
 
 val add_list_to_denv : DE.t -> LC.t list -> DE.t
+
+val sort : t -> t

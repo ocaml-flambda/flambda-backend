@@ -54,7 +54,7 @@ let rebuild_let simplify_named_result removed_operations
           ~f:(keep_lifted_constant_only_if_used uacc)
   in
   let lifted_constants_from_defining_expr =
-    Sort_lifted_constants.sort lifted_constants_from_defining_expr
+    LCS.sort lifted_constants_from_defining_expr
   in
   (* At this point, the free names in [uacc] are the free names of [body], plus
      all used closure vars seen in the whole compilation unit. *)
