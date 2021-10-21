@@ -18,7 +18,7 @@
 
 open! Simplify_import
 
-(* CR mshinwell: Unused closure variables should be deleted prior to
+(* CR-someday mshinwell: Unused closure variables should be deleted prior to
    simplification of sets of closures, taking the used-var-in-closures set from
    the previous round. *)
 
