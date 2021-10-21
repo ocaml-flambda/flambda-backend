@@ -478,7 +478,6 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
               LCS.add_to_denv denv lifted_consts_prev_functions)
         in
         assert (not (DE.at_unit_toplevel (DA.denv dacc)));
-        (* CR mshinwell: DE.no_longer_defining_symbol is redundant now? *)
         match
           C.simplify_toplevel context dacc body ~return_continuation
             ~exn_continuation ~return_arity:(Code.result_arity code)
