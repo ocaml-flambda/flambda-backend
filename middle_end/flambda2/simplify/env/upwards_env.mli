@@ -55,8 +55,6 @@ val add_linearly_used_inlinable_continuation :
 val add_function_return_or_exn_continuation :
   t -> Continuation.t -> Scope.t -> Flambda_arity.With_subkinds.t -> t
 
-val add_exn_continuation : t -> Exn_continuation.t -> Scope.t -> t
-
 val find_continuation : t -> Continuation.t -> Continuation_in_env.t
 
 val mem_continuation : t -> Continuation.t -> bool

@@ -92,12 +92,16 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
             ~used_closure_vars:Unknown ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
-        (* CR mshinwell: These functions for adding continuations could do with
-           a bit more thought regarding non-exn/exn versions *)
         let uenv =
-          UE.add_exn_continuation
+          (* Note that we don't need to do anything special if the exception
+             continuation takes extra arguments, since we are only simplifying
+             the body of the function in question, not substituting it into an
+             existing context. *)
+          UE.add_function_return_or_exn_continuation
             (UE.create (DA.are_rebuilding_terms dacc))
-            exn_continuation scope
+            (Exn_continuation.exn_handler exn_continuation)
+            scope
+            [Flambda_kind.With_subkind.any_value]
         in
         let uenv =
           match Apply.continuation apply with
