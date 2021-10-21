@@ -348,10 +348,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         ~code_age_relation_after_body
   in
   let dacc =
-    (* CR mshinwell: Improve function names to clarify that this function
-       (unlike the function of the same name in [DE]) does not add to the
-       environment, only to the accumulator. *)
-    DA.add_lifted_constants dacc_after_body prior_lifted_constants
+    DA.add_to_lifted_constant_accumulator dacc_after_body prior_lifted_constants
   in
   match uses with
   | No_uses ->
@@ -837,7 +834,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   in
   let denv = DE.with_typing_env denv typing_env in
   let dacc = DA.with_denv dacc_after_body denv in
-  let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
+  let dacc =
+    DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
+  in
   let dacc = DA.map_denv dacc ~f:DE.set_not_at_unit_toplevel in
   let arg_types_by_use_id_outside_of_handler =
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with

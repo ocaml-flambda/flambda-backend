@@ -107,20 +107,15 @@ let add_variable t var ty = with_denv t (DE.add_variable (denv t) var ty)
 let get_typing_env_no_more_than_one_use t k =
   CUE.get_typing_env_no_more_than_one_use t.continuation_uses_env k
 
-let add_lifted_constant t const =
-  { t with lifted_constants = LCS.add t.lifted_constants const }
-
-let add_lifted_constant_also_to_env t const =
-  { t with
-    lifted_constants = LCS.add t.lifted_constants const;
-    denv = LCS.add_singleton_to_denv t.denv const
-  }
-
-let add_lifted_constants_from_list t consts =
-  ListLabels.fold_left consts ~init:t ~f:add_lifted_constant
-
-let add_lifted_constants t constants =
-  { t with lifted_constants = LCS.union t.lifted_constants constants }
+let add_to_lifted_constant_accumulator ?also_add_to_env t constants =
+  let also_add_to_env =
+    match also_add_to_env with None -> false | Some () -> true
+  in
+  let lifted_constants = LCS.union t.lifted_constants constants in
+  let denv =
+    if also_add_to_env then LCS.add_to_denv t.denv constants else t.denv
+  in
+  { t with lifted_constants; denv }
 
 let get_lifted_constants t = t.lifted_constants
 

@@ -94,7 +94,8 @@ let lift dacc ty ~bound_to static_const =
       let dacc =
         let denv = DA.denv dacc in
         LC.create_block_like symbol static_const denv ~symbol_projections ty
-        |> DA.add_lifted_constant dacc
+        |> LCS.singleton
+        |> DA.add_to_lifted_constant_accumulator dacc
       in
       let dacc =
         match Rebuilt_static_const.to_const static_const with

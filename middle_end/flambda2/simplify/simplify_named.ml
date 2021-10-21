@@ -268,7 +268,10 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
         (Rebuilt_static_const.Group.to_list static_consts)
         ~init:(dacc, []) ~f:create_lifted_constant
     in
-    let dacc = DA.add_lifted_constant dacc (LC.concat lifted_constants) in
+    let dacc =
+      DA.add_to_lifted_constant_accumulator dacc
+        (LCS.singleton (LC.concat lifted_constants))
+    in
     (* We don't need to return any bindings; [Simplify_expr.simplify_let] will
        create the "let symbol" binding when it sees the lifted constant. *)
     Simplify_named_result.have_simplified_to_zero_terms dacc

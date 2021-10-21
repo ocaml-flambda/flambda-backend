@@ -254,7 +254,9 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      the defining expression. (Not even in the case of a [Set_of_closures]
      binding, since "let symbol" is disallowed under a lambda.) *)
   let lifted_constants_from_defining_expr = DA.get_lifted_constants dacc in
-  let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
+  let dacc =
+    DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
+  in
   let dacc =
     DA.map_data_flow dacc
       ~f:

@@ -725,7 +725,7 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         LCS.empty )
   in
   let dacc =
-    DA.add_lifted_constants dacc lifted_consts
+    DA.add_to_lifted_constant_accumulator dacc lifted_consts
     |> DA.with_used_closure_vars ~used_closure_vars
     |> DA.with_shareable_constants ~shareable_constants
   in
@@ -785,12 +785,10 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
   { set_of_closures; code; dacc }
 
 let introduce_code dacc code =
-  let lifted_constants =
-    ListLabels.map (Code_id.Lmap.bindings code) ~f:(fun (code_id, code) ->
-        LC.create_code code_id code)
-  in
-  DA.add_lifted_constants_from_list dacc lifted_constants
-  |> DA.map_denv ~f:(fun denv -> LCS.add_list_to_denv denv lifted_constants)
+  Code_id.Lmap.bindings code
+  |> List.map (fun (code_id, code) -> LC.create_code code_id code)
+  |> LCS.singleton_list_of_constants_order_does_not_matter
+  |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
 
 let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     ~closure_bound_vars set_of_closures ~closure_elements ~symbol_projections
@@ -871,9 +869,9 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
          (DE.are_rebuilding_terms denv)
          set_of_closures)
   in
-  let dacc = DA.add_lifted_constant dacc set_of_closures_lifted_constant in
-  let denv =
-    LCS.add_singleton_to_denv (DA.denv dacc) set_of_closures_lifted_constant
+  let dacc =
+    DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
+      (LCS.singleton set_of_closures_lifted_constant)
   in
   let denv, bindings =
     Closure_id.Map.fold
@@ -891,7 +889,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
           let bindings = Bound_var.Map.add bound_var closure_symbol bindings in
           denv, bindings)
       closure_bound_vars
-      (denv, Bound_var.Map.empty)
+      (DA.denv dacc, Bound_var.Map.empty)
   in
   Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
     bindings

@@ -58,6 +58,9 @@ let singleton_sorted_array_of_constants ~innermost_first =
   then empty
   else Leaf_array { innermost_first }
 
+let singleton_list_of_constants_order_does_not_matter constants =
+  singleton_sorted_array_of_constants ~innermost_first:(Array.of_list constants)
+
 let union_ordered ~innermost ~outermost =
   match innermost, outermost with
   | Empty, _ -> outermost
@@ -154,11 +157,6 @@ let add_to_denv ?maybe_already_defined denv lifted =
           then denv
           else DE.define_code denv ~code_id ~code)
         pieces_of_code denv)
-
-let add_singleton_to_denv t const = add_to_denv t (singleton const)
-
-let add_list_to_denv t consts =
-  ListLabels.fold_left consts ~init:t ~f:add_singleton_to_denv
 
 module CIS = Code_id_or_symbol
 module SCC_lifted_constants = Strongly_connected_components_flambda2.Make (CIS)

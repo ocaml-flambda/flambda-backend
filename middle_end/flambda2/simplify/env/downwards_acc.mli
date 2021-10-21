@@ -61,13 +61,8 @@ val add_variable : t -> Bound_var.t -> Flambda2_types.t -> t
 
 val no_lifted_constants : t -> bool
 
-val add_lifted_constant : t -> Lifted_constant.t -> t
-
-val add_lifted_constant_also_to_env : t -> Lifted_constant.t -> t
-
-val add_lifted_constants_from_list : t -> Lifted_constant.t list -> t
-
-val add_lifted_constants : t -> Lifted_constant_state.t -> t
+val add_to_lifted_constant_accumulator :
+  ?also_add_to_env:unit -> t -> Lifted_constant_state.t -> t
 
 val get_lifted_constants : t -> Lifted_constant_state.t
 
