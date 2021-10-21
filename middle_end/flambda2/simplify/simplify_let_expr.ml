@@ -181,7 +181,7 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
   | Invalid _ -> data_flow
-  | Reachable { free_names; named; cost_metrics = _ } -> (
+  | Reachable { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
@@ -191,21 +191,10 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     then DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
-      (* CR gbury: use Bound_pattern.fold_all_bound_vars instead of a match
-         here. *)
-      match binding.let_bound with
-      | Singleton v ->
-        DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-          data_flow
-      | Set_of_closures { closure_vars; name_mode = _ } ->
-        ListLabels.fold_left closure_vars ~init:data_flow ~f:(fun data_flow v ->
-            DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-              data_flow)
-      | Symbols _ ->
-        (* This cannot be reached. Simplify_named does not return any symbol
-           bindings, they all go via the lifted constants accumulator in
-           [DA]. *)
-        Misc.fatal_error "[Symbols] not expected here")
+      Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
+        ~f:(fun data_flow v ->
+          DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
+            data_flow)
 
 let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     simplify_named_result data_flow =
