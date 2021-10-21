@@ -210,11 +210,6 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
        looks like an allocation but that are instead a projection from a bigger
        structure. *)
     let allow_lifting =
-      (* CR mshinwell: We probably shouldn't lift if the let binding is going to
-         be deleted, as lifting may cause [Dominator]-scoped bindings to be
-         inserted, that cannot be deleted. However this situation probably
-         doesn't arise that much, and won't be an issue once we can lift
-         [Dominator]-scoped bindings. *)
       P.only_generative_effects prim
       && Name_mode.is_normal (Bound_var.name_mode bound_var)
     in
