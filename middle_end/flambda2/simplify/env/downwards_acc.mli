@@ -39,8 +39,6 @@ val data_flow : t -> Data_flow.t
 (** Map the dataflow analysis accumulator of the given dacc. *)
 val map_data_flow : t -> f:(Data_flow.t -> Data_flow.t) -> t
 
-(* CR mshinwell: Why do these take scope arguments when [DE] knows the current
-   scope level? *)
 include Continuation_uses_env_intf.S with type t := t
 
 val continuation_uses_env : t -> Continuation_uses_env.t
