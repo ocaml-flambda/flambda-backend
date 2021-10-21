@@ -1027,13 +1027,13 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       | _, _ -> (
         let physically_equal =
           false
-          (* CR mshinwell: Resurrect this -- see cps_types branch.
+          (* CR-someday mshinwell: Resurrect this -- see cps_types branch.
              T.values_physically_equal arg1_ty arg2_ty *)
         in
         let physically_distinct =
           false
-          (* CR mshinwell: Resurrect this -- see cps_types branch. (* Structural
-             inequality implies physical inequality. *) let env =
+          (* CR-someday mshinwell: Resurrect this -- see cps_types branch. (*
+             Structural inequality implies physical inequality. *) let env =
              E.get_typing_environment env in T.values_structurally_distinct
              (env, arg1_ty) (env, arg2_ty) *)
         in
