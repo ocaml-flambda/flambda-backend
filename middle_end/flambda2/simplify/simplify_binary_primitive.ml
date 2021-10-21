@@ -86,6 +86,8 @@ end = struct
       | Prim of P.t
       | Exactly of N.Result.t
 
+    (* This signature aims to constrain the size of the [Set] module block,
+       since this is duplicated a lot via inlining in the rest of this file. *)
     module Set : sig
       type elt = t
 
