@@ -944,11 +944,8 @@ type lifting_decision_result =
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
-(* CR lmaurer: [min_name_mode] doesn't make sense as a name here. It's
-   specifically the name mode of the variables binding the closures (and we rely
-   on this when we compute [can_lift]). *)
 let type_closure_elements_and_make_lifting_decision_for_one_set dacc
-    ~min_name_mode ~closure_bound_vars_inverse set_of_closures =
+    ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures =
   (* By computing the types of the closure elements, attempt to show that the
      set of closures can be lifted, and hence statically allocated. Note that
      simplifying the bodies of the functions won't change the set-of-closures'
@@ -961,7 +958,10 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
       (fun closure_var env_entry
            (closure_elements, closure_element_types, symbol_projections) ->
         let env_entry, ty, symbol_projections =
-          let ty = S.simplify_simple dacc env_entry ~min_name_mode in
+          let ty =
+            S.simplify_simple dacc env_entry
+              ~min_name_mode:name_mode_of_bound_vars
+          in
           let simple = T.get_alias_exn ty in
           (* Note down separately if [simple] remains a variable and is known to
              be equal to a projection from a symbol. *)
@@ -999,7 +999,7 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
      before, there are never any other mutually-recursive sets ([Named.t] does
      not allow them). *)
   let can_lift =
-    Name_mode.is_normal min_name_mode
+    Name_mode.is_normal name_mode_of_bound_vars
     && Var_within_closure.Map.for_all
          (fun _ simple ->
            can_lift_coercion (Simple.coercion simple)
@@ -1019,18 +1019,18 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
   in
   { can_lift; closure_elements; closure_element_types; symbol_projections }
 
-let type_closure_elements_for_previously_lifted_set dacc ~min_name_mode
-    set_of_closures =
+let type_closure_elements_for_previously_lifted_set dacc
+    ~name_mode_of_bound_vars set_of_closures =
   type_closure_elements_and_make_lifting_decision_for_one_set dacc
-    ~min_name_mode ~closure_bound_vars_inverse:Variable.Map.empty
+    ~name_mode_of_bound_vars ~closure_bound_vars_inverse:Variable.Map.empty
     set_of_closures
 
 let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     set_of_closures =
   let closure_bound_vars = Bound_pattern.must_be_set_of_closures bound_vars in
-  (* CR mshinwell: This should probably be handled differently, but will require
-     some threading through *)
-  let min_name_mode = Bound_pattern.name_mode bound_vars in
+  (* CR-someday mshinwell: This should probably be handled differently, but will
+     require some threading through *)
+  let name_mode_of_bound_vars = Bound_pattern.name_mode bound_vars in
   let closure_bound_vars, closure_bound_vars_inverse =
     List.fold_left2
       (fun (closure_bound_vars, closure_bound_vars_inverse) closure_id var ->
@@ -1046,7 +1046,7 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
   let { can_lift; closure_elements; closure_element_types; symbol_projections }
       =
     type_closure_elements_and_make_lifting_decision_for_one_set dacc
-      ~min_name_mode ~closure_bound_vars_inverse set_of_closures
+      ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures
   in
   if can_lift
   then
@@ -1119,7 +1119,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
               symbol_projections = _
             } =
           type_closure_elements_for_previously_lifted_set dacc
-            ~min_name_mode:Name_mode.normal set_of_closures
+            ~name_mode_of_bound_vars:Name_mode.normal set_of_closures
         in
         closure_elements, closure_element_types)
       all_sets_of_closures
