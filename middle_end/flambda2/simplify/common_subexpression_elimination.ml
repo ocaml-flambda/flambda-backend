@@ -270,8 +270,8 @@ module Join_result = struct
   type nonrec t =
     { cse_at_join_point : t;
       extra_params : EPA.t;
-      (* CR mshinwell: [extra_equations] should be something like [TEE.t] but
-         that is kind of slow at present. *)
+      (* CR-someday mshinwell: Change [extra_equations] to
+         [Typing_env_extension.t]. *)
       extra_equations : T.t Name.Map.t;
       extra_allowed_names : Name_occurrences.t
     }
