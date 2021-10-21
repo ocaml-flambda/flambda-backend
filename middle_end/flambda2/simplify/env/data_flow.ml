@@ -35,8 +35,8 @@ end
 (* Typedefs *)
 (* ******** *)
 
-(* CR chambart/gbury: get rid of Name_occurences everywhere, this is not small
-   while we need only the names
+(* CR-someday chambart/gbury: get rid of Name_occurences everywhere, this is not
+   small while we need only the names
 
    mshinwell: in practice I'm not sure this will make any difference *)
 type elt =
