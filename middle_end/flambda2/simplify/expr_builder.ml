@@ -117,9 +117,10 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
                Variable.user_visible (VB.var bound_var))
       in
       let will_delete_binding =
-        (* CR mshinwell: This should detect whether there is any provenance info
-           associated with the variable. If there isn't, the [Let] can be
-           deleted even if debugging information is being generated. *)
+        (* CR-someday mshinwell: This should detect whether there is any
+           provenance info associated with the variable. If there isn't, the
+           [Let] can be deleted even if debugging information is being
+           generated. *)
         not (has_uses || (generate_phantom_lets && can_phantomise))
       in
       if will_delete_binding
@@ -135,21 +136,21 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
         if Name_mode.is_normal name_mode
         then bound_vars, Some name_mode, Nothing_deleted_at_runtime
         else
-          (* CR lmaurer: This seems to suggest (and the code toward the end of
-             [make_new_let_mindings] seems to assume) that we're phantomising
-             the binding right now, but in fact it may have been phantom already
-             if there has already been a simplifier pass. Presumably this will
-             cause double-counting of deleted code, which is to say, the second
-             pass will get as much credit for phantomising as the first one
-             did. *)
+          (* CR lmaurer for poechsel: This seems to suggest (and the code toward
+             the end of [make_new_let_bindings] seems to assume) that we're
+             phantomising the binding right now, but in fact it may have been
+             phantom already if there has already been a simplifier pass.
+             Presumably this will cause double-counting of deleted code, which
+             is to say, the second pass will get as much credit for phantomising
+             as the first one did. *)
           bound_vars, Some name_mode, Defining_expr_deleted_at_runtime
   in
-  (* CR mshinwell: When leaving behind phantom lets, maybe we should turn the
-     defining expressions into simpler ones by using the type, if possible. For
-     example an Unbox_naked_int64 or something could potentially turn into a
-     variable. This defining expression usually never exists as the types
-     propagate the information forward. mshinwell: this might be done now in
-     Simplify_named, check. *)
+  (* CR-someday mshinwell: When leaving behind phantom lets, maybe we should
+     turn the defining expressions into simpler ones by using the type, if
+     possible. For example an Unbox_naked_int64 or something could potentially
+     turn into a variable. This defining expression usually never exists as the
+     types propagate the information forward. mshinwell: this might be done now
+     in Simplify_named, check. *)
   match keep_binding with
   | None -> body, uacc, let_creation_result
   | Some name_mode ->
@@ -171,11 +172,10 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
       Name_occurrences.union without_bound_vars free_names_of_defining_expr
     in
     let uacc =
-      (* CR mshinwell: This is reallocating UA twice on every [Let] *)
-      UA.with_name_occurrences uacc ~name_occurrences:free_names_of_let
-      |> UA.add_cost_metrics
-           (Cost_metrics.increase_due_to_let_expr ~is_phantom
-              ~cost_metrics_of_defining_expr)
+      UA.add_cost_metrics_and_with_name_occurrences uacc
+        (Cost_metrics.increase_due_to_let_expr ~is_phantom
+           ~cost_metrics_of_defining_expr)
+        free_names_of_let
     in
     ( RE.create_let
         (UA.are_rebuilding_terms uacc)
@@ -644,8 +644,7 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
     in
     Expr build_expr
 
-(* CR mshinwell: tidy up. Also remove confusion between "extra args" as added by
-   e.g. unboxing and "extra args" as in [Exn_continuation]. *)
+(* CR-someday mshinwell: The code of this function could maybe be improved. *)
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
   let original_params = Apply_cont_rewrite.original_params rewrite in
@@ -726,7 +725,6 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
   match UE.find_apply_cont_rewrite uenv original_cont with
   | None -> This_continuation cont
   | Some rewrite when Apply_cont_rewrite.does_nothing rewrite ->
-    (* CR mshinwell: think more about this check w.r.t. subkinds *)
     let arity = Flambda_arity.With_subkinds.to_arity arity in
     let arity_in_rewrite =
       Apply_cont_rewrite.original_params_arity rewrite

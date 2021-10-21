@@ -171,6 +171,9 @@ let notify_removed ~operation t =
 let add_cost_metrics cost_metrics t =
   { t with cost_metrics = Cost_metrics.( + ) t.cost_metrics cost_metrics }
 
+let add_cost_metrics_and_with_name_occurrences t cost_metrics name_occurrences =
+  { t with cost_metrics; name_occurrences }
+
 let generate_phantom_lets t = t.generate_phantom_lets
 
 let is_demoted_exn_handler t cont =

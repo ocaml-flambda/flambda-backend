@@ -19,6 +19,11 @@
     We allow exception handlers that have not only the exception bucket argument
     but also a sequence of "extra arguments". *)
 
+(* CR mshinwell: This module should maybe be renamed to make its purpose more
+   clear; perhaps at the same time [extra_args] here could be renamed so there
+   isn't any potential for confusion with extra continuation arguments added as
+   a result of unboxing. *)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t
