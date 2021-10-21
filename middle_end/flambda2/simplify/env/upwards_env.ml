@@ -20,31 +20,37 @@ type t =
   { continuations : (Scope.t * Continuation_in_env.t) Continuation.Map.t;
     exn_continuations : Scope.t Exn_continuation.Map.t;
     continuation_aliases : Continuation.t Continuation.Map.t;
-    apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t
+    apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t;
+    are_rebuilding_terms : Downwards_env.are_rebuilding_terms
   }
 
-let empty =
+let create are_rebuilding_terms =
   { continuations = Continuation.Map.empty;
     exn_continuations = Exn_continuation.Map.empty;
     continuation_aliases = Continuation.Map.empty;
-    apply_cont_rewrites = Continuation.Map.empty
+    apply_cont_rewrites = Continuation.Map.empty;
+    are_rebuilding_terms
   }
 
-let print_scope_level_and_continuation_in_env ppf (scope_level, cont_in_env) =
+let print_scope_level_and_continuation_in_env are_rebuilding_terms ppf
+    (scope_level, cont_in_env) =
   Format.fprintf ppf
     "@[<hov 1>(@[<hov 1>(scope_level@ %a)@]@ @[<hov 1>(cont_in_env@ %a)@])@]"
-    Scope.print scope_level Continuation_in_env.print cont_in_env
+    Scope.print scope_level
+    (Continuation_in_env.print are_rebuilding_terms)
+    cont_in_env
 
-let [@ocamlformat "disable"] print ppf { continuations; exn_continuations; continuation_aliases;
-                apply_cont_rewrites;
-              } =
+let [@ocamlformat "disable"] print ppf
+    { continuations; exn_continuations; continuation_aliases;
+      apply_cont_rewrites; are_rebuilding_terms } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuations@ %a)@]@ \
       @[<hov 1>(exn_continuations@ %a)@]@ \
       @[<hov 1>(continuation_aliases@ %a)@]@ \
       @[<hov 1>(apply_cont_rewrites@ %a)@]\
       )@]"
-    (Continuation.Map.print print_scope_level_and_continuation_in_env)
+    (Continuation.Map.print
+      (print_scope_level_and_continuation_in_env are_rebuilding_terms))
     continuations
     (Exn_continuation.Map.print Scope.print) exn_continuations
     (Continuation.Map.print Continuation.print) continuation_aliases

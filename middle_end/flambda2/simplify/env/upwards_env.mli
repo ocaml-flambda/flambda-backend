@@ -20,7 +20,7 @@
 
 type t
 
-val empty : t
+val create : Downwards_env.are_rebuilding_terms -> t
 
 val print : Format.formatter -> t -> unit
 

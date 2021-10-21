@@ -89,7 +89,8 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
           | Not_in_a_closure -> Known reachable_code_ids
         in
         let uenv =
-          UE.add_function_return_or_exn_continuation UE.empty
+          UE.add_function_return_or_exn_continuation
+            (UE.create (DA.are_rebuilding_terms dacc))
             return_continuation return_cont_scope return_arity
         in
         let uenv =

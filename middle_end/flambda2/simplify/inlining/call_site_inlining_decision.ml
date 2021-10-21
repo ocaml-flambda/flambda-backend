@@ -93,7 +93,11 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
         in
         (* CR mshinwell: These functions for adding continuations could do with
            a bit more thought regarding non-exn/exn versions *)
-        let uenv = UE.add_exn_continuation UE.empty exn_continuation scope in
+        let uenv =
+          UE.add_exn_continuation
+            (UE.create (DA.are_rebuilding_terms dacc))
+            exn_continuation scope
+        in
         let uenv =
           match Apply.continuation apply with
           | Never_returns -> uenv
