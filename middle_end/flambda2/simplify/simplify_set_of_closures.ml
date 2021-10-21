@@ -317,10 +317,10 @@ end = struct
        are bound to "never inline anything" in the function. This causes them to
        be skipped over by [make_suitable_for_environment], thus avoiding dealing
        with in-types depth variables ending up in terms. *)
-    (* CR lmaurer: It would be better to propagate depth variables into closures
-       properly, as this would allow things like unrolling [Seq.map] where the
-       recursive call goes through a closure. For the moment, we often just stop
-       unrolling cold in that situation. (It's important that we use
+    (* CR-someday lmaurer: It would be better to propagate depth variables into
+       closures properly, as this would allow things like unrolling [Seq.map]
+       where the recursive call goes through a closure. For the moment, we often
+       just stop unrolling cold in that situation. (It's important that we use
        [Rec_info_expr.do_not_inline] here so that we don't start unrolling,
        since without propagating the rec info into the closure, we don't know
        when to stop unrolling.)
