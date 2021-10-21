@@ -976,8 +976,8 @@ let simplify_immutable_block_load (access_kind : P.Block_access_kind.t)
           (Targetint_31_63.to_targetint index)
           Targetint_31_63.Imm.one
       in
-      (* CR mshinwell: We should be able to use the size in the [access_kind] to
-         constrain the type of the block *)
+      (* CR-someday mshinwell: We should be able to use the size in the
+         [access_kind] to constrain the type of the block *)
       let tag : _ Or_unknown.t =
         match access_kind with
         | Values { tag; _ } -> Or_unknown.map tag ~f:Tag.Scannable.to_tag
