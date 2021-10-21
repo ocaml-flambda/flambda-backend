@@ -123,8 +123,8 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
     ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect =
   let inlined =
-    (* CR mshinwell: Make sure no other warnings or inlining report decisions
-       get emitted when not rebuilding terms. *)
+    (* CR mshinwell for poechsel: Make sure no other warnings or inlining report
+       decisions get emitted when not rebuilding terms. *)
     let decision =
       Call_site_inlining_decision.make_decision dacc ~simplify_expr ~apply
         ~function_type ~return_arity:result_arity
@@ -262,11 +262,11 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       (* An argument or the callee, with information about its entry in the
          closure, if any. If the argument is a constant or uncoerced symbol, we
          don't need to put it in the closure. *)
-      (* CR lmaurer: Also allow coerced symbols to be left out of the closure.
-         Would require putting any depth variables in the closure, which is
-         desirable but currently not possible. This workaround - binding the
-         coerced symbol in the closure - wastes a bit of memory, and it has the
-         effect of turning the callee from a symbol into a variable.
+      (* CR-someday lmaurer: Also allow coerced symbols to be left out of the
+         closure. Would require putting any depth variables in the closure,
+         which is desirable but currently not possible. This workaround -
+         binding the coerced symbol in the closure - wastes a bit of memory, and
+         it has the effect of turning the callee from a symbol into a variable.
          Fortunately, the reconstituted [Apply_expr] should retain the original
          call kind, so it will remain a direct call. *)
       type applied_value =
@@ -661,10 +661,6 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       (rebuild_function_call_where_callee's_type_unavailable apply call_kind
          ~use_id ~exn_cont_use_id)
 
-(* CR mshinwell: I've seen at least one case where a call of kind
-   [Indirect_unknown_arity] has been generated with no warning, despite having
-   [@inlined always]. *)
-
 let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     (call : Call_kind.Function_call.t) ~arg_types ~down_to_up =
   let args = Apply.args apply in
@@ -701,7 +697,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     simplify_function_call_where_callee's_type_unavailable dacc apply call ~args
       ~arg_types ~down_to_up
   in
-  (* CR mshinwell: Should this be using [meet_shape], like for primitives? *)
+  (* CR-someday mshinwell: Should this be using [meet_shape], like for
+     primitives? *)
   let denv = DA.denv dacc in
   match T.prove_single_closures_entry (DE.typing_env denv) callee_ty with
   | Proved (callee's_closure_id, _closures_entry, func_decl_type) ->
@@ -761,6 +758,9 @@ let simplify_apply_shared dacc apply =
       (DE.get_inlining_state (DA.denv dacc))
       (Apply.inlining_state apply)
   in
+  (* CR mshinwell: Should this resolve continuation aliases? It seems like it
+     should. We should also check the other places where continuations may
+     occur. *)
   let apply =
     Apply.create ~callee:simplified_callee
       ~continuation:(Apply.continuation apply)
@@ -822,14 +822,10 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
         (T.unknown_types_from_arity_with_subkinds
            (Exn_continuation.arity (Apply.exn_continuation apply)))
   in
-  (* CR mshinwell: Need to record exception continuation use (check all other
-     cases like this too) *)
   down_to_up dacc ~rebuild:(rebuild_method_call apply ~use_id ~exn_cont_use_id)
 
 let rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity uacc
     ~after_rebuild =
-  (* CR mshinwell: Make sure that [resolve_continuation_aliases] has been called
-     before building of any term that contains a continuation *)
   let apply =
     Simplify_common.update_exn_continuation_extra_args uacc ~exn_cont_use_id
       apply
@@ -865,13 +861,6 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
        callee:@ %a"
       Flambda_arity.print args_arity Flambda_arity.print param_arity Apply.print
       apply;
-  (* CR mshinwell: We can't do these checks (here and elsewhere) on [DA] any
-     more. Maybe we can check on [UA] after calling [k] instead. let cont =
-     Apply.continuation apply in let cont_arity = DA.continuation_arity dacc
-     cont in if not (Flambda_arity.equal cont_arity return_arity) then begin
-     Misc.fatal_errorf "Arity %a of [Apply] continuation doesn't match \ return
-     arity %a of C callee:@ %a" Flambda_arity.print cont_arity
-     Flambda_arity.print return_arity Apply.print apply end; *)
   let simplified =
     Simplify_extcall.simplify_extcall dacc apply ~callee_ty ~param_arity
       ~return_arity ~arg_types
@@ -904,7 +893,6 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
       | Never_returns -> dacc, None
     in
     let dacc, exn_cont_use_id =
-      (* CR mshinwell: Try to factor out these stanzas, here and above. *)
       DA.record_continuation_use dacc
         (Exn_continuation.exn_handler (Apply.exn_continuation apply))
         (Non_inlinable { escaping = true })
