@@ -203,8 +203,6 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
           DE.add_variable_and_extend_typing_environment denv bound_var
             (T.unknown kind) env_extension)
     in
-    (* CR mshinwell: Add check along the lines of: types are unknown whenever
-       [not (P.With_fixed_value.eligible prim)] holds. *)
     (* Primitives with generative effects correspond to allocations. Without
        this check, we could end up lifting definitions that have a type that
        looks like an allocation but that are instead a projection from a bigger
