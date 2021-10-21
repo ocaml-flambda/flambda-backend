@@ -232,7 +232,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   in
   let dacc = Simplify_named_result.dacc simplify_named_result in
   (* First accumulate variable, symbol and code ID usage information. *)
-  (* CR gbury/pchambart : in the case of an invalid, we currently
+  (* CR-someday gbury/pchambart : in the case of an invalid, we currently
      over-approximate the uses. In case of an invalid, we might want to instead
      flush the uses of the current control flow branch (but this would require a
      more precise stack). *)
