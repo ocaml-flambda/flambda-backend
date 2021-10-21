@@ -409,6 +409,10 @@ let read_one_param ppf position name v =
     Int_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-depth'"
       Flambda2.Inlining.max_depth
+  | "flambda2-inline-max-rec-depth" ->
+    Int_arg_helper.parse v
+      "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-rec-depth'"
+      Flambda2.Inlining.max_rec_depth
   | "flambda2-inline-call-cost" ->
     Float_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'flambda2-inline-call-cost'"

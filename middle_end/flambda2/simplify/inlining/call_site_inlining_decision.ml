@@ -185,9 +185,6 @@ let report fmt t =
    takes into account the depth of closures (or code), as per conversation with
    lwhite. *)
 
-(* CR mshinwell: This parameter needs to be configurable *)
-let max_rec_depth = 1
-
 module FT = Flambda2_types.Function_type
 
 let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
@@ -362,6 +359,10 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
         match inlined with
         | Never_inlined -> assert false
         | Default_inlined ->
+          let max_rec_depth =
+            Flambda_features.Inlining.max_rec_depth
+              ~round:(DE.round (DA.denv dacc))
+          in
           if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
                max_rec_depth
           then Recursion_depth_exceeded

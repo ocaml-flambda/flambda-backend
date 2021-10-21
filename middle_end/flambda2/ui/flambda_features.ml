@@ -81,6 +81,9 @@ module Inlining = struct
     | Round round -> IH.get ~key:round !I.max_depth
     | Default -> D.max_depth
 
+  let max_rec_depth ~round =
+    IH.get ~key:round !Clflags.Flambda2.Inlining.max_rec_depth
+
   let call_cost round_or_default =
     match round_or_default with
     | Round round -> FH.get ~key:round !I.call_cost

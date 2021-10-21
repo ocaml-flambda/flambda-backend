@@ -526,6 +526,7 @@ module Flambda2 = struct
       let cost_divisor = 8.
 
       let max_depth = 1
+      let max_rec_depth = 1
 
       let call_cost = 5. /. cost_divisor
       let alloc_cost = 7. /. cost_divisor
@@ -546,6 +547,7 @@ module Flambda2 = struct
     module I = Int_arg_helper
 
     let max_depth = ref (I.default Default.max_depth)
+    let max_rec_depth = ref (I.default Default.max_rec_depth)
 
     let call_cost = ref (F.default Default.call_cost)
     let alloc_cost = ref (F.default Default.alloc_cost)
@@ -566,6 +568,7 @@ module Flambda2 = struct
 
     type inlining_arguments = {
       max_depth : int option;
+      max_rec_depth : int option;
       call_cost : float option;
       alloc_cost : float option;
       prim_cost : float option;
@@ -581,6 +584,7 @@ module Flambda2 = struct
       let set_int = set_int_arg round in
       let set_float = set_float_arg round in
       set_int max_depth Default.max_depth arg.max_depth;
+      set_int max_rec_depth Default.max_rec_depth arg.max_rec_depth;
       set_float call_cost Default.call_cost arg.call_cost;
       set_float alloc_cost Default.alloc_cost arg.alloc_cost;
       set_float prim_cost Default.prim_cost arg.prim_cost;
@@ -597,6 +601,7 @@ module Flambda2 = struct
 
     let oclassic_arguments = {
       max_depth = None;
+      max_rec_depth = None;
       call_cost = None;
       alloc_cost = None;
       prim_cost = None;
@@ -614,6 +619,7 @@ module Flambda2 = struct
 
     let o2_arguments = {
       max_depth = Some 2;
+      max_rec_depth = Some 1;
       call_cost = Some (2.0 *. Default.call_cost);
       alloc_cost = Some (2.0 *. Default.alloc_cost);
       prim_cost = Some (2.0 *. Default.prim_cost);
@@ -627,6 +633,7 @@ module Flambda2 = struct
 
     let o3_arguments = {
       max_depth = Some 3;
+      max_rec_depth = Some 1;
       call_cost = Some (3.0 *. Default.call_cost);
       alloc_cost = Some (3.0 *. Default.alloc_cost);
       prim_cost = Some (3.0 *. Default.prim_cost);

@@ -278,6 +278,7 @@ module Flambda2 : sig
   module Inlining : sig
     module Default : sig
       val max_depth : int
+      val max_rec_depth : int
 
       val call_cost : float
       val alloc_cost : float
@@ -295,6 +296,7 @@ module Flambda2 : sig
     end
 
     val max_depth : Int_arg_helper.parsed ref
+    val max_rec_depth : Int_arg_helper.parsed ref
 
     val call_cost : Float_arg_helper.parsed ref
     val alloc_cost : Float_arg_helper.parsed ref

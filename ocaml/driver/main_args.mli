@@ -249,6 +249,7 @@ module type Optcommon_options = sig
   val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 
   val _flambda2_inline_max_depth : string -> unit
+  val _flambda2_inline_max_rec_depth : string -> unit
   val _flambda2_inline_call_cost : string -> unit
   val _flambda2_inline_alloc_cost : string -> unit
   val _flambda2_inline_prim_cost : string -> unit
