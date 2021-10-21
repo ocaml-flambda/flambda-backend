@@ -32,7 +32,7 @@ val add_use :
   Continuation_use_kind.t ->
   env_at_use:Downwards_env.t ->
   Apply_cont_rewrite_id.t ->
-  arg_types:Flambda_type.t list ->
+  arg_types:Flambda2_types.t list ->
   t
 
 val get_uses : t -> One_continuation_use.t list
@@ -45,6 +45,7 @@ val number_of_uses : t -> int
 
 val arity : t -> Flambda_arity.t
 
-val get_typing_env_no_more_than_one_use : t -> Flambda_type.Typing_env.t option
+val get_typing_env_no_more_than_one_use :
+  t -> Flambda2_types.Typing_env.t option
 
 val union : t -> t -> t

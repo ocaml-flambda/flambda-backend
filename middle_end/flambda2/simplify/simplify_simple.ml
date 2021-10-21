@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module DA = Downwards_acc
-module T = Flambda_type
+module T = Flambda2_types
 module TE = T.Typing_env
 
 (* CR lmaurer: Not clear why we need both of these. *)
@@ -49,7 +49,7 @@ let simplify_simple dacc simple ~min_name_mode =
 
 type simplify_simples_result =
   { simples : Simple.t list;
-    simple_tys : Flambda_type.t list
+    simple_tys : Flambda2_types.t list
   }
 
 let simplify_simples dacc simples =

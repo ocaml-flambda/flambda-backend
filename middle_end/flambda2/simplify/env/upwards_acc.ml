@@ -20,7 +20,7 @@ module ART = Are_rebuilding_terms
 module DA = Downwards_acc
 module DE = Downwards_env
 module LCS = Lifted_constant_state
-module TE = Flambda_type.Typing_env
+module TE = Flambda2_types.Typing_env
 module UE = Upwards_env
 
 type t =

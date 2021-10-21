@@ -965,6 +965,10 @@ struct
   let mapi f t =
     fold (fun key datum result -> add key (f key datum) result) t empty
 
+  (* CR lmaurer: Implement this one properly even if [map] isn't efficient yet,
+     since not sharing makes _other things_ (including row-like types) less
+     efficient. *)
+
   let map_sharing = map
 
   let to_seq t =

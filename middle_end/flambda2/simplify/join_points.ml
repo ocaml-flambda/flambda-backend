@@ -19,40 +19,11 @@
 module DE = Downwards_env
 module BP = Bound_parameter
 module LCS = Lifted_constant_state
-module T = Flambda_type
-module TE = Flambda_type.Typing_env
+module T = Flambda2_types
+module TE = Flambda2_types.Typing_env
 module U = One_continuation_use
 
-let simple_join denv typing_env uses ~params =
-  (* This join is intended to be sufficient to match Closure + Cmmgen on
-     unboxing, but not really anything more. *)
-  let bottom_types =
-    ListLabels.map params ~f:(fun param ->
-        BP.kind param |> Flambda_kind.With_subkind.kind |> T.bottom)
-  in
-  let joined_types =
-    ListLabels.fold_left uses ~init:bottom_types ~f:(fun joined_types use ->
-        ListLabels.map2 joined_types (U.arg_types use)
-          ~f:(fun joined_type arg_type ->
-            let arg_type =
-              T.eviscerate arg_type (DE.typing_env (U.env_at_use use))
-            in
-            (* The only names left in [arg_type] will be symbols; they will
-               always be defined in [typing_env]. So we can use the same
-               environment throughout the join. *)
-            T.join typing_env ~left_env:typing_env ~left_ty:joined_type
-              ~right_env:typing_env ~right_ty:arg_type))
-  in
-  let handler_env =
-    ListLabels.fold_left2 params joined_types ~init:typing_env
-      ~f:(fun handler_env param joined_type ->
-        let name = BP.name param in
-        TE.add_equation handler_env name joined_type)
-  in
-  let denv = DE.with_typing_env denv handler_env in
-  denv, Continuation_extra_params_and_args.empty
-
-let normal_join denv typing_env params ~env_at_fork_plus_params
+let join denv typing_env params ~env_at_fork_plus_params
     ~consts_lifted_during_body ~use_envs_with_ids =
   let definition_scope_level =
     DE.get_continuation_scope_level env_at_fork_plus_params
@@ -87,7 +58,7 @@ let normal_join denv typing_env params ~env_at_fork_plus_params
     | Some cse_join_result -> cse_join_result.extra_allowed_names
   in
   let env =
-    TE.cut_and_n_way_join typing_env use_envs_with_ids'
+    T.cut_and_n_way_join typing_env use_envs_with_ids'
       ~params
         (* CR-someday mshinwell: If this didn't do Scope.next then TE could
            probably be slightly more efficient, as it wouldn't need to look at
@@ -115,6 +86,30 @@ let normal_join denv typing_env params ~env_at_fork_plus_params
   in
   denv, extra_params_and_args
 
+let meet_equations_on_params typing_env ~params ~param_types =
+  if Flambda_features.check_invariants ()
+     && List.compare_lengths params param_types <> 0
+  then
+    Misc.fatal_errorf
+      "Mismatch between number of continuation parameters and arguments at a \
+       use site:@ (%a)@ and@ %a"
+      Bound_parameter.List.print params
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
+      param_types;
+  List.fold_left2
+    (fun typing_env param param_type ->
+      let kind = Bound_parameter.kind param |> Flambda_kind.With_subkind.kind in
+      let name = Bound_parameter.name param in
+      let existing_type = TE.find typing_env name (Some kind) in
+      match T.meet typing_env existing_type param_type with
+      | Bottom ->
+        (* CR mshinwell for vlaviron: is this correct? *)
+        TE.add_equation typing_env name (T.bottom kind)
+      | Ok (meet_ty, env_extension) ->
+        let typing_env = TE.add_equation typing_env name meet_ty in
+        TE.add_env_extension typing_env env_extension)
+    typing_env params param_types
+
 let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
     ~params ~code_age_relation_after_body : Continuation_env_and_param_types.t =
   (* Augment the environment at each use with the necessary equations about the
@@ -135,7 +130,7 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
         let add_or_meet_param_type typing_env =
           let param_types = U.arg_types use in
           if need_to_meet_param_types
-          then TE.meet_equations_on_params typing_env ~params ~param_types
+          then meet_equations_on_params typing_env ~params ~param_types
           else TE.add_equations_on_params typing_env ~params ~param_types
         in
         let use_env =
@@ -181,11 +176,9 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
     in
     let typing_env = DE.typing_env denv in
     let handler_env, extra_params_and_args =
-      if not (Flambda_features.join_points ())
-      then simple_join denv typing_env uses_list ~params
-      else
-        normal_join denv typing_env params ~env_at_fork_plus_params
-          ~consts_lifted_during_body ~use_envs_with_ids
+      (* CR mshinwell: remove Flambda_features.join_points *)
+      join denv typing_env params ~env_at_fork_plus_params
+        ~consts_lifted_during_body ~use_envs_with_ids
     in
     let handler_env =
       DE.map_typing_env handler_env ~f:(fun handler_env ->

@@ -18,7 +18,7 @@
 
 open! Flambda.Import
 
-type resolver = Compilation_unit.t -> Flambda_type.Typing_env.t option
+type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
 type get_imported_names = unit -> Name.Set.t
 
@@ -41,7 +41,7 @@ val create :
   unit_toplevel_return_continuation:Continuation.t ->
   t
 
-val resolver : t -> Compilation_unit.t -> Flambda_type.Typing_env.t option
+val resolver : t -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
 val float_const_prop : t -> bool
 
@@ -77,19 +77,19 @@ val symbol_is_currently_being_defined : t -> Symbol.t -> bool
 
 val symbols_currently_being_defined : t -> Symbol.Set.t
 
-val typing_env : t -> Flambda_type.Typing_env.t
+val typing_env : t -> Flambda2_types.Typing_env.t
 
 val define_variable : t -> Bound_var.t -> Flambda_kind.t -> t
 
-val add_name : t -> Bound_name.t -> Flambda_type.t -> t
+val add_name : t -> Bound_name.t -> Flambda2_types.t -> t
 
-val add_variable : t -> Bound_var.t -> Flambda_type.t -> t
+val add_variable : t -> Bound_var.t -> Flambda2_types.t -> t
 
-val add_equation_on_variable : t -> Variable.t -> Flambda_type.t -> t
+val add_equation_on_variable : t -> Variable.t -> Flambda2_types.t -> t
 
 val mem_variable : t -> Variable.t -> bool
 
-val add_symbol : t -> Symbol.t -> Flambda_type.t -> t
+val add_symbol : t -> Symbol.t -> Flambda2_types.t -> t
 
 val define_symbol : t -> Symbol.t -> Flambda_kind.t -> t
 
@@ -97,15 +97,15 @@ val define_symbol_if_undefined : t -> Symbol.t -> Flambda_kind.t -> t
 
 val mem_symbol : t -> Symbol.t -> bool
 
-val find_symbol : t -> Symbol.t -> Flambda_type.t
+val find_symbol : t -> Symbol.t -> Flambda2_types.t
 
-val add_equation_on_symbol : t -> Symbol.t -> Flambda_type.t -> t
+val add_equation_on_symbol : t -> Symbol.t -> Flambda2_types.t -> t
 
 val define_name : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
-val add_equation_on_name : t -> Name.t -> Flambda_type.t -> t
+val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
 val define_parameters : t -> params:Bound_parameter.t list -> t
 
@@ -115,7 +115,7 @@ val add_parameters :
   ?at_unit_toplevel:bool ->
   t ->
   Bound_parameter.t list ->
-  param_types:Flambda_type.t list ->
+  param_types:Flambda2_types.t list ->
   t
 
 val add_parameters_with_unknown_types :
@@ -125,17 +125,21 @@ val add_parameters_with_unknown_types' :
   ?at_unit_toplevel:bool ->
   t ->
   Bound_parameter.t list ->
-  t * Flambda_type.t list
+  t * Flambda2_types.t list
 
 val mark_parameters_as_toplevel : t -> Bound_parameter.t list -> t
 
 val add_variable_and_extend_typing_environment :
-  t -> Bound_var.t -> Flambda_type.t -> Flambda_type.Typing_env_extension.t -> t
+  t ->
+  Bound_var.t ->
+  Flambda2_types.t ->
+  Flambda2_types.Typing_env_extension.t ->
+  t
 
-val with_typing_env : t -> Flambda_type.Typing_env.t -> t
+val with_typing_env : t -> Flambda2_types.Typing_env.t -> t
 
 val map_typing_env :
-  t -> f:(Flambda_type.Typing_env.t -> Flambda_type.Typing_env.t) -> t
+  t -> f:(Flambda2_types.Typing_env.t -> Flambda2_types.Typing_env.t) -> t
 
 val check_variable_is_bound : t -> Variable.t -> unit
 

@@ -21,6 +21,6 @@
     continuation's use site(s). *)
 val make_optimistic_decision :
   depth:int ->
-  Flambda_type.Typing_env.t ->
-  param_type:Flambda_type.t ->
+  Flambda2_types.Typing_env.t ->
+  param_type:Flambda2_types.t ->
   Unboxing_types.decision

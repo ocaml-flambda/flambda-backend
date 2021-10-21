@@ -34,6 +34,12 @@ let equal eq_contents t1 t2 =
   | Bottom, Bottom -> true
   | (Unknown | Ok _ | Bottom), _ -> false
 
+let bind t ~f =
+  match t with
+  | Unknown -> Unknown
+  | Bottom -> Bottom
+  | Ok contents -> f contents
+
 let map t ~f =
   match t with
   | Unknown -> Unknown
@@ -49,3 +55,9 @@ let map_sharing t ~f =
 
 let of_or_unknown (unk : _ Or_unknown.t) : _ t =
   match unk with Known contents -> Ok contents | Unknown -> Unknown
+
+module Let_syntax = struct
+  let ( let<>* ) x f = bind x ~f
+
+  let ( let<>+ ) x f = map x ~f
+end

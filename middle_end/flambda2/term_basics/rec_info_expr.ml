@@ -34,7 +34,7 @@ let rec apply_renaming orig perm =
 let rec free_names_in_mode t mode =
   match t with
   | Const _ -> Name_occurrences.empty
-  | Var dv -> Name_occurrences.singleton_variable dv Name_mode.normal
+  | Var dv -> Name_occurrences.singleton_variable dv mode
   | Succ t | Unroll_to (_, t) -> free_names_in_mode t mode
 
 let free_names t = free_names_in_mode t Name_mode.normal

@@ -852,7 +852,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   (* Compute unboxing decisions *)
   let param_types =
     ListLabels.map params ~f:(fun param ->
-        Flambda_type.unknown_with_subkind (BP.kind param))
+        Flambda2_types.unknown_with_subkind (BP.kind param))
   in
   let denv, unboxing_decisions =
     Unbox_continuation_params.make_decisions ~continuation_is_recursive:true

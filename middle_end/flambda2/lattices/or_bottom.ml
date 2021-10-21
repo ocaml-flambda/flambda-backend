@@ -44,3 +44,9 @@ let all ts =
   if List.compare_lengths ts contents <> 0 then Bottom else Ok contents
 
 let bind t ~f = match t with Bottom -> Bottom | Ok contents -> f contents
+
+module Let_syntax = struct
+  let ( let<* ) x f = bind x ~f
+
+  let ( let<+ ) x f = map x ~f
+end

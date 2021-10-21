@@ -23,13 +23,13 @@ val load_cmx_file_contents :
   get_global_info:
     (Flambda2_identifiers.Compilation_unit.t -> Flambda_cmx_format.t option) ->
   Compilation_unit.t ->
-  imported_units:Flambda_type.Typing_env.t option Compilation_unit.Map.t ref ->
+  imported_units:Flambda2_types.Typing_env.t option Compilation_unit.Map.t ref ->
   imported_names:Name.Set.t ref ->
   imported_code:Exported_code.t ref ->
-  Flambda_type.Typing_env.t option
+  Flambda2_types.Typing_env.t option
 
 val prepare_cmx_file_contents :
-  final_typing_env:Flambda_type.Typing_env.t option ->
+  final_typing_env:Flambda2_types.Typing_env.t option ->
   module_symbol:Symbol.t ->
   used_closure_vars:Var_within_closure.Set.t ->
   Exported_code.t ->

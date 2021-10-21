@@ -67,11 +67,13 @@ module type Number_kind_common = sig
   val kind : Flambda_kind.Standard_int_or_float.t
 
   val unboxed_prover :
-    (Flambda_type.t -> Num.Set.t Flambda_type.proof) Flambda_type.type_accessor
+    Flambda2_types.Typing_env.t ->
+    Flambda2_types.t ->
+    Num.Set.t Flambda2_types.proof
 
-  val this_unboxed : Num.t -> Flambda_type.t
+  val this_unboxed : Num.t -> Flambda2_types.t
 
-  val these_unboxed : Num.Set.t -> Flambda_type.t
+  val these_unboxed : Num.Set.t -> Flambda2_types.t
 
   val term_unboxed : Num.t -> Flambda.Named.t
 end
@@ -118,13 +120,15 @@ module type Boxable = sig
   val boxable_number_kind : Flambda_kind.Boxable_number.t
 
   val boxed_prover :
-    (Flambda_type.t -> Num.Set.t Flambda_type.proof) Flambda_type.type_accessor
+    Flambda2_types.Typing_env.t ->
+    Flambda2_types.t ->
+    Num.Set.t Flambda2_types.proof
 
-  val this_boxed : Num.t -> Flambda_type.t
+  val this_boxed : Num.t -> Flambda2_types.t
 
-  val these_boxed : Num.Set.t -> Flambda_type.t
+  val these_boxed : Num.Set.t -> Flambda2_types.t
 
-  val box : Flambda_type.t -> Flambda_type.t
+  val box : Flambda2_types.t -> Flambda2_types.t
 
   type naked_number_kind
 end

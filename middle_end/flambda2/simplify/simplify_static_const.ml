@@ -78,7 +78,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-      | Mutable -> T.any_value ()
+      | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_block
@@ -134,7 +134,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields
     in
     let fields, _field_tys = List.split fields_with_tys in
-    let dacc = bind_result_sym (T.any_value ()) in
+    let dacc = bind_result_sym T.any_value in
     ( Rebuilt_static_const.create_immutable_float_block
         (DA.are_rebuilding_terms dacc)
         fields,
@@ -149,7 +149,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields
     in
     let fields, _field_tys = List.split fields_with_tys in
-    let dacc = bind_result_sym (T.any_value ()) in
+    let dacc = bind_result_sym T.any_value in
     ( Rebuilt_static_const.create_immutable_float_array
         (DA.are_rebuilding_terms dacc)
         fields,
