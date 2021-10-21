@@ -620,9 +620,9 @@ type simplify_set_of_closures0_result =
     dacc : Downwards_acc.t
   }
 
-(* CR mshinwell: Take [dacc] from [C.dacc_prior_to_sets]? *)
-let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
+let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
     ~closure_bound_names_inside ~closure_elements ~closure_element_types =
+  let dacc = C.dacc_prior_to_sets context in
   let function_decls = Set_of_closures.function_decls set_of_closures in
   let all_function_decls_in_set =
     Function_declarations.funs_in_order function_decls
@@ -846,7 +846,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
+    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
       ~closure_bound_names_inside ~closure_elements ~closure_element_types
   in
   let closure_symbols_set =
@@ -915,10 +915,8 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0
-      (C.dacc_prior_to_sets context)
-      context set_of_closures ~closure_bound_names ~closure_bound_names_inside
-      ~closure_elements ~closure_element_types
+    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
+      ~closure_bound_names_inside ~closure_elements ~closure_element_types
   in
   let dacc = introduce_code dacc code in
   let defining_expr =
@@ -1067,16 +1065,8 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
     Closure_id.Lmap.map Bound_name.symbol closure_symbols
     |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
   in
-  let dacc =
-    DA.map_denv (C.dacc_prior_to_sets context) ~f:(fun denv ->
-        (* XXX This will already have been done now *)
-        Closure_id.Lmap.fold
-          (fun _closure_id symbol denv ->
-            DE.define_symbol_if_undefined denv symbol K.value)
-          closure_symbols denv)
-  in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
+    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
       ~closure_bound_names_inside ~closure_elements ~closure_element_types
   in
   let dacc = introduce_code dacc code in
