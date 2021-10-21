@@ -18,7 +18,7 @@
 
 open! Simplify_import
 
-let simplify_make_block_of_values dacc _prim dbg tag ~shape
+let simplify_make_block_of_values dacc prim dbg tag ~shape
     ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
   let denv = DA.denv dacc in
   let args, _arg_tys = List.split args_with_tys in
@@ -27,14 +27,13 @@ let simplify_make_block_of_values dacc _prim dbg tag ~shape
     let env_extension = TEE.one_equation (Name.var result_var) ty in
     Simplified_named.invalid (), env_extension, args, dacc
   in
-  if List.compare_lengths shape args <> 0
+  (if List.compare_lengths shape args <> 0
   then
-    (* CR mshinwell: improve message *)
+    let original_prim : P.t = Variadic (prim, args) in
     Misc.fatal_errorf
       "GC value_kind indications in [Make_block] don't match up 1:1 with \
-       arguments: %a"
-      Simple.List.print args;
-  (* CR mshinwell: This could probably be done more neatly. *)
+       arguments:@ %a"
+      P.print original_prim);
   let found_bottom = ref false in
   let fields =
     List.map2
@@ -78,7 +77,6 @@ let simplify_make_block_of_floats dacc _prim dbg
     let env_extension = TEE.one_equation (Name.var result_var) ty in
     Simplified_named.invalid (), env_extension, args, dacc
   in
-  (* CR mshinwell: This could probably be done more neatly. *)
   let found_bottom = ref false in
   let fields =
     List.map
