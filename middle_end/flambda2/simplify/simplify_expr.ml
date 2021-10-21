@@ -18,12 +18,8 @@
 
 open! Simplify_import
 
-(* CR mshinwell: Need to simplify each [dbg] we come across. *)
-(* CR mshinwell: Consider defunctionalising to remove the [k]. *)
-(* CR mshinwell: May in any case be able to remove the polymorphic recursion. *)
-(* CR mshinwell: See whether resolution of continuation aliases can be made more
-   transparent (e.g. through [find_continuation]). Tricky potentially in
-   conjunction with the rewrites. *)
+(* CR-someday mshinwell: Need to simplify each [dbg] we come across. *)
+(* CR-someday mshinwell: Consider defunctionalising to remove the [k]. *)
 
 let rec simplify_expr dacc expr ~down_to_up =
   match Expr.descr expr with
