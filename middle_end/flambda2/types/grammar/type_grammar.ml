@@ -488,7 +488,8 @@ and free_names_function_type (function_type : _ Or_unknown_or_bottom.t) =
   match function_type with
   | Bottom | Unknown -> Name_occurrences.empty
   | Ok { code_id; rec_info } ->
-    Name_occurrences.add_code_id (free_names rec_info) code_id Name_mode.in_types
+    Name_occurrences.add_code_id (free_names rec_info) code_id
+      Name_mode.in_types
 
 and free_names_env_extension { equations } =
   Name.Map.fold
