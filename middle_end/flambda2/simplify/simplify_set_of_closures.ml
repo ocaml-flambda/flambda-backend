@@ -1131,8 +1131,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
     C.create ~dacc_prior_to_sets:dacc ~simplify_toplevel ~all_sets_of_closures
       ~closure_bound_names_all_sets ~closure_element_types_all_sets
   in
-  let closure_bound_names_inside_all_sets =
-    (* CR mshinwell: make naming consistent *)
+  let closure_bound_names_inside_functions_all_sets =
     C.closure_bound_names_inside_functions_all_sets context
   in
   List.fold_left3
@@ -1165,5 +1164,6 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
       in
       Bound_symbols.concat patterns patterns_acc, static_const_group, dacc)
     (Bound_symbols.empty, Rebuilt_static_const.Group.empty, dacc)
-    all_sets_of_closures_and_symbols closure_bound_names_inside_all_sets
+    all_sets_of_closures_and_symbols
+    closure_bound_names_inside_functions_all_sets
     closure_elements_and_types_all_sets
