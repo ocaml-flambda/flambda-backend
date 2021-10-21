@@ -57,6 +57,9 @@ module Context_for_multiple_sets_of_closures : sig
   val closure_bound_names_inside_functions_all_sets :
     t -> Bound_name.t Closure_id.Map.t list
 
+  val closure_bound_names_inside_functions_exactly_one_set :
+    t -> Bound_name.t Closure_id.Map.t
+
   val simplify_toplevel : t -> Simplify_common.simplify_toplevel
 
   val previously_free_depth_variables : t -> Variable.Set.t
@@ -81,6 +84,12 @@ end = struct
 
   let closure_bound_names_inside_functions_all_sets t =
     t.closure_bound_names_inside_functions_all_sets
+
+  let closure_bound_names_inside_functions_exactly_one_set t =
+    match t.closure_bound_names_inside_functions_all_sets with
+    | [closure_bound_names_inside] -> closure_bound_names_inside
+    | [] | _ :: _ :: _ ->
+      Misc.fatal_error "Only one set of closures was expected"
 
   let previously_free_depth_variables t = t.previously_free_depth_variables
 
@@ -834,9 +843,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       ~closure_element_types_all_sets:[closure_element_types]
   in
   let closure_bound_names_inside =
-    match C.closure_bound_names_inside_functions_all_sets context with
-    | [closure_bound_names_inside] -> closure_bound_names_inside
-    | _ -> assert false
+    C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
     simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
@@ -905,10 +912,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       ~closure_element_types_all_sets:[closure_element_types]
   in
   let closure_bound_names_inside =
-    (* CR mshinwell: Share with previous function *)
-    match C.closure_bound_names_inside_functions_all_sets context with
-    | [closure_bound_names_inside] -> closure_bound_names_inside
-    | _ -> assert false
+    C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
     simplify_set_of_closures0
