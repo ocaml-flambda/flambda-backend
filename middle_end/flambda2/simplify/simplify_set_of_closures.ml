@@ -1044,7 +1044,6 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
       |> Function_declarations.funs_in_order |> Closure_id.Lmap.keys)
       closure_bound_vars
   in
-  (* CR mshinwell: [closure_element_types] is barely worth keeping *)
   let { can_lift; closure_elements; closure_element_types; symbol_projections }
       =
     type_closure_elements_and_make_lifting_decision_for_one_set dacc
