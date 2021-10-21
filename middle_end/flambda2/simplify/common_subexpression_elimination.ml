@@ -176,10 +176,11 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
             | exception Not_found -> eligible
             | bound_to -> (
               let bound_to =
-                (* CR mshinwell: Think about whether this is the best fix. The
-                   canonical simple might end up being one of the [params] since
-                   they are defined in [env_at_fork]. However these aren't bound
-                   at the use sites, so we must choose another alias that is. *)
+                (* CR-someday mshinwell: Think about whether this is the best
+                   fix. The canonical simple might end up being one of the
+                   [params] since they are defined in [env_at_fork]. However
+                   these aren't bound at the use sites, so we must choose
+                   another alias that is. *)
                 if not (is_param bound_to)
                 then Some bound_to
                 else
@@ -189,8 +190,9 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                     |> TE.Alias_set.filter ~f:(fun simple ->
                            not (is_param simple))
                   in
-                  (* CR lmaurer: Do we need to make sure there's only one alias?
-                     If not, we can use [Aliases.Alias_set.find_best] here. *)
+                  (* CR-someday lmaurer: Do we need to make sure there's only
+                     one alias? If not, we can use [Aliases.Alias_set.find_best]
+                     here. *)
                   TE.Alias_set.get_singleton aliases
               in
               match bound_to with
@@ -201,7 +203,7 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                   then Rhs_in_scope { bound_to }
                   else Needs_extra_binding { bound_to }
                 in
-                (* CR mshinwell: Add [Map.add_or_replace]. *)
+                (* CR-someday mshinwell: Add [Map.add_or_replace]. *)
                 match EP.Map.find prim eligible with
                 | exception Not_found ->
                   EP.Map.add prim (RI.Map.singleton id bound_to) eligible
