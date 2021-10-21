@@ -39,7 +39,6 @@ type t =
     at_unit_toplevel : bool;
     unit_toplevel_return_continuation : Continuation.t;
     unit_toplevel_exn_continuation : Continuation.t;
-    symbols_currently_being_defined : Symbol.Set.t;
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
     do_not_rebuild_terms : bool;
@@ -57,7 +56,6 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlined_debuginfo; can_inline;
                 inlining_state; float_const_prop;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
-                symbols_currently_being_defined;
                 variables_defined_at_toplevel; cse;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
@@ -73,7 +71,6 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(at_unit_toplevel@ %b)@]@ \
       @[<hov 1>(unit_toplevel_return_continuation@ %a)@]@ \
       @[<hov 1>(unit_toplevel_exn_continuation@ %a)@]@ \
-      @[<hov 1>(symbols_currently_being_defined@ %a)@]@ \
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
@@ -89,7 +86,6 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     at_unit_toplevel
     Continuation.print unit_toplevel_return_continuation
     Continuation.print unit_toplevel_exn_continuation
-    Symbol.Set.print symbols_currently_being_defined
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
     do_not_rebuild_terms
@@ -109,7 +105,6 @@ let create ~round ~(resolver : resolver)
     at_unit_toplevel = true;
     unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation;
-    symbols_currently_being_defined = Symbol.Set.empty;
     variables_defined_at_toplevel = Variable.Set.empty;
     cse = CSE.empty;
     do_not_rebuild_terms = false;
@@ -153,31 +148,6 @@ let increment_continuation_scope t =
 let increment_continuation_scope_twice t =
   increment_continuation_scope (increment_continuation_scope t)
 
-let now_defining_symbol t symbol =
-  if Symbol.Set.mem symbol t.symbols_currently_being_defined
-  then
-    Misc.fatal_errorf "Already defining symbol %a:@ %a" Symbol.print symbol
-      print t;
-  let symbols_currently_being_defined =
-    Symbol.Set.add symbol t.symbols_currently_being_defined
-  in
-  { t with symbols_currently_being_defined }
-
-let no_longer_defining_symbol t symbol =
-  if not (Symbol.Set.mem symbol t.symbols_currently_being_defined)
-  then
-    Misc.fatal_errorf "Not currently defining symbol %a:@ %a" Symbol.print
-      symbol print t;
-  let symbols_currently_being_defined =
-    Symbol.Set.remove symbol t.symbols_currently_being_defined
-  in
-  { t with symbols_currently_being_defined }
-
-let symbol_is_currently_being_defined t symbol =
-  Symbol.Set.mem symbol t.symbols_currently_being_defined
-
-let symbols_currently_being_defined t = t.symbols_currently_being_defined
-
 let enter_set_of_closures
     { round;
       typing_env;
@@ -188,7 +158,6 @@ let enter_set_of_closures
       at_unit_toplevel = _;
       unit_toplevel_return_continuation;
       unit_toplevel_exn_continuation;
-      symbols_currently_being_defined;
       variables_defined_at_toplevel;
       cse = _;
       do_not_rebuild_terms;
@@ -205,7 +174,6 @@ let enter_set_of_closures
     at_unit_toplevel = false;
     unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation;
-    symbols_currently_being_defined;
     variables_defined_at_toplevel;
     cse = CSE.empty;
     do_not_rebuild_terms;
@@ -323,23 +291,11 @@ let add_equation_on_name t name ty =
   let typing_env = TE.add_equation t.typing_env name ty in
   { t with typing_env }
 
-(* let add_symbol_if_not_defined t sym ty = let name = Name.symbol sym in if
-   TE.mem t.typing_env name then t else add_symbol t sym ty *)
-
 let define_parameters t ~params =
   List.fold_left
     (fun t param ->
       let var = Bound_var.create (BP.var param) Name_mode.normal in
       define_variable t var (K.With_subkind.kind (BP.kind param)))
-    t params
-
-let define_parameters_as_bottom t ~params =
-  List.fold_left
-    (fun t param ->
-      let var = Bound_var.create (BP.var param) Name_mode.normal in
-      let kind = K.With_subkind.kind (BP.kind param) in
-      let t = define_variable t var kind in
-      add_equation_on_variable t (BP.var param) (T.bottom kind))
     t params
 
 let add_parameters ?at_unit_toplevel t params ~param_types =

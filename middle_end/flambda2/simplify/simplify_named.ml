@@ -140,9 +140,6 @@ let create_lifted_constant (dacc, lifted_constants)
       | Some (Static_const static_const) ->
         DA.consider_constant_for_sharing dacc symbol static_const
     in
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv -> DE.no_longer_defining_symbol denv symbol)
-    in
     dacc, lifted_constant :: lifted_constants
   | Code code_id ->
     let lifted_constant = LC.create_code code_id static_const in
@@ -250,15 +247,6 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
         "[Let] binding symbols is only allowed at the toplevel of compilation \
          units (not even at the toplevel of function bodies):@ %a@ =@ %a"
         Bound_pattern.print bound_pattern Named.print named;
-    let non_closure_symbols_being_defined =
-      Bound_symbols.non_closure_symbols_being_defined bound_symbols
-    in
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv ->
-          Symbol.Set.fold
-            (fun symbol denv -> DE.now_defining_symbol denv symbol)
-            non_closure_symbols_being_defined denv)
-    in
     let bound_symbols, static_consts, dacc =
       try
         Simplify_static_const.simplify_static_consts dacc bound_symbols

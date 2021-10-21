@@ -69,14 +69,6 @@ val increment_continuation_scope_twice : t -> t
 
 val get_continuation_scope : t -> Scope.t
 
-val now_defining_symbol : t -> Symbol.t -> t
-
-val no_longer_defining_symbol : t -> Symbol.t -> t
-
-val symbol_is_currently_being_defined : t -> Symbol.t -> bool
-
-val symbols_currently_being_defined : t -> Symbol.Set.t
-
 val typing_env : t -> Flambda2_types.Typing_env.t
 
 val define_variable : t -> Bound_var.t -> Flambda_kind.t -> t
@@ -108,8 +100,6 @@ val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
 val define_parameters : t -> params:Bound_parameter.t list -> t
-
-val define_parameters_as_bottom : t -> params:Bound_parameter.t list -> t
 
 val add_parameters :
   ?at_unit_toplevel:bool ->

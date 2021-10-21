@@ -409,15 +409,6 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants ~params
         denv)
   in
   dacc
-  |> DA.map_denv ~f:(fun denv ->
-         Closure_id.Map.fold
-           (fun _closure_id bound_name denv ->
-             Name.pattern_match
-               (Bound_name.to_name bound_name)
-               ~var:(fun _var -> denv)
-               ~symbol:(fun closure_symbol ->
-                 DE.now_defining_symbol denv closure_symbol))
-           closure_bound_names_inside_function denv)
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_used_closure_vars ~used_closure_vars
 
