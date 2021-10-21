@@ -352,18 +352,6 @@ let with_typing_env t typing_env = { t with typing_env }
 
 let map_typing_env t ~f = with_typing_env t (f t.typing_env)
 
-let check_variable_is_bound t var =
-  if not (TE.mem t.typing_env (Name.var var))
-  then
-    Misc.fatal_errorf "Unbound variable %a in environment:@ %a" Variable.print
-      var print t
-
-let check_symbol_is_bound t sym =
-  if not (TE.mem t.typing_env (Name.symbol sym))
-  then
-    Misc.fatal_errorf "Unbound symbol %a in environment:@ %a" Symbol.print sym
-      print t
-
 let check_name_is_bound t name =
   if not (TE.mem t.typing_env name)
   then
@@ -382,12 +370,6 @@ let find_code_exn t id =
   match Code_id.Map.find id t.all_code with
   | exception Not_found -> Exported_code.find_exn (t.get_imported_code ()) id
   | code -> Code_or_metadata.create code
-
-let check_code_id_is_bound t code_id =
-  if not (mem_code t code_id)
-  then
-    Misc.fatal_errorf "Unbound code ID %a in environment:@ %a" Code_id.print
-      code_id print t
 
 let define_code t ~code_id ~code =
   if not
@@ -412,8 +394,6 @@ let set_inlined_debuginfo t dbg = { t with inlined_debuginfo = dbg }
 let get_inlined_debuginfo t = t.inlined_debuginfo
 
 let add_inlined_debuginfo t dbg = Debuginfo.inline t.inlined_debuginfo dbg
-
-let disable_function_inlining t = { t with can_inline = false }
 
 let cse t = t.cse
 

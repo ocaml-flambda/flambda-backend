@@ -131,15 +131,7 @@ val with_typing_env : t -> Flambda2_types.Typing_env.t -> t
 val map_typing_env :
   t -> f:(Flambda2_types.Typing_env.t -> Flambda2_types.Typing_env.t) -> t
 
-val check_variable_is_bound : t -> Variable.t -> unit
-
-val check_symbol_is_bound : t -> Symbol.t -> unit
-
-val check_name_is_bound : t -> Name.t -> unit
-
 val check_simple_is_bound : t -> Simple.t -> unit
-
-val check_code_id_is_bound : t -> Code_id.t -> unit
 
 val define_code : t -> code_id:Code_id.t -> code:Code.t -> t
 
@@ -155,9 +147,6 @@ val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 val get_inlined_debuginfo : t -> Debuginfo.t
 
 val round : t -> int
-
-(** Prevent function inlining from occurring in the given environment. *)
-val disable_function_inlining : t -> t
 
 val can_inline : t -> bool
 
