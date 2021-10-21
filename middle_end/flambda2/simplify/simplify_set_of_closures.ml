@@ -263,8 +263,7 @@ end = struct
       ~closure_bound_names_all_sets ~closure_element_types_all_sets =
     let denv = DA.denv dacc_prior_to_sets in
     let denv_inside_functions =
-      denv |> DE.enter_set_of_closures
-      |> DE.increment_continuation_scope_level_twice
+      denv |> DE.enter_set_of_closures |> DE.increment_continuation_scope_twice
       (* Even if we are not rebuilding terms we should always rebuild them for
          local functions. The type of a function is dependent on its term and
          not knowing it prohibits us from inlining it. *)

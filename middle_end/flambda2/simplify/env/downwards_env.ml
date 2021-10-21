@@ -124,7 +124,7 @@ let typing_env t = t.typing_env
 
 let round t = t.round
 
-let get_continuation_scope_level t = TE.current_scope t.typing_env
+let get_continuation_scope t = TE.current_scope t.typing_env
 
 let can_inline t = t.can_inline
 
@@ -147,12 +147,11 @@ let get_inlining_state t = t.inlining_state
 
 let set_inlining_state t inlining_state = { t with inlining_state }
 
-(* CR mshinwell: remove "_level" *)
-let increment_continuation_scope_level t =
+let increment_continuation_scope t =
   { t with typing_env = TE.increment_scope t.typing_env }
 
-let increment_continuation_scope_level_twice t =
-  increment_continuation_scope_level (increment_continuation_scope_level t)
+let increment_continuation_scope_twice t =
+  increment_continuation_scope (increment_continuation_scope t)
 
 let now_defining_symbol t symbol =
   if Symbol.Set.mem symbol t.symbols_currently_being_defined
@@ -466,7 +465,7 @@ let disable_function_inlining t = { t with can_inline = false }
 let cse t = t.cse
 
 let add_cse t prim ~bound_to =
-  let scope = get_continuation_scope_level t in
+  let scope = get_continuation_scope t in
   let cse = CSE.add t.cse prim ~bound_to scope in
   { t with cse }
 

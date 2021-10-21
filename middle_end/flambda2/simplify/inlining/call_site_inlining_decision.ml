@@ -57,7 +57,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
        unrolling can happen while speculating right now. *)
     Inlining_transforms.inline dacc ~apply ~unroll_to:None function_type
   in
-  let scope = DE.get_continuation_scope_level (DA.denv dacc) in
+  let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in

@@ -25,9 +25,7 @@ module U = One_continuation_use
 
 let join denv typing_env params ~env_at_fork_plus_params
     ~consts_lifted_during_body ~use_envs_with_ids =
-  let definition_scope_level =
-    DE.get_continuation_scope_level env_at_fork_plus_params
-  in
+  let definition_scope = DE.get_continuation_scope env_at_fork_plus_params in
   let extra_lifted_consts_in_use_envs =
     LCS.all_defined_symbols consts_lifted_during_body
   in
@@ -39,7 +37,7 @@ let join denv typing_env params ~env_at_fork_plus_params
   in
   let module CSE = Common_subexpression_elimination in
   let cse_join_result =
-    assert (Scope.equal definition_scope_level (TE.current_scope typing_env));
+    assert (Scope.equal definition_scope (TE.current_scope typing_env));
     CSE.join ~typing_env_at_fork:typing_env ~cse_at_fork:(DE.cse denv)
       ~use_info:use_envs_with_ids
       ~get_typing_env:(fun (use_env, _, _) -> DE.typing_env use_env)
@@ -63,7 +61,7 @@ let join denv typing_env params ~env_at_fork_plus_params
         (* CR-someday mshinwell: If this didn't do Scope.next then TE could
            probably be slightly more efficient, as it wouldn't need to look at
            the middle of the three return values from Scope.Map.Split. *)
-      ~unknown_if_defined_at_or_later_than:(Scope.next definition_scope_level)
+      ~unknown_if_defined_at_or_later_than:(Scope.next definition_scope)
       ~extra_lifted_consts_in_use_envs ~extra_allowed_names
   in
   let handler_env =
