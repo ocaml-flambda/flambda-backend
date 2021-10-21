@@ -475,7 +475,6 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
               |> DE.enter_closure code_id ~return_continuation ~exn_continuation
               |> DE.map_typing_env ~f:(fun typing_env ->
                      let code_age_relation =
-                       (* CR mshinwell: Tidy up propagation to avoid union *)
                        T.Code_age_relation.union
                          (TE.code_age_relation typing_env)
                          code_age_relation
