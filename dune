@@ -240,7 +240,6 @@
   optmaindriver
   compiler_hooks
   ;; printer/
-  printcmm_with_mappings
   printast_with_mappings
   location_tracker_formatter
   ; The driver should be in here too, but is not at present.  This might
@@ -1211,12 +1210,6 @@
   (.ocamloptcomp.objs/byte/printast_with_mappings.cmt as compiler-libs/printast_with_mappings.cmt)
   (.ocamloptcomp.objs/byte/printast_with_mappings.cmti as compiler-libs/printast_with_mappings.cmti)
   (.ocamloptcomp.objs/native/printast_with_mappings.cmx as compiler-libs/printast_with_mappings.cmx)
-  (printcmm_with_mappings.mli as compiler-libs/printcmm_with_mappings.mli)
-  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmi as compiler-libs/printcmm_with_mappings.cmi)
-  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmo as compiler-libs/printcmm_with_mappings.cmo)
-  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmt as compiler-libs/printcmm_with_mappings.cmt)
-  (.ocamloptcomp.objs/byte/printcmm_with_mappings.cmti as compiler-libs/printcmm_with_mappings.cmti)
-  (.ocamloptcomp.objs/native/printcmm_with_mappings.cmx as compiler-libs/printcmm_with_mappings.cmx)
   (location_tracker_formatter.mli as compiler-libs/location_tracker_formatter.mli)
   (.ocamloptcomp.objs/byte/location_tracker_formatter.cmi as compiler-libs/location_tracker_formatter.cmi)
   (.ocamloptcomp.objs/byte/location_tracker_formatter.cmo as compiler-libs/location_tracker_formatter.cmo)
