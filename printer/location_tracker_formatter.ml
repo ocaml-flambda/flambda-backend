@@ -18,7 +18,7 @@ let is_activated = ref false
 
 let activate_tracking () = is_activated := true
 let deactivate_tracking () = is_activated := false
-    let is_tracking () = !is_activated
+let is_tracking () = !is_activated
 
 module Location_in_file = struct
   type t = {
@@ -96,8 +96,8 @@ module Mappings = struct
 
   let print ppf t =
     List.iter (fun Item.{source; ir; label} ->
-        Format.fprintf ppf "%s: %a -> %a\n"
-          (match label with | Some s -> s | None -> "")
+        Format.fprintf ppf "%s%a -> %a\n"
+          (match label with | Some s -> s ^ ": " | None -> "")
           Range.print source
           Range.print ir
       ) t
@@ -191,7 +191,7 @@ module Tracking_formatter = struct
     let mark_close_stag = function
       | Location_mapping_tag _ ->
         (match t.pending_mappings with
-         | [] -> failwith "End_pos_tag encountered without matching Start_pos_tag"
+         | [] -> Misc.fatal_error "End_pos_tag encountered without matching Start_pos_tag"
          | pending :: pending_mappings ->
            t.pending_mappings <- pending_mappings;
            let mapping =
