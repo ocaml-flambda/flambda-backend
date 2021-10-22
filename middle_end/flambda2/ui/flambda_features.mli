@@ -65,25 +65,29 @@ val dump_closure_offsets : unit -> bool
 val freshen_when_printing : unit -> bool
 
 module Inlining : sig
-  val max_depth : round:int -> int
+  type round_or_default =
+    | Round of int
+    | Default
 
-  val call_cost : round:int -> float
+  val max_depth : round_or_default -> int
 
-  val alloc_cost : round:int -> float
+  val call_cost : round_or_default -> float
 
-  val prim_cost : round:int -> float
+  val alloc_cost : round_or_default -> float
 
-  val branch_cost : round:int -> float
+  val prim_cost : round_or_default -> float
 
-  val indirect_call_cost : round:int -> float
+  val branch_cost : round_or_default -> float
 
-  val poly_compare_cost : round:int -> float
+  val indirect_call_cost : round_or_default -> float
 
-  val small_function_size : round:int -> int
+  val poly_compare_cost : round_or_default -> float
 
-  val large_function_size : round:int -> int
+  val small_function_size : round_or_default -> int
 
-  val threshold : round:int -> float
+  val large_function_size : round_or_default -> int
+
+  val threshold : round_or_default -> float
 end
 
 module Debug : sig

@@ -578,10 +578,10 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
   let print params ~handler =
     begin
       match descr handler with
-      | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 1>"
-      | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 1>"
+      | Apply_cont _ | Invalid _ -> fprintf ppf "@[<hov 0>"
+      | Let _ | Let_cont _ | Apply _ | Switch _ -> fprintf ppf "@[<v 0>"
     end;
-    fprintf ppf "@<0>%s%a@<0>%s%s@<0>%s%s@<0>%s"
+    fprintf ppf "@[<hov 1>@<0>%s%a@<0>%s%s@<0>%s%s@<0>%s"
       (Flambda_colours.continuation_definition ())
       Continuation.print k
       (Flambda_colours.expr_keyword ())
@@ -591,7 +591,7 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
       (Flambda_colours.normal ());
     if List.length params > 0
     then fprintf ppf " %a" Bound_parameter.List.print params;
-    fprintf ppf "@<0>%s #%a:@<0>%s@ %a" (Flambda_colours.elide ())
+    fprintf ppf "@<0>%s #%a:@<0>%s@]@ @[<hov 0>%a@]" (Flambda_colours.elide ())
       (Or_unknown.print Num_occurrences.print)
       occurrences
       (Flambda_colours.normal ())
@@ -806,7 +806,7 @@ and flatten_for_printing t =
     print bound_pattern ~body
 
 and print_closure_binding ppf (closure_id, sym) =
-  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s %a@]" Symbol.print sym
+  Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s@ %a@]" Symbol.print sym
     (Flambda_colours.elide ()) (Flambda_colours.elide ()) Closure_id.print
     closure_id
 
@@ -969,10 +969,7 @@ and print_named ppf (t : named) =
   let print_or_elide_debuginfo ppf dbg =
     if Debuginfo.is_none dbg
     then Format.pp_print_string ppf ""
-    else begin
-      Format.pp_print_string ppf " ";
-      Debuginfo.print_compact ppf dbg
-    end
+    else Format.fprintf ppf "@ %a" Debuginfo.print_compact dbg
   in
   match t with
   | Simple simple -> Simple.print ppf simple

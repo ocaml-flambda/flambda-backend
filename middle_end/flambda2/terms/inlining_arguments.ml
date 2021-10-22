@@ -29,36 +29,52 @@ module Args = struct
       threshold : float
     }
 
-  let [@ocamlformat "disable"] print ppf t =
+  let[@ocamlformat "disable"] print ppf t =
     let { max_inlining_depth; call_cost; alloc_cost; prim_cost; branch_cost;
           indirect_call_cost; poly_compare_cost;
           small_function_size; large_function_size;
           threshold;
         } = t
     in
-    Format.fprintf ppf
-      "@[<hov 1>(\
-       @[<hov 1>(max_inlining_depth@ %d)@]@ \
-       @[<hov 1>(call_cost@ %f)@]@ \
-       @[<hov 1>(alloc_cost@ %f)@]@ \
-       @[<hov 1>(prim_cost@ %f)@]@ \
-       @[<hov 1>(branch_cost@ %f)@]@ \
-       @[<hov 1>(indirect_call_cost@ %f)@]@ \
-       @[<hov 1>(poly_compare_cost@ %f)@]@ \
-       @[<hov 1>(small_function_size@ %d)@]@ \
-       @[<hov 1>(large_function_size@ %d)@]@ \
-       @[<hov 1>(threshold@ %f)@]\
-      )@]"
-      max_inlining_depth
-      call_cost
-      alloc_cost
-      prim_cost
-      branch_cost
-      indirect_call_cost
-      poly_compare_cost
-      small_function_size
-      large_function_size
-      threshold
+    let module I = Flambda_features.Inlining in
+    if Int.equal max_inlining_depth (I.max_depth Default)
+       && Float.equal call_cost (I.call_cost Default)
+       && Float.equal alloc_cost (I.alloc_cost Default)
+       && Float.equal prim_cost (I.prim_cost Default)
+       && Float.equal branch_cost (I.branch_cost Default)
+       && Float.equal indirect_call_cost (I.indirect_call_cost Default)
+       && Float.equal poly_compare_cost (I.poly_compare_cost Default)
+       && Int.equal small_function_size (I.small_function_size Default)
+       && Int.equal large_function_size (I.large_function_size Default)
+       && Float.equal threshold (I.threshold Default)
+    then
+      Format.fprintf ppf "@<0>%s<default>@<0>%s"
+        (Flambda_colours.elide ())
+        (Flambda_colours.normal ())
+    else
+      Format.fprintf ppf
+        "@[<hov 1>(\
+         @[<hov 1>(max_inlining_depth@ %d)@]@ \
+         @[<hov 1>(call_cost@ %f)@]@ \
+         @[<hov 1>(alloc_cost@ %f)@]@ \
+         @[<hov 1>(prim_cost@ %f)@]@ \
+         @[<hov 1>(branch_cost@ %f)@]@ \
+         @[<hov 1>(indirect_call_cost@ %f)@]@ \
+         @[<hov 1>(poly_compare_cost@ %f)@]@ \
+         @[<hov 1>(small_function_size@ %d)@]@ \
+         @[<hov 1>(large_function_size@ %d)@]@ \
+         @[<hov 1>(threshold@ %f)@]\
+         )@]"
+        max_inlining_depth
+        call_cost
+        alloc_cost
+        prim_cost
+        branch_cost
+        indirect_call_cost
+        poly_compare_cost
+        small_function_size
+        large_function_size
+        threshold
 
   let equal t1 t2 =
     let { max_inlining_depth = t1_max_inlining_depth;
@@ -185,16 +201,16 @@ module Args = struct
 
   let create ~round =
     let module I = Flambda_features.Inlining in
-    { max_inlining_depth = I.max_depth ~round;
-      call_cost = I.call_cost ~round;
-      alloc_cost = I.alloc_cost ~round;
-      prim_cost = I.prim_cost ~round;
-      branch_cost = I.branch_cost ~round;
-      indirect_call_cost = I.indirect_call_cost ~round;
-      poly_compare_cost = I.poly_compare_cost ~round;
-      small_function_size = I.small_function_size ~round;
-      large_function_size = I.large_function_size ~round;
-      threshold = I.threshold ~round
+    { max_inlining_depth = I.max_depth (Round round);
+      call_cost = I.call_cost (Round round);
+      alloc_cost = I.alloc_cost (Round round);
+      prim_cost = I.prim_cost (Round round);
+      branch_cost = I.branch_cost (Round round);
+      indirect_call_cost = I.indirect_call_cost (Round round);
+      poly_compare_cost = I.poly_compare_cost (Round round);
+      small_function_size = I.small_function_size (Round round);
+      large_function_size = I.large_function_size (Round round);
+      threshold = I.threshold (Round round)
     }
 end
 

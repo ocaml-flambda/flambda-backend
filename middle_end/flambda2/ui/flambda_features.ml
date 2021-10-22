@@ -67,33 +67,64 @@ let dump_closure_offsets () = !Clflags.Flambda2.Dump.closure_offsets
 let freshen_when_printing () = !Clflags.Flambda2.Dump.freshen
 
 module Inlining = struct
-  module I = Clflags.Int_arg_helper
-  module F = Clflags.Float_arg_helper
+  module D = Clflags.Flambda2.Inlining.Default
+  module I = Clflags.Flambda2.Inlining
+  module IH = Clflags.Int_arg_helper
+  module FH = Clflags.Float_arg_helper
 
-  let max_depth ~round = I.get ~key:round !Clflags.Flambda2.Inlining.max_depth
+  type round_or_default =
+    | Round of int
+    | Default
 
-  let call_cost ~round = F.get ~key:round !Clflags.Flambda2.Inlining.call_cost
+  let max_depth round_or_default =
+    match round_or_default with
+    | Round round -> IH.get ~key:round !I.max_depth
+    | Default -> D.max_depth
 
-  let alloc_cost ~round = F.get ~key:round !Clflags.Flambda2.Inlining.alloc_cost
+  let call_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.call_cost
+    | Default -> D.call_cost
 
-  let prim_cost ~round = F.get ~key:round !Clflags.Flambda2.Inlining.prim_cost
+  let alloc_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.alloc_cost
+    | Default -> D.alloc_cost
 
-  let branch_cost ~round =
-    F.get ~key:round !Clflags.Flambda2.Inlining.branch_cost
+  let prim_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.prim_cost
+    | Default -> D.prim_cost
 
-  let indirect_call_cost ~round =
-    F.get ~key:round !Clflags.Flambda2.Inlining.indirect_call_cost
+  let branch_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.branch_cost
+    | Default -> D.branch_cost
 
-  let poly_compare_cost ~round =
-    F.get ~key:round !Clflags.Flambda2.Inlining.poly_compare_cost
+  let indirect_call_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.indirect_call_cost
+    | Default -> D.indirect_call_cost
 
-  let small_function_size ~round =
-    I.get ~key:round !Clflags.Flambda2.Inlining.small_function_size
+  let poly_compare_cost round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.poly_compare_cost
+    | Default -> D.poly_compare_cost
 
-  let large_function_size ~round =
-    I.get ~key:round !Clflags.Flambda2.Inlining.large_function_size
+  let small_function_size round_or_default =
+    match round_or_default with
+    | Round round -> IH.get ~key:round !I.small_function_size
+    | Default -> D.small_function_size
 
-  let threshold ~round = F.get ~key:round !Clflags.Flambda2.Inlining.threshold
+  let large_function_size round_or_default =
+    match round_or_default with
+    | Round round -> IH.get ~key:round !I.large_function_size
+    | Default -> D.large_function_size
+
+  let threshold round_or_default =
+    match round_or_default with
+    | Round round -> FH.get ~key:round !I.threshold
+    | Default -> D.threshold
 end
 
 module Debug = struct
