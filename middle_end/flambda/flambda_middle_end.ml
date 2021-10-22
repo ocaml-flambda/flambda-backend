@@ -85,6 +85,7 @@ let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size ~filename
                   |> Closure_conversion.lambda_to_flambda ~backend
                        ~module_ident ~size ~filename)
            in
+           Compiler_hooks.execute Compiler_hooks.Raw_flambda1 flam;
            if !Clflags.dump_rawflambda
            then
              Format.fprintf ppf_dump "After closure conversion:@ %a@."
@@ -186,6 +187,7 @@ let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size ~filename
                     "[@unrolled] attribute was not used on this function \
                      application (the optimizer did not know what function \
                      was being applied)"));
+           Compiler_hooks.execute Compiler_hooks.Flambda1 flam;
            if !Clflags.dump_flambda
            then
              Format.fprintf ppf_dump "End of middle end:@ %a@."
@@ -199,6 +201,7 @@ let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size ~filename
 let flambda_raw_clambda_dump_if ppf
       ({ Flambda_to_clambda. expr = ulambda; preallocated_blocks = _;
         structured_constants; exported = _; } as input) =
+  Compiler_hooks.execute Compiler_hooks.Raw_clambda ulambda;
   if !Clflags.dump_rawclambda then
     begin
       Format.fprintf ppf "@.clambda (before Un_anf):@.";

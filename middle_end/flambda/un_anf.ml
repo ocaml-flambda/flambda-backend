@@ -846,6 +846,7 @@ let apply ~what ~ppf_dump clam =
   in
   let var_info = make_var_info clam in
   let clam = un_anf var_info V.Map.empty clam in
+  Compiler_hooks.execute Compiler_hooks.Clambda clam;
   if !Clflags.dump_clambda then begin
     Format.fprintf ppf_dump
       "@.un-anf (%a):@ %a@."

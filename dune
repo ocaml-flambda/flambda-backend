@@ -28,6 +28,8 @@
 
 (copy_files# driver/flambda_backend_main.ml{,i})
 
+(copy_files# driver/compiler_hooks.ml{,i})
+
 (copy_files# driver/optmaindriver.ml{,i})
 
 (copy_files# file_formats/cmx_format.mli)
@@ -234,6 +236,7 @@
   opterrors
   optcompile
   optmaindriver
+  compiler_hooks
   ; The driver should be in here too, but is not at present.  This might
   ; be tricky because it has a different name...
   )
@@ -1187,8 +1190,15 @@
    compiler-libs/flambda2_to_cmm__To_cmm.cmi)
   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmt
    as
-   compiler-libs/flambda2_to_cmm__To_cmm.cmt)))
+   compiler-libs/flambda2_to_cmm__To_cmm.cmt)
 
+   (compiler_hooks.mli as compiler-libs/compiler_hooks.mli)
+   (.ocamloptcomp.objs/byte/compiler_hooks.cmi as compiler-libs/compiler_hooks.cmi)
+   (.ocamloptcomp.objs/byte/compiler_hooks.cmo as compiler-libs/compiler_hooks.cmo)
+   (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmt)
+   (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmti)
+   (.ocamloptcomp.objs/byte/compiler_hooks.cmti as compiler-libs/compiler_hooks.cmx)
+  ))
 (install
  (section lib)
  (package ocaml)
