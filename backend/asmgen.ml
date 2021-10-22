@@ -154,6 +154,7 @@ let rec regalloc ~ppf_dump round fd =
   in
   dump_if ppf_dump dump_regalloc "After register allocation" fd;
   let (newfd, redo_regalloc) = Reload.fundecl fd num_stack_slots in
+  Compiler_hooks.execute Compiler_hooks.Mach_split newfd;
   dump_if ppf_dump dump_reload "After insertion of reloading code" newfd;
   if redo_regalloc then begin
     Reg.reinit(); Liveness.fundecl newfd; regalloc ~ppf_dump (round + 1) newfd
@@ -193,18 +194,24 @@ let compile_fundecl ~ppf_dump fd_cmm =
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ Profile.record ~accumulate:true "selection" Selection.fundecl
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
   ++ Profile.record ~accumulate:true "cse" CSE.fundecl
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_cse
   ++ pass_dump_if ppf_dump dump_cse "After CSE"
   ++ Profile.record ~accumulate:true "liveness" liveness
   ++ Profile.record ~accumulate:true "deadcode" Deadcode.fundecl
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_live
   ++ pass_dump_if ppf_dump dump_live "Liveness analysis"
   ++ Profile.record ~accumulate:true "spill" Spill.fundecl
   ++ Profile.record ~accumulate:true "liveness" liveness
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_spill
   ++ pass_dump_if ppf_dump dump_spill "After spilling"
   ++ Profile.record ~accumulate:true "split" Split.fundecl
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_split
   ++ pass_dump_if ppf_dump dump_split "After live range splitting"
   ++ Profile.record ~accumulate:true "liveness" liveness
   ++ Profile.record ~accumulate:true "regalloc" (regalloc ~ppf_dump 1)
@@ -217,11 +224,13 @@ let compile_fundecl ~ppf_dump fd_cmm =
       end;
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ (fun (fd : Linear.fundecl) ->
     if !use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
+      ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
       ++ save_cfg
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
@@ -304,7 +313,8 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
 
 let end_gen_implementation ?toplevel ~ppf_dump clambda =
   end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
-    Profile.record "cmm" Cmmgen.compunit clambda)
+    Profile.record "cmm" Cmmgen.compunit clambda
+    |> Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm)
 
 type middle_end =
      backend:(module Backend_intf.S)

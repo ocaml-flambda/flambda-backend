@@ -20,8 +20,7 @@ open Compile_common
 
 let tool_name = "ocamlopt"
 
-let with_info =
-  Compile_common.with_info ~native:true ~tool_name
+let with_info = Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
@@ -34,18 +33,20 @@ let (|>>) (x, y) f = (x, f y)
 let flambda_and_flambda2 i typed ~compile_implementation =
   typed
   |> Profile.(record transl)
-      (Translmod.transl_implementation_flambda i.module_name)
+    (Translmod.transl_implementation_flambda i.module_name)
+  |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
+  |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
-    ((module_ident, main_module_block_size), code)
-    |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
-    |>> Simplif.simplify_lambda
-    |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-    |> (fun ((module_ident, main_module_block_size), code) ->
-      compile_implementation ~module_ident ~main_module_block_size ~code
-        ~required_globals;
-      Compilenv.save_unit_info (cmx i)))
+   (fun program ->
+      let code = Simplif.simplify_lambda program.Lambda.code in
+      { program with Lambda.code }
+      |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
+      |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
+      |> (fun ({ Lambda.module_ident; main_module_block_size;
+                 required_globals; code }) ->
+           compile_implementation ~module_ident ~main_module_block_size ~code
+             ~required_globals;
+           Compilenv.save_unit_info (cmx i)))
 
 let flambda2_ i ~flambda2 typed =
   flambda_and_flambda2 i typed
@@ -88,11 +89,13 @@ let clambda i backend typed =
   |> Profile.(record transl)
     (Translmod.transl_store_implementation i.module_name)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
+  |> Compiler_hooks.execute_and_pipe Compiler_hooks.Raw_lambda
   |> Profile.(record generate)
     (fun program ->
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
+       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
        |> Asmgen.compile_implementation
             ~backend
             ~filename:i.source_file

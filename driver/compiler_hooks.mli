@@ -1,0 +1,60 @@
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*   Copyright 2021 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
+
+open Misc
+open Compile_common
+
+(* Hooks allow to inspect the IR produced by a pass without altering
+   the compilation pipeline.
+
+   Hooks are allowed to inspect the data but are prohibited from
+   altering it. If one hook were to mutate the data there's no guarantee
+   of how the compiler would behave.
+   Several hooks can be registered for the same pass. There's no guarantees
+   on the order of execution of hooks.
+*)
+
+type _ pass =
+  | Parse_tree_intf : Parsetree.signature pass
+  | Parse_tree_impl : Parsetree.structure pass
+  | Typecheck_intf : Typedtree.signature pass
+  | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Raw_lambda : Lambda.program pass
+  | Lambda : Lambda.program pass
+  | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
+  | Flambda2 : Flambda2_terms.Flambda_unit.t pass
+  | Raw_flambda1 : Flambda.program pass
+  | Flambda1 : Flambda.program pass
+  | Raw_clambda : Clambda.ulambda pass
+  | Clambda : Clambda.ulambda pass
+
+  | Mach_combine : Mach.fundecl pass
+  | Mach_cse : Mach.fundecl pass
+  | Mach_spill : Mach.fundecl pass
+  | Mach_live : Mach.fundecl pass
+  | Mach_reload : Mach.fundecl pass
+  | Mach_sel : Mach.fundecl pass
+  | Mach_split : Mach.fundecl pass
+  | Linear : Linear.fundecl pass
+  | Cfg : Cfg_with_layout.t pass
+  | Cmm : Cmm.phrase list pass
+
+(* Register a new hook for [pass]. *)
+val register : 'a pass -> ('a -> unit) -> unit
+
+(* Execute the hooks registered for [pass]. *)
+val execute : 'a pass -> 'a -> unit
+
+val execute_and_pipe : 'a pass -> 'a -> 'a
+
+(* Remove all hooks registered for [pass] *)
+val clear : 'a pass -> unit

@@ -153,6 +153,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
             ~big_endian:Arch.big_endian ~module_ident
             ~module_block_size_in_words module_initializer)
     in
+    Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
     let flambda, cmx, all_code =
       if Flambda_features.classic_mode ()
@@ -173,6 +174,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         then
           let output_prefix = Printf.sprintf "%s.%d" prefixname round in
           Inlining_report.output_then_forget_decisions ~output_prefix);
+        Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
         flambda, cmx, all_code
