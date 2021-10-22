@@ -385,10 +385,8 @@ let remove_unused_closure_vars uacc static_const =
       let closure_elements =
         Var_within_closure.Map.filter
           (fun closure_var _ ->
-            (not
-               (Compilation_unit.is_current
-                  (Var_within_closure.get_compilation_unit closure_var)))
-            || Name_occurrences.mem_closure_var name_occurrences closure_var)
+            Name_occurrences.closure_var_is_used_or_imported name_occurrences
+              closure_var)
           closure_vars
       in
       Set_of_closures.create
