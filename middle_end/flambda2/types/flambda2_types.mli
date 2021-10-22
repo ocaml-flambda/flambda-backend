@@ -758,4 +758,7 @@ val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
 
 val extract_symbol_approx :
-  Typing_env.t -> Symbol.t -> 'code Code_id.Map.t -> 'code Value_approximation.t
+  Typing_env.t ->
+  Symbol.t ->
+  (Code_id.t -> 'code option) ->
+  'code Value_approximation.t

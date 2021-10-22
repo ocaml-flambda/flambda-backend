@@ -65,7 +65,7 @@ let join ?bound_name central_env ~left_env ~left_ty ~right_env ~right_ty =
   | Unknown -> unknown_like left_ty
   | Known ty -> ty
 
-let extract_symbol_approx env symbol all_code =
+let extract_symbol_approx env symbol find_code =
   let rec type_to_approx (ty : t) : _ Value_approximation.t =
     let expanded = Expand_head.expand_head env ty in
     match Expand_head.Expanded_type.descr expanded with
@@ -88,7 +88,7 @@ let extract_symbol_approx env symbol all_code =
           | Bottom | Unknown -> Value_unknown
           | Ok function_type ->
             let code_id = Function_type.code_id function_type in
-            let code = Code_id.Map.find_opt code_id all_code in
+            let code = find_code code_id in
             (* CR vlaviron: Should we fail if [code] is [None] ? *)
             Closure_approximation (code_id, code)
         end)
