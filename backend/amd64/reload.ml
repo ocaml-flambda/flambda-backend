@@ -95,7 +95,7 @@ method! reload_operation op arg res =
          in registers *)
       super#reload_operation op arg res
   | Iintop_imm (Imul, _) ->
-      (* First argument (= result) must be in register *)
+      (* The result (= the argument) must be a register (#10626) *)
       if stackp arg.(0)
       then let r = self#makereg arg.(0) in ([|r|],[|r|])
       else (arg, res)
