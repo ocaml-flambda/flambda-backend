@@ -267,6 +267,21 @@ runtest:
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) runtest --root=. --profile=release --build-dir=_build2
 
+# Only needed for running the test tools by hand; runtest will take care of
+# building them using Dune
+.PHONY: test-tools
+test-tools: stage1
+	PATH=$(stage1_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  $(dune) build @middle_end/flambda2/tests/tools/all \
+	    --root=. --profile=release --build-dir=_build2
+
+.PHONY: promote
+promote:
+	PATH=$(stage1_prefix)/bin:$$PATH \
+	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  $(dune) promote --root=. --build-dir=_build2
+
 # The following horror will be removed when work to allow the testsuite to
 # run on an installed tree (led by David Allsopp) is completed.
 # stage2 needs to have been built first.

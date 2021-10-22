@@ -351,12 +351,13 @@ and subst_pattern env (pattern : Bound_symbols.Pattern.t) :
 and subst_static_const env (static_const : Static_const_or_code.t) :
     Static_const_or_code.t =
   match static_const with
-  | Code code -> Code (subst_code env code)
+  | Code code -> Static_const_or_code.create_code (subst_code env code)
   | Static_const (Block (tag, mut, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Static_const (Block (tag, mut, fields))
+    Static_const_or_code.create_static_const (Block (tag, mut, fields))
   | Static_const (Set_of_closures set_of_closures) ->
-    Static_const (Set_of_closures (subst_set_of_closures env set_of_closures))
+    Static_const_or_code.create_static_const
+      (Set_of_closures (subst_set_of_closures env set_of_closures))
   | _ -> static_const
 
 and subst_code env (code : Code.t) : Code.t =
@@ -391,7 +392,7 @@ and subst_params_and_body env params_and_body =
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation
-         exn_continuation
+         ~exn_continuation
          params
          ~body
          ~my_closure
@@ -401,7 +402,7 @@ and subst_params_and_body env params_and_body =
        ->
       let body = subst_expr env body in
       let dbg = Function_params_and_body.debuginfo params_and_body in
-      Function_params_and_body.create ~return_continuation exn_continuation
+      Function_params_and_body.create ~return_continuation ~exn_continuation
         params ~dbg ~body ~my_closure ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
@@ -1126,18 +1127,18 @@ and static_consts env (const1 : Static_const_or_code.t)
     (const2 : Static_const_or_code.t) : Static_const_or_code.t Comparison.t =
   match const1, const2 with
   | Code code1, Code code2 ->
-    codes env code1 code2
-    |> Comparison.map ~f:(fun code1' : Static_const_or_code.t -> Code code1')
+    codes env code1 code2 |> Comparison.map ~f:Static_const_or_code.create_code
   | ( Static_const (Block (tag1, mut1, fields1)),
       Static_const (Block (tag2, mut2, fields2)) ) ->
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
     |> Comparison.map
          ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
-           Static_const (Block (tag1', mut1', fields1')))
+           Static_const_or_code.create_static_const
+             (Block (tag1', mut1', fields1')))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
     |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->
-           Static_const (Set_of_closures set1'))
+           Static_const_or_code.create_static_const (Set_of_closures set1'))
   | _, _ ->
     if Static_const_or_code.equal const1 const2
     then Equivalent
@@ -1149,7 +1150,7 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
       params_and_body2
       ~f:(fun
            ~return_continuation
-           exn_continuation
+           ~exn_continuation
            params
            ~body1
            ~body2
@@ -1160,8 +1161,8 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
         |> Comparison.map ~f:(fun body1' ->
                let dbg = Function_params_and_body.debuginfo params_and_body1 in
                Function_params_and_body.create ~return_continuation
-                 exn_continuation params ~dbg ~body:body1' ~my_closure ~my_depth
-                 ~free_names_of_body:Unknown))
+                 ~exn_continuation params ~dbg ~body:body1' ~my_closure
+                 ~my_depth ~free_names_of_body:Unknown))
   in
 
   let bodies_or_deleted env body1 body2 : _ Or_deleted.t Comparison.t =
@@ -1260,25 +1261,23 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
   | _, _ -> Different { approximant = subst_let_cont env let_cont1 }
 
 and cont_handlers env handler1 handler2 =
-  log Continuation_handler.print handler1 handler2 (fun () ->
-      Continuation_handler.pattern_match_pair handler1 handler2
-        ~f:(fun params ~handler1:expr1 ~handler2:expr2 ->
-          exprs env expr1 expr2
-          |> Comparison.map ~f:(fun handler ->
-                 Continuation_handler.create params ~handler
-                   ~free_names_of_handler:Unknown
-                   ~is_exn_handler:
-                     (Continuation_handler.is_exn_handler handler2))
-          |> Comparison.add_condition
-               ~cond:
-                 (Bool.equal
-                    (Continuation_handler.is_exn_handler handler1)
-                    (Continuation_handler.is_exn_handler handler2))
-               ~approximant:(fun () -> subst_cont_handler env handler1))
-      |> function
-      | Ok comp -> comp
-      | Error _ ->
-        Comparison.Different { approximant = subst_cont_handler env handler1 })
+  Flambda.Continuation_handler.pattern_match_pair handler1 handler2
+    ~f:(fun params ~handler1:expr1 ~handler2:expr2 ->
+      exprs env expr1 expr2
+      |> Comparison.map ~f:(fun handler ->
+             Continuation_handler.create params ~handler
+               ~free_names_of_handler:Unknown
+               ~is_exn_handler:(Continuation_handler.is_exn_handler handler2))
+      |> Comparison.add_condition
+           ~cond:
+             (Bool.equal
+                (Continuation_handler.is_exn_handler handler1)
+                (Continuation_handler.is_exn_handler handler2))
+           ~approximant:(fun () -> subst_cont_handler env handler1))
+  |> function
+  | Ok comp -> comp
+  | Error _ ->
+    Comparison.Different { approximant = subst_cont_handler env handler1 }
 
 let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
