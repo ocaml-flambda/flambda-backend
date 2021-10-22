@@ -42,8 +42,6 @@ include Container_types.Make (struct
           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
           Flambda_kind.print)
         t
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let is_all_values t = List.for_all Flambda_kind.is_value t
@@ -81,8 +79,6 @@ module With_subkinds = struct
             ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
             Flambda_kind.With_subkind.print)
           t
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   let is_singleton_value t =

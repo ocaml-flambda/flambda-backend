@@ -32,8 +32,6 @@ module type BaseId = sig
 
   val to_string : t -> string
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val rename : t -> t

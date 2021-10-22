@@ -19,8 +19,6 @@ module T = struct
 
   let [@ocamlformat "disable"] print = Numeric_types.Int.print
 
-  let output = Numeric_types.Int.output
-
   let hash = Hashtbl.hash
 end
 

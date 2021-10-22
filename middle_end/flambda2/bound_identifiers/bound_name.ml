@@ -58,8 +58,6 @@ include Container_types.Make (struct
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash _ = Misc.fatal_error "Not yet implemented"
-
-  let output _ _ = Misc.fatal_error "Not yet implemented"
 end)
 
 let is_symbol t = Name.is_symbol t.name

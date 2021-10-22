@@ -52,8 +52,6 @@ module Self = Container_types.Make (struct
         t.name t.name_stamp
     end;
     Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 include Self

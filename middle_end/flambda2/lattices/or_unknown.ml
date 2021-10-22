@@ -88,8 +88,6 @@ module Lift (I : Container_types.S) = struct
       match t with
       | Unknown -> Hashtbl.hash 0
       | Known i -> Hashtbl.hash (1, I.hash i)
-
-    let output _ _ = Misc.fatal_error "Not yet implemented"
   end)
 end
 

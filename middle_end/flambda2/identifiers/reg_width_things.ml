@@ -87,8 +87,6 @@ module Const_data = struct
           Targetint_32_64.print n
           (Flambda_colours.normal ())
 
-    let output _ _ = Misc.fatal_error "[output] not yet implemented"
-
     let compare t1 t2 =
       match t1, t2 with
       | Naked_immediate i1, Naked_immediate i2 -> Targetint_31_63.compare i1 i2
@@ -304,8 +302,6 @@ module Const = struct
     let hash = Id.hash
 
     let [@ocamlformat "disable"] print ppf t = Const_data.print ppf (descr t)
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end
 
   include T0
@@ -395,8 +391,6 @@ module Variable = struct
           Compilation_unit.print cu
           (name t)
           (name_stamp t)
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end
 
   include T0
@@ -481,8 +475,6 @@ module Symbol = struct
       Format.pp_print_string ppf ".";
       Linkage_name.print ppf (linkage_name t);
       Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end
 
   include T0
@@ -542,8 +534,6 @@ module Name = struct
         ~var:(fun var -> Variable.print ppf var)
         ~symbol:(fun symbol -> Symbol.print ppf symbol);
       Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end
 
   include T0
@@ -684,8 +674,6 @@ module Simple = struct
         Format.fprintf ppf "@[<hov 1>(coerce@ %a@ %a)@]"
           print t
           Coercion.print coercion
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end
 
   include T0

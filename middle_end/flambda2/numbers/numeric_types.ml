@@ -117,8 +117,6 @@ module Float_by_bit_pattern = struct
     let hash f = Hashtbl.hash f
 
     let [@ocamlformat "disable"] print ppf t = Format.pp_print_float ppf (Int64.float_of_bits t)
-
-    let output chan t = Printf.fprintf chan "%g" (Int64.float_of_bits t)
   end
 
   include T0
@@ -192,8 +190,6 @@ module Int32 = struct
     let hash f = Hashtbl.hash f
 
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
-
-    let output chan t = Printf.fprintf chan "%ld" t
   end
 
   module Self = Container_types.Make (T0)
@@ -234,8 +230,6 @@ module Int64 = struct
     let hash f = Hashtbl.hash f
 
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%Ld" t
-
-    let output chan t = Printf.fprintf chan "%Ld" t
   end
 
   module Self = Container_types.Make (T0)

@@ -395,8 +395,6 @@ struct
 
   (* CR mshinwell: copied from [Container_types] *)
 
-  let output _ _ = Misc.fatal_error "output not yet implemented"
-
   let [@ocamlformat "disable"] print ppf s =
     let elts ppf s = iter (fun e -> Format.fprintf ppf "@ %a" Elt.print e) s in
     Format.fprintf ppf "@[<1>{@[%a@ @]}@]" elts s

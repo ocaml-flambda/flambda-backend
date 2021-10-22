@@ -91,8 +91,6 @@ end = struct
         Format.fprintf ppf "@[<hov 1>(Rhs_in_scope@ %a)@]"
           Simple.print bound_to
 
-    let output _ _ = Misc.fatal_error "Rhs_kind.output not yet implemented"
-
     let hash _ = Misc.fatal_error "Rhs_kind.hash not yet implemented"
 
     let equal _ = Misc.fatal_error "Rhs_kind.equal not yet implemented"

@@ -50,8 +50,6 @@ include Container_types.Make (struct
     | Symbol symbol -> Symbol.print ppf symbol
     | Tagged_immediate immediate -> Targetint_31_63.print ppf immediate
     | Dynamically_computed var -> Variable.print ppf var
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let apply_renaming t renaming =

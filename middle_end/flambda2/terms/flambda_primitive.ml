@@ -1412,8 +1412,6 @@ include Container_types.Make (struct
         print_variadic_primitive prim
         (Flambda_colours.normal ())
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print) vs
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let equal t1 t2 = compare t1 t2 = 0
@@ -1679,8 +1677,6 @@ module Eligible_for_cse = struct
     let hash = hash
 
     let print = print
-
-    let output = output
   end)
 
   let equal t1 t2 = compare t1 t2 = 0
