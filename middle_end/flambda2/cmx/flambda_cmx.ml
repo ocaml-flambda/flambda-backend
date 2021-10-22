@@ -58,6 +58,16 @@ let rec load_cmx_file_contents loader comp_unit =
              loader.imported_units;
       Some typing_env)
 
+let load_symbol_approx loader symbol : Code.t Value_approximation.t =
+  let comp_unit = Symbol.compilation_unit symbol in
+  match load_cmx_file_contents loader comp_unit with
+  | None -> Value_unknown
+  | Some typing_env ->
+    let find_code code_id =
+      Exported_code.find_code loader.imported_code code_id
+    in
+    T.extract_symbol_approx typing_env symbol find_code
+
 let all_predefined_exception_symbols ~symbol_for_global =
   Predef.all_predef_exns
   |> List.map (fun ident ->
@@ -227,3 +237,14 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     Some
       (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
          ~used_closure_vars)
+
+let prepare_cmx_from_approx ~approxs ~used_closure_vars all_code =
+  if Flambda_features.opaque () then None
+  else
+    let final_typing_env =
+      TE.Serializable.create_from_closure_conversion_approx approxs
+    in
+    let exported_offsets =
+      Exported_offsets.imported_offsets ()
+    in
+    Some (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets ~used_closure_vars)
