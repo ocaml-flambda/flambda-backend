@@ -40,8 +40,6 @@ module Result_continuation = struct
     let [@ocamlformat "disable"] print fmt = function
       | Return k -> Continuation.print fmt k
       | Never_returns -> Format.fprintf fmt "∅"
-
-    let output ch h = print (Format.formatter_of_out_channel ch) h
   end)
 
   let free_names = function

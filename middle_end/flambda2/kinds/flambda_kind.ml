@@ -165,8 +165,6 @@ include Container_types.Make (struct
           colour (Flambda_colours.normal ())
       else
         Format.fprintf ppf "Rec"
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let is_value t =
@@ -214,8 +212,6 @@ module Standard_int = struct
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
 
     let compare t1 t2 = to_int t1 - to_int t2
 
@@ -271,8 +267,6 @@ module Standard_int_or_float = struct
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
 
     let compare t1 t2 = to_int t1 - to_int t2
 
@@ -333,8 +327,6 @@ module Boxable_number = struct
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
       | Untagged_immediate -> Format.pp_print_string ppf "Untagged_immediate"
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
 
     let compare t1 t2 = to_int t1 - to_int t2
 
@@ -433,8 +425,6 @@ module With_subkind = struct
       let equal t1 t2 = compare t1 t2 = 0
 
       let hash = Hashtbl.hash
-
-      let output _ _ = Misc.fatal_error "Not yet implemented"
     end)
   end
 
@@ -530,8 +520,6 @@ module With_subkind = struct
     let equal t1 t2 = compare t1 t2 = 0
 
     let hash { kind; subkind } = Hashtbl.hash (hash kind, Subkind.hash subkind)
-
-    let output _ _ = Misc.fatal_error "Not yet implemented"
   end)
 
   type descr =

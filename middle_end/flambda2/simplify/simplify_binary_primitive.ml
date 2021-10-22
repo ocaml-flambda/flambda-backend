@@ -86,7 +86,25 @@ end = struct
       | Prim of P.t
       | Exactly of N.Result.t
 
-    include Container_types.Make (struct
+    (* This signature aims to constrain the size of the [Set] module block,
+       since this is duplicated a lot via inlining in the rest of this file. *)
+    module Set : sig
+      type elt = t
+
+      type t
+
+      val empty : t
+
+      val add : elt -> t -> t
+
+      val is_empty : t -> bool
+
+      val cardinal : t -> int
+
+      val get_singleton : t -> elt option
+
+      val elements : t -> elt list
+    end = Container_types.Make_set [@inlined hint] (struct
       type nonrec t = t
 
       let compare t1 t2 =
@@ -99,13 +117,7 @@ end = struct
         | Prim _, Exactly _ -> -1
         | Exactly _, (Simple _ | Prim _) -> 1
 
-      let equal t1 t2 = compare t1 t2 = 0
-
-      let hash _ = Misc.fatal_error "Not yet implemented"
-
-      let [@ocamlformat "disable"] print _ppf _t = Misc.fatal_error "Not yet implemented"
-
-      let output _ _ = Misc.fatal_error "Not yet implemented"
+      let print _ _ = Misc.fatal_error "Not implemented"
     end)
   end
 
@@ -230,6 +242,7 @@ end = struct
     | (Proved _ | Unknown), (Proved _ | Unknown) -> result_unknown ()
     | Invalid, _ | _, Invalid -> result_invalid ()
 end
+[@@inline always]
 
 module Int_ops_for_binary_arith (I : A.Int_number_kind) : sig
   include Binary_arith_like_sig with type op = P.binary_int_arith_op
@@ -365,6 +378,7 @@ end = struct
       else Cannot_simplify
     | Div | Mod -> Cannot_simplify
 end
+[@@inline always]
 
 module Int_ops_for_binary_arith_tagged_immediate =
   Int_ops_for_binary_arith (A.For_tagged_immediates)
@@ -417,8 +431,6 @@ end = struct
 
   let term = I.term_unboxed
 
-  (* CR mshinwell: Try to factor out this cross product code directly into the
-     stdlib *)
   module Pair = struct
     type nonrec t = Lhs.t * Rhs.t
 
@@ -474,6 +486,7 @@ end = struct
       then Exactly Num.minus_one
       else Cannot_simplify
 end
+[@@inline always]
 
 module Int_ops_for_binary_shift_tagged_immediate =
   Int_ops_for_binary_shift (A.For_tagged_immediates)
@@ -554,6 +567,7 @@ end = struct
 
   let op_rhs_unknown _op ~lhs:_ = Cannot_simplify
 end
+[@@inline always]
 
 module Int_ops_for_binary_comp_tagged_immediate =
   Int_ops_for_binary_comp (A.For_tagged_immediates)
@@ -632,6 +646,7 @@ end = struct
 
   let op_rhs_unknown _op ~lhs:_ = Cannot_simplify
 end
+[@@inline always]
 
 module Int_ops_for_binary_comp_unsigned_tagged_immediate =
   Int_ops_for_binary_comp_unsigned (A.For_tagged_immediates)
@@ -882,6 +897,7 @@ end = struct
 
   let op_rhs_unknown _op ~lhs:_ = Cannot_simplify
 end
+[@@inline always]
 
 module Int_ops_for_binary_eq_comp_tagged_immediate =
   Int_ops_for_binary_eq_comp (A.For_tagged_immediates)

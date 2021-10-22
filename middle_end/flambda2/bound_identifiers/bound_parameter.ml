@@ -42,8 +42,6 @@ include Container_types.Make (struct
       Variable.print param
       (Flambda_colours.normal ())
       Flambda_kind.With_subkind.print kind
-
-  let output chan t = print (Format.formatter_of_out_channel chan) t
 end)
 
 let create param kind = { param; kind }

@@ -41,8 +41,6 @@ include Container_types.Make (struct
 
   let equal t1 t2 = compare t1 t2 = 0
 
-  let output _ _ = Misc.fatal_error "Not yet implemented"
-
   let hash _ = Misc.fatal_error "Not yet implemented"
 end)
 
@@ -88,8 +86,6 @@ module With_closure_id = struct
         Closure_id.print closure_id
         print contents
 
-    let output _ _ = Misc.fatal_error "Not yet implemented"
-
     let hash _ = Misc.fatal_error "Not yet implemented"
 
     let compare (closure_id1, contents1) (closure_id2, contents2) =
@@ -110,8 +106,6 @@ module With_closure_id_or_unknown = struct
       Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
         (Or_unknown.print Closure_id.print) closure_id_or_unknown
         print contents
-
-    let output _ _ = Misc.fatal_error "Not yet implemented"
 
     let hash _ = Misc.fatal_error "Not yet implemented"
 

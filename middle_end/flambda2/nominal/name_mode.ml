@@ -89,8 +89,6 @@ include Container_types.Make (struct
     | In_types -> Format.pp_print_string ppf "In_types"
     | Phantom -> Format.pp_print_string ppf "Phantom"
 
-  let output _ _ = Misc.fatal_error "Name_mode.output not yet implemented"
-
   let hash _ = Misc.fatal_error "Name_mode.hash not yet implemented"
 
   let compare t1 t2 =
@@ -134,8 +132,6 @@ module Or_absent = struct
       | Absent -> Format.pp_print_string ppf "Absent"
       | Present kind ->
         Format.fprintf ppf "@[<hov 1>(Present@ %a)@]" print kind
-
-    let output _ _ = Misc.fatal_error "Not yet implemented"
 
     let hash _ = Misc.fatal_error "Not yet implemented"
 

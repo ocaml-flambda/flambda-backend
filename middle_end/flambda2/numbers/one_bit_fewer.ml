@@ -23,8 +23,6 @@ module type S = sig
 
   val hash : t -> int
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val min_value : t
@@ -125,8 +123,6 @@ module Make (I : S) : S with type t = I.t = struct
   let equal = I.equal
 
   let hash = I.hash
-
-  let output = I.output
 
   let [@ocamlformat "disable"] print = I.print
 

@@ -53,8 +53,6 @@ include Container_types.Make (struct
 
   let [@ocamlformat "disable"] print ppf t = Format.pp_print_string ppf (string_for_printing t)
 
-  let output chan t = print (Format.formatter_of_out_channel chan) t
-
   let hash x = x.hash
 end)
 

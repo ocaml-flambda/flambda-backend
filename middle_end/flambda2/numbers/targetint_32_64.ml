@@ -166,8 +166,6 @@ module Int32 = struct
     let hash = Hashtbl.hash
 
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%ld" t
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   let min t1 t2 = if compare t1 t2 <= 0 then t1 else t2
@@ -231,8 +229,6 @@ module Int64 = struct
     let hash = Hashtbl.hash
 
     let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%Ld" t
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   module Targetint_set = Set

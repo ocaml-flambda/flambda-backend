@@ -31,8 +31,6 @@ module type BaseId = sig
 
   val to_string : t -> string
 
-  val output : out_channel -> t -> unit
-
   val print : Format.formatter -> t -> unit
 
   val rename : t -> t
@@ -82,8 +80,6 @@ module Id (_ : sig end) : Id = struct
     then Int.to_string t
     else Printf.sprintf "%s_%i" name t
 
-  let output fd t = output_string fd (to_string t)
-
   let [@ocamlformat "disable"] print ppf v = Format.pp_print_string ppf (to_string v)
 end
 
@@ -97,9 +93,6 @@ module UnitId (Innerid : Id) (Compilation_unit : Container_types.Thing) :
   let compare x y =
     let c = Innerid.compare x.id y.id in
     if c <> 0 then c else Compilation_unit.compare x.unit y.unit
-
-  let output oc x =
-    Printf.fprintf oc "%a.%a" Compilation_unit.output x.unit Innerid.output x.id
 
   let [@ocamlformat "disable"] print ppf x =
     Format.fprintf ppf "%a.%a"

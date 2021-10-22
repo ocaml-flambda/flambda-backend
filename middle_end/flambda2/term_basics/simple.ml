@@ -130,8 +130,6 @@ module List = struct
 
     let [@ocamlformat "disable"] print ppf t =
       (Format.pp_print_list print ~pp_sep:Format.pp_print_space) ppf t
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   let free_names t =
@@ -170,8 +168,6 @@ module With_kind = struct
       Format.fprintf ppf "@[(%a@ @<1>\u{2237}@ %a)@]"
         print s
         Flambda_kind.print k
-
-    let output chan t = print (Format.formatter_of_out_channel chan) t
   end)
 
   let free_names (simple, _kind) = free_names simple
