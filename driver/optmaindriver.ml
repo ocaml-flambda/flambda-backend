@@ -40,6 +40,21 @@ module Options = Main_args.Make_optcomp_options (Main_args.Default.Optmain)
 
 let main argv ppf ~flambda2 =
   native_code := true;
+  let columns =
+    match Sys.getenv "COLUMNS" with
+    | exception Not_found -> None
+    | columns ->
+      try Some (int_of_string columns)
+      with _ -> None
+  in
+  (match columns with
+  | None -> ()
+  | Some columns ->
+    (* Avoid getting too close to the edge just in case we've mismeasured
+       the boxes for some reason. *)
+    let columns = columns - 5 in
+    Format.pp_set_margin Format.std_formatter columns;
+    Format.pp_set_margin Format.err_formatter columns);
   match
     Compenv.readenv ppf Before_args;
     Clflags.add_arguments __LOC__ (Arch.command_line_options @ Options.list);
