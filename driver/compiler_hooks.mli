@@ -30,7 +30,6 @@ type _ pass =
   | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) pass
   | Raw_lambda : Lambda.program pass
   | Lambda : Lambda.program pass
-  (* CR-someday poechsel: use flambda2 *)
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Raw_flambda1 : Flambda.program pass
