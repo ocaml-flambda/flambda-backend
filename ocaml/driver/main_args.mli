@@ -257,6 +257,9 @@ module type Optcommon_options = sig
   val _flambda2_inline_large_function_size : string -> unit
   val _flambda2_inline_threshold : string -> unit
 
+  val _flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
+  val _no_flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
+
   val _flambda2_inlining_report_bin : unit -> unit
 
   val _flambda2_unicode : unit -> unit
