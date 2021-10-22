@@ -121,6 +121,9 @@ install parallel`.
 There is also a `make ci` target (best run as e.g. `make -j16 ci`) which does a full build
 and test run.
 
+Some of our tests are expect tests run using a custom tool called `flexpect`.
+Corrected outputs can be promoted using `make promote`.
+
 ## Running only part of the upstream testsuite
 
 This can be done from the `_runtest` directory after it has been initialised by a previous `make runtest-upstream`.
