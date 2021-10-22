@@ -483,7 +483,7 @@ type flattened_for_printing =
     descr : flattened_for_printing_descr
   }
 
-let shape_colour descr =
+let _shape_colour descr =
   match descr with
   | Flat_code _ -> Flambda_colours.code_id ()
   | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol ()
@@ -834,20 +834,15 @@ and print_flattened ppf
       second_or_later_rec_binding;
       descr
     } =
-  fprintf ppf "@[<hov 0>";
-  (* if second_or_later_rec_binding && not
-     second_or_later_binding_within_one_set then begin fprintf ppf
-     "@<0>%sand_set @<0>%s" (Flambda_colours.elide ()) (Flambda_colours.normal
-     ()) end else *)
-  (if second_or_later_rec_binding
+  fprintf ppf "@[<hov 1>";
+  if second_or_later_rec_binding
   then
     fprintf ppf "@<0>%sand @<0>%s"
       (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
-  else
-    let shape = "\u{25b7}" (* unfilled triangle *) in
-    fprintf ppf "@<0>%s@<1>%s @<0>%s" (shape_colour descr) shape
-      (Flambda_colours.normal ()));
+      (Flambda_colours.normal ());
+  (* else let shape = "\u{25b7}" (* unfilled triangle *) in fprintf ppf
+     "@<0>%s@<1>%s @<0>%s" (shape_colour descr) shape (Flambda_colours.normal
+     ())); *)
   fprintf ppf "%a@<0>%s =@<0>%s@ %a@]" print_flattened_descr_lhs descr
     (Flambda_colours.elide ())
     (Flambda_colours.normal ())
@@ -887,12 +882,9 @@ and print_let_symbol ppf t =
   match flattened with
   | [] -> assert false
   | flat :: flattened ->
-    fprintf ppf "@[<v 1>(@<0>%slet_symbol@<0>%s@ @[<v 0>%a"
-      (Flambda_colours.expr_keyword ())
-      (Flambda_colours.normal ())
-      print_flattened flat;
+    fprintf ppf "@[<v 0>@[<v 0>%a" print_flattened flat;
     print_more flattened;
-    fprintf ppf "@]@ %a)@]" print body
+    fprintf ppf "@]@ %a@]" print body
 
 (* For printing all kinds of let-expressions: *)
 and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
@@ -944,16 +936,13 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
     match bound_pattern with
     | Symbols _ -> print_let_symbol ppf t
     | Singleton _ | Set_of_closures _ ->
-      fprintf ppf
-        "@[<v 1>(@<0>%slet@<0>%s@ (@[<v 0>@[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
-        (Flambda_colours.expr_keyword ())
-        (Flambda_colours.normal ())
+      fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
         (let_bound_var_colour bound_pattern defining_expr)
         Bound_pattern.print bound_pattern (Flambda_colours.elide ())
         (Flambda_colours.normal ())
         print_named defining_expr;
       let expr = let_body body in
-      fprintf ppf "@])@ %a)@]" print expr
+      fprintf ppf "@]@ %a@]" print expr
   in
   if Flambda_features.freshen_when_printing ()
   then
