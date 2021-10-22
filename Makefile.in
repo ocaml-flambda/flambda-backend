@@ -269,11 +269,8 @@ runtest:
 
 # Only needed for running the test tools by hand; runtest will take care of
 # building them using Dune
-#
-# CR lmaurer: stage2 should be a dependency here, but I'm wary because
-# there may be a reason runtest doesn't depend on stage2.
 .PHONY: test-tools
-test-tools:
+test-tools: stage1
 	PATH=$(stage1_prefix)/bin:$$PATH \
 	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
 	  $(dune) build @middle_end/flambda2/tests/tools/all \
