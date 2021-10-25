@@ -36,7 +36,7 @@ let zero = { size = Code_size.zero; removed = Removed_operations.zero }
 let size t = t.size
 
 let print ppf t =
-  Format.fprintf ppf "@[size: %a removed: {%a}]" Code_size.print t.size
+  Format.fprintf ppf "@[<hov 1>size: %a removed: {%a}@]" Code_size.print t.size
     Removed_operations.print t.removed
 
 let from_size size = { size; removed = Removed_operations.zero }
