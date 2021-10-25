@@ -23,7 +23,7 @@ type 'a t =
 let [@ocamlformat "disable"] print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in
   match t with
-  | Known contents -> Format.fprintf ppf "@[<hov 1>%a@]" f contents
+  | Known contents -> Format.fprintf ppf "%a" f contents
     (* Format.fprintf ppf "@[<hov 1>(Known@ %a)@]" f contents *)
   | Unknown ->
     if Flambda_features.unicode () then
