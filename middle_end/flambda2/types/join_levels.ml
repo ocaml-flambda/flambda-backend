@@ -24,11 +24,11 @@ module TEL = Typing_env_level
 module TG = Type_grammar
 module Join_env = TE.Join_env
 
-let join_types ~params ~env_at_fork envs_with_levels =
+let join_types ~env_at_fork envs_with_levels =
   (* Add all the variables defined by the branches as existentials to the
      [env_at_fork].
 
-     Any such variable will be given type [Unknown] on a branch where it was not
+     Any such variable will be given type [Bottom] on a branch where it was not
      originally present.
 
      Iterating on [level.binding_times] instead of [level.defined_vars] ensures
@@ -61,26 +61,26 @@ let join_types ~params ~env_at_fork envs_with_levels =
         TE.with_code_age_relation base_env code_age_relation)
       env_at_fork envs_with_levels
   in
-  (* Special handling for parameters: they're defined in [env_at_fork], but
-     their type (Bottom) is only a placeholder until we compute the actual join.
+  (* Find the actual domain of the join of the levels
 
-     So we start the join with equations binding the parameters to Bottom, to
-     make sure we end up with the right type in the end. *)
-  let initial_joined_types =
-    let bottom_ty param =
-      MTC.bottom (K.With_subkind.kind (Bound_parameter.kind param))
-    in
+     We compute an extension that is the join of the extensions corresponding to
+     all the levels. To avoid the difficulty with computing the domain lazily
+     during the join, we pre-compute the domain and initialise our accumulator
+     with bottom types for all variables involved. *)
+  let initial_types =
     List.fold_left
-      (fun initial_types param ->
-        Name.Map.add
-          (Bound_parameter.name param)
-          (bottom_ty param) initial_types)
-      Name.Map.empty params
+      (fun initial_types (_, _, _, level) ->
+        Name.Map.fold
+          (fun name ty initial_types ->
+            if Name.is_var name
+            then Name.Map.add name (MTC.bottom_like ty) initial_types
+            else initial_types)
+          (TEL.equations level) initial_types)
+      Name.Map.empty envs_with_levels
   in
   (* Now fold over the levels doing the actual join operation on equations. *)
-  ListLabels.fold_left envs_with_levels
-    ~init:(initial_joined_types, Variable.Set.empty)
-    ~f:(fun (joined_types, defined_variables) (env_at_use, _, _, t) ->
+  ListLabels.fold_left envs_with_levels ~init:initial_types
+    ~f:(fun joined_types (env_at_use, _, _, t) ->
       let left_env =
         (* CR vlaviron: This is very likely quadratic (number of uses times
            number of variables in all uses). However it's hard to know how we
@@ -111,108 +111,48 @@ let join_types ~params ~env_at_fork envs_with_levels =
            defined before the fork and already has an equation in base_env.
            While it is possible that its type could be refined by all of the
            branches, it is unlikely. *)
-        match Name.must_be_var_opt name with
-        | None -> (* Symbol *) None
-        | Some var -> (
-          let joined_ty =
+        if not (Name.is_var name)
+        then None
+        else
+          let joined_ty, use_ty =
             match joined_ty, use_ty with
-            | None, Some use_ty ->
-              (* In this case, we haven't yet got a joined type for [name]. *)
-              let left_ty =
-                (* If this is the first occurrence of [name] in the join, and
-                   [name] was not part of the base environment, we just need to
-                   make the type suitable for the joined environment, so we use
-                   [Bottom] to avoid losing precision... *)
-                let is_first_definition =
-                  let is_previously_defined =
-                    Variable.Set.mem var defined_variables
-                    || TE.mem env_at_fork name
-                  in
-                  not is_previously_defined
-                in
-                if is_first_definition
-                then
-                  MTC.bottom_like use_ty
-                  (* ...but if this is not the case, then we need to get the
-                     best type we can for [name] which will be valid on all of
-                     the previous paths. This is either the type of [name] in
-                     the original [env_at_fork] (passed to [join], below), or if
-                     [name] was undefined there, [Unknown].
-
-                     Since the current version of [base_env] has definitions for
-                     all the variables present in the branches, we can actually
-                     always just look the type up there, without needing to case
-                     split. *)
-                else
-                  let expected_kind = Some (TG.kind use_ty) in
-                  TE.find base_env name expected_kind
-              in
-              (* Recall: the order of environments matters for [join]. *)
-              let join_env =
-                Join_env.create base_env ~left_env ~right_env:env_at_use
-              in
-              Meet_and_join.join ~bound_name:name join_env left_ty use_ty
+            | None, Some _use_ty ->
+              assert false (* See the computation of [initial_types] *)
             | Some joined_ty, None ->
               (* There is no equation, at all (not even saying "unknown"), on
-                 the current level for [name].
+                 the current level for [name]. There are two possible cases for
+                 that:
 
-                 However, we know we've already seen [name] earlier. So like in
-                 the case above, we have three cases:
+                 - The environment at use knows of this variable, but this level
+                 has no equation on it. In this case, we need to retrieve the
+                 type from [env_at_use] and join with it.
 
-                 - [name] is defined in [env_at_fork]. In that case, the type
-                 for [name] at the current use is the one from [env_at_fork],
-                 and we need to join with it.
-
-                 - [name] is not defined in [env_at_fork], but is defined in
-                 [env_at_use]. In this case (which we can check by looking at
-                 [t.defined_vars]), the type for [name] at the current use is
-                 [Unknown], and we don't have any guarantee that [joined_ty] is
-                 already [Unknown], so we need to do a join. However, since the
-                 join of anything with [Unknown] is [Unknown], we can return it
-                 directly.
-
-                 - [name] is defined neither in [env_at_fork] nor in
-                 [env_at_use]. In this case, the type for [name] is considered
-                 [Bottom] in this branch, so we can return [joined_ty]
-                 directly. *)
-              let is_defined_at_fork = TE.mem env_at_fork name in
-              let is_defined_at_use = TEL.variable_is_defined t var in
-              if is_defined_at_fork
+                 - The variable doesn't exist in this environment. This happens
+                 if the variable is defined in one of the other branches, and
+                 will be quantified existentially in the result. In this case,
+                 it's safe to join with Bottom. *)
+              let is_defined_at_use = TE.mem env_at_use name in
+              if is_defined_at_use
               then
                 let use_ty =
                   let expected_kind = Some (TG.kind joined_ty) in
-                  TE.find env_at_fork name expected_kind
+                  TE.find env_at_use name expected_kind
                 in
-                let join_env =
-                  Join_env.create base_env ~left_env ~right_env:env_at_fork
-                  (* env_at_use would be correct too *)
-                in
-                Meet_and_join.join ~bound_name:name join_env joined_ty use_ty
-              else if is_defined_at_use
-              then Or_unknown.Unknown
-              else Or_unknown.Known joined_ty
-            | Some joined_ty, Some use_ty ->
-              (* This is the straightforward case, where we have already started
-                 computing a joined type for [name], and there is an equation
-                 for [name] on the current level. *)
-              let join_env =
-                Join_env.create base_env ~left_env ~right_env:env_at_use
-              in
-              Meet_and_join.join ~bound_name:name join_env joined_ty use_ty
+                joined_ty, use_ty
+              else joined_ty, MTC.bottom_like joined_ty
+            | Some joined_ty, Some use_ty -> joined_ty, use_ty
             | None, None -> assert false
           in
-          match joined_ty with
+          let join_env =
+            Join_env.create base_env ~left_env ~right_env:env_at_use
+          in
+          match
+            Meet_and_join.join ~bound_name:name join_env joined_ty use_ty
+          with
           | Known joined_ty -> Some joined_ty
-          | Unknown -> None)
+          | Unknown -> None
       in
-      let joined_types =
-        Name.Map.merge join_types joined_types (TEL.equations t)
-      in
-      let defined_variables =
-        Variable.Set.union defined_variables (TEL.defined_variables t)
-      in
-      joined_types, defined_variables)
-  |> fun (joined_types, _) -> joined_types
+      Name.Map.merge join_types joined_types (TEL.equations t))
 
 let construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
     =
@@ -311,7 +251,7 @@ let join ~env_at_fork envs_with_levels ~params ~extra_lifted_consts_in_use_envs
   check_join_inputs ~env_at_fork envs_with_levels ~params
     ~extra_lifted_consts_in_use_envs;
   (* Calculate the joined types of all the names involved. *)
-  let joined_types = join_types ~params ~env_at_fork envs_with_levels in
+  let joined_types = join_types ~env_at_fork envs_with_levels in
   (* Next calculate which equations (describing joined types) to propagate to
      the join point. (Recall that the environment at the fork point includes the
      parameters of the continuation being called at the join. We wish to ensure
