@@ -14,25 +14,11 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Location_in_file : sig
-  type t
-  val line : t -> int
-  val char : t -> int
-  val bol : t -> int
-end
-
-module Range : sig
-  type t
-  val file : t -> string
-  val start : t -> Location_in_file.t
-  val end_ : t -> Location_in_file.t
-end
-
 module Mappings : sig
   module Item : sig
     type t
-    val source : t -> Range.t
-    val ir : t -> Range.t
+    val source : t -> Location.t
+    val ir : t -> Location.t
     val label : t -> string option
   end
   type t = Item.t list

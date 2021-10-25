@@ -20,56 +20,11 @@ let activate_tracking () = is_activated := true
 let deactivate_tracking () = is_activated := false
 let is_tracking () = !is_activated
 
-module Location_in_file = struct
-  type t = {
-    line : int;
-    char : int;
-    bol : int;
-  }
-
-  let print ppf { line; char; bol } = Format.fprintf ppf "{line=%d; char=%d; bol=%d}" line char bol
-
-  let create ~line ~char ~bol =
-    { line; char; bol }
-
-  let line { line; _ } = line
-  let char { char; _ } = char
-  let bol { bol; _ } = bol
-end
-
-module Range = struct
-  type t = {
-    file : string;
-    start : Location_in_file.t;
-    end_ : Location_in_file.t;
-  }
-
-  let print ppf {file; start; end_} =
-    Format.fprintf ppf "{file=%s; start=%a; end=%a}" file Location_in_file.print start Location_in_file.print end_
-
-  let create ~file ~start ~end_ = { file; end_; start }
-
-  let of_location (location : Location.t) =
-    let loc_start = location.loc_start in
-    let loc_end = location.loc_end in
-    { file = loc_start.pos_fname
-      ; start = Location_in_file.create ~line:loc_start.pos_lnum
-          ~char:loc_start.pos_cnum ~bol:loc_start.pos_bol
-     ; end_ = Location_in_file.create ~line:loc_end.pos_lnum
-          ~char:loc_end.pos_cnum ~bol:loc_end.pos_bol
-    }
-
-  let file { file; _ } = file
-  let start { start; _ } = start
-  let end_ { end_; _ } = end_
-end
-
-type Format.stag += Location_mapping_tag of Range.t * string option
+type Format.stag += Location_mapping_tag of Location.t * string option
 
 let with_location_mapping ?label ~loc ppf f =
   if is_tracking () then begin
-    let range = Range.of_location loc in
-    Format.pp_open_stag ppf (Location_mapping_tag (range, label));
+    Format.pp_open_stag ppf (Location_mapping_tag (loc, label));
     let ret = f () in
     Format.pp_close_stag ppf ();
     ret
@@ -78,8 +33,8 @@ let with_location_mapping ?label ~loc ppf f =
 module Mappings = struct
   module Item = struct
     type t = {
-      source : Range.t;
-      ir : Range.t;
+      source : Location.t;
+      ir : Location.t;
       label : string option;
     }
 
@@ -98,8 +53,8 @@ module Mappings = struct
     List.iter (fun Item.{source; ir; label} ->
         Format.fprintf ppf "%s%a -> %a\n"
           (match label with | Some s -> s ^ ": " | None -> "")
-          Range.print source
-          Range.print ir
+          Location.print_loc source
+          Location.print_loc ir
       ) t
 
   let dump ~file t =
@@ -112,24 +67,23 @@ module Tracking_formatter = struct
   module Pending_mapping = struct
     type t = {
       label : string option;
-      source : Range.t;
-      start_in_buffer : Location_in_file.t;
+      source : Location.t;
+      start_in_buffer : Lexing.position;
     }
 
     let create ~label ~source ~start_in_buffer =
       { label; source; start_in_buffer }
 
-    let to_mapping ~file ~end_in_buffer { label; source; start_in_buffer } =
-      let ir = Range.create ~file ~start:start_in_buffer ~end_:end_in_buffer in
+    let to_mapping ~end_in_buffer { label; source; start_in_buffer } =
+      let ir = Location.{ loc_start = start_in_buffer; loc_end = end_in_buffer; loc_ghost=true} in
       Mappings.Item.create ~source ~ir ~label
   end
 
   type t =
     { ppf : Format.formatter
-    ; file : string
     ; mutable pending_mappings : Pending_mapping.t list
     ; mutable mappings : Mappings.t
-    ; mutable position : Location_in_file.t
+    ; mutable position : Lexing.position
     }
 
   let close t = assert (List.length t.pending_mappings = 0)
@@ -142,17 +96,16 @@ module Tracking_formatter = struct
     in
     let track_newline () =
       (* When a newline is created [line] obviously increases by one, but also
-      now both bol and char are the same as the new line is empty. *)
+         now both bol and char are the same as the new line is empty. *)
       t.position <-
-        { line = t.position.line + 1
-        ; bol = t.position.char
-        ; char = t.position.char
-        }
+        Lexing.{ t.position with pos_lnum = t.position.pos_lnum + 1
+               ; pos_bol = t.position.pos_cnum
+               }
     in
     let track_new_char () =
       t.position <-
-        { t.position with
-          char = t.position.char + 1
+        Lexing.{ t.position with
+          pos_cnum = t.position.pos_cnum + 1
         }
     in
     let out_string str start_pos num_chars =
@@ -196,7 +149,7 @@ module Tracking_formatter = struct
            t.pending_mappings <- pending_mappings;
            let mapping =
              Pending_mapping.to_mapping
-               ~file:t.file ~end_in_buffer:t.position pending
+           ~end_in_buffer:t.position pending
            in
            t.mappings <- Mappings.append mapping t.mappings;
            "")
@@ -211,10 +164,9 @@ module Tracking_formatter = struct
   let create ~file ~ppf =
     let t =
       { ppf
-      ; position = Location_in_file.create ~line:1 ~bol:0 ~char:0
+      ; position = Lexing.{pos_fname=file; pos_lnum=1; pos_bol=0; pos_cnum=0}
       ; mappings = Mappings.empty
       ; pending_mappings = []
-      ; file
       }
     in
     track_output_position_of_formatter t;
