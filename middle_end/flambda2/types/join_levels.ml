@@ -120,15 +120,17 @@ let join_types ~env_at_fork envs_with_levels =
               assert false (* See the computation of [initial_types] *)
             | Some joined_ty, None ->
               (* There is no equation, at all (not even saying "unknown"), on
-                 the current level for [name].
+                 the current level for [name]. There are two possible cases for
+                 that:
 
-                 There are two possible cases for that: - The environment at use
-                 knows of this variable, but this level has no equation on it.
-                 In this case, we need to retrieve the type from [env_at_use]
-                 and join with it. - The variable doesn't exist in this
-                 environment. This happens if the variable is defined in one of
-                 the other branches, and will be quantified existentially in the
-                 result. In this case, it's safe to join with Bottom. *)
+                 - The environment at use knows of this variable, but this level
+                 has no equation on it. In this case, we need to retrieve the
+                 type from [env_at_use] and join with it.
+
+                 - The variable doesn't exist in this environment. This happens
+                 if the variable is defined in one of the other branches, and
+                 will be quantified existentially in the result. In this case,
+                 it's safe to join with Bottom. *)
               let is_defined_at_use = TE.mem env_at_use name in
               if is_defined_at_use
               then
