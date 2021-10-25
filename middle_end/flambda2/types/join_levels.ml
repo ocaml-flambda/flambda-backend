@@ -152,10 +152,7 @@ let join_types ~env_at_fork envs_with_levels =
           | Known joined_ty -> Some joined_ty
           | Unknown -> None
       in
-      let joined_types =
-        Name.Map.merge join_types joined_types (TEL.equations t)
-      in
-      joined_types)
+      Name.Map.merge join_types joined_types (TEL.equations t))
 
 let construct_joined_level envs_with_levels ~env_at_fork ~allowed ~joined_types
     =
