@@ -288,6 +288,8 @@ module Flambda2 : sig
       val large_function_size : int
 
       val threshold : float
+
+      val speculative_inlining_only_if_arguments_useful : bool
     end
 
     val max_depth : Int_arg_helper.parsed ref
@@ -303,6 +305,8 @@ module Flambda2 : sig
     val large_function_size : Int_arg_helper.parsed ref
 
     val threshold : Float_arg_helper.parsed ref
+
+    val speculative_inlining_only_if_arguments_useful : bool ref
 
     val report_bin : bool ref
   end

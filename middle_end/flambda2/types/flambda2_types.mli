@@ -453,6 +453,8 @@ val bottom_types_from_arity : Flambda_arity.t -> t list
     constructed (in other words, it is [Invalid]). *)
 val is_bottom : Typing_env.t -> t -> bool
 
+val is_unknown : Typing_env.t -> t -> bool
+
 val type_for_const : Reg_width_const.t -> t
 
 val kind_for_const : Reg_width_const.t -> Flambda_kind.t

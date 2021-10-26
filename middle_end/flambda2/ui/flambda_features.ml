@@ -125,6 +125,9 @@ module Inlining = struct
     match round_or_default with
     | Round round -> FH.get ~key:round !I.threshold
     | Default -> D.threshold
+
+  let speculative_inlining_only_if_arguments_useful () =
+    !Clflags.Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 end
 
 module Debug = struct

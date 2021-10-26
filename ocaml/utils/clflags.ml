@@ -536,6 +536,8 @@ module Flambda2 = struct
       let large_function_size = 10
 
       let threshold = 10.
+
+      let speculative_inlining_only_if_arguments_useful = true
     end
 
     module F = Float_arg_helper
@@ -554,6 +556,9 @@ module Flambda2 = struct
     let large_function_size = ref (I.default Default.large_function_size)
 
     let threshold = ref (F.default Default.threshold)
+
+    let speculative_inlining_only_if_arguments_useful =
+      ref Default.speculative_inlining_only_if_arguments_useful
 
     let report_bin = ref false
 

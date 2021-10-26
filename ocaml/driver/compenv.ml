@@ -439,6 +439,9 @@ let read_one_param ppf position name v =
     Float_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'flambda2-inline-threshold'"
       Flambda2.Inlining.threshold
+  | "flambda2-speculative-inlining-only-if-arguments-useful" ->
+    set "flambda2-speculative-inlining-only-if-arguments-useful"
+      [Flambda2.Inlining.speculative_inlining_only_if_arguments_useful] v
   | "flambda2-treat-invalid-code-as-unreachable" ->
     set "flambda2-treat-invalid-code-as-unreachable"
       [Flambda2.treat_invalid_code_as_unreachable] v
