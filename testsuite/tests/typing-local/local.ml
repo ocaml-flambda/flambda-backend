@@ -976,3 +976,8 @@ Error: Signature mismatch:
          foo : string;
        The first is nonlocal and the second is not.
 |}]
+
+(* In debug mode, Gc.minor () checks for minor heap->local pointers *)
+let () = Gc.minor ()
+[%%expect{|
+|}]

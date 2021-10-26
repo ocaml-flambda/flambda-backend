@@ -7,7 +7,10 @@ type smallrecord = {  a : t; b : t; c : t }
 
 external opaque_local : local_ 'a -> local_ 'a = "%opaque"
 let ignore_local : local_ 'a -> unit =
-  fun x -> let _ = local_ opaque_local x in ()
+  fun x ->
+  Gc.minor ();
+  let _ = local_ opaque_local x in
+  ()
 
 let makesmall n =
   ignore_local { a = n; b = n; c = n };
@@ -234,7 +237,9 @@ let rec makemanylong n =
 external local_array: int -> 'a -> local_ 'a array = "caml_make_local_vect"
 
 let makeverylong n =
-  ignore_local (local_array 10_000 n);
+  (* This is many times larger than the largest allocation so far.
+     The local region will have to grow several times to accommodate it. *)
+  ignore_local (local_array 100_000 n);
   ()
 
 (* FIXME:
@@ -280,4 +285,8 @@ let () =
   run "longfgarray" makelongarray 42.;
   run "ref" makeref 42;
   run "verylong" makeverylong 42;
-  run "manylong" makemanylong 100;
+  run "manylong" makemanylong 100
+
+
+(* In debug mode, Gc.minor () checks for minor heap->local pointers *)
+let () = Gc.minor ()

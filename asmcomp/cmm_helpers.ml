@@ -38,6 +38,7 @@ let bind_nonvar name arg fn =
   | _ -> let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
+let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
     (* cf. runtime/caml/gc.h *)
 
 (* Block headers. Meaning of the tag field: see stdlib/obj.ml *)
@@ -51,6 +52,7 @@ let block_header tag sz =
    in no-naked-pointers mode.  See [caml_darken] and the code below that emits
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
+let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
 let white_closure_header sz = block_header Obj.closure_tag sz
 let black_closure_header sz = black_block_header Obj.closure_tag sz
 let infix_header ofs = block_header Obj.infix_tag ofs
@@ -795,8 +797,12 @@ let call_cached_method obj tag cache pos args dbg =
 
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
   if mode = Lambda.Alloc_local || wordsize <= Config.max_young_wosize then
-    Cop(Calloc mode,
-        Cconst_natint(block_header tag wordsize, dbg) :: args, dbg)
+    let hdr =
+      match mode with
+      | Lambda.Alloc_local -> local_block_header tag wordsize
+      | Lambda.Alloc_heap -> block_header tag wordsize
+    in
+    Cop(Calloc mode, Cconst_natint(hdr, dbg) :: args, dbg)
   else begin
     let id = V.create_local "*alloc*" in
     let rec fill_fields idx = function

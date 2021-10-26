@@ -105,7 +105,6 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
               expression 
                 Texp_apply
                 expression 
-                  alloc_mode <modevar>
                   Texp_ident "Stdlib!.+"
                 [
                   <arg>

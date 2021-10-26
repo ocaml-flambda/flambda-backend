@@ -64,4 +64,39 @@
 #define Colornum_hd(hd) ((color_t) (((hd) >> 8) & 3))
 #define Coloredhd_hd(hd,colnum) (((hd) & ~Caml_black) | ((colnum) << 8))
 
+#ifdef CAML_INTERNALS
+
+
+#define Init_local_arena_bsize 4096
+#ifdef ARCH_SIXTYFOUR
+#define Max_local_arenas 10 /* max 4G */
+#else
+#define Max_local_arenas 8  /* max 1G */
+#endif
+
+struct caml_local_arena {
+  char* base;
+  uintnat length;
+};
+typedef struct caml_local_arenas {
+  int count;
+  intnat saved_sp;
+  intnat next_length;
+  struct caml_local_arena arenas[Max_local_arenas];
+} caml_local_arenas;
+
+/* Colors for locally allocated values.
+   (Only used during root-scanning, never visible to the rest of the GC) */
+#define Local_marked Caml_black
+#define Local_unmarked Caml_blue /* allocation color of local objects */
+#define Local_scanned Caml_gray
+
+#define With_color_hd(hd, color) \
+  (((hd) & ~Caml_black) | color)
+
+/* Neither a valid header nor value */
+#define Local_uninit_hd Make_header(0, 0x42, Local_unmarked)
+
+#endif /* CAML_INTERNALS */
+
 #endif /* CAML_GC_H */

@@ -34,6 +34,7 @@
 #include "caml/signals.h"
 #include "caml/memprof.h"
 #include "caml/eventlog.h"
+#include "caml/alloc.h"
 
 int caml_huge_fallback_count = 0;
 /* Number of times that mmapping big pages fails and we fell back to small
@@ -676,11 +677,6 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
   }
 }
 
-struct region_stack {
-  char* base;
-  struct region_stack* next;
-};
-
 CAMLexport intnat caml_local_region_begin()
 {
   return Caml_state->local_sp;
@@ -691,37 +687,98 @@ CAMLexport void caml_local_region_end(intnat reg)
   Caml_state->local_sp = reg;
 }
 
-//#define Local_init_wsz 64
-#define Local_init_wsz (4096)
+CAMLexport caml_local_arenas* caml_get_local_arenas()
+{
+  caml_local_arenas* s = Caml_state->local_arenas;
+  if (s != NULL)
+    s->saved_sp = Caml_state->local_sp;
+  return s;
+}
+
+CAMLexport void caml_set_local_arenas(caml_local_arenas* s)
+{
+  Caml_state->local_arenas = s;
+  if (s != NULL) {
+    struct caml_local_arena a = s->arenas[s->count - 1];
+    Caml_state->local_sp = s->saved_sp;
+    Caml_state->local_top = (void*)(a.base + a.length);
+    Caml_state->local_limit = - a.length;
+  } else {
+    Caml_state->local_sp = 0;
+    Caml_state->local_top = NULL;
+    Caml_state->local_limit = 0;
+  }
+}
+
 void caml_local_realloc()
 {
-  intnat new_bsize;
-  struct region_stack* stk;
-  char* stkbase;
-  if (Caml_state->local_top == NULL) {
-    new_bsize = Bsize_wsize(Local_init_wsz);
-  } else {
-    CAMLassert((char*)Caml_state->local_top + Caml_state->local_limit == Caml_state->local_top->base);
-    new_bsize = -Caml_state->local_limit;
+  caml_local_arenas* s = caml_get_local_arenas();
+  intnat i;
+  char* arena;
+  if (s == NULL) {
+    s = caml_stat_alloc(sizeof(*s));
+    s->count = 0;
+    s->next_length = 0;
+    s->saved_sp = Caml_state->local_sp;
   }
-  while (Caml_state->local_sp < -new_bsize) new_bsize *= 2;
-  stkbase = caml_stat_alloc(new_bsize + sizeof(struct region_stack));
-  stk = (struct region_stack*)(stkbase + new_bsize);
-  memset(stkbase, 0x42, new_bsize); /* FIXME debugging only */
-  stk->base = stkbase;
-  stk->next = Caml_state->local_top;
-  Caml_state->local_top = stk;
-  Caml_state->local_limit = -new_bsize;
+  if (s->count == Max_local_arenas)
+    caml_fatal_error("Local allocation stack overflow - exceeded Max_local_arenas");
+
+  do {
+    if (s->next_length == 0) {
+      s->next_length = Init_local_arena_bsize;
+    } else {
+      /* overflow check */
+      CAML_STATIC_ASSERT(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0);
+      s->next_length *= 4;
+    }
+    /* may need to loop, if a very large allocation was requested */
+  } while (s->saved_sp + s->next_length < 0);
+
+  arena = caml_stat_alloc_noexc(s->next_length);
+  if (arena == NULL)
+    caml_fatal_error("Local allocation stack overflow - out of memory");
+#ifdef DEBUG
+  for (i = 0; i < s->next_length; i += sizeof(value)) {
+    *((header_t*)(arena + i)) = Debug_uninit_local;
+  }
+#endif
+  for (i = s->saved_sp; i < 0; i += sizeof(value)) {
+    *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
+  }
+  caml_gc_message(0x08,
+                  "Growing local stack to %"ARCH_INTNAT_PRINTF_FORMAT"d kB\n",
+                  s->next_length / 1024);
+  s->count++;
+  s->arenas[s->count-1].length = s->next_length;
+  s->arenas[s->count-1].base = arena;
+  caml_set_local_arenas(s);
+  CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 
 CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
 {
+#ifdef NATIVE_CODE
   intnat sp = Caml_state->local_sp;
+  header_t* hp;
   sp -= Bhsize_wosize(wosize);
   Caml_state->local_sp = sp;
   if (sp < Caml_state->local_limit)
     caml_local_realloc();
-  return Val_hp((char*)Caml_state->local_top + sp);
+  hp = (header_t*)((char*)Caml_state->local_top + sp);
+  *hp = Make_header(wosize, tag, Local_unmarked);
+  return Val_hp(hp);
+#else
+  if (wosize <= Max_young_wosize) {
+    return caml_alloc_small(wosize, tag);
+  } else {
+    /* The return value is initialised directly using Field.
+       This is invalid if it may create major -> minor pointers.
+       So, perform a minor GC to prevent this. (See caml_make_vect) */
+    caml_minor_collection();
+    return caml_alloc_shr(wosize, tag);
+  }
+#endif
 }
 
 /* Global memory pool.
