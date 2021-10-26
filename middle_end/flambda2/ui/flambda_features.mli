@@ -88,6 +88,8 @@ module Inlining : sig
   val large_function_size : round_or_default -> int
 
   val threshold : round_or_default -> float
+
+  val speculative_inlining_only_if_arguments_useful : unit -> bool
 end
 
 module Debug : sig

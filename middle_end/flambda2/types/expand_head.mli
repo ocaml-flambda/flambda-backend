@@ -46,6 +46,8 @@ module Expanded_type : sig
 
   val is_bottom : t -> bool
 
+  val is_unknown : t -> bool
+
   val to_type : t -> Type_grammar.t
 
   type descr = private
@@ -86,6 +88,8 @@ val get_canonical_simples_and_expand_heads :
   Simple.t option * Expanded_type.t * Simple.t option * Expanded_type.t
 
 val is_bottom : Typing_env.t -> Type_grammar.t -> bool
+
+val is_unknown : Typing_env.t -> Type_grammar.t -> bool
 
 val make_suitable_for_environment :
   Typing_env.t ->

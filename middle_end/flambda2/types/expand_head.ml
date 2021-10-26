@@ -54,6 +54,8 @@ module Expanded_type : sig
 
   val is_bottom : t -> bool
 
+  val is_unknown : t -> bool
+
   val to_type : t -> Type_grammar.t
 
   type descr = private
@@ -128,6 +130,9 @@ end = struct
 
   let is_bottom t =
     match t.descr with Bottom -> true | Unknown | Ok _ -> false
+
+  let is_unknown t =
+    match t.descr with Unknown -> true | Bottom | Ok _ -> false
 
   let of_non_alias_type ?coercion ty : t =
     match TG.descr ty with
@@ -330,6 +335,8 @@ let[@inline always] get_canonical_simples_and_expand_heads ~left_env ~left_ty
   canonical_simple1, head1, canonical_simple2, head2
 
 let is_bottom env t = ET.is_bottom (expand_head env t)
+
+let is_unknown env t = ET.is_unknown (expand_head env t)
 
 let missing_kind env free_names =
   Name_occurrences.fold_variables free_names ~init:false
