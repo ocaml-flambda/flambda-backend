@@ -868,10 +868,13 @@ let close_apply acc env
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe_name
   in
-  match Inlining.inlinable env apply with
-  | Not_inlinable -> Expr_with_acc.create_apply acc apply
-  | Inlinable func_desc ->
-    Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
+  if Flambda_features.classic_mode ()
+  then
+    match Inlining.inlinable env apply with
+    | Not_inlinable -> Expr_with_acc.create_apply acc apply
+    | Inlinable func_desc ->
+      Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
+  else Expr_with_acc.create_apply acc apply
 
 let close_apply_cont acc env cont trap_action args : Acc.t * Expr_with_acc.t =
   let acc, args = find_simples acc env args in
@@ -1221,16 +1224,20 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~inlining_decision
   in
   let approx =
-    match (inlining_decision : Function_decl_inlining_decision_type.t) with
-    | Attribute_inline | Small_function _ -> Some code
-    | _ -> None
+    if Flambda_features.classic_mode ()
+    then begin
+      Inlining_report.record_decision ~dbg
+        (At_function_declaration
+           { pass = After_closure_conversion;
+             code_id = Code_id.export code_id;
+             decision = inlining_decision
+           });
+      match (inlining_decision : Function_decl_inlining_decision_type.t) with
+      | Attribute_inline | Small_function _ -> Some code
+      | _ -> None
+    end
+    else None
   in
-  Inlining_report.record_decision ~dbg
-    (At_function_declaration
-       { pass = After_closure_conversion;
-         code_id = Code_id.export code_id;
-         decision = inlining_decision
-       });
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
   acc, Closure_id.Map.add my_closure_id (code_id, approx) by_closure_id
