@@ -342,6 +342,12 @@ let nolabels_attribute attr =
   clflags_attribute_without_payload attr
     ~name:"nolabels" Clflags.classic
 
+let flambda_oclassic_attribute attr =
+  clflags_attribute_without_payload' attr
+    ~name:"flambda_oclassic"
+    ~f:(fun () ->
+      if Config.flambda || Config.flambda2 then Clflags.set_oclassic ())
+
 let flambda_o3_attribute attr =
   clflags_attribute_without_payload' attr
     ~name:"flambda_o3"
@@ -378,4 +384,5 @@ let parse_standard_implementation_attributes attr =
   nolabels_attribute attr;
   inline_attribute attr;
   afl_inst_ratio_attribute attr;
-  flambda_o3_attribute attr
+  flambda_o3_attribute attr;
+  flambda_oclassic_attribute attr
