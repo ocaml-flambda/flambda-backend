@@ -31,6 +31,7 @@
     - ocaml.inline
     - ocaml.afl_inst_ratio
     - ocaml.flambda_o3
+    - ocaml.flambda_oclassic
 
     {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
