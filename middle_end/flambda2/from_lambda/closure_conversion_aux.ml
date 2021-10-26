@@ -183,7 +183,10 @@ module Env = struct
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
-      approximation_for_external_symbol = approximation_loader cmx_loader;
+      approximation_for_external_symbol =
+        (if Flambda_features.classic_mode ()
+        then approximation_loader cmx_loader
+        else fun _symbol -> Value_approximation.Value_unknown);
       symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;

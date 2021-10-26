@@ -175,7 +175,11 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     print_rawflambda ppf raw_flambda;
     let flambda, offsets, cmx, all_code =
       if Flambda_features.classic_mode ()
-      then
+      then begin
+        (if Flambda_features.inlining_report ()
+        then
+          let output_prefix = prefixname ^ ".cps_conv" in
+          Inlining_report.output_then_forget_decisions ~output_prefix);
         let exported_offsets =
           match (offsets : _ Or_unknown.t) with
           | Unknown ->
@@ -185,6 +189,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
           | Known closure_offsets -> closure_offsets
         in
         raw_flambda, exported_offsets, cmx, code
+      end
       else
         let raw_flambda =
           if Flambda_features.Debug.permute_every_name ()
