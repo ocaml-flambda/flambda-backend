@@ -437,10 +437,10 @@ and subst_apply env apply =
   let args = List.map (subst_simple env) (Apply_expr.args apply) in
   let call_kind = subst_call_kind env (Apply_expr.call_kind apply) in
   let dbg = Apply_expr.dbg apply in
-  let inline = Apply_expr.inline apply in
+  let inlined = Apply_expr.inlined apply in
   let inlining_state = Apply_expr.inlining_state apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inline ~inlining_state ~probe_name:None
+    ~inlined ~inlining_state ~probe_name:None
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -961,7 +961,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
     && Exn_continuation.equal
          (Apply.exn_continuation apply1)
          (Apply.exn_continuation apply2)
-    && Inline_attribute.equal (Apply.inline apply1) (Apply.inline apply2)
+    && Inlined_attribute.equal (Apply.inlined apply1) (Apply.inlined apply2)
     && inlining_states_equal
          (Apply.inlining_state apply1)
          (Apply.inlining_state apply2)
@@ -988,7 +988,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~continuation:(Apply.continuation apply1)
             (Apply.exn_continuation apply1)
             ~args:args1' ~call_kind:call_kind1' (Apply.dbg apply1)
-            ~inline:(Apply.inline apply1)
+            ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe_name:None
           |> Expr.create_apply
