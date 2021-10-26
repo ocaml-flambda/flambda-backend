@@ -507,7 +507,7 @@ let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   begin match inline with
   | Default_inline -> ()
   | Always_inline -> fprintf ppf "always_inline@ "
-  | Hint_inline -> fprintf ppf "hint_inline@ "
+  | Ready_inline -> fprintf ppf "ready_inline@ "
   | Never_inline -> fprintf ppf "never_inline@ "
   | Unroll i -> fprintf ppf "unroll(%i)@ " i
   end;
@@ -530,10 +530,10 @@ let apply_tailcall_attribute ppf = function
     fprintf ppf " tailcall(false)"
 
 let apply_inlined_attribute ppf = function
-  | Default_inline -> ()
-  | Always_inline -> fprintf ppf " always_inline"
-  | Never_inline -> fprintf ppf " never_inline"
-  | Hint_inline -> fprintf ppf " hint_inline"
+  | Default_inlined -> ()
+  | Always_inlined -> fprintf ppf " always_inline"
+  | Never_inlined -> fprintf ppf " never_inline"
+  | Hint_inlined -> fprintf ppf " hint_inline"
   | Unroll i -> fprintf ppf " never_inline(%i)" i
 
 let apply_specialised_attribute ppf = function

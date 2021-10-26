@@ -14,19 +14,38 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Function declaration (not call site) inlining annotations. *)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
-  | Always_inline
-  | Ready_inline
-  | Never_inline
+  | Always_inlined
+  | Hint_inlined
+  | Never_inlined
   | Unroll of int
-  | Default_inline
+  | Default_inlined
 
-val print : Format.formatter -> t -> unit
+let [@ocamlformat "disable"] print ppf t =
+  let fprintf = Format.fprintf in
+  match t with
+  | Always_inlined -> fprintf ppf "Always_inlined"
+  | Hint_inlined -> fprintf ppf "Hint_inlined"
+  | Never_inlined -> fprintf ppf "Never_inlined"
+  | Unroll n -> fprintf ppf "@[(Unroll %d)@]" n
+  | Default_inlined -> fprintf ppf "Default_inlined"
 
-val equal : t -> t -> bool
+let equal t1 t2 =
+  match t1, t2 with
+  | Always_inlined, Always_inlined
+  | Hint_inlined, Hint_inlined
+  | Never_inlined, Never_inlined
+  | Default_inlined, Default_inlined ->
+    true
+  | Unroll n1, Unroll n2 -> n1 = n2
+  | ( ( Always_inlined | Hint_inlined | Never_inlined | Unroll _
+      | Default_inlined ),
+      _ ) ->
+    false
 
-val is_default : t -> bool
+let is_default t =
+  match t with
+  | Default_inlined -> true
+  | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> false

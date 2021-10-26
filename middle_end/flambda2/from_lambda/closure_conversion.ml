@@ -270,7 +270,7 @@ let close_c_call acc ~let_bound_var
       let acc, callee = use_of_symbol_as_simple acc call_symbol in
       let apply =
         Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~call_kind dbg ~inline:Default_inline
+          exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
           ~probe_name:None
       in
@@ -554,7 +554,7 @@ let close_apply acc env
     Apply.create ~callee ~continuation:(Return continuation) exn_continuation
       ~args ~call_kind
       (Debuginfo.from_location loc)
-      ~inline:(LC.inline_attribute inlined)
+      ~inlined:(LC.inlined_attribute inlined)
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe_name
   in

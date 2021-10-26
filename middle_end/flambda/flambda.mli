@@ -38,7 +38,7 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
-  inline : Lambda.inline_attribute;
+  inlined : Lambda.inlined_attribute;
   (** Instructions from the source code as to whether the callee should
       be inlined. *)
   specialise : Lambda.specialise_attribute;

@@ -64,13 +64,14 @@ type t =
     args : Simple.t list;
     call_kind : Call_kind.t;
     dbg : Debuginfo.t;
-    inline : Inline_attribute.t;
+    inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
     probe_name : string option
   }
 
-let [@ocamlformat "disable"] print ppf { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inline; inlining_state; probe_name; } =
+let [@ocamlformat "disable"] print ppf
+    { callee; continuation; exn_continuation; args; call_kind;
+      dbg; inlined; inlining_state; probe_name; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
@@ -87,7 +88,7 @@ let [@ocamlformat "disable"] print ppf { callee; continuation; exn_continuation;
     (Flambda_colours.debuginfo ())
     Debuginfo.print_compact dbg
     (Flambda_colours.normal ())
-    Inline_attribute.print inline
+    Inlined_attribute.print inlined
     Inlining_state.print inlining_state
     (fun ppf probe_name ->
       match probe_name with
@@ -102,7 +103,7 @@ let invariant
        args = _;
        call_kind;
        dbg = _;
-       inline = _;
+       inlined = _;
        inlining_state = _;
        probe_name = _
      } as t) =
@@ -132,7 +133,7 @@ let invariant
   end
   | Return _ -> ()
 
-let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inline
+let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inlined
     ~inlining_state ~probe_name =
   let t =
     { callee;
@@ -141,7 +142,7 @@ let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inline
       args;
       call_kind;
       dbg;
-      inline;
+      inlined;
       inlining_state;
       probe_name
     }
@@ -161,7 +162,7 @@ let call_kind t = t.call_kind
 
 let dbg t = t.dbg
 
-let inline t = t.inline
+let inlined t = t.inlined
 
 let inlining_state t = t.inlining_state
 
@@ -172,7 +173,7 @@ let free_names
       args;
       call_kind;
       dbg = _;
-      inline = _;
+      inlined = _;
       inlining_state = _;
       probe_name = _
     } =
@@ -190,7 +191,7 @@ let apply_renaming
        args;
        call_kind;
        dbg;
-       inline;
+       inlined;
        inlining_state;
        probe_name
      } as t) perm =
@@ -212,7 +213,7 @@ let apply_renaming
       args = args';
       call_kind = call_kind';
       dbg;
-      inline;
+      inlined;
       inlining_state;
       probe_name
     }
@@ -224,7 +225,7 @@ let all_ids_for_export
       args;
       call_kind;
       dbg = _;
-      inline = _;
+      inlined = _;
       inlining_state = _;
       probe_name = _
     } =

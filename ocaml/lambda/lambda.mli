@@ -220,14 +220,24 @@ type tailcall_attribute =
        [@tailcall false] has [false] *)
   | Default_tailcall (* no [@tailcall] attribute *)
 
+(* Function declaration inlining annotations *)
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Hint_inline (* [@inline hint] *)
+  | Ready_inline (* [@inline ready] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 
+(* Call site inlining annotations *)
+type inlined_attribute =
+  | Always_inlined (* [@inlined] or [@inlined always] *)
+  | Never_inlined (* [@inlined never] *)
+  | Hint_inlined (* [@inlined hint] *)
+  | Unroll of int (* [@unroll x] *)
+  | Default_inlined (* no [@inlined] attribute *)
+
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
+val equal_inlined_attribute : inlined_attribute -> inlined_attribute -> bool
 
 type probe_desc = { name: string }
 type probe = probe_desc option
@@ -317,7 +327,7 @@ and lambda_apply =
     ap_args : lambda list;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
-    ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)
+    ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
     ap_specialised : specialise_attribute;
     ap_probe : probe;
   }

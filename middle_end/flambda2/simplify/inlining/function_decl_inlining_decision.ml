@@ -22,7 +22,7 @@ let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
      examining call sites. *)
   match (inline : Inline_attribute.t) with
   | Never_inline -> Never_inline_attribute
-  | Hint_inline | Always_inline -> Attribute_inline
+  | Ready_inline | Always_inline -> Attribute_inline
   | Default_inline | Unroll _ ->
     if stub
     then Stub

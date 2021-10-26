@@ -529,7 +529,7 @@ let inline_attribute ~space ppf (i : Inline_attribute.t) =
   let str =
     match i with
     | Always_inline -> Some "inline(always)"
-    | Hint_inline -> Some "inline(hint)"
+    | Ready_inline -> Some "inline(hint)"
     | Never_inline -> Some "inline(never)"
     | Unroll i -> Some (Format.sprintf "unroll(%d)" i)
     | Default_inline -> None
@@ -538,6 +538,20 @@ let inline_attribute ~space ppf (i : Inline_attribute.t) =
 
 let inline_attribute_opt ~space ppf i =
   pp_option ~space (inline_attribute ~space:Neither) ppf i
+
+let inlined_attribute ~space ppf (i : Inlined_attribute.t) =
+  let str =
+    match i with
+    | Always_inlined -> Some "inlined(always)"
+    | Hint_inlined -> Some "inlined(hint)"
+    | Never_inlined -> Some "inlined(never)"
+    | Unroll i -> Some (Format.sprintf "unroll(%d)" i)
+    | Default_inlined -> None
+  in
+  pp_option ~space Format.pp_print_string ppf str
+
+let inlined_attribute_opt ~space ppf i =
+  pp_option ~space (inlined_attribute ~space:Neither) ppf i
 
 let inlining_state ppf { depth } = Format.fprintf ppf "depth(%d)" depth
 
@@ -594,7 +608,7 @@ let rec expr scope ppf = function
     (* (fun ppf () -> if cases <> [] then Format.pp_print_cut ppf ()) () *)
   | Apply
       { call_kind = kind;
-        inline;
+        inlined;
         inlining_state = is;
         continuation = ret;
         exn_continuation = ek;
@@ -609,8 +623,9 @@ let rec expr scope ppf = function
     in
     Format.fprintf ppf "@[<hv 2>apply@[<2>%a%a%a@]@ %a%a@ @[<hov>-> %a@ %a@]@]"
       (call_kind ~space:Before) kind
-      (inline_attribute_opt ~space:Before)
-      inline pp_inlining_state () func_name_with_optional_arities (func, arities)
+      (inlined_attribute_opt ~space:Before)
+      inlined pp_inlining_state () func_name_with_optional_arities
+      (func, arities)
       (simple_args ~space:Before ~omit_if_empty:true)
       args result_continuation ret exn_continuation ek
 

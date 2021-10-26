@@ -120,7 +120,7 @@ let parse_id_payload txt loc ~default ~empty cases payload =
       | Some r -> r
       | None -> warn ()
 
-let parse_inline_attribute attr =
+let parse_inline_attribute attr : inline_attribute =
   match attr with
   | None -> Default_inline
   | Some {Parsetree.attr_name = {txt;loc} as id; attr_payload = payload} ->
@@ -141,7 +141,32 @@ let parse_inline_attribute attr =
         [
           "never", Never_inline;
           "always", Always_inline;
-          "hint", Hint_inline;
+          "ready", Ready_inline;
+        ]
+        payload
+
+let parse_inlined_attribute attr : inlined_attribute =
+  match attr with
+  | None -> Default_inlined
+  | Some {Parsetree.attr_name = {txt;loc} as id; attr_payload = payload} ->
+    if is_unrolled id then begin
+      (* the 'unrolled' attributes must be used as [@unrolled n]. *)
+      let warning txt = Warnings.Attribute_payload
+          (txt, "It must be an integer literal")
+      in
+      match get_payload get_int_from_exp payload with
+      | Ok n -> Unroll n
+      | Error () ->
+        Location.prerr_warning loc (warning txt);
+        Default_inlined
+    end else
+      parse_id_payload txt loc
+        ~default:Default_inlined
+        ~empty:Always_inlined
+        [
+          "never", Never_inlined;
+          "always", Always_inlined;
+          "hint", Hint_inlined;
         ]
         payload
 
@@ -186,7 +211,7 @@ let get_local_attribute l =
 
 let check_local_inline loc attr =
   match attr.local, attr.inline with
-  | Always_local, (Always_inline | Hint_inline | Unroll _) ->
+  | Always_local, (Always_inline | Ready_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Duplicated_attribute "local/inline")
   | _ ->
@@ -198,14 +223,14 @@ let add_inline_attribute expr loc attributes =
   | Lfunction({ attr = { stub = false } as attr } as funct), inline ->
       begin match attr.inline with
       | Default_inline -> ()
-      | Always_inline | Hint_inline | Never_inline | Unroll _ ->
+      | Always_inline | Ready_inline | Never_inline | Unroll _ ->
           Location.prerr_warning loc
             (Warnings.Duplicated_attribute "inline")
       end;
       let attr = { attr with inline } in
       check_local_inline loc attr;
       Lfunction { funct with attr = attr }
-  | expr, (Always_inline | Hint_inline | Never_inline | Unroll _) ->
+  | expr, (Always_inline | Ready_inline | Never_inline | Unroll _) ->
       Location.prerr_warning loc
         (Warnings.Misplaced_attribute "inline");
       expr
@@ -254,7 +279,7 @@ let get_and_remove_inlined_attribute e =
   let attr, exp_attributes =
     find_attribute is_inlined_attribute e.exp_attributes
   in
-  let inlined = parse_inline_attribute attr in
+  let inlined = parse_inlined_attribute attr in
   inlined, { e with exp_attributes }
 
 let get_and_remove_inlined_attribute_on_module e =
@@ -262,15 +287,15 @@ let get_and_remove_inlined_attribute_on_module e =
     let attr, mod_attributes =
       find_attribute is_inlined_attribute mod_expr.mod_attributes
     in
-    let attr = parse_inline_attribute attr in
+    let attr = parse_inlined_attribute attr in
     let attr, mod_desc =
       match mod_expr.Typedtree.mod_desc with
       | Tmod_constraint (me, mt, mtc, mc) ->
         let inner_attr, me = get_and_remove me in
         let attr =
           match attr with
-          | Always_inline | Hint_inline | Never_inline | Unroll _ -> attr
-          | Default_inline -> inner_attr
+          | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> attr
+          | Default_inlined -> inner_attr
         in
         attr, Tmod_constraint (me, mt, mtc, mc)
       | md -> attr, md

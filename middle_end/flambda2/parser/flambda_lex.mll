@@ -61,6 +61,7 @@ let keyword_table =
     "in", KWD_IN;
     "inf", KWD_INF;
     "inline", KWD_INLINE;
+    "inlined", KWD_INLINED;
     "inlining_state", KWD_INLINING_STATE;
     "int32", KWD_INT32;
     "int64", KWD_INT64;
@@ -75,6 +76,7 @@ let keyword_table =
     "notrace", KWD_NOTRACE;
     "pop", KWD_POP;
     "push", KWD_PUSH;
+    "ready", KWD_READY;
     "rec", KWD_REC;
     "rec_info", KWD_REC_INFO;
     "regular", KWD_REGULAR;

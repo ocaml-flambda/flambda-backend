@@ -85,7 +85,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
            redundancy here (func is also unboxed_version) *)
         kind = Direct (Closure_id.wrap unboxed_version);
         dbg = Debuginfo.none;
-        inline = Default_inline;
+        inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
       })
@@ -240,7 +240,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               args;
               kind = Indirect;
               dbg = Debuginfo.from_location ap_loc;
-              inline = ap_inlined;
+              inlined = ap_inlined;
               specialise = ap_specialised;
               probe = ap_probe;
             })))
@@ -425,7 +425,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            application attributes to functions applied with the application
            operators. *)
         ap_tailcall = Default_tailcall;
-        ap_inlined = Default_inline;
+        ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_probe = None;
       }

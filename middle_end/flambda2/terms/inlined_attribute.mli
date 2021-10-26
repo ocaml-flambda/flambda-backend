@@ -14,16 +14,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Function declaration (not call site) inlining annotations. *)
+(** Call site (not function declaration) inlining annotations. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
-  | Always_inline
-  | Ready_inline
-  | Never_inline
+  | Always_inlined
+  | Hint_inlined
+  | Never_inlined
   | Unroll of int
-  | Default_inline
+  | Default_inlined
 
 val print : Format.formatter -> t -> unit
 

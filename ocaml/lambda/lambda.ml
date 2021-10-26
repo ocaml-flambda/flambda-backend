@@ -235,22 +235,43 @@ type tailcall_attribute =
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Hint_inline (* [@inlined hint] attribute *)
+  | Ready_inline (* [@inline ready] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 
-let equal_inline_attribute x y =
+type inlined_attribute =
+  | Always_inlined (* [@inlined] or [@inlined always] *)
+  | Never_inlined (* [@inlined never] *)
+  | Hint_inlined (* [@inlined hint] *)
+  | Unroll of int (* [@unroll x] *)
+  | Default_inlined (* no [@inlined] attribute *)
+
+let equal_inline_attribute (x : inline_attribute) (y : inline_attribute) =
   match x, y with
   | Always_inline, Always_inline
   | Never_inline, Never_inline
-  | Hint_inline, Hint_inline
+  | Ready_inline, Ready_inline
   | Default_inline, Default_inline
     ->
     true
   | Unroll u, Unroll v ->
     u = v
   | (Always_inline | Never_inline
-    | Hint_inline | Unroll _ | Default_inline), _ ->
+    | Ready_inline | Unroll _ | Default_inline), _ ->
+    false
+
+let equal_inlined_attribute (x : inlined_attribute) (y : inlined_attribute) =
+  match x, y with
+  | Always_inlined, Always_inlined
+  | Never_inlined, Never_inlined
+  | Hint_inlined, Hint_inlined
+  | Default_inlined, Default_inlined
+    ->
+    true
+  | Unroll u, Unroll v ->
+    u = v
+  | (Always_inlined | Never_inlined
+    | Hint_inlined | Unroll _ | Default_inlined), _ ->
     false
 
 type probe_desc = { name: string }
@@ -336,7 +357,7 @@ and lambda_apply =
     ap_args : lambda list;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
-    ap_inlined : inline_attribute;
+    ap_inlined : inlined_attribute;
     ap_specialised : specialise_attribute;
     ap_probe : probe;
   }

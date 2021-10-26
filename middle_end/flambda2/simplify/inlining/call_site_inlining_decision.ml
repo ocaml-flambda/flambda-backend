@@ -42,7 +42,7 @@ type t =
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded
-  | Never_inline_attribute
+  | Never_inlined_attribute
   | Speculatively_not_inline of
       { cost_metrics : Cost_metrics.t;
         evaluated_to : float;
@@ -73,8 +73,8 @@ let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "Max_inlining_depth_exceeded"
   | Recursion_depth_exceeded ->
     Format.fprintf ppf "Recursion_depth_exceeded"
-  | Never_inline_attribute ->
-    Format.fprintf ppf "Never_inline_attribute"
+  | Never_inlined_attribute ->
+    Format.fprintf ppf "Never_inlined_attribute"
   | Attribute_always ->
     Format.fprintf ppf "Attribute_unroll"
   | Definition_says_inline ->
@@ -121,7 +121,7 @@ let can_inline (t : t) : can_inline =
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
     Do_not_inline
       { warn_if_attribute_ignored = true; because_of_definition = true }
-  | Never_inline_attribute ->
+  | Never_inlined_attribute ->
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
     Do_not_inline
       { warn_if_attribute_ignored = true; because_of_definition = true }
@@ -154,7 +154,7 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ maximum@ inlining@ depth@ has@ been@ exceeded"
   | Recursion_depth_exceeded ->
     Format.fprintf fmt "the@ maximum@ recursion@ depth@ has@ been@ exceeded"
-  | Never_inline_attribute ->
+  | Never_inlined_attribute ->
     Format.fprintf fmt "the@ call@ has@ an@ attribute@ forbidding@ inlining"
   | Attribute_always ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
@@ -319,10 +319,10 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
     | Unknown -> Rec_info_expr.unknown
     | Invalid -> Rec_info_expr.do_not_inline
   in
-  let inline = Apply.inline apply in
-  match inline with
-  | Never_inline -> Never_inline_attribute
-  | Default_inline | Unroll _ | Always_inline | Hint_inline -> (
+  let inlined = Apply.inlined apply in
+  match inlined with
+  | Never_inlined -> Never_inlined_attribute
+  | Default_inlined | Unroll _ | Always_inlined | Hint_inlined -> (
     (* The unrolling process is rather subtle, but it boils down to two steps:
 
        1. We see an [@unrolled n] annotation (with n > 0) on an apply expression
@@ -362,9 +362,9 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
       if Inlining_state.is_depth_exceeded apply_inlining_state
       then Max_inlining_depth_exceeded
       else
-        match inline with
-        | Never_inline -> assert false
-        | Default_inline ->
+        match inlined with
+        | Never_inlined -> assert false
+        | Default_inlined ->
           if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
                (max_rec_depth + 1)
           then Recursion_depth_exceeded
@@ -378,4 +378,4 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
                handled. *)
             Attribute_unroll unroll_to
           else Unrolling_depth_exceeded
-        | Always_inline | Hint_inline -> Attribute_always))
+        | Always_inlined | Hint_inlined -> Attribute_always))

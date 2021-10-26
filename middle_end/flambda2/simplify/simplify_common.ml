@@ -131,7 +131,7 @@ let split_direct_over_application apply ~param_arity =
       (Apply.exn_continuation apply)
       ~args:remaining_args
       ~call_kind:(Call_kind.indirect_function_call_unknown_arity ())
-      (Apply.dbg apply) ~inline:(Apply.inline apply)
+      (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply)
   in

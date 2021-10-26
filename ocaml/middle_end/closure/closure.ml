@@ -773,8 +773,8 @@ let bind_params { backend; mutable_vars; _ } loc fpc params args body =
 (* Check if a lambda term is ``pure'',
    that is without side-effects *and* not containing function definitions *)
 
-let warning_if_forced_inline ~loc ~attribute warning =
-  if attribute = Always_inline then
+let warning_if_forced_inlined ~loc ~attribute warning =
+  if attribute = Always_inlined then
     Location.prerr_warning (Debuginfo.Scoped_location.to_location loc)
       (Warnings.Inlining_impossible warning)
 
@@ -791,16 +791,16 @@ let direct_apply env fundesc ufunct uargs ~probe ~loc ~attribute =
     if fundesc.fun_closed then uargs else uargs @ [ufunct] in
   let app =
     match fundesc.fun_inline, attribute with
-    | _, Never_inline | None, _ ->
+    | _, Never_inlined | None, _ ->
       let dbg = Debuginfo.from_location loc in
-        warning_if_forced_inline ~loc ~attribute
+        warning_if_forced_inlined ~loc ~attribute
           "Function information unavailable";
         if not fundesc.fun_closed then begin
           fail_if_probe ~probe "Not closed"
         end;
         begin match probe, attribute with
         | None, _ -> ()
-        | Some _, Never_inline -> ()
+        | Some _, Never_inlined -> ()
         | Some _, _ ->
           fail_if_probe ~probe "Erroneously marked to be inlined"
         end;
@@ -968,7 +968,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
                  ap_tailcall=Default_tailcall;
-                 ap_inlined=Default_inline;
+                 ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
                };
@@ -979,7 +979,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           iter first_args
             (Ulet (Immutable, Pgenval, VP.create funct_var, ufunct, new_fun))
         in
-        warning_if_forced_inline ~loc ~attribute "Partial application";
+        warning_if_forced_inlined ~loc ~attribute "Partial application";
         fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
@@ -990,7 +990,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
           let dbg = Debuginfo.from_location loc in
-          warning_if_forced_inline ~loc ~attribute "Over-application";
+          warning_if_forced_inlined ~loc ~attribute "Over-application";
           fail_if_probe ~probe "Over-application";
           let body =
             Ugeneric_apply(direct_apply env ~loc ~attribute
@@ -1006,7 +1006,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           result, Value_unknown
       | ((ufunct, _), uargs) ->
           let dbg = Debuginfo.from_location loc in
-          warning_if_forced_inline ~loc ~attribute "Unknown function";
+          warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs, dbg), Value_unknown)
       end
@@ -1101,7 +1101,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_func=funct;
            ap_args=[arg];
            ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inline;
+           ap_inlined=Default_inlined;
            ap_specialised=Default_specialise;
            ap_probe=None;
          })
@@ -1349,7 +1349,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
           in
           let magic_scale_constant = 8. in
           int_of_float (inline_threshold *. magic_scale_constant) + n
-      | Always_inline | Hint_inline -> max_int
+      | Always_inline | Ready_inline -> max_int
       | Never_inline -> min_int
       | Unroll _ -> assert false
     in

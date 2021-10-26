@@ -55,7 +55,7 @@ let mkappl (func, args) =
     ap_func=func;
     ap_args=args;
     ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inline;
+    ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
     ap_probe=None;
   };;
@@ -499,7 +499,7 @@ let transl_class_rebind ~scopes cl vf =
         ap_func=Lvar obj_init;
         ap_args=[Lvar self];
         ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inline;
+        ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
         ap_probe=None;
       }

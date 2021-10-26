@@ -922,9 +922,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       Some { params_arity; ret_arity }
     | _ -> None
   in
-  let inline =
-    match Apply_expr.inline app with
-    | Default_inline -> None
+  let inlined =
+    match Apply_expr.inlined app with
+    | Default_inlined -> None
     | other -> Some other
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
@@ -934,7 +934,7 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       exn_continuation;
       args;
       call_kind;
-      inline;
+      inlined;
       inlining_state;
       arities
     }

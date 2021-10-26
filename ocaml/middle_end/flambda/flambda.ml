@@ -30,7 +30,7 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
-  inline : Lambda.inline_attribute;
+  inlined : Lambda.inlined_attribute;
   specialise : Lambda.specialise_attribute;
   probe : Lambda.probe;
 }
@@ -192,26 +192,26 @@ let rec lam ppf (flam : t) =
   match flam with
   | Var (id) ->
       Variable.print ppf id
-  | Apply({func; args; kind; inline; probe; dbg}) ->
+  | Apply({func; args; kind; inlined; probe; dbg}) ->
     let direct ppf () =
       match kind with
       | Indirect -> ()
       | Direct closure_id -> fprintf ppf "*[%a]" Closure_id.print closure_id
     in
-    let inline ppf () =
-      match inline with
-      | Always_inline -> fprintf ppf "<always>"
-      | Never_inline -> fprintf ppf "<never>"
-      | Hint_inline -> fprintf ppf "<hint>"
+    let inlined ppf () =
+      match inlined with
+      | Always_inlined -> fprintf ppf "<always>"
+      | Never_inlined -> fprintf ppf "<never>"
+      | Hint_inlined -> fprintf ppf "<hint>"
       | Unroll i -> fprintf ppf "<unroll %i>" i
-      | Default_inline -> ()
+      | Default_inlined -> ()
     in
     let probe ppf () =
       match probe with
       | None -> ()
       | Some {name} -> fprintf ppf "<probe %s>" name
     in
-    fprintf ppf "@[<2>(apply%a%a%a<%s>@ %a%a)@]" direct () inline () probe ()
+    fprintf ppf "@[<2>(apply%a%a%a<%s>@ %a%a)@]" direct () inlined () probe ()
       (Debuginfo.to_string dbg)
       Variable.print func Variable.print_list args
   | Assign { being_assigned; new_value; } ->
@@ -381,7 +381,8 @@ and print_function_declaration ppf var (f : function_declaration) =
   in
   let inline =
     match f.inline with
-    | Always_inline | Hint_inline -> " *inline*"
+    | Always_inline -> " *inline*"
+    | Ready_inline -> " *inline_ready*"
     | Never_inline -> " *never_inline*"
     | Unroll _ -> " *unroll*"
     | Default_inline -> ""
@@ -1030,8 +1031,8 @@ let create_function_declaration ~params ~body ~stub ~dbg
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
   | false, (Never_inline | Default_inline
-           | Always_inline | Hint_inline | Unroll _) -> ()
-  | true, (Always_inline | Hint_inline | Unroll _) ->
+           | Always_inline | Ready_inline | Unroll _) -> ()
+  | true, (Always_inline | Ready_inline | Unroll _) ->
     Misc.fatal_errorf
       "Stubs may not be annotated as [Always_inline], \
        [Hint_inline] or [Unroll]: %a"

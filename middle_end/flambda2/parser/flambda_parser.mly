@@ -118,7 +118,6 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_DEPTH [@symbol "depth"]
 %token KWD_DIRECT [@symbol "direct"]
 %token KWD_DO_NOT_INLINE [@symbol "do_not_inline"]
-%token KWD_DOMINATOR_SCOPED [@symbol "dominator_scoped"]
 %token KWD_DONE  [@symbol "done"]
 %token KWD_DYNAMIC [@symbol "dynamic"]
 %token KWD_END   [@symbol "end"]
@@ -136,6 +135,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_IN    [@symbol "in"]
 %token KWD_INF   [@symbol "inf"]
 %token KWD_INLINE [@symbol "inline"]
+%token KWD_INLINED [@symbol "inlined"]
 %token KWD_INLINING_STATE [@symbol "inlining_state"]
 %token KWD_INT32 [@symbol "int32"]
 %token KWD_INT64 [@symbol "int64"]
@@ -153,6 +153,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_NOTRACE [@symbol "notrace"]
 %token KWD_POP    [@symbol "pop"]
 %token KWD_PUSH   [@symbol "push"]
+%token KWD_READY  [@symbol "ready"]
 %token KWD_REC    [@symbol "rec"]
 %token KWD_REC_INFO [@symbol "rec_info"]
 %token KWD_REGULAR [@symbol "regular"]
@@ -656,7 +657,7 @@ fun_decl:
 
 apply_expr:
   | call_kind = call_kind;
-    inline = option(inline);
+    inlined = option(inlined);
     inlining_state = option(inlining_state);
     func = func_name_with_optional_arities
     args = simple_args MINUSGREATER
@@ -667,7 +668,7 @@ apply_expr:
           exn_continuation = e;
           args = args;
           call_kind;
-          inline;
+          inlined;
           inlining_state;
           arities;
      } }
@@ -683,10 +684,17 @@ call_kind:
 
 inline:
   | KWD_INLINE LPAREN KWD_ALWAYS RPAREN { Always_inline }
-  | KWD_INLINE LPAREN KWD_HINT RPAREN { Hint_inline }
+  | KWD_INLINE LPAREN KWD_READY RPAREN { Ready_inline }
   | KWD_INLINE LPAREN KWD_NEVER RPAREN { Never_inline }
-  | KWD_UNROLL LPAREN; i = plain_int; RPAREN { Unroll i }
+  | KWD_UNROLL LPAREN; i = plain_int; RPAREN { Inline_attribute.Unroll i }
   | KWD_INLINE LPAREN KWD_DEFAULT RPAREN { Default_inline }
+
+inlined:
+  | KWD_INLINED LPAREN KWD_ALWAYS RPAREN { Always_inlined }
+  | KWD_INLINED LPAREN KWD_HINT RPAREN { Hint_inlined }
+  | KWD_INLINED LPAREN KWD_NEVER RPAREN { Never_inlined }
+  | KWD_UNROLL LPAREN; i = plain_int; RPAREN { Unroll i }
+  | KWD_INLINED LPAREN KWD_DEFAULT RPAREN { Default_inlined }
 
 inlining_state:
   | KWD_INLINING_STATE LPAREN; depth = inlining_state_depth; RPAREN

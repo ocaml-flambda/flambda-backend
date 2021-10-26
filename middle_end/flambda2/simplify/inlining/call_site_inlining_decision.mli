@@ -29,7 +29,7 @@ type t = private
   | Unrolling_depth_exceeded
   | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded
-  | Never_inline_attribute
+  | Never_inlined_attribute
   | Speculatively_not_inline of
       { cost_metrics : Cost_metrics.t;
         evaluated_to : float;
