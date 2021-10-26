@@ -433,9 +433,9 @@ let rec div_int c1 c2 is_safe dbg =
               res = shift-right-signed(c1 + t, l)
         *)
         Cop(Casr, [bind "dividend" c1 (fun c1 ->
+                     assert (l >= 1);
                      let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
                      let t =
-                       assert (l >= 1);
                        lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg
                      in
                      add_int c1 t dbg);
@@ -491,8 +491,8 @@ let mod_int c1 c2 is_safe dbg =
               res = c1 - t
          *)
         bind "dividend" c1 (fun c1 ->
-          let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           assert (l >= 1);
+          let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
           let t = add_int c1 t dbg in
           let t = Cop(Cand, [t; Cconst_int (-n, dbg)], dbg) in
