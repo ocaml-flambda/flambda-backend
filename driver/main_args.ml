@@ -1160,6 +1160,24 @@ let mk_flambda2_inline_threshold f =
         \     more aggressive) (Flambda 2 only)"
       Clflags.Flambda2.Inlining.Default.threshold
 
+let mk_flambda2_speculative_inlining_only_if_arguments_useful f =
+  "-flambda2-speculative-inlining-only-if-arguments-useful", Arg.Unit f,
+    Printf.sprintf " Only\n\
+        \    perform speculative inlining if the Flambda type system has\n\
+        \    useful information about the argument(s) at the call site%s\n\
+        \    (Flambda 2 only)"
+      (format_default
+        Flambda2.Inlining.Default.speculative_inlining_only_if_arguments_useful)
+
+let mk_no_flambda2_speculative_inlining_only_if_arguments_useful f =
+  "-no-flambda2-speculative-inlining-only-if-arguments-useful", Arg.Unit f,
+    Printf.sprintf " Ignore\n\
+        \     whether the Flambda type system has useful information\n\
+        \     about the argument(s) at the call site when performing\n\
+        \     speculative inlining%s (Flambda 2 only)"
+      (format_not_default
+        Flambda2.Inlining.Default.speculative_inlining_only_if_arguments_useful)
+
 let mk_flambda2_treat_invalid_code_as_unreachable f =
   "-flambda2-treat-invalid-code-as-unreachable", Arg.Unit f,
   Printf.sprintf " Treat code deemed as\n\
@@ -1452,6 +1470,8 @@ module type Optcommon_options = sig
   val _flambda2_inline_small_function_size : string -> unit
   val _flambda2_inline_large_function_size : string -> unit
   val _flambda2_inline_threshold : string -> unit
+  val _flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
+  val _no_flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
 
   val _flambda2_inlining_report_bin : unit -> unit
 
@@ -1850,6 +1870,10 @@ struct
     mk_flambda2_inline_large_function_size
       F._flambda2_inline_large_function_size;
     mk_flambda2_inline_threshold F._flambda2_inline_threshold;
+    mk_flambda2_speculative_inlining_only_if_arguments_useful
+      F._flambda2_speculative_inlining_only_if_arguments_useful;
+    mk_no_flambda2_speculative_inlining_only_if_arguments_useful
+      F._no_flambda2_speculative_inlining_only_if_arguments_useful;
 
     mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
 
@@ -2035,6 +2059,10 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_flambda2_inline_large_function_size
       F._flambda2_inline_large_function_size;
     mk_flambda2_inline_threshold F._flambda2_inline_threshold;
+    mk_flambda2_speculative_inlining_only_if_arguments_useful
+      F._flambda2_speculative_inlining_only_if_arguments_useful;
+    mk_no_flambda2_speculative_inlining_only_if_arguments_useful
+      F._no_flambda2_speculative_inlining_only_if_arguments_useful;
 
     mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
 
@@ -2424,6 +2452,12 @@ module Default = struct
       Float_arg_helper.parse spec
         "Syntax: -flambda2-inline-threshold <float> | <round>=<float>[,...]"
         Flambda2.Inlining.threshold
+
+    let _flambda2_speculative_inlining_only_if_arguments_useful =
+      set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+
+    let _no_flambda2_speculative_inlining_only_if_arguments_useful =
+      clear Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
     let _flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
 
