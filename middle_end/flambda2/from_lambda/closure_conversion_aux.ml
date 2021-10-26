@@ -94,6 +94,38 @@ module IR = struct
         args
 end
 
+module Inlining = struct
+  type inlinable_result =
+    | Not_inlinable
+    | Inlinable of Code.t
+
+  let threshold () =
+    let inline_threshold =
+      Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
+    in
+    let magic_scale_constant = 8. in
+    int_of_float (inline_threshold *. magic_scale_constant)
+
+  let definition_inlining_decision inline cost_metrics =
+    let inline_threshold = threshold () in
+    let code_size = Cost_metrics.size cost_metrics in
+    match (inline : Inline_attribute.t) with
+    | Never_inline ->
+      Function_decl_inlining_decision_type.Never_inline_attribute
+    | Always_inline | Available_inline ->
+      Function_decl_inlining_decision_type.Attribute_inline
+    | _ ->
+      if Code_size.to_int code_size <= inline_threshold
+      then
+        Function_decl_inlining_decision_type.Small_function
+          { size = code_size;
+            small_function_size = Code_size.of_int inline_threshold
+          }
+      else
+        Function_decl_inlining_decision_type.Function_body_too_large
+          (Code_size.of_int inline_threshold)
+end
+
 module Env = struct
   type t =
     { variables : Variable.t Ident.Map.t;
@@ -125,6 +157,21 @@ module Env = struct
       | approx -> approx
       | exception Not_found ->
         let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        let rec filter_inlinable approx =
+          match (approx : Code.t Value_approximation.t) with
+          | Value_unknown | Closure_approximation (_, None) -> approx
+          | Block_approximation (approxs, alloc_mode) ->
+            let approxs = Array.map filter_inlinable approxs in
+            Value_approximation.Block_approximation (approxs, alloc_mode)
+          | Closure_approximation (code_id, Some code) -> (
+            match
+              Inlining.definition_inlining_decision (Code.inline code)
+                (Code.cost_metrics code)
+            with
+            | Attribute_inline | Small_function _ -> approx
+            | _ -> Value_approximation.Closure_approximation (code_id, None))
+        in
+        let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;
         approx
 

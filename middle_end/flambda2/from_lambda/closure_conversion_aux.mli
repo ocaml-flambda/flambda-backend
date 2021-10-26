@@ -81,6 +81,19 @@ module IR : sig
   val print_named : Format.formatter -> named -> unit
 end
 
+module Inlining : sig
+  type inlinable_result =
+    | Not_inlinable
+    | Inlinable of Code.t
+
+  val threshold : unit -> int
+
+  val definition_inlining_decision :
+    Inline_attribute.t ->
+    Cost_metrics.t ->
+    Function_decl_inlining_decision_type.t
+end
+
 (** Used to remember which [Variable.t] values correspond to which [Ident.t]
     values during closure conversion, and similarly for static exception
     identifiers. *)

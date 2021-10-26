@@ -170,16 +170,7 @@ let find_simples acc env ids =
   List.fold_left_map (fun acc id -> find_simple acc env id) acc ids
 
 module Inlining = struct
-  type inlinable_result =
-    | Not_inlinable
-    | Inlinable of Code.t
-
-  let threshold () =
-    let inline_threshold =
-      Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
-    in
-    let magic_scale_constant = 8. in
-    int_of_float (inline_threshold *. magic_scale_constant)
+  include Closure_conversion_aux.Inlining
 
   (* CR keryan: we need to emit warnings *)
   let inlinable env apply =
@@ -1301,26 +1292,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
-  let code_size = Cost_metrics.size cost_metrics in
-  let inline_threshold = Inlining.threshold () in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then
-      match inline with
-      | Never_inline ->
-        Function_decl_inlining_decision_type.Never_inline_attribute
-      | Always_inline | Available_inline ->
-        Function_decl_inlining_decision_type.Attribute_inline
-      | _ ->
-        if Code_size.to_int code_size <= inline_threshold
-        then
-          Function_decl_inlining_decision_type.Small_function
-            { size = code_size;
-              small_function_size = Code_size.of_int inline_threshold
-            }
-        else
-          Function_decl_inlining_decision_type.Function_body_too_large
-            (Code_size.of_int inline_threshold)
+    then Inlining.definition_inlining_decision inline cost_metrics
     else if stub
     then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
