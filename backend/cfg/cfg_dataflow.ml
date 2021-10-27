@@ -91,8 +91,7 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
 
   let create : Cfg.t -> init:(Cfg.basic_block -> init) -> map * WorkSet.t ref =
    fun cfg ~init ->
-    (* CR xclerc for xclerc: what should be the initial size? *)
-    let map = Label.Tbl.create 32 in
+    let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         let { value; in_work_set } = init block in
@@ -130,7 +129,7 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
           (fun successor_label ->
             let old_value = Label.Tbl.find res successor_label in
             let new_value = D.join old_value value in
-            if D.compare old_value new_value <> 0
+            if not (D.compare new_value old_value <= 0)
             then begin
               Label.Tbl.replace res successor_label new_value;
               work_set
