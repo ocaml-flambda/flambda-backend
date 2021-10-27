@@ -72,7 +72,7 @@ type t0 =
       { code : C.t;
         calling_convention : Calling_convention.t
       }
-  | Imported of { calling_convention : Calling_convention.t }
+  | Imported_or_non_inlinable of { calling_convention : Calling_convention.t }
 
 type t = t0 Code_id.Map.t
 
@@ -83,8 +83,9 @@ let print0 ppf t0 =
       "@[<hov 1>(Present@ (@[<hov 1>(code@ %a)@]@[<hov 1>(calling_convention@ \
        %a)@]))@]"
       C.print code Calling_convention.print calling_convention
-  | Imported { calling_convention } ->
-    Format.fprintf ppf "@[<hov 1>(Imported@ (calling_convention@ %a))@]"
+  | Imported_or_non_inlinable { calling_convention } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Imported_or_non_inlinable@ (calling_convention@ %a))@]"
       Calling_convention.print calling_convention
 
 let [@ocamlformat "disable"] print ppf t =
@@ -113,17 +114,17 @@ let add_code code t =
 let mark_as_imported t =
   let forget_params_and_body t0 =
     match t0 with
-    | Imported _ -> t0
+    | Imported_or_non_inlinable _ -> t0
     | Present { code = _; calling_convention } ->
-      Imported { calling_convention }
+      Imported_or_non_inlinable { calling_convention }
   in
   Code_id.Map.map forget_params_and_body t
 
 let merge t1 t2 =
   let merge_one code_id t01 t02 =
     match t01, t02 with
-    | ( Imported { calling_convention = cc1 },
-        Imported { calling_convention = cc2 } ) ->
+    | ( Imported_or_non_inlinable { calling_convention = cc1 },
+        Imported_or_non_inlinable { calling_convention = cc2 } ) ->
       if Calling_convention.equal cc1 cc2
       then Some t01
       else
@@ -134,10 +135,10 @@ let merge t1 t2 =
     | Present _, Present _ ->
       Misc.fatal_errorf "Cannot merge two definitions for code id %a"
         Code_id.print code_id
-    | ( Imported { calling_convention = cc_imported },
+    | ( Imported_or_non_inlinable { calling_convention = cc_imported },
         (Present { calling_convention = cc_present; code = _ } as t0) )
     | ( (Present { calling_convention = cc_present; code = _ } as t0),
-        Imported { calling_convention = cc_imported } ) ->
+        Imported_or_non_inlinable { calling_convention = cc_imported } ) ->
       if Calling_convention.equal cc_present cc_imported
       then Some t0
       else
@@ -156,7 +157,7 @@ let find_code t code_id =
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
   | Present { code; calling_convention = _ } -> Some code
-  | Imported _ -> None
+  | Imported_or_non_inlinable _ -> None
 
 let find_code_if_not_imported t code_id =
   match Code_id.Map.find code_id t with
@@ -172,14 +173,14 @@ let find_code_if_not_imported t code_id =
        have to assume that it fits the above case. *)
     None
   | Present { code; calling_convention = _ } -> Some code
-  | Imported _ -> None
+  | Imported_or_non_inlinable _ -> None
 
 let find_calling_convention t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
   | Present { code = _; calling_convention } -> calling_convention
-  | Imported { calling_convention } -> calling_convention
+  | Imported_or_non_inlinable { calling_convention } -> calling_convention
 
 let remove_unreachable t ~reachable_names =
   Code_id.Map.filter
@@ -194,7 +195,7 @@ let all_ids_for_export t =
       match code_data with
       | Present { code; calling_convention = _ } ->
         Ids_for_export.union all_ids (C.all_ids_for_export code)
-      | Imported { calling_convention = _ } -> all_ids)
+      | Imported_or_non_inlinable { calling_convention = _ } -> all_ids)
     t Ids_for_export.empty
 
 let apply_renaming code_id_map renaming t =
@@ -213,7 +214,8 @@ let apply_renaming code_id_map renaming t =
           | Present { calling_convention; code } ->
             let code = C.apply_renaming code renaming in
             Present { calling_convention; code }
-          | Imported { calling_convention } -> Imported { calling_convention }
+          | Imported_or_non_inlinable { calling_convention } ->
+            Imported_or_non_inlinable { calling_convention }
         in
         Code_id.Map.add code_id code_data all_code)
       t Code_id.Map.empty
