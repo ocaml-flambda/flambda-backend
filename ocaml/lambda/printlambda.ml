@@ -507,7 +507,7 @@ let function_attribute ppf { inline; specialise; local; is_a_functor; stub } =
   begin match inline with
   | Default_inline -> ()
   | Always_inline -> fprintf ppf "always_inline@ "
-  | Ready_inline -> fprintf ppf "ready_inline@ "
+  | Available_inline -> fprintf ppf "available_inline@ "
   | Never_inline -> fprintf ppf "never_inline@ "
   | Unroll i -> fprintf ppf "unroll(%i)@ " i
   end;

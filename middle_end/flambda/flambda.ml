@@ -382,7 +382,7 @@ and print_function_declaration ppf var (f : function_declaration) =
   let inline =
     match f.inline with
     | Always_inline -> " *inline*"
-    | Ready_inline -> " *inline_ready*"
+    | Available_inline -> " *inline_available*"
     | Never_inline -> " *never_inline*"
     | Unroll _ -> " *unroll*"
     | Default_inline -> ""
@@ -1031,8 +1031,8 @@ let create_function_declaration ~params ~body ~stub ~dbg
   begin match stub, inline with
   | true, (Never_inline | Default_inline)
   | false, (Never_inline | Default_inline
-           | Always_inline | Ready_inline | Unroll _) -> ()
-  | true, (Always_inline | Ready_inline | Unroll _) ->
+           | Always_inline | Available_inline | Unroll _) -> ()
+  | true, (Always_inline | Available_inline | Unroll _) ->
     Misc.fatal_errorf
       "Stubs may not be annotated as [Always_inline], \
        [Hint_inline] or [Unroll]: %a"

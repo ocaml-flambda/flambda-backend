@@ -69,7 +69,7 @@ let inline env r ~lhs_of_application
           | Default_inlined ->
             match function_body.inline with
             | Always_inline -> Always_inlined
-            | Ready_inline | Default_inline -> Default_inlined
+            | Available_inline | Default_inline -> Default_inlined
             | Never_inline -> Never_inlined
             | Unroll n -> Unroll n
         in

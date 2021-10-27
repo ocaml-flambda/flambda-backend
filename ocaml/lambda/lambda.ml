@@ -235,7 +235,7 @@ type tailcall_attribute =
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Ready_inline (* [@inline ready] *)
+  | Available_inline (* [@inline available] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 
@@ -250,14 +250,14 @@ let equal_inline_attribute (x : inline_attribute) (y : inline_attribute) =
   match x, y with
   | Always_inline, Always_inline
   | Never_inline, Never_inline
-  | Ready_inline, Ready_inline
+  | Available_inline, Available_inline
   | Default_inline, Default_inline
     ->
     true
   | Unroll u, Unroll v ->
     u = v
   | (Always_inline | Never_inline
-    | Ready_inline | Unroll _ | Default_inline), _ ->
+    | Available_inline | Unroll _ | Default_inline), _ ->
     false
 
 let equal_inlined_attribute (x : inlined_attribute) (y : inlined_attribute) =

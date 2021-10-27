@@ -145,7 +145,7 @@ let print_function_declaration ppf var (f : function_declaration) =
     let inline =
       match b.inline with
       | Always_inline -> " *inline*"
-      | Ready_inline -> " *inline_ready*"
+      | Available_inline -> " *inline_available*"
       | Never_inline -> " *never_inline*"
       | Unroll _ -> " *unroll*"
       | Default_inline -> ""

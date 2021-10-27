@@ -35,6 +35,7 @@ let keyword_table =
     "andwhere", KWD_ANDWHERE;
     "apply", KWD_APPLY;
     "asr", KWD_ASR;
+    "available", KWD_AVAILABLE;
     "Block", KWD_BLOCK;
     "boxed", KWD_BOXED;
     "ccall", KWD_CCALL;
@@ -76,7 +77,6 @@ let keyword_table =
     "notrace", KWD_NOTRACE;
     "pop", KWD_POP;
     "push", KWD_PUSH;
-    "ready", KWD_READY;
     "rec", KWD_REC;
     "rec_info", KWD_REC_INFO;
     "regular", KWD_REGULAR;

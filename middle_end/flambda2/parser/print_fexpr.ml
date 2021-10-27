@@ -529,7 +529,7 @@ let inline_attribute ~space ppf (i : Inline_attribute.t) =
   let str =
     match i with
     | Always_inline -> Some "inline(always)"
-    | Ready_inline -> Some "inline(hint)"
+    | Available_inline -> Some "inline(hint)"
     | Never_inline -> Some "inline(never)"
     | Unroll i -> Some (Format.sprintf "unroll(%d)" i)
     | Default_inline -> None

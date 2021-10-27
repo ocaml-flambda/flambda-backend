@@ -47,7 +47,7 @@ let inline_attribute (attr : L.inline_attribute) : Inline_attribute.t =
   match attr with
   | Always_inline -> Always_inline
   | Never_inline -> Never_inline
-  | Ready_inline -> Ready_inline
+  | Available_inline -> Available_inline
   | Unroll i -> Unroll i
   | Default_inline -> Default_inline
 

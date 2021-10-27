@@ -352,7 +352,7 @@ type function_arities =
 
 type inline_attribute = Inline_attribute.t =
   | Always_inline
-  | Ready_inline
+  | Available_inline
   | Never_inline
   | Unroll of int
   | Default_inline

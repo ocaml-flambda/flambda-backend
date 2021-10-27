@@ -224,7 +224,7 @@ type tailcall_attribute =
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Ready_inline (* [@inline ready] *)
+  | Available_inline (* [@inline available] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 

@@ -18,7 +18,7 @@
 
 type t =
   | Always_inline
-  | Ready_inline
+  | Available_inline
   | Never_inline
   | Unroll of int
   | Default_inline
@@ -27,7 +27,7 @@ let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
   match t with
   | Always_inline -> fprintf ppf "Always_inline"
-  | Ready_inline -> fprintf ppf "Ready_inline"
+  | Available_inline -> fprintf ppf "Available_inline"
   | Never_inline -> fprintf ppf "Never_inline"
   | Unroll n -> fprintf ppf "@[(Unroll %d)@]" n
   | Default_inline -> fprintf ppf "Default_inline"
@@ -35,16 +35,16 @@ let [@ocamlformat "disable"] print ppf t =
 let equal t1 t2 =
   match t1, t2 with
   | Always_inline, Always_inline
-  | Ready_inline, Ready_inline
+  | Available_inline, Available_inline
   | Never_inline, Never_inline
   | Default_inline, Default_inline ->
     true
   | Unroll n1, Unroll n2 -> n1 = n2
-  | (Always_inline | Ready_inline | Never_inline | Unroll _ | Default_inline), _
+  | (Always_inline | Available_inline | Never_inline | Unroll _ | Default_inline), _
     ->
     false
 
 let is_default t =
   match t with
   | Default_inline -> true
-  | Always_inline | Ready_inline | Never_inline | Unroll _ -> false
+  | Always_inline | Available_inline | Never_inline | Unroll _ -> false

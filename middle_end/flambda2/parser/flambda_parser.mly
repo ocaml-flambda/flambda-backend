@@ -106,6 +106,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_ANDWHERE [@symbol "andwhere"]
 %token KWD_APPLY [@symbol "apply"]
 %token KWD_ASR   [@symbol "asr"]
+%token KWD_AVAILABLE [@symbol "available"]
 %token KWD_BLOCK [@symbol "Block"]
 %token KWD_BOXED [@symbol "boxed"]
 %token KWD_CCALL  [@symbol "ccall"]
@@ -153,7 +154,6 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_NOTRACE [@symbol "notrace"]
 %token KWD_POP    [@symbol "pop"]
 %token KWD_PUSH   [@symbol "push"]
-%token KWD_READY  [@symbol "ready"]
 %token KWD_REC    [@symbol "rec"]
 %token KWD_REC_INFO [@symbol "rec_info"]
 %token KWD_REGULAR [@symbol "regular"]
@@ -684,7 +684,7 @@ call_kind:
 
 inline:
   | KWD_INLINE LPAREN KWD_ALWAYS RPAREN { Always_inline }
-  | KWD_INLINE LPAREN KWD_READY RPAREN { Ready_inline }
+  | KWD_INLINE LPAREN KWD_AVAILABLE RPAREN { Available_inline }
   | KWD_INLINE LPAREN KWD_NEVER RPAREN { Never_inline }
   | KWD_UNROLL LPAREN; i = plain_int; RPAREN { Inline_attribute.Unroll i }
   | KWD_INLINE LPAREN KWD_DEFAULT RPAREN { Default_inline }

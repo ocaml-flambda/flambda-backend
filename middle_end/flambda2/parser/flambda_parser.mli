@@ -76,7 +76,6 @@ type token =
   | KWD_REGULAR
   | KWD_REC_INFO
   | KWD_REC
-  | KWD_READY
   | KWD_PUSH
   | KWD_POP
   | KWD_NOTRACE
@@ -124,6 +123,7 @@ type token =
   | KWD_CCALL
   | KWD_BOXED
   | KWD_BLOCK
+  | KWD_AVAILABLE
   | KWD_ASR
   | KWD_APPLY
   | KWD_ANDWHERE

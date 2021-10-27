@@ -101,9 +101,9 @@ let create ~print_function_params_and_body code_id
     ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
   begin
     match stub, inline with
-    | true, (Ready_inline | Never_inline | Default_inline)
+    | true, (Available_inline | Never_inline | Default_inline)
     | ( false,
-        (Never_inline | Default_inline | Always_inline | Ready_inline | Unroll _)
+        (Never_inline | Default_inline | Always_inline | Available_inline | Unroll _)
       ) ->
       ()
     | true, (Always_inline | Unroll _) ->
