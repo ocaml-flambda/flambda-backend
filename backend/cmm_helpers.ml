@@ -281,8 +281,8 @@ let mk_not dbg cmm =
       Cop(Csubi, [Cconst_int (4, dbg); c], dbg)
 
 let mk_compare_ints_untagged dbg a1 a2 =
-  bind "int_cmp" a1 (fun a1 ->
-    bind "int_cmp" a2 (fun a2 ->
+  bind "int_cmp" a2 (fun a2 ->
+    bind "int_cmp" a1 (fun a1 ->
       let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
       let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
       sub_int op1 op2 dbg))
@@ -300,8 +300,8 @@ let mk_compare_ints dbg a1 a2 =
   | a1, a2 -> tag_int (mk_compare_ints_untagged dbg a1 a2) dbg
 
 let mk_compare_floats_untagged dbg a1 a2 =
-  bind "float_cmp" a1 (fun a1 ->
-    bind "float_cmp" a2 (fun a2 ->
+  bind "float_cmp" a2 (fun a2 ->
+    bind "float_cmp" a1 (fun a1 ->
       let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
       let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
       let op3 = Cop(Ccmpf(CFeq), [a1; a1], dbg) in
@@ -319,8 +319,8 @@ let mk_compare_floats_untagged dbg a1 a2 =
       add_int (sub_int op1 op2 dbg) (sub_int op3 op4 dbg) dbg))
 
 let mk_compare_floats dbg a1 a2 =
-  bind "float_cmp" a1 (fun a1 ->
-    bind "float_cmp" a2 (fun a2 ->
+  bind "float_cmp" a2 (fun a2 ->
+    bind "float_cmp" a1 (fun a1 ->
       let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
       let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
       let op3 = Cop(Ccmpf(CFeq), [a1; a1], dbg) in
@@ -543,8 +543,8 @@ let is_different_from x = function
   | _ -> false
 
 let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
-  bind "dividend" c1 (fun c1 ->
   bind "divisor" c2 (fun c2 ->
+  bind "dividend" c1 (fun c1 ->
     let c = mkop c1 c2 is_safe dbg in
     if Arch.division_crashes_on_overflow
     && (size_int = 4 || bi <> Primitive.Pint32)
@@ -2554,14 +2554,15 @@ let bytesset_unsafe arg1 arg2 arg3 dbg =
 
 let bytesset_safe arg1 arg2 arg3 dbg =
   return_unit dbg
-    (bind "str" arg1 (fun str ->
+    (bind "newval" (untag_int arg3 dbg) (fun newval ->
       bind "index" (untag_int arg2 dbg) (fun idx ->
+       bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cstore (Byte_unsigned, Assignment),
               [add_int str idx dbg;
-               ignore_high_bit_int (untag_int arg3 dbg)],
-              dbg)))))
+               ignore_high_bit_int newval],
+              dbg))))))
 
 let arrayset_unsafe kind arg1 arg2 arg3 dbg =
   return_unit dbg (match (kind: Lambda.array_kind) with
@@ -2649,17 +2650,17 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
-   (bind "str" arg1 (fun str ->
+   (bind "newval" arg3 (fun newval ->
     bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "newval" arg3 (fun newval ->
+    bind "str" arg1 (fun str ->
       check_bound unsafe size dbg (string_length str dbg)
                   idx (unaligned_set size str idx newval dbg)))))
 
 let bigstring_set size unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
-   (bind "ba" arg1 (fun ba ->
+   (bind "newval" arg3 (fun newval ->
     bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "newval" arg3 (fun newval ->
+    bind "ba" arg1 (fun ba ->
     bind "ba_data"
          (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
          (fun ba_data ->
@@ -2701,9 +2702,9 @@ let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality; } in
   if_operation_supported op ~f:(fun () ->
     let arg1, arg2 = two_args "bigstring_prefetch" args in
-    bind "ba" arg1 (fun ba ->
-      (* [arg2], the index, is already untagged. *)
-      bind "index" arg2 (fun idx ->
+    (* [arg2], the index, is already untagged. *)
+    bind "index" arg2 (fun idx ->
+      bind "ba" arg1 (fun ba ->
         bind "ba_data"
           (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
           (fun ba_data ->
