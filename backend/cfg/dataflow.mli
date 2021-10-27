@@ -37,6 +37,19 @@ module type S = sig
 
   type map = domain Label.Tbl.t
 
+  (** Perform the dataflow analysis on the passed CFG, returning [OK _] if a
+      fix-point has been reached and [Error _] otherwise, where the nested
+      value is a map from labels to the domain values at the start of the
+      corresponding blocks.
+
+      A fix-point is not reached if there is still pending work after
+      [max_iteration] (defaulting to [max_int]) have been executed. The [init]
+      function is used to initialize the analysis, giving the initial value for
+      each block in the map and whether the block is initially part of the
+      working set.
+
+      The need to have several blocks in the initial work set stems from the
+      fact that we currently need to consider all trap handlers as alive. *)
   val run :
     Cfg.t ->
     ?max_iteration:int ->
