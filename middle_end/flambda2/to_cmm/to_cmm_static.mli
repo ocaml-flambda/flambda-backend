@@ -33,6 +33,7 @@ val static_consts :
     To_cmm_result.t ->
     string ->
     Flambda.Function_params_and_body.t ->
+    fun_dbg:Debuginfo.t ->
     Cmm.fundecl * To_cmm_result.t) ->
   Bound_symbols.t ->
   Static_const_group.t ->

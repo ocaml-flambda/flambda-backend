@@ -401,9 +401,8 @@ and subst_params_and_body env params_and_body =
          ~free_names_of_body
        ->
       let body = subst_expr env body in
-      let dbg = Function_params_and_body.debuginfo params_and_body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~dbg ~body ~my_closure ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~free_names_of_body ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -1159,10 +1158,9 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
-               let dbg = Function_params_and_body.debuginfo params_and_body1 in
                Function_params_and_body.create ~return_continuation
-                 ~exn_continuation params ~dbg ~body:body1' ~my_closure
-                 ~my_depth ~free_names_of_body:Unknown))
+                 ~exn_continuation params ~body:body1' ~my_closure ~my_depth
+                 ~free_names_of_body:Unknown))
   in
 
   let bodies_or_deleted env body1 body2 : _ Or_deleted.t Comparison.t =
