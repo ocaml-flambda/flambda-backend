@@ -207,6 +207,7 @@ let destroyed_at_oper = function
   | Iop(Iintop Imulh) -> [| eax |]
   | Iop(Iintop(Icomp _) | Iintop_imm(Icomp _, _)) -> [| eax |]
   | Iop(Iintoffloat) -> [| eax |]
+  | Iop(Ibeginregion|Iendregion) -> [| eax; ebx |]
   | Iifthenelse(Ifloattest _, _, _) -> [| eax |]
   | Itrywith _ -> [| edx |]
   | _ -> [||]
@@ -235,6 +236,7 @@ let op_is_pure = function
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) -> false
   | Ispecific(Ilea _) -> true
   | Ispecific _ -> false
+  | Ibeginregion | Iendregion -> false
   | _ -> true
 
 (* Layout of the stack frame *)
