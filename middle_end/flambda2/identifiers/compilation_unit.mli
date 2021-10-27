@@ -32,6 +32,8 @@ val get_current : unit -> t option
 
 val get_current_exn : unit -> t
 
+val is_current : t -> bool
+
 val get_current_id_exn : unit -> Ident.t
 
 val string_for_printing : t -> string

@@ -99,6 +99,8 @@ let rename t = create ~name:(name t) (Compilation_unit.get_current_exn ())
 let in_compilation_unit t comp_unit =
   Compilation_unit.equal (get_compilation_unit t) comp_unit
 
+let is_imported t = not (Compilation_unit.is_current (get_compilation_unit t))
+
 let code_symbol t =
   let data = find_data t in
   Symbol.unsafe_create data.compilation_unit data.linkage_name
