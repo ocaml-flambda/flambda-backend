@@ -478,9 +478,6 @@ module Function_params_and_body : sig
       my_depth:Variable.t ->
       'a) ->
     'a
-
-  (** Return the arity of the function body *)
-  val params_arity : t -> Flambda_arity.t
 end
 
 module Static_const_or_code : sig

@@ -128,7 +128,6 @@ and function_params_and_body_base =
 and function_params_and_body =
   { abst :
       (Bound_for_function.t, function_params_and_body_base) Name_abstraction.t;
-    params_arity : Flambda_arity.t;
     is_my_closure_used : bool Or_unknown.t
   }
 
@@ -303,8 +302,8 @@ and apply_renaming_function_params_and_body_base { expr; free_names } renaming =
   in
   { expr; free_names }
 
-and apply_renaming_function_params_and_body
-    ({ abst; params_arity; is_my_closure_used } as t) renaming =
+and apply_renaming_function_params_and_body ({ abst; is_my_closure_used } as t)
+    renaming =
   let module A =
     Name_abstraction.Make_matching_and_renaming
       (Bound_for_function)
@@ -315,9 +314,7 @@ and apply_renaming_function_params_and_body
       end)
   in
   let abst' = A.apply_renaming abst renaming in
-  if abst == abst'
-  then t
-  else { abst = abst'; params_arity; is_my_closure_used }
+  if abst == abst' then t else { abst = abst'; is_my_closure_used }
 
 and apply_renaming_static_const_or_code
     (static_const_or_code : static_const_or_code) renaming :
@@ -447,8 +444,8 @@ and all_ids_for_export_recursive_let_cont_handlers t =
 and all_ids_for_export_function_params_and_body_base { expr; free_names = _ } =
   all_ids_for_export expr
 
-and all_ids_for_export_function_params_and_body
-    { abst; params_arity = _; is_my_closure_used = _ } =
+and all_ids_for_export_function_params_and_body { abst; is_my_closure_used = _ }
+    =
   let module A =
     Name_abstraction.Make_ids_for_export
       (Bound_for_function)
@@ -1097,10 +1094,7 @@ module Function_params_and_body = struct
         ~my_closure ~my_depth
     in
     let abst = A.create bound_for_function base in
-    { abst;
-      params_arity = Bound_parameter.List.arity params;
-      is_my_closure_used
-    }
+    { abst; is_my_closure_used }
 
   let print = print_function_params_and_body
 
@@ -1130,8 +1124,6 @@ module Function_params_and_body = struct
           ~body1 ~body2
           ~my_closure:(Bound_for_function.my_closure bound_for_function)
           ~my_depth:(Bound_for_function.my_depth bound_for_function))
-
-  let params_arity t = t.params_arity
 
   let apply_renaming = apply_renaming_function_params_and_body
 
