@@ -1,6 +1,9 @@
 (* TEST
  * bytecode
 *)
+
+(* The following examples have different output on bytecode and native.
+   The order of evaluation of arguments in cmm_helpers needs to be fixed. *)
 open Bigarray
 let () =
 (* CR gyorsh: fix bigarray_get  *)
@@ -22,3 +25,9 @@ let () =
     print_endline "?"
   in
   test_bigarray_set (Array1.create complex32 c_layout 3) 0;
+
+  (* CR gyorsh: fix send *)
+  let[@inline never] test_send o x =
+    (print_endline "A"; o)#m (print_endline "B"; x)
+  in
+  test_send (object method m (_ : int) = print_endline "m" end) 1
