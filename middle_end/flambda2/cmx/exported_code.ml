@@ -103,7 +103,13 @@ let add_code code t =
           let calling_convention =
             Calling_convention.compute ~params_and_body ~is_tupled
           in
-          Some (Present { code; calling_convention })
+          let cannot_be_inlined =
+            Code.inlining_decision code
+            |> Function_decl_inlining_decision_type.cannot_be_inlined
+          in
+          if cannot_be_inlined
+          then Some (Imported_or_non_inlinable { calling_convention })
+          else Some (Present { code; calling_convention })
         | Deleted ->
           (* CR lmaurer for vlaviron: Okay to just ignore deleted code? *)
           None)
