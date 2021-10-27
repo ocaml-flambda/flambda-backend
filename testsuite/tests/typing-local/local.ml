@@ -721,6 +721,34 @@ Line 3, characters 31-32:
 Error: The value x is local, so cannot be used inside a closure that might escape
 |}]
 
+(* Don't escape in non-function 'let rec' bindings *)
+let foo (local_ x) =
+  (* fine, local recursive function *)
+  let rec g () = let _ = x in h (); () and h () = g (); () in
+  g (); ()
+[%%expect {|
+val foo : local_ 'a -> unit = <fun>
+|}]
+
+let foo (local_ x) =
+  (* fine, local non-recursive binding *)
+  let _ = (x, 1) in
+  1
+[%%expect {|
+val foo : local_ 'a -> int = <fun>
+|}]
+
+let foo (local_ x) =
+  (* not fine, local recursive non-function (needs caml_alloc_dummy) *)
+  let rec g = x :: g in
+  let _ = g in ()
+[%%expect {|
+Line 3, characters 14-15:
+3 |   let rec g = x :: g in
+                  ^
+Error: The value x is local, so cannot be used here as it might escape
+|}]
+
 (* Cannot pass local values to tail calls *)
 
 let print (local_ x) = print_string !x

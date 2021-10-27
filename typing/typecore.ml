@@ -5072,10 +5072,23 @@ and type_let
     | _ ->
         false
   in
+  let rec sexp_is_fun e =
+    match e.pexp_desc with
+    | Pexp_fun _ | Pexp_function _ -> true
+    | Pexp_constraint (e, _)
+    | Pexp_newtype (_, e)
+    | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+       [Nolabel, e]) -> sexp_is_fun e
+    | _ -> false
+  in
+  let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
+  let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
   let check = if is_fake_let then check_strict else check in
   let rec_mode_var =
     match rec_flag with
-    | Recursive -> Some (Alloc_mode.newvar ())
+    | Recursive when entirely_functions -> Some (Alloc_mode.newvar ())
+    | Recursive -> Some alloc_heap
     | Nonrecursive -> None
   in
   let spatl =
@@ -5140,14 +5153,9 @@ and type_let
   in
   (* Only bind pattern variables after generalizing *)
   List.iter (fun f -> f()) force;
-  let sexp_is_fun { pvb_expr = sexp; _ } =
-    match sexp.pexp_desc with
-    | Pexp_fun _ | Pexp_function _ -> true
-    | _ -> false
-  in
   let exp_env =
     if is_recursive then new_env
-    else if List.for_all sexp_is_fun spat_sexp_list
+    else if entirely_functions
     then begin
       (* Add ghost bindings to help detecting missing "rec" keywords.
 

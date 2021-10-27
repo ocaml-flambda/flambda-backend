@@ -957,6 +957,11 @@ and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
         let lam =
           Translattribute.add_function_attributes lam vb_loc vb_attributes
         in
+        begin match transl_alloc_mode expr.exp_mode, lam with
+        | Alloc_heap, _ -> ()
+        | Alloc_local, Lfunction _ -> ()
+        | _ -> Misc.fatal_error "transl_let: local recursive non-function"
+        end;
         (id, lam) in
       let lam_bds = List.map2 transl_case pat_expr_list idlist in
       fun body -> maybe_region mode bound_modes (Lletrec(lam_bds, body))
