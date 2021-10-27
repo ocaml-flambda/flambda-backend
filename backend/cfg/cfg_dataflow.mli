@@ -38,8 +38,8 @@ module type S = sig
   type map = domain Label.Tbl.t
 
   (** Perform the dataflow analysis on the passed CFG, returning [OK _] if a
-      fix-point has been reached and [Error _] otherwise, where the nested
-      value is a map from labels to the domain values at the start of the
+      fix-point has been reached and [Error _] otherwise, where the nested value
+      is a map from labels to the domain values at the start of the
       corresponding blocks.
 
       A fix-point is not reached if there is still pending work after
