@@ -32,17 +32,12 @@ end
 module type S = sig
   type domain
 
-  type init =
-    { value : domain;
-      in_work_set : bool
-    }
-
   type map = domain Label.Tbl.t
 
   val run :
     Cfg.t ->
     ?max_iteration:int ->
-    init:(Cfg.basic_block -> init) ->
+    init:(Cfg.basic_block -> domain option) ->
     unit ->
     (map, map) Result.t
 end
@@ -52,11 +47,6 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
   type domain = D.t
 
   type transfer = T.t
-
-  type init =
-    { value : domain;
-      in_work_set : bool
-    }
 
   type map = domain Label.Tbl.t
 
@@ -89,15 +79,15 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     in
     { normal; exceptional }
 
-  let create : Cfg.t -> init:(Cfg.basic_block -> init) -> map * WorkSet.t ref =
+  let create :
+      Cfg.t -> init:(Cfg.basic_block -> domain option) -> map * WorkSet.t ref =
    fun cfg ~init ->
     let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
     Cfg.iter_blocks cfg ~f:(fun label block ->
-        let { value; in_work_set } = init block in
-        Label.Tbl.replace map label value;
-        if in_work_set
-        then set := WorkSet.add { WorkSetElement.label; value } !set);
+        match init block with
+        | None -> ()
+        | Some value -> set := WorkSet.add { WorkSetElement.label; value } !set);
     if WorkSet.is_empty !set
     then Misc.fatal_error "Dataflow.Forward.create: empty initial work set";
     map, set
@@ -112,7 +102,7 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
   let run :
       Cfg.t ->
       ?max_iteration:int ->
-      init:(Cfg.basic_block -> init) ->
+      init:(Cfg.basic_block -> domain option) ->
       unit ->
       (map, map) Result.t =
    fun cfg ?(max_iteration = max_int) ~init () ->
@@ -127,7 +117,11 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
       let update ~normal ~exn value =
         Label.Set.iter
           (fun successor_label ->
-            let old_value = Label.Tbl.find res successor_label in
+            let old_value =
+              Option.value
+                (Label.Tbl.find_opt res successor_label)
+                ~default:D.bot
+            in
             let new_value = D.join old_value value in
             if not (D.compare new_value old_value <= 0)
             then begin
@@ -197,8 +191,8 @@ let run_dead_block : Cfg_with_layout.t -> unit =
   let is_trap_handler label = (Cfg.get_block_exn cfg label).is_trap_handler in
   let init { Cfg.start; _ } =
     if is_entry_label start || is_trap_handler start
-    then { Dataflow.value = Domain.Reachable; in_work_set = true }
-    else { Dataflow.value = Domain.Unreachable; in_work_set = false }
+    then Some Domain.Reachable
+    else None
   in
   match Dataflow.run cfg ~init () with
   | Result.Error _ ->

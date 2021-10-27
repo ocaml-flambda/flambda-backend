@@ -30,11 +30,6 @@ end
 module type S = sig
   type domain
 
-  type init =
-    { value : domain;
-      in_work_set : bool
-    }
-
   type map = domain Label.Tbl.t
 
   (** Perform the dataflow analysis on the passed CFG, returning [OK _] if a
@@ -53,7 +48,7 @@ module type S = sig
   val run :
     Cfg.t ->
     ?max_iteration:int ->
-    init:(Cfg.basic_block -> init) ->
+    init:(Cfg.basic_block -> domain option) ->
     unit ->
     (map, map) Result.t
 end
