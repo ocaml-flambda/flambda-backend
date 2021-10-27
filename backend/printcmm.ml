@@ -20,6 +20,10 @@ open Cmm
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
+open Location_tracker_formatter
+
+let with_location_mapping ?label ~dbg ppf f =
+  with_location_mapping ?label ~loc:(Debuginfo.to_location dbg) ppf f
 
 let rec_flag ppf = function
   | Nonrecursive -> ()
@@ -257,6 +261,7 @@ let rec expr ppf = function
         el in
       fprintf ppf "@[<1>[%a]@]" tuple el
   | Cop(op, el, dbg) ->
+      with_location_mapping ~label:"Cop" ~dbg ppf (fun () ->
       fprintf ppf "@[<2>(%s" (operation dbg op);
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
@@ -266,12 +271,19 @@ let rec expr ppf = function
         fprintf ppf "@ %a" extcall_signature (ty, ty_args)
       | _ -> ()
       end;
-      fprintf ppf ")@]"
+      fprintf ppf ")@]")
   | Csequence(e1, e2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" sequence e1 sequence e2
-  | Cifthenelse(e1, _e2_dbg, e2, _e3_dbg, e3, _dbg) ->
-      fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" expr e1 expr e2 expr e3
-  | Cswitch(e1, index, cases, _dbg) ->
+  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg) ->
+      with_location_mapping ~label:"Cifthenelse-e1" ~dbg ppf (fun () ->
+      fprintf ppf "@[<2>(if@ %a@ " expr e1;
+      with_location_mapping ~label:"Cifthenelse-e2" ~dbg:e2_dbg ppf (fun () ->
+      fprintf ppf "%a@ " expr e2);
+      with_location_mapping ~label:"Cifthenelse-e3" ~dbg:e3_dbg ppf (fun () ->
+      fprintf ppf "%a" expr e3);
+      fprintf ppf ")@]")
+  | Cswitch(e1, index, cases, dbg) ->
+      with_location_mapping ~label:"Cswitch" ~dbg ppf (fun () ->
       let print_case i ppf =
         for j = 0 to Array.length index - 1 do
           if index.(j) = i then fprintf ppf "case %i:" j
@@ -280,9 +292,10 @@ let rec expr ppf = function
        for i = 0 to Array.length cases - 1 do
         fprintf ppf "@ @[<2>%t@ %a@]" (print_case i) sequence (fst cases.(i))
        done in
-      fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases
+      fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases)
   | Ccatch(flag, handlers, e1) ->
-      let print_handler ppf (i, ids, e2, _dbg) =
+      let print_handler ppf (i, ids, e2, dbg) =
+        with_location_mapping ~label:"Ccatch-handler" ~dbg ppf (fun () ->
         fprintf ppf "(%d%a)@ %a"
           i
           (fun ppf ids ->
@@ -291,7 +304,7 @@ let rec expr ppf = function
                  fprintf ppf "@ %a: %a"
                    VP.print id machtype ty)
                ids) ids
-          sequence e2
+          sequence e2)
       in
       let print_handlers ppf l =
         List.iter (print_handler ppf) l
@@ -305,9 +318,11 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, kind, id, e2, _dbg) ->
-      fprintf ppf "@[<2>(try%a@ %a@;<1 -2>with@ %a@ %a)@]"
-             trywith_kind kind sequence e1 VP.print id sequence e2
+  | Ctrywith(e1, kind, id, e2, dbg) ->
+      fprintf ppf "@[<2>(try%a@ %a@;<1 -2>with@ %a@ "
+            trywith_kind kind sequence e1 VP.print id;
+      with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
+            fprintf ppf "%a)@]" sequence e2);
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2
@@ -323,9 +338,10 @@ let fundecl ppf f =
        if !first then first := false else fprintf ppf "@ ";
        fprintf ppf "%a: %a" VP.print id machtype ty)
      cases in
+  with_location_mapping ~label:"Function" ~dbg:f.fun_dbg ppf (fun () ->
   fprintf ppf "@[<1>(function%s %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
          (location f.fun_dbg) f.fun_name
-         print_cases f.fun_args sequence f.fun_body
+         print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function
   | Cdefine_symbol s -> fprintf ppf "\"%s\":" s
