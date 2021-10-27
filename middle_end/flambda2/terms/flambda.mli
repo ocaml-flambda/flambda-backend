@@ -478,6 +478,8 @@ module Function_params_and_body : sig
       my_depth:Variable.t ->
       'a) ->
     'a
+
+  val is_my_closure_used : t -> bool
 end
 
 module Static_const_or_code : sig

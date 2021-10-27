@@ -32,7 +32,8 @@ val create_code :
   Are_rebuilding_terms.t ->
   Code_id.t ->
   params_and_body:
-    (Rebuilt_expr.Function_params_and_body.t * Name_occurrences.t) Or_deleted.t ->
+    (Rebuilt_expr.Function_params_and_body.t * Name_occurrences.t)
+    Code.Params_and_body_state.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->

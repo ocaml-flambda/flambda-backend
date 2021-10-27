@@ -16,20 +16,26 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+module Params_and_body_state : sig
+  type 'function_params_and_body t = private
+    | Inlinable of 'function_params_and_body
+    | Non_inlinable of { is_my_closure_used : bool }
+    | Cannot_be_called
+
+  val inlinable : 'function_params_and_body -> 'function_params_and_body t
+
+  val non_inlinable : is_my_closure_used:bool -> _ t
+
+  val cannot_be_called : _ t
+end
+
 type 'function_params_and_body t
 
 val code_id : 'function_params_and_body t -> Code_id.t
 
 val params_and_body :
-  'function_params_and_body t -> 'function_params_and_body Or_deleted.t
-
-val params_and_body_opt :
-  'function_params_and_body t -> 'function_params_and_body option
-
-val params_and_body_must_be_present :
-  error_context:string ->
   'function_params_and_body t ->
-  'function_params_and_body
+  'function_params_and_body Params_and_body_state.t
 
 val newer_version_of : 'function_params_and_body t -> Code_id.t option
 
@@ -60,7 +66,8 @@ val create :
   print_function_params_and_body:
     (Format.formatter -> 'function_params_and_body -> unit) ->
   Code_id.t (** needed for [compare], although useful otherwise too *) ->
-  params_and_body:('function_params_and_body * Name_occurrences.t) Or_deleted.t ->
+  params_and_body:
+    ('function_params_and_body * Name_occurrences.t) Params_and_body_state.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
@@ -81,7 +88,7 @@ val with_code_id :
 val with_params_and_body :
   print_function_params_and_body:
     (Format.formatter -> 'function_params_and_body -> unit) ->
-  ('function_params_and_body * Name_occurrences.t) Or_deleted.t ->
+  ('function_params_and_body * Name_occurrences.t) Params_and_body_state.t ->
   cost_metrics:Cost_metrics.t ->
   'function_params_and_body t ->
   'function_params_and_body t
@@ -89,9 +96,17 @@ val with_params_and_body :
 val with_newer_version_of :
   Code_id.t option -> 'function_params_and_body t -> 'function_params_and_body t
 
-val make_deleted : 'function_params_and_body t -> 'function_params_and_body t
+(** Note that this forgets the actual code of the function, so should only be
+    used e.g. when preparing a value of type [_ t] for a .cmx file. *)
+val make_non_inlinable :
+  'function_params_and_body t ->
+  is_my_closure_used:('function_params_and_body -> bool) ->
+  'function_params_and_body t
 
-val is_deleted : 'function_params_and_body t -> bool
+val make_not_callable :
+  'function_params_and_body t -> 'function_params_and_body t
+
+val is_non_callable : 'function_params_and_body t -> bool
 
 val free_names : _ t -> Name_occurrences.t
 

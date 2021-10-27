@@ -201,7 +201,14 @@ let inline dacc ~apply ~unroll_to function_decl =
   in
   let denv = DE.enter_inlined_apply ~called_code:code ~apply denv in
   let params_and_body =
-    Code.params_and_body_must_be_present code ~error_context:"Inlining"
+    match Code.params_and_body code with
+    | Inlinable params_and_body -> params_and_body
+    | Non_inlinable _ ->
+      Misc.fatal_errorf "Cannot inline function in non-inlinable state:@ %a"
+        Code.print code
+    | Cannot_be_called ->
+      Misc.fatal_errorf "Cannot inline function in cannot-be-called state:@ %a"
+        Code.print code
   in
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun

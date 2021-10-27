@@ -375,7 +375,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     let code : Static_const_or_code.t =
       let code =
         Code.create code_id
-          ~params_and_body:(Present (params_and_body, free_names))
+          ~params_and_body:
+            (Code.Params_and_body_state.inlinable (params_and_body, free_names))
           ~newer_version_of:None
           ~params_arity:(BP.List.arity_with_subkinds remaining_params)
           ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
@@ -724,8 +725,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     match DE.find_code denv callee's_code_id_from_type with
     | None ->
       (* This will happen e.g. if the code age relation used in [meet] and
-         [join] for function declaration types returns [Deleted] code for a code
-         ID in another unit. *)
+         [join] for function declaration types returns [Cannot_be_called] code
+         for a code ID in another unit. *)
       type_unavailable ()
     | Some callee's_code ->
       let must_be_detupled =

@@ -1128,6 +1128,11 @@ module Function_params_and_body = struct
   let apply_renaming = apply_renaming_function_params_and_body
 
   let all_ids_for_export = all_ids_for_export_function_params_and_body
+
+  let is_my_closure_used t =
+    match t.is_my_closure_used with
+    | Unknown -> true
+    | Known is_my_closure_used -> is_my_closure_used
 end
 
 module Let_expr = struct
@@ -1403,7 +1408,7 @@ module Static_const_group = struct
   let pieces_of_code t =
     List.filter_map Static_const_or_code.to_code t
     |> List.filter_map (fun code ->
-           if Code0.is_deleted code
+           if Code0.is_non_callable code
            then None
            else Some (Code0.code_id code, code))
     |> Code_id.Map.of_list

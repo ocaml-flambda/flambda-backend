@@ -52,19 +52,11 @@ module Calling_convention = struct
     && Flambda_arity.equal params_arity1 params_arity2
     && Bool.equal is_tupled1 is_tupled2
 
-  let compute ~params_and_body ~is_tupled =
-    let f ~return_continuation:_ ~exn_continuation:_ params ~body:_
-        ~my_closure:_ ~(is_my_closure_used : _ Or_unknown.t) ~my_depth:_
-        ~free_names_of_body:_ =
-      let is_my_closure_used =
-        match is_my_closure_used with
-        | Unknown -> true
-        | Known is_my_closure_used -> is_my_closure_used
-      in
-      let params_arity = Bound_parameter.List.arity params in
-      { needs_closure_arg = is_my_closure_used; params_arity; is_tupled }
-    in
-    P.pattern_match params_and_body ~f
+  let compute code ~is_my_closure_used =
+    { needs_closure_arg = is_my_closure_used;
+      params_arity = C.params_arity code |> Flambda_arity.With_subkinds.to_arity;
+      is_tupled = C.is_tupled code
+    }
 end
 
 type t0 =
@@ -97,15 +89,24 @@ let add_code code t =
     Code_id.Map.filter_map
       (fun _code_id code ->
         match C.params_and_body code with
-        | Present params_and_body ->
-          let is_tupled = C.is_tupled code in
+        | Inlinable params_and_body ->
+          let is_my_closure_used = P.is_my_closure_used params_and_body in
           let calling_convention =
-            Calling_convention.compute ~params_and_body ~is_tupled
+            Calling_convention.compute code ~is_my_closure_used
+          in
+          let code =
+            if Function_decl_inlining_decision_type.cannot_be_inlined
+                 (C.inlining_decision code)
+            then C.make_non_inlinable code
+            else code
           in
           Some (Present { code; calling_convention })
-        | Deleted ->
-          (* CR lmaurer for vlaviron: Okay to just ignore deleted code? *)
-          None)
+        | Non_inlinable { is_my_closure_used } ->
+          let calling_convention =
+            Calling_convention.compute code ~is_my_closure_used
+          in
+          Some (Present { code; calling_convention })
+        | Cannot_be_called -> None)
       code
   in
   Code_id.Map.disjoint_union with_calling_convention t

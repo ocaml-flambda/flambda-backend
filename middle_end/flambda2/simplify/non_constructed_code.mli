@@ -23,7 +23,7 @@ type t = unit Code0.t
 
 val code_id : t -> Code_id.t
 
-val is_deleted : t -> bool
+val is_non_callable : t -> bool
 
 val newer_version_of : t -> Code_id.t option
 
@@ -51,7 +51,7 @@ val inlining_decision : t -> Function_decl_inlining_decision_type.t
 
 val create :
   Code_id.t ->
-  free_names_of_params_and_body:Name_occurrences.t Or_deleted.t ->
+  free_names_of_params_and_body:Name_occurrences.t Code.Params_and_body_state.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
@@ -70,4 +70,4 @@ include Contains_names.S with type t := t
 
 val print : Format.formatter -> t -> unit
 
-val make_deleted : t -> t
+val make_not_callable : t -> t

@@ -16,9 +16,32 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+module Params_and_body_state = struct
+  type 'function_params_and_body t =
+    | Inlinable of 'function_params_and_body
+    | Non_inlinable of { is_my_closure_used : bool }
+    | Cannot_be_called
+
+  let inlinable params_and_body = Inlinable params_and_body
+
+  let non_inlinable ~is_my_closure_used = Non_inlinable { is_my_closure_used }
+
+  let cannot_be_called = Cannot_be_called
+
+  let print print_params_and_body ppf t =
+    match t with
+    | Inlinable params_and_body ->
+      Format.fprintf ppf "@[<hov 1>(Inlinable@ %a)@]" print_params_and_body
+        params_and_body
+    | Non_inlinable { is_my_closure_used } ->
+      Format.fprintf ppf "@[<hov 1>(Non_inlinable@ (is_my_closure_used@ %b))@]"
+        is_my_closure_used
+    | Cannot_be_called -> Format.fprintf ppf "Cannot_be_called"
+end
+
 type 'function_params_and_body t =
   { code_id : Code_id.t;
-    params_and_body : 'function_params_and_body Or_deleted.t;
+    params_and_body : 'function_params_and_body Params_and_body_state.t;
     free_names_of_params_and_body : Name_occurrences.t;
     newer_version_of : Code_id.t option;
     params_arity : Flambda_arity.With_subkinds.t;
@@ -37,16 +60,6 @@ type 'function_params_and_body t =
 let code_id { code_id; _ } = code_id
 
 let params_and_body { params_and_body; _ } = params_and_body
-
-let params_and_body_opt { params_and_body; _ } =
-  match params_and_body with
-  | Deleted -> None
-  | Present params_and_body -> Some params_and_body
-
-let params_and_body_must_be_present ~error_context { params_and_body; _ } =
-  match params_and_body with
-  | Deleted -> Misc.fatal_errorf "%s: params and body are deleted" error_context
-  | Present params_and_body -> params_and_body
 
 let newer_version_of { newer_version_of; _ } = newer_version_of
 
@@ -73,11 +86,11 @@ let is_tupled { is_tupled; _ } = is_tupled
 let inlining_decision { inlining_decision; _ } = inlining_decision
 
 let check_params_and_body ~print_function_params_and_body code_id
-    (params_and_body : _ Or_deleted.t) =
+    (params_and_body : _ Params_and_body_state.t) =
   let free_names_of_params_and_body =
     match params_and_body with
-    | Deleted -> Name_occurrences.empty
-    | Present (params_and_body, free_names_of_params_and_body) ->
+    | Cannot_be_called | Non_inlinable _ -> Name_occurrences.empty
+    | Inlinable (params_and_body, free_names_of_params_and_body) ->
       if not
            (Name_occurrences.no_continuations free_names_of_params_and_body
            && Name_occurrences.no_variables free_names_of_params_and_body)
@@ -88,17 +101,20 @@ let check_params_and_body ~print_function_params_and_body code_id
           code_id print_function_params_and_body params_and_body;
       free_names_of_params_and_body
   in
-  let params_and_body : _ Or_deleted.t =
+  let params_and_body : _ Params_and_body_state.t =
     match params_and_body with
-    | Deleted -> Deleted
-    | Present (params_and_body, _) -> Present params_and_body
+    | Cannot_be_called -> Cannot_be_called
+    | Non_inlinable { is_my_closure_used } ->
+      Non_inlinable { is_my_closure_used }
+    | Inlinable (params_and_body, _) -> Inlinable params_and_body
   in
   params_and_body, free_names_of_params_and_body
 
 let create ~print_function_params_and_body code_id
-    ~(params_and_body : _ Or_deleted.t) ~newer_version_of ~params_arity
-    ~result_arity ~stub ~(inline : Inline_attribute.t) ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
+    ~(params_and_body : _ Params_and_body_state.t) ~newer_version_of
+    ~params_arity ~result_arity ~stub ~(inline : Inline_attribute.t)
+    ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~inlining_decision =
   begin
     match stub, inline with
     | true, (Available_inline | Never_inline | Default_inline)
@@ -131,6 +147,21 @@ let create ~print_function_params_and_body code_id
     inlining_decision
   }
 
+let make_non_inlinable t ~is_my_closure_used =
+  match t.params_and_body with
+  | Inlinable params_and_body ->
+    { t with
+      params_and_body =
+        Params_and_body_state.non_inlinable
+          ~is_my_closure_used:(is_my_closure_used params_and_body);
+      free_names_of_params_and_body = Name_occurrences.empty
+    }
+  | Non_inlinable _ -> t
+  | Cannot_be_called ->
+    Misc.fatal_errorf
+      "A piece of code in [Cannot_be_called] state cannot be transitioned to \
+       [Non_inlinable] state"
+
 let with_code_id code_id t = { t with code_id }
 
 let with_params_and_body ~print_function_params_and_body params_and_body
@@ -159,7 +190,7 @@ let [@ocamlformat "disable"] print ~print_function_params_and_body ppf
         dbg; is_tupled; inlining_decision; } =
   let module C = Flambda_colours in
   match params_and_body with
-  | Present _ ->
+  | Inlinable _  ->
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
         @[<hov 1>@<0>%s(stub@ %b)@<0>%s@]@ \
@@ -224,11 +255,14 @@ let [@ocamlformat "disable"] print ~print_function_params_and_body ppf
       is_tupled
       (Flambda_colours.normal ())
       Function_decl_inlining_decision_type.print inlining_decision
-      (Or_deleted.print print_function_params_and_body) params_and_body
-  | Deleted ->
+      (Params_and_body_state.print print_function_params_and_body) params_and_body
+  | Non_inlinable { is_my_closure_used } ->
+    Format.fprintf ppf "@[<hov 1>(Non_inlinable@ (is_my_closure_used@ %b))@]"
+      is_my_closure_used
+  | Cannot_be_called ->
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
-        Deleted\
+        Cannot_be_called\
         )@]"
       (if Option.is_none newer_version_of then Flambda_colours.elide ()
       else Flambda_colours.normal ())
@@ -276,16 +310,18 @@ let apply_renaming ~apply_renaming_function_params_and_body
       if code_id == code_id' then newer_version_of else Some code_id'
   in
   let code_id' = Renaming.apply_code_id perm code_id in
-  let params_and_body' : _ Or_deleted.t =
+  let params_and_body' =
     match params_and_body with
-    | Deleted -> Deleted
-    | Present params_and_body_inner ->
+    | Cannot_be_called -> Params_and_body_state.cannot_be_called
+    | Non_inlinable { is_my_closure_used } ->
+      Params_and_body_state.non_inlinable ~is_my_closure_used
+    | Inlinable params_and_body_inner ->
       let params_and_body_inner' =
         apply_renaming_function_params_and_body params_and_body_inner perm
       in
       if params_and_body_inner == params_and_body_inner'
       then params_and_body
-      else Present params_and_body_inner'
+      else Params_and_body_state.inlinable params_and_body_inner'
   in
   if params_and_body == params_and_body'
      && code_id == code_id'
@@ -313,7 +349,7 @@ let all_ids_for_export ~all_ids_for_export_function_params_and_body
       is_a_functor = _;
       recursive = _;
       cost_metrics = _;
-      free_names_of_params_and_body = _;
+      free_names_of_params_and_body;
       inlining_arguments = _;
       dbg = _;
       is_tupled = _;
@@ -326,19 +362,29 @@ let all_ids_for_export ~all_ids_for_export_function_params_and_body
   in
   let params_and_body_ids =
     match params_and_body with
-    | Deleted -> Ids_for_export.empty
-    | Present params_and_body ->
+    | Cannot_be_called -> Ids_for_export.empty
+    | Inlinable params_and_body ->
       all_ids_for_export_function_params_and_body params_and_body
+    | Non_inlinable { is_my_closure_used = _ } ->
+      (* Usually the ids for export collected from the [params_and_body] in the
+         inlinable case are used to rename [free_names_of_params_and_body] upon
+         import. Since we don't know what those ids for export are in the
+         non-inlinable case, we double-check that the
+         [free_names_of_params_and_body] field has been correctly cleared. *)
+      assert (Name_occurrences.is_empty free_names_of_params_and_body);
+      Ids_for_export.empty
   in
   Ids_for_export.add_code_id
     (Ids_for_export.union newer_version_of_ids params_and_body_ids)
     code_id
 
-let make_deleted t =
+let make_not_callable t =
   { t with
-    params_and_body = Deleted;
+    params_and_body = Cannot_be_called;
     free_names_of_params_and_body = Name_occurrences.empty
   }
 
-let is_deleted t =
-  match t.params_and_body with Deleted -> true | Present _ -> false
+let is_non_callable t =
+  match t.params_and_body with
+  | Cannot_be_called -> true
+  | Inlinable _ | Non_inlinable _ -> false

@@ -701,8 +701,10 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
       in
       let param_arity =
         match Code.params_and_body code with
-        | Deleted -> Some (arity (Code.params_arity code))
-        | Present _ -> None
+        | Cannot_be_called -> Some (arity (Code.params_arity code))
+        | Inlinable _ | Non_inlinable _ -> None
+        (* CR mshinwell: I don't understand this, why can't Code.params_arity
+           always be used? *)
         (* arity will be determined from params *)
       in
       let ret_arity =
@@ -717,10 +719,12 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         | other -> Some other
       in
       let is_tupled = Code.is_tupled code in
-      let params_and_body : Fexpr.params_and_body Fexpr.or_deleted =
+      let params_and_body : Fexpr.params_and_body Fexpr.params_and_body_state =
         match Code.params_and_body code with
-        | Deleted -> Deleted
-        | Present params_and_body ->
+        | Cannot_be_called -> Cannot_be_called
+        | Non_inlinable { is_my_closure_used } ->
+          Non_inlinable { is_my_closure_used }
+        | Inlinable params_and_body ->
           let params_and_body =
             Flambda.Function_params_and_body.pattern_match params_and_body
               ~f:(fun
@@ -748,7 +752,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
                 (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
                 { params; ret_cont; exn_cont; closure_var; depth_var; body })
           in
-          Present params_and_body
+          Inlinable params_and_body
       in
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int

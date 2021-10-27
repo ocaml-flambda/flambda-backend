@@ -702,7 +702,7 @@ and code_binding ppf
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
     newer_version_of code_id id;
   match params_and_body with
-  | Deleted ->
+  | Cannot_be_called ->
     let pp_arity ppf =
       match param_arity with
       | None -> Format.print_string "???" (* invalid *)
@@ -714,7 +714,8 @@ and code_binding ppf
     Format.fprintf ppf "@ deleted :@ %a%t -> %a@]"
       (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
       is_tupled pp_arity arity ret_arity
-  | Present { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
+  | Non_inlinable _ -> Misc.fatal_error "Non_inlinable not yet supported"
+  | Inlinable { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
     Format.fprintf ppf "%a@ %a@ %a@ -> %a@ * %a%a%a@] =@ %a"
       (kinded_parameters ~space:Before)
       params variable closure_var variable depth_var continuation_id ret_cont

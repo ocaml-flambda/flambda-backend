@@ -51,7 +51,8 @@ let name_static env name =
   Name.pattern_match name
     ~var:(fun v -> env, `Var v)
     ~symbol:(fun s ->
-      ( Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s),
+      ( Env.check_scope ~allow_cannot_be_called:false env
+          (Code_id_or_symbol.Symbol s),
         `Data [C.symbol_address (symbol s)] ))
 
 let const_static _env cst =
@@ -75,7 +76,8 @@ let simple_static env s =
 let static_value env v =
   match (v : Field_of_static_block.t) with
   | Symbol s ->
-    ( Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s),
+    ( Env.check_scope ~allow_cannot_be_called:false env
+        (Code_id_or_symbol.Symbol s),
       C.symbol_address (symbol s) )
   | Dynamically_computed _ -> env, C.cint 1n
   | Tagged_immediate i ->
@@ -236,12 +238,12 @@ let update_env_for_code env (code : Code.t) =
     match Code.newer_version_of code with
     | None -> env
     | Some code_id ->
-      Env.check_scope ~allow_deleted:true env
+      Env.check_scope ~allow_cannot_be_called:true env
         (Code_id_or_symbol.Code_id code_id)
   in
   match Code.params_and_body code with
-  | Deleted -> Env.mark_code_id_as_deleted env code_id
-  | Present _ ->
+  | Cannot_be_called -> Env.mark_code_id_as_cannot_be_called env code_id
+  | Non_inlinable _ | Inlinable _ ->
     (* Function info should already have been computed *)
     env
 
@@ -253,8 +255,8 @@ let add_function env r ~params_and_body code_id p ~fun_dbg =
 
 let add_functions env ~params_and_body r (code : Code.t) =
   match Code.params_and_body code with
-  | Deleted -> r
-  | Present p ->
+  | Cannot_be_called | Non_inlinable _ -> r
+  | Inlinable p ->
     add_function env r ~params_and_body (Code.code_id code) p
       ~fun_dbg:(Code.dbg code)
 

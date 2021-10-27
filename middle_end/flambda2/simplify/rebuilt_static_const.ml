@@ -35,17 +35,19 @@ let create_normal_non_code const =
       free_names = Static_const.free_names const
     }
 
-let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
-    ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~inlining_decision =
+let create_code are_rebuilding code_id
+    ~(params_and_body : _ Code.Params_and_body_state.t) ~newer_version_of
+    ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let free_names_of_params_and_body : _ Or_deleted.t =
+    let free_names_of_params_and_body =
       match params_and_body with
-      | Present (_, free_names_of_params_and_body) ->
-        Present free_names_of_params_and_body
-      | Deleted -> Deleted
+      | Inlinable (_, free_names_of_params_and_body) ->
+        Code.Params_and_body_state.inlinable free_names_of_params_and_body
+      | Non_inlinable { is_my_closure_used } ->
+        Code.Params_and_body_state.non_inlinable ~is_my_closure_used
+      | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
     in
     let non_constructed_code =
       Non_constructed_code.create code_id ~free_names_of_params_and_body
@@ -57,12 +59,14 @@ let create_code are_rebuilding code_id ~(params_and_body : _ Or_deleted.t)
   else
     let params_and_body =
       match params_and_body with
-      | Present (params_and_body, free_names_of_params_and_body) ->
-        Or_deleted.Present
+      | Inlinable (params_and_body, free_names_of_params_and_body) ->
+        Code.Params_and_body_state.inlinable
           ( Rebuilt_expr.Function_params_and_body.to_function_params_and_body
               params_and_body are_rebuilding,
             free_names_of_params_and_body )
-      | Deleted -> Or_deleted.Deleted
+      | Non_inlinable { is_my_closure_used } ->
+        Code.Params_and_body_state.non_inlinable ~is_my_closure_used
+      | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
     in
     let code =
       Code.create code_id ~params_and_body ~newer_version_of ~params_arity
@@ -204,13 +208,13 @@ let make_all_code_deleted t =
     match Static_const_or_code.to_code const with
     | None -> t
     | Some code ->
-      let code = Code.make_deleted code in
+      let code = Code.make_not_callable code in
       let const = Static_const_or_code.create_code code in
       Normal { const; free_names = Code.free_names code }
   end
   | Non_code_not_rebuilt _ -> t
   | Code_not_rebuilt code ->
-    Code_not_rebuilt (Non_constructed_code.make_deleted code)
+    Code_not_rebuilt (Non_constructed_code.make_not_callable code)
 
 let make_code_deleted t ~if_code_id_is_member_of =
   match t with
@@ -220,7 +224,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
     | Some code ->
       if Code_id.Set.mem (Code.code_id code) if_code_id_is_member_of
       then
-        let code = Code.make_deleted code in
+        let code = Code.make_not_callable code in
         let const = Static_const_or_code.create_code code in
         Normal { const; free_names = Code.free_names code }
       else t
@@ -230,7 +234,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
     if Code_id.Set.mem
          (Non_constructed_code.code_id code)
          if_code_id_is_member_of
-    then Code_not_rebuilt (Non_constructed_code.make_deleted code)
+    then Code_not_rebuilt (Non_constructed_code.make_not_callable code)
     else t
 
 module Group = struct
@@ -277,7 +281,9 @@ module Group = struct
     in
     consts
     |> List.filter_map (fun code ->
-           if Code.is_deleted code then None else Some (Code.code_id code, code))
+           if Code.is_non_callable code
+           then None
+           else Some (Code.code_id code, code))
     |> Code_id.Map.of_list
 
   let function_params_and_body_for_code_not_rebuilt =
@@ -298,11 +304,11 @@ module Group = struct
           | Code_not_rebuilt code ->
             let module NCC = Non_constructed_code in
             (* See comment in the .mli. *)
-            let params_and_body : _ Or_deleted.t =
-              if NCC.is_deleted code
-              then Deleted
+            let params_and_body =
+              if NCC.is_non_callable code
+              then Code.Params_and_body_state.cannot_be_called
               else
-                Present
+                Code.Params_and_body_state.inlinable
                   ( Lazy.force function_params_and_body_for_code_not_rebuilt,
                     Name_occurrences.empty )
             in
@@ -320,7 +326,9 @@ module Group = struct
     in
     consts
     |> List.filter_map (fun code ->
-           if Code.is_deleted code then None else Some (Code.code_id code, code))
+           if Code.is_non_callable code
+           then None
+           else Some (Code.code_id code, code))
     |> Code_id.Map.of_list
 
   let map t ~f =

@@ -729,10 +729,12 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | Some ar -> arity ar
           | None -> (
             match params_and_body with
-            | Deleted ->
+            | Cannot_be_called ->
               Misc.fatal_errorf "Param arity required for deleted code %a"
                 Code_id.print code_id
-            | Present { params; _ } ->
+            | Non_inlinable _ ->
+              Misc.fatal_error "Non_inlinable not yet supported"
+            | Inlinable { params; _ } ->
               List.map
                 (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
                   value_kind_with_subkind_opt kind)
@@ -743,11 +745,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let params_and_body : _ Or_deleted.t =
+        let params_and_body =
           match params_and_body with
-          | Deleted -> Deleted
-          | Present { params; closure_var; depth_var; ret_cont; exn_cont; body }
-            ->
+          | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
+          | Non_inlinable _ ->
+            Misc.fatal_error "Non_inlinable not yet supported"
+          | Inlinable
+              { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
             let params, env =
               map_accum_left
                 (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
@@ -791,7 +795,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (* Flambda.Function_params_and_body.free_names params_and_body |>
                  names_and_closure_vars *)
             in
-            Present (params_and_body, free_names)
+            Code.Params_and_body_state.inlinable (params_and_body, free_names)
         in
         let recursive = convert_recursive_flag recursive in
         let inline =

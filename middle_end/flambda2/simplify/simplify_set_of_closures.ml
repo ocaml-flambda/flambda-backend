@@ -420,18 +420,13 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants ~params
 type simplify_function_result =
   { new_code_id : Code_id.t;
     code : Rebuilt_static_const.t;
-    function_type : T.Function_type.t Or_unknown_or_bottom.t;
-    dacc_after_body : DA.t;
-    uacc_after_upwards_traversal : UA.t
+    dacc_after_body : DA.t option;
+    uacc_after_upwards_traversal : UA.t option
   }
 
-let simplify_function context ~used_closure_vars ~shareable_constants closure_id
-    code_id ~closure_bound_names_inside_function code_age_relation
-    ~lifted_consts_prev_functions =
-  let code = find_code (DA.denv (C.dacc_prior_to_sets context)) code_id in
-  let params_and_body =
-    Code.params_and_body_must_be_present code ~error_context:"Simplifying"
-  in
+let simplify_function0 context ~used_closure_vars ~shareable_constants
+    closure_id code_id code params_and_body ~closure_bound_names_inside_function
+    code_age_relation ~lifted_consts_prev_functions =
   let inlining_arguments_from_denv =
     C.dacc_prior_to_sets context |> DA.denv |> DE.inlining_arguments
   in
@@ -583,7 +578,9 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
       new_code_id
-      ~params_and_body:(Present (params_and_body, free_names_of_code))
+      ~params_and_body:
+        (Code.Params_and_body_state.inlinable
+           (params_and_body, free_names_of_code))
       ~newer_version_of:(Some old_code_id)
       ~params_arity:(Code.params_arity code)
       ~result_arity:(Code.result_arity code) ~stub:(Code.stub code)
@@ -591,20 +588,34 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
       ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~inlining_decision
   in
-  let function_type =
-    let rec_info =
-      (* This is the intrinsic type of the function as seen outside its own
-         scope, so its [Rec_info] needs to say its depth is zero *)
-      T.this_rec_info Rec_info_expr.initial
-    in
-    function_decl_type new_code_id rec_info
-  in
   { new_code_id;
     code;
-    function_type;
-    dacc_after_body;
-    uacc_after_upwards_traversal
+    dacc_after_body = Some dacc_after_body;
+    uacc_after_upwards_traversal = Some uacc_after_upwards_traversal
   }
+
+let simplify_function context ~used_closure_vars ~shareable_constants closure_id
+    code_id ~closure_bound_names_inside_function code_age_relation
+    ~lifted_consts_prev_functions =
+  let code = find_code (DA.denv (C.dacc_prior_to_sets context)) code_id in
+  match Code.params_and_body code with
+  | Inlinable params_and_body ->
+    simplify_function0 context ~used_closure_vars ~shareable_constants
+      closure_id code_id code params_and_body
+      ~closure_bound_names_inside_function code_age_relation
+      ~lifted_consts_prev_functions
+  | Non_inlinable { is_my_closure_used = _ } ->
+    (* No new code ID is created in this case: there is no function body to be
+       simplified and all other code metadata will remain the same. *)
+    let code = Rebuilt_static_const.create_code' code in
+    { new_code_id = code_id;
+      code;
+      dacc_after_body = None;
+      uacc_after_upwards_traversal = None
+    }
+  | Cannot_be_called ->
+    Misc.fatal_errorf "Cannot simplify function in cannot-be-called state: %a"
+      Code.print code
 
 type simplify_set_of_closures0_result =
   { set_of_closures : Flambda.Set_of_closures.t;
@@ -641,7 +652,6 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
              lifted_consts_prev_functions ) ->
         let { new_code_id;
               code = new_code;
-              function_type;
               dacc_after_body;
               uacc_after_upwards_traversal
             } =
@@ -649,6 +659,14 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
             closure_id old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
             code_age_relation ~lifted_consts_prev_functions
+        in
+        let function_type =
+          let rec_info =
+            (* This is the intrinsic type of the function as seen outside its
+               own scope, so its [Rec_info] needs to say its depth is zero *)
+            T.this_rec_info Rec_info_expr.initial
+          in
+          function_decl_type new_code_id rec_info
         in
         let lifted_consts_this_function =
           (* Subtle point: [uacc_after_upwards_traversal] must be used to
@@ -659,7 +677,10 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
              It follows that if the turning point where the downwards traversal
              turns into an upwards traversal is in such a context, not all of
              the constants may currently be present in [DA]. *)
-          UA.lifted_constants uacc_after_upwards_traversal
+          match uacc_after_upwards_traversal with
+          | None -> LCS.empty
+          | Some uacc_after_upwards_traversal ->
+            UA.lifted_constants uacc_after_upwards_traversal
         in
         let result_function_decls_in_set =
           (closure_id, new_code_id) :: result_function_decls_in_set
@@ -670,14 +691,29 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
           LCS.union lifted_consts_this_function lifted_consts_prev_functions
         in
         let code_age_relation =
-          TE.code_age_relation (DA.typing_env dacc_after_body)
+          match dacc_after_body with
+          | None -> code_age_relation
+          | Some dacc_after_body ->
+            TE.code_age_relation (DA.typing_env dacc_after_body)
+        in
+        let used_closure_vars =
+          match uacc_after_upwards_traversal with
+          | None -> Name_occurrences.empty
+          | Some uacc_after_upwards_traversal ->
+            UA.used_closure_vars uacc_after_upwards_traversal
+        in
+        let shareable_constants =
+          match uacc_after_upwards_traversal with
+          | None -> Static_const.Map.empty
+          | Some uacc_after_upwards_traversal ->
+            UA.shareable_constants uacc_after_upwards_traversal
         in
         ( result_function_decls_in_set,
           code,
           fun_types,
           code_age_relation,
-          UA.used_closure_vars uacc_after_upwards_traversal,
-          UA.shareable_constants uacc_after_upwards_traversal,
+          used_closure_vars,
+          shareable_constants,
           lifted_consts_prev_functions ))
       all_function_decls_in_set
       ( [],

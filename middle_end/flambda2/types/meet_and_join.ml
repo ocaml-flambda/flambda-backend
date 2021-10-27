@@ -750,7 +750,7 @@ and meet_function_type (env : Meet_env.t)
         ~resolver:(TE.code_age_relation_resolver typing_env)
         code_id1 code_id2
     in
-    (* It's possible that [code_id] corresponds to [Deleted] code. In that case,
+    (* It's possible that [code_id] corresponds to [Cannot_be_called] code. In that case,
        any attempt to inline will fail, as the code will not be found in the
        simplifier's environment -- see
        [Simplify_apply_expr.simplify_direct_function_call]. *)

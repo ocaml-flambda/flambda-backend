@@ -20,7 +20,7 @@ type t = unit Code0.t
 
 let code_id = Code0.code_id
 
-let is_deleted = Code0.is_deleted
+let is_non_callable = Code0.is_non_callable
 
 let newer_version_of = Code0.newer_version_of
 
@@ -46,22 +46,25 @@ let is_tupled = Code0.is_tupled
 
 let inlining_decision = Code0.inlining_decision
 
-let create code_id ~(free_names_of_params_and_body : _ Or_deleted.t)
+let create code_id
+    ~(free_names_of_params_and_body : _ Code.Params_and_body_state.t)
     ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
     ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
     ~inlining_decision =
-  let params_and_body : _ Or_deleted.t =
+  let params_and_body =
     match free_names_of_params_and_body with
-    | Deleted -> Deleted
-    | Present free_names_of_params_and_body ->
-      Present ((), free_names_of_params_and_body)
+    | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
+    | Non_inlinable { is_my_closure_used } ->
+      Code.Params_and_body_state.non_inlinable ~is_my_closure_used
+    | Inlinable free_names_of_params_and_body ->
+      Code.Params_and_body_state.inlinable ((), free_names_of_params_and_body)
   in
   Code0.create ~print_function_params_and_body:Unit.print code_id
     ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub ~inline
     ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
     ~inlining_decision
 
-let make_deleted = Code0.make_deleted
+let make_not_callable = Code0.make_not_callable
 
 let print = Code0.print ~print_function_params_and_body:Unit.print
 

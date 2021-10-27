@@ -464,7 +464,7 @@ and code =
     ret_arity : arity option;
     recursive : is_recursive;
     inline : inline_attribute option;
-    params_and_body : params_and_body or_deleted;
+    params_and_body : params_and_body params_and_body_state;
     code_size : code_size;
     is_tupled : bool
   }
@@ -480,9 +480,10 @@ and params_and_body =
     body : expr
   }
 
-and 'a or_deleted =
-  | Present of 'a
-  | Deleted
+and 'a params_and_body_state =
+  | Inlinable of 'a
+  | Non_inlinable of { is_my_closure_used : bool }
+  | Cannot_be_called
 
 and static_closure_binding =
   { symbol : symbol;

@@ -205,10 +205,10 @@ val used_closure_vars : t -> Var_within_closure.Set.t Or_unknown.t
 (** Add the given names to the current scope *)
 val add_to_scope : t -> Code_id_or_symbol.Set.t -> t
 
-(** Mark the given code id as deleted, so that [check_scope] will report an
-    error if it is used. *)
-val mark_code_id_as_deleted : t -> Code_id.t -> t
+(** Mark the given code id as cannot-be-called, so that [check_scope] will
+    report an error if it is used. *)
+val mark_code_id_as_cannot_be_called : t -> Code_id.t -> t
 
-(** Check that the given name is in scope. If [allow_deleted] is [false], check
-    that it is not declared as deleted. *)
-val check_scope : allow_deleted:bool -> t -> Code_id_or_symbol.t -> t
+(** Check that the given name is in scope. If [allow_cannot_be_called] is
+    [false], check that it is not declared as cannot-be-called. *)
+val check_scope : allow_cannot_be_called:bool -> t -> Code_id_or_symbol.t -> t

@@ -865,7 +865,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
   in
   let code =
     Code.create code_id
-      ~params_and_body:(Present (params_and_body, Acc.free_names acc))
+      ~params_and_body:
+        (Code.Params_and_body_state.inlinable
+           (params_and_body, Acc.free_names acc))
       ~params_arity ~result_arity:[LC.value_kind return] ~stub ~inline
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
