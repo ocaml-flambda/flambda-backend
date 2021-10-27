@@ -2436,8 +2436,8 @@ let stringref_unsafe arg1 arg2 dbg =
 
 let stringref_safe arg1 arg2 dbg =
   tag_int
-    (bind "str" arg1 (fun str ->
-      bind "index" (untag_int arg2 dbg) (fun idx ->
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+      bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cload (Byte_unsigned, Mutable),
@@ -2445,17 +2445,17 @@ let stringref_safe arg1 arg2 dbg =
 
 let string_load size unsafe arg1 arg2 dbg =
   box_sized size dbg
-    (bind "str" arg1 (fun str ->
-     bind "index" (untag_int arg2 dbg) (fun idx ->
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+     bind "str" arg1 (fun str ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
 let bigstring_load size unsafe arg1 arg2 dbg =
   box_sized size dbg
-   (bind "ba" arg1 (fun ba ->
-    bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "ba_data"
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+     bind "ba" arg1 (fun ba ->
+     bind "ba_data"
      (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
      (fun ba_data ->
         check_bound unsafe size dbg
@@ -2466,8 +2466,8 @@ let bigstring_load size unsafe arg1 arg2 dbg =
 let arrayref_unsafe kind arg1 arg2 dbg =
   match (kind : Lambda.array_kind) with
   | Pgenarray ->
-      bind "arr" arg1 (fun arr ->
-        bind "index" arg2 (fun idx ->
+      bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
           Cifthenelse(is_addr_array_ptr arr dbg,
                       dbg,
                       addr_array_ref arr idx dbg,
