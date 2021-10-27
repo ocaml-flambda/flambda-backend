@@ -1035,7 +1035,7 @@ let create_function_declaration ~params ~body ~stub ~dbg
   | true, (Always_inline | Available_inline | Unroll _) ->
     Misc.fatal_errorf
       "Stubs may not be annotated as [Always_inline], \
-       [Hint_inline] or [Unroll]: %a"
+       [Available_inline] or [Unroll]: %a"
       print body
   end;
   begin match stub, specialise with
