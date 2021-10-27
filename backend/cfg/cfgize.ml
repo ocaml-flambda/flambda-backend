@@ -712,6 +712,6 @@ let fundecl :
      terminator simplification. *)
   Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
-  Cfg_dataflow.run_dead_code cfg_with_layout;
+  Cfg_dataflow.run_dead_block cfg_with_layout;
   if simplify_terminators then Simplify_terminator.run cfg;
   cfg_with_layout

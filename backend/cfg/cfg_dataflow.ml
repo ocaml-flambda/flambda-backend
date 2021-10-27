@@ -191,7 +191,7 @@ end
 
 module Dataflow = Forward (Domain) (Transfer)
 
-let run_dead_code : Cfg_with_layout.t -> unit =
+let run_dead_block : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let is_entry_label label = Label.equal label cfg.entry_label in

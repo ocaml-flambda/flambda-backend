@@ -62,4 +62,4 @@ module Forward (D : Domain) (_ : Transfer with type domain = D.t) :
   S with type domain = D.t
 
 (* CR xclerc for xclerc: move to another module *)
-val run_dead_code : Cfg_with_layout.t -> unit
+val run_dead_block : Cfg_with_layout.t -> unit
