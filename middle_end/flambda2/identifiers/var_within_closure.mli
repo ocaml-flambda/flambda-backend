@@ -28,6 +28,8 @@ val unwrap : t -> Variable.t
 
 val in_compilation_unit : t -> Compilation_unit.t -> bool
 
+val is_imported : t -> bool
+
 val get_compilation_unit : t -> Compilation_unit.t
 
 val to_string : t -> string

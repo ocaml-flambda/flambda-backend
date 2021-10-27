@@ -65,6 +65,8 @@ let get_next_stamp () =
 
 let in_compilation_unit t cu = Compilation_unit.equal cu t.compilation_unit
 
+let is_imported t = not (Compilation_unit.is_current t.compilation_unit)
+
 let get_compilation_unit t = t.compilation_unit
 
 let to_string t = t.name ^ "_" ^ string_of_int t.name_stamp

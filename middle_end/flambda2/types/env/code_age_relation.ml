@@ -79,16 +79,21 @@ let join ~target_t ~resolver t1 t2 id1 id2 : _ Or_unknown.t =
   else
     let id1_to_root = all_ids_up_to_root ~resolver t1 id1 in
     let id2_to_root = all_ids_up_to_root ~resolver t2 id2 in
-    let shared_ids =
-      Code_id.Set.inter
-        (Code_id.Map.keys target_t)
-        (Code_id.Set.inter id1_to_root id2_to_root)
+    let shared_ids = Code_id.Set.inter id1_to_root id2_to_root in
+    let shared_ids_in_scope =
+      Code_id.Set.filter
+        (fun id ->
+          let is_imported =
+            not (Compilation_unit.is_current (Code_id.get_compilation_unit id))
+          in
+          is_imported || Code_id.Map.mem id target_t)
+        shared_ids
     in
-    if Code_id.Set.is_empty shared_ids
+    if Code_id.Set.is_empty shared_ids_in_scope
     then Unknown
     else
       let newest_shared_id, _ =
-        shared_ids |> Code_id.Set.elements
+        shared_ids_in_scope |> Code_id.Set.elements
         |> List.map (fun id -> id, num_ids_up_to_root target_t ~resolver id)
         |> List.sort (fun (_, len1) (_, len2) -> -Int.compare len1 len2)
         |> List.hd

@@ -958,6 +958,10 @@ let mem_newer_version_of_code_id t code_id =
 let mem_closure_var t closure_var =
   For_closure_vars.mem t.closure_vars closure_var
 
+let closure_var_is_used_or_imported t closure_var =
+  Var_within_closure.is_imported closure_var
+  || For_closure_vars.mem t.closure_vars closure_var
+
 let remove_var t var =
   if For_names.is_empty t.names
   then t
