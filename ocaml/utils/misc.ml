@@ -982,30 +982,37 @@ module Magic_number = struct
 
   type raw_kind = string
 
-  (* We do not accept Caml1999 prefixes. *)
   let parse_kind : raw_kind -> kind option = function
-    | "Caml2021X" -> Some Exec
-    | "Caml2021I" -> Some Cmi
-    | "Caml2021O" -> Some Cmo
-    | "Caml2021A" -> Some Cma
+    | "Caml1999X" -> Some Exec
+    | "Caml1999I" -> Some Cmi
+    | "Caml1999O" -> Some Cmo
+    | "Caml1999A" -> Some Cma
     | "Caml2021y" -> Some (Cmx {flambda = true})
     | "Caml2021Y" -> Some (Cmx {flambda = false})
     | "Caml2021z" -> Some (Cmxa {flambda = true})
     | "Caml2021Z" -> Some (Cmxa {flambda = false})
-    | "Caml2021D" -> Some Cmxs
-    | "Caml2021T" -> Some Cmt
-    | "Caml2021M" -> Some Ast_impl
-    | "Caml2021N" -> Some Ast_intf
+
+    (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
+       between the introduction of those magic numbers and October 2017
+       (8ba70ff194b66c0a50ffb97d41fe9c4bdf9362d6).
+
+       We accept them here, but will always produce/show kind prefixes
+       that follow the current convention, Caml1999{D,T}. *)
+    | "Caml2007D" | "Caml1999D" -> Some Cmxs
+    | "Caml2012T" | "Caml1999T" -> Some Cmt
+
+    | "Caml1999M" -> Some Ast_impl
+    | "Caml1999N" -> Some Ast_intf
     | _ -> None
 
   (* note: over time the magic kind number has changed for certain kinds;
      this function returns them as they are produced by the current compiler,
      but [parse_kind] accepts older formats as well. *)
   let raw_kind : kind -> raw = function
-    | Exec -> "Caml2021X"
-    | Cmi -> "Caml2021I"
-    | Cmo -> "Caml2021O"
-    | Cma -> "Caml2021A"
+    | Exec -> "Caml1999X"
+    | Cmi -> "Caml1999I"
+    | Cmo -> "Caml1999O"
+    | Cma -> "Caml1999A"
     | Cmx config ->
        if config.flambda
        then "Caml2021y"
@@ -1014,10 +1021,10 @@ module Magic_number = struct
        if config.flambda
        then "Caml2021z"
        else "Caml2021Z"
-    | Cmxs -> "Caml2021D"
-    | Cmt -> "Caml2021T"
-    | Ast_impl -> "Caml2021M"
-    | Ast_intf -> "Caml2021N"
+    | Cmxs -> "Caml1999D"
+    | Cmt -> "Caml1999T"
+    | Ast_impl -> "Caml1999M"
+    | Ast_intf -> "Caml1999N"
 
   let string_of_kind : kind -> string = function
     | Exec -> "exec"
