@@ -698,13 +698,13 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
         in
         let used_closure_vars =
           match uacc_after_upwards_traversal with
-          | None -> Name_occurrences.empty
+          | None -> used_closure_vars
           | Some uacc_after_upwards_traversal ->
             UA.used_closure_vars uacc_after_upwards_traversal
         in
         let shareable_constants =
           match uacc_after_upwards_traversal with
-          | None -> Static_const.Map.empty
+          | None -> shareable_constants
           | Some uacc_after_upwards_traversal ->
             UA.shareable_constants uacc_after_upwards_traversal
         in
