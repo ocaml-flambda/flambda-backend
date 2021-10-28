@@ -771,13 +771,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               | [] -> true
               | _ :: _ -> false);
             let body = expr env body in
-            let dbg = Debuginfo.none in
             let params_and_body =
               Flambda.Function_params_and_body.create ~return_continuation
                 ~exn_continuation:
                   (Exn_continuation.exn_handler exn_continuation)
-                params ~body ~my_closure ~my_depth ~dbg
-                ~free_names_of_body:Unknown
+                params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
             in
             (* CR lmaurer: Add
              * [Name_occurrences.with_only_names_and_closure_vars] *)

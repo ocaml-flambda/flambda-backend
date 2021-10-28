@@ -845,7 +845,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let params_and_body =
     Function_params_and_body.create ~return_continuation
       ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-      params ~dbg ~body ~my_closure ~my_depth
+      params ~body ~my_closure ~my_depth
       ~free_names_of_body:(Known (Acc.free_names acc))
   in
   let acc =

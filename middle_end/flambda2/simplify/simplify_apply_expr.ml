@@ -365,8 +365,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       (* Note that [exn_continuation] has no extra args -- see above. *)
       Function_params_and_body.create ~return_continuation
         ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-        remaining_params ~body ~dbg ~my_closure ~my_depth
-        ~free_names_of_body:Unknown
+        remaining_params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
     in
     let code_id =
       Code_id.create

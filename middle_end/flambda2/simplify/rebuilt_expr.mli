@@ -61,7 +61,6 @@ module Function_params_and_body : sig
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
     Bound_parameter.t list ->
-    dbg:Debuginfo.t ->
     body:rebuilt_expr ->
     free_names_of_body:Name_occurrences.t ->
     my_closure:Variable.t ->
