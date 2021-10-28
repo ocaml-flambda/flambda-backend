@@ -46,11 +46,7 @@ module type S = sig
       The need to have several blocks in the initial work set stems from the
       fact that we currently need to consider all trap handlers as alive. *)
   val run :
-    Cfg.t ->
-    ?max_iteration:int ->
-    init:(Cfg.basic_block -> domain option) ->
-    unit ->
-    (map, map) Result.t
+    Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
 module Forward (D : Domain) (_ : Transfer with type domain = D.t) :

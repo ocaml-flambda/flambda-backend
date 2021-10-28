@@ -35,11 +35,7 @@ module type S = sig
   type map = domain Label.Tbl.t
 
   val run :
-    Cfg.t ->
-    ?max_iteration:int ->
-    init:(Cfg.basic_block -> domain option) ->
-    unit ->
-    (map, map) Result.t
+    Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
 module Forward (D : Domain) (T : Transfer with type domain = D.t) :
@@ -79,15 +75,14 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     in
     { normal; exceptional }
 
-  let create :
-      Cfg.t -> init:(Cfg.basic_block -> domain option) -> map * WorkSet.t ref =
+  let create : Cfg.t -> init:domain option -> map * WorkSet.t ref =
    fun cfg ~init ->
     let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
+    let value = Option.value init ~default:D.top in
     Cfg.iter_blocks cfg ~f:(fun label block ->
-        match init block with
-        | None -> ()
-        | Some value -> set := WorkSet.add { WorkSetElement.label; value } !set);
+        if Label.equal label cfg.entry_label || block.is_trap_handler
+        then set := WorkSet.add { WorkSetElement.label; value } !set);
     if WorkSet.is_empty !set
     then Misc.fatal_error "Dataflow.Forward.create: empty initial work set";
     map, set
@@ -100,12 +95,9 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     element, Cfg.get_block_exn cfg element.label
 
   let run :
-      Cfg.t ->
-      ?max_iteration:int ->
-      init:(Cfg.basic_block -> domain option) ->
-      unit ->
-      (map, map) Result.t =
-   fun cfg ?(max_iteration = max_int) ~init () ->
+      Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
+      =
+   fun cfg ?(max_iteration = max_int) ?init () ->
     let res, work_set = create cfg ~init in
     let iteration = ref 0 in
     while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
@@ -187,14 +179,7 @@ module Dataflow = Forward (Domain) (Transfer)
 let run_dead_block : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let is_entry_label label = Label.equal label cfg.entry_label in
-  let is_trap_handler label = (Cfg.get_block_exn cfg label).is_trap_handler in
-  let init { Cfg.start; _ } =
-    if is_entry_label start || is_trap_handler start
-    then Some Domain.Reachable
-    else None
-  in
-  match Dataflow.run cfg ~init () with
+  match Dataflow.run cfg () with
   | Result.Error _ ->
     Misc.fatal_error
       "Dataflow.run_dead_code: forward analysis did not reach a fix-point"
