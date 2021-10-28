@@ -47,6 +47,8 @@ val dbg : t -> Debuginfo.t
 
 val is_tupled : t -> bool
 
+val is_my_closure_used : t -> bool
+
 val inlining_decision : t -> Function_decl_inlining_decision_type.t
 
 val create :
@@ -63,6 +65,7 @@ val create :
   inlining_arguments:Inlining_arguments.t ->
   dbg:Debuginfo.t ->
   is_tupled:bool ->
+  is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   t
 

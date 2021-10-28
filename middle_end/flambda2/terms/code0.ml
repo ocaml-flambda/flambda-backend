@@ -19,7 +19,7 @@
 module Params_and_body_state = struct
   type 'function_params_and_body t =
     | Inlinable of 'function_params_and_body
-    | Non_inlinable of { is_my_closure_used : bool }
+    | Non_inlinable
     | Cannot_be_called
 
   let inlinable params_and_body = Inlinable params_and_body
@@ -27,15 +27,14 @@ module Params_and_body_state = struct
   (* This function is deliberately not exposed in the .mli to make it clear that
      the transition from inlinable to non-inlinable only happens when
      [make_non_inlinable] (see below) is called. *)
-  let non_inlinable ~is_my_closure_used = Non_inlinable { is_my_closure_used }
+  let non_inlinable = Non_inlinable
 
   let cannot_be_called = Cannot_be_called
 
   let map t ~f =
     match t with
     | Inlinable params_and_body -> Inlinable (f params_and_body)
-    | Non_inlinable { is_my_closure_used } ->
-      Non_inlinable { is_my_closure_used }
+    | Non_inlinable -> Non_inlinable
     | Cannot_be_called -> Cannot_be_called
 
   let print print_params_and_body ppf t =
@@ -43,9 +42,7 @@ module Params_and_body_state = struct
     | Inlinable params_and_body ->
       Format.fprintf ppf "@[<hov 1>(Inlinable@ %a)@]" print_params_and_body
         params_and_body
-    | Non_inlinable { is_my_closure_used } ->
-      Format.fprintf ppf "@[<hov 1>(Non_inlinable@ (is_my_closure_used@ %b))@]"
-        is_my_closure_used
+    | Non_inlinable -> Format.fprintf ppf "Non_inlinable"
     | Cannot_be_called -> Format.fprintf ppf "Cannot_be_called"
 end
 
@@ -64,6 +61,7 @@ type 'function_params_and_body t =
     inlining_arguments : Inlining_arguments.t;
     dbg : Debuginfo.t;
     is_tupled : bool;
+    is_my_closure_used : bool;
     inlining_decision : Function_decl_inlining_decision_type.t
   }
 
@@ -93,13 +91,15 @@ let dbg { dbg; _ } = dbg
 
 let is_tupled { is_tupled; _ } = is_tupled
 
+let is_my_closure_used { is_my_closure_used; _ } = is_my_closure_used
+
 let inlining_decision { inlining_decision; _ } = inlining_decision
 
 let check_params_and_body ~print_function_params_and_body code_id
     (params_and_body : _ Params_and_body_state.t) =
   let free_names_of_params_and_body =
     match params_and_body with
-    | Cannot_be_called | Non_inlinable _ -> Name_occurrences.empty
+    | Cannot_be_called | Non_inlinable -> Name_occurrences.empty
     | Inlinable (params_and_body, free_names_of_params_and_body) ->
       if not
            (Name_occurrences.no_continuations free_names_of_params_and_body
@@ -114,8 +114,7 @@ let check_params_and_body ~print_function_params_and_body code_id
   let params_and_body : _ Params_and_body_state.t =
     match params_and_body with
     | Cannot_be_called -> Cannot_be_called
-    | Non_inlinable { is_my_closure_used } ->
-      Non_inlinable { is_my_closure_used }
+    | Non_inlinable -> Non_inlinable
     | Inlinable (params_and_body, _) -> Inlinable params_and_body
   in
   params_and_body, free_names_of_params_and_body
@@ -124,7 +123,7 @@ let create ~print_function_params_and_body code_id
     ~(params_and_body : _ Params_and_body_state.t) ~newer_version_of
     ~params_arity ~result_arity ~stub ~(inline : Inline_attribute.t)
     ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~inlining_decision =
+    ~is_my_closure_used ~inlining_decision =
   begin
     match stub, inline with
     | true, (Available_inline | Never_inline | Default_inline)
@@ -154,19 +153,18 @@ let create ~print_function_params_and_body code_id
     inlining_arguments;
     dbg;
     is_tupled;
+    is_my_closure_used;
     inlining_decision
   }
 
-let make_non_inlinable t ~is_my_closure_used =
+let make_non_inlinable t =
   match t.params_and_body with
-  | Inlinable params_and_body ->
+  | Inlinable _ ->
     { t with
-      params_and_body =
-        Params_and_body_state.non_inlinable
-          ~is_my_closure_used:(is_my_closure_used params_and_body);
+      params_and_body = Params_and_body_state.non_inlinable;
       free_names_of_params_and_body = Name_occurrences.empty
     }
-  | Non_inlinable _ -> t
+  | Non_inlinable -> t
   | Cannot_be_called ->
     Misc.fatal_errorf
       "A piece of code in [Cannot_be_called] state cannot be transitioned to \
@@ -197,7 +195,7 @@ let [@ocamlformat "disable"] print ~print_function_params_and_body ppf
       { code_id = _; params_and_body; newer_version_of; stub; inline;
         is_a_functor; params_arity; result_arity; recursive;
         free_names_of_params_and_body = _; cost_metrics; inlining_arguments;
-        dbg; is_tupled; inlining_decision; } =
+        dbg; is_tupled; is_my_closure_used; inlining_decision; } =
   let module C = Flambda_colours in
   match params_and_body with
   | Inlinable _  ->
@@ -213,6 +211,7 @@ let [@ocamlformat "disable"] print ~print_function_params_and_body ppf
         @[<hov 1>(inlining_arguments@ %a)@]@ \
         @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
         @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
+        @[<hov 1>(is_my_closure_used@ %b)@]@ \
         @[<hov 1>(inlining_decision@ %a)@]@ \
         %a\
         )@]"
@@ -264,11 +263,11 @@ let [@ocamlformat "disable"] print ~print_function_params_and_body ppf
       else Flambda_colours.elide ())
       is_tupled
       (Flambda_colours.normal ())
+      is_my_closure_used
       Function_decl_inlining_decision_type.print inlining_decision
       (Params_and_body_state.print print_function_params_and_body) params_and_body
-  | Non_inlinable { is_my_closure_used } ->
-    Format.fprintf ppf "@[<hov 1>(Non_inlinable@ (is_my_closure_used@ %b))@]"
-      is_my_closure_used
+  | Non_inlinable ->
+    Format.fprintf ppf "Non_inlinable"
   | Cannot_be_called ->
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
@@ -309,6 +308,7 @@ let apply_renaming ~apply_renaming_function_params_and_body
        inlining_arguments = _;
        dbg = _;
        is_tupled = _;
+       is_my_closure_used = _;
        inlining_decision = _
      } as t) perm =
   (* inlined and modified version of Option.map to preserve sharing *)
@@ -323,8 +323,7 @@ let apply_renaming ~apply_renaming_function_params_and_body
   let params_and_body' =
     match params_and_body with
     | Cannot_be_called -> Params_and_body_state.cannot_be_called
-    | Non_inlinable { is_my_closure_used } ->
-      Params_and_body_state.non_inlinable ~is_my_closure_used
+    | Non_inlinable -> Params_and_body_state.non_inlinable
     | Inlinable params_and_body_inner ->
       let params_and_body_inner' =
         apply_renaming_function_params_and_body params_and_body_inner perm
@@ -363,6 +362,7 @@ let all_ids_for_export ~all_ids_for_export_function_params_and_body
       inlining_arguments = _;
       dbg = _;
       is_tupled = _;
+      is_my_closure_used = _;
       inlining_decision = _
     } =
   let newer_version_of_ids =
@@ -375,7 +375,7 @@ let all_ids_for_export ~all_ids_for_export_function_params_and_body
     | Cannot_be_called -> Ids_for_export.empty
     | Inlinable params_and_body ->
       all_ids_for_export_function_params_and_body params_and_body
-    | Non_inlinable { is_my_closure_used = _ } ->
+    | Non_inlinable ->
       (* Usually the ids for export collected from the [params_and_body] in the
          inlinable case are used to rename [free_names_of_params_and_body] upon
          import. Since we don't know what those ids for export are in the
@@ -397,4 +397,4 @@ let make_not_callable t =
 let is_non_callable t =
   match t.params_and_body with
   | Cannot_be_called -> true
-  | Inlinable _ | Non_inlinable _ -> false
+  | Inlinable _ | Non_inlinable -> false

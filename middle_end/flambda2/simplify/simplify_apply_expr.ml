@@ -382,7 +382,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
           ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
-          ~dbg ~is_tupled:false ~inlining_decision:Stub
+          ~dbg ~is_tupled:false
+          ~is_my_closure_used:
+            (Function_params_and_body.is_my_closure_used params_and_body)
+          ~inlining_decision:Stub
       in
       Static_const_or_code.create_code code
     in

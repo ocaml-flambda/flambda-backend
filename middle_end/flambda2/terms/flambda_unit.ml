@@ -196,7 +196,7 @@ module Iter = struct
       ~code:(fun () code_id (code : Code.t) ->
         f_c ~id:code_id code;
         match Code.params_and_body code with
-        | Cannot_be_called | Non_inlinable _ -> ()
+        | Cannot_be_called | Non_inlinable -> ()
         | Inlinable params_and_body ->
           Function_params_and_body.pattern_match params_and_body
             ~f:(fun

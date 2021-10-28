@@ -586,7 +586,9 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
       ~result_arity:(Code.result_arity code) ~stub:(Code.stub code)
       ~inline:(Code.inline code) ~is_a_functor:(Code.is_a_functor code)
       ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
-      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code) ~inlining_decision
+      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
+      ~is_my_closure_used:(Code.is_my_closure_used code)
+      ~inlining_decision
   in
   { new_code_id;
     code;
@@ -604,7 +606,7 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
       closure_id code_id code params_and_body
       ~closure_bound_names_inside_function code_age_relation
       ~lifted_consts_prev_functions
-  | Non_inlinable { is_my_closure_used = _ } ->
+  | Non_inlinable ->
     (* No new code ID is created in this case: there is no function body to be
        simplified and all other code metadata will remain the same. *)
     let code = Rebuilt_static_const.create_code' code in

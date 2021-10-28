@@ -19,7 +19,7 @@
 module Params_and_body_state : sig
   type 'function_params_and_body t = private
     | Inlinable of 'function_params_and_body
-    | Non_inlinable of { is_my_closure_used : bool }
+    | Non_inlinable
     | Cannot_be_called
 
   val inlinable : 'function_params_and_body -> 'function_params_and_body t
@@ -59,6 +59,8 @@ val dbg : 'function_params_and_body t -> Debuginfo.t
 
 val is_tupled : 'function_params_and_body t -> bool
 
+val is_my_closure_used : 'function_params_and_body t -> bool
+
 val inlining_decision :
   'function_params_and_body t -> Function_decl_inlining_decision_type.t
 
@@ -79,6 +81,7 @@ val create :
   inlining_arguments:Inlining_arguments.t ->
   dbg:Debuginfo.t ->
   is_tupled:bool ->
+  is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   'function_params_and_body t
 
@@ -99,9 +102,7 @@ val with_newer_version_of :
 (** Note that this forgets the actual code of the function, so should only be
     used e.g. when preparing a value of type [_ t] for a .cmx file. *)
 val make_non_inlinable :
-  'function_params_and_body t ->
-  is_my_closure_used:('function_params_and_body -> bool) ->
-  'function_params_and_body t
+  'function_params_and_body t -> 'function_params_and_body t
 
 val make_not_callable :
   'function_params_and_body t -> 'function_params_and_body t

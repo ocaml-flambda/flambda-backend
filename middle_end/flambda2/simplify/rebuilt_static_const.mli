@@ -45,6 +45,7 @@ val create_code :
   inlining_arguments:Inlining_arguments.t ->
   dbg:Debuginfo.t ->
   is_tupled:bool ->
+  is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   t
 

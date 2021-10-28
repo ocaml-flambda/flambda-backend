@@ -702,7 +702,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
       let param_arity =
         match Code.params_and_body code with
         | Cannot_be_called -> Some (arity (Code.params_arity code))
-        | Inlinable _ | Non_inlinable _ -> None
+        | Inlinable _ | Non_inlinable -> None
         (* CR mshinwell: I don't understand this, why can't Code.params_arity
            always be used? *)
         (* arity will be determined from params *)
@@ -722,8 +722,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
       let params_and_body : Fexpr.params_and_body Fexpr.params_and_body_state =
         match Code.params_and_body code with
         | Cannot_be_called -> Cannot_be_called
-        | Non_inlinable { is_my_closure_used } ->
-          Non_inlinable { is_my_closure_used }
+        | Non_inlinable -> Non_inlinable
         | Inlinable params_and_body ->
           let params_and_body =
             Flambda.Function_params_and_body.pattern_match params_and_body

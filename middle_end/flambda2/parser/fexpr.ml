@@ -482,7 +482,7 @@ and params_and_body =
 
 and 'a params_and_body_state =
   | Inlinable of 'a
-  | Non_inlinable of { is_my_closure_used : bool }
+  | Non_inlinable
   | Cannot_be_called
 
 and static_closure_binding =

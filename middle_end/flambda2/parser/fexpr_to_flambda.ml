@@ -732,7 +732,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             | Cannot_be_called ->
               Misc.fatal_errorf "Param arity required for deleted code %a"
                 Code_id.print code_id
-            | Non_inlinable _ ->
+            | Non_inlinable ->
               Misc.fatal_error "Non_inlinable not yet supported"
             | Inlinable { params; _ } ->
               List.map
@@ -745,11 +745,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let params_and_body =
+        let params_and_body, is_my_closure_used =
           match params_and_body with
-          | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
-          | Non_inlinable _ ->
-            Misc.fatal_error "Non_inlinable not yet supported"
+          | Cannot_be_called ->
+            Code.Params_and_body_state.cannot_be_called, false
+          | Non_inlinable -> Misc.fatal_error "Non_inlinable not yet supported"
           | Inlinable
               { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
             let params, env =
@@ -795,7 +795,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (* Flambda.Function_params_and_body.free_names params_and_body |>
                  names_and_closure_vars *)
             in
-            Code.Params_and_body_state.inlinable (params_and_body, free_names)
+            ( Code.Params_and_body_state.inlinable (params_and_body, free_names),
+              Flambda.Function_params_and_body.is_my_closure_used
+                params_and_body )
         in
         let recursive = convert_recursive_flag recursive in
         let inline =
@@ -810,7 +812,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~result_arity ~stub:false ~inline ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
-            ~dbg:Debuginfo.none ~is_tupled
+            ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
             ~inlining_decision:Never_inline_attribute
         in
         Flambda.Static_const_or_code.create_code code

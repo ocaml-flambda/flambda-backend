@@ -15,7 +15,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module C = Code
-module P = Flambda.Function_params_and_body
 
 module Calling_convention = struct
   type t =
@@ -52,8 +51,8 @@ module Calling_convention = struct
     && Flambda_arity.equal params_arity1 params_arity2
     && Bool.equal is_tupled1 is_tupled2
 
-  let compute code ~is_my_closure_used =
-    { needs_closure_arg = is_my_closure_used;
+  let compute code =
+    { needs_closure_arg = C.is_my_closure_used code;
       params_arity = C.params_arity code |> Flambda_arity.With_subkinds.to_arity;
       is_tupled = C.is_tupled code
     }
@@ -89,11 +88,8 @@ let add_code code t =
     Code_id.Map.filter_map
       (fun _code_id code ->
         match C.params_and_body code with
-        | Inlinable params_and_body ->
-          let is_my_closure_used = P.is_my_closure_used params_and_body in
-          let calling_convention =
-            Calling_convention.compute code ~is_my_closure_used
-          in
+        | Inlinable _ ->
+          let calling_convention = Calling_convention.compute code in
           let code =
             if Function_decl_inlining_decision_type.cannot_be_inlined
                  (C.inlining_decision code)
@@ -101,10 +97,8 @@ let add_code code t =
             else code
           in
           Some (Present { code; calling_convention })
-        | Non_inlinable { is_my_closure_used } ->
-          let calling_convention =
-            Calling_convention.compute code ~is_my_closure_used
-          in
+        | Non_inlinable ->
+          let calling_convention = Calling_convention.compute code in
           Some (Present { code; calling_convention })
         | Cannot_be_called -> None)
       code

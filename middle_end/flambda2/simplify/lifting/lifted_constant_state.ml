@@ -155,7 +155,7 @@ let add_to_denv ?maybe_already_defined denv lifted =
             if maybe_already_defined && DE.mem_code denv code_id
             then denv
             else DE.define_code denv ~code_id ~code
-          | Non_inlinable _ | Cannot_be_called -> denv)
+          | Non_inlinable | Cannot_be_called -> denv)
         pieces_of_code denv)
 
 let add_singleton_to_denv t const = add_to_denv t (singleton const)

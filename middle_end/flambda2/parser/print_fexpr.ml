@@ -714,7 +714,7 @@ and code_binding ppf
     Format.fprintf ppf "@ deleted :@ %a%t -> %a@]"
       (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
       is_tupled pp_arity arity ret_arity
-  | Non_inlinable _ -> Misc.fatal_error "Non_inlinable not yet supported"
+  | Non_inlinable -> Misc.fatal_error "Non_inlinable not yet supported"
   | Inlinable { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
     Format.fprintf ppf "%a@ %a@ %a@ -> %a@ * %a%a%a@] =@ %a"
       (kinded_parameters ~space:Before)

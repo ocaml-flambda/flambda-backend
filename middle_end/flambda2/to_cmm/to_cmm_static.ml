@@ -243,7 +243,7 @@ let update_env_for_code env (code : Code.t) =
   in
   match Code.params_and_body code with
   | Cannot_be_called -> Env.mark_code_id_as_cannot_be_called env code_id
-  | Non_inlinable _ | Inlinable _ ->
+  | Non_inlinable | Inlinable _ ->
     (* Function info should already have been computed *)
     env
 
@@ -255,7 +255,7 @@ let add_function env r ~params_and_body code_id p ~fun_dbg =
 
 let add_functions env ~params_and_body r (code : Code.t) =
   match Code.params_and_body code with
-  | Cannot_be_called | Non_inlinable _ -> r
+  | Cannot_be_called | Non_inlinable -> r
   | Inlinable p ->
     add_function env r ~params_and_body (Code.code_id code) p
       ~fun_dbg:(Code.dbg code)

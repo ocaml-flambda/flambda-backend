@@ -203,7 +203,7 @@ let inline dacc ~apply ~unroll_to function_decl =
   let params_and_body =
     match Code.params_and_body code with
     | Inlinable params_and_body -> params_and_body
-    | Non_inlinable _ ->
+    | Non_inlinable ->
       Misc.fatal_errorf "Cannot inline function in non-inlinable state:@ %a"
         Code.print code
     | Cannot_be_called ->

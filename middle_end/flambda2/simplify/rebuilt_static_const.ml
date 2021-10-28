@@ -38,7 +38,8 @@ let create_normal_non_code const =
 let create_code are_rebuilding code_id
     ~(params_and_body : _ Code.Params_and_body_state.t) ~newer_version_of
     ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision =
   if ART.do_not_rebuild_terms are_rebuilding
   then
     let free_names_of_params_and_body =
@@ -50,7 +51,7 @@ let create_code are_rebuilding code_id
       Non_constructed_code.create code_id ~free_names_of_params_and_body
         ~newer_version_of ~params_arity ~result_arity ~stub ~inline
         ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-        ~is_tupled ~inlining_decision
+        ~is_tupled ~is_my_closure_used ~inlining_decision
     in
     Code_not_rebuilt non_constructed_code
   else
@@ -64,7 +65,8 @@ let create_code are_rebuilding code_id
     let code =
       Code.create code_id ~params_and_body ~newer_version_of ~params_arity
         ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
-        ~inlining_arguments ~dbg ~is_tupled ~inlining_decision
+        ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+        ~inlining_decision
     in
     Normal
       { const = Static_const_or_code.create_code code;
@@ -315,6 +317,7 @@ module Group = struct
                  ~cost_metrics:(NCC.cost_metrics code)
                  ~inlining_arguments:(NCC.inlining_arguments code)
                  ~dbg:(NCC.dbg code) ~is_tupled:(NCC.is_tupled code)
+                 ~is_my_closure_used:(NCC.is_my_closure_used code)
                  ~inlining_decision:(NCC.inlining_decision code)))
     in
     consts

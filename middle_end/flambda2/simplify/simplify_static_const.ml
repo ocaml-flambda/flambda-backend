@@ -207,7 +207,7 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
       ~code:(fun (bound_symbols, static_consts, dacc) code_id code ->
         let dacc =
           match Code.params_and_body code with
-          | Cannot_be_called | Non_inlinable _ -> dacc
+          | Cannot_be_called | Non_inlinable -> dacc
           | Inlinable _ ->
             DA.map_denv dacc ~f:(fun denv -> DE.define_code denv ~code_id ~code)
         in
