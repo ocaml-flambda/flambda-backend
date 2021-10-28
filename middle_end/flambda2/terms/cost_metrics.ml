@@ -96,3 +96,7 @@ let increase_due_to_let_cont_recursive ~cost_metrics_of_handlers =
 
 let evaluate ~args (t : t) =
   Code_size.evaluate ~args t.size -. Removed_operations.evaluate ~args t.removed
+
+let equal { size = size1; removed = removed1 }
+    { size = size2; removed = removed2 } =
+  Code_size.equal size1 size2 && Removed_operations.equal removed1 removed2

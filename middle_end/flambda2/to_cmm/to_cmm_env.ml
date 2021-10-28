@@ -188,14 +188,12 @@ let exn_cont env = env.k_exn
 (* Function info *)
 
 let get_function_info env code_id =
-  Exported_code.find_calling_convention env.functions_info code_id
+  Exported_code.find_code_metadata env.functions_info code_id
 
 let get_func_decl_params_arity t code_id =
   let info = get_function_info t code_id in
-  let l = Exported_code.Calling_convention.params_arity info in
-  if Exported_code.Calling_convention.is_tupled info
-  then ~-(List.length l)
-  else List.length l
+  let l = Code_metadata.params_arity info in
+  if Code_metadata.is_tupled info then ~-(List.length l) else List.length l
 
 (* Variables *)
 

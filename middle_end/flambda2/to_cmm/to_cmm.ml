@@ -935,7 +935,7 @@ and apply_call env e =
         (Code_id_or_symbol.Code_id code_id)
     in
     let info = Env.get_function_info env code_id in
-    let params_arity = Exported_code.Calling_convention.params_arity info in
+    let params_arity = Code_metadata.params_arity info in
     if not (check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let ty =
@@ -944,7 +944,7 @@ and apply_call env e =
     in
     let args, env, _ = arg_list env args in
     let args, env =
-      if Exported_code.Calling_convention.needs_closure_arg info
+      if Code_metadata.is_my_closure_used info
       then
         let f, env, _ = simple env f in
         args @ [f], env

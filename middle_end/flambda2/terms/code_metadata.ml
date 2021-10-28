@@ -252,3 +252,50 @@ let all_ids_for_export
     | Some older -> Ids_for_export.add_code_id Ids_for_export.empty older
   in
   Ids_for_export.add_code_id newer_version_of_ids code_id
+
+let equal
+    { code_id = code_id1;
+      newer_version_of = newer_version_of1;
+      params_arity = params_arity1;
+      result_arity = result_arity1;
+      stub = stub1;
+      inline = inline1;
+      is_a_functor = is_a_functor1;
+      recursive = recursive1;
+      cost_metrics = cost_metrics1;
+      inlining_arguments = inlining_arguments1;
+      dbg = dbg1;
+      is_tupled = is_tupled1;
+      is_my_closure_used = is_my_closure_used1;
+      inlining_decision = inlining_decision1
+    }
+    { code_id = code_id2;
+      newer_version_of = newer_version_of2;
+      params_arity = params_arity2;
+      result_arity = result_arity2;
+      stub = stub2;
+      inline = inline2;
+      is_a_functor = is_a_functor2;
+      recursive = recursive2;
+      cost_metrics = cost_metrics2;
+      inlining_arguments = inlining_arguments2;
+      dbg = dbg2;
+      is_tupled = is_tupled2;
+      is_my_closure_used = is_my_closure_used2;
+      inlining_decision = inlining_decision2
+    } =
+  Code_id.equal code_id1 code_id2
+  && (Option.equal Code_id.equal) newer_version_of1 newer_version_of2
+  && Flambda_arity.With_subkinds.equal params_arity1 params_arity2
+  && Flambda_arity.With_subkinds.equal result_arity1 result_arity2
+  && Bool.equal stub1 stub2
+  && Inline_attribute.equal inline1 inline2
+  && Bool.equal is_a_functor1 is_a_functor2
+  && Recursive.equal recursive1 recursive2
+  && Cost_metrics.equal cost_metrics1 cost_metrics2
+  && Inlining_arguments.equal inlining_arguments1 inlining_arguments2
+  && Int.equal (Debuginfo.compare dbg1 dbg2) 0
+  && Bool.equal is_tupled1 is_tupled2
+  && Bool.equal is_my_closure_used1 is_my_closure_used2
+  && Function_decl_inlining_decision_type.equal inlining_decision1
+       inlining_decision2

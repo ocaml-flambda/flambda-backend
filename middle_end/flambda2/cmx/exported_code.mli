@@ -12,18 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Calling_convention : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-
-  val needs_closure_arg : t -> bool
-
-  val is_tupled : t -> bool
-
-  val params_arity : t -> Flambda_arity.t
-end
-
 type t
 
 include Contains_ids.S with type t := t
@@ -46,7 +34,7 @@ val find_code : t -> Code_id.t -> Code.t option
 
 val find_code_if_not_imported : t -> Code_id.t -> Code.t option
 
-val find_calling_convention : t -> Code_id.t -> Calling_convention.t
+val find_code_metadata : t -> Code_id.t -> Code_metadata.t
 
 val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
 

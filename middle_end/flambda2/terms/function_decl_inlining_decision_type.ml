@@ -136,3 +136,38 @@ let cannot_be_inlined t =
   match behaviour t with
   | Cannot_be_inlined -> true
   | Must_be_inlined | Could_possibly_be_inlined -> false
+
+let equal t1 t2 =
+  match t1, t2 with
+  | Not_yet_decided, Not_yet_decided
+  | Never_inline_attribute, Never_inline_attribute
+  | Stub, Stub
+  | Attribute_inline, Attribute_inline ->
+    true
+  | Function_body_too_large size1, Function_body_too_large size2 ->
+    Code_size.equal size1 size2
+  | ( Small_function { size = size1; small_function_size = small_function_size1 },
+      Small_function
+        { size = size2; small_function_size = small_function_size2 } ) ->
+    Code_size.equal size1 size2
+    && Code_size.equal small_function_size1 small_function_size2
+  | ( Speculatively_inlinable
+        { size = size1;
+          small_function_size = small_function_size1;
+          large_function_size = large_function_size1
+        },
+      Speculatively_inlinable
+        { size = size2;
+          small_function_size = small_function_size2;
+          large_function_size = large_function_size2
+        } ) ->
+    Code_size.equal size1 size2
+    && Code_size.equal small_function_size1 small_function_size2
+    && Code_size.equal large_function_size1 large_function_size2
+  | Functor { size = size1 }, Functor { size = size2 } ->
+    Code_size.equal size1 size2
+  | ( ( Not_yet_decided | Never_inline_attribute | Function_body_too_large _
+      | Stub | Attribute_inline | Small_function _ | Speculatively_inlinable _
+      | Functor _ ),
+      _ ) ->
+    false

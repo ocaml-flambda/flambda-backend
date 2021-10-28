@@ -74,3 +74,5 @@ val print : Format.formatter -> t -> unit
 include Contains_names.S with type t := t
 
 val all_ids_for_export : t -> Ids_for_export.t
+
+val equal : t -> t -> bool
