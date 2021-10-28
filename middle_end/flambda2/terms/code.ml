@@ -20,6 +20,8 @@ type t = Flambda.Function_params_and_body.t Code0.t
 
 module Params_and_body_state = Code0.Params_and_body_state
 
+let code_metadata = Code0.code_metadata
+
 let code_id = Code0.code_id
 
 let params_and_body = Code0.params_and_body

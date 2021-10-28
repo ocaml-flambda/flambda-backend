@@ -31,6 +31,8 @@ end
 
 type 'function_params_and_body t
 
+val code_metadata : _ t -> Code_metadata.t
+
 val code_id : 'function_params_and_body t -> Code_id.t
 
 val params_and_body :
