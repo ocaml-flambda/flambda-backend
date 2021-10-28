@@ -47,9 +47,17 @@ let inline_attribute (attr : L.inline_attribute) : Inline_attribute.t =
   match attr with
   | Always_inline -> Always_inline
   | Never_inline -> Never_inline
-  | Hint_inline -> Hint_inline
+  | Available_inline -> Available_inline
   | Unroll i -> Unroll i
   | Default_inline -> Default_inline
+
+let inlined_attribute (attr : L.inlined_attribute) : Inlined_attribute.t =
+  match attr with
+  | Always_inlined -> Always_inlined
+  | Never_inlined -> Never_inlined
+  | Hint_inlined -> Hint_inlined
+  | Unroll i -> Unroll i
+  | Default_inlined -> Default_inlined
 
 let kind_of_primitive_native_repr (repr : Primitive.native_repr) =
   match repr with

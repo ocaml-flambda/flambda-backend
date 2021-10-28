@@ -142,10 +142,10 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
         in
         (* These inlining fields should not be used for C calls since they can't
            really be inlined anyway. *)
-        let inline = Inline_attribute.Never_inline in
+        let inlined = Inlined_attribute.Never_inlined in
         let inlining_state = Inlining_state.default ~round:0 in
-        Apply.create ~callee ~continuation exn_cont ~args ~call_kind dbg ~inline
-          ~inlining_state ~probe_name:None
+        Apply.create ~callee ~continuation exn_cont ~args ~call_kind dbg
+          ~inlined ~inlining_state ~probe_name:None
       in
       Expr_with_acc.create_apply acc call
     else

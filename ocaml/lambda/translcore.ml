@@ -487,7 +487,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
               [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
         ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inline;
+        ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
         ap_probe=None;
       }
@@ -511,7 +511,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_func=Translobj.oo_prim "copy";
              ap_args=[self];
              ap_tailcall=Default_tailcall;
-             ap_inlined=Default_inline;
+             ap_inlined=Default_inlined;
              ap_specialised=Default_specialise;
              ap_probe=None;
            },
@@ -662,7 +662,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           ap_args = List.map (fun id -> Lvar id) arg_idents;
           ap_loc = of_location e.exp_loc ~scopes;
           ap_tailcall = Default_tailcall;
-          ap_inlined = Never_inline;
+          ap_inlined = Never_inlined;
           ap_specialised = Always_specialise;
           ap_probe = Some {name};
         }
@@ -741,7 +741,7 @@ and transl_tupled_cases ~scopes patl_expr_list =
 
 and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
-      ?(inlined = Default_inline)
+      ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
       lam sargs loc
   =
@@ -1207,7 +1207,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
                ap_tailcall = Default_tailcall;
-               ap_inlined = Default_inline;
+               ap_inlined = Default_inlined;
                ap_specialised = Default_specialise;
                ap_probe=None;
              })
@@ -1236,7 +1236,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
     ap_func = op;
     ap_args=[exp; func];
     ap_tailcall = Default_tailcall;
-    ap_inlined = Default_inline;
+    ap_inlined = Default_inlined;
     ap_specialised = Default_specialise;
     ap_probe=None;
   }

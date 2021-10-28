@@ -685,7 +685,7 @@ let rec comp_expr env exp sz cont =
         ap_func=func;
         ap_args=[arg];
         ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inline;
+        ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
         ap_probe=None;
       } in

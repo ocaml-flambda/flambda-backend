@@ -45,9 +45,9 @@ let fold_over_projections_of_vars_bound_by_closure ~closure_id_being_applied
     bound_variables
     init
 
-let set_inline_attribute_on_all_apply body inline specialise probe =
+let set_inlined_attribute_on_all_apply body inlined specialise probe =
   Flambda_iterators.map_toplevel_expr (function
-    | Apply apply -> Apply { apply with inline; specialise; probe }
+    | Apply apply -> Apply { apply with inlined; specialise; probe }
     | expr -> expr)
     body
 
@@ -90,7 +90,7 @@ let copy_of_function's_body_with_freshened_params env
     introduced by the corresponding set of closures. *)
 let inline_by_copying_function_body ~env ~r
       ~lhs_of_application
-      ~(inline_requested : Lambda.inline_attribute)
+      ~(inlined_requested : Lambda.inlined_attribute)
       ~(specialise_requested : Lambda.specialise_attribute)
       ~(probe_requested : Lambda.probe)
       ~closure_id_being_applied
@@ -110,7 +110,7 @@ let inline_by_copying_function_body ~env ~r
   in
   let body =
     let default_inline =
-      Lambda.equal_inline_attribute inline_requested Default_inline
+      Lambda.equal_inlined_attribute inlined_requested Default_inlined
     in
     let default_specialise =
       Lambda.equal_specialise_attribute specialise_requested Default_specialise
@@ -123,8 +123,8 @@ let inline_by_copying_function_body ~env ~r
          This allows reporting the annotation to the application the
          original programmer really intended: the stub is not visible
          in the source. *)
-      set_inline_attribute_on_all_apply body
-        inline_requested specialise_requested probe_requested
+      set_inlined_attribute_on_all_apply body
+        inlined_requested specialise_requested probe_requested
     else
       body
   in
@@ -593,7 +593,7 @@ let inline_by_copying_function_declaration
     ~(r : Inline_and_simplify_aux.Result.t)
     ~(function_decls : A.function_declarations)
     ~(lhs_of_application : Variable.t)
-    ~(inline_requested : Lambda.inline_attribute)
+    ~(inlined_requested : Lambda.inlined_attribute)
     ~(probe_requested: Lambda.probe)
     ~(closure_id_being_applied : Closure_id.t)
     ~(function_decl : A.function_declaration)
@@ -662,7 +662,7 @@ let inline_by_copying_function_declaration
       in
       let apply : Flambda.apply =
         { func = closure_var; args; kind = Direct closure_id; dbg;
-          inline = inline_requested; specialise = Default_specialise;
+          inlined = inlined_requested; specialise = Default_specialise;
           probe = probe_requested;
         }
       in

@@ -26,7 +26,7 @@ val pure_module : module_expr -> let_kind
 val transl_exp: scopes:scopes -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
-                  -> ?inlined:inline_attribute
+                  -> ?inlined:inlined_attribute
                   -> ?specialised:specialise_attribute
                   -> lambda -> (arg_label * expression option) list
                   -> scoped_location -> lambda

@@ -132,7 +132,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_func=Lvar id;
                       ap_args=List.rev args;
                       ap_tailcall=Default_tailcall;
-                      ap_inlined=Default_inline;
+                      ap_inlined=Default_inlined;
                       ap_specialised=Default_specialise;
                       ap_probe=None;
                     })})
@@ -395,7 +395,7 @@ let eval_rec_bindings bindings cont =
              ap_func=mod_prim "init_mod";
              ap_args=[loc; shape];
              ap_tailcall=Default_tailcall;
-             ap_inlined=Default_inline;
+             ap_inlined=Default_inlined;
              ap_specialised=Default_specialise;
              ap_probe=None;
            },
@@ -422,7 +422,7 @@ let eval_rec_bindings bindings cont =
           ap_func=mod_prim "update_mod";
           ap_args=[shape; Lvar id; rhs];
           ap_tailcall=Default_tailcall;
-          ap_inlined=Default_inline;
+          ap_inlined=Default_inlined;
           ap_specialised=Default_specialise;
           ap_probe=None;
         },
@@ -1488,7 +1488,7 @@ let toploop_getvalue id =
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
     ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inline;
+    ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
     ap_probe=None;
   }
@@ -1504,7 +1504,7 @@ let toploop_setvalue id lam =
          Const_string(toplevel_name id, Location.none, None)));
        lam];
     ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inline;
+    ap_inlined=Default_inlined;
     ap_specialised=Default_specialise;
     ap_probe=None;
   }

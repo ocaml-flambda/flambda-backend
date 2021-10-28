@@ -383,7 +383,7 @@ let transform_primitive env (prim : L.primitive) args loc =
         ap_tailcall = Default_tailcall;
         (* CR-someday lwhite: it would be nice to be able to give inlined
            attributes to functions applied with the application operators. *)
-        ap_inlined = Default_inline;
+        ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_probe = None
       }
@@ -857,7 +857,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         args;
                         loc;
                         tailcall = Default_tailcall;
-                        inlined = Default_inline;
+                        inlined = Default_inlined;
                         specialised = Default_specialise;
                         probe = None
                       }
@@ -1163,7 +1163,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                     args;
                     loc;
                     tailcall = Default_tailcall;
-                    inlined = Default_inline;
+                    inlined = Default_inlined;
                     specialised = Default_specialise;
                     probe = None
                   }

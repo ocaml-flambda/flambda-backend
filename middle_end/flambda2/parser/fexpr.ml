@@ -352,10 +352,17 @@ type function_arities =
 
 type inline_attribute = Inline_attribute.t =
   | Always_inline
-  | Hint_inline
+  | Available_inline
   | Never_inline
   | Unroll of int
   | Default_inline
+
+type inlined_attribute = Inlined_attribute.t =
+  | Always_inlined
+  | Hint_inlined
+  | Never_inlined
+  | Unroll of int
+  | Default_inlined
 
 type inlining_state = { depth : int (* CR lmaurer: Add inlining arguments *) }
 
@@ -366,7 +373,7 @@ type apply =
     args : simple list;
     call_kind : call_kind;
     arities : function_arities option;
-    inline : inline_attribute option;
+    inlined : inlined_attribute option;
     inlining_state : inlining_state option
   }
 
