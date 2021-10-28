@@ -91,11 +91,11 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
-let exec_magic_number = "Caml2021X029"
+let exec_magic_number = "Caml1999X029"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-and cmi_magic_number = "Caml2021I029"
-and cmo_magic_number = "Caml2021O029"
-and cma_magic_number = "Caml2021A029"
+and cmi_magic_number = "Caml1999I029"
+and cmo_magic_number = "Caml1999O029"
+and cma_magic_number = "Caml1999A029"
 and cmx_magic_number =
   if flambda || flambda2 then
     "Caml2021y029"
@@ -106,11 +106,11 @@ and cmxa_magic_number =
     "Caml2021z029"
   else
     "Caml2021Z029"
-and ast_impl_magic_number = "Caml2021M029"
-and ast_intf_magic_number = "Caml2021N029"
-and cmxs_magic_number = "Caml2021D029"
-and cmt_magic_number = "Caml2021T029"
-and linear_magic_number = "Caml2021L029"
+and ast_impl_magic_number = "Caml1999M029"
+and ast_intf_magic_number = "Caml1999N029"
+and cmxs_magic_number = "Caml1999D029"
+and cmt_magic_number = "Caml1999T029"
+and linear_magic_number = "Caml1999L029"
 and cfg_magic_number = "Caml2021G029"
 
 let interface_suffix = ref ".mli"
