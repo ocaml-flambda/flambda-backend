@@ -497,13 +497,12 @@ let simplify_function context ~used_closure_vars ~shareable_constants closure_id
         with
         | body, uacc ->
           let dacc_after_body = UA.creation_dacc uacc in
-          let dbg = Function_params_and_body.debuginfo params_and_body in
           (* CR mshinwell: Should probably look at [cont_uses]? *)
           let free_names_of_body = UA.name_occurrences uacc in
           let params_and_body =
             RE.Function_params_and_body.create ~free_names_of_body
-              ~return_continuation ~exn_continuation params ~dbg ~body
-              ~my_closure ~my_depth
+              ~return_continuation ~exn_continuation params ~body ~my_closure
+              ~my_depth
           in
           (* Free names of the code = free names of the body minus the return
              and exception continuations, the parameters and the [my_closure]

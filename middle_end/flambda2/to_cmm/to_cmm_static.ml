@@ -245,16 +245,18 @@ let update_env_for_code env (code : Code.t) =
     (* Function info should already have been computed *)
     env
 
-let add_function env r ~params_and_body code_id p =
+let add_function env r ~params_and_body code_id p ~fun_dbg =
   let fun_symbol = Code_id.code_symbol code_id in
   let fun_name = Linkage_name.to_string (Symbol.linkage_name fun_symbol) in
-  let fundecl, r = params_and_body env r fun_name p in
+  let fundecl, r = params_and_body env r fun_name p ~fun_dbg in
   R.add_function r fundecl
 
 let add_functions env ~params_and_body r (code : Code.t) =
   match Code.params_and_body code with
   | Deleted -> r
-  | Present p -> add_function env r ~params_and_body (Code.code_id code) p
+  | Present p ->
+    add_function env r ~params_and_body (Code.code_id code) p
+      ~fun_dbg:(Code.dbg code)
 
 let preallocate_set_of_closures (r, updates, env) ~closure_symbols
     set_of_closures =

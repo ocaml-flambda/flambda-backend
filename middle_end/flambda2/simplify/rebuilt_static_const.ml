@@ -284,7 +284,7 @@ module Group = struct
     lazy
       (Function_params_and_body.create
          ~return_continuation:(Continuation.create ())
-         ~exn_continuation:(Continuation.create ()) [] ~dbg:Debuginfo.none
+         ~exn_continuation:(Continuation.create ()) []
          ~body:(Expr.create_invalid ()) ~free_names_of_body:Unknown
          ~my_closure:(Variable.create "my_closure")
          ~my_depth:(Variable.create "my_depth"))

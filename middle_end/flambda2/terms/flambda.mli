@@ -427,7 +427,6 @@ module Function_params_and_body : sig
     return_continuation:Continuation.t ->
     exn_continuation:Continuation.t ->
     Bound_parameter.t list ->
-    dbg:Debuginfo.t ->
     body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
@@ -479,12 +478,6 @@ module Function_params_and_body : sig
       my_depth:Variable.t ->
       'a) ->
     'a
-
-  (** Return the debuginfo associated *)
-  val debuginfo : t -> Debuginfo.t
-
-  (** Return the arity of the function body *)
-  val params_arity : t -> Flambda_arity.t
 end
 
 module Static_const_or_code : sig

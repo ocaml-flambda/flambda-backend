@@ -1449,7 +1449,7 @@ and fill_up_to j acc i =
 
 (* Translate a function declaration. *)
 
-and params_and_body env res fun_name p =
+and params_and_body env res fun_name p ~fun_dbg =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation:k
@@ -1470,7 +1470,6 @@ and params_and_body env res fun_name p =
         let env, fun_args = var_list env args in
         let fun_body, res = expr env res body in
         let fun_flags = function_flags () in
-        let fun_dbg = Function_params_and_body.debuginfo p in
         C.fundecl fun_name fun_args fun_body fun_flags fun_dbg, res
       with Misc.Fatal_error as e ->
         Format.eprintf
