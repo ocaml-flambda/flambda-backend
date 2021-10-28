@@ -66,10 +66,10 @@ let create code_id ~newer_version_of ~params_arity ~result_arity ~stub
     ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
   begin
     match stub, inline with
-    | true, (Hint_inline | Never_inline | Default_inline)
+    | true, (Available_inline | Never_inline | Default_inline)
     | ( false,
-        (Never_inline | Default_inline | Always_inline | Hint_inline | Unroll _)
-      ) ->
+        ( Never_inline | Default_inline | Always_inline | Available_inline
+        | Unroll _ ) ) ->
       ()
     | true, (Always_inline | Unroll _) ->
       Misc.fatal_error

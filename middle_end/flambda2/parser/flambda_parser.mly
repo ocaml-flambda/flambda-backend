@@ -288,7 +288,7 @@ code:
     EQUAL; body = expr;
     { let recursive, inline, id, newer_version_of, code_size = header in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
-        params_and_body = Present { params; closure_var; depth_var; ret_cont;
+        params_and_body = Inlinable { params; closure_var; depth_var; ret_cont;
                                     exn_cont; body };
         code_size; is_tupled; } }
   | header = code_header;
@@ -301,7 +301,7 @@ code:
     { let recursive, inline, id, newer_version_of, code_size = header in
       { id; newer_version_of; param_arity = Some param_arity;
         ret_arity = Some ret_arity; recursive; inline; code_size;
-        params_and_body = Deleted; is_tupled; } }
+        params_and_body = Cannot_be_called; is_tupled; } }
 ;
 
 code_header:
