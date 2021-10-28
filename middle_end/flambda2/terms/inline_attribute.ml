@@ -40,8 +40,9 @@ let equal t1 t2 =
   | Default_inline, Default_inline ->
     true
   | Unroll n1, Unroll n2 -> n1 = n2
-  | (Always_inline | Available_inline | Never_inline | Unroll _ | Default_inline), _
-    ->
+  | ( ( Always_inline | Available_inline | Never_inline | Unroll _
+      | Default_inline ),
+      _ ) ->
     false
 
 let is_default t =

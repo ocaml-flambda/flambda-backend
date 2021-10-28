@@ -103,8 +103,8 @@ let create ~print_function_params_and_body code_id
     match stub, inline with
     | true, (Available_inline | Never_inline | Default_inline)
     | ( false,
-        (Never_inline | Default_inline | Always_inline | Available_inline | Unroll _)
-      ) ->
+        ( Never_inline | Default_inline | Always_inline | Available_inline
+        | Unroll _ ) ) ->
       ()
     | true, (Always_inline | Unroll _) ->
       Misc.fatal_error
