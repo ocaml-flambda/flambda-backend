@@ -80,11 +80,11 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
     let value = Option.value init ~default:D.top in
+    (* The need to have several blocks in the initial work set stems from the
+       fact that we currently need to consider all trap handlers as alive. *)
     Cfg.iter_blocks cfg ~f:(fun label block ->
         if Label.equal label cfg.entry_label || block.is_trap_handler
         then set := WorkSet.add { WorkSetElement.label; value } !set);
-    if WorkSet.is_empty !set
-    then Misc.fatal_error "Dataflow.Forward.create: empty initial work set";
     map, set
 
   let remove_and_return :
