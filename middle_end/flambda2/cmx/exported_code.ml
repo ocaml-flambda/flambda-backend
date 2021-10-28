@@ -17,18 +17,18 @@
 module C = Code
 
 type t0 =
-  | Present of { code : C.t }
-  | Imported of { code_metadata : Code_metadata.t }
+  | Code_present of { code : C.t }
+  | Metadata_only of { code_metadata : Code_metadata.t }
 
 type t = t0 Code_id.Map.t
 
 let print0 ppf t0 =
   match t0 with
-  | Present { code } ->
-    Format.fprintf ppf "@[<hov 1>(Present@ (@[<hov 1>(code@ %a)@]))@]" C.print
-      code
-  | Imported { code_metadata } ->
-    Format.fprintf ppf "@[<hov 1>(Imported@ (code_metadata@ %a))@]"
+  | Code_present { code } ->
+    Format.fprintf ppf "@[<hov 1>(Code_present@ (@[<hov 1>(code@ %a)@]))@]"
+      C.print code
+  | Metadata_only { code_metadata } ->
+    Format.fprintf ppf "@[<hov 1>(Metadata_only@ (code_metadata@ %a))@]"
       Code_metadata.print code_metadata
 
 let print ppf t = Code_id.Map.print print0 ppf t
@@ -46,8 +46,8 @@ let add_code code t =
           then C.make_non_inlinable code
           else code
         in
-        Some (Present { code })
-      | Non_inlinable -> Some (Present { code })
+        Some (Code_present { code })
+      | Non_inlinable -> Some (Code_present { code })
       | Cannot_be_called -> None)
     code
   |> Code_id.Map.disjoint_union t
@@ -55,28 +55,30 @@ let add_code code t =
 let mark_as_imported t =
   let forget_params_and_body t0 =
     match t0 with
-    | Imported _ -> t0
-    | Present { code } -> Imported { code_metadata = C.code_metadata code }
+    | Metadata_only _ -> t0
+    | Code_present { code } ->
+      Metadata_only { code_metadata = C.code_metadata code }
   in
   Code_id.Map.map forget_params_and_body t
 
 let merge t1 t2 =
   let merge_one code_id t01 t02 =
     match t01, t02 with
-    | Imported { code_metadata = cc1 }, Imported { code_metadata = cc2 } ->
+    | ( Metadata_only { code_metadata = cc1 },
+        Metadata_only { code_metadata = cc2 } ) ->
       if Code_metadata.equal cc1 cc2
       then Some t01
       else
         Misc.fatal_errorf
           "Code id %a is imported with different code metadata (%a and %a)"
           Code_id.print code_id Code_metadata.print cc1 Code_metadata.print cc2
-    | Present _, Present _ ->
+    | Code_present _, Code_present _ ->
       Misc.fatal_errorf "Cannot merge two definitions for code id %a"
         Code_id.print code_id
-    | ( Imported { code_metadata = cc_imported },
-        (Present { code = code_present } as t0) )
-    | ( (Present { code = code_present } as t0),
-        Imported { code_metadata = cc_imported } ) ->
+    | ( Metadata_only { code_metadata = cc_imported },
+        (Code_present { code = code_present } as t0) )
+    | ( (Code_present { code = code_present } as t0),
+        Metadata_only { code_metadata = cc_imported } ) ->
       let cc_present = C.code_metadata code_present in
       if Code_metadata.equal cc_present cc_imported
       then Some t0
@@ -95,8 +97,8 @@ let find_code t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
-  | Present { code } -> Some code
-  | Imported _ -> None
+  | Code_present { code } -> Some code
+  | Metadata_only _ -> None
 
 let find_code_if_not_imported t code_id =
   match Code_id.Map.find code_id t with
@@ -111,15 +113,15 @@ let find_code_if_not_imported t code_id =
        end up with missing code IDs during the reachability computation, and
        have to assume that it fits the above case. *)
     None
-  | Present { code } -> Some code
-  | Imported _ -> None
+  | Code_present { code } -> Some code
+  | Metadata_only _ -> None
 
 let find_code_metadata t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
-  | Present { code } -> Code.code_metadata code
-  | Imported { code_metadata } -> code_metadata
+  | Code_present { code } -> Code.code_metadata code
+  | Metadata_only { code_metadata } -> code_metadata
 
 let remove_unreachable t ~reachable_names =
   Code_id.Map.filter
@@ -132,9 +134,9 @@ let all_ids_for_export t =
     (fun code_id code_data all_ids ->
       let all_ids = Ids_for_export.add_code_id all_ids code_id in
       match code_data with
-      | Present { code } ->
+      | Code_present { code } ->
         Ids_for_export.union all_ids (C.all_ids_for_export code)
-      | Imported { code_metadata = _ } -> all_ids)
+      | Metadata_only { code_metadata = _ } -> all_ids)
     t Ids_for_export.empty
 
 let apply_renaming code_id_map renaming t =
@@ -150,15 +152,15 @@ let apply_renaming code_id_map renaming t =
         in
         let code_data =
           match code_data with
-          | Present { code } ->
+          | Code_present { code } ->
             let code = C.apply_renaming code renaming in
-            Present { code }
-          | Imported { code_metadata } -> Imported { code_metadata }
+            Code_present { code }
+          | Metadata_only { code_metadata } -> Metadata_only { code_metadata }
         in
         Code_id.Map.add code_id code_data all_code)
       t Code_id.Map.empty
 
 let iter t f =
   Code_id.Map.iter
-    (fun id -> function Present { code; _ } -> f id code | _ -> ())
+    (fun id -> function Code_present { code; _ } -> f id code | _ -> ())
     t
