@@ -42,12 +42,9 @@ let create_code are_rebuilding code_id
   if ART.do_not_rebuild_terms are_rebuilding
   then
     let free_names_of_params_and_body =
-      match params_and_body with
-      | Inlinable (_, free_names_of_params_and_body) ->
-        Code.Params_and_body_state.inlinable free_names_of_params_and_body
-      | Non_inlinable { is_my_closure_used } ->
-        Code.Params_and_body_state.non_inlinable ~is_my_closure_used
-      | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
+      Code.Params_and_body_state.map params_and_body
+        ~f:(fun (_, free_names_of_params_and_body) ->
+          free_names_of_params_and_body)
     in
     let non_constructed_code =
       Non_constructed_code.create code_id ~free_names_of_params_and_body
@@ -58,15 +55,11 @@ let create_code are_rebuilding code_id
     Code_not_rebuilt non_constructed_code
   else
     let params_and_body =
-      match params_and_body with
-      | Inlinable (params_and_body, free_names_of_params_and_body) ->
-        Code.Params_and_body_state.inlinable
+      Code.Params_and_body_state.map params_and_body
+        ~f:(fun (params_and_body, free_names_of_params_and_body) ->
           ( Rebuilt_expr.Function_params_and_body.to_function_params_and_body
               params_and_body are_rebuilding,
-            free_names_of_params_and_body )
-      | Non_inlinable { is_my_closure_used } ->
-        Code.Params_and_body_state.non_inlinable ~is_my_closure_used
-      | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
+            free_names_of_params_and_body ))
     in
     let code =
       Code.create code_id ~params_and_body ~newer_version_of ~params_arity

@@ -24,9 +24,19 @@ module Params_and_body_state = struct
 
   let inlinable params_and_body = Inlinable params_and_body
 
+  (* This function is deliberately not exposed in the .mli to make it clear that
+     the transition from inlinable to non-inlinable only happens when
+     [make_non_inlinable] (see below) is called. *)
   let non_inlinable ~is_my_closure_used = Non_inlinable { is_my_closure_used }
 
   let cannot_be_called = Cannot_be_called
+
+  let map t ~f =
+    match t with
+    | Inlinable params_and_body -> Inlinable (f params_and_body)
+    | Non_inlinable { is_my_closure_used } ->
+      Non_inlinable { is_my_closure_used }
+    | Cannot_be_called -> Cannot_be_called
 
   let print print_params_and_body ppf t =
     match t with

@@ -24,9 +24,9 @@ module Params_and_body_state : sig
 
   val inlinable : 'function_params_and_body -> 'function_params_and_body t
 
-  val non_inlinable : is_my_closure_used:bool -> _ t
-
   val cannot_be_called : _ t
+
+  val map : 'a t -> f:('a -> 'b) -> 'b t
 end
 
 type 'function_params_and_body t

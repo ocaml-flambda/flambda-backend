@@ -52,12 +52,9 @@ let create code_id
     ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
     ~inlining_decision =
   let params_and_body =
-    match free_names_of_params_and_body with
-    | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
-    | Non_inlinable { is_my_closure_used } ->
-      Code.Params_and_body_state.non_inlinable ~is_my_closure_used
-    | Inlinable free_names_of_params_and_body ->
-      Code.Params_and_body_state.inlinable ((), free_names_of_params_and_body)
+    Code.Params_and_body_state.map free_names_of_params_and_body
+      ~f:(fun free_names_of_params_and_body ->
+        (), free_names_of_params_and_body)
   in
   Code0.create ~print_function_params_and_body:Unit.print code_id
     ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub ~inline

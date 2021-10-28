@@ -362,8 +362,8 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
 
 and subst_code env (code : Code.t) : Code.t =
   let params_and_body =
-    match Code.params_and_body code with
-    | Inlinable params_and_body ->
+    Code.Params_and_body_state.map (Code.params_and_body code)
+    ~f:(fun  params_and_body ->
       let params_and_body = subst_params_and_body env params_and_body in
       let _names_and_closure_vars names =
         Name_occurrences.(
@@ -377,10 +377,7 @@ and subst_code env (code : Code.t) : Code.t =
         (* Flambda.Function_params_and_body.free_names params_and_body |>
            names_and_closure_vars *)
       in
-      Code.Params_and_body_state.inlinable (params_and_body, free_names)
-    | Non_inlinable { is_my_closure_used } ->
-      Code.Params_and_body_state.non_inlinable ~is_my_closure_used
-    | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
+      params_and_body, free_names)
   in
   let newer_version_of =
     Option.map (subst_code_id env) (Code.newer_version_of code)
