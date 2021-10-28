@@ -49,7 +49,7 @@ let ignore_set_of_closures_origin (_ : Set_of_closures_origin.t) = ()
 let ignore_closure_id (_ : Closure_id.t) = ()
 let ignore_var_within_closure (_ : Var_within_closure.t) = ()
 let ignore_tag (_ : Tag.t) = ()
-let ignore_inline_attribute (_ : Lambda.inline_attribute) = ()
+let ignore_inlined_attribute (_ : Lambda.inlined_attribute) = ()
 let ignore_specialise_attribute (_ : Lambda.specialise_attribute) = ()
 let ignore_probe (_ : Lambda.probe) = ()
 let ignore_value_kind (_ : Lambda.value_kind) = ()
@@ -186,12 +186,12 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop (add_binding_occurrence env var) handler
     (* Everything else: *)
     | Var var -> check_variable_is_bound env var
-    | Apply { func; args; kind; dbg; inline; specialise; probe } ->
+    | Apply { func; args; kind; dbg; inlined; specialise; probe } ->
       check_variable_is_bound env func;
       check_variables_are_bound env args;
       ignore_call_kind kind;
       ignore_debuginfo dbg;
-      ignore_inline_attribute inline;
+      ignore_inlined_attribute inlined;
       ignore_specialise_attribute specialise;
       ignore_probe probe
     | Assign { being_assigned; new_value; } ->

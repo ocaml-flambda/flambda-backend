@@ -823,7 +823,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
   | Apply
       { func;
         call_kind;
-        inline;
+        inlined;
         inlining_state;
         continuation;
         exn_continuation;
@@ -867,8 +867,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           Misc.fatal_errorf "Must specify arities for C call"
       end
     in
-    let inline =
-      inline |> Option.value ~default:Inline_attribute.Default_inline
+    let inlined =
+      inlined |> Option.value ~default:Inlined_attribute.Default_inlined
     in
     let inlining_state =
       match inlining_state with
@@ -885,7 +885,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~callee:(Simple.name (name env func))
         ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
-        ~call_kind Debuginfo.none ~inline ~inlining_state ~probe_name:None
+        ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
     in
     Flambda.Expr.create_apply apply
   | Invalid invalid -> Flambda.Expr.create_invalid ~semantics:invalid ()

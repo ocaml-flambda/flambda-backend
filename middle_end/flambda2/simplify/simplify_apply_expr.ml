@@ -29,9 +29,9 @@ let fail_if_probe apply =
       Apply.print apply
 
 let warn_not_inlined_if_needed apply reason =
-  match Apply.inline apply with
-  | Hint_inline | Never_inline | Default_inline -> ()
-  | Always_inline | Unroll _ ->
+  match Apply.inlined apply with
+  | Hint_inlined | Never_inlined | Default_inlined -> ()
+  | Always_inlined | Unroll _ ->
     Location.prerr_warning
       (Debuginfo.to_location (Apply.dbg apply))
       (Warnings.Inlining_impossible reason)
@@ -211,8 +211,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     | Return continuation -> continuation
   in
   begin
-    match Apply.inline apply with
-    | Always_inline | Never_inline ->
+    match Apply.inlined apply with
+    | Always_inlined | Never_inlined ->
       Location.prerr_warning
         (Debuginfo.to_location dbg)
         (Warnings.Inlining_impossible
@@ -222,7 +222,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (Debuginfo.to_location dbg)
         (Warnings.Inlining_impossible
            "[@unroll] attributes may not be used on partial applications")
-    | Default_inline | Hint_inline -> ()
+    | Default_inlined | Hint_inlined -> ()
   end;
   let arity = List.length param_arity in
   assert (arity > List.length args);
@@ -318,7 +318,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       in
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
-          exn_continuation ~args ~call_kind dbg ~inline:Default_inline
+          exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Apply.inlining_state apply)
           ~probe_name:None
       in
@@ -476,9 +476,9 @@ let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_closure_id ~result_arity ~recursive ~arg_types:_ ~must_be_detupled
     function_decl ~down_to_up ~type_unavailable =
   begin
-    match Apply.probe_name apply, Apply.inline apply with
-    | None, _ | Some _, Never_inline -> ()
-    | Some _, (Hint_inline | Unroll _ | Default_inline | Always_inline) ->
+    match Apply.probe_name apply, Apply.inlined apply with
+    | None, _ | Some _, Never_inlined -> ()
+    | Some _, (Hint_inlined | Unroll _ | Default_inlined | Always_inlined) ->
       Misc.fatal_errorf
         "[Apply] terms with a [probe_name] (i.e. that call a tracing probe) \
          must always be marked as [Never_inline]:@ %a"
@@ -764,7 +764,7 @@ let simplify_apply_shared dacc apply =
       (Apply.exn_continuation apply)
       ~args ~call_kind:(Apply.call_kind apply)
       (DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply))
-      ~inline:(Apply.inline apply) ~inlining_state
+      ~inlined:(Apply.inlined apply) ~inlining_state
       ~probe_name:(Apply.probe_name apply)
   in
   dacc, callee_ty, apply, arg_types

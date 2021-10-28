@@ -35,6 +35,7 @@ let keyword_table =
     "andwhere", KWD_ANDWHERE;
     "apply", KWD_APPLY;
     "asr", KWD_ASR;
+    "available", KWD_AVAILABLE;
     "Block", KWD_BLOCK;
     "boxed", KWD_BOXED;
     "ccall", KWD_CCALL;
@@ -61,6 +62,7 @@ let keyword_table =
     "in", KWD_IN;
     "inf", KWD_INF;
     "inline", KWD_INLINE;
+    "inlined", KWD_INLINED;
     "inlining_state", KWD_INLINING_STATE;
     "int32", KWD_INT32;
     "int64", KWD_INT64;

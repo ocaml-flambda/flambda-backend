@@ -167,11 +167,11 @@ let lambda_to_flambda ~ppf_dump ~prefixname ~backend ~size ~filename
                loop flam
            in
            let flam = back_end flam in
-           (* Check that there aren't any unused "always inline" attributes. *)
+           (* Check that there aren't any unused "always inlined" attributes. *)
            Flambda_iterators.iter_apply_on_program flam ~f:(fun apply ->
-             match apply.inline with
-             | Default_inline | Never_inline | Hint_inline -> ()
-             | Always_inline ->
+             match apply.inlined with
+             | Default_inlined | Never_inlined | Hint_inlined -> ()
+             | Always_inlined ->
                (* CR-someday mshinwell: consider a different error message if
                   this triggers as a result of the propagation of a user's
                   attribute into the second part of an over application

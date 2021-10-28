@@ -22,8 +22,8 @@ let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
      examining call sites. *)
   match (inline : Inline_attribute.t) with
   | Never_inline -> Never_inline_attribute
-  | Hint_inline | Always_inline -> Attribute_inline
-  | Default_inline | Unroll _ ->
+  | Always_inline -> Attribute_inline
+  | Default_inline | Unroll _ | Available_inline ->
     if stub
     then Stub
     else
@@ -38,7 +38,7 @@ let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
       let is_large = Code_size.( <= ) large_function_size size in
       if is_a_functor
       then Functor { size }
-      else if is_large
+      else if is_large && not (Inline_attribute.equal inline Available_inline)
       then Function_body_too_large large_function_size
       else if is_small
       then

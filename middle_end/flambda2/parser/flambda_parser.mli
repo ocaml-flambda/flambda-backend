@@ -93,6 +93,7 @@ type token =
   | KWD_INT64
   | KWD_INT32
   | KWD_INLINING_STATE
+  | KWD_INLINED
   | KWD_INLINE
   | KWD_INF
   | KWD_IN
@@ -111,7 +112,6 @@ type token =
   | KWD_DYNAMIC
   | KWD_DO_NOT_INLINE
   | KWD_DONE
-  | KWD_DOMINATOR_SCOPED
   | KWD_DIRECT
   | KWD_DEPTH
   | KWD_DELETED
@@ -123,6 +123,7 @@ type token =
   | KWD_CCALL
   | KWD_BOXED
   | KWD_BLOCK
+  | KWD_AVAILABLE
   | KWD_ASR
   | KWD_APPLY
   | KWD_ANDWHERE

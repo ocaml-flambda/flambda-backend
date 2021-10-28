@@ -92,7 +92,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       args = Parameter.List.vars args;
       kind;
       dbg = fun_decl.dbg;
-      inline = Default_inline;
+      inlined = Default_inlined;
       specialise = Default_specialise;
       probe = None;
     }

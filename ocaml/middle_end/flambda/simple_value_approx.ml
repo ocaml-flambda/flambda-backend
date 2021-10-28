@@ -144,7 +144,8 @@ let print_function_declaration ppf var (f : function_declaration) =
     let is_a_functor = if b.is_a_functor then " *functor*" else "" in
     let inline =
       match b.inline with
-      | Always_inline | Hint_inline -> " *inline*"
+      | Always_inline -> " *inline*"
+      | Available_inline -> " *inline_available*"
       | Never_inline -> " *never_inline*"
       | Unroll _ -> " *unroll*"
       | Default_inline -> ""

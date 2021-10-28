@@ -43,7 +43,7 @@ val create :
   args:Simple.t list ->
   call_kind:Call_kind.t ->
   Debuginfo.t ->
-  inline:Inline_attribute.t ->
+  inlined:Inlined_attribute.t ->
   inlining_state:Inlining_state.t ->
   probe_name:string option ->
   t
@@ -69,7 +69,7 @@ val dbg : t -> Debuginfo.t
 
 (** Instructions from the source code as to whether the callee should be
     inlined. *)
-val inline : t -> Inline_attribute.t
+val inlined : t -> Inlined_attribute.t
 
 (** Change the return continuation of an application. *)
 val with_continuation : t -> Result_continuation.t -> t

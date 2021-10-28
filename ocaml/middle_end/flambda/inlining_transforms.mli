@@ -68,7 +68,7 @@ val inline_by_copying_function_body
    : env:Inline_and_simplify_aux.Env.t
   -> r:Inline_and_simplify_aux.Result.t
   -> lhs_of_application:Variable.t
-  -> inline_requested:Lambda.inline_attribute
+  -> inlined_requested:Lambda.inlined_attribute
   -> specialise_requested:Lambda.specialise_attribute
   -> probe_requested:Lambda.probe
   -> closure_id_being_applied:Closure_id.t
@@ -92,7 +92,7 @@ val inline_by_copying_function_declaration
   -> r:Inline_and_simplify_aux.Result.t
   -> function_decls:Simple_value_approx.function_declarations
   -> lhs_of_application:Variable.t
-  -> inline_requested:Lambda.inline_attribute
+  -> inlined_requested:Lambda.inlined_attribute
   -> probe_requested:Lambda.probe
   -> closure_id_being_applied:Closure_id.t
   -> function_decl:Simple_value_approx.function_declaration
