@@ -185,13 +185,11 @@ let inline dacc ~apply ~unroll_to function_decl =
   (* CR mshinwell: Add meet constraint to the return continuation *)
   let denv = DA.denv dacc in
   let code =
-    match DE.find_code denv (FT.code_id function_decl) with
-    | Some code -> code
-    | None ->
-      Misc.fatal_errorf
-        "Cannot inline without the [Code.t] being available (this should have \
-         been caught earlier):@ %a"
-        Apply.print apply
+    match DE.find_code_exn denv (FT.code_id function_decl) with
+    | Code_present code -> code
+    | Metadata_only code_metadata ->
+      Misc.fatal_errorf "Cannot inline using only code metadata:@ %a"
+        Code_metadata.print code_metadata
   in
   let rec_info =
     match T.prove_rec_info (DE.typing_env denv) (FT.rec_info function_decl) with
@@ -200,16 +198,7 @@ let inline dacc ~apply ~unroll_to function_decl =
     | Invalid -> Rec_info_expr.do_not_inline
   in
   let denv = DE.enter_inlined_apply ~called_code:code ~apply denv in
-  let params_and_body =
-    match Code.params_and_body code with
-    | Inlinable params_and_body -> params_and_body
-    | Non_inlinable ->
-      Misc.fatal_errorf "Cannot inline function in non-inlinable state:@ %a"
-        Code.print code
-    | Cannot_be_called ->
-      Misc.fatal_errorf "Cannot inline function in cannot-be-called state:@ %a"
-        Code.print code
-  in
+  let params_and_body = Code.params_and_body code in
   Function_params_and_body.pattern_match params_and_body
     ~f:(fun
          ~return_continuation

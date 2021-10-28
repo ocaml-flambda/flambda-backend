@@ -18,8 +18,6 @@
 
 type t = Flambda.Function_params_and_body.t Code0.t
 
-module Params_and_body_state = Code0.Params_and_body_state
-
 let code_metadata = Code0.code_metadata
 
 let code_id = Code0.code_id
@@ -52,14 +50,16 @@ let is_my_closure_used = Code0.is_my_closure_used
 
 let inlining_decision = Code0.inlining_decision
 
-let create code_id ~params_and_body ~newer_version_of ~params_arity
-    ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
+let create code_id ~params_and_body ~free_names_of_params_and_body
+    ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
+    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~is_my_closure_used ~inlining_decision =
   Code0.create
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
-    code_id ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub
-    ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-    ~is_tupled ~is_my_closure_used ~inlining_decision
+    code_id ~params_and_body ~free_names_of_params_and_body ~newer_version_of
+    ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision
 
 let with_code_id = Code0.with_code_id
 
@@ -68,12 +68,6 @@ let with_params_and_body =
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
 
 let with_newer_version_of = Code0.with_newer_version_of
-
-let make_non_inlinable t = Code0.make_non_inlinable t
-
-let make_not_callable = Code0.make_not_callable
-
-let is_non_callable = Code0.is_non_callable
 
 let free_names = Code0.free_names
 

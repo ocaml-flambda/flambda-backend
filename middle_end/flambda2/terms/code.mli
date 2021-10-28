@@ -22,14 +22,11 @@
     after a round of simplification. *)
 type t = Flambda.Function_params_and_body.t Code0.t
 
-module Params_and_body_state = Code0.Params_and_body_state
-
 val code_metadata : t -> Code_metadata.t
 
 val code_id : t -> Code_id.t
 
-val params_and_body :
-  t -> Flambda.Function_params_and_body.t Params_and_body_state.t
+val params_and_body : t -> Flambda.Function_params_and_body.t
 
 val newer_version_of : t -> Code_id.t option
 
@@ -59,9 +56,8 @@ val inlining_decision : t -> Function_decl_inlining_decision_type.t
 
 val create :
   Code_id.t ->
-  params_and_body:
-    (Flambda.Function_params_and_body.t * Name_occurrences.t)
-    Params_and_body_state.t ->
+  params_and_body:Flambda.Function_params_and_body.t ->
+  free_names_of_params_and_body:Name_occurrences.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
@@ -80,8 +76,8 @@ val create :
 val with_code_id : Code_id.t -> t -> t
 
 val with_params_and_body :
-  (Flambda.Function_params_and_body.t * Name_occurrences.t)
-  Params_and_body_state.t ->
+  params_and_body:Flambda.Function_params_and_body.t ->
+  free_names_of_params_and_body:Name_occurrences.t ->
   cost_metrics:Cost_metrics.t ->
   t ->
   t
@@ -93,10 +89,3 @@ val print : Format.formatter -> t -> unit
 include Contains_names.S with type t := t
 
 val all_ids_for_export : t -> Ids_for_export.t
-
-(** See comment in code0.mli. *)
-val make_non_inlinable : t -> t
-
-val make_not_callable : t -> t
-
-val is_non_callable : t -> bool

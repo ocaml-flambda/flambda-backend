@@ -35,18 +35,12 @@ let create_normal_non_code const =
       free_names = Static_const.free_names const
     }
 
-let create_code are_rebuilding code_id
-    ~(params_and_body : _ Code.Params_and_body_state.t) ~newer_version_of
-    ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision =
+let create_code are_rebuilding code_id ~params_and_body
+    ~free_names_of_params_and_body ~newer_version_of ~params_arity ~result_arity
+    ~stub ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments
+    ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let free_names_of_params_and_body =
-      Code.Params_and_body_state.map params_and_body
-        ~f:(fun (_, free_names_of_params_and_body) ->
-          free_names_of_params_and_body)
-    in
     let non_constructed_code =
       Non_constructed_code.create code_id ~free_names_of_params_and_body
         ~newer_version_of ~params_arity ~result_arity ~stub ~inline
@@ -56,17 +50,14 @@ let create_code are_rebuilding code_id
     Code_not_rebuilt non_constructed_code
   else
     let params_and_body =
-      Code.Params_and_body_state.map params_and_body
-        ~f:(fun (params_and_body, free_names_of_params_and_body) ->
-          ( Rebuilt_expr.Function_params_and_body.to_function_params_and_body
-              params_and_body are_rebuilding,
-            free_names_of_params_and_body ))
+      Rebuilt_expr.Function_params_and_body.to_function_params_and_body
+        params_and_body are_rebuilding
     in
     let code =
-      Code.create code_id ~params_and_body ~newer_version_of ~params_arity
-        ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
-        ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-        ~inlining_decision
+      Code.create code_id ~params_and_body ~free_names_of_params_and_body
+        ~newer_version_of ~params_arity ~result_arity ~stub ~inline
+        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+        ~is_tupled ~is_my_closure_used ~inlining_decision
     in
     Normal
       { const = Static_const_or_code.create_code code;
@@ -157,7 +148,7 @@ let map_set_of_closures t ~f =
   match t with
   | Normal { const; _ } -> begin
     match const with
-    | Code _ -> t
+    | Code _ | Deleted_code -> t
     | Static_const const -> (
       match const with
       | Set_of_closures set_of_closures ->
@@ -197,19 +188,21 @@ let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "@[<hov 1>(Code_not_rebuilt@ %a)@]"
       Non_constructed_code.print code
 
+let deleted_code =
+  Normal
+    { const = Static_const_or_code.deleted_code;
+      free_names = Name_occurrences.empty
+    }
+
 let make_all_code_deleted t =
   match t with
   | Normal { const; _ } -> begin
     match Static_const_or_code.to_code const with
     | None -> t
-    | Some code ->
-      let code = Code.make_not_callable code in
-      let const = Static_const_or_code.create_code code in
-      Normal { const; free_names = Code.free_names code }
+    | Some _code -> deleted_code
   end
   | Non_code_not_rebuilt _ -> t
-  | Code_not_rebuilt code ->
-    Code_not_rebuilt (Non_constructed_code.make_not_callable code)
+  | Code_not_rebuilt _ -> deleted_code
 
 let make_code_deleted t ~if_code_id_is_member_of =
   match t with
@@ -218,10 +211,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
     | None -> t
     | Some code ->
       if Code_id.Set.mem (Code.code_id code) if_code_id_is_member_of
-      then
-        let code = Code.make_not_callable code in
-        let const = Static_const_or_code.create_code code in
-        Normal { const; free_names = Code.free_names code }
+      then deleted_code
       else t
   end
   | Non_code_not_rebuilt _ -> t
@@ -229,7 +219,7 @@ let make_code_deleted t ~if_code_id_is_member_of =
     if Code_id.Set.mem
          (Non_constructed_code.code_id code)
          if_code_id_is_member_of
-    then Code_not_rebuilt (Non_constructed_code.make_not_callable code)
+    then deleted_code
     else t
 
 module Group = struct
@@ -268,17 +258,13 @@ module Group = struct
     |> Static_const_group.create |> Named.create_static_consts
 
   let pieces_of_code_for_cmx t =
-    let consts =
-      ListLabels.filter_map t.consts ~f:(fun const ->
-          match const with
-          | Normal { const; _ } -> Static_const_or_code.to_code const
-          | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None)
-    in
-    consts
-    |> List.filter_map (fun code ->
-           if Code.is_non_callable code
-           then None
-           else Some (Code.code_id code, code))
+    ListLabels.filter_map t.consts ~f:(fun const ->
+        match const with
+        | Normal { const; _ } -> (
+          match Static_const_or_code.to_code const with
+          | None -> None
+          | Some code -> Some (Code.code_id code, code))
+        | Non_code_not_rebuilt _ | Code_not_rebuilt _ -> None)
     |> Code_id.Map.of_list
 
   let function_params_and_body_for_code_not_rebuilt =
@@ -291,40 +277,30 @@ module Group = struct
          ~my_depth:(Variable.create "my_depth"))
 
   let pieces_of_code_including_those_not_rebuilt t =
-    let consts =
-      ListLabels.filter_map t.consts ~f:(fun const ->
-          match const with
-          | Normal { const; _ } -> Static_const_or_code.to_code const
-          | Non_code_not_rebuilt _ -> None
-          | Code_not_rebuilt code ->
-            let module NCC = Non_constructed_code in
-            (* See comment in the .mli. *)
-            let params_and_body =
-              if NCC.is_non_callable code
-              then Code.Params_and_body_state.cannot_be_called
-              else
-                Code.Params_and_body_state.inlinable
-                  ( Lazy.force function_params_and_body_for_code_not_rebuilt,
-                    Name_occurrences.empty )
-            in
-            Some
-              (Code.create (NCC.code_id code) ~params_and_body
-                 ~newer_version_of:(NCC.newer_version_of code)
-                 ~params_arity:(NCC.params_arity code)
-                 ~result_arity:(NCC.result_arity code) ~stub:(NCC.stub code)
-                 ~inline:(NCC.inline code) ~is_a_functor:(NCC.is_a_functor code)
-                 ~recursive:(NCC.recursive code)
-                 ~cost_metrics:(NCC.cost_metrics code)
-                 ~inlining_arguments:(NCC.inlining_arguments code)
-                 ~dbg:(NCC.dbg code) ~is_tupled:(NCC.is_tupled code)
-                 ~is_my_closure_used:(NCC.is_my_closure_used code)
-                 ~inlining_decision:(NCC.inlining_decision code)))
-    in
-    consts
-    |> List.filter_map (fun code ->
-           if Code.is_non_callable code
-           then None
-           else Some (Code.code_id code, code))
+    ListLabels.filter_map t.consts ~f:(fun const ->
+        match const with
+        | Normal { const; _ } -> Static_const_or_code.to_code const
+        | Non_code_not_rebuilt _ -> None
+        | Code_not_rebuilt code ->
+          let module NCC = Non_constructed_code in
+          (* See comment in the .mli. *)
+          let params_and_body =
+            Lazy.force function_params_and_body_for_code_not_rebuilt
+          in
+          Some
+            (Code.create (NCC.code_id code) ~params_and_body
+               ~free_names_of_params_and_body:Name_occurrences.empty
+               ~newer_version_of:(NCC.newer_version_of code)
+               ~params_arity:(NCC.params_arity code)
+               ~result_arity:(NCC.result_arity code) ~stub:(NCC.stub code)
+               ~inline:(NCC.inline code) ~is_a_functor:(NCC.is_a_functor code)
+               ~recursive:(NCC.recursive code)
+               ~cost_metrics:(NCC.cost_metrics code)
+               ~inlining_arguments:(NCC.inlining_arguments code)
+               ~dbg:(NCC.dbg code) ~is_tupled:(NCC.is_tupled code)
+               ~is_my_closure_used:(NCC.is_my_closure_used code)
+               ~inlining_decision:(NCC.inlining_decision code)))
+    |> List.map (fun code -> Code.code_id code, code)
     |> Code_id.Map.of_list
 
   let map t ~f =

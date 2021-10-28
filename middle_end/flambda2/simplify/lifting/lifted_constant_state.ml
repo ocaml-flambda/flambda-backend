@@ -150,12 +150,9 @@ let add_to_denv ?maybe_already_defined denv lifted =
       in
       Code_id.Map.fold
         (fun code_id code denv ->
-          match Code.params_and_body code with
-          | Inlinable _ ->
-            if maybe_already_defined && DE.mem_code denv code_id
-            then denv
-            else DE.define_code denv ~code_id ~code
-          | Non_inlinable | Cannot_be_called -> denv)
+          if maybe_already_defined && DE.mem_code denv code_id
+          then denv
+          else DE.define_code denv ~code_id ~code)
         pieces_of_code denv)
 
 let add_singleton_to_denv t const = add_to_denv t (singleton const)

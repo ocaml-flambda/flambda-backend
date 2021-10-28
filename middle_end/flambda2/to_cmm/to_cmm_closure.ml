@@ -433,7 +433,8 @@ module Greedy = struct
         | Some s -> s, state
         | None ->
           let code_metadata =
-            Exported_code.find_code_metadata exported_code code_id
+            Exported_code.find_exn exported_code code_id
+            |> Code_or_metadata.code_metadata
           in
           let module CM = Code_metadata in
           let is_tupled = CM.is_tupled code_metadata in

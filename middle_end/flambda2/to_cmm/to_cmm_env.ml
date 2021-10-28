@@ -188,7 +188,8 @@ let exn_cont env = env.k_exn
 (* Function info *)
 
 let get_function_info env code_id =
-  Exported_code.find_code_metadata env.functions_info code_id
+  Exported_code.find_exn env.functions_info code_id
+  |> Code_or_metadata.code_metadata
 
 let get_func_decl_params_arity t code_id =
   let info = get_function_info t code_id in

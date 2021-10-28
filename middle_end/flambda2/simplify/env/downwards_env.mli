@@ -155,7 +155,8 @@ val define_code : t -> code_id:Code_id.t -> code:Code.t -> t
 
 val mem_code : t -> Code_id.t -> bool
 
-val find_code : t -> Code_id.t -> Code.t option
+(** This function raises if the code ID is unbound. *)
+val find_code_exn : t -> Code_id.t -> Code_or_metadata.t
 
 (** Appends the locations of inlined call-sites to the given debuginfo and sets
     the resulting debuginfo as the current one in the environment. *)

@@ -5,6 +5,7 @@
 (*                       Vincent Laviron, OCamlPro                        *)
 (*                                                                        *)
 (*   Copyright 2020 OCamlPro SAS                                          *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -16,91 +17,42 @@
 
 module C = Code
 
-type t0 =
-  | Code_present of { code : C.t }
-  | Metadata_only of { code_metadata : Code_metadata.t }
+type t = Code_or_metadata.t Code_id.Map.t
 
-type t = t0 Code_id.Map.t
-
-let print0 ppf t0 =
-  match t0 with
-  | Code_present { code } ->
-    Format.fprintf ppf "@[<hov 1>(Code_present@ (@[<hov 1>(code@ %a)@]))@]"
-      C.print code
-  | Metadata_only { code_metadata } ->
-    Format.fprintf ppf "@[<hov 1>(Metadata_only@ (code_metadata@ %a))@]"
-      Code_metadata.print code_metadata
-
-let print ppf t = Code_id.Map.print print0 ppf t
+let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t
 
 let empty = Code_id.Map.empty
 
-let add_code code t =
-  Code_id.Map.filter_map
-    (fun _code_id code ->
-      match C.params_and_body code with
-      | Inlinable _ ->
-        let code =
-          if Function_decl_inlining_decision_type.cannot_be_inlined
-               (C.inlining_decision code)
-          then C.make_non_inlinable code
-          else code
-        in
-        Some (Code_present { code })
-      | Non_inlinable -> Some (Code_present { code })
-      | Cannot_be_called -> None)
-    code
+let add_code code_map t =
+  Code_id.Map.mapi
+    (fun code_id code ->
+      if not (Code_id.equal code_id (Code.code_id code))
+      then
+        Misc.fatal_errorf "Code ID key in map disagrees with [Code]:@ %a"
+          (Code_id.Map.print Code.print)
+          code_map;
+      let code_or_metadata = Code_or_metadata.create code in
+      if Function_decl_inlining_decision_type.cannot_be_inlined
+           (C.inlining_decision code)
+      then Code_or_metadata.remember_only_metadata code_or_metadata
+      else code_or_metadata)
+    code_map
   |> Code_id.Map.disjoint_union t
 
 let mark_as_imported t =
-  let forget_params_and_body t0 =
-    match t0 with
-    | Metadata_only _ -> t0
-    | Code_present { code } ->
-      Metadata_only { code_metadata = C.code_metadata code }
-  in
-  Code_id.Map.map forget_params_and_body t
+  Code_id.Map.map Code_or_metadata.remember_only_metadata t
 
-let merge t1 t2 =
-  let merge_one code_id t01 t02 =
-    match t01, t02 with
-    | ( Metadata_only { code_metadata = cc1 },
-        Metadata_only { code_metadata = cc2 } ) ->
-      if Code_metadata.equal cc1 cc2
-      then Some t01
-      else
-        Misc.fatal_errorf
-          "Code id %a is imported with different code metadata (%a and %a)"
-          Code_id.print code_id Code_metadata.print cc1 Code_metadata.print cc2
-    | Code_present _, Code_present _ ->
-      Misc.fatal_errorf "Cannot merge two definitions for code id %a"
-        Code_id.print code_id
-    | ( Metadata_only { code_metadata = cc_imported },
-        (Code_present { code = code_present } as t0) )
-    | ( (Code_present { code = code_present } as t0),
-        Metadata_only { code_metadata = cc_imported } ) ->
-      let cc_present = C.code_metadata code_present in
-      if Code_metadata.equal cc_present cc_imported
-      then Some t0
-      else
-        Misc.fatal_errorf
-          "Code_id %a is present with code metadata@ %abut imported with code \
-           metadata@ %a"
-          Code_id.print code_id Code_metadata.print cc_present
-          Code_metadata.print cc_imported
-  in
-  Code_id.Map.union merge_one t1 t2
+let merge t1 t2 = Code_id.Map.union Code_or_metadata.merge t1 t2
 
 let mem code_id t = Code_id.Map.mem code_id t
 
-let find_code t code_id =
+let find_exn t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
-  | Code_present { code } -> Some code
-  | Metadata_only _ -> None
+  | code_or_metadata -> code_or_metadata
 
-let find_code_if_not_imported t code_id =
+let find_if_not_imported_exn t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     (* In some cases a code ID is created, the corresponding closure stored into
@@ -113,30 +65,20 @@ let find_code_if_not_imported t code_id =
        end up with missing code IDs during the reachability computation, and
        have to assume that it fits the above case. *)
     None
-  | Code_present { code } -> Some code
-  | Metadata_only _ -> None
-
-let find_code_metadata t code_id =
-  match Code_id.Map.find code_id t with
-  | exception Not_found ->
-    Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
-  | Code_present { code } -> Code.code_metadata code
-  | Metadata_only { code_metadata } -> code_metadata
+  | code_or_metadata -> Some code_or_metadata
 
 let remove_unreachable t ~reachable_names =
   Code_id.Map.filter
-    (fun code_id _exported_code ->
+    (fun code_id _code_or_metadata ->
       Name_occurrences.mem_code_id reachable_names code_id)
     t
 
 let all_ids_for_export t =
   Code_id.Map.fold
-    (fun code_id code_data all_ids ->
-      let all_ids = Ids_for_export.add_code_id all_ids code_id in
-      match code_data with
-      | Code_present { code } ->
-        Ids_for_export.union all_ids (C.all_ids_for_export code)
-      | Metadata_only { code_metadata = _ } -> all_ids)
+    (fun code_id code_or_metadata all_ids ->
+      Ids_for_export.union
+        (Ids_for_export.add_code_id all_ids code_id)
+        (Code_or_metadata.all_ids_for_export code_or_metadata))
     t Ids_for_export.empty
 
 let apply_renaming code_id_map renaming t =
@@ -144,23 +86,20 @@ let apply_renaming code_id_map renaming t =
   then t
   else
     Code_id.Map.fold
-      (fun code_id code_data all_code ->
+      (fun code_id code_or_metadata all_code ->
         let code_id =
           match Code_id.Map.find code_id code_id_map with
           | exception Not_found -> code_id
           | code_id -> code_id
         in
-        let code_data =
-          match code_data with
-          | Code_present { code } ->
-            let code = C.apply_renaming code renaming in
-            Code_present { code }
-          | Metadata_only { code_metadata } -> Metadata_only { code_metadata }
+        let code_or_metadata =
+          Code_or_metadata.apply_renaming code_or_metadata renaming
         in
-        Code_id.Map.add code_id code_data all_code)
+        Code_id.Map.add code_id code_or_metadata all_code)
       t Code_id.Map.empty
 
-let iter t f =
+let iter_code t ~f =
   Code_id.Map.iter
-    (fun id -> function Code_present { code; _ } -> f id code | _ -> ())
+    (fun _code_id code_or_metadata ->
+      Code_or_metadata.iter_code code_or_metadata ~f)
     t

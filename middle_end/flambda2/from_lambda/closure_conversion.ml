@@ -864,11 +864,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
     match Function_decl.kind decl with Curried -> false | Tupled -> true
   in
   let code =
-    Code.create code_id
-      ~params_and_body:
-        (Code.Params_and_body_state.inlinable
-           (params_and_body, Acc.free_names acc))
-      ~params_arity ~result_arity:[LC.value_kind return] ~stub ~inline
+    Code.create code_id ~params_and_body
+      ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
+      ~result_arity:[LC.value_kind return] ~stub ~inline
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)

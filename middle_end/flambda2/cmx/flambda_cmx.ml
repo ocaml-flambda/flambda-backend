@@ -60,11 +60,12 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
         Name_occurrences.union names_to_add names_already_added
       in
       let fold_code_id names_to_add code_id =
-        match Exported_code.find_code_if_not_imported code code_id with
+        match Exported_code.find_if_not_imported_exn code code_id with
         | None -> names_to_add
-        | Some code ->
+        | Some code_or_metadata ->
+          let free_names = Code_or_metadata.free_names code_or_metadata in
           let names_to_consider =
-            Name_occurrences.with_only_names_and_code_ids (Code.free_names code)
+            Name_occurrences.with_only_names_and_code_ids free_names
           in
           let new_names =
             Name_occurrences.diff names_to_consider names_already_added

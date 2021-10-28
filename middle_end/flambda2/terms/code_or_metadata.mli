@@ -13,30 +13,26 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-include Contains_ids.S with type t := t
-
-val apply_renaming : Code_id.t Code_id.Map.t -> Renaming.t -> t -> t
+type t = private
+  | Code_present of Code.t
+  | Metadata_only of Code_metadata.t
 
 val print : Format.formatter -> t -> unit
 
-val empty : t
+val merge : Code_id.t -> t -> t -> t option
 
-val add_code : Code.t Code_id.Map.t -> t -> t
+val create : Code.t -> t
 
-val mark_as_imported : t -> t
-
-val merge : t -> t -> t
-
-val mem : Code_id.t -> t -> bool
-
-(** This function raises an exception if the code ID is unbound. *)
-val find_exn : t -> Code_id.t -> Code_or_metadata.t
-
-(** This function raises an exception if the code ID is unbound. *)
-val find_if_not_imported_exn : t -> Code_id.t -> Code_or_metadata.t option
-
-val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
+val remember_only_metadata : t -> t
 
 val iter_code : t -> f:(Code.t -> unit) -> unit
+
+val code_metadata : t -> Code_metadata.t
+
+(** As for [Code_metadata], the free names of a value of type [t] do not include
+    the code ID, which is only kept for convenience. *)
+include Contains_names.S with type t := t
+
+include Contains_ids.S with type t := t

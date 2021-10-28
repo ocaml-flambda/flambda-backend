@@ -26,15 +26,6 @@ open! Simplify_import
    tail recursive, although it probably isn't necessary, as excessive levels of
    nesting of functions seems unlikely. *)
 
-let find_code denv code_id =
-  match DE.find_code denv code_id with
-  | Some code -> code
-  | None ->
-    Misc.fatal_errorf
-      "Cannot find imported code with code ID %a, which is needed to simplify \
-       a set of closures"
-      Code_id.print code_id
-
 let function_decl_type old_code_id ?new_code_id rec_info =
   let code_id = Option.value new_code_id ~default:old_code_id in
   Or_unknown_or_bottom.Ok (T.Function_type.create code_id ~rec_info)
@@ -157,22 +148,26 @@ end = struct
                 let new_code_id =
                   Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
                 in
-                let code = find_code denv old_code_id in
+                let code_metadata =
+                  DE.find_code_exn denv old_code_id
+                  |> Code_or_metadata.code_metadata
+                in
                 let rec_info =
                   (* From inside their own bodies, every function in the set
                      currently being defined has an unknown recursion depth *)
                   T.unknown K.rec_info
                 in
+                let dbg = Code_metadata.dbg code_metadata in
                 let dbg_including_inlining_stack =
-                  DE.add_inlined_debuginfo' denv (Code.dbg code)
+                  DE.add_inlined_debuginfo' denv dbg
                 in
                 Inlining_report.record_decision
                   (At_function_declaration
                      { code_id = Code_id.export old_code_id;
                        pass = Before_simplify { dbg_including_inlining_stack };
-                       decision = Code.inlining_decision code
+                       decision = Code_metadata.inlining_decision code_metadata
                      })
-                  ~dbg:(Code.dbg code);
+                  ~dbg;
                 function_decl_type old_code_id ~new_code_id rec_info)
               (Function_declarations.funs function_decls)
           in
@@ -245,13 +240,17 @@ end = struct
   let bind_existing_code_to_new_code_ids denv ~old_to_new_code_ids_all_sets =
     Code_id.Map.fold
       (fun old_code_id new_code_id denv ->
-        let code = find_code denv old_code_id in
-        let code =
-          code
-          |> Code.with_newer_version_of (Some old_code_id)
-          |> Code.with_code_id new_code_id
-        in
-        DE.define_code denv ~code_id:new_code_id ~code)
+        match DE.find_code_exn denv old_code_id with
+        | Code_present code ->
+          let code =
+            code
+            |> Code.with_newer_version_of (Some old_code_id)
+            |> Code.with_code_id new_code_id
+          in
+          DE.define_code denv ~code_id:new_code_id ~code
+        | Metadata_only metadata ->
+          Misc.fatal_errorf "Code metadata is not sufficient to simplify:@ %a"
+            Code_metadata.print metadata)
       old_to_new_code_ids_all_sets denv
 
   let create ~dacc_prior_to_sets ~simplify_toplevel ~all_sets_of_closures
@@ -419,13 +418,13 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants ~params
 
 type simplify_function_result =
   { new_code_id : Code_id.t;
-    code : Rebuilt_static_const.t;
+    code : Rebuilt_static_const.t option;
     dacc_after_body : DA.t option;
     uacc_after_upwards_traversal : UA.t option
   }
 
 let simplify_function0 context ~used_closure_vars ~shareable_constants
-    closure_id code_id code params_and_body ~closure_bound_names_inside_function
+    closure_id code_id code ~closure_bound_names_inside_function
     code_age_relation ~lifted_consts_prev_functions =
   let inlining_arguments_from_denv =
     C.dacc_prior_to_sets context |> DA.denv |> DE.inlining_arguments
@@ -445,7 +444,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
         dacc_after_body,
         free_names_of_code,
         uacc_after_upwards_traversal ) =
-    Function_params_and_body.pattern_match params_and_body
+    Function_params_and_body.pattern_match (Code.params_and_body code)
       ~f:(fun
            ~return_continuation
            ~exn_continuation
@@ -577,10 +576,8 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
-      new_code_id
-      ~params_and_body:
-        (Code.Params_and_body_state.inlinable
-           (params_and_body, free_names_of_code))
+      new_code_id ~params_and_body
+      ~free_names_of_params_and_body:free_names_of_code
       ~newer_version_of:(Some old_code_id)
       ~params_arity:(Code.params_arity code)
       ~result_arity:(Code.result_arity code) ~stub:(Code.stub code)
@@ -591,7 +588,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
       ~inlining_decision
   in
   { new_code_id;
-    code;
+    code = Some code;
     dacc_after_body = Some dacc_after_body;
     uacc_after_upwards_traversal = Some uacc_after_upwards_traversal
   }
@@ -599,25 +596,19 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
 let simplify_function context ~used_closure_vars ~shareable_constants closure_id
     code_id ~closure_bound_names_inside_function code_age_relation
     ~lifted_consts_prev_functions =
-  let code = find_code (DA.denv (C.dacc_prior_to_sets context)) code_id in
-  match Code.params_and_body code with
-  | Inlinable params_and_body ->
+  match DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id with
+  | Code_present code ->
     simplify_function0 context ~used_closure_vars ~shareable_constants
-      closure_id code_id code params_and_body
-      ~closure_bound_names_inside_function code_age_relation
-      ~lifted_consts_prev_functions
-  | Non_inlinable ->
+      closure_id code_id code ~closure_bound_names_inside_function
+      code_age_relation ~lifted_consts_prev_functions
+  | Metadata_only _ ->
     (* No new code ID is created in this case: there is no function body to be
        simplified and all other code metadata will remain the same. *)
-    let code = Rebuilt_static_const.create_code' code in
     { new_code_id = code_id;
-      code;
+      code = None;
       dacc_after_body = None;
       uacc_after_upwards_traversal = None
     }
-  | Cannot_be_called ->
-    Misc.fatal_errorf "Cannot simplify function in cannot-be-called state: %a"
-      Code.print code
 
 type simplify_set_of_closures0_result =
   { set_of_closures : Flambda.Set_of_closures.t;
@@ -687,7 +678,11 @@ let simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
         let result_function_decls_in_set =
           (closure_id, new_code_id) :: result_function_decls_in_set
         in
-        let code = (new_code_id, new_code) :: code in
+        let code =
+          match new_code with
+          | None -> code
+          | Some new_code -> (new_code_id, new_code) :: code
+        in
         let fun_types = Closure_id.Map.add closure_id function_type fun_types in
         let lifted_consts_prev_functions =
           LCS.union lifted_consts_this_function lifted_consts_prev_functions
@@ -931,10 +926,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     let named = Named.create_set_of_closures set_of_closures in
     let find_code_characteristics code_id =
       let env = Downwards_acc.denv dacc in
-      let code = find_code env code_id in
+      let code_metadata =
+        DE.find_code_exn env code_id |> Code_or_metadata.code_metadata
+      in
       Cost_metrics.
-        { cost_metrics = Code.cost_metrics code;
-          params_arity = List.length (Code.params_arity code)
+        { cost_metrics = Code_metadata.cost_metrics code_metadata;
+          params_arity = List.length (Code_metadata.params_arity code_metadata)
         }
     in
     Simplified_named.reachable_with_known_free_names ~find_code_characteristics

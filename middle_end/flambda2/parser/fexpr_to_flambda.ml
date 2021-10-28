@@ -730,10 +730,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> (
             match params_and_body with
             | Cannot_be_called ->
-              Misc.fatal_errorf "Param arity required for deleted code %a"
-                Code_id.print code_id
-            | Non_inlinable ->
-              Misc.fatal_error "Non_inlinable not yet supported"
+              Misc.fatal_errorf "Cannot_be_called not used now"
+            | Non_inlinable -> Misc.fatal_error "Non_inlinable not used now"
             | Inlinable { params; _ } ->
               List.map
                 (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
@@ -745,11 +743,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let params_and_body, is_my_closure_used =
+        let params_and_body, free_names_of_params_and_body, is_my_closure_used =
           match params_and_body with
-          | Cannot_be_called ->
-            Code.Params_and_body_state.cannot_be_called, false
-          | Non_inlinable -> Misc.fatal_error "Non_inlinable not yet supported"
+          | Cannot_be_called -> Misc.fatal_error "Cannot_be_called not used now"
+          | Non_inlinable -> Misc.fatal_error "Non_inlinable not used now"
           | Inlinable
               { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
             let params, env =
@@ -795,7 +792,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (* Flambda.Function_params_and_body.free_names params_and_body |>
                  names_and_closure_vars *)
             in
-            ( Code.Params_and_body_state.inlinable (params_and_body, free_names),
+            ( params_and_body,
+              free_names,
               Flambda.Function_params_and_body.is_my_closure_used
                 params_and_body )
         in
@@ -808,8 +806,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
-          Code.create code_id ~params_and_body ~newer_version_of ~params_arity
-            ~result_arity ~stub:false ~inline ~is_a_functor:false ~recursive
+          Code.create code_id ~params_and_body ~free_names_of_params_and_body
+            ~newer_version_of ~params_arity ~result_arity ~stub:false ~inline
+            ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used

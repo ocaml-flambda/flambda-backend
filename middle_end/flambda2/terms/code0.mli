@@ -16,28 +16,13 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module Params_and_body_state : sig
-  type 'function_params_and_body t = private
-    | Inlinable of 'function_params_and_body
-    | Non_inlinable
-    | Cannot_be_called
-
-  val inlinable : 'function_params_and_body -> 'function_params_and_body t
-
-  val cannot_be_called : _ t
-
-  val map : 'a t -> f:('a -> 'b) -> 'b t
-end
-
 type 'function_params_and_body t
 
 val code_metadata : _ t -> Code_metadata.t
 
 val code_id : 'function_params_and_body t -> Code_id.t
 
-val params_and_body :
-  'function_params_and_body t ->
-  'function_params_and_body Params_and_body_state.t
+val params_and_body : 'function_params_and_body t -> 'function_params_and_body
 
 val newer_version_of : 'function_params_and_body t -> Code_id.t option
 
@@ -70,8 +55,8 @@ val create :
   print_function_params_and_body:
     (Format.formatter -> 'function_params_and_body -> unit) ->
   Code_id.t (** needed for [compare], although useful otherwise too *) ->
-  params_and_body:
-    ('function_params_and_body * Name_occurrences.t) Params_and_body_state.t ->
+  params_and_body:'function_params_and_body ->
+  free_names_of_params_and_body:Name_occurrences.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
@@ -93,23 +78,14 @@ val with_code_id :
 val with_params_and_body :
   print_function_params_and_body:
     (Format.formatter -> 'function_params_and_body -> unit) ->
-  ('function_params_and_body * Name_occurrences.t) Params_and_body_state.t ->
+  params_and_body:'function_params_and_body ->
+  free_names_of_params_and_body:Name_occurrences.t ->
   cost_metrics:Cost_metrics.t ->
   'function_params_and_body t ->
   'function_params_and_body t
 
 val with_newer_version_of :
   Code_id.t option -> 'function_params_and_body t -> 'function_params_and_body t
-
-(** Note that this forgets the actual code of the function, so should only be
-    used e.g. when preparing a value of type [_ t] for a .cmx file. *)
-val make_non_inlinable :
-  'function_params_and_body t -> 'function_params_and_body t
-
-val make_not_callable :
-  'function_params_and_body t -> 'function_params_and_body t
-
-val is_non_callable : 'function_params_and_body t -> bool
 
 val free_names : _ t -> Name_occurrences.t
 
@@ -134,6 +110,3 @@ val all_ids_for_export :
   Ids_for_export.t
 
 val compare : 'function_params_and_body t -> 'function_params_and_body t -> int
-
-(* CR mshinwell: Somewhere there should be an invariant check that code has no
-   free names. *)
