@@ -50,6 +50,8 @@ module Context_for_multiple_sets_of_closures : sig
 
   val dacc_prior_to_sets : t -> DA.t
 
+  (* This map only contains entries for functions where we definitely have the
+     code (not just the metadata). *)
   val old_to_new_code_ids_all_sets : t -> Code_id.t Code_id.Map.t
 
   val closure_bound_names_inside_functions_all_sets :
@@ -225,14 +227,17 @@ end = struct
       denv_inside_functions closure_bound_names_inside_functions_all_sets
       closure_types_inside_functions_all_sets
 
-  let compute_old_to_new_code_ids_all_sets ~all_sets_of_closures =
+  let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
     List.fold_left
       (fun old_to_new_code_ids_all_sets set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
         Closure_id.Map.fold
           (fun _ old_code_id old_to_new_code_ids ->
-            let new_code_id = Code_id.rename old_code_id in
-            Code_id.Map.add old_code_id new_code_id old_to_new_code_ids)
+            match DE.find_code_exn denv old_code_id with
+            | Code_present _ ->
+              let new_code_id = Code_id.rename old_code_id in
+              Code_id.Map.add old_code_id new_code_id old_to_new_code_ids
+            | Metadata_only _ -> old_to_new_code_ids)
           (Function_declarations.funs function_decls)
           old_to_new_code_ids_all_sets)
       Code_id.Map.empty all_sets_of_closures
@@ -342,7 +347,7 @@ end = struct
       List.rev closure_element_types_all_sets_inside_functions_rev
     in
     let old_to_new_code_ids_all_sets =
-      compute_old_to_new_code_ids_all_sets ~all_sets_of_closures
+      compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures
     in
     let ( closure_bound_names_inside_functions_all_sets,
           closure_types_inside_functions_all_sets ) =
