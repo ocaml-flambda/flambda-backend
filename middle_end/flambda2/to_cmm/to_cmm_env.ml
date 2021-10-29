@@ -104,14 +104,14 @@ type t =
        scope inside the unit being translated. *)
     names_in_scope : Code_id_or_symbol.Set.t;
     (* Code ids and symbols bound in this scope, for invariant checking *)
-    cannot_be_called : Code_id.Set.t;
+    deleted : Code_id.Set.t;
     used_code_ids : Code_id.Set.t;
-    (* Code ids marked as cannot-be-called are only allowed in the
-       newer_version_of field of code definitions.
+    (* Code ids marked as deleted are only allowed in the newer_version_of field
+       of code definitions.
 
        Due to the order in which the checks are made, it is possible that a code
-       id is checked before we know whether it is cannot-be-called or not, so
-       the used_code_ids records all code ids that were checked.*)
+       id is checked before we know whether it is deleted or not, so the
+       used_code_ids records all code ids that were checked.*)
     (* Local information.
 
        These are relative to the flambda expression being currently translated,
@@ -156,7 +156,7 @@ let mk offsets functions_info k_return ~exn_continuation:k_exn
     exn_handlers = Continuation.Set.singleton k_exn;
     exn_conts_extra_args = Continuation.Map.empty;
     names_in_scope = Code_id_or_symbol.Set.empty;
-    cannot_be_called = Code_id.Set.empty;
+    deleted = Code_id.Set.empty;
     used_code_ids = Code_id.Set.empty
   }
 
@@ -167,7 +167,7 @@ let enter_function_def env k_return k_exn =
     (* semi-global info *)
     names_in_scope = env.names_in_scope;
     functions_info = env.functions_info;
-    cannot_be_called = env.cannot_be_called;
+    deleted = env.deleted;
     used_code_ids = env.used_code_ids;
     (* local info *)
     k_return;
@@ -477,14 +477,12 @@ let add_to_scope env names =
     names_in_scope = Code_id_or_symbol.Set.union env.names_in_scope names
   }
 
-let mark_code_id_as_cannot_be_called env code_id =
+let mark_code_id_as_deleted env code_id =
   if Code_id.Set.mem code_id env.used_code_ids
-  then
-    Misc.fatal_errorf "Use of cannot-be-called code id %a" Code_id.print code_id
-  else
-    { env with cannot_be_called = Code_id.Set.add code_id env.cannot_be_called }
+  then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
+  else { env with deleted = Code_id.Set.add code_id env.deleted }
 
-let check_scope ~allow_cannot_be_called env code_id_or_symbol =
+let check_scope ~allow_deleted env code_id_or_symbol =
   let in_scope =
     Code_id_or_symbol.Set.mem code_id_or_symbol env.names_in_scope
   in
@@ -497,12 +495,10 @@ let check_scope ~allow_cannot_be_called env code_id_or_symbol =
   let updated_env =
     match (code_id_or_symbol : Code_id_or_symbol.t) with
     | Code_id code_id ->
-      if allow_cannot_be_called
+      if allow_deleted
       then env
-      else if Code_id.Set.mem code_id env.cannot_be_called
-      then
-        Misc.fatal_errorf "Use of cannot-be-called code id %a" Code_id.print
-          code_id
+      else if Code_id.Set.mem code_id env.deleted
+      then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
       else
         { env with used_code_ids = Code_id.Set.add code_id env.used_code_ids }
     | Symbol _ -> env
