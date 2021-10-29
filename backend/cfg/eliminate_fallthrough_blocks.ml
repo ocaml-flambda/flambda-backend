@@ -102,7 +102,7 @@ let run cfg_with_layout =
   let len = Label.Tbl.length cfg.blocks in
   if !C.verbose then CL.save_as_dot cfg_with_layout "before_elim_ft";
   disconnect_fallthrough_blocks cfg_with_layout;
-  Cfg_dataflow.run_dead_block cfg_with_layout;
+  Eliminate_dead_code.run_dead_block cfg_with_layout;
   let new_len = Label.Tbl.length cfg.blocks in
   if !C.verbose
   then (
