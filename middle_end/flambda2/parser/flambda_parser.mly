@@ -272,6 +272,7 @@ let_symbol(body):
 symbol_binding:
   | s = static_data_binding { Data s }
   | code = code { Code code }
+  | KWD_DELETED code_id = code_id { Deleted_code code_id }
   | s = static_closure_binding { Closure s }
   | s = static_set_of_closures { Set_of_closures s }
 ;
@@ -288,20 +289,9 @@ code:
     EQUAL; body = expr;
     { let recursive, inline, id, newer_version_of, code_size = header in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
-        params_and_body = Inlinable { params; closure_var; depth_var; ret_cont;
-                                    exn_cont; body };
+        params_and_body = { params; closure_var; depth_var; ret_cont;
+                            exn_cont; body };
         code_size; is_tupled; } }
-  | header = code_header;
-    KWD_DELETED;
-    COLON;
-    is_tupled = boption(KWD_TUPLED);
-    param_arity = kinds_with_subkinds;
-    MINUSGREATER;
-    ret_arity = kinds_with_subkinds;
-    { let recursive, inline, id, newer_version_of, code_size = header in
-      { id; newer_version_of; param_arity = Some param_arity;
-        ret_arity = Some ret_arity; recursive; inline; code_size;
-        params_and_body = Cannot_be_called; is_tupled; } }
 ;
 
 code_header:

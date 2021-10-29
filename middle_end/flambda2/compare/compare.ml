@@ -361,30 +361,26 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
   | _ -> static_const
 
 and subst_code env (code : Code.t) : Code.t =
-  let params_and_body =
-    Code.Params_and_body_state.map (Code.params_and_body code)
-    ~f:(fun  params_and_body ->
-      let params_and_body = subst_params_and_body env params_and_body in
-      let _names_and_closure_vars names =
-        Name_occurrences.(
-          union
-            (restrict_to_closure_vars names)
-            (with_only_names_and_code_ids names |> without_code_ids))
-      in
-      let free_names =
-        (* CR mshinwell: This needs fixing XXX *)
-        Name_occurrences.empty
-        (* Flambda.Function_params_and_body.free_names params_and_body |>
-           names_and_closure_vars *)
-      in
-      params_and_body, free_names)
+  let params_and_body = Code.params_and_body code in
+  let params_and_body = subst_params_and_body env params_and_body in
+  let _names_and_closure_vars names =
+    Name_occurrences.(
+      union
+        (restrict_to_closure_vars names)
+        (with_only_names_and_code_ids names |> without_code_ids))
+  in
+  let free_names_of_params_and_body =
+    (* CR mshinwell: This needs fixing XXX *)
+    Name_occurrences.empty
+    (* Flambda.Function_params_and_body.free_names params_and_body |>
+       names_and_closure_vars *)
   in
   let newer_version_of =
     Option.map (subst_code_id env) (Code.newer_version_of code)
   in
   code
   |> Code.with_params_and_body ~cost_metrics:(Code.cost_metrics code)
-       params_and_body
+       ~params_and_body ~free_names_of_params_and_body
   |> Code.with_newer_version_of newer_version_of
 
 and subst_params_and_body env params_and_body =
@@ -1161,50 +1157,19 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
                  ~exn_continuation params ~body:body1' ~my_closure ~my_depth
                  ~free_names_of_body:Unknown))
   in
-
-  let bodies env body1 body2 : _ Comparison.t =
-    match
-      ( (body1 : _ Code.Params_and_body_state.t),
-        (body2 : _ Code.Params_and_body_state.t) )
-    with
-    | Inlinable body1, Inlinable body2 ->
-      bodies env body1 body2
-      |> Comparison.map ~f:(fun body1' ->
-             Code.Params_and_body_state.inlinable body1')
-    | Cannot_be_called, Cannot_be_called -> Equivalent
-    | Inlinable body1, Cannot_be_called ->
-      Different
-        { approximant =
-            Code.Params_and_body_state.inlinable
-              (subst_params_and_body env body1)
-        }
-    | Cannot_be_called, Inlinable _ ->
-      Different { approximant = Code.Params_and_body_state.cannot_be_called }
-    | Non_inlinable _, _ | _, Non_inlinable _ ->
-      Misc.fatal_error "Non_inlinable not yet supported"
-  in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
     env
     (Code.params_and_body code1, Code.newer_version_of code1)
     (Code.params_and_body code2, Code.newer_version_of code2)
   |> Comparison.map ~f:(fun (params_and_body, newer_version_of) ->
-         let params_and_body =
-           match (params_and_body : _ Code.Params_and_body_state.t) with
-           | Cannot_be_called -> Code.Params_and_body_state.cannot_be_called
-           | Non_inlinable _ ->
-             Misc.fatal_error "Non_inlinable not yet supported"
-           | Inlinable params_and_body ->
-             Code.Params_and_body_state.inlinable
-               ( params_and_body,
-                 (* CR mshinwell: This needs fixing XXX *)
-                 Name_occurrences.empty
-                 (* Function_params_and_body.free_names params_and_body *) )
-         in
          code1
          |> Code.with_code_id (Code.code_id code2)
          |> Code.with_params_and_body ~cost_metrics:(Code.cost_metrics code2)
-              params_and_body
+              ~params_and_body
+                (* CR mshinwell: This needs fixing XXX (used to call a free
+                   names function on Function_params_and_body) *)
+              ~free_names_of_params_and_body:Name_occurrences.empty
          |> Code.with_newer_version_of newer_version_of)
   |> Comparison.add_condition
        ~approximant:(fun () -> subst_code env code1)

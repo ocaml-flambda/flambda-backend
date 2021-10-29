@@ -712,36 +712,33 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         | other -> Some other
       in
       let is_tupled = Code.is_tupled code in
-      let params_and_body : Fexpr.params_and_body Fexpr.params_and_body_state =
-        let params_and_body = Code.params_and_body code in
-        let params_and_body =
-          Flambda.Function_params_and_body.pattern_match params_and_body
-            ~f:(fun
-                 ~return_continuation
-                 ~exn_continuation
-                 params
-                 ~body
-                 ~my_closure
-                 ~is_my_closure_used:_
-                 ~my_depth
-                 ~free_names_of_body:_
-                 :
-                 Fexpr.params_and_body
-               ->
-              let ret_cont, env =
-                Env.bind_named_continuation env return_continuation
-              in
-              let exn_cont, env =
-                Env.bind_named_continuation env exn_continuation
-              in
-              let params, env = map_accum_left kinded_parameter env params in
-              let closure_var, env = Env.bind_var env my_closure in
-              let depth_var, env = Env.bind_var env my_depth in
-              let body = expr env body in
-              (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
-              { params; ret_cont; exn_cont; closure_var; depth_var; body })
-        in
-        Inlinable params_and_body
+      let params_and_body =
+        Flambda.Function_params_and_body.pattern_match
+          (Code.params_and_body code)
+          ~f:(fun
+               ~return_continuation
+               ~exn_continuation
+               params
+               ~body
+               ~my_closure
+               ~is_my_closure_used:_
+               ~my_depth
+               ~free_names_of_body:_
+               :
+               Fexpr.params_and_body
+             ->
+            let ret_cont, env =
+              Env.bind_named_continuation env return_continuation
+            in
+            let exn_cont, env =
+              Env.bind_named_continuation env exn_continuation
+            in
+            let params, env = map_accum_left kinded_parameter env params in
+            let closure_var, env = Env.bind_var env my_closure in
+            let depth_var, env = Env.bind_var env my_depth in
+            let body = expr env body in
+            (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
+            { params; ret_cont; exn_cont; closure_var; depth_var; body })
       in
       let code_size =
         Code.cost_metrics code |> Cost_metrics.size |> Code_size.to_int
