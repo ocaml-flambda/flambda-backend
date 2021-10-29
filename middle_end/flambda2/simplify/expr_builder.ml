@@ -337,7 +337,7 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
   let will_bind_code = Bound_symbols.binds_code bound_symbols in
   (* Turn pieces of code that are only referenced in [newer_version_of] fields
      into [Cannot_be_called]. *)
-  let code_ids_to_make_not_callable =
+  let code_ids_to_make_deleted =
     if not will_bind_code
     then Code_id.Set.empty
     else
@@ -346,13 +346,13 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
       in
       Code_id.Set.fold
         (fun bound_code_id result ->
-          let can_make_not_callable =
+          let can_make_deleted =
             match UA.reachable_code_ids uacc with
             | Unknown -> false
             | Known { live_code_ids; ancestors_of_live_code_ids = _ } ->
               not (Code_id.Set.mem bound_code_id live_code_ids)
           in
-          if can_make_not_callable
+          if can_make_deleted
           then Code_id.Set.add bound_code_id result
           else result)
         all_code_ids_bound_names Code_id.Set.empty
@@ -363,7 +363,7 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
     else
       Rebuilt_static_const.Group.map static_consts ~f:(fun static_const ->
           Rebuilt_static_const.make_code_deleted static_const
-            ~if_code_id_is_member_of:code_ids_to_make_not_callable)
+            ~if_code_id_is_member_of:code_ids_to_make_deleted)
   in
   let expr, uacc =
     create_raw_let_symbol uacc bound_symbols static_consts ~body
