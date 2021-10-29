@@ -5,24 +5,13 @@
 (*                       Vincent Laviron, OCamlPro                        *)
 (*                                                                        *)
 (*   Copyright 2020 OCamlPro SAS                                          *)
+(*   Copyright 2014--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-module Calling_convention : sig
-  type t
-
-  val print : Format.formatter -> t -> unit
-
-  val needs_closure_arg : t -> bool
-
-  val is_tupled : t -> bool
-
-  val params_arity : t -> Flambda_arity.t
-end
 
 type t
 
@@ -42,12 +31,13 @@ val merge : t -> t -> t
 
 val mem : Code_id.t -> t -> bool
 
-val find_code : t -> Code_id.t -> Code.t option
+(** This function raises an exception if the code ID is unbound. *)
+val find_exn : t -> Code_id.t -> Code_or_metadata.t
 
-val find_code_if_not_imported : t -> Code_id.t -> Code.t option
-
-val find_calling_convention : t -> Code_id.t -> Calling_convention.t
+(** This function is only really for use in unusual cases where there needs to
+    be special handling if a code ID is unbound (see comment in the .ml file) *)
+val find : t -> Code_id.t -> Code_or_metadata.t option
 
 val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
 
-val iter : t -> (Code_id.t -> Code.t -> unit) -> unit
+val iter_code : t -> f:(Code.t -> unit) -> unit

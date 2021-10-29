@@ -87,6 +87,8 @@ module Function_params_and_body = struct
       Misc.fatal_error
         "Cannot ask for function params and body when not rebuilding terms"
     else t
+
+  let is_my_closure_used t = Function_params_and_body.is_my_closure_used t
 end
 
 module Continuation_handler = struct

@@ -432,12 +432,13 @@ module Greedy = struct
         match find_closure_slot state c with
         | Some s -> s, state
         | None ->
-          let calling_convention =
-            Exported_code.find_calling_convention exported_code code_id
+          let code_metadata =
+            Exported_code.find_exn exported_code code_id
+            |> Code_or_metadata.code_metadata
           in
-          let module CC = Exported_code.Calling_convention in
-          let is_tupled = CC.is_tupled calling_convention in
-          let params_arity = CC.params_arity calling_convention in
+          let module CM = Code_metadata in
+          let is_tupled = CM.is_tupled code_metadata in
+          let params_arity = CM.params_arity code_metadata in
           let arity = List.length params_arity in
           let size = if arity = 1 && not is_tupled then 2 else 3 in
           let s = create_slot size (Closure c) in

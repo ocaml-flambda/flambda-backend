@@ -35,7 +35,6 @@ module UE = Upwards_env
    non-fallback-inlining cases. *)
 
 type t =
-  | Missing_code
   | Definition_says_not_to_inline
   | Environment_says_never_inline
   | Argument_types_not_useful
@@ -59,8 +58,6 @@ type t =
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
-  | Missing_code ->
-    Format.fprintf ppf "Missing_code"
   | Definition_says_not_to_inline ->
     Format.fprintf ppf "Definition_says_not_to_inline"
   | Environment_says_never_inline ->
@@ -115,7 +112,7 @@ type can_inline =
 
 let can_inline (t : t) : can_inline =
   match t with
-  | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
+  | Environment_says_never_inline | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded | Speculatively_not_inline _
   | Definition_says_not_to_inline | Argument_types_not_useful ->
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
@@ -136,9 +133,6 @@ let can_inline (t : t) : can_inline =
 
 let report_reason fmt t =
   match (t : t) with
-  | Missing_code ->
-    Format.fprintf fmt
-      "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
   | Definition_says_not_to_inline ->
     Format.fprintf fmt
       "this@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
@@ -278,38 +272,34 @@ let argument_types_useful dacc apply =
 let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
-  match DE.find_code denv (FT.code_id function_type) with
-  | None -> Missing_code
-  | Some code ->
-    let useful = argument_types_useful dacc apply in
-    let decision = Code.inlining_decision code in
-    if not useful
-    then Argument_types_not_useful
-    else if Function_decl_inlining_decision_type.must_be_inlined decision
-    then Definition_says_inline
-    else if Function_decl_inlining_decision_type.cannot_be_inlined decision
-    then Definition_says_not_to_inline
-    else if env_prohibits_inlining
-    then Environment_says_never_inline
-    else
-      let cost_metrics =
-        speculative_inlining ~apply dacc ~simplify_expr ~return_arity
-          ~function_type
-      in
-      let inlining_args =
-        Apply.inlining_arguments apply
-        |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
-      in
-      let evaluated_to =
-        Cost_metrics.evaluate ~args:inlining_args cost_metrics
-      in
-      let threshold = Inlining_arguments.threshold inlining_args in
-      let is_under_inline_threshold =
-        Float.compare evaluated_to threshold <= 0
-      in
-      if is_under_inline_threshold
-      then Speculatively_inline { cost_metrics; evaluated_to; threshold }
-      else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
+  let decision =
+    DE.find_code_exn denv (FT.code_id function_type)
+    |> Code_or_metadata.code_metadata |> Code_metadata.inlining_decision
+  in
+  let useful = argument_types_useful dacc apply in
+  if not useful
+  then Argument_types_not_useful
+  else if Function_decl_inlining_decision_type.must_be_inlined decision
+  then Definition_says_inline
+  else if Function_decl_inlining_decision_type.cannot_be_inlined decision
+  then Definition_says_not_to_inline
+  else if env_prohibits_inlining
+  then Environment_says_never_inline
+  else
+    let cost_metrics =
+      speculative_inlining ~apply dacc ~simplify_expr ~return_arity
+        ~function_type
+    in
+    let inlining_args =
+      Apply.inlining_arguments apply
+      |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
+    in
+    let evaluated_to = Cost_metrics.evaluate ~args:inlining_args cost_metrics in
+    let threshold = Inlining_arguments.threshold inlining_args in
+    let is_under_inline_threshold = Float.compare evaluated_to threshold <= 0 in
+    if is_under_inline_threshold
+    then Speculatively_inline { cost_metrics; evaluated_to; threshold }
+    else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
 
 let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
   let rec_info = FT.rec_info function_type in

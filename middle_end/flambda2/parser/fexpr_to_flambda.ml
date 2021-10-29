@@ -650,6 +650,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
              [bind_all_code_ids] *)
           let code_id = find_code_id env id in
           Bound_symbols.Pattern.code code_id, env
+        | Deleted_code id ->
+          let code_id = find_code_id env id in
+          Bound_symbols.Pattern.code code_id, env
         | Data { symbol; _ } ->
           let symbol, env = declare_symbol env symbol in
           Bound_symbols.Pattern.block_like symbol, env
@@ -710,6 +713,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let set = set_of_closures env fun_decls elements in
         static_const (Set_of_closures set)
       | Closure _ -> assert false (* should have been filtered out above *)
+      | Deleted_code _ -> Flambda.Static_const_or_code.deleted_code
       | Code
           { id;
             newer_version_of;
@@ -727,71 +731,68 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let params_arity =
           match param_arity with
           | Some ar -> arity ar
-          | None -> (
-            match params_and_body with
-            | Deleted ->
-              Misc.fatal_errorf "Param arity required for deleted code %a"
-                Code_id.print code_id
-            | Present { params; _ } ->
-              List.map
-                (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
-                  value_kind_with_subkind_opt kind)
-                params)
+          | None ->
+            List.map
+              (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
+                value_kind_with_subkind_opt kind)
+              params_and_body.params
         in
         let result_arity =
           match ret_arity with
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let params_and_body : _ Or_deleted.t =
-          match params_and_body with
-          | Deleted -> Deleted
-          | Present { params; closure_var; depth_var; ret_cont; exn_cont; body }
-            ->
-            let params, env =
-              map_accum_left
-                (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
-                  let var, env = fresh_var env param in
-                  let param =
-                    Bound_parameter.create var
-                      (value_kind_with_subkind_opt kind)
-                  in
-                  param, env)
-                env params
-            in
-            let my_closure, env = fresh_var env closure_var in
-            let my_depth, env = fresh_var env depth_var in
-            let return_continuation, env =
-              fresh_cont env ret_cont ~sort:Return
-                ~arity:(List.length result_arity)
-            in
-            let exn_continuation, env = fresh_exn_cont env exn_cont in
-            assert (
-              match Exn_continuation.extra_args exn_continuation with
-              | [] -> true
-              | _ :: _ -> false);
-            let body = expr env body in
-            let params_and_body =
-              Flambda.Function_params_and_body.create ~return_continuation
-                ~exn_continuation:
-                  (Exn_continuation.exn_handler exn_continuation)
-                params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
-            in
-            (* CR lmaurer: Add
-             * [Name_occurrences.with_only_names_and_closure_vars] *)
-            let _names_and_closure_vars names =
-              Name_occurrences.(
-                union
-                  (restrict_to_closure_vars names)
-                  (with_only_names_and_code_ids names |> without_code_ids))
-            in
-            let free_names =
-              (* CR mshinwell: This needs fixing XXX *)
-              Name_occurrences.empty
-              (* Flambda.Function_params_and_body.free_names params_and_body |>
-                 names_and_closure_vars *)
-            in
-            Present (params_and_body, free_names)
+        let params_and_body, free_names_of_params_and_body, is_my_closure_used =
+          let { Fexpr.params; closure_var; depth_var; ret_cont; exn_cont; body }
+              =
+            params_and_body
+          in
+          let params, env =
+            map_accum_left
+              (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
+                let var, env = fresh_var env param in
+                let param =
+                  Bound_parameter.create var (value_kind_with_subkind_opt kind)
+                in
+                param, env)
+              env params
+          in
+          let my_closure, env = fresh_var env closure_var in
+          let my_depth, env = fresh_var env depth_var in
+          let return_continuation, env =
+            fresh_cont env ret_cont ~sort:Return
+              ~arity:(List.length result_arity)
+          in
+          let exn_continuation, env = fresh_exn_cont env exn_cont in
+          assert (
+            match Exn_continuation.extra_args exn_continuation with
+            | [] -> true
+            | _ :: _ -> false);
+          let body = expr env body in
+          let params_and_body =
+            Flambda.Function_params_and_body.create ~return_continuation
+              ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
+              params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+          in
+          (* CR lmaurer: Add
+           * [Name_occurrences.with_only_names_and_closure_vars] *)
+          let _names_and_closure_vars names =
+            Name_occurrences.(
+              union
+                (restrict_to_closure_vars names)
+                (with_only_names_and_code_ids_promoting_newer_version_of names
+                |> without_code_ids))
+          in
+          let free_names =
+            (* CR mshinwell: This needs fixing XXX *)
+            Name_occurrences.empty
+            (* Flambda.Function_params_and_body.free_names params_and_body |>
+               names_and_closure_vars *)
+          in
+          ( params_and_body,
+            free_names,
+            Flambda.Function_params_and_body.is_my_closure_used params_and_body
+          )
         in
         let recursive = convert_recursive_flag recursive in
         let inline =
@@ -802,11 +803,12 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         in
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
-          Code.create code_id ~params_and_body ~newer_version_of ~params_arity
-            ~result_arity ~stub:false ~inline ~is_a_functor:false ~recursive
+          Code.create code_id ~params_and_body ~free_names_of_params_and_body
+            ~newer_version_of ~params_arity ~result_arity ~stub:false ~inline
+            ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
-            ~dbg:Debuginfo.none ~is_tupled
+            ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
             ~inlining_decision:Never_inline_attribute
         in
         Flambda.Static_const_or_code.create_code code
@@ -898,7 +900,7 @@ let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
         List.fold_left
           (fun env (binding : Fexpr.symbol_binding) ->
             match binding with
-            | Code { id; _ } ->
+            | Code { id; _ } | Deleted_code id ->
               let _, env = fresh_code_id env id in
               env
             | Data _ | Closure _ | Set_of_closures _ -> env)

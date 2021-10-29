@@ -22,7 +22,6 @@ open! Flambda.Import
    something can be inlined, and one giving the reasons why something cannot be
    inlined. *)
 type t = private
-  | Missing_code
   | Definition_says_not_to_inline
   | Environment_says_never_inline
   | Argument_types_not_useful

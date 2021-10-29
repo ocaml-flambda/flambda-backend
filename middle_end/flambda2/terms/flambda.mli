@@ -94,6 +94,7 @@ and function_params_and_body
 
 and static_const_or_code = private
   | Code of function_params_and_body Code0.t
+  | Deleted_code
   | Static_const of Static_const.t
 
 and static_const_group
@@ -478,6 +479,8 @@ module Function_params_and_body : sig
       my_depth:Variable.t ->
       'a) ->
     'a
+
+  val is_my_closure_used : t -> bool
 end
 
 module Static_const_or_code : sig
@@ -494,6 +497,8 @@ module Static_const_or_code : sig
   val is_fully_static : t -> bool
 
   val create_code : Function_params_and_body.t Code0.t -> t
+
+  val deleted_code : t
 
   val create_static_const : Static_const.t -> t
 

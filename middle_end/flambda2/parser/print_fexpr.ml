@@ -671,6 +671,8 @@ and symbol_binding ppf (sb : symbol_binding) =
   match sb with
   | Data ss -> static_data_binding ppf ss
   | Code code -> code_binding ppf code
+  | Deleted_code id ->
+    Format.fprintf ppf "@[<hov 1>deleted_code@ %a@]" code_id id
   | Closure clo -> static_closure_binding ppf clo
   | Set_of_closures soc ->
     Format.fprintf ppf "@[<hv>@[<hv2>set_of_closures@ ";
@@ -688,7 +690,7 @@ and code_binding ppf
        inline;
        id;
        newer_version_of;
-       param_arity;
+       param_arity = _;
        ret_arity;
        params_and_body;
        code_size = cs;
@@ -701,28 +703,17 @@ and code_binding ppf
     inline code_size cs
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
     newer_version_of code_id id;
-  match params_and_body with
-  | Deleted ->
-    let pp_arity ppf =
-      match param_arity with
-      | None -> Format.print_string "???" (* invalid *)
-      | Some ar -> arity ppf ar
-    in
-    let ret_arity =
-      ret_arity |> Option.value ~default:[(Any_value : kind_with_subkind)]
-    in
-    Format.fprintf ppf "@ deleted :@ %a%t -> %a@]"
-      (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
-      is_tupled pp_arity arity ret_arity
-  | Present { params; closure_var; depth_var; ret_cont; exn_cont; body } ->
-    Format.fprintf ppf "%a@ %a@ %a@ -> %a@ * %a%a%a@] =@ %a"
-      (kinded_parameters ~space:Before)
-      params variable closure_var variable depth_var continuation_id ret_cont
-      continuation_id exn_cont
-      (pp_option ~space:Before (pp_like ": %a" arity))
-      ret_arity
-      (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
-      is_tupled (expr Outer) body
+  let { params; closure_var; depth_var; ret_cont; exn_cont; body } =
+    params_and_body
+  in
+  Format.fprintf ppf "%a@ %a@ %a@ -> %a@ * %a%a%a@] =@ %a"
+    (kinded_parameters ~space:Before)
+    params variable closure_var variable depth_var continuation_id ret_cont
+    continuation_id exn_cont
+    (pp_option ~space:Before (pp_like ": %a" arity))
+    ret_arity
+    (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
+    is_tupled (expr Outer) body
 
 let flambda_unit ppf ({ body } : flambda_unit) =
   Format.fprintf ppf "@[<v>@[%a@]@ @]" (expr Outer) body

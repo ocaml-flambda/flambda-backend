@@ -423,10 +423,10 @@ let check_simple_is_bound t (simple : Simple.t) =
 let mem_code t id =
   Code_id.Map.mem id t.all_code || Exported_code.mem id (t.get_imported_code ())
 
-let find_code t id =
+let find_code_exn t id =
   match Code_id.Map.find id t.all_code with
-  | exception Not_found -> Exported_code.find_code (t.get_imported_code ()) id
-  | code -> Some code
+  | exception Not_found -> Exported_code.find_exn (t.get_imported_code ()) id
+  | code -> Code_or_metadata.create code
 
 let check_code_id_is_bound t code_id =
   if not (mem_code t code_id)

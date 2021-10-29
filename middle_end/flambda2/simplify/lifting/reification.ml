@@ -61,7 +61,7 @@ let lift dacc ty ~bound_to static_const =
     let existing_symbol =
       match Rebuilt_static_const.to_const static_const with
       | None -> None
-      | Some (Code _) -> None
+      | Some (Code _ | Deleted_code) -> None
       | Some (Static_const const) -> DA.find_shareable_constant dacc const
     in
     match existing_symbol with
@@ -98,7 +98,7 @@ let lift dacc ty ~bound_to static_const =
       in
       let dacc =
         match Rebuilt_static_const.to_const static_const with
-        | None | Some (Code _) -> dacc
+        | None | Some (Code _ | Deleted_code) -> dacc
         | Some (Static_const static_const) ->
           DA.consider_constant_for_sharing dacc symbol static_const
       in

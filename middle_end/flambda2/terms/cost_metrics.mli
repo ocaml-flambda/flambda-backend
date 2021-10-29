@@ -50,3 +50,5 @@ val notify_added : code_size:Code_size.t -> t -> t
 val notify_removed : operation:Removed_operations.t -> t -> t
 
 val evaluate : args:Inlining_arguments.t -> t -> float
+
+val equal : t -> t -> bool

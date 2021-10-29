@@ -70,6 +70,8 @@ module Function_params_and_body : sig
   (** This function may only be used when rebuilding terms. *)
   val to_function_params_and_body :
     t -> Are_rebuilding_terms.t -> Function_params_and_body.t
+
+  val is_my_closure_used : t -> bool
 end
 
 module Continuation_handler : sig

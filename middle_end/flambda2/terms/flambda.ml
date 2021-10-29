@@ -133,6 +133,7 @@ and function_params_and_body =
 
 and static_const_or_code =
   | Code of function_params_and_body Code0.t
+  | Deleted_code
   | Static_const of Static_const.t
 
 and static_const_group = static_const_or_code list
@@ -329,6 +330,7 @@ and apply_renaming_static_const_or_code
           renaming
       in
       if code == code' then static_const_or_code else Code code'
+    | Deleted_code -> Deleted_code
     | Static_const const ->
       let const' = Static_const.apply_renaming const renaming in
       if const == const' then static_const_or_code else Static_const const'
@@ -462,6 +464,7 @@ and all_ids_for_export_static_const_or_code t =
   match t with
   | Code code ->
     Code0.all_ids_for_export ~all_ids_for_export_function_params_and_body code
+  | Deleted_code -> Ids_for_export.empty
   | Static_const const -> Static_const.all_ids_for_export const
 
 and all_ids_for_export_static_const_group t =
@@ -496,12 +499,13 @@ and match_against_bound_symbols_pattern_static_const_or_code :
       static_const_or_code ->
       Bound_symbols.Pattern.t ->
       code:(Code_id.t -> function_params_and_body Code0.t -> 'a) ->
+      deleted_code:(Code_id.t -> 'a) ->
       set_of_closures:
         (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
       block_like:(Symbol.t -> Static_const.t -> 'a) ->
       'a =
  fun static_const_or_code (pat : Bound_symbols.Pattern.t) ~code:code_callback
-     ~set_of_closures ~block_like ->
+     ~deleted_code:deleted_code_callback ~set_of_closures ~block_like ->
   match static_const_or_code, pat with
   | Code code, Code code_id ->
     if not (Code_id.equal (Code0.code_id code) code_id)
@@ -510,10 +514,12 @@ and match_against_bound_symbols_pattern_static_const_or_code :
         Bound_symbols.Pattern.print pat print_static_const_or_code
         static_const_or_code;
     code_callback code_id code
+  | Deleted_code, Code code_id -> deleted_code_callback code_id
   | Static_const const, (Set_of_closures _ | Block_like _) ->
     Static_const.match_against_bound_symbols_pattern const pat ~set_of_closures
       ~block_like
-  | Static_const _, Code _ | Code _, (Set_of_closures _ | Block_like _) ->
+  | Static_const _, Code _
+  | (Code _ | Deleted_code), (Set_of_closures _ | Block_like _) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
       Bound_symbols.Pattern.print pat print_static_const_or_code
       static_const_or_code
@@ -545,6 +551,7 @@ and match_against_bound_symbols_static_const_group :
       match_against_bound_symbols_pattern_static_const_or_code static_const
         bound_symbols_pat
         ~code:(fun code_id code -> code_callback acc code_id code)
+        ~deleted_code:(fun _code_id -> acc)
         ~set_of_closures:(fun ~closure_symbols set_of_closures ->
           set_of_closures_callback acc ~closure_symbols set_of_closures)
         ~block_like:(fun symbol static_const ->
@@ -981,6 +988,10 @@ and print_static_const_or_code ppf static_const_or_code =
       (Flambda_colours.normal ())
       (Code0.print ~print_function_params_and_body)
       code
+  | Deleted_code ->
+    fprintf ppf "@[<hov 1>(@<0>%sDeleted_code@<0>%s)@]"
+      (Flambda_colours.static_part ())
+      (Flambda_colours.normal ())
   | Static_const const -> Static_const.print ppf const
 
 module Continuation_handler = struct
@@ -1128,6 +1139,11 @@ module Function_params_and_body = struct
   let apply_renaming = apply_renaming_function_params_and_body
 
   let all_ids_for_export = all_ids_for_export_function_params_and_body
+
+  let is_my_closure_used t =
+    match t.is_my_closure_used with
+    | Unknown -> true
+    | Known is_my_closure_used -> is_my_closure_used
 end
 
 module Let_expr = struct
@@ -1348,10 +1364,13 @@ module Static_const_or_code = struct
     let compare t1 t2 =
       match t1, t2 with
       | Code code1, Code code2 -> Code0.compare code1 code2
+      | Deleted_code, Deleted_code -> 0
       | Static_const const1, Static_const const2 ->
         Static_const.compare const1 const2
-      | Code _, Static_const _ -> -1
-      | Static_const _, Code _ -> 1
+      | Code _, (Deleted_code | Static_const _) -> -1
+      | Deleted_code, Static_const _ -> -1
+      | Deleted_code, Code _ -> 1
+      | Static_const _, (Code _ | Deleted_code) -> 1
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -1361,6 +1380,7 @@ module Static_const_or_code = struct
   let free_names t =
     match t with
     | Code code -> Code0.free_names code
+    | Deleted_code -> Name_occurrences.empty
     | Static_const const -> Static_const.free_names const
 
   let apply_renaming = apply_renaming_static_const_or_code
@@ -1369,14 +1389,24 @@ module Static_const_or_code = struct
 
   let create_code code = Code code
 
+  let deleted_code = Deleted_code
+
   let create_static_const const = Static_const const
 
   let is_fully_static t =
     match t with
-    | Code _ -> true
+    | Code _ | Deleted_code -> true
     | Static_const const -> Static_const.is_fully_static const
 
-  let to_code t = match t with Code code -> Some code | Static_const _ -> None
+  let to_code t =
+    match t with
+    | Code code -> Some code
+    | Deleted_code | Static_const _ -> None
+
+  let to_code' t =
+    match t with
+    | Code code -> Some (Code0.code_id code, code)
+    | Deleted_code | Static_const _ -> None
 end
 
 module Static_const_group = struct
@@ -1401,12 +1431,7 @@ module Static_const_group = struct
     match_against_bound_symbols_static_const_group
 
   let pieces_of_code t =
-    List.filter_map Static_const_or_code.to_code t
-    |> List.filter_map (fun code ->
-           if Code0.is_deleted code
-           then None
-           else Some (Code0.code_id code, code))
-    |> Code_id.Map.of_list
+    List.filter_map Static_const_or_code.to_code' t |> Code_id.Map.of_list
 
   let pieces_of_code' t = pieces_of_code t |> Code_id.Map.data
 

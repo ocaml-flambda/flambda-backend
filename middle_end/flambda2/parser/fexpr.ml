@@ -449,6 +449,7 @@ and let_symbol =
 and symbol_binding =
   | Data of static_data_binding
   | Code of code
+  | Deleted_code of code_id
   | Closure of static_closure_binding
   | Set_of_closures of static_set_of_closures
 
@@ -464,7 +465,7 @@ and code =
     ret_arity : arity option;
     recursive : is_recursive;
     inline : inline_attribute option;
-    params_and_body : params_and_body or_deleted;
+    params_and_body : params_and_body;
     code_size : code_size;
     is_tupled : bool
   }
@@ -479,10 +480,6 @@ and params_and_body =
     exn_cont : continuation_id;
     body : expr
   }
-
-and 'a or_deleted =
-  | Present of 'a
-  | Deleted
 
 and static_closure_binding =
   { symbol : symbol;
