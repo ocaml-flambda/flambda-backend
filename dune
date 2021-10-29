@@ -214,6 +214,8 @@
   cfg_intf
   cfg_to_linear
   cfg_with_layout
+  cfg_dataflow
+  eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
   eliminate_fallthrough_blocks
@@ -556,6 +558,8 @@
   (cfg.mli as compiler-libs/cfg.mli)
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
+  (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
+  (eliminate_dead_code.mli as compiler-libs/eliminate_dead_code.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
   (eliminate_fallthrough_blocks.mli
@@ -946,6 +950,30 @@
   (.ocamloptcomp.objs/byte/cfg_with_layout.cmti
    as
    compiler-libs/cfg_with_layout.cmti)
+  (.ocamloptcomp.objs/byte/cfg_dataflow.cmi
+   as
+   compiler-libs/cfg_dataflow.cmi)
+  (.ocamloptcomp.objs/byte/cfg_dataflow.cmo
+   as
+   compiler-libs/cfg_dataflow.cmo)
+  (.ocamloptcomp.objs/byte/cfg_dataflow.cmt
+   as
+   compiler-libs/cfg_dataflow.cmt)
+  (.ocamloptcomp.objs/byte/cfg_dataflow.cmti
+   as
+   compiler-libs/cfg_dataflow.cmti)
+  (.ocamloptcomp.objs/byte/eliminate_dead_code.cmi
+   as
+   compiler-libs/eliminate_dead_code.cmi)
+  (.ocamloptcomp.objs/byte/eliminate_dead_code.cmo
+   as
+   compiler-libs/eliminate_dead_code.cmo)
+  (.ocamloptcomp.objs/byte/eliminate_dead_code.cmt
+   as
+   compiler-libs/eliminate_dead_code.cmt)
+  (.ocamloptcomp.objs/byte/eliminate_dead_code.cmti
+   as
+   compiler-libs/eliminate_dead_code.cmti)
   (.ocamloptcomp.objs/byte/disconnect_block.cmi
    as
    compiler-libs/disconnect_block.cmi)
@@ -1149,6 +1177,12 @@
   (.ocamloptcomp.objs/native/cfg_with_layout.cmx
    as
    compiler-libs/cfg_with_layout.cmx)
+  (.ocamloptcomp.objs/native/cfg_dataflow.cmx
+   as
+   compiler-libs/cfg_dataflow.cmx)
+  (.ocamloptcomp.objs/native/eliminate_dead_code.cmx
+   as
+   compiler-libs/eliminate_dead_code.cmx)
   (.ocamloptcomp.objs/native/disconnect_block.cmx
    as
    compiler-libs/disconnect_block.cmx)
