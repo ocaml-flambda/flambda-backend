@@ -34,8 +34,9 @@ val mem : Code_id.t -> t -> bool
 (** This function raises an exception if the code ID is unbound. *)
 val find_exn : t -> Code_id.t -> Code_or_metadata.t
 
-(** This function raises an exception if the code ID is unbound. *)
-val find_if_not_imported_exn : t -> Code_id.t -> Code_or_metadata.t option
+(** This function is only really for use in unusual cases where there needs to
+    be special handling if a code ID is unbound (see comment in the .ml file) *)
+val find : t -> Code_id.t -> Code_or_metadata.t option
 
 val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
 

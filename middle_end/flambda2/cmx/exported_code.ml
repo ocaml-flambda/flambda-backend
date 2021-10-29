@@ -52,7 +52,7 @@ let find_exn t code_id =
     Misc.fatal_errorf "Code ID %a not bound" Code_id.print code_id
   | code_or_metadata -> code_or_metadata
 
-let find_if_not_imported_exn t code_id =
+let find t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     (* In some cases a code ID is created, the corresponding closure stored into
