@@ -147,17 +147,20 @@ end = struct
           let all_function_decls_in_set =
             Closure_id.Map.map
               (fun old_code_id ->
+                let code_or_metadata = DE.find_code_exn denv old_code_id in
                 let new_code_id =
-                  Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
-                in
-                let code_metadata =
-                  DE.find_code_exn denv old_code_id
-                  |> Code_or_metadata.code_metadata
+                  match code_or_metadata with
+                  | Code_present _ ->
+                    Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
+                  | Metadata_only _ -> old_code_id
                 in
                 let rec_info =
                   (* From inside their own bodies, every function in the set
                      currently being defined has an unknown recursion depth *)
                   T.unknown K.rec_info
+                in
+                let code_metadata =
+                  code_or_metadata |> Code_or_metadata.code_metadata
                 in
                 let dbg = Code_metadata.dbg code_metadata in
                 let dbg_including_inlining_stack =
