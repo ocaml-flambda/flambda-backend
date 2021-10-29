@@ -195,20 +195,18 @@ module Iter = struct
       ~init:()
       ~code:(fun () code_id (code : Code.t) ->
         f_c ~id:code_id code;
-        match Code.params_and_body code with
-        | Deleted -> ()
-        | Present params_and_body ->
-          Function_params_and_body.pattern_match params_and_body
-            ~f:(fun
-                 ~return_continuation:_
-                 ~exn_continuation:_
-                 _
-                 ~body
-                 ~my_closure:_
-                 ~is_my_closure_used:_
-                 ~my_depth:_
-                 ~free_names_of_body:_
-               -> expr f_c f_s body))
+        let params_and_body = Code.params_and_body code in
+        Function_params_and_body.pattern_match params_and_body
+          ~f:(fun
+               ~return_continuation:_
+               ~exn_continuation:_
+               _
+               ~body
+               ~my_closure:_
+               ~is_my_closure_used:_
+               ~my_depth:_
+               ~free_names_of_body:_
+             -> expr f_c f_s body))
       ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
         f_s ~closure_symbols:(Some closure_symbols) ~is_phantom:false
           set_of_closures)

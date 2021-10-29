@@ -183,10 +183,11 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       match Sys.getenv "PRINT_SIZES" with
       | exception Not_found -> ()
       | _ ->
-        Exported_code.iter all_code (fun id code ->
+        Exported_code.iter_code all_code ~f:(fun code ->
             let size = Code.cost_metrics code in
             Format.fprintf Format.std_formatter "%a %a\n"
-              Flambda2_identifiers.Code_id.print id Cost_metrics.print size)
+              Flambda2_identifiers.Code_id.print (Code.code_id code)
+              Cost_metrics.print size)
     end;
     Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda cmx
       ~all_code

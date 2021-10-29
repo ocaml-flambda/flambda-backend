@@ -18,11 +18,11 @@
 
 type t = Flambda.Function_params_and_body.t Code0.t
 
+let code_metadata = Code0.code_metadata
+
 let code_id = Code0.code_id
 
 let params_and_body = Code0.params_and_body
-
-let params_and_body_must_be_present = Code0.params_and_body_must_be_present
 
 let newer_version_of = Code0.newer_version_of
 
@@ -46,16 +46,20 @@ let dbg = Code0.dbg
 
 let is_tupled = Code0.is_tupled
 
+let is_my_closure_used = Code0.is_my_closure_used
+
 let inlining_decision = Code0.inlining_decision
 
-let create code_id ~params_and_body ~newer_version_of ~params_arity
-    ~result_arity ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
-    ~inlining_arguments ~dbg ~is_tupled ~inlining_decision =
+let create code_id ~params_and_body ~free_names_of_params_and_body
+    ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
+    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~is_my_closure_used ~inlining_decision =
   Code0.create
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
-    code_id ~params_and_body ~newer_version_of ~params_arity ~result_arity ~stub
-    ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
-    ~is_tupled ~inlining_decision
+    code_id ~params_and_body ~free_names_of_params_and_body ~newer_version_of
+    ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision
 
 let with_code_id = Code0.with_code_id
 
@@ -64,10 +68,6 @@ let with_params_and_body =
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
 
 let with_newer_version_of = Code0.with_newer_version_of
-
-let make_deleted = Code0.make_deleted
-
-let is_deleted = Code0.is_deleted
 
 let free_names = Code0.free_names
 

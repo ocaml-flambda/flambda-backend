@@ -361,31 +361,27 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
   | _ -> static_const
 
 and subst_code env (code : Code.t) : Code.t =
-  let params_and_body =
-    match Code.params_and_body code with
-    | Or_deleted.Present params_and_body ->
-      let params_and_body = subst_params_and_body env params_and_body in
-      let _names_and_closure_vars names =
-        Name_occurrences.(
-          union
-            (restrict_to_closure_vars names)
-            (with_only_names_and_code_ids names |> without_code_ids))
-      in
-      let free_names =
-        (* CR mshinwell: This needs fixing XXX *)
-        Name_occurrences.empty
-        (* Flambda.Function_params_and_body.free_names params_and_body |>
-           names_and_closure_vars *)
-      in
-      Or_deleted.Present (params_and_body, free_names)
-    | Or_deleted.Deleted -> Or_deleted.Deleted
+  let params_and_body = Code.params_and_body code in
+  let params_and_body = subst_params_and_body env params_and_body in
+  let _names_and_closure_vars names =
+    Name_occurrences.(
+      union
+        (restrict_to_closure_vars names)
+        (with_only_names_and_code_ids_promoting_newer_version_of names
+        |> without_code_ids))
+  in
+  let free_names_of_params_and_body =
+    (* CR mshinwell: This needs fixing XXX *)
+    Name_occurrences.empty
+    (* Flambda.Function_params_and_body.free_names params_and_body |>
+       names_and_closure_vars *)
   in
   let newer_version_of =
     Option.map (subst_code_id env) (Code.newer_version_of code)
   in
   code
   |> Code.with_params_and_body ~cost_metrics:(Code.cost_metrics code)
-       params_and_body
+       ~params_and_body ~free_names_of_params_and_body
   |> Code.with_newer_version_of newer_version_of
 
 and subst_params_and_body env params_and_body =
@@ -1162,37 +1158,19 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
                  ~exn_continuation params ~body:body1' ~my_closure ~my_depth
                  ~free_names_of_body:Unknown))
   in
-
-  let bodies_or_deleted env body1 body2 : _ Or_deleted.t Comparison.t =
-    match (body1 : _ Or_deleted.t), (body2 : _ Or_deleted.t) with
-    | Present body1, Present body2 ->
-      bodies env body1 body2
-      |> Comparison.map ~f:(fun body1' -> Or_deleted.Present body1')
-    | Deleted, Deleted -> Equivalent
-    | Present body1, Deleted ->
-      Different { approximant = Present (subst_params_and_body env body1) }
-    | Deleted, Present _ -> Different { approximant = Deleted }
-  in
-  pairs ~f1:bodies_or_deleted
+  pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
     env
     (Code.params_and_body code1, Code.newer_version_of code1)
     (Code.params_and_body code2, Code.newer_version_of code2)
   |> Comparison.map ~f:(fun (params_and_body, newer_version_of) ->
-         let params_and_body : _ Or_deleted.t =
-           match (params_and_body : _ Or_deleted.t) with
-           | Deleted -> Deleted
-           | Present params_and_body ->
-             Present
-               ( params_and_body,
-                 (* CR mshinwell: This needs fixing XXX *)
-                 Name_occurrences.empty
-                 (* Function_params_and_body.free_names params_and_body *) )
-         in
          code1
          |> Code.with_code_id (Code.code_id code2)
          |> Code.with_params_and_body ~cost_metrics:(Code.cost_metrics code2)
-              params_and_body
+              ~params_and_body
+                (* CR mshinwell: This needs fixing XXX (used to call a free
+                   names function on Function_params_and_body) *)
+              ~free_names_of_params_and_body:Name_occurrences.empty
          |> Code.with_newer_version_of newer_version_of)
   |> Comparison.add_condition
        ~approximant:(fun () -> subst_code env code1)

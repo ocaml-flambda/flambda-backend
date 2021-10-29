@@ -102,3 +102,26 @@ let evaluate ~args (t : t) =
      *. Inlining_arguments.indirect_call_cost args
   +. float_of_int t.specialized_poly_compare
      *. Inlining_arguments.poly_compare_cost args
+
+let equal
+    { call = call1;
+      alloc = alloc1;
+      prim = prim1;
+      branch = branch1;
+      direct_call_of_indirect = direct_call_of_indirect1;
+      specialized_poly_compare = specialized_poly_compare1;
+      requested_inline = requested_inline1
+    }
+    { call = call2;
+      alloc = alloc2;
+      prim = prim2;
+      branch = branch2;
+      direct_call_of_indirect = direct_call_of_indirect2;
+      specialized_poly_compare = specialized_poly_compare2;
+      requested_inline = requested_inline2
+    } =
+  Int.equal call1 call2 && Int.equal alloc1 alloc2 && Int.equal prim1 prim2
+  && Int.equal branch1 branch2
+  && Int.equal direct_call_of_indirect1 direct_call_of_indirect2
+  && Int.equal specialized_poly_compare1 specialized_poly_compare2
+  && Int.equal requested_inline1 requested_inline2

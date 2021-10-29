@@ -37,3 +37,5 @@ val ( + ) : t -> t -> t
 val print : Format.formatter -> t -> unit
 
 val evaluate : args:Inlining_arguments.t -> t -> float
+
+val equal : t -> t -> bool

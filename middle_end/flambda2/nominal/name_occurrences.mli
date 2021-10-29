@@ -135,7 +135,16 @@ val without_closure_vars : t -> t
 
 val with_only_variables : t -> t
 
-val with_only_names_and_code_ids : t -> t
+(** The value returned by this function only records occurrences in two fields:
+
+    - names, as per the input
+
+    - code IDs, containing *both* the code IDs and the "newer version of" code
+    IDs from the input.
+
+    The "newer version of" code IDs field in the returned value will always be
+    empty. *)
+val with_only_names_and_code_ids_promoting_newer_version_of : t -> t
 
 val without_names_or_continuations : t -> t
 

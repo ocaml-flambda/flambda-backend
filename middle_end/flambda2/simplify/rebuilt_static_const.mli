@@ -31,8 +31,8 @@ val print : Format.formatter -> t -> unit
 val create_code :
   Are_rebuilding_terms.t ->
   Code_id.t ->
-  params_and_body:
-    (Rebuilt_expr.Function_params_and_body.t * Name_occurrences.t) Or_deleted.t ->
+  params_and_body:Rebuilt_expr.Function_params_and_body.t ->
+  free_names_of_params_and_body:Name_occurrences.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
@@ -44,6 +44,7 @@ val create_code :
   inlining_arguments:Inlining_arguments.t ->
   dbg:Debuginfo.t ->
   is_tupled:bool ->
+  is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   t
 

@@ -336,7 +336,7 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
      indicate the free names of [body]. *)
   let will_bind_code = Bound_symbols.binds_code bound_symbols in
   (* Turn pieces of code that are only referenced in [newer_version_of] fields
-     into [Deleted]. *)
+     into [Deleted_code]. *)
   let code_ids_to_make_deleted =
     if not will_bind_code
     then Code_id.Set.empty
