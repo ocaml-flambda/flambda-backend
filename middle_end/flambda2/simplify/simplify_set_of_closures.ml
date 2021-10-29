@@ -248,9 +248,7 @@ end = struct
             |> Code.with_code_id new_code_id
           in
           DE.define_code denv ~code_id:new_code_id ~code
-        | Metadata_only metadata ->
-          Misc.fatal_errorf "Code metadata is not sufficient to simplify:@ %a"
-            Code_metadata.print metadata)
+        | Metadata_only _ -> denv)
       old_to_new_code_ids_all_sets denv
 
   let create ~dacc_prior_to_sets ~simplify_toplevel ~all_sets_of_closures
