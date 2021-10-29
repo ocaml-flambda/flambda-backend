@@ -37,13 +37,12 @@ _ocamltestd
 
 _build/
 _build0/
-_build1/
-_build2/
 _build_upstream/
 .rsync-output
 .rsync-output-compare
 _compare/
 _runtest/
+_stage0_configure/
 _stage2_configure/
 autom4te.cache
 _install/
@@ -54,9 +53,12 @@ _install/
 /configure
 /configure_opts
 /configure_opts_stage0
+/ocaml-stage0-config.status
 /ocaml-stage1-config.status
 /ocaml-stage2-config.status
+/ocaml-stage1-Makefile.config
 /ocamlopt_flags.sexp
 /oc_cflags.sexp
 /oc_cppflags.sexp
 /sharedlib_cflags.sexp
+/dune-workspace

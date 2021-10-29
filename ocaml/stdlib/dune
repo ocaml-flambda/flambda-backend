@@ -44,7 +44,7 @@
 
 (rule
   (targets camlheader camlheaderd camlheaderi camlheader_ur)
-  (deps Makefile StdlibModules .depend)
+  (deps Makefile StdlibModules .depend ../Makefile.config ../Makefile.build_config)
   (action (run make %{targets})))
 
 (install

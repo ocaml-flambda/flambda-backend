@@ -1,0 +1,16 @@
+; DO NOT EDIT. Generated from dune-workspace.in; edit that instead.
+;
+; This file is for Merlin's benefit only. It is not otherwise used by Dune at
+; any point.
+
+(lang dune 2.8)
+
+; NOTE: If you change this, also change the stage1 stanzas in other
+; dune-workspace* files
+(context
+ (default
+  (name stage1)
+  (merlin)
+  (paths
+   (PATH ("@stage0_prefix@/bin" :standard)))
+  (env (_ (env-vars (STAGE 1))))))

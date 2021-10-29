@@ -23,7 +23,7 @@
 
 (rule
   (targets opnames.h)
-  (deps instruct.h)
+  (deps instruct.h ../../Makefile.config ../../Makefile.build_config)
   (action (run make -C .. caml/opnames.h)))
 
 (rule
@@ -32,6 +32,14 @@
  (action
    (with-stdout-to %{targets}
      (run %{dep:../../tools/make-version-header.sh} %{dep:../../VERSION}))))
+
+(rule
+ (targets m.h s.h)
+ (deps
+   (:config %{project_root}/ocaml-stage%{env:STAGE=missing-value}-config.status)
+   m.h.in
+   s.h.in)
+ (action (run %{config} --header=m.h:m.h.in --header=s.h:s.h.in)))
 
 (install
   (files

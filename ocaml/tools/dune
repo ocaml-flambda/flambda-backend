@@ -12,6 +12,13 @@
 ;*                                                                        *
 ;**************************************************************************
 
+(rule
+ (target eventlog_metadata)
+ (deps
+  (:config %{project_root}/ocaml-stage%{env:STAGE=missing-value}-config.status)
+  (:in eventlog_metadata.in))
+ (action (run %{config} --file=%{target}:%{in})))
+
 (executables
  (names   make_opcodes cvt_emit)
  (modules make_opcodes cvt_emit)

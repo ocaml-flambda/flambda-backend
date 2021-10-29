@@ -50,7 +50,7 @@
 (rule
   (targets prims.c)
   (mode fallback)
-  (deps primitives Makefile)
+  (deps primitives Makefile ../Makefile.config ../Makefile.build_config)
   (action (run make %{targets})))
 
 (rule

@@ -1,0 +1,18 @@
+(lang dune 2.8)
+
+; NOTE: If you change this, also change the stage1 stanzas in other
+; dune-workspace* files
+(context
+ (default
+  (name stage1)
+  (paths
+   (PATH ("_build0/_install/bin" :standard)))
+  (env (_ (env-vars (STAGE 1))))))
+
+(context
+ (default
+  (name stage2)
+  (host stage1)
+  (paths
+   (PATH ("_build/install/stage1/bin" :standard)))
+  (env (_ (env-vars (STAGE 2))))))

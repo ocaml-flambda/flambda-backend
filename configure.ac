@@ -37,8 +37,8 @@ AC_ARG_ENABLE([middle-end],
   [AC_MSG_ERROR([--enable-middle-end=closure|flambda|flambda2 must be provided])])
 
 stage0_prefix=$ac_abs_confdir/_build0/_install
-stage1_prefix=$ac_abs_confdir/_build1/install/default
-stage2_prefix=$ac_abs_confdir/_build2/install/default
+stage1_prefix=$ac_abs_confdir/_build/install/stage1
+stage2_prefix=$ac_abs_confdir/_build/install/stage2
 
 AC_SUBST([prefix])
 AC_SUBST([middle_end])
@@ -54,8 +54,10 @@ AC_DISABLE_OPTION_CHECKING
 # The "real" --prefix will still be on the command line, but our new one here
 # will take priority.
 # This should match configure_args_for_ocaml, below.
+# Use --no-create to keep the tree clean so that each stage gets a pristine copy
+# (on which it can run its own config.status).
 AX_SUBDIRS_CONFIGURE([ocaml],
-  [$middle_end_arg,-C,--disable-ocamldoc],
+  [$middle_end_arg,-C,--disable-ocamldoc,--no-create],
   [],
   [--prefix=$stage1_prefix],
   [])
@@ -85,7 +87,7 @@ cat configure_opts | sed 's/^--enable-flambda2.//g' > configure_opts_stage0
 
 rm -f $temp
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile dune-workspace])
 AC_OUTPUT
 
 # We need a copy of config.status that is, for certain, the correct one

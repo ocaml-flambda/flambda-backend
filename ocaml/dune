@@ -30,6 +30,14 @@
 ;(copy_files# middle_end/flambda/*.ml{,i})
 ;(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
+(rule
+ (targets Makefile.build_config Makefile.config)
+ (deps
+  (:config %{project_root}/ocaml-stage%{env:STAGE=missing-value}-config.status)
+  Makefile.build_config.in
+  Makefile.config.in)
+ (action (run %{config} --file=Makefile.build_config --file=Makefile.config)))
+
 (library
  (name ocamlcommon)
  (wrapped false)
@@ -132,7 +140,7 @@
 (data_only_dirs yacc)
 
 (rule
- (deps (source_tree yacc))
+ (deps (source_tree yacc) Makefile.build_config)
  (targets ocamlyacc)
  (action
  (no-infer
