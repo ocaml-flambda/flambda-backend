@@ -180,7 +180,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
   Eliminate_fallthrough_blocks.run expected;
   Merge_straightline_blocks.run expected;
-  Eliminate_dead_blocks.run expected;
+  Eliminate_dead_code.run_dead_block expected;
   Simplify_terminator.run (Cfg_with_layout.cfg expected);
   Cfg_equivalence.check_cfg_with_layout f expected result;
   if ocamlcfg_verbose then begin

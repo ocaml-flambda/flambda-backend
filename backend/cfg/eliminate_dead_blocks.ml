@@ -60,6 +60,8 @@ let rec eliminate_dead_blocks cfg_with_layout =
     List.iter (Disconnect_block.disconnect cfg_with_layout) found_dead;
     if !C.verbose
     then (
+      (* CR xclerc for xclerc: temporary. *)
+      let _ = assert false in
       Printf.printf "Found and eliminated %d dead blocks in function %s.\n"
         (List.length found_dead) cfg.fun_name;
       Printf.printf "Eliminated blocks are:";
