@@ -63,7 +63,12 @@ let find t code_id =
        patched to remove the unused closure variable before computing
        reachability, but for now this is done during import instead so we can
        end up with missing code IDs during the reachability computation, and
-       have to assume that it fits the above case. *)
+       have to assume that it fits the above case.
+
+       The other situation where this returns [None] is when we are looking
+       during the export reachability computation for a piece of deleted code.
+       This can happen because the code ID might have been encountered via a
+       "newer version of" field during reachability. *)
     None
   | code_or_metadata -> Some code_or_metadata
 

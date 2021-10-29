@@ -65,7 +65,8 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
         | Some code_or_metadata ->
           let free_names = Code_or_metadata.free_names code_or_metadata in
           let names_to_consider =
-            Name_occurrences.with_only_names_and_code_ids free_names
+            Name_occurrences
+            .with_only_names_and_code_ids_promoting_newer_version_of free_names
           in
           let new_names =
             Name_occurrences.diff names_to_consider names_already_added
@@ -77,7 +78,8 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
         | Some ty ->
           let ty_names = T.free_names ty in
           let names_to_consider =
-            Name_occurrences.with_only_names_and_code_ids ty_names
+            Name_occurrences
+            .with_only_names_and_code_ids_promoting_newer_version_of ty_names
           in
           let new_names =
             Name_occurrences.diff names_to_consider names_already_added

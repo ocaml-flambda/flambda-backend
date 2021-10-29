@@ -1073,7 +1073,9 @@ let with_only_variables { names; _ } =
   let names = For_names.filter names ~f:Name.is_var in
   { empty with names }
 
-let with_only_names_and_code_ids { names; code_ids; _ } =
+let with_only_names_and_code_ids_promoting_newer_version_of
+    { names; code_ids; newer_version_of_code_ids; _ } =
+  let code_ids = For_code_ids.union code_ids newer_version_of_code_ids in
   { empty with names; code_ids }
 
 let without_names_or_continuations

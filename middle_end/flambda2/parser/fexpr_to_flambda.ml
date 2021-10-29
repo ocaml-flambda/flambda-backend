@@ -780,7 +780,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             Name_occurrences.(
               union
                 (restrict_to_closure_vars names)
-                (with_only_names_and_code_ids names |> without_code_ids))
+                (with_only_names_and_code_ids_promoting_newer_version_of names
+                |> without_code_ids))
           in
           let free_names =
             (* CR mshinwell: This needs fixing XXX *)
