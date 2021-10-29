@@ -750,9 +750,9 @@ and meet_function_type (env : Meet_env.t)
         ~resolver:(TE.code_age_relation_resolver typing_env)
         code_id1 code_id2
     in
-    (* It's possible that [code_id] corresponds to [Cannot_be_called] code. In
-       that case, any attempt to inline will fail, as the code will not be found
-       in the simplifier's environment -- see
+    (* It's possible that [code_id] corresponds to deleted code. In that case,
+       any attempt to inline will fail, as the code will not be found in the
+       simplifier's environment -- see
        [Simplify_apply_expr.simplify_direct_function_call]. *)
     let<* rec_info, extension = meet env rec_info1 rec_info2 in
     let func_type = TG.Function_type.create code_id ~rec_info in
