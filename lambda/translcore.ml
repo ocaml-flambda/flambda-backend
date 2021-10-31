@@ -474,22 +474,24 @@ and transl_exp0 ~in_new_scope ~scopes e =
               of_location ~scopes e.exp_loc)
       end
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
-      Lifthenelse(transl_exp ~scopes cond,
+      Lifthenelse(transl_exp_maybe_region ~scopes cond,
                   event_before ~scopes ifso (transl_exp ~scopes ifso),
                   event_before ~scopes ifnot (transl_exp ~scopes ifnot))
   | Texp_ifthenelse(cond, ifso, None) ->
-      Lifthenelse(transl_exp ~scopes cond,
-                  event_before ~scopes ifso (transl_exp ~scopes ifso),
+      Lifthenelse(transl_exp_maybe_region ~scopes cond,
+                  event_before ~scopes ifso
+                    (transl_exp_maybe_region ~scopes ifso),
                   lambda_unit)
   | Texp_sequence(expr1, expr2) ->
-      Lsequence(transl_exp ~scopes expr1,
+      Lsequence(transl_exp_maybe_region ~scopes expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes expr2))
   | Texp_while(cond, body) ->
-      Lwhile(transl_exp ~scopes cond,
-             event_before ~scopes body (transl_exp ~scopes body))
+      Lwhile(transl_exp_maybe_region ~scopes cond,
+             event_before ~scopes body (transl_exp_maybe_region ~scopes body))
   | Texp_for(param, _, low, high, dir, body) ->
-      Lfor(param, transl_exp ~scopes low, transl_exp ~scopes high, dir,
-           event_before ~scopes body (transl_exp ~scopes body))
+      Lfor(param, transl_exp_maybe_region ~scopes low,
+           transl_exp_maybe_region ~scopes high, dir,
+           event_before ~scopes body (transl_exp_maybe_region ~scopes body))
   | Texp_send(_, _, Some exp) -> transl_exp ~scopes exp
   | Texp_send(expr, met, None) ->
       let obj = transl_exp ~scopes expr in
@@ -572,8 +574,11 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_assert (cond) ->
       if !Clflags.noassert
       then lambda_unit
-      else Lifthenelse (transl_exp ~scopes cond, lambda_unit,
-                        assert_failed ~scopes e)
+      else begin
+        Lifthenelse
+          (transl_exp_maybe_region ~scopes cond,
+           lambda_unit, assert_failed ~scopes e)
+      end
   | Texp_lazy e ->
       (* when e needs no computation (constants, identifiers, ...), we
          optimize the translation just as Lazy.lazy_from_val would
@@ -674,13 +679,18 @@ and transl_list_with_shape ~scopes expr_list =
   in
   List.split (List.map transl_with_shape expr_list)
 
+and transl_exp_maybe_region ~scopes e =
+  let mode = transl_value_mode e.exp_mode in
+  let lam = transl_exp ~scopes e in
+  maybe_region Alloc_heap [mode] lam
+
 and transl_guard ~scopes guard rhs =
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs) in
   match guard with
   | None -> expr
   | Some cond ->
       event_before ~scopes cond
-        (Lifthenelse(transl_exp ~scopes cond, expr, staticfail))
+        (Lifthenelse(transl_exp_maybe_region ~scopes cond, expr, staticfail))
 
 and transl_case ~scopes {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard c_rhs
@@ -1204,9 +1214,13 @@ and transl_match ~scopes e arg pat_expr_list partial =
           (Matching.for_function ~scopes e.exp_loc
              None (Lvar val_id) val_cases partial)
   in
-  List.fold_left (fun body (static_exception_id, val_ids, handler) ->
-    Lstaticcatch (body, (static_exception_id, val_ids), handler)
-  ) classic static_handlers
+  let lam =
+    List.fold_left (fun body (static_exception_id, val_ids, handler) ->
+      Lstaticcatch (body, (static_exception_id, val_ids), handler)
+    ) classic static_handlers
+  in
+  let bound_modes = [transl_value_mode arg.exp_mode] in
+  maybe_region (transl_value_mode e.exp_mode) bound_modes lam
 
 and transl_letop ~scopes loc env let_ ands param case partial =
   let rec loop prev_lam = function

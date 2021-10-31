@@ -12,7 +12,7 @@ match (3, 2, 1) with
 ;;
 [%%expect{|
 (let
-  (*match*/88 = 3
+  (region *match*/88 = 3
    *match*/89 = 2
    *match*/90 = 1
    *match*/91 = *match*/88
@@ -54,6 +54,6 @@ match (3, 2, 1) with
                *match*/103 =a (field 1 *match*/99))
               (exit 5 *match*/99)))))
      with (6) 0)
-   with (5 x/94) (seq (ignore x/94) 1)))
+   with (5 x/94) (seq (region (ignore x/94)) 1)))
 - : bool = false
 |}];;

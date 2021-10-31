@@ -702,7 +702,7 @@ let rec emit_tail_infos is_tail lambda =
   | Lifused (_, lam) ->
       emit_tail_infos is_tail lam
   | Lregion lam ->
-      emit_tail_infos false lam
+      emit_tail_infos is_tail lam
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
 and list_emit_tail_infos is_tail =
