@@ -667,6 +667,17 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
     in
     List.fold_left bind_names env bound_symbols
   in
+  (* Temporary hack for [Deleted_code], which we plan to remove anyway: *)
+  let env =
+    List.fold_left2
+      (fun env (pat : Bound_symbols.Pattern.t) (const : Static_const_or_code.t) ->
+        match pat, const with
+        | Code id, Deleted_code ->
+          let _id, env = Env.bind_code_id env id in
+          env
+        | (Code _ | Block_like _ | Set_of_closures _), _ -> env)
+      env bound_symbols static_consts
+  in
   let translate_const (pat : Bound_symbols.Pattern.t)
       (const : Static_const_or_code.t) : Fexpr.symbol_binding =
     match pat, const with
@@ -754,7 +765,11 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
           code_size;
           is_tupled
         }
-    | _, _ ->
+    | Code code_id, Deleted_code ->
+      let code_id = Env.find_code_id_exn env code_id in
+      Deleted_code code_id
+    | (Block_like _ | Set_of_closures _), (Code _ | Deleted_code)
+    | (Code _ | Set_of_closures _), Static_const _ ->
       Misc.fatal_errorf "Mismatched pattern and constant: %a vs. %a"
         Bound_symbols.Pattern.print pat Static_const_or_code.print const
   in
