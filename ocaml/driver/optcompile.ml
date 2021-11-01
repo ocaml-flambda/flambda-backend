@@ -25,7 +25,10 @@ let with_info =
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
-  Compile_common.interface info
+  Compile_common.interface
+    ~hook_parse_tree:(fun _ -> ())
+    ~hook_type_tree:(fun _ -> ())
+    info
 
 let (|>>) (x, y) f = (x, f y)
 
@@ -93,7 +96,11 @@ let implementation ~backend ~start_from ~source_file ~output_prefix =
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   match (start_from:Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
+  | Parsing ->
+    Compile_common.implementation
+      ~hook_parse_tree:(fun _ -> ())
+      ~hook_type_tree:(fun _ -> ())
+      info ~backend
   | Emit -> emit info
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

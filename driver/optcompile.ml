@@ -24,7 +24,10 @@ let with_info = Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
-  Compile_common.interface info
+  Compile_common.interface
+  ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_intf)
+  ~hook_type_tree:(Compiler_hooks.execute Compiler_hooks.Type_tree_intf)
+    info
 
 let (|>>) (x, y) f = (x, f y)
 
@@ -120,7 +123,11 @@ let implementation ~backend ~flambda2 ~start_from ~source_file ~output_prefix =
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   match (start_from:Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
+  | Parsing -> Compile_common.implementation
+
+  ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
+  ~hook_type_tree:(Compiler_hooks.execute Compiler_hooks.Type_tree_impl)
+                 info ~backend
   | Emit -> emit info
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

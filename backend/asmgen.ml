@@ -154,7 +154,7 @@ let rec regalloc ~ppf_dump round fd =
   in
   dump_if ppf_dump dump_regalloc "After register allocation" fd;
   let (newfd, redo_regalloc) = Reload.fundecl fd num_stack_slots in
-  Compiler_hooks.execute Compiler_hooks.Mach_split newfd;
+  Compiler_hooks.execute Compiler_hooks.Mach_reload newfd;
   dump_if ppf_dump dump_reload "After insertion of reloading code" newfd;
   if redo_regalloc then begin
     Reg.reinit(); Liveness.fundecl newfd; regalloc ~ppf_dump (round + 1) newfd
