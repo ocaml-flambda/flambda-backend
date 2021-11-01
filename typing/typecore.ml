@@ -364,6 +364,16 @@ let extract_label_names env ty =
   with Not_found ->
     assert false
 
+let has_stack_attr_pat ppat =
+  List.exists
+    (fun attr -> String.equal attr.attr_name.txt "stack")
+    ppat.ppat_attributes
+
+let has_stack_attr_exp pexp =
+  List.exists
+    (fun attr -> String.equal attr.attr_name.txt "stack")
+    pexp.pexp_attributes
+
 (* Typing of patterns *)
 
 (* unification inside type_exp and type_expect *)
@@ -1528,7 +1538,13 @@ and type_pat_aux
       ({ptyp_desc=Ptyp_poly _} as sty)) ->
       (* explicitly polymorphic type *)
       assert construction_not_used_in_counterexamples;
-      let cty, ty, force = Typetexp.transl_simple_type_delayed !env sty in
+      let type_mode =
+        if has_stack_attr_pat sp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+      let cty, ty, force =
+        Typetexp.transl_simple_type_delayed !env type_mode sty
+      in
       unify_pat_types ~refine lloc env ty (instance expected_ty);
       pattern_force := force :: !pattern_force;
       begin match ty.desc with
@@ -1920,20 +1936,26 @@ and type_pat_aux
         pat_mode = alloc_mode;
         pat_attributes = sp.ppat_attributes;
         pat_env = !env })
-  | Ppat_constraint(sp, sty) ->
+  | Ppat_constraint(sp', sty) ->
       (* Pretend separate = true *)
       begin_def();
-      let cty, ty, force = Typetexp.transl_simple_type_delayed !env sty in
+      let type_mode =
+        if has_stack_attr_pat sp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+      let cty, ty, force =
+        Typetexp.transl_simple_type_delayed !env type_mode sty
+      in
       end_def();
       generalize_structure ty;
       let ty, expected_ty' = instance ty, ty in
       unify_pat_types ~refine loc env ty (instance expected_ty);
-      type_pat category sp expected_ty' (fun p ->
+      type_pat category sp' expected_ty' (fun p ->
         (*Format.printf "%a@.%a@."
           Printtyp.raw_type_expr ty
           Printtyp.raw_type_expr p.pat_type;*)
         pattern_force := force :: !pattern_force;
-        let extra = (Tpat_constraint cty, loc, sp.ppat_attributes) in
+        let extra = (Tpat_constraint cty, loc, sp'.ppat_attributes) in
         let p : k general_pattern =
           match category, (p : k general_pattern) with
           | Value, {pat_desc = Tpat_var (id,s); _} ->
@@ -2340,11 +2362,6 @@ let check_recursive_class_bindings env ids exprs =
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
 
-let has_stack_attr_pat ppat =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "stack")
-    ppat.ppat_attributes
-
 let is_prim ~name funct =
   match funct.exp_desc with
   | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}) ->
@@ -2634,8 +2651,12 @@ let self_coercion = ref ([] : (Path.t * Location.t list ref) list)
 (* Helpers for packaged modules. *)
 let create_package_type loc env (p, l) =
   let s = !Typetexp.transl_modtype_longident loc env p in
-  let fields = List.map (fun (name, ct) ->
-                           name, Typetexp.transl_simple_type env false ct) l in
+  let fields =
+    List.map
+      (fun (name, ct) ->
+         name, Typetexp.transl_simple_type env false Global ct)
+      l
+  in
   let ty = newty (Tpackage (s,
                     List.map fst l,
                    List.map (fun (_, cty) -> cty.ctyp_type) fields))
@@ -3435,7 +3456,11 @@ and type_expect_
   | Pexp_constraint (sarg, sty) ->
       (* Pretend separate = true, 1% slowdown for lablgtk *)
       begin_def ();
-      let cty = Typetexp.transl_simple_type env false sty in
+      let type_mode =
+        if has_stack_attr_exp sexp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
+      let cty = Typetexp.transl_simple_type env false type_mode sty in
       let ty = cty.ctyp_type in
       end_def ();
       generalize_structure ty;
@@ -3455,11 +3480,15 @@ and type_expect_
       (* Pretend separate = true, 1% slowdown for lablgtk *)
       (* Also see PR#7199 for a problem with the following:
          let separate = !Clflags.principal || Env.has_local_constraints env in*)
+      let type_mode =
+        if has_stack_attr_exp sexp then Alloc_mode.Local
+        else Alloc_mode.Global
+      in
       let (arg, ty',cty,cty') =
         match sty with
         | None ->
             let (cty', ty', force) =
-              Typetexp.transl_simple_type_delayed env sty'
+              Typetexp.transl_simple_type_delayed env type_mode sty'
             in
             begin_def ();
             let arg = type_exp env expected_mode sarg in
@@ -3505,9 +3534,9 @@ and type_expect_
         | Some sty ->
             begin_def ();
             let (cty, ty, force) =
-              Typetexp.transl_simple_type_delayed env sty
+              Typetexp.transl_simple_type_delayed env type_mode sty
             and (cty', ty', force') =
-              Typetexp.transl_simple_type_delayed env sty'
+              Typetexp.transl_simple_type_delayed env type_mode sty'
             in
             begin try
               let force'' = subtype env ty ty' in
@@ -3845,7 +3874,7 @@ and type_expect_
         match sty with None -> repr ty_expected, None
         | Some sty ->
             let sty = Ast_helper.Typ.force_poly sty in
-            let cty = Typetexp.transl_simple_type env false sty in
+            let cty = Typetexp.transl_simple_type env false Global sty in
             repr cty.ctyp_type, Some cty
       in
       if !Clflags.principal then begin

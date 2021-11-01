@@ -31,6 +31,52 @@ let (!) = fun (local_ r) -> r.contents
 val ( ! ) : local_ 'a ref -> 'a = <fun>
 |}]
 
+(* Local lets *)
+
+let leak n =
+  let local_ r = ref n in
+  r
+[%%expect{|
+Line 3, characters 2-3:
+3 |   r
+      ^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+let leak n =
+  let local_ r : int ref = ref n in
+  r
+[%%expect{|
+Line 3, characters 2-3:
+3 |   r
+      ^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+let leak n =
+  let local_ f : 'a. 'a -> 'a = fun x -> x in
+  f
+[%%expect{|
+Line 3, characters 2-3:
+3 |   f
+      ^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+let leak n =
+  let local_ f x : int = x in
+  f
+[%%expect{|
+Line 3, characters 2-3:
+3 |   f
+      ^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
 (*
  * Type equalities of function types
  *)
@@ -70,6 +116,119 @@ Error: The type constraints are not consistent.
 Type local_ int -> int is not compatible with type local_ int -> local_ int
 |}]
 
+type local_higher_order = unit constraint
+  local_ (int -> int -> int) -> int = local_ (int -> local_ (int -> int)) -> int
+[%%expect{|
+type local_higher_order = unit
+|}]
+
+type nonlocal_higher_order = unit constraint
+  (int -> int -> int) -> int = (int -> local_ (int -> int)) -> int
+[%%expect{|
+Line 2, characters 2-66:
+2 |   (int -> int -> int) -> int = (int -> local_ (int -> int)) -> int
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The type constraints are not consistent.
+Type (int -> int -> int) -> int is not compatible with type
+  (int -> local_ (int -> int)) -> int
+Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+|}]
+
+type local_higher_order = unit constraint
+  int -> local_ (int -> int -> int) = int -> local_ (int -> local_ (int -> int))
+[%%expect{|
+type local_higher_order = unit
+|}]
+
+type nonlocal_higher_order = unit constraint
+  int -> (int -> int -> int) = int -> (int -> local_ (int -> int))
+[%%expect{|
+Line 2, characters 2-66:
+2 |   int -> (int -> int -> int) = int -> (int -> local_ (int -> int))
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The type constraints are not consistent.
+Type int -> int -> int -> int is not compatible with type
+  int -> int -> local_ (int -> int)
+Type int -> int -> int is not compatible with type int -> local_ (int -> int)
+|}]
+
+let foo () =
+  let local_ _bar : int -> int -> int =
+    ((fun y z -> z) : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let _bar : int -> int -> int =
+    ((fun y z -> z) : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+Line 3, characters 4-49:
+3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type int -> local_ (int -> int)
+       but an expression was expected of type int -> int -> int
+|}]
+
+let foo () =
+  let local_ _bar : 'a. 'a -> 'a -> 'a =
+    ((fun y z -> z) : _ -> local_ (_ -> _)) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let _bar : 'a. 'a -> 'a -> 'a =
+    ((fun y z -> z) : _ -> local_ (_ -> _)) in
+  ()
+[%%expect{|
+Line 3, characters 4-43:
+3 |     ((fun y z -> z) : _ -> local_ (_ -> _)) in
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type 'b -> local_ ('c -> 'c)
+       but an expression was expected of type 'a -> 'a -> 'a
+|}]
+
+let foo () =
+  let local_ _bar x : int -> int -> int =
+    ((fun y z -> z) : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let _bar x : int -> int -> int =
+    ((fun y z -> z) : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+Line 3, characters 4-49:
+3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type int -> local_ (int -> int)
+       but an expression was expected of type int -> int -> int
+|}]
+
+let foo (local_ bar : int -> int -> int) =
+  let _ = (bar : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+val foo : local_ (int -> int -> int) -> unit = <fun>
+|}]
+
+let foo (bar : int -> int -> int) =
+  let _ = (bar : int -> local_ (int -> int)) in
+  ()
+[%%expect{|
+Line 2, characters 11-14:
+2 |   let _ = (bar : int -> local_ (int -> int)) in
+               ^^^
+Error: This expression has type int -> int -> int
+       but an expression was expected of type int -> local_ (int -> int)
+|}]
 
 
 (*

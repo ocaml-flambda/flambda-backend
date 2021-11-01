@@ -175,8 +175,20 @@ let mkpat_stack pat =
 let mktyp_stack typ =
   {typ with ptyp_attributes = stack_attr :: typ.ptyp_attributes}
 
+let wrap_exp_stack exp =
+  {exp with pexp_attributes = stack_attr :: exp.pexp_attributes}
+
+let mkexp_stack_if p ~loc exp =
+  if p then mkexp_stack ~loc exp else exp
+
+let mkpat_stack_if p pat =
+  if p then mkpat_stack pat else pat
+
 let mktyp_stack_if p typ =
   if p then mktyp_stack typ else typ
+
+let wrap_exp_stack_if p exp =
+  if p then wrap_exp_stack exp else exp
 
 let curry_attr =
   Attr.mk ~loc:Location.none (mknoloc "curry") (PStr [])
@@ -2158,22 +2170,16 @@ seq_expr:
       mkexp ~loc:$sloc (Pexp_extension ($4, payload)) }
 ;
 labeled_simple_pattern:
-    QUESTION LPAREN label_let_pattern opt_default RPAREN
-      { (Optional (fst $3), $4, snd $3) }
-  | QUESTION LPAREN LOCAL label_let_pattern opt_default RPAREN
-      { (Optional (fst $4), $5, mkpat_stack (snd $4)) }
+    QUESTION LPAREN optional_local label_let_pattern opt_default RPAREN
+      { (Optional (fst $4), $5, mkpat_stack_if $3 (snd $4)) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
-  | OPTLABEL LPAREN let_pattern opt_default RPAREN
-      { (Optional $1, $4, $3) }
-  | OPTLABEL LPAREN LOCAL let_pattern opt_default RPAREN
-      { (Optional $1, $5, mkpat_stack $4) }
+  | OPTLABEL LPAREN optional_local let_pattern opt_default RPAREN
+      { (Optional $1, $5, mkpat_stack_if $3 $4) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
-  | TILDE LPAREN label_let_pattern RPAREN
-      { (Labelled (fst $3), None, snd $3) }
-  | TILDE LPAREN LOCAL label_let_pattern RPAREN
-      { (Labelled (fst $4), None, mkpat_stack (snd $4)) }
+  | TILDE LPAREN optional_local label_let_pattern RPAREN
+      { (Labelled (fst $4), None, mkpat_stack_if $3 (snd $4)) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
@@ -2506,28 +2512,38 @@ labeled_simple_expr:
 let_binding_body:
     let_ident strict_binding
       { ($1, $2) }
-  | let_ident type_constraint EQUAL seq_expr
-      { let v = $1 in (* PR#7344 *)
+  | optional_local let_ident type_constraint EQUAL seq_expr
+      { let v = $2 in (* PR#7344 *)
         let t =
-          match $2 with
+          match $3 with
             Some t, None -> t
           | _, Some t -> t
           | _ -> assert false
         in
         let loc = Location.(t.ptyp_loc.loc_start, t.ptyp_loc.loc_end) in
         let typ = ghtyp ~loc (Ptyp_poly([],t)) in
-        let patloc = ($startpos($1), $endpos($2)) in
-        (ghpat ~loc:patloc (Ppat_constraint(v, typ)),
-         mkexp_constraint ~loc:$sloc $4 $2) }
-  | let_ident COLON typevar_list DOT core_type EQUAL seq_expr
+        let patloc = ($startpos($2), $endpos($3)) in
+        let pat =
+          mkpat_stack_if $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
+        in
+        let exp =
+          mkexp_stack_if $1 ~loc:$sloc
+            (wrap_exp_stack_if $1 (mkexp_constraint ~loc:$sloc $5 $3))
+        in
+        (pat, exp) }
+  | optional_local let_ident COLON typevar_list DOT core_type EQUAL seq_expr
       (* TODO: could replace [typevar_list DOT core_type]
                with [mktyp(poly(core_type))]
                and simplify the semantic action? *)
-      { let typloc = ($startpos($3), $endpos($5)) in
-        let patloc = ($startpos($1), $endpos($5)) in
-        (ghpat ~loc:patloc
-           (Ppat_constraint($1, ghtyp ~loc:typloc (Ptyp_poly($3,$5)))),
-         $7) }
+      { let typloc = ($startpos($4), $endpos($6)) in
+        let patloc = ($startpos($2), $endpos($6)) in
+        let pat =
+          mkpat_stack_if $1
+            (ghpat ~loc:patloc
+               (Ppat_constraint($2, ghtyp ~loc:typloc (Ptyp_poly($4,$6)))))
+        in
+        let exp = mkexp_stack_if $1 ~loc:$sloc $8 in
+        (pat, exp) }
   | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
       { let exp, poly =
           wrap_type_annotation ~loc:$sloc $4 $6 $8 in
@@ -2538,7 +2554,7 @@ let_binding_body:
   | simple_pattern_not_ident COLON core_type EQUAL seq_expr
       { let loc = ($startpos($1), $endpos($3)) in
         (ghpat ~loc (Ppat_constraint($1, $3)), $5) }
-  | LOCAL let_ident strict_binding_with_fun
+  | LOCAL let_ident local_strict_binding
       { ($2, mkexp_stack ~loc:$sloc $3) }
 ;
 (* The formal parameter EXT can be instantiated with ext or no_ext
@@ -2603,10 +2619,18 @@ strict_binding:
   | LPAREN TYPE lident_list RPAREN fun_binding
       { mk_newtypes ~loc:$sloc $3 $5 }
 ;
-strict_binding_with_fun:
-  | labeled_simple_pattern fun_binding
+local_fun_binding:
+    local_strict_binding
+      { $1 }
+  | type_constraint EQUAL seq_expr
+      { wrap_exp_stack (mkexp_constraint ~loc:$sloc $3 $1) }
+;
+local_strict_binding:
+    EQUAL seq_expr
+      { $2 }
+  | labeled_simple_pattern local_fun_binding
       { let (l, o, p) = $1 in ghexp ~loc:$sloc (Pexp_fun(l, o, p, $2)) }
-  | LPAREN TYPE lident_list RPAREN strict_binding_with_fun
+  | LPAREN TYPE lident_list RPAREN local_fun_binding
       { mk_newtypes ~loc:$sloc $3 $5 }
 ;
 %inline match_cases:

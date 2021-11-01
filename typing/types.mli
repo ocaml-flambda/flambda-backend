@@ -619,6 +619,8 @@ module Alloc_mode : sig
 
   val equate : t -> t -> (unit, unit) result
 
+  val join_const : const -> const -> const
+
   val join : t list -> t
 
   (* Force a mode variable to its upper bound *)

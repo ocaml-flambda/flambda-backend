@@ -516,17 +516,17 @@ module Alloc_mode = struct
 
   let max_mode = local
 
-  let le a b =
+  let le_const a b =
     match a, b with
     | Global, _ | _, Local -> true
     | Local, Global -> false
 
-  let join a b =
+  let join_const a b =
     match a, b with
     | Local, _ | _, Local -> Local
     | Global, Global -> Global
 
-  let meet a b =
+  let meet_const a b =
     match a, b with
     | Global, _ | _, Global -> Global
     | Local, Local -> Local
@@ -544,32 +544,32 @@ module Alloc_mode = struct
 *)
   let submode_cv m v =
     (* Printf.printf "  %a <= %a\n" pp_c m pp_v v; *)
-    if le m v.lower then ()
-    else if not (le m v.upper) then raise NotSubmode
+    if le_const m v.lower then ()
+    else if not (le_const m v.upper) then raise NotSubmode
     else begin
-      let m = join v.lower m in
+      let m = join_const v.lower m in
       v.lower <- m;
       if m = v.upper then v.vlower <- []
     end
 
   let rec submode_vc v m =
     (* Printf.printf "  %a <= %a\n" pp_v v pp_c m; *)
-    if le v.upper m then ()
-    else if not (le v.lower m) then raise NotSubmode
+    if le_const v.upper m then ()
+    else if not (le_const v.lower m) then raise NotSubmode
     else begin
-      let m = meet v.upper m in
+      let m = meet_const v.upper m in
       v.upper <- m;
       v.vlower |> List.iter (fun a ->
         (* a <= v <= m *)
         submode_vc a m;
-        v.lower <- join v.lower a.lower;
+        v.lower <- join_const v.lower a.lower;
       );
       if v.lower = m then v.vlower <- []
     end
 
   let submode_vv a b =
     (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
-    if le a.upper b.lower then ()
+    if le_const a.upper b.lower then ()
     else if List.memq a b.vlower then ()
     else begin
       submode_vc a b.upper;
@@ -581,7 +581,7 @@ module Alloc_mode = struct
     match
       match a, b with
       | Amode a, Amode b ->
-         if not (le a b) then raise NotSubmode
+         if not (le_const a b) then raise NotSubmode
       | Amodevar v, Amode c ->
          (* Printf.printf "%a <= %a\n" pp_v v pp_c c; *)
          submode_vc v c
@@ -648,7 +648,7 @@ module Alloc_mode = struct
     (* Ensure that each transitive lower bound of v
        is a direct lower bound of v *)
     let rec trans v' =
-      if le v'.upper v.lower then ()
+      if le_const v'.upper v.lower then ()
       else if List.memq v' v.vlower then ()
       else begin
         v.vlower <- v' :: v.vlower;

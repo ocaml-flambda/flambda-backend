@@ -266,64 +266,64 @@ let join_modes rm1 am2 =
   | _, Oam_unknown -> Oam_unknown
   | Oam_global, Oam_global -> Oam_global
 
-let rec print_out_type ppf =
+let rec print_out_type_0 mode ppf =
   function
   | Otyp_alias (ty, s) ->
-      fprintf ppf "@[%a@ as %a@]" print_out_type ty pr_var s
+      fprintf ppf "@[%a@ as %a@]" (print_out_type_0 mode) ty pr_var s
   | Otyp_poly (sl, ty) ->
       fprintf ppf "@[<hov 2>%a.@ %a@]"
         pr_vars sl
-        print_out_type ty
+        (print_out_type_0 mode) ty
   | ty ->
-      print_out_type_1 ppf Oam_global ty
+      print_out_type_1 mode ppf ty
 
-and print_out_type_1 ppf mode =
+and print_out_type_1 mode ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
       if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
-      print_out_arg ppf am ty1;
+      print_out_arg am ppf ty1;
       pp_print_string ppf " ->";
       pp_print_space ppf ();
       let mode = join_modes mode am in
-      print_out_ret ppf mode rm ty2;
+      print_out_ret mode rm ppf ty2;
       pp_close_box ppf ()
   | ty ->
     match mode with
     | Oam_local ->
         pp_print_string ppf "local_";
         pp_print_space ppf ();
-        print_out_type_2 ppf ty
-    | Oam_unknown -> print_out_type_2 ppf ty
-    | Oam_global -> print_out_type_2 ppf ty
+        print_out_type_2 mode ppf ty
+    | Oam_unknown -> print_out_type_2 mode ppf ty
+    | Oam_global -> print_out_type_2 mode ppf ty
 
-and print_out_arg ppf am ty =
+and print_out_arg am ppf ty =
   match am with
   | Oam_local ->
       pp_print_string ppf "local_";
       pp_print_space ppf ();
-      print_out_type_2 ppf ty
-  | Oam_global -> print_out_type_2 ppf ty
-  | Oam_unknown -> print_out_type_2 ppf ty
+      print_out_type_2 am ppf ty
+  | Oam_global -> print_out_type_2 am ppf ty
+  | Oam_unknown -> print_out_type_2 am ppf ty
 
-and print_out_ret ppf mode rm ty =
+and print_out_ret mode rm ppf ty =
   match mode, rm with
   | Oam_local, Oam_local
   | Oam_global, Oam_global
   | Oam_unknown, _
-  | _, Oam_unknown -> print_out_type_1 ppf mode ty
+  | _, Oam_unknown -> print_out_type_1 mode ppf ty
   | _, Oam_local ->
       pp_print_string ppf "local_";
       pp_print_space ppf ();
-      print_out_type_2 ppf ty
-  | _, Oam_global -> print_out_type_2 ppf ty
+      print_out_type_2 rm ppf ty
+  | _, Oam_global -> print_out_type_2 rm ppf ty
 
-and print_out_type_2 ppf =
+and print_out_type_2 mode ppf =
   function
     Otyp_tuple tyl ->
       fprintf ppf "@[<0>%a@]" (print_typlist print_simple_out_type " *") tyl
-  | ty -> print_simple_out_type ppf ty
-and print_simple_out_type ppf =
+  | ty -> print_out_type_3 mode ppf ty
+and print_out_type_3 mode ppf =
   function
     Otyp_class (ng, id, tyl) ->
       fprintf ppf "@[%a%s#%a@]" print_typargs tyl (if ng then "_" else "")
@@ -360,7 +360,7 @@ and print_simple_out_type ppf =
   | Otyp_alias _ | Otyp_poly _ | Otyp_arrow _ | Otyp_tuple _ as ty ->
       pp_open_box ppf 1;
       pp_print_char ppf '(';
-      print_out_type ppf ty;
+      print_out_type_0 mode ppf ty;
       pp_print_char ppf ')';
       pp_close_box ppf ()
   | Otyp_abstract | Otyp_open
@@ -377,7 +377,12 @@ and print_simple_out_type ppf =
         n tyl;
       fprintf ppf ")@]"
   | Otyp_attribute (t, attr) ->
-      fprintf ppf "@[<1>(%a [@@%s])@]" print_out_type t attr.oattr_name
+      fprintf ppf "@[<1>(%a [@@%s])@]"
+        (print_out_type_0 mode) t attr.oattr_name
+and print_out_type ppf typ =
+  print_out_type_0 Oam_global ppf typ
+and print_simple_out_type ppf typ =
+  print_out_type_3 Oam_global ppf typ
 and print_record_decl ppf lbls =
   fprintf ppf "{%a@;<1 -2>}"
     (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
@@ -471,7 +476,7 @@ let rec print_out_class_type ppf =
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
       fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        print_out_type_2 ty print_out_class_type cty
+        (print_out_type_2 Oam_global) ty print_out_class_type cty
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function
