@@ -692,7 +692,15 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
       ~at_unit_toplevel:false
   in
   let dacc_for_body =
-    DE.increment_continuation_scope_level denv_before_body |> DA.with_denv dacc
+    (* If there are no parameters then there are no join calculations (see
+       join_points.ml) and therefore we never need to cut the typing
+       environment. As such there is no need to increment the scope level, which
+       reduces the number of levels the typing environment has to handle. *)
+    match params with
+    | [] -> DA.with_denv dacc denv_before_body
+    | _ :: _ ->
+      DE.increment_continuation_scope_level denv_before_body
+      |> DA.with_denv dacc
   in
   let prior_cont_uses_env = DA.continuation_uses_env dacc_for_body in
   let dacc_for_body =
@@ -935,7 +943,12 @@ let after_downwards_traversal_of_recursive_let_cont_body ~simplify_expr
 
 let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
     cont ~original_cont_scope_level ~down_to_up dacc params ~handler =
-  let dacc = DA.map_denv dacc ~f:DE.increment_continuation_scope_level in
+  let dacc =
+    (* See comment for the non-recursive case. *)
+    match params with
+    | [] -> dacc
+    | _ :: _ -> DA.map_denv dacc ~f:DE.increment_continuation_scope_level
+  in
   let dacc, prior_lifted_constants =
     (* We clear the lifted constants accumulator so that we can easily obtain,
        below, any constants that are generated during the simplification of the

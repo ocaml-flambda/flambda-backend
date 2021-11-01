@@ -110,8 +110,9 @@ let meet_equations_on_params typing_env ~params ~param_types =
         TE.add_env_extension typing_env env_extension)
     typing_env params param_types
 
-let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
-    ~params ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+let compute_handler_env0 uses ~env_at_fork_plus_params
+    ~consts_lifted_during_body ~params ~code_age_relation_after_body :
+    Continuation_env_and_param_types.t =
   (* Augment the environment at each use with the necessary equations about the
      parameters (whose variables will already be defined in the environment). *)
   let need_to_meet_param_types =
@@ -140,62 +141,86 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
       uses_list
   in
   let arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses in
-  match use_envs_with_ids with
-  | [(use_env, _, Inlinable)] ->
-    (* There is only one use of the continuation and it is inlinable. No join
-       calculations are required.
+  (* The lifted constants are put into the _fork_ environment now because it
+     overall makes things easier; the join operation can just discard any
+     equation about a lifted constant (any such equation could not be materially
+     more precise anyway). *)
+  let denv =
+    LCS.add_to_denv env_at_fork_plus_params consts_lifted_during_body
+  in
+  let typing_env = DE.typing_env denv in
+  let handler_env, extra_params_and_args =
+    (* CR mshinwell: remove Flambda_features.join_points *)
+    join denv typing_env params ~env_at_fork_plus_params
+      ~consts_lifted_during_body ~use_envs_with_ids
+  in
+  let handler_env =
+    DE.map_typing_env handler_env ~f:(fun handler_env ->
+        TE.with_code_age_relation handler_env code_age_relation_after_body)
+  in
+  let escapes =
+    List.exists
+      (fun (_, _, (cont_use_kind : Continuation_use_kind.t)) ->
+        match cont_use_kind with
+        | Inlinable | Non_inlinable { escaping = false } -> false
+        | Non_inlinable { escaping = true } -> true)
+      use_envs_with_ids
+  in
+  Uses
+    { handler_env;
+      arg_types_by_use_id;
+      extra_params_and_args;
+      is_single_inlinable_use = false;
+      escapes
+    }
 
-       We need to make sure any lifted constants generated during the
-       simplification of the body are in the returned environment for the
-       handler. Otherwise we might share a constant based on information in [DA]
-       but then find the definition of the corresponding constant isn't in [DE].
-       Note that some of the constants may already be defined (for example
-       because they were defined on the path between the fork point and this
-       particular use). *)
+let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
+    ~params ~code_age_relation_after_body : Continuation_env_and_param_types.t =
+  (* If the join point continuation doesn't take any parameters, then we don't
+     need to spend any time doing join computations, since there is no
+     information flow from the use sites to the join point. In this case, the
+     environment of the fork point becomes the environment for simplifying the
+     continuation handler.
+
+     We also don't need any join calculations if there is only one use of the
+     continuation and it is inlinable. In this case, the environment of the
+     unique use site becomes the environment for simplifying the continuation
+     handler.
+
+     We need to make sure any lifted constants generated during the
+     simplification of the body are in the returned environment for the handler.
+     Otherwise we might share a constant based on information in [DA] but then
+     find the definition of the corresponding constant isn't in [DE]. Note that
+     some of the constants may already be defined (for example because they were
+     defined on the path between the fork point and the unique use, in the
+     inlining case). *)
+  let has_no_parameters = match params with [] -> true | _ :: _ -> false in
+  let env_for_inlining =
+    match Continuation_uses.get_uses uses with
+    | [use] -> (
+      match U.use_kind use with
+      | Inlinable -> Some (U.env_at_use use)
+      | Non_inlinable _ -> None)
+    | [] | _ :: _ -> None
+  in
+  let is_single_inlinable_use = Option.is_some env_for_inlining in
+  let no_join_required = has_no_parameters || is_single_inlinable_use in
+  if no_join_required
+  then
     let handler_env =
-      LCS.add_to_denv ~maybe_already_defined:() use_env
+      Option.value env_for_inlining ~default:env_at_fork_plus_params
+    in
+    let handler_env =
+      LCS.add_to_denv ~maybe_already_defined:() handler_env
         consts_lifted_during_body
     in
     Uses
       { handler_env;
-        arg_types_by_use_id;
+        arg_types_by_use_id = Continuation_uses.get_arg_types_by_use_id uses;
         extra_params_and_args = Continuation_extra_params_and_args.empty;
-        is_single_inlinable_use = true;
+        is_single_inlinable_use;
         escapes = false
       }
-  | [] | [(_, _, Non_inlinable _)] | (_, _, (Inlinable | Non_inlinable _)) :: _
-    ->
-    (* This is the general case.
-
-       The lifted constants are put into the _fork_ environment now because it
-       overall makes things easier; the join operation can just discard any
-       equation about a lifted constant (any such equation could not be
-       materially more precise anyway). *)
-    let denv =
-      LCS.add_to_denv env_at_fork_plus_params consts_lifted_during_body
-    in
-    let typing_env = DE.typing_env denv in
-    let handler_env, extra_params_and_args =
-      (* CR mshinwell: remove Flambda_features.join_points *)
-      join denv typing_env params ~env_at_fork_plus_params
-        ~consts_lifted_during_body ~use_envs_with_ids
-    in
-    let handler_env =
-      DE.map_typing_env handler_env ~f:(fun handler_env ->
-          TE.with_code_age_relation handler_env code_age_relation_after_body)
-    in
-    let escapes =
-      List.exists
-        (fun (_, _, (cont_use_kind : Continuation_use_kind.t)) ->
-          match cont_use_kind with
-          | Inlinable | Non_inlinable { escaping = false } -> false
-          | Non_inlinable { escaping = true } -> true)
-        use_envs_with_ids
-    in
-    Uses
-      { handler_env;
-        arg_types_by_use_id;
-        extra_params_and_args;
-        is_single_inlinable_use = false;
-        escapes
-      }
+  else
+    compute_handler_env0 uses ~env_at_fork_plus_params
+      ~consts_lifted_during_body ~params ~code_age_relation_after_body
