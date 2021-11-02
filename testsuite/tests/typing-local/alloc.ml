@@ -137,6 +137,11 @@ let makefloat n =
   ignore_local { x=n; y=n; z=n };
   ()
 
+let projfloat n =
+  let local_ r = opaque_local {x=n;y=n;z=n} in
+  ignore_local (r.x,r.y,r.z);
+  ()
+
 let floatconst = {x=0.; y=0.; z=0.}
 
 let dupfloat n =
@@ -152,6 +157,41 @@ type 'a ext += Foo of 'a
 let makeextension n =
   ignore_local (Foo (n, n, n));
   ()
+
+external add32_local : local_ int32 -> local_ int32 -> local_ int32 =
+  "%int32_add"
+let arithint32 n =
+  ignore_local (Int32.add n 1l);
+  ignore_local (add32_local n 1l);
+  ()
+
+let arithfloat n =
+  ignore_local (n +. float_of_int (int_of_float n + 42));
+  ()
+
+let closure n =
+  let f x = x + n in
+  ignore_local f;
+  ()
+
+let local_arg_fn ~a:(local_ a) ~b:(local_ b) =
+  ignore_local (a, b); ()
+let currylocal1 n =
+  ignore_local (local_arg_fn ~a:n); ()
+let currylocal2 n =
+  ignore_local (Sys.opaque_identity local_arg_fn ~a:n); ()
+let currylocal3 n =
+  (* FIXME broken, see Translcore.build_apply 
+  ignore_local (local_arg_fn ~b:n); *)
+  ()
+
+let partprim1 n =
+  let add : local_ int32 -> local_ int32 -> local_ int32 = Int32.add in
+  ignore_local (add n); ()
+
+let partprim2 n =
+  let add = Int32.add in
+  ignore_local (Sys.opaque_identity add n); ()
 
 let makeintarray (n:int) =
   ignore_local [| n |];
@@ -197,9 +237,12 @@ let makelongarray n =
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |];
   ()
 
-external local_ref : 'a -> local_ 'a ref = "%makemutable"
 let makeref n =
-  ignore_local (local_ref n);
+  let r = ref n in
+  r := n+1;
+  incr r;
+  decr r;
+  ignore_local r;
   ()
 
 let rec makemanylong n =
@@ -242,13 +285,6 @@ let makeverylong n =
   ignore_local (local_array 100_000 n);
   ()
 
-(* FIXME:
-    Higher-order code:
-      closures, partial applications (direct/optionals/caml_), lazy
-    Leaf data:
-      boxed integers, strings, bytes
-*)
-
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -273,9 +309,18 @@ let () =
   run "big" makebig 42;
   run "dupbig" dupbig bigconst;
   run "float" makefloat 42.;
+  run "projfloat" projfloat 42.;
   run "dupfloat" dupfloat floatconst;
   run "polyvariant" makepolyvariant 42;
   run "extension" makeextension 42;
+  run "arith32" arithint32 42l;
+  run "arithfloat" arithfloat 42.0;
+  run "closure" closure 1;
+  run "currylocal1" currylocal1 1;
+  run "currylocal2" currylocal2 1;
+  run "currylocal3" currylocal3 1;
+  run "partprim1" partprim1 42l;
+  run "partprim2" partprim2 42l;
   run "intarray" makeintarray 42;
   run "addrarray" makeaddrarray [];
   run "floatarray" makefloatarray 42.;

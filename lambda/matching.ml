@@ -1972,7 +1972,9 @@ let get_expr_args_record ~scopes head (arg, _mut) rem =
         | Record_inlined _ ->
             Lprim (Pfield lbl.lbl_pos, [ arg ], loc)
         | Record_unboxed _ -> arg
-        | Record_float -> Lprim (Pfloatfield lbl.lbl_pos, [ arg ], loc)
+        | Record_float ->
+           (* FIXME: could be Alloc_local sometimes *)
+           Lprim (Pfloatfield (lbl.lbl_pos, Alloc_heap), [ arg ], loc)
         | Record_extension _ -> Lprim (Pfield (lbl.lbl_pos + 1), [ arg ], loc)
       in
       let str =

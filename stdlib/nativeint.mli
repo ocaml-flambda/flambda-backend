@@ -46,19 +46,19 @@ val one : nativeint
 val minus_one : nativeint
 (** The native integer -1.*)
 
-external neg : nativeint -> nativeint = "%nativeint_neg"
+external neg : (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_neg"
 (** Unary negation. *)
 
-external add : nativeint -> nativeint -> nativeint = "%nativeint_add"
+external add : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_add"
 (** Addition. *)
 
-external sub : nativeint -> nativeint -> nativeint = "%nativeint_sub"
+external sub : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_sub"
 (** Subtraction. *)
 
-external mul : nativeint -> nativeint -> nativeint = "%nativeint_mul"
+external mul : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_mul"
 (** Multiplication. *)
 
-external div : nativeint -> nativeint -> nativeint = "%nativeint_div"
+external div : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_div"
 (** Integer division. This division rounds the real quotient of
    its arguments towards zero, as specified for {!Stdlib.(/)}.
 
@@ -71,7 +71,7 @@ val unsigned_div : nativeint -> nativeint -> nativeint
 
     @since 4.08.0 *)
 
-external rem : nativeint -> nativeint -> nativeint = "%nativeint_mod"
+external rem : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_mod"
 (** Integer remainder.  If [y] is not zero, the result
    of [Nativeint.rem x y] satisfies the following properties:
    [Nativeint.zero <= Nativeint.rem x y < Nativeint.abs y] and
@@ -110,32 +110,32 @@ val min_int : nativeint
    either -2{^31} on a 32-bit platform,
    or -2{^63} on a 64-bit platform. *)
 
-external logand : nativeint -> nativeint -> nativeint = "%nativeint_and"
+external logand : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_and"
 (** Bitwise logical and. *)
 
-external logor : nativeint -> nativeint -> nativeint = "%nativeint_or"
+external logor : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_or"
 (** Bitwise logical or. *)
 
-external logxor : nativeint -> nativeint -> nativeint = "%nativeint_xor"
+external logxor : (nativeint[@local_opt]) -> (nativeint[@local_opt]) -> (nativeint[@local_opt]) = "%nativeint_xor"
 (** Bitwise logical exclusive or. *)
 
 val lognot : nativeint -> nativeint
 (** Bitwise logical negation. *)
 
-external shift_left : nativeint -> int -> nativeint = "%nativeint_lsl"
+external shift_left : (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) = "%nativeint_lsl"
 (** [Nativeint.shift_left x y] shifts [x] to the left by [y] bits.
    The result is unspecified if [y < 0] or [y >= bitsize],
    where [bitsize] is [32] on a 32-bit platform and
    [64] on a 64-bit platform. *)
 
-external shift_right : nativeint -> int -> nativeint = "%nativeint_asr"
+external shift_right : (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) = "%nativeint_asr"
 (** [Nativeint.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
    The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 external shift_right_logical :
-  nativeint -> int -> nativeint = "%nativeint_lsr"
+  (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) = "%nativeint_lsr"
 (** [Nativeint.shift_right_logical x y] shifts [x] to the right
    by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
@@ -143,7 +143,7 @@ external shift_right_logical :
    The result is unspecified if [y < 0] or [y >= bitsize]. *)
 
 
-external of_int : int -> nativeint = "%nativeint_of_int"
+external of_int : int -> (nativeint[@local_opt]) = "%nativeint_of_int"
 (** Convert the given integer (type [int]) to a native integer
    (type [nativeint]). *)
 

@@ -81,5 +81,22 @@ let[@inline never] tupled : (string*string) -> local_ string =
   fun (a,b) -> local_ (a^b)
 let () =
   match tupled ("a","b") with
-  | "ab" -> ()
+  | "ab" -> Printf.printf "%20s: ok\n" "tupled"
   | _ -> assert false
+
+let globalref = ref 42
+type 'a glob = { global_ g : 'a }
+let escape x = { g = x }.g
+let[@inline never] prim () =
+  let r = local_ ref 42 in
+  (* currying of primitives (opaque goes via caml_curry) *)
+  let a,b,c,d =
+    ((Sys.opaque_identity (:=)) r,
+     ((:=) r),
+     escape ((Sys.opaque_identity (:=)) globalref),
+     escape ((:=) globalref)) in
+  Gc.minor ();
+  Printf.printf "%20s: %d%d%d%d\n" "primcurry"
+    (loc a) (loc b) (loc c) (loc d)
+
+let () = prim ()

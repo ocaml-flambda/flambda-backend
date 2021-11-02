@@ -114,7 +114,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                   <arg>
                     Nolabel
                     expression 
-                      value_mode global
+                      value_mode <modevar>
                       Texp_apply
                       expression 
                         value_mode <modevar>
@@ -132,19 +132,19 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                               <arg>
                                 Nolabel
                                 expression 
-                                  value_mode global
+                                  value_mode <modevar>
                                   Texp_ident "n"
                               <arg>
                                 Nolabel
                                 expression 
-                                  value_mode global
+                                  value_mode <modevar>
                                   Texp_constant Const_int 1
                             ]
                       ]
                   <arg>
                     Nolabel
                     expression 
-                      value_mode global
+                      value_mode <modevar>
                       Texp_apply
                       expression 
                         value_mode <modevar>
@@ -162,12 +162,12 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                               <arg>
                                 Nolabel
                                 expression 
-                                  value_mode global
+                                  value_mode <modevar>
                                   Texp_ident "n"
                               <arg>
                                 Nolabel
                                 expression 
-                                  value_mode global
+                                  value_mode <modevar>
                                   Texp_constant Const_int 2
                             ]
                       ]

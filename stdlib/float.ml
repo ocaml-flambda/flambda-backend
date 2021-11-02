@@ -14,16 +14,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-external neg : float -> float = "%negfloat"
-external add : float -> float -> float = "%addfloat"
-external sub : float -> float -> float = "%subfloat"
-external mul : float -> float -> float = "%mulfloat"
-external div : float -> float -> float = "%divfloat"
+external neg : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
+external add : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
+external sub : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%subfloat"
+external mul : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%mulfloat"
+external div : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%divfloat"
 external rem : float -> float -> float = "caml_fmod_float" "fmod"
   [@@unboxed] [@@noalloc]
 external fma : float -> float -> float -> float = "caml_fma_float" "caml_fma"
   [@@unboxed] [@@noalloc]
-external abs : float -> float = "%absfloat"
+external abs : (float[@local_opt]) -> (float[@local_opt]) = "%absfloat"
 
 let zero = 0.
 let one = 1.
@@ -39,7 +39,7 @@ let pi = 0x1.921fb54442d18p+1
 let max_float = Stdlib.max_float
 let min_float = Stdlib.min_float
 let epsilon = Stdlib.epsilon_float
-external of_int : int -> float = "%floatofint"
+external of_int : int -> (float[@local_opt]) = "%floatofint"
 external to_int : float -> int = "%intoffloat"
 external of_string : string -> float = "caml_float_of_string"
 let of_string_opt = Stdlib.float_of_string_opt

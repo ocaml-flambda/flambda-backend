@@ -30,15 +30,17 @@ type memory_access_size =
   | Thirty_two
   | Sixty_four
 
+type alloc_mode = Lambda.alloc_mode
+
 type primitive =
   | Pread_symbol of string
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape * Lambda.alloc_mode
+  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
   | Pfield of int
   | Pfield_computed
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int
+  | Pfloatfield of int * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
@@ -57,15 +59,16 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint
-  | Pnegfloat | Pabsfloat
-  | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat
+  | Pintoffloat | Pfloatofint of alloc_mode
+  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
+  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
+  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
-  | Pmakearray of array_kind * mutable_flag * Lambda.alloc_mode
+  | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
@@ -80,21 +83,22 @@ type primitive =
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
-  | Pbintofint of boxed_integer
+  | Pbintofint of boxed_integer * alloc_mode
   | Pintofbint of boxed_integer
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
-  | Pnegbint of boxed_integer
-  | Paddbint of boxed_integer
-  | Psubbint of boxed_integer
-  | Pmulbint of boxed_integer
-  | Pdivbint of { size : boxed_integer; is_safe : is_safe }
-  | Pmodbint of { size : boxed_integer; is_safe : is_safe }
-  | Pandbint of boxed_integer
-  | Porbint of boxed_integer
-  | Pxorbint of boxed_integer
-  | Plslbint of boxed_integer
-  | Plsrbint of boxed_integer
-  | Pasrbint of boxed_integer
+                * alloc_mode
+  | Pnegbint of boxed_integer * alloc_mode
+  | Paddbint of boxed_integer * alloc_mode
+  | Psubbint of boxed_integer * alloc_mode
+  | Pmulbint of boxed_integer * alloc_mode
+  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pandbint of boxed_integer * alloc_mode
+  | Porbint of boxed_integer * alloc_mode
+  | Pxorbint of boxed_integer * alloc_mode
+  | Plslbint of boxed_integer * alloc_mode
+  | Plsrbint of boxed_integer * alloc_mode
+  | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
   (* Operations on big arrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
@@ -102,16 +106,16 @@ type primitive =
   (* size of the nth dimension of a big array *)
   | Pbigarraydim of int
   (* load/set 16,32,64 bits from a string: (unsafe)*)
-  | Pstring_load of (memory_access_size * is_safe)
-  | Pbytes_load of (memory_access_size * is_safe)
+  | Pstring_load of (memory_access_size * is_safe * alloc_mode)
+  | Pbytes_load of (memory_access_size * is_safe * alloc_mode)
   | Pbytes_set of (memory_access_size * is_safe)
   (* load/set 16,32,64 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load of (memory_access_size * is_safe)
+  | Pbigstring_load of (memory_access_size * is_safe * alloc_mode)
   | Pbigstring_set of (memory_access_size * is_safe)
   (* byte swap *)
   | Pbswap16
-  | Pbbswap of boxed_integer
+  | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)

@@ -288,10 +288,10 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
       | Pnot -> make_const_bool (n1 = 0)
       | Pnegint -> make_const_int (- n1)
       | Poffsetint n -> make_const_int (n + n1)
-      | Pfloatofint when fpc -> make_const_float (float_of_int n1)
-      | Pbintofint Pnativeint -> make_const_natint (Nativeint.of_int n1)
-      | Pbintofint Pint32 -> make_const_int32 (Int32.of_int n1)
-      | Pbintofint Pint64 -> make_const_int64 (Int64.of_int n1)
+      | Pfloatofint _ when fpc -> make_const_float (float_of_int n1)
+      | Pbintofint (Pnativeint,_) -> make_const_natint (Nativeint.of_int n1)
+      | Pbintofint (Pint32,_) -> make_const_int32 (Int32.of_int n1)
+      | Pbintofint (Pint64,_) -> make_const_int64 (Int64.of_int n1)
       | Pbswap16 -> make_const_int (((n1 land 0xff) lsl 8)
                                     lor ((n1 land 0xff00) lsr 8))
       | _ -> default
@@ -323,18 +323,18 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)))] when fpc ->
       begin match p with
       | Pintoffloat -> make_const_int (int_of_float n1)
-      | Pnegfloat -> make_const_float (-. n1)
-      | Pabsfloat -> make_const_float (abs_float n1)
+      | Pnegfloat _ -> make_const_float (-. n1)
+      | Pabsfloat _ -> make_const_float (abs_float n1)
       | _ -> default
       end
   (* float, float *)
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)));
      Value_const(Uconst_ref(_, Some (Uconst_float n2)))] when fpc ->
       begin match p with
-      | Paddfloat -> make_const_float (n1 +. n2)
-      | Psubfloat -> make_const_float (n1 -. n2)
-      | Pmulfloat -> make_const_float (n1 *. n2)
-      | Pdivfloat -> make_const_float (n1 /. n2)
+      | Paddfloat _ -> make_const_float (n1 +. n2)
+      | Psubfloat _ -> make_const_float (n1 -. n2)
+      | Pmulfloat _ -> make_const_float (n1 *. n2)
+      | Pdivfloat _ -> make_const_float (n1 /. n2)
       | Pfloatcomp c  -> make_float_comparison c n1 n2
       | _ -> default
       end
@@ -342,25 +342,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n)))] ->
       begin match p with
       | Pintofbint Pnativeint -> make_const_int (Nativeint.to_int n)
-      | Pcvtbint(Pnativeint, Pint32) -> make_const_int32 (Nativeint.to_int32 n)
-      | Pcvtbint(Pnativeint, Pint64) -> make_const_int64 (Int64.of_nativeint n)
-      | Pnegbint Pnativeint -> make_const_natint (Nativeint.neg n)
+      | Pcvtbint(Pnativeint, Pint32, _) -> make_const_int32 (Nativeint.to_int32 n)
+      | Pcvtbint(Pnativeint, Pint64, _) -> make_const_int64 (Int64.of_nativeint n)
+      | Pnegbint (Pnativeint,_) -> make_const_natint (Nativeint.neg n)
       | _ -> default
       end
   (* nativeint, nativeint *)
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n1)));
      Value_const(Uconst_ref(_, Some (Uconst_nativeint n2)))] ->
       begin match p with
-      | Paddbint Pnativeint -> make_const_natint (Nativeint.add n1 n2)
-      | Psubbint Pnativeint -> make_const_natint (Nativeint.sub n1 n2)
-      | Pmulbint Pnativeint -> make_const_natint (Nativeint.mul n1 n2)
+      | Paddbint (Pnativeint,_) -> make_const_natint (Nativeint.add n1 n2)
+      | Psubbint (Pnativeint,_) -> make_const_natint (Nativeint.sub n1 n2)
+      | Pmulbint (Pnativeint,_) -> make_const_natint (Nativeint.mul n1 n2)
       | Pdivbint {size=Pnativeint} when n2 <> 0n ->
           make_const_natint (Nativeint.div n1 n2)
       | Pmodbint {size=Pnativeint} when n2 <> 0n ->
           make_const_natint (Nativeint.rem n1 n2)
-      | Pandbint Pnativeint -> make_const_natint (Nativeint.logand n1 n2)
-      | Porbint Pnativeint ->  make_const_natint (Nativeint.logor n1 n2)
-      | Pxorbint Pnativeint -> make_const_natint (Nativeint.logxor n1 n2)
+      | Pandbint (Pnativeint,_) -> make_const_natint (Nativeint.logand n1 n2)
+      | Porbint (Pnativeint,_) ->  make_const_natint (Nativeint.logor n1 n2)
+      | Pxorbint (Pnativeint,_) -> make_const_natint (Nativeint.logxor n1 n2)
       | Pbintcomp(Pnativeint, c)  -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -368,11 +368,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Plslbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_left n1 n2)
-      | Plsrbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Plsrbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_right_logical n1 n2)
-      | Pasrbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Pasrbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_right n1 n2)
       | _ -> default
       end
@@ -380,25 +380,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n)))] ->
       begin match p with
       | Pintofbint Pint32 -> make_const_int (Int32.to_int n)
-      | Pcvtbint(Pint32, Pnativeint) -> make_const_natint (Nativeint.of_int32 n)
-      | Pcvtbint(Pint32, Pint64) -> make_const_int64 (Int64.of_int32 n)
-      | Pnegbint Pint32 -> make_const_int32 (Int32.neg n)
+      | Pcvtbint(Pint32, Pnativeint,_) -> make_const_natint (Nativeint.of_int32 n)
+      | Pcvtbint(Pint32, Pint64,_) -> make_const_int64 (Int64.of_int32 n)
+      | Pnegbint(Pint32,_) -> make_const_int32 (Int32.neg n)
       | _ -> default
       end
   (* int32, int32 *)
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n1)));
      Value_const(Uconst_ref(_, Some (Uconst_int32 n2)))] ->
       begin match p with
-      | Paddbint Pint32 -> make_const_int32 (Int32.add n1 n2)
-      | Psubbint Pint32 -> make_const_int32 (Int32.sub n1 n2)
-      | Pmulbint Pint32 -> make_const_int32 (Int32.mul n1 n2)
+      | Paddbint(Pint32,_) -> make_const_int32 (Int32.add n1 n2)
+      | Psubbint(Pint32,_) -> make_const_int32 (Int32.sub n1 n2)
+      | Pmulbint(Pint32,_) -> make_const_int32 (Int32.mul n1 n2)
       | Pdivbint {size=Pint32} when n2 <> 0l ->
           make_const_int32 (Int32.div n1 n2)
       | Pmodbint {size=Pint32} when n2 <> 0l ->
           make_const_int32 (Int32.rem n1 n2)
-      | Pandbint Pint32 -> make_const_int32 (Int32.logand n1 n2)
-      | Porbint Pint32 -> make_const_int32 (Int32.logor n1 n2)
-      | Pxorbint Pint32 -> make_const_int32 (Int32.logxor n1 n2)
+      | Pandbint(Pint32,_) -> make_const_int32 (Int32.logand n1 n2)
+      | Porbint(Pint32,_) -> make_const_int32 (Int32.logor n1 n2)
+      | Pxorbint(Pint32,_) -> make_const_int32 (Int32.logxor n1 n2)
       | Pbintcomp(Pint32, c) -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -406,11 +406,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Plslbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_left n1 n2)
-      | Plsrbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Plsrbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_right_logical n1 n2)
-      | Pasrbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Pasrbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_right n1 n2)
       | _ -> default
       end
@@ -418,25 +418,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n)))] ->
       begin match p with
       | Pintofbint Pint64 -> make_const_int (Int64.to_int n)
-      | Pcvtbint(Pint64, Pint32) -> make_const_int32 (Int64.to_int32 n)
-      | Pcvtbint(Pint64, Pnativeint) -> make_const_natint (Int64.to_nativeint n)
-      | Pnegbint Pint64 -> make_const_int64 (Int64.neg n)
+      | Pcvtbint(Pint64, Pint32,_) -> make_const_int32 (Int64.to_int32 n)
+      | Pcvtbint(Pint64, Pnativeint,_) -> make_const_natint (Int64.to_nativeint n)
+      | Pnegbint(Pint64,_) -> make_const_int64 (Int64.neg n)
       | _ -> default
       end
   (* int64, int64 *)
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n1)));
      Value_const(Uconst_ref(_, Some (Uconst_int64 n2)))] ->
       begin match p with
-      | Paddbint Pint64 -> make_const_int64 (Int64.add n1 n2)
-      | Psubbint Pint64 -> make_const_int64 (Int64.sub n1 n2)
-      | Pmulbint Pint64 -> make_const_int64 (Int64.mul n1 n2)
+      | Paddbint(Pint64,_) -> make_const_int64 (Int64.add n1 n2)
+      | Psubbint(Pint64,_) -> make_const_int64 (Int64.sub n1 n2)
+      | Pmulbint(Pint64,_) -> make_const_int64 (Int64.mul n1 n2)
       | Pdivbint {size=Pint64} when n2 <> 0L ->
           make_const_int64 (Int64.div n1 n2)
       | Pmodbint {size=Pint64} when n2 <> 0L ->
           make_const_int64 (Int64.rem n1 n2)
-      | Pandbint Pint64 -> make_const_int64 (Int64.logand n1 n2)
-      | Porbint Pint64 -> make_const_int64 (Int64.logor n1 n2)
-      | Pxorbint Pint64 -> make_const_int64 (Int64.logxor n1 n2)
+      | Pandbint(Pint64,_) -> make_const_int64 (Int64.logand n1 n2)
+      | Porbint(Pint64,_) -> make_const_int64 (Int64.logor n1 n2)
+      | Pxorbint(Pint64,_) -> make_const_int64 (Int64.logxor n1 n2)
       | Pbintcomp(Pint64, c) -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -444,11 +444,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Plslbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_left n1 n2)
-      | Plsrbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Plsrbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_right_logical n1 n2)
-      | Pasrbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Pasrbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_right n1 n2)
       | _ -> default
       end

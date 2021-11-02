@@ -76,16 +76,22 @@ let field_kind = function
   | Pfloatval -> "float"
   | Pboxedintval bi -> boxed_integer_name bi
 
-let print_boxed_integer_conversion ppf bi1 bi2 =
-  fprintf ppf "%s_of_%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
+let alloc_kind = function
+  | Alloc_heap -> ""
+  | Alloc_local -> "[L]"
 
-let boxed_integer_mark name = function
-  | Pnativeint -> Printf.sprintf "Nativeint.%s" name
-  | Pint32 -> Printf.sprintf "Int32.%s" name
-  | Pint64 -> Printf.sprintf "Int64.%s" name
+let print_boxed_integer_conversion ppf bi1 bi2 m =
+  fprintf ppf "%s_of_%s%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
+    (alloc_kind m)
 
-let print_boxed_integer name ppf bi =
-  fprintf ppf "%s" (boxed_integer_mark name bi);;
+let boxed_integer_mark name bi m =
+  match bi with
+  | Pnativeint -> Printf.sprintf "Nativeint.%s%s" name (alloc_kind m)
+  | Pint32 -> Printf.sprintf "Int32.%s%s" name (alloc_kind m)
+  | Pint64 -> Printf.sprintf "Int64.%s%s" name (alloc_kind m)
+
+let print_boxed_integer name ppf bi m =
+  fprintf ppf "%s" (boxed_integer_mark name bi m);;
 
 let print_bigarray name unsafe kind ppf layout =
   fprintf ppf "Bigarray.%s[%s,%s]"
@@ -198,7 +204,8 @@ let primitive ppf = function
         | Local_assignment -> "(local)"
       in
       fprintf ppf "setfield_%s%s_computed" instr init
-  | Pfloatfield n -> fprintf ppf "floatfield %i" n
+  | Pfloatfield (n,Alloc_heap) -> fprintf ppf "floatfield %i" n
+  | Pfloatfield (n,Alloc_local) -> fprintf ppf "floatfieldlocal %i" n
   | Psetfloatfield (n, init) ->
       let init =
         match init with
@@ -235,13 +242,13 @@ let primitive ppf = function
   | Poffsetint n -> fprintf ppf "%i+" n
   | Poffsetref n -> fprintf ppf "+:=%i"n
   | Pintoffloat -> fprintf ppf "int_of_float"
-  | Pfloatofint -> fprintf ppf "float_of_int"
-  | Pnegfloat -> fprintf ppf "~."
-  | Pabsfloat -> fprintf ppf "abs."
-  | Paddfloat -> fprintf ppf "+."
-  | Psubfloat -> fprintf ppf "-."
-  | Pmulfloat -> fprintf ppf "*."
-  | Pdivfloat -> fprintf ppf "/."
+  | Pfloatofint m -> fprintf ppf "float_of_int%s" (alloc_kind m)
+  | Pnegfloat m -> fprintf ppf "~.%s" (alloc_kind m)
+  | Pabsfloat m -> fprintf ppf "abs.%s" (alloc_kind m)
+  | Paddfloat m -> fprintf ppf "+.%s" (alloc_kind m)
+  | Psubfloat m -> fprintf ppf "-.%s" (alloc_kind m)
+  | Pmulfloat m -> fprintf ppf "*.%s" (alloc_kind m)
+  | Pdivfloat m -> fprintf ppf "/.%s" (alloc_kind m)
   | Pfloatcomp(cmp) -> float_comparison ppf cmp
   | Pstringlength -> fprintf ppf "string.length"
   | Pstringrefu -> fprintf ppf "string.unsafe_get"
@@ -276,33 +283,33 @@ let primitive ppf = function
      fprintf ppf "sys.constant_%s" const_name
   | Pisint -> fprintf ppf "isint"
   | Pisout -> fprintf ppf "isout"
-  | Pbintofint bi -> print_boxed_integer "of_int" ppf bi
-  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi
-  | Pcvtbint (bi1, bi2) -> print_boxed_integer_conversion ppf bi1 bi2
-  | Pnegbint bi -> print_boxed_integer "neg" ppf bi
-  | Paddbint bi -> print_boxed_integer "add" ppf bi
-  | Psubbint bi -> print_boxed_integer "sub" ppf bi
-  | Pmulbint bi -> print_boxed_integer "mul" ppf bi
-  | Pdivbint { size = bi; is_safe = Safe } ->
-      print_boxed_integer "div" ppf bi
-  | Pdivbint { size = bi; is_safe = Unsafe } ->
-      print_boxed_integer "div_unsafe" ppf bi
-  | Pmodbint { size = bi; is_safe = Safe } ->
-      print_boxed_integer "mod" ppf bi
-  | Pmodbint { size = bi; is_safe = Unsafe } ->
-      print_boxed_integer "mod_unsafe" ppf bi
-  | Pandbint bi -> print_boxed_integer "and" ppf bi
-  | Porbint bi -> print_boxed_integer "or" ppf bi
-  | Pxorbint bi -> print_boxed_integer "xor" ppf bi
-  | Plslbint bi -> print_boxed_integer "lsl" ppf bi
-  | Plsrbint bi -> print_boxed_integer "lsr" ppf bi
-  | Pasrbint bi -> print_boxed_integer "asr" ppf bi
-  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi
-  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi
-  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi
-  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi
-  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi
-  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi
+  | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
+  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi Alloc_heap
+  | Pcvtbint (bi1, bi2, m) -> print_boxed_integer_conversion ppf bi1 bi2 m
+  | Pnegbint (bi,m) -> print_boxed_integer "neg" ppf bi m
+  | Paddbint (bi,m) -> print_boxed_integer "add" ppf bi m
+  | Psubbint (bi,m) -> print_boxed_integer "sub" ppf bi m
+  | Pmulbint (bi,m) -> print_boxed_integer "mul" ppf bi m
+  | Pdivbint { size = bi; is_safe = Safe; mode } ->
+      print_boxed_integer "div" ppf bi mode
+  | Pdivbint { size = bi; is_safe = Unsafe; mode } ->
+      print_boxed_integer "div_unsafe" ppf bi mode
+  | Pmodbint { size = bi; is_safe = Safe; mode } ->
+      print_boxed_integer "mod" ppf bi mode
+  | Pmodbint { size = bi; is_safe = Unsafe; mode } ->
+      print_boxed_integer "mod_unsafe" ppf bi mode
+  | Pandbint (bi,m) -> print_boxed_integer "and" ppf bi m
+  | Porbint (bi,m) -> print_boxed_integer "or" ppf bi m
+  | Pxorbint (bi,m) -> print_boxed_integer "xor" ppf bi m
+  | Plslbint (bi,m) -> print_boxed_integer "lsl" ppf bi m
+  | Plsrbint (bi,m) -> print_boxed_integer "lsr" ppf bi m
+  | Pasrbint (bi,m) -> print_boxed_integer "asr" ppf bi m
+  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi Alloc_heap
+  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi Alloc_heap
+  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi Alloc_heap
+  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi Alloc_heap
+  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi Alloc_heap
+  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi Alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -311,21 +318,21 @@ let primitive ppf = function
   | Pstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "string.unsafe_get16"
      else fprintf ppf "string.get16"
-  | Pstring_load_32(unsafe) ->
-     if unsafe then fprintf ppf "string.unsafe_get32"
-     else fprintf ppf "string.get32"
-  | Pstring_load_64(unsafe) ->
-     if unsafe then fprintf ppf "string.unsafe_get64"
-     else fprintf ppf "string.get64"
+  | Pstring_load_32(unsafe, m) ->
+     if unsafe then fprintf ppf "string.unsafe_get32%s" (alloc_kind m)
+     else fprintf ppf "string.get32%s" (alloc_kind m)
+  | Pstring_load_64(unsafe, m) ->
+     if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
+     else fprintf ppf "string.get64%s" (alloc_kind m)
   | Pbytes_load_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_get16"
      else fprintf ppf "bytes.get16"
-  | Pbytes_load_32(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_get32"
-     else fprintf ppf "bytes.get32"
-  | Pbytes_load_64(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_get64"
-     else fprintf ppf "bytes.get64"
+  | Pbytes_load_32(unsafe,m) ->
+     if unsafe then fprintf ppf "bytes.unsafe_get32%s" (alloc_kind m)
+     else fprintf ppf "bytes.get32%s" (alloc_kind m)
+  | Pbytes_load_64(unsafe,m) ->
+     if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
+     else fprintf ppf "bytes.get64%s" (alloc_kind m)
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -338,12 +345,12 @@ let primitive ppf = function
   | Pbigstring_load_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
      else fprintf ppf "bigarray.array1.get16"
-  | Pbigstring_load_32(unsafe) ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_get32"
-     else fprintf ppf "bigarray.array1.get32"
-  | Pbigstring_load_64(unsafe) ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_get64"
-     else fprintf ppf "bigarray.array1.get64"
+  | Pbigstring_load_32(unsafe,m) ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_get32%s" (alloc_kind m)
+     else fprintf ppf "bigarray.array1.get32%s" (alloc_kind m)
+  | Pbigstring_load_64(unsafe,m) ->
+     if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
+     else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
   | Pbigstring_set_16(unsafe) ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
@@ -354,7 +361,7 @@ let primitive ppf = function
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
   | Pbswap16 -> fprintf ppf "bswap16"
-  | Pbbswap(bi) -> print_boxed_integer "bswap" ppf bi
+  | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer -> fprintf ppf "int_as_pointer"
   | Popaque -> fprintf ppf "opaque"
 
@@ -399,13 +406,13 @@ let name_of_primitive = function
   | Poffsetint _ -> "Poffsetint"
   | Poffsetref _ -> "Poffsetref"
   | Pintoffloat -> "Pintoffloat"
-  | Pfloatofint -> "Pfloatofint"
-  | Pnegfloat -> "Pnegfloat"
-  | Pabsfloat -> "Pabsfloat"
-  | Paddfloat -> "Paddfloat"
-  | Psubfloat -> "Psubfloat"
-  | Pmulfloat -> "Pmulfloat"
-  | Pdivfloat -> "Pdivfloat"
+  | Pfloatofint _ -> "Pfloatofint"
+  | Pnegfloat _ -> "Pnegfloat"
+  | Pabsfloat _ -> "Pabsfloat"
+  | Paddfloat _ -> "Paddfloat"
+  | Psubfloat _ -> "Psubfloat"
+  | Pmulfloat _ -> "Pmulfloat"
+  | Pdivfloat _ -> "Pdivfloat"
   | Pfloatcomp _ -> "Pfloatcomp"
   | Pstringlength -> "Pstringlength"
   | Pstringrefu -> "Pstringrefu"

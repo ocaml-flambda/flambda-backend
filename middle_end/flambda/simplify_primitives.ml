@@ -173,11 +173,11 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
       | Pbswap16 -> S.const_int_expr expr (S.swap16 x)
       | Pisint -> S.const_bool_expr expr true
       | Poffsetint y -> S.const_int_expr expr (x + y)
-      | Pfloatofint when fpc -> S.const_float_expr expr (float_of_int x)
-      | Pbintofint Pnativeint ->
+      | Pfloatofint _ when fpc -> S.const_float_expr expr (float_of_int x)
+      | Pbintofint (Pnativeint,_) ->
         S.const_boxed_int_expr expr Nativeint (Nativeint.of_int x)
-      | Pbintofint Pint32 -> S.const_boxed_int_expr expr Int32 (Int32.of_int x)
-      | Pbintofint Pint64 -> S.const_boxed_int_expr expr Int64 (Int64.of_int x)
+      | Pbintofint (Pint32,_) -> S.const_boxed_int_expr expr Int32 (Int32.of_int x)
+      | Pbintofint (Pint64,_) -> S.const_boxed_int_expr expr Int64 (Int64.of_int x)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [Value_int x; Value_int y] ->
@@ -208,16 +208,16 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     | [Value_float (Some x)] when fpc ->
       begin match p with
       | Pintoffloat -> S.const_int_expr expr (int_of_float x)
-      | Pnegfloat -> S.const_float_expr expr (-. x)
-      | Pabsfloat -> S.const_float_expr expr (abs_float x)
+      | Pnegfloat _ -> S.const_float_expr expr (-. x)
+      | Pabsfloat _ -> S.const_float_expr expr (abs_float x)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [Value_float (Some n1); Value_float (Some n2)] when fpc ->
       begin match p with
-      | Paddfloat -> S.const_float_expr expr (n1 +. n2)
-      | Psubfloat -> S.const_float_expr expr (n1 -. n2)
-      | Pmulfloat -> S.const_float_expr expr (n1 *. n2)
-      | Pdivfloat -> S.const_float_expr expr (n1 /. n2)
+      | Paddfloat _ -> S.const_float_expr expr (n1 +. n2)
+      | Psubfloat _ -> S.const_float_expr expr (n1 -. n2)
+      | Pmulfloat _ -> S.const_float_expr expr (n1 *. n2)
+      | Pdivfloat _ -> S.const_float_expr expr (n1 /. n2)
       | Pfloatcomp c  -> S.const_float_comparison_expr expr c n1 n2
       | Pcompare_floats -> S.const_int_expr expr (Float.compare n1 n2)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
@@ -277,7 +277,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     | [Value_float_array { size; contents }] ->
         begin match p with
         | Parraylength _ -> S.const_int_expr expr size
-        | Pfloatfield i ->
+        | Pfloatfield (i,_) ->  (* FIXME mode? *)
           begin match contents with
           | A.Contents a when i >= 0 && i < size ->
             begin match A.check_approx_for_float a.(i) with

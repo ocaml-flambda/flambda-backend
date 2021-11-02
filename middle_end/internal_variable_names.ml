@@ -350,13 +350,13 @@ let of_primitive : Lambda.primitive -> string = function
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
   | Pintoffloat -> pintoffloat
-  | Pfloatofint -> pfloatofint
-  | Pnegfloat -> pnegfloat
-  | Pabsfloat -> pabsfloat
-  | Paddfloat -> paddfloat
-  | Psubfloat -> psubfloat
-  | Pmulfloat -> pmulfloat
-  | Pdivfloat -> pdivfloat
+  | Pfloatofint _ -> pfloatofint
+  | Pnegfloat _ -> pnegfloat
+  | Pabsfloat _ -> pabsfloat
+  | Paddfloat _ -> paddfloat
+  | Psubfloat _ -> psubfloat
+  | Pmulfloat _ -> pmulfloat
+  | Pdivfloat _ -> pdivfloat
   | Pfloatcomp _ -> pfloatcomp
   | Pstringlength -> pstringlength
   | Pstringrefu -> pstringrefu
@@ -456,13 +456,13 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
   | Pintoffloat -> pintoffloat_arg
-  | Pfloatofint -> pfloatofint_arg
-  | Pnegfloat -> pnegfloat_arg
-  | Pabsfloat -> pabsfloat_arg
-  | Paddfloat -> paddfloat_arg
-  | Psubfloat -> psubfloat_arg
-  | Pmulfloat -> pmulfloat_arg
-  | Pdivfloat -> pdivfloat_arg
+  | Pfloatofint _ -> pfloatofint_arg
+  | Pnegfloat _ -> pnegfloat_arg
+  | Pabsfloat _ -> pabsfloat_arg
+  | Paddfloat _ -> paddfloat_arg
+  | Psubfloat _ -> psubfloat_arg
+  | Pmulfloat _ -> pmulfloat_arg
+  | Pdivfloat _ -> pdivfloat_arg
   | Pfloatcomp _ -> pfloatcomp_arg
   | Pstringlength -> pstringlength_arg
   | Pstringrefu -> pstringrefu_arg

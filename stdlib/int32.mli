@@ -43,19 +43,19 @@ val one : int32
 val minus_one : int32
 (** The 32-bit integer -1. *)
 
-external neg : int32 -> int32 = "%int32_neg"
+external neg : (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_neg"
 (** Unary negation. *)
 
-external add : int32 -> int32 -> int32 = "%int32_add"
+external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add"
 (** Addition. *)
 
-external sub : int32 -> int32 -> int32 = "%int32_sub"
+external sub : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_sub"
 (** Subtraction. *)
 
-external mul : int32 -> int32 -> int32 = "%int32_mul"
+external mul : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_mul"
 (** Multiplication. *)
 
-external div : int32 -> int32 -> int32 = "%int32_div"
+external div : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_div"
 (** Integer division. This division rounds the real quotient of
    its arguments towards zero, as specified for {!Stdlib.(/)}.
    @raise Division_by_zero if the second
@@ -67,7 +67,7 @@ val unsigned_div : int32 -> int32 -> int32
 
     @since 4.08.0 *)
 
-external rem : int32 -> int32 -> int32 = "%int32_mod"
+external rem : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_mod"
 (** Integer remainder.  If [y] is not zero, the result
    of [Int32.rem x y] satisfies the following property:
    [x = Int32.add (Int32.mul (Int32.div x y) y) (Int32.rem x y)].
@@ -95,35 +95,35 @@ val min_int : int32
 (** The smallest representable 32-bit integer, -2{^31}. *)
 
 
-external logand : int32 -> int32 -> int32 = "%int32_and"
+external logand : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_and"
 (** Bitwise logical and. *)
 
-external logor : int32 -> int32 -> int32 = "%int32_or"
+external logor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_or"
 (** Bitwise logical or. *)
 
-external logxor : int32 -> int32 -> int32 = "%int32_xor"
+external logxor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_xor"
 (** Bitwise logical exclusive or. *)
 
 val lognot : int32 -> int32
 (** Bitwise logical negation. *)
 
-external shift_left : int32 -> int -> int32 = "%int32_lsl"
+external shift_left : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_lsl"
 (** [Int32.shift_left x y] shifts [x] to the left by [y] bits.
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-external shift_right : int32 -> int -> int32 = "%int32_asr"
+external shift_right : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_asr"
 (** [Int32.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-external shift_right_logical : int32 -> int -> int32 = "%int32_lsr"
+external shift_right_logical : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_lsr"
 (** [Int32.shift_right_logical x y] shifts [x] to the right by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= 32]. *)
 
-external of_int : int -> int32 = "%int32_of_int"
+external of_int : int -> (int32[@local_opt]) = "%int32_of_int"
 (** Convert the given integer (type [int]) to a 32-bit integer
     (type [int32]). On 64-bit platforms, the argument is taken
     modulo 2{^32}. *)

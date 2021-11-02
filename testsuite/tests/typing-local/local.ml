@@ -1645,10 +1645,97 @@ Error: This value escapes its region
 
 (* Primitives *)
 
-(* raise works at any mode *)
-let f : unit -> local_ int = fun () -> local_ raise Exit
+(* Poly-moded eta expansion *)
+module Heap32 : sig val add : int32 -> int32 -> int32 end = Int32
+module Local32 : sig val add : local_ int32 -> local_ int32 -> local_ int32 end = Int32
 [%%expect{|
-val f : unit -> local_ int = <fun>
+module Heap32 : sig val add : int32 -> int32 -> int32 end
+module Local32 :
+  sig val add : local_ int32 -> local_ int32 -> local_ int32 end
+|}]
+module Bad32 : sig val add : local_ int32 -> local_ int32 -> int32 end =
+  struct let add = Int32.add end
+[%%expect{|
+Line 2, characters 2-32:
+2 |   struct let add = Int32.add end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Signature mismatch:
+       Modules do not match:
+         sig val add : local_ int32 -> local_ int32 -> local_ int32 end
+       is not included in
+         sig val add : local_ int32 -> local_ int32 -> int32 end
+       Values do not match:
+         val add : local_ int32 -> local_ int32 -> local_ int32
+       is not included in
+         val add : local_ int32 -> local_ int32 -> int32
+|}]
+(* Return modes *)
+let zx : int ref -> (int -> unit) = (:=)
+let zz : local_ (int ref) -> int -> unit = (:=)
+let zy : local_ (int ref) -> (int -> unit) = (:=)
+[%%expect{|
+val zx : int ref -> int -> unit = <fun>
+val zz : local_ int ref -> int -> unit = <fun>
+Line 3, characters 45-49:
+3 | let zy : local_ (int ref) -> (int -> unit) = (:=)
+                                                 ^^^^
+Error: This expression has type local_ 'a ref -> 'a -> unit
+       but an expression was expected of type local_ int ref -> (int -> unit)
+|}]
+
+let int32 (local_ x) (local_ y) = local_
+  Int32.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
+let int64 (local_ x) (local_ y) = local_
+  Int64.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
+let nativeint (local_ x) (local_ y) = local_
+  Nativeint.(div (logxor (mul x y) (sub x y)) (shift_right y 10))
+let float (local_ x) (local_ y) = local_
+  (x +. y *. x -. 42.)
+[%%expect{|
+val int32 : local_ int32 -> local_ int32 -> local_ int32 = <fun>
+val int64 : local_ int64 -> local_ int64 -> local_ int64 = <fun>
+val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint =
+  <fun>
+val float : local_ float -> local_ float -> local_ float = <fun>
+|}]
+
+let etapair (local_ x) = local_ (fst x, snd x)
+[%%expect{|
+val etapair : local_ 'a * 'b -> local_ 'a * 'b = <fun>
+|}]
+
+(* Arity checking on primitives *)
+external goodadd : int32 -> int32 -> int32 = "%int32_add"
+[%%expect{|
+external goodadd : int32 -> int32 -> int32 = "%int32_add"
+|}]
+external badadd : int32 -> (int32 -> int32) = "%int32_add"
+[%%expect{|
+Line 1, characters 0-58:
+1 | external badadd : int32 -> (int32 -> int32) = "%int32_add"
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Wrong arity for builtin primitive "%int32_add"
+|}]
+
+(*
+FIXME: perhaps allow this, but requires caml_compare changes (Is_in_value_area)
+let compare (local_ x) (local_ y) =
+  [x = y; x <> y; x < y; x > y; x <= y; x >= y; compare x y = 0; x == y; x != y]
+[%%expect{|
+val compare : local_ 'a -> local_ 'a -> bool list = <fun>
+|}]
+*)
+
+(* integer primitives accept local args *)
+let intf (local_ x) = x |> Int.succ |> Int.add 42 |> pred |> (/) 100 |> (+) 1
+[%%expect{|
+val intf : local_ int -> int = <fun>
+|}]
+
+(* mode-crossing using unary + *)
+let promote (local_ x) = +x
+[%%expect{|
+val promote : local_ int -> int = <fun>
 |}]
 
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)

@@ -3,9 +3,18 @@
             big: OK
          dupbig: OK
           float: OK
+      projfloat: OK
        dupfloat: OK
     polyvariant: OK
       extension: OK
+        arith32: OK
+     arithfloat: OK
+        closure: OK
+    currylocal1: OK
+    currylocal2: OK
+    currylocal3: OK
+      partprim1: OK
+      partprim2: OK
        intarray: OK
       addrarray: OK
      floatarray: OK

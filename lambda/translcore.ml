@@ -413,7 +413,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed _ -> targ
         | Record_float ->
-          Lprim (Pfloatfield lbl.lbl_pos, [targ],
+          let mode = transl_value_mode e.exp_mode in
+          Lprim (Pfloatfield (lbl.lbl_pos, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_extension _ ->
           Lprim (Pfield (lbl.lbl_pos + 1), [targ],
@@ -1068,7 +1069,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                    Record_regular | Record_inlined _ -> Pfield i
                  | Record_unboxed _ -> assert false
                  | Record_extension _ -> Pfield (i + 1)
-                 | Record_float -> Pfloatfield i in
+                 | Record_float ->
+                    (* This allocation is always deleted,
+                       so it's simpler to leave it Alloc_heap *)
+                    Pfloatfield (i, Alloc_heap) in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
                field_kind

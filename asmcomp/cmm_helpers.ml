@@ -58,6 +58,7 @@ let black_closure_header sz = black_block_header Obj.closure_tag sz
 let local_closure_header sz = local_block_header Obj.closure_tag sz
 let infix_header ofs = block_header Obj.infix_tag ofs
 let float_header = block_header Obj.double_tag (size_float / size_addr)
+let float_local_header = local_block_header Obj.double_tag (size_float / size_addr)
 let floatarray_header len =
   (* Zero-sized float arrays have tag zero for consistency with
      [caml_alloc_float_array]. *)
@@ -69,6 +70,9 @@ let string_header len =
 let boxedint32_header = block_header Obj.custom_tag 2
 let boxedint64_header = block_header Obj.custom_tag (1 + 8 / size_addr)
 let boxedintnat_header = block_header Obj.custom_tag 2
+let boxedint32_local_header = local_block_header Obj.custom_tag 2
+let boxedint64_local_header = local_block_header Obj.custom_tag (1 + 8 / size_addr)
+let boxedintnat_local_header = local_block_header Obj.custom_tag 2
 let caml_nativeint_ops = "caml_nativeint_ops"
 let caml_int32_ops = "caml_int32_ops"
 let caml_int64_ops = "caml_int64_ops"
@@ -88,7 +92,10 @@ let closure_info ~arity ~startenv =
                  (add (shift_left (of_int startenv) 1)
                       1n))
 
-let alloc_float_header dbg = Cconst_natint (float_header, dbg)
+let alloc_float_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 let alloc_closure_header ~mode sz dbg =
   match (mode : Lambda.alloc_mode) with
@@ -97,9 +104,18 @@ let alloc_closure_header ~mode sz dbg =
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 let alloc_closure_info ~arity ~startenv dbg =
   Cconst_natint (closure_info ~arity ~startenv, dbg)
-let alloc_boxedint32_header dbg = Cconst_natint (boxedint32_header, dbg)
-let alloc_boxedint64_header dbg = Cconst_natint (boxedint64_header, dbg)
-let alloc_boxedintnat_header dbg = Cconst_natint (boxedintnat_header, dbg)
+let alloc_boxedint32_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedint32_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedint32_local_header, dbg)
+let alloc_boxedint64_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedint64_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedint64_local_header, dbg)
+let alloc_boxedintnat_header mode dbg =
+  match mode with
+  | Lambda.Alloc_heap -> Cconst_natint (boxedintnat_header, dbg)
+  | Lambda.Alloc_local -> Cconst_natint (boxedintnat_local_header, dbg)
 
 (* Integers *)
 
@@ -567,7 +583,7 @@ let test_bool dbg cmm =
 
 (* Float *)
 
-let box_float dbg c = Cop(Calloc Alloc_heap, [alloc_float_header dbg; c], dbg)
+let box_float dbg m c = Cop(Calloc m, [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
   map_tail
@@ -742,7 +758,7 @@ let unboxed_float_array_ref arr ofs dbg =
   Cop(Cload (Double_u, Mutable),
     [array_indexing log2_size_float arr ofs dbg], dbg)
 let float_array_ref arr ofs dbg =
-  box_float dbg (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
 (* FIXME local arrays *)
 let addr_array_set arr ofs newval dbg =
@@ -1021,13 +1037,13 @@ let operations_boxed_int (bi : Primitive.boxed_integer) =
   | Pint32 -> caml_int32_ops
   | Pint64 -> caml_int64_ops
 
-let alloc_header_boxed_int (bi : Primitive.boxed_integer) =
+let alloc_header_boxed_int (bi : Primitive.boxed_integer) mode dbg =
   match bi with
-    Pnativeint -> alloc_boxedintnat_header
-  | Pint32 -> alloc_boxedint32_header
-  | Pint64 -> alloc_boxedint64_header
+    Pnativeint -> alloc_boxedintnat_header mode dbg
+  | Pint32 -> alloc_boxedint32_header mode dbg
+  | Pint64 -> alloc_boxedint64_header mode dbg
 
-let box_int_gen dbg (bi : Primitive.boxed_integer) arg =
+let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
   let arg' =
     if bi = Primitive.Pint32 && size_int = 8 then
       if big_endian
@@ -1035,8 +1051,8 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) arg =
       else sign_extend_32 dbg arg
     else arg
   in
-  Cop(Calloc Alloc_heap,
-      [alloc_header_boxed_int bi dbg;
+  Cop(Calloc mode,
+      [alloc_header_boxed_int bi mode dbg;
        Cconst_symbol(operations_boxed_int bi, dbg);
        arg'], dbg)
 
@@ -1360,11 +1376,11 @@ let unaligned_load size ptr idx dbg =
   | Thirty_two -> unaligned_load_32 ptr idx dbg
   | Sixty_four -> unaligned_load_64 ptr idx dbg
 
-let box_sized size dbg exp =
+let box_sized size mode dbg exp =
   match (size : Clambda_primitives.memory_access_size) with
   | Sixteen -> tag_int exp dbg
-  | Thirty_two -> box_int_gen dbg Pint32 exp
-  | Sixty_four -> box_int_gen dbg Pint64 exp
+  | Thirty_two -> box_int_gen dbg Pint32 mode exp
+  | Sixty_four -> box_int_gen dbg Pint64 mode exp
 
 (* Simplification of some primitives into C calls *)
 
@@ -1380,37 +1396,39 @@ let int64_native_prim name arity ~alloc =
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
+(* FIXME: On 32-bit, these will do heap allocations
+   even when local allocs are possible *)
 let simplif_primitive_32bits :
   Clambda_primitives.primitive -> Clambda_primitives.primitive = function
-    Pbintofint Pint64 -> Pccall (default_prim "caml_int64_of_int")
+    Pbintofint (Pint64,_) -> Pccall (default_prim "caml_int64_of_int")
   | Pintofbint Pint64 -> Pccall (default_prim "caml_int64_to_int")
-  | Pcvtbint(Pint32, Pint64) -> Pccall (default_prim "caml_int64_of_int32")
-  | Pcvtbint(Pint64, Pint32) -> Pccall (default_prim "caml_int64_to_int32")
-  | Pcvtbint(Pnativeint, Pint64) ->
+  | Pcvtbint(Pint32, Pint64,_) -> Pccall (default_prim "caml_int64_of_int32")
+  | Pcvtbint(Pint64, Pint32,_) -> Pccall (default_prim "caml_int64_to_int32")
+  | Pcvtbint(Pnativeint, Pint64,_) ->
       Pccall (default_prim "caml_int64_of_nativeint")
-  | Pcvtbint(Pint64, Pnativeint) ->
+  | Pcvtbint(Pint64, Pnativeint,_) ->
       Pccall (default_prim "caml_int64_to_nativeint")
-  | Pnegbint Pint64 -> Pccall (int64_native_prim "caml_int64_neg" 1
+  | Pnegbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_neg" 1
                                  ~alloc:false)
-  | Paddbint Pint64 -> Pccall (int64_native_prim "caml_int64_add" 2
+  | Paddbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_add" 2
                                  ~alloc:false)
-  | Psubbint Pint64 -> Pccall (int64_native_prim "caml_int64_sub" 2
+  | Psubbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_sub" 2
                                  ~alloc:false)
-  | Pmulbint Pint64 -> Pccall (int64_native_prim "caml_int64_mul" 2
+  | Pmulbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_mul" 2
                                  ~alloc:false)
   | Pdivbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_div" 2
                                         ~alloc:true)
   | Pmodbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_mod" 2
                                         ~alloc:true)
-  | Pandbint Pint64 -> Pccall (int64_native_prim "caml_int64_and" 2
+  | Pandbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_and" 2
                                  ~alloc:false)
-  | Porbint Pint64 ->  Pccall (int64_native_prim "caml_int64_or" 2
+  | Porbint(Pint64,_) ->  Pccall (int64_native_prim "caml_int64_or" 2
                                  ~alloc:false)
-  | Pxorbint Pint64 -> Pccall (int64_native_prim "caml_int64_xor" 2
+  | Pxorbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_xor" 2
                                  ~alloc:false)
-  | Plslbint Pint64 -> Pccall (default_prim "caml_int64_shift_left")
-  | Plsrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right_unsigned")
-  | Pasrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right")
+  | Plslbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_left")
+  | Plsrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right_unsigned")
+  | Pasrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right")
   | Pbintcomp(Pint64, Lambda.Ceq) -> Pccall (default_prim "caml_equal")
   | Pbintcomp(Pint64, Lambda.Cne) -> Pccall (default_prim "caml_notequal")
   | Pbintcomp(Pint64, Lambda.Clt) -> Pccall (default_prim "caml_lessthan")
@@ -1422,12 +1440,12 @@ let simplif_primitive_32bits :
       Pccall (default_prim ("caml_ba_get_" ^ Int.to_string n))
   | Pbigarrayset(_unsafe, n, Pbigarray_int64, _layout) ->
       Pccall (default_prim ("caml_ba_set_" ^ Int.to_string n))
-  | Pstring_load(Sixty_four, _) -> Pccall (default_prim "caml_string_get64")
-  | Pbytes_load(Sixty_four, _) -> Pccall (default_prim "caml_bytes_get64")
+  | Pstring_load(Sixty_four, _, _) -> Pccall (default_prim "caml_string_get64")
+  | Pbytes_load(Sixty_four, _, _) -> Pccall (default_prim "caml_bytes_get64")
   | Pbytes_set(Sixty_four, _) -> Pccall (default_prim "caml_bytes_set64")
-  | Pbigstring_load(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_get64")
+  | Pbigstring_load(Sixty_four,_,_) -> Pccall (default_prim "caml_ba_uint8_get64")
   | Pbigstring_set(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_set64")
-  | Pbbswap Pint64 -> Pccall (default_prim "caml_int64_bswap")
+  | Pbbswap (Pint64,_) -> Pccall (default_prim "caml_int64_bswap")
   | p -> p
 
 let simplif_primitive p : Clambda_primitives.primitive =
@@ -2324,16 +2342,16 @@ let stringref_safe arg1 arg2 dbg =
           Cop(Cload (Byte_unsigned, Mutable),
             [add_int str idx dbg], dbg))))) dbg
 
-let string_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
+let string_load size unsafe mode arg1 arg2 dbg =
+  box_sized size mode dbg
     (bind "str" arg1 (fun str ->
      bind "index" (untag_int arg2 dbg) (fun idx ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
-let bigstring_load size unsafe arg1 arg2 dbg =
-  box_sized size dbg
+let bigstring_load size unsafe mode arg1 arg2 dbg =
+  box_sized size mode dbg
    (bind "ba" arg1 (fun ba ->
     bind "index" (untag_int arg2 dbg) (fun idx ->
     bind "ba_data"
@@ -2406,7 +2424,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                   (get_header_without_profinfo arr dbg) dbg; idx],
               int_array_ref arr idx dbg)))
       | Pfloatarray ->
-          box_float dbg (
+          box_float dbg Alloc_heap (
             bind "index" arg2 (fun idx ->
             bind "arr" arg1 (fun arr ->
               Csequence(

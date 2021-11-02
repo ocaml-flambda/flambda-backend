@@ -54,12 +54,12 @@ end) : Simplify_boxed_integer_ops_intf.S with type t := I.t = struct
     let eval_unboxed op = S.const_int_expr expr (op n) in
     match p with
     | Pintofbint kind when equal_kind kind I.kind -> eval_unboxed I.to_int
-    | Pcvtbint (kind, Pint32) when equal_kind kind I.kind ->
+    | Pcvtbint (kind, Pint32, _) when equal_kind kind I.kind ->
       eval_conv A.Int32 I.to_int32
-    | Pcvtbint (kind, Pint64) when equal_kind kind I.kind ->
+    | Pcvtbint (kind, Pint64, _) when equal_kind kind I.kind ->
       eval_conv A.Int64 I.to_int64
-    | Pnegbint kind when equal_kind kind I.kind -> eval I.neg
-    | Pbbswap kind when equal_kind kind I.kind -> eval I.swap
+    | Pnegbint (kind,_) when equal_kind kind I.kind -> eval I.neg
+    | Pbbswap (kind,_) when equal_kind kind I.kind -> eval I.swap
     | _ -> expr, A.value_unknown Other, C.Benefit.zero
 
   let simplify_binop (p : Clambda_primitives.primitive)
@@ -67,16 +67,16 @@ end) : Simplify_boxed_integer_ops_intf.S with type t := I.t = struct
     let eval op = S.const_boxed_int_expr expr kind (op n1 n2) in
     let non_zero n = (I.compare I.zero n) <> 0 in
     match p with
-    | Paddbint kind when equal_kind kind I.kind -> eval I.add
-    | Psubbint kind when equal_kind kind I.kind -> eval I.sub
-    | Pmulbint kind when equal_kind kind I.kind -> eval I.mul
+    | Paddbint (kind,_) when equal_kind kind I.kind -> eval I.add
+    | Psubbint (kind,_) when equal_kind kind I.kind -> eval I.sub
+    | Pmulbint (kind,_) when equal_kind kind I.kind -> eval I.mul
     | Pdivbint {size=kind} when equal_kind kind I.kind && non_zero n2 ->
       eval I.div
     | Pmodbint {size=kind} when equal_kind kind I.kind && non_zero n2 ->
       eval I.rem
-    | Pandbint kind when equal_kind kind I.kind -> eval I.logand
-    | Porbint kind when equal_kind kind I.kind -> eval I.logor
-    | Pxorbint kind when equal_kind kind I.kind -> eval I.logxor
+    | Pandbint (kind,_) when equal_kind kind I.kind -> eval I.logand
+    | Porbint (kind,_) when equal_kind kind I.kind -> eval I.logor
+    | Pxorbint (kind,_) when equal_kind kind I.kind -> eval I.logxor
     | Pbintcomp (kind, c) when equal_kind kind I.kind ->
       S.const_integer_comparison_expr expr c n1 n2
     | Pcompare_bints kind when equal_kind kind I.kind ->
@@ -88,10 +88,10 @@ end) : Simplify_boxed_integer_ops_intf.S with type t := I.t = struct
     let eval op = S.const_boxed_int_expr expr kind (op n1 n2) in
     let precond = 0 <= n2 && n2 < 8 * size_int in
     match p with
-    | Plslbint kind when equal_kind kind I.kind && precond -> eval I.shift_left
-    | Plsrbint kind when equal_kind kind I.kind && precond ->
+    | Plslbint (kind,_) when equal_kind kind I.kind && precond -> eval I.shift_left
+    | Plsrbint (kind,_) when equal_kind kind I.kind && precond ->
       eval I.shift_right_logical
-    | Pasrbint kind when equal_kind kind I.kind && precond -> eval I.shift_right
+    | Pasrbint (kind,_) when equal_kind kind I.kind && precond -> eval I.shift_right
     | _ -> expr, A.value_unknown Other, C.Benefit.zero
 end
 

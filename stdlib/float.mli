@@ -50,19 +50,19 @@ val minus_one : float
 (** The floating-point -1.
    @since 4.08.0 *)
 
-external neg : float -> float = "%negfloat"
+external neg : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
 (** Unary negation. *)
 
-external add : float -> float -> float = "%addfloat"
+external add : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
 (** Floating-point addition. *)
 
-external sub : float -> float -> float = "%subfloat"
+external sub : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%subfloat"
 (** Floating-point subtraction. *)
 
-external mul : float -> float -> float = "%mulfloat"
+external mul : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%mulfloat"
 (** Floating-point multiplication. *)
 
-external div : float -> float -> float = "%divfloat"
+external div : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%divfloat"
 (** Floating-point division. *)
 
 external fma : float -> float -> float -> float =
@@ -92,7 +92,7 @@ val pred : float -> float
    {!next_after}.
    @since 4.08.0 *)
 
-external abs : float -> float = "%absfloat"
+external abs : (float[@local_opt]) -> (float[@local_opt]) = "%absfloat"
 (** [abs f] returns the absolute value of [f]. *)
 
 val infinity : float
@@ -144,7 +144,7 @@ val is_integer : float -> bool
 
    @since 4.08.0 *)
 
-external of_int : int -> float = "%floatofint"
+external of_int : int -> (float[@local_opt]) = "%floatofint"
 (** Convert an integer to floating-point. *)
 
 external to_int : float -> int = "%intoffloat"

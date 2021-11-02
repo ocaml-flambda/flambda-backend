@@ -69,33 +69,33 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Poffsetint _ -> No_effects, No_coeffects
   | Poffsetref _ -> Arbitrary_effects, Has_coeffects
   | Pintoffloat
-  | Pfloatofint
-  | Pnegfloat
-  | Pabsfloat
-  | Paddfloat
-  | Psubfloat
-  | Pmulfloat
-  | Pdivfloat
   | Pfloatcomp _ -> No_effects, No_coeffects
+  | Pfloatofint m
+  | Pnegfloat m
+  | Pabsfloat m
+  | Paddfloat m
+  | Psubfloat m
+  | Pmulfloat m
+  | Pdivfloat m -> No_effects, coeffects_of m
   | Pstringlength | Pbyteslength
   | Parraylength _ ->
       No_effects, Has_coeffects  (* That old chestnut: [Obj.truncate]. *)
   | Pisint
   | Pisout
-  | Pbintofint _
   | Pintofbint _
-  | Pcvtbint _
-  | Pnegbint _
-  | Paddbint _
-  | Psubbint _
-  | Pmulbint _
-  | Pandbint _
-  | Porbint _
-  | Pxorbint _
-  | Plslbint _
-  | Plsrbint _
-  | Pasrbint _
   | Pbintcomp _ -> No_effects, No_coeffects
+  | Pbintofint (_,m)
+  | Pcvtbint (_,_,m)
+  | Pnegbint (_,m)
+  | Paddbint (_,m)
+  | Psubbint (_,m)
+  | Pmulbint (_,m)
+  | Pandbint (_,m)
+  | Porbint (_,m)
+  | Pxorbint (_,m)
+  | Plslbint (_,m)
+  | Plsrbint (_,m)
+  | Pasrbint (_,m) -> No_effects, coeffects_of m
   | Pbigarraydim _ ->
       No_effects, Has_coeffects  (* Some people resize bigarrays in place. *)
   | Pread_symbol _
@@ -105,18 +105,18 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   | Parrayrefu _
   | Pstringrefu
   | Pbytesrefu
-  | Pstring_load (_, Unsafe)
-  | Pbytes_load (_, Unsafe)
+  | Pstring_load (_, Unsafe, _)
+  | Pbytes_load (_, Unsafe, _)
   | Pbigarrayref (true, _, _, _)
-  | Pbigstring_load (_, Unsafe) ->
+  | Pbigstring_load (_, Unsafe, _) ->
       No_effects, Has_coeffects
   | Parrayrefs _
   | Pstringrefs
   | Pbytesrefs
-  | Pstring_load (_, Safe)
-  | Pbytes_load (_, Safe)
+  | Pstring_load (_, Safe, _)
+  | Pbytes_load (_, Safe, _)
   | Pbigarrayref (false, _, _, _)
-  | Pbigstring_load (_, Safe) ->
+  | Pbigstring_load (_, Safe, _) ->
       (* May trigger a bounds check exception. *)
       Arbitrary_effects, Has_coeffects
   | Psetfield _
@@ -132,8 +132,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
       (* Whether or not some of these are "unsafe" is irrelevant; they always
          have an effect. *)
       Arbitrary_effects, No_coeffects
-  | Pbswap16
-  | Pbbswap _ -> No_effects, No_coeffects
+  | Pbswap16 -> No_effects, No_coeffects
+  | Pbbswap (_,m) -> No_effects, coeffects_of m
   | Pint_as_pointer -> No_effects, No_coeffects
   | Popaque -> Arbitrary_effects, Has_coeffects
   | Psequand
@@ -147,13 +147,13 @@ type return_type =
 
 let return_type_of_primitive (prim:Clambda_primitives.primitive) =
   match prim with
-  | Pfloatofint
-  | Pnegfloat
-  | Pabsfloat
-  | Paddfloat
-  | Psubfloat
-  | Pmulfloat
-  | Pdivfloat
+  | Pfloatofint _
+  | Pnegfloat _
+  | Pabsfloat _
+  | Paddfloat _
+  | Psubfloat _
+  | Pmulfloat _
+  | Pdivfloat _
   | Pfloatfield _
   | Parrayrefu Pfloatarray
   | Parrayrefs Pfloatarray ->

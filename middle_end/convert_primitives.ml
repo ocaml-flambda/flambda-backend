@@ -32,7 +32,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Psetfield (field, imm_or_pointer, init_or_assign)
   | Psetfield_computed (imm_or_pointer, init_or_assign) ->
       Psetfield_computed (imm_or_pointer, init_or_assign)
-  | Pfloatfield field -> Pfloatfield field
+  | Pfloatfield (field,m) -> Pfloatfield (field,m)
   | Psetfloatfield (field, init_or_assign) ->
       Psetfloatfield (field, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
@@ -60,13 +60,13 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Poffsetint offset -> Poffsetint offset
   | Poffsetref offset -> Poffsetref offset
   | Pintoffloat -> Pintoffloat
-  | Pfloatofint -> Pfloatofint
-  | Pnegfloat -> Pnegfloat
-  | Pabsfloat -> Pabsfloat
-  | Paddfloat -> Paddfloat
-  | Psubfloat -> Psubfloat
-  | Pmulfloat -> Pmulfloat
-  | Pdivfloat -> Pdivfloat
+  | Pfloatofint m -> Pfloatofint m
+  | Pnegfloat m -> Pnegfloat m
+  | Pabsfloat m -> Pabsfloat m
+  | Paddfloat m -> Paddfloat m
+  | Psubfloat m -> Psubfloat m
+  | Pmulfloat m -> Pmulfloat m
+  | Pdivfloat m -> Pdivfloat m
   | Pfloatcomp comp -> Pfloatcomp comp
   | Pstringlength -> Pstringlength
   | Pstringrefu -> Pstringrefu
@@ -85,39 +85,39 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Parraysets kind -> Parraysets kind
   | Pisint -> Pisint
   | Pisout -> Pisout
-  | Pcvtbint (src, dest) -> Pcvtbint (src, dest)
-  | Pnegbint bi -> Pnegbint bi
-  | Paddbint bi -> Paddbint bi
-  | Psubbint bi -> Psubbint bi
-  | Pmulbint bi -> Pmulbint bi
-  | Pbintofint bi -> Pbintofint bi
+  | Pcvtbint (src, dest, m) -> Pcvtbint (src, dest, m)
+  | Pnegbint (bi,m) -> Pnegbint (bi,m)
+  | Paddbint (bi,m) -> Paddbint (bi,m)
+  | Psubbint (bi,m) -> Psubbint (bi,m)
+  | Pmulbint (bi,m) -> Pmulbint (bi,m)
+  | Pbintofint (bi,m) -> Pbintofint (bi,m)
   | Pintofbint bi -> Pintofbint bi
-  | Pandbint bi -> Pandbint bi
-  | Porbint bi -> Porbint bi
-  | Pxorbint bi -> Pxorbint bi
-  | Plslbint bi -> Plslbint bi
-  | Plsrbint bi -> Plsrbint bi
-  | Pasrbint bi -> Pasrbint bi
-  | Pbbswap bi -> Pbbswap bi
-  | Pdivbint { size; is_safe } -> Pdivbint { size; is_safe }
-  | Pmodbint { size; is_safe } -> Pmodbint { size; is_safe }
+  | Pandbint (bi,m) -> Pandbint (bi,m)
+  | Porbint (bi,m) -> Porbint (bi,m)
+  | Pxorbint (bi,m) -> Pxorbint (bi,m)
+  | Plslbint (bi,m) -> Plslbint (bi,m)
+  | Plsrbint (bi,m) -> Plsrbint (bi,m)
+  | Pasrbint (bi,m) -> Pasrbint (bi,m)
+  | Pbbswap (bi,m) -> Pbbswap (bi,m)
+  | Pdivbint { size; is_safe; mode } -> Pdivbint { size; is_safe; mode }
+  | Pmodbint { size; is_safe; mode } -> Pmodbint { size; is_safe; mode }
   | Pbintcomp (bi, comp) -> Pbintcomp (bi, comp)
   | Pbigarrayref (safe, dims, kind, layout) ->
       Pbigarrayref (safe, dims, kind, layout)
   | Pbigarrayset (safe, dims, kind, layout) ->
       Pbigarrayset (safe, dims, kind, layout)
   | Pstring_load_16 is_unsafe ->
-      Pstring_load (Sixteen, convert_unsafety is_unsafe)
-  | Pstring_load_32 is_unsafe ->
-      Pstring_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pstring_load_64 is_unsafe ->
-      Pstring_load (Sixty_four, convert_unsafety is_unsafe)
+      Pstring_load (Sixteen, convert_unsafety is_unsafe, Alloc_heap)
+  | Pstring_load_32 (is_unsafe,m) ->
+      Pstring_load (Thirty_two, convert_unsafety is_unsafe, m)
+  | Pstring_load_64 (is_unsafe, m) ->
+      Pstring_load (Sixty_four, convert_unsafety is_unsafe, m)
   | Pbytes_load_16 is_unsafe ->
-      Pbytes_load (Sixteen, convert_unsafety is_unsafe)
-  | Pbytes_load_32 is_unsafe ->
-      Pbytes_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pbytes_load_64 is_unsafe ->
-      Pbytes_load (Sixty_four, convert_unsafety is_unsafe)
+      Pbytes_load (Sixteen, convert_unsafety is_unsafe, Alloc_heap)
+  | Pbytes_load_32 (is_unsafe, m) ->
+      Pbytes_load (Thirty_two, convert_unsafety is_unsafe, m)
+  | Pbytes_load_64 (is_unsafe, m) ->
+      Pbytes_load (Sixty_four, convert_unsafety is_unsafe, m)
   | Pbytes_set_16 is_unsafe ->
       Pbytes_set (Sixteen, convert_unsafety is_unsafe)
   | Pbytes_set_32 is_unsafe ->
@@ -125,11 +125,11 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytes_set_64 is_unsafe ->
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigstring_load_16 is_unsafe ->
-      Pbigstring_load (Sixteen, convert_unsafety is_unsafe)
-  | Pbigstring_load_32 is_unsafe ->
-      Pbigstring_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pbigstring_load_64 is_unsafe ->
-      Pbigstring_load (Sixty_four, convert_unsafety is_unsafe)
+      Pbigstring_load (Sixteen, convert_unsafety is_unsafe, Alloc_heap)
+  | Pbigstring_load_32 (is_unsafe, m) ->
+      Pbigstring_load (Thirty_two, convert_unsafety is_unsafe, m)
+  | Pbigstring_load_64 (is_unsafe, m) ->
+      Pbigstring_load (Sixty_four, convert_unsafety is_unsafe, m)
   | Pbigstring_set_16 is_unsafe ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
   | Pbigstring_set_32 is_unsafe ->

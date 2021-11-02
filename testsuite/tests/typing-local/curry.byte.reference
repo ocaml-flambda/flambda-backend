@@ -2,3 +2,5 @@
     caml_curry local: 000000
             all heap: 000000
            all local: 000000
+              tupled: ok
+           primcurry: 0000
