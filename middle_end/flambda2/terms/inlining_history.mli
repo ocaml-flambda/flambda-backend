@@ -76,13 +76,13 @@ module Absolute : sig
         }
     | Inline of { prev : path }
 
-  val empty : unit -> t
+  val empty : Compilation_unit.t -> t
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val uid : t -> string
+  val uid_path : path -> string
 
   val compilation_unit : t -> Compilation_unit.t
 
@@ -112,7 +112,7 @@ end
 module Tracker : sig
   type t
 
-  val empty : unit -> t
+  val empty : Compilation_unit.t -> t
 
   val absolute : t -> Absolute.t
 

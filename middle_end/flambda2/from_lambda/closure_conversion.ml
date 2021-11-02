@@ -186,6 +186,11 @@ module Inlining = struct
     let callee = Apply_expr.callee apply in
     let tracker = Env.inlining_history_tracker env in
     let are_rebuilding_terms = Are_rebuilding_terms.of_bool true in
+    let compilation_unit =
+      Env.inlining_history_tracker env
+      |> Inlining_history.Tracker.absolute
+      |> Inlining_history.Absolute.compilation_unit
+    in
     match Env.find_value_approximation env callee with
     | Value_unknown ->
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
@@ -195,7 +200,7 @@ module Inlining = struct
     | Closure_approximation (_code_id, None) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
-        ~callee:(Inlining_history.Absolute.empty ())
+        ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
     | Closure_approximation (_code_id, Some code) ->

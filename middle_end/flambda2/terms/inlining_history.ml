@@ -39,13 +39,13 @@ module Absolute = struct
         }
     | Inline of { prev : path }
 
-  let empty () = Compilation_unit.get_current_exn (), Empty
+  let empty compilation_unit = compilation_unit, Empty
 
   let compilation_unit (f, _) = f
 
   let path (_, p) = p
 
-  let uid h = Marshal.to_bytes h [] |> Digest.bytes |> Digest.to_hex
+  let uid_path h = Marshal.to_bytes h [] |> Digest.bytes |> Digest.to_hex
 
   let rec print_path ppf (t : path) =
     let rec aux ppf = function
@@ -185,7 +185,8 @@ module Tracker = struct
       relative : Relative.t
     }
 
-  let empty () = { absolute = Absolute.empty (); relative = Relative.empty }
+  let empty compilation_unit =
+    { absolute = Absolute.empty compilation_unit; relative = Relative.empty }
 
   let inside_function absolute = { absolute; relative = Relative.empty }
 
@@ -214,7 +215,9 @@ module Tracker = struct
 
   let unknown_call ~dbg ~relative { absolute; _ } =
     extend_absolute absolute
-      (Relative.call ~dbg ~callee:(Absolute.empty ()) relative)
+      (Relative.call ~dbg
+         ~callee:(Absolute.empty (Compilation_unit.get_current_exn ()))
+         relative)
 
   let call ~dbg ~callee ~relative { absolute; _ } =
     extend_absolute absolute (Relative.call ~dbg ~callee relative)

@@ -132,7 +132,7 @@ module Env = struct
       symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
-      inlining_history_tracker = Inlining_history.Tracker.empty ()
+      inlining_history_tracker = Inlining_history.Tracker.empty compilation_unit
     }
 
   let clear_local_bindings

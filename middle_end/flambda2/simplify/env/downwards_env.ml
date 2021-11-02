@@ -112,7 +112,8 @@ let create ~round ~(resolver : resolver)
     closure_info = Closure_info.not_in_a_closure;
     all_code = Code_id.Map.empty;
     get_imported_code;
-    inlining_history_tracker = Inlining_history.Tracker.empty ()
+    inlining_history_tracker =
+      Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ())
   }
 
 let all_code t = t.all_code

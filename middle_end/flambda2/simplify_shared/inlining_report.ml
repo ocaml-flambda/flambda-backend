@@ -336,6 +336,37 @@ let record_decision_at_function_definition ~absolute_history ~code_metadata
          :: !log
   else ()
 
+module Uid = struct
+  type t =
+    { compilation_unit : Compilation_unit.t;
+      t : string
+    }
+
+  let create ~compilation_unit path =
+    { compilation_unit; t = Inlining_history.Absolute.uid_path path }
+
+  let print_anchor ppf { compilation_unit = _; t } =
+    Format.fprintf ppf " <<%s>>" t
+
+  let print_link_hum ~compilation_unit ppf { compilation_unit = cu_uid; t } =
+    if Compilation_unit.equal compilation_unit cu_uid
+    then Format.fprintf ppf "[[%s][here]]" t
+    else
+      let external_reports =
+        Ident.name (Compilation_unit.get_persistent_ident cu_uid)
+        ^ ".0.inlining.org"
+      in
+      try
+        let file = Load_path.find_uncap external_reports in
+        Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file
+          Compilation_unit.print cu_uid
+      with Not_found ->
+        Format.fprintf ppf
+          "in compilation unit %a but no inlining reports were generated for \
+           this unit"
+          Compilation_unit.print cu_uid
+end
+
 module Inlining_tree = struct
   module Key = struct
     type scope_type =
@@ -388,12 +419,14 @@ module Inlining_tree = struct
 
   and fundecl =
     { passes : fundecl_passes;
-      body : t
+      body : t;
+      uid : Uid.t
     }
 
   and call =
     { decision_with_context : Decision_with_context.t option;
-      inlined : t
+      inlined : t;
+      uid : Uid.t
     }
 
   let empty = Map.empty
@@ -454,28 +487,45 @@ module Inlining_tree = struct
     Map.update key
       (function
         | None ->
-          Some (Call { inlined = cont Map.empty; decision_with_context })
+          Some
+            (Call
+               { inlined = cont Map.empty;
+                 decision_with_context;
+                 uid =
+                   Uid.create
+                     ~compilation_unit:
+                       (Inlining_history.Absolute.compilation_unit callee)
+                     (Inlining_history.Absolute.path callee)
+               })
         | Some (Call t) ->
           let decision_with_context =
             join_decision t.decision_with_context decision_with_context
               ~error:"Each call can have at most one associated decision"
           in
 
-          Some (Call { inlined = cont t.inlined; decision_with_context })
+          Some
+            (Call
+               { inlined = cont t.inlined; decision_with_context; uid = t.uid })
         | Some (Fundecl _ | Scope _) ->
           Misc.fatal_errorf "%s"
             "A key of type call should be associated with an item of type call")
       t
 
-  let insert_or_update_fundecl ~passes ~dbg ~name
+  let insert_or_update_fundecl ~passes ~compilation_unit ~dbg ~name ~path
       ~(cont : item Map.t -> item Map.t) t =
     let key = dbg, Key.Fundecl name in
     Map.update key
       (function
-        | None -> Some (Fundecl { body = cont Map.empty; passes })
+        | None ->
+          Some
+            (Fundecl
+               { body = cont Map.empty;
+                 passes;
+                 uid = Uid.create ~compilation_unit path
+               })
         | Some (Fundecl t) ->
           let passes = join_fundecl_passes t.passes passes in
-          Some (Fundecl { body = cont t.body; passes })
+          Some (Fundecl { body = cont t.body; passes; uid = t.uid })
         | Some (Call _ | Scope _) ->
           Misc.fatal_errorf
             "A key of type call should be associated with an item of type call")
@@ -499,8 +549,8 @@ module Inlining_tree = struct
             insert_or_update_scope ~scope_type:Class ~name ~cont m)
       | Function { dbg; name; prev } ->
         aux prev ~cont:(fun m ->
-            insert_or_update_fundecl ~passes:empty_fundecl_passes ~dbg ~name
-              ~cont m)
+            insert_or_update_fundecl ~passes:empty_fundecl_passes ~path ~dbg
+              ~name ~compilation_unit ~cont m)
       | Call { dbg; callee; prev } ->
         aux prev ~cont:(fun m -> insert_or_update_call ~dbg ~callee ~cont m)
       | Inline { prev } -> aux prev ~cont
@@ -510,7 +560,8 @@ module Inlining_tree = struct
     if Compilation_unit.equal compilation_unit
          (Inlining_history.Absolute.compilation_unit path)
     then
-      match Inlining_history.Absolute.path path with
+      let path = Inlining_history.Absolute.path path in
+      match path with
       | Unknown _ -> t
       | Call { callee; prev; _ } ->
         aux
@@ -532,7 +583,9 @@ module Inlining_tree = struct
             { empty_fundecl_passes with after_simplify = decision_with_context }
         in
         aux
-          ~cont:(insert_or_update_fundecl ~passes ~dbg ~name ~cont:(fun x -> x))
+          ~cont:
+            (insert_or_update_fundecl ~passes ~dbg ~compilation_unit ~path ~name
+               ~cont:(fun x -> x))
           prev
       | Module _ | Class _ | Inline _ | Empty ->
         Misc.fatal_errorf
@@ -560,16 +613,19 @@ module Inlining_tree = struct
 
   let print_call_decision ~callee = print_decision ~callee:(Some callee)
 
-  let print_title ?(dbg = Debuginfo.none) ~depth ~label ~f ppf w =
+  let print_title ?uid ?(dbg = Debuginfo.none) ~depth ~label ~f ppf w =
+    let print_uid ppf uid =
+      match uid with None -> () | Some uid -> Uid.print_anchor ppf uid
+    in
     let print_dbg ppf dbg =
       if Debuginfo.is_none dbg
       then ()
       else Format.fprintf ppf "@ at@ %a" Debuginfo.print_compact dbg
     in
-    Format.fprintf ppf "@[<h>%a@ %s@ %a%a@]@." stars depth label f w print_dbg
-      dbg
+    Format.fprintf ppf "@[<h>%a@ %s@ %a%a%a@]@." stars depth label f w print_dbg
+      dbg print_uid uid
 
-  let rec print ~compilation_unit ~depth ppf t =
+  let[@ocamlformat "disable"] rec print ~compilation_unit ~depth ppf t =
     Map.iter
       (fun (dbg, key) (v : item) ->
         match key, v with
@@ -582,25 +638,26 @@ module Inlining_tree = struct
         | Scope (Class, name), Scope t ->
           print_title ~depth ~label:"Class" ~f:Format.pp_print_text ppf name;
           print ~compilation_unit ppf ~depth:(depth + 1) t
-        | Call callee, Call { decision_with_context; inlined } ->
-          Format.fprintf ppf "%a@.@[<v>%a@]@.@.%a"
-            (print_title ~dbg ~depth ~label:"Application of"
+        | Call callee, Call { decision_with_context; inlined; uid } ->
+          Format.fprintf ppf
+            "%a@.\
+             @[<v>Defined %a@]@.\
+             @[<v>%a@]@.@.\
+             %a"
+            (print_title ?uid:None ~dbg ~depth ~label:"Application of"
                ~f:Inlining_history.Absolute.print)
             (Inlining_history.Absolute.shorten_to_definition callee)
-            (print_call_decision ~callee ~compilation_unit)
-            decision_with_context
-            (print ~compilation_unit ~depth:(depth + 1))
-            inlined
-        | ( Fundecl fundecl,
-            Fundecl
-              { passes = { after_closure; before_simplify; after_simplify };
-                body
-              } ) ->
+            (Uid.print_link_hum ~compilation_unit) uid
+            (print_call_decision ~callee ~compilation_unit) decision_with_context
+            (print ~compilation_unit ~depth:(depth + 1)) inlined
+        | Fundecl fundecl, Fundecl { passes = {after_closure; before_simplify; after_simplify}; body ; uid} ->
           Format.fprintf ppf
-            "@[<v>%a@. @[<h>%a@ After@ closure@ conversion:@]@.@[<v>%a@]@.@. \
-             @[<h>%a@ Before@ simplify:@]@.@[<v>%a@] @.@.%a@.@. @[<h>%a@ \
-             After@ simplify:@]@.@[<v>%a@]@.@]"
-            (print_title ~dbg ~depth ~label:"Definition of"
+            "@[<v>%a@. \
+             @[<h>%a@ After@ closure@ conversion:@]@.@[<v>%a@]@.@. \
+             @[<h>%a@ Before@ simplify:@]@.@[<v>%a@] \
+             @.@.%a@.@. \
+             @[<h>%a@ After@ simplify:@]@.@[<v>%a@]@.@]"
+            (print_title ~uid ~dbg ~depth ~label:"Definition of"
                ~f:Format.pp_print_text)
             fundecl stars (depth + 1)
             (print_fundecl_decision ~compilation_unit)
