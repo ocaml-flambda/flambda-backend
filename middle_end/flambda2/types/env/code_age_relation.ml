@@ -35,13 +35,13 @@ let rec all_ids_up_to_root t ~resolver id =
   | exception Not_found -> (
     let comp_unit = Code_id.get_compilation_unit id in
     if Compilation_unit.equal comp_unit (Compilation_unit.get_current_exn ())
-    then Code_id.Set.empty
+    then Code_id.Set.singleton id
     else
       match resolver comp_unit with
       | exception _ ->
         Misc.fatal_errorf "Exception in resolver@ Backtrace is: %s"
           (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
-      | None -> Code_id.Set.empty
+      | None -> Code_id.Set.singleton id
       | Some t -> begin
         (* Inlining the base case, so that we do not recursively loop in case of
            a code_id that is not bound in the map *)
