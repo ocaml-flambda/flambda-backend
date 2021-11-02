@@ -53,3 +53,13 @@ layout is compatible with upstream, run:
 ```
 $ make install
 ```
+
+## OPAM switch for development work
+
+In addition to the special version of Dune, currently the Flambda backend
+requires a customised version of Merlin, as well as specific versions of Menhir
+and ocamlformat. If you're working on developing the Flambda backend, it's
+recommended that you set up a purpose-built OPAM switch. See
+[HACKING.md][switch] for details.
+
+[switch]: HACKING.md#requirements-and-opam-switch

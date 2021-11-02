@@ -5,6 +5,7 @@ want to modify the Flambda backend.  Jump to:
 
   - [Branches, pull requests, etc.](#branches-pull-requests-etc)
   - [Upstream subtree](#upstream-subtree)
+  - [Requirements and OPAM switch](#requirements-and-opam-switch)
   - [Code formatting](#code-formatting)
   - [Rebuilding during dev work](#rebuilding-during-dev-work)
   - [Running tests](#running-tests)
@@ -44,15 +45,49 @@ be suitable for upstream submission.
 We are planning to move to a model where the patched upstream compiler is maintained
 in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
 
+## Requirements and OPAM switch
+
+The following are needed for hacking on the Flambda backend:
+
+  - Our customised Dune, based on version 2.9.1
+  - Our customised Merlin, based on version 4.1
+  - Menhir, exactly version 20210419
+  - `ocamlformat`, version 0.19.*
+
+We recommend creating an OPAM switch and bootstrapping the Flambda backend into
+it.  Assuming you have the source in `$SRC` and the special Dune in `$DUNE_DIR`:
+```shell
+opam pin https://gitlab.ocamlpro.com/louis/opam-custom-install.git
+eval $(opam env)
+opam switch create 4.12.0+flambda-dev --empty # can also use local switch
+eval $(opam env)
+cd $SRC
+git clean -dfX
+autoconf && ./configure --prefix=$OPAM_SWITCH_PREFIX \
+  --with-dune=$DUNE_DIR/dune.exe \
+  --enable-middle-end=closure # or flambda, or flambda2
+make -j16
+opam custom-install ocaml-variants.4.12.0+flambda-dev -- make install
+opam pin add merlin https://github.com/gretay-js/merlin.git#magic_numbers
+opam pin add menhir 20210419
+opam pin add ocamlformat 0.19.0
+opam install lsp # as needed
+```
+
+<!--
+  CR lmaurer: Should add more prose. In particular, move parts of the section on
+  OPAM testing here and work the new instructions into it.
+-->
+
 ## Code formatting
 
-The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and
-Cfg code (in `backend/cfg/`) is
-formatted correctly as per the provided `.ocamlformat` file.  To prepare
-your environment for the correct version of `ocamlformat` you can follow
-the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
-be used for the Flambda backend build itself.)  All of the code can be
-formatted using `make fmt` and the check can be run using `make check-fmt`.
+The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and Cfg code
+(in `backend/cfg/`) is formatted correctly as per the provided `.ocamlformat`
+file. This requires the correct version of `ocamlformat` (see the
+[recommended OPAM switch][]). All of the code can be formatted using `make fmt`
+and the check can be run using `make check-fmt`.
+
+[recommended OPAM switch]: #requirements-and-opam-switch
 
 Changes to `.ocamlformat` should be made as pull requests that include
 reformatting files as needed.
