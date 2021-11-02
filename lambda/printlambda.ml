@@ -60,10 +60,15 @@ let value_kind ppf = function
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
 
 let return_kind ppf = function
-  | Pgenval -> ()
-  | Pintval -> fprintf ppf ": int@ "
-  | Pfloatval -> fprintf ppf ": float@ "
-  | Pboxedintval bi -> fprintf ppf ": %s@ " (boxed_integer_name bi)
+  | Alloc_heap, Pgenval -> ()
+  | Alloc_heap, Pintval -> fprintf ppf ": int@ "
+  | Alloc_heap, Pfloatval -> fprintf ppf ": float@ "
+  | Alloc_heap, Pboxedintval bi -> fprintf ppf ": %s@ " (boxed_integer_name bi)
+  | Alloc_local, Pgenval -> fprintf ppf ": local@ "
+  | Alloc_local, Pintval -> fprintf ppf ": local int@ "
+  | Alloc_local, Pfloatval -> fprintf ppf ": local float@ "
+  | Alloc_local, Pboxedintval bi ->
+     fprintf ppf ": local %s@ " (boxed_integer_name bi)
 
 let field_kind = function
   | Pgenval -> "*"
@@ -510,12 +515,14 @@ let rec lam ppf = function
         apply_tailcall_attribute ap.ap_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
-  | Lfunction{kind; params; return; body; attr} ->
+  | Lfunction{kind; params; return; body; attr; ret_mode} ->
       let pr_params ppf params =
         match kind with
-        | Curried ->
-            List.iter (fun (param, k) ->
-                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
+        | Curried {nlocal} ->
+            let first_local = List.length params - nlocal in
+            List.iteri (fun i (param, k) ->
+                fprintf ppf "@ %a%a%s" Ident.print param value_kind k
+                  (if first_local <= i then "[->L]" else "")) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
@@ -527,7 +534,7 @@ let rec lam ppf = function
               params;
             fprintf ppf ")" in
       fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
-        function_attribute attr return_kind return lam body
+        function_attribute attr return_kind (ret_mode, return) lam body
   | (Llet _ | Lregion(Llet _)) as expr ->
       let kind = function
           Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"

@@ -170,7 +170,11 @@ let print_cmx_infos (ui, crc) =
   end;
   let pr_funs _ fns =
     List.iter (fun arity -> printf " %d" arity) fns in
-  printf "Currying functions:%a\n" pr_funs ui.ui_curry_fun;
+  let pr_cfuns _ fns =
+    List.iter (function
+      | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
+      | (Lambda.Tupled, a) -> printf " -%d" a) fns in
+  printf "Currying functions:%a\n" pr_cfuns ui.ui_curry_fun;
   printf "Apply functions:%a\n" pr_funs ui.ui_apply_fun;
   printf "Send functions:%a\n" pr_funs ui.ui_send_fun;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")

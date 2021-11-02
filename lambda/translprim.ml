@@ -735,13 +735,14 @@ let transl_primitive loc p env ty path =
   match params with
   | [] -> body
   | _ ->
-      Lfunction{ kind = Curried;
+      Lfunction{ kind = Curried {nlocal=0};
                  params;
                  return = Pgenval;
                  attr = default_stub_attribute;
                  loc;
                  body;
-                 mode = Alloc_heap (*FIXME*) }
+                 mode = Alloc_heap (*FIXME*);
+                 ret_mode = Alloc_heap (* FIXME *) }
 
 let lambda_primitive_needs_event_after = function
   | Prevapply | Pdirapply (* PR#6920 *)

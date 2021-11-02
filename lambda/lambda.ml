@@ -261,7 +261,7 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type function_kind = Curried | Tupled
+type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt | Variable
 
@@ -317,7 +317,8 @@ and lfunction =
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
-    mode: alloc_mode }
+    mode: alloc_mode;
+    ret_mode: alloc_mode; }
 
 and lambda_apply =
   { ap_func : lambda;
@@ -358,6 +359,29 @@ let const_int n = Const_base (Const_int n)
 let const_unit = const_int 0
 
 let lambda_unit = Lconst const_unit
+
+let check_lfunction fn =
+  (* A curried function type with n parameters has n arrows. Of these,
+     the first [n-nlocal] have return mode Heap, while the remainder
+     have return mode Local, except possibly the final one.
+
+     That is, after supplying the first [n-nlocal] arguments, further
+     partial applications must be locally allocated.
+
+     A curried function with no local parameters or returns has kind
+     [Curried {nlocal=0}]. *)
+  let nparams = List.length fn.params in
+  begin match fn.mode, fn.ret_mode, fn.kind with
+  | Alloc_heap, _, Tupled -> ()
+  | Alloc_local, _, Tupled ->
+     (* Tupled optimisation does not apply to local functions *)
+     assert false
+  | mode, ret_mode, Curried {nlocal} ->
+     assert (0 <= nlocal);
+     assert (nlocal <= nparams);
+     if ret_mode = Alloc_local then assert (nlocal >= 1);
+     if mode = Alloc_local then assert (nlocal = nparams)
+  end
 
 let default_function_attribute = {
   inline = Default_inline;
@@ -842,8 +866,9 @@ let shallow_map f = function
         ap_inlined;
         ap_specialised;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode } ->
-      Lfunction { kind; params; return; body = f body; attr; loc; mode }
+  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode } ->
+      Lfunction { kind; params; return; body = f body; attr; loc;
+                  mode; ret_mode }
   | Llet (str, k, v, e1, e2) ->
       Llet (str, k, v, f e1, f e2)
   | Lletrec (idel, e2) ->
@@ -956,11 +981,6 @@ let merge_inline_attributes attr1 attr2 =
   | _, _ ->
     if attr1 = attr2 then Some attr1
     else None
-
-let function_is_curried func =
-  match func.kind with
-  | Curried -> true
-  | Tupled -> false
 
 let max_arity () =
   if !Clflags.native_code then 126 else max_int

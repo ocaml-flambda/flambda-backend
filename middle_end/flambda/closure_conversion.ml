@@ -41,10 +41,11 @@ let add_default_argument_wrappers lam =
   let f (lam : Lambda.lambda) : Lambda.lambda =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
-        Lfunction {kind; params; body = fbody; attr; loc; mode}, body) ->
+        Lfunction {kind; params; body = fbody; attr; loc;
+                   mode; ret_mode}, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return:Pgenval ~attr ~loc ~mode
+          ~body:fbody ~return:Pgenval ~attr ~loc ~mode ~ret_mode
       with
       | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -58,9 +59,10 @@ let add_default_argument_wrappers lam =
           List.flatten
             (List.map
                (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc; mode}) ->
+                 | (id, Lambda.Lfunction {kind; params; body; attr; loc;
+                                          mode; ret_mode}) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return:Pgenval ~attr ~loc ~mode
+                     ~return:Pgenval ~attr ~loc ~mode ~ret_mode
                  | _ -> assert false)
                defs)
         in
@@ -205,7 +207,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            initial_value = var;
            body;
            contents_kind = block_kind })
-  | Lfunction { kind; params; body; attr; loc; } ->
+  | Lfunction { kind; params; body; attr; loc; (* FIXME mode *) } ->
     let name = Names.anon_fn_with_loc loc in
     let closure_bound_var = Variable.create name in
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
@@ -253,7 +255,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
          will be named after the corresponding identifier in the [let rec]. *)
       List.map (function
           | (let_rec_ident,
-             Lambda.Lfunction { kind; params; body; attr; loc }) ->
+             Lambda.Lfunction { kind; params; body; attr; loc (* FIXME mode *) }) ->
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
@@ -612,7 +614,8 @@ and close_functions t external_env function_declarations : Flambda.named =
         ~closure_origin
     in
     match Function_decl.kind decl with
-    | Curried -> Variable.Map.add closure_bound_var fun_decl map
+    | Curried _ (* FIXME nlocal *) ->
+       Variable.Map.add closure_bound_var fun_decl map
     | Tupled ->
       let unboxed_version = Variable.rename closure_bound_var in
       let generic_function_stub =

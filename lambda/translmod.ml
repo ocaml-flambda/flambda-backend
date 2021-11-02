@@ -117,7 +117,7 @@ and apply_coercion_result loc strict funct params args cc_res =
         (fun id ->
            Lfunction
              {
-               kind = Curried;
+               kind = Curried {nlocal=0};
                params = List.rev params;
                return = Pgenval;
                attr = { default_function_attribute with
@@ -125,6 +125,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         stub = true; };
                loc = loc;
                mode = Alloc_heap;
+               ret_mode = Alloc_heap;
                body = apply_coercion
                    loc Strict cc_res
                    (Lapply{
@@ -485,7 +486,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
       functor_params_rev
   in
   Lfunction {
-    kind = Curried;
+    kind = Curried {nlocal=0};
     params;
     return = Pgenval;
     attr = {
@@ -497,6 +498,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     };
     loc;
     mode = Alloc_heap;
+    ret_mode = Alloc_heap;
     body;
   }
 

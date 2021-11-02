@@ -65,11 +65,12 @@ let ignore_value_kind (_ : Lambda.value_kind) = ()
 
 let closure_environment_var (ufunction:Clambda.ufunction) =
   (* The argument after the arity is the environment *)
-  if List.length ufunction.params = ufunction.arity + 1 then
-    let (env_var, _) = List.nth ufunction.params ufunction.arity in
+  match ufunction.arity with
+  | Curried _, n when List.length ufunction.params = n + 1 ->
+    let (env_var, _) = List.nth ufunction.params n in
     assert (VP.name env_var = "env");
     Some env_var
-  else
+  | _ ->
     (* closed function, no environment *)
     None
 
@@ -142,14 +143,13 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uclosure (functions, captured_variables) ->
       List.iter (loop ~depth) captured_variables;
       List.iter (fun (
-        { Clambda. label; arity; params; return; body; dbg; env; mode=_FIXME} as clos) ->
+        { Clambda. label; arity=_; params; return; body; dbg; env; mode=_FIXME} as clos) ->
           (match closure_environment_var clos with
            | None -> ()
            | Some env_var ->
              environment_vars :=
                V.Set.add (VP.var env_var) !environment_vars);
           ignore_function_label label;
-          ignore_int arity;
           ignore_params_with_value_kind params;
           ignore_value_kind return;
           loop ~depth:(depth + 1) body;
@@ -312,9 +312,8 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
     | Uclosure (functions, captured_variables) ->
       ignore_ulambda_list captured_variables;
       (* Start a new let stack for speed. *)
-      List.iter (fun {Clambda. label; arity; params; return; body; dbg; env; mode=_FIXME} ->
+      List.iter (fun {Clambda. label; arity=_; params; return; body; dbg; env; mode=_FIXME} ->
           ignore_function_label label;
-          ignore_int arity;
           ignore_params_with_value_kind params;
           ignore_value_kind return;
           let_stack := [];

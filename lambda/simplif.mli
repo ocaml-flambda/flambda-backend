@@ -38,4 +38,5 @@ val split_default_wrapper
   -> attr:function_attribute
   -> loc:Lambda.scoped_location
   -> mode:Lambda.alloc_mode
+  -> ret_mode:Lambda.alloc_mode
   -> (Ident.t * lambda) list

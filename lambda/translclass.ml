@@ -27,20 +27,22 @@ type error = Tags of label * label
 
 exception Error of Location.t * error
 
-let lfunction params body =
+let lfunction ?(kind=Curried {nlocal=0}) params body =
   if params = [] then body else
-  match body with
-  | Lfunction {kind = Curried; params = params'; body = body'; attr; loc}
+  match kind, body with
+  | Curried {nlocal=0},
+    Lfunction {kind = Curried _ as kind; params = params';
+               body = body'; attr; loc}
     when List.length params + List.length params' <= Lambda.max_arity() ->
-      Lfunction {kind = Curried; params = params @ params';
+      Lfunction {kind; params = params @ params';
                  return = Pgenval;
                  body = body'; attr;
-                 loc; mode = Alloc_heap}
+                 loc; mode = Alloc_heap; ret_mode = Alloc_heap}
   |  _ ->
-      Lfunction {kind = Curried; params; return = Pgenval;
+      Lfunction {kind; params; return = Pgenval;
                  body;
                  attr = default_function_attribute;
-                 loc = Loc_unknown; mode = Alloc_heap}
+                 loc = Loc_unknown; mode = Alloc_heap; ret_mode = Alloc_heap}
 
 let lapply ap =
   match ap.ap_func with
@@ -179,17 +181,21 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
       (inh_init,
        let build params rem =
          let param = name_pattern "param" pat in
-         Lfunction {kind = Curried; params = (param, Pgenval)::params;
+         Lfunction {kind = Curried {nlocal=0};
+                    params = (param, Pgenval)::params;
                     return = Pgenval;
                     attr = default_function_attribute;
                     loc = of_location ~scopes pat.pat_loc;
                     body = Matching.for_function ~scopes pat.pat_loc
                              None (Lvar param) [pat, rem] partial;
-                    mode = Alloc_heap }
+                    mode = Alloc_heap;
+                    ret_mode = Alloc_heap }
        in
        begin match obj_init with
-         Lfunction {kind = Curried; params; body = rem} -> build params rem
-       | rem                                            -> build [] rem
+         Lfunction {kind = Curried {nlocal=0}; params; body = rem} ->
+          build params rem
+       | rem ->
+          build [] rem
        end)
   | Tcl_apply (cl, oexprs) ->
       let (inh_init, obj_init) =
@@ -441,18 +447,22 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
         transl_class_rebind ~scopes obj_init cl vf in
       let build params rem =
         let param = name_pattern "param" pat in
-        Lfunction {kind = Curried; params = (param, Pgenval)::params;
+        Lfunction {kind = Curried {nlocal=0};
+                   params = (param, Pgenval)::params;
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = of_location ~scopes pat.pat_loc;
                    body = Matching.for_function ~scopes pat.pat_loc
                             None (Lvar param) [pat, rem] partial;
-                   mode = Alloc_heap}
+                   mode = Alloc_heap;
+                   ret_mode = Alloc_heap }
       in
       (path, path_lam,
        match obj_init with
-         Lfunction {kind = Curried; params; body} -> build params body
-       | rem                                      -> build [] rem)
+         Lfunction {kind = Curried {nlocal=0}; params; body} ->
+          build params body
+       | rem ->
+          build [] rem)
   | Tcl_apply (cl, oexprs) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
@@ -541,7 +551,7 @@ let rec module_path = function
 let const_path local = function
     Lvar id -> not (List.mem id local)
   | Lconst _ -> true
-  | Lfunction {kind = Curried; body} ->
+  | Lfunction {kind = Curried _; body} ->
       let fv = free_variables body in
       List.for_all (fun x -> not (Ident.Set.mem x fv)) local
   | p -> module_path p
@@ -581,7 +591,7 @@ let rec builtin_meths self env env2 body =
   | Lsend(Cached, met, arg, [_;_], _) ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
-  | Lfunction {kind = Curried; params = [x, _]; body} ->
+  | Lfunction {kind = Curried _; params = [x, _]; body} ->
       let rec enter self = function
         | Lprim(Parraysetu _, [Lvar s; Lvar n; Lvar x'], _)
           when Ident.same x x' && List.mem s self ->
@@ -720,8 +730,10 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
+  (* FIXME *)
   let msubst arr = function
-      Lfunction {kind = Curried; params = (self, Pgenval) :: args; body} ->
+      Lfunction {kind = Curried _ as kind;
+                 params = (self, Pgenval) :: args; body} ->
         let env = Ident.create_local "env" in
         let body' =
           if new_ids = [] then body else
@@ -732,7 +744,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self] env env2 (lfunction args body')
         with Not_found ->
-          [lfunction ((self, Pgenval) :: args)
+          [lfunction ~kind ((self, Pgenval) :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, Pgenval, env,
                    Lprim(Pfield_computed,
@@ -796,11 +808,12 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
 
   let concrete = (vflag = Concrete)
   and lclass lam =
-    let cl_init = llets (Lfunction{kind = Curried;
+    let cl_init = llets (Lfunction{kind = Curried {nlocal=0};
                                    attr = default_function_attribute;
                                    loc = Loc_unknown;
                                    return = Pgenval;
                                    mode = Alloc_heap;
+                                   ret_mode = Alloc_heap;
                                    params = [cla, Pgenval]; body = cl_init}) in
     Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
@@ -819,11 +832,12 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
             Loc_unknown))))
   and lbody_virt lenvs =
     Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
-          [lambda_unit; Lfunction{kind = Curried;
+          [lambda_unit; Lfunction{kind = Curried {nlocal=0};
                                   attr = default_function_attribute;
                                   loc = Loc_unknown;
                                   return = Pgenval;
                                   mode = Alloc_heap;
+                                  ret_mode = Alloc_heap;
                                   params = [cla, Pgenval]; body = cl_init};
            lambda_unit; lenvs],
          Loc_unknown)
@@ -876,11 +890,12 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let lclass lam =
     Llet(Strict, Pgenval, class_init,
-         Lfunction{kind = Curried; params = [cla, Pgenval];
+         Lfunction{kind = Curried {nlocal=0}; params = [cla, Pgenval];
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = Loc_unknown;
                    mode = Alloc_heap;
+                   ret_mode = Alloc_heap;
                    body = def_ids cla cl_init}, lam)
   and lcache lam =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
@@ -902,10 +917,11 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     lset cached 0
       (Lfunction
          {
-           kind = Curried;
+           kind = Curried {nlocal=0};
            attr = default_function_attribute;
            loc = Loc_unknown;
            mode = Alloc_heap;
+           ret_mode = Alloc_heap;
            return = Pgenval;
            params = [cla, Pgenval];
            body = def_ids cla cl_init;

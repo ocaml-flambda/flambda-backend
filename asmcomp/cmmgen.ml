@@ -394,14 +394,15 @@ let rec transl env e =
             Cmmgen_state.add_function f;
             let dbg = f.dbg in
             let without_header =
-              if f.arity = 1 || f.arity = 0 then
+              match f.arity with
+              | Curried _, (1|0) as arity ->
                 Cconst_symbol (f.label, dbg) ::
-                alloc_closure_info ~arity:f.arity
+                alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) dbg ::
                 transl_fundecls (pos + 3) rem
-              else
+              | arity ->
                 Cconst_symbol (curry_function_sym f.arity, dbg) ::
-                alloc_closure_info ~arity:f.arity
+                alloc_closure_info ~arity
                                    ~startenv:(startenv - pos) dbg ::
                 Cconst_symbol (f.label, dbg) ::
                 transl_fundecls (pos + 4) rem

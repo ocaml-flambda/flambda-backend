@@ -1,0 +1,4 @@
+    specialise local: 000111
+    caml_curry local: 000111
+            all heap: 000000
+           all local: 111111

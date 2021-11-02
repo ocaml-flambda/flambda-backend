@@ -236,7 +236,10 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type function_kind = Curried | Tupled
+type function_kind = Curried of {nlocal: int} | Tupled
+(* [nlocal] determines how many arguments may be partially applied
+   before the resulting closure must be locally allocated.
+   See [check_lfunction] for details *)
 
 type let_kind = Strict | Alias | StrictOpt | Variable
 (* Meaning of kinds for let x = e in e':
@@ -301,7 +304,8 @@ and lfunction =
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
-    mode : alloc_mode }
+    mode : alloc_mode;
+    ret_mode : alloc_mode }
 
 and lambda_apply =
   { ap_func : lambda;
@@ -354,6 +358,7 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
+val check_lfunction : lfunction -> unit
 val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
 
@@ -430,8 +435,6 @@ val swap_float_comparison : float_comparison -> float_comparison
 
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
-
-val function_is_curried : lfunction -> bool
 
 val max_arity : unit -> int
   (** Maximal number of parameters for a function, or in other words,

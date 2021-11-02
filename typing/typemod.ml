@@ -2463,6 +2463,17 @@ let type_toplevel_phrase env s =
   let (str, sg, to_remove_from_sg, env) =
     type_structure ~toplevel:true false None env s in
   remove_mode_variables env sg;
+  begin match str.str_items with
+  | [{ str_desc =
+         ( Tstr_eval (exp, _)
+         | Tstr_value (Nonrecursive,
+                       [{vb_pat = {pat_desc=Tpat_any};
+                         vb_expr = exp}])) }] ->
+     (* These types are printed by the toplevel,
+        even though they do not appear in sg *)
+     Ctype.remove_mode_variables exp.exp_type
+  | _ -> ()
+  end;
   (str, sg, to_remove_from_sg, env)
 
 let type_module_alias = type_module ~alias:true true false None

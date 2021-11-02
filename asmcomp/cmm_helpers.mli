@@ -65,15 +65,18 @@ val boxedint64_header : nativeint
 val boxedintnat_header : nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
-val closure_info : arity:int -> startenv:int -> nativeint
+val closure_info : arity:Clambda.arity -> startenv:int -> nativeint
 
 (** Wrappers *)
+(* FIXME: these all need mode params *)
 val alloc_float_header : Debuginfo.t -> expression
 val alloc_floatarray_header : int -> Debuginfo.t -> expression
-val alloc_closure_header : int -> Debuginfo.t -> expression
+val alloc_closure_header :
+  mode:Lambda.alloc_mode -> int -> Debuginfo.t -> expression
 val alloc_infix_header : int -> Debuginfo.t -> expression
 val alloc_closure_info :
-      arity:int -> startenv:int -> Debuginfo.t -> expression
+      arity:(Lambda.function_kind * int) -> startenv:int ->
+      Debuginfo.t -> expression
 val alloc_boxedint32_header : Debuginfo.t -> expression
 val alloc_boxedint64_header : Debuginfo.t -> expression
 val alloc_boxedintnat_header : Debuginfo.t -> expression
@@ -326,10 +329,9 @@ val check_bound :
     ensure its presence in the set of defined symbols *)
 val apply_function_sym : int -> string
 
-(** If [n] is positive, get the symbol for the generic currying wrapper with
-    [n] arguments, and ensure its presence in the set of defined symbols.
-    Otherwise, do the same for the generic tuple wrapper with [-n] arguments. *)
-val curry_function_sym : int -> string
+(** Get the symbol for the generic currying or tuplifying wrapper with
+    [n] arguments, and ensure its presence in the set of defined symbols. *)
+val curry_function_sym : Clambda.arity -> string
 
 (** Bigarrays *)
 

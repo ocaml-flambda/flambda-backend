@@ -68,6 +68,11 @@ CAMLprim value caml_obj_make_forward (value blk, value fwd)
   return Val_unit;
 }
 
+CAMLprim value caml_obj_is_local(value blk)
+{
+  return Val_int(Is_block(blk) && Color_hd(Hd_val(blk)) == Local_unmarked);
+}
+
 /* [size] is a value encoding a number of blocks */
 CAMLprim value caml_obj_block(value tag, value size)
 {

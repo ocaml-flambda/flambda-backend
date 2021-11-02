@@ -68,7 +68,7 @@ and one_fun ppf f =
       )
   in
   fprintf ppf "(fun@ %s%s@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) f.arity idents f.params lam f.body
+    f.label (value_kind f.return) (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function
   | Uphantom_const const -> uconstant ppf const
@@ -248,9 +248,14 @@ let clambda ppf ulam =
 
 
 let rec approx ppf = function
-    Value_closure(fundesc, a) ->
-      Format.fprintf ppf "@[<2>function %s@ arity %i"
-        fundesc.fun_label fundesc.fun_arity;
+    Value_closure(_, fundesc, a) ->
+      Format.fprintf ppf "@[<2>function %s"
+        fundesc.fun_label;
+      begin match fundesc.fun_arity with
+      | Tupled, n -> Format.fprintf ppf "@ arity -%i" n
+      | Curried {nlocal=0}, n -> Format.fprintf ppf "@ arity %i" n
+      | Curried {nlocal=k}, n -> Format.fprintf ppf "@ arity %i(%i L)" n k
+      end;
       if fundesc.fun_closed then begin
         Format.fprintf ppf "@ (closed)"
       end;
@@ -258,7 +263,7 @@ let rec approx ppf = function
         Format.fprintf ppf "@ (inline)"
       end;
       Format.fprintf ppf "@ -> @ %a@]" approx a
-  | Value_tuple a ->
+  | Value_tuple (_,a) ->
       let tuple ppf a =
         for i = 0 to Array.length a - 1 do
           if i > 0 then Format.fprintf ppf ";@ ";

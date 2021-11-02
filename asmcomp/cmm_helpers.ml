@@ -55,6 +55,7 @@ let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 let local_block_header tag sz = Nativeint.logor (block_header tag sz) caml_local
 let white_closure_header sz = block_header Obj.closure_tag sz
 let black_closure_header sz = black_block_header Obj.closure_tag sz
+let local_closure_header sz = local_block_header Obj.closure_tag sz
 let infix_header ofs = block_header Obj.infix_tag ofs
 let float_header = block_header Obj.double_tag (size_float / size_addr)
 let floatarray_header len =
@@ -76,6 +77,11 @@ let pos_arity_in_closinfo = 8 * size_addr - 8
        (* arity = the top 8 bits of the closinfo word *)
 
 let closure_info ~arity ~startenv =
+  let arity =
+    match arity with
+    | Lambda.Tupled, n -> -n
+    | Lambda.Curried _, n -> n
+  in
   assert (-128 <= arity && arity <= 127);
   assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 1));
   Nativeint.(add (shift_left (of_int arity) pos_arity_in_closinfo)
@@ -84,7 +90,10 @@ let closure_info ~arity ~startenv =
 
 let alloc_float_header dbg = Cconst_natint (float_header, dbg)
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
-let alloc_closure_header sz dbg = Cconst_natint (white_closure_header sz, dbg)
+let alloc_closure_header ~mode sz dbg =
+  match (mode : Lambda.alloc_mode) with
+  | Alloc_heap -> Cconst_natint (white_closure_header sz, dbg)
+  | Alloc_local -> Cconst_natint (local_closure_header sz, dbg)
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 let alloc_closure_info ~arity ~startenv dbg =
   Cconst_natint (closure_info ~arity ~startenv, dbg)
@@ -838,12 +847,16 @@ let make_checkbound dbg = function
 (* Record application and currying functions *)
 
 let apply_function_sym n =
+  assert (n > 0);
   Compilenv.need_apply_fun n; "caml_apply" ^ Int.to_string n
-let curry_function_sym n =
-  Compilenv.need_curry_fun n;
-  if n >= 0
-  then "caml_curry" ^ Int.to_string n
-  else "caml_tuplify" ^ Int.to_string (-n)
+let curry_function_sym ar =
+  Compilenv.need_curry_fun ar;
+  match ar with
+  | Lambda.Curried {nlocal}, n ->
+     "caml_curry" ^ Int.to_string n ^
+       (if nlocal > 0 then "L" ^ Int.to_string nlocal else "")
+  | Lambda.Tupled, n ->
+     "caml_tuplify" ^ Int.to_string n
 
 (* Big arrays *)
 
@@ -1969,7 +1982,7 @@ let tuplify_function arity =
 *)
 
 let max_arity_optimized = 15
-let final_curry_function arity =
+let final_curry_function ~nlocal ~arity =
   let dbg = placeholder_dbg in
   let last_arg = V.create_local "arg" in
   let last_clos = V.create_local "clos" in
@@ -1998,7 +2011,9 @@ let final_curry_function arity =
                  newclos (n-1))
     end in
   let fun_name =
-    "caml_curry" ^ Int.to_string arity ^ "_" ^ Int.to_string (arity-1)
+    "caml_curry" ^ Int.to_string arity
+    ^ (if nlocal > 0 then "L" ^ Int.to_string nlocal else "")
+    ^ "_" ^ Int.to_string (arity-1)
   in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
@@ -2009,34 +2024,38 @@ let final_curry_function arity =
     fun_dbg;
    }
 
-let rec intermediate_curry_functions arity num =
+let rec intermediate_curry_functions ~nlocal ~arity num =
   let dbg = placeholder_dbg in
   if num = arity - 1 then
-    [final_curry_function arity]
+    [final_curry_function ~nlocal ~arity]
   else begin
-    let name1 = "caml_curry" ^ Int.to_string arity in
+    let name1 = "caml_curry" ^ Int.to_string arity
+                ^ (if nlocal > 0 then "L" ^ Int.to_string nlocal else "") in
     let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
     let arg = V.create_local "arg" and clos = V.create_local "clos" in
     let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
+    let mode : Lambda.alloc_mode =
+      if num >= arity - nlocal then Alloc_local else Alloc_heap in
+    let curried n : Clambda.arity = (Curried {nlocal=min nlocal n}, n) in
     Cfunction
      {fun_name = name2;
       fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
       fun_body =
          if arity - num > 2 && arity <= max_arity_optimized then
-           Cop(Calloc Alloc_heap,
-               [alloc_closure_header 5 (dbg ());
+           Cop(Calloc mode,
+               [alloc_closure_header ~mode 5 (dbg ());
                 Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
-                alloc_closure_info ~arity:(arity - num - 1)
+                alloc_closure_info ~arity:(curried (arity - num - 1))
                                    ~startenv:3 (dbg ());
                 Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1) ^ "_app",
                   dbg ());
                 Cvar arg; Cvar clos],
                dbg ())
          else
-           Cop(Calloc Alloc_heap,
-                [alloc_closure_header 4 (dbg ());
+           Cop(Calloc mode,
+                [alloc_closure_header ~mode 4 (dbg ());
                  Cconst_symbol(name1 ^ "_" ^ Int.to_string (num+1), dbg ());
-                 alloc_closure_info ~arity:1 ~startenv:2 (dbg ());
+                 alloc_closure_info ~arity:(curried 1) ~startenv:2 (dbg ());
                  Cvar arg; Cvar clos],
                 dbg ());
       fun_codegen_options = [];
@@ -2082,19 +2101,21 @@ let rec intermediate_curry_functions arity num =
                fun_dbg;
               }
           in
-          cf :: intermediate_curry_functions arity (num+1)
+          cf :: intermediate_curry_functions ~nlocal ~arity (num+1)
        else
-          intermediate_curry_functions arity (num+1))
+          intermediate_curry_functions ~nlocal ~arity (num+1))
   end
 
-let curry_function arity =
-  assert(arity <> 0);
-  (* Functions with arity = 0 does not have a curry_function *)
-  if arity > 0
-  then intermediate_curry_functions arity 0
-  else [tuplify_function (-arity)]
+let curry_function = function
+  | Lambda.Tupled, n ->
+     assert (n > 0); [tuplify_function n]
+  | Lambda.Curried {nlocal}, n ->
+     assert (n > 0);
+     intermediate_curry_functions ~nlocal ~arity:n 0
 
 module Int = Numbers.Int
+module AritySet =
+  Set.Make (struct type t = Clambda.arity let compare = compare end)
 
 let default_apply = Int.Set.add 2 (Int.Set.add 3 Int.Set.empty)
   (* These apply funs are always present in the main program because
@@ -2106,13 +2127,13 @@ let generic_functions shared units =
       (fun (apply,send,curry) (ui : Cmx_format.unit_infos) ->
          List.fold_right Int.Set.add ui.ui_apply_fun apply,
          List.fold_right Int.Set.add ui.ui_send_fun send,
-         List.fold_right Int.Set.add ui.ui_curry_fun curry)
-      (Int.Set.empty,Int.Set.empty,Int.Set.empty)
+         List.fold_right AritySet.add ui.ui_curry_fun curry)
+      (Int.Set.empty,Int.Set.empty,AritySet.empty)
       units in
   let apply = if shared then apply else Int.Set.union apply default_apply in
   let accu = Int.Set.fold (fun n accu -> apply_function n :: accu) apply [] in
   let accu = Int.Set.fold (fun n accu -> send_function n :: accu) send accu in
-  Int.Set.fold (fun n accu -> curry_function n @ accu) curry accu
+  AritySet.fold (fun arity accu -> curry_function arity @ accu) curry accu
 
 (* Primitives *)
 
@@ -2713,7 +2734,7 @@ let fundecls_size fundecls =
     (fun (f : Clambda.ufunction) ->
        let indirect_call_code_pointer_size =
          match f.arity with
-         | 0 | 1 -> 0
+         | Curried _, (0 | 1) -> 0
            (* arity 1 does not need an indirect call handler.
               arity 0 cannot be indirect called *)
          | _ -> 1
@@ -2746,30 +2767,32 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       let rec emit_others pos = function
           [] -> clos_vars @ cont
       | (f2 : Clambda.ufunction) :: rem ->
-          if f2.arity = 1 || f2.arity = 0 then
+          match f2.arity with
+          | Curried _, (0|1) as arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
             Csymbol_address f2.label ::
-            Cint(closure_info ~arity:f2.arity ~startenv:(startenv - pos)) ::
+            Cint(closure_info ~arity ~startenv:(startenv - pos)) ::
             emit_others (pos + 3) rem
-          else
+          | arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
             Csymbol_address(curry_function_sym f2.arity) ::
-            Cint(closure_info ~arity:f2.arity ~startenv:(startenv - pos)) ::
+            Cint(closure_info ~arity ~startenv:(startenv - pos)) ::
             Csymbol_address f2.label ::
             emit_others (pos + 4) rem in
       Cint(black_closure_header (fundecls_size fundecls
                                  + List.length clos_vars)) ::
       cdefine_symbol symb @
       (closure_symbol f1) @
-      if f1.arity = 1 || f1.arity = 0 then
+      match f1.arity with
+      | Curried _, (0|1) as arity ->
         Csymbol_address f1.label ::
-        Cint(closure_info ~arity:f1.arity ~startenv) ::
+        Cint(closure_info ~arity ~startenv) ::
         emit_others 3 remainder
-      else
+      | arity ->
         Csymbol_address(curry_function_sym f1.arity) ::
-        Cint(closure_info ~arity:f1.arity ~startenv) ::
+        Cint(closure_info ~arity ~startenv) ::
         Csymbol_address f1.label ::
         emit_others 4 remainder
 

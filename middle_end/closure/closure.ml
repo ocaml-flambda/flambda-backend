@@ -458,7 +458,7 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
      default
 
 let field_approx n = function
-  | Value_tuple a when n < Array.length a -> a.(n)
+  | Value_tuple (_,a) when n < Array.length a -> a.(n)
   | Value_const (Uconst_ref(_, Some (Uconst_block(_, l))))
     when n < List.length l ->
       Value_const (List.nth l n)
@@ -468,7 +468,7 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
   let open Clambda_primitives in
   match p, args, approxs with
   (* Block construction *)
-  | Pmakeblock(tag, Immutable, _kind, _mode), _, _ ->
+  | Pmakeblock(tag, Immutable, _kind, mode), _, _ ->
       let field = function
         | Value_const c -> c
         | _ -> raise Exit
@@ -480,7 +480,7 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         in
         make_const (Uconst_ref (name, Some cst))
       with Exit ->
-        (Uprim(p, args, dbg), Value_tuple (Array.of_list approxs))
+        (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
   | Pfield n, _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
@@ -513,8 +513,8 @@ let simplif_prim ~backend fpc p (args, approxs as args_approxs) dbg =
     (* XXX : always return the same approxs as simplif_prim_pure? *)
     let approx =
       match p with
-      | P.Pmakeblock(_, Immutable, _kind, _mode) ->
-          Value_tuple (Array.of_list approxs)
+      | P.Pmakeblock(_, Immutable, _kind, mode) ->
+          Value_tuple (mode, Array.of_list approxs)
       | _ ->
           Value_unknown
     in
@@ -934,24 +934,31 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         ap_inlined = attribute} ->
       let nargs = List.length args in
       begin match (close env funct, close_list env args) with
-        ((ufunct, Value_closure(fundesc, approx_res)),
+        ((ufunct, Value_closure(_,
+                                ({fun_arity=(Tupled, nparams)} as fundesc),
+                                approx_res)),
          [Uprim(P.Pmakeblock _, uargs, _)])
-        when List.length uargs = - fundesc.fun_arity ->
+        when List.length uargs = nparams ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs in
           (app, strengthen_approx app approx_res)
-      | ((ufunct, Value_closure(fundesc, approx_res)), uargs)
-        when nargs = fundesc.fun_arity ->
+      | ((ufunct, Value_closure(_,
+                                ({fun_arity=(Curried _, nparams)} as fundesc),
+                                approx_res)), uargs)
+        when nargs = nparams ->
           let app =
             direct_apply env ~loc ~attribute fundesc ufunct uargs in
           (app, strengthen_approx app approx_res)
 
-      | ((ufunct, (Value_closure(fundesc, _) as fapprox)), uargs)
-          when nargs < fundesc.fun_arity ->
+      | ((ufunct, (Value_closure(
+            clos_mode,
+            ({fun_arity=(Curried {nlocal}, nparams)} as fundesc),
+            _) as fapprox)), uargs)
+          when nargs < nparams ->
         let first_args = List.map (fun arg ->
           (V.create_local "arg", arg) ) uargs in
         let final_args =
-          Array.to_list (Array.init (fundesc.fun_arity - nargs)
+          Array.to_list (Array.init (nparams - nargs)
                                     (fun _ -> V.create_local "arg")) in
         let rec iter args body =
           match args with
@@ -966,9 +973,21 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         in
         let funct_var = V.create_local "funct" in
         let fenv = V.Map.add funct_var fapprox fenv in
+        let new_clos_mode, kind =
+          (* If the closure has a local suffix, and we've supplied
+             enough args to hit it, then the closure must be local
+             (because the args or closure might be). *)
+          let heap_params = nparams - nlocal in
+          if nargs <= heap_params then
+            Alloc_heap, Curried {nlocal}
+          else
+            let supplied_local_args = nargs - heap_params in
+            Alloc_local, Curried {nlocal = nlocal - supplied_local_args}
+        in
+        if clos_mode = Alloc_local then assert (new_clos_mode = Alloc_local);
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
           (Lfunction{
-               kind = Curried;
+               kind;
                return = Pgenval;
                params = List.map (fun v -> v, Pgenval) final_args;
                body = Lapply{
@@ -980,7 +999,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_specialised=Default_specialise;
                };
                loc;
-               mode = Alloc_heap; (* FIXME BUG: wrong mode *)
+               mode = new_clos_mode;
+               ret_mode = fundesc.fun_ret_mode;
                attr = default_function_attribute})
         in
         let new_fun =
@@ -990,10 +1010,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         warning_if_forced_inline ~loc ~attribute "Partial application";
         (new_fun, approx)
 
-      | ((ufunct, Value_closure(fundesc, _approx_res)), uargs)
-        when fundesc.fun_arity > 0 && nargs > fundesc.fun_arity ->
+      | ((ufunct, Value_closure(_, ({fun_arity = (Curried _, nparams)} as fundesc),
+                                _approx_res)), uargs)
+        when nargs > nparams ->
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
-          let (first_args, rem_args) = split_list fundesc.fun_arity args in
+          let (first_args, rem_args) = split_list nparams args in
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
           let dbg = Debuginfo.from_location loc in
@@ -1253,8 +1274,9 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     List.flatten
       (List.map
          (function
-           | (id, Lfunction{kind; params; return; body; attr; loc; mode}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params ~mode
+           | (id, Lfunction{kind; params; return; body; attr;
+                            loc; mode; ret_mode}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~ret_mode
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )
@@ -1277,15 +1299,18 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction{kind; params; return; body; loc; mode}) ->
+          (id, Lfunction({kind; params; return; body; loc; mode; ret_mode}
+                         as funct)) ->
+            Lambda.check_lfunction funct;
             let label = Compilenv.make_symbol (Some (V.unique_name id)) in
             let arity = List.length params in
             let fundesc =
               {fun_label = label;
-               fun_arity = (if kind = Tupled then -arity else arity);
+               fun_arity = (kind, arity);
                fun_closed = initially_closed;
                fun_inline = None;
-               fun_float_const_prop = !Clflags.float_const_prop } in
+               fun_float_const_prop = !Clflags.float_const_prop;
+               fun_ret_mode = ret_mode} in
             let dbg = Debuginfo.from_location loc in
             (id, params, return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
@@ -1293,8 +1318,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   (* Build an approximate fenv for compiling the functions *)
   let fenv_rec =
     List.fold_right
-      (fun (id, _params, _return, _body, _mode, fundesc, _dbg) fenv ->
-        V.Map.add id (Value_closure(fundesc, Value_unknown)) fenv)
+      (fun (id, _params, _return, _body, mode, fundesc, _dbg) fenv ->
+        V.Map.add id (Value_closure(mode, fundesc, Value_unknown)) fenv)
       uncurried_defs fenv in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
@@ -1302,7 +1327,8 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     List.map
       (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
-        env_pos := !env_pos + 1 + (if fundesc.fun_arity <> 1 then 3 else 2);
+        env_pos := !env_pos + 1 +
+          (match fundesc.fun_arity with (Curried _, 1) -> 2 | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
@@ -1364,7 +1390,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     if lambda_smaller ubody threshold
     then fundesc.fun_inline <- Some(fun_params, ubody);
 
-    (f, (id, env_pos, Value_closure(fundesc, approx))) in
+    (f, (id, env_pos, Value_closure(mode, fundesc, approx))) in
   (* Translate all function definitions. *)
   let clos_info_list =
     if initially_closed then begin
@@ -1459,13 +1485,13 @@ and close_switch env cases num_keys default =
 
 let collect_exported_structured_constants a =
   let rec approx = function
-    | Value_closure (fd, a) ->
+    | Value_closure (_, fd, a) ->
         approx a;
         begin match fd.fun_inline with
         | Some (_, u) -> ulam u
         | None -> ()
         end
-    | Value_tuple a -> Array.iter approx a
+    | Value_tuple (_,a) -> Array.iter approx a
     | Value_const c -> const c
     | Value_unknown | Value_global_field _ -> ()
   and const = function
@@ -1525,7 +1551,7 @@ let intro ~backend ~size lam =
   reset ();
   let id = Compilenv.make_symbol None in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
-  Compilenv.set_global_approx(Value_tuple !global_approx);
+  Compilenv.set_global_approx(Value_tuple (Alloc_heap, !global_approx));
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
             cenv = V.Map.empty; mutable_vars = V.Set.empty } lam
@@ -1536,6 +1562,6 @@ let intro ~backend ~size lam =
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)
-  else collect_exported_structured_constants (Value_tuple !global_approx);
+  else collect_exported_structured_constants (Value_tuple (Alloc_heap, !global_approx));
   global_approx := [||];
   ulam

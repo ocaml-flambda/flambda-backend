@@ -89,6 +89,17 @@ let transl_alloc_mode (m : Types.alloc_mode) : Lambda.alloc_mode =
   | Heap -> Alloc_heap
   | Local -> Alloc_local
 
+let join_mode a b =
+  match a, b with
+  | Alloc_local, _ | _, Alloc_local -> Alloc_local
+  | Alloc_heap, Alloc_heap -> Alloc_heap
+
+let sub_mode a b =
+  match a, b with
+  | Alloc_heap, _ -> true
+  | _, Alloc_local -> true
+  | Alloc_local, Alloc_heap -> false
+
 (* Push the default values under the functional abstractions *)
 (* Also push bindings of module patterns, since this sound *)
 
@@ -596,12 +607,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
          let mode = transl_alloc_mode e.exp_mode in (* FIXME test *)
-         let fn = Lfunction {kind = Curried;
+         let fn = Lfunction {kind = Curried {nlocal=0};
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
                              attr = default_function_attribute;
                              loc = of_location ~scopes e.exp_loc;
                              mode;
+                             ret_mode = Alloc_heap;
                              body = transl_exp ~scopes e} in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None,
                            mode), [fn],
@@ -747,27 +759,24 @@ and transl_apply ~scopes
           List.map (fun (arg, opt) -> Option.map (protect "arg") arg, opt) l
         in
         let id_arg = Ident.create_local "param" in
+        (* FIXME modes / Curried nlocals are completely wrong here *)
         let body =
           match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried; params = ids; return;
-                      body = lam; attr; loc; mode} ->
-              Lfunction{kind = Curried;
+            Lfunction{kind = Curried nl; params = ids; return;
+                      body = lam; attr; loc; mode=Alloc_heap; ret_mode} ->
+              Lfunction{kind = Curried nl; (* FIXME *)
                         params = (id_arg, Pgenval)::ids;
                         return;
                         body = lam; attr;
                         loc;
-                        mode}   (* FIXME mode *)
-          | Levent(Lfunction{kind = Curried; params = ids; return;
-                             body = lam; attr; loc; mode}, _) ->
-              Lfunction{kind = Curried; params = (id_arg, Pgenval)::ids;
-                        return;
-                        body = lam; attr;
-                        loc;
-                        mode}   (* FIXME mode *)
+                        mode;  (* FIXME mode *)
+                        ret_mode}
           | lam ->
-              Lfunction{kind = Curried; params = [id_arg, Pgenval];
+              Lfunction{kind = Curried {nlocal=0}; params = [id_arg, Pgenval];
                         return = Pgenval; body = lam;
-                        attr = default_stub_attribute; loc = loc; mode=Alloc_heap (* FIXME *)}
+                        attr = default_stub_attribute; loc = loc;
+                        mode = Alloc_heap (* FIXME *);
+                        ret_mode = Alloc_heap (* FIXME wrong mode *)}
         in
         List.fold_left
           (fun body (id, lam) -> Llet(Strict, Pgenval, id, lam, body))
@@ -787,26 +796,46 @@ and transl_apply ~scopes
 
 and transl_curried_function
       ~scopes loc return
-      repr partial (param:Ident.t) cases =
+      repr ~mode partial (param:Ident.t) cases =
   let max_arity = Lambda.max_arity () in
-  let rec loop ~scopes loc return ~arity partial (param:Ident.t) cases =
+  let rec loop ~scopes loc return ~arity ~mode partial
+            (param:Ident.t) cases =
     match cases with
       [{c_lhs=pat; c_guard=None;
         c_rhs={exp_desc =
                  Texp_function
                    { arg_label = _; param = param'; cases = cases';
-                     partial = partial'; }; exp_env; exp_type;exp_loc}}]
-      when arity <  max_arity ->
-      (* FIXME: Not always safe with local allocations  *)
-      if  Parmatch.inactive ~partial pat
+                     partial = partial'; };
+               exp_env; exp_type; exp_loc; exp_mode}}]
+      when arity < max_arity ->
+      let arg_mode = transl_alloc_mode pat.pat_mode in
+      let curry_mode = transl_alloc_mode exp_mode in
+      (* Lfunctions must have local returns after the first local arg/ret *)
+      if not (sub_mode mode curry_mode && sub_mode arg_mode curry_mode) then
+        (* Cannot curry here *)
+        transl_tupled_function ~scopes ~arity ~mode
+          loc return repr partial param cases
+      else if Parmatch.inactive ~partial pat
       then
         let kind = value_kind pat.pat_env pat.pat_type in
         let return_kind = function_return_value_kind exp_env exp_type in
-        let ((_, params, return), body) =
-          loop ~scopes exp_loc return_kind ~arity:(arity + 1)
+        let ((fnkind, params, return, ret_mode), body) =
+          loop ~scopes exp_loc return_kind
+            ~arity:(arity + 1) ~mode:curry_mode
             partial' param' cases'
         in
-        ((Curried, (param, kind) :: params, return),
+        let fnkind =
+          match curry_mode, fnkind with
+          | _, Tupled ->
+             (* arity > 1 prevents this *)
+             assert false
+          | Alloc_heap, (Curried _ as c) -> c
+          | Alloc_local, Curried {nlocal} ->
+             (* all subsequent curried arrows should be local *)
+             assert (nlocal = List.length params);
+             Curried {nlocal = nlocal + 1}
+        in
+        ((fnkind, (param, kind) :: params, return, ret_mode),
          Matching.for_function ~scopes loc None (Lvar param)
            [pat, body] partial)
       else begin
@@ -816,22 +845,23 @@ and transl_curried_function
             Match_on_mutable_state_prevent_uncurry
         | Partial -> ()
         end;
-        transl_tupled_function ~scopes ~arity
+        transl_tupled_function ~scopes ~arity ~mode
           loc return repr partial param cases
       end
     | cases ->
-      transl_tupled_function ~scopes ~arity
+      transl_tupled_function ~scopes ~arity ~mode
         loc return repr partial param cases
   in
-  loop ~scopes loc return ~arity:1 partial param cases
+  loop ~scopes loc return ~arity:1 ~mode partial param cases
 
 and transl_tupled_function
-      ~scopes ~arity loc return
+      ~scopes ~arity ~mode loc return
       repr partial (param:Ident.t) cases =
   match cases with
   | {c_lhs={pat_desc = Tpat_tuple pl}} :: _
     when !Clflags.native_code
       && arity = 1
+      && mode = Alloc_heap
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in
@@ -840,17 +870,20 @@ and transl_tupled_function
             (fun {c_lhs; c_guard; c_rhs} ->
               (Matching.flatten_pattern size c_lhs, c_guard, c_rhs))
             cases in
-        let kinds =
+        let ret_mode, kinds =
           (* All the patterns might not share the same types. We must take the
              union of the patterns types *)
           match pats_expr_list with
           | [] -> assert false
-          | (pats, _, _) :: cases ->
+          | (pats, _, rhs) :: cases ->
               let first_case_kinds =
                 List.map (fun pat -> value_kind pat.pat_env pat.pat_type) pats
               in
+              let ret_mode = transl_alloc_mode rhs.exp_mode in
+              ret_mode,
               List.fold_left
-                (fun kinds (pats, _, _) ->
+                (fun kinds (pats, _, rhs) ->
+                   assert (transl_alloc_mode rhs.exp_mode = ret_mode);
                    List.map2 (fun kind pat ->
                        value_kind_union kind
                          (value_kind pat.pat_env pat.pat_type))
@@ -861,47 +894,60 @@ and transl_tupled_function
           List.map (fun kind -> Ident.create_local "param", kind) kinds
         in
         let params = List.map fst tparams in
-        ((Tupled, tparams, return),
+        ((Tupled, tparams, return, ret_mode),
          Matching.for_tupled_function ~scopes loc params
            (transl_tupled_cases ~scopes pats_expr_list) partial)
     with Matching.Cannot_flatten ->
-      transl_function0 ~scopes loc return repr partial param cases
+      transl_function0 ~scopes loc ~mode return repr partial param cases
       end
-  | _ -> transl_function0 ~scopes loc return repr partial param cases
+  | _ -> transl_function0 ~scopes loc ~mode return repr partial param cases
 
 and transl_function0
-      ~scopes loc return
+      ~scopes loc ~mode return
       repr partial (param:Ident.t) cases =
-    let kind =
+    let arg_mode, ret_mode, kind =
       match cases with
       | [] ->
         (* With Camlp4, a pattern matching might be empty *)
-        Pgenval
-      | {c_lhs=pat} :: other_cases ->
+        Alloc_heap, Alloc_heap, Pgenval (* FIXME can this happen? *)
+      | {c_lhs=pat;c_rhs} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
-        List.fold_left (fun k {c_lhs=pat} ->
+        let arg_mode = transl_alloc_mode pat.pat_mode in
+        let ret_mode = transl_alloc_mode c_rhs.exp_mode in
+        arg_mode,
+        ret_mode,
+        List.fold_left (fun k {c_lhs=pat;c_rhs} ->
+          assert (transl_alloc_mode pat.pat_mode = arg_mode);
+          assert (transl_alloc_mode c_rhs.exp_mode = ret_mode);
           Typeopt.value_kind_union k
             (value_kind pat.pat_env pat.pat_type))
           (value_kind pat.pat_env pat.pat_type) other_cases
     in
-    ((Curried, [param, kind], return),
+    let nlocal =
+      match join_mode mode (join_mode arg_mode ret_mode) with
+      | Alloc_local -> 1
+      | Alloc_heap -> 0
+    in
+    ((Curried {nlocal}, [param, kind], return, ret_mode),
      Matching.for_function ~scopes loc repr (Lvar param)
        (transl_cases ~scopes cases) partial)
 
 and transl_function ~scopes e param cases partial =
-  let ((kind, params, return), body) =
+  let mode = transl_alloc_mode e.exp_mode in
+  let ((kind, params, return, ret_mode), body) =
     event_function ~scopes e
       (function repr ->
          let pl = push_defaults e.exp_loc [] cases partial in
          let return_kind = function_return_value_kind e.exp_env e.exp_type in
          transl_curried_function ~scopes e.exp_loc return_kind
-           repr partial param pl)
+           repr ~mode partial param pl)
   in
   let attr = default_function_attribute in
   let loc = of_location ~scopes e.exp_loc in
-  let mode = transl_alloc_mode e.exp_mode in
-  let lam = Lfunction{kind; params; return; body; attr; loc; mode} in
+  let lfunc = {kind; params; return; body; attr; loc; mode; ret_mode} in
+  Lambda.check_lfunction lfunc;
+  let lam = Lfunction lfunc in
   Translattribute.add_function_attributes lam e.exp_loc e.exp_attributes
 
 (* Like transl_exp, but used when a new scope was just introduced. *)
@@ -1192,15 +1238,16 @@ and transl_letop ~scopes loc env let_ ands param case partial =
   let exp = loop (transl_exp ~scopes let_.bop_exp) ands in
   let func =
     let return_kind = value_kind case.c_rhs.exp_env case.c_rhs.exp_type in
-    let (kind, params, return), body =
+    let (kind, params, return, ret_mode), body =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr partial param [case])
+             repr ~mode:Alloc_heap (*FIXME*) partial param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
-    Lfunction{kind; params; return; body; attr; loc; mode=Alloc_heap(*FIXME*)}
+    Lfunction{kind; params; return; body; attr; loc;
+              mode=Alloc_heap(*FIXME*); ret_mode (* FIXME *)}
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

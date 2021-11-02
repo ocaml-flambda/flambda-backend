@@ -20,6 +20,7 @@ open Asttypes
 open Lambda
 
 type function_label = string
+type arity = Lambda.function_kind * int
 
 type ustructured_constant =
   | Uconst_float of float
@@ -88,7 +89,7 @@ and ulambda =
 
 and ufunction = {
   label  : function_label;
-  arity  : int;
+  arity  : arity;
   params : (Backend_var.With_provenance.t * value_kind) list;
   return : value_kind;
   body   : ulambda;
@@ -107,17 +108,18 @@ and ulambda_switch =
 
 type function_description =
   { fun_label: function_label;          (* Label of direct entry point *)
-    fun_arity: int;                     (* Number of arguments *)
+    fun_arity: arity;                   (* Number of (curried/tupled) arguments *)
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
-    mutable fun_float_const_prop: bool  (* Can propagate FP consts *)
+    mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
+    fun_ret_mode: alloc_mode;           (* May return local allocs *)
   }
 
 (* Approximation of values *)
 
 type value_approximation =
-    Value_closure of function_description * value_approximation
-  | Value_tuple of value_approximation array
+    Value_closure of alloc_mode * function_description * value_approximation
+  | Value_tuple of alloc_mode * value_approximation array
   | Value_unknown
   | Value_const of uconstant
   | Value_global_field of string * int
