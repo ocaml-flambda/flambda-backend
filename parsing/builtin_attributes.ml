@@ -285,3 +285,9 @@ let has_unboxed attr =
 
 let has_boxed attr =
   List.exists (check ["ocaml.boxed"; "boxed"]) attr
+
+let has_curry attr =
+  List.exists (check ["ocaml.curry"; "curry"]) attr
+
+let has_local_opt attr =
+  List.exists (check ["ocaml.local_opt"; "local_opt"]) attr

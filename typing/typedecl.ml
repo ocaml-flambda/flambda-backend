@@ -1310,20 +1310,37 @@ let make_native_repr env core_type ty ~global_repr =
     | Some repr -> repr
     end
 
-let rec parse_native_repr_attributes env core_type ty ~global_repr =
+let prim_const_mode m =
+  match Alloc_mode.check_const m with
+  | Some Global -> Prim_global
+  | Some Local -> Prim_local
+  | None -> assert false
+
+let rec parse_native_repr_attributes env core_type ty rmode ~global_repr =
   match core_type.ptyp_desc, (Ctype.repr ty).desc,
     get_native_repr_attribute core_type.ptyp_attributes ~global_repr:None
   with
   | Ptyp_arrow _, Tarrow _, Native_repr_attr_present kind  ->
     raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
-  | Ptyp_arrow (_, ct1, ct2), Tarrow (_, t1, t2, _), _ ->
+  | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
+    when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let repr_arg = make_native_repr env ct1 t1 ~global_repr in
-    let repr_args, repr_res =
-      parse_native_repr_attributes env ct2 t2 ~global_repr
+    let mode =
+      if Builtin_attributes.has_local_opt ct1.ptyp_attributes
+      then Prim_poly
+      else prim_const_mode marg
     in
-    (repr_arg :: repr_args, repr_res)
-  | Ptyp_arrow _, _, _ | _, Tarrow _, _ -> assert false
-  | _ -> ([], make_native_repr env core_type ty ~global_repr)
+    let repr_args, repr_res =
+      parse_native_repr_attributes env ct2 t2 (prim_const_mode mret) ~global_repr
+    in
+    ((mode,repr_arg) :: repr_args, repr_res)
+  | _ ->
+     let rmode =
+       if Builtin_attributes.has_local_opt core_type.ptyp_attributes
+       then Prim_poly
+       else rmode
+     in
+     ([], (rmode, make_native_repr env core_type ty ~global_repr))
 
 
 let check_unboxable env loc ty =
@@ -1369,7 +1386,7 @@ let transl_value_decl env loc valdecl =
         | Native_repr_attr_absent -> None
       in
       let native_repr_args, native_repr_res =
-        parse_native_repr_attributes env valdecl.pval_type ty ~global_repr
+        parse_native_repr_attributes env valdecl.pval_type ty Prim_global ~global_repr
       in
       let prim =
         Primitive.parse_declaration valdecl

@@ -165,7 +165,8 @@ let rec push_defaults loc bindings cases partial =
           Texp_match
             ({exp with exp_type = pat.pat_type; exp_env = env; exp_desc =
               Texp_ident
-                (Path.Pident param, mknoloc (Longident.Lident name), desc)},
+                (Path.Pident param, mknoloc (Longident.Lident name),
+                 desc, Id_value)},
              cases, partial) }
       in
       push_defaults loc bindings
@@ -231,13 +232,14 @@ let rec iter_exn_names f pat =
       iter_exn_names f p
   | _ -> ()
 
-let transl_ident loc env ty path desc =
-  match desc.val_kind with
-  | Val_prim p ->
-      Translprim.transl_primitive loc p env ty (Some path)
-  | Val_anc _ ->
+let transl_ident loc env ty path desc kind =
+  match desc.val_kind, kind with
+  | Val_prim p, Id_prim pmode ->
+      let poly_mode = transl_alloc_mode pmode in
+      Translprim.transl_primitive loc p env ty ~poly_mode (Some path)
+  | Val_anc _, Id_value ->
       raise(Error(to_location loc, Free_super_var))
-  | Val_reg | Val_self _ ->
+  | (Val_reg | Val_self _), Id_value ->
       transl_value_path loc env path
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
@@ -273,9 +275,9 @@ and transl_exp1 ~scopes ~in_new_scope e =
 
 and transl_exp0 ~in_new_scope ~scopes e =
   match e.exp_desc with
-  | Texp_ident(path, _, desc) ->
+  | Texp_ident(path, _, desc, kind) ->
       transl_ident (of_location ~scopes e.exp_loc)
-        e.exp_env e.exp_type path desc
+        e.exp_env e.exp_type path desc kind
   | Texp_constant cst ->
       Lconst(Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
@@ -288,7 +290,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
         else enter_anonymous_function ~scopes
       in
       transl_function ~scopes e param cases partial
-  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
+  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
+                                       Id_prim pmode);
                 exp_type = prim_type } as funct, oargs)
     when List.length oargs >= p.prim_arity
     && List.for_all (fun (_, arg) -> not (is_omitted arg)) oargs ->
@@ -298,9 +301,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
       in
       let args = transl_list ~scopes arg_exps in
       let prim_exp = if extra_args = [] then Some e else None in
+      let pmode = transl_alloc_mode pmode in
       let lam =
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type path
+          (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode path
           prim_exp args arg_exps
       in
       if extra_args = [] then lam
@@ -1248,7 +1252,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
         let right_id = Ident.create_local "right" in
         let op =
           transl_ident (of_location ~scopes and_.bop_op_name.loc) env
-            and_.bop_op_type and_.bop_op_path and_.bop_op_val
+            and_.bop_op_type and_.bop_op_path and_.bop_op_val Id_value
         in
         let exp = transl_exp ~scopes and_.bop_exp in
         let lam =
@@ -1266,7 +1270,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
   in
   let op =
     transl_ident (of_location ~scopes let_.bop_op_name.loc) env
-      let_.bop_op_type let_.bop_op_path let_.bop_op_val
+      let_.bop_op_type let_.bop_op_path let_.bop_op_val Id_value
   in
   let exp = loop (transl_exp ~scopes let_.bop_exp) ands in
   let func =

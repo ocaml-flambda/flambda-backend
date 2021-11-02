@@ -98,7 +98,8 @@ and exp_extra =
   | Texp_newtype of string
 
 and expression_desc =
-    Texp_ident of Path.t * Longident.t loc * Types.value_description
+    Texp_ident of
+      Path.t * Longident.t loc * Types.value_description * ident_kind
   | Texp_constant of constant
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
@@ -148,6 +149,8 @@ and expression_desc =
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
   | Texp_open of open_declaration * expression
+
+and ident_kind = Id_value | Id_prim of Types.alloc_mode
 
 and meth =
     Tmeth_name of string
@@ -342,6 +345,7 @@ and primitive_coercion =
   {
     pc_desc: Primitive.description;
     pc_type: type_expr;
+    pc_poly_mode: alloc_mode;
     pc_env: Env.t;
     pc_loc : Location.t;
   }

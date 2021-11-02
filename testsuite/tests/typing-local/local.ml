@@ -1643,6 +1643,14 @@ Line 5, characters 24-25:
 Error: This value escapes its region
 |}]
 
+(* Primitives *)
+
+(* raise works at any mode *)
+let f : unit -> local_ int = fun () -> local_ raise Exit
+[%%expect{|
+val f : unit -> local_ int = <fun>
+|}]
+
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)
 let () = Gc.minor ()
 [%%expect{|

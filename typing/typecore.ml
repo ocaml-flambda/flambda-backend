@@ -325,11 +325,14 @@ let allocations : Alloc_mode.t list ref = ref []
 
 let reset_allocations () = allocations := []
 
-let register_allocation (expected_mode : expected_mode) =
-  let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
+let register_allocation_mode alloc_mode =
   match Alloc_mode.check_const alloc_mode with
   | Some _ -> ()
   | None -> allocations := alloc_mode :: !allocations
+
+let register_allocation (expected_mode : expected_mode) =
+  register_allocation_mode
+    (Value_mode.regional_to_global_alloc expected_mode.mode)
 
 let optimise_allocations () =
   List.iter
@@ -2365,7 +2368,7 @@ let rec final_subexpression exp =
 
 let is_prim ~name funct =
   match funct.exp_desc with
-  | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}) ->
+  | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _) ->
       prim_name = name
   | _ -> false
 
@@ -2687,7 +2690,8 @@ let rec is_nonexpansive exp =
   | Texp_apply (
       { exp_desc = Texp_ident (_, _, {val_kind =
              Val_prim {Primitive.prim_name =
-                         ("%raise" | "%reraise" | "%raise_notrace")}}) },
+                         ("%raise" | "%reraise" | "%raise_notrace")}},
+             Id_prim _) },
       [Nolabel, Arg e]) ->
      is_nonexpansive e
   | Texp_array (_ :: _)
@@ -2811,13 +2815,8 @@ let is_local_returning_expr e =
   let local, _ = loop e in
   local
 
-let has_curry_attr e =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "curry")
-    e.pexp_attributes
-
 let rec is_an_uncurried_function e =
-  if has_curry_attr e then false
+  if Builtin_attributes.has_curry e.pexp_attributes then false
   else begin
     match e.pexp_desc, e.pexp_attributes with
     | (Pexp_fun _ | Pexp_function _), _ -> true
@@ -2836,7 +2835,8 @@ let is_local_returning_function cases =
     | cases ->
         List.for_all (fun case -> is_local_returning_expr case.pc_rhs) cases
   and loop_body e =
-    if has_curry_attr e then is_local_returning_expr e
+    if Builtin_attributes.has_curry e.pexp_attributes then
+      is_local_returning_expr e
     else begin
       match e.pexp_desc, e.pexp_attributes with
       | Pexp_fun(_, _, _, e), _ -> loop_body e
@@ -3238,7 +3238,7 @@ and type_expect_
   in
   match sexp.pexp_desc with
   | Pexp_ident lid ->
-      let path, desc = type_ident env expected_mode ~recarg lid in
+      let path, desc, kind = type_ident env expected_mode ~recarg lid in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -3254,13 +3254,13 @@ and type_expect_
             let (path, _) =
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
-            Texp_ident(path, lid, desc)
+            Texp_ident(path, lid, desc, kind)
         | _ ->
-            Texp_ident(path, lid, desc)
+            Texp_ident(path, lid, desc, kind)
       in
       rue {
         exp_desc; exp_loc = loc; exp_extra = [];
-        exp_type = instance desc.val_type;
+        exp_type = desc.val_type;
         exp_mode = expected_mode.mode;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
@@ -3431,11 +3431,13 @@ and type_expect_
       let funct, sargs =
         let funct = type_sfunct sfunct in
         match funct.exp_desc, sargs with
-        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%revapply"}}),
+        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%revapply"}},
+                      Id_prim _),
           [Nolabel, sarg; Nolabel, actual_sfunct]
           when is_inferred actual_sfunct ->
             type_sfunct actual_sfunct, [Nolabel, sarg]
-        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%apply"}}),
+        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%apply"}},
+                      Id_prim _),
           [Nolabel, actual_sfunct; Nolabel, sarg] ->
             type_sfunct actual_sfunct, [Nolabel, sarg]
         | _ ->
@@ -3909,7 +3911,7 @@ and type_expect_
             let gen = generalizable tv.level arg.exp_type in
             unify_var env tv arg.exp_type;
             begin match arg.exp_desc, !self_coercion, (repr ty').desc with
-              Texp_ident(_, _, {val_kind=Val_self _}), (path,r) :: _,
+              Texp_ident(_, _, {val_kind=Val_self _}, _), (path,r) :: _,
               Tconstr(path',_,_) when Path.same path path' ->
                 (* prerr_endline "self coercion"; *)
                 r := loc :: !r;
@@ -3979,7 +3981,7 @@ and type_expect_
       begin try
         let (meth, exp, typ) =
           match obj.exp_desc with
-            Texp_ident(_path, _, {val_kind = Val_self (meths, _, _, privty)}) ->
+            Texp_ident(_p, _, {val_kind = Val_self (meths, _, _, privty)}, _) ->
               obj_meths := Some meths;
               let (id, typ) =
                 filter_self_method env met Private meths privty
@@ -3988,7 +3990,7 @@ and type_expect_
                 Location.prerr_warning loc
                   (Warnings.Undeclared_virtual_method met);
               (Tmeth_val id, None, typ)
-          | Texp_ident(_path, lid, {val_kind = Val_anc (methods, cl_num)}) ->
+          | Texp_ident(_p, lid, {val_kind = Val_anc (methods, cl_num)}, _) ->
               let method_id =
                 begin try List.assoc met methods with Not_found ->
                   let valid_methods = List.map fst methods in
@@ -4026,14 +4028,14 @@ and type_expect_
                   let exp =
                     Texp_apply({exp_desc =
                                 Texp_ident(Path.Pident method_id,
-                                           lid, method_desc);
+                                           lid, method_desc, Id_value);
                                 exp_loc = loc; exp_extra = [];
                                 exp_type = method_type;
                                 exp_mode = Value_mode.global;
                                 exp_attributes = []; (* check *)
                                 exp_env = exp_env},
                           [ Nolabel,
-                            Arg {exp_desc = Texp_ident(path, lid, desc);
+                            Arg {exp_desc = Texp_ident(path, lid, desc, Id_value);
                                   exp_loc = obj.exp_loc; exp_extra = [];
                                   exp_type = desc.val_type;
                                   exp_mode = Value_mode.global;
@@ -4549,12 +4551,23 @@ and type_ident env expected_mode ?(recarg=Rejected) lid =
       raise (Error (lid.loc, env, Inlined_record_escape))
   | false, Required, _  -> () (* will fail later *)
   end;
-  path, desc
+  let val_type, kind =
+    match desc.val_kind with
+    | Val_prim prim ->
+       let ty, mode = instance_prim_mode prim (instance desc.val_type) in
+       begin match prim.prim_native_repr_res with
+       | Prim_poly, _ -> register_allocation_mode mode
+       | _ -> ()
+       end;
+       ty, Id_prim mode
+    | _ ->
+       instance desc.val_type, Id_value in
+  path, { desc with val_type }, kind
 
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, desc = type_ident env mode_global lid in
+  let path, desc, kind = type_ident env mode_global lid in
   let path =
     match desc.val_kind with
     | Val_ivar _ ->
@@ -4566,6 +4579,8 @@ and type_binding_op_ident env s =
         path
     | _ -> path
   in
+  (* FIXME is [external (let+)] valid? *)
+  assert (kind = Id_value);
   path, desc
 
 and type_function ?in_function loc attrs env (expected_mode : expected_mode)
@@ -5080,7 +5095,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         {exp_type = ty; exp_mode = mode; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =
-         Texp_ident(Path.Pident id, mknoloc (Longident.Lident name), desc)}
+         Texp_ident(Path.Pident id, mknoloc (Longident.Lident name),
+                    desc, Id_value)}
       in
       let eta_mode = Value_mode.local_to_regional (Value_mode.of_alloc marg) in
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
@@ -5903,7 +5919,7 @@ and type_andops env sarg sands expected_ty =
     | { pbop_op = sop; pbop_exp = sexp; pbop_loc = loc; _ } :: rest ->
         if !Clflags.principal then begin_def ();
         let op_path, op_desc = type_binding_op_ident env sop in
-        let op_type = instance op_desc.val_type in
+        let op_type = op_desc.val_type in
         let ty_arg = newvar () in
         let ty_rest = newvar () in
         let ty_result = newvar() in

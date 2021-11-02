@@ -41,6 +41,8 @@ val transl_extension_constructor: scopes:scopes ->
 
 val transl_scoped_exp : scopes:scopes -> expression -> lambda
 
+val transl_alloc_mode : Types.alloc_mode -> Lambda.alloc_mode
+
 type error =
     Free_super_var
   | Unreachable_reached

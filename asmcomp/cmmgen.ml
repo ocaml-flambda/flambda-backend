@@ -781,19 +781,19 @@ and transl_ccall env prim args dbg =
         (List.map (fun _ -> XInt) args, List.map (transl env) args)
     | _, [] ->
         assert false
-    | native_repr :: native_repr_args, arg :: args ->
+    | (_, native_repr) :: native_repr_args, arg :: args ->
         let (ty1, arg') = transl_arg native_repr arg in
         let (tys, args') = transl_args native_repr_args args in
         (ty1 :: tys, arg' :: args')
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
-    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
-    | Unboxed_float -> (typ_float, box_float dbg)
-    | Unboxed_integer Pint64 when size_int = 4 ->
+    | _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    | _, Unboxed_float -> (typ_float, box_float dbg)
+    | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64)
-    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
-    | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Unboxed_integer bi -> (typ_int, box_int dbg bi)
+    | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result

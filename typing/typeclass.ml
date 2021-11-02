@@ -1050,7 +1050,8 @@ and class_expr_aux cl_num val_env met_env scl =
             let vd = Env.find_value path val_env' in
             (id,
              {exp_desc =
-              Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd);
+              Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd,
+                         Id_value);
               exp_loc = Location.none; exp_extra = [];
               exp_type = Ctype.instance vd.val_type;
               exp_mode = Value_mode.global;
@@ -1211,7 +1212,8 @@ and class_expr_aux cl_num val_env met_env scl =
              Ctype.begin_def ();
              let expr =
                {exp_desc =
-                Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd);
+                Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd,
+                           Id_value);
                 exp_loc = Location.none; exp_extra = [];
                 exp_type = Ctype.instance vd.val_type;
                 exp_mode = Value_mode.global;

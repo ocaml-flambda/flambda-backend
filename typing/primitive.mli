@@ -25,13 +25,18 @@ type native_repr =
   | Unboxed_integer of boxed_integer
   | Untagged_int
 
+type mode =
+  | Prim_local
+  | Prim_global
+  | Prim_poly
+
 type description = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
     prim_alloc: bool;          (* Does it allocates or raise? *)
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: native_repr list;
-    prim_native_repr_res: native_repr }
+    prim_native_repr_args: (mode * native_repr) list;
+    prim_native_repr_res: mode * native_repr }
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
@@ -45,14 +50,14 @@ val make
   :  name:string
   -> alloc:bool
   -> native_name:string
-  -> native_repr_args: native_repr list
-  -> native_repr_res: native_repr
+  -> native_repr_args: (mode*native_repr) list
+  -> native_repr_res: mode*native_repr
   -> description
 
 val parse_declaration
   :  Parsetree.value_description
-  -> native_repr_args:native_repr list
-  -> native_repr_res:native_repr
+  -> native_repr_args:(mode*native_repr) list
+  -> native_repr_res:(mode*native_repr)
   -> description
 
 val print

@@ -197,7 +197,7 @@ let makelongarray n =
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |];
   ()
 
-external local_ref : 'a -> local_ 'a ref = "%makelocalmutable"
+external local_ref : 'a -> local_ 'a ref = "%makemutable"
 let makeref n =
   ignore_local (local_ref n);
   ()

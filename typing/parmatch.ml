@@ -2462,7 +2462,7 @@ let all_rhs_idents exp =
   let open Tast_iterator in
   let expr_iter iter exp =
     (match exp.exp_desc with
-      | Texp_ident (path, _lid, _descr) ->
+      | Texp_ident (path, _lid, _descr, _kind) ->
         List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
       (* Use default iterator methods for rest of match.*)
       | _ -> Tast_iterator.default_iterator.expr iter exp);
@@ -2471,7 +2471,7 @@ let all_rhs_idents exp =
     | Texp_letmodule
         (id_mod,_,_,
          {mod_desc=
-          Tmod_unpack ({exp_desc=Texp_ident (Path.Pident id_exp,_,_)},_)},
+          Tmod_unpack ({exp_desc=Texp_ident (Path.Pident id_exp,_,_,_)},_)},
          _) ->
            assert (Ident.Set.mem id_exp !ids) ;
            begin match id_mod with

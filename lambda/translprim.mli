@@ -30,15 +30,19 @@ val clear_used_primitives : unit -> unit
 val get_used_primitives: unit -> Path.t list
 
 val check_primitive_arity :
-  Location.t -> Primitive.description -> unit
+  Location.t -> Primitive.description -> Lambda.alloc_mode -> unit
 
 val transl_primitive :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
-  Types.type_expr -> Path.t option -> Lambda.lambda
+  Types.type_expr ->
+  poly_mode:Lambda.alloc_mode ->
+  Path.t option ->
+  Lambda.lambda
 
 val transl_primitive_application :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
-  Types.type_expr -> Path.t -> Typedtree.expression option ->
+  Types.type_expr -> Lambda.alloc_mode -> Path.t ->
+  Typedtree.expression option ->
   Lambda.lambda list -> Typedtree.expression list -> Lambda.lambda
 
 (* Errors *)

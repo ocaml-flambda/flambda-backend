@@ -1373,7 +1373,7 @@ let default_prim name =
 
 
 let int64_native_prim name arity ~alloc =
-  let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
+  let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc

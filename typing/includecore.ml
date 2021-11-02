@@ -33,18 +33,27 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
-  if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
-    match (vd1.val_kind, vd2.val_kind) with
-        (Val_prim p1, Val_prim p2) ->
-          if p1 = p2 then Tcoerce_none else raise Dont_match
-      | (Val_prim p, _) ->
-          let pc = {pc_desc = p; pc_type = vd2.Types.val_type;
-                  pc_env = env; pc_loc = vd1.Types.val_loc; } in
-          Tcoerce_primitive pc
-      | (_, Val_prim _) -> raise Dont_match
-      | (_, _) -> Tcoerce_none
-  end else
-    raise Dont_match
+  match vd1.val_kind with
+  | Val_prim p1 ->
+     let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
+     if Ctype.moregeneral env true ty1 vd2.val_type then begin
+       match vd2.val_kind with
+           Val_prim p2 ->
+             if p1 = p2 then Tcoerce_none else raise Dont_match
+         | _ ->
+             let pc =
+               {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+                pc_env = env; pc_loc = vd1.Types.val_loc; } in
+             Tcoerce_primitive pc
+     end else
+       raise Dont_match
+  | _ ->
+     if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
+       match vd2.val_kind with
+         | Val_prim _ -> raise Dont_match
+         | _ -> Tcoerce_none
+     end else
+       raise Dont_match
 
 (* Inclusion between "private" annotations *)
 
