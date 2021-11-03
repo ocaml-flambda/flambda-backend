@@ -122,10 +122,10 @@ let import_typing_env_and_code0 t =
       t.table_data.continuations
   in
   let used_closure_vars = t.used_closure_vars in
+  let original_compilation_unit = t.original_compilation_unit in
   let renaming =
     Renaming.create_import_map ~symbols ~variables ~simples ~consts ~code_ids
-      ~continuations ~used_closure_vars
-      ~compilation_unit:t.original_compilation_unit
+      ~continuations ~used_closure_vars ~original_compilation_unit
   in
   let typing_env =
     Flambda2_types.Typing_env.Serializable.apply_renaming t.final_typing_env

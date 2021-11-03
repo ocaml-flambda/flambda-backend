@@ -38,7 +38,7 @@ module Import_map : sig
     code_ids:Code_id.t Code_id.Map.t ->
     continuations:Continuation.t Continuation.Map.t ->
     used_closure_vars:Var_within_closure.Set.t ->
-    compilation_unit:Compilation_unit.t ->
+    original_compilation_unit:Compilation_unit.t ->
     t
 
   val is_empty : t -> bool
@@ -75,7 +75,7 @@ end = struct
          [Flambda_cmx.compute_reachable_names_and_code] we have to assume that
          code IDs can be missing (and so we cannot detect code IDs that are
          really missing at this point). *)
-      compilation_unit : Compilation_unit.t
+      original_compilation_unit : Compilation_unit.t
           (* This complements [used_closure_vars]. Removal of closure variables
              is only allowed for variables that are not used in the compilation
              unit they are defined in. *)
@@ -89,7 +89,7 @@ end = struct
         code_ids;
         continuations;
         used_closure_vars;
-        compilation_unit = _
+        original_compilation_unit = _
       } =
     Symbol.Map.is_empty symbols
     && Variable.Map.is_empty variables
@@ -100,7 +100,7 @@ end = struct
     && Var_within_closure.Set.is_empty used_closure_vars
 
   let create ~symbols ~variables ~simples ~consts ~code_ids ~continuations
-      ~used_closure_vars ~compilation_unit =
+      ~used_closure_vars ~original_compilation_unit =
     { symbols;
       variables;
       simples;
@@ -108,7 +108,7 @@ end = struct
       code_ids;
       continuations;
       used_closure_vars;
-      compilation_unit
+      original_compilation_unit
     }
 
   let symbol t orig =
@@ -144,7 +144,7 @@ end = struct
     | exception Not_found -> simple
 
   let closure_var_is_used t var =
-    if Var_within_closure.in_compilation_unit var t.compilation_unit
+    if Var_within_closure.in_compilation_unit var t.original_compilation_unit
     then Var_within_closure.Set.mem var t.used_closure_vars
     else (* This closure variable may be used in other units *)
       true
@@ -167,10 +167,10 @@ let empty =
   }
 
 let create_import_map ~symbols ~variables ~simples ~consts ~code_ids
-    ~continuations ~used_closure_vars ~compilation_unit =
+    ~continuations ~used_closure_vars ~original_compilation_unit =
   let import_map =
     Import_map.create ~symbols ~variables ~simples ~consts ~code_ids
-      ~continuations ~used_closure_vars ~compilation_unit
+      ~continuations ~used_closure_vars ~original_compilation_unit
   in
   if Import_map.is_empty import_map
   then empty
