@@ -963,11 +963,19 @@ struct
   let mapi f t =
     fold (fun key datum result -> add key (f key datum) result) t empty
 
-  (* CR lmaurer: Implement this one properly even if [map] isn't efficient yet,
-     since not sharing makes _other things_ (including row-like types) less
-     efficient. *)
-
-  let map_sharing = map
+  let map_sharing f t =
+    let changed = ref false in
+    let f a =
+      let a' = f a in
+      if a == a'
+      then a
+      else begin
+        changed := true;
+        a'
+      end
+    in
+    let t' = map f t in
+    if !changed then t' else t
 
   let to_seq t =
     let rec aux acc () =
