@@ -187,7 +187,7 @@ module Context = struct
             `Float (Inlining_arguments.poly_compare_cost args) ] ]
         |> Table.create
       in
-      Format.fprintf ppf "@[<h>Inlining@ arguments:@;@]@.@[<h>%a]@.@."
+      Format.fprintf ppf "@[<h>Inlining@ arguments:@;@]@.@[<h>%a@]@.@."
         Table.print table
     in
     let print_cost_metrics ppf = function
