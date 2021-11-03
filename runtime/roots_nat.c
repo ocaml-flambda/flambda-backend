@@ -399,7 +399,10 @@ static int visit(scanning_action maj, scanning_action min,
     return 0;
 
   hd = Hd_val(vblock);
-  if (Tag_hd(hd) == Infix_tag) {
+  /* Compaction can create things that look like Infix_tag,
+     but have color Caml_gray (cf. eptr in compact.c).
+     So, check Color_hd(hd) too. */
+  if (Color_hd(hd) == 0 && Tag_hd(hd) == Infix_tag) {
     vblock -= Infix_offset_val(v);
     hd = Hd_val(vblock);
   }
