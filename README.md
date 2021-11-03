@@ -62,4 +62,4 @@ and ocamlformat. If you're working on developing the Flambda backend, it's
 recommended that you set up a purpose-built OPAM switch. See
 [HACKING.md][switch] for details.
 
-[switch]: HACKING.md#requirements-and-opam-switch
+[switch]: HACKING.md#requirements-and-opam-coldstart

@@ -14,7 +14,6 @@ want to modify the Flambda backend.  Jump to:
   - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
   - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
   - [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
-  - [Testing the compiler built locally with OPAM](#testing-the-compiler-built-locally-with-opam)
   - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
   - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
   - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
@@ -45,7 +44,7 @@ be suitable for upstream submission.
 We are planning to move to a model where the patched upstream compiler is maintained
 in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
 
-## Requirements and OPAM switch
+## Requirements and OPAM coldstart
 
 The following are needed for hacking on the Flambda backend:
 
@@ -54,30 +53,75 @@ The following are needed for hacking on the Flambda backend:
   - Menhir, exactly version 20210419
   - `ocamlformat`, version 0.19.*
 
-We recommend creating an OPAM switch and bootstrapping the Flambda backend into
-it.  Assuming you have the source in `$SRC` and the special Dune in `$DUNE_DIR`:
+In addition, Merlin must be built on the Flambda backend's compiler libraries,
+and in order for Merlin to work, Dune must be on your PATH (or the PATH set in
+your editor). We recommend that you create a new, empty OPAM switch, coldstart
+the compiler, and install the compiler into the switch.
+
+First, you'll need to install the `opam-custom-install` plugin. See
+[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
+(This can be done in any OPAM switch, e.g. a standard 4.12.0 switch.)
+
+Then you'll need to create an empty switch. To use Merlin in editors, you will
+probably want to create a global switch:
+
 ```shell
-opam pin https://gitlab.ocamlpro.com/louis/opam-custom-install.git
+opam switch create 4.12.0+flambda-dev --empty
+```
+
+(The suffix `flambda-dev` can be of your choosing.) Alternatively, you can use
+a local switch in the Flambda backend directory:
+
+```shell
+opam switch create 4.12.0+flambda-dev --empty
+```
+
+Either way, be sure to update the environment to use the new switch:
+
+```shell
 eval $(opam env)
-opam switch create 4.12.0+flambda-dev --empty # can also use local switch
-eval $(opam env)
-cd $SRC
-git clean -dfX
-autoconf && ./configure --prefix=$OPAM_SWITCH_PREFIX \
-  --with-dune=$DUNE_DIR/dune.exe \
-  --enable-middle-end=closure # or flambda, or flambda2
-make -j16
-opam custom-install ocaml-variants.4.12.0+flambda-dev -- make install
+```
+The Flambda backend must also be configured with this switch as prefix:
+
+```shell
+./configure --prefix=$OPAM_SWITCH_PREFIX ...
+```
+
+Note that if the Flambda backend tree is already configured, it should be cleaned
+thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
+
+Then build the compiler normally (`make`).
+Once that is done, we're ready to install the compiler:
+
+```shell
+opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
+```
+
+The exact version doesn't matter that much, but the version number should
+match the one in the Flambda backend tree.  (The name of the package given
+here is independent of the name of the switch.)
+
+To finish the installation, `opam install ocaml.4.12.0` will install the remaining
+auxiliary packages necessary for a regular switch. After that, normal opam
+packages can be installed the usual way. In particular, you'll want:
+
+```shell
+opam pin add dune $DUNE_DIR # must be on the PATH for Merlin to work
 opam pin add merlin https://github.com/gretay-js/merlin.git#magic_numbers
 opam pin add menhir 20210419
 opam pin add ocamlformat 0.19.0
 opam install lsp # as needed
 ```
 
-<!--
-  CR lmaurer: Should add more prose. In particular, move parts of the section on
-  OPAM testing here and work the new instructions into it.
--->
+It is also possible to update the compiler after hacking:
+```shell
+# This will reinstall the compiler, and recompile all packages
+# that depend on the compiler
+opam custom-install ocaml-variants -- make install
+# This skips recompilation of other packages,
+# particularly useful for debugging
+opam custom-install --no-recompilations ocaml-variants -- make install
+```
 
 ## Code formatting
 
@@ -87,7 +131,7 @@ file. This requires the correct version of `ocamlformat` (see the
 [recommended OPAM switch][]). All of the code can be formatted using `make fmt`
 and the check can be run using `make check-fmt`.
 
-[recommended OPAM switch]: #requirements-and-opam-switch
+[recommended OPAM switch]: #requirements-and-opam-coldstart
 
 Changes to `.ocamlformat` should be made as pull requests that include
 reformatting files as needed.
@@ -217,61 +261,6 @@ go into `ocaml/`, then run the upstream configure script.  After that perform th
 `make world` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
 be advisable to clean the whole tree again.
 
-## Testing the compiler built locally with OPAM
-
-It is possible to create a OPAM switch with the Flambda backend compiler.
-
-First, you'll need to install the `opam-custom-install` plugin. See
-[here](https://gitlab.ocamlpro.com/louis/opam-custom-install) for instructions.
-(This can be done in any OPAM switch, e.g. a standard 4.12.0 switch.)
-
-Then you'll need to create an empty switch. The recommended way is to use a
-local switch in the Flambda backend directory:
-
-```shell
-opam switch create . --empty
-```
-
-(A global switch can also be used, in which case the `--prefix` argument
-to `configure` given below needs to point at the switch directory under the OPAM root.
-It is also necessary to `opam switch` to the new switch and then update the current
-environment with `opam env` after the above `opam switch create` command.)
-
-The Flambda backend must also be configured with this switch as prefix
-(this can be done before actually creating the switch, the directory only
-needs to exist during the installation step):
-
-```shell
-./configure --prefix=/path/to/cwd/_opam ...
-```
-
-Note that if the Flambda backend tree is already configured, it should be cleaned
-thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
-
-Then build the compiler normally (`make`).
-Once that is done, we're ready to install the compiler:
-
-```shell
-opam custom-install ocaml-variants.4.12.0+flambda2+trunk -- make install
-```
-
-The exact version doesn't matter that much, but the version number should
-match the one in the Flambda backend tree.  (The name of the package given
-here is independent of the name of the switch.)
-
-To finish the installation, `opam install ocaml.4.12.0` will install the remaining
-auxiliary packages necessary for a regular switch. After that, normal opam
-packages can be installed the usual way.
-
-It is also possible to update the compiler after hacking:
-```shell
-# This will reinstall the compiler, and recompile all packages
-# that depend on the compiler
-opam custom-install ocaml-variants -- make install
-# This skips recompilation of other packages,
-# particularly useful for debugging
-opam custom-install --no-recompilations ocaml-variants -- make install
-```
 
 ## Pulling changes onto a release branch
 
