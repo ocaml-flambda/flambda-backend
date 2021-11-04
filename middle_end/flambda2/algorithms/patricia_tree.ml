@@ -956,18 +956,25 @@ struct
   let get_singleton_exn _ =
     Misc.fatal_error "get_singleton_exn not yet implemented"
 
-  (* CR mshinwell: provide efficient implementations: *)
+  let rec map f t =
+    match t with
+    | Empty -> empty
+    | Leaf (k, datum) -> leaf k (f datum)
+    | Branch (prefix, bit, t0, t1) -> branch prefix bit (map f t0) (map f t1)
 
-  let map f t = fold (fun key datum result -> add key (f datum) result) t empty
+  let rec map_sharing f t =
+    match t with
+    | Empty -> t
+    | Leaf (k, v) ->
+      let v' = f v in
+      if v == v' then t else leaf k v'
+    | Branch (prefix, bit, t0, t1) ->
+      let t0' = map_sharing f t0 in
+      let t1' = map_sharing f t1 in
+      if t0' == t0 && t1' == t1 then t else branch prefix bit t0' t1'
 
   let mapi f t =
     fold (fun key datum result -> add key (f key datum) result) t empty
-
-  (* CR lmaurer: Implement this one properly even if [map] isn't efficient yet,
-     since not sharing makes _other things_ (including row-like types) less
-     efficient. *)
-
-  let map_sharing = map
 
   let to_seq t =
     let rec aux acc () =
