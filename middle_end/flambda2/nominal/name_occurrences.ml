@@ -523,7 +523,7 @@ end = struct
       end
       | Potentially_many map ->
         let map =
-          N.Map.map
+          N.Map.map_sharing
             (fun for_one_name ->
               For_one_name.downgrade_occurrences_at_strictly_greater_kind
                 for_one_name Kind.phantom)
@@ -543,7 +543,7 @@ end = struct
       end
       | Potentially_many map ->
         let map =
-          N.Map.map
+          N.Map.map_sharing
             (fun for_one_name ->
               For_one_name.downgrade_occurrences_at_strictly_greater_kind
                 for_one_name Kind.in_types)

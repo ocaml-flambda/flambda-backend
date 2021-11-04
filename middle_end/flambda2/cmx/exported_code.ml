@@ -40,7 +40,7 @@ let add_code code_map t =
   |> Code_id.Map.disjoint_union t
 
 let mark_as_imported t =
-  Code_id.Map.map Code_or_metadata.remember_only_metadata t
+  Code_id.Map.map_sharing Code_or_metadata.remember_only_metadata t
 
 let merge t1 t2 = Code_id.Map.union Code_or_metadata.merge t1 t2
 

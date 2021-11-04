@@ -127,7 +127,7 @@ end = struct
          are not in scope for the closure definition(s). *)
       List.map
         (fun closure_bound_names ->
-          Closure_id.Map.map Bound_name.rename closure_bound_names)
+          Closure_id.Map.map_sharing Bound_name.rename closure_bound_names)
         closure_bound_names_all_sets
     in
     let closure_types_via_aliases_all_sets =
