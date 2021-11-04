@@ -576,6 +576,8 @@ struct
       else t
 
   (* CR mshinwell: Provide a [union] where [f] doesn't return an [option]. *)
+  (* CR pchambart: union x x is expensive, while it could be O(1). This would
+     require that we demand f x x = x *)
   let rec union f t0 t1 =
     match t0, t1 with
     | Empty, _ -> t1
