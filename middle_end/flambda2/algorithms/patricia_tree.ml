@@ -975,8 +975,11 @@ struct
       let t1' = map_sharing f t1 in
       if t0' == t0 && t1' == t1 then t else branch prefix bit t0' t1'
 
-  let mapi f t =
-    fold (fun key datum result -> add key (f key datum) result) t empty
+  let rec mapi f t =
+    match t with
+    | Empty -> empty
+    | Leaf (key, datum) -> leaf key (f key datum)
+    | Branch (prefix, bit, t0, t1) -> branch prefix bit (mapi f t0) (mapi f t1)
 
   let to_seq t =
     let rec aux acc () =
