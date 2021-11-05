@@ -32,6 +32,7 @@ type t =
         large_function_size : Code_size.t
       }
   | Functor of { size : Code_size.t }
+  | Recursive
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
@@ -72,6 +73,8 @@ let [@ocamlformat "disable"] print ppf t =
         @[<hov 1>(size@ %a)@]\
         )@]"
       Code_size.print size
+  | Recursive ->
+    Format.fprintf ppf "Recursive"
 
 let report_decision ppf t =
   match t with
@@ -105,6 +108,7 @@ let report_decision ppf t =
     Format.fprintf ppf
       "this@ function@ is@ a@ functor@ (so@ the@ large@ function@ threshold@ \
        was@ not@ applied)."
+  | Recursive -> Format.fprintf ppf "this@ function@ is@ recursive."
 
 type inlining_behaviour =
   | Cannot_be_inlined
@@ -113,7 +117,8 @@ type inlining_behaviour =
 
 let behaviour t =
   match t with
-  | Not_yet_decided | Never_inline_attribute | Function_body_too_large _ ->
+  | Not_yet_decided | Never_inline_attribute | Function_body_too_large _
+  | Recursive ->
     Cannot_be_inlined
   | Stub | Attribute_inline | Small_function _ -> Must_be_inlined
   | Functor _ | Speculatively_inlinable _ -> Could_possibly_be_inlined
@@ -166,8 +171,9 @@ let equal t1 t2 =
     && Code_size.equal large_function_size1 large_function_size2
   | Functor { size = size1 }, Functor { size = size2 } ->
     Code_size.equal size1 size2
+  | Recursive, Recursive -> true
   | ( ( Not_yet_decided | Never_inline_attribute | Function_body_too_large _
       | Stub | Attribute_inline | Small_function _ | Speculatively_inlinable _
-      | Functor _ ),
+      | Functor _ | Recursive ),
       _ ) ->
     false

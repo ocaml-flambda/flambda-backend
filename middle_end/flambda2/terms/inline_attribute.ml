@@ -49,3 +49,7 @@ let is_default t =
   match t with
   | Default_inline -> true
   | Always_inline | Available_inline | Never_inline | Unroll _ -> false
+
+let number_of_unrolls = function
+  | Unroll n -> n
+  | Always_inline | Available_inline | Never_inline | Default_inline -> 0

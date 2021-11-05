@@ -30,3 +30,5 @@ val print : Format.formatter -> t -> unit
 val equal : t -> t -> bool
 
 val is_default : t -> bool
+
+val number_of_unrolls : t -> int
