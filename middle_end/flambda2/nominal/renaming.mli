@@ -38,6 +38,7 @@ val create_import_map :
   code_ids:Code_id.t Code_id.Map.t ->
   continuations:Continuation.t Continuation.Map.t ->
   used_closure_vars:Var_within_closure.Set.t ->
+  original_compilation_unit:Compilation_unit.t ->
   t
 
 (** Note that [compose] is not commutative on the permutation component. The
