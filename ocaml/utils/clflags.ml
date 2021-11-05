@@ -526,7 +526,7 @@ module Flambda2 = struct
       let cost_divisor = 8.
 
       let max_depth = 1
-      let max_rec_depth = 1
+      let max_rec_depth = 0
 
       let call_cost = 5. /. cost_divisor
       let alloc_cost = 7. /. cost_divisor
