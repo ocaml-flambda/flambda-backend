@@ -25,7 +25,7 @@ let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
-    ~hook_type_tree:(fun _ -> ())
+    ~hook_typed_tree:(fun _ -> ())
     info
 
 (** Bytecode compilation backend for .ml files. *)
@@ -67,7 +67,7 @@ let implementation ~start_from ~source_file ~output_prefix =
   | Parsing ->
     Compile_common.implementation
       ~hook_parse_tree:(fun _ -> ())
-      ~hook_type_tree:(fun _ -> ())
+      ~hook_typed_tree:(fun _ -> ())
       info ~backend
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

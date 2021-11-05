@@ -81,13 +81,13 @@ let emit_signature info ast tsg =
   Typemod.save_signature info.module_name tsg
     info.output_prefix info.source_file info.env sg
 
-let interface ~hook_parse_tree ~hook_type_tree info =
+let interface ~hook_parse_tree ~hook_typed_tree info =
   Profile.record_call info.source_file @@ fun () ->
   let ast = parse_intf info in
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
     let tsg = typecheck_intf info ast in
-    hook_type_tree tsg;
+    hook_typed_tree tsg;
     if not !Clflags.print_types then begin
       emit_signature info ast tsg
     end
@@ -109,7 +109,7 @@ let typecheck_impl i parsetree =
   |> print_if i.ppf_dump Clflags.dump_typedtree
     Printtyped.implementation_with_coercion
 
-let implementation ~hook_parse_tree ~hook_type_tree info ~backend =
+let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
   Profile.record_call info.source_file @@ fun () ->
   let exceptionally () =
     let sufs = if info.native then [ cmx; obj ] else [ cmo ] in
@@ -120,7 +120,7 @@ let implementation ~hook_parse_tree ~hook_type_tree info ~backend =
     hook_parse_tree parsed;
     if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
       let typed = typecheck_impl info parsed in
-      hook_type_tree typed;
+      hook_typed_tree typed;
       if Clflags.(should_stop_after Compiler_pass.Typing) then () else begin
         backend info typed
       end;
