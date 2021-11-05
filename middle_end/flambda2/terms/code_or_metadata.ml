@@ -86,3 +86,6 @@ let code_metadata t =
 
 let iter_code t ~f =
   match t with Code_present code -> f code | Metadata_only _ -> ()
+
+let code_present t =
+  match t with Code_present _ -> true | Metadata_only _ -> false

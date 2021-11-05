@@ -35,6 +35,7 @@ module UE = Upwards_env
    non-fallback-inlining cases. *)
 
 type t =
+  | Missing_code
   | Definition_says_not_to_inline
   | Environment_says_never_inline
   | Argument_types_not_useful
@@ -58,6 +59,7 @@ type t =
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
+  | Missing_code -> Format.fprintf ppf "Missing_code"
   | Definition_says_not_to_inline ->
     Format.fprintf ppf "Definition_says_not_to_inline"
   | Environment_says_never_inline ->
@@ -112,7 +114,7 @@ type can_inline =
 
 let can_inline (t : t) : can_inline =
   match t with
-  | Environment_says_never_inline | Max_inlining_depth_exceeded
+  | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
   | Recursion_depth_exceeded | Speculatively_not_inline _
   | Definition_says_not_to_inline | Argument_types_not_useful ->
     (* If there's an [@inlined] attribute on this, something's gone wrong *)
@@ -133,6 +135,9 @@ let can_inline (t : t) : can_inline =
 
 let report_reason fmt t =
   match (t : t) with
+  | Missing_code ->
+    Format.fprintf fmt
+      "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
   | Definition_says_not_to_inline ->
     Format.fprintf fmt
       "this@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
@@ -272,12 +277,14 @@ let argument_types_useful dacc apply =
 let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
+  let code_or_metadata = DE.find_code_exn denv (FT.code_id function_type) in
   let decision =
-    DE.find_code_exn denv (FT.code_id function_type)
-    |> Code_or_metadata.code_metadata |> Code_metadata.inlining_decision
+    Code_or_metadata.code_metadata code_or_metadata
+    |> Code_metadata.inlining_decision
   in
-  let useful = argument_types_useful dacc apply in
-  if not useful
+  if not (Code_or_metadata.code_present code_or_metadata)
+  then Missing_code
+  else if not (argument_types_useful dacc apply)
   then Argument_types_not_useful
   else if Function_decl_inlining_decision_type.must_be_inlined decision
   then Definition_says_inline
