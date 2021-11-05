@@ -415,7 +415,7 @@ and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
     Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body handlers ->
         let body = subst_expr env body in
         let handlers =
-          Continuation.Map.map (subst_cont_handler env)
+          Continuation.Map.map_sharing (subst_cont_handler env)
             (handlers |> Continuation_handlers.to_map)
         in
         Let_cont_expr.create_recursive handlers ~body)
@@ -449,7 +449,8 @@ and subst_apply_cont env apply_cont =
 and subst_switch env switch =
   let scrutinee = subst_simple env (Switch_expr.scrutinee switch) in
   let arms =
-    Targetint_31_63.Map.map (subst_apply_cont env) (Switch_expr.arms switch)
+    Targetint_31_63.Map.map_sharing (subst_apply_cont env)
+      (Switch_expr.arms switch)
   in
   Expr.create_switch (Switch_expr.create ~scrutinee ~arms)
 
@@ -1228,7 +1229,7 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
       ~f:(fun ~body1 ~body2 cont_handlers1 cont_handlers2 ->
         pairs ~f1:exprs ~f2:compare_handler_maps
           ~subst2:(fun env map ->
-            Continuation.Map.map (subst_cont_handler env) map)
+            Continuation.Map.map_sharing (subst_cont_handler env) map)
           env
           (body1, cont_handlers1 |> Continuation_handlers.to_map)
           (body2, cont_handlers2 |> Continuation_handlers.to_map)

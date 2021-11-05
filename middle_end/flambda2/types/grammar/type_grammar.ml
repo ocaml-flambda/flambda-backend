@@ -1061,7 +1061,7 @@ and apply_coercion_closures_entry row_tag
 
        Exhaustingly, this is _entirely orthogonal_ to the issue with closures
        having row-like types. *)
-    Closure_id.Map.map
+    Closure_id.Map.map_sharing
       (fun function_type ->
         match apply_coercion_function_type function_type function_coercion with
         | Ok function_type -> function_type

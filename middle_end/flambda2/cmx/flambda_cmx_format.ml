@@ -171,26 +171,32 @@ let update_for_pack0 ~pack_units ~pack t =
     if Compilation_unit.Set.mem unit pack_units then pack else unit
   in
   let symbols =
-    Symbol.Map.map (Symbol.map_compilation_unit update_cu) t.table_data.symbols
+    Symbol.Map.map_sharing
+      (Symbol.map_compilation_unit update_cu)
+      t.table_data.symbols
   in
   let variables =
-    Variable.Map.map
+    Variable.Map.map_sharing
       (Variable.map_compilation_unit update_cu)
       t.table_data.variables
   in
   let simples =
-    Simple.Map.map (Simple.map_compilation_unit update_cu) t.table_data.simples
+    Simple.Map.map_sharing
+      (Simple.map_compilation_unit update_cu)
+      t.table_data.simples
   in
   let consts =
-    Const.Map.map (Const.map_compilation_unit update_cu) t.table_data.consts
+    Const.Map.map_sharing
+      (Const.map_compilation_unit update_cu)
+      t.table_data.consts
   in
   let code_ids =
-    Code_id.Map.map
+    Code_id.Map.map_sharing
       (Code_id.map_compilation_unit update_cu)
       t.table_data.code_ids
   in
   let continuations =
-    Continuation.Map.map
+    Continuation.Map.map_sharing
       (Continuation.map_compilation_unit update_cu)
       t.table_data.continuations
   in

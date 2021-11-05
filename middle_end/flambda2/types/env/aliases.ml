@@ -22,7 +22,7 @@ let compose_map_values_exn map ~then_:coercion =
   if Coercion.is_id coercion
   then map
   else
-    Name.Map.map
+    Name.Map.map_sharing
       (fun old_coercion -> Coercion.compose_exn old_coercion ~then_:coercion)
       map
 
@@ -216,8 +216,8 @@ end = struct
     t
 
   let compose { aliases; all } ~then_ =
-    let f m = Name.Map.map (Coercion.compose_exn ~then_) m in
-    let aliases = Name_mode.Map.map f aliases in
+    let f m = Name.Map.map_sharing (Coercion.compose_exn ~then_) m in
+    let aliases = Name_mode.Map.map_sharing f aliases in
     let all = f all in
     { aliases; all }
 
@@ -234,7 +234,7 @@ end = struct
 
   let apply_renaming { aliases; all } renaming =
     let aliases =
-      Name_mode.Map.map
+      Name_mode.Map.map_sharing
         (fun map_to_canonical ->
           Map_to_canonical.apply_renaming map_to_canonical renaming)
         aliases
