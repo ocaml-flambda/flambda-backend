@@ -146,7 +146,7 @@ end = struct
   let closure_var_is_used t var =
     if Var_within_closure.in_compilation_unit var t.original_compilation_unit
     then Var_within_closure.Set.mem var t.used_closure_vars
-    else (* This closure variable may be used in other units *)
+    else (* This closure variable might be used in other units *)
       true
 end
 
