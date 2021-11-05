@@ -152,4 +152,7 @@ module Expert = struct
   let phantom_lets () = !Clflags.Flambda2.Expert.phantom_lets
 
   let max_unboxing_depth () = !Clflags.Flambda2.Expert.max_unboxing_depth
+
+  let can_inline_recursive_functions () =
+    !Clflags.Flambda2.Expert.can_inline_recursive_functions
 end

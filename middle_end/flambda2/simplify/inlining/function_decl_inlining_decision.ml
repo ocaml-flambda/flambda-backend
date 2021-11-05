@@ -29,8 +29,10 @@ let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
     then Stub
     else
       match is_recursive with
-      | Recursive -> Never_inline_attribute
-      | Non_recursive ->
+      | Recursive
+        when not (Flambda_features.Expert.can_inline_recursive_functions ()) ->
+        Never_inline_attribute
+      | Recursive | Non_recursive ->
         let large_function_size =
           Inlining_arguments.large_function_size args |> Code_size.of_int
         in

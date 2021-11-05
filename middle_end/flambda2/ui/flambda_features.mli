@@ -110,4 +110,6 @@ module Expert : sig
   val phantom_lets : unit -> bool
 
   val max_unboxing_depth : unit -> int
+
+  val can_inline_recursive_functions : unit -> bool
 end
