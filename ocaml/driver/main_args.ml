@@ -1058,6 +1058,20 @@ let mk_flambda2_expert_max_unboxing_depth f =
     Flambda2.Expert.Default.max_unboxing_depth
 ;;
 
+let mk_flambda2_expert_can_inline_recursive_functions f =
+  "-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
+  Printf.sprintf " Allow inlining recursive functions\n\
+                  (default %s) (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
+;;
+
+let mk_no_flambda2_expert_can_inline_recursive_functions f =
+  "-no-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
+  Printf.sprintf " Allow inlining recursive functions\n\
+                  (default %s) (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
+;;
+
 let mk_flambda2_debug_permute_every_name f =
   "-flambda2-debug-permute-every-name", Arg.Unit f,
   Printf.sprintf " Permute every name to test name\n\
@@ -1455,6 +1469,8 @@ module type Optcommon_options = sig
   val _no_flambda2_expert_phantom_lets : unit -> unit
   val _flambda2_expert_max_block_size_for_projections : int -> unit
   val _flambda2_expert_max_unboxing_depth : int -> unit
+  val _flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val _no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val _flambda2_debug_permute_every_name : unit -> unit
   val _no_flambda2_debug_permute_every_name : unit -> unit
   val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
@@ -1849,6 +1865,10 @@ struct
       F._flambda2_expert_max_block_size_for_projections;
     mk_flambda2_expert_max_unboxing_depth
       F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_expert_can_inline_recursive_functions
+      F._flambda2_expert_can_inline_recursive_functions;
+    mk_no_flambda2_expert_can_inline_recursive_functions
+      F._no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_debug_permute_every_name
       F._flambda2_debug_permute_every_name;
     mk_no_flambda2_debug_permute_every_name
@@ -2038,6 +2058,10 @@ module Make_opttop_options (F : Opttop_options) = struct
       F._flambda2_expert_max_block_size_for_projections;
     mk_flambda2_expert_max_unboxing_depth
       F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_expert_can_inline_recursive_functions
+      F._flambda2_expert_can_inline_recursive_functions;
+    mk_no_flambda2_expert_can_inline_recursive_functions
+      F._no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_debug_permute_every_name
       F._flambda2_debug_permute_every_name;
     mk_no_flambda2_debug_permute_every_name
@@ -2390,6 +2414,10 @@ module Default = struct
       Flambda2.Expert.max_block_size_for_projections := Some size
     let _flambda2_expert_max_unboxing_depth depth =
       Flambda2.Expert.max_unboxing_depth := depth
+    let _flambda2_expert_can_inline_recursive_functions () =
+      Flambda2.Expert.can_inline_recursive_functions := true
+    let _no_flambda2_expert_can_inline_recursive_functions () =
+      Flambda2.Expert.can_inline_recursive_functions := false
     let _flambda2_debug_permute_every_name =
       set Flambda2.Debug.permute_every_name
     let _no_flambda2_debug_permute_every_name =

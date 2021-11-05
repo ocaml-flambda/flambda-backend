@@ -22,4 +22,5 @@ val make_decision :
   stub:bool ->
   cost_metrics:Cost_metrics.t ->
   is_a_functor:bool ->
+  is_recursive:Recursive.t ->
   Function_decl_inlining_decision_type.t

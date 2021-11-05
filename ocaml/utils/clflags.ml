@@ -496,6 +496,7 @@ module Flambda2 = struct
       let phantom_lets = true
       let max_block_size_for_projections = None
       let max_unboxing_depth = 3
+      let can_inline_recursive_functions = false
     end
 
     let code_id_and_symbol_scoping_checks =
@@ -506,6 +507,7 @@ module Flambda2 = struct
     let max_block_size_for_projections =
       ref Default.max_block_size_for_projections
     let max_unboxing_depth = ref Default.max_unboxing_depth
+    let can_inline_recursive_functions = ref Default.can_inline_recursive_functions
   end
 
   module Debug = struct
