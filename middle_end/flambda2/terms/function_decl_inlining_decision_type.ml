@@ -107,8 +107,8 @@ let report_decision ppf t =
   | Functor _ ->
     Format.fprintf ppf
       "this@ function@ is@ a@ functor@ (so@ the@ large@ function@ threshold@ \
-       was@ not@ applied)."
-  | Recursive -> Format.fprintf ppf "this@ function@ is@ recursive."
+       was@ not@ applied)"
+  | Recursive -> Format.fprintf ppf "this@ function@ is@ recursive"
 
 type inlining_behaviour =
   | Cannot_be_inlined

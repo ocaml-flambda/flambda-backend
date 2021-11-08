@@ -1060,16 +1060,17 @@ let mk_flambda2_expert_max_unboxing_depth f =
 
 let mk_flambda2_expert_can_inline_recursive_functions f =
   "-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
-  Printf.sprintf " Allow inlining recursive functions\n\
-                  (default %s) (Flambda 2 only)"
+  Printf.sprintf " Consider inlining\n\
+     \      recursive functions (default %s) (Flambda 2 only)"
     (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
 let mk_no_flambda2_expert_can_inline_recursive_functions f =
   "-no-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
-  Printf.sprintf " Allow inlining recursive functions\n\
-                  (default %s) (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
+  Printf.sprintf " Only inline recursive\n\
+      \     functions if forced to so do by an attribute\n\
+      \     (default %s) (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
 let mk_flambda2_debug_permute_every_name f =

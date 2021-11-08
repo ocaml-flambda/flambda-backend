@@ -507,7 +507,8 @@ module Flambda2 = struct
     let max_block_size_for_projections =
       ref Default.max_block_size_for_projections
     let max_unboxing_depth = ref Default.max_unboxing_depth
-    let can_inline_recursive_functions = ref Default.can_inline_recursive_functions
+    let can_inline_recursive_functions =
+      ref Default.can_inline_recursive_functions
   end
 
   module Debug = struct
@@ -619,7 +620,7 @@ module Flambda2 = struct
 
     let o2_arguments = {
       max_depth = Some 2;
-      max_rec_depth = Some 1;
+      max_rec_depth = Some 0;
       call_cost = Some (2.0 *. Default.call_cost);
       alloc_cost = Some (2.0 *. Default.alloc_cost);
       prim_cost = Some (2.0 *. Default.prim_cost);
@@ -633,7 +634,7 @@ module Flambda2 = struct
 
     let o3_arguments = {
       max_depth = Some 3;
-      max_rec_depth = Some 1;
+      max_rec_depth = Some 0;
       call_cost = Some (3.0 *. Default.call_cost);
       alloc_cost = Some (3.0 *. Default.alloc_cost);
       prim_cost = Some (3.0 *. Default.prim_cost);
