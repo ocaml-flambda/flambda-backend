@@ -764,10 +764,6 @@ and transl_apply ~scopes
               defs := (id, lam) :: !defs;
               Lvar id
         in
-        let args, args' =
-          if List.for_all (fun (_,opt) -> opt) args then [], args
-          else args, []
-        in
         let lam =
           if args = [] then lam else lapply lam (List.rev_map fst args)
         in
@@ -778,26 +774,15 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         (* FIXME modes / Curried nlocals are completely wrong here *)
         let body =
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
-            Lfunction{kind = Curried nl; params = ids; return;
-                      body = lam; attr; loc; mode=Alloc_heap; ret_mode} ->
-              Lfunction{kind = Curried nl; (* FIXME *)
-                        params = (id_arg, Pgenval)::ids;
-                        return;
-                        body = lam; attr;
-                        loc;
-                        mode;  (* FIXME mode *)
-                        ret_mode}
-          | lam ->
-              Lfunction{kind = Curried {nlocal=0}; params = [id_arg, Pgenval];
-                        return = Pgenval; body = lam;
-                        attr = default_stub_attribute; loc = loc;
-                        mode = Alloc_heap (* FIXME *);
-                        ret_mode = Alloc_heap (* FIXME wrong mode *)}
+          let body = build_apply handle [Lvar id_arg, optional] l in
+          Lfunction{kind = Curried {nlocal=0}; params = [id_arg, Pgenval];
+                    return = Pgenval; body; mode=Alloc_heap;
+                    ret_mode=Alloc_heap; attr = default_stub_attribute;
+                    loc = loc}
         in
-        List.fold_left
-          (fun body (id, lam) -> Llet(Strict, Pgenval, id, lam, body))
-          body !defs
+        List.fold_right
+          (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
+          !defs body
     | (Some arg, optional) :: l ->
         build_apply lam ((arg, optional) :: args) l
     | [] ->
