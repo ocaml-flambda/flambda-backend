@@ -241,12 +241,15 @@ module type Optcommon_options = sig
   val _no_flambda2_expert_phantom_lets : unit -> unit
   val _flambda2_expert_max_block_size_for_projections : int -> unit
   val _flambda2_expert_max_unboxing_depth : int -> unit
+  val _flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val _no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val _flambda2_debug_permute_every_name : unit -> unit
   val _no_flambda2_debug_permute_every_name : unit -> unit
   val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 
   val _flambda2_inline_max_depth : string -> unit
+  val _flambda2_inline_max_rec_depth : string -> unit
   val _flambda2_inline_call_cost : string -> unit
   val _flambda2_inline_alloc_cost : string -> unit
   val _flambda2_inline_prim_cost : string -> unit

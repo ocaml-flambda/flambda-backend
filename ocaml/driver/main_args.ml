@@ -1058,6 +1058,21 @@ let mk_flambda2_expert_max_unboxing_depth f =
     Flambda2.Expert.Default.max_unboxing_depth
 ;;
 
+let mk_flambda2_expert_can_inline_recursive_functions f =
+  "-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
+  Printf.sprintf " Consider inlining\n\
+     \      recursive functions (default %s) (Flambda 2 only)"
+    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
+;;
+
+let mk_no_flambda2_expert_can_inline_recursive_functions f =
+  "-no-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
+  Printf.sprintf " Only inline recursive\n\
+      \     functions if forced to so do by an attribute\n\
+      \     (default %s) (Flambda 2 only)"
+    (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
+;;
+
 let mk_flambda2_debug_permute_every_name f =
   "-flambda2-debug-permute-every-name", Arg.Unit f,
   Printf.sprintf " Permute every name to test name\n\
@@ -1095,6 +1110,14 @@ let mk_flambda2_inline_max_depth f =
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined functions (default %d) (Flambda 2 only)"
     Clflags.Flambda2.Inlining.Default.max_depth
+;;
+
+let mk_flambda2_inline_max_rec_depth f =
+  "-flambda2-inline-max-rec-depth", Arg.String f,
+  Printf.sprintf "<int>|<round>=<int>[,...]\n\
+      \     Maximum depth of search for inlining opportunities inside\n\
+      \     inlined recursive functions (default %d) (Flambda 2 only)"
+    Clflags.Flambda2.Inlining.Default.max_rec_depth
 ;;
 
 let mk_flambda2_inline_cost arg descr ~default f =
@@ -1455,12 +1478,15 @@ module type Optcommon_options = sig
   val _no_flambda2_expert_phantom_lets : unit -> unit
   val _flambda2_expert_max_block_size_for_projections : int -> unit
   val _flambda2_expert_max_unboxing_depth : int -> unit
+  val _flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val _no_flambda2_expert_can_inline_recursive_functions : unit -> unit
   val _flambda2_debug_permute_every_name : unit -> unit
   val _no_flambda2_debug_permute_every_name : unit -> unit
   val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 
   val _flambda2_inline_max_depth : string -> unit
+  val _flambda2_inline_max_rec_depth : string -> unit
   val _flambda2_inline_call_cost : string -> unit
   val _flambda2_inline_alloc_cost : string -> unit
   val _flambda2_inline_prim_cost : string -> unit
@@ -1849,6 +1875,10 @@ struct
       F._flambda2_expert_max_block_size_for_projections;
     mk_flambda2_expert_max_unboxing_depth
       F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_expert_can_inline_recursive_functions
+      F._flambda2_expert_can_inline_recursive_functions;
+    mk_no_flambda2_expert_can_inline_recursive_functions
+      F._no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_debug_permute_every_name
       F._flambda2_debug_permute_every_name;
     mk_no_flambda2_debug_permute_every_name
@@ -1859,6 +1889,7 @@ struct
       F._no_flambda2_debug_concrete_types_only_on_canonicals;
 
     mk_flambda2_inline_max_depth F._flambda2_inline_max_depth;
+    mk_flambda2_inline_max_rec_depth F._flambda2_inline_max_rec_depth;
     mk_flambda2_inline_alloc_cost F._flambda2_inline_alloc_cost;
     mk_flambda2_inline_branch_cost F._flambda2_inline_branch_cost;
     mk_flambda2_inline_call_cost F._flambda2_inline_call_cost;
@@ -2038,6 +2069,10 @@ module Make_opttop_options (F : Opttop_options) = struct
       F._flambda2_expert_max_block_size_for_projections;
     mk_flambda2_expert_max_unboxing_depth
       F._flambda2_expert_max_unboxing_depth;
+    mk_flambda2_expert_can_inline_recursive_functions
+      F._flambda2_expert_can_inline_recursive_functions;
+    mk_no_flambda2_expert_can_inline_recursive_functions
+      F._no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_debug_permute_every_name
       F._flambda2_debug_permute_every_name;
     mk_no_flambda2_debug_permute_every_name
@@ -2048,6 +2083,7 @@ module Make_opttop_options (F : Opttop_options) = struct
       F._no_flambda2_debug_concrete_types_only_on_canonicals;
 
     mk_flambda2_inline_max_depth F._flambda2_inline_max_depth;
+    mk_flambda2_inline_max_rec_depth F._flambda2_inline_max_rec_depth;
     mk_flambda2_inline_alloc_cost F._flambda2_inline_alloc_cost;
     mk_flambda2_inline_branch_cost F._flambda2_inline_branch_cost;
     mk_flambda2_inline_call_cost F._flambda2_inline_call_cost;
@@ -2390,6 +2426,10 @@ module Default = struct
       Flambda2.Expert.max_block_size_for_projections := Some size
     let _flambda2_expert_max_unboxing_depth depth =
       Flambda2.Expert.max_unboxing_depth := depth
+    let _flambda2_expert_can_inline_recursive_functions () =
+      Flambda2.Expert.can_inline_recursive_functions := true
+    let _no_flambda2_expert_can_inline_recursive_functions () =
+      Flambda2.Expert.can_inline_recursive_functions := false
     let _flambda2_debug_permute_every_name =
       set Flambda2.Debug.permute_every_name
     let _no_flambda2_debug_permute_every_name =
@@ -2404,6 +2444,10 @@ module Default = struct
         "Syntax: -flambda2-inline-max-depth <int> | <round>=<int>[,...]"
         Flambda2.Inlining.max_depth
 
+    let _flambda2_inline_max_rec_depth spec =
+      Int_arg_helper.parse spec
+        "Syntax: -flambda2-inline-max-rec-depth <int> | <round>=<int>[,...]"
+        Flambda2.Inlining.max_rec_depth
     let _flambda2_inline_alloc_cost spec =
       Float_arg_helper.parse spec
         "Syntax: -flambda2-inline-alloc-cost <float> | <round>=<float>[,...]"

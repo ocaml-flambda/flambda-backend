@@ -71,6 +71,8 @@ module Inlining : sig
 
   val max_depth : round_or_default -> int
 
+  val max_rec_depth : round:int -> int
+
   val call_cost : round_or_default -> float
 
   val alloc_cost : round_or_default -> float
@@ -110,4 +112,6 @@ module Expert : sig
   val phantom_lets : unit -> bool
 
   val max_unboxing_depth : unit -> int
+
+  val can_inline_recursive_functions : unit -> bool
 end
