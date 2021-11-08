@@ -21,6 +21,9 @@ open Compile_common
    of how the compiler would behave.
    Several hooks can be registered for the same pass. There's no guarantees
    on the order of execution of hooks.
+   When one IR is the output of several passes, the hooks are usually called
+   on the latest version of the IR (the exception being passes marked as "raw",
+   where corresponding hooks are called on the earliest version of the IR).
 *)
 
 type _ pass =
