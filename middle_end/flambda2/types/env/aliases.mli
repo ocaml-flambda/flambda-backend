@@ -48,7 +48,10 @@ include Contains_ids.S with type t := t
 
 val print : Format.formatter -> t -> unit
 
-val invariant : t -> unit
+(** Functions taking [binding_time_resolver] can raise exceptions from that
+    resolver. *)
+
+val invariant : binding_time_resolver:(Name.t -> Binding_time.t) -> t -> unit
 
 val empty : t
 
@@ -81,6 +84,7 @@ type add_result = private
     that either [s1] or [s2] happened to be canonical), it is no longer
     canonical. *)
 val add :
+  binding_time_resolver:(Name.t -> Binding_time.t) ->
   t ->
   element1:Simple.t ->
   binding_time_and_mode1:Binding_time.With_name_mode.t ->
@@ -93,6 +97,7 @@ val mem : t -> Simple.t -> bool
 (** [get_canonical_element] returns [None] only when the
     [min_order_within_equiv_class] cannot be satisfied. *)
 val get_canonical_element_exn :
+  binding_time_resolver:(Name.t -> Binding_time.t) ->
   t ->
   Simple.t ->
   Name_mode.t ->

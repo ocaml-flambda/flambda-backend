@@ -76,6 +76,7 @@ end
 
 type t =
   { resolver : Compilation_unit.t -> t option;
+    binding_time_resolver : Name.t -> Binding_time.t;
     get_imported_names : unit -> Name.Set.t;
     defined_symbols : Symbol.Set.t;
     code_age_relation : Code_age_relation.t;
@@ -98,7 +99,7 @@ let aliases t =
 (* CR mshinwell: Should print name occurrence kinds *)
 (* CR mshinwell: Add option to print [aliases] *)
 let [@ocamlformat "disable"] print ppf
-      ({ resolver = _; get_imported_names = _;
+      ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; min_binding_time;
        } as t) =
@@ -210,6 +211,21 @@ module Join_env = struct
   let already_joining { central_env; _ } simple1 simple2 =
     Meet_env.already_meeting central_env simple1 simple2
 end
+
+let names_to_types t =
+  Cached_level.names_to_types (One_level.just_after_level t.current_level)
+
+exception Binding_time_resolver_failure
+
+let binding_time_resolver resolver name =
+  match resolver (Name.compilation_unit name) with
+  | None -> raise Binding_time_resolver_failure
+  | Some t -> (
+    match Name.Map.find name (names_to_types t) with
+    | exception Not_found ->
+      Misc.fatal_errorf "Binding time resolver cannot find name %a in:@ %a"
+        Name.print name print t
+    | _, binding_time, _ -> binding_time)
 
 module Serializable : sig
   type t
@@ -354,6 +370,7 @@ end = struct
     let just_after_level = just_after_level serializable in
     let next_binding_time = next_binding_time serializable in
     { resolver;
+      binding_time_resolver = binding_time_resolver resolver;
       get_imported_names;
       defined_symbols;
       code_age_relation;
@@ -395,13 +412,11 @@ let code_age_relation_resolver t comp_unit =
 
 let current_scope t = One_level.scope t.current_level
 
-let names_to_types t =
-  Cached_level.names_to_types (One_level.just_after_level t.current_level)
-
 let aliases_with_min_binding_time t = aliases t, t.min_binding_time
 
 let create ~resolver ~get_imported_names =
   { resolver;
+    binding_time_resolver = binding_time_resolver resolver;
     get_imported_names;
     prev_levels = Scope.Map.empty;
     current_level = One_level.create_empty Scope.initial;
@@ -817,7 +832,7 @@ let rec add_equation0 (t : t) name ty =
   (* invariant_for_aliases res; *)
   res
 
-and add_equation t name ty ~(meet_type : meet_type) =
+and add_equation1 t name ty ~(meet_type : meet_type) =
   (if Flambda_features.check_invariants ()
   then
     let existing_ty = find t name None in
@@ -874,8 +889,10 @@ and add_equation t name ty ~(meet_type : meet_type) =
       in
       let ({ canonical_element; alias_of_demoted_element; t = aliases }
             : Aliases.add_result) =
-        Aliases.add aliases ~element1:alias
-          ~binding_time_and_mode1:binding_time_and_mode_alias ~element2:alias_of
+        (* This may raise [Binding_time_resolver_failure]. *)
+        Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
+          ~element1:alias ~binding_time_and_mode1:binding_time_and_mode_alias
+          ~element2:alias_of
           ~binding_time_and_mode2:binding_time_and_mode_alias_of
       in
       let t = with_aliases t ~aliases in
@@ -927,6 +944,15 @@ and add_equation t name ty ~(meet_type : meet_type) =
     add_equation0 t name ty
   in
   Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
+
+and[@inline always] add_equation t name ty ~meet_type =
+  match add_equation1 t name ty ~meet_type with
+  | exception Binding_time_resolver_failure ->
+    (* Addition of aliases between names that are both in external compilation
+       units failed, e.g. due to a missing .cmx file. Simply drop the
+       equation. *)
+    t
+  | t -> t
 
 and add_env_extension t (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
@@ -1086,8 +1112,9 @@ let type_simple_in_term_exn t ?min_name_mode simple =
     | Some name_mode -> name_mode
   in
   match
-    Aliases.get_canonical_element_exn aliases_for_simple simple name_mode_simple
-      ~min_name_mode ~min_binding_time
+    Aliases.get_canonical_element_exn
+      ~binding_time_resolver:t.binding_time_resolver aliases_for_simple simple
+      name_mode_simple ~min_name_mode ~min_binding_time
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
@@ -1096,6 +1123,7 @@ let type_simple_in_term_exn t ?min_name_mode simple =
       (Flambda_colours.normal ())
       print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
+  | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
   | alias -> TG.alias_type_of kind alias
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
@@ -1170,8 +1198,9 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
     | Some name_mode -> name_mode
   in
   match
-    Aliases.get_canonical_element_exn aliases_for_simple simple name_mode_simple
-      ~min_name_mode ~min_binding_time
+    Aliases.get_canonical_element_exn
+      ~binding_time_resolver:t.binding_time_resolver aliases_for_simple simple
+      name_mode_simple ~min_name_mode ~min_binding_time
   with
   | exception Misc.Fatal_error ->
     let bt = Printexc.get_raw_backtrace () in
@@ -1180,6 +1209,7 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
       (Flambda_colours.normal ())
       print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
+  | exception Binding_time_resolver_failure -> simple
   | alias -> alias
 
 let get_alias_then_canonical_simple_exn t ?min_name_mode
