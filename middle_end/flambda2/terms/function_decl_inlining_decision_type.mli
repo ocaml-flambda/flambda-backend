@@ -32,6 +32,7 @@ type t =
         large_function_size : Code_size.t
       }
   | Functor of { size : Code_size.t }
+  | Recursive
 
 val print : Format.formatter -> t -> unit
 

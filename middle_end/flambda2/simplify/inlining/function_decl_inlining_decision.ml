@@ -17,7 +17,8 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
-    ~is_a_functor : Function_decl_inlining_decision_type.t =
+    ~is_a_functor ~(recursive : Recursive.t) :
+    Function_decl_inlining_decision_type.t =
   (* At present, we follow Closure, taking inlining decisions without first
      examining call sites. *)
   match (inline : Inline_attribute.t) with
@@ -36,7 +37,17 @@ let make_decision ~inlining_arguments:args ~inline ~stub ~cost_metrics:metrics
       let size = Cost_metrics.size metrics in
       let is_small = Code_size.( <= ) size small_function_size in
       let is_large = Code_size.( <= ) large_function_size size in
-      if is_a_functor
+      let is_recursive =
+        match recursive with Recursive -> true | Non_recursive -> false
+      in
+      let should_unroll = Inline_attribute.number_of_unrolls inline > 0 in
+      let can_inline_recursive_functions =
+        Flambda_features.Expert.can_inline_recursive_functions ()
+      in
+      if is_recursive && (not should_unroll)
+         && not can_inline_recursive_functions
+      then Recursive
+      else if is_a_functor
       then Functor { size }
       else if is_large && not (Inline_attribute.equal inline Available_inline)
       then Function_body_too_large large_function_size

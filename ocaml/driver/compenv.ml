@@ -399,10 +399,20 @@ let read_one_param ppf position name v =
   | "flambda2-expert-max-unboxing-depth" ->
     int_setter ppf "flambda2-expert-max-unboxing-depth"
       Flambda2.Expert.max_unboxing_depth v
+  | "flambda2-expert-can-inline-recursive-functions" ->
+    set "flambda2-expert-can-inline-recursive-functions"
+      [Flambda2.Expert.can_inline_recursive_functions] v
+  | "no-flambda2-expert-can-inline-recursive-functions" ->
+    clear "flambda2-expert-can-inline-recursive-functions"
+      [Flambda2.Expert.can_inline_recursive_functions] v
   | "flambda2-inline-max-depth" ->
     Int_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-depth'"
       Flambda2.Inlining.max_depth
+  | "flambda2-inline-max-rec-depth" ->
+    Int_arg_helper.parse v
+      "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-rec-depth'"
+      Flambda2.Inlining.max_rec_depth
   | "flambda2-inline-call-cost" ->
     Float_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'flambda2-inline-call-cost'"
