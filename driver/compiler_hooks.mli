@@ -26,8 +26,8 @@ open Compile_common
 type _ pass =
   | Parse_tree_intf : Parsetree.signature pass
   | Parse_tree_impl : Parsetree.structure pass
-  | Type_tree_intf : Typedtree.signature pass
-  | Type_tree_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Typed_tree_intf : Typedtree.signature pass
+  | Typed_tree_impl : (Typedtree.structure * Typedtree.module_coercion) pass
   | Raw_lambda : Lambda.program pass
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
