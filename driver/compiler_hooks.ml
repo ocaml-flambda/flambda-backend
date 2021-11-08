@@ -16,8 +16,8 @@ open Compile_common
 type _ pass =
   | Parse_tree_intf : Parsetree.signature pass
   | Parse_tree_impl : Parsetree.structure pass
-  | Typecheck_intf : Typedtree.signature pass
-  | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Typed_tree_intf : Typedtree.signature pass
+  | Typed_tree_impl : (Typedtree.structure * Typedtree.module_coercion) pass
   | Raw_lambda : Lambda.program pass
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
@@ -41,8 +41,8 @@ type _ pass =
 type t = {
   mutable parse_tree_intf : (Parsetree.signature -> unit) list;
   mutable parse_tree_impl : (Parsetree.structure -> unit) list;
-  mutable typecheck_intf : (Typedtree.signature -> unit) list;
-  mutable typecheck_impl : ((Typedtree.structure * Typedtree.module_coercion) -> unit) list;
+  mutable typed_tree_intf : (Typedtree.signature -> unit) list;
+  mutable typed_tree_impl : ((Typedtree.structure * Typedtree.module_coercion) -> unit) list;
   mutable raw_lambda : (Lambda.program -> unit) list;
   mutable lambda : (Lambda.program -> unit) list;
   mutable raw_flambda2 : (Flambda2_terms.Flambda_unit.t -> unit) list;
@@ -65,8 +65,8 @@ type t = {
 let hooks : t = {
   parse_tree_intf = [];
   parse_tree_impl = [];
-  typecheck_intf = [];
-  typecheck_impl = [];
+  typed_tree_intf = [];
+  typed_tree_impl = [];
   raw_lambda = [];
   lambda = [];
   raw_flambda2 = [];
@@ -95,8 +95,8 @@ let register : type a. a pass -> (a -> unit) -> unit =
   match representation with
   | Parse_tree_intf -> hooks.parse_tree_intf <- f :: hooks.parse_tree_intf
   | Parse_tree_impl -> hooks.parse_tree_impl <- f :: hooks.parse_tree_impl
-  | Typecheck_intf -> hooks.typecheck_intf <- f :: hooks.typecheck_intf
-  | Typecheck_impl -> hooks.typecheck_impl <- f :: hooks.typecheck_impl
+  | Typed_tree_intf -> hooks.typed_tree_intf <- f :: hooks.typed_tree_intf
+  | Typed_tree_impl -> hooks.typed_tree_impl <- f :: hooks.typed_tree_impl
   | Raw_lambda -> hooks.raw_lambda <- f :: hooks.raw_lambda
   | Lambda -> hooks.lambda <- f :: hooks.lambda
   | Raw_flambda2 -> hooks.raw_flambda2 <- f :: hooks.raw_flambda2
@@ -122,8 +122,8 @@ let execute : type a. a pass -> a -> unit =
   match representation with
   | Parse_tree_intf -> execute_hooks hooks.parse_tree_intf arg
   | Parse_tree_impl -> execute_hooks hooks.parse_tree_impl arg
-  | Typecheck_intf -> execute_hooks hooks.typecheck_intf arg
-  | Typecheck_impl -> execute_hooks hooks.typecheck_impl arg
+  | Typed_tree_intf -> execute_hooks hooks.typed_tree_intf arg
+  | Typed_tree_impl -> execute_hooks hooks.typed_tree_impl arg
   | Raw_lambda -> execute_hooks hooks.raw_lambda arg
   | Lambda -> execute_hooks hooks.lambda arg
   | Raw_flambda2 -> execute_hooks hooks.raw_flambda2 arg
@@ -149,8 +149,8 @@ let clear : type a. a pass -> unit =
   function
   | Parse_tree_intf -> hooks.parse_tree_intf <- []
   | Parse_tree_impl -> hooks.parse_tree_impl <- []
-  | Typecheck_intf -> hooks.typecheck_intf <- []
-  | Typecheck_impl -> hooks.typecheck_impl <- []
+  | Typed_tree_intf -> hooks.typed_tree_intf <- []
+  | Typed_tree_impl -> hooks.typed_tree_impl <- []
   | Raw_lambda -> hooks.raw_lambda <- []
   | Lambda -> hooks.lambda <- []
   | Raw_flambda2 -> hooks.raw_flambda2 <- []
