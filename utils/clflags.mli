@@ -253,6 +253,7 @@ module Flambda2 : sig
       val phantom_lets : bool
       val max_block_size_for_projections : int option
       val max_unboxing_depth : int
+      val can_inline_recursive_functions : bool
     end
 
     val code_id_and_symbol_scoping_checks : bool ref
@@ -261,6 +262,7 @@ module Flambda2 : sig
     val phantom_lets : bool ref
     val max_block_size_for_projections : int option ref
     val max_unboxing_depth : int ref
+    val can_inline_recursive_functions : bool ref
   end
 
   module Debug : sig
@@ -276,6 +278,7 @@ module Flambda2 : sig
   module Inlining : sig
     module Default : sig
       val max_depth : int
+      val max_rec_depth : int
 
       val call_cost : float
       val alloc_cost : float
@@ -293,6 +296,7 @@ module Flambda2 : sig
     end
 
     val max_depth : Int_arg_helper.parsed ref
+    val max_rec_depth : Int_arg_helper.parsed ref
 
     val call_cost : Float_arg_helper.parsed ref
     val alloc_cost : Float_arg_helper.parsed ref
