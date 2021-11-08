@@ -175,10 +175,16 @@ let compute_handler_env uses ~env_at_fork_plus_params ~consts_lifted_during_body
       LCS.add_to_denv env_at_fork_plus_params consts_lifted_during_body
     in
     let typing_env = DE.typing_env denv in
+    let should_do_join =
+      Flambda_features.join_points ()
+      || match use_envs_with_ids with [] | [_] -> true | _ :: _ :: _ -> false
+    in
     let handler_env, extra_params_and_args =
-      (* CR mshinwell: remove Flambda_features.join_points *)
-      join denv typing_env params ~env_at_fork_plus_params
-        ~consts_lifted_during_body ~use_envs_with_ids
+      if should_do_join
+      then
+        join denv typing_env params ~env_at_fork_plus_params
+          ~consts_lifted_during_body ~use_envs_with_ids
+      else denv, Continuation_extra_params_and_args.empty
     in
     let handler_env =
       DE.map_typing_env handler_env ~f:(fun handler_env ->
