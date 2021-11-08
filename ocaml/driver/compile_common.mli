@@ -60,7 +60,10 @@ val emit_signature : info -> Parsetree.signature -> Typedtree.signature -> unit
     containing the given signature.
 *)
 
-val interface : info -> unit
+val interface :
+  hook_parse_tree:(Parsetree.signature -> unit)
+  -> hook_typed_tree:(Typedtree.signature -> unit)
+  -> info -> unit
 (** The complete compilation pipeline for interfaces. *)
 
 (** {2 Implementations} *)
@@ -76,7 +79,9 @@ val typecheck_impl :
 *)
 
 val implementation :
-  info ->
+  hook_parse_tree:(Parsetree.structure -> unit)
+  -> hook_typed_tree:(Typedtree.structure * Typedtree.module_coercion -> unit)
+  -> info ->
   backend:(info -> Typedtree.structure * Typedtree.module_coercion -> unit) ->
   unit
 (** The complete compilation pipeline for implementations. *)

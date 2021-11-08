@@ -21,13 +21,16 @@ open Compile_common
    of how the compiler would behave.
    Several hooks can be registered for the same pass. There's no guarantees
    on the order of execution of hooks.
+   When one IR is the output of several passes, the hooks are usually called
+   on the latest version of the IR (the exception being passes marked as "raw",
+   where corresponding hooks are called on the earliest version of the IR).
 *)
 
 type _ pass =
   | Parse_tree_intf : Parsetree.signature pass
   | Parse_tree_impl : Parsetree.structure pass
-  | Typecheck_intf : Typedtree.signature pass
-  | Typecheck_impl : (Typedtree.structure * Typedtree.module_coercion) pass
+  | Typed_tree_intf : Typedtree.signature pass
+  | Typed_tree_impl : (Typedtree.structure * Typedtree.module_coercion) pass
   | Raw_lambda : Lambda.program pass
   | Lambda : Lambda.program pass
   | Raw_flambda2 : Flambda2_terms.Flambda_unit.t pass
