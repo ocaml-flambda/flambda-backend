@@ -568,8 +568,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
     let decision =
       Function_decl_inlining_decision.make_decision ~inlining_arguments
         ~inline:(Code.inline code) ~stub:(Code.stub code) ~cost_metrics
-        ~is_a_functor:(Code.is_a_functor code)
-        ~recursive:(Code.recursive code)
+        ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
     in
     let dbg =
       DE.add_inlined_debuginfo' (DA.denv dacc_after_body) (Code.dbg code)
