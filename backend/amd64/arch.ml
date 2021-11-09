@@ -70,7 +70,6 @@ type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 type prefetch_info = {
   is_write: bool;
   locality: prefetch_temporal_locality_hint;
-  addr: addressing_mode;
 }
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
@@ -78,15 +77,10 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 type rounding_mode = Half_to_even | Down | Up | Towards_zero | Current
 
 type specific_operation =
-    Ilea of addressing_mode             (* "lea" gives scaled adds *)
-  | Istore_int of nativeint * addressing_mode * bool
-                                        (* Store an integer constant *)
-  | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
-  | Ifloatarithmem of float_operation * addressing_mode
-                                       (* Float arith operation with memory *)
+    Ilea                               (* "lea" gives scaled adds *)
+  | Ioffset_loc                        (* Add a constant to a location *)
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
-  | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ifloat_iround                      (* Rounds a [float] to an [int64]
                                           using the current rounding mode *)
   | Ifloat_round of rounding_mode      (* Round [float] to an integer [float]
@@ -104,7 +98,6 @@ type specific_operation =
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
-        addr: addressing_mode;
       }
 
 and float_operation =
