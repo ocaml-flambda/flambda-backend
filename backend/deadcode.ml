@@ -45,8 +45,10 @@ let rec deadcode i =
       let s = deadcode i.next in
       if Proc.op_is_pure op                     (* no side effects *)
       && Reg.disjoint_set_array s.regs i.res   (* results are not used after *)
-      && not (Proc.regs_are_volatile i.arg)    (* no stack-like hard reg *)
-      && not (Proc.regs_are_volatile i.res)    (*            is involved *)
+      && not (Proc.regs_are_volatile
+               (Mach.arg_regset i.arg))
+      && not (Proc.regs_are_volatile
+               (Reg.set_of_array i.res)) (* no stack-like hard reg is involved *)
       then begin
         assert (Array.length i.res > 0);  (* sanity check *)
         s
