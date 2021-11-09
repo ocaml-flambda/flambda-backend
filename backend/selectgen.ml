@@ -687,84 +687,68 @@ method mark_instr = function
 method select_operation op args _dbg =
   match (op, args) with
   | (Capply _, Cconst_symbol (func, _dbg) :: rem) ->
-    (Icall_imm { func; }, rem)
+    (Icall_imm { func; }, rem, Operands.in_registers ())
   | (Capply _, _) ->
-    (Icall_ind, args)
+    (Icall_ind, args, Operands.in_registers ())
   | (Cextcall { func; alloc; ty; ty_args; returns }, _) ->
-    Iextcall { func; alloc; ty_res = ty; ty_args; returns }, args
+    Iextcall { func; alloc; ty_res = ty; ty_args; returns }, args,
+    (Operands.in_registers ())
   | (Cload (chunk, _mut), [arg]) ->
-      let (addr, eloc) = self#select_addressing chunk arg in
-      (Iload(chunk, addr), [eloc])
+      let (addr, eloc, _) = self#select_addressing chunk arg in
+      (Iload(chunk, addr), [eloc], (Operands.in_registers ()))
   | (Cstore (chunk, init), [arg1; arg2]) ->
-      let (addr, eloc) = self#select_addressing chunk arg1 in
+      let (addr, eloc, len) = self#select_addressing chunk arg1 in
       let is_assign =
         match init with
         | Lambda.Root_initialization -> false
         | Lambda.Heap_initialization -> false
         | Lambda.Assignment | Lambda.Local_assignment -> true
       in
-      if chunk = Word_int || chunk = Word_val then begin
-        let (op, newarg2) = self#select_store is_assign addr arg2 in
-        (op, [newarg2; eloc])
-      end else begin
-        (Istore(chunk, addr, is_assign), [arg2; eloc])
-        (* Inversion addr/datum in Istore *)
-      end
-  | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args
-  | (Caddi, _) -> self#select_arith_comm Iadd args
-  | (Csubi, _) -> self#select_arith Isub args
-  | (Cmuli, _) -> self#select_arith_comm Imul args
-  | (Cmulhi { signed }, _) -> self#select_arith_comm (Imulh {signed}) args
-  | (Cdivi, _) -> (Iintop Idiv, args)
-  | (Cmodi, _) -> (Iintop Imod, args)
-  | (Cand, _) -> self#select_arith_comm Iand args
-  | (Cor, _) -> self#select_arith_comm Ior args
-  | (Cxor, _) -> self#select_arith_comm Ixor args
-  | (Clsl, _) -> self#select_arith Ilsl args
-  | (Clsr, _) -> self#select_arith Ilsr args
-  | (Casr, _) -> self#select_arith Iasr args
-  | (Cclz {arg_is_non_zero}, _) -> (Iintop (Iclz{arg_is_non_zero}), args)
-  | (Cctz {arg_is_non_zero}, _) -> (Iintop (Ictz{arg_is_non_zero}), args)
-  | (Cpopcnt, _) -> (Iintop Ipopcnt, args)
-  | (Ccmpi comp, _) -> self#select_arith_comp (Isigned comp) args
-  | (Caddv, _) -> self#select_arith_comm Iadd args
-  | (Cadda, _) -> self#select_arith_comm Iadd args
-  | (Ccmpa comp, _) -> self#select_arith_comp (Iunsigned comp) args
-  | (Ccmpf comp, _) -> self#select_floatarith_comp comp args
-  | (Cnegf, _) -> self#select_floatarith Inegf args
-  | (Cabsf, _) -> self#select_floatarith Iabsf args
-  | (Caddf, _) -> self#select_floatarith Iaddf args
-  | (Csubf, _) -> self#select_floatarith Isubf args
-  | (Cmulf, _) -> self#select_floatarith Imulf args
-  | (Cdivf, _) -> self#select_floatarith Idivf args
-  | (Cfloatofint, _) -> (Ifloatofint, args)
-  | (Cintoffloat, _) -> (Iintoffloat, args)
-  | (Ccheckbound, _) ->
-    self#select_arith Icheckbound args
+      let (op, newarg2, operands) =
+          self#select_store is_assign (Some chunk) addr len arg2 in
+      (op, [newarg2; eloc], operands)
+  | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args,
+                   (Operands.in_registers ())
+  | (Caddi, _) -> self#select_operands (Iintop Iadd) args
+  | (Csubi, _) -> self#select_operands (Iintop Isub) args
+  | (Cmuli, _) -> self#select_operands (Iintop Imul) args
+  | (Cmulhi { signed }, _) ->
+    self#select_operands (Iintop (Imulh {signed})) args
+  | (Cdivi, _) -> self#select_operands (Iintop Idiv) args
+  | (Cmodi, _) -> self#select_operands (Iintop Imod) args
+  | (Cand, _) -> self#select_operands (Iintop Iand) args
+  | (Cor, _) -> self#select_operands (Iintop Ior) args
+  | (Cxor, _) -> self#select_operands (Iintop Ixor) args
+  | (Clsl, _) -> self#select_operands (Iintop Ilsl) args
+  | (Clsr, _) -> self#select_operands (Iintop Ilsr) args
+  | (Casr, _) -> self#select_operands (Iintop Iasr) args
+  | (Cclz {arg_is_non_zero}, _) ->
+    self#select_operands (Iintop (Iclz{arg_is_non_zero})) args
+  | (Cctz {arg_is_non_zero}, _) ->
+    self#select_operands (Iintop (Ictz{arg_is_non_zero})) args
+  | (Cpopcnt, _) -> self#select_operands (Iintop Ipopcnt) args
+  | (Ccmpi comp, _) -> self#select_operands (Iintop (Icomp (Isigned comp))) args
+  | (Caddv, _) -> self#select_operands (Iintop Iadd) args
+  | (Cadda, _) -> self#select_operands (Iintop Iadd) args
+  | (Ccmpa comp, _) -> self#select_operands (Iintop (Icomp (Iunsigned comp))) args
+  | (Ccmpf comp, _) -> self#select_operands (Ifloatop (Icompf comp)) args
+  | (Cnegf, _) -> self#select_operands (Ifloatop Inegf) args
+  | (Cabsf, _) -> self#select_operands (Ifloatop Iabsf) args
+  | (Caddf, _) -> self#select_operands (Ifloatop Iaddf) args
+  | (Csubf, _) -> self#select_operands (Ifloatop Isubf) args
+  | (Cmulf, _) -> self#select_operands (Ifloatop Imulf) args
+  | (Cdivf, _) -> self#select_operands (Ifloatop Idivf) args
+  | (Cfloatofint, _) -> self#select_operands Ifloatofint args
+  | (Cintoffloat, _) -> self#select_operands Iintoffloat args
+  | (Ccheckbound, _) -> self#select_operands (Iintop Icheckbound) args
   | (Cprobe { name; handler_code_sym; }, _) ->
-    Iprobe { name; handler_code_sym; }, args
-  | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
-  | (Cbeginregion, _) -> Ibeginregion, []
-  | (Cendregion, _) -> Iendregion, args
+    Iprobe { name; handler_code_sym; }, args, (Operands.in_registers ())
+  | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, [],
+                                     (Operands.in_registers ())
+  | (Cbeginregion, _) -> Ibeginregion, [], (Operands.in_registers ())
+  | (Cendregion, _) -> Iendregion, args, (Operands.in_registers ())
   | _ -> Misc.fatal_error "Selection.select_oper"
 
-method private select_arith_comm op = function
-  | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
-      (Iintop_imm(op, n), [arg])
-  | [Cconst_int (n, _); arg] when self#is_immediate op n ->
-      (Iintop_imm(op, n), [arg])
-  | args ->
-      (Iintop op, args)
-
-method private select_arith op = function
-  | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
-      (Iintop_imm(op, n), [arg])
-  | args ->
-      (Iintop op, args)
-
-method private select_arith_comp cmp = function
-  | [arg; Cconst_int (n, _)] when self#is_immediate (Icomp cmp) n ->
-      (Iintop_imm(Icomp cmp, n), [arg])
 (* CR gyorsh: we might need more information on which arg can be in memory,
    and for swapping args. *)
 method memory_operands_supported _op _c = false
@@ -779,43 +763,159 @@ method is_immediate_test_float _op _f = false
  *     (arg, mem_operand chunk addr ~index:0 ~len)
  *   | _ -> (arg, Ireg 0) *)
 
+method swap_operands op =
+    match op with
+    | Iintop (Icomp cmp) -> Some(Iintop(Icomp (swap_intcomp cmp)))
+    | Iintop (Iadd | Imul | Imulh _ | Iand | Ior |Ixor) -> Some op
+    | Iintop (Isub | Idiv | Imod | Ilsl | Ilsr | Iasr)
+    | Iintop (Ipopcnt |Iclz _ |Ictz _ | Icheckbound) -> None
+    | Ifloatop (Icompf _) ->  None
+    | Ifloatop (Iaddf | Imulf) -> Some op
+    | Ifloatop (Isubf | Idivf | Inegf | Iabsf) -> None
+    | Ifloatofint | Iintoffloat -> None
+    | Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Iopaque
+    | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+    | Icall_imm _ | Itailcall_imm _ | Iextcall _
+    | Istackoffset _ | Iload (_, _) | Istore  _ | Ialloc _
+    | Ispecific _| Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ -> None
+
+(* CR gyorsh: match on Const_intnat as well? *)
+(* CR gyorsh: unary/binary and separate selection *)
+method select_operands op args =
+  let swap = self#swap_operands op in
+  let commutative = Option.is_some swap in
+  (* CR gyorsh: sensitive to order of cases *)
+  match args with
+  (* Immediate operands of integer operations *)
+  | [arg; Cconst_int (n, _)]
+    when self#is_immediate op n ->
+    let operands = Operands.(selected [|reg 0;imm (Targetint.of_int n)|]) in
+    Operands.report operands op;
+    (op, [arg], operands)
   | [Cconst_int (n, _); arg]
-    when self#is_immediate (Icomp(swap_intcomp cmp)) n ->
-      (Iintop_imm(Icomp(swap_intcomp cmp), n), [arg])
-  | args ->
-      (Iintop(Icomp cmp), args)
-
-method private select_floatarith op args =
-  (Ifloatop op, args)
-
-method private select_floatarith_comp op args =
-  (Ifloatop(Icompf op), args)
+    when commutative
+      && self#is_immediate (Option.get swap) n ->
+    let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
+    Operands.report operands ~swap:true op;
+    ((Option.get swap), [arg], operands)
+  (* Immediate operands of float operations *)
+  | [arg; Cconst_float(f, _)]
+    when self#is_immediate_float op f ->
+    let n = Int64.bits_of_float f in
+    let operands = Operands.(selected [|reg 0; immf n|]) in
+    Operands.report operands op;
+    (op, [arg], operands)
+  | [Cconst_float(f, _); arg]
+    when commutative
+      && self#is_immediate_float (Option.get swap) f->
+    let n = Int64.bits_of_float f in
+    let operands = Operands.(selected [| reg 0; immf n|]) in
+    Operands.report operands ~swap:true op;
+    ((Option.get swap), [arg], operands)
+  (* Memory operands *)
+  | [Cop(Cload (c, _), [loc], _dbg)]
+    when self#memory_operands_supported op c ->
+    let (addr, arg, len) = self#select_addressing c loc in
+    let operands = Operands.(selected [| mem (Some c) addr ~index:0 ~len |]) in
+    Operands.report operands op;
+    (op, [arg], operands)
+  | [arg1; Cop(Cload (c, _), [loc2], _)]
+    when self#memory_operands_supported op c ->
+    let (addr, arg2, len) = self#select_addressing c loc2 in
+    let operands =
+      Operands.(selected [| reg 0; mem (Some c) addr ~index:1 ~len |]) in
+    Operands.report operands op;
+    (op, [arg1; arg2], operands)
+  | [Cop(Cload (c, _), [loc1], _); arg2]
+    when commutative
+      && self#memory_operands_supported (Option.get swap) c ->
+    let (addr, arg1, len) = self#select_addressing c loc1 in
+    let operands =
+      Operands.(selected [| reg 0; mem (Some c) addr ~index:1 ~len |]) in
+    Operands.report operands ~swap:true op;
+    ((Option.get swap), [arg2; arg1], operands)
+  | _ -> op, args, (Operands.in_registers ())
 
 (* Instruction selection for conditionals *)
 
-method select_condition = function
-  | Cop(Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
-    when self#is_immediate_test (Isigned cmp) n ->
-      (Iinttest_imm(Isigned cmp, n), arg1)
-  | Cop(Ccmpi cmp, [Cconst_int (n, _); arg2], _)
-    when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
-      (Iinttest_imm(Isigned(swap_integer_comparison cmp), n), arg2)
+method private swap_operands_condition: Mach.test -> Mach.test option = function
+  | Iinttest cmp -> Some (Iinttest (swap_intcomp cmp))
+  | Ifloattest cmp -> None
+  | Ioddtest | Ieventest | Itruetest | Ifalsetest -> None
+
+method select_operands_condition op args =
+  let swap = self#swap_operands_condition op in
+  let commutative = Option.is_some swap in
+  (* CR gyorsh: sensitive to order of cases *)
+  match args with
+  (* Immediate operands of integer operations *)
+  | [arg; Cconst_int (n, _)]
+    when self#is_immediate_test op n ->
+    let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
+    Operands.report_test operands op;
+    (op, arg, operands)
+  | [Cconst_int (n, _); arg]
+    when commutative
+      && self#is_immediate_test (Option.get swap) n ->
+    let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
+    Operands.report_test operands ~swap:true op;
+    ((Option.get swap), arg, operands)
+  (* Immediate operands of float operations *)
+  | [arg; Cconst_float (f, _)]
+    when self#is_immediate_test_float op f ->
+    let n = Int64.bits_of_float f in
+    let operands = Operands.(selected [|reg 0; immf n|]) in
+    Operands.report_test operands op;
+    (op, arg, operands)
+  | [Cconst_float (f, _); arg]
+    when commutative
+      && self#is_immediate_test_float (Option.get swap) f ->
+    let n = Int64.bits_of_float f in
+    let operands = Operands.(selected [|reg 0; immf n|]) in
+    Operands.report_test operands ~swap:true op;
+    ((Option.get swap), arg, operands)
+  (* Memory operands *)
+  | [Cop(Cload (c, _), [loc], _dbg)]
+    when self#memory_operands_supported_condition op c ->
+    let (addr, arg, len) = self#select_addressing c loc in
+    let operands = Operands.(selected [| mem (Some c) addr ~index:0 ~len |]) in
+    Operands.report_test operands op;
+    (op, arg, operands)
+  | [arg1; Cop(Cload (c, _), [loc2], _)]
+    when self#memory_operands_supported_condition op c ->
+    let (addr, arg2, len) = self#select_addressing c loc2 in
+    let operands =
+      Operands.(selected [| reg 0; mem (Some c) addr ~index:1 ~len |]) in
+    Operands.report_test operands op;
+    op,
+    Ctuple [arg1; arg2],
+    operands
+  | [Cop(Cload (c, _), [loc1], _); arg2]
+    when commutative
+      && self#memory_operands_supported_condition (Option.get swap) c ->
+    let (addr, arg1, len) = self#select_addressing c loc1 in
+    let operands =
+      Operands.(selected [| reg 0; mem (Some c) addr ~index:1 ~len |]) in
+    Operands.report_test operands ~swap:true op;
+    (Option.get swap),
+    Ctuple [arg2; arg1],
+    operands
+  | _ -> op, Ctuple args, (Operands.in_registers ())
+
+method select_condition cond =
+  (* CR gyorsh: fix this after operands and args are refactored into one,
+  select_operands and select_test are duplicates *)
+  match cond with
   | Cop(Ccmpi cmp, args, _) ->
-      (Iinttest(Isigned cmp), Ctuple args)
-  | Cop(Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
-    when self#is_immediate_test (Iunsigned cmp) n ->
-      (Iinttest_imm(Iunsigned cmp, n), arg1)
-  | Cop(Ccmpa cmp, [Cconst_int (n, _); arg2], _)
-    when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n ->
-      (Iinttest_imm(Iunsigned(swap_integer_comparison cmp), n), arg2)
+      self#select_operands_condition (Iinttest (Isigned cmp)) args
   | Cop(Ccmpa cmp, args, _) ->
-      (Iinttest(Iunsigned cmp), Ctuple args)
+      self#select_operands_condition (Iinttest (Iunsigned cmp)) args
   | Cop(Ccmpf cmp, args, _) ->
-      (Ifloattest cmp, Ctuple args)
+      self#select_operands_condition (Ifloattest cmp) args
   | Cop(Cand, [arg; Cconst_int (1, _)], _) ->
-      (Ioddtest, arg)
+      self#select_operands_condition Ioddtest [arg]
   | arg ->
-      (Itruetest, arg)
+      self#select_operands_condition Itruetest [arg]
 
 (* Return an array of fresh registers of the given type.
    Normally implemented as Reg.createv, but some

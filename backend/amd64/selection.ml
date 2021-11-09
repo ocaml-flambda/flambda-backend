@@ -21,6 +21,8 @@ open Proc
 open Cmm
 open Mach
 
+module O = Selectgen.Operands
+
 (* Auxiliary for recognizing addressing modes *)
 
 type addressing_expr =
@@ -80,6 +82,18 @@ let rec select_addr exp =
   | arg ->
       (Alinear arg, 0)
 
+let equal_operand left right =
+  match left, right with
+  | Iimm left, Iimm right -> Targetint.equal left right
+  | Iimmf left, Iimmf right -> Int64.equal left right
+  | Ireg left, Ireg right -> Reg.same_loc left right
+  | Imem left, Imem right ->
+    Option.equal Cmm.equal_memory_chunk left.chunk right.chunk &&
+    Arch.equal_addressing_mode left.addr right.addr &&
+    Array.length left.reg = Array.length right.reg &&
+    Array.for_all2 Reg.same_loc left.reg right.reg
+  | (Iimm _ | Iimmf _ | Ireg _ | Imem _),_ -> false
+
 (* Special constraints on operand and result registers *)
 
 exception Use_default
@@ -88,41 +102,46 @@ let rax = phys_reg 0
 let rcx = phys_reg 5
 let rdx = phys_reg 4
 
-let pseudoregs_for_operation op arg res =
+(* arg.(0) is the same as res.(0) *)
+let same_reg_res0_arg0 arg res =
+  let arg' = Array.copy arg in
+  arg'.(0) <- Ireg res.(0);
+  (arg', res)
+
+let pseudoregs_for_operation op arg res  =
   match op with
-  (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
+  (* arg.(0) and res.(0) must be the same *)
     Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor)
   | Ifloatop(Iaddf|Isubf|Imulf|Idivf) ->
-      ([|res.(0); arg.(1)|], res)
-  (* One-address unary operations: arg.(0) and res.(0) must be the same *)
-  | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
+      same_reg_res0_arg0 arg res
   | Ifloatop(Iabsf | Inegf)
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
-      (res, res)
+     (* CR gyorsh: this is not equivalent to the previously used [(res, res)],
+        where physically the same arrays are passed. *)
+     same_reg_res0_arg0 arg res
   (* For xchg, args must be a register allowing access to high 8 bit register
      (rax, rbx, rcx or rdx). Keep it simple, just force the argument in rax. *)
   | Ispecific(Ibswap { bitwidth = Sixteen }) ->
-      ([| rax |], [| rax |])
+      ([| Ireg rax |], [| rax |])
   (* For imulh, first arg must be in rax, rax is clobbered, and result is in
      rdx. *)
   | Iintop(Imulh _) ->
-      ([| rax; arg.(1) |], [| rdx |])
-  | Ispecific(Ifloatarithmem(_,_)) ->
-      let arg' = Array.copy arg in
-      arg'.(0) <- res.(0);
-      (arg', res)
-  (* For shifts with variable shift count, second arg must be in rcx *)
+      ([| Ireg rax; arg.(1) |], [| rdx |])
   | Iintop(Ilsl|Ilsr|Iasr) ->
-      ([|res.(0); rcx|], res)
+     (* arg.(0) and res.(0) must be the same *)
+     if Mach.is_immediate arg.(1) then
+       same_reg_res0_arg0 arg res
+     else
+       (* For shifts with variable shift count, second arg must be in rcx *)
+       ([| Ireg res.(0); Ireg rcx|], res)
   (* For div and mod, first arg must be in rax, rdx is clobbered,
      and result is in rax or rdx respectively.
      Keep it simple, just force second argument in rcx. *)
   | Iintop(Idiv) ->
-      ([| rax; rcx |], [| rax |])
+      ([| Ireg rax; Ireg rcx |], [| rax |])
   | Iintop(Imod) ->
-      ([| rax; rcx |], [| rdx |])
+      ([| Ireg rax; Ireg rcx |], [| rdx |])
   | Ifloatop(Icompf cond) ->
-    (* CR gyorsh: make this optimization as a separate PR. *)
       (* We need to temporarily store the result of the comparison in a
          float register, but we don't want to clobber any of the inputs
          if they would still be live after this operation -- so we
@@ -130,30 +149,30 @@ let pseudoregs_for_operation op arg res =
          [destroyed_at_oper], because that forces us to choose a fixed
          register, which makes it more likely an extra mov would be added
          to transfer the argument to the fixed register. *)
+      (* Icompf is emitted as the sequence:
+         cmpsd treg a; movd treg res.(0); neg res.(0) *)
+      (* For cmpsd instruction, the result must be in register
+         and the first argument must be in the same register.
+         Second argument can in register or stack or memory. *)
       let treg = Reg.create Float in
-      let _,is_swapped = float_cond_and_need_swap cond in
-      (if is_swapped then [| arg.(0); treg |] else [| treg; arg.(1) |])
-    , [| res.(0); treg |]
+      [| Ireg treg; arg.(1) |], [| res.(0); treg |]
   | Ispecific Irdpmc ->
   (* For rdpmc instruction, the argument must be in ecx
      and the result is in edx (high) and eax (low).
      Make it simple and force the argument in rcx, and rax and rdx clobbered *)
-    ([| rcx |], res)
+    ([| Ireg rcx |], res)
   | Ispecific (Ifloat_min | Ifloat_max)
   | Ispecific Icrc32q ->
     (* arg.(0) and res.(0) must be the same *)
-    ([|res.(0); arg.(1)|], res)
+    ([| Ireg res.(0); arg.(1)|], res)
   (* Other instructions are regular *)
   | Iintop (Ipopcnt|Iclz _|Ictz _|Icomp _|Icheckbound)
-  | Iintop_imm ((Imulh _|Idiv|Imod|Icomp _|Icheckbound
-                |Ipopcnt|Iclz _|Ictz _), _)
-  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
+  | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea
               |Ifloat_iround|Ifloat_round _
-              |Ipause
-              |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
+              |Ioffset_loc|Ipause|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
-  | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
+  | Iextcall _|Istackoffset _|Iload (_, _)|Istore _|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> raise Use_default
@@ -321,75 +340,62 @@ method select_condition cond =
       super#select_condition cond
 
 method! select_operation op args dbg =
+  (* CR gyorsh: some operations, like crc32 and roundsd can have memory operands *)
+  let in_reg = O.in_registers () in
   match op with
   (* Recognize the LEA instruction *)
     Caddi | Caddv | Cadda | Csubi ->
       begin match self#select_addressing Word_int (Cop(op, args, dbg)) with
-        (Iindexed _, _)
-      | (Iindexed2 0, _) -> super#select_operation op args dbg
+        (Iindexed _, _, _)
+      | (Iindexed2 0, _, _) -> super#select_operation op args dbg
       | ((Iindexed2 _ | Iscaled _ | Iindexed2scaled _ | Ibased _) as addr,
-         arg) -> (Ispecific(Ilea addr), [arg])
+         arg, len) -> (Ispecific Ilea, [arg],
+                       O.(selected [| mem None addr ~len ~index:0 |]))
       end
   (* Recognize float arithmetic with memory. *)
-  | Caddf ->
-      self#select_floatarith true Iaddf Ifloatadd args
-  | Csubf ->
-      self#select_floatarith false Isubf Ifloatsub args
-  | Cmulf ->
-      self#select_floatarith true Imulf Ifloatmul args
-  | Cdivf ->
-      self#select_floatarith false Idivf Ifloatdiv args
   | Cextcall { func = "sqrt"; alloc = false; } ->
-     begin match args with
-       [Cop(Cload ((Double as chunk), _), [loc], _dbg)] ->
-         let (addr, arg) = self#select_addressing chunk loc in
-         (Ispecific(Ifloatsqrtf addr), [arg])
-     | [arg] ->
-         (Ispecific Isqrtf, [arg])
-     | _ ->
-         assert false
-    end
+      super#select_operands (Ispecific Isqrtf) args
   | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
                ty = [|Int|]; ty_args = [XFloat] } ->
       (match args with
       | [Cop(Cload (Double, _), [loc], _dbg)] ->
         let c = Word_int in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr), [arg]
-      | _ -> Imove, args)
+        Iload(c, addr), [arg], in_reg
+      | _ -> Imove, args, in_reg)
   | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
                ty = [|Float|]; ty_args = [XInt64] } ->
       (match args with
       | [Cop(Cload (Word_int, _), [loc], _dbg)] ->
         let c = Double in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr), [arg]
-      | _ -> Imove, args)
+        Iload(c, addr), [arg], in_reg
+      | _ -> Imove, args, in_reg)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
-      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
-      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args
+      | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args, in_reg
+      | "caml_rdpmc_unboxed", [|Int|] -> Ispecific Irdpmc, args, in_reg
       | ("caml_int64_crc_unboxed", [|Int|]
         | "caml_int_crc_untagged", [|Int|]) when !Arch.crc32_support ->
-          Ispecific Icrc32q, args
+          Ispecific Icrc32q, args, in_reg
       | "caml_float_iround_half_to_even_unboxed", [|Int|] ->
-         Ispecific Ifloat_iround, args
+         Ispecific Ifloat_iround, args, in_reg
       | "caml_float_round_half_to_even_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Half_to_even), args
+         Ispecific (Ifloat_round Half_to_even), args, in_reg
       | "caml_float_round_up_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Up), args
+         Ispecific (Ifloat_round Up), args, in_reg
       | "caml_float_round_down_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Down), args
+         Ispecific (Ifloat_round Down), args, in_reg
       | "caml_float_round_towards_zero_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Towards_zero), args
+         Ispecific (Ifloat_round Towards_zero), args, in_reg
       | "caml_float_round_current_unboxed", [|Float|] ->
-         Ispecific (Ifloat_round Current), args
+         Ispecific (Ifloat_round Current), args, in_reg
       | "caml_float_min_unboxed", [|Float|] ->
-         Ispecific Ifloat_min, args
+         Ispecific Ifloat_min, args, in_reg
       | "caml_float_max_unboxed", [|Float|] ->
-         Ispecific Ifloat_max, args
+         Ispecific Ifloat_max, args, in_reg
       | "caml_pause_hint", [|Val|] ->
-         Ispecific Ipause, args
+         Ispecific Ipause, args, in_reg
       | _ ->
         super#select_operation op args dbg
       end
@@ -398,19 +404,21 @@ method! select_operation op args dbg =
       begin match args with
         [loc; Cop(Caddi, [Cop(Cload _, [loc'], _); Cconst_int (n, _dbg)], _)]
         when loc = loc' && is_immediate n ->
-          let (addr, arg) = self#select_addressing chunk loc in
-          (Ispecific(Ioffset_loc(n, addr)), [arg])
+          let (addr, arg, len) = self#select_addressing chunk loc in
+          (Ispecific Ioffset_loc, [arg],
+           O.(selected [| mem (Some chunk) addr ~len ~index:0;
+                          imm (Targetint.of_int n) |]))
       | _ ->
           super#select_operation op args dbg
       end
   | Cbswap { bitwidth } ->
     let bitwidth = select_bitwidth bitwidth in
-    (Ispecific (Ibswap { bitwidth }), args)
+    (Ispecific (Ibswap { bitwidth }), args, in_reg)
   (* Recognize sign extension *)
   | Casr ->
       begin match args with
         [Cop(Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
-          (Ispecific Isextend32, [k])
+          (Ispecific Isextend32, [k], in_reg)
         | _ -> super#select_operation op args dbg
       end
   (* Recognize zero extension *)
@@ -420,7 +428,7 @@ method! select_operation op args dbg =
     | [arg; Cconst_natint (0xffff_ffffn, _)]
     | [Cconst_int (0xffff_ffff, _); arg]
     | [Cconst_natint (0xffff_ffffn, _); arg] ->
-      Ispecific Izextend32, [arg]
+      Ispecific Izextend32, [arg], in_reg
     | _ -> super#select_operation op args dbg
     end
   | Cprefetch { is_write; locality; } ->
@@ -436,10 +444,22 @@ method! select_operation op args dbg =
         | Moderate when is_write && not !prefetchwt1_support -> High
         | l -> l
       in
-      let addr, eloc =
+      let addr, eloc, len =
         self#select_addressing Word_int (one_arg "prefetch" args)
       in
-      Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
+      Ispecific (Iprefetch { is_write; locality; }), [eloc],
+      O.(selected [| mem (Some Word_int) addr ~len ~index:0 |])
+  | Ccmpf comp ->
+      let _,need_swap = Arch.float_compare_and_need_swap comp in
+      let args =
+        if need_swap then
+          match args with
+          | [arg0; arg1] -> [arg1;arg0]
+          | _ -> assert false
+        else
+          args
+      in
+      self#select_operands (Ifloatop (Icompf comp)) args
   | _ -> super#select_operation op args dbg
 
 
