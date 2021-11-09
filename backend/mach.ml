@@ -79,10 +79,19 @@ type operation =
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
 
+type operand =
+  | Iimm of Targetint.t
+  | Iimmf of int64
+  | Ireg of Reg.t
+  | Imem of { chunk : Cmm.memory_chunk option;
+              addr : Arch.addressing_mode;
+              reg : Reg.t array;
+            }
+
 type instruction =
   { desc: instruction_desc;
     next: instruction;
-    arg: Reg.t array;
+    arg: operand array;
     res: Reg.t array;
     dbg: Debuginfo.t;
     mutable live: Reg.Set.t;

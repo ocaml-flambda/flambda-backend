@@ -89,10 +89,19 @@ type operation =
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
 
+type operand =
+  | Iimm of Targetint.t
+  | Iimmf of int64
+  | Ireg of Reg.t
+  | Imem of { chunk : Cmm.memory_chunk option;
+              addr : Arch.addressing_mode;
+              reg : Reg.t array;
+            }
+
 type instruction =
   { desc: instruction_desc;
     next: instruction;
-    arg: Reg.t array;
+    arg: operand array;
     res: Reg.t array;
     dbg: Debuginfo.t;
     mutable live: Reg.Set.t;
@@ -124,10 +133,10 @@ type fundecl =
 val dummy_instr: instruction
 val end_instr: unit -> instruction
 val instr_cons:
-      instruction_desc -> Reg.t array -> Reg.t array -> instruction ->
+      instruction_desc -> operand array -> Reg.t array -> instruction ->
         instruction
 val instr_cons_debug:
-      instruction_desc -> Reg.t array -> Reg.t array -> Debuginfo.t ->
+      instruction_desc -> operand array -> Reg.t array -> Debuginfo.t ->
         instruction -> instruction
 val instr_iter: (instruction -> unit) -> instruction -> unit
 
