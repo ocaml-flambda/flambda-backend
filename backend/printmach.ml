@@ -49,6 +49,25 @@ let regs ppf v =
   | n -> reg ppf v.(0);
          for i = 1 to n-1 do fprintf ppf " %a" reg v.(i) done
 
+let operand ppf = function
+  | Ireg r -> fprintf ppf "reg %a" reg r
+  | Iimm i -> fprintf ppf "imm %a" Targetint.print i
+  | Iimmf f -> fprintf ppf "immf %F" (Int64.float_of_bits f)
+  | Imem { chunk; addr; reg=rv } ->
+    let c =
+      match chunk with
+      | Some chunk -> (Printcmm.chunk chunk)
+      | None -> ""
+    in
+    fprintf ppf "mem %s[%a]" c (Arch.print_addressing reg addr) rv
+
+let operands ppf v =
+  match Array.length v with
+  | 0 -> ()
+  | 1 -> operand ppf v.(0)
+  | n -> operand ppf v.(0);
+         for i = 1 to n-1 do fprintf ppf ", %a" operand v.(i) done
+
 let regset ppf s =
   let first = ref true in
   Reg.Set.iter
@@ -120,88 +139,87 @@ let floatop = function
 
 let test tst ppf arg =
   match tst with
-  | Itruetest -> reg ppf arg.(0)
-  | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
-  | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
-  | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
+  | Itruetest -> operand ppf arg.(0)
+  | Ifalsetest -> fprintf ppf "not %a" operand arg.(0)
+  | Iinttest cmp ->
+      fprintf ppf "%a%s%a" operand arg.(0) (intcomp cmp) operand arg.(1)
   | Ifloattest cmp ->
-      fprintf ppf "%a%s%a"
-       reg arg.(0) (floatcomp cmp) reg arg.(1)
-  | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
-  | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
+      fprintf ppf "%a%s%a" operand arg.(0) (floatcomp cmp) operand arg.(1)
+  | Ieventest -> fprintf ppf "%a & 1 == 0" operand arg.(0)
+  | Ioddtest -> fprintf ppf "%a & 1 == 1" operand arg.(0)
 
 let operation op arg ppf res =
   if Array.length res > 0 then fprintf ppf "%a := " regs res;
   match op with
-  | Imove -> regs ppf arg
-  | Ispill -> fprintf ppf "%a (spill)" regs arg
-  | Ireload -> fprintf ppf "%a (reload)" regs arg
+  | Imove -> operands ppf arg
+  | Ispill -> fprintf ppf "%a (spill)" operands arg
+  | Ireload -> fprintf ppf "%a (reload)" operands arg
   | Iconst_int n -> fprintf ppf "%s" (Nativeint.to_string n)
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s
-  | Icall_ind -> fprintf ppf "call %a" regs arg
-  | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func regs arg
-  | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg
-  | Itailcall_imm { func; } -> fprintf ppf "tailcall \"%s\" %a" func regs arg
+  | Icall_ind -> fprintf ppf "call %a" operands arg
+  | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func operands arg
+  | Itailcall_ind -> fprintf ppf "tailcall %a" operands arg
+  | Itailcall_imm { func; } -> fprintf ppf "tailcall \"%s\" %a" func operands arg
   | Iextcall { func; alloc; _ } ->
-      fprintf ppf "extcall \"%s\" %a%s" func regs arg
+      fprintf ppf "extcall \"%s\" %a%s" func operands arg
       (if alloc then "" else " (noalloc)")
   | Istackoffset n ->
       fprintf ppf "offset stack %i" n
   | Iload(chunk, addr) ->
       fprintf ppf "%s[%a]"
-       (Printcmm.chunk chunk) (Arch.print_addressing reg addr) arg
-  | Istore(chunk, addr, is_assign) ->
-      fprintf ppf "%s[%a] := %a %s"
-       (Printcmm.chunk chunk)
-       (Arch.print_addressing reg addr)
-       (Array.sub arg 1 (Array.length arg - 1))
-       reg arg.(0)
+       (Printcmm.chunk chunk) (Arch.print_addressing reg addr)
+       (Array.map Mach.arg_reg arg)
+  | Istore is_assign ->
+      fprintf ppf "%a := %a %s" operand arg.(1) operand arg.(0)
        (if is_assign then "(assign)" else "(init)")
   | Ialloc { bytes = n; mode = Alloc_heap } ->
     fprintf ppf "alloc %i" n;
   | Ialloc { bytes = n; mode = Alloc_local } ->
     fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
-      if is_unary_op op then begin
-        assert (Array.length arg = 1);
-        fprintf ppf "%s%a" (intop op) reg arg.(0)
-      end else begin
-        assert (Array.length arg = 2);
-        fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
-      end
-  | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
+    if is_unary_op op then begin
+      assert (Array.length arg = 1);
+      fprintf ppf "%s%a" (intop op) operand arg.(0)
+    end else begin
+      assert (Array.length arg = 2);
+      fprintf ppf "%a%s%a" operand arg.(0) (intop op) operand arg.(1)
+    end
   | Ifloatop(op) ->
      if is_unary_floatop op then
        begin
         assert (Array.length arg = 1);
-        fprintf ppf "%s%a" (floatop op) reg arg.(0)
+        fprintf ppf "%s%a" (floatop op) operand arg.(0)
       end else begin
-        assert (Array.length arg = 2);
-        fprintf ppf "%a%s%a" reg arg.(0) (floatop op) reg arg.(1)
+        assert (Array.length arg > 1);
+        fprintf ppf "%a%s%a" operand arg.(0) (floatop op) operand arg.(1)
       end
-  | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
-  | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
-  | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
+  | Ifloatofint -> fprintf ppf "floatofint %a" operand arg.(0)
+  | Iintoffloat -> fprintf ppf "intoffloat %a" operand arg.(0)
+  | Iopaque -> fprintf ppf "opaque %a" operand arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"
       V.print ident
       (match which_parameter with
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
-      reg arg.(0)
+      operand arg.(0)
   | Ibeginregion -> fprintf ppf "beginregion"
-  | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
+  | Iendregion -> fprintf ppf "endregion %a" operand arg.(0)
   | Ispecific op ->
-      Arch.print_specific_operation reg op ppf arg
+    (Arch.print_specific_operation : (Format.formatter -> Reg.t -> unit) ->
+         (Format.formatter -> Mach.operand -> unit) ->
+         Arch.specific_operation -> Format.formatter -> Mach.operand array -> unit)
+      reg operand op ppf arg
   | Iprobe {name;handler_code_sym} ->
-    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym operands arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
 
 let rec instr ppf i =
   if !Clflags.dump_live then begin
     fprintf ppf "@[<1>{%a" regsetaddr i.live;
-    if Array.length i.arg > 0 then fprintf ppf "@ +@ %a" regs i.arg;
+    if Array.length i.arg > 0 then
+      fprintf ppf "@ +@ %a" regsetaddr (Mach.arg_regset i.arg);
     fprintf ppf "}@]@,";
     if !Clflags.dump_avail then begin
       let module RAS = Reg_availability_set in
@@ -219,7 +237,7 @@ let rec instr ppf i =
   | Iop op ->
       operation op i.arg ppf i.res
   | Ireturn traps ->
-      fprintf ppf "return%a %a" Printcmm.trap_action_list traps regs i.arg
+      fprintf ppf "return%a %a" Printcmm.trap_action_list traps operands i.arg
   | Iifthenelse(tst, ifso, ifnot) ->
       fprintf ppf "@[<v 2>if %a then@,%a" (test tst) i.arg instr ifso;
       begin match ifnot.desc with
@@ -228,7 +246,7 @@ let rec instr ppf i =
       end;
       fprintf ppf "@;<0 -2>endif@]"
   | Iswitch(index, cases) ->
-      fprintf ppf "switch %a" reg i.arg.(0);
+      fprintf ppf "switch %a" operand i.arg.(0);
       for i = 0 to Array.length cases - 1 do
         fprintf ppf "@,@[<v 2>@[";
         for j = 0 to Array.length index - 1 do
@@ -259,7 +277,7 @@ let rec instr ppf i =
       fprintf ppf "@[<v 2>try%a@,%a@;<0 -2>with@,%a@;<0 -2>endtry@]"
              Printcmm.trywith_kind kind instr body instr handler
   | Iraise k ->
-      fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
+      fprintf ppf "%s %a" (Lambda.raise_kind k) operand i.arg.(0)
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf "%s" (Debuginfo.to_string i.dbg);

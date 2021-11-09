@@ -222,7 +222,6 @@ let dump_op ppf = function
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"
   | Intop op -> Format.fprintf ppf "intop %s" (intop op)
-  | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
   | Floatop op -> Format.fprintf ppf "floatop %s" (floatop op)
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
@@ -241,7 +240,7 @@ let dump_call ppf = function
     | External { func_symbol : string; _ } ->
       Format.fprintf ppf "external %s" func_symbol
     | Alloc { bytes : int; _ } -> Format.fprintf ppf "alloc %d" bytes
-    | Checkbound _ -> Format.fprintf ppf "checkbound")
+    | Checkbound -> Format.fprintf ppf "checkbound")
   | F func_call -> (
     match func_call with
     | Indirect -> Format.fprintf ppf "indirect"
@@ -276,15 +275,14 @@ let dump_terminator ppf ?(sep = "\n") ti =
     fprintf ppf "if = goto %d%s" eq sep;
     fprintf ppf "if > goto %d%s" gt sep;
     fprintf ppf "if uo goto %d%s" uo sep
-  | Int_test { lt; eq; gt; is_signed; imm } ->
-    let cmp =
-      Printf.sprintf " %s%s"
-        (if is_signed then "s" else "u")
-        (match imm with None -> "" | Some i -> " " ^ Int.to_string i)
-    in
-    fprintf ppf "if <%s goto %d%s" cmp lt sep;
-    fprintf ppf "if =%s goto %d%s" cmp eq sep;
-    fprintf ppf "if >%s goto %d%s" cmp gt sep
+  | Int_test { lt; eq; gt; is_signed } ->
+    let signed = if is_signed then " s" else " u" in
+    fprintf ppf "if <%s %a goto %d%s" signed Printmach.operands ti.arg lt
+      sep;
+    fprintf ppf "if =%s %a goto %d%s" signed Printmach.operands ti.arg eq
+      sep;
+    fprintf ppf "if >%s %a goto %d%s" signed Printmach.operands ti.arg gt
+      sep
   | Switch labels ->
     fprintf ppf "switch%s" sep;
     for i = 0 to Array.length labels - 1 do
