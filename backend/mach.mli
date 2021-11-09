@@ -130,6 +130,15 @@ type fundecl =
     fun_contains_calls: bool;
   }
 
+(* [arg_reg o] asserts that [o)] is [Ireg r] and returns [r]. *)
+val arg_reg : operand -> Reg.t
+
+(* [arg_regset operands] returns the set of registers used in [operands]. *)
+val arg_regset : operand array -> Reg.Set.t
+
+val same_loc : operand -> Reg.t -> bool
+val is_immediate : operand -> bool
+
 val dummy_instr: instruction
 val end_instr: unit -> instruction
 val instr_cons:
@@ -148,3 +157,5 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
 val equal_float_operation : float_operation -> float_operation -> bool
+
+val equal_operand : operand -> operand -> bool

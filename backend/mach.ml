@@ -142,6 +142,35 @@ let end_instr () =
     available_across = None;
   }
 
+let arg_reg operand =
+  match operand with
+  | Ireg r -> r
+  | Imem _ -> Misc.fatal_error "Mach.arg_reg: expected Ireg, found Imem"
+  | Iimm _ -> Misc.fatal_error "Mach.arg_reg: expected Ireg, found Iimm"
+  | Iimmf _ -> Misc.fatal_error "Mach.arg_reg: expected Ireg, found Iimmf"
+
+let arg_regset operands =
+  Array.fold_left (fun s -> function
+    | Iimm _ | Iimmf _ -> s
+    | Ireg r -> Reg.Set.add r s
+    | Imem { reg } -> Reg.add_set_array s reg)
+    Reg.Set.empty operands
+
+let same_loc operand reg =
+  match operand with
+  | Iimm _ | Iimmf _ -> false
+  | Imem _ ->
+    (* CR gyorsh: can be optimizeed if reg.loc is Stack and mem is
+       statically known to refer to the same stack location.
+       This case Will need to be handled if we replace the representation of
+       Reg.Stack to use Imem. *)
+    false
+  | Ireg r -> Reg.same_loc r reg
+
+let is_immediate = function
+  | Iimm _ | Iimmf _ -> true
+  | Ireg _ | Imem _ -> false
+
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
     dbg = Debuginfo.none; live = Reg.Set.empty;
@@ -338,3 +367,15 @@ let equal_float_operation left right =
   | Imulf, Imulf -> true
   | Idivf, Idivf -> true
   | (Icompf _ | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf), _ -> false
+
+let equal_operand left right =
+  match left, right with
+  | Iimm left, Iimm right -> Targetint.equal left right
+  | Iimmf left, Iimmf right -> Int64.equal left right
+  | Ireg left, Ireg right -> Reg.same_loc left right
+  | Imem left, Imem right ->
+    Option.equal Cmm.equal_memory_chunk left.chunk right.chunk &&
+    Arch.equal_addressing_mode left.addr right.addr &&
+    Array.length left.reg = Array.length right.reg &&
+    Array.for_all2 Reg.same_loc left.reg right.reg
+  | (Iimm _ | Iimmf _ | Ireg _ | Imem _),_ -> false
