@@ -413,7 +413,6 @@ let num_call_gc_and_check_bound_points instr =
        before branch relaxation. *)
     | Lop (Ispecific (Ifar_alloc _))
     | Lop (Ispecific Ifar_intop_checkbound)
-    | Lop (Ispecific (Ifar_intop_imm_checkbound _))
     | Lop (Ispecific (Ifar_shiftcheckbound _)) -> assert false
     | _ -> loop instr.next totals
   in
@@ -459,7 +458,6 @@ module BR = Branch_relaxation.Make (struct
     let classify_instr = function
       | Lop (Ialloc _)
       | Lop (Iintop Icheckbound)
-      | Lop (Iintop_imm (Icheckbound, _))
       | Lop (Ispecific (Ishiftcheckbound _)) -> Some Bcc
       (* The various "far" variants in [specific_operation] don't need to
          return [Some] here, since their code sequences never contain any
@@ -515,17 +513,13 @@ module BR = Branch_relaxation.Make (struct
        Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
     | Lop (Icompf _) -> 2
-    | Lop (Iintop_imm (Icomp _, _)) -> 2
     | Lop (Iintop (Icheckbound)) -> 2
     | Lop (Ispecific (Ifar_intop_checkbound)) -> 3
-    | Lop (Iintop_imm (Icheckbound, _)) -> 2
-    | Lop (Ispecific (Ifar_intop_imm_checkbound _)) -> 3
     | Lop (Ispecific (Ishiftcheckbound _)) -> 2
     | Lop (Ispecific (Ifar_shiftcheckbound _)) -> 3
     | Lop (Iintop Imod) -> 2
     | Lop (Iintop (Imulh _)) -> 1
     | Lop (Iintop _) -> 1
-    | Lop (Iintop_imm _) -> 1
     | Lop (Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf) -> 1
     | Lop (Iaddf | Isubf | Imulf | Idivf | Ispecific Inegmulf) -> 1
     | Lop (Iopaque) -> 0
@@ -573,9 +567,6 @@ module BR = Branch_relaxation.Make (struct
 
   let relax_intop_checkbound () =
     Lop (Ispecific (Ifar_intop_checkbound))
-
-  let relax_intop_imm_checkbound ~bound =
-    Lop (Ispecific (Ifar_intop_imm_checkbound { bound; }))
 
   let relax_specific_op = function
     | Ishiftcheckbound { shift; } ->

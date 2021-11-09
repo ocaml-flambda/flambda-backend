@@ -22,7 +22,7 @@ class reload = object (self)
 
 inherit Reloadgen.reload_generic as super
 
-method! reload_operation op arg res =
+method! reload_operation op arg res operands =
   match op with
   | Ispecific Imove32 ->
       (* Like Imove: argument or result can be on stack but not both *)
@@ -33,7 +33,7 @@ method! reload_operation op arg res =
           (arg, res)
       end
    | _ ->
-      super#reload_operation op arg res
+      super#reload_operation op arg res operands
 
 end
 

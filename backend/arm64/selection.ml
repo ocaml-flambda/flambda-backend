@@ -134,19 +134,19 @@ method! effects_of e =
 method select_addressing chunk = function
   | Cop((Caddv | Cadda), [Cconst_symbol (s, _); Cconst_int (n, _)], _)
     when use_direct_addressing s ->
-      (Ibased(s, n), Ctuple [])
+      (Ibased(s, n), Ctuple [], 0)
   | Cop((Caddv | Cadda), [arg; Cconst_int (n, _)], _)
     when is_offset chunk n ->
-      (Iindexed n, arg)
+      (Iindexed n, arg, 1)
   | Cop((Caddv | Cadda as op),
       [arg1; Cop(Caddi, [arg2; Cconst_int (n, _)], _)], dbg)
     when is_offset chunk n ->
-      (Iindexed n, Cop(op, [arg1; arg2], dbg))
+      (Iindexed n, Cop(op, [arg1; arg2], dbg), 1)
   | Cconst_symbol (s, _)
     when use_direct_addressing s ->
-      (Ibased(s, 0), Ctuple [])
+      (Ibased(s, 0), Ctuple [], 0)
   | arg ->
-      (Iindexed 0, arg)
+      (Iindexed 0, arg, 1)
 
 method! select_operation op args dbg =
   match op with

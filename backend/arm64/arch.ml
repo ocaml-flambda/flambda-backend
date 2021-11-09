@@ -46,7 +46,6 @@ type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 type specific_operation =
   | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
   | Ifar_intop_checkbound
-  | Ifar_intop_imm_checkbound of { bound : int; }
   | Ishiftarith of arith_operation * int
   | Ishiftcheckbound of { shift : int; }
   | Ifar_shiftcheckbound of { shift : int; }
@@ -115,8 +114,6 @@ let print_specific_operation printreg op ppf arg =
     fprintf ppf "(far) alloc %i" bytes
   | Ifar_intop_checkbound ->
     fprintf ppf "%a (far) check > %a" printreg arg.(0) printreg arg.(1)
-  | Ifar_intop_imm_checkbound { bound; } ->
-    fprintf ppf "%a (far) check > %i" printreg arg.(0) bound
   | Ishiftarith(op, shift) ->
       let op_name = function
       | Ishiftadd -> "+"
@@ -199,9 +196,6 @@ let equal_specific_operation left right =
     Ifar_alloc { bytes = right_bytes; dbginfo = _; } ->
     Int.equal left_bytes right_bytes
   | Ifar_intop_checkbound, Ifar_intop_checkbound -> true
-  | Ifar_intop_imm_checkbound { bound = left_bound; },
-    Ifar_intop_imm_checkbound { bound = right_bound; } ->
-    Int.equal left_bound right_bound
   | Ishiftarith (left_arith_operation, left_int),
     Ishiftarith (right_arith_operation, right_int) ->
     equal_arith_operation left_arith_operation right_arith_operation
@@ -223,7 +217,7 @@ let equal_specific_operation left right =
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
-  | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
+  | (Ifar_alloc _  | Ifar_intop_checkbound
     | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
     | Inegmulsubf | Isqrtf | Ibswap _ | Imove32), _ -> false
