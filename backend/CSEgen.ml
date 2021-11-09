@@ -35,9 +35,20 @@ type op_class =
 
 type rhs = operation * valnum array
 
+type rhs_operand =
+  | Vimm of Targetint.t
+  | Vimmf of Int64.t
+  | Vreg of valnum
+  | Vmem of { chunk : Cmm.memory_chunk option;
+              addr : Arch.addressing_mode;
+              reg : valnum array;
+            }
+
+type element = Op of rhs | Operand of rhs_operand
+
 module Equations = struct
   module Rhs_map =
-    Map.Make(struct type t = rhs let compare = Stdlib.compare end)
+    Map.Make(struct type t = element let compare = Stdlib.compare end)
 
   type 'a t =
     { load_equations : 'a Rhs_map.t;
@@ -122,6 +133,42 @@ let find_equation op_class n rhs =
   with Not_found ->
     None
 
+(** [valnum_operand] and [valnum_operands] return an array of value numbers
+    associated with the registers referred to by the operands. Similar
+    to [valnum_reg] and [valnum_regs]. *)
+let valnum_operand n operand =
+  let (n1, (rhs_operand : rhs_operand), op_class) =
+    match (operand : Mach.operand) with
+    | Ireg r ->
+      let (n1,v1) = valnum_reg n r in
+      (n1, Vreg v1, Op_pure)
+    | Imem { chunk; addr; reg } ->
+      let (n1, reg) = valnum_regs n reg in
+      (n1, Vmem { chunk; addr; reg }, Op_load)
+    | Iimm i -> (n, Vimm i, Op_pure)
+    | Iimmf f -> (n, Vimmf f, Op_pure)
+  in
+  match find_equation op_class n1 (Operand rhs_operand) with
+  | Some vres ->
+    (* This operand was computed earlier. *)
+    (* CR gyorsh: here we can further optimize, for example
+       check if there is a register that holds [vres] and replace
+       the operand with the register. *)
+    assert (Array.length vres = 1);
+    (n1, vres.(0))
+  | None ->
+    (* We haven't seen this operand before. *)
+    (* Generate a fresh value number [v] and record the equation
+       [v = rhs_operand]. There is no register associated with [v]. *)
+    let v2 = n1.num_next in
+    let n2 = { n1 with num_next = v2 + 1 } in
+    let num_eqs = Equations.add op_class (Operand rhs_operand) [| v2 |]
+                    n2.num_eqs in
+    ({ n2 with num_eqs }, v2)
+
+let valnum_operands n rs =
+  array_fold_transf valnum_operand n rs
+
 (* Find a register containing the given value number. *)
 
 let find_reg_containing n v =
@@ -201,12 +248,12 @@ let kill_addr_regs n =
 
 (* Prepend a set of moves before [i] to assign [srcs] to [dsts].  *)
 
-let insert_single_move i src dst = instr_cons (Iop Imove) [|src|] [|dst|] i
+let insert_single_move i src dst = instr_cons (Iop Imove) [|Ireg src|] [|dst|] i
 
 let insert_move srcs dsts i =
   match Array.length srcs with
   | 0 -> i
-  | 1 -> instr_cons (Iop Imove) srcs dsts i
+  | 1 -> instr_cons (Iop Imove) (Array.map (fun r -> Ireg r) srcs) dsts i
   | _ -> (* Parallel move: first copy srcs into tmps one by one,
             then copy tmps into dsts one by one *)
          let tmps = Reg.createv_like srcs in
@@ -224,12 +271,21 @@ let rec combine3 l1 l2 l3 =
   | (a1::l1, a2::l2, a3::l3) -> (a1, a2, a3) :: combine3 l1 l2 l3
   | (_, _, _) -> invalid_arg "combine3"
 
+let is_memory operands =
+  let is_memory = function
+    | Iimm _ | Ireg _ -> false
+      (* CR gyorsh: Iimmf is target specific, be conservative *)
+    | Iimmf _ -> true
+    | Imem _ -> true
+  in
+  Array.exists is_memory operands
+
 class cse_generic = object (self)
 
 (* Default classification of operations.  Can be overridden in
    processor-specific files to classify specific operations better. *)
 
-method class_of_operation op =
+method class_of_operation op operands =
   match op with
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _ -> Op_pure
@@ -237,14 +293,12 @@ method class_of_operation op =
   | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
   | Iload(_,_) -> Op_load
-  | Istore(_,_,asg) -> Op_store asg
+  | Istore asg -> Op_store asg
   | Ialloc _ -> assert false                   (* treated specially *)
   | Iintop(Icheckbound) -> Op_checkbound
-  | Iintop _ -> Op_pure
-  | Iintop_imm(Icheckbound, _) -> Op_checkbound
-  | Iintop_imm(_, _) -> Op_pure
+  | Iintop _ -> if is_memory operands then Op_load else Op_pure
   | Ifloatop _
-  | Ifloatofint | Iintoffloat -> Op_pure
+  | Ifloatofint | Iintoffloat -> if is_memory operands then Op_load else Op_pure
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_pure
   | Iprobe_is_enabled _ -> Op_other
@@ -256,6 +310,8 @@ method is_cheap_operation op =
   match op with
   | Iconst_int _ -> true
   | _ -> false
+
+(* CR gyorsh: is it worth CSEing memory operands into loads? *)
 
 (* Forget all equations involving memory loads.  Performed after a
    non-initializing store *)
@@ -274,7 +330,7 @@ method private cse n i k =
   | Iop (Imove | Ispill | Ireload) ->
       (* For moves, we associate the same value number to the result reg
          as to the argument reg. *)
-      let n1 = set_move n i.arg.(0) i.res.(0) in
+      let n1 = set_move n (Mach.arg_reg i.arg.(0)) i.res.(0) in
       self#cse n1 i.next (fun next -> k { i with next; })
   | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) ->
       (* For function calls and probes, we should at least forget:
@@ -308,11 +364,11 @@ method private cse n i k =
        let n2 = set_unknown_regs n1 i.res in
        self#cse n2 i.next (fun next -> k { i with next; })
   | Iop op ->
-      begin match self#class_of_operation op with
+      begin match self#class_of_operation op i.arg with
       | (Op_pure | Op_checkbound | Op_load) as op_class ->
-          let (n1, varg) = valnum_regs n i.arg in
-          begin match find_equation op_class n1 (op, varg) with
+          let (n1, varg) = valnum_operands n i.arg in
           let n2 = set_unknown_regs n1 (Proc.destroyed_at_oper i.desc i.arg) in
+          begin match find_equation op_class n1 (Op (op, varg)) with
           | Some vres ->
               (* This operation was computed earlier. *)
               (* Are there registers that hold the results computed earlier? *)
@@ -338,7 +394,7 @@ method private cse n i k =
               end
           | None ->
               (* This operation produces a result we haven't seen earlier. *)
-              let n3 = set_fresh_regs n2 i.res (op, varg) op_class in
+              let n3 = set_fresh_regs n2 i.res (Op (op,varg)) op_class in
               self#cse n3 i.next (fun next -> k { i with next; })
           end
       | Op_store false | Op_other ->

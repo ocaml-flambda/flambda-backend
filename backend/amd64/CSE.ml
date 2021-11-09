@@ -25,15 +25,13 @@ class cse = object
 
 inherit cse_generic as super
 
-method! class_of_operation op =
+method! class_of_operation op operands =
   match op with
   | Ispecific spec ->
     begin match spec with
-    | Ilea _ | Isextend32 | Izextend32 -> Op_pure
-    | Istore_int(_, _, is_asg) -> Op_store is_asg
-    | Ioffset_loc(_, _) -> Op_store true
-    | Ifloatarithmem _ | Ifloatsqrtf _ -> Op_load
-    | Ibswap _ | Isqrtf -> super#class_of_operation op
+    | Ilea | Isextend32 | Izextend32 -> Op_pure
+    | Ioffset_loc -> Op_store true
+    | Ibswap _ | Isqrtf -> super#class_of_operation op operands
     | Irdtsc | Irdpmc -> Op_other
     | Ifloat_iround | Ifloat_min | Ifloat_max | Ifloat_round _
     | Icrc32q -> Op_pure
@@ -44,10 +42,10 @@ method! class_of_operation op =
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-  | Iintop _ | Iintop_imm _
+  | Iintop _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
-    -> super#class_of_operation op
+    -> super#class_of_operation op operands
 
 end
 

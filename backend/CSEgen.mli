@@ -27,7 +27,7 @@ class cse_generic : object
   (* The following methods can be overridden to handle processor-specific
      operations. *)
 
-  method class_of_operation: Mach.operation -> op_class
+  method class_of_operation: Mach.operation -> Mach.operand array -> op_class
 
   method is_cheap_operation: Mach.operation -> bool
     (* Operations that are so cheap that it isn't worth factoring them. *)
