@@ -157,21 +157,14 @@ let basic_or_terminator_of_operation :
     else Terminator (Call_no_return external_call)
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
   | Iload (mem, mode) -> Basic (Op (Load (mem, mode)))
-  | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
+  | Istore { assignment; mode; } -> Basic (Op (Store { assignment; mode }))
   | Ialloc { bytes; dbginfo; mode } ->
     Basic (Call (P (Alloc { bytes; dbginfo; mode })))
-  | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
-  | Iintop_imm (Icheckbound, i) ->
-    Basic (Call (P (Checkbound { immediate = Some i })))
+  | Iintop Icheckbound -> Basic (Call (P Checkbound))
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
     Basic (Op (Intop op))
-  | Iintop_imm
-      ( (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-         | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op),
-        imm ) ->
-    Basic (Op (Intop_imm (op, imm)))
   | Ifloatop op -> Basic (Op (Floatop op))
   | Ifloatofint -> Basic (Op Floatofint)
   | Iintoffloat -> Basic (Op Intoffloat)
@@ -211,11 +204,10 @@ let float_test_of_float_comparison :
 let int_test_of_integer_comparison :
     Cmm.integer_comparison ->
     signed:bool ->
-    immediate:int option ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.int_test =
- fun comparison ~signed:is_signed ~immediate:imm ~label_false ~label_true ->
+ fun comparison ~signed:is_signed ~label_false ~label_true ->
   let lt, eq, gt =
     match comparison with
     | Ceq -> label_false, label_true, label_false
@@ -225,26 +217,23 @@ let int_test_of_integer_comparison :
     | Cle -> label_true, label_true, label_false
     | Cge -> label_false, label_true, label_true
   in
-  { lt; eq; gt; is_signed; imm }
+  { lt; eq; gt; is_signed }
 
 let terminator_of_test :
     Mach.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator =
  fun test ~label_false ~label_true ->
-  let int_test comparison immediate =
+  let int_test comparison =
     let signed, comparison =
       match comparison with
       | Mach.Isigned comparison -> true, comparison
       | Mach.Iunsigned comparison -> false, comparison
     in
-    int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
-      ~label_true
+    int_test_of_integer_comparison comparison ~signed ~label_false ~label_true
   in
   match test with
   | Itruetest -> Truth_test { ifso = label_true; ifnot = label_false }
   | Ifalsetest -> Truth_test { ifso = label_false; ifnot = label_true }
-  | Iinttest comparison -> Int_test (int_test comparison None)
-  | Iinttest_imm (comparison, value) ->
-    Int_test (int_test comparison (Some value))
+  | Iinttest comparison -> Int_test (int_test comparison)
   | Ifloattest comparison ->
     Float_test
       (float_test_of_float_comparison comparison ~label_false ~label_true)
@@ -308,11 +297,11 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
   match instr.Cfg.desc with
   | Op (Move | Spill | Reload) ->
     (* CR xclerc for xclerc: is testing the location enough? *)
-    Reg.same_loc instr.Cfg.arg.(0) instr.Cfg.res.(0)
+    Reg.same_loc (Mach.arg_reg instr.Cfg.arg.(0)) instr.Cfg.res.(0)
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Floatop _ | Floatofint | Intoffloat
-      | Probe _ | Opaque | Probe_is_enabled _ | Specific _ | Name_for_debugger _
+      | Store _ | Intop _ | Floatop _ | Floatofint | Intoffloat | Probe _
+      | Opaque | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region)
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false

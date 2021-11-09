@@ -78,7 +78,7 @@ let successor_labels_normal ti =
   | Float_test { lt; gt; eq; uo } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
     |> Label.Set.add uo
-  | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
+  | Int_test { lt; gt; eq; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
 
 let successor_labels ~normal ~exn block =
@@ -119,8 +119,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
         Parity_test { ifso = f ifso; ifnot = f ifnot }
       | Truth_test { ifso; ifnot } ->
         Truth_test { ifso = f ifso; ifnot = f ifnot }
-      | Int_test { lt; eq; gt; is_signed; imm } ->
-        Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed; imm }
+      | Int_test { lt; eq; gt; is_signed } ->
+        Int_test { lt = f lt; eq = f eq; gt = f gt; is_signed }
       | Float_test { lt; eq; gt; uo } ->
         Float_test { lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)

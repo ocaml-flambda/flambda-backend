@@ -45,6 +45,9 @@ let simplify_switch (block : C.basic_block) labels =
             if Label.equal hd l then (hd, n + 1) :: tl else (l, 1) :: acc)
       labels []
   in
+  let operands imm =
+    [| block.terminator.arg.(0); Mach.Iimm (Targetint.of_int imm) |]
+  in
   match labels_with_counts with
   | [(l, _)] ->
     (* All labels are the same and equal to l *)
@@ -53,24 +56,18 @@ let simplify_switch (block : C.basic_block) labels =
     assert (Label.equal labels.(0) l0);
     assert (Label.equal labels.(n) ln);
     assert (len = n + k);
-    let desc =
-      C.Int_test { is_signed = false; imm = Some n; lt = l0; eq = ln; gt = ln }
-    in
-    block.terminator <- { block.terminator with desc }
+    let desc = C.Int_test { is_signed = false; lt = l0; eq = ln; gt = ln } in
+    block.terminator <- { block.terminator with desc; arg = operands n }
   | [(l0, m); (l1, 1); (l2, _)] when Label.equal l0 l2 ->
-    let desc =
-      C.Int_test { is_signed = false; imm = Some m; lt = l0; eq = l1; gt = l0 }
-    in
-    block.terminator <- { block.terminator with desc }
+    let desc = C.Int_test { is_signed = false; lt = l0; eq = l1; gt = l0 } in
+    block.terminator <- { block.terminator with desc; arg = operands m }
   | [(l0, 1); (l1, 1); (l2, n)] ->
     assert (Label.equal labels.(0) l0);
     assert (Label.equal labels.(1) l1);
     assert (Label.equal labels.(2) l2);
     assert (len = n + 2);
-    let desc =
-      C.Int_test { is_signed = false; imm = Some 1; lt = l0; eq = l1; gt = l2 }
-    in
-    block.terminator <- { block.terminator with desc }
+    let desc = C.Int_test { is_signed = false; lt = l0; eq = l1; gt = l2 } in
+    block.terminator <- { block.terminator with desc; arg = operands 1 }
   | _ -> ()
 
 (* CR-someday gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
