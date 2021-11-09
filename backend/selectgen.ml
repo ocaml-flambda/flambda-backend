@@ -728,7 +728,7 @@ method mark_instr = function
       self#mark_tailcall
   | Iop (Ialloc _) ->
       self#mark_call (* caml_alloc*, caml_garbage_collection *)
-  | Iop (Iintop(Icheckbound) | Iintop_imm(Icheckbound, _)) ->
+  | Iop (Iintop Icheckbound) ->
       self#mark_c_tailcall (* caml_ml_array_bound_error *)
   | Iraise raise_kind ->
     begin match raise_kind with
@@ -1007,7 +1007,7 @@ method extract =
 
 method insert_move env src dst =
   if src.stamp <> dst.stamp then
-    self#insert env (Iop Imove) [|src|] [|dst|]
+    self#insert env (Iop Imove) [|Ireg src|] [|dst|]
 
 method insert_moves env src dst =
   for i = 0 to min (Array.length src) (Array.length dst) - 1 do
@@ -1108,8 +1108,9 @@ method emit_expr (env:environment) exp =
         None -> None
       | Some r1 ->
           let rd = [|Proc.loc_exn_bucket|] in
-          self#insert env (Iop Imove) r1 rd;
-          self#insert_debug env  (Iraise k) dbg rd [||];
+          self#insert env (Iop Imove) (operands_of_regs r1) rd;
+          self#insert_debug env  (Iraise k) dbg
+            [| Ireg Proc.loc_exn_bucket |] [||];
           set_traps_for_raise env;
           None
       end
@@ -1118,14 +1119,17 @@ method emit_expr (env:environment) exp =
         None -> None
       | Some (simple_args, env) ->
          let rs = self#emit_tuple env simple_args in
-         Some (self#insert_op_debug env Iopaque dbg rs rs)
+         Some (self#insert_op_debug env Iopaque dbg
+                 (operands_of_regs rs)
+                 rs)
       end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env' args with
         None -> None
       | Some(simple_args, env) ->
           let ty = oper_result_type op in
-          let (new_op, new_args) = self#select_operation op simple_args dbg in
+          let (new_op, new_args, operands) =
+            self#select_operation op simple_args dbg in
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
@@ -1133,9 +1137,11 @@ method emit_expr (env:environment) exp =
               let rd = self#regs_for ty in
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
               let loc_res = Proc.loc_results (Reg.typv rd) in
+              let mach_operands = Operands.emit operands
+                                    (Array.append [|r1.(0)|] loc_arg) in
               self#insert_move_args env rarg loc_arg stack_ofs;
               self#insert_debug env (Iop new_op) dbg
-                          (Array.append [|r1.(0)|] loc_arg) loc_res;
+                          mach_operands loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               Some rd
@@ -1145,7 +1151,8 @@ method emit_expr (env:environment) exp =
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv r1) in
               let loc_res = Proc.loc_results (Reg.typv rd) in
               self#insert_move_args env r1 loc_arg stack_ofs;
-              self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
+              let mach_operands = Operands.emit operands loc_arg in
+              self#insert_debug env (Iop new_op) dbg mach_operands loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               Some rd
@@ -1153,9 +1160,10 @@ method emit_expr (env:environment) exp =
               let (loc_arg, stack_ofs) =
                 self#emit_extcall_args env ty_args new_args in
               let rd = self#regs_for ty in
+              let mach_operands = Operands.emit operands loc_arg in
               let loc_res =
                 self#insert_op_debug env new_op dbg
-                  loc_arg (Proc.loc_external_results (Reg.typv rd)) in
+                  mach_operands (Proc.loc_external_results (Reg.typv rd)) in
               self#insert_move_results env loc_res rd stack_ofs;
               set_traps_for_raise env;
               if returns then Some rd else None
@@ -1176,13 +1184,15 @@ method emit_expr (env:environment) exp =
           | Iprobe _ ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
-              let rd = self#insert_op_debug env new_op dbg r1 rd in
+              let mach_operands = Operands.emit operands r1 in
+              let rd = self#insert_op_debug env new_op dbg mach_operands rd in
               set_traps_for_raise env;
               Some rd
           | op ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
-              Some (self#insert_op_debug env op dbg r1 rd)
+              let mach_operands = Operands.emit operands r1 in
+              Some (self#insert_op_debug env op dbg mach_operands rd)
       end
   | Csequence(e1, e2) ->
       begin match self#emit_expr env' e1 with
@@ -1190,15 +1200,16 @@ method emit_expr (env:environment) exp =
       | Some _ -> self#emit_expr env e2
       end
   | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
-      let (cond, earg) = self#select_condition econd in
+      let (cond, earg, operands) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> None
       | Some rarg ->
           let (rif, sif) = self#emit_sequence env eif in
           let (relse, selse) = self#emit_sequence env eelse in
           let r = join env rif sif relse selse in
+          let mach_operands = Operands.emit operands rarg in
           self#insert env (Iifthenelse(cond, sif#extract, selse#extract))
-                      rarg [||];
+                      mach_operands [||];
           r
       end
   | Cswitch(esel, index, ecases, _dbg) ->
@@ -1211,7 +1222,7 @@ method emit_expr (env:environment) exp =
           let r = join_array env rscases in
           self#insert env (Iswitch(index,
                                    Array.map (fun (_, s) -> s#extract) rscases))
-                      rsel [||];
+            (operands_of_regs rsel) [||];
           r
       end
   | Ccatch(_, [], e1) ->
@@ -1347,8 +1358,8 @@ method emit_expr (env:environment) exp =
         self#insert env
           (Itrywith(s1#extract, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                       (instr_cons (Iop Iendregion) reg [| |] s2#extract))))
+                     instr_cons (Iop Imove) [|Ireg Proc.loc_exn_bucket|] rv
+                       (instr_cons (Iop Iendregion) [| Ireg reg |] [| |] s2#extract))))
           [||] [||];
         r
       in
@@ -1577,7 +1588,7 @@ method private insert_return (env:environment) r (traps:trap_action list) =
       if env.region_tail then
         self#insert env (Iop Iendregion) (List.hd env.regions) [||];
       self#insert_moves env r loc;
-      self#insert env (Ireturn traps) loc [||]
+      self#insert env (Ireturn traps) (operands_of_regs loc) [||]
 
 method private emit_return (env:environment) exp traps =
   self#insert_return env (self#emit_expr env exp) traps
@@ -1604,7 +1615,8 @@ method emit_tail (env:environment) exp =
       begin match self#emit_parts_list env' args with
         None -> ()
       | Some(simple_args, env) ->
-          let (new_op, new_args) = self#select_operation op simple_args dbg in
+          let (new_op, new_args, operands) =
+            self#select_operation op simple_args dbg in
           match new_op with
             Icall_ind ->
               let r1 = self#emit_tuple env new_args in
@@ -1615,24 +1627,28 @@ method emit_tail (env:environment) exp =
               let (loc_arg, stack_ofs) = Proc.loc_arguments (Reg.typv rarg) in
               if stack_ofs = 0 && trap_stack_is_empty env && not endregion then begin
                 let call = Iop (Itailcall_ind) in
+                let mach_operands = Operands.emit operands
+                                      (Array.append [|r1.(0)|] loc_arg) in
                 self#insert_moves env rarg loc_arg;
-                self#insert_debug env call dbg
-                            (Array.append [|r1.(0)|] loc_arg) [||];
+                self#insert_debug env call dbg mach_operands [||];
               end else begin
                 let rd = self#regs_for ty in
                 let loc_res = Proc.loc_results (Reg.typv rd) in
+                let mach_operands = Operands.emit operands
+                                      (Array.append [|r1.(0)|] loc_arg) in
                 self#insert_move_args env rarg loc_arg stack_ofs;
-                self#insert_debug env (Iop new_op) dbg
-                            (Array.append [|r1.(0)|] loc_arg) loc_res;
+                self#insert_debug env (Iop new_op) dbg mach_operands loc_res;
                 set_traps_for_raise env;
                 if not endregion then begin
                   self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
                 end else begin
                   self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                  self#insert env (Iop Iendregion)
+                    [| Ireg (List.hd env.regions) |] [||];
                   self#insert_moves env rd loc_res
                 end;
-                self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
+                self#insert env (Ireturn (pop_all_traps env))
+                  (operands_of_regs loc_res) [||]
               end
           | Icall_imm { func; } ->
               let r1 = self#emit_tuple env new_args in
@@ -1643,26 +1659,31 @@ method emit_tail (env:environment) exp =
               if stack_ofs = 0 && trap_stack_is_empty env && not endregion then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 self#insert_moves env r1 loc_arg;
-                self#insert_debug env call dbg loc_arg [||];
-              end else if func = !current_function_name && trap_stack_is_empty env && not endregion then begin
+                self#insert_debug env call dbg (operands_of_regs loc_arg) [||];
+              end else if func = !current_function_name &&
+                          trap_stack_is_empty env &&
+                          not endregion then begin
                 let call = Iop (Itailcall_imm { func; }) in
                 let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
                 self#insert_moves env r1 loc_arg';
-                self#insert_debug env call dbg loc_arg' [||];
+                self#insert_debug env call dbg (operands_of_regs loc_arg') [||];
               end else begin
                 let rd = self#regs_for ty in
                 let loc_res = Proc.loc_results (Reg.typv rd) in
+                let mach_operands = Operands.emit operands loc_arg in
                 self#insert_move_args env r1 loc_arg stack_ofs;
-                self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
+                self#insert_debug env (Iop new_op) dbg mach_operands loc_res;
                 set_traps_for_raise env;
                 if not endregion then begin
                   self#insert env (Iop(Istackoffset(-stack_ofs))) [||] [||]
                 end else begin
                   self#insert_move_results env loc_res rd stack_ofs;
-                  self#insert env (Iop Iendregion) (List.hd env.regions) [||];
+                  self#insert env (Iop Iendregion)
+                    [| Ireg (List.hd env.regions) |] [||];
                   self#insert_moves env rd loc_res
                 end;
-                self#insert env (Ireturn (pop_all_traps env)) loc_res [||]
+                self#insert env (Ireturn (pop_all_traps env))
+                  (operands_of_regs loc_res) [||]
               end
           | _ -> Misc.fatal_error "Selection.emit_tail"
       end
@@ -1672,14 +1693,15 @@ method emit_tail (env:environment) exp =
       | Some _ -> self#emit_tail env e2
       end
   | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
-      let (cond, earg) = self#select_condition econd in
+      let (cond, earg, operands) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> ()
       | Some rarg ->
+          let mach_operands = Operands.emit operands rarg in
           self#insert env
                       (Iifthenelse(cond, self#emit_tail_sequence env eif,
                                          self#emit_tail_sequence env eelse))
-                      rarg [||]
+                      mach_operands [||]
       end
   | Cswitch(esel, index, ecases, _dbg) ->
       begin match self#emit_expr env' esel with
@@ -1689,7 +1711,7 @@ method emit_tail (env:environment) exp =
             Array.map (fun (case, _dbg) -> self#emit_tail_sequence env case)
               ecases
           in
-          self#insert env (Iswitch (index, cases)) rsel [||]
+          self#insert env (Iswitch (index, cases)) (operands_of_regs rsel) [||]
       end
   | Ccatch(_, [], e1) ->
       self#emit_tail env e1
@@ -1761,8 +1783,9 @@ method emit_tail (env:environment) exp =
         self#insert env
           (Itrywith(s1, kind,
                     (env_handler.trap_stack,
-                     instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                       (instr_cons (Iop Iendregion) reg [| |] s2))))
+                     instr_cons (Iop Imove) [|Ireg Proc.loc_exn_bucket|] rv
+                       (instr_cons (Iop Iendregion) (operands_of_reg reg)
+                          [| |] s2))))
           [||] [||]
       in
       let env = env_add v rv env in
