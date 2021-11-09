@@ -76,8 +76,7 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   let result_var' = Bound_var.var result_var in
   let args_rev =
-    ListLabels.fold_left (P.args prim) ~init:[]
-      ~f:(fun args_rev arg ->
+    ListLabels.fold_left (P.args prim) ~init:[] ~f:(fun args_rev arg ->
         let arg_ty = S.simplify_simple dacc arg ~min_name_mode in
         let arg = T.get_alias_exn arg_ty in
         (arg, arg_ty) :: args_rev)
@@ -104,8 +103,8 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
       Simplify_ternary_primitive.simplify_ternary_primitive dacc prim ~arg1
         ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var
     | Variadic (variadic_prim, _), args_with_tys ->
-      Simplify_variadic_primitive.simplify_variadic_primitive dacc
-        variadic_prim ~args_with_tys dbg ~result_var
+      Simplify_variadic_primitive.simplify_variadic_primitive dacc variadic_prim
+        ~args_with_tys dbg ~result_var
     | (Nullary _ | Unary _ | Binary _ | Ternary _), ([] | _ :: _) ->
-      Misc.fatal_errorf "Mismatch between primitive %a and args %a" P.print
-        prim Simple.List.print (List.map fst args))
+      Misc.fatal_errorf "Mismatch between primitive %a and args %a" P.print prim
+        Simple.List.print (List.map fst args))
