@@ -415,7 +415,8 @@ module Inlining = struct
             let over_apply =
               Apply.create ~callee:(Simple.var returned_func)
                 ~continuation:apply_return_continuation apply_exn_continuation
-                ~args ~call_kind (Apply.dbg apply) ~inlined:(Apply.inlined apply)
+                ~args ~call_kind (Apply.dbg apply)
+                ~inlined:(Apply.inlined apply)
                 ~inlining_state:(Inlining_state.default ~round:0)
                 ~probe_name:(Apply.probe_name apply)
             in
