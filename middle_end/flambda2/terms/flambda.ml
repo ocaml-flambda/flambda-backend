@@ -1395,6 +1395,9 @@ module Static_const_or_code = struct
 
   let create_static_const const = Static_const const
 
+  let is_code t =
+    match t with Code _ | Deleted_code -> true | Static_const _ -> false
+
   let is_fully_static t =
     match t with
     | Code _ | Deleted_code -> true
@@ -1402,12 +1405,12 @@ module Static_const_or_code = struct
 
   let is_block t =
     match t with
-    | Code _ -> false
+    | Code _ | Deleted_code -> false
     | Static_const const -> Static_const.is_block const
 
   let is_set_of_closures t =
     match t with
-    | Code _ -> false
+    | Code _ | Deleted_code -> false
     | Static_const const -> Static_const.is_set_of_closures const
 
   let to_code t =
