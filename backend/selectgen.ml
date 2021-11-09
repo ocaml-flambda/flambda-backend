@@ -156,6 +156,8 @@ let env_close_regions env rs =
   in
   aux None env.regions rs
 
+let ppf_dump = ref Format.std_formatter
+
 (* Infer the type of the result of an operation *)
 
 let oper_result_type = function
@@ -1514,8 +1516,9 @@ method private emit_tail_sequence env exp =
 
 (* Sequentialization of a function definition *)
 
-method emit_fundecl f =
+method emit_fundecl f ~ppf_dump:ppf =
   current_function_name := f.Cmm.fun_name;
+  ppf_dump := ppf;
   let rargs =
     List.map
       (fun (id, ty) -> let r = self#regs_for ty in name_regs id r; r)

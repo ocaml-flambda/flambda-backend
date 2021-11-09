@@ -141,7 +141,7 @@ class virtual selector_generic : object
      marking *)
 
   (* The following method is the entry point and should not be overridden. *)
-  method emit_fundecl : Cmm.fundecl -> Mach.fundecl
+  method emit_fundecl : Cmm.fundecl -> ppf_dump:Format.formatter -> Mach.fundecl
 
   (* The following methods should not be overridden.  They cannot be
      declared "private" in the current implementation because they

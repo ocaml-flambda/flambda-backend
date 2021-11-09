@@ -56,6 +56,17 @@ let pass_dump_cfg_if ppf flag message c =
     fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
   c
 
+let count_spills ppf (f : Linear.fundecl) =
+  if !Clflags.inlining_report then begin
+    let spills = ref 0 in
+    let rec iter (i : Linear.instruction) =
+      match i.desc with
+      | Lend -> fprintf ppf "@[<h>Spills: %d (%s)@]@\n" !spills f.fun_name
+      | Lop (Ispill) -> incr spills; iter i.next
+      | _ -> iter i.next
+    in iter f.fun_body
+  end
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
@@ -167,7 +178,7 @@ let (++) x f = f x
 
 let ocamlcfg_verbose =
   match Sys.getenv_opt "OCAMLCFG_VERBOSE" with
-  | Some "1" -> true
+  | Some "1" -> Cfg.verbose := true; true
   | Some _ | None -> false
 
 let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
@@ -196,7 +207,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
   Reg.reset();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "selection" Selection.fundecl
+  ++ Profile.record ~accumulate:true "selection" (Selection.fundecl ~ppf_dump)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
@@ -221,6 +232,8 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "available_regs" Available_regs.fundecl
   ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
       let res = Linearize.fundecl f in
+      count_spills ppf_dump res;
+      pass_dump_linear_if ppf_dump dump_linear "Linearized code" res |> ignore;
       (* CR xclerc for xclerc: temporary, for testing. *)
       if !Flambda_backend_flags.use_ocamlcfg then begin
         test_cfgize f res;
