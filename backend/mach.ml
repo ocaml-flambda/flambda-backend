@@ -43,7 +43,6 @@ type test =
     Itruetest
   | Ifalsetest
   | Iinttest of integer_comparison
-  | Iinttest_imm of integer_comparison * int
   | Ifloattest of float_comparison
   | Ioddtest
   | Ieventest
@@ -64,11 +63,10 @@ type operation =
                   alloc : bool; returns : bool; }
   | Istackoffset of int
   | Iload of Cmm.memory_chunk * Arch.addressing_mode
-  | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
+  | Istore of bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode : Lambda.alloc_mode }
   | Iintop of integer_operation
-  | Iintop_imm of integer_operation * int
   | Ifloatop of float_operation
   | Ifloatofint | Iintoffloat
   | Iopaque
@@ -211,7 +209,7 @@ let rec instr_iter f i =
             | Iconst_int _ | Iconst_float _ | Iconst_symbol _
             | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
-            | Iintop _ | Iintop_imm _
+            | Iintop _
             | Ifloatop _
             | Ifloatofint | Iintoffloat
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
@@ -222,7 +220,7 @@ let rec instr_iter f i =
 let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
-  | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
+  | Iintop (Icheckbound)
   | Iprobe _
   | Ialloc _ -> true
   | _ -> false

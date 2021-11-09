@@ -46,7 +46,6 @@ type test =
     Itruetest
   | Ifalsetest
   | Iinttest of integer_comparison
-  | Iinttest_imm of integer_comparison * int
   | Ifloattest of float_comparison
   | Ioddtest
   | Ieventest
@@ -67,12 +66,10 @@ type operation =
                   alloc : bool; returns : bool; }
   | Istackoffset of int
   | Iload of Cmm.memory_chunk * Arch.addressing_mode
-  | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
-                                 (* false = initialization, true = assignment *)
+  | Istore of bool         (* false = initialization, true = assignment *)
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode: Lambda.alloc_mode }
   | Iintop of integer_operation
-  | Iintop_imm of integer_operation * int
   | Ifloatop of float_operation
   | Ifloatofint | Iintoffloat
   | Iopaque
