@@ -158,6 +158,117 @@ let env_close_regions env rs =
 
 let ppf_dump = ref Format.std_formatter
 
+let operands_of_regs rv = Array.map (fun r -> Mach.Ireg r) rv
+
+module Operands : sig
+  type t
+  type operand_builder
+
+  val mem : Cmm.memory_chunk option -> Arch.addressing_mode ->
+    index:int -> len:int -> operand_builder
+  val reg : index:int -> operand_builder
+  val imm : Targetint.t -> operand_builder
+  val immf : int64 -> operand_builder
+
+  val selected : operand_builder array -> t
+  val in_registers : unit -> t
+  val emit : t -> Reg.t array -> Mach.operand array
+
+  (* val is_immediate : t -> index:int -> bool *)
+
+  (* CR gyorsh: temporary, stats for testing *)
+  val report : t -> ?swap:bool -> Mach.operation -> unit
+  val report_test : t -> ?swap:bool -> Mach.test -> unit
+end = struct
+
+  type operand_builder =
+    | Iimm of Targetint.t
+    | Iimmf of int64
+    | Ireg of int                               (** Index into instruction.arg *)
+    | Imem of { chunk : Cmm.memory_chunk option;
+                addr : Arch.addressing_mode;
+                reg : int array;
+              }
+    (** indexes into instruction.arg for the registers used in addressing_mode *)
+
+  type t = In_registers | Selected of operand_builder array
+
+  (* CR gyorsh: temporary, for testing *)
+
+  let memory_operands_verbose =
+    match Sys.getenv_opt "MEMORY_OPERANDS_VERBOSE" with
+    | Some "1" -> true
+    | Some _ | None -> false
+
+
+  let check_operands arg (operands : operand_builder array) =
+    (* CR gyorsh: maybe check Iimmf/Iimm and arg types against desc types? *)
+    if memory_operands_verbose then begin
+      let n = Array.length arg in
+      let indexes =
+        Array.fold_left (fun acc operand ->
+          match operand with
+          | Iimm _ | Iimmf _ -> acc
+          | Ireg j ->
+            if (j >= n) then
+              Misc.fatal_errorf "Selectgen.check_operands: \
+                                 %d not in args (args length = %d"
+                j n ();
+            j :: acc
+          | Imem m ->
+            Array.iter (fun j ->
+              if (j >= n) then
+                Misc.fatal_errorf "Selectgen.check_operands: \
+                                   %d not in args (args length = %d"
+                  j n ())
+              m.reg;
+            (Array.to_list m.reg) @ acc
+        ) [] operands
+        |> List.sort_uniq Int.compare
+      in
+      if List.length indexes < Array.length arg then
+        Misc.fatal_errorf "Selectgen.check_operands: \
+                           leng of indexes = %d, length of args = %d"
+          (List.length indexes) (Array.length arg) ();
+      List.iteri (fun i j ->
+        if i != j then
+          Misc.fatal_errorf "Indexes.(%d)=%d" i j ())
+        indexes
+    end
+
+  let emit_operand : Reg.t array -> operand_builder -> Mach.operand =
+    fun arg operand ->
+    match operand with
+    | Iimm n -> Iimm n
+    | Iimmf f -> Iimmf f
+    | Ireg i -> Ireg arg.(i)
+    | Imem { chunk; addr; reg; } ->
+      let reg = Array.map (fun j -> arg.(j)) reg in
+      Imem { chunk; addr; reg; }
+
+  let emit : t -> Reg.t array -> Mach.operand array = fun t arg ->
+    match t with
+    | In_registers -> operands_of_regs arg
+    | Selected s ->
+      check_operands arg s;
+      Array.map (emit_operand arg) s
+
+  let mem chunk addr ~index ~len =
+    let reg = Array.init len (fun i -> index + i) in
+    Imem { chunk; addr; reg }
+
+  let reg ~index = Ireg index
+
+  let imm n = Iimm n
+
+  let immf f = Iimmf f
+
+  let in_registers () = In_registers
+
+  let selected r = Selected r
+
+end
+
 (* Infer the type of the result of an operation *)
 
 let oper_result_type = function
@@ -518,23 +629,25 @@ method effects_of exp =
 
 method is_immediate op n =
   match op with
-  | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
+  | Iintop (Ilsl | Ilsr | Iasr) -> n >= 0 && n < Arch.size_int * 8
   | _ -> false
 
 (* Says whether an integer constant is a suitable immediate argument for
    the given integer test *)
 
-method virtual is_immediate_test : integer_comparison -> int -> bool
+method virtual is_immediate_test : Mach.test -> int -> bool
 
 (* Selection of addressing modes *)
 
 method virtual select_addressing :
-  Cmm.memory_chunk -> Cmm.expression -> Arch.addressing_mode * Cmm.expression
+  Cmm.memory_chunk -> Cmm.expression ->
+  Arch.addressing_mode * Cmm.expression * int
 
 (* Default instruction selection for stores (of words) *)
 
-method select_store is_assign addr arg =
-  (Istore(Word_val, addr, is_assign), arg)
+method select_store is_assign chunk addr len arg =
+  (Istore is_assign, arg,
+   Operands.(selected [| reg 0; mem chunk addr ~len ~index:1 |]))
 
 (* call marking methods, documented in selectgen.mli *)
 val contains_calls = ref false
@@ -652,6 +765,20 @@ method private select_arith op = function
 method private select_arith_comp cmp = function
   | [arg; Cconst_int (n, _)] when self#is_immediate (Icomp cmp) n ->
       (Iintop_imm(Icomp cmp, n), [arg])
+(* CR gyorsh: we might need more information on which arg can be in memory,
+   and for swapping args. *)
+method memory_operands_supported _op _c = false
+method memory_operands_supported_condition _op _c = false
+method is_immediate_float _op _f = false
+method is_immediate_test_float _op _f = false
+(* method private select_operand arg =
+ *   match arg with
+ *   | Cconst_int (n, _) -> Iimm n
+ *   | Cop(Cload (chunk, _), [loc], _dbg) ->
+ *     let (addr, arg, len) = self#select_addressing chunk loc in
+ *     (arg, mem_operand chunk addr ~index:0 ~len)
+ *   | _ -> (arg, Ireg 0) *)
+
   | [Cconst_int (n, _); arg]
     when self#is_immediate (Icomp(swap_intcomp cmp)) n ->
       (Iintop_imm(Icomp(swap_intcomp cmp), n), [arg])
@@ -1245,27 +1372,36 @@ method insert_move_extcall_arg env _ty_arg src dst =
   self#insert_moves env src dst
 
 method emit_stores env data regs_addr =
+  let len = Array.length regs_addr in
   let a =
     ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int)) in
+  let emit_store op regs_for_e operands new_size =
+    let mach_operands =
+      Operands.emit operands (Array.append regs_for_e regs_addr) in
+    self#insert env (Iop op) mach_operands [||];
+    a := Arch.offset_addressing !a new_size
+  in
   List.iter
     (fun e ->
-      let (op, arg) = self#select_store false !a e in
-      match self#emit_expr env arg with
-        None -> assert false
-      | Some regs ->
-          match op with
-            Istore(_, _, _) ->
-              for i = 0 to Array.length regs - 1 do
-                let r = regs.(i) in
-                let kind = if r.typ = Float then Double else Word_val in
-                self#insert env
-                            (Iop(Istore(kind, !a, false)))
-                            (Array.append [|r|] regs_addr) [||];
-                a := Arch.offset_addressing !a (size_component r.typ)
-              done
-          | _ ->
-              self#insert env (Iop op) (Array.append regs regs_addr) [||];
-              a := Arch.offset_addressing !a (size_expr env e))
+       let (op, newe, operands) =
+         self#select_store false (Some Word_val) !a len e in
+       match self#emit_expr env newe with
+       | None -> assert false
+       | Some [||] ->
+         (* immediate operands or Ispecific operation *)
+         emit_store op [||] operands (size_expr env e)
+       | Some regs_for_e ->
+         match op with
+           Istore _ ->
+           for i = 0 to Array.length regs_for_e - 1 do
+             let r = regs_for_e.(i) in
+             let kind = if r.typ = Float then Double else Word_val in
+             let new_size = size_component r.typ in
+             let operands =
+               Operands.(selected [| reg 0; mem (Some kind) !a ~len ~index:1 |]) in
+             emit_store op [| r |] operands new_size
+           done
+         | _ -> emit_store op regs_for_e operands (size_expr env e))
     data
 
 (* Same, but in tail position *)

@@ -195,12 +195,59 @@ inherit Selectgen.selector_generic as super
 
 method! is_immediate op n =
   match op with
-  | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound ->
+  | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound) ->
       is_immediate n
   | _ ->
       super#is_immediate op n
 
+method! is_immediate_float op f =
+  match op with
+  | Ifloatop (Iaddf | Isubf | Imulf | Idivf) -> f <> +0.0
+  | _ -> false
+
 method is_immediate_test _cmp n = is_immediate n
+
+method is_immediate_test_float cmp f =
+  match cmp with
+  | Ifloattest _ -> f <> +0.0
+  | _ -> false
+
+method! memory_operands_supported op chunk =
+  match op, chunk with
+  | Ifloatop (Iaddf | Isubf | Imulf |Idivf), Double -> true
+  | Ispecific Isqrtf, Double -> true
+  | Iintop _, (Word_int | Word_val) -> true
+  | Iintop _, _ ->
+    (* The value loaded from memory needs to be extended before use in Iintop  *)
+    false
+  | Ifloatop (Icompf _ ), Double -> true
+  | Ifloatop (Inegf | Iabsf), _ -> false
+  | Ifloatofint, (Word_int | Word_val) -> true
+  | Iintoffloat, Double -> true
+  | (Ifloatop _ | Ispecific _ | Ifloatofint | Iintoffloat), _ -> false
+  | ((Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Iopaque
+     | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
+     | Itailcall_imm _ |Iextcall _ | Istackoffset _
+     | Iload (_, _) | Istore _ | Ialloc _ | Iname_for_debugger _
+     | Iprobe _|Iprobe_is_enabled _), _) -> assert false
+
+method! memory_operands_supported_condition (op : Mach.test) chunk =
+  match op, chunk with
+  | (Iinttest (Isigned _ | Iunsigned _)
+    | Ioddtest | Ieventest | Itruetest | Ifalsetest),
+    (Word_int | Word_val) -> true
+  | (Iinttest (Isigned _ | Iunsigned _)
+    | Ioddtest | Ieventest | Itruetest | Ifalsetest),
+    (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+    | Thirtytwo_unsigned | Thirtytwo_signed) -> false
+  | (Iinttest (Isigned _ | Iunsigned _)
+    | Ioddtest | Ieventest | Itruetest | Ifalsetest),_ ->
+    Misc.fatal_errorf "memory_operands_condition inttest with chunk=%s"
+      (Printcmm.chunk chunk) ()
+  | (Ifloattest cmp, Double) -> true
+  | Ifloattest cmp, _ ->
+    Misc.fatal_errorf "memory_operands_condition floattest with chunk=%s"
+      (Printcmm.chunk chunk) ()
 
 method! is_simple_expr e =
   match e with
@@ -223,25 +270,38 @@ method select_addressing _chunk exp =
   let (a, d) = select_addr exp in
   (* PR#4625: displacement must be a signed 32-bit immediate *)
   if not (is_immediate d)
-  then (Iindexed 0, exp)
+  then (Iindexed 0, exp, 0)
   else match a with
     | Asymbol s ->
-        (Ibased(s, d), Ctuple [])
+        (Ibased(s, d), Ctuple [], 0)
     | Alinear e ->
-        (Iindexed d, e)
+        (Iindexed d, e, 1)
     | Aadd(e1, e2) ->
-        (Iindexed2 d, Ctuple[e1; e2])
+        (Iindexed2 d, Ctuple[e1; e2], 2)
     | Ascale(e, scale) ->
-        (Iscaled(scale, d), e)
+        (Iscaled(scale, d), e, 1)
     | Ascaledadd(e1, e2, scale) ->
-        (Iindexed2scaled(scale, d), Ctuple[e1; e2])
+        (Iindexed2scaled(scale, d), Ctuple[e1; e2], 2)
 
-method! select_store is_assign addr exp =
+method! select_store is_assign chunk addr len exp =
+  let chunk_for_imm =
+    match chunk with
+    | Some (Word_int | Word_val) -> true
+    | Some (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+            | Thirtytwo_unsigned | Thirtytwo_signed | Single | Double)
+    | None -> false
+  in
+  let mk_mem n =
+    O.(selected [| imm n; mem (Some Word_int) addr ~len ~index:0 |]) in
   match exp with
-    Cconst_int (n, _dbg) when is_immediate n ->
-      (Ispecific(Istore_int(Nativeint.of_int n, addr, is_assign)), Ctuple [])
-  | (Cconst_natint (n, _dbg)) when is_immediate_natint n ->
-      (Ispecific(Istore_int(n, addr, is_assign)), Ctuple [])
+    Cconst_int (n, _dbg) when chunk_for_imm && is_immediate n ->
+    (Istore is_assign, Ctuple [], mk_mem (Targetint.of_int n))
+  | (Cconst_natint (n, _dbg)) when chunk_for_imm && is_immediate_natint n ->
+    (* CR gyorsh: add to Targetint module or
+       change Cconst_intnat to take Targetint.t?  *)
+    let targetint_of_nativeint n =
+      Int64.of_nativeint n |> Targetint.of_int64 in
+    (Istore is_assign, Ctuple [], mk_mem (targetint_of_nativeint n))
   | Cconst_int _
   | Cconst_natint (_, _) | Cconst_float (_, _) | Cconst_symbol (_, _)
   | Cvar _ | Clet (_, _, _) | Clet_mut (_, _, _, _) | Cphantom_let (_, _, _)
@@ -250,7 +310,15 @@ method! select_store is_assign addr exp =
   | Cexit (_, _, _) | Ctrywith (_, _, _, _, _)
   | Cregion _ | Ctail _
     ->
-      super#select_store is_assign addr exp
+      super#select_store is_assign chunk addr len exp
+
+method select_condition cond =
+  match cond with
+  | Cop(Ccmpf cmp, ([arg0;arg1] as args), _) ->
+     self#select_operands_condition (Ifloattest cmp)
+       (if Arch.float_test_need_swap cmp then [arg1;arg0] else args)
+  | arg ->
+      super#select_condition cond
 
 method! select_operation op args dbg =
   match op with
@@ -374,33 +442,37 @@ method! select_operation op args dbg =
       Ispecific (Iprefetch { is_write; addr; locality; }), [eloc]
   | _ -> super#select_operation op args dbg
 
-(* Recognize float arithmetic with mem *)
-
-method select_floatarith commutative regular_op mem_op args =
-  match args with
-    [arg1; Cop(Cload ((Double as chunk), _), [loc2], _)] ->
-      let (addr, arg2) = self#select_addressing chunk loc2 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
-                 [arg1; arg2])
-  | [Cop(Cload ((Double as chunk), _), [loc1], _); arg2]
-        when commutative ->
-      let (addr, arg1) = self#select_addressing chunk loc1 in
-      (Ispecific(Ifloatarithmem(mem_op, addr)),
-                 [arg2; arg1])
-  | [arg1; arg2] ->
-      (Ifloatop regular_op, [arg1; arg2])
-  | _ ->
-      assert false
 
 method! mark_c_tailcall =
   contains_calls := true
 
-(* Deal with register constraints *)
+method private insert_moves_operands env src dst =
+  let eq_stamp : Reg.t -> Reg.t -> bool =
+    fun r1 r2 -> Int.equal r1.stamp r2.stamp
+  in
+  for i = 0 to min (Array.length src) (Array.length dst) - 1 do
+    match src.(i), dst.(i) with
+    | Iimm left, Iimm right when Targetint.equal left right -> ()
+    | Iimmf left, Iimmf right when Int64.equal left right -> ()
+    | Ireg left, Ireg right when eq_stamp left right -> ()
+    | Imem left, Imem right when
+      Option.equal Cmm.equal_memory_chunk left.chunk right.chunk &&
+      Arch.equal_addressing_mode left.addr right.addr &&
+      Array.length left.reg = Array.length right.reg &&
+      Array.for_all2 eq_stamp left.reg right.reg -> ()
+    | (Ireg _ | Iimm _ | Iimmf _) as src, Ireg dst ->
+      self#insert env (Iop Imove) [|src|] [|dst|]
+    | Imem _, Ireg _ ->
+      Misc.fatal_error "Selection.insert_moves_operands: mem to reg"
+    | (Iimm _ | Iimmf _ | Ireg _ | Imem _), _ ->
+      Misc.fatal_error "Selection.insert_moves_operands"
+  done
 
+(* Deal with register constraints *)
 method! insert_op_debug env op dbg rs rd =
   try
     let (rsrc, rdst) = pseudoregs_for_operation op rs rd in
-    self#insert_moves env rs rsrc;
+    self#insert_moves_operands env rs rsrc;
     self#insert_debug env (Iop op) dbg rsrc rdst;
     self#insert_moves env rdst rd;
     rd

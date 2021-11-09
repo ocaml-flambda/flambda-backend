@@ -29,6 +29,28 @@ val env_find : Backend_var.t -> environment -> Reg.t array
 
 val size_expr : environment -> Cmm.expression -> int
 
+(* During selection, the shape of operands is chosen before the arguments
+   are converted from Cmm expression to Mach expressions. This module
+   specifies how to construct operands and then emit them
+   once the registers are determined in which the result of
+   argument evaluation is place. *)
+module Operands : sig
+  type t                  (** a constructor for operand array  *)
+  type operand_builder (** a constructor for a single operand  *)
+
+  val mem : Cmm.memory_chunk option -> Arch.addressing_mode ->
+    index:int -> len:int -> operand_builder
+  val reg : index:int -> operand_builder
+  val imm : Targetint.t -> operand_builder
+  val immf : int64 -> operand_builder
+
+  val selected : operand_builder array -> t
+  val in_registers : unit -> t
+  val emit : t -> Reg.t array -> Mach.operand array
+
+  (* val is_immediate : t -> index:int -> bool *)
+end
+
 module Effect : sig
   type t =
     | None
@@ -63,16 +85,23 @@ end
 class virtual selector_generic : object
   (* The following methods must or can be overridden by the processor
      description *)
-  method is_immediate : Mach.integer_operation -> int -> bool
-    (* Must be overriden to indicate whether a constant is a suitable
-       immediate operand to the given integer arithmetic instruction.
+  method is_immediate : Mach.operation -> int -> bool
+    (* Must be overriden to indicate whether an integer constant
+       is a suitable immediate operand to the given arithmetic instruction.
        The default implementation handles shifts by immediate amounts,
        but produces no immediate operations otherwise. *)
-  method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
-    (* Must be defined to indicate whether a constant is a suitable
-       immediate operand to the given integer test *)
+  method is_immediate_float : Mach.operation -> float -> bool
+    (* Can be overriden to indicate whether a float constant is a suitable
+       immediate operand to the given arithmetic instruction. *)
+  method virtual is_immediate_test : Mach.test -> int -> bool
+    (* Must be defined to indicate whether an integer constant is a suitable
+       immediate operand to the given test *)
+  method is_immediate_test_float : Mach.test -> float -> bool
+    (* Can be be defined to indicate whether a float constant is a suitable
+       immediate operand to the given test *)
   method virtual select_addressing :
-    Cmm.memory_chunk -> Cmm.expression -> Arch.addressing_mode * Cmm.expression
+    Cmm.memory_chunk -> Cmm.expression ->
+    Arch.addressing_mode * Cmm.expression * int
     (* Must be defined to select addressing modes *)
   method is_simple_expr: Cmm.expression -> bool
   method effects_of : Cmm.expression -> Effect_and_coeffect.t
@@ -81,25 +110,50 @@ class virtual selector_generic : object
     Cmm.operation ->
     Cmm.expression list ->
     Debuginfo.t ->
-    Mach.operation * Cmm.expression list
+    Mach.operation * Cmm.expression list * Operands.t
     (* Can be overridden to deal with special arithmetic instructions *)
-  method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+  method swap_operands : Mach.operation -> Mach.operation option
+    (* Can be overridden to deal with special operands whose
+       arguments can be swapped.
+       Returns [Some new_op] for binary operations whose arguments
+       can be swapped and the corresponding operation to use
+       for swapped arguments. Otherwise, returns [None],
+       in particualr  if the operation is not binary
+       or not commutative.*)
+  method select_operands :
+    Mach.operation ->
+    Cmm.expression list ->
+    Mach.operation * Cmm.expression list * Operands.t
+    (* Can be overridden to deal with special operands *)
+  method select_operands_condition :
+    Mach.test ->
+    Cmm.expression list ->
+    Mach.test * Cmm.expression * Operands.t
+    (* Can be overridden to deal with special operands *)
+  method select_condition :
+    Cmm.expression ->
+    Mach.test * Cmm.expression * Operands.t
     (* Can be overridden to deal with special test instructions *)
   method select_store :
-    bool -> Arch.addressing_mode -> Cmm.expression ->
-                                         Mach.operation * Cmm.expression
+    bool -> Cmm.memory_chunk option -> Arch.addressing_mode -> int ->
+    Cmm.expression -> Mach.operation * Cmm.expression * Operands.t
     (* Can be overridden to deal with special store constant instructions *)
+  method memory_operands_supported : Mach.operation -> Cmm.memory_chunk -> bool
+    (* Can be overridden to enable memory operands selection *)
+  method memory_operands_supported_condition : Mach.test -> Cmm.memory_chunk -> bool
+    (*  Can be overridden to enable memory operands selection *)
   method regs_for : Cmm.machtype -> Reg.t array
     (* Return an array of fresh registers of the given type.
        Default implementation is like Reg.createv.
        Can be overridden if float values are stored as pairs of
        integer registers. *)
   method insert_op :
-    environment -> Mach.operation -> Reg.t array -> Reg.t array -> Reg.t array
+    environment -> Mach.operation -> Mach.operand array -> Reg.t array
+      -> Reg.t array
     (* Can be overridden to deal with 2-address instructions
        or instructions with hardwired input/output registers *)
   method insert_op_debug :
-    environment -> Mach.operation -> Debuginfo.t -> Reg.t array
+    environment -> Mach.operation -> Debuginfo.t -> Mach.operand array
       -> Reg.t array -> Reg.t array
     (* Can be overridden to deal with 2-address instructions
        or instructions with hardwired input/output registers *)
@@ -148,10 +202,11 @@ class virtual selector_generic : object
      are not always applied to "self", but ideally they should be private. *)
   method extract : Mach.instruction
   method insert :
-    environment -> Mach.instruction_desc -> Reg.t array -> Reg.t array -> unit
+    environment -> Mach.instruction_desc -> Mach.operand array -> Reg.t array
+    -> unit
   method insert_debug :
     environment -> Mach.instruction_desc -> Debuginfo.t ->
-      Reg.t array -> Reg.t array -> unit
+       Mach.operand array -> Reg.t array -> unit
   method insert_move : environment -> Reg.t -> Reg.t -> unit
   method insert_move_args :
     environment -> Reg.t array -> Reg.t array -> int -> unit
