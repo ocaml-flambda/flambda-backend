@@ -355,8 +355,7 @@ let check_instruction :
   let location = Printf.sprintf "%s (index %d)" location idx in
   (* CR xclerc for xclerc: double check whether `Reg.same_loc` is enough. (note:
      `Reg.Set.equal` uses the `stamp` fields) *)
-  if check_arg
-     && not (array_equal Mach.equal_operand expected.arg result.arg)
+  if check_arg && not (array_equal Mach.equal_operand expected.arg result.arg)
   then different location "input operands";
   if not (array_equal Reg.same_loc expected.res result.res)
   then different location "output registers";
