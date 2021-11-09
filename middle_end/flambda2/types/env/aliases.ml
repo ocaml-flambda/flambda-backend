@@ -378,8 +378,9 @@ type t =
  * canonical_elements[elem_j_n] = (canon_j, coercion_j_n)
  *)
 
-let [@ocamlformat "disable"] print ppf { canonical_elements; aliases_of_canonical_names;
-                aliases_of_consts; binding_times_and_modes; } =
+let [@ocamlformat "disable"] print ppf
+    { canonical_elements; aliases_of_canonical_names;
+      aliases_of_consts; binding_times_and_modes;}=
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\
                         %a@ \
@@ -407,20 +408,44 @@ let [@ocamlformat "disable"] print ppf { canonical_elements; aliases_of_canonica
     (Name.Map.print Binding_time.With_name_mode.print)
     binding_times_and_modes
 
-let name_defined_earlier t alias ~than =
-  let info1 = Name.Map.find alias t.binding_times_and_modes in
-  let info2 = Name.Map.find than t.binding_times_and_modes in
-  Binding_time.strictly_earlier
-    (Binding_time.With_name_mode.binding_time info1)
-    ~than:(Binding_time.With_name_mode.binding_time info2)
+let name_defined_earlier ~binding_time_resolver t alias ~than =
+  if Name.equal alias than
+  then false
+  else
+    let alias_info = Name.Map.find alias t.binding_times_and_modes in
+    let than_info = Name.Map.find than t.binding_times_and_modes in
+    let alias_binding_time =
+      Binding_time.With_name_mode.binding_time alias_info
+    in
+    let than_binding_time =
+      Binding_time.With_name_mode.binding_time than_info
+    in
+    if Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
+    then true
+    else if not (Binding_time.equal alias_binding_time than_binding_time)
+    then false
+    else
+      let alias_comp_unit = Name.compilation_unit alias in
+      let than_comp_unit = Name.compilation_unit than in
+      (* The compilation unit ordering is arbitrary, but total. *)
+      let c = Compilation_unit.compare alias_comp_unit than_comp_unit in
+      if c < 0
+      then true
+      else if c > 0
+      then false
+      else
+        let alias_binding_time = binding_time_resolver alias in
+        let than_binding_time = binding_time_resolver than in
+        Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
 
-let defined_earlier t alias ~than =
+let defined_earlier ~binding_time_resolver t alias ~than =
   Simple.pattern_match than
     ~const:(fun _ -> false)
     ~name:(fun than ~coercion:_ ->
       Simple.pattern_match alias
         ~const:(fun _ -> true)
-        ~name:(fun alias ~coercion:_ -> name_defined_earlier t alias ~than))
+        ~name:(fun alias ~coercion:_ ->
+          name_defined_earlier ~binding_time_resolver t alias ~than))
 
 let binding_time_and_name_mode t elt =
   Simple.pattern_match elt
@@ -437,7 +462,7 @@ let name_mode t elt ~min_binding_time =
     (binding_time_and_name_mode t elt)
     ~min_binding_time
 
-let invariant t =
+let invariant ~binding_time_resolver t =
   if Flambda_features.check_invariants ()
   then
     let all_aliases_of_names : Map_to_canonical.t =
@@ -448,7 +473,8 @@ let invariant t =
           if not
                (Name.Map.for_all
                   (fun elt _coercion ->
-                    name_defined_earlier t canonical_element ~than:elt)
+                    name_defined_earlier ~binding_time_resolver t
+                      canonical_element ~than:elt)
                   aliases)
           then
             Misc.fatal_errorf
@@ -565,8 +591,8 @@ let get_aliases_of_canonical_element t ~canonical_element =
  * canonical_elements[tbd_n] =
  *   (canonical_element, compose(coercion_tbd_n, coercion_to_canonical))
  *)
-let add_alias_between_canonical_elements t ~canonical_element
-    ~coercion_to_canonical ~to_be_demoted =
+let add_alias_between_canonical_elements ~binding_time_resolver t
+    ~canonical_element ~coercion_to_canonical ~to_be_demoted =
   if Simple.equal canonical_element to_be_demoted
   then
     if Coercion.is_id coercion_to_canonical
@@ -658,16 +684,17 @@ let add_alias_between_canonical_elements t ~canonical_element
         binding_times_and_modes = t.binding_times_and_modes
       }
     in
-    invariant res;
+    invariant ~binding_time_resolver res;
     res
 
 type to_be_demoted =
   | Demote_canonical_element1
   | Demote_canonical_element2
 
-let choose_canonical_element_to_be_demoted t ~canonical_element1
-    ~canonical_element2 =
-  if defined_earlier t canonical_element1 ~than:canonical_element2
+let choose_canonical_element_to_be_demoted ~binding_time_resolver t
+    ~canonical_element1 ~canonical_element2 =
+  if defined_earlier ~binding_time_resolver t canonical_element1
+       ~than:canonical_element2
   then Demote_canonical_element2
   else Demote_canonical_element1
 
@@ -678,12 +705,14 @@ type add_result =
     alias_of_demoted_element : Simple.t
   }
 
-let invariant_add_result ~original_t
+let invariant_add_result ~binding_time_resolver ~original_t
     { canonical_element; alias_of_demoted_element; t } =
   if Flambda_features.check_invariants ()
   then begin
-    invariant t;
-    if not (defined_earlier t canonical_element ~than:alias_of_demoted_element)
+    invariant ~binding_time_resolver t;
+    if not
+         (defined_earlier ~binding_time_resolver t canonical_element
+            ~than:alias_of_demoted_element)
     then
       Misc.fatal_errorf
         "Canonical element %a should be defined earlier than %a after alias \
@@ -699,7 +728,8 @@ let invariant_add_result ~original_t
     | Alias_of_canonical _ -> ()
   end
 
-let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
+let add_alias ~binding_time_resolver t ~element1
+    ~coercion_from_element2_to_element1 ~element2 =
   assert (not (Simple.has_coercion element1));
   assert (not (Simple.has_coercion element2));
   let add ~canonical_element1 ~canonical_element2
@@ -773,8 +803,8 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
             coercion_from_demoted_canonical_to_canonical,
             coercion_from_demoted_alias_to_demoted_canonical ) =
         let which_element =
-          choose_canonical_element_to_be_demoted t ~canonical_element1
-            ~canonical_element2
+          choose_canonical_element_to_be_demoted ~binding_time_resolver t
+            ~canonical_element1 ~canonical_element2
         in
         match which_element with
         | Demote_canonical_element1 ->
@@ -795,7 +825,8 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
             coercion_from_element2_to_canonical_element2 )
       in
       let t =
-        add_alias_between_canonical_elements t ~canonical_element
+        add_alias_between_canonical_elements ~binding_time_resolver t
+          ~canonical_element
           ~coercion_to_canonical:coercion_from_demoted_canonical_to_canonical
           ~to_be_demoted:demoted_canonical
       in
@@ -895,8 +926,9 @@ let add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2 =
       ~coercion_from_element2_to_canonical_element2
       ~coercion_from_canonical_element2_to_canonical_element1
 
-let add t ~element1:element1_with_coercion ~binding_time_and_mode1
-    ~element2:element2_with_coercion ~binding_time_and_mode2 =
+let add ~binding_time_resolver t ~element1:element1_with_coercion
+    ~binding_time_and_mode1 ~element2:element2_with_coercion
+    ~binding_time_and_mode2 =
   let original_t = t in
   (* element1_with_coercion <--[c1]-- element1
    * +
@@ -941,10 +973,11 @@ let add t ~element1:element1_with_coercion ~binding_time_and_mode1
     }
   in
   let add_result =
-    add_alias t ~element1 ~coercion_from_element2_to_element1 ~element2
+    add_alias ~binding_time_resolver t ~element1
+      ~coercion_from_element2_to_element1 ~element2
   in
   if Flambda_features.check_invariants ()
-  then invariant_add_result ~original_t add_result;
+  then invariant_add_result ~binding_time_resolver ~original_t add_result;
   add_result
 
 let mem t element =
@@ -963,8 +996,8 @@ let mem t element =
    with %a in:@ %a" Simple.print add_result.canonical_element Simple.print
    add_result.alias_of print t *)
 
-let get_canonical_element_exn t element elt_name_mode ~min_name_mode
-    ~min_binding_time =
+let get_canonical_element_exn ~binding_time_resolver t element elt_name_mode
+    ~min_name_mode ~min_binding_time =
   let canonical_element, name_mode, coercion_from_canonical_to_element =
     match canonical t element with
     | Is_canonical ->
@@ -1013,7 +1046,7 @@ let get_canonical_element_exn t element elt_name_mode ~min_name_mode
       let earliest, coercion_from_earliest_to_canonical =
         Name.Map.fold
           (fun elt coercion ((min_elt, _min_coercion) as min_binding) ->
-            if name_defined_earlier t elt ~than:min_elt
+            if name_defined_earlier ~binding_time_resolver t elt ~than:min_elt
             then elt, coercion
             else min_binding)
           at_earliest_mode
