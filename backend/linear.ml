@@ -20,7 +20,7 @@ type label = Cmm.label
 type instruction =
   { mutable desc: instruction_desc;
     mutable next: instruction;
-    arg: Reg.t array;
+    arg: Mach.operand array;
     res: Reg.t array;
     dbg: Debuginfo.t;
     fdo: Fdo_info.t;
