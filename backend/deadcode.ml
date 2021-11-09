@@ -36,10 +36,18 @@ let append a b =
   | Iend -> a
   | _ -> append a b
 
+let live_and_args i =
+  Array.fold_left (fun s operand ->
+    match operand with
+    | Iimm _ | Iimmf _ -> s
+    | Ireg r -> Reg.Set.add r s
+    | Imem { reg } -> Reg.add_set_array s reg)
+    i.live i.arg
+
 let rec deadcode i =
   match i.desc with
   | Iend | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) | Iraise _ ->
-      let regs = Reg.add_set_array i.live i.arg in
+      let regs = live_and_args i in
       { i; regs; exits = Int.Set.empty; }
   | Iop op ->
       let s = deadcode i.next in
@@ -54,7 +62,7 @@ let rec deadcode i =
         s
       end else begin
         { i = {i with next = s.i};
-          regs = Reg.add_set_array i.live i.arg;
+          regs = live_and_args i;
           exits = s.exits;
         }
       end
@@ -63,7 +71,7 @@ let rec deadcode i =
       let ifnot' = deadcode ifnot in
       let s = deadcode i.next in
       { i = {i with desc = Iifthenelse(test, ifso'.i, ifnot'.i); next = s.i};
-        regs = Reg.add_set_array i.live i.arg;
+        regs = live_and_args i;
         exits = Int.Set.union s.exits
                   (Int.Set.union ifso'.exits ifnot'.exits);
       }
@@ -72,7 +80,7 @@ let rec deadcode i =
       let cases' = Array.map (fun c -> c.i) dc in
       let s = deadcode i.next in
       { i = {i with desc = Iswitch(index, cases'); next = s.i};
-        regs = Reg.add_set_array i.live i.arg;
+        regs = live_and_args i;
         exits = Array.fold_left
                   (fun acc c -> Int.Set.union acc c.exits) s.exits dc;
       }

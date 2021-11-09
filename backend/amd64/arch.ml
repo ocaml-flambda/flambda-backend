@@ -235,9 +235,9 @@ let win64 =
 open X86_ast
 
 (* Certain float conditions aren't represented directly in the opcode for
-   float comparison, so we have to swap the arguments. The swap information
+   cmpsd, so we have to swap the arguments. The swap information
    is also needed downstream because one of the arguments is clobbered. *)
-let float_cond_and_need_swap cond =
+let float_compare_and_need_swap cond =
   match (cond : Lambda.float_comparison) with
   | CFeq  -> EQf,  false
   | CFneq -> NEQf, false
@@ -250,6 +250,11 @@ let float_cond_and_need_swap cond =
   | CFge  -> LEf,  true
   | CFnge -> NLEf, true
 
+(* CR gyorsh: This referring to Lambda is horrible,
+   but CMM creates a dependency cycle.  *)
+let float_test_need_swap : Lambda.float_comparison -> bool = function
+  | CFlt | CFnlt | CFle  | CFnle -> true
+  | CFeq | CFneq | CFgt | CFngt | CFge | CFnge -> false
 
 let equal_addressing_mode left right =
   match left, right with

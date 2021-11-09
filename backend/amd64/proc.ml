@@ -301,34 +301,42 @@ let destroyed_at_alloc =
   else
     [| r11 |]
 
-let destroyed_at_oper = function
+let destroyed_at_oper op operands =
+  match op with
     Iop(Icall_ind | Icall_imm _ | Iextcall { alloc = true; }) ->
     all_phys_regs
   | Iop(Iextcall { alloc = false; }) -> destroyed_at_c_call
-  | Iop(Iintop(Idiv | Imod)) | Iop(Iintop_imm((Idiv | Imod), _))
+  | Iop(Iintop(Idiv | Imod))
         -> [| rax; rdx |]
-  | Iop(Istore(Single, _, _)) -> [| rxmm15 |]
+  | Iop(Istore _) ->
+    (match operands.(1) with
+     | Imem { chunk = Some Single } ->  [| rxmm15 |]
+     | Imem { chunk = None; }
+     | Imem { chunk = Some
+             (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
+             | Double); } ->
+       if fp then
+         (* prevent any use of the frame pointer ! *)
+         [| rbp |]
+       else
+         [||]
+     | Iimm _ | Iimmf _ | Ireg _ ->
+       Misc.fatal_error "Proc.destroyed_at_oper Istore")
   | Iop(Ialloc _) -> destroyed_at_alloc
-  | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
+  | Iop(Iintop(Imulh _ | Icomp _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
-  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
-                 | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause
+  | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea
+                 | Ioffset_loc | Ipause
                  | Iprefetch _
                  | Ifloat_round _
                  | Ifloat_iround | Ifloat_min | Ifloat_max
-                 | Ifloatarithmem (_, _) | Ibswap _ | Ifloatsqrtf _))
+                 | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ | Icheckbound))
-  | Iop(Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl
-                   | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _
-                   | Icheckbound),_))
-  | Iop(Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-               | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-               | Double ), _, _))
   | Iop(Ifloatop(Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Icompf _))
   | Iop(Imove | Ispill | Ireload
        | Ifloatofint | Iintoffloat
@@ -359,52 +367,61 @@ let safe_register_pressure = function
   | Ifloatop _ | Ifloatofint | Iintoffloat
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
-  | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
+  | Istackoffset _ | Iload (_, _) | Istore _
+  | Iintop _ | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> if fp then 10 else 11
 
-let max_register_pressure =
+(* CR gyorsh: derive max_register_pressure from destroyed_at_oper *)
+let max_register_pressure i =
   let consumes ~int ~float =
     if fp
     then [| 12 - int; 16 - float |]
     else [| 13 - int; 16 - float |]
-  in function
-    Iextcall _ ->
-    if win64
+  in match i.desc with
+  | Iop op ->
+    (match op with
+    |  Iextcall _ ->
+      if win64
       then consumes ~int:5 ~float:6
       else consumes ~int:9 ~float:16
-  | Iintop(Idiv | Imod) | Iintop_imm((Idiv | Imod), _) ->
-    consumes ~int:2 ~float:0
-  | Ialloc _ ->
-    consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
-  | Iintop(Icomp _) | Iintop_imm((Icomp _), _) ->
-    consumes ~int:1 ~float:0
-  | Istore(Single, _, _) | Ifloatop(Icompf _) ->
-    consumes ~int:0 ~float:1
-  | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-           | Ipopcnt|Iclz _| Ictz _|Icheckbound)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
-                | Iasr | Ipopcnt | Iclz _| Ictz _|Icheckbound), _)
-  | Istore((Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
-            | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
-            | Double ),
-            _, _)
-  | Imove | Ispill | Ireload
-  | Ifloatop (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf)
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _)
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
-             | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
-             | Ifloat_round _
-             | Ifloat_iround | Ifloat_min | Ifloat_max
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
-    -> consumes ~int:0 ~float:0
+    | Iintop(Idiv | Imod) ->
+      consumes ~int:2 ~float:0
+    | Ialloc _ ->
+      consumes ~int:(1 + num_destroyed_by_plt_stub) ~float:0
+    | Iintop(Icomp _) ->
+      consumes ~int:1 ~float:0
+    | Istore _ ->
+      (match i.arg.(1) with
+       | Imem { chunk = Some Single; } -> consumes ~int:0 ~float:1
+       | Imem { chunk = None; }
+       | Imem { chunk = Some
+             (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
+             | Thirtytwo_unsigned | Thirtytwo_signed | Word_int | Word_val
+             | Double); } -> consumes ~int:0 ~float:0
+       | Iimm _ | Iimmf _ | Ireg _ ->
+         Misc.fatal_error "Proc.destroyed_at_oper Istore")
+    | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
+    | Imove | Ispill | Ireload
+    | Ifloatop (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf | Icompf _)
+    | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+    | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+    | Istackoffset _ | Iload (_, _)
+    | Ispecific(Ilea | Isextend32 | Izextend32 | Iprefetch _ | Ipause
+               | Irdtsc | Irdpmc | Icrc32q
+               | Ifloat_round _
+               | Ifloat_iround | Ifloat_min | Ifloat_max
+               | Ioffset_loc
+               | Ibswap _ | Isqrtf)
+    | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+    | Ibeginregion | Iendregion
+      -> consumes ~int:0 ~float:0)
+  | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
+  | Iswitch _ | Itrywith (_, _, _)
+  | Iexit _ | Iraise _ ->
+    Misc.fatal_error "Proc.max_register_pressure: unexpected op"
 
 (* Pure operations (without any side effect besides updating their result
    registers). *)
@@ -412,20 +429,18 @@ let max_register_pressure =
 let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Iintop(Icheckbound) | Iopaque -> false
   | Ibeginregion | Iendregion -> false
   | Ispecific(Ipause)
   | Ispecific(Iprefetch _) -> false
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
+  | Ispecific(Ilea | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
              | Ifloat_min | Ifloat_max) -> true
-  | Ispecific(Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false
+  | Ispecific(Irdtsc | Irdpmc | Icrc32q
+             | Ioffset_loc
+             | Ibswap _ | Isqrtf)-> false
   | Iprobe _ | Iprobe_is_enabled _-> false
   | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
           | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
   | Imove | Ispill | Ireload | Ifloatop _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Iload (_, _) | Iname_for_debugger _

@@ -166,7 +166,7 @@ let linear i n contains_calls =
     | Iop((Iextcall { returns = false; _ }) as op) ->
         copy_instr (Lop op) i (discard_dead_code n)
     | Iop(Imove | Ireload | Ispill)
-      when i.Mach.arg.(0).loc = i.Mach.res.(0).loc ->
+      when Mach.same_loc i.Mach.arg.(0) i.Mach.res.(0) ->
         linear env i.Mach.next n
     | Iop op ->
         copy_instr (Lop op) i (linear env i.Mach.next n)

@@ -97,16 +97,8 @@ let add_WAW_dependencies node res =
    immediately following the basic block (a "critical" output). *)
 
 let is_critical critical_outputs results =
-  try
-    for i = 0 to Array.length results - 1 do
-      let r = results.(i).loc in
-      for j = 0 to Array.length critical_outputs - 1 do
-        if critical_outputs.(j).loc = r then raise Exit
-      done
-    done;
-    false
-  with Exit ->
-    true
+  Array.exists (fun r -> Reg.Set.exists (Reg.same_loc r) critical_outputs)
+    results
 
 let rec longest_path critical_outputs node =
   if node.length < 0 then begin
@@ -178,7 +170,7 @@ method private instr_in_basic_block instr try_nesting =
    load or store instructions (e.g. on the I386). *)
 
 method is_store = function
-    Istore(_, _, _) -> true
+    Istore  _ -> true
   | _ -> false
 
 method is_load = function
@@ -187,7 +179,6 @@ method is_load = function
 
 method is_checkbound = function
     Iintop(Icheckbound) -> true
-  | Iintop_imm(Icheckbound, _) -> true
   | _ -> false
 
 method private instr_is_store instr =
@@ -241,7 +232,7 @@ method private instr_issue_cycles instr =
 
 method private destroyed_by_instr instr =
   match instr.desc with
-  | Lop op -> Proc.destroyed_at_oper (Iop op)
+  | Lop op -> Proc.destroyed_at_oper (Iop op) instr.arg
   | Lreloadretaddr -> [||]
   | _ -> assert false
 
@@ -260,7 +251,7 @@ method private add_instruction ready_queue instr =
       emitted_ancestors = 0 } in
   (* Add edges from all instructions that define one of the registers used
      (RAW dependencies) *)
-  Array.iter (add_RAW_dependencies node) instr.arg;
+  Reg.Set.iter (add_RAW_dependencies node) (Mach.arg_regset instr.arg);
   (* Also add edges from all instructions that use one of the result regs
      of this instruction, or a reg destroyed by this instruction
      (WAR dependencies). *)
@@ -302,9 +293,8 @@ method private add_instruction ready_queue instr =
   for i = 0 to Array.length destroyed - 1 do
     Hashtbl.add code_results destroyed.(i).loc node  (* PR#5731 *)
   done;
-  for i = 0 to Array.length instr.arg - 1 do
-    Hashtbl.add code_uses instr.arg.(i).loc node
-  done;
+  Reg.Set.iter (fun r -> Hashtbl.add code_uses r.loc node)
+    (Mach.arg_regset instr.arg);
   (* If this is a root instruction (all arguments already computed),
      add it to the ready queue *)
   if node.ancestors = 0 then node :: ready_queue else ready_queue
@@ -381,7 +371,9 @@ method schedule_fundecl f =
         | Lop(Icall_imm _ | Itailcall_imm _ | Iextcall _ | Iprobe _) -> [||]
         | Lreturn -> [||]
         | _ -> i.arg in
-      List.iter (fun x -> ignore (longest_path critical_outputs x)) ready_queue;
+      List.iter (fun x ->
+          ignore (longest_path (Mach.arg_regset critical_outputs) x))
+        ready_queue;
       self#reschedule ready_queue 0 (schedule i try_nesting)
     end in
 

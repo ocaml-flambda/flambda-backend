@@ -52,7 +52,6 @@ module Make (T : Branch_relaxation_intf.S) = struct
       match instr.desc with
       | Lop (Ialloc _)
       | Lop (Iintop (Icheckbound))
-      | Lop (Iintop_imm (Icheckbound, _))
       | Lop (Ispecific _) ->
         (* We assume that any branches eligible for relaxation generated
            by these instructions only branch forward.  We further assume
@@ -72,8 +71,8 @@ module Make (T : Branch_relaxation_intf.S) = struct
       match lbl with
       | None -> next
       | Some l ->
-        instr_cons (Lcondbranch (Iinttest_imm (Isigned Cmm.Ceq, n), l))
-          arg [||] next
+        Linear.instr_cons (Lcondbranch (Iinttest (Isigned Cmm.Ceq), l))
+          [| arg.(0); Iimm (Targetint.of_int n) |] [||] next
     in
     let rec fixup did_fix pc instr =
       match instr.desc with
@@ -91,10 +90,6 @@ module Make (T : Branch_relaxation_intf.S) = struct
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lop (Iintop (Icheckbound)) ->
             instr.desc <- T.relax_intop_checkbound ();
-            fixup true (pc + T.instr_size instr.desc) instr.next
-          | Lop (Iintop_imm (Icheckbound, bound)) ->
-            instr.desc
-              <- T.relax_intop_imm_checkbound ~bound;
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lop (Ispecific specific) ->
             instr.desc <- T.relax_specific_op specific;
