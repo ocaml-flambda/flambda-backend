@@ -74,7 +74,6 @@ let try_cse dacc ~original_prim ~simplified_args_with_tys ~min_name_mode
 
 let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
-  let result_var' = Bound_var.var result_var in
   let args_rev =
     ListLabels.fold_left (P.args prim) ~init:[] ~f:(fun args_rev arg ->
         let arg_ty = S.simplify_simple dacc arg ~min_name_mode in
