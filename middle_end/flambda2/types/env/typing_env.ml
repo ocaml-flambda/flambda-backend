@@ -219,6 +219,10 @@ exception Binding_time_resolver_failure
 
 let binding_time_resolver resolver name =
   match resolver (Name.compilation_unit name) with
+  | exception _ ->
+    Misc.fatal_errorf
+      "Exception in resolver (via [binding_time_resolver])@ Backtrace is: %s"
+      (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
   | None -> raise Binding_time_resolver_failure
   | Some t -> (
     match Name.Map.find name (names_to_types t) with

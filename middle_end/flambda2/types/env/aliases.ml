@@ -409,32 +409,34 @@ let [@ocamlformat "disable"] print ppf
     binding_times_and_modes
 
 let name_defined_earlier ~binding_time_resolver t alias ~than =
-  let alias_info = Name.Map.find alias t.binding_times_and_modes in
-  let than_info = Name.Map.find than t.binding_times_and_modes in
-  let alias_binding_time =
-    Binding_time.With_name_mode.binding_time alias_info
-  in
-  let than_binding_time = Binding_time.With_name_mode.binding_time than_info in
-  if Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
-  then true
-  else if not (Binding_time.equal alias_binding_time than_binding_time)
+  if Name.equal alias than
   then false
   else
-    let alias_comp_unit = Name.compilation_unit alias in
-    let than_comp_unit = Name.compilation_unit than in
-    (* The compilation unit ordering is arbitrary, but total. *)
-    let c = Compilation_unit.compare alias_comp_unit than_comp_unit in
-    if c < 0
+    let alias_info = Name.Map.find alias t.binding_times_and_modes in
+    let than_info = Name.Map.find than t.binding_times_and_modes in
+    let alias_binding_time =
+      Binding_time.With_name_mode.binding_time alias_info
+    in
+    let than_binding_time =
+      Binding_time.With_name_mode.binding_time than_info
+    in
+    if Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
     then true
-    else if c > 0
-    then false
-    else if Compilation_unit.equal alias_comp_unit
-              (Compilation_unit.get_current_exn ())
+    else if not (Binding_time.equal alias_binding_time than_binding_time)
     then false
     else
-      let alias_binding_time = binding_time_resolver alias in
-      let than_binding_time = binding_time_resolver than in
-      Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
+      let alias_comp_unit = Name.compilation_unit alias in
+      let than_comp_unit = Name.compilation_unit than in
+      (* The compilation unit ordering is arbitrary, but total. *)
+      let c = Compilation_unit.compare alias_comp_unit than_comp_unit in
+      if c < 0
+      then true
+      else if c > 0
+      then false
+      else
+        let alias_binding_time = binding_time_resolver alias in
+        let than_binding_time = binding_time_resolver than in
+        Binding_time.strictly_earlier alias_binding_time ~than:than_binding_time
 
 let defined_earlier ~binding_time_resolver t alias ~than =
   Simple.pattern_match than
