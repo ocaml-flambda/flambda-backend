@@ -25,15 +25,6 @@ module VB = Bound_var
 let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     ~rec_info ~body ~exn_continuation ~return_continuation
     ~apply_exn_continuation ~apply_return_continuation =
-  let perm = Renaming.empty in
-  let perm =
-    match (apply_return_continuation : Apply.Result_continuation.t) with
-    | Return k -> Renaming.add_continuation perm return_continuation k
-    | Never_returns -> perm
-  in
-  let perm =
-    Renaming.add_continuation perm exn_continuation apply_exn_continuation
-  in
   let callee, rec_info =
     match unroll_to with
     | None -> callee, rec_info
@@ -47,27 +38,19 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
       in
       callee, unrolled_rec_info
   in
-  let body =
-    Let.create
-      (Bound_pattern.singleton (VB.create my_closure Name_mode.normal))
-      (Named.create_simple callee)
-      ~body
-        (* Here and below, we don't need to give any name occurrence information
-           (thank goodness!) since the entirety of the expression we're building
-           will be re-simplified. *)
-      ~free_names_of_body:Unknown
-    |> Expr.create_let
-  in
-  let body =
+  let my_closure = Bound_parameter.create my_closure (Flambda_kind.With_subkind.any_value) in
+  let bind_params = Expr.bind_parameters_to_args_no_simplification in
+  let bind_depth ~my_depth ~rec_info ~body =
     let bound = Bound_pattern.singleton (VB.create my_depth Name_mode.normal) in
     Let.create bound
       (Named.create_rec_info rec_info)
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let
   in
-  Expr.apply_renaming
-    (Expr.bind_parameters_to_args_no_simplification ~params ~args ~body)
-    perm
+  let apply_renaming = Expr.apply_renaming in
+  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
+    ~rec_info ~body ~exn_continuation ~return_continuation
+    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
 
 let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body =

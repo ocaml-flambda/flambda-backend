@@ -230,54 +230,47 @@ module Inlining = struct
                 { code_id = Code_id.export code_id; decision }));
         res
 
-  (* CR keryan: the remaining functions of the submodule are taken from
-     [Inlining_transforms] and adapted to local [Acc]. Some refactoring
-     (functoring ?) is in order here. *)
-  let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
-      ~free_names_of_body ~exn_continuation ~return_continuation
-      ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
-    let perm = Renaming.empty in
-    let perm =
-      match (apply_return_continuation : Apply.Result_continuation.t) with
-      | Return k -> Renaming.add_continuation perm return_continuation k
-      | Never_returns -> perm
-    in
-    let perm =
-      Renaming.add_continuation perm exn_continuation apply_exn_continuation
-    in
-    let params = List.map Bound_parameter.var params in
+let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
+    ~free_names_of_body ~exn_continuation ~return_continuation
+    ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
+  let params = List.map Bound_parameter.var params in
+  let rec_info =
+    match apply_depth with
+    | None -> Rec_info_expr.initial
+    | Some depth -> Rec_info_expr.var depth
+  in
+  let bind_params ~params ~args ~body:(acc, body) =
     let acc =
       Acc.with_free_names
         (Name_occurrences.union (Acc.free_names acc) free_names_of_body)
         acc
     in
-    let acc, expr =
-      List.fold_left2
+    List.fold_left2
         (fun (acc, body) param arg ->
           Let_with_acc.create acc
             (Bound_pattern.singleton (VB.create param Name_mode.normal))
             (Named.create_simple arg) ~body
           |> Expr_with_acc.create_let)
         (acc, body) (my_closure :: params) (callee :: args)
-    in
-    let acc, expr =
-      let rec_info =
-        match apply_depth with
-        | None -> Rec_info_expr.initial
-        | Some depth -> Rec_info_expr.var depth
-      in
-      Let_with_acc.create acc
-        (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
-        (Named.create_rec_info rec_info)
-        ~body:expr
-      |> Expr_with_acc.create_let
-    in
+  in
+  let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
+    Let_with_acc.create acc
+      (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
+      (Named.create_rec_info rec_info)
+      ~body
+    |> Expr_with_acc.create_let
+  in
+  let apply_renaming (acc, body) perm =
     let acc =
       Acc.with_free_names
         (Name_occurrences.apply_renaming (Acc.free_names acc) perm)
         acc
     in
-    acc, Expr.apply_renaming expr perm
+    acc, Expr.apply_renaming body perm
+  in
+  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
+    ~rec_info ~body:(acc, body) ~exn_continuation ~return_continuation
+    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
 
   let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
       ~apply_return_continuation ~result_arity ~make_inlined_body =
