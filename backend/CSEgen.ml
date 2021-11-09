@@ -311,8 +311,8 @@ method private cse n i k =
       begin match self#class_of_operation op with
       | (Op_pure | Op_checkbound | Op_load) as op_class ->
           let (n1, varg) = valnum_regs n i.arg in
-          let n2 = set_unknown_regs n1 (Proc.destroyed_at_oper i.desc) in
           begin match find_equation op_class n1 (op, varg) with
+          let n2 = set_unknown_regs n1 (Proc.destroyed_at_oper i.desc i.arg) in
           | Some vres ->
               (* This operation was computed earlier. *)
               (* Are there registers that hold the results computed earlier? *)
@@ -344,13 +344,13 @@ method private cse n i k =
       | Op_store false | Op_other ->
           (* An initializing store or an "other" operation do not invalidate
              any equations, but we do not know anything about the results. *)
-         let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc) in
+         let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc i.arg) in
          let n2 = set_unknown_regs n1 i.res in
          self#cse n2 i.next (fun next -> k { i with next; })
       | Op_store true ->
           (* A non-initializing store can invalidate
              anything we know about prior loads. *)
-         let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc) in
+         let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc i.arg) in
          let n2 = set_unknown_regs n1 i.res in
          let n3 = self#kill_loads n2 in
          self#cse n3 i.next (fun next -> k { i with next; })
@@ -358,13 +358,13 @@ method private cse n i k =
   (* For control structures, we set the numbering to empty at every
      join point, but propagate the current numbering across fork points. *)
   | Iifthenelse(test, ifso, ifnot) ->
-      let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc) in
+      let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc i.arg) in
       self#cse n1 ifso (fun ifso ->
         self#cse n1 ifnot (fun ifnot ->
           self#cse empty_numbering i.next (fun next ->
             k { i with desc = Iifthenelse(test, ifso, ifnot); next; })))
   | Iswitch(index, cases) ->
-      let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc) in
+      let n1 = set_unknown_regs n (Proc.destroyed_at_oper i.desc i.arg) in
       self#cse_array n1 cases (fun cases ->
         self#cse empty_numbering i.next (fun next ->
           k { i with desc = Iswitch(index, cases); next; }))

@@ -82,7 +82,7 @@ let build_graph fundecl =
   (* Compute interferences *)
 
   let rec interf i =
-    let destroyed = Proc.destroyed_at_oper i.desc in
+    let destroyed = Proc.destroyed_at_oper i.desc i.arg in
     if Array.length destroyed > 0 then add_interf_set destroyed i.live;
     match i.desc with
       Iend -> ()

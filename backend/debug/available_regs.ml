@@ -211,7 +211,7 @@ let rec available_regs (instr : M.instruction)
            be clobbered by the operation writing out its results. *)
         let made_unavailable_1 =
           let regs_clobbered =
-            Array.append (Proc.destroyed_at_oper instr.desc) instr.res
+            Array.append (Proc.destroyed_at_oper instr.desc instr.arg) instr.res
           in
           RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
             ~register_class:Proc.register_class

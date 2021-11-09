@@ -48,10 +48,13 @@ val max_arguments_for_tailcalls : int
 
 (* Maximal register pressures for pre-spilling *)
 val safe_register_pressure: Mach.operation -> int
-val max_register_pressure: Mach.operation -> int array
+val max_register_pressure: Mach.instruction -> int array
 
 (* Registers destroyed by operations *)
-val destroyed_at_oper: Mach.instruction_desc -> Reg.t array
+val destroyed_at_oper:
+  Mach.instruction_desc ->
+  Mach.operand array ->
+  Reg.t array
 val destroyed_at_raise: Reg.t array
 val destroyed_at_reloadretaddr : Reg.t array
 

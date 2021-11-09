@@ -103,7 +103,7 @@ let update_interval_position_by_instr intervals instr pos =
   update_interval_position_by_set intervals instr.live pos Live
 
 let insert_destroyed_at_oper intervals instr pos =
-  let destroyed = Proc.destroyed_at_oper instr.desc in
+  let destroyed = Proc.destroyed_at_oper instr.desc instr.arg in
   if Array.length destroyed > 0 then
     update_interval_position_by_array intervals destroyed pos Result
 
