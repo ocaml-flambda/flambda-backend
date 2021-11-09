@@ -177,8 +177,7 @@ module Inlining = struct
     let inline_threshold =
       Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
     in
-    (* CR keryan: should probably tweak this value *)
-    let magic_scale_constant = 10. in
+    let magic_scale_constant = 8. in
     int_of_float (inline_threshold *. magic_scale_constant)
 
   (* CR keryan: we need to emit warnings *)
