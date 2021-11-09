@@ -79,7 +79,7 @@ let check_invariants (instr : M.instruction) ~(avail_before : RAS.t) =
     end;
     (* Every register that is an input to an instruction should be
        available. *)
-    let args = R.set_of_array instr.arg in
+    let args = Mach.arg_regset instr.arg in
     let avail_before_fdi = RD.Set.forget_debug_info avail_before in
     if not (R.Set.subset args avail_before_fdi) then begin
       Misc.fatal_errorf "Instruction has unavailable input register(s): \
@@ -146,11 +146,15 @@ let rec available_regs (instr : M.instruction)
               avail_before
         in
         let avail_after = ref forgetting_ident in
-        let num_parts_of_value = Array.length instr.arg in
+        (* CR gyorsh: does order matter here and if so - is it deterministic ? *)
+        let arg = Mach.arg_regset instr.arg
+                  |> Reg.Set.elements
+                  |> Array.of_list in
+        let num_parts_of_value = Array.length arg in
         (* Add debug info about [ident], but only for registers that are known
            to be available. *)
         for part_of_value = 0 to num_parts_of_value - 1 do
-          let reg = instr.arg.(part_of_value) in
+          let reg = arg.(part_of_value) in
           if RD.Set.mem_reg forgetting_ident reg then begin
             let regd =
               RD.create ~reg
@@ -177,7 +181,7 @@ let rec available_regs (instr : M.instruction)
             let res = instr.res.(i) in
             (* Note that the register classes must be the same, so we don't
                 need to check that. *)
-            if arg.loc <> res.loc then begin
+            if not (Mach.same_loc arg res) then begin
               move_to_same_location := false
             end
           done;
@@ -192,7 +196,8 @@ let rec available_regs (instr : M.instruction)
               ~register_class:Proc.register_class
         in
         let results =
-          Array.map2 (fun arg_reg result_reg ->
+          Array.map2 (fun operand result_reg ->
+              let arg_reg = Mach.arg_reg operand in
               match RD.Set.find_reg_exn avail_before arg_reg with
               | exception Not_found ->
                 assert false  (* see second invariant in [check_invariants] *)

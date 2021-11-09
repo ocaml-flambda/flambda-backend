@@ -37,6 +37,18 @@ let subst_regs rv sub =
       for i = 0 to n-1 do nv.(i) <- subst_reg rv.(i) s done;
       nv
 
+let subst_reg_in_operand o (sub : subst) =
+  match o with
+  | Ireg r -> Ireg (subst_reg r sub)
+  | Iimm _ | Iimmf _ -> o
+  | Imem m -> Imem { m with reg = subst_regs m.reg (Some sub) }
+
+let subst_regs_in_operands v sub =
+  match sub with
+    None -> v
+  | Some s ->
+      Array.init (Array.length v) (fun i -> subst_reg_in_operand v.(i) s)
+
 (* We maintain equivalence classes of registers using a standard
    union-find algorithm *)
 
@@ -51,6 +63,16 @@ let rec repres_reg r =
 let repres_regs rv =
   let n = Array.length rv in
   for i = 0 to n-1 do rv.(i) <- repres_reg rv.(i) done
+
+let repres_reg_operand o =
+  match o with
+  | Ireg r -> Ireg (repres_reg r)
+  | Iimm _ | Iimmf _ -> o
+  | Imem m -> repres_regs m.reg; o
+
+let repres_regs_operands v =
+  let n = Array.length v in
+  for i = 0 to n-1 do v.(i) <- repres_reg_operand v.(i) done
 
 (* Identify two registers.
    The second register is chosen as canonical representative. *)
@@ -90,7 +112,8 @@ let merge_substs sub1 sub2 i =
   | (Some _, None) -> sub1
   | (None, Some _) -> sub2
   | (Some s1, Some s2) ->
-      Reg.Set.iter (identify_sub s1 s2) (Reg.add_set_array i.live i.arg);
+      let s = Reg.Set.union i.live (Mach.arg_regset i.arg) in
+      Reg.Set.iter (identify_sub s1 s2) s;
       sub1
 
 (* Same, for N substitutions *)
@@ -106,7 +129,7 @@ let merge_subst_array subv instr =
               None -> ()
             | Some sj ->
                 Reg.Set.iter (identify_sub si sj)
-                             (Reg.add_set_array instr.live instr.arg)
+                  (Reg.Set.union instr.live (Mach.arg_regset instr.arg))
           done;
           sub
     end in
@@ -126,8 +149,8 @@ let rec rename i sub =
     Iend ->
       (i, sub)
   | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) ->
-      (instr_cons_debug i.desc (subst_regs i.arg sub) [||] i.dbg i.next,
-       None)
+      (instr_cons_debug i.desc (subst_regs_in_operands i.arg sub) [||]
+         i.dbg i.next, None)
   | Iop Ireload when i.res.(0).loc = Unknown ->
       begin match sub with
         None -> rename i.next sub
@@ -141,7 +164,8 @@ let rec rename i sub =
       end
   | Iop _ ->
       let (new_next, sub_next) = rename i.next sub in
-      (instr_cons_debug i.desc (subst_regs i.arg sub) (subst_regs i.res sub)
+      (instr_cons_debug i.desc (subst_regs_in_operands i.arg sub)
+         (subst_regs i.res sub)
                         i.dbg new_next,
        sub_next)
   | Iifthenelse(tst, ifso, ifnot) ->
@@ -150,7 +174,7 @@ let rec rename i sub =
       let (new_next, sub_next) =
         rename i.next (merge_substs sub_ifso sub_ifnot i.next) in
       (instr_cons (Iifthenelse(tst, new_ifso, new_ifnot))
-                  (subst_regs i.arg sub) [||] new_next,
+                  (subst_regs_in_operands i.arg sub) [||] new_next,
        sub_next)
   | Iswitch(index, cases) ->
       let new_sub_cases = Array.map (fun c -> rename c sub) cases in
@@ -158,7 +182,7 @@ let rec rename i sub =
         merge_subst_array (Array.map (fun (_n, s) -> s) new_sub_cases) i.next in
       let (new_next, sub_next) = rename i.next sub_merge in
       (instr_cons (Iswitch(index, Array.map (fun (n, _s) -> n) new_sub_cases))
-                  (subst_regs i.arg sub) [||] new_next,
+                  (subst_regs_in_operands i.arg sub) [||] new_next,
        sub_next)
   | Icatch(rec_flag, ts, handlers, body) ->
       let new_subst =
@@ -196,13 +220,14 @@ let rec rename i sub =
          [||] [||] new_next,
        sub_next)
   | Iraise k ->
-      (instr_cons_debug (Iraise k) (subst_regs i.arg sub) [||] i.dbg i.next,
+      (instr_cons_debug (Iraise k) (subst_regs_in_operands i.arg sub) [||]
+         i.dbg i.next,
        None)
 
 (* Second pass: replace registers by their final representatives *)
 
 let set_repres i =
-  instr_iter (fun i -> repres_regs i.arg; repres_regs i.res) i
+  instr_iter (fun i -> repres_regs_operands i.arg; repres_regs i.res) i
 
 (* Entry point *)
 

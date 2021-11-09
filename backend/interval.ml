@@ -98,7 +98,13 @@ let update_interval_position_by_set intervals regs pos kind =
   Set.iter (update_interval_position intervals pos kind) regs
 
 let update_interval_position_by_instr intervals instr pos =
-  update_interval_position_by_array intervals instr.arg pos Argument;
+  Array.iter (function
+    | Iimm _ | Iimmf _ -> ()
+    | Ireg r ->
+      update_interval_position intervals pos Argument r
+    | Imem { reg } ->
+      update_interval_position_by_array intervals reg pos Argument)
+    instr.arg;
   update_interval_position_by_array intervals instr.res pos Result;
   update_interval_position_by_set intervals instr.live pos Live
 

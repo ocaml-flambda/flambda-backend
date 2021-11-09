@@ -98,7 +98,7 @@ let rec live env i finally =
       finally
   | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) ->
       i.live <- Reg.Set.empty; (* no regs are live across *)
-      Reg.set_of_array i.arg
+      Mach.arg_regset i.arg
   | Iop op ->
       let after = live env i.next finally in
       if Proc.op_is_pure op                    (* no side effects *)
@@ -120,7 +120,7 @@ let rec live env i finally =
               env.at_raise
           | Icall_ind | Icall_imm _ | Iextcall _ | Ialloc _
           | Iprobe _
-          | Iintop (Icheckbound) | Iintop_imm(Icheckbound, _) ->
+          | Iintop (Icheckbound) ->
               (* The function call may raise an exception, branching to the
                  nearest enclosing try ... with. Similarly for bounds checks,
                  probes and allocation (for the latter: finalizers may throw
@@ -131,7 +131,7 @@ let rec live env i finally =
            | _ ->
                across_after in
         i.live <- across;
-        Reg.add_set_array across i.arg
+        Reg.Set.union across (Mach.arg_regset i.arg)
       end
   | Iifthenelse(_test, ifso, ifnot) ->
       let at_join = live env i.next finally in
@@ -139,7 +139,7 @@ let rec live env i finally =
         Reg.Set.union (live env ifso at_join) (live env ifnot at_join)
       in
       i.live <- at_fork;
-      Reg.add_set_array at_fork i.arg
+      Reg.Set.union at_fork (Mach.arg_regset i.arg)
   | Iswitch(_index, cases) ->
       let at_join = live env i.next finally in
       let at_fork = ref Reg.Set.empty in
@@ -147,7 +147,7 @@ let rec live env i finally =
         at_fork := Reg.Set.union !at_fork (live env cases.(i) at_join)
       done;
       i.live <- !at_fork;
-      Reg.add_set_array !at_fork i.arg
+      Reg.Set.union !at_fork (Mach.arg_regset i.arg)
   | Icatch(rec_flag, ts, handlers, body) ->
       let at_join = live (env_from_trap_stack env ts) i.next finally in
       let aux env (nfail, ts, handler) (nfail', before_handler) =
@@ -226,7 +226,7 @@ let rec live env i finally =
       before_body
   | Iraise _ ->
       i.live <- env.at_raise;
-      Reg.add_set_array env.at_raise i.arg
+      Reg.Set.union env.at_raise (Mach.arg_regset i.arg)
 
 let fundecl f =
   reset_cache ();
