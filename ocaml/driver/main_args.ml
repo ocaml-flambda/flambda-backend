@@ -934,15 +934,15 @@ module Flambda2 = Clflags.Flambda2
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
-  Printf.sprintf "Propagate information from incoming edges at a join\n\
+  Printf.sprintf "Propagate information from all incoming edges to a join\n\
       \     point%s (Flambda 2 only)"
     (format_default Flambda2.Default.join_points)
 ;;
 
 let mk_no_flambda2_join_points f =
   "-no-flambda2-join-points", Arg.Unit f,
-  Printf.sprintf " Propagate information only from the fork point to\n\
-      \     a join point%s (Flambda 2 only)"
+  Printf.sprintf " Propagate information to a join point only if there are\n\
+      \     zero or one incoming edge(s)%s (Flambda 2 only)"
     (format_not_default Flambda2.Default.join_points)
 ;;
 

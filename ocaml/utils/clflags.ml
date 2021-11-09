@@ -462,7 +462,7 @@ end
 module Flambda2 = struct
   module Default = struct
     let classic_mode = false
-    let join_points = true
+    let join_points = false
     let unbox_along_intra_function_control_flow = true
     let backend_cse_at_toplevel = false
     let cse_depth = 2
@@ -657,7 +657,7 @@ module Flambda2 = struct
 
   let o2_flags () =
     cse_depth := 2;
-    join_points := true;
+    join_points := false;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := false;
     backend_cse_at_toplevel := false
