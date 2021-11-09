@@ -2,7 +2,7 @@
 (* This generated code requires the following version of CamlinternalMenhirLib: *)
 
 let () =
-  CamlinternalMenhirLib.StaticVersion.require_20190924
+  CamlinternalMenhirLib.StaticVersion.require_20210419
 
 module MenhirBasics = struct
   
@@ -11124,7 +11124,7 @@ end
 
 let flambda_unit =
   fun lexer lexbuf ->
-    (Obj.magic (MenhirInterpreter.entry 522 lexer lexbuf) : (
+    (Obj.magic (MenhirInterpreter.entry `Legacy 522 lexer lexbuf) : (
 # 213 "flambda_parser.mly"
       (Fexpr.flambda_unit)
 # 11131 "flambda_parser_in.ml"
@@ -11132,7 +11132,7 @@ let flambda_unit =
 
 and expect_test_spec =
   fun lexer lexbuf ->
-    (Obj.magic (MenhirInterpreter.entry 0 lexer lexbuf) : (
+    (Obj.magic (MenhirInterpreter.entry `Legacy 0 lexer lexbuf) : (
 # 211 "flambda_parser.mly"
       (Fexpr.expect_test_spec)
 # 11139 "flambda_parser_in.ml"
