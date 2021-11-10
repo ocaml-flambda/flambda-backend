@@ -197,7 +197,10 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
      List.iter (sub.case sub) cases
   | Texp_apply (exp, list) ->
       sub.expr sub exp;
-      List.iter (fun (_, o) -> Option.iter (sub.expr sub) o) list
+      List.iter (function
+        | (_, Arg exp) -> sub.expr sub exp
+        | (_, Omitted _) -> ())
+        list
   | Texp_match (exp, cases, _) ->
       sub.expr sub exp;
       List.iter (sub.case sub) cases
@@ -370,7 +373,10 @@ let class_expr sub {cl_desc; cl_env; _} =
       sub.class_expr sub cl
   | Tcl_apply (cl, args) ->
       sub.class_expr sub cl;
-      List.iter (fun (_, e) -> Option.iter (sub.expr sub) e) args
+      List.iter (function
+        | (_, Arg exp) -> sub.expr sub exp
+        | (_, Omitted _) -> ())
+        args
   | Tcl_let (rec_flag, value_bindings, ivars, cl) ->
       sub.value_bindings sub (rec_flag, value_bindings);
       List.iter (fun (_, e) -> sub.expr sub e) ivars;

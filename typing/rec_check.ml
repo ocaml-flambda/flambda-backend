@@ -117,9 +117,9 @@ let is_ref : Types.value_description -> bool = function
 
 (* See the note on abstracted arguments in the documentation for
     Typedtree.Texp_apply *)
-let is_abstracted_arg : arg_label * expression option -> bool = function
-  | (_, None) -> true
-  | (_, Some _) -> false
+let is_abstracted_arg : arg_label * apply_arg -> bool = function
+  | (_, Omitted _) -> true
+  | (_, Arg _) -> false
 
 let classify_expression : Typedtree.expression -> sd =
   (* We need to keep track of the size of expressions
@@ -564,7 +564,7 @@ let rec expression : Typedtree.expression -> term_judg =
       path pth << Dereference
     | Texp_instvar (self_path, pth, _inst_var) ->
         join [path self_path << Dereference; path pth]
-    | Texp_apply ({exp_desc = Texp_ident (_, _, vd)}, [_, Some arg])
+    | Texp_apply ({exp_desc = Texp_ident (_, _, vd)}, [_, Arg arg])
       when is_ref vd ->
       (*
         G |- e: m[Guard]
@@ -573,7 +573,11 @@ let rec expression : Typedtree.expression -> term_judg =
       *)
       expression arg << Guard
     | Texp_apply (e, args)  ->
-        let arg (_, eo) = option expression eo in
+        let arg (_, arg) =
+          match arg with
+          | Omitted _ -> empty
+          | Arg e -> expression e
+        in
         let app_mode = if List.exists is_abstracted_arg args
           then (* see the comment on Texp_apply in typedtree.mli;
                   the non-abstracted arguments are bound to local
@@ -1033,7 +1037,11 @@ and class_expr : Typedtree.class_expr -> term_judg =
         let ids = List.map fst args in
         remove_ids ids (class_expr ce << Delay)
     | Tcl_apply (ce, args) ->
-        let arg (_label, eo) = option expression eo in
+        let arg (_, arg) =
+          match arg with
+          | Omitted _ -> empty
+          | Arg e -> expression e
+        in
         join [
           class_expr ce << Dereference;
           list arg args << Dereference;

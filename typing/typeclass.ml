@@ -1120,7 +1120,7 @@ and class_expr_aux cl_num val_env met_env scl =
             let name = Btype.label_name l
             and optional = Btype.is_optional l in
             let use_arg sarg l' =
-              Some (
+              Arg (
                 if not optional || Btype.is_optional l' then
                   type_argument val_env sarg ty ty0
                 else
@@ -1131,7 +1131,7 @@ and class_expr_aux cl_num val_env met_env scl =
               )
             in
             let eliminate_optional_arg () =
-              Some (option_none val_env ty0 Value_mode.global Location.none)
+              Arg (option_none val_env ty0 Value_mode.global Location.none)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1162,10 +1162,18 @@ and class_expr_aux cl_num val_env met_env scl =
                     sargs,
                     if Btype.is_optional l && List.mem_assoc Nolabel sargs then
                       eliminate_optional_arg ()
-                    else
-                      None
+                    else begin
+                      let mode_closure = Alloc_mode.global in
+                      let mode_arg = Alloc_mode.global in
+                      let mode_ret = Alloc_mode.global in
+                      Omitted { mode_closure; mode_arg; mode_ret }
+                    end
             in
-            let omitted = if arg = None then (l,ty0) :: omitted else omitted in
+            let omitted =
+              match arg with
+              | Omitted _ -> (l,ty0) :: omitted
+              | Arg _ -> omitted
+            in
             type_args ((l,arg)::args) omitted ty_fun ty_fun0 remaining_sargs
         | _ ->
             match sargs with

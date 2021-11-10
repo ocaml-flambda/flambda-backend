@@ -84,11 +84,14 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-let transl_value_mode mode : Lambda.alloc_mode =
-  let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
+let transl_alloc_mode alloc_mode : Lambda.alloc_mode =
   match Types.Alloc_mode.constrain_lower alloc_mode with
   | Global -> Alloc_heap
   | Local -> Alloc_local
+
+let transl_value_mode mode =
+  let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
+  transl_alloc_mode alloc_mode
 
 let join_mode a b =
   match a, b with
@@ -245,6 +248,10 @@ let maybe_region parent_mode (children : Lambda.alloc_mode list) e =
   else
     e
 
+let is_omitted = function
+  | Arg _ -> false
+  | Omitted _ -> true
+
 let rec transl_exp ~scopes e =
   transl_exp1 ~scopes ~in_new_scope:false e
 
@@ -284,10 +291,10 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p});
                 exp_type = prim_type } as funct, oargs)
     when List.length oargs >= p.prim_arity
-    && List.for_all (fun (_, arg) -> arg <> None) oargs ->
+    && List.for_all (fun (_, arg) -> not (is_omitted arg)) oargs ->
       let argl, extra_args = cut p.prim_arity oargs in
       let arg_exps =
-         List.map (function _, Some x -> x | _ -> assert false) argl
+         List.map (function _, Arg x -> x | _ -> assert false) argl
       in
       let args = transl_list ~scopes arg_exps in
       let prim_exp = if extra_args = [] then Some e else None in
@@ -733,8 +740,9 @@ and transl_apply ~scopes
   =
   let bound_modes =
     List.map (function
-        | (_,Some e) -> transl_value_mode e.exp_mode
-        | (_,None) -> Alloc_heap) sargs in
+        | (_,Arg e) -> transl_value_mode e.exp_mode
+        | (_,Omitted _) -> Alloc_heap) sargs
+  in
   let lapply funct args =
     match funct with
       Lsend(k, lmet, lobj, largs, _) ->
@@ -754,7 +762,7 @@ and transl_apply ~scopes
         }
   in
   let rec build_apply lam args = function
-      (None, optional) :: l ->
+      (Omitted { mode_closure; mode_arg; mode_ret }, optional) :: l ->
         let defs = ref [] in
         let protect name lam =
           match lam with
@@ -769,31 +777,48 @@ and transl_apply ~scopes
         in
         let handle = protect "func" lam in
         let l =
-          List.map (fun (arg, opt) -> Option.map (protect "arg") arg, opt) l
+          List.map
+            (fun (arg, opt) ->
+               match arg with
+               | Omitted _ -> arg, opt
+               | Arg arg -> Arg (protect "arg" arg), opt)
+            l
         in
         let id_arg = Ident.create_local "param" in
-        (* FIXME modes / Curried nlocals are completely wrong here *)
         let body =
           let body = build_apply handle [Lvar id_arg, optional] l in
-          Lfunction{kind = Curried {nlocal=0}; params = [id_arg, Pgenval];
-                    return = Pgenval; body; mode=Alloc_heap;
-                    ret_mode=Alloc_heap; attr = default_stub_attribute;
-                    loc = loc}
+          let mode = transl_alloc_mode mode_closure in
+          let arg_mode = transl_alloc_mode mode_arg in
+          let ret_mode = transl_alloc_mode mode_ret in
+          let nlocal =
+            match join_mode mode (join_mode arg_mode ret_mode) with
+            | Alloc_local -> 1
+            | Alloc_heap -> 0
+          in
+          Lfunction{kind = Curried {nlocal}; params = [id_arg, Pgenval];
+                    return = Pgenval; body; mode; ret_mode;
+                    attr = default_stub_attribute; loc = loc}
         in
         List.fold_right
           (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
           !defs body
-    | (Some arg, optional) :: l ->
+    | (Arg arg, optional) :: l ->
         build_apply lam ((arg, optional) :: args) l
     | [] ->
         lapply lam (List.rev_map fst args)
   in
-  let lam =
-    build_apply lam [] (List.map (fun (l, x) ->
-                            Option.map (transl_exp ~scopes) x,
-                            Btype.is_optional l)
-                          sargs)
+  let args =
+    List.map
+      (fun (l, arg) ->
+         let arg =
+           match arg with
+           | Omitted _ as arg -> arg
+           | Arg exp -> Arg (transl_exp ~scopes exp)
+         in
+         arg, Btype.is_optional l)
+      sargs
   in
+  let lam = build_apply lam [] args in
   maybe_region mode bound_modes lam
 
 and transl_curried_function

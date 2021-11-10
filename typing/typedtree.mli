@@ -191,10 +191,10 @@ and expression_desc =
               [Partial] if the pattern match is partial
               [Total] otherwise.
          *)
-  | Texp_apply of expression * (arg_label * expression option) list
+  | Texp_apply of expression * (arg_label * apply_arg) list
         (** E0 ~l1:E1 ... ~ln:En
 
-            The expression can be None if the expression is abstracted over
+            The expression can be Omitted if the expression is abstracted over
             this argument. It currently appears when a label is applied.
 
             For example:
@@ -203,7 +203,7 @@ and expression_desc =
 
             The resulting typedtree for the application is:
             Texp_apply (Texp_ident "f/1037",
-                        [(Nolabel, None);
+                        [(Nolabel, Omitted _);
                          (Labelled "y", Some (Texp_constant Const_int 3))
                         ])
          *)
@@ -305,6 +305,17 @@ and binding_op =
     bop_loc : Location.t;
   }
 
+and ('a, 'b) arg_or_omitted =
+  | Arg of 'a
+  | Omitted of 'b
+
+and omitted_parameter =
+  { mode_closure : Types.Alloc_mode.t;
+    mode_arg : Types.Alloc_mode.t;
+    mode_ret : Types.Alloc_mode.t }
+
+and apply_arg = (expression, omitted_parameter) arg_or_omitted
+
 (* Value expressions for the class language *)
 
 and class_expr =
@@ -322,7 +333,7 @@ and class_expr_desc =
   | Tcl_fun of
       arg_label * pattern * (Ident.t * expression) list
       * class_expr * partial
-  | Tcl_apply of class_expr * (arg_label * expression option) list
+  | Tcl_apply of class_expr * (arg_label * apply_arg) list
   | Tcl_let of rec_flag * value_binding list *
                   (Ident.t * expression) list * class_expr
   | Tcl_constraint of

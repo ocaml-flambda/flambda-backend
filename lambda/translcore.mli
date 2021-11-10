@@ -29,7 +29,7 @@ val transl_apply: scopes:scopes
                   -> ?inlined:inline_attribute
                   -> ?specialised:specialise_attribute
                   -> lambda -> ?mode:Lambda.alloc_mode
-                  -> (arg_label * expression option) list
+                  -> (arg_label * apply_arg) list
                   -> scoped_location -> lambda
 val transl_let: scopes:scopes -> ?in_structure:bool ->
                 ?mode:Lambda.alloc_mode -> rec_flag

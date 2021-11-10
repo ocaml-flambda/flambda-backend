@@ -334,7 +334,7 @@ and expression i ppf x =
   | Texp_apply (e, l) ->
       line i ppf "Texp_apply\n";
       expression i ppf e;
-      list i label_x_expression ppf l;
+      list i label_x_apply_arg ppf l;
   | Texp_match (e, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
@@ -611,7 +611,7 @@ and class_expr i ppf x =
   | Tcl_apply (ce, l) ->
       line i ppf "Tcl_apply\n";
       class_expr i ppf ce;
-      list i label_x_expression ppf l;
+      list i label_x_apply_arg ppf l;
   | Tcl_let (rf, l1, l2, ce) ->
       line i ppf "Tcl_let %a\n" fmt_rec_flag rf;
       list i value_binding ppf l1;
@@ -923,10 +923,10 @@ and record_field i ppf = function
   | _, Kept _ ->
       line i ppf "<kept>"
 
-and label_x_expression i ppf (l, e) =
+and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
-  (match e with None -> () | Some e -> expression (i+1) ppf e)
+  (match e with Omitted _ -> () | Arg e -> expression (i+1) ppf e)
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;
