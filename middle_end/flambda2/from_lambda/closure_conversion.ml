@@ -281,8 +281,8 @@ module Inlining = struct
       in
       Expr_with_acc.create_apply_cont acc apply_cont
     in
-    let let_cont_create acc cont ~handler_params ~handler ~body
-        ~is_exn_handler =
+    let let_cont_create acc cont ~handler_params ~handler ~body ~is_exn_handler
+        =
       Let_cont_with_acc.build_non_recursive acc cont ~handler_params ~handler
         ~body ~is_exn_handler
     in
