@@ -648,7 +648,7 @@ let decide_inline_let effs
       if Flambda_features.Expert.inline_effects_in_cmm ()
       then Inline
       else Regular
-    | _ -> Inline
+    | No_effects, _ -> Inline
   end
   | More_than_one -> Regular
 
