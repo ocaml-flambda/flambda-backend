@@ -611,44 +611,65 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
           raise (Error (loc, env, err)) in
   unify_vars p1_vs p2_vs
 
-let rec build_as_type env p =
-  let as_ty = build_as_type_aux env p in
-  (* Cf. #1655 *)
-  List.fold_left (fun as_ty (extra, _loc, _attrs) ->
-    match extra with
-    | Tpat_type _ | Tpat_open _ | Tpat_unpack -> as_ty
-    | Tpat_constraint cty ->
-      begin_def ();
-      let ty = instance cty.ctyp_type in
-      end_def ();
-      generalize_structure ty;
-      (* This call to unify can't fail since the pattern is well typed. *)
-      unify !env (instance as_ty) (instance ty);
-      ty
-  ) as_ty p.pat_extra
+let rec build_as_type_and_mode env p =
+  let as_ty, as_mode = build_as_type_aux env p in
+  let as_ty =
+    (* Cf. #1655 *)
+    List.fold_left (fun as_ty (extra, _loc, _attrs) ->
+      match extra with
+      | Tpat_type _ | Tpat_open _ | Tpat_unpack -> as_ty
+      | Tpat_constraint cty ->
+        begin_def ();
+        let ty = instance cty.ctyp_type in
+        end_def ();
+        generalize_structure ty;
+        (* This call to unify can't fail since the pattern is well typed. *)
+        unify !env (instance as_ty) (instance ty);
+        ty
+    ) as_ty p.pat_extra
+  in
+  as_ty, as_mode
+
+and build_as_type env p =
+  fst (build_as_type_and_mode env p)
 
 and build_as_type_aux env p =
   match p.pat_desc with
-    Tpat_alias(p1,_, _) -> build_as_type env p1
+    Tpat_alias(p1,_, _) -> build_as_type_and_mode env p1
   | Tpat_tuple pl ->
       let tyl = List.map (build_as_type env) pl in
-      newty (Ttuple tyl)
+      newty (Ttuple tyl), p.pat_mode
   | Tpat_construct(_, cstr, pl) ->
-      let keep = cstr.cstr_private = Private || cstr.cstr_existentials <> [] in
-      if keep then p.pat_type else
-      let tyl = List.map (build_as_type env) pl in
-      let ty_args, ty_res = instance_constructor cstr in
-      List.iter2 (fun (p,ty) -> unify_pat env {p with pat_type = ty})
-        (List.combine pl tyl) ty_args;
-      ty_res
+      let priv = (cstr.cstr_private = Private) in
+      let mode =
+        if priv || pl <> [] then p.pat_mode
+        else Value_mode.newvar ()
+      in
+      let keep = priv || cstr.cstr_existentials <> [] in
+      let ty =
+        if keep then p.pat_type else
+        let tyl = List.map (build_as_type env) pl in
+        let ty_args, ty_res = instance_constructor cstr in
+        List.iter2 (fun (p,ty) -> unify_pat env {p with pat_type = ty})
+          (List.combine pl tyl) ty_args;
+        ty_res
+      in
+      ty, mode
   | Tpat_variant(l, p', _) ->
       let ty = Option.map (build_as_type env) p' in
-      newty (Tvariant{row_fields=[l, Rpresent ty]; row_more=newvar();
-                      row_bound=(); row_name=None;
-                      row_fixed=None; row_closed=false})
+      let mode =
+        if p' = None then Value_mode.newvar ()
+        else p.pat_mode
+      in
+      let ty =
+        newty (Tvariant{row_fields=[l, Rpresent ty]; row_more=newvar();
+                        row_bound=(); row_name=None;
+                        row_fixed=None; row_closed=false})
+      in
+      ty, mode
   | Tpat_record (lpl,_) ->
       let lbl = snd3 (List.hd lpl) in
-      if lbl.lbl_private = Private then p.pat_type else
+      if lbl.lbl_private = Private then p.pat_type, p.pat_mode else
       let ty = newvar () in
       let ppl = List.map (fun (_, l, p) -> l.lbl_pos, p) lpl in
       let do_label lbl =
@@ -666,19 +687,40 @@ and build_as_type_aux env p =
           unify_pat env p ty_res'
         end in
       Array.iter do_label lbl.lbl_all;
-      ty
+      ty, p.pat_mode
   | Tpat_or(p1, p2, row) ->
       begin match row with
         None ->
-          let ty1 = build_as_type env p1 and ty2 = build_as_type env p2 in
+          let ty1, mode1 = build_as_type_and_mode env p1 in
+          let ty2, mode2 = build_as_type_and_mode env p2 in
           unify_pat env {p2 with pat_type = ty2} ty1;
-          ty1
+          ty1, Value_mode.join [mode1; mode2]
       | Some row ->
           let row = row_repr row in
-          newty (Tvariant{row with row_closed=false; row_more=newvar()})
+          let all_constant =
+            List.for_all
+              (function
+                | _, (Rpresent (Some _) | Reither (false, _, _, _)) -> false
+                | _ -> true)
+              row.row_fields
+          in
+          let mode =
+            if all_constant then Value_mode.newvar ()
+            else p.pat_mode
+          in
+          let ty =
+            newty (Tvariant{row with row_closed=false; row_more=newvar()})
+          in
+          ty, mode
       end
-  | Tpat_any | Tpat_var _ | Tpat_constant _
-  | Tpat_array _ | Tpat_lazy _ -> p.pat_type
+  | Tpat_constant _ ->
+      let mode =
+        if Ctype.maybe_pointer_type !env p.pat_type then p.pat_mode
+        else Value_mode.newvar ()
+      in
+      p.pat_type, mode
+  | Tpat_any | Tpat_var _
+  | Tpat_array _ | Tpat_lazy _ -> p.pat_type, p.pat_mode
 
 let build_or_pat env loc mode lid =
   let path, decl = Env.lookup_type ~loc:lid.loc lid.txt env in
@@ -1623,11 +1665,11 @@ and type_pat_aux
       assert construction_not_used_in_counterexamples;
       type_pat Value sq expected_ty (fun q ->
         begin_def ();
-        let ty_var = build_as_type env q in
+        let ty_var, mode = build_as_type_and_mode env q in
         end_def ();
         generalize ty_var;
         let id =
-          enter_variable ~is_as_variable:true loc name alloc_mode.mode
+          enter_variable ~is_as_variable:true loc name mode
             ty_var sp.ppat_attributes
         in
         rvp k {

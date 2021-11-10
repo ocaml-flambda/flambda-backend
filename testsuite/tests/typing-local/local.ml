@@ -1448,7 +1448,7 @@ Error: Signature mismatch:
 |}]
 
 (* Special handling of tuples in matches and let bindings *)
-let escape : string -> unit = fun x -> ()
+let escape : 'a -> unit = fun x -> ()
 
 let foo (local_ x) y =
   match x, y with
@@ -1456,8 +1456,8 @@ let foo (local_ x) y =
   | None, _ -> ()
   | pr  -> let _, _ = pr in ();;
 [%%expect{|
-val escape : string -> unit = <fun>
-val foo : local_ 'a option -> string option -> unit = <fun>
+val escape : 'a -> unit = <fun>
+val foo : local_ 'a option -> 'b option -> unit = <fun>
 |}]
 
 let foo (local_ x) y =
@@ -1493,7 +1493,7 @@ let foo p (local_ x) y z =
   let _, _ = pr in
   escape b;;
 [%%expect{|
-val foo : bool -> local_ 'a -> string -> 'a * string -> unit = <fun>
+val foo : bool -> local_ 'a -> 'b -> 'a * 'b -> unit = <fun>
 |}]
 
 let foo p (local_ x) y (local_ z) =
@@ -1533,6 +1533,115 @@ Line 6, characters 9-10:
 Error: This value escapes its region
 |}]
 
+(* [as] patterns *)
+
+let foo (local_ x) =
+  match x with
+  | None as y -> escape y
+  | Some _ -> ()
+[%%expect{|
+val foo : local_ 'a option -> unit = <fun>
+|}]
+
+let foo (local_ x) =
+  match x with
+  | None -> ()
+  | Some _ as y -> escape y
+[%%expect{|
+Line 4, characters 26-27:
+4 |   | Some _ as y -> escape y
+                              ^
+Error: This value escapes its region
+|}]
+
+let foo (local_ x) =
+  match x with
+  | 0 as y -> escape y
+  | _ -> ()
+[%%expect{|
+val foo : local_ int -> unit = <fun>
+|}]
+
+let foo (local_ x) =
+  match x with
+  | 'a'..'e' as y -> escape y
+  | _ -> ()
+[%%expect{|
+val foo : local_ char -> unit = <fun>
+|}]
+
+let foo (local_ x) =
+  match x with
+  | 1.1 as y -> escape y
+  | _ -> ()
+[%%expect{|
+Line 3, characters 23-24:
+3 |   | 1.1 as y -> escape y
+                           ^
+Error: This value escapes its region
+|}]
+
+let foo (local_ x) =
+  match x with
+  | `Foo as y -> escape y
+  | _ -> ()
+[%%expect{|
+val foo : local_ [> `Foo ] -> unit = <fun>
+|}]
+
+let foo (local_ x) =
+  match x with
+  | (`Foo _) as y -> escape y
+  | _ -> ()
+[%%expect{|
+Line 3, characters 28-29:
+3 |   | (`Foo _) as y -> escape y
+                                ^
+Error: This value escapes its region
+|}]
+
+let foo (local_ x) =
+  match x with
+  | (None | Some _) as y -> escape y
+[%%expect{|
+Line 3, characters 35-36:
+3 |   | (None | Some _) as y -> escape y
+                                       ^
+Error: This value escapes its region
+|}]
+
+let foo (local_ x) =
+  match x with
+  | (Some _|None) as y -> escape y
+[%%expect{|
+Line 3, characters 33-34:
+3 |   | (Some _|None) as y -> escape y
+                                     ^
+Error: This value escapes its region
+|}]
+
+type foo = [`Foo | `Bar]
+
+let foo (local_ x) =
+  match x with
+  | #foo as y -> escape y
+[%%expect{|
+type foo = [ `Bar | `Foo ]
+val foo : local_ [< foo ] -> unit = <fun>
+|}]
+
+type foo = [`Foo | `Bar of int]
+
+let foo (local_ x) =
+  match x with
+  | #foo as y -> escape y
+[%%expect{|
+type foo = [ `Bar of int | `Foo ]
+Line 5, characters 24-25:
+5 |   | #foo as y -> escape y
+                            ^
+Error: This value escapes its region
+|}]
 
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)
 let () = Gc.minor ()
