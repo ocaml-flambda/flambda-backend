@@ -642,7 +642,7 @@ module Flambda2 = struct
       indirect_call_cost = Some (3.0 *. Default.indirect_call_cost);
       poly_compare_cost = Some (3.0 *. Default.poly_compare_cost);
       small_function_size = Some (10 * Default.small_function_size);
-      large_function_size = Some (100 * Default.large_function_size);
+      large_function_size = Some (50 * Default.large_function_size);
       threshold = Some 100.;
     }
   end

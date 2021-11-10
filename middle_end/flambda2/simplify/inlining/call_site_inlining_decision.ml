@@ -281,14 +281,14 @@ let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
   in
   if not (Code_or_metadata.code_present code_or_metadata)
   then Missing_code
-  else if not (argument_types_useful dacc apply)
-  then Argument_types_not_useful
   else if Function_decl_inlining_decision_type.must_be_inlined decision
   then Definition_says_inline
   else if Function_decl_inlining_decision_type.cannot_be_inlined decision
   then Definition_says_not_to_inline
   else if env_prohibits_inlining
   then Environment_says_never_inline
+  else if not (argument_types_useful dacc apply)
+  then Argument_types_not_useful
   else
     let cost_metrics =
       speculative_inlining ~apply dacc ~simplify_expr ~return_arity
@@ -361,7 +361,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
         | Default_inlined ->
           let max_rec_depth =
             Flambda_features.Inlining.max_rec_depth
-              ~round:(DE.round (DA.denv dacc))
+              (Round (DE.round (DA.denv dacc)))
           in
           if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
                max_rec_depth
