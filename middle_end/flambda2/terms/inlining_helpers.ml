@@ -79,9 +79,9 @@ let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
         apply_cont_create acc ~trap_action apply_return_continuation ~args
           ~dbg:Debuginfo.none
       in
-      let_cont_create pop_wrapper_cont
+      let_cont_create acc pop_wrapper_cont
         ~handler_params:(Bound_parameter.List.create kinded_params)
-        ~handler ~body:(acc, body) ~is_exn_handler:false
+        ~handler ~body ~is_exn_handler:false
   in
   let param = Variable.create "exn" in
   let wrapper_handler_params =
@@ -106,8 +106,8 @@ let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
       apply_cont_create acc ~trap_action push_wrapper_cont ~args:[]
         ~dbg:Debuginfo.none
     in
-    let_cont_create push_wrapper_cont ~handler_params:[]
-      ~handler:push_wrapper_handler ~body:(acc, body) ~is_exn_handler:false
+    let_cont_create acc push_wrapper_cont ~handler_params:[]
+      ~handler:push_wrapper_handler ~body ~is_exn_handler:false
   in
-  let_cont_create wrapper ~handler_params:wrapper_handler_params
-    ~handler:wrapper_handler ~body:(acc, body_with_push) ~is_exn_handler:true
+  let_cont_create acc wrapper ~handler_params:wrapper_handler_params
+    ~handler:wrapper_handler ~body:body_with_push ~is_exn_handler:true
