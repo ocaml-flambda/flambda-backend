@@ -375,6 +375,18 @@ static void verify_minor_heap()
       }
     }
   }
+  if (arena) {
+    value** r;
+    for (r = Caml_state->ref_table->base;
+         r < Caml_state->ref_table->ptr; r++) {
+      CAMLassert(!(arena->base <= (char*)*r &&
+                   (char*)*r < arena->base + arena->length));
+      if (Is_block(**r)) {
+        CAMLassert(!(arena->base <= (char*)**r &&
+                     (char*)**r < arena->base + arena->length));
+      }
+    }
+  }
 }
 #endif
 

@@ -122,7 +122,7 @@ let prim_size prim args =
   | Psetfield(_f, isptr, init) ->
     begin match init with
     | Root_initialization -> 1  (* never causes a write barrier hit *)
-    | Assignment | Heap_initialization ->
+    | Assignment | Local_assignment | Heap_initialization ->
       match isptr with
       | Pointer -> 4
       | Immediate -> 1

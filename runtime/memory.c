@@ -677,6 +677,19 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
   }
 }
 
+/* This version of [caml_modify] may additionally be used to mutate
+   locally-allocated objects. (This version is used by mutations
+   generated from OCaml code when the value being modified may be
+   locally allocated) */
+CAMLexport void caml_modify_local (value obj, intnat i, value val)
+{
+  if (Color_hd(Hd_val(obj)) == Local_unmarked) {
+    Field(obj, i) = val;
+  } else {
+    caml_modify(&Field(obj, i), val);
+  }
+}
+
 CAMLexport intnat caml_local_region_begin()
 {
   return Caml_state->local_sp;

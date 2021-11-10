@@ -125,7 +125,7 @@ let primitives_table =
     "%loc_FUNCTION", Loc Loc_FUNCTION;
     "%field0", Primitive ((Pfield 0), 1);
     "%field1", Primitive ((Pfield 1), 1);
-    "%setfield0", Primitive ((Psetfield(0, Pointer, Assignment)), 2);
+    "%setfield0", Primitive ((Psetfield(0, Pointer, Local_assignment (* FIXME *))), 2);
     "%makeblock", Primitive ((Pmakeblock(0, Immutable, None, Alloc_heap)), 1);
     "%makemutable", Primitive ((Pmakeblock(0, Mutable, None, Alloc_heap)), 1);
     "%makelocalmutable",

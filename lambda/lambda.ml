@@ -32,6 +32,7 @@ type immediate_or_pointer =
 
 type initialization_or_assignment =
   | Assignment
+  | Local_assignment
   | Heap_initialization
   | Root_initialization
 

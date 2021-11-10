@@ -261,8 +261,6 @@ val unboxed_float_array_ref :
 val float_array_ref : expression -> expression -> Debuginfo.t -> expression
 val addr_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
-val addr_array_initialize :
-  expression -> expression -> expression -> Debuginfo.t -> expression
 val int_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
 val float_array_set :
@@ -450,8 +448,6 @@ val bbswap : Primitive.boxed_integer -> unary_primitive
 val bswap16 : unary_primitive
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
-
-type assignment_kind = Caml_modify | Caml_initialize | Simple
 
 (** [setfield offset value_is_ptr init ptr value dbg] *)
 val setfield :

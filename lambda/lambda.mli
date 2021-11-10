@@ -33,6 +33,7 @@ type immediate_or_pointer =
 
 type initialization_or_assignment =
   | Assignment
+  | Local_assignment (* mutations of blocks that may be locally allocated *)
   (* Initialization of in heap values, like [caml_initialize] C primitive.  The
      field should not have been read before and initialization should happen
      only once. *)

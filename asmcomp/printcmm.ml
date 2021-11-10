@@ -128,6 +128,7 @@ let operation d = function
       | Lambda.Heap_initialization -> "(heap-init)"
       | Lambda.Root_initialization -> "(root-init)"
       | Lambda.Assignment -> ""
+      | Local_assignment -> "(local)"
     in
     Printf.sprintf "store %s%s" (chunk c) init
   | Caddi -> "+"

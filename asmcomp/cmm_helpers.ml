@@ -744,11 +744,9 @@ let unboxed_float_array_ref arr ofs dbg =
 let float_array_ref arr ofs dbg =
   box_float dbg (unboxed_float_array_ref arr ofs dbg)
 
+(* FIXME local arrays *)
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
-      [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
-let addr_array_initialize arr ofs newval dbg =
-  Cop(Cextcall("caml_initialize", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Lambda.Assignment),
@@ -2215,16 +2213,17 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* Helper for compilation of initialization and assignment operations *)
 
-type assignment_kind = Caml_modify | Caml_initialize | Simple
+type assignment_kind = Caml_modify | Caml_modify_local | Simple
 
 let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
   | Assignment, Pointer -> Caml_modify
-  | Heap_initialization, Pointer -> Caml_initialize
-  | Assignment, Immediate
-  | Heap_initialization, Immediate
+  | Local_assignment, Pointer -> Caml_modify_local
+  | Heap_initialization, _ ->
+     Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
+  | (Assignment | Local_assignment), Immediate
   | Root_initialization, (Immediate | Pointer) -> Simple
 
 let setfield n ptr init arg1 arg2 dbg =
@@ -2234,10 +2233,10 @@ let setfield n ptr init arg1 arg2 dbg =
         (Cop(Cextcall("caml_modify", typ_void, [], false),
              [field_address arg1 n dbg; arg2],
              dbg))
-  | Caml_initialize ->
+  | Caml_modify_local ->
       return_unit dbg
-        (Cop(Cextcall("caml_initialize", typ_void, [], false),
-             [field_address arg1 n dbg; arg2],
+        (Cop(Cextcall("caml_modify_local", typ_void, [], false),
+             [arg1; Cconst_int (n,dbg); arg2],
              dbg))
   | Simple ->
       return_unit dbg (set_field arg1 n arg2 init dbg)
@@ -2422,10 +2421,11 @@ type ternary_primitive =
 
 let setfield_computed ptr init arg1 arg2 arg3 dbg =
   match assignment_kind ptr init with
+  (* FIXME local *)
   | Caml_modify ->
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
-  | Caml_initialize ->
-      return_unit dbg (addr_array_initialize arg1 arg2 arg3 dbg)
+  | Caml_modify_local ->
+      return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Simple ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 

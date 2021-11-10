@@ -409,15 +409,21 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, _, lbl, newval) ->
+      let mode =
+        let arg_mode = Types.Value_mode.regional_to_local_alloc arg.exp_mode in
+        match Types.Alloc_mode.constrain_lower arg_mode with
+        | Global -> Assignment
+        | Local -> Local_assignment
+      in
       let access =
         match lbl.lbl_repres with
           Record_regular
         | Record_inlined _ ->
-          Psetfield(lbl.lbl_pos, maybe_pointer newval, Assignment)
+          Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
         | Record_unboxed _ -> assert false
-        | Record_float -> Psetfloatfield (lbl.lbl_pos, Assignment)
+        | Record_float -> Psetfloatfield (lbl.lbl_pos, mode)
         | Record_extension _ ->
-          Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, Assignment)
+          Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, mode)
       in
       Lprim(access, [transl_exp ~scopes arg; transl_exp ~scopes newval],
             of_location ~scopes e.exp_loc)
