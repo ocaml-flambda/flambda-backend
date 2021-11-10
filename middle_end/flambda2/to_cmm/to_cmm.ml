@@ -630,9 +630,24 @@ let decide_inline_let effs
          flushed by the env. *)
   end
   | One -> begin
-    match Env.classify effs with
-    | Effect when not (Flambda_features.Expert.inline_effects_in_cmm ()) ->
-      Regular
+    match (effs : Effects_and_coeffects.t) with
+    (* Whether to inline one-use effectful expression has no impact on
+       correctness: the to_cmm env ensures that ordering will be correct (see
+       the comment in `To_cmm_env.classify`). Not inlining effectful expression
+       is better for readability of the generated cmm code (and in particular
+       make the ordering of the effects much clearer). However, the remainder of
+       the backend is better suited to handling nested expression, including
+       nested effectful expression (most notably because of register allocation
+       and particularly live range for registers). For instance, large 2D arrays
+       initializations exhibit exponential blowups in compilation time if the
+       expressions are not inlined. The compromise is thus, to inline
+       generative-only effectful expressions, since it doesn't affect
+       readability as much. *)
+    | Only_generative_effects _, _ -> Inline
+    | Arbitrary_effects, _ ->
+      if Flambda_features.Expert.inline_effects_in_cmm ()
+      then Inline
+      else Regular
     | _ -> Inline
   end
   | More_than_one -> Regular
