@@ -86,7 +86,7 @@ let extract_float = function
 
 let transl_value_mode mode : Lambda.alloc_mode =
   let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
-  match Types.Alloc_mode.constrain_upper alloc_mode with
+  match Types.Alloc_mode.constrain_lower alloc_mode with
   | Global -> Alloc_heap
   | Local -> Alloc_local
 

@@ -155,17 +155,12 @@ let uchar_map_of_spec spec =
   map
 ;;
 
-(* FIXME: Remove this once regions or tailcalls are fixed *)
-let escape : 'a -> unit = fun x -> ()
-
 let test_spec_map msg utf_x_map buffer_add_utf_x_uchar =
   let b = Buffer.create 4 in
   let rec loop u =
     Buffer.clear b; buffer_add_utf_x_uchar b u;
     match Buffer.contents b = utf_x_map.(Uchar.to_int u) with
-    | false as x ->
-      escape x;
-      failed (sprintf "%s of U+%04X" msg (Uchar.to_int u))
+    | false -> failed (sprintf "%s of U+%04X" msg (Uchar.to_int u))
     | true ->
         if Uchar.equal u Uchar.max then passed msg else loop (Uchar.succ u)
   in

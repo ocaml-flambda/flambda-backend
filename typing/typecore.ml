@@ -277,6 +277,22 @@ let eqmode ~loc ~env m1 m2 err =
   | Ok () -> ()
   | Error () -> raise (Error(loc, env, err))
 
+let allocations : Alloc_mode.t list ref = ref []
+
+let reset_allocations () = allocations := []
+
+let register_allocation expected_mode =
+  let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
+  match Alloc_mode.check_const alloc_mode with
+  | Some _ -> ()
+  | None -> allocations := alloc_mode :: !allocations
+
+let optimise_allocations () =
+  List.iter
+    (fun mode -> ignore (Alloc_mode.constrain_upper mode))
+    !allocations;
+  reset_allocations ()
+
 (* Typing of constants *)
 
 let type_constant = function
@@ -2882,6 +2898,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_constant(Pconst_string (str, _, _) as cst) ->
+    register_allocation expected_mode;
     let cst = constant_or_raise env loc cst in
     (* Terrible hack for format strings *)
     let ty_exp = expand_head env ty_expected in
@@ -3107,6 +3124,7 @@ and type_expect_
         exp_env = env }
   | Pexp_tuple sexpl ->
       assert (List.length sexpl >= 2);
+      register_allocation expected_mode;
       let subtypes = List.map (fun _ -> newgenvar ()) sexpl in
       let to_unify = newgenty (Ttuple subtypes) in
       with_explanation (fun () ->
@@ -3131,6 +3149,8 @@ and type_expect_
         sarg ty_expected_explained sexp.pexp_attributes
   | Pexp_variant(l, sarg) ->
       (* Keep sharing *)
+      if sarg <> None then
+        register_allocation expected_mode;
       let ty_expected0 = instance ty_expected in
       let argument_mode = mode_subcomponent expected_mode in
       begin try match
@@ -3168,6 +3188,7 @@ and type_expect_
       end
   | Pexp_record(lid_sexp_list, opt_sexp) ->
       assert (lid_sexp_list <> []);
+      register_allocation expected_mode;
       let opt_exp =
         match opt_sexp with
           None -> None
@@ -3347,6 +3368,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_array(sargl) ->
+      register_allocation expected_mode;
       let ty = newgenvar() in
       let to_unify = Predef.type_array ty in
       with_explanation (fun () ->
@@ -3842,6 +3864,7 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
+      register_allocation expected_mode;
       let closure_mode = Value_mode.regional_to_global expected_mode.mode in
       let ty = newgenvar () in
       let to_unify = Predef.type_lazy_t ty in
@@ -4157,6 +4180,7 @@ and type_binding_op_ident env s =
 and type_function ?in_function loc attrs env expected_mode
       ty_expected_explained l has_local caselist =
   let { ty = ty_expected; explanation } = ty_expected_explained in
+  register_allocation expected_mode;
   let alloc_mode = Value_mode.regional_to_global_alloc expected_mode.mode in
   let (loc_fun, ty_fun) =
     match in_function with
@@ -4964,6 +4988,8 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
 
 and type_construct env expected_mode loc lid sarg ty_expected_explained attrs =
   let { ty = ty_expected; explanation } = ty_expected_explained in
+  if sarg <> None then
+    register_allocation expected_mode;
   let argument_mode = mode_subcomponent expected_mode in
   let expected_type =
     try

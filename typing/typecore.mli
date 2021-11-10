@@ -127,6 +127,10 @@ val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
 val force_delayed_checks: unit -> unit
 
+val reset_allocations: unit -> unit
+val optimise_allocations: unit -> unit
+
+
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 

@@ -5,15 +5,12 @@
     The success continuation expression is in tail position.
 *)
 
-(* FIXME: Remove this once regions or tailcalls are fixed *)
-let escape : 'a -> unit = fun x -> ()
-
 let count_to_tr_match n =
   let rec loop i =
     match
       i < n
     with exception Not_found -> ()
-    | false as x -> escape x
+    | false -> ()
     | true -> loop (i + 1)
   in loop 0
 ;;

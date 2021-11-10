@@ -2458,12 +2458,9 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
   if toplevel then run ()
   else Builtin_attributes.warning_scope [] run
 
-let type_toplevel_phrase env s =
-  Env.reset_required_globals ();
-  let (str, sg, to_remove_from_sg, env) =
-    type_structure ~toplevel:true false None env s in
-  remove_mode_variables env sg;
-  begin match str.str_items with
+(* The toplevel will print some types not present in the signature *)
+let remove_mode_variables_for_toplevel str =
+  match str.str_items with
   | [{ str_desc =
          ( Tstr_eval (exp, _)
          | Tstr_value (Nonrecursive,
@@ -2473,7 +2470,15 @@ let type_toplevel_phrase env s =
         even though they do not appear in sg *)
      Ctype.remove_mode_variables exp.exp_type
   | _ -> ()
-  end;
+
+let type_toplevel_phrase env s =
+  Env.reset_required_globals ();
+  Typecore.reset_allocations ();
+  let (str, sg, to_remove_from_sg, env) =
+    type_structure ~toplevel:true false None env s in
+  remove_mode_variables env sg;
+  remove_mode_variables_for_toplevel str;
+  Typecore.optimise_allocations ();
   (str, sg, to_remove_from_sg, env)
 
 let type_module_alias = type_module ~alias:true true false None
@@ -2649,6 +2654,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
+      Typecore.reset_allocations ();
       Env.reset_required_globals ();
       if !Clflags.print_types then (* #7656 *)
         Warnings.parse_options false "-32-34-37-38-60";
@@ -2657,6 +2663,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
+        Typecore.optimise_allocations ();
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
               (Printtyp.printed_signature sourcefile) simple_sg
@@ -2679,6 +2686,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               sourcefile sg intf_file dclsig
           in
           Typecore.force_delayed_checks ();
+          Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
@@ -2695,6 +2703,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           check_nongen_schemes finalenv simple_sg;
           normalize_signature simple_sg;
           Typecore.force_delayed_checks ();
+          Typecore.optimise_allocations ();
           (* See comment above. Here the target signature contains all
              the value being exported. We can still capture unused
              declarations like "let x = true;; let x = 1;;", because in this
