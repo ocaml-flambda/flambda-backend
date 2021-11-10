@@ -230,119 +230,65 @@ module Inlining = struct
                 { code_id = Code_id.export code_id; decision }));
         res
 
-let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
-    ~free_names_of_body ~exn_continuation ~return_continuation
-    ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
-  let params = List.map Bound_parameter.var params in
-  let rec_info =
-    match apply_depth with
-    | None -> Rec_info_expr.initial
-    | Some depth -> Rec_info_expr.var depth
-  in
-  let bind_params ~params ~args ~body:(acc, body) =
-    let acc =
-      Acc.with_free_names
-        (Name_occurrences.union (Acc.free_names acc) free_names_of_body)
-        acc
+  let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
+      ~free_names_of_body ~exn_continuation ~return_continuation
+      ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
+    let params = List.map Bound_parameter.var params in
+    let rec_info =
+      match apply_depth with
+      | None -> Rec_info_expr.initial
+      | Some depth -> Rec_info_expr.var depth
     in
-    List.fold_left2
+    let bind_params ~params ~args ~body:(acc, body) =
+      let acc =
+        Acc.with_free_names
+          (Name_occurrences.union (Acc.free_names acc) free_names_of_body)
+          acc
+      in
+      List.fold_left2
         (fun (acc, body) param arg ->
           Let_with_acc.create acc
             (Bound_pattern.singleton (VB.create param Name_mode.normal))
             (Named.create_simple arg) ~body
           |> Expr_with_acc.create_let)
         (acc, body) (my_closure :: params) (callee :: args)
-  in
-  let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
-    Let_with_acc.create acc
-      (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
-      (Named.create_rec_info rec_info)
-      ~body
-    |> Expr_with_acc.create_let
-  in
-  let apply_renaming (acc, body) perm =
-    let acc =
-      Acc.with_free_names
-        (Name_occurrences.apply_renaming (Acc.free_names acc) perm)
-        acc
     in
-    acc, Expr.apply_renaming body perm
-  in
-  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
-    ~rec_info ~body:(acc, body) ~exn_continuation ~return_continuation
-    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
+    let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
+      Let_with_acc.create acc
+        (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
+        (Named.create_rec_info rec_info)
+        ~body
+      |> Expr_with_acc.create_let
+    in
+    let apply_renaming (acc, body) perm =
+      let acc =
+        Acc.with_free_names
+          (Name_occurrences.apply_renaming (Acc.free_names acc) perm)
+          acc
+      in
+      acc, Expr.apply_renaming body perm
+    in
+    Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure
+      ~my_depth ~rec_info ~body:(acc, body) ~exn_continuation
+      ~return_continuation ~apply_exn_continuation ~apply_return_continuation
+      ~bind_params ~bind_depth ~apply_renaming
 
   let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
       ~apply_return_continuation ~result_arity ~make_inlined_body =
-    let wrapper = Continuation.create () in
-    let body_with_pop acc =
-      match (apply_return_continuation : Apply.Result_continuation.t) with
-      | Never_returns ->
-        make_inlined_body acc ~apply_exn_continuation:wrapper
-          ~apply_return_continuation
-      | Return apply_return_continuation ->
-        let pop_wrapper_cont = Continuation.create () in
-        let new_apply_return_continuation =
-          Apply.Result_continuation.Return pop_wrapper_cont
-        in
-        let body acc =
-          make_inlined_body acc ~apply_exn_continuation:wrapper
-            ~apply_return_continuation:new_apply_return_continuation
-        in
-        let kinded_params =
-          List.map (fun k -> Variable.create "wrapper_return", k) result_arity
-        in
-        let trap_action =
-          Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
-        in
-        let args = List.map (fun (v, _) -> Simple.var v) kinded_params in
-        let handler acc =
-          let acc, apply_cont =
-            Apply_cont_with_acc.create acc ~trap_action
-              apply_return_continuation ~args ~dbg:Debuginfo.none
-          in
-          Expr_with_acc.create_apply_cont acc apply_cont
-        in
-        Let_cont_with_acc.build_non_recursive acc pop_wrapper_cont
-          ~handler_params:(Bound_parameter.List.create kinded_params)
-          ~handler ~body ~is_exn_handler:false
-    in
-    let param = Variable.create "exn" in
-    let wrapper_handler_params =
-      [Bound_parameter.create param K.With_subkind.any_value]
-    in
-    let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
-    let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
-    let wrapper_handler acc =
-      (* Backtrace building functions expect compiler-generated raises not to
-         have any debug info *)
+    let apply_cont_create acc ~trap_action cont ~args ~dbg =
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc ~trap_action
-          (Exn_continuation.exn_handler apply_exn_continuation)
-          ~args:(Simple.var param :: List.map fst extra_args)
-          ~dbg:Debuginfo.none
+        Apply_cont_with_acc.create acc ~trap_action cont ~args ~dbg
       in
       Expr_with_acc.create_apply_cont acc apply_cont
     in
-    let body_with_push acc =
-      (* Wrap the body between push and pop of the wrapper handler *)
-      let push_wrapper_cont = Continuation.create () in
-      let push_wrapper_handler = body_with_pop in
-      let trap_action = Trap_action.Push { exn_handler = wrapper } in
-      let body acc =
-        let acc, apply_cont =
-          Apply_cont_with_acc.create acc ~trap_action push_wrapper_cont ~args:[]
-            ~dbg:Debuginfo.none
-        in
-        Expr_with_acc.create_apply_cont acc apply_cont
-      in
-      Let_cont_with_acc.build_non_recursive acc push_wrapper_cont
-        ~handler_params:[] ~handler:push_wrapper_handler ~body
-        ~is_exn_handler:false
+    let let_cont_create cont ~handler_params ~handler ~body:(acc, body)
+        ~is_exn_handler =
+      Let_cont_with_acc.build_non_recursive acc cont ~handler_params ~handler
+        ~body ~is_exn_handler
     in
-    Let_cont_with_acc.build_non_recursive acc wrapper
-      ~handler_params:wrapper_handler_params ~handler:wrapper_handler
-      ~body:body_with_push ~is_exn_handler:true
+    Inlining_helpers.wrap_inlined_body_for_exn_support acc ~extra_args
+      ~apply_exn_continuation ~apply_return_continuation ~result_arity
+      ~make_inlined_body ~apply_cont_create ~let_cont_create
 
   let inline acc ~apply ~apply_depth ~func_desc:code =
     let callee = Apply.callee apply in
