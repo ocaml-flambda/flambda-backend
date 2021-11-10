@@ -34,7 +34,7 @@ val for_let:
         lambda
 val for_multiple_match:
         scopes:scopes -> Location.t ->
-        lambda list -> (pattern * lambda) list -> partial ->
+        lambda list -> alloc_mode -> (pattern * lambda) list -> partial ->
         lambda
 
 val for_tupled_function:

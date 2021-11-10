@@ -714,6 +714,10 @@ module Value_mode : sig
 
   val submode : t -> t -> (unit, error) result
 
+  val submode_exn : t -> t -> unit
+
+  val submode_meet : t -> t list -> (unit, error) result
+
   val join : t list -> t
 
   val constrain_upper : t -> const

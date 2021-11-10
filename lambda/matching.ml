@@ -3672,7 +3672,7 @@ let compile_flattened ~scopes repr partial ctx pmh =
       let lam, total = compile_match_nonempty ~scopes repr partial ctx b in
       compile_orhandlers (compile_match ~scopes repr partial) lam total ctx hs
 
-let do_for_multiple_match ~scopes loc paraml pat_act_list partial =
+let do_for_multiple_match ~scopes loc paraml mode pat_act_list partial =
   let repr = None in
   let partial = check_partial pat_act_list partial in
   let raise_num, arg, pm1 =
@@ -3686,7 +3686,7 @@ let do_for_multiple_match ~scopes loc paraml pat_act_list partial =
       | Total -> (-1, Default_environment.empty)
     in
     let loc = Scoped_location.of_location ~scopes loc in
-    let arg = Lprim (Pmakeblock (0, Immutable, None, Alloc_heap (* FIXME *)),
+    let arg = Lprim (Pmakeblock (0, Immutable, None, mode),
                      paraml, loc) in
     ( raise_num,
       arg,
@@ -3748,8 +3748,8 @@ let bind_opt (v, eo) k =
   | None -> k
   | Some e -> Lambda.bind Strict v e k
 
-let for_multiple_match ~scopes loc paraml pat_act_list partial =
+let for_multiple_match ~scopes loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml = List.map (fun (v, _) -> Lvar v) v_paraml in
   List.fold_right bind_opt v_paraml
-    (do_for_multiple_match ~scopes loc paraml pat_act_list partial)
+    (do_for_multiple_match ~scopes loc paraml mode pat_act_list partial)

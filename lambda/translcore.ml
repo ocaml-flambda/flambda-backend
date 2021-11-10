@@ -1188,8 +1188,9 @@ and transl_match ~scopes e arg pat_expr_list partial =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple argl}, [] ->
       assert (static_handlers = []);
+      let mode = transl_value_mode arg.exp_mode in
       Matching.for_multiple_match ~scopes e.exp_loc
-        (transl_list ~scopes argl) val_cases partial
+        (transl_list ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple argl}, _ :: _ ->
         let val_ids =
           List.map
@@ -1200,9 +1201,10 @@ and transl_match ~scopes e arg pat_expr_list partial =
             argl
         in
         let lvars = List.map (fun (id, _) -> Lvar id) val_ids in
+        let mode = transl_value_mode arg.exp_mode in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes e.exp_loc
-             lvars val_cases partial)
+             lvars mode val_cases partial)
     | arg, [] ->
       assert (static_handlers = []);
       Matching.for_function ~scopes e.exp_loc

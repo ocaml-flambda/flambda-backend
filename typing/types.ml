@@ -795,6 +795,18 @@ module Value_mode = struct
         | Error () -> Error Locality
       end
 
+  let submode_exn t1 t2 =
+    match submode t1 t2 with
+    | Ok () -> ()
+    | Error _ -> invalid_arg "submode_exn"
+
+  let rec submode_meet t = function
+    | [] -> Ok ()
+    | t' :: rest ->
+      match submode t t' with
+      | Ok () -> submode_meet t rest
+      | Error _ as err -> err
+
   let join ts =
     let r_as_l = Alloc_mode.join (List.map (fun t -> t.r_as_l) ts) in
     let r_as_g = Alloc_mode.join (List.map (fun t -> t.r_as_g) ts) in
