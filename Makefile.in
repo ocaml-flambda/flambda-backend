@@ -31,15 +31,23 @@ dune=@dune@
 # make, since it seems faster.
 #
 # CR-someday mshinwell: We should replace this with a coldstart using dune.
+#
+# The compiler can discard flambda-backend flags from OCAMLPARAM
+# by listing them in "ocaml/stdlib/ocaml_compiler_internal_params".
+# Copy this file to install directory of stage0 to make it available
+# to the build of the compiler itself in stage0 (instead of patching the
+# upstream compiler to look for it in the right place).
 .PHONY: stage0
-stage0: _build0/config.status
+stage0: _build0/config.status ocaml_compiler_internal_param
 	rm -f .rsync-output
 	rsync -i -a --filter=':- $$(pwd)/ocaml/.gitignore' \
 	  $$(pwd)/ocaml/ $$(pwd)/_build0 \
 	  | grep -v '/$$' \
 	  | tee .rsync-output
-	if [ -s .rsync-output ] || ! [ -d @stage0_prefix@ ]; then \
+	if [ -s .rsync-output ] || ! [ -d @stage0_prefix@/bin ]; then \
 	  (cd _build0 && \
+	    mkdir -p $(stage0_prefix)/lib/ocaml && \
+	    cp ../ocaml/stdlib/ocaml_compiler_internal_params $(stage0_prefix)/lib/ocaml/ && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat && \
 	    $(MAKE) install); \
@@ -227,6 +235,10 @@ config_files: ocaml-stage1-config.status
 		| sed 's/^OC_CPPFLAGS=//'` )" > oc_cppflags.sexp
 	/bin/echo -n "( `grep \"^SHAREDLIB_CFLAGS=\" ocaml/Makefile.config \
 		| sed 's/^SHAREDLIB_CFLAGS=//'` )" > sharedlib_cflags.sexp
+
+.PHONY: ocaml_compiler_internal_param
+ocaml_compiler_internal_param: tools/ocaml_compiler_internal_params
+	cp tools/ocaml_compiler_internal_params ocaml/stdlib/
 
 # Most of the installation tree is correctly set up by dune, but we need to
 # copy it to the final destination, and rearrange a few things to match

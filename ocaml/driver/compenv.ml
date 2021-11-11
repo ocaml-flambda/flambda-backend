@@ -221,6 +221,9 @@ let set_compiler_pass ppf ~name v flag ~filter =
    because they are not understood by some versions of OCaml. *)
 let can_discard = ref []
 
+let extra_params = ref (fun _ -> None)
+let set_extra_params params = extra_params := params
+
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
@@ -359,8 +362,6 @@ let read_one_param ppf position name v =
       set "cmm-invariants" [ cmm_invariants ] v
   | "linscan" ->
       set "linscan" [ use_linscan ] v
-  | "ocamlcfg" ->
-      set "ocamlcfg" [ use_ocamlcfg ] v
   | "insn-sched" -> set "insn-sched" [ insn_sched ] v
   | "no-insn-sched" -> clear "insn-sched" [ insn_sched ] v
 
@@ -563,7 +564,10 @@ let read_one_param ppf position name v =
     end
 
   | _ ->
-    if not (List.mem name !can_discard) then begin
+    match !extra_params name with
+   | Some h -> h ppf position name v
+   | None ->
+   if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
       Printf.ksprintf (print_error ppf)
         "Warning: discarding value of variable %S in OCAMLPARAM\n%!"

@@ -44,6 +44,14 @@ type readenv_position =
   Before_args | Before_compile of filename | Before_link
 
 val readenv : Format.formatter -> readenv_position -> unit
+val set_extra_params :
+  (string ->
+   (Format.formatter -> readenv_position -> string -> string -> unit)
+     option) ->
+  unit
+
+val setter :
+    Format.formatter -> (bool -> 'a) -> string -> 'a ref list -> string -> unit
 
 (* [is_unit_name name] returns true only if [name] can be used as a
    correct module name *)

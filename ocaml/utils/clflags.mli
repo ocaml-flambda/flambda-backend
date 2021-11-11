@@ -56,7 +56,6 @@ val debug : bool ref
 val debug_full : bool ref
 val unsafe : bool ref
 val use_linscan : bool ref
-val use_ocamlcfg : bool ref
 val link_everything : bool ref
 val custom_runtime : bool ref
 val no_check_prims : bool ref

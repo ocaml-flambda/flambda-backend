@@ -328,10 +328,6 @@ let mk_linscan f =
   "-linscan", Arg.Unit f, " Use the linear scan register allocator"
 ;;
 
-let mk_ocamlcfg f =
-  "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
-;;
-
 let mk_make_runtime f =
   "-make-runtime", Arg.Unit f,
   " Build a runtime system with given C objects and libraries"
@@ -1429,7 +1425,6 @@ module type Optcommon_options = sig
   val _insn_sched : unit -> unit
   val _no_insn_sched : unit -> unit
   val _linscan : unit -> unit
-  val _ocamlcfg : unit -> unit
   val _no_float_const_prop : unit -> unit
 
   val _clambda_checks : unit -> unit
@@ -1784,7 +1779,6 @@ struct
     mk_alias_deps F._alias_deps;
     mk_no_alias_deps F._no_alias_deps;
     mk_linscan F._linscan;
-    mk_ocamlcfg F._ocamlcfg;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
     mk_no_float_const_prop F._no_float_const_prop;
@@ -1991,7 +1985,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_alias_deps F._alias_deps;
     mk_no_alias_deps F._no_alias_deps;
     mk_linscan F._linscan;
-    mk_ocamlcfg F._ocamlcfg;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
     mk_no_float_const_prop F._no_float_const_prop;
@@ -2374,7 +2367,6 @@ module Default = struct
     let _insn_sched = set insn_sched
     let _no_insn_sched = clear insn_sched
     let _linscan = set use_linscan
-    let _ocamlcfg = set use_ocamlcfg
     let _no_float_const_prop = clear float_const_prop
     let _no_unbox_free_vars_of_closures = clear unbox_free_vars_of_closures
     let _no_unbox_specialised_args = clear unbox_specialised_args
