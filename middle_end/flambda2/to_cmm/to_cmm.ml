@@ -631,18 +631,28 @@ let decide_inline_let effs
   end
   | One -> begin
     match (effs : Effects_and_coeffects.t) with
-    (* Whether to inline one-use effectful expression has no impact on
-       correctness: the to_cmm env ensures that ordering will be correct (see
-       the comment in `To_cmm_env.classify`). Not inlining effectful expression
-       is better for readability of the generated cmm code (and in particular
-       make the ordering of the effects much clearer). However, the remainder of
-       the backend is better suited to handling nested expression, including
-       nested effectful expression (most notably because of register allocation
-       and particularly live range for registers). For instance, large 2D arrays
-       initializations exhibit exponential blowups in compilation time if the
-       expressions are not inlined. The compromise is thus, to inline
-       generative-only effectful expressions, since it doesn't affect
-       readability as much. *)
+    (* The decision here is whether to consider the binding for inlining or not.
+       It is always correct to consider an effectful expression for inlining, as
+       the environment is going to handle the details of preserving the effects
+       and coeffects ordering (if inlining without reordering is impossible then
+       the expressions will be bound at some safe place instead).
+
+       So the decision here is about readability of the generated Cmm code
+       (effectful expressions as arguments to other primitives make it hard to
+       follow the order of evaluation) and locality (for deeply nested
+       expressions, binding the sub-expressions outside can keep them alive for
+       longer than strictly necessary).
+
+       The current choice of always inlining pure expressions and expressions
+       with only generative effects is guided by the relatively common case of
+       initialisation of huge static structures (including arrays). Without
+       inlining, all intermediate results would be live for long periods of time
+       and the default register allocator would have trouble dealing with that
+       (it's quadratic in the number of registers live at the same time).
+
+       Deep expressions involving arbitrary effects are less common, so inlining
+       for these expressions is controlled by the global [inline_effects_in_cmm]
+       setting. *)
     | Only_generative_effects _, _ -> Inline
     | Arbitrary_effects, _ ->
       if Flambda_features.Expert.inline_effects_in_cmm ()
