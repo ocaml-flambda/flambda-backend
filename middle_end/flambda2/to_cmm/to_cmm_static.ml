@@ -327,6 +327,11 @@ let static_const0 env r ~updates ~params_and_body
       static_float_array_updates (C.symbol name) env updates 0 fields
     in
     env, R.update_data r float_array, e
+  | Block_like s, Empty_array ->
+    let block_name = symbol s, Cmmgen_state.Global in
+    let header = C.black_block_header 0 0 in
+    let block = C.emit_block block_name header [] in
+    env, R.set_data r block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
     let name = symbol s in
@@ -339,7 +344,7 @@ let static_const0 env r ~updates ~params_and_body
   | ( (Code _ | Set_of_closures _),
       ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Mutable_string _ | Immutable_string _ ) ) ->
+      | Empty_array | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

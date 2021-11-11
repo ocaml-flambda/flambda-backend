@@ -18,8 +18,9 @@
 (** Simplification of external calls *)
 
 type t =
-  | Unchanged
+  | Unchanged of { return_types : Flambda2_types.t list option }
   | Poly_compare_specialized of Downwards_acc.t * Flambda.Expr.t
+  | Invalid
 
 val simplify_extcall :
   Downwards_acc.t ->

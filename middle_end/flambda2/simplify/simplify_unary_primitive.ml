@@ -176,7 +176,9 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
   let result = Simple.var (Bound_var.var result_var) in
   Simplify_common.simplify_projection dacc ~original_term
     ~deconstructing:array_ty
-    ~shape:(T.array_of_length ~length:(T.alias_type_of K.value result))
+    ~shape:
+      (T.array_of_length ~element_kind:Unknown
+         ~length:(T.alias_type_of K.value result))
     ~result_var ~result_kind:K.value
 
 (* CR-someday mshinwell: Consider whether "string length" should be treated like
@@ -449,6 +451,54 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   | Proved _ | Unknown -> result_unknown ()
   | Invalid -> result_invalid ()
 
+let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
+  assert (Flambda_features.flat_float_array ());
+  let result = Name.var (Bound_var.var result_var) in
+  match T.prove_is_or_is_not_a_boxed_float (DA.typing_env dacc) arg_ty with
+  | Proved is_a_boxed_float ->
+    let imm = Targetint_31_63.bool is_a_boxed_float in
+    let ty = T.this_naked_immediate imm in
+    let env_extension = TEE.one_equation result ty in
+    ( Simplified_named.reachable
+        (Named.create_simple
+           (Simple.const (Reg_width_const.naked_immediate imm))),
+      env_extension,
+      dacc )
+  | Unknown ->
+    let ty = T.unknown K.naked_immediate in
+    let env_extension = TEE.one_equation result ty in
+    Simplified_named.reachable original_term, env_extension, dacc
+  | Invalid | Wrong_kind ->
+    let ty = T.bottom K.naked_immediate in
+    let env_extension = TEE.one_equation result ty in
+    Simplified_named.invalid (), env_extension, dacc
+
+let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
+    =
+  assert (Flambda_features.flat_float_array ());
+  let result = Name.var (Bound_var.var result_var) in
+  match
+    T.prove_is_array_with_element_kind (DA.typing_env dacc) arg_ty
+      ~element_kind:K.With_subkind.naked_float
+  with
+  | Proved is_flat_float_array ->
+    let imm = Targetint_31_63.bool is_flat_float_array in
+    let ty = T.this_naked_immediate imm in
+    let env_extension = TEE.one_equation result ty in
+    ( Simplified_named.reachable
+        (Named.create_simple
+           (Simple.const (Reg_width_const.naked_immediate imm))),
+      env_extension,
+      dacc )
+  | Unknown ->
+    let ty = T.unknown K.naked_immediate in
+    let env_extension = TEE.one_equation result ty in
+    Simplified_named.reachable original_term, env_extension, dacc
+  | Invalid ->
+    let ty = T.bottom K.naked_immediate in
+    let env_extension = TEE.one_equation result ty in
+    Simplified_named.invalid (), env_extension, dacc
+
 let simplify_unary_primitive dacc (prim : P.unary_primitive) ~arg ~arg_ty dbg
     ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -466,7 +516,7 @@ let simplify_unary_primitive dacc (prim : P.unary_primitive) ~arg ~arg_ty dbg
     | Box_number boxable_number_kind -> simplify_box_number boxable_number_kind
     | Is_int -> simplify_is_int
     | Get_tag -> simplify_get_tag
-    | Array_length _ -> simplify_array_length
+    | Array_length -> simplify_array_length
     | String_length _ -> simplify_string_length
     | Int_arith (kind, op) -> begin
       match kind with
@@ -488,6 +538,8 @@ let simplify_unary_primitive dacc (prim : P.unary_primitive) ~arg ~arg_ty dbg
     end
     | Boolean_not -> simplify_boolean_not
     | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
+    | Is_boxed_float -> simplify_is_boxed_float
+    | Is_flat_float_array -> simplify_is_flat_float_array
     | Int_as_pointer | Bigarray_length _ | Duplicate_array _ | Duplicate_block _
     | Opaque_identity ->
       (* CR mshinwell: In these cases, the type of the argument should still be

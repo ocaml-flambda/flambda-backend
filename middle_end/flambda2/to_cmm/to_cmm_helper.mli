@@ -155,11 +155,7 @@ val block_set :
 (** {2 Array access} *)
 
 (** Return an expression that computes the length of the given array. *)
-val array_length :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Array_kind.t ->
-  Cmm.expression ->
-  Cmm.expression
+val array_length : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
 
 (** Load a field from an array. Cmm argument order: * - array * - field number
     as a tagged integer *)

@@ -270,9 +270,21 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     if String_info.Set.is_empty strs
     then Bottom
     else Or_bottom.Ok (TG.Head_of_kind_value.create_string strs, TEE.empty)
-  | Array { length = length1 }, Array { length = length2 } ->
+  | ( Array { kind = kind1; length = length1 },
+      Array { kind = kind2; length = length2 } ) ->
+    let<* element_kind =
+      match kind1, kind2 with
+      | Unknown, Unknown -> Ok Or_unknown.Unknown
+      | Unknown, Known kind | Known kind, Unknown -> Ok (Or_unknown.Known kind)
+      | Known kind1, Known kind2 ->
+        if Flambda_kind.With_subkind.compatible kind1 ~when_used_at:kind2
+        then Ok (Or_unknown.Known kind1)
+        else if Flambda_kind.With_subkind.compatible kind2 ~when_used_at:kind1
+        then Ok (Or_unknown.Known kind2)
+        else Bottom
+    in
     let<+ length, env_extension = meet env length1 length2 in
-    TG.Head_of_kind_value.create_array ~length, env_extension
+    TG.Head_of_kind_value.create_array ~element_kind ~length, env_extension
   | ( ( Variant _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->
@@ -951,9 +963,20 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
     Known (TG.Head_of_kind_value.create_string strs)
-  | Array { length = length1 }, Array { length = length2 } ->
+  | ( Array { kind = kind1; length = length1 },
+      Array { kind = kind2; length = length2 } ) ->
+    let element_kind : _ Or_unknown.t =
+      match kind1, kind2 with
+      | Unknown, Unknown | Unknown, Known _ | Known _, Unknown -> Unknown
+      | Known kind1, Known kind2 ->
+        if Flambda_kind.With_subkind.compatible kind1 ~when_used_at:kind2
+        then Known kind2
+        else if Flambda_kind.With_subkind.compatible kind2 ~when_used_at:kind1
+        then Known kind1
+        else Unknown
+    in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array ~length
+    TG.Head_of_kind_value.create_array ~element_kind ~length
   | ( ( Variant _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Closures _ | String _ | Array _ ),
       _ ) ->

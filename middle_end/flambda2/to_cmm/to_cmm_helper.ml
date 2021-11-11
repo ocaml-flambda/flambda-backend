@@ -320,13 +320,6 @@ let make_array ?(dbg = Debuginfo.none) kind args =
          runtime/array.c:caml_make_vec *)
     | _ -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
   end
-  | Float_array_opt_dynamic -> begin
-    match args with
-    | [] -> static_atom ~dbg 0
-    | _ ->
-      extcall ~dbg ~alloc:true ~is_c_builtin:false ~returns:true ~ty_args:[]
-        "caml_make_array" Cmm.typ_val [make_alloc dbg 0 args]
-  end
   | Immediates | Values -> make_alloc_safe ~dbg 0 args
 
 let make_block ?(dbg = Debuginfo.none) kind args =
@@ -373,21 +366,18 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
 
 (* Array access *)
 
-let array_length ?(dbg = Debuginfo.none) kind arr =
-  arraylength (P.Array_kind.to_lambda kind) arr dbg
+let array_length ?(dbg = Debuginfo.none) arr =
+  (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
+     width of floats is equal to the machine word width (see flambda2.ml). This
+     means that [arraylength] will not use the kind information. *)
+  assert (wordsize_shift = numfloat_shift);
+  arraylength Paddrarray arr dbg
 
 let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
   match kind with
   | Immediates -> int_array_ref arr index dbg
   | Values -> addr_array_ref arr index dbg
   | Naked_floats -> unboxed_float_array_ref arr index dbg
-  | Float_array_opt_dynamic ->
-    ite ~dbg
-      (is_addr_array_ptr arr dbg)
-      ~then_:(addr_array_ref arr index dbg)
-      ~then_dbg:dbg
-      ~else_:(float_array_ref arr index dbg)
-      ~else_dbg:dbg
 
 let addr_array_store init arr index value dbg =
   match (init : P.Init_or_assign.t) with
@@ -400,14 +390,6 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
   | Immediates -> return_unit dbg (int_array_set arr index value dbg)
   | Values -> return_unit dbg (addr_array_store init arr index value dbg)
   | Naked_floats -> return_unit dbg (float_array_set arr index value dbg)
-  | Float_array_opt_dynamic ->
-    ite ~dbg
-      (is_addr_array_ptr arr dbg)
-      ~then_:(addr_array_store init arr index value dbg)
-      ~then_dbg:dbg
-      ~else_:(float_array_set arr index (unbox_float dbg value) dbg)
-      ~else_dbg:dbg
-    |> return_unit dbg
 
 (* String and bytes access *)
 

@@ -35,6 +35,7 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 

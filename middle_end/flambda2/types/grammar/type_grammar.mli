@@ -52,7 +52,10 @@ and head_of_kind_value = private
   | Boxed_nativeint of t
   | Closures of { by_closure_id : row_like_for_closures }
   | String of String_info.Set.t
-  | Array of { length : t }
+  | Array of
+      { kind : Flambda_kind.With_subkind.t Or_unknown.t;
+        length : t
+      }
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
@@ -225,7 +228,8 @@ val this_immutable_string : string -> t
 
 val mutable_string : size:int -> t
 
-val array_of_length : length:t -> t
+val array_of_length :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t -> length:t -> t
 
 module Product : sig
   module Closure_id_indexed : sig
@@ -509,7 +513,10 @@ module Head_of_kind_value : sig
 
   val create_string : String_info.Set.t -> t
 
-  val create_array : length:flambda_type -> t
+  val create_array :
+    element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+    length:flambda_type ->
+    t
 end
 
 module Head_of_kind_naked_immediate : sig

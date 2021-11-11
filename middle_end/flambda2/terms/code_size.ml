@@ -55,16 +55,9 @@ let alloc_extcall_size = 10
 
 let nonalloc_extcall_size = 4
 
-(* Helper functions for computing sizes of primitives *)
+let array_length_size = 2
 
-let array_length_size (kind : Flambda_primitive.Array_kind.t) =
-  match kind with
-  | Float_array_opt_dynamic ->
-    (* CR mshinwell: If Arch.size_float = Arch.size_addr then this should be the
-       same as the other cases. Unfortunately we haven't got access to Arch here
-       I don't think, it would have to come via a [backend] parameter *)
-    6
-  | Immediates | Naked_floats | Values -> 2
+(* Helper functions for computing sizes of primitives *)
 
 let unary_int_prim_size kind op =
   match
@@ -143,7 +136,6 @@ let block_load (kind : Flambda_primitive.Block_access_kind.t) =
 
 let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
-  | Float_array_opt_dynamic -> 11 (* tag inspection etc. *)
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats -> 1
   | Values -> 1
@@ -161,8 +153,6 @@ let array_set (kind : Flambda_primitive.Array_kind.t)
   | Immediates -> 1 (* cadda + store *)
   | Naked_floats -> 1
   | Values -> 1
-  | Float_array_opt_dynamic -> 16
-(* tag inspection + rest.. *)
 
 let string_or_bigstring_load kind width =
   let start_address_load =
@@ -333,7 +323,7 @@ let unary_prim_size prim =
   | Duplicate_array _ | Duplicate_block _ -> alloc_extcall_size + 1
   | Is_int -> 1
   | Get_tag -> 2
-  | Array_length kind -> array_length_size kind
+  | Array_length -> array_length_size
   | Bigarray_length _ -> 2 (* cadda + load *)
   | String_length _ -> 5
   | Int_as_pointer -> 1
@@ -346,8 +336,10 @@ let unary_prim_size prim =
   | Unbox_number k -> unbox_number k
   | Box_number k -> box_number k
   | Select_closure _ -> 1 (* caddv *)
-  | Project_var _ -> 1
-(* load *)
+  | Project_var _ -> 1 (* load *)
+  | Is_boxed_float -> 4 (* tag load + comparison *)
+  | Is_flat_float_array -> 4
+(* tag load + comparison *)
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with

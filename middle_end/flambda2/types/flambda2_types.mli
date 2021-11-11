@@ -67,6 +67,8 @@ module Typing_env_extension : sig
 
   val add_or_replace_equation : t -> Name.t -> flambda_type -> t
 
+  val meet : typing_env -> t -> t -> t Or_bottom.t
+
   module With_extra_variables : sig
     type t
 
@@ -429,7 +431,10 @@ val closure_with_at_least_these_closure_vars :
   Variable.t Var_within_closure.Map.t ->
   flambda_type
 
-val array_of_length : length:flambda_type -> flambda_type
+val array_of_length :
+  element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
+  length:flambda_type ->
+  flambda_type
 
 (** Construct a type equal to the type of the given name. (The name must be
     present in the given environment when calling e.g. [join].) *)
@@ -524,6 +529,9 @@ val prove_is_a_boxed_int64 :
 val prove_is_a_boxed_nativeint :
   Typing_env.t -> t -> unit proof_allowing_kind_mismatch
 
+val prove_is_or_is_not_a_boxed_float :
+  Typing_env.t -> t -> bool proof_allowing_kind_mismatch
+
 val prove_boxed_floats :
   Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t proof
 
@@ -542,6 +550,10 @@ val prove_unique_tag_and_size :
   (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch
 
 val prove_is_int : Typing_env.t -> t -> bool proof
+
+(** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
+val prove_is_array_with_element_kind :
+  Typing_env.t -> t -> element_kind:Flambda_kind.With_subkind.t -> bool proof
 
 (* CR mshinwell: Fix comment and/or function name *)
 
@@ -628,6 +640,7 @@ type to_lift =
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Empty_array
 
 type reification_result = private
   | Lift of to_lift (* CR mshinwell: rename? *)

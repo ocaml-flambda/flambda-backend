@@ -146,6 +146,11 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
 let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     ~module_block_size_in_words ~module_initializer =
   Misc.Color.setup (Flambda_features.colour ());
+  (* If this constraint is ever relaxed we would need to pass array kinds on
+     [Array_length] primitives. *)
+  if Cmm_helpers.wordsize_shift <> Cmm_helpers.numfloat_shift
+  then
+    Misc.fatal_error "Cannot compile on targets where floats are not word-width";
   let run () =
     let raw_flambda, code =
       Profile.record_call "lambda_to_flambda" (fun () ->

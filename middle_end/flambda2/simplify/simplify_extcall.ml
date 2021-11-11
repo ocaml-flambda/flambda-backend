@@ -18,8 +18,9 @@
 open! Simplify_import
 
 type t =
-  | Unchanged
+  | Unchanged of { return_types : Flambda2_types.t list option }
   | Poly_compare_specialized of DA.t * Expr.t
+  | Invalid
 
 (* Helpers *)
 (* ******* *)
@@ -129,7 +130,41 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
         ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
         | Naked_int64 ),
       (Unknown | Invalid | Wrong_kind) ) ->
-    Unchanged
+    Unchanged { return_types = None }
+
+let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
+  let typing_env = DA.typing_env dacc in
+  let element_kind : _ Or_unknown.t Or_bottom.t =
+    (* We can't deduce subkind information, e.g. an array is all-immediates
+       rather than arbitrary values, but we can deduce kind information. *)
+    if not (Flambda_features.flat_float_array ())
+    then
+      Ok
+        (Known
+           (Flambda_kind.With_subkind.create (T.kind init_value_ty) Anything))
+    else
+      match T.prove_is_or_is_not_a_boxed_float typing_env init_value_ty with
+      | Proved true ->
+        (* A boxed float provided to [caml_make_vect] with the float array
+           optimisation on will always yield a flat array of naked floats. *)
+        Ok (Known Flambda_kind.With_subkind.naked_float)
+      | Proved false | Unknown -> Ok Unknown
+      | Invalid | Wrong_kind -> Bottom
+  in
+  let length : _ Or_bottom.t =
+    match T.prove_is_a_tagged_immediate typing_env len_ty with
+    | Proved () | Unknown -> Ok len_ty
+    | Invalid | Wrong_kind -> Bottom
+  in
+  match element_kind, length with
+  | Bottom, Bottom | Ok _, Bottom | Bottom, Ok _ -> Invalid
+  | Ok element_kind, Ok length ->
+    (* CR-someday mshinwell: We should really adjust the kind of the parameter
+       of the return continuation, e.g. to go from "any value" to "float array"
+       -- but that will need some more infrastructure, since the actual
+       continuation definition needs to be changed on the upwards traversal. *)
+    let type_of_returned_array = T.array_of_length ~element_kind ~length in
+    Unchanged { return_types = Some [type_of_returned_array] }
 
 let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
     ~arg_types =
@@ -173,7 +208,9 @@ let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
       ~float_prim:(Float_comp (Yielding_bool Gt))
       ~tagged_prim:(Int_comp (Tagged_immediate, Signed, Yielding_bool Gt))
       ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Gt))
-  | _ -> Unchanged
+  | ".extern__caml_make_vect", [_; _], [len_ty; init_value_ty] ->
+    simplify_caml_make_vect dacc ~len_ty ~init_value_ty
+  | _ -> Unchanged { return_types = None }
 
 (* Exported simplification function *)
 (* ******************************** *)
@@ -188,7 +225,7 @@ let simplify_extcall dacc apply ~callee_ty:_ ~param_arity:_ ~return_arity:_
     |> Linkage_name.to_string
   in
   match Apply.continuation apply with
-  | Never_returns -> Unchanged
+  | Never_returns -> Unchanged { return_types = None }
   | Return cont ->
     simplify_returning_extcall ~dbg ~cont ~exn_cont dacc fun_name args
       ~arg_types

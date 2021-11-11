@@ -63,6 +63,7 @@ let rec value_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf "[int]"
   | Pfloatval -> fprintf ppf "[float]"
+  | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pblock { tag; fields } ->
     fprintf ppf "[%d: %a]" tag
@@ -73,6 +74,7 @@ and value_kind' ppf = function
   | Pgenval -> fprintf ppf "*"
   | Pintval -> fprintf ppf "[int]"
   | Pfloatval -> fprintf ppf "[float]"
+  | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
   | Pblock { tag; fields } ->
     fprintf ppf "[%d: %a]" tag
@@ -83,6 +85,7 @@ let return_kind ppf = function
   | Pgenval -> ()
   | Pintval -> fprintf ppf ": int@ "
   | Pfloatval -> fprintf ppf ": float@ "
+  | Parrayval elt_kind -> fprintf ppf ": %sarray@ " (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf ": %s@ " (boxed_integer_name bi)
   | Pblock { tag; fields } ->
     fprintf ppf ": [%d: %a]@ " tag
@@ -93,6 +96,7 @@ let field_kind ppf = function
   | Pgenval -> pp_print_string ppf "*"
   | Pintval -> pp_print_string ppf "int"
   | Pfloatval -> pp_print_string ppf "float"
+  | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
   | Pblock { tag; fields } ->
     fprintf ppf "[%d: %a]" tag

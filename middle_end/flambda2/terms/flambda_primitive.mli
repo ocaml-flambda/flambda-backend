@@ -59,17 +59,14 @@ module Array_kind : sig
     | Naked_floats
         (** An array consisting of naked floats, represented using
             [Double_array_tag]. *)
-    | Float_array_opt_dynamic
-        (** Only used when the float array optimisation is enabled. Arrays of
-            this form either consist of elements of kind [value] that are not
-            [float]s; or consist entirely of naked floats (represented using
-            [Double_array_tag]). *)
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
   val to_lambda : t -> Lambda.array_kind
+
+  val element_kind : t -> Flambda_kind.With_subkind.t
 end
 
 module Duplicate_block_kind : sig
@@ -90,7 +87,6 @@ module Duplicate_array_kind : sig
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.Imm.t option }
-    | Float_array_opt_dynamic
 
   val print : Format.formatter -> t -> unit
 
@@ -248,7 +244,7 @@ type unary_primitive =
       }
   | Is_int
   | Get_tag
-  | Array_length of Array_kind.t
+  | Array_length
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -296,6 +292,10 @@ type unary_primitive =
       }
       (** Read a value from the environment of a closure. Also specifies the id
           of the closure pointed at in the set of closures given as argument. *)
+  | Is_boxed_float
+      (** Only valid when the float array optimisation is enabled. *)
+  | Is_flat_float_array
+      (** Only valid when the float array optimisation is enabled. *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

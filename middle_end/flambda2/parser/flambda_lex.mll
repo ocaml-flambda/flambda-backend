@@ -48,7 +48,6 @@ let keyword_table =
     "depth", KWD_DEPTH;
     "direct", KWD_DIRECT;
     "done", KWD_DONE;
-    "dynamic", KWD_DYNAMIC;
     "end", KWD_END;
     "error", KWD_ERROR;
     "exn", KWD_EXN;

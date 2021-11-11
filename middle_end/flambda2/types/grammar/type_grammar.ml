@@ -60,7 +60,10 @@ and head_of_kind_value =
   | Boxed_nativeint of t
   | Closures of { by_closure_id : row_like_for_closures }
   | String of String_info.Set.t
-  | Array of { length : t }
+  | Array of
+      { kind : Flambda_kind.With_subkind.t Or_unknown.t;
+        length : t
+      }
 
 and head_of_kind_naked_immediate =
   | Naked_immediates of Targetint_31_63.Set.t
@@ -205,9 +208,9 @@ let rec apply_renaming_head_of_kind_value head renaming =
     then head
     else Closures { by_closure_id = by_closure_id' }
   | String _ -> head
-  | Array { length } ->
+  | Array { kind; length } ->
     let length' = apply_renaming length renaming in
-    if length == length' then head else Array { length = length' }
+    if length == length' then head else Array { kind; length = length' }
 
 and apply_renaming_head_of_kind_naked_immediate head renaming =
   match head with
@@ -396,7 +399,7 @@ and free_names_head_of_kind_value head =
   | Boxed_nativeint ty -> free_names ty
   | Closures { by_closure_id } -> free_names_row_like_for_closures by_closure_id
   | String _ -> Name_occurrences.empty
-  | Array { length } -> free_names length
+  | Array { kind = _; length } -> free_names length
 
 and free_names_head_of_kind_naked_immediate head =
   match head with
@@ -559,8 +562,10 @@ and print_head_of_kind_value ppf head =
   | String str_infos ->
     Format.fprintf ppf "@[<hov 1>(Strings@ (%a))@]" String_info.Set.print
       str_infos
-  | Array { length } ->
-    Format.fprintf ppf "@[<hov 1>(Array@ (length@ %a))@]" print length
+  | Array { kind; length } ->
+    Format.fprintf ppf "@[<hov 1>(Array@ (kind@ %a)@ (length@ %a))@]"
+      (Or_unknown.print Flambda_kind.With_subkind.print)
+      kind print length
 
 and print_head_of_kind_naked_immediate ppf head =
   match head with
@@ -740,7 +745,7 @@ and all_ids_for_export_head_of_kind_value head =
   | Closures { by_closure_id } ->
     all_ids_for_export_row_like_for_closures by_closure_id
   | String _ -> Ids_for_export.empty
-  | Array { length } -> all_ids_for_export length
+  | Array { kind = _; length } -> all_ids_for_export length
 
 and all_ids_for_export_head_of_kind_naked_immediate head =
   match head with
@@ -943,7 +948,7 @@ and apply_coercion_head_of_kind_value head coercion : _ Or_bottom.t =
   | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _ | String _ ->
     (* Similarly, we don't have lifted coercions for these. *)
     if Coercion.is_id coercion then Ok head else Bottom
-  | Array { length = _ } ->
+  | Array { kind = _; length = _ } ->
     (* This one's a bit more obvious: we wouldn't want to accidentally treat a
        coercion on integers as a coercion on array lengths. *)
     if Coercion.is_id coercion then Ok head else Bottom
@@ -1830,7 +1835,8 @@ let mutable_string ~size =
   in
   Value (TD.create (String string_info))
 
-let array_of_length ~length = Value (TD.create (Array { length }))
+let array_of_length ~element_kind ~length =
+  Value (TD.create (Array { kind = element_kind; length }))
 
 let this_rec_info (rec_info_expr : Rec_info_expr.t) =
   match rec_info_expr with
@@ -1920,7 +1926,7 @@ module Head_of_kind_value = struct
 
   let create_string info = String info
 
-  let create_array ~length = Array { length }
+  let create_array ~element_kind ~length = Array { kind = element_kind; length }
 end
 
 module Head_of_kind_naked_immediate = struct

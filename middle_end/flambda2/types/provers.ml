@@ -492,6 +492,14 @@ let prove_is_a_boxed_float env t : _ proof_allowing_kind_mismatch =
   | Value _ -> Invalid
   | _ -> Wrong_kind
 
+let prove_is_or_is_not_a_boxed_float env t : _ proof_allowing_kind_mismatch =
+  match expand_head env t with
+  | Value Unknown -> Unknown
+  | Value Bottom -> Invalid
+  | Value (Ok (Boxed_float _)) -> Proved true
+  | Value (Ok _) -> Proved false
+  | _ -> Wrong_kind
+
 let prove_is_a_boxed_int32 env t : _ proof_allowing_kind_mismatch =
   match expand_head env t with
   | Value Unknown -> Unknown
@@ -615,6 +623,18 @@ let prove_strings env t : String_info.Set.t proof =
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ ->
     wrong_kind ()
+
+let prove_is_array_with_element_kind env t ~element_kind : _ proof =
+  match expand_head env t with
+  | Value Unknown -> Unknown
+  | Value Bottom -> Invalid
+  | Value (Ok (Array { kind = Unknown; _ })) -> Unknown
+  | Value (Ok (Array { kind = Known kind; _ })) ->
+    Proved (K.With_subkind.equal kind element_kind)
+  | Value (Ok _)
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ ->
+    Invalid
 
 type prove_tagging_function =
   | Prove_could_be_tagging_of_simple
