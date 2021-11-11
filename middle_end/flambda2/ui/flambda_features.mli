@@ -71,7 +71,7 @@ module Inlining : sig
 
   val max_depth : round_or_default -> int
 
-  val max_rec_depth : round:int -> int
+  val max_rec_depth : round_or_default -> int
 
   val call_cost : round_or_default -> float
 
