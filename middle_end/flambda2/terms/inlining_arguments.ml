@@ -18,6 +18,7 @@
 module Args = struct
   type t =
     { max_inlining_depth : int;
+      max_rec_depth : int;
       call_cost : float;
       alloc_cost : float;
       prim_cost : float;
@@ -30,7 +31,8 @@ module Args = struct
     }
 
   let[@ocamlformat "disable"] print ppf t =
-    let { max_inlining_depth; call_cost; alloc_cost; prim_cost; branch_cost;
+    let { max_inlining_depth; max_rec_depth;
+          call_cost; alloc_cost; prim_cost; branch_cost;
           indirect_call_cost; poly_compare_cost;
           small_function_size; large_function_size;
           threshold;
@@ -38,6 +40,7 @@ module Args = struct
     in
     let module I = Flambda_features.Inlining in
     if Int.equal max_inlining_depth (I.max_depth Default)
+       && Int.equal max_rec_depth (I.max_rec_depth Default)
        && Float.equal call_cost (I.call_cost Default)
        && Float.equal alloc_cost (I.alloc_cost Default)
        && Float.equal prim_cost (I.prim_cost Default)
@@ -78,6 +81,7 @@ module Args = struct
 
   let equal t1 t2 =
     let { max_inlining_depth = t1_max_inlining_depth;
+          max_rec_depth = t1_max_rec_depth;
           call_cost = t1_call_cost;
           alloc_cost = t1_alloc_cost;
           prim_cost = t1_prim_cost;
@@ -91,6 +95,7 @@ module Args = struct
       t1
     in
     let { max_inlining_depth = t2_max_inlining_depth;
+          max_rec_depth = t2_max_rec_depth;
           call_cost = t2_call_cost;
           alloc_cost = t2_alloc_cost;
           prim_cost = t2_prim_cost;
@@ -104,6 +109,7 @@ module Args = struct
       t2
     in
     t1_max_inlining_depth = t2_max_inlining_depth
+    && t1_max_rec_depth = t2_max_rec_depth
     && Float.compare t1_call_cost t2_call_cost = 0
     && Float.compare t1_alloc_cost t2_alloc_cost = 0
     && Float.compare t1_prim_cost t2_prim_cost = 0
@@ -124,6 +130,7 @@ module Args = struct
      * [(<=) t2 t1 = false] as [t2.call_cost > t1.call_cost]
      *)
     let { max_inlining_depth = t1_max_inlining_depth;
+          max_rec_depth = t1_max_rec_depth;
           call_cost = t1_call_cost;
           alloc_cost = t1_alloc_cost;
           prim_cost = t1_prim_cost;
@@ -137,6 +144,7 @@ module Args = struct
       t1
     in
     let { max_inlining_depth = t2_max_inlining_depth;
+          max_rec_depth = t2_max_rec_depth;
           call_cost = t2_call_cost;
           alloc_cost = t2_alloc_cost;
           prim_cost = t2_prim_cost;
@@ -150,6 +158,7 @@ module Args = struct
       t2
     in
     t1_max_inlining_depth <= t2_max_inlining_depth
+    && t1_max_rec_depth <= t2_max_rec_depth
     && Float.compare t1_call_cost t2_call_cost <= 0
     && Float.compare t1_alloc_cost t2_alloc_cost <= 0
     && Float.compare t1_prim_cost t2_prim_cost <= 0
@@ -162,6 +171,7 @@ module Args = struct
 
   let meet t1 t2 =
     let { max_inlining_depth = t1_max_inlining_depth;
+          max_rec_depth = t1_max_rec_depth;
           call_cost = t1_call_cost;
           alloc_cost = t1_alloc_cost;
           prim_cost = t1_prim_cost;
@@ -175,6 +185,7 @@ module Args = struct
       t1
     in
     let { max_inlining_depth = t2_max_inlining_depth;
+          max_rec_depth = t2_max_rec_depth;
           call_cost = t2_call_cost;
           alloc_cost = t2_alloc_cost;
           prim_cost = t2_prim_cost;
@@ -188,6 +199,7 @@ module Args = struct
       t2
     in
     { max_inlining_depth = min t1_max_inlining_depth t2_max_inlining_depth;
+      max_rec_depth = min t1_max_rec_depth t2_max_rec_depth;
       call_cost = Float.min t1_call_cost t2_call_cost;
       alloc_cost = Float.min t1_alloc_cost t2_alloc_cost;
       prim_cost = Float.min t1_prim_cost t2_prim_cost;
@@ -202,6 +214,7 @@ module Args = struct
   let create ~round =
     let module I = Flambda_features.Inlining in
     { max_inlining_depth = I.max_depth (Round round);
+      max_rec_depth = I.max_rec_depth (Round round);
       call_cost = I.call_cost (Round round);
       alloc_cost = I.alloc_cost (Round round);
       prim_cost = I.prim_cost (Round round);
