@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.flambda_o3]
+
 (* CamlinternalAtomic is a dependency of Stdlib, so it is compiled with
    -nopervasives. *)
 external ( == ) : 'a -> 'a -> bool = "%eq"
