@@ -271,17 +271,15 @@ let argument_types_useful dacc apply =
           ~const:(fun _ -> true))
       (Apply.args apply)
 
-let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
+let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
+    ~return_arity : t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
-  let code_or_metadata = DE.find_code_exn denv (FT.code_id function_type) in
   let decision =
     Code_or_metadata.code_metadata code_or_metadata
     |> Code_metadata.inlining_decision
   in
-  if not (Code_or_metadata.code_present code_or_metadata)
-  then Missing_code
-  else if Function_decl_inlining_decision_type.must_be_inlined decision
+  if Function_decl_inlining_decision_type.must_be_inlined decision
   then Definition_says_inline
   else if Function_decl_inlining_decision_type.cannot_be_inlined decision
   then Definition_says_not_to_inline
@@ -296,7 +294,7 @@ let might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity : t =
     in
     let inlining_args =
       Apply.inlining_arguments apply
-      |> Inlining_arguments.meet (DA.denv dacc |> DE.inlining_arguments)
+      |> Inlining_arguments.meet (DE.inlining_arguments denv)
     in
     let evaluated_to = Cost_metrics.evaluate ~args:inlining_args cost_metrics in
     let threshold = Inlining_arguments.threshold inlining_args in
@@ -317,63 +315,71 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
   match inlined with
   | Never_inlined -> Never_inlined_attribute
   | Default_inlined | Unroll _ | Always_inlined | Hint_inlined -> (
-    (* The unrolling process is rather subtle, but it boils down to two steps:
-
-       1. We see an [@unrolled n] annotation (with n > 0) on an apply expression
-       whose [rec_info] has the unrolling state [Not_unrolling]. When we inline
-       the body, we bind [my_depth] to a rec_info whose unrolling state is
-       [Unrolling { remaining_depth = n }].
-
-       2. When we see that application again, its rec_info will have the
-       unrolling state [Unrolling { remaining_depth = n - 1 }] (because its
-       depth is [succ my_depth]). At that point, we short-circuit most of the
-       inlining logic and inline if and only if n > 0.
-
-       Here we're performing step _2_ (but only, of course, if we performed step
-       1 in a previous call to this function). *)
-    let unrolling_depth =
-      Simplify_rec_info_expr.known_remaining_unrolling_depth dacc rec_info
+    let code_or_metadata =
+      DE.find_code_exn (DA.denv dacc) (FT.code_id function_type)
     in
-    match unrolling_depth with
-    | Some 0 -> Unrolling_depth_exceeded
-    | Some _ ->
-      might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity
-    | None -> (
-      (* CR lmaurer: This seems semantically dodgy: If we really think of a free
-         depth variable as [Unknown], then we shouldn't be considering inlining
-         here, because we don't _know_ that we're not unrolling. The behavior is
-         what we want, though (and is consistent with FLambda 1): If there's a
-         free depth variable, that means this is an internal recursive call,
-         which means we consider unrolling if [@unrolled] appears. If it's known
-         that the unrolling depth is zero, that means we're inlining into
-         another function and we're done unrolling, so we immediately stop
-         inlining.
+    if not (Code_or_metadata.code_present code_or_metadata)
+    then Missing_code
+    else
+      (* The unrolling process is rather subtle, but it boils down to two steps:
 
-         So this seems to be working for the moment, but I wonder what are the
-         ramifications of treating unknown-ness as an observable property this
-         way. Are we relying on monotonicity somewhere? *)
-      let apply_inlining_state = Apply.inlining_state apply in
-      if Inlining_state.is_depth_exceeded apply_inlining_state
-      then Max_inlining_depth_exceeded
-      else
-        match inlined with
-        | Never_inlined -> assert false
-        | Default_inlined ->
-          let max_rec_depth =
-            Flambda_features.Inlining.max_rec_depth
-              (Round (DE.round (DA.denv dacc)))
-          in
-          if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
-               max_rec_depth
-          then Recursion_depth_exceeded
-          else
-            might_inline dacc ~apply ~function_type ~simplify_expr ~return_arity
-        | Unroll unroll_to ->
-          if Simplify_rec_info_expr.can_unroll dacc rec_info
-          then
-            (* This sets off step 1 in the comment above; see
-               [Inlining_transforms] for how [unroll_to] is ultimately
-               handled. *)
-            Attribute_unroll unroll_to
-          else Unrolling_depth_exceeded
-        | Always_inlined | Hint_inlined -> Attribute_always))
+         1. We see an [@unrolled n] annotation (with n > 0) on an apply
+         expression whose [rec_info] has the unrolling state [Not_unrolling].
+         When we inline the body, we bind [my_depth] to a rec_info whose
+         unrolling state is [Unrolling { remaining_depth = n }].
+
+         2. When we see that application again, its rec_info will have the
+         unrolling state [Unrolling { remaining_depth = n - 1 }] (because its
+         depth is [succ my_depth]). At that point, we short-circuit most of the
+         inlining logic and inline if and only if n > 0.
+
+         Here we're performing step _2_ (but only, of course, if we performed
+         step 1 in a previous call to this function). *)
+      let unrolling_depth =
+        Simplify_rec_info_expr.known_remaining_unrolling_depth dacc rec_info
+      in
+      match unrolling_depth with
+      | Some 0 -> Unrolling_depth_exceeded
+      | Some _ ->
+        might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
+          ~return_arity
+      | None -> (
+        (* CR lmaurer: This seems semantically dodgy: If we really think of a
+           free depth variable as [Unknown], then we shouldn't be considering
+           inlining here, because we don't _know_ that we're not unrolling. The
+           behavior is what we want, though (and is consistent with FLambda 1):
+           If there's a free depth variable, that means this is an internal
+           recursive call, which means we consider unrolling if [@unrolled]
+           appears. If it's known that the unrolling depth is zero, that means
+           we're inlining into another function and we're done unrolling, so we
+           immediately stop inlining.
+
+           So this seems to be working for the moment, but I wonder what are the
+           ramifications of treating unknown-ness as an observable property this
+           way. Are we relying on monotonicity somewhere? *)
+        let apply_inlining_state = Apply.inlining_state apply in
+        if Inlining_state.is_depth_exceeded apply_inlining_state
+        then Max_inlining_depth_exceeded
+        else
+          match inlined with
+          | Never_inlined -> assert false
+          | Default_inlined ->
+            let max_rec_depth =
+              Flambda_features.Inlining.max_rec_depth
+                (Round (DE.round (DA.denv dacc)))
+            in
+            if Simplify_rec_info_expr.depth_may_be_at_least dacc rec_info
+                 max_rec_depth
+            then Recursion_depth_exceeded
+            else
+              might_inline dacc ~apply ~code_or_metadata ~function_type
+                ~simplify_expr ~return_arity
+          | Unroll unroll_to ->
+            if Simplify_rec_info_expr.can_unroll dacc rec_info
+            then
+              (* This sets off step 1 in the comment above; see
+                 [Inlining_transforms] for how [unroll_to] is ultimately
+                 handled. *)
+              Attribute_unroll unroll_to
+            else Unrolling_depth_exceeded
+          | Always_inlined | Hint_inlined -> Attribute_always))
