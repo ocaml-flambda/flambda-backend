@@ -57,6 +57,7 @@
                     camlinternalFormatBasics
                     camlinternalLazy
                     camlinternalMod
+                    camlinternalComprehension
                     camlinternalOO
                     camlinternalAtomic
                     stdlib__Char
