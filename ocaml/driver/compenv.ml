@@ -227,9 +227,12 @@ let set_extra_params params = extra_params := params
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
-  match !extra_params with
-  | Some h -> h ppf position name v
-  | None ->
+  let handled =
+    match !extra_params with
+    | Some h -> h ppf position name v
+    | None -> false
+  in
+  if not handled then
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
@@ -367,107 +370,6 @@ let read_one_param ppf position name v =
       set "linscan" [ use_linscan ] v
   | "insn-sched" -> set "insn-sched" [ insn_sched ] v
   | "no-insn-sched" -> clear "insn-sched" [ insn_sched ] v
-
-  | "flambda2-join-points" ->
-    set "flambda2-join-points"
-      [Flambda2.join_points] v
-  | "no-flambda2-join-points" ->
-    clear "flambda2-join-points"
-      [Flambda2.join_points] v
-  | "flambda2-unbox-along-intra-function-control-flow" ->
-    set "flambda2-unbox-along-intra-function-control-flow"
-      [Flambda2.unbox_along_intra_function_control_flow] v
-  | "no-flambda2-unbox-along-intra-function-control-flow" ->
-    clear "flambda2-unbox-along-intra-function-control-flow"
-      [Flambda2.unbox_along_intra_function_control_flow] v
-  | "flambda2-backend-cse-at-toplevel" ->
-    set "flambda2-backend-cse-at-toplevel"
-      [Flambda2.backend_cse_at_toplevel] v
-  | "no-flambda2-backend-cse-at-toplevel" ->
-    clear "flambda2-backend-cse-at-toplevel"
-      [Flambda2.backend_cse_at_toplevel] v
-  | "flambda2-cse-depth" ->
-    int_setter ppf "flambda2-cse-depth" Flambda2.cse_depth v
-  | "flambda2-expert-inline-effects-in-cmm" ->
-    set "flambda2-expert-inline-effects-in-cmm"
-      [Flambda2.Expert.inline_effects_in_cmm] v
-  | "no-flambda2-expert-inline-effects-in-cmm" ->
-    clear "flambda2-expert-inline-effects-in-cmm"
-      [Flambda2.Expert.inline_effects_in_cmm] v
-  | "flambda2-expert-phantom-lets" ->
-    set "flambda2-expert-phantom-lets"
-      [Flambda2.Expert.phantom_lets] v
-  | "no-flambda2-expert-phantom-lets" ->
-    clear "flambda2-expert-phantom-lets"
-      [Flambda2.Expert.phantom_lets] v
-  | "flambda2-expert-max-unboxing-depth" ->
-    int_setter ppf "flambda2-expert-max-unboxing-depth"
-      Flambda2.Expert.max_unboxing_depth v
-  | "flambda2-expert-can-inline-recursive-functions" ->
-    set "flambda2-expert-can-inline-recursive-functions"
-      [Flambda2.Expert.can_inline_recursive_functions] v
-  | "no-flambda2-expert-can-inline-recursive-functions" ->
-    clear "flambda2-expert-can-inline-recursive-functions"
-      [Flambda2.Expert.can_inline_recursive_functions] v
-  | "flambda2-inline-max-depth" ->
-    Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-depth'"
-      Flambda2.Inlining.max_depth
-  | "flambda2-inline-max-rec-depth" ->
-    Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-max-rec-depth'"
-      Flambda2.Inlining.max_rec_depth
-  | "flambda2-inline-call-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-call-cost'"
-      Flambda2.Inlining.call_cost
-  | "flambda2-inline-alloc-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-alloc-cost'"
-      Flambda2.Inlining.alloc_cost
-  | "flambda2-inline-prim-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-prim-cost'"
-      Flambda2.Inlining.prim_cost
-  | "flambda2-inline-branch-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-branch-cost'"
-      Flambda2.Inlining.branch_cost
-  | "flambda2-inline-indirect-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-indirect-cost'"
-      Flambda2.Inlining.indirect_call_cost
-  | "flambda2-inline-poly-compare-cost" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-poly-compare-cost'"
-      Flambda2.Inlining.poly_compare_cost
-  | "flambda2-inline-small-function-size" ->
-    Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-small-function-size'"
-      Flambda2.Inlining.small_function_size
-  | "flambda2-inline-large-function-size" ->
-    Int_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-large-function-size'"
-      Flambda2.Inlining.large_function_size
-  | "flambda2-inline-threshold" ->
-    Float_arg_helper.parse v
-      "Bad syntax in OCAMLPARAM for 'flambda2-inline-threshold'"
-      Flambda2.Inlining.threshold
-  | "flambda2-speculative-inlining-only-if-arguments-useful" ->
-    set "flambda2-speculative-inlining-only-if-arguments-useful"
-      [Flambda2.Inlining.speculative_inlining_only_if_arguments_useful] v
-  | "flambda2-treat-invalid-code-as-unreachable" ->
-    set "flambda2-treat-invalid-code-as-unreachable"
-      [Flambda2.treat_invalid_code_as_unreachable] v
-  | "no-flambda2-treat-invalid-code-as-unreachable" ->
-    clear "flambda2-treat-invalid-code-as-unreachable"
-      [Flambda2.treat_invalid_code_as_unreachable] v
-  | "flambda2-inlining-report-bin" ->
-    set "flambda2-inlining-report-bin"
-      [Flambda2.Inlining.report_bin] v
-  | "no-flambda2-inlining-report-bin" ->
-    clear "flambda2-inlining-report-bin"
-      [Flambda2.Inlining.report_bin] v
 
   (* color output *)
   | "color" ->
