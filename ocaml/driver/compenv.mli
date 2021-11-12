@@ -45,13 +45,13 @@ type readenv_position =
 
 val readenv : Format.formatter -> readenv_position -> unit
 val set_extra_params :
-  (string ->
-   (Format.formatter -> readenv_position -> string -> string -> unit)
-     option) ->
+  (Format.formatter -> readenv_position -> string -> string -> unit) option ->
   unit
 
 val setter :
     Format.formatter -> (bool -> 'a) -> string -> 'a ref list -> string -> unit
+val int_setter : Format.formatter -> string -> int ref -> string -> unit
+val check_bool : Format.formatter -> string -> string -> bool
 
 (* [is_unit_name name] returns true only if [name] can be used as a
    correct module name *)

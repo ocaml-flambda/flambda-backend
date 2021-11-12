@@ -221,12 +221,15 @@ let set_compiler_pass ppf ~name v flag ~filter =
    because they are not understood by some versions of OCaml. *)
 let can_discard = ref []
 
-let extra_params = ref (fun _ -> None)
+let extra_params = ref None
 let set_extra_params params = extra_params := params
 
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
+  match !extra_params with
+  | Some h -> h ppf position name v
+  | None ->
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
@@ -564,10 +567,7 @@ let read_one_param ppf position name v =
     end
 
   | _ ->
-    match !extra_params name with
-   | Some h -> h ppf position name v
-   | None ->
-   if not (List.mem name !can_discard) then begin
+    if not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
       Printf.ksprintf (print_error ppf)
         "Warning: discarding value of variable %S in OCAMLPARAM\n%!"

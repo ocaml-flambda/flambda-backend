@@ -41,7 +41,6 @@ module Extra_params : sig
      that are only supported in flambda-backend,
      similarly to the treatment of native-only flags in
      [ocaml/driver/compenv.ml] *)
-  val read_param : string ->
-      (Format.formatter -> Compenv.readenv_position -> string -> string -> unit)
-        option
+  val read_param :
+      Format.formatter -> Compenv.readenv_position -> string -> string -> unit
 end
