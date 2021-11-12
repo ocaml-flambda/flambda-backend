@@ -377,6 +377,24 @@ let set_dumped_pass s enabled =
     dumped_passes_list := dumped_passes
   end
 
+type extension = Comprehensions
+
+let extensions = ref ([] : extension list) (* -extensions *)
+let set_standard () = extensions := []
+
+let string_of_extension = function
+| Comprehensions -> "comprehensions"
+
+let extension_of_string = function
+| "comprehensions" -> Comprehensions
+| extn ->  raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+
+let add_extension extn =
+  let extension = extension_of_string (String.lowercase_ascii extn) in
+  extensions := extension::!extensions
+
+let is_extension_enabled ext = List.mem ext !extensions
+
 let dump_into_file = ref false (* -dump-into-file *)
 
 type 'a env_reader = {
