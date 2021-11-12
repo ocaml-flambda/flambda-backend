@@ -307,6 +307,24 @@ parsing/docstrings.cmx : \
 parsing/docstrings.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi
+parsing/extensions.cmo : \
+    parsing/parsetree.cmi \
+    utils/misc.cmi \
+    parsing/location.cmi \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmi \
+    parsing/extensions.cmi
+parsing/extensions.cmx : \
+    parsing/parsetree.cmi \
+    utils/misc.cmx \
+    parsing/location.cmx \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmx \
+    parsing/extensions.cmi
+parsing/extensions.cmi : \
+    utils/warnings.cmi \
+    parsing/parsetree.cmi \
+    parsing/asttypes.cmi
 parsing/lexer.cmo : \
     utils/warnings.cmi \
     parsing/parser.cmi \
@@ -371,6 +389,7 @@ parsing/parser.cmo : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
+    parsing/extensions.cmi \
     parsing/docstrings.cmi \
     utils/clflags.cmi \
     parsing/camlinternalMenhirLib.cmi \
@@ -382,6 +401,7 @@ parsing/parser.cmx : \
     parsing/parsetree.cmi \
     parsing/longident.cmx \
     parsing/location.cmx \
+    parsing/extensions.cmx \
     parsing/docstrings.cmx \
     utils/clflags.cmx \
     parsing/camlinternalMenhirLib.cmx \
@@ -1232,6 +1252,7 @@ typing/typecore.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    parsing/extensions.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     file_formats/cmt_format.cmi \
@@ -1262,6 +1283,7 @@ typing/typecore.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
+    parsing/extensions.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     file_formats/cmt_format.cmx \
@@ -1281,6 +1303,7 @@ typing/typecore.cmi : \
     typing/ident.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
+    utils/clflags.cmi \
     parsing/asttypes.cmi
 typing/typedecl.cmo : \
     utils/warnings.cmi \
@@ -1715,6 +1738,7 @@ typing/untypeast.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     typing/ident.cmi \
+    parsing/extensions.cmi \
     typing/env.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
@@ -1726,6 +1750,7 @@ typing/untypeast.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     typing/ident.cmx \
+    parsing/extensions.cmx \
     typing/env.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
@@ -3477,6 +3502,28 @@ lambda/translclass.cmi : \
     typing/ident.cmi \
     lambda/debuginfo.cmi \
     parsing/asttypes.cmi
+lambda/translcomprehension.cmo : \
+    typing/typeopt.cmi \
+    typing/typedtree.cmi \
+    typing/primitive.cmi \
+    lambda/matching.cmi \
+    lambda/lambda.cmi \
+    typing/ident.cmi \
+    parsing/asttypes.cmi \
+    lambda/translcomprehension.cmi
+lambda/translcomprehension.cmx : \
+    typing/typeopt.cmx \
+    typing/typedtree.cmx \
+    typing/primitive.cmx \
+    lambda/matching.cmx \
+    lambda/lambda.cmx \
+    typing/ident.cmx \
+    parsing/asttypes.cmi \
+    lambda/translcomprehension.cmi
+lambda/translcomprehension.cmi : \
+    typing/typedtree.cmi \
+    lambda/lambda.cmi \
+    lambda/debuginfo.cmi
 lambda/translcore.cmo : \
     typing/types.cmi \
     typing/typeopt.cmi \
@@ -3484,6 +3531,7 @@ lambda/translcore.cmo : \
     typing/typecore.cmi \
     lambda/translprim.cmi \
     lambda/translobj.cmi \
+    lambda/translcomprehension.cmi \
     lambda/translattribute.cmi \
     typing/printtyp.cmi \
     typing/primitive.cmi \
@@ -3511,6 +3559,7 @@ lambda/translcore.cmx : \
     typing/typecore.cmx \
     lambda/translprim.cmx \
     lambda/translobj.cmx \
+    lambda/translcomprehension.cmx \
     lambda/translattribute.cmx \
     typing/printtyp.cmx \
     typing/primitive.cmx \

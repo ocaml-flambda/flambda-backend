@@ -462,6 +462,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_while(cond, body) ->
       Lwhile(transl_exp ~scopes cond,
              event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_arr_comprehension (body, blocks) ->
+    (*One block consists of comprehension statements connected by "and".*)
+    let loc = of_location ~scopes e.exp_loc in
+    let array_kind = Typeopt.array_kind e in
+    Translcomprehension.transl_arr_comprehension
+      body blocks ~array_kind ~scopes ~loc ~transl_exp
+  | Texp_list_comprehension (body, blocks) ->
+    let loc = of_location ~scopes e.exp_loc in
+    Translcomprehension.transl_list_comprehension
+      body blocks ~scopes ~loc ~transl_exp
   | Texp_for(param, _, low, high, dir, body) ->
       Lfor(param, transl_exp ~scopes low, transl_exp ~scopes high, dir,
            event_before ~scopes body (transl_exp ~scopes body))

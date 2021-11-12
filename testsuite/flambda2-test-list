@@ -19,6 +19,7 @@
   tests/callback
   tests/compatibility
   tests/compiler-libs
+  tests/comprehension
   tests/c-api
   tests/embedded
   tests/ephe-c-api

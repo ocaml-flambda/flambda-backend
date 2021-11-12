@@ -38,6 +38,7 @@ PARSING=parsing/location.cmo parsing/longident.cmo \
   parsing/docstrings.cmo parsing/syntaxerr.cmo \
   parsing/ast_helper.cmo \
   parsing/pprintast.cmo \
+  parsing/extensions.cmo \
   parsing/camlinternalMenhirLib.cmo parsing/parser.cmo \
   parsing/lexer.cmo parsing/parse.cmo parsing/printast.cmo \
   parsing/ast_mapper.cmo parsing/ast_iterator.cmo parsing/attr_helper.cmo \
@@ -73,9 +74,10 @@ TYPING_CMI=\
 LAMBDA=lambda/printlambda.cmo \
   lambda/switch.cmo lambda/matching.cmo \
   lambda/translobj.cmo lambda/translattribute.cmo \
-  lambda/translprim.cmo lambda/translcore.cmo \
-  lambda/translclass.cmo lambda/translmod.cmo \
-  lambda/simplif.cmo lambda/runtimedef.cmo
+  lambda/translprim.cmo lambda/translcomprehension.cmo \
+  lambda/translcore.cmo lambda/translclass.cmo\
+  lambda/translmod.cmo lambda/simplif.cmo\
+  lambda/runtimedef.cmo
 LAMBDA_CMI=
 
 COMP=\
