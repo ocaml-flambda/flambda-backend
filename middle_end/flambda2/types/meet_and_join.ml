@@ -466,7 +466,10 @@ and meet_row_like :
         get_singleton_map_known known2 )
     with
     | Bottom, Some _, _, _ | _, _, Bottom, Some _ -> false
-    | (Ok _ | Bottom), _, (Ok _ | Bottom), _ -> true
+    | (Ok _ | Bottom), _, (Ok _ | Bottom), _ ->
+      if is_empty_map_known known1 && is_empty_map_known known2
+      then false
+      else true
   in
   let env = Meet_env.env meet_env in
   let join_env = Join_env.create env ~left_env:env ~right_env:env in
