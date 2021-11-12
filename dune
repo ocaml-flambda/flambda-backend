@@ -327,6 +327,7 @@
   (run
    %{dep:tools/merge_dot_a_files.sh}
    %{targets}
+   %{dep:flambda_backend_common.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
@@ -342,7 +343,6 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
-   %{dep:flambda_backend_common.a}
    %{dep:ocamloptcomp.a}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
    %{dep:middle_end/flambda2/flambda2.a})))
@@ -353,6 +353,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
@@ -368,7 +369,6 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
-   %{dep:flambda_backend_common.cma}
    %{dep:ocamloptcomp.cma}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
    %{dep:middle_end/flambda2/flambda2.cma})))
@@ -379,6 +379,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
@@ -394,7 +395,6 @@
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
-   %{dep:flambda_backend_common.cmxa}
    %{dep:ocamloptcomp.cmxa}
    %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
    %{dep:middle_end/flambda2/flambda2.cmxa})))
