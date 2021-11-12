@@ -133,6 +133,13 @@ camlinternalAtomic.cmo : \
 camlinternalAtomic.cmx : \
     camlinternalAtomic.cmi
 camlinternalAtomic.cmi :
+camlinternalComprehension.cmo : \
+    stdlib__List.cmi \
+    camlinternalComprehension.cmi
+camlinternalComprehension.cmx : \
+    stdlib__List.cmx \
+    camlinternalComprehension.cmi
+camlinternalComprehension.cmi :
 camlinternalFormat.cmo : \
     stdlib__Sys.cmi \
     stdlib__String.cmi \

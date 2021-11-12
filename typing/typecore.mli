@@ -31,6 +31,7 @@ type type_forcing_context =
   | If_no_else_branch
   | While_loop_conditional
   | While_loop_body
+  | In_comprehension_argument
   | For_loop_start_index
   | For_loop_stop_index
   | For_loop_body
@@ -184,6 +185,7 @@ type error =
   | Probe_name_undefined of string
   (* CR-soon mshinwell: Use an inlined record *)
   | Probe_is_enabled_format
+  | Extension_not_enabled of Clflags.extension
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
