@@ -67,7 +67,7 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
-  val _extensions : string -> unit
+  val _extension : string -> unit
 
 end
 

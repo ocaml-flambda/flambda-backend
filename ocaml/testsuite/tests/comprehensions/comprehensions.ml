@@ -1,5 +1,5 @@
 (* TEST
-  flags = "-extensions Comprehensions"
+  flags = "-extension Comprehensions"
    * expect
 *)
 (*Type checking tests.*)
