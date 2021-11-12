@@ -1820,7 +1820,7 @@ and type_pat_aux
       if !Clflags.principal then (
         let exception Warn_only_once in
         try
-          TypePairs.iter (fun (t1, t2) () ->
+          TypePairs.iter (fun (t1, t2) ->
             generalize_structure t1;
             generalize_structure t2;
             if not (fully_generic t1 && fully_generic t2) then
