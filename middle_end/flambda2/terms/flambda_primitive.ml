@@ -1297,7 +1297,7 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
     if List.length args >= 1
     then Effects.Only_generative_effects mut, Coeffects.No_coeffects
     else
-      (* zero-sized blocks and arrays are preallocated ("atoms"). *)
+      (* Zero-sized blocks and arrays are immutable and statically allocated. *)
       Effects.No_effects, Coeffects.No_coeffects
 
 let variadic_classify_for_printing p =
