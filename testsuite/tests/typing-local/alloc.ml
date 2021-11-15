@@ -181,8 +181,7 @@ let currylocal1 n =
 let currylocal2 n =
   ignore_local (Sys.opaque_identity local_arg_fn ~a:n); ()
 let currylocal3 n =
-  (* FIXME broken, see Translcore.build_apply 
-  ignore_local (local_arg_fn ~b:n); *)
+  ignore_local (local_arg_fn ~b:n);
   ()
 
 let partprim1 n =

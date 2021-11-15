@@ -525,7 +525,7 @@ let rec lam ppf = function
         apply_tailcall_attribute ap.ap_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
-  | Lfunction{kind; params; return; body; attr; ret_mode} ->
+  | Lfunction{kind; params; return; body; attr; mode; ret_mode} ->
       let pr_params ppf params =
         match kind with
         | Curried {nlocal} ->
@@ -543,7 +543,8 @@ let rec lam ppf = function
                 value_kind ppf k)
               params;
             fprintf ppf ")" in
-      fprintf ppf "@[<2>(function%a@ %a%a%a)@]" pr_params params
+      fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
+        (alloc_kind mode) pr_params params
         function_attribute attr return_kind (ret_mode, return) lam body
   | (Llet _ | Lregion(Llet _)) as expr ->
       let kind = function
