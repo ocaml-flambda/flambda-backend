@@ -455,10 +455,19 @@ let unary_primitive env dbg f arg =
          the set of closures has been seen by [To_cmm_closure]. *)
       None, C.unreachable)
   | Is_boxed_float ->
+    (* As a note, this omits the [Is_in_value_area] check that exists in
+       [caml_make_array], which is used by non-Flambda 2 compilers. *)
     ( None,
-      Cmm.Cop
-        (Ccmpi Ceq, [C.get_tag arg dbg; Cconst_int (Obj.double_tag, dbg)], dbg)
-    )
+      Cmm.Cifthenelse
+        ( C.and_int arg (C.int ~dbg 1) dbg,
+          dbg,
+          Cconst_int (0, dbg),
+          dbg,
+          Cmm.Cop
+            ( Ccmpi Ceq,
+              [C.get_tag arg dbg; Cconst_int (Obj.double_tag, dbg)],
+              dbg ),
+          dbg ) )
   | Is_flat_float_array ->
     None, Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg)
 
