@@ -101,7 +101,7 @@ let get_bool_from_exp exp =
       | _ -> Result.Error ())
 
 let parse_id_payload txt loc ~default ~empty cases payload =
-  let(*FIXME[@local]*) warn () =
+  let[@local] warn () =
     let ( %> ) f g x = g (f x) in
     let msg =
       cases

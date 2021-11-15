@@ -787,32 +787,13 @@ Error: This value escapes its region
 (* Don't escape through a lazy value *)
 
 let foo (local_ x) =
-  lazy (print_string !x)
-[%%expect{|
-Line 2, characters 22-23:
-2 |   lazy (print_string !x)
-                          ^
-Error: The value x is local, so cannot be used inside a closure that might escape
-|}]
-
-let foo (local_ x) =
-  let l = lazy (print_string !x) in
-  l
-[%%expect{|
-Line 3, characters 2-3:
-3 |   l
-      ^
-Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
-|}]
-
-
-let foo (local_ x) =
-  let l = lazy (print_string !x) in
-  let lazy () = l in
+  let _ = lazy (print_string !x) in
   ()
 [%%expect{|
-val foo : local_ string ref -> unit = <fun>
+Line 2, characters 30-31:
+2 |   let _ = lazy (print_string !x) in
+                                  ^
+Error: The value x is local, so cannot be used inside a closure that might escape
 |}]
 
 (* Don't escape through a functor *)
@@ -1718,7 +1699,7 @@ Error: Wrong arity for builtin primitive "%int32_add"
 |}]
 
 (*
-FIXME: perhaps allow this, but requires caml_compare changes (Is_in_value_area)
+TODO: perhaps allow this, but requires caml_compare changes (Is_in_value_area)
 let compare (local_ x) (local_ y) =
   [x = y; x <> y; x < y; x > y; x <= y; x >= y; compare x y = 0; x == y; x != y]
 [%%expect{|
@@ -1736,9 +1717,4 @@ val intf : local_ int -> int = <fun>
 let promote (local_ x) = +x
 [%%expect{|
 val promote : local_ int -> int = <fun>
-|}]
-
-(* In debug mode, Gc.minor () checks for minor heap->local pointers *)
-let () = Gc.minor ()
-[%%expect{|
 |}]

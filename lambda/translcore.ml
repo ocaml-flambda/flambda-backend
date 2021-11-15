@@ -601,6 +601,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       (* when e needs no computation (constants, identifiers, ...), we
          optimize the translation just as Lazy.lazy_from_val would
          do *)
+      assert (transl_value_mode e.exp_mode = Alloc_heap);
       begin match Typeopt.classify_lazy_argument e with
       | `Constant_or_function ->
         (* A constant expr (of type <> float if [Config.flat_float_array] is
@@ -611,7 +612,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
          Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                          transl_value_mode e.exp_mode),
+                          Alloc_heap),
                 [transl_exp ~scopes e], of_location ~scopes e.exp_loc)
       | `Identifier `Forward_value ->
          (* CR-someday mshinwell: Consider adding a new primitive
@@ -622,7 +623,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             value may subsequently turn into an immediate... *)
          Lprim (Popaque,
                 [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                                  transl_value_mode e.exp_mode),
+                                  Alloc_heap),
                        [transl_exp ~scopes e],
                        of_location ~scopes e.exp_loc)],
                 of_location ~scopes e.exp_loc)
@@ -630,17 +631,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
-         let mode = transl_value_mode e.exp_mode in (* FIXME test *)
          let fn = Lfunction {kind = Curried {nlocal=0};
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
                              attr = default_function_attribute;
                              loc = of_location ~scopes e.exp_loc;
-                             mode;
+                             mode = Alloc_heap;
                              ret_mode = Alloc_heap;
                              body = transl_exp ~scopes e} in
           Lprim(Pmakeblock(Config.lazy_tag, Mutable, None,
-                           mode), [fn],
+                           Alloc_heap), [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -940,8 +940,7 @@ and transl_function0
     let arg_mode, ret_mode, kind =
       match cases with
       | [] ->
-        (* With Camlp4, a pattern matching might be empty *)
-        Alloc_heap, Alloc_heap, Pgenval (* FIXME can this happen? *)
+        Misc.fatal_error "transl_function0: no cases"
       | {c_lhs=pat;c_rhs} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
@@ -1283,12 +1282,12 @@ and transl_letop ~scopes loc env let_ ands param case partial =
       event_function ~scopes case.c_rhs
         (function repr ->
            transl_curried_function ~scopes case.c_rhs.exp_loc return_kind
-             repr ~mode:Alloc_heap (*FIXME*) partial param [case])
+             repr ~mode:Alloc_heap partial param [case])
     in
     let attr = default_function_attribute in
     let loc = of_location ~scopes case.c_rhs.exp_loc in
     Lfunction{kind; params; return; body; attr; loc;
-              mode=Alloc_heap(*FIXME*); ret_mode (* FIXME *)}
+              mode=Alloc_heap; ret_mode}
   in
   Lapply{
     ap_loc = of_location ~scopes loc;

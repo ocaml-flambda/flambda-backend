@@ -44,7 +44,7 @@
 #else
 #error "TARGET_power: wrong MODEL"
 #endif
-/* FIXME: Already_scanned optimisation not supported on this branch
+/* Already_scanned optimisation not supported on this branch
 #define Already_scanned(sp, retaddr) ((retaddr) & 1)
 #define Mask_already_scanned(retaddr) ((retaddr) & ~1)
 #define Mark_scanned(sp, retaddr) Saved_return_address(sp) = (retaddr) | 1

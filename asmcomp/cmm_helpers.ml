@@ -760,7 +760,7 @@ let unboxed_float_array_ref arr ofs dbg =
 let float_array_ref arr ofs dbg =
   box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
-(* FIXME local arrays *)
+(* TODO support mutation of local arrays *)
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
@@ -1396,8 +1396,8 @@ let int64_native_prim name arity ~alloc =
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
-(* FIXME: On 32-bit, these will do heap allocations
-   even when local allocs are possible *)
+(* TODO: On 32-bit, these will do heap allocations even in situations
+   where local allocs are allowed *)
 let simplif_primitive_32bits :
   Clambda_primitives.primitive -> Clambda_primitives.primitive = function
     Pbintofint (Pint64,_) -> Pccall (default_prim "caml_int64_of_int")
@@ -2439,11 +2439,12 @@ type ternary_primitive =
 
 let setfield_computed ptr init arg1 arg2 arg3 dbg =
   match assignment_kind ptr init with
-  (* FIXME local *)
   | Caml_modify ->
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
-      return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
+      (* TODO: support this, if there are any uses.
+         (Currently, setfield_computed is only used by classes) *)
+      Misc.fatal_error "setfield_computed: local"
   | Simple ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 

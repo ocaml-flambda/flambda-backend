@@ -285,7 +285,6 @@ module IdTbl =
       }
 
     let add_lock mode next =
-      (* FIXME optimisation: shared lock on shared ctx should be no-op *)
       { current = Ident.empty; layer = Lock {mode; next} }
 
     let map f next =

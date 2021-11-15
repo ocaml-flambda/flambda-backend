@@ -730,7 +730,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
-  (* FIXME *)
   let msubst arr = function
       Lfunction {kind = Curried _ as kind;
                  params = (self, Pgenval) :: args; body} ->

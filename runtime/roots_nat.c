@@ -481,10 +481,10 @@ static void do_local_allocations(caml_local_arenas* loc,
           /* forwards pointer, common case */
           CAMLassert(ix <= arena_ix);
         } else {
-          /* FIXME: backwards pointer.
-             This should reset sp and iterate to a fixpoint */
+          /* If backwards pointers are ever supported (e.g. local recursive
+             values), then this should reset sp and iterate to a fixpoint */
           CAMLassert(ix >= arena_ix);
-          caml_fatal_error("FIXME: backwards local pointer");
+          caml_fatal_error("backwards local pointer");
         }
       }
     }

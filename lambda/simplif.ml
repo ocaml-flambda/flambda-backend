@@ -761,7 +761,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         (wrapper_body, (inner_id, inner_fun))
   in
   try
-    (* FIXME: this optimisation is disabled in the presence of local returns *)
+    (* TODO: enable this optimisation even in the presence of local returns *)
     begin match kind with
     | Curried {nlocal} when nlocal > 0 -> raise Exit
     | _ -> ()

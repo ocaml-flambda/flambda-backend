@@ -849,8 +849,7 @@ method emit_expr (env:environment) exp =
           None
       end
   | Ctrywith(e1, v, e2, _dbg) ->
-      (* FIXME: region/trywith interaction? match with exception? *)
-      let (r1, s1) = self#emit_sequence env' e1 in
+      let (r1, s1) = self#emit_sequence env e1 in
       let rv = self#regs_for typ_val in
       let (r2, s2) = self#emit_sequence (env_add v rv env) e2 in
       let r = join env r1 s1 r2 s2 in
@@ -1173,7 +1172,6 @@ method emit_tail (env:environment) exp =
       self#insert env (Icatch(rec_flag, List.map aux handlers, s_body))
         [||] [||]
   | Ctrywith(e1, v, e2, _dbg) ->
-     (* FIXME regions *)
       let (opt_r1, s1) = self#emit_sequence env e1 in
       let rv = self#regs_for typ_val in
       let s2 = self#emit_tail_sequence (env_add v rv env) e2 in

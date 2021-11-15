@@ -3586,7 +3586,7 @@ and type_expect_
           None -> None
         | Some sexp ->
             if !Clflags.principal then begin_def ();
-            (* FIXME: mode can be more relaxed than this if fields are nonlocal *)
+            (* TODO: mode can be more relaxed than this if fields are nonlocal *)
             let exp = type_exp ~recarg env (mode_subcomponent expected_mode) sexp in
             if !Clflags.principal then begin
               end_def ();
@@ -4011,9 +4011,11 @@ and type_expect_
                     filter_self_method env met Private meths privty
                   in
                   let method_type = newvar () in
-                  let (_marg_FIXME, obj_ty, _mres_FIXME, res_ty) =
+                  let (marg, obj_ty, mres, res_ty) =
                     filter_arrow env method_type Nolabel
                   in
+                  unify_alloc_mode marg Alloc_mode.global;
+                  unify_alloc_mode mres Alloc_mode.global;
                   unify env obj_ty desc.val_type;
                   unify env res_ty (instance typ);
                   let method_desc =
@@ -4256,14 +4258,11 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
-      register_allocation expected_mode;
-      let closure_mode = Value_mode.regional_to_global expected_mode.mode in
       let ty = newgenvar () in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let env = Env.add_lock closure_mode env in
-      let env = Env.add_region_lock env in
+      let env = Env.add_lock Value_mode.global env in
       let arg = type_expect env mode_global e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
@@ -4421,7 +4420,6 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_letop{ let_ = slet; ands = sands; body = sbody } ->
-      (* FIXME: Allow local mode binding operators *)
       let rec loop spat_acc ty_acc sands =
         match sands with
         | [] -> spat_acc, ty_acc
@@ -5888,7 +5886,6 @@ and type_let
   let l =
     List.map2
       (fun ((_,p), (e, _)) pvb ->
-        (* FIXME: maybe we want modes in the vb? *)
         {vb_pat=p; vb_expr=e; vb_attributes=pvb.pvb_attributes;
          vb_loc=pvb.pvb_loc;
         })

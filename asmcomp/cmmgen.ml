@@ -501,7 +501,7 @@ let rec transl env e =
             bigarray_get unsafe elt_kind layout
               (transl env arg1) (List.map (transl env) argl) dbg in
           begin match elt_kind with
-          (* FIXME allow local allocs *)
+          (* TODO: local alloaction of bigarray elements *)
             Pbigarray_float32 | Pbigarray_float64 -> box_float dbg Alloc_heap elt
           | Pbigarray_complex32 | Pbigarray_complex64 -> elt
           | Pbigarray_int32 -> box_int dbg Pint32 Alloc_heap elt
@@ -790,11 +790,10 @@ and transl_ccall env prim args dbg =
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
     | _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
-    (* FIXME allow Alloc_local *)
+    (* TODO: Allow Alloc_local on suitably typed C stubs *)
     | _, Unboxed_float -> (typ_float, box_float dbg Alloc_heap)
     | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64 Alloc_heap)
-    (* FIXME: Allow Alloc_local on suitably typed C stubs? *)
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi Alloc_heap)
     | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
