@@ -77,4 +77,5 @@ type apply_cont_context =
 val apply_cont_use_kind :
   context:apply_cont_context -> Apply_cont.t -> Continuation_use_kind.t
 
-val clear_demoted_trap_action : Upwards_acc.t -> Apply_cont.t -> Apply_cont.t
+val clear_demoted_trap_action_and_patch_unused_exn_bucket :
+  Upwards_acc.t -> Apply_cont.t -> Apply_cont.t
