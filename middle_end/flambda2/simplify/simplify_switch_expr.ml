@@ -20,15 +20,15 @@ open! Simplify_import
 
 let rebuild_arm uacc arm (action, use_id, arity)
     (new_let_conts, arms, identity_arms, not_arms) =
+  let action =
+    Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
+      action
+  in
   match
     EB.add_wrapper_for_switch_arm uacc action ~use_id
       (Flambda_arity.With_subkinds.of_arity arity)
   with
   | Apply_cont action -> (
-    let action =
-      Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
-        action
-    in
     let action =
       (* First try to absorb any [Apply_cont] expression that forms the entirety
          of the arm's action (via an intermediate zero-arity continuation
