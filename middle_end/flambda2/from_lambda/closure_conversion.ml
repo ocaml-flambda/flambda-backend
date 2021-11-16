@@ -251,7 +251,7 @@ module Inlining = struct
             (Bound_pattern.singleton (VB.create param Name_mode.normal))
             (Named.create_simple arg) ~body
           |> Expr_with_acc.create_let)
-        (acc, body) (my_closure :: params) (callee :: args)
+        (acc, body) params args
     in
     let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
       Let_with_acc.create acc
