@@ -25,7 +25,10 @@ let rebuild_arm uacc arm (action, use_id, arity)
       (Flambda_arity.With_subkinds.of_arity arity)
   with
   | Apply_cont action -> (
-    let action = Simplify_common.clear_demoted_trap_action uacc action in
+    let action =
+      Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket uacc
+        action
+    in
     let action =
       (* First try to absorb any [Apply_cont] expression that forms the entirety
          of the arm's action (via an intermediate zero-arity continuation
