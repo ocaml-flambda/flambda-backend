@@ -57,6 +57,7 @@ let main argv ppf ~flambda2 =
     Format.pp_set_margin Format.std_formatter columns;
     Format.pp_set_margin Format.err_formatter columns);
   match
+    Compenv.warnings_for_discarded_params := true;
     Compenv.set_extra_params
       (Some Flambda_backend_args.Extra_params.read_param);
     Compenv.readenv ppf Before_args;

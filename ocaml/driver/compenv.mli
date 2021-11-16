@@ -47,6 +47,8 @@ val readenv : Format.formatter -> readenv_position -> unit
 val set_extra_params :
   (Format.formatter -> readenv_position -> string -> string -> bool) option ->
   unit
+(* Enable/disable warning about discarding any unknown arguments.  *)
+val warnings_for_discarded_params : bool ref
 
 val setter :
     Format.formatter -> (bool -> 'a) -> string -> 'a ref list -> string -> unit
