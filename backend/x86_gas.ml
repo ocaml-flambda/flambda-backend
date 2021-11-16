@@ -95,8 +95,8 @@ let suf arg =
   match typeof arg with
   | BYTE -> "b"
   | WORD -> "w"
-  | DWORD -> "l"
-  | QWORD | REAL8 -> "q"
+  | DWORD | REAL8 -> "l"
+  | QWORD -> "q"
   | REAL4 -> "s"
   | NONE -> ""
   | OWORD | NEAR | PROC -> assert false
