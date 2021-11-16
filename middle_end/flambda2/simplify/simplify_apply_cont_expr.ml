@@ -78,29 +78,8 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
     let rewrite_use_result =
       let apply_cont = AC.update_continuation_and_args apply_cont cont ~args in
       let apply_cont =
-        Simplify_common.clear_demoted_trap_action uacc apply_cont
-      in
-      let apply_cont =
-        if AC.is_raise apply_cont
-        then
-          match AC.args apply_cont with
-          | [] -> assert false
-          | exn_bucket :: other_args ->
-            let exn_bucket_is_used =
-              Simple.pattern_match
-                ~const:(fun _ -> true)
-                ~name:(fun name ~coercion:_ ->
-                  Name.Set.mem name (UA.required_names uacc))
-                exn_bucket
-            in
-            if exn_bucket_is_used
-            then apply_cont
-            else
-              (* The raise argument must be present, if it is unused, we replace
-                 it by a dummy value to avoid keeping a useless value alive *)
-              let dummy_value = Simple.const_zero in
-              AC.update_args ~args:(dummy_value :: other_args) apply_cont
-        else apply_cont
+        Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket
+          uacc apply_cont
       in
       match rewrite with
       | None -> EB.no_rewrite apply_cont
