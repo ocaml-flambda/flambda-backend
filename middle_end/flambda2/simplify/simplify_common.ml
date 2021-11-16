@@ -201,3 +201,29 @@ let clear_demoted_trap_action uacc apply_cont : AC.t =
        && not (UA.is_demoted_exn_handler uacc exn_handler)
     then apply_cont
     else AC.clear_trap_action apply_cont
+
+let patch_unused_exn_bucket uacc apply_cont =
+  if AC.is_raise apply_cont
+  then
+    match AC.args apply_cont with
+    | [] -> assert false
+    | exn_bucket :: other_args ->
+      let exn_bucket_is_used =
+        Simple.pattern_match
+          ~const:(fun _ -> true)
+          ~name:(fun name ~coercion:_ ->
+            Name.Set.mem name (UA.required_names uacc))
+          exn_bucket
+      in
+      if exn_bucket_is_used
+      then apply_cont
+      else
+        (* The raise argument must be present, if it is unused, we replace it by
+           a dummy value to avoid keeping a useless value alive *)
+        let dummy_value = Simple.const_zero in
+        AC.update_args ~args:(dummy_value :: other_args) apply_cont
+  else apply_cont
+
+let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
+  let apply_cont = clear_demoted_trap_action uacc apply_cont in
+  patch_unused_exn_bucket uacc apply_cont
