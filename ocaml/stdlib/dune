@@ -186,7 +186,6 @@
     weak.ml
     weak.mli
 
-    ocaml_compiler_internal_params
     .stdlib.objs/byte/stdlib__Arg.cmi
     .stdlib.objs/byte/stdlib__Arg.cmt
     .stdlib.objs/byte/stdlib__Arg.cmti

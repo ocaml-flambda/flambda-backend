@@ -12,7 +12,6 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(* Keep in sync with tools/ocaml_compiler_internal_params. *)
 let format_default flag = if flag then " (default)" else ""
 let format_not_default flag = if flag then "" else " (default)"
 
