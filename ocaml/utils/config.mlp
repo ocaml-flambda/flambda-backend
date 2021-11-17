@@ -93,7 +93,7 @@ let afl_instrument = %%AFL_INSTRUMENT%%
 
 let exec_magic_number = "Caml1999X029"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-and cmi_magic_number = "Caml1999I029"
+and cmi_magic_number = "Caml2021I029"
 and cmo_magic_number = "Caml1999O029"
 and cma_magic_number = "Caml1999A029"
 and cmx_magic_number =

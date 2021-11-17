@@ -984,7 +984,7 @@ module Magic_number = struct
 
   let parse_kind : raw_kind -> kind option = function
     | "Caml1999X" -> Some Exec
-    | "Caml1999I" -> Some Cmi
+    | "Caml2021I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
     | "Caml2021y" -> Some (Cmx {flambda = true})
@@ -1010,7 +1010,7 @@ module Magic_number = struct
      but [parse_kind] accepts older formats as well. *)
   let raw_kind : kind -> raw = function
     | Exec -> "Caml1999X"
-    | Cmi -> "Caml1999I"
+    | Cmi -> "Caml2021I"
     | Cmo -> "Caml1999O"
     | Cma -> "Caml1999A"
     | Cmx config ->
