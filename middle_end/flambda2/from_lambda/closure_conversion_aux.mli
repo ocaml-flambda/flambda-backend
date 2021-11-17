@@ -79,6 +79,11 @@ end
     values during closure conversion, and similarly for static exception
     identifiers. *)
 module Env : sig
+  type value_approximation =
+    | Value_unknown
+    | Closure_approximation of Code_id.t * Code.t option
+    | Block_approximation of value_approximation array
+
   type t
 
   val create : symbol_for_global:(Ident.t -> Symbol.t) -> big_endian:bool -> t
@@ -115,6 +120,20 @@ module Env : sig
   val add_simple_to_substitute_map : t -> Simple.t Ident.Map.t -> t
 
   val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
+
+  val add_value_approximation : t -> Name.t -> value_approximation -> t
+
+  val add_closure_approximation : t -> Name.t -> Code_id.t * Code.t option -> t
+
+  val add_block_approximation : t -> Name.t -> value_approximation array -> t
+
+  val add_approximation_alias : t -> Name.t -> Name.t -> t
+
+  val find_value_approximation : t -> Simple.t -> value_approximation
+
+  val current_depth : t -> Variable.t option
+
+  val with_depth : t -> Variable.t -> t
 
   val current_unit_id : t -> Ident.t
 
@@ -153,6 +172,9 @@ module Acc : sig
   val remove_var_from_free_names : Variable.t -> t -> t
 
   val remove_continuation_from_free_names : Continuation.t -> t -> t
+
+  val continuation_known_arguments :
+    cont:Continuation.t -> t -> Env.value_approximation list option
 
   val with_free_names : Name_occurrences.t -> t -> t
 
@@ -264,6 +286,7 @@ module Apply_cont_with_acc : sig
   val create :
     Acc.t ->
     ?trap_action:Trap_action.t ->
+    ?args_approx:Env.value_approximation list ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->
