@@ -416,6 +416,11 @@
  (package ocaml))
 
 (install
+ (files ocaml_compiler_internal_params)
+ (section lib)
+ (package ocaml))
+
+(install
  (section lib)
  (package ocaml)
  (files
