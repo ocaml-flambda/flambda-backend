@@ -222,14 +222,14 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
       let res = Linearize.fundecl f in
       (* CR xclerc for xclerc: temporary, for testing. *)
-      if !Clflags.use_ocamlcfg then begin
+      if !Flambda_backend_flags.use_ocamlcfg then begin
         test_cfgize f res;
       end;
       res)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ (fun (fd : Linear.fundecl) ->
-    if !use_ocamlcfg then begin
+    if !Flambda_backend_flags.use_ocamlcfg then begin
       fd
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)

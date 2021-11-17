@@ -32,6 +32,10 @@
 
 (copy_files# driver/optmaindriver.ml{,i})
 
+(copy_files# driver/flambda_backend_args.ml{,i})
+
+(copy_files# driver/flambda_backend_flags.ml{,i})
+
 (copy_files# file_formats/cmx_format.mli)
 
 (copy_files# file_formats/linear_format.ml{,i})
@@ -247,7 +251,23 @@
   ; The driver should be in here too, but is not at present.  This might
   ; be tricky because it has a different name...
   )
- (libraries ocamlcommon stdlib flambda2_identifiers flambda2_cmx))
+ (libraries ocamlcommon stdlib flambda_backend_common flambda2_identifiers flambda2_cmx))
+
+(library
+ (name flambda_backend_common)
+ (wrapped false)
+ (modes byte native)
+ ; same flags as for ocamlcommon library
+ (flags (
+   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -warn-error A -bin-annot -safe-string -strict-formats
+   -w -67
+   ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
+ ))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries stdlib ocamlcommon)
+ (modules flambda_backend_args flambda_backend_flags))
 
 (executable
  (name flambda_backend_main)
@@ -307,6 +327,7 @@
   (run
    %{dep:tools/merge_dot_a_files.sh}
    %{targets}
+   %{dep:flambda_backend_common.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
@@ -332,6 +353,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
@@ -357,6 +379,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
@@ -1237,7 +1260,18 @@
   (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmt)
   (.ocamloptcomp.objs/byte/compiler_hooks.cmti as compiler-libs/compiler_hooks.cmti)
   (.ocamloptcomp.objs/native/compiler_hooks.cmx as compiler-libs/compiler_hooks.cmx)
-
+  (flambda_backend_args.mli as compiler-libs/flambda_backend_args.mli)
+  (.flambda_backend_common.objs/native/flambda_backend_args.cmx as compiler-libs/flambda_backend_args.cmx)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmi as compiler-libs/flambda_backend_args.cmi)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmo as compiler-libs/flambda_backend_args.cmo)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmt as compiler-libs/flambda_backend_args.cmt)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmti as compiler-libs/flambda_backend_args.cmti)
+  (flambda_backend_flags.mli as compiler-libs/flambda_backend_flags.mli)
+  (.flambda_backend_common.objs/native/flambda_backend_flags.cmx as compiler-libs/flambda_backend_flags.cmx)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmi as compiler-libs/flambda_backend_flags.cmi)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmo as compiler-libs/flambda_backend_flags.cmo)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmt as compiler-libs/flambda_backend_flags.cmt)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmti as compiler-libs/flambda_backend_flags.cmti)
   (printast_with_mappings.mli as compiler-libs/printast_with_mappings.mli)
   (.ocamloptcomp.objs/byte/printast_with_mappings.cmi as compiler-libs/printast_with_mappings.cmi)
   (.ocamloptcomp.objs/byte/printast_with_mappings.cmo as compiler-libs/printast_with_mappings.cmo)
