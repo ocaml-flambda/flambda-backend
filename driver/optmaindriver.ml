@@ -36,7 +36,8 @@ let backend = (module Backend : Backend_intf.S)
 
 let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
-module Options = Main_args.Make_optcomp_options (Main_args.Default.Optmain)
+module Options = Flambda_backend_args.Make_optcomp_options
+        (Flambda_backend_args.Default.Optmain)
 
 let main argv ppf ~flambda2 =
   native_code := true;
@@ -56,6 +57,9 @@ let main argv ppf ~flambda2 =
     Format.pp_set_margin Format.std_formatter columns;
     Format.pp_set_margin Format.err_formatter columns);
   match
+    Compenv.warnings_for_discarded_params := true;
+    Compenv.set_extra_params
+      (Some Flambda_backend_args.Extra_params.read_param);
     Compenv.readenv ppf Before_args;
     Clflags.add_arguments __LOC__ (Arch.command_line_options @ Options.list);
     Clflags.add_arguments __LOC__
