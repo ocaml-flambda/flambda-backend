@@ -240,11 +240,7 @@ module Inlining = struct
       | Some depth -> Rec_info_expr.var depth
     in
     let bind_params ~params ~args ~body:(acc, body) =
-      let acc =
-        Acc.with_free_names
-          (Name_occurrences.union (Acc.free_names acc) free_names_of_body)
-          acc
-      in
+      let acc = Acc.with_free_names free_names_of_body acc in
       List.fold_left2
         (fun (acc, body) param arg ->
           Let_with_acc.create acc
@@ -672,11 +668,9 @@ let close_let acc env id user_visible defining_expr
     | Some (Simple simple) ->
       let body_env = Env.add_simple_to_substitute env id simple in
       body acc body_env
-    | None ->
-      (* CR pchambart: Not tail ! *)
-      let acc, body = body acc body_env in
-      acc, body
+    | None -> body acc body_env
     | Some defining_expr ->
+      (* CR pchambart: Not tail ! *)
       let body_env =
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable), fields), _) ->
@@ -1134,21 +1128,24 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let code_size = Cost_metrics.size cost_metrics in
   let inline_threshold = Inlining.threshold () in
   let inlining_decision =
-    match inline with
-    | Never_inline ->
-      Function_decl_inlining_decision_type.Never_inline_attribute
-    | Always_inline | Available_inline ->
-      Function_decl_inlining_decision_type.Attribute_inline
-    | _ ->
-      if Code_size.to_int code_size <= inline_threshold
-      then
-        Function_decl_inlining_decision_type.Small_function
-          { size = code_size;
-            small_function_size = Code_size.of_int inline_threshold
-          }
-      else
-        Function_decl_inlining_decision_type.Function_body_too_large
-          (Code_size.of_int inline_threshold)
+    if Flambda_features.classic_mode ()
+    then
+      match inline with
+      | Never_inline ->
+        Function_decl_inlining_decision_type.Never_inline_attribute
+      | Always_inline | Available_inline ->
+        Function_decl_inlining_decision_type.Attribute_inline
+      | _ ->
+        if Code_size.to_int code_size <= inline_threshold
+        then
+          Function_decl_inlining_decision_type.Small_function
+            { size = code_size;
+              small_function_size = Code_size.of_int inline_threshold
+            }
+        else
+          Function_decl_inlining_decision_type.Function_body_too_large
+            (Code_size.of_int inline_threshold)
+    else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let code =
     Code.create code_id ~params_and_body
@@ -1171,9 +1168,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
              code_id = Code_id.export code_id;
              decision = inlining_decision
            });
-      match (inlining_decision : Function_decl_inlining_decision_type.t) with
-      | Attribute_inline | Small_function _ -> Some code
-      | _ -> None
+      if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
+      then Some code
+      else None
     end
     else None
   in
