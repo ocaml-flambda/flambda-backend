@@ -21,7 +21,7 @@ open! Flambda.Import
 (* CR-someday mshinwell: Maybe have two types, one giving the reasons why
    something can be inlined, and one giving the reasons why something cannot be
    inlined. *)
-type t = private
+type t =
   | Missing_code
   | Definition_says_not_to_inline
   | Environment_says_never_inline
