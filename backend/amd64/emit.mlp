@@ -493,8 +493,8 @@ let move (src : Reg.t) (dst : Reg.t) =
     begin match src.typ, src.loc, dst.typ, dst.loc with
     | Float, Reg.Reg _, Float, Reg.Reg _ -> I.movapd (reg src) (reg dst)
     | Float, _, Float, _ -> I.movsd (reg src) (reg dst)
-    | Float, Reg.Reg _, Int, _
-    | Int, _, Float, Reg.Reg _ -> I.movq (reg src) (reg dst)
+    | Float, _, Int, _
+    | Int, _, Float, _ -> I.movq (reg src) (reg dst)
     | _ -> I.mov (reg src) (reg dst)
     end
 
