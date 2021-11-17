@@ -101,7 +101,7 @@ hacking: ocaml-stage1-config.status stage0 \
 
 
 ## Test compilation of backend-specific parts
-ARCHES=amd64 i386 arm arm64 power s390x riscv
+ARCHES=amd64 arm64
 ARCH_SPECIFIC =\
   backend/arch.ml backend/proc.ml backend/CSE.ml backend/selection.ml \
   backend/scheduling.ml backend/reload.ml backend/emit.ml
