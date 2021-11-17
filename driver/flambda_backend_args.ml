@@ -27,7 +27,7 @@ module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
-  Printf.sprintf "Propagate information from all incoming edges to a join\n\
+  Printf.sprintf " Propagate information from all incoming edges to a join\n\
       \     point%s (Flambda 2 only)"
     (format_default Flambda2.Default.join_points)
 ;;
