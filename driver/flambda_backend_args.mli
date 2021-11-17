@@ -87,11 +87,6 @@ module Default: sig
 end
 
 module Extra_params : sig
-  (* This is installed unconditionally for native and bytecode and
-     all tools that consume OCAMLPARAM, to avoid warnings about flags
-     that are only supported in flambda-backend,
-     similarly to the treatment of native-only flags in
-     [ocaml/driver/compenv.ml] *)
   (** [read_param ppf pos name value] returns whether the param was handled.  *)
   val read_param :
       Format.formatter -> Compenv.readenv_position -> string -> string -> bool
