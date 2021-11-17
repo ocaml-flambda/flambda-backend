@@ -37,6 +37,9 @@ dune=@dune@
 # Copy this file to install directory of stage0 to make it available
 # to the build of the compiler itself in stage0 (instead of patching the
 # upstream compiler to look for it in the right place).
+# This is only needed for using OCAMLPARAM with the build of the compiler
+# itself. OCAMLLIB is set to work around the hardcoded library path
+# used by a copy of Compenv in boot/ocamlc.
 .PHONY: stage0
 stage0: _build0/config.status ocaml_compiler_internal_params
 	rm -f .rsync-output
@@ -48,6 +51,7 @@ stage0: _build0/config.status ocaml_compiler_internal_params
 	  (cd _build0 && \
 	    mkdir -p $(stage0_prefix)/lib/ocaml && \
 	    cp ../ocaml_compiler_internal_params $(stage0_prefix)/lib/ocaml/ && \
+	    export OCAMLLIB=$(stage0_prefix)/lib/ocaml/ && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat && \
 	    $(MAKE) install); \
