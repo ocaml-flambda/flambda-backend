@@ -220,7 +220,7 @@ let set_compiler_pass ppf ~name v flag ~filter =
 (* 'can-discard=' specifies which arguments can be discarded without warning
    because they are not understood by some versions of OCaml. *)
 let can_discard = ref []
-let warnings_for_discarded_params = ref false
+let warnings_for_discarded_params = ref true
 
 let extra_params = ref None
 let set_extra_params params = extra_params := params
