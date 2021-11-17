@@ -544,6 +544,8 @@ let emit_instr i =
         let instr = name_for_specific sop in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop (Iname_for_debugger _) -> ()
+    | Lop (Iprobe _ |Iprobe_is_enabled _) ->
+      Misc.fatal_error ("Probes not supported.")
     | Lreloadretaddr ->
         let n = frame_size() in
         `	lg	%r14, {emit_int(n - size_addr)}(%r15)\n`
