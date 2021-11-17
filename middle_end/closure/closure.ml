@@ -71,7 +71,7 @@ let occurs_var var u =
   let rec occurs = function
       Uvar v -> v = var
     | Uconst _ -> false
-    | Udirect_apply(_lbl, args, _) -> List.exists occurs args
+    | Udirect_apply(_lbl, args, _, _) -> List.exists occurs args
     | Ugeneric_apply(funct, args, _) -> occurs funct || List.exists occurs args
     | Uclosure(_fundecls, clos) -> List.exists occurs clos
     | Uoffset(u, _ofs) -> occurs u
@@ -143,6 +143,7 @@ let prim_size prim args =
   | Parraysets kind -> if kind = Pgenarray then 22 else 10
   | Pbigarrayref(_, ndims, _, _) -> 4 + ndims * 6
   | Pbigarrayset(_, ndims, _, _) -> 4 + ndims * 6
+  | Pprobe_is_enabled _ -> 4 (* Pgetglobal and a comparison *)
   | _ -> 2 (* arithmetic and comparisons *)
 
 (* Very raw approximation of switch cost *)
@@ -154,8 +155,12 @@ let lambda_smaller lam threshold =
     match lam with
       Uvar _ -> ()
     | Uconst _ -> incr size
-    | Udirect_apply(_, args, _) ->
+    | Udirect_apply(_, args, None, _) ->
         size := !size + 4; lambda_list_size args
+    | Udirect_apply _ -> ()
+    (* We aim for probe points to not affect inlining decisions.
+       Actual cost is either 1, 5 or 6 bytes, depending on their kind,
+       on x86-64. *)
     | Ugeneric_apply(fn, args, _) ->
         size := !size + 6; lambda_size fn; lambda_list_size args
     | Uclosure _ ->
@@ -549,9 +554,9 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
     Uvar v ->
       begin try V.Map.find v sb with Not_found -> ulam end
   | Uconst _ -> ulam
-  | Udirect_apply(lbl, args, dbg) ->
+  | Udirect_apply(lbl, args, probe, dbg) ->
       let dbg = subst_debuginfo loc dbg in
-      Udirect_apply(lbl, List.map (substitute loc st sb rn) args, dbg)
+      Udirect_apply(lbl, List.map (substitute loc st sb rn) args, probe, dbg)
   | Ugeneric_apply(fn, args, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Ugeneric_apply(substitute loc st sb rn fn,
@@ -768,23 +773,38 @@ let bind_params { backend; mutable_vars; _ } loc fpc params args body =
 (* Check if a lambda term is ``pure'',
    that is without side-effects *and* not containing function definitions *)
 
-let warning_if_forced_inline ~loc ~attribute warning =
-  if attribute = Always_inline then
+let warning_if_forced_inlined ~loc ~attribute warning =
+  if attribute = Always_inlined then
     Location.prerr_warning (Debuginfo.Scoped_location.to_location loc)
       (Warnings.Inlining_impossible warning)
 
+let fail_if_probe ~probe msg =
+  match probe with
+  | None -> ()
+  | Some {name} ->
+    Misc.fatal_errorf "Closure probe %s handler: %s" name msg
+
 (* Generate a direct application *)
 
-let direct_apply env fundesc ufunct uargs ~loc ~attribute =
+let direct_apply env fundesc ufunct uargs ~probe ~loc ~attribute =
   let app_args =
     if fundesc.fun_closed then uargs else uargs @ [ufunct] in
   let app =
     match fundesc.fun_inline, attribute with
-    | _, Never_inline | None, _ ->
+    | _, Never_inlined | None, _ ->
       let dbg = Debuginfo.from_location loc in
-        warning_if_forced_inline ~loc ~attribute
+        warning_if_forced_inlined ~loc ~attribute
           "Function information unavailable";
-        Udirect_apply(fundesc.fun_label, app_args, dbg)
+        if not fundesc.fun_closed then begin
+          fail_if_probe ~probe "Not closed"
+        end;
+        begin match probe, attribute with
+        | None, _ -> ()
+        | Some _, Never_inlined -> ()
+        | Some _, _ ->
+          fail_if_probe ~probe "Erroneously marked to be inlined"
+        end;
+        Udirect_apply(fundesc.fun_label, app_args, probe, dbg)
     | Some(params, body), _  ->
         bind_params env loc fundesc.fun_float_const_prop params app_args
           body
@@ -875,6 +895,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         | Const_base(Const_char c) -> Uconst_int (Char.code c)
         | Const_block (tag, fields) ->
             str (Uconst_block (tag, List.map transl fields))
+        | Const_float_block sl ->
+            (* CR mshinwell: Add [Uconst_float_block]? *)
+            str (Uconst_float_array (List.map float_of_string sl))
         | Const_float_array sl ->
             (* constant float arrays are really immutable *)
             str (Uconst_float_array (List.map float_of_string sl))
@@ -899,7 +922,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
        when fun_arity > nargs *)
-  | Lapply{ap_func = funct; ap_args = args; ap_loc = loc;
+  | Lapply{ap_func = funct; ap_args = args; ap_probe = probe; ap_loc = loc;
         ap_inlined = attribute} ->
       let nargs = List.length args in
       begin match (close env funct, close_list env args) with
@@ -907,12 +930,12 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
          [Uprim(P.Pmakeblock _, uargs, _)])
         when List.length uargs = - fundesc.fun_arity ->
           let app =
-            direct_apply env ~loc ~attribute fundesc ufunct uargs in
+            direct_apply env ~loc ~attribute fundesc ufunct uargs ~probe in
           (app, strengthen_approx app approx_res)
       | ((ufunct, Value_closure(fundesc, approx_res)), uargs)
         when nargs = fundesc.fun_arity ->
           let app =
-            direct_apply env ~loc ~attribute fundesc ufunct uargs in
+            direct_apply env ~loc ~attribute fundesc ufunct uargs ~probe in
           (app, strengthen_approx app approx_res)
 
       | ((ufunct, (Value_closure(fundesc, _) as fapprox)), uargs)
@@ -945,8 +968,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
                  ap_tailcall=Default_tailcall;
-                 ap_inlined=Default_inline;
+                 ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
+                 ap_probe=None;
                };
                loc;
                attr = default_function_attribute})
@@ -955,7 +979,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           iter first_args
             (Ulet (Immutable, Pgenval, VP.create funct_var, ufunct, new_fun))
         in
-        warning_if_forced_inline ~loc ~attribute "Partial application";
+        warning_if_forced_inlined ~loc ~attribute "Partial application";
+        fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
       | ((ufunct, Value_closure(fundesc, _approx_res)), uargs)
@@ -965,10 +990,11 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
           let dbg = Debuginfo.from_location loc in
-          warning_if_forced_inline ~loc ~attribute "Over-application";
+          warning_if_forced_inlined ~loc ~attribute "Over-application";
+          fail_if_probe ~probe "Over-application";
           let body =
             Ugeneric_apply(direct_apply env ~loc ~attribute
-                              fundesc ufunct first_args,
+                              fundesc ufunct first_args ~probe,
                            rem_args, dbg)
           in
           let result =
@@ -980,7 +1006,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           result, Value_unknown
       | ((ufunct, _), uargs) ->
           let dbg = Debuginfo.from_location loc in
-          warning_if_forced_inline ~loc ~attribute "Unknown function";
+          warning_if_forced_inlined ~loc ~attribute "Unknown function";
+          fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs, dbg), Value_unknown)
       end
   | Lsend(kind, met, obj, args, loc) ->
@@ -1074,19 +1101,21 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_func=funct;
            ap_args=[arg];
            ap_tailcall=Default_tailcall;
-           ap_inlined=Default_inline;
+           ap_inlined=Default_inlined;
            ap_specialised=Default_specialise;
+           ap_probe=None;
          })
   | Lprim(Pgetglobal id, [], loc) ->
       let dbg = Debuginfo.from_location loc in
       check_constant_result (getglobal dbg id)
                             (Compilenv.global_approx id)
-  | Lprim(Pfield n, [lam], loc) ->
+  | Lprim(Pfield (n, _), [lam], loc) ->
       let (ulam, approx) = close env lam in
       let dbg = Debuginfo.from_location loc in
       check_constant_result (Uprim(P.Pfield n, [ulam], dbg))
                             (field_approx n approx)
-  | Lprim(Psetfield(n, is_ptr, init), [Lprim(Pgetglobal id, [], _); lam], loc)->
+  | Lprim(Psetfield(n, is_ptr, init),
+          [Lprim(Pgetglobal id, [], _); lam], loc) ->
       let (ulam, approx) = close env lam in
       if approx <> Value_unknown then
         (!global_approx).(n) <- approx;
@@ -1320,7 +1349,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
           in
           let magic_scale_constant = 8. in
           int_of_float (inline_threshold *. magic_scale_constant) + n
-      | Always_inline | Hint_inline -> max_int
+      | Always_inline | Available_inline -> max_int
       | Never_inline -> min_int
       | Unroll _ -> assert false
     in
@@ -1447,7 +1476,7 @@ let collect_exported_structured_constants a =
   and ulam = function
     | Uvar _ -> ()
     | Uconst c -> const c
-    | Udirect_apply (_, ul, _) -> List.iter ulam ul
+    | Udirect_apply (_, ul, _, _) -> List.iter ulam ul
     | Ugeneric_apply (u, ul, _) -> ulam u; List.iter ulam ul
     | Uclosure (fl, ul) ->
         List.iter (fun f -> ulam f.body) fl;

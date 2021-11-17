@@ -67,6 +67,7 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+  val _extension : string -> unit
 
 end
 
@@ -118,6 +119,7 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
+  val _standard : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array
@@ -203,6 +205,8 @@ module type Optcommon_options = sig
   val _dflambda_verbose : unit -> unit
   val _drawclambda : unit -> unit
   val _dclambda : unit -> unit
+  val _dcfg : unit -> unit
+  val _dcmm_invariants : unit -> unit
   val _dcmm : unit -> unit
   val _dsel : unit -> unit
   val _dcombine : unit -> unit
@@ -235,6 +239,8 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
+  val _probes : unit -> unit
+  val _no_probes : unit -> unit
 end;;
 
 module type Opttop_options = sig

@@ -238,6 +238,32 @@ void caml_register_dyn_global(void *v) {
   caml_dyn_globals = cons((void*) v,caml_dyn_globals);
 }
 
+/* Logic to determine at which index within a global root to start
+   scanning.  [*glob_block] and [*start] may be updated by this function. */
+static void compute_index_for_global_root_scan (value* glob_block, int* start)
+{
+  *start = 0;
+
+  CAMLassert (Is_block (*glob_block));
+
+  if (Tag_val (*glob_block) < No_scan_tag) {
+    /* Note: if a [Closure_tag] block is registered as a global root
+       (possibly containing one or more [Infix_tag] blocks), then only one
+       out of the combined set of the [Closure_tag] and [Infix_tag] blocks
+       may be registered as a global root.  Multiple registrations can cause
+       the compactor to traverse the same fields of a block twice, which can
+       cause a failure. */
+    if (Tag_val (*glob_block) == Infix_tag)
+      *glob_block -= Infix_offset_val (*glob_block);
+    if (Tag_val (*glob_block) == Closure_tag)
+      *start = Start_env_closinfo (Closinfo_val (*glob_block));
+  }
+  else {
+    /* Set the index such that none of the block's fields will be scanned. */
+    *start = Wosize_val (*glob_block);
+  }
+}
+
 /* Call [caml_oldify_one] on (at least) all the roots that point to the minor
    heap. */
 void caml_oldify_local_roots (void)
@@ -252,6 +278,8 @@ void caml_oldify_local_roots (void)
   unsigned short * p;
   value * glob;
   value * root;
+  value glob_block;
+  int start;
   struct caml__roots_block *lr;
   link *lnk;
 
@@ -260,9 +288,10 @@ void caml_oldify_local_roots (void)
        i <= caml_globals_inited && caml_globals[i] != 0;
        i++) {
     for(glob = caml_globals[i]; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        Oldify (&Field (*glob, j));
-      }
+      glob_block = *glob;
+      compute_index_for_global_root_scan (&glob_block, &start);
+      for (j = start; j < Wosize_val (glob_block); j++)
+        Oldify (&Field (glob_block, j));
     }
   }
   caml_globals_scanned = caml_globals_inited;
@@ -270,8 +299,10 @@ void caml_oldify_local_roots (void)
   /* Dynamic global roots */
   iter_list(caml_dyn_globals, lnk) {
     for(glob = (value *) lnk->data; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        Oldify (&Field (*glob, j));
+      glob_block = *glob;
+      compute_index_for_global_root_scan (&glob_block, &start);
+      for (j = start; j < Wosize_val (glob_block); j++) {
+        Oldify (&Field (glob_block, j));
       }
     }
   }
@@ -360,6 +391,8 @@ intnat caml_darken_all_roots_slice (intnat work)
   static int i, j;
   static value *glob;
   static int do_resume = 0;
+  static value glob_block;
+  static int start;
   static mlsize_t roots_count = 0;
   intnat remaining_work = work;
   CAML_EV_BEGIN(EV_MAJOR_MARK_GLOBAL_ROOTS_SLICE);
@@ -371,8 +404,10 @@ intnat caml_darken_all_roots_slice (intnat work)
      suspend itself when [work] reaches 0. */
   for (i = 0; caml_globals[i] != 0; i++) {
     for(glob = caml_globals[i]; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        caml_darken (Field (*glob, j), &Field (*glob, j));
+      glob_block = *glob;
+      compute_index_for_global_root_scan (&glob_block, &start);
+      for (j = start; j < Wosize_val (glob_block); j++) {
+        caml_darken (Field (glob_block, j), &Field (glob_block, j));
         -- remaining_work;
         if (remaining_work == 0){
           roots_count += work;
@@ -401,22 +436,28 @@ void caml_do_roots (scanning_action f, int do_globals)
   int i, j;
   value * glob;
   link *lnk;
+  value glob_block;
+  int start;
 
   CAML_EV_BEGIN(EV_MAJOR_ROOTS_DYNAMIC_GLOBAL);
   if (do_globals){
     /* The global roots */
     for (i = 0; caml_globals[i] != 0; i++) {
       for(glob = caml_globals[i]; *glob != 0; glob++) {
-        for (j = 0; j < Wosize_val(*glob); j++)
-          f (Field (*glob, j), &Field (*glob, j));
+        glob_block = *glob;
+        compute_index_for_global_root_scan (&glob_block, &start);
+        for (j = start; j < Wosize_val (glob_block); j++)
+          f (Field (glob_block, j), &Field (glob_block, j));
       }
     }
   }
   /* Dynamic global roots */
   iter_list(caml_dyn_globals, lnk) {
     for(glob = (value *) lnk->data; *glob != 0; glob++) {
-      for (j = 0; j < Wosize_val(*glob); j++){
-        f (Field (*glob, j), &Field (*glob, j));
+      glob_block = *glob;
+      compute_index_for_global_root_scan (&glob_block, &start);
+      for (j = start; j < Wosize_val (glob_block); j++) {
+        f (Field (glob_block, j), &Field (glob_block, j));
       }
     }
   }

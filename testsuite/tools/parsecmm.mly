@@ -218,8 +218,7 @@ expr:
   | LPAREN APPLY location expr exprlist machtype RPAREN
                 { Cop(Capply $6, $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
-               {Cop(Cextcall($3, $5, [], false),
-                    List.rev $4, debuginfo ())}
+               {Cop(Cextcall($3, $5, [], false), List.rev $4, debuginfo ())}
   | LPAREN ALLOC exprlist RPAREN { Cop(Calloc, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
@@ -267,7 +266,7 @@ expr:
           Debuginfo.none) }
   | LPAREN FLOATAREF expr expr RPAREN
       { let open Asttypes in
-        Cop(Cload (Double_u, Mutable), [access_array $3 $4 Arch.size_float],
+        Cop(Cload (Double, Mutable), [access_array $3 $4 Arch.size_float],
           Debuginfo.none) }
   | LPAREN ADDRASET expr expr expr RPAREN
       { let open Lambda in
@@ -279,7 +278,7 @@ expr:
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
       { let open Lambda in
-        Cop(Cstore (Double_u, Assignment),
+        Cop(Cstore (Double, Assignment),
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:
@@ -319,7 +318,7 @@ chunk:
   | ADDR                        { Word_val }
   | FLOAT32                     { Single }
   | FLOAT64                     { Double }
-  | FLOAT                       { Double_u }
+  | FLOAT                       { Double }
   | VAL                         { Word_val }
 ;
 unaryop:

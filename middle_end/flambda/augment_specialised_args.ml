@@ -468,8 +468,9 @@ module Make (T : S) = struct
             spec_args_bound_in_the_wrapper;
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
-          inline = Default_inline;
+          inlined = Default_inlined;
           specialise = Default_specialise;
+          probe = None;
         }
       in
       Variable.Map.fold (fun new_inner_var definition (wrapper_body, benefit) ->

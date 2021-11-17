@@ -76,6 +76,17 @@ module Scoped_location = struct
     | Empty -> "<unknown>"
     | Cons {str; _} -> str
 
+  let string_of_scopes =
+    let module StringSet = Set.Make (String) in
+    let repr = ref StringSet.empty in
+    fun scopes ->
+      let res = string_of_scopes scopes in
+      match StringSet.find_opt res !repr with
+      | Some x -> x
+      | None ->
+        repr := StringSet.add res !repr;
+        res
+
   type t =
     | Loc_unknown
     | Loc_known of

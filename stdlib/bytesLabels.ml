@@ -1,3 +1,4 @@
+# 1 "bytesLabels.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,6 +14,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
+
 (* Module [BytesLabels]: labelled Bytes module *)
+
+[@@@ocaml.nolabels]
 
 include Bytes

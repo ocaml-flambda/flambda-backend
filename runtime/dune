@@ -26,46 +26,154 @@
    bigarray.c eventlog.c)
  (action  (with-stdout-to %{targets} (run %{dep:gen_primitives.sh}))))
 
+; Shouldn't this use foreign build sandboxing?
+
 (rule
- (targets libcamlrun.a)
+ (targets libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
+   libcamlrun_shared.so)
  (mode    fallback)
- (deps
-   ../Makefile.config
-   ../Makefile.build_config
-   ../Makefile.config_if_required
-   ../Makefile.common Makefile
-   (glob_files caml/*.h)
-   ; matches the line structure of files in Makefile/BYTECODE_C_SOURCES
-   interp.c misc.c stacks.c fix_code.c startup_aux.c startup_byt.c freelist.c
-     major_gc.c
-   minor_gc.c memory.c alloc.c roots_byt.c globroots.c fail_byt.c signals.c
-   signals_byt.c printexc.c backtrace_byt.c backtrace.c compare.c ints.c
-     eventlog.c
-   floats.c str.c array.c io.c extern.c intern.c hash.c sys.c meta.c parsing.c
-     gc_ctrl.c  md5.c obj.c
-   lexing.c callback.c debugger.c weak.c compact.c finalise.c custom.c dynlink.c
-   afl.c unix.c win32.c bigarray.c main.c memprof.c domain.c
-   skiplist.c codefrag.c
- )
+ (deps    ../Makefile.config ../Makefile.common ../Makefile.build_config ../Makefile.config_if_required Makefile
+          (glob_files caml/*.h)
+          interp.c misc.c stacks.c fix_code.c startup_aux.c startup_byt.c
+          freelist.c major_gc.c minor_gc.c memory.c alloc.c roots_byt.c
+          globroots.c fail_byt.c signals.c signals_byt.c printexc.c
+          backtrace_byt.c backtrace.c compare.c ints.c floats.c str.c array.c
+          io.c extern.c intern.c hash.c sys.c meta.c parsing.c gc_ctrl.c md5.c
+          obj.c lexing.c callback.c debugger.c weak.c compact.c finalise.c
+          custom.c dynlink.c afl.c unix.c win32.c bigarray.c main.c memprof.c 
+          domain.c caml/domain_state.tbl eventlog.c skiplist.c codefrag.c
+          instrtrace.c caml/opnames.h prims.c) 
  (action
    (progn
-     (bash "touch .depend") ; hack.
-     (run make %{targets} COMPUTE_DEPS=false)
-     (bash "rm .depend"))))
+     (run make %{targets}))))
 
-;; HACK
+(rule
+  (targets prims.c)
+  (mode fallback)
+  (deps primitives Makefile)
+  (action (run make %{targets})))
+
+(rule
+ (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
+   libasmrun_shared.so prims.o)
+ (mode    fallback)
+ (deps    ../Makefile.config ../Makefile.common ../Makefile.build_config ../Makefile.config_if_required Makefile
+  (glob_files caml/*.h)
+  signals_osdep.h amd64.S
+  startup_aux.c startup_nat.c main.c fail_nat.c roots_nat.c signals.c
+  signals_nat.c misc.c freelist.c major_gc.c minor_gc.c memory.c alloc.c
+  compare.c ints.c floats.c str.c array.c io.c extern.c intern.c hash.c sys.c
+  parsing.c gc_ctrl.c md5.c obj.c lexing.c unix.c printexc.c callback.c weak.c
+  compact.c finalise.c custom.c globroots.c backtrace_nat.c backtrace.c
+  dynlink_nat.c debugger.c meta.c dynlink.c clambda_checks.c afl.c bigarray.c memprof.c domain.c
+  caml/domain_state.tbl eventlog.c prims.c)
+ (action
+  (progn
+   (run make %{targets}))))
+
+(rule
+  (targets ld.conf)
+  (deps %{project_root}/ocaml/Makefile.config)
+  (action (run make -j8 %{targets})))
+
+;(rule
+;  (targets prims.o)
+;  (deps primitives Makefile)
+;  (action
+;    (progn
+;      ; Find out what's going wrong here
+;      (run make -j8 %{targets})
+;      (bash "chmod o+w %{targets}"))))
+;
+
+(rule
+  (targets ocamlrun)
+  (deps libcamlrun.a prims.o)
+  (action
+    (progn
+    (run make %{targets}))))
+
+(rule
+  (targets ocamlrund)
+  ; the ocamlrun dep is a hack to serialise production of ocamlrun* so there
+  ; isn't a race on prims.o
+  (deps libcamlrund.a prims.o ocamlrun)
+  (action
+    (progn
+      (run make %{targets}))))
+
+(rule
+  (targets ocamlruni)
+  (deps libcamlruni.a prims.o ocamlrund)
+  (action
+    (progn
+      (run make %{targets}))))
+
 (library
-  (name runtime)
+  (name runtime_byte)
   (modes byte)
   (wrapped false)
-  (modules runtime)
+  (modules runtime_byte)
   (flags (-nostdlib -nopervasives))
-  (self_build_stubs_archive (runtime)))
+  (foreign_archives camlrun))
+
+; To be in sync with the expectations of special_dune
+(rule
+  (targets libasmrun_native.a)
+  (deps libasmrun.a)
+  (action (copy %{deps} %{targets})))
+
+(library
+  (name runtime_native)
+  (modes native)
+  (wrapped false)
+  (modules runtime_native)
+  (flags (-nostdlib -nopervasives))
+  (foreign_archives asmrun))
+
+; We should fix this so runtime_byte can actually be used (see comment in
+; toplevel dune file).
+(rule
+  (targets dllcamlrun.so)
+  (action (write-file %{targets} "")))
 
 (rule
-  (targets libruntime_stubs.a)
-  (action (copy libcamlrun.a %{targets})))
-
-(rule
-  (targets runtime.ml)
+  (targets runtime_byte.ml)
   (action (write-file %{targets} "let linkme = ()")))
+
+(rule
+  (targets runtime_native.ml)
+  (action (write-file %{targets} "let linkme = ()")))
+
+(install
+  (files
+    ocamlrun
+    ocamlrund
+    ocamlruni
+  )
+  (section bin)
+  (package ocaml))
+
+(install
+  (files
+    ld.conf
+
+    libcamlrun.a
+    libcamlrund.a
+    libcamlruni.a
+    libcamlrun_pic.a
+    libcamlrun_shared.so
+  )
+  (section lib)
+  (package ocaml))
+
+(install
+  (files
+    libasmrun.a
+    libasmrund.a
+    libasmruni.a
+    libasmrun_pic.a
+    libasmrun_shared.so
+  )
+  (section lib)
+  (package ocaml))

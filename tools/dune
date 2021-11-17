@@ -14,7 +14,8 @@
 
 (executables
  (names   make_opcodes cvt_emit)
- (modules make_opcodes cvt_emit))
+ (modules make_opcodes cvt_emit)
+ (libraries stdlib))
 
 (ocamllex
  (modules make_opcodes)
@@ -23,3 +24,133 @@
 (ocamllex
  (modules cvt_emit)
  (mode    fallback))
+
+(executable
+  (name ocamldep_byte)
+  (modes byte)
+  (modules ocamldep_byte)
+  ; See note in the toplevel dune file about this.
+  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (libraries ocamlcommon ocamlbytecomp))
+
+(rule
+  (targets ocamldep_byte.ml)
+  (action (copy ocamldep.ml %{targets})))
+
+(executable
+  (name ocamldep_native)
+  (modes native)
+  (flags -nostdlib)
+  (modules ocamldep_native)
+  (libraries ocamlcommon ocamlbytecomp runtime_native))
+
+(rule
+  (targets ocamldep_native.ml)
+  (action (copy ocamldep.ml %{targets})))
+
+(install
+  (files
+    (ocamldep_byte.bc as ocamldep.byte)
+    (ocamldep_native.exe as ocamldep)
+    (ocamldep_native.exe as ocamldep.opt)
+  )
+  (section bin)
+  (package ocaml))
+
+(executable
+  (name cmpbyt)
+  (modes byte)
+  (modules cmpbyt)
+  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (libraries ocamlcommon ocamlbytecomp))
+
+(library
+  (name ocamlmklib_common)
+  (modes byte native)
+  (wrapped false)
+  (modules ocamlmklibconfig)
+  (libraries ocamlcommon ocamlbytecomp))
+
+; We should fix this so it doesn't need "make".
+(rule
+  (targets ocamlmklibconfig.ml)
+  (deps
+    %{project_root}/ocaml/Makefile.config
+    %{project_root}/ocaml/Makefile
+    Makefile
+    .depend)
+  (action (run make %{targets})))
+
+(executable
+  (name ocamlmklib_byte)
+  (modes byte)
+  (modules ocamlmklib_byte)
+  ; See note in the toplevel dune file about this.
+  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (libraries ocamlcommon ocamlbytecomp ocamlmklib_common))
+
+(rule
+  (targets ocamlmklib_byte.ml)
+  (action (copy ocamlmklib.ml %{targets})))
+
+(executable
+  (name ocamlmklib_native)
+  (modes native)
+  (flags -nostdlib)
+  (modules ocamlmklib_native)
+  (libraries ocamlcommon ocamlbytecomp runtime_native ocamlmklib_common))
+
+(rule
+  (targets ocamlmklib_native.ml)
+  (action (copy ocamlmklib.ml %{targets})))
+
+(install
+  (files
+    (ocamlmklib_byte.bc as ocamlmklib.byte)
+    (ocamlmklib_native.exe as ocamlmklib)
+    (ocamlmklib_native.exe as ocamlmklib.opt)
+  )
+  (section bin)
+  (package ocaml))
+
+(executable
+  (name ocamlmktop_byte)
+  (modes byte)
+  (modules ocamlmktop_byte)
+  ; See note in the toplevel dune file about this.
+  (flags (:standard -nostdlib -cclib "-L ../runtime" -cclib -lcamlrun))
+  (libraries ocamlcommon ocamlbytecomp))
+
+(rule
+  (targets ocamlmktop_byte.ml)
+  (action (copy ocamlmktop.ml %{targets})))
+
+(executable
+  (name ocamlmktop_native)
+  (modes native)
+  (flags -nostdlib)
+  (modules ocamlmktop_native)
+  (libraries ocamlcommon ocamlbytecomp runtime_native))
+
+(rule
+  (targets ocamlmktop_native.ml)
+  (action (copy ocamlmktop.ml %{targets})))
+
+(install
+  (files
+    (ocamlmktop_byte.bc as ocamlmktop.byte)
+    (ocamlmktop_native.exe as ocamlmktop)
+    (ocamlmktop_native.exe as ocamlmktop.opt)
+  )
+  (section bin)
+  (package ocaml))
+
+(install
+  (files
+    eventlog_metadata
+  )
+  (section lib)
+  (package ocaml))
+
+
+; ocamlcp, ocamloptp and ocamlprof are not currently supported.

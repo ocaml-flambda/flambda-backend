@@ -85,7 +85,6 @@ let chunk = function
   | Word_val -> "val"
   | Single -> "float32"
   | Double -> "float64"
-  | Double_u -> "float64u"
 
 let phantom_defining_expr ppf defining_expr =
   match defining_expr with
@@ -156,6 +155,9 @@ let operation d = function
   | Ccmpf c -> Printf.sprintf "%sf" (float_comparison c)
   | Craise k -> Lambda.raise_kind k ^ location d
   | Ccheckbound -> "checkbound" ^ location d
+  | Cprobe { name; handler_code_sym } ->
+    Printf.sprintf "probe[%s %s]" name handler_code_sym
+  | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

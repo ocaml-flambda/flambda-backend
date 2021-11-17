@@ -14,7 +14,34 @@
 
 (library
  (name str)
- (modes byte)
- (flags (:standard -nostdlib))
+ (wrapped false)
+ (modes byte native)
+ (flags (
+   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
+   -warn-error A -bin-annot -safe-string -strict-formats
+ ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags (:standard -linkall))
  (libraries stdlib)
- (c_names strstubs))
+ (foreign_stubs (language c) (names strstubs)
+  (flags ((:include %{project_root}/oc_cflags.sexp)
+          (:include %{project_root}/sharedlib_cflags.sexp)
+          (:include %{project_root}/oc_cppflags.sexp)))
+  (include_dirs %{project_root}/ocaml/runtime)))
+
+(install
+  (files
+    .str.objs/native/str.cmx
+    libstr_stubs.a
+    libstr_stubs_native.a
+    (dllstr_stubs.so as stublibs/dllstr_stubs.so)
+    str.cmxa
+    str.a
+    str.cmxs
+    str.cma
+    str.mli
+    .str.objs/byte/str.cmi
+    .str.objs/byte/str.cmti
+  )
+  (section lib)
+  (package ocaml))

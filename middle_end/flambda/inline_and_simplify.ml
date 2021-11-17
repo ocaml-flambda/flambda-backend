@@ -673,7 +673,8 @@ and simplify_set_of_closures original_env r
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
     Flambda. func = lhs_of_application; args; kind = _; dbg;
-    inline = inline_requested; specialise = specialise_requested;
+    inlined = inlined_requested; specialise = specialise_requested;
+    probe = probe_requested;
   } = apply in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
@@ -745,21 +746,30 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
           in
           let nargs = List.length args in
           let arity = A.function_arity function_decl in
+          begin match probe_requested with
+          | None -> ()
+          | Some {name} ->
+            if not (nargs = arity) then
+              Misc.fatal_errorf
+                "Probe %s handler with arity %d applied to %d args: %a"
+                name arity nargs Flambda.print (Flambda.Apply apply);
+            ()
+          end;
           let result, r =
             if nargs = arity then
               simplify_full_application env r ~function_decls
                 ~lhs_of_application ~closure_id_being_applied ~function_decl
                 ~value_set_of_closures ~args ~args_approxs ~dbg
-                ~inline_requested ~specialise_requested
+                ~inlined_requested ~specialise_requested ~probe_requested
             else if nargs > arity then
               simplify_over_application env r ~args ~args_approxs
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
-                ~function_decl ~value_set_of_closures ~dbg ~inline_requested
+                ~function_decl ~value_set_of_closures ~dbg ~inlined_requested
                 ~specialise_requested
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~dbg
-                ~inline_requested ~specialise_requested
+                ~inlined_requested ~specialise_requested
             else
               Misc.fatal_errorf "Function with arity %d when simplifying \
                   application expression: %a"
@@ -768,20 +778,26 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
           wrap result, r
         | Wrong ->  (* Insufficient approximation information to simplify. *)
           Apply ({ func = lhs_of_application; args; kind = Indirect; dbg;
-              inline = inline_requested; specialise = specialise_requested; }),
+                   inlined = inlined_requested;
+                   specialise = specialise_requested;
+                   probe = probe_requested;
+                 }),
             ret r (A.value_unknown Other)))
 
 and simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures ~args
-      ~args_approxs ~dbg ~inline_requested ~specialise_requested =
+      ~args_approxs ~dbg ~inlined_requested ~specialise_requested
+      ~probe_requested
+  =
   Inlining_decision.for_call_site ~env ~r ~function_decls
     ~lhs_of_application ~closure_id_being_applied ~function_decl
     ~value_set_of_closures ~args ~args_approxs ~dbg ~simplify
-    ~inline_requested ~specialise_requested
+    ~inlined_requested ~specialise_requested ~probe_requested
 
 and simplify_partial_application env r ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~args ~dbg
-      ~inline_requested ~specialise_requested =
+      ~inlined_requested ~specialise_requested
+  =
   let arity = A.function_arity function_decl in
   assert (arity > List.length args);
   (* For simplicity, we disallow [@inline] attributes on partial
@@ -790,8 +806,8 @@ and simplify_partial_application env r ~lhs_of_application
   (* CR-someday mshinwell: Pierre noted that we might like a function to be
      inlined when applied to its first set of arguments, e.g. for some kind
      of type class like thing. *)
-  begin match (inline_requested : Lambda.inline_attribute) with
-  | Always_inline | Never_inline ->
+  begin match (inlined_requested : Lambda.inlined_attribute) with
+  | Always_inlined | Never_inlined ->
     Location.prerr_warning (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible "[@inlined] attributes may not be used \
         on partial applications")
@@ -799,7 +815,7 @@ and simplify_partial_application env r ~lhs_of_application
     Location.prerr_warning (Debuginfo.to_location dbg)
       (Warnings.Inlining_impossible "[@unrolled] attributes may not be used \
         on partial applications")
-  | Hint_inline | Default_inline -> ()
+  | Hint_inlined | Default_inlined -> ()
   end;
   begin match (specialise_requested : Lambda.specialise_attribute) with
   | Always_specialise | Never_specialise ->
@@ -822,8 +838,9 @@ and simplify_partial_application env r ~lhs_of_application
         args = Parameter.List.vars freshened_params;
         kind = Direct closure_id_being_applied;
         dbg;
-        inline = Default_inline;
+        inlined = Default_inlined;
         specialise = Default_specialise;
+        probe = None;
       }
     in
     let closure_variable =
@@ -846,7 +863,8 @@ and simplify_partial_application env r ~lhs_of_application
 
 and simplify_over_application env r ~args ~args_approxs ~function_decls
       ~lhs_of_application ~closure_id_being_applied ~function_decl
-      ~value_set_of_closures ~dbg ~inline_requested ~specialise_requested =
+      ~value_set_of_closures ~dbg ~inlined_requested ~specialise_requested
+  =
   let arity = A.function_arity function_decl in
   assert (arity < List.length args);
   assert (List.length args = List.length args_approxs);
@@ -860,13 +878,14 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
     simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures
       ~args:full_app_args ~args_approxs:full_app_approxs ~dbg
-      ~inline_requested ~specialise_requested
+      ~inlined_requested ~specialise_requested ~probe_requested:None
   in
   let func_var = Variable.create Internal_variable_names.full_apply in
   let expr : Flambda.t =
     Flambda.create_let func_var (Expr expr)
       (Apply { func = func_var; args = remaining_args; kind = Indirect; dbg;
-        inline = inline_requested; specialise = specialise_requested; })
+               inlined = inlined_requested; specialise = specialise_requested;
+               probe = None})
   in
   let expr = Lift_code.lift_lets_expr expr ~toplevel:true in
   simplify (E.set_never_inline env) r expr

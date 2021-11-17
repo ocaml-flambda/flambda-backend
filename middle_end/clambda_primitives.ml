@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type mutable_flag = Asttypes.mutable_flag
+type mutable_flag = Lambda.mutable_flag
 
 type immediate_or_pointer = Lambda.immediate_or_pointer
 
@@ -116,6 +116,8 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
+  (* Probes *)
+  | Pprobe_is_enabled of { name : string }
 
 and integer_comparison = Lambda.integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -129,6 +131,7 @@ and array_kind = Lambda.array_kind =
 and value_kind = Lambda.value_kind =
   (* CR mshinwell: Pfloatval should be renamed to Pboxedfloatval *)
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pblock of { tag : int; fields : value_kind list }
 
 and block_shape = Lambda.block_shape
 and boxed_integer = Primitive.boxed_integer =

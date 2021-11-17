@@ -112,7 +112,8 @@ let preserve_tailcall_for_prim = function
     Pidentity | Popaque | Pdirapply | Prevapply | Psequor | Psequand ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
-  | Pmakeblock _ | Pfield _ | Pfield_computed | Psetfield _
+  | Pmakeblock _ | Pmakefloatblock _
+  | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
@@ -130,6 +131,7 @@ let preserve_tailcall_for_prim = function
   | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _ | Pbytes_set_32 _
   | Pbytes_set_64 _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
   | Pbigstring_load_64 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+  | Pprobe_is_enabled _
   | Pbigstring_set_64 _ | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer ->
       false
 
@@ -209,7 +211,8 @@ let rec size_of_lambda env = function
   | Lprim(Pmakeblock _, args, _) -> RHS_block (List.length args)
   | Lprim (Pmakearray ((Paddrarray|Pintarray), _), args, _) ->
       RHS_block (List.length args)
-  | Lprim (Pmakearray (Pfloatarray, _), args, _) ->
+  | Lprim (Pmakearray (Pfloatarray, _), args, _)
+  | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
   | Lprim (Pmakearray (Pgenarray, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
@@ -391,10 +394,11 @@ let comp_primitive p args =
   | Pcompare_ints -> Kccall("caml_int_compare", 2)
   | Pcompare_floats -> Kccall("caml_float_compare", 2)
   | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
-  | Pfield n -> Kgetfield n
-  | Pfield_computed -> Kgetvectitem
+  | Pfield (n, _sem) -> Kgetfield n
+  | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
+  | Pfloatfield (n, _sem) -> Kgetfloatfield n
   | Psetfloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
@@ -681,8 +685,9 @@ let rec comp_expr env exp sz cont =
         ap_func=func;
         ap_args=[arg];
         ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inline;
+        ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
+        ap_probe=None;
       } in
       comp_expr env exp sz cont
   | Lprim(Pnot, [arg], _) ->
@@ -734,6 +739,9 @@ let rec comp_expr env exp sz cont =
         (Kpush::
          Kconst (Const_base (Const_int n))::
          Kaddint::cont)
+  | Lprim (Pmakefloatblock _mut, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args env args sz (Kmakefloatblock (List.length args) :: cont)
   | Lprim(Pmakearray (kind, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
@@ -782,7 +790,7 @@ let rec comp_expr env exp sz cont =
   | Lprim(Pmakeblock(tag, _mut, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pfloatfield n, args, loc) ->
+  | Lprim(Pfloatfield (n, _sem), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kgetfloatfield n :: cont)
   | Lprim(p, args, _) ->

@@ -28,6 +28,7 @@ type type_forcing_context =
   | If_no_else_branch
   | While_loop_conditional
   | While_loop_body
+  | In_comprehension_argument
   | For_loop_start_index
   | For_loop_stop_index
   | For_loop_body
@@ -121,6 +122,12 @@ type error =
   | Unrefuted_pattern of pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
+  | Probe_format
+  | Probe_name_too_long of string
+  | Probe_name_format of string
+  | Probe_name_undefined of string
+  | Probe_is_enabled_format
+  | Extension_not_enabled of Clflags.extension
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -189,6 +196,15 @@ type recarg =
   | Required
   | Rejected
 
+let probe_name_max_length = 100
+let check_probe_name name loc env =
+  if String.length name > probe_name_max_length then
+    raise (Error (loc, env, (Probe_name_too_long name)));
+  String.iter (fun c ->
+    match c with
+    | 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' -> ()
+    | _ -> raise (Error (loc, env, (Probe_name_format name)))
+  ) name
 
 let mk_expected ?explanation ty = { ty; explanation; }
 
@@ -595,6 +611,21 @@ let split_cases env cases =
                     Mixed_value_and_exception_patterns_under_guard))
     | vp, ep -> add_case vals case vp, add_case exns case ep
   ) cases ([], [])
+
+let type_for_loop_index ~loc ~env ~param ty =
+  match param.ppat_desc with
+  | Ppat_any -> Ident.create_local "_for", env
+  | Ppat_var {txt} ->
+      Env.enter_value txt
+        {val_type = instance ty;
+          val_attributes = [];
+          val_kind = Val_reg;
+          val_loc = loc;
+          val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+        } env
+        ~check:(fun s -> Warnings.Unused_for_index s)
+  | _ ->
+      raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
 
 (* Type paths *)
 
@@ -2073,6 +2104,7 @@ let rec is_nonexpansive exp =
   | Texp_constant _
   | Texp_unreachable
   | Texp_function _
+  | Texp_probe_is_enabled _
   | Texp_array [] -> true
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
@@ -2095,6 +2127,7 @@ let rec is_nonexpansive exp =
            is_nonexpansive_opt c_guard && is_nonexpansive c_rhs
            && not (contains_exception_pat c_lhs)
         ) cases
+  | Texp_probe {handler} -> is_nonexpansive handler
   | Texp_tuple el ->
       List.for_all is_nonexpansive el
   | Texp_construct( _, _, el) ->
@@ -2155,6 +2188,8 @@ let rec is_nonexpansive exp =
   | Texp_try _
   | Texp_setfield _
   | Texp_while _
+  | Texp_list_comprehension _
+  | Texp_arr_comprehension _
   | Texp_for _
   | Texp_send _
   | Texp_instvar _
@@ -2366,10 +2401,12 @@ let check_partial_application statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
             | Texp_field _ | Texp_setfield _ | Texp_array _
+            | Texp_list_comprehension _ | Texp_arr_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
             | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
             | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
+            | Texp_probe _ | Texp_probe_is_enabled _
             | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, cases, _) ->
@@ -3074,19 +3111,7 @@ and type_expect_
       let high = type_expect env shigh
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
       let id, new_env =
-        match param.ppat_desc with
-        | Ppat_any -> Ident.create_local "_for", env
-        | Ppat_var {txt} ->
-            Env.enter_value txt
-              {val_type = instance Predef.type_int;
-               val_attributes = [];
-               val_kind = Val_reg;
-               val_loc = loc;
-               val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-              } env
-              ~check:(fun s -> Warnings.Unused_for_index s)
-        | _ ->
-            raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
+        type_for_loop_index ~loc ~env ~param Predef.type_int
       in
       let body = type_statement ~explanation:For_loop_body new_env sbody in
       rue {
@@ -3701,8 +3726,64 @@ and type_expect_
       | _ ->
           raise (Error (loc, env, Invalid_extension_constructor_payload))
       end
+  | Pexp_extension ({ txt = ("probe" | "ocaml.probe"); _ }, payload) ->
+      begin match payload with
+      | PStr
+          ([{ pstr_desc =
+                Pstr_eval
+                  ({ pexp_desc =
+                       (Pexp_apply
+                          ({ pexp_desc=
+                               (Pexp_constant (Pconst_string(name,_,None)));
+                             pexp_loc = name_loc;
+                             _ }
+                          , [Nolabel, arg]))
+                   ; _ }
+                  , _)}]) ->
+        check_probe_name name name_loc env;
+        Env.add_probe name;
+        let exp = type_expect env arg (mk_expected Predef.type_unit) in
+        rue {
+          exp_desc = Texp_probe {name; handler=exp};
+          exp_loc = loc; exp_extra = [];
+          exp_type = instance Predef.type_unit;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+      | _ -> raise (Error (loc, env, Probe_format))
+    end
+  | Pexp_extension ({ txt = ("probe_is_enabled"
+                            |"ocaml.probe_is_enabled"); _ }, payload) ->
+      begin match payload with
+      | PStr ([{ pstr_desc =
+                   Pstr_eval
+                     ({pexp_desc=(Pexp_constant (Pconst_string(name,_,None)));
+                       pexp_loc = name_loc;
+                       _ } ,
+                      _)}]) ->
+        check_probe_name name name_loc env;
+        add_delayed_check
+          (fun () ->
+             if not (Env.has_probe name) then
+               raise(Error(name_loc, env, (Probe_name_undefined name))));
+        rue {
+          exp_desc = Texp_probe_is_enabled {name};
+          exp_loc = loc; exp_extra = [];
+          exp_type = instance Predef.type_bool;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+      | _ -> raise (Error (loc, env, Probe_is_enabled_format))
+    end
+  | Pexp_extension (({ txt = ("extension.list_comprehension"
+                            | "extension.arr_comprehension"); _ },
+                    _ ) as extension)  ->
+    if Clflags.is_extension_enabled Clflags.Comprehensions then
+      let ext_expr = Extensions.extension_expr_of_payload ~loc extension in
+      type_extension ~loc ~env ~ty_expected ~sexp ext_expr
+    else
+      raise
+        (Error (loc, env, Extension_not_enabled(Clflags.Comprehensions)))
   | Pexp_extension ext ->
-      raise (Error_forward (Builtin_attributes.error_of_extension ext))
+    raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
   | Pexp_unreachable ->
       re { exp_desc = Texp_unreachable;
@@ -5089,6 +5170,107 @@ and type_andops env sarg sands expected_ty =
   let let_arg, rev_ands = loop env sarg (List.rev sands) expected_ty in
   let_arg, List.rev rev_ands
 
+  and type_extension ~loc ~env ~ty_expected ~sexp = function
+  | Extensions.Eexp_list_comprehension (sbody, comp_typell) ->
+    type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell
+      ~container_type:Predef.type_list ~build:(fun body comp_type ->
+          Texp_list_comprehension (body, comp_type))
+| Extensions.Eexp_arr_comprehension (sbody, comp_typell) ->
+    type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell
+      ~container_type:Predef.type_array ~build:(fun body comp_type ->
+          Texp_arr_comprehension (body, comp_type))
+
+  and type_comprehension ~loc ~env ~ty_expected ~sexp ~sbody ~comp_typell 
+      ~container_type ~build =
+    if !Clflags.principal then begin_def ();
+    let without_arr_ty = Ctype.newvar ()  in
+    unify_exp_types loc env
+      (instance (container_type without_arr_ty)) (instance ty_expected);
+    if !Clflags.principal then begin
+      end_def();
+      generalize_structure without_arr_ty;
+    end;
+    let comp_type, new_env =
+      type_comprehension_list ~loc ~env ~container_type ~comp_typell
+    in
+    let body = type_expect new_env sbody (mk_expected without_arr_ty) in
+    re {
+      exp_desc = build body comp_type;
+      exp_loc = loc; exp_extra = [];
+      exp_type = instance (container_type body.exp_type);
+      exp_attributes = sexp.pexp_attributes;
+      exp_env = env }
+
+  and type_comprehension_clause ~body_env ~env ~loc ~container_type
+      ~(comp_type : Extensions.comprehension_clause) =
+    let comp, env = match comp_type with
+    | From_to (param, slow, shigh, dir) ->
+      let low = type_expect env slow
+          (mk_expected ~explanation:For_loop_start_index Predef.type_int) in
+      let high = type_expect env shigh
+          (mk_expected ~explanation:For_loop_stop_index Predef.type_int) in
+      let id, new_env =
+        type_for_loop_index ~loc ~env:body_env ~param Predef.type_int
+      in
+      From_to(id, param, low, high, dir), new_env
+    | In (param, siter) ->
+      let item_ty = newvar() in
+      let iter_ty = instance (container_type item_ty) in
+      let iter = type_expect env siter
+          (mk_expected ~explanation:In_comprehension_argument iter_ty) in
+      let pat =
+        type_pat Value ~no_existentials:In_self_pattern (ref env) param item_ty
+      in
+      let pv = !pattern_variables in
+      pattern_variables := [];
+      let new_env =
+        List.fold_right
+          (fun {pv_id; pv_type; pv_loc; pv_as_var=_; pv_attributes}
+              env ->
+            Env.add_value pv_id
+              { val_type = pv_type;
+                val_attributes = pv_attributes;
+                val_kind = Val_reg;
+                val_loc = pv_loc;
+                val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+              } env
+              (*Perhaps this should be Unused_var_strict if some of the pattern
+                is used.*)
+              ~check:(fun s -> Warnings.Unused_var s))
+        pv body_env
+      in
+      In(pat, iter), new_env
+    in
+    comp, env
+
+  and type_comprehension_block ~env ~loc
+      ~comp:({clauses; guard} : Extensions.comprehension) ~container_type  =
+    let new_comps, new_env = List.fold_right
+      (fun comp_type (comps, body_env)->
+        let comp, new_env =
+          type_comprehension_clause ~body_env ~env ~loc
+            ~container_type ~comp_type in
+        comp::comps, new_env)
+      clauses
+      ([], env)
+    in
+    let new_guard = Option.map (fun gu -> type_expect new_env gu
+      (mk_expected ~explanation:When_guard Predef.type_bool)) guard in
+    {clauses=new_comps; guard=new_guard}, new_env
+
+  and type_comprehension_list ~loc ~env ~container_type ~comp_typell =
+    let comps, new_env = List.fold_right
+      (fun comp (comps, env) ->
+          let new_comps, new_env  =
+            type_comprehension_block
+              ~env ~loc ~comp ~container_type
+          in
+          new_comps::comps, new_env
+      )
+      comp_typell ([], env)
+    in
+    comps, new_env
+
 (* Typing of toplevel bindings *)
 
 let type_binding env rec_flag spat_sexp_list =
@@ -5199,6 +5381,8 @@ let report_type_expected_explanation expl ppf =
       because "the condition of a while-loop"
   | While_loop_body ->
       because "the body of a while-loop"
+  | In_comprehension_argument ->
+    because "the iteration argument of a comprehension"
   | For_loop_start_index ->
       because "a for-loop start index"
   | For_loop_stop_index ->
@@ -5531,6 +5715,34 @@ let report_error ~loc env = function
   | Not_an_extension_constructor ->
       Location.errorf ~loc
         "This constructor is not an extension constructor."
+  | Probe_name_too_long name ->
+      Location.errorf ~loc
+        "This probe name is too long: `%s'. \
+         Probe names must be at most %d characters long."
+        name probe_name_max_length
+  | Probe_name_format name ->
+      Location.errorf ~loc
+        "Illegal characters in probe name `%s'. \
+         Probe names may only contain alphanumeric characters or \
+         underscores."
+        name
+  | Probe_name_undefined name ->
+      Location.errorf ~loc
+        "Undefined probe name `%s' used in %%probe_is_enabled. \
+         Not found [%%probe \"%s\" ...] in the same compilation unit."
+        name name
+  | Probe_format ->
+      Location.errorf ~loc
+        "Probe points must consist of a name, as a string \
+         literal, followed by a single expression of type unit."
+  | Probe_is_enabled_format ->
+      Location.errorf ~loc
+        "%%probe_is_enabled points must specify a single probe name as a \
+         string literal"
+  | Extension_not_enabled(ext) ->
+    let name = Clflags.string_of_extension ext in
+    Location.errorf ~loc
+        "Extension %s must be enabled to use this feature." name
   | Literal_overflow ty ->
       Location.errorf ~loc
         "Integer literal exceeds the range of representable integers of type %s"

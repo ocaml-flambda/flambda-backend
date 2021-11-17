@@ -38,12 +38,14 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
-  inline : Lambda.inline_attribute;
+  inlined : Lambda.inlined_attribute;
   (** Instructions from the source code as to whether the callee should
       be inlined. *)
   specialise : Lambda.specialise_attribute;
   (** Instructions from the source code as to whether the callee should
       be specialised. *)
+  probe : Lambda.probe;
+  (** Instruction from the source as to whether the call is a probe *)
 }
 
 (** The update of a mutable variable.  Mutable variables are distinct from

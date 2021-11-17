@@ -18,6 +18,8 @@
    your changes will be lost.
 *)
 
+open! Stdlib
+
 type backend_type =
   | Native
   | Bytecode

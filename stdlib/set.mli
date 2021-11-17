@@ -1,3 +1,4 @@
+# 1 "set.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (* NOTE: If this file is set.mli, do not edit it directly! Instead,
    edit templates/set.template.mli and run tools/sync_stdlib_docs *)

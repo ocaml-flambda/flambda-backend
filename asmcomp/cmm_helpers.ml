@@ -239,10 +239,10 @@ let untag_int i dbg =
   match i with
     Cconst_int (n, _) -> Cconst_int(n asr 1, dbg)
   | Cop(Cor, [Cop(Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
-    when n > 0 && n < size_int * 8 ->
+    when n > 0 && n < size_int * 8 - 1 ->
       Cop(Casr, [c; Cconst_int (n+1, dbg)], dbg)
   | Cop(Cor, [Cop(Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
-    when n > 0 && n < size_int * 8 ->
+    when n > 0 && n < size_int * 8 - 1 ->
       Cop(Clsr, [c; Cconst_int (n+1, dbg)], dbg)
   | c -> asr_int c (Cconst_int (1, dbg)) dbg
 
@@ -291,16 +291,16 @@ let mk_compare_ints dbg a1 a2 =
   | Cconst_natint (c1, _), Cconst_int (c2, _) ->
      int_const dbg Nativeint.(compare c1 (of_int c2))
   | a1, a2 -> begin
-      bind "int_cmp" a1 (fun a1 ->
-        bind "int_cmp" a2 (fun a2 ->
+      bind "int_cmp" a2 (fun a2 ->
+        bind "int_cmp" a1 (fun a1 ->
           let op1 = Cop(Ccmpi(Cgt), [a1; a2], dbg) in
           let op2 = Cop(Ccmpi(Clt), [a1; a2], dbg) in
           tag_int(sub_int op1 op2 dbg) dbg))
     end
 
 let mk_compare_floats dbg a1 a2 =
-  bind "float_cmp" a1 (fun a1 ->
-    bind "float_cmp" a2 (fun a2 ->
+  bind "float_cmp" a2 (fun a2 ->
+    bind "float_cmp" a1 (fun a1 ->
       let op1 = Cop(Ccmpf(CFgt), [a1; a2], dbg) in
       let op2 = Cop(Ccmpf(CFlt), [a1; a2], dbg) in
       let op3 = Cop(Ccmpf(CFeq), [a1; a1], dbg) in
@@ -433,6 +433,7 @@ let rec div_int c1 c2 is_safe dbg =
               res = shift-right-signed(c1 + t, l)
         *)
         Cop(Casr, [bind "dividend" c1 (fun c1 ->
+                     assert (l >= 1);
                      let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
                      let t =
                        lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg
@@ -490,6 +491,7 @@ let mod_int c1 c2 is_safe dbg =
               res = c1 - t
          *)
         bind "dividend" c1 (fun c1 ->
+          assert (l >= 1);
           let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
           let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
           let t = add_int c1 t dbg in
@@ -520,8 +522,8 @@ let is_different_from x = function
   | _ -> false
 
 let safe_divmod_bi mkop is_safe mkm1 c1 c2 bi dbg =
-  bind "dividend" c1 (fun c1 ->
   bind "divisor" c2 (fun c2 ->
+  bind "dividend" c1 (fun c1 ->
     let c = mkop c1 c2 is_safe dbg in
     if Arch.division_crashes_on_overflow
     && (size_int = 4 || bi <> Primitive.Pint32)
@@ -569,9 +571,9 @@ let unbox_float dbg =
           | Some (Uconst_float x) ->
               Cconst_float (x, dbg) (* or keep _dbg? *)
           | _ ->
-              Cop(Cload (Double_u, Immutable), [cmm], dbg)
+              Cop(Cload (Double, Immutable), [cmm], dbg)
           end
-      | cmm -> Cop(Cload (Double_u, Immutable), [cmm], dbg)
+      | cmm -> Cop(Cload (Double, Immutable), [cmm], dbg)
     )
 
 (* Complex *)
@@ -579,8 +581,8 @@ let unbox_float dbg =
 let box_complex dbg c_re c_im =
   Cop(Calloc, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
 
-let complex_re c dbg = Cop(Cload (Double_u, Immutable), [c], dbg)
-let complex_im c dbg = Cop(Cload (Double_u, Immutable),
+let complex_re c dbg = Cop(Cload (Double, Immutable), [c], dbg)
+let complex_im c dbg = Cop(Cload (Double, Immutable),
                         [Cop(Cadda, [c; Cconst_int (size_float, dbg)], dbg)],
                         dbg)
 
@@ -728,7 +730,7 @@ let int_array_ref arr ofs dbg =
   Cop(Cload (Word_int, Mutable),
     [array_indexing log2_size_addr arr ofs dbg], dbg)
 let unboxed_float_array_ref arr ofs dbg =
-  Cop(Cload (Double_u, Mutable),
+  Cop(Cload (Double, Mutable),
     [array_indexing log2_size_float arr ofs dbg], dbg)
 let float_array_ref arr ofs dbg =
   box_float dbg (unboxed_float_array_ref arr ofs dbg)
@@ -743,7 +745,7 @@ let int_array_set arr ofs newval dbg =
   Cop(Cstore (Word_int, Lambda.Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
-  Cop(Cstore (Double_u, Lambda.Assignment),
+  Cop(Cstore (Double, Lambda.Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 (* String length *)
@@ -1356,8 +1358,12 @@ let default_prim name =
 let int64_native_prim name arity ~alloc =
   let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
+  let effects = Primitive.Arbitrary_effects in
+  let coeffects = Primitive.Has_coeffects in
   Primitive.make ~name ~native_name:(name ^ "_native")
     ~alloc
+    ~c_builtin:false
+    ~effects ~coeffects
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
@@ -2093,7 +2099,7 @@ let generic_functions shared units =
 type unary_primitive = expression -> Debuginfo.t -> expression
 
 let floatfield n ptr dbg =
-  Cop(Cload (Double_u, Mutable),
+  Cop(Cload (Double, Mutable),
       [if n = 0 then ptr
        else Cop(Cadda, [ptr; Cconst_int(n * size_float, dbg)], dbg)],
       dbg)
@@ -2197,7 +2203,7 @@ let setfield n ptr init arg1 arg2 dbg =
 
 let setfloatfield n init arg1 arg2 dbg =
   return_unit dbg (
-    Cop(Cstore (Double_u, init),
+    Cop(Cstore (Double, init),
         [if n = 0 then arg1
          else Cop(Cadda, [arg1; Cconst_int(n * size_float, dbg)], dbg);
          arg2], dbg))
@@ -2271,8 +2277,8 @@ let stringref_unsafe arg1 arg2 dbg =
 
 let stringref_safe arg1 arg2 dbg =
   tag_int
-    (bind "str" arg1 (fun str ->
-      bind "index" (untag_int arg2 dbg) (fun idx ->
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+      bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cload (Byte_unsigned, Mutable),
@@ -2280,17 +2286,17 @@ let stringref_safe arg1 arg2 dbg =
 
 let string_load size unsafe arg1 arg2 dbg =
   box_sized size dbg
-    (bind "str" arg1 (fun str ->
-     bind "index" (untag_int arg2 dbg) (fun idx ->
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+     bind "str" arg1 (fun str ->
        check_bound unsafe size dbg
           (string_length str dbg)
           idx (unaligned_load size str idx dbg))))
 
 let bigstring_load size unsafe arg1 arg2 dbg =
   box_sized size dbg
-   (bind "ba" arg1 (fun ba ->
-    bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "ba_data"
+    (bind "index" (untag_int arg2 dbg) (fun idx ->
+     bind "ba" arg1 (fun ba ->
+     bind "ba_data"
      (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
      (fun ba_data ->
         check_bound unsafe size dbg
@@ -2301,8 +2307,8 @@ let bigstring_load size unsafe arg1 arg2 dbg =
 let arrayref_unsafe kind arg1 arg2 dbg =
   match (kind : Lambda.array_kind) with
   | Pgenarray ->
-      bind "arr" arg1 (fun arr ->
-        bind "index" arg2 (fun idx ->
+      bind "index" arg2 (fun idx ->
+        bind "arr" arg1 (fun arr ->
           Cifthenelse(is_addr_array_ptr arr dbg,
                       dbg,
                       addr_array_ref arr idx dbg,
@@ -2389,14 +2395,15 @@ let bytesset_unsafe arg1 arg2 arg3 dbg =
 
 let bytesset_safe arg1 arg2 arg3 dbg =
   return_unit dbg
-    (bind "str" arg1 (fun str ->
+    (bind "newval" (untag_int arg3 dbg) (fun newval ->
       bind "index" (untag_int arg2 dbg) (fun idx ->
+       bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
           Cop(Cstore (Byte_unsigned, Assignment),
               [add_int str idx dbg;
-               ignore_high_bit_int (untag_int arg3 dbg)],
-              dbg)))))
+               ignore_high_bit_int newval],
+              dbg))))))
 
 let arrayset_unsafe kind arg1 arg2 arg3 dbg =
   return_unit dbg (match (kind: Lambda.array_kind) with
@@ -2484,17 +2491,17 @@ let arrayset_safe kind arg1 arg2 arg3 dbg =
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
-   (bind "str" arg1 (fun str ->
+   (bind "newval" arg3 (fun newval ->
     bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "newval" arg3 (fun newval ->
+    bind "str" arg1 (fun str ->
       check_bound unsafe size dbg (string_length str dbg)
                   idx (unaligned_set size str idx newval dbg)))))
 
 let bigstring_set size unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
-   (bind "ba" arg1 (fun ba ->
+   (bind "newval" arg3 (fun newval ->
     bind "index" (untag_int arg2 dbg) (fun idx ->
-    bind "newval" arg3 (fun newval ->
+    bind "ba" arg1 (fun ba ->
     bind "ba_data"
          (Cop(Cload (Word_int, Mutable), [field_address ba 1 dbg], dbg))
          (fun ba_data ->

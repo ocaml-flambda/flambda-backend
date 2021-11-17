@@ -153,10 +153,13 @@ AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([frame_pointers])
 AC_SUBST([flambda])
+AC_SUBST([flambda2])
 AC_SUBST([flambda_invariants])
+AC_SUBST([cmm_invariants])
 AC_SUBST([windows_unicode])
 AC_SUBST([flat_float_array])
 AC_SUBST([function_sections])
+AC_SUBST([probes])
 AC_SUBST([afl])
 AC_SUBST([force_safe_string])
 AC_SUBST([default_safe_string])
@@ -167,6 +170,7 @@ AC_SUBST([stdlib_manpages])
 AC_SUBST([compute_deps])
 AC_SUBST([naked_pointers])
 AC_SUBST([naked_pointers_checker])
+AC_SUBST([intel_jcc_bug_cflags])
 
 ## Generated files
 
@@ -303,11 +307,19 @@ AC_ARG_ENABLE([native-compiler],
 
 AC_ARG_ENABLE([flambda],
   [AS_HELP_STRING([--enable-flambda],
-    [enable flambda optimizations])])
+    [enable the Flambda 1 middle end])])
 
 AC_ARG_ENABLE([flambda-invariants],
   [AS_HELP_STRING([--enable-flambda-invariants],
     [enable invariants checks in flambda])])
+
+AC_ARG_ENABLE([flambda2],
+  [AS_HELP_STRING([--enable-flambda2],
+    [enable the Flambda 2 middle end])])
+
+AC_ARG_ENABLE([cmm-invariants],
+  [AS_HELP_STRING([--enable-cmm-invariants],
+    [enable invariants checks in Cmm])])
 
 AC_ARG_WITH([target-bindir],
   [AS_HELP_STRING([--with-target-bindir],
@@ -1070,6 +1082,16 @@ AS_CASE([$arch],
        [common_cflags="-no-pie $common_cflags"],
     [])])
 
+# The major GC performs better with this flag on Intel processors
+# This is a workaround for an Intel CPU bug:
+# https://www.intel.co.uk/content/www/uk/en/support/articles/000055650/processors.html
+
+intel_jcc_bug_cflags=''
+AS_CASE([$arch],
+  [amd64],
+    [AX_CHECK_COMPILE_FLAG([-Wa,-mbranches-within-32B-boundaries],
+     [intel_jcc_bug_cflags=-Wa,-mbranches-within-32B-boundaries])])
+
 # Assembler
 
 AS_IF([test -n "$host_alias"], [toolpref="${host_alias}-"], [toolpref=""])
@@ -1763,11 +1785,24 @@ AS_CASE([$enable_ocamltest,AC_PACKAGE_VERSION],
 
 AS_IF([test x"$enable_flambda" = "xyes"],
   [flambda=true
-  AS_IF([test x"$enable_flambda_invariants" = "xyes"],
-    [flambda_invariants=true],
-    [flambda_invariants=false])],
-  [flambda=false
-  flambda_invariants=false])
+   flambda2=false
+   AS_IF([test x"$enable_flambda2" = "xyes"],
+     [AC_MSG_ERROR([please enable only one of Flambda 1 and Flambda 2])],
+     [])],
+  [flambda=false])
+
+AS_IF([test x"$enable_flambda2" = "xyes"],
+  [flambda2=true
+   flambda=false],
+  [flambda2=false])
+
+AS_IF([test x"$enable_flambda_invariants" = "xyes"],
+  [flambda_invariants=true],
+  [flambda_invariants=false])
+
+AS_IF([test x"$enable_cmm_invariants" = "xyes"],
+  [cmm_invariants=true],
+  [cmm_invariants=false])
 
 AS_IF([test x"$enable_flat_float_array" = "xno"],
   [flat_float_array=false],
@@ -1806,6 +1841,17 @@ AS_IF([test x"$enable_function_sections" = "xno"],
       [AC_MSG_ERROR([Function sections are not supported.])],
       [AC_MSG_NOTICE([Disabling function sections.])])],
     [])])
+
+AS_CASE([$arch],
+  [amd64],
+    [AS_CASE([$target],
+      [*-cygwin*|*-mingw*|*-windows],[probes=false],
+      [*],[probes=true])],
+  [*],[probes=false])
+
+AS_IF([test x"$probes" = "xfalse"],
+  [AC_MSG_NOTICE([Disabling tracing probes: no support on $target.])],
+  [])
 
 AS_IF([test x"$with_afl" = "xyes"],
   [afl=true],
@@ -1859,13 +1905,13 @@ AS_CASE([$host],
     flexlink_flags="-chain $flexdll_chain -stack 16777216"],
   [x86_64-w64-mingw32],
     [flexdll_chain='mingw64'
-    flexlink_flags="-chain $flexdll_chain -stack 33554432"],
+    flexlink_flags="-chain $flexdll_chain -stack 67108864"],
   [i686-pc-windows],
     [flexdll_chain='msvc'
     flexlink_flags="-merge-manifest -stack 16777216"],
   [x86_64-pc-windows],
     [flexdll_chain='msvc64'
-    flexlink_flags="-x64 -merge-manifest -stack 33554432"])
+    flexlink_flags="-x64 -merge-manifest -stack 67108864"])
 
 # Define default prefix correctly for the different Windows ports
 AS_IF([test x"$prefix" = "xNONE"],

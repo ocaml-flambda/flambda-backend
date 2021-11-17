@@ -1,3 +1,4 @@
+# 1 "listLabels.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.nolabels]
 
 (* NOTE:
    If this file is listLabels.mli, run tools/sync_stdlib_docs after editing it

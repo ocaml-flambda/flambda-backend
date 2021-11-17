@@ -220,10 +220,20 @@ let set_compiler_pass ppf ~name v flag ~filter =
 (* 'can-discard=' specifies which arguments can be discarded without warning
    because they are not understood by some versions of OCaml. *)
 let can_discard = ref []
+let warnings_for_discarded_params = ref false
+
+let extra_params = ref None
+let set_extra_params params = extra_params := params
 
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
+  let handled =
+    match !extra_params with
+    | Some h -> h ppf position name v
+    | None -> false
+  in
+  if not handled then
   match name with
   | "g" -> set "g" [ Clflags.debug ] v
   | "bin-annot" -> set "bin-annot" [ Clflags.binary_annotations ] v
@@ -251,6 +261,7 @@ let read_one_param ppf position name v =
   | "slash" -> set "slash" [ force_slash ] v (* for ocamldep *)
   | "keep-docs" -> set "keep-docs" [ Clflags.keep_docs ] v
   | "keep-locs" -> set "keep-locs" [ Clflags.keep_locs ] v
+  | "probes" -> set "probes" [ Clflags.probes ] v
 
   | "compact" -> clear "compact" [ optimize_for_speed ] v
   | "no-app-funct" -> clear "no-app-funct" [ applicative_functors ] v
@@ -336,23 +347,9 @@ let read_one_param ppf position name v =
     Int_arg_helper.parse v
       "Bad syntax in OCAMLPARAM for 'inline-max-depth'"
       inline_max_depth
-
-  | "Oclassic" ->
-      set "Oclassic" [ classic_inlining ] v
-  | "O2" ->
-    if check_bool ppf "O2" v then begin
-      default_simplify_rounds := 2;
-      use_inlining_arguments_set o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    end
-
-  | "O3" ->
-    if check_bool ppf "O3" v then begin
-      default_simplify_rounds := 3;
-      use_inlining_arguments_set o3_arguments;
-      use_inlining_arguments_set ~round:1 o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    end
+  | "Oclassic" -> if check_bool ppf "Oclassic" v then Clflags.set_oclassic ()
+  | "O2" -> if check_bool ppf "O2" v then Clflags.set_o2 ()
+  | "O3" -> if check_bool ppf "O3" v then Clflags.set_o3 ()
   | "unbox-closures" ->
       set "unbox-closures" [ unbox_closures ] v
   | "unbox-closures-factor" ->
@@ -368,6 +365,8 @@ let read_one_param ppf position name v =
       set "flambda-verbose" [ dump_flambda_verbose ] v
   | "flambda-invariants" ->
       set "flambda-invariants" [ flambda_invariant_checks ] v
+  | "cmm-invariants" ->
+      set "cmm-invariants" [ cmm_invariants ] v
   | "linscan" ->
       set "linscan" [ use_linscan ] v
   | "insn-sched" -> set "insn-sched" [ insn_sched ] v
@@ -471,7 +470,8 @@ let read_one_param ppf position name v =
     end
 
   | _ ->
-    if not (List.mem name !can_discard) then begin
+    if !warnings_for_discarded_params &&
+       not (List.mem name !can_discard) then begin
       can_discard := name :: !can_discard;
       Printf.ksprintf (print_error ppf)
         "Warning: discarding value of variable %S in OCAMLPARAM\n%!"

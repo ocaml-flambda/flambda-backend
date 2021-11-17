@@ -55,6 +55,12 @@ val anonymous : t -> bool
 (* Name for printing *)
 val name : t -> string
 
+(* Check [t]'s location *)
+val is_reg : t -> bool
+val is_stack :  t -> bool
+
+val size_of_contents_in_bytes : t -> int
+
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
 

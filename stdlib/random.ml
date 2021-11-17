@@ -1,3 +1,4 @@
+# 1 "random.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
 
 (* Pseudo-random number generator
    This is a lagged-Fibonacci F(55, 24, +) with a modified addition

@@ -121,6 +121,9 @@ val cmt_magic_number: string
 val linear_magic_number: string
 (** Magic number for Linear internal representation files *)
 
+val cfg_magic_number: string
+(** Magic number for Cfg internal representation files *)
+
 val max_tag: int
 (** Biggest tag that can be stored in the header of a regular block. *)
 
@@ -195,10 +198,20 @@ val target : string
 (** Whether the compiler is a cross-compiler *)
 
 val flambda : bool
-(** Whether the compiler was configured for flambda *)
+(** Whether the compiler was configured for Flambda 1 *)
+
+val flambda2 : bool
+(** Whether the compiler was configured for Flambda 2 *)
+
+val flambda_backend : bool
+(** [true] if the compiler was built in a Flambda backend repo, [false] if
+    the compiler was built as per upstream. *)
 
 val with_flambda_invariants : bool
 (** Whether the invariants checks for flambda are enabled *)
+
+val with_cmm_invariants : bool
+(** Whether the invariants checks for Cmm are enabled *)
 
 val profinfo : bool
 (** Whether the compiler was configured for profiling *)
@@ -226,6 +239,9 @@ val flat_float_array : bool
 val function_sections : bool
 (** Whether the compiler was configured to generate
     each function in a separate section *)
+
+val probes : bool
+(** Whether the target supports tracing probes *)
 
 val windows_unicode: bool
 (** Whether Windows Unicode runtime is enabled *)

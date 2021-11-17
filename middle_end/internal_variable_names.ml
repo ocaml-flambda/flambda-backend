@@ -136,6 +136,7 @@ let plsrbint = "Plsrbint"
 let plsrint = "Plsrint"
 let pmakearray = "Pmakearray"
 let pmakeblock = "Pmakeblock"
+let pmakefloatblock = "Pmakefloatblock"
 let pmodbint = "Pmodbint"
 let pmodint = "Pmodint"
 let pmulbint = "Pmulbint"
@@ -172,6 +173,7 @@ let psubfloat = "Psubfloat"
 let psubint = "Psubint"
 let pxorbint = "Pxorbint"
 let pxorint = "Pxorint"
+let pprobe_is_enabled = "Pprobe_is_enabled"
 let pabsfloat_arg = "Pabsfloat_arg"
 let paddbint_arg = "Paddbint_arg"
 let paddfloat_arg = "Paddfloat_arg"
@@ -238,6 +240,7 @@ let plsrbint_arg = "Plsrbint_arg"
 let plsrint_arg = "Plsrint_arg"
 let pmakearray_arg = "Pmakearray_arg"
 let pmakeblock_arg = "Pmakeblock_arg"
+let pmakefloatblock_arg = "Pmakefloatblock_arg"
 let pmodbint_arg = "Pmodbint_arg"
 let pmodint_arg = "Pmodint_arg"
 let pmulbint_arg = "Pmulbint_arg"
@@ -277,6 +280,7 @@ let psubfloat_arg = "Psubfloat_arg"
 let psubint_arg = "Psubint_arg"
 let pxorbint_arg = "Pxorbint_arg"
 let pxorint_arg = "Pxorint_arg"
+let pprobe_is_enabled_arg = "Pprobe_is_enabled_arg"
 let raise = "raise"
 let raise_arg = "raise_arg"
 let read_mutable = "read_mutable"
@@ -297,6 +301,7 @@ let toplevel_substitution_named = "toplevel_substitution_named"
 let unbox_free_vars_of_closures = "unbox_free_vars_of_closures"
 let unit = "unit"
 let zero = "zero"
+let probe_handler = "probe_handler"
 
 let anon_fn_with_loc (sloc: Lambda.scoped_location) =
   let loc = Debuginfo.Scoped_location.to_location sloc in
@@ -319,8 +324,9 @@ let of_primitive : Lambda.primitive -> string = function
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
   | Pmakeblock _ -> pmakeblock
+  | Pmakefloatblock _ -> pmakefloatblock
   | Pfield _ -> pfield
-  | Pfield_computed -> pfield_computed
+  | Pfield_computed _ -> pfield_computed
   | Psetfield _ -> psetfield
   | Psetfield_computed _ -> psetfield_computed
   | Pfloatfield _ -> pfloatfield
@@ -414,6 +420,7 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap
   | Pint_as_pointer -> pint_as_pointer
   | Popaque -> popaque
+  | Pprobe_is_enabled _ -> pprobe_is_enabled
 
 let of_primitive_arg : Lambda.primitive -> string = function
   | Pidentity -> pidentity_arg
@@ -425,8 +432,9 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
   | Pmakeblock _ -> pmakeblock_arg
+  | Pmakefloatblock _ -> pmakefloatblock_arg
   | Pfield _ -> pfield_arg
-  | Pfield_computed -> pfield_computed_arg
+  | Pfield_computed _ -> pfield_computed_arg
   | Psetfield _ -> psetfield_arg
   | Psetfield_computed _ -> psetfield_computed_arg
   | Pfloatfield _ -> pfloatfield_arg
@@ -520,3 +528,4 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbbswap _ -> pbbswap_arg
   | Pint_as_pointer -> pint_as_pointer_arg
   | Popaque -> popaque_arg
+  | Pprobe_is_enabled _ -> pprobe_is_enabled_arg

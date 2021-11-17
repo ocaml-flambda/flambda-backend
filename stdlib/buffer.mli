@@ -1,3 +1,4 @@
+# 1 "buffer.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Extensible buffers.
 
@@ -29,6 +32,8 @@
 ]}
 
 *)
+
+[@@@ocaml.warning "A"]
 
 type t
 (** The abstract type of buffers. *)

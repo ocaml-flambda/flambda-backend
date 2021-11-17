@@ -1,3 +1,4 @@
+# 1 "moreLabels.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,7 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
+
 (* Module [MoreLabels]: meta-module for compatibility labelled libraries *)
+
+[@@@ocaml.nolabels]
 
 module Hashtbl = Hashtbl
 

@@ -195,6 +195,26 @@ list: lib tools
   fi
 	@$(MAKE) --no-print-directory one LIST="$(FILE)"
 
+.PHONY: list-parallel
+list-parallel: lib tools
+	@if [ -z "$(FILE)" ]; \
+	  then echo "No value set for variable 'FILE'."; \
+	  exit 1; \
+	fi
+	@echo | parallel >/dev/null 2>/dev/null \
+	 || (echo "Unable to run the GNU parallel tool;";\
+	     echo "You should install it before using the parallel* targets.";\
+	     exit 1)
+	@echo | parallel --gnu --no-notice >/dev/null 2>/dev/null \
+	 || (echo "Your 'parallel' tool seems incompatible with GNU parallel.";\
+	     echo "This target requires GNU parallel.";\
+	     exit 1)
+	@cat $(FILE) \
+	 | parallel --gnu --no-notice --keep-order \
+	   "$(MAKE) $(NO_PRINT) exec-one DIR={} 2>&1" \
+	 | tee $(TESTLOG)
+	@$(MAKE) report
+
 .PHONY: one
 one: lib tools
 	@case "$(words $(DIR) $(LIST) $(TEST))" in \

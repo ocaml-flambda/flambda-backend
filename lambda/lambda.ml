@@ -16,6 +16,8 @@
 open Misc
 open Asttypes
 
+type mutable_flag = Immutable | Immutable_unique | Mutable
+
 type compile_time_constant =
   | Big_endian
   | Word_size
@@ -39,6 +41,10 @@ type is_safe =
   | Safe
   | Unsafe
 
+type field_read_semantics =
+  | Reads_agree
+  | Reads_vary
+
 type primitive =
   | Pidentity
   | Pbytes_to_string
@@ -51,11 +57,12 @@ type primitive =
   | Psetglobal of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int
-  | Pfield_computed
+  | Pmakefloatblock of mutable_flag
+  | Pfield of int * field_read_semantics
+  | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int
+  | Pfloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Force lazy values *)
@@ -143,6 +150,8 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
+  (* Statically-defined probes *)
+  | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -152,6 +161,7 @@ and float_comparison =
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pblock of { tag : int; fields : value_kind list }
 
 and block_shape =
   value_kind list option
@@ -196,13 +206,17 @@ let equal_primitive =
      than 100 constructors... *)
   (=)
 
-let equal_value_kind x y =
+let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
   | Pfloatval, Pfloatval -> true
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
   | Pintval, Pintval -> true
-  | (Pgenval | Pfloatval | Pboxedintval _ | Pintval), _ -> false
+  | Pblock { tag = tag1; fields = fields1 },
+    Pblock { tag = tag2; fields = fields2 } ->
+    tag1 = tag2 && List.length fields1 = List.length fields2 &&
+    List.for_all2 equal_value_kind fields1 fields2
+  | (Pgenval | Pfloatval | Pboxedintval _ | Pintval | Pblock _), _ -> false
 
 
 type structured_constant =
@@ -210,6 +224,7 @@ type structured_constant =
   | Const_block of int * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
+  | Const_float_block of string list
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -220,23 +235,47 @@ type tailcall_attribute =
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Hint_inline (* [@inlined hint] attribute *)
+  | Available_inline (* [@inline available] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 
-let equal_inline_attribute x y =
+type inlined_attribute =
+  | Always_inlined (* [@inlined] or [@inlined always] *)
+  | Never_inlined (* [@inlined never] *)
+  | Hint_inlined (* [@inlined hint] *)
+  | Unroll of int (* [@unroll x] *)
+  | Default_inlined (* no [@inlined] attribute *)
+
+let equal_inline_attribute (x : inline_attribute) (y : inline_attribute) =
   match x, y with
   | Always_inline, Always_inline
   | Never_inline, Never_inline
-  | Hint_inline, Hint_inline
+  | Available_inline, Available_inline
   | Default_inline, Default_inline
     ->
     true
   | Unroll u, Unroll v ->
     u = v
   | (Always_inline | Never_inline
-    | Hint_inline | Unroll _ | Default_inline), _ ->
+    | Available_inline | Unroll _ | Default_inline), _ ->
     false
+
+let equal_inlined_attribute (x : inlined_attribute) (y : inlined_attribute) =
+  match x, y with
+  | Always_inlined, Always_inlined
+  | Never_inlined, Never_inlined
+  | Hint_inlined, Hint_inlined
+  | Default_inlined, Default_inlined
+    ->
+    true
+  | Unroll u, Unroll v ->
+    u = v
+  | (Always_inlined | Never_inlined
+    | Hint_inlined | Unroll _ | Default_inlined), _ ->
+    false
+
+type probe_desc = { name: string }
+type probe = probe_desc option
 
 type specialise_attribute =
   | Always_specialise (* [@specialise] or [@specialise always] *)
@@ -318,8 +357,10 @@ and lambda_apply =
     ap_args : lambda list;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
-    ap_inlined : inline_attribute;
-    ap_specialised : specialise_attribute; }
+    ap_inlined : inlined_attribute;
+    ap_specialised : specialise_attribute;
+    ap_probe : probe;
+  }
 
 and lambda_switch =
   { sw_numconsts: int;
@@ -643,7 +684,7 @@ let rec transl_address loc = function
       then Lprim(Pgetglobal id, [], loc)
       else Lvar id
   | Env.Adot(addr, pos) ->
-      Lprim(Pfield pos, [transl_address loc addr], loc)
+      Lprim(Pfield (pos, Reads_agree), [transl_address loc addr], loc)
 
 let transl_path find loc env path =
   match find path env with
@@ -820,7 +861,7 @@ let shallow_map f = function
   | Lvar _
   | Lconst _ as lam -> lam
   | Lapply { ap_func; ap_args; ap_loc; ap_tailcall;
-             ap_inlined; ap_specialised } ->
+             ap_inlined; ap_specialised; ap_probe; } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
@@ -828,6 +869,7 @@ let shallow_map f = function
         ap_tailcall;
         ap_inlined;
         ap_specialised;
+        ap_probe;
       }
   | Lfunction { kind; params; return; body; attr; loc; } ->
       Lfunction { kind; params; return; body = f body; attr; loc; }
@@ -954,3 +996,9 @@ let max_arity () =
 
 let reset () =
   raise_count := 0
+
+let mod_field ?(read_semantics=Reads_agree) pos =
+  Pfield (pos, read_semantics)
+
+let mod_setfield pos =
+  Psetfield (pos, Pointer, Root_initialization)
