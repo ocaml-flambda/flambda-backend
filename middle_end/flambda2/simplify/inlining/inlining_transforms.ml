@@ -25,15 +25,6 @@ module VB = Bound_var
 let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
     ~rec_info ~body ~exn_continuation ~return_continuation
     ~apply_exn_continuation ~apply_return_continuation =
-  let perm = Renaming.empty in
-  let perm =
-    match (apply_return_continuation : Apply.Result_continuation.t) with
-    | Return k -> Renaming.add_continuation perm return_continuation k
-    | Never_returns -> perm
-  in
-  let perm =
-    Renaming.add_continuation perm exn_continuation apply_exn_continuation
-  in
   let callee, rec_info =
     match unroll_to with
     | None -> callee, rec_info
@@ -47,135 +38,39 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
       in
       callee, unrolled_rec_info
   in
-  let body =
-    Let.create
-      (Bound_pattern.singleton (VB.create my_closure Name_mode.normal))
-      (Named.create_simple callee)
-      ~body
-        (* Here and below, we don't need to give any name occurrence information
-           (thank goodness!) since the entirety of the expression we're building
-           will be re-simplified. *)
-      ~free_names_of_body:Unknown
-    |> Expr.create_let
+  let my_closure =
+    Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
   in
-  let body =
+  let bind_params = Expr.bind_parameters_to_args_no_simplification in
+  let bind_depth ~my_depth ~rec_info ~body =
     let bound = Bound_pattern.singleton (VB.create my_depth Name_mode.normal) in
     Let.create bound
       (Named.create_rec_info rec_info)
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let
   in
-  Expr.apply_renaming
-    (Expr.bind_parameters_to_args_no_simplification ~params ~args ~body)
-    perm
+  let apply_renaming = Expr.apply_renaming in
+  Inlining_helpers.make_inlined_body ~callee ~params ~args ~my_closure ~my_depth
+    ~rec_info ~body ~exn_continuation ~return_continuation
+    ~apply_exn_continuation ~apply_return_continuation ~bind_params ~bind_depth
+    ~apply_renaming
 
 let wrap_inlined_body_for_exn_support ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body =
-  (* We need to add a wrapper for the exception handler, so that exceptions
-     coming from the inlined body go through the wrapper and are re-raised with
-     the correct extra arguments.
-
-     This means we also need to add a push trap before the inlined body, and a
-     pop trap after.
-
-     The push trap is simply a matter of jumping to the body, while the pop trap
-     needs to replace the body's return continuation with a wrapper that pops
-     then jumps back. *)
-  (*
-   * As a result, the application [Apply_expr f (args) <k> «k_exn»]
-   * is replaced (before the actual inlining) by:
-   *
-   * [let_cont_exn k1 (exn: val) =
-   *   Apply_cont k_exn exn extra_args
-   * in
-   * let_cont k_pop (args) = Apply_cont<pop k1> k args in
-   * let_cont k_push () = Apply_expr f (args) <k_pop> «k1» in
-   * Apply_cont<push k1> k_push ()]
-   *)
-  (* This feels quite heavy, but is necessary because we can rewrite neither the
-     definition and other uses of k_exn nor the uses of the exception
-     continuation in the body of f, so we need two distinct exception
-     continuations; and of course the new exception continuation needs to be
-     correctly pushed and popped.
-
-     The most annoying part of this is that it introduces trywith blocks that
-     were not part of the initial program, will not be removed, and might be
-     useless (if the function never raises).
-
-     Maybe a better solution would be to propagate through dacc a lazy
-     rewriting, that would add the correct extra args to all uses of the
-     exception continuation in the body. *)
-  let wrapper = Continuation.create () in
-  let body_with_pop =
-    match (apply_return_continuation : Apply.Result_continuation.t) with
-    | Never_returns ->
-      make_inlined_body ~apply_exn_continuation:wrapper
-        ~apply_return_continuation
-    | Return apply_return_continuation ->
-      let pop_wrapper_cont = Continuation.create () in
-      let pop_wrapper_handler =
-        let kinded_params =
-          List.map (fun k -> Variable.create "wrapper_return", k) result_arity
-        in
-        let trap_action =
-          Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
-        in
-        let args = List.map (fun (v, _) -> Simple.var v) kinded_params in
-        let handler =
-          Apply_cont.create ~trap_action apply_return_continuation ~args
-            ~dbg:Debuginfo.none
-          |> Expr.create_apply_cont
-        in
-        Continuation_handler.create
-          (Bound_parameter.List.create kinded_params)
-          ~handler ~free_names_of_handler:Unknown ~is_exn_handler:false
-      in
-      let new_apply_return_continuation =
-        Apply.Result_continuation.Return pop_wrapper_cont
-      in
-      let body =
-        make_inlined_body ~apply_exn_continuation:wrapper
-          ~apply_return_continuation:new_apply_return_continuation
-      in
-      Let_cont.create_non_recursive pop_wrapper_cont pop_wrapper_handler ~body
-        ~free_names_of_body:Unknown
+  let apply_cont_create () ~trap_action cont ~args ~dbg =
+    Apply_cont.create ~trap_action cont ~args ~dbg |> Expr.create_apply_cont
   in
-  let wrapper_handler =
-    let param = Variable.create "exn" in
-    let kinded_params = [BP.create param K.With_subkind.any_value] in
-    let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
-    let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
+  let let_cont_create () cont ~handler_params ~handler ~body ~is_exn_handler =
     let handler =
-      (* Backtrace building functions expect compiler-generated raises not to
-         have any debug info *)
-      Apply_cont.create ~trap_action
-        (Exn_continuation.exn_handler apply_exn_continuation)
-        ~args:(Simple.var param :: List.map fst extra_args)
-        ~dbg:Debuginfo.none
-      |> Expr.create_apply_cont
+      Continuation_handler.create handler_params ~handler:(handler ())
+        ~free_names_of_handler:Unknown ~is_exn_handler
     in
-    Continuation_handler.create kinded_params ~handler
-      ~free_names_of_handler:Unknown ~is_exn_handler:true
-  in
-  let body_with_push =
-    (* Wrap the body between push and pop of the wrapper handler *)
-    let push_wrapper_cont = Continuation.create () in
-    let handler = body_with_pop in
-    let push_wrapper_handler =
-      Continuation_handler.create [] ~handler ~free_names_of_handler:Unknown
-        ~is_exn_handler:false
-    in
-    let trap_action = Trap_action.Push { exn_handler = wrapper } in
-    let body =
-      Apply_cont.create ~trap_action push_wrapper_cont ~args:[]
-        ~dbg:Debuginfo.none
-      |> Expr.create_apply_cont
-    in
-    Let_cont.create_non_recursive push_wrapper_cont push_wrapper_handler ~body
+    Let_cont.create_non_recursive cont handler ~body:(body ())
       ~free_names_of_body:Unknown
   in
-  Let_cont.create_non_recursive wrapper wrapper_handler ~body:body_with_push
-    ~free_names_of_body:Unknown
+  Inlining_helpers.wrap_inlined_body_for_exn_support () ~extra_args
+    ~apply_exn_continuation ~apply_return_continuation ~result_arity
+    ~make_inlined_body ~apply_cont_create ~let_cont_create
 
 let inline dacc ~apply ~unroll_to function_decl =
   let callee = Apply.callee apply in
@@ -210,14 +105,14 @@ let inline dacc ~apply ~unroll_to function_decl =
          ~my_depth
          ~free_names_of_body:_
        ->
-      let make_inlined_body =
+      let make_inlined_body () =
         make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
           ~rec_info ~body ~exn_continuation ~return_continuation
       in
       let expr =
         match Exn_continuation.extra_args apply_exn_continuation with
         | [] ->
-          make_inlined_body
+          make_inlined_body ()
             ~apply_exn_continuation:
               (Exn_continuation.exn_handler apply_exn_continuation)
             ~apply_return_continuation

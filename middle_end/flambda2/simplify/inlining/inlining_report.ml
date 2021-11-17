@@ -25,6 +25,7 @@ type at_call_site =
   | Unknown_function
 
 type fundecl_pass =
+  | After_closure_conversion
   | Before_simplify of { dbg_including_inlining_stack : Debuginfo.t }
   | After_simplify
 
@@ -83,6 +84,16 @@ let [@ocamlformat "disable"] rec print ~depth fmt = function
   | [] ->
     if depth <> 0 then
       Misc.fatal_errorf "incoherent depth at end of inlining report"
+
+  (* After closure conversion of a function *)
+  | { dbg; decision = At_function_declaration {
+      pass = After_closure_conversion; code_id; decision; } } :: r ->
+    Format.fprintf fmt "%a Definition of %s{%a}@\n"
+      stars depth Code_id.(name (import code_id)) print_debuginfo dbg;
+    Format.fprintf fmt "%a @[<v>After closure conversion:@ @ %a@]@\n@\n"
+      stars (depth + 1)
+      Function_decl_inlining_decision_type.report decision;
+    print ~depth fmt r
 
   (* Entering a function declaration (possibly nested) *)
   | { dbg; decision = At_function_declaration {
