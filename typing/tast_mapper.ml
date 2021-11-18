@@ -250,13 +250,14 @@ let expr sub x =
     | Texp_function { arg_label; param; cases; partial; } ->
         let cases = List.map (sub.case sub) cases in
         Texp_function { arg_label; param; cases; partial; }
-    | Texp_apply (exp, list) ->
+    | Texp_apply (exp, list, pos) ->
         Texp_apply (
           sub.expr sub exp,
           List.map (function
             | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
             | (lbl, Omitted o) -> (lbl, Omitted o))
-            list
+            list,
+          pos
         )
     | Texp_match (exp, cases, p) ->
         Texp_match (

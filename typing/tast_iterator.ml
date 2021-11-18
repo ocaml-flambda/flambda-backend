@@ -195,7 +195,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub exp
   | Texp_function {cases; _} ->
      List.iter (sub.case sub) cases
-  | Texp_apply (exp, list) ->
+  | Texp_apply (exp, list, _) ->
       sub.expr sub exp;
       List.iter (function
         | (_, Arg exp) -> sub.expr sub exp

@@ -312,7 +312,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, loc) ->
+  | Lsend (kind, meth, obj, args, _FIXME, loc) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in
@@ -414,11 +414,12 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let var defining_expr
       (name_expr (Const (Int 0)) ~name:Names.unit)
-  | Lprim (Pdirapply, [funct; arg], loc)
-  | Lprim (Prevapply, [arg; funct], loc) ->
+  | Lprim (Pdirapply pos, [funct; arg], loc)
+  | Lprim (Prevapply pos, [arg; funct], loc) ->
     let apply : Lambda.lambda_apply =
       { ap_func = funct;
         ap_args = [arg];
+        ap_position = pos;
         ap_loc = loc;
         (* CR-someday lwhite: it would be nice to be able to give
            application attributes to functions applied with the application

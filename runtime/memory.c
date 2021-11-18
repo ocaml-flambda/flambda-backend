@@ -794,6 +794,16 @@ CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
 #endif
 }
 
+CAMLprim value caml_local_stack_offset(value blk)
+{
+#ifdef NATIVE_CODE
+  intnat sp = Caml_state->local_sp;
+  return Val_long(-sp);
+#else
+  return Val_long(0);
+#endif
+}
+
 /* Global memory pool.
 
    The pool is structured as a ring of blocks, where each block's header

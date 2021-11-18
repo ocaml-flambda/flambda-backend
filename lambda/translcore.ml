@@ -104,6 +104,11 @@ let sub_mode a b =
   | _, Alloc_local -> true
   | Alloc_local, Alloc_heap -> false
 
+let transl_apply_position position =
+  match position with
+  | Nontail -> Apply_nontail
+  | Tail -> Apply_tail
+
 (* Push the default values under the functional abstractions *)
 (* Also push bindings of module patterns, since this sound *)
 
@@ -243,16 +248,39 @@ let transl_ident loc env ty path desc kind =
       transl_value_path loc env path
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
-let maybe_region parent_mode (children : Lambda.alloc_mode list) e =
-  if parent_mode = Lambda.Alloc_heap &&
-       List.exists (fun (m : Lambda.alloc_mode) -> m = Alloc_local) children then
+let is_trivial_exp exp =
+  match exp.exp_desc with
+  | Texp_ident _ | Texp_constant _ -> true
+  | _ -> false
+
+let maybe_region parent_mode children e =
+  if parent_mode = Lambda.Alloc_heap
+     && List.exists
+          (fun exp ->
+             transl_value_mode exp.exp_mode = Alloc_local
+             && not (is_trivial_exp exp))
+          children then
     Lregion e
   else
     e
 
-let is_omitted = function
-  | Arg _ -> false
-  | Omitted _ -> true
+
+let can_apply_primitive p pmode pos args =
+  let is_omitted = function
+    | Arg _ -> false
+    | Omitted _ -> true
+  in
+  if List.exists (fun (_, arg) -> is_omitted arg) args then false
+  else begin
+    let nargs = List.length args in
+    if nargs = p.prim_arity then true
+    else if nargs < p.prim_arity then false
+    else if pos = Typedtree.Nontail then true
+    else begin
+      let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
+      (transl_alloc_mode return_mode = Alloc_heap)
+    end
+  end
 
 let rec transl_exp ~scopes e =
   transl_exp1 ~scopes ~in_new_scope:false e
@@ -292,23 +320,27 @@ and transl_exp0 ~in_new_scope ~scopes e =
       transl_function ~scopes e param cases partial
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
-                exp_type = prim_type } as funct, oargs)
-    when List.length oargs >= p.prim_arity
-    && List.for_all (fun (_, arg) -> not (is_omitted arg)) oargs ->
+                exp_type = prim_type } as funct, oargs, pos)
+    when can_apply_primitive p pmode pos oargs ->
       let argl, extra_args = cut p.prim_arity oargs in
       let arg_exps =
          List.map (function _, Arg x -> x | _ -> assert false) argl
       in
       let args = transl_list ~scopes arg_exps in
       let prim_exp = if extra_args = [] then Some e else None in
-      let pmode = transl_alloc_mode pmode in
+      let position = transl_apply_position pos in
+      let prim_mode = transl_alloc_mode pmode in
       let lam =
         Translprim.transl_primitive_application
-          (of_location ~scopes e.exp_loc) p e.exp_env prim_type pmode path
-          prim_exp args arg_exps
+          (of_location ~scopes e.exp_loc) p e.exp_env prim_type prim_mode
+          path prim_exp args arg_exps position
       in
+      let rmode = Ctype.prim_mode pmode p.prim_native_repr_res in
+      let return_mode = transl_alloc_mode rmode in
+      let lam = maybe_region return_mode arg_exps lam in
       if extra_args = [] then lam
       else begin
+        let mode = transl_value_mode e.exp_mode in
         let tailcall, funct =
           Translattribute.get_tailcall_attribute funct
         in
@@ -318,13 +350,18 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let specialised, funct =
           Translattribute.get_and_remove_specialised_attribute funct
         in
-        let e = { e with exp_desc = Texp_apply(funct, oargs) } in
+        let e = { e with exp_desc = Texp_apply(funct, oargs, pos) } in
+        let funct =
+          { funct with
+            exp_desc = Texp_apply(funct, argl, Nontail);
+            exp_mode = Value_mode.of_alloc rmode }
+        in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised
-             lam ~mode:(transl_value_mode e.exp_mode)
+             lam ~mode ~funct
              extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs) ->
+  | Texp_apply(funct, oargs, position) ->
       let tailcall, funct =
         Translattribute.get_tailcall_attribute funct
       in
@@ -334,10 +371,12 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let specialised, funct =
         Translattribute.get_and_remove_specialised_attribute funct
       in
-      let e = { e with exp_desc = Texp_apply(funct, oargs) } in
+      let e = { e with exp_desc = Texp_apply(funct, oargs, position) } in
+      let mode = transl_value_mode e.exp_mode in
+      let position = transl_apply_position position in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised
-           (transl_exp ~scopes funct) ~mode:(transl_value_mode e.exp_mode)
+           ~position (transl_exp ~scopes funct) ~mode ~funct
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, pat_expr_list, partial) ->
       transl_match ~scopes e arg pat_expr_list partial
@@ -516,11 +555,11 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let loc = of_location ~scopes e.exp_loc in
       let lam =
         match met with
-          Tmeth_val id -> Lsend (Self, Lvar id, obj, [], loc)
+          Tmeth_val id -> Lsend (Self, Lvar id, obj, [], Apply_tail, loc)
         | Tmeth_name nm ->
             let (tag, cache) = Translobj.meth obj nm in
             let kind = if cache = [] then Public else Cached in
-            Lsend (kind, tag, obj, cache, loc)
+            Lsend (kind, tag, obj, cache, Apply_tail, loc)
       in
       event_after ~scopes e lam
   | Texp_new (cl, {Location.loc=loc}, _) ->
@@ -530,6 +569,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         ap_func=
           Lprim(Pfield 0, [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
+        ap_position=Apply_tail;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inline;
         ap_specialised=Default_specialise;
@@ -553,6 +593,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_loc=Loc_unknown;
              ap_func=Translobj.oo_prim "copy";
              ap_args=[self];
+             ap_position=Apply_nontail;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inline;
              ap_specialised=Default_specialise;
@@ -698,9 +739,8 @@ and transl_list_with_shape ~scopes expr_list =
   List.split (List.map transl_with_shape expr_list)
 
 and transl_exp_maybe_region ~scopes e =
-  let mode = transl_value_mode e.exp_mode in
   let lam = transl_exp ~scopes e in
-  maybe_region Alloc_heap [mode] lam
+  maybe_region Alloc_heap [e] lam
 
 and transl_guard ~scopes guard rhs =
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs) in
@@ -741,33 +781,49 @@ and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
       ?(inlined = Default_inline)
       ?(specialised = Default_specialise)
-      lam ?(mode=Lambda.Alloc_heap) sargs loc
+      ?(position=Apply_nontail)
+      lam ?funct
+      ?(mode=Lambda.Alloc_heap) sargs loc
   =
-  let bound_modes =
-    List.map (function
-        | (_,Arg e) -> transl_value_mode e.exp_mode
-        | (_,Omitted _) -> Alloc_heap) sargs
+  let bound_exprs =
+    List.fold_left
+      (fun acc (_, sarg) ->
+         match sarg with
+         | Omitted _ -> acc
+         | Arg e -> e :: acc)
+      (Option.to_list funct) sargs
   in
-  let lapply funct args =
-    match funct with
-      Lsend(k, lmet, lobj, largs, _) ->
-        Lsend(k, lmet, lobj, largs @ args, loc)
-    | Levent(Lsend(k, lmet, lobj, largs, _), _) ->
-        Lsend(k, lmet, lobj, largs @ args, loc)
-    | Lapply ap ->
-        Lapply {ap with ap_args = ap.ap_args @ args; ap_loc = loc}
-    | lexp ->
+  let lapply funct args pos =
+    match funct, pos with
+    | Lsend(k, lmet, lobj, largs, Apply_tail, _), _ ->
+        Lsend(k, lmet, lobj, largs @ args, pos, loc)
+    | Lsend(k, lmet, lobj, largs, Apply_nontail, _), Apply_nontail ->
+        Lsend(k, lmet, lobj, largs @ args, pos, loc)
+    | Levent(Lsend(k, lmet, lobj, largs, Apply_tail, _), _), _ ->
+        Lsend(k, lmet, lobj, largs @ args, pos, loc)
+    | Levent(Lsend(k, lmet, lobj, largs, Apply_nontail, _), _), Apply_nontail ->
+        Lsend(k, lmet, lobj, largs @ args, pos, loc)
+    | Lapply ({ ap_position = Apply_tail } as ap), Apply_tail ->
+        Lapply
+          {ap with ap_args = ap.ap_args @ args;
+                   ap_loc = loc; ap_position = pos}
+    | Lapply ({ ap_position = Apply_nontail } as ap), Apply_nontail ->
+        Lapply
+          {ap with ap_args = ap.ap_args @ args;
+                   ap_loc = loc; ap_position = pos}
+    | lexp, _ ->
         Lapply {
           ap_loc=loc;
           ap_func=lexp;
           ap_args=args;
+          ap_position=position;
           ap_tailcall=tailcall;
           ap_inlined=inlined;
           ap_specialised=specialised;
         }
   in
-  let rec build_apply lam args = function
-      (Omitted { mode_closure; mode_arg; mode_ret }, optional) :: l ->
+  let rec build_apply lam args pos = function
+    | Omitted { mode_closure; mode_arg; mode_ret } :: l ->
         let defs = ref [] in
         let protect name lam =
           match lam with
@@ -778,20 +834,20 @@ and transl_apply ~scopes
               Lvar id
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev_map fst args)
+          if args = [] then lam else lapply lam (List.rev args) pos
         in
         let handle = protect "func" lam in
         let l =
           List.map
-            (fun (arg, opt) ->
+            (fun arg ->
                match arg with
-               | Omitted _ -> arg, opt
-               | Arg arg -> Arg (protect "arg" arg), opt)
+               | Omitted _ -> arg
+               | Arg arg -> Arg (protect "arg" arg))
             l
         in
         let id_arg = Ident.create_local "param" in
         let body =
-          let body = build_apply handle [Lvar id_arg, optional] l in
+          let body = build_apply handle [Lvar id_arg] Apply_nontail l in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
           let ret_mode = transl_alloc_mode mode_ret in
@@ -807,24 +863,19 @@ and transl_apply ~scopes
         List.fold_right
           (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
           !defs body
-    | (Arg arg, optional) :: l ->
-        build_apply lam ((arg, optional) :: args) l
-    | [] ->
-        lapply lam (List.rev_map fst args)
+    | Arg arg :: l -> build_apply lam (arg :: args) position l
+    | [] -> lapply lam (List.rev args) pos
   in
   let args =
     List.map
-      (fun (l, arg) ->
-         let arg =
-           match arg with
-           | Omitted _ as arg -> arg
-           | Arg exp -> Arg (transl_exp ~scopes exp)
-         in
-         arg, Btype.is_optional l)
+      (fun (_, arg) ->
+         match arg with
+         | Omitted _ as arg -> arg
+         | Arg exp -> Arg (transl_exp ~scopes exp))
       sargs
   in
-  let lam = build_apply lam [] args in
-  maybe_region mode bound_modes lam
+  let lam = build_apply lam [] position args in
+  maybe_region mode bound_exprs lam
 
 and transl_curried_function
       ~scopes loc return
@@ -1005,8 +1056,7 @@ and transl_bound_exp ~scopes ~in_structure pat expr =
 *)
 and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
   pat_expr_list =
-  let bound_modes =
-    List.map (fun vb -> transl_value_mode vb.vb_expr.exp_mode) pat_expr_list in
+  let bound_exprs = List.map (fun vb -> vb.vb_expr) pat_expr_list in
   match rec_flag with
     Nonrecursive ->
       let rec transl = function
@@ -1020,7 +1070,7 @@ and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
             Matching.for_let ~scopes pat.pat_loc lam pat (mk_body body)
       in
       let f = transl pat_expr_list in
-      fun body -> maybe_region mode bound_modes (f body)
+      fun body -> maybe_region mode bound_exprs (f body)
   | Recursive ->
       let idlist =
         List.map
@@ -1041,7 +1091,7 @@ and transl_let ~scopes ?(in_structure=false) ?(mode=Alloc_heap) rec_flag
         end;
         (id, lam) in
       let lam_bds = List.map2 transl_case pat_expr_list idlist in
-      fun body -> maybe_region mode bound_modes (Lletrec(lam_bds, body))
+      fun body -> maybe_region mode bound_exprs (Lletrec(lam_bds, body))
 
 and transl_setinstvar ~scopes loc self var expr =
   Lprim(Psetfield_computed (maybe_pointer expr, Assignment),
@@ -1244,8 +1294,7 @@ and transl_match ~scopes e arg pat_expr_list partial =
       Lstaticcatch (body, (static_exception_id, val_ids), handler)
     ) classic static_handlers
   in
-  let bound_modes = [transl_value_mode arg.exp_mode] in
-  maybe_region (transl_value_mode e.exp_mode) bound_modes lam
+  maybe_region (transl_value_mode e.exp_mode) [arg] lam
 
 and transl_letop ~scopes loc env let_ ands param case partial =
   let rec loop prev_lam = function
@@ -1264,6 +1313,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
                ap_loc = of_location ~scopes and_.bop_loc;
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
+               ap_position=Apply_tail;
                ap_tailcall = Default_tailcall;
                ap_inlined = Default_inline;
                ap_specialised = Default_specialise;
@@ -1293,6 +1343,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
     ap_loc = of_location ~scopes loc;
     ap_func = op;
     ap_args=[exp; func];
+    ap_position=Apply_tail;
     ap_tailcall = Default_tailcall;
     ap_inlined = Default_inline;
     ap_specialised = Default_specialise;

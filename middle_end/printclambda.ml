@@ -100,14 +100,24 @@ and lam ppf = function
   | Uvar id ->
       V.print ppf id
   | Uconst c -> uconstant ppf c
-  | Udirect_apply(f, largs, _) ->
+  | Udirect_apply(f, largs, pos, _) ->
+      let form =
+        match pos with
+        | Apply_nontail -> "apply"
+        | Apply_tail -> "applytail"
+      in
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply*@ %s %a)@]" f lams largs
-  | Ugeneric_apply(lfun, largs, _) ->
+      fprintf ppf "@[<2>(%s*@ %s %a)@]" form f lams largs
+  | Ugeneric_apply(lfun, largs, pos, _) ->
+      let form =
+        match pos with
+        | Apply_nontail -> "apply"
+        | Apply_tail -> "applytail"
+      in
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a)@]" lam lfun lams largs
+      fprintf ppf "@[<2>(%s@ %a%a)@]" form lam lfun lams largs
   | Uclosure(clos, fv) ->
       let funs ppf =
         List.iter (fprintf ppf "@ @[<2>%a@]" one_fun) in
@@ -225,18 +235,26 @@ and lam ppf = function
        lam hi lam body
   | Uassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" V.print id lam expr
-  | Usend (k, met, obj, largs, _) ->
+  | Usend (k, met, obj, largs, pos, _) ->
+      let form =
+        match pos with
+        | Apply_nontail -> "send"
+        | Apply_tail -> "sendtail"
+      in
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
         if k = Lambda.Self then "self"
         else if k = Lambda.Cached then "cache"
         else "" in
-      fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind lam obj lam met args largs
+      fprintf ppf "@[<2>(%s%s@ %a@ %a%a)@]"
+        form kind lam obj lam met args largs
   | Uunreachable ->
       fprintf ppf "unreachable"
   | Uregion e ->
       fprintf ppf "@[<2>(region@ %a)@]" lam e
+  | Utail e ->
+      fprintf ppf "@[<2>(tail@ %a)@]" lam e
 
 and sequence ppf ulam = match ulam with
   | Usequence(l1, l2) ->

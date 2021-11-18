@@ -422,18 +422,18 @@ let rec transl env e =
       let ptr = transl env arg in
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
-  | Udirect_apply(lbl, args, dbg) ->
+  | Udirect_apply(lbl, args, pos, dbg) ->
       let args = List.map (transl env) args in
-      direct_apply lbl args dbg
-  | Ugeneric_apply(clos, args, dbg) ->
+      direct_apply lbl args pos dbg
+  | Ugeneric_apply(clos, args, pos, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      generic_apply (mut_from_env env clos) clos args dbg
-  | Usend(kind, met, obj, args, dbg) ->
+      generic_apply (mut_from_env env clos) clos args pos dbg
+  | Usend(kind, met, obj, args, pos, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      send kind met obj args dbg
+      send kind met obj args pos dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp body
   | Uphantom_let (var, defining_expr, body) ->
@@ -687,6 +687,8 @@ let rec transl env e =
       Cop(Cload (Word_int, Mutable), [Cconst_int (0, dbg)], dbg)
   | Uregion e ->
       region (transl env e)
+  | Utail e ->
+      Ctail (transl env e)
 
 and transl_catch env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in

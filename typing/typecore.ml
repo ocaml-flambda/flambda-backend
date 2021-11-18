@@ -205,10 +205,8 @@ let mk_expected ?explanation ty = { ty; explanation; }
 let case lhs rhs =
   {c_lhs = lhs; c_guard = None; c_rhs = rhs}
 
-type tail_or_nontail = Tail | Nontail
-
 type expected_mode =
-  { position : tail_or_nontail;
+  { position : apply_position;
     escaping_context : escaping_context option;
     mode : Value_mode.t;
     tuple_modes : Value_mode.t list;
@@ -2621,7 +2619,7 @@ let rec is_nonexpansive exp =
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
-  | Texp_apply(e, (_,Omitted _)::el) ->
+  | Texp_apply(e, (_,Omitted _)::el, _) ->
       is_nonexpansive e && List.for_all is_nonexpansive_arg (List.map snd el)
   | Texp_match(e, cases, _) ->
      (* Not sure this is necessary, if [e] is nonexpansive then we shouldn't
@@ -2693,7 +2691,7 @@ let rec is_nonexpansive exp =
              Val_prim {Primitive.prim_name =
                          ("%raise" | "%reraise" | "%raise_notrace")}},
              Id_prim _) },
-      [Nolabel, Arg e]) ->
+      [Nolabel, Arg e], _) ->
      is_nonexpansive e
   | Texp_array (_ :: _)
   | Texp_apply _
@@ -3451,7 +3449,7 @@ and type_expect_
       end_def ();
       unify_var env (newvar()) funct.exp_type;
       let exp =
-        { exp_desc = Texp_apply(funct, args);
+        { exp_desc = Texp_apply(funct, args, expected_mode.position);
           exp_loc = loc; exp_extra = [];
           exp_type = ty_res;
           exp_mode = expected_mode.mode;
@@ -4044,7 +4042,7 @@ and type_expect_
                                   exp_mode = Value_mode.global;
                                   exp_attributes = []; (* check *)
                                   exp_env = exp_env}
-                          ])
+                          ], expected_mode.position)
                   in
                   (Tmeth_name met, Some (re {exp_desc = exp;
                                              exp_loc = loc; exp_extra = [];
@@ -5105,7 +5103,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           {texp with exp_type = ty_res; exp_mode = ret_mode; exp_desc =
            Texp_apply
              (texp,
-              args @ [Nolabel, Arg eta_var])}
+              args @ [Nolabel, Arg eta_var], Nontail)}
         in
         let cases = [case eta_pat e] in
         let param = name_cases "param" cases in

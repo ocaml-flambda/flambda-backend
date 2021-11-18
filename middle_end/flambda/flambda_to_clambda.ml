@@ -269,9 +269,10 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        call to [caml_apply]. *)
     to_clambda_direct_apply t func args direct_func dbg env
   | Apply { func; args; kind = Indirect; dbg = dbg } ->
+    (* FIXME: position *)
     let callee = subst_var env func in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, dbg)
+      subst_vars env args, Apply_nontail, dbg)
   | Switch (arg, sw) ->
     let aux () : Clambda.ulambda =
       let const_index, const_actions =
@@ -349,8 +350,9 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
     in
     Uassign (id, subst_var env new_value)
   | Send { kind; meth; obj; args; dbg } ->
+    (* FIXME: position *)
     Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, dbg)
+      subst_vars env args, Apply_nontail, dbg)
   | Proved_unreachable -> Uunreachable
 
 and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda =
@@ -455,7 +457,8 @@ and to_clambda_direct_apply t func args direct_func dbg env : Clambda.ulambda =
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  Udirect_apply (label, uargs, dbg)
+  (* FIXME: position *)
+  Udirect_apply (label, uargs, Apply_nontail, dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.

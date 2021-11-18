@@ -281,7 +281,7 @@ val lookup_label : expression -> expression -> Debuginfo.t -> expression
     - args : the additional arguments to the method call *)
 val call_cached_method :
   expression -> expression -> expression -> expression -> expression list ->
-  Debuginfo.t -> expression
+  Lambda.apply_position -> Debuginfo.t -> expression
 
 (** Allocations *)
 
@@ -542,7 +542,9 @@ val strmatch_compile :
 val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
-val direct_apply : string -> expression list -> Debuginfo.t -> expression
+val direct_apply :
+  string -> expression list -> Lambda.apply_position
+  -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments.
     The mutable_flag argument annotates the loading of the code pointer
@@ -550,8 +552,8 @@ val direct_apply : string -> expression list -> Debuginfo.t -> expression
     default, with a special case when the load is from (the first function of)
     the currently defined closure. *)
 val generic_apply :
-  Asttypes.mutable_flag ->
-  expression -> expression list -> Debuginfo.t -> expression
+  Asttypes.mutable_flag -> expression -> expression list
+  -> Lambda.apply_position -> Debuginfo.t -> expression
 
 (** Method call : [send kind met obj args dbg]
     - [met] is a method identifier, which can be a hashed variant or an index
@@ -561,8 +563,8 @@ val generic_apply :
     of any way for the frontend to generate any arguments other than the
     cache and cache position) *)
 val send :
-  Lambda.meth_kind -> expression -> expression -> expression list ->
-  Debuginfo.t -> expression
+  Lambda.meth_kind -> expression -> expression -> expression list
+  -> Lambda.apply_position -> Debuginfo.t -> expression
 
 (** Construct [Cregion e], eliding some useless regions *)
 val region : expression -> expression

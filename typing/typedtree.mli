@@ -192,7 +192,7 @@ and expression_desc =
               [Partial] if the pattern match is partial
               [Total] otherwise.
          *)
-  | Texp_apply of expression * (arg_label * apply_arg) list
+  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -318,6 +318,10 @@ and omitted_parameter =
     mode_ret : Types.Alloc_mode.t }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
+
+and apply_position =
+  | Tail
+  | Nontail
 
 (* Value expressions for the class language *)
 

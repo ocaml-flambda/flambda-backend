@@ -109,7 +109,7 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Pidentity | Popaque | Pdirapply | Prevapply | Psequor | Psequand ->
+    Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
   | Pmakeblock _ | Pfield _ | Pfield_computed | Psetfield _
@@ -559,7 +559,7 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, _) ->
+  | Lsend(kind, met, obj, args, _, _) ->
       let args = if kind = Cached then List.tl args else args in
       let nargs = List.length args + 1 in
       let getmethod, args' =
@@ -674,12 +674,13 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
-  | Lprim(Pdirapply, [func;arg], loc)
-  | Lprim(Prevapply, [arg;func], loc) ->
+  | Lprim(Pdirapply pos, [func;arg], loc)
+  | Lprim(Prevapply pos, [arg;func], loc) ->
       let exp = Lapply{
         ap_loc=loc;
         ap_func=func;
         ap_args=[arg];
+        ap_position=pos;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inline;
         ap_specialised=Default_specialise;
@@ -976,7 +977,8 @@ let rec comp_expr env exp sz cont =
             let info =
               match lam with
                 Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _) -> Event_return (List.length args + 1)
+              | Lsend(_, _, _, args, _, _) ->
+                  Event_return (List.length args + 1)
               | Lprim(_,args,_)         -> Event_return (List.length args)
               | _                       -> Event_other
             in

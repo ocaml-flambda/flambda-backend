@@ -331,7 +331,7 @@ and expression i ppf x =
       line i ppf "Texp_function\n";
       arg_label i ppf p;
       list i case ppf cases;
-  | Texp_apply (e, l) ->
+  | Texp_apply (e, l, _) ->
       line i ppf "Texp_apply\n";
       expression i ppf e;
       list i label_x_apply_arg ppf l;

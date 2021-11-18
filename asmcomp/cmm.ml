@@ -149,7 +149,7 @@ type memory_chunk =
   | Double_u
 
 and operation =
-    Capply of machtype
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
@@ -194,6 +194,7 @@ type expression =
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
   | Cregion of expression
+  | Ctail of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -256,6 +257,9 @@ let iter_shallow_tail f = function
   | Cregion e ->
       f e;
       true
+  | Ctail e ->
+      f e;
+      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
   | Cconst_int _
@@ -294,6 +298,8 @@ let rec map_tail f = function
       Ctrywith(map_tail f e1, id, map_tail f e2, dbg)
   | Cregion e ->
       Cregion(map_tail f e)
+  | Ctail e ->
+      Ctail(map_tail f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
   | Cconst_int _
@@ -334,6 +340,8 @@ let iter_shallow f = function
       f e1; f e2
   | Cregion e ->
       f e
+  | Ctail e ->
+      f e
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _
@@ -369,6 +377,8 @@ let map_shallow f = function
       Ctrywith (f e1, id, f e2, dbg)
   | Cregion e ->
       Cregion (f e)
+  | Ctail e ->
+      Ctail (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

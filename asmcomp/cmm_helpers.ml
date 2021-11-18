@@ -636,8 +636,8 @@ let rec remove_unit = function
       Ctrywith(remove_unit body, exn, remove_unit handler, dbg)
   | Clet(id, c1, c2) ->
       Clet(id, c1, remove_unit c2)
-  | Cop(Capply _mty, args, dbg) ->
-      Cop(Capply typ_void, args, dbg)
+  | Cop(Capply(_mty, pos), args, dbg) ->
+      Cop(Capply(typ_void, pos), args, dbg)
   | Cop(Cextcall(proc, _ty_res, ty_args, alloc), args, dbg) ->
       Cop(Cextcall(proc, typ_void, ty_args, alloc), args, dbg)
   | Cexit (_,_) as c -> c
@@ -807,11 +807,11 @@ let lookup_label obj lab dbg =
     let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
     addr_array_ref table lab dbg)
 
-let call_cached_method obj tag cache pos args dbg =
+let call_cached_method obj tag cache pos args apos dbg =
   let arity = List.length args in
   let cache = array_indexing log2_size_addr cache pos dbg in
   Compilenv.need_send_fun arity;
-  Cop(Capply typ_val,
+  Cop(Capply(typ_val, apos),
       Cconst_symbol("caml_send" ^ Int.to_string arity, dbg) ::
         obj :: tag :: cache :: args,
       dbg)
@@ -1713,27 +1713,27 @@ let ptr_offset ptr offset dbg =
   then ptr
   else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
 
-let direct_apply lbl args dbg =
-  Cop(Capply typ_val, Cconst_symbol (lbl, dbg) :: args, dbg)
+let direct_apply lbl args pos dbg =
+  Cop(Capply(typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let generic_apply mut clos args dbg =
+let generic_apply mut clos args pos dbg =
   match args with
   | [arg] ->
       bind "fun" clos (fun clos ->
-        Cop(Capply typ_val, [get_field_gen mut clos 0 dbg; arg; clos],
+        Cop(Capply(typ_val, pos), [get_field_gen mut clos 0 dbg; arg; clos],
           dbg))
   | _ ->
       let arity = List.length args in
       let cargs =
         Cconst_symbol(apply_function_sym arity, dbg) :: args @ [clos]
       in
-      Cop(Capply typ_val, cargs, dbg)
+      Cop(Capply(typ_val, pos), cargs, dbg)
 
-let send kind met obj args dbg =
+let send kind met obj args apos dbg =
   let call_met obj args clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) dbg
+    generic_apply Asttypes.Mutable clos (obj :: args) apos dbg
   in
   bind "obj" obj (fun obj ->
       match (kind : Lambda.meth_kind), args with
@@ -1741,7 +1741,7 @@ let send kind met obj args dbg =
           bind "met" (lookup_label obj met dbg)
             (call_met obj args)
       | Cached, cache :: pos :: args ->
-          call_cached_method obj met cache pos args dbg
+          call_cached_method obj met cache pos args apos dbg
       | _ ->
           bind "met" (lookup_tag obj met dbg)
             (call_met obj args))
@@ -1811,9 +1811,9 @@ let region e =
   (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
   let rec check_local_allocs = function
     | Cregion _ ->
-       (* Assume any already-existing Cregion contains a local alloc.
-          This prevents O(n^2) behaviour with many nested regions *)
-       raise Exit
+       (* Local allocations within a nested region do not affect this region.
+          Note this prevents O(n^2) behaviour with many nested regions. *)
+       ()
     | Cop (Calloc Alloc_local, _, _)
     | Cop ((Cextcall _ | Capply _), _, _) ->
        raise Exit
@@ -1847,7 +1847,7 @@ let apply_function_body arity =
   let clos = V.create_local "clos" in
   let rec app_fun clos n =
     if n = arity-1 then
-      Cop(Capply typ_val,
+      Cop(Capply(typ_val, Apply_nontail),
           [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
            Cvar arg.(n);
            Cvar clos],
@@ -1855,7 +1855,7 @@ let apply_function_body arity =
     else begin
       let newclos = V.create_local "clos" in
       Clet(VP.create newclos,
-           Cop(Capply typ_val,
+           Cop(Capply(typ_val, Apply_nontail),
                [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
                 Cvar arg.(n); Cvar clos], dbg ()),
            app_fun newclos (n+1))
@@ -1870,7 +1870,7 @@ let apply_function_body arity =
                         Cconst_int(pos_arity_in_closinfo, dbg())], dbg());
                    Cconst_int(arity, dbg())], dbg()),
    dbg (),
-   Cop(Capply typ_val,
+   Cop(Capply(typ_val, Apply_nontail),
        get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
        :: List.map (fun s -> Cvar s) all_args,
        dbg ()),
@@ -1961,7 +1961,7 @@ let tuplify_function arity =
    {fun_name;
     fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
     fun_body =
-      Cop(Capply typ_val,
+      Cop(Capply(typ_val, Apply_nontail),
           get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
@@ -2004,7 +2004,7 @@ let final_curry_function ~nlocal ~arity =
   let last_clos = V.create_local "clos" in
   let rec curry_fun args clos n =
     if n = 0 then
-      Cop(Capply typ_val,
+      Cop(Capply(typ_val, Apply_nontail),
           get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()) ::
             args @ [Cvar last_arg; Cvar clos],
           dbg ())
@@ -2088,7 +2088,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
           let direct_args = iter (num+2) in
           let rec iter i args clos =
             if i = 0 then
-              Cop(Capply typ_val,
+              Cop(Capply(typ_val, Apply_nontail),
                   (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()))
                   :: args @ [Cvar clos],
                   dbg ())
@@ -2645,7 +2645,7 @@ let entry_point namelist =
     List.fold_right
       (fun name next ->
         let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
-        Csequence(Cop(Capply typ_void,
+        Csequence(Cop(Capply(typ_void, Apply_nontail),
                          [cconst_symbol entry_sym], dbg ()),
                   Csequence(incr_global_inited (), next)))
       namelist (cconst_int 1) in

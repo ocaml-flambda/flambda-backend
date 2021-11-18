@@ -216,7 +216,8 @@ expr:
   | LPAREN LETMUT letmutdef sequence RPAREN { make_letmutdef $3 $4 }
   | LPAREN ASSIGN IDENT expr RPAREN { Cassign(find_ident $3, $4) }
   | LPAREN APPLY location expr exprlist machtype RPAREN
-                { Cop(Capply $6, $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
+                { Cop(Capply ($6, Lambda.Apply_nontail),
+                      $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
                {Cop(Cextcall($3, $5, [], false),
                     List.rev $4, debuginfo ())}

@@ -113,7 +113,7 @@ let to_alloc_mode ~poly = function
   | Prim_local, _ -> Alloc_local
   | Prim_poly, _ -> poly
 
-let lookup_primitive loc poly p =
+let lookup_primitive loc poly pos p =
   let mode = to_alloc_mode ~poly p.prim_native_repr_res in
   let arg_modes = List.map (to_alloc_mode ~poly) p.prim_native_repr_args in
   let prim = match p.prim_name with
@@ -121,8 +121,8 @@ let lookup_primitive loc poly p =
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
     | "%bytes_of_string" -> Primitive (Pbytes_of_string, 1)
     | "%ignore" -> Primitive (Pignore, 1)
-    | "%revapply" -> Primitive (Prevapply, 2)
-    | "%apply" -> Primitive (Pdirapply, 2)
+    | "%revapply" -> Primitive (Prevapply pos, 2)
+    | "%apply" -> Primitive (Pdirapply pos, 2)
     | "%loc_LOC" -> Loc Loc_LOC
     | "%loc_FILE" -> Loc Loc_FILE
     | "%loc_LINE" -> Loc Loc_LINE
@@ -381,8 +381,8 @@ let lookup_primitive loc poly p =
   in
   prim
 
-let lookup_primitive_and_mark_used loc mode p env path =
-  match lookup_primitive loc mode p with
+let lookup_primitive_and_mark_used loc mode pos p env path =
+  match lookup_primitive loc mode pos p with
   | External _ as e -> add_used_primitive loc env path; e
   | x -> x
 
@@ -699,18 +699,25 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, Alloc_heap), [lam; arg], loc)
   | Send, [obj; meth] ->
-      Lsend(Public, meth, obj, [], loc)
+      Lsend(Public, meth, obj, [], Apply_tail, loc)
   | Send_self, [obj; meth] ->
-      Lsend(Self, meth, obj, [], loc)
+      Lsend(Self, meth, obj, [], Apply_tail, loc)
   | Send_cache, [obj; meth; cache; pos] ->
-      Lsend(Cached, meth, obj, [cache; pos], loc)
+      Lsend(Cached, meth, obj, [cache; pos], Apply_tail, loc)
+  | Primitive (prim, arity), args when arity = List.length args ->
+      Lprim(prim, args, loc)
   | (Raise _ | Raise_with_backtrace
     | Lazy_force | Loc _ | Primitive _ | Comparison _
     | Send | Send_self | Send_cache), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
-let check_primitive_arity loc p mode =
-  let prim = lookup_primitive loc mode p in
+let check_primitive_arity loc p =
+  let mode =
+    match p.prim_native_repr_res with
+    | Prim_global, _ | Prim_poly, _ -> Alloc_heap
+    | Prim_local, _ -> Alloc_local
+  in
+  let prim = lookup_primitive loc mode Apply_nontail p in
   let ok =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
@@ -728,7 +735,10 @@ let check_primitive_arity loc p mode =
 (* Eta-expand a primitive *)
 
 let transl_primitive loc p env ty ~poly_mode path =
-  let prim = lookup_primitive_and_mark_used (to_location loc) poly_mode p env path in
+  let prim =
+    lookup_primitive_and_mark_used
+      (to_location loc) poly_mode Apply_nontail p env path
+  in
   let has_constant_constructor = false in
   let prim =
     match specialize_primitive env ty ~has_constant_constructor prim with
@@ -773,7 +783,7 @@ let transl_primitive loc p env ty ~poly_mode path =
      Lfunction lfunc
 
 let lambda_primitive_needs_event_after = function
-  | Prevapply | Pdirapply (* PR#6920 *)
+  | Prevapply _ | Pdirapply _ (* PR#6920 *)
   (* We add an event after any primitive resulting in a C call that
      may raise an exception or allocate. These are places where we may
      collect the call stack. *)
@@ -814,9 +824,11 @@ let primitive_needs_event_after = function
   | Lazy_force | Send | Send_self | Send_cache -> true
   | Raise _ | Raise_with_backtrace | Loc _ -> false
 
-let transl_primitive_application loc p env ty mode path exp args arg_exps =
+let transl_primitive_application loc p env ty mode path exp args arg_exps pos =
   let prim =
-    lookup_primitive_and_mark_used (to_location loc) mode p env (Some path) in
+    lookup_primitive_and_mark_used
+      (to_location loc) mode pos p env (Some path)
+  in
   let has_constant_constructor =
     match arg_exps with
     | [_; {exp_desc = Texp_construct(_, {cstr_tag = Cstr_constant _}, _)}]

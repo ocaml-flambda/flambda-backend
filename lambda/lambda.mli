@@ -50,13 +50,17 @@ type alloc_mode =
   | Alloc_heap
   | Alloc_local
 
+type apply_position =
+  | Apply_tail
+  | Apply_nontail
+
 type primitive =
   | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply
-  | Pdirapply
+  | Prevapply of apply_position
+  | Pdirapply of apply_position
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -295,7 +299,8 @@ type lambda =
   | Lwhile of lambda * lambda
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
   | Lassign of Ident.t * lambda
-  | Lsend of meth_kind * lambda * lambda * lambda list * scoped_location
+  | Lsend of meth_kind * lambda * lambda * lambda list
+             * apply_position * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -313,6 +318,7 @@ and lfunction =
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
+    ap_position : apply_position;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
     ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)

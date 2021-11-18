@@ -162,8 +162,8 @@ let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
-  | Prevapply -> fprintf ppf "revapply"
-  | Pdirapply -> fprintf ppf "dirapply"
+  | Prevapply _ -> fprintf ppf "revapply"
+  | Pdirapply _ -> fprintf ppf "dirapply"
   | Pgetglobal id -> fprintf ppf "global %a" Ident.print id
   | Psetglobal id -> fprintf ppf "setglobal %a" Ident.print id
   | Pmakeblock(tag, mut, shape, mode) ->
@@ -370,8 +370,8 @@ let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
   | Pbytes_to_string -> "Pbytes_to_string"
   | Pignore -> "Pignore"
-  | Prevapply -> "Prevapply"
-  | Pdirapply -> "Pdirapply"
+  | Prevapply _ -> "Prevapply"
+  | Pdirapply _ -> "Pdirapply"
   | Pgetglobal _ -> "Pgetglobal"
   | Psetglobal _ -> "Psetglobal"
   | Pmakeblock _ -> "Pmakeblock"
@@ -521,7 +521,13 @@ let rec lam ppf = function
   | Lapply ap ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a%a%a%a)@]" lam ap.ap_func lams ap.ap_args
+      let form =
+        match ap.ap_position with
+        | Apply_nontail -> "apply"
+        | Apply_tail -> "applytail"
+      in
+      fprintf ppf "@[<2>(%s@ %a%a%a%a%a)@]" form
+        lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
@@ -646,12 +652,17 @@ let rec lam ppf = function
        lam hi lam body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
-  | Lsend (k, met, obj, largs, _) ->
+  | Lsend (k, met, obj, largs, pos, _) ->
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
         if k = Self then "self" else if k = Cached then "cache" else "" in
-      fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind lam obj lam met args largs
+      let form =
+        match pos with
+        | Apply_nontail -> "send"
+        | Apply_tail -> "sendtail"
+      in
+      fprintf ppf "@[<2>(%s%s@ %a@ %a%a)@]" form kind lam obj lam met args largs
   | Levent(expr, ev) ->
       let kind =
        match ev.lev_kind with

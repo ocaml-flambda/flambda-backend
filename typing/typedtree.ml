@@ -104,7 +104,7 @@ and expression_desc =
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
       cases : value case list; partial : partial; }
-  | Texp_apply of expression * (arg_label * apply_arg) list
+  | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
   | Texp_tuple of expression list
@@ -187,6 +187,10 @@ and omitted_parameter =
     mode_ret : Alloc_mode.t }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
+
+and apply_position =
+  | Tail
+  | Nontail
 
 (* Value expressions for the class language *)
 

@@ -83,9 +83,9 @@ let rec eliminate_ref id = function
            dir, eliminate_ref id e3)
   | Lassign(v, e) ->
       Lassign(v, eliminate_ref id e)
-  | Lsend(k, m, o, el, loc) ->
+  | Lsend(k, m, o, el, pos, loc) ->
       Lsend(k, eliminate_ref id m, eliminate_ref id o,
-            List.map (eliminate_ref id) el, loc)
+            List.map (eliminate_ref id) el, pos, loc)
   | Levent(l, ev) ->
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
@@ -164,7 +164,7 @@ let simplify_exits lam =
   | Lwhile(l1, l2) -> count l1; count l2
   | Lfor(_, l1, l2, _dir, l3) -> count l1; count l2; count l3
   | Lassign(_v, l) -> count l
-  | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
+  | Lsend(_k, m, o, ll, _, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
   | Lifused(_v, l) -> count l
   | Lregion l -> count l
@@ -219,27 +219,43 @@ let simplify_exits lam =
     let ll = List.map simplif ll in
     match p, ll with
         (* Simplify %revapply, for n-ary functions with n > 1 *)
-      | Prevapply, [x; Lapply ap]
-      | Prevapply, [x; Levent (Lapply ap,_)] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Prevapply, [x; f] ->
+      | Prevapply pos,
+        [x; Lapply ({ ap_position = Apply_tail } as ap)]
+      | Prevapply pos,
+        [x; Levent (Lapply ({ ap_position = Apply_tail } as ap),_)] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x];
+                          ap_loc = loc; ap_position = pos; }
+      | Prevapply Apply_nontail, [x; Lapply ap]
+      | Prevapply Apply_nontail, [x; Levent (Lapply ap,_)] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc;
+                          ap_position = Apply_nontail}
+      | Prevapply pos, [x; f] ->
           Lapply {
             ap_loc=loc;
             ap_func=f;
             ap_args=[x];
+            ap_position=pos;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inline;
             ap_specialised=Default_specialise;
           }
         (* Simplify %apply, for n-ary functions with n > 1 *)
-      | Pdirapply, [Lapply ap; x]
-      | Pdirapply, [Levent (Lapply ap,_); x] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Pdirapply, [f; x] ->
+      | Pdirapply pos,
+        [Lapply ({ ap_position = Apply_tail } as ap); x]
+      | Pdirapply pos,
+        [Levent (Lapply ({ ap_position = Apply_tail } as ap),_); x] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x];
+                          ap_loc = loc; ap_position=pos}
+      | Pdirapply Apply_nontail, [Lapply ap; x]
+      | Pdirapply Apply_nontail, [Levent (Lapply ap,_); x] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x];
+                          ap_loc = loc; ap_position=Apply_nontail}
+      | Pdirapply pos, [f; x] ->
           Lapply {
             ap_loc=loc;
             ap_func=f;
             ap_args=[x];
+            ap_position=pos;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inline;
             ap_specialised=Default_specialise;
@@ -323,8 +339,8 @@ let simplify_exits lam =
   | Lfor(v, l1, l2, dir, l3) ->
       Lfor(v, simplif l1, simplif l2, dir, simplif l3)
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
+  | Lsend(k, m, o, ll, pos, loc) ->
+      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) -> Lifused (v,simplif l)
   | Lregion l -> Lregion (simplif l)
@@ -466,7 +482,7 @@ let simplify_lets lam =
       (* Lalias-bound variables are never assigned, so don't increase
          v's refcount *)
       count bv l
-  | Lsend(_, m, o, ll, _) -> List.iter (count bv) (m::o::ll)
+  | Lsend(_, m, o, ll, _, _) -> List.iter (count bv) (m::o::ll)
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
@@ -605,8 +621,8 @@ let simplify_lets lam =
   | Lfor(v, l1, l2, dir, l3) ->
       Lfor(v, simplif l1, simplif l2, dir, simplif l3)
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
+  | Lsend(k, m, o, ll, pos, loc) ->
+      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
@@ -693,7 +709,7 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos false body
   | Lassign (_, lam) ->
       emit_tail_infos false lam
-  | Lsend (_, meth, obj, args, _loc) ->
+  | Lsend (_, meth, obj, args, _, _loc) ->
       emit_tail_infos false meth;
       emit_tail_infos false obj;
       list_emit_tail_infos false args
@@ -740,6 +756,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_func = Lvar inner_id;
             ap_args = args;
             ap_loc = Loc_unknown;
+            ap_position = Apply_tail;
             ap_tailcall = Default_tailcall;
             ap_inlined = Default_inline;
             ap_specialised = Default_specialise;

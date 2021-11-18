@@ -314,8 +314,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string
   | Pbytes_to_string -> pbytes_to_string
   | Pignore -> pignore
-  | Prevapply -> prevapply
-  | Pdirapply -> pdirapply
+  | Prevapply _ -> prevapply
+  | Pdirapply _ -> pdirapply
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
   | Pmakeblock _ -> pmakeblock
@@ -420,8 +420,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
   | Pbytes_to_string -> pbytes_to_string_arg
   | Pignore -> pignore_arg
-  | Prevapply -> prevapply_arg
-  | Pdirapply -> pdirapply_arg
+  | Prevapply _ -> prevapply_arg
+  | Pdirapply _ -> pdirapply_arg
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
   | Pmakeblock _ -> pmakeblock_arg

@@ -1,6 +1,7 @@
 Error: Failure("Plugin error")
 Raised at Stdlib.failwith in file "stdlib.ml", line 29, characters 17-33
-Called from Test10_plugin.g in file "test10_plugin.ml", line 2, characters 15-38
+Called from Test10_plugin.g in file "test10_plugin.ml" (inlined), line 2, characters 15-38
+Called from Test10_plugin.f in file "test10_plugin.ml", line 6, characters 2-6
 Called from Test10_plugin in file "test10_plugin.ml", line 10, characters 2-6
 Called from Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 85, characters 12-29
 Called from Dynlink.Native.run.(fun) in file "otherlibs/dynlink/native/dynlink.ml", line 85, characters 12-29

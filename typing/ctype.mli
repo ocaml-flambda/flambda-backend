@@ -238,6 +238,8 @@ val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
+val prim_mode :
+        alloc_mode -> (Primitive.mode * Primitive.native_repr) -> alloc_mode
 val instance_prim_mode:
         Primitive.description -> type_expr -> type_expr * alloc_mode
 

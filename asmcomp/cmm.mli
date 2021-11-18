@@ -139,7 +139,7 @@ type memory_chunk =
   | Double_u                           (* word-aligned 64-bit float *)
 
 and operation =
-    Capply of machtype
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
@@ -194,6 +194,7 @@ and expression =
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
   | Cregion of expression
+  | Ctail of expression
 
 type codegen_option =
   | Reduce_code_size

@@ -133,6 +133,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_loc=loc;
                       ap_func=Lvar id;
                       ap_args=List.rev args;
+                      ap_position=Apply_nontail;
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inline;
                       ap_specialised=Default_specialise;
@@ -210,10 +211,7 @@ let compose_coercions c1 c2 =
 let primitive_declarations = ref ([] : Primitive.description list)
 let record_primitive = function
   | {val_kind=Val_prim p;val_loc} ->
-      let mode = match p.prim_native_repr_res with
-        | Prim_global, _ | Prim_poly, _ -> Alloc_heap
-        | Prim_local, _ -> Alloc_local in
-      Translprim.check_primitive_arity val_loc p mode;
+      Translprim.check_primitive_arity val_loc p;
       primitive_declarations := p :: !primitive_declarations
   | _ -> ()
 
@@ -370,6 +368,7 @@ let eval_rec_bindings bindings cont =
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
              ap_args=[loc; shape];
+             ap_position=Apply_nontail;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inline;
              ap_specialised=Default_specialise;
@@ -396,6 +395,7 @@ let eval_rec_bindings bindings cont =
           ap_loc=Loc_unknown;
           ap_func=mod_prim "update_mod";
           ap_args=[shape; Lvar id; rhs];
+          ap_position=Apply_nontail;
           ap_tailcall=Default_tailcall;
           ap_inlined=Default_inline;
           ap_specialised=Default_specialise;
@@ -531,6 +531,7 @@ and transl_module ~scopes cc rootpath mexp =
            ap_loc=loc;
            ap_func=transl_module ~scopes Tcoerce_none None funct;
            ap_args=[transl_module ~scopes ccarg None arg];
+           ap_position=Apply_nontail;
            ap_tailcall=Default_tailcall;
            ap_inlined=inlined_attribute;
            ap_specialised=Default_specialise})
@@ -1439,6 +1440,7 @@ let toploop_getvalue id =
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
+    ap_position=Apply_nontail;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inline;
     ap_specialised=Default_specialise;
@@ -1454,6 +1456,7 @@ let toploop_setvalue id lam =
       [Lconst(Const_base(
          Const_string(toplevel_name id, Location.none, None)));
        lam];
+    ap_position=Apply_nontail;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inline;
     ap_specialised=Default_specialise;

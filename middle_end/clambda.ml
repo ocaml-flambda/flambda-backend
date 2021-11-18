@@ -47,8 +47,10 @@ and uphantom_defining_expr =
 and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
-  | Udirect_apply of function_label * ulambda list * Debuginfo.t
-  | Ugeneric_apply of ulambda * ulambda list * Debuginfo.t
+  | Udirect_apply of
+      function_label * ulambda list * Lambda.apply_position * Debuginfo.t
+  | Ugeneric_apply of
+      ulambda * ulambda list * Lambda.apply_position * Debuginfo.t
   | Uclosure of ufunction list * ulambda list
   | Uoffset of ulambda * int
   | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
@@ -72,9 +74,12 @@ and ulambda =
   | Ufor of Backend_var.With_provenance.t * ulambda * ulambda
       * direction_flag * ulambda
   | Uassign of Backend_var.t * ulambda
-  | Usend of meth_kind * ulambda * ulambda * ulambda list * Debuginfo.t
+  | Usend of
+      meth_kind * ulambda * ulambda * ulambda list
+      * Lambda.apply_position * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
+  | Utail of ulambda
 
 and ufunction = {
   label  : function_label;
