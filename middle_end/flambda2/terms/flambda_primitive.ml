@@ -1297,8 +1297,10 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
     if List.length args >= 1
     then Effects.Only_generative_effects mut, Coeffects.No_coeffects
     else
-      (* Zero-sized blocks and arrays are immutable and must be statically allocated. *)
-      Effects.No_effects, Coeffects.No_coeffects
+      (* Zero-sized blocks and arrays are immutable and statically allocated,
+         However, we currently only lift primitives that have *exactly*
+         generative effects. *)
+      Effects.Only_generative_effects Immutable, Coeffects.No_coeffects
 
 let variadic_classify_for_printing p =
   match p with Make_block _ | Make_array _ -> Constructive
