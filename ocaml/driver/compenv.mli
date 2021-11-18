@@ -44,16 +44,6 @@ type readenv_position =
   Before_args | Before_compile of filename | Before_link
 
 val readenv : Format.formatter -> readenv_position -> unit
-val set_extra_params :
-  (Format.formatter -> readenv_position -> string -> string -> bool) option ->
-  unit
-(* Enable/disable warning about discarding any unknown arguments.  *)
-val warnings_for_discarded_params : bool ref
-
-val setter :
-    Format.formatter -> (bool -> 'a) -> string -> 'a ref list -> string -> unit
-val int_setter : Format.formatter -> string -> int ref -> string -> unit
-val check_bool : Format.formatter -> string -> string -> bool
 
 (* [is_unit_name name] returns true only if [name] can be used as a
    correct module name *)
