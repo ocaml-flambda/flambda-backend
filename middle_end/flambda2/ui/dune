@@ -7,4 +7,4 @@
   (:standard -principal -nostdlib))
  (ocamlopt_flags
   (:standard -O3))
- (libraries stdlib ocamlcommon flambda_backend_common))
+ (libraries stdlib ocamlcommon))
