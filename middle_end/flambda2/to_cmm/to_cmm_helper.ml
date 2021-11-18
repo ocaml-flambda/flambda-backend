@@ -300,37 +300,33 @@ let unreachable = load Cmm.Word_int Asttypes.Mutable (int 0)
 
 (* Block creation *)
 
-let static_atom_table = load Word_int Immutable (symbol "caml_atom_table")
+(* Blocks of size 0 (i.e. with an empty list of fields) must be statically
+   allocated, else the GC will bug (cf `make_alloc_generic` in cmm_helpers.ml).
+   More precisely, blocks of size 0 must have a black header, which means they
+   must either be statically allocated, or be pointers to one of the cell of the
+   atom_table (see `startup_aux.c`).
 
-let static_atom ?(dbg = Debuginfo.none) tag =
-  Cmm.Cop
-    (Cmm.Caddv, [static_atom_table; int ~dbg ((tag + 1) * Arch.size_addr)], dbg)
-
-let make_alloc_safe ?(dbg = Debuginfo.none) tag = function
-  | [] -> static_atom ~dbg tag
-  | args -> make_alloc dbg tag args
+   Both `make_alloc` and `make_float_alloc` from `cmm_helpers.ml` already check
+   for that, but with an assertion, which do not produce helpful error
+   messages. *)
+let check_alloc_fields = function
+  | [] ->
+    Misc.fatal_error
+      "Blocks dynamically allocated cannot have size 0 (empty arrays have to \
+       be lifted so they can be statically allocated)"
+  | _ -> ()
 
 let make_array ?(dbg = Debuginfo.none) kind args =
+  check_alloc_fields args;
   match (kind : Flambda_primitive.Array_kind.t) with
-  | Naked_floats -> begin
-    match args with
-    | [] ->
-      static_atom ~dbg 0
-      (* 0-size arrays, even float arrays, should have tag 0, see
-         runtime/array.c:caml_make_vec *)
-    | _ -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
-  end
-  | Immediates | Values -> make_alloc_safe ~dbg 0 args
+  | Immediates | Values -> make_alloc dbg 0 args
+  | Naked_floats -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
 
 let make_block ?(dbg = Debuginfo.none) kind args =
+  check_alloc_fields args;
   match (kind : Flambda_primitive.Block_kind.t) with
-  | Values (tag, _) -> make_alloc_safe ~dbg (Tag.Scannable.to_int tag) args
-  | Naked_floats ->
-    if List.length args < 1
-    then
-      Misc.fatal_error
-        "Don't know what tag to put on zero-sized blocks of naked floats";
-    make_array ~dbg Naked_floats args
+  | Values (tag, _) -> make_alloc dbg (Tag.Scannable.to_int tag) args
+  | Naked_floats -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
 
 let make_closure_block ?(dbg = Debuginfo.none) l =
   assert (List.compare_length_with l 0 > 0);
