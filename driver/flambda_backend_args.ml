@@ -731,27 +731,27 @@ struct
   include Make_flambda_backend_options(F)
   include Main_args.Make_optcomp_options(F)
   let list = list2 @ list
-  let _o2 () = Flambda_backend_flags.set_o2 ()
-  let _o3 () = Flambda_backend_flags.set_o3 ()
-  let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
 end
 
 module Make_opttop_options (F : Opttop_options) = struct
   include Make_flambda_backend_options(F)
   include Main_args.Make_opttop_options(F)
   let list = list2 @ list
-  let _o2 () = Flambda_backend_flags.set_o2 ()
-  let _o3 () = Flambda_backend_flags.set_o3 ()
-  let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
 end
 
 module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
     include Flambda_backend_options
+    let _o2 () = Flambda_backend_flags.set_o2 ()
+    let _o3 () = Flambda_backend_flags.set_o3 ()
+    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
     include Flambda_backend_options
+    let _o2 () = Flambda_backend_flags.set_o2 ()
+    let _o3 () = Flambda_backend_flags.set_o3 ()
+    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
 end
