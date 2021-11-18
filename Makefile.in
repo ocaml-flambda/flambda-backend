@@ -33,7 +33,7 @@ dune=@dune@
 # CR-someday mshinwell: We should replace this with a coldstart using dune.
 #
 # The compiler can discard flambda-backend flags from OCAMLPARAM
-# by listing them in "ocaml/stdlib/ocaml_compiler_internal_params".
+# by listing them in "./ocaml_compiler_internal_params".
 # Copy this file to install directory of stage0 to make it available
 # to the build of the compiler itself in stage0 (instead of patching the
 # upstream compiler to look for it in the right place).
