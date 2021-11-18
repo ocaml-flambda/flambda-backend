@@ -1014,7 +1014,3 @@ int caml_num_rows_fd(int fd)
 {
   return -1;
 }
-
-void caml_increase_native_stack_size(void)
-{
-}
