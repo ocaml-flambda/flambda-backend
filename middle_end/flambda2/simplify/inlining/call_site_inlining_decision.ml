@@ -156,7 +156,8 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
     then Speculatively_inline { cost_metrics; evaluated_to; threshold }
     else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
 
-let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : Call_site_inlining_decision_type.t =
+let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
+    Call_site_inlining_decision_type.t =
   let rec_info = FT.rec_info function_type in
   let rec_info =
     match Flambda2_types.prove_rec_info (DA.typing_env dacc) rec_info with

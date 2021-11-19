@@ -16,7 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-
 (* CR-someday mshinwell: Maybe have two types, one giving the reasons why
    something can be inlined, and one giving the reasons why something cannot be
    inlined. *)

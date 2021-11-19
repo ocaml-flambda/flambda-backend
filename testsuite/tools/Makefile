@@ -48,7 +48,6 @@ codegen_LIBS = $(addprefix $(COMPILERLIBSDIR)/,\
   flambda2_lattices \
   flambda2_term_basics \
   flambda2_terms \
-  flambda2_simplify_shared \
   flambda2_parser \
   flambda2_from_lambda \
   flambda2_simplify \
