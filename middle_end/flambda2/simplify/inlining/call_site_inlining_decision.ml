@@ -34,153 +34,6 @@ module UE = Upwards_env
    once [Inlining_impossible] handling is implemented for the
    non-fallback-inlining cases. *)
 
-type t =
-  | Missing_code
-  | Definition_says_not_to_inline
-  | Environment_says_never_inline
-  | Argument_types_not_useful
-  | Unrolling_depth_exceeded
-  | Max_inlining_depth_exceeded
-  | Recursion_depth_exceeded
-  | Never_inlined_attribute
-  | Speculatively_not_inline of
-      { cost_metrics : Cost_metrics.t;
-        evaluated_to : float;
-        threshold : float
-      }
-  | Attribute_always
-  | Attribute_unroll of int
-  | Definition_says_inline
-  | Speculatively_inline of
-      { cost_metrics : Cost_metrics.t;
-        evaluated_to : float;
-        threshold : float
-      }
-
-let [@ocamlformat "disable"] print ppf t =
-  match t with
-  | Missing_code -> Format.fprintf ppf "Missing_code"
-  | Definition_says_not_to_inline ->
-    Format.fprintf ppf "Definition_says_not_to_inline"
-  | Environment_says_never_inline ->
-    Format.fprintf ppf "Environment_says_never_inline"
-  | Argument_types_not_useful ->
-    Format.fprintf ppf "Argument_types_not_useful"
-  | Unrolling_depth_exceeded ->
-    Format.fprintf ppf "Unrolling_depth_exceeded"
-  | Max_inlining_depth_exceeded ->
-    Format.fprintf ppf "Max_inlining_depth_exceeded"
-  | Recursion_depth_exceeded ->
-    Format.fprintf ppf "Recursion_depth_exceeded"
-  | Never_inlined_attribute ->
-    Format.fprintf ppf "Never_inlined_attribute"
-  | Attribute_always ->
-    Format.fprintf ppf "Attribute_unroll"
-  | Definition_says_inline ->
-    Format.fprintf ppf "Definition_says_inline"
-  | Attribute_unroll unroll_to ->
-    Format.fprintf ppf
-      "@[<hov 1>(Attribute_unroll@ \
-        @[<hov 1>(unroll_to@ %d)@]\
-        )@]"
-      unroll_to
-  | Speculatively_not_inline { cost_metrics; threshold; evaluated_to; } ->
-    Format.fprintf ppf
-      "@[<hov 1>(Speculatively_not_inline@ \
-        @[<hov 1>(cost_metrics@ %a)@]@ \
-        @[<hov 1>(evaluated_to@ %f)@]@ \
-        @[<hov 1>(threshold@ %f)@]\
-        )@]"
-      Cost_metrics.print cost_metrics
-      evaluated_to
-      threshold
-  | Speculatively_inline { cost_metrics; threshold; evaluated_to; } ->
-    Format.fprintf ppf
-      "@[<hov 1>(Speculatively_inline@ \
-        @[<hov 1>(cost_metrics@ %a)@]@ \
-        @[<hov 1>(evaluated_to@ %f)@]@ \
-        @[<hov 1>(threshold@ %f)@]\
-        )@]"
-      Cost_metrics.print cost_metrics
-      evaluated_to
-      threshold
-
-type can_inline =
-  | Do_not_inline of
-      { warn_if_attribute_ignored : bool;
-        because_of_definition : bool
-      }
-  | Inline of { unroll_to : int option }
-
-let can_inline (t : t) : can_inline =
-  match t with
-  | Missing_code | Environment_says_never_inline | Max_inlining_depth_exceeded
-  | Recursion_depth_exceeded | Speculatively_not_inline _
-  | Definition_says_not_to_inline | Argument_types_not_useful ->
-    (* If there's an [@inlined] attribute on this, something's gone wrong *)
-    Do_not_inline
-      { warn_if_attribute_ignored = true; because_of_definition = true }
-  | Never_inlined_attribute ->
-    (* If there's an [@inlined] attribute on this, something's gone wrong *)
-    Do_not_inline
-      { warn_if_attribute_ignored = true; because_of_definition = true }
-  | Unrolling_depth_exceeded ->
-    (* If there's an [@unrolled] attribute on this, then we'll ignore the
-       attribute when we stop unrolling, which is fine *)
-    Do_not_inline
-      { warn_if_attribute_ignored = false; because_of_definition = true }
-  | Attribute_unroll unroll_to -> Inline { unroll_to = Some unroll_to }
-  | Definition_says_inline | Speculatively_inline _ | Attribute_always ->
-    Inline { unroll_to = None }
-
-let report_reason fmt t =
-  match (t : t) with
-  | Missing_code ->
-    Format.fprintf fmt
-      "the@ code@ could@ not@ be@ found@ (is@ a@ .cmx@ file@ missing?)"
-  | Definition_says_not_to_inline ->
-    Format.fprintf fmt
-      "this@ function@ was@ deemed@ at@ the@ point@ of@ its@ definition@ to@ \
-       never@ be@ inlinable"
-  | Environment_says_never_inline ->
-    Format.fprintf fmt "the@ environment@ says@ never@ to@ inline"
-  | Argument_types_not_useful ->
-    Format.fprintf fmt
-      "there@ was@ no@ useful@ information@ about@ the@ arguments"
-  | Unrolling_depth_exceeded ->
-    Format.fprintf fmt "the@ maximum@ unrolling@ depth@ has@ been@ exceeded"
-  | Max_inlining_depth_exceeded ->
-    Format.fprintf fmt "the@ maximum@ inlining@ depth@ has@ been@ exceeded"
-  | Recursion_depth_exceeded ->
-    Format.fprintf fmt "the@ maximum@ recursion@ depth@ has@ been@ exceeded"
-  | Never_inlined_attribute ->
-    Format.fprintf fmt "the@ call@ has@ an@ attribute@ forbidding@ inlining"
-  | Attribute_always ->
-    Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
-  | Attribute_unroll n ->
-    Format.fprintf fmt "the@ call@ has@ an@ [@@unroll %d]@ attribute" n
-  | Definition_says_inline ->
-    Format.fprintf fmt
-      "this@ function@ was@ decided@ to@ be@ always@ inlined@ at@ its@ \
-       definition@ site (annotated@ by@ [@inlined always]@ or@ determined@ to@ \
-       be@ small@ enough)"
-  | Speculatively_not_inline { cost_metrics; evaluated_to; threshold } ->
-    Format.fprintf fmt
-      "the@ function@ was@ not@ inlined@ after@ speculation@ as@ its@ cost@ \
-       metrics were=%a,@ which@ was@ evaluated@ to@ %f > threshold %f"
-      Cost_metrics.print cost_metrics evaluated_to threshold
-  | Speculatively_inline { cost_metrics; evaluated_to; threshold } ->
-    Format.fprintf fmt
-      "the@ function@ was@ inlined@ after@ speculation@ as@ its@ cost@ metrics \
-       were=%a,@ which@ was@ evaluated@ to@ %f <= threshold %f"
-      Cost_metrics.print cost_metrics evaluated_to threshold
-
-let report fmt t =
-  Format.fprintf fmt
-    "@[<v>The function call %s been inlined@ because @[<hov>%a@]@]"
-    (match can_inline t with Inline _ -> "has" | Do_not_inline _ -> "has not")
-    report_reason t
-
 (* CR mshinwell: Overhaul handling of the inlining depth tracking so that it
    takes into account the depth of closures (or code), as per conversation with
    lwhite. *)
@@ -272,7 +125,7 @@ let argument_types_useful dacc apply =
       (Apply.args apply)
 
 let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
-    ~return_arity : t =
+    ~return_arity : Call_site_inlining_decision_type.t =
   let denv = DA.denv dacc in
   let env_prohibits_inlining = not (DE.can_inline denv) in
   let decision =
@@ -303,7 +156,7 @@ let might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
     then Speculatively_inline { cost_metrics; evaluated_to; threshold }
     else Speculatively_not_inline { cost_metrics; evaluated_to; threshold }
 
-let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : t =
+let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity : Call_site_inlining_decision_type.t =
   let rec_info = FT.rec_info function_type in
   let rec_info =
     match Flambda2_types.prove_rec_info (DA.typing_env dacc) rec_info with

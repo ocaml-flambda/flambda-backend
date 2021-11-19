@@ -1,0 +1,23 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_simplify_shared)
+ (wrapped true)
+ (flags
+  (:standard
+   -principal
+   -nostdlib
+   -open
+   Flambda2_identifiers
+   -open
+   Flambda2_ui
+   -open
+   Flambda2_terms))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+  stdlib
+  ocamlcommon
+  flambda2_identifiers
+  flambda2_ui
+  flambda2_terms))

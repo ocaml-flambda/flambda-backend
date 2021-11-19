@@ -136,7 +136,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
            (Known_function
               { code_id = Code_id.export callee's_code_id; decision }))
         ~dbg:(DE.add_inlined_debuginfo' (DA.denv dacc) (Apply.dbg apply));
-    match Call_site_inlining_decision.can_inline decision with
+    match Call_site_inlining_decision_type.can_inline decision with
     | Do_not_inline { warn_if_attribute_ignored; because_of_definition } ->
       (* emission of the warning at this point should not happen, if it does,
          then that means that {Inlining_decision.make_decision_for_call_site}

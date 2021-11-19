@@ -16,6 +16,8 @@
    -open
    Flambda2_simplify
    -open
+   Flambda2_simplify_shared
+   -open
    Flambda2_terms
    -open
    Flambda2_to_cmm
@@ -33,6 +35,7 @@
   flambda2_from_lambda
   flambda2_parser
   flambda2_simplify
+  flambda2_simplify_shared
   flambda2_terms
   flambda2_to_cmm
   flambda2_ui))
