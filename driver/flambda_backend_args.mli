@@ -13,6 +13,23 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+(** This module follows the structure of ocaml/driver/main_args.ml{i}.
+    It provides a way to (a) share argument implementations between
+    different installable tools and (b) override default implementations
+    of arguments. *)
+
+(** Steps for adding a new flag:
+    1) add a ref to flambda_backend_flags.ml{i}
+    2) add the flag's constructor "mk_<flag>" in flambda_backend_args.ml
+    3) add the callback for the new flag to Flambda_backend_options module type
+       in flambda_backend_args.ml{i}
+    4) list the flag in the body of Make_flambda_backend_options functor
+    5) implement the flag in Flambda_backend_options_impl
+       by setting the corresponding ref in Flambda_backend_flags
+    6) add the flag to Extra_params if it can be set via OCAMLPARAM
+*)
+
+(** Command line arguments required for flambda backend.  *)
 module type Flambda_backend_options = sig
   val _ocamlcfg : unit -> unit
   val _no_ocamlcfg : unit -> unit
@@ -68,24 +85,34 @@ module type Flambda_backend_options = sig
   val _dfreshen : unit -> unit
 end
 
+(** Command line arguments required for ocamlopt. *)
 module type Optcomp_options = sig
   include Main_args.Optcomp_options
   include Flambda_backend_options
 end
 
+(** Command line arguments required for ocamlnat. *)
 module type Opttop_options = sig
   include Main_args.Opttop_options
   include Flambda_backend_options
 end
 
+(** Transform required command-line arguments into actual arguments.
+    Each tool can define its own argument implementations and
+    call the right functor to actualize them into [Arg.t] list. *)
 module Make_optcomp_options : Optcomp_options -> Main_args.Arg_list;;
 module Make_opttop_options : Opttop_options -> Main_args.Arg_list;;
 
+(** Default implementations of required arguments for each tool.  *)
 module Default: sig
   module Optmain: Optcomp_options
   module Opttopmain: Opttop_options
 end
 
+(** Extra_params module provides a way to read flambda-backend
+    flags from OCAMLPARAM. All command line flags should support it,
+    with the exception of debug printing, such as -dcfg.
+*)
 module Extra_params : sig
   (** [read_param ppf pos name value] returns whether the param was handled.  *)
   val read_param :

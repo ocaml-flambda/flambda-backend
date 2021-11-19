@@ -728,8 +728,14 @@ end
 
 module Make_optcomp_options (F : Optcomp_options) =
 struct
-  include Make_flambda_backend_options(F)
-  include Main_args.Make_optcomp_options(F)
+  include Make_flambda_backend_options(F)  (* provides [list2]  *)
+  include Main_args.Make_optcomp_options(F)  (* provides [list] *)
+  (* Overwrite [list] with the combination of the above options.
+     If the same string input can be recognized by two options,
+     the flambda-backend implementation will take precedence,
+     but this should be avoided. To override an option from Main_args,
+     redefine it in the implementation of this functor's argument.
+     See the approach below for _o3 in Default. *)
   let list = list2 @ list
 end
 
