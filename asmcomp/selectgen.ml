@@ -87,6 +87,7 @@ let oper_result_type = function
   | Ccheckbound -> typ_void
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
+  | Copaque -> typ_val
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -325,7 +326,7 @@ method is_simple_expr = function
       begin match op with
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Cprobe _
-      | Cprobe_is_enabled _ -> false
+      | Cprobe_is_enabled _ | Copaque -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
@@ -364,7 +365,7 @@ method effects_of exp =
   | Cop (op, args, _) ->
     let from_op =
       match op with
-      | Capply _ | Cextcall _ | Cprobe _ -> EC.arbitrary
+      | Capply _ | Cextcall _ | Cprobe _ | Copaque -> EC.arbitrary
       | Calloc -> EC.none
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
@@ -681,6 +682,13 @@ method emit_expr (env:environment) exp =
           dbg, Cconst_int (1, dbg),
           dbg, Cconst_int (0, dbg),
           dbg))
+  | Cop(Copaque, args, dbg) ->
+      begin match self#emit_parts_list env args with
+        None -> None
+      | Some (simple_args, env) ->
+         let rs = self#emit_tuple env simple_args in
+         Some (self#insert_op_debug env Iopaque dbg rs rs)
+      end
   | Cop(op, args, dbg) ->
       begin match self#emit_parts_list env args with
         None -> None

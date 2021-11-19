@@ -158,6 +158,7 @@ let operation d = function
   | Cprobe { name; handler_code_sym } ->
     Printf.sprintf "probe[%s %s]" name handler_code_sym
   | Cprobe_is_enabled {name} -> Printf.sprintf "probe_is_enabled[%s]" name
+  | Copaque -> "opaque"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n
