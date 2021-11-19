@@ -338,6 +338,15 @@ let clflags_attribute_with_int_payload attr ~name clflags_ref =
     | None -> ()
   end
 
+let principal_attribute attr =
+  clflags_attribute_without_payload attr
+    ~name:"principal" Clflags.principal
+
+let noprincipal_attribute attr =
+  clflags_attribute_without_payload' attr
+    ~name:"noprincipal"
+    ~f:(fun () -> Clflags.principal := false)
+
 let nolabels_attribute attr =
   clflags_attribute_without_payload attr
     ~name:"nolabels" Clflags.classic
@@ -377,10 +386,14 @@ let afl_inst_ratio_attribute attr =
 
 let parse_standard_interface_attributes attr =
   warning_attribute attr;
+  principal_attribute attr;
+  noprincipal_attribute attr;
   nolabels_attribute attr
 
 let parse_standard_implementation_attributes attr =
   warning_attribute attr;
+  principal_attribute attr;
+  noprincipal_attribute attr;
   nolabels_attribute attr;
   inline_attribute attr;
   afl_inst_ratio_attribute attr;
