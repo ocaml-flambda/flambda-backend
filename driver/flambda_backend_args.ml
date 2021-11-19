@@ -485,7 +485,7 @@ struct
   ]
 end
 
-module Flambda_backend_options = struct
+module Flambda_backend_options_impl = struct
   let set r () = r := true
   let clear r () = r := false
 
@@ -742,14 +742,14 @@ end
 module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
-    include Flambda_backend_options
+    include Flambda_backend_options_impl
     let _o2 () = Flambda_backend_flags.set_o2 ()
     let _o3 () = Flambda_backend_flags.set_o3 ()
     let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
-    include Flambda_backend_options
+    include Flambda_backend_options_impl
     let _o2 () = Flambda_backend_flags.set_o2 ()
     let _o3 () = Flambda_backend_flags.set_o3 ()
     let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
