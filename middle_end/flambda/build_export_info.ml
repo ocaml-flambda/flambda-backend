@@ -258,6 +258,10 @@ let rec approx_of_expr (env : Env.t) (flam : Flambda.t) : Export_info.approx =
         Closure_id.Map.find closure_id results
       | _ -> Value_unknown
     end
+  | Region body ->
+    approx_of_expr env body
+  | Tail body ->
+    approx_of_expr env body
   | Assign _ -> Value_id (Env.new_unit_descr env)
   | For _ -> Value_id (Env.new_unit_descr env)
   | While _ -> Value_id (Env.new_unit_descr env)

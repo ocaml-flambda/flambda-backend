@@ -163,6 +163,7 @@ and function_body = private {
 and function_declaration = private {
   closure_origin : Closure_origin.t;
   params : Parameter.t list;
+  alloc_mode : Lambda.alloc_mode;
   function_body : function_body option;
 }
 

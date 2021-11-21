@@ -19,11 +19,11 @@ external is_local : local_ 'a -> bool = "caml_obj_is_local"
 let loc (local_ x) =
   if is_local x then 1 else 0
 
-let flocal () =
+let[@inline never] flocal (local_ arg) =
   let g = M.part_local in
   let a = g 1 in
   let b = a 2 in
-  let c = b (local_ "asdf") in
+  let c = b arg in
   let d = c 4 in
   let e = d 5 in
   Gc.minor ();
@@ -31,7 +31,7 @@ let flocal () =
     "specialise local"
     (loc g) (loc a) (loc b) (loc c) (loc d) (loc e)
 
-let _ = flocal ()
+let _ = flocal "asdf"
 
 let fopaque () =
   let g = Sys.opaque_identity M.part_local in

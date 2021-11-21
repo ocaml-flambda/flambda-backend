@@ -38,6 +38,7 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
+  position : Lambda.apply_position;
   inline : Lambda.inline_attribute;
   (** Instructions from the source code as to whether the callee should
       be inlined. *)
@@ -60,6 +61,7 @@ type send = {
   obj : Variable.t;
   args : Variable.t list;
   dbg : Debuginfo.t;
+  position : Lambda.apply_position;
 }
 
 (** For details on these types, see projection.mli. *)
@@ -107,6 +109,8 @@ type t =
   | Try_with of t * Variable.t * t
   | While of t * t
   | For of for_loop
+  | Region of t
+  | Tail of t
   | Proved_unreachable
 
 (** Values of type [named] will always be [let]-bound to a [Variable.t]. *)
@@ -278,6 +282,8 @@ and set_of_closures = private {
       functions (which will be inlined at direct call sites, but will
       penalise indirect call sites).
       [direct_call_surrogates] may not be transitively closed. *)
+  alloc_mode : Lambda.alloc_mode;
+  (** Whether these closures are allocated on the heap or locally. *)
 }
 
 and function_declarations = private {
@@ -301,6 +307,7 @@ and function_declarations = private {
 and function_declaration = private {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  alloc_mode : Lambda.alloc_mode;
   body : t;
   (* CR-soon mshinwell: inconsistent naming free_variables/free_vars here and
      above *)
@@ -547,6 +554,7 @@ end
     symbols occurring in the specified [body]. *)
 val create_function_declaration
    : params:Parameter.t list
+  -> alloc_mode:Lambda.alloc_mode
   -> body:t
   -> stub:bool
   -> dbg:Debuginfo.t
@@ -557,9 +565,8 @@ val create_function_declaration
   -> function_declaration
 
 (** Create a function declaration based on another function declaration *)
-val update_function_declaration
+val update_function_declaration_body
   : function_declaration
-  -> params:Parameter.t list
   -> body:t
   -> function_declaration
 
@@ -580,14 +587,6 @@ val create_function_declarations_with_origin
 (** Change only the code of a function declaration. *)
 val update_body_of_function_declaration
    : function_declaration
-  -> body:expr
-  -> function_declaration
-
-(** Change only the code and parameters of a function declaration. *)
-(* CR-soon mshinwell: rename this to match new update function above *)
-val update_function_decl's_params_and_body
-   : function_declaration
-  -> params:Parameter.t list
   -> body:expr
   -> function_declaration
 

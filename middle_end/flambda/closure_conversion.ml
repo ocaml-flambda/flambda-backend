@@ -87,6 +87,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
            redundancy here (func is also unboxed_version) *)
         kind = Direct (Closure_id.wrap unboxed_version);
         dbg = Debuginfo.none;
+        position = Apply_nontail;
         inline = Default_inline;
         specialise = Default_specialise;
       })
@@ -99,8 +100,10 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
         pos + 1, Flambda.create_let param lam body)
       (0, call) params
   in
-  let tuple_param = Parameter.wrap tuple_param_var in
-  Flambda.create_function_declaration ~params:[tuple_param]
+  (* Tupled functions are always Alloc_heap. See translcore.ml *)
+  let alloc_mode = Lambda.Alloc_heap in
+  let tuple_param = Parameter.wrap tuple_param_var alloc_mode in
+  Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode
     ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
     ~specialise:Default_specialise ~is_a_functor:false
     ~closure_origin:(Closure_origin.create (Closure_id.wrap closure_bound_var))
@@ -207,7 +210,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
            initial_value = var;
            body;
            contents_kind = block_kind })
-  | Lfunction { kind; params; body; attr; loc; (* FIXME mode *) } ->
+  | Lfunction { kind; params; body; attr; loc; mode } ->
     let name = Names.anon_fn_with_loc loc in
     let closure_bound_var = Variable.create name in
     (* CR-soon mshinwell: some of this is now very similar to the let rec case
@@ -215,7 +218,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let set_of_closures_var = Variable.create Names.set_of_closures in
     let set_of_closures =
       let decl =
-        Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind
+        Function_decl.create ~let_rec_ident:None ~closure_bound_var ~kind ~mode
           ~params:(List.map fst params) ~body ~attr ~loc
       in
       close_functions t env (Function_decls.create [decl])
@@ -228,7 +231,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     Flambda.create_let set_of_closures_var set_of_closures
       (name_expr (Project_closure (project_closure)) ~name)
   | Lapply { ap_func; ap_args; ap_loc;
-             ap_tailcall = _; ap_inlined; ap_specialised; } ->
+             ap_tailcall = _; ap_inlined; ap_specialised; ap_position } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
       ~name:Names.apply_arg
@@ -241,6 +244,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               args;
               kind = Indirect;
               dbg = Debuginfo.from_location ap_loc;
+              position = ap_position;
               inline = ap_inlined;
               specialise = ap_specialised;
             })))
@@ -255,13 +259,13 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
          will be named after the corresponding identifier in the [let rec]. *)
       List.map (function
           | (let_rec_ident,
-             Lambda.Lfunction { kind; params; body; attr; loc (* FIXME mode *) }) ->
+             Lambda.Lfunction { kind; params; body; attr; loc; mode }) ->
             let closure_bound_var =
               Variable.create_with_same_name_as_ident let_rec_ident
             in
             let function_declaration =
               Function_decl.create ~let_rec_ident:(Some let_rec_ident)
-                ~closure_bound_var ~kind ~params:(List.map fst params) ~body
+                ~closure_bound_var ~kind ~mode ~params:(List.map fst params) ~body
                 ~attr ~loc
             in
             Some function_declaration
@@ -312,7 +316,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, _FIXME, loc) ->
+  | Lsend (kind, meth, obj, args, position, loc) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in
@@ -322,7 +326,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           ~evaluation_order:`Right_to_left
           ~name:Names.send_arg
           ~create_body:(fun args ->
-              Send { kind; meth = meth_var; obj = obj_var; args; dbg; })))
+              Send { kind; meth = meth_var; obj = obj_var; args; dbg; position })))
   | Lprim ((Pdivint Safe | Pmodint Safe
            | Pdivbint { is_safe = Safe } | Pmodbint { is_safe = Safe }) as prim,
            [arg1; arg2], loc)
@@ -568,8 +572,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
        or by completely removing it (replacing by unit). *)
     Misc.fatal_error "[Lifused] should have been removed by \
         [Simplif.simplify_lets]"
-  | Lregion _ ->
-    Misc.fatal_error "FIXME: Lregion unimplemented in Flambda"
+  | Lregion body ->
+    Region (close t env body)
 
 (** Perform closure conversion on a set of function declarations, returning a
     set of closures.  (The set will often only contain a single function;
@@ -600,7 +604,17 @@ and close_functions t external_env function_declarations : Flambda.named =
        not marked as stub but certainly should *)
     let stub = Function_decl.stub decl in
     let param_vars = List.map (Env.find_var closure_env) params in
-    let params = List.map Parameter.wrap param_vars in
+    let nheap =
+      match Function_decl.mode decl, Function_decl.kind decl with
+      | _, Curried {nlocal} -> List.length params - nlocal
+      | Alloc_heap, Tupled -> List.length params
+      | Alloc_local, Tupled -> 0
+    in
+    let params = List.mapi (fun i v ->
+      let alloc_mode : Lambda.alloc_mode =
+        if i < nheap then Alloc_heap else Alloc_local in
+      Parameter.wrap v alloc_mode) param_vars
+    in
     let closure_bound_var = Function_decl.closure_bound_var decl in
     let unboxed_version = Variable.rename closure_bound_var in
     let body = close t closure_env body in
@@ -608,14 +622,16 @@ and close_functions t external_env function_declarations : Flambda.named =
       Closure_origin.create (Closure_id.wrap unboxed_version)
     in
     let fun_decl =
-      Flambda.create_function_declaration ~params ~body ~stub ~dbg
+      Flambda.create_function_declaration
+        ~params ~alloc_mode:(Function_decl.mode decl)
+        ~body ~stub ~dbg
         ~inline:(Function_decl.inline decl)
         ~specialise:(Function_decl.specialise decl)
         ~is_a_functor:(Function_decl.is_a_functor decl)
         ~closure_origin
     in
     match Function_decl.kind decl with
-    | Curried _ (* FIXME nlocal *) ->
+    | Curried _ ->
        Variable.Map.add closure_bound_var fun_decl map
     | Tupled ->
       let unboxed_version = Variable.rename closure_bound_var in
@@ -661,12 +677,12 @@ and close_list t sb l = List.map (close t sb) l
 and close_let_bound_expression t ?let_rec_ident let_bound_var env
       (lam : Lambda.lambda) : Flambda.named =
   match lam with
-  | Lfunction { kind; params; body; attr; loc; } ->
+  | Lfunction { kind; params; body; attr; loc; mode } ->
     (* Ensure that [let] and [let rec]-bound functions have appropriate
        names. *)
     let closure_bound_var = Variable.rename let_bound_var in
     let decl =
-      Function_decl.create ~let_rec_ident ~closure_bound_var ~kind
+      Function_decl.create ~let_rec_ident ~closure_bound_var ~kind ~mode
         ~params:(List.map fst params) ~body ~attr ~loc
     in
     let set_of_closures_var = Variable.rename let_bound_var in

@@ -80,6 +80,10 @@ let variables_not_used_as_local_reference (tree:Flambda.t) =
       loop body
     | Static_raise (_, args) ->
       set := Variable.Set.union (Variable.Set.of_list args) !set
+    | Region body ->
+      loop body
+    | Tail body ->
+      loop body
     | Proved_unreachable | Apply _ | Send _ | Assign _ ->
       set := Variable.Set.union !set (Flambda.free_variables flam)
   in
@@ -151,7 +155,7 @@ let eliminate_ref_of_expr flam =
       | Let_rec _ | Switch _ | String_switch _
       | Static_raise _ | Static_catch _
       | Try_with _ | If_then_else _
-      | While _ | For _ | Send _ | Proved_unreachable ->
+      | While _ | For _ | Region _ | Tail _ | Send _ | Proved_unreachable ->
         flam
     and aux_named (named : Flambda.named) : Flambda.named =
       match named with

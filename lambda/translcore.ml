@@ -93,17 +93,6 @@ let transl_value_mode mode =
   let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
   transl_alloc_mode alloc_mode
 
-let join_mode a b =
-  match a, b with
-  | Alloc_local, _ | _, Alloc_local -> Alloc_local
-  | Alloc_heap, Alloc_heap -> Alloc_heap
-
-let sub_mode a b =
-  match a, b with
-  | Alloc_heap, _ -> true
-  | _, Alloc_local -> true
-  | Alloc_local, Alloc_heap -> false
-
 let transl_apply_position position =
   match position with
   | Nontail -> Apply_nontail
@@ -941,10 +930,11 @@ and transl_tupled_function
       ~scopes ~arity ~mode loc return
       repr partial (param:Ident.t) cases =
   match cases with
-  | {c_lhs={pat_desc = Tpat_tuple pl}} :: _
+  | {c_lhs={pat_desc = Tpat_tuple pl; pat_mode }} :: _
     when !Clflags.native_code
       && arity = 1
       && mode = Alloc_heap
+      && transl_value_mode pat_mode = Alloc_heap
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in

@@ -43,7 +43,8 @@ let inline env r ~lhs_of_application
     ~(function_decl : A.function_declaration)
     ~(function_body : A.function_body)
     ~value_set_of_closures ~only_use_of_function ~original ~recursive
-    ~(args : Variable.t list) ~size_from_approximation ~dbg ~simplify
+    ~(args : Variable.t list) ~size_from_approximation ~dbg ~position
+    ~simplify
     ~(inline_requested : Lambda.inline_attribute)
     ~(specialise_requested : Lambda.specialise_attribute)
     ~fun_vars ~set_of_closures_origin
@@ -193,7 +194,7 @@ let inline env r ~lhs_of_application
       Inlining_transforms.inline_by_copying_function_body ~env
         ~r:(R.reset_benefit r) ~lhs_of_application
         ~closure_id_being_applied ~specialise_requested ~inline_requested
-        ~function_decl ~function_body ~fun_vars ~args ~dbg ~simplify
+        ~function_decl ~function_body ~fun_vars ~args ~dbg ~position ~simplify
     in
     let num_direct_applications_seen =
       (R.num_direct_applications r_inlined) - (R.num_direct_applications r)
@@ -303,7 +304,8 @@ let specialise env r ~lhs_of_application
       ~(function_decl : A.function_declaration)
       ~closure_id_being_applied
       ~(value_set_of_closures : A.value_set_of_closures)
-      ~args ~args_approxs ~dbg ~simplify ~original ~recursive ~self_call
+      ~args ~args_approxs ~dbg ~position ~simplify
+      ~original ~recursive ~self_call
       ~inlining_threshold ~fun_cost
       ~inline_requested ~specialise_requested =
   let invariant_params = value_set_of_closures.invariant_params in
@@ -382,7 +384,7 @@ let specialise env r ~lhs_of_application
           ~specialised_args:value_set_of_closures.specialised_args
           ~free_vars:value_set_of_closures.free_vars
           ~direct_call_surrogates:value_set_of_closures.direct_call_surrogates
-          ~dbg ~simplify ~inline_requested
+          ~dbg ~position ~simplify ~inline_requested
       in
       match copied_function_declaration with
       | Some (expr, r_inlined) ->
@@ -476,12 +478,13 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       ~lhs_of_application ~closure_id_being_applied
       ~(function_decl : A.function_declaration)
       ~(value_set_of_closures : A.value_set_of_closures)
-      ~args ~args_approxs ~dbg ~simplify ~inline_requested
+      ~args ~args_approxs ~dbg ~position ~simplify ~inline_requested
       ~specialise_requested =
   if List.length args <> List.length args_approxs then begin
     Misc.fatal_error "Inlining_decision.for_call_site: inconsistent lengths \
         of [args] and [args_approxs]"
   end;
+  (* FIXME insert Tail appropriately if position = Apply_tail *)
   (* Remove unroll attributes from functions we are already actively
      unrolling, otherwise they'll be unrolled again next round. *)
   let inline_requested : Lambda.inline_attribute =
@@ -503,6 +506,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
       args;
       kind = Direct closure_id_being_applied;
       dbg;
+      position;
       inline = inline_requested;
       specialise = specialise_requested;
     }
@@ -520,7 +524,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
         Inlining_transforms.inline_by_copying_function_body ~env
           ~r ~fun_vars ~lhs_of_application
           ~closure_id_being_applied ~specialise_requested ~inline_requested
-          ~function_decl ~function_body ~args ~dbg ~simplify
+          ~function_decl ~function_body ~args ~dbg ~position ~simplify
       in
       simplify env r body
     end else if E.never_inline env then
@@ -558,7 +562,7 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
               Inlining_transforms.inline_by_copying_function_body ~env
                 ~r ~function_body ~lhs_of_application
                 ~closure_id_being_applied ~specialise_requested
-                ~inline_requested ~function_decl ~fun_vars ~args ~dbg ~simplify
+                ~inline_requested ~function_decl ~fun_vars ~args ~dbg ~position ~simplify
             in
             let env = E.note_entering_inlined env in
             let env =
@@ -675,7 +679,8 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
             specialise env r
               ~function_decls ~function_decl
               ~lhs_of_application ~recursive ~closure_id_being_applied
-              ~value_set_of_closures ~args ~args_approxs ~dbg ~simplify
+              ~value_set_of_closures ~args ~args_approxs ~dbg ~position
+              ~simplify
               ~original ~inline_requested ~specialise_requested ~fun_cost
               ~self_call ~inlining_threshold
           in
@@ -709,7 +714,8 @@ let for_call_site ~env ~r ~(function_decls : A.function_declarations)
                 ~only_use_of_function ~original ~recursive
                 ~inline_requested ~specialise_requested
                 ~fun_vars ~set_of_closures_origin ~args
-                ~size_from_approximation ~dbg ~simplify ~fun_cost ~self_call
+                ~size_from_approximation ~dbg ~position
+                ~simplify ~fun_cost ~self_call
                 ~inlining_threshold ~function_body
             in
             match inline_result with

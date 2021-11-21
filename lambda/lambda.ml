@@ -1000,3 +1000,21 @@ let max_arity () =
 
 let reset () =
   raise_count := 0
+
+let join_mode a b =
+  match a, b with
+  | Alloc_local, _ | _, Alloc_local -> Alloc_local
+  | Alloc_heap, Alloc_heap -> Alloc_heap
+
+let sub_mode a b =
+  match a, b with
+  | Alloc_heap, _ -> true
+  | _, Alloc_local -> true
+  | Alloc_local, Alloc_heap -> false
+
+let eq_mode a b =
+  match a, b with
+  | Alloc_heap, Alloc_heap -> true
+  | Alloc_local, Alloc_local -> true
+  | Alloc_heap, Alloc_local -> false
+  | Alloc_local, Alloc_heap -> false

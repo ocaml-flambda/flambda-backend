@@ -93,6 +93,15 @@ let check_closure t ulam named : Clambda.ulambda =
            [ulam; Clambda.Uconst (Uconst_ref (sym, None))],
            Debuginfo.none)
 
+let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
+  let nlocal =
+    func.params
+    |> List.filter (fun p ->
+           Lambda.eq_mode Alloc_local (Parameter.alloc_mode p))
+    |> List.length
+  in
+  Curried {nlocal}, Flambda_utils.function_arity func
+
 let check_field t ulam pos named_opt : Clambda.ulambda =
   if not !Clflags.clambda_checks then ulam
   else
@@ -259,7 +268,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
         defs
     in
     Uletrec (defs, to_clambda t env body)
-  | Apply { func; args; kind = Direct direct_func; dbg = dbg } ->
+  | Apply { func; args; kind = Direct direct_func; dbg = dbg; position } ->
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
        explicitly added (by [to_clambda_direct_apply]); there is no special
@@ -267,12 +276,11 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func dbg env
-  | Apply { func; args; kind = Indirect; dbg = dbg } ->
-    (* FIXME: position *)
+    to_clambda_direct_apply t func args direct_func dbg position env
+  | Apply { func; args; kind = Indirect; dbg = dbg; position } ->
     let callee = subst_var env func in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, Apply_nontail, dbg)
+      subst_vars env args, position, dbg)
   | Switch (arg, sw) ->
     let aux () : Clambda.ulambda =
       let const_index, const_actions =
@@ -349,10 +357,13 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
           Flambda.print flam
     in
     Uassign (id, subst_var env new_value)
-  | Send { kind; meth; obj; args; dbg } ->
-    (* FIXME: position *)
+  | Send { kind; meth; obj; args; dbg; position } ->
     Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, Apply_nontail, dbg)
+      subst_vars env args, position, dbg)
+  | Region body ->
+    Uregion (to_clambda t env body)
+  | Tail body ->
+    Utail (to_clambda t env body)
   | Proved_unreachable -> Uunreachable
 
 and to_clambda_named t env var (named : Flambda.named) : Clambda.ulambda =
@@ -447,7 +458,8 @@ and to_clambda_switch t env cases num_keys default =
   | [| |] -> [| |], [| |]  (* May happen when [default] is [None]. *)
   | _ -> index, actions
 
-and to_clambda_direct_apply t func args direct_func dbg env : Clambda.ulambda =
+and to_clambda_direct_apply t func args direct_func dbg pos env
+    : Clambda.ulambda =
   let closed = is_function_constant t direct_func in
   let label = Compilenv.function_label direct_func in
   let uargs =
@@ -457,8 +469,7 @@ and to_clambda_direct_apply t func args direct_func dbg env : Clambda.ulambda =
        dropping any side effects.) *)
     if closed then uargs else uargs @ [subst_var env func]
   in
-  (* FIXME: position *)
-  Udirect_apply (label, uargs, Apply_nontail, dbg)
+  Udirect_apply (label, uargs, pos, dbg)
 
 (* Describe how to build a runtime closure block that corresponds to the
    given Flambda set of closures.
@@ -541,8 +552,7 @@ and to_clambda_set_of_closures t env
         function_decl.params (env, [])
     in
     { label = Compilenv.function_label closure_id;
-      arity = Curried {nlocal=0(*FIXME*)},
-              Flambda_utils.function_arity function_decl;
+      arity = clambda_arity function_decl;
       params =
         List.map
           (fun var -> VP.create var, Lambda.Pgenval)
@@ -551,7 +561,7 @@ and to_clambda_set_of_closures t env
       body = to_clambda t env_body function_decl.body;
       dbg = function_decl.dbg;
       env = Some env_var;
-      mode = Alloc_heap; (* FIXME wrong *)
+      mode = set_of_closures.alloc_mode;
     }
   in
   let funs = List.map to_clambda_function all_functions in
@@ -591,14 +601,13 @@ and to_clambda_closed_set_of_closures t env symbol
         (to_clambda t env_body function_decl.body)
     in
     { label = Compilenv.function_label (Closure_id.wrap id);
-      arity = Curried {nlocal=0(*FIXME*)},
-              Flambda_utils.function_arity function_decl;
+      arity = clambda_arity function_decl;
       params = List.map (fun var -> VP.create var, Lambda.Pgenval) params;
       return = Lambda.Pgenval;
       body;
       dbg = function_decl.dbg;
       env = None;
-      mode = Alloc_heap; (* FIXME wrong *)
+      mode = Alloc_heap;
     }
   in
   let ufunct = List.map to_clambda_function functions in

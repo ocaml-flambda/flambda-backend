@@ -96,7 +96,8 @@ let inline_by_copying_function_body ~env ~r
       ~(function_decl : A.function_declaration)
       ~(function_body : A.function_body)
       ~fun_vars
-      ~args ~dbg ~simplify =
+      ~args ~dbg ~position:_ ~simplify =
+  (* FIXME insert Tail appropriately if position = Apply_tail *)
   assert (E.mem env lhs_of_application);
   assert (List.for_all (E.mem env) args);
   let r =
@@ -287,6 +288,7 @@ let register_arguments ~specialised_args ~invariant_params
 (* Add an old parameter to [old_inside_to_new_inside]. If it appears in
    [old_params_to_new_outside] then also add it to the new specialised args. *)
 let add_param ~specialised_args ~state ~param =
+  let alloc_mode = Parameter.alloc_mode param in
   let param = Parameter.var param in
   let new_param = Variable.rename param in
   let old_inside_to_new_inside =
@@ -318,7 +320,7 @@ let add_param ~specialised_args ~state ~param =
     { state with old_inside_to_new_inside;
                  new_specialised_args_with_old_projections }
   in
-  state, Parameter.wrap new_param
+  state, Parameter.wrap new_param alloc_mode
 
 (* Add a let binding for an old fun_var, add it to the new free variables, and
    add it to [old_inside_to_new_inside] *)
@@ -530,7 +532,7 @@ let rewrite_function ~lhs_of_application ~closure_id_being_applied
   in
   let new_function_decl =
     Flambda.create_function_declaration
-      ~params ~body
+      ~params ~alloc_mode:function_decl.alloc_mode ~body
       ~stub:function_body.stub
       ~dbg:function_body.dbg
       ~inline:function_body.inline
@@ -596,6 +598,7 @@ let inline_by_copying_function_declaration
     ~(free_vars : Flambda.specialised_to Variable.Map.t)
     ~(direct_call_surrogates : Closure_id.t Closure_id.Map.t)
     ~(dbg : Debuginfo.t)
+    ~(position : Lambda.apply_position)
     ~(simplify : Inlining_decision_intf.simplify) =
   let state = empty_state in
   let state =
@@ -653,7 +656,7 @@ let inline_by_copying_function_declaration
         {set_of_closures = set_of_closures_var; closure_id}
       in
       let apply : Flambda.apply =
-        { func = closure_var; args; kind = Direct closure_id; dbg;
+        { func = closure_var; args; kind = Direct closure_id; dbg; position;
           inline = inline_requested; specialise = Default_specialise; }
       in
       let body =

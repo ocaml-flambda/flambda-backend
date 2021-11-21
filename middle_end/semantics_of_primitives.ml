@@ -160,3 +160,106 @@ let return_type_of_primitive (prim:Clambda_primitives.primitive) =
       Float
   | _ ->
       Other
+
+let is_local_alloc = function
+  | Lambda.Alloc_local -> true
+  | Lambda.Alloc_heap -> false
+
+let may_locally_allocate (prim:Clambda_primitives.primitive) : bool =
+  match prim with
+  | Pmakeblock (_, _, _, m)
+  | Pmakearray (_, _, m) -> is_local_alloc m
+  | Pduparray (_, _)
+  | Pduprecord (_,_) -> false
+  | Pccall { prim_name =
+               ( "caml_format_float" | "caml_format_int" | "caml_int32_format"
+               | "caml_nativeint_format" | "caml_int64_format" ) } -> false
+  | Pccall _ ->
+     (* TODO: Track which C calls may locally allocate more precisely *)
+     true
+  | Praise _ -> false
+  | Pnot
+  | Pnegint
+  | Paddint
+  | Psubint
+  | Pmulint
+  | Pandint
+  | Pdivint _
+  | Pmodint _
+  | Porint
+  | Pxorint
+  | Plslint
+  | Plsrint
+  | Pasrint
+  | Pintcomp _ -> false
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+    -> false
+  | Poffsetint _ -> false
+  | Poffsetref _ -> false
+  | Pintoffloat
+  | Pfloatcomp _ -> false
+  | Pfloatofint m
+  | Pnegfloat m
+  | Pabsfloat m
+  | Paddfloat m
+  | Psubfloat m
+  | Pmulfloat m
+  | Pdivfloat m -> is_local_alloc m
+  | Pstringlength | Pbyteslength
+  | Parraylength _ -> false
+  | Pisint
+  | Pisout
+  | Pintofbint _
+  | Pbintcomp _ -> false
+  | Pdivbint { mode = m }
+  | Pmodbint { mode = m }
+  | Pbintofint (_,m)
+  | Pcvtbint (_,_,m)
+  | Pnegbint (_,m)
+  | Paddbint (_,m)
+  | Psubbint (_,m)
+  | Pmulbint (_,m)
+  | Pandbint (_,m)
+  | Porbint (_,m)
+  | Pxorbint (_,m)
+  | Plslbint (_,m)
+  | Plsrbint (_,m)
+  | Pasrbint (_,m) -> is_local_alloc m
+  | Pbigarraydim _ -> false
+  | Pread_symbol _
+  | Pfield _
+  | Pfield_computed
+  | Parrayrefu _
+  | Pstringrefu
+  | Pbytesrefu
+  | Pstring_load (_, Unsafe, _)
+  | Pbytes_load (_, Unsafe, _)
+  | Pbigarrayref (true, _, _, _)
+  | Pbigstring_load (_, Unsafe, _) ->
+      false
+  | Pfloatfield (_, m) -> is_local_alloc m
+  | Pstring_load (_, Safe, m)
+  | Pbytes_load (_, Safe, m)
+  | Pbigstring_load (_, Safe, m) -> is_local_alloc m
+  | Parrayrefs _
+  | Pstringrefs
+  | Pbytesrefs
+  | Pbigarrayref (false, _, _, _) -> false
+  | Psetfield _
+  | Psetfield_computed _
+  | Psetfloatfield _
+  | Parraysetu _
+  | Parraysets _
+  | Pbytessetu
+  | Pbytessets
+  | Pbytes_set _
+  | Pbigarrayset _
+  | Pbigstring_set _ ->
+      false
+  | Pbswap16 -> false
+  | Pbbswap (_,m) -> is_local_alloc m
+  | Pint_as_pointer -> false
+  | Popaque -> false
+  | Psequand
+  | Psequor ->
+      false

@@ -610,7 +610,8 @@ and simplify_set_of_closures original_env r
           simplify body_env r function_decl.body)
     in
     let function_decl =
-      Flambda.create_function_declaration ~params:function_decl.params
+      Flambda.create_function_declaration
+        ~params:function_decl.params ~alloc_mode:function_decl.alloc_mode
         ~body ~stub:function_decl.stub ~dbg:function_decl.dbg
         ~inline:function_decl.inline ~specialise:function_decl.specialise
         ~is_a_functor:function_decl.is_a_functor
@@ -672,9 +673,12 @@ and simplify_set_of_closures original_env r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
-    Flambda. func = lhs_of_application; args; kind = _; dbg;
+    Flambda. func = lhs_of_application; args; kind = _; dbg; position;
     inline = inline_requested; specialise = specialise_requested;
   } = apply in
+  (* TODO: Most applications do not do local allocations in the current region,
+     but this is not yet tracked, so we conservatively assume they may. *)
+  let r = R.set_region_use r true in
   let dbg = E.add_inlined_debuginfo env ~dbg in
   simplify_free_variable env lhs_of_application
     ~f:(fun env lhs_of_application lhs_of_application_approx ->
@@ -749,13 +753,13 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
             if nargs = arity then
               simplify_full_application env r ~function_decls
                 ~lhs_of_application ~closure_id_being_applied ~function_decl
-                ~value_set_of_closures ~args ~args_approxs ~dbg
+                ~value_set_of_closures ~args ~args_approxs ~dbg ~position
                 ~inline_requested ~specialise_requested
             else if nargs > arity then
               simplify_over_application env r ~args ~args_approxs
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
-                ~function_decl ~value_set_of_closures ~dbg ~inline_requested
-                ~specialise_requested
+                ~function_decl ~value_set_of_closures ~dbg ~position
+                ~inline_requested ~specialise_requested
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
                 ~closure_id_being_applied ~function_decl ~args ~dbg
@@ -768,15 +772,16 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
           wrap result, r
         | Wrong ->  (* Insufficient approximation information to simplify. *)
           Apply ({ func = lhs_of_application; args; kind = Indirect; dbg;
+              position;
               inline = inline_requested; specialise = specialise_requested; }),
             ret r (A.value_unknown Other)))
 
 and simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures ~args
-      ~args_approxs ~dbg ~inline_requested ~specialise_requested =
+      ~args_approxs ~dbg ~position ~inline_requested ~specialise_requested =
   Inlining_decision.for_call_site ~env ~r ~function_decls
     ~lhs_of_application ~closure_id_being_applied ~function_decl
-    ~value_set_of_closures ~args ~args_approxs ~dbg ~simplify
+    ~value_set_of_closures ~args ~args_approxs ~dbg ~position ~simplify
     ~inline_requested ~specialise_requested
 
 and simplify_partial_application env r ~lhs_of_application
@@ -815,6 +820,10 @@ and simplify_partial_application env r ~lhs_of_application
     Misc.Stdlib.List.map2_prefix (fun arg id' -> id', arg)
       args freshened_params
   in
+  let partial_mode =
+    List.fold_left (fun _mode (p,_) -> Parameter.alloc_mode p)
+      function_decl.A.alloc_mode applied_args
+  in
   let wrapper_accepting_remaining_args =
     let body : Flambda.t =
       Apply {
@@ -822,6 +831,7 @@ and simplify_partial_application env r ~lhs_of_application
         args = Parameter.List.vars freshened_params;
         kind = Direct closure_id_being_applied;
         dbg;
+        position = Apply_nontail;
         inline = Default_inline;
         specialise = Default_specialise;
       }
@@ -833,6 +843,7 @@ and simplify_partial_application env r ~lhs_of_application
     Flambda_utils.make_closure_declaration ~id:closure_variable
       ~is_classic_mode:false
       ~body
+      ~alloc_mode:partial_mode
       ~params:remaining_args
       ~stub:true
   in
@@ -846,7 +857,8 @@ and simplify_partial_application env r ~lhs_of_application
 
 and simplify_over_application env r ~args ~args_approxs ~function_decls
       ~lhs_of_application ~closure_id_being_applied ~function_decl
-      ~value_set_of_closures ~dbg ~inline_requested ~specialise_requested =
+      ~value_set_of_closures ~dbg ~position
+      ~inline_requested ~specialise_requested =
   let arity = A.function_arity function_decl in
   assert (arity < List.length args);
   assert (List.length args = List.length args_approxs);
@@ -856,16 +868,18 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   let full_app_approxs, _ =
     Misc.Stdlib.List.split_at arity args_approxs
   in
+  (* FIXME insert Tail appropriately if position = Apply_tail *)
   let expr, r =
     simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures
-      ~args:full_app_args ~args_approxs:full_app_approxs ~dbg
+      ~args:full_app_args ~args_approxs:full_app_approxs ~dbg ~position
       ~inline_requested ~specialise_requested
   in
   let func_var = Variable.create Internal_variable_names.full_apply in
   let expr : Flambda.t =
     Flambda.create_let func_var (Expr expr)
       (Apply { func = func_var; args = remaining_args; kind = Indirect; dbg;
+        position;
         inline = inline_requested; specialise = specialise_requested; })
   in
   let expr = Lift_code.lift_lets_expr expr ~toplevel:true in
@@ -898,6 +912,11 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
     end
   | Set_of_closures set_of_closures -> begin
     let backend = E.backend env in
+    let r =
+      match set_of_closures.alloc_mode with
+      | Alloc_local -> R.set_region_use r true
+      | Alloc_heap -> r
+    in
     let set_of_closures, r, first_freshening =
       simplify_set_of_closures env r set_of_closures
     in
@@ -989,6 +1008,11 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variables_named env args ~f:(fun env args args_approxs ->
       let tree = Flambda.Prim (prim, args, dbg) in
+      let r =
+        if Semantics_of_primitives.may_locally_allocate prim then
+          R.set_region_use r true
+        else r
+      in
       begin match prim, args, args_approxs with
       (* CR-someday mshinwell: Optimise [Pfield_computed]. *)
       | Pfield field_index, [arg], [arg_approx] ->
@@ -1231,12 +1255,12 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let cond, r = simplify env r cond in
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
-  | Send { kind; meth; obj; args; dbg; } ->
+  | Send { kind; meth; obj; args; dbg; position } ->
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
         simplify_free_variables env args ~f:(fun _env args _args_approx ->
-          Send { kind; meth; obj; args; dbg; },
+          Send { kind; meth; obj; args; dbg; position },
             ret r (A.value_unknown Other))))
   | For { bound_var; from_value; to_value; direction; body; } ->
     simplify_free_variable env from_value ~f:(fun env from_value _approx ->
@@ -1371,6 +1395,17 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
         in
         let branch, r = simplify env r branch in
         branch, R.map_benefit r B.remove_branch)
+  | Region body ->
+     let use_outer_region = R.may_use_region r in
+     let r = R.set_region_use r false in
+     let body, r = simplify env r body in
+     let use_inner_region = R.may_use_region r in
+     let r = R.set_region_use r use_outer_region in
+     if use_inner_region then Region body, r
+     else body, r
+  | Tail body ->
+     let body, r = simplify env r body in
+     Tail body, r
   | Proved_unreachable -> tree, ret r A.value_bottom
 
 and simplify_list env r l =
@@ -1423,7 +1458,8 @@ and duplicate_function ~env ~(set_of_closures : Flambda.set_of_closures)
         simplify body_env (R.create ()) function_decl.body)
   in
   let function_decl =
-    Flambda.create_function_declaration ~params:function_decl.params
+    Flambda.create_function_declaration
+      ~params:function_decl.params ~alloc_mode:function_decl.alloc_mode
       ~body ~stub:function_decl.stub ~dbg:function_decl.dbg
       ~inline:function_decl.inline ~specialise:function_decl.specialise
       ~is_a_functor:function_decl.is_a_functor

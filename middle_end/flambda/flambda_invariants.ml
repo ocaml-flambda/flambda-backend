@@ -185,7 +185,8 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop (add_binding_occurrence env var) handler
     (* Everything else: *)
     | Var var -> check_variable_is_bound env var
-    | Apply { func; args; kind; dbg; inline; specialise; } ->
+    | Apply { func; args; kind; dbg; inline; specialise;
+              position = (Apply_tail|Apply_nontail) } ->
       check_variable_is_bound env func;
       check_variables_are_bound env args;
       ignore_call_kind kind;
@@ -195,7 +196,8 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | Assign { being_assigned; new_value; } ->
       check_mutable_variable_is_bound env being_assigned;
       check_variable_is_bound env new_value
-    | Send { kind; meth; obj; args; dbg; } ->
+    | Send { kind; meth; obj; args; dbg;
+             position = (Apply_nontail | Apply_tail)} ->
       ignore_meth_kind kind;
       check_variable_is_bound env meth;
       check_variable_is_bound env obj;
@@ -227,6 +229,10 @@ let variable_and_symbol_invariants (program : Flambda.program) =
     | While (e1, e2) ->
       loop env e1;
       loop env e2
+    | Region e ->
+      loop env e
+    | Tail e ->
+      loop env e
     | Proved_unreachable -> ()
   and loop_named env (named : Flambda.named) =
     match named with
@@ -259,7 +265,7 @@ let variable_and_symbol_invariants (program : Flambda.program) =
       loop env expr
   and loop_set_of_closures env
       ({ Flambda.function_decls; free_vars; specialised_args;
-          direct_call_surrogates = _; } as set_of_closures) =
+          direct_call_surrogates = _; alloc_mode = _ } as set_of_closures) =
       (* CR-soon mshinwell: check [direct_call_surrogates] *)
     let { Flambda. is_classic_mode;
           set_of_closures_id; set_of_closures_origin; funs; } =

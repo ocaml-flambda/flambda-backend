@@ -451,6 +451,10 @@ val max_arity : unit -> int
       This is unlimited ([max_int]) for bytecode, but limited
       (currently to 126) for native code. *)
 
+val join_mode : alloc_mode -> alloc_mode -> alloc_mode
+val sub_mode : alloc_mode -> alloc_mode -> bool
+val eq_mode : alloc_mode -> alloc_mode -> bool
+
 (***********************)
 (* For static failures *)
 (***********************)

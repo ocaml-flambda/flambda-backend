@@ -56,6 +56,7 @@ module Function_decls : sig
        : let_rec_ident:Ident.t option
       -> closure_bound_var:Variable.t
       -> kind:Lambda.function_kind
+      -> mode:Lambda.alloc_mode
       -> params:Ident.t list
       -> body:Lambda.lambda
       -> attr:Lambda.function_attribute
@@ -65,6 +66,7 @@ module Function_decls : sig
     val let_rec_ident : t -> Ident.t
     val closure_bound_var : t -> Variable.t
     val kind : t -> Lambda.function_kind
+    val mode : t -> Lambda.alloc_mode
     val params : t -> Ident.t list
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute

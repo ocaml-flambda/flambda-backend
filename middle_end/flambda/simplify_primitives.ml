@@ -41,7 +41,7 @@ let phys_equal (approxs:A.t list) =
 let is_known_to_be_some_kind_of_int (arg:A.descr) =
   match arg with
   | Value_int _ | Value_char _ -> true
-  | Value_block (_, _) | Value_float _ | Value_set_of_closures _
+  | Value_block _ | Value_float _ | Value_set_of_closures _
   | Value_closure _ | Value_string _ | Value_float_array _
   | A.Value_boxed_int _ | Value_unknown _ | Value_extern _
   | Value_symbol _ | Value_unresolved _ | Value_bottom -> false
@@ -277,7 +277,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     | [Value_float_array { size; contents }] ->
         begin match p with
         | Parraylength _ -> S.const_int_expr expr size
-        | Pfloatfield (i,_) ->  (* FIXME mode? *)
+        | Pfloatfield (i,_) ->
           begin match contents with
           | A.Contents a when i >= 0 && i < size ->
             begin match A.check_approx_for_float a.(i) with

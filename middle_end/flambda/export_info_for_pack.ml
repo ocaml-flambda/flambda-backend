@@ -139,7 +139,8 @@ and import_function_declarations_for_pack_aux units pack
   let funs =
     Variable.Map.map
       (fun (function_decl : Flambda.function_declaration) ->
-        Flambda.create_function_declaration ~params:function_decl.params
+        Flambda.create_function_declaration
+          ~params:function_decl.params ~alloc_mode:function_decl.alloc_mode
           ~body:(import_code_for_pack units pack function_decl.body)
           ~stub:function_decl.stub ~dbg:function_decl.dbg
           ~inline:function_decl.inline
