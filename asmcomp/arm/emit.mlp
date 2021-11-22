@@ -638,7 +638,7 @@ let emit_instr i =
           | Double_u -> "fstd"
           | _ (* 32-bit quantities *) -> "str" in
         `	{emit_string instr}	{emit_reg r}, {emit_addressing addr i.arg 1}\n`; 1
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         let lbl_frame =
           record_frame_label i.live (Dbg_alloc dbginfo)
         in
@@ -672,6 +672,8 @@ let emit_instr i =
           `{emit_label lbl_frame}:	add	{emit_reg i.res.(0)}, alloc_ptr, #4\n`;
           1 + ninstr
         end
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         1 + emit_set_condition cmp i.res.(0)

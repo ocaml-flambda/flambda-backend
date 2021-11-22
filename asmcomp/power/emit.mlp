@@ -487,6 +487,8 @@ module BR = Branch_relaxation.Make (struct
       else load_store_size addr
     | Lop(Istore(_chunk, addr, _)) -> load_store_size addr
     | Lop(Ialloc _) -> 4
+    | Lop(Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Ispecific(Ialloc_far _)) -> 5
     | Lop(Iintop Imod) -> 3
     | Lop(Iintop(Icomp _)) -> 4
@@ -754,13 +756,15 @@ let emit_instr i =
           | Single -> "stfs"
           | Double | Double_u -> "stfd" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         if !call_gc_label = 0 then call_gc_label := new_label ();
         `	addi    31, 31, {emit_int(-n)}\n`;
         `	{emit_string cmplg}	31, 30\n`;
         `	bltl	{emit_label !call_gc_label}\n`;
         record_frame i.live (Dbg_alloc dbginfo);
         `	addi	{emit_reg i.res.(0)}, 31, {emit_int size_addr}\n`;
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Ispecific(Ialloc_far { bytes = n; dbginfo })) ->
         if !call_gc_label = 0 then call_gc_label := new_label ();
         let lbl = new_label() in

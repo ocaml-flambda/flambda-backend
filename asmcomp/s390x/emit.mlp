@@ -420,7 +420,7 @@ let emit_instr i =
           | Double | Double_u -> "stdy" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
 
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         let lbl_after_alloc = new_label() in
         let lbl_call_gc = new_label() in
         let lbl_frame =
@@ -436,6 +436,9 @@ let emit_instr i =
         `	brcl    4, {emit_label lbl_call_gc}\n`;  (* less than *)
         `{emit_label lbl_after_alloc}:`;
         `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
+
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
 
     | Lop(Iintop Imulh) ->
        (* Hacker's Delight section 8.3:
