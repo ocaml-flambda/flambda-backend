@@ -28,7 +28,7 @@ let rec foo x stack =
 
 let () = foo 20 None
 
-let[@inline never] bar stack =
+let[@inline never][@specialise never][@local never] bar stack =
   let stack' = get_backtrace () in
   assert (equal_backtraces stack stack');
   ()
@@ -39,16 +39,19 @@ let foo () =
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 
-let[@inline never] use (local_ r) =
+let[@inline never][@specialise never][@local never] allocate () =
+  local_ ref 0
+
+let[@inline never][@specialise never][@local never] use (local_ r) =
   r := 10
 
-let[@inline never] bar original =
+let[@inline never][@specialise never][@local never] bar original =
   let in_tail_call = local_stack_offset () in
   assert (original = in_tail_call)
 
-let foo () =
+let[@inline never][@specialise never][@local never] foo () =
   let original = local_stack_offset () in
-  let r = local_ ref 0 in
+  let r = allocate () in
   let with_ref = local_stack_offset () in
   assert (with_ref > original);
   use r;
@@ -56,9 +59,9 @@ let foo () =
 
 let () = foo ()
 
-let[@inline never] foo f =
+let[@inline never][@specialise never][@local never] foo f =
   let original = local_stack_offset () in
-  let r = local_ ref 0 in
+  let r = allocate () in
   let with_ref = local_stack_offset () in
   assert (with_ref > original);
   use r;
@@ -66,7 +69,7 @@ let[@inline never] foo f =
 
 let () = foo bar
 
-let[@inline never] bar original
+let[@inline never][@specialise never][@local never] bar original
      () () () () () () () () () ()
      () () () () () () () () () ()
      () () () () () () () () () ()
@@ -80,9 +83,9 @@ let[@inline never] bar original
   let in_tail_call = local_stack_offset () in
   assert (original = in_tail_call)
 
-let foo () =
+let[@inline never][@specialise never][@local never] foo () =
   let original = local_stack_offset () in
-  let r = local_ ref 0 in
+  let r = allocate () in
   let with_ref = local_stack_offset () in
   assert (with_ref > original);
   use r;
@@ -100,9 +103,9 @@ let foo () =
 
 let () = foo ()
 
-let[@inline never] foo f =
+let[@inline never][@specialise never][@local never] foo f =
   let original = local_stack_offset () in
-  let r = local_ ref 0 in
+  let r = allocate () in
   let with_ref = local_stack_offset () in
   assert (with_ref > original);
   use r;
@@ -120,11 +123,11 @@ let[@inline never] foo f =
 
 let () = foo bar
 
-let[@inline never] rec foo previous =
+let[@inline never][@specialise never][@local never] rec foo previous =
   match previous with
   | None ->
       let original = local_stack_offset () in
-      let r = local_ ref 0 in
+      let r = allocate () in
       let with_ref = local_stack_offset () in
       assert (with_ref > original);
       use r;
