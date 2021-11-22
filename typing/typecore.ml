@@ -5214,7 +5214,13 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
         collect_apply_args env funct ignore_labels ty (instance ty)
           (Value_mode.regional_to_global_alloc funct_mode) sargs
       in
-      let position = expected_mode.position in
+      let position =
+        match funct.exp_desc with
+        | Texp_ident (_, _, _, Id_prim _) ->
+           (* Primitives cannot be tail-called, so their arguments
+              need not be mode-restricted *)
+           Nontail
+        | _ -> expected_mode.position in
       let partial_app = is_partial_apply args in
       let args =
         List.map

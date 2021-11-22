@@ -128,7 +128,7 @@ external of_int : int -> (int32[@local_opt]) = "%int32_of_int"
     (type [int32]). On 64-bit platforms, the argument is taken
     modulo 2{^32}. *)
 
-external to_int : int32 -> int = "%int32_to_int"
+external to_int : (int32[@local_opt]) -> int = "%int32_to_int"
 (** Convert the given 32-bit integer (type [int32]) to an
    integer (type [int]).  On 32-bit platforms, the 32-bit integer
    is taken modulo 2{^31}, i.e. the high-order bit is lost

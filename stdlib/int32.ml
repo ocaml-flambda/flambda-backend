@@ -28,7 +28,7 @@ external shift_left : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int3
 external shift_right : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_asr"
 external shift_right_logical : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_lsr"
 external of_int : int -> (int32[@local_opt]) = "%int32_of_int"
-external to_int : int32 -> int = "%int32_to_int"
+external to_int : (int32[@local_opt]) -> int = "%int32_to_int"
 external of_float : float -> int32
   = "caml_int32_of_float" "caml_int32_of_float_unboxed"
   [@@unboxed] [@@noalloc]

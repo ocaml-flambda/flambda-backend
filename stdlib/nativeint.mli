@@ -147,7 +147,7 @@ external of_int : int -> (nativeint[@local_opt]) = "%nativeint_of_int"
 (** Convert the given integer (type [int]) to a native integer
    (type [nativeint]). *)
 
-external to_int : nativeint -> int = "%nativeint_to_int"
+external to_int : (nativeint[@local_opt]) -> int = "%nativeint_to_int"
 (** Convert the given native integer (type [nativeint]) to an
    integer (type [int]).  The high-order bit is lost during
    the conversion. *)

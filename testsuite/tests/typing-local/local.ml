@@ -1713,6 +1713,12 @@ let intf (local_ x) = x |> Int.succ |> Int.add 42 |> pred |> (/) 100 |> (+) 1
 val intf : local_ int -> int = <fun>
 |}]
 
+(* primitives don't count as tail calls, so you can pass them locals *)
+let primloc x = let local_ y = Int32.add x 1l in Int32.to_int y
+[%%expect{|
+val primloc : int32 -> int = <fun>
+|}]
+
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|

@@ -28,7 +28,7 @@ external shift_left: (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) =
 external shift_right: (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) = "%nativeint_asr"
 external shift_right_logical: (nativeint[@local_opt]) -> int -> (nativeint[@local_opt]) = "%nativeint_lsr"
 external of_int: int -> (nativeint[@local_opt]) = "%nativeint_of_int"
-external to_int: nativeint -> int = "%nativeint_to_int"
+external to_int: (nativeint[@local_opt]) -> int = "%nativeint_to_int"
 external of_float : float -> nativeint
   = "caml_nativeint_of_float" "caml_nativeint_of_float_unboxed"
   [@@unboxed] [@@noalloc]

@@ -126,7 +126,7 @@ external of_int : int -> (int64[@local_opt]) = "%int64_of_int"
 (** Convert the given integer (type [int]) to a 64-bit integer
     (type [int64]). *)
 
-external to_int : int64 -> int = "%int64_to_int"
+external to_int : (int64[@local_opt]) -> int = "%int64_to_int"
 (** Convert the given 64-bit integer (type [int64]) to an
    integer (type [int]).  On 64-bit platforms, the 64-bit integer
    is taken modulo 2{^63}, i.e. the high-order bit is lost
