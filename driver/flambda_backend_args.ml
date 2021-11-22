@@ -346,142 +346,142 @@ let mk_dfreshen f =
 ;;
 
 module type Flambda_backend_options = sig
-  val _ocamlcfg : unit -> unit
-  val _no_ocamlcfg : unit -> unit
+  val ocamlcfg : unit -> unit
+  val no_ocamlcfg : unit -> unit
 
-  val _flambda2_join_points : unit -> unit
-  val _no_flambda2_join_points : unit -> unit
-  val _flambda2_unbox_along_intra_function_control_flow : unit -> unit
-  val _no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
-  val _flambda2_backend_cse_at_toplevel : unit -> unit
-  val _no_flambda2_backend_cse_at_toplevel : unit -> unit
-  val _flambda2_cse_depth : int -> unit
-  val _flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
-  val _no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
-  val _flambda2_expert_fallback_inlining_heuristic : unit -> unit
-  val _no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
-  val _flambda2_expert_inline_effects_in_cmm : unit -> unit
-  val _no_flambda2_expert_inline_effects_in_cmm : unit -> unit
-  val _flambda2_expert_phantom_lets : unit -> unit
-  val _no_flambda2_expert_phantom_lets : unit -> unit
-  val _flambda2_expert_max_block_size_for_projections : int -> unit
-  val _flambda2_expert_max_unboxing_depth : int -> unit
-  val _flambda2_expert_can_inline_recursive_functions : unit -> unit
-  val _no_flambda2_expert_can_inline_recursive_functions : unit -> unit
-  val _flambda2_debug_permute_every_name : unit -> unit
-  val _no_flambda2_debug_permute_every_name : unit -> unit
-  val _flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
-  val _no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val flambda2_join_points : unit -> unit
+  val no_flambda2_join_points : unit -> unit
+  val flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
+  val flambda2_backend_cse_at_toplevel : unit -> unit
+  val no_flambda2_backend_cse_at_toplevel : unit -> unit
+  val flambda2_cse_depth : int -> unit
+  val flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
+  val flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
+  val flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val no_flambda2_expert_inline_effects_in_cmm : unit -> unit
+  val flambda2_expert_phantom_lets : unit -> unit
+  val no_flambda2_expert_phantom_lets : unit -> unit
+  val flambda2_expert_max_block_size_for_projections : int -> unit
+  val flambda2_expert_max_unboxing_depth : int -> unit
+  val flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
+  val flambda2_debug_permute_every_name : unit -> unit
+  val no_flambda2_debug_permute_every_name : unit -> unit
+  val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
 
-  val _flambda2_inline_max_depth : string -> unit
-  val _flambda2_inline_max_rec_depth : string -> unit
-  val _flambda2_inline_call_cost : string -> unit
-  val _flambda2_inline_alloc_cost : string -> unit
-  val _flambda2_inline_prim_cost : string -> unit
-  val _flambda2_inline_branch_cost : string -> unit
-  val _flambda2_inline_indirect_call_cost : string -> unit
-  val _flambda2_inline_poly_compare_cost : string -> unit
-  val _flambda2_inline_small_function_size : string -> unit
-  val _flambda2_inline_large_function_size : string -> unit
-  val _flambda2_inline_threshold : string -> unit
-  val _flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
-  val _no_flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
+  val flambda2_inline_max_depth : string -> unit
+  val flambda2_inline_max_rec_depth : string -> unit
+  val flambda2_inline_call_cost : string -> unit
+  val flambda2_inline_alloc_cost : string -> unit
+  val flambda2_inline_prim_cost : string -> unit
+  val flambda2_inline_branch_cost : string -> unit
+  val flambda2_inline_indirect_call_cost : string -> unit
+  val flambda2_inline_poly_compare_cost : string -> unit
+  val flambda2_inline_small_function_size : string -> unit
+  val flambda2_inline_large_function_size : string -> unit
+  val flambda2_inline_threshold : string -> unit
+  val flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
+  val no_flambda2_speculative_inlining_only_if_arguments_useful : unit -> unit
 
-  val _flambda2_inlining_report_bin : unit -> unit
+  val flambda2_inlining_report_bin : unit -> unit
 
-  val _flambda2_unicode : unit -> unit
+  val flambda2_unicode : unit -> unit
 
-  val _flambda2_treat_invalid_code_as_unreachable : unit -> unit
-  val _no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
+  val flambda2_treat_invalid_code_as_unreachable : unit -> unit
+  val no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
 
-  val _drawfexpr : unit -> unit
-  val _dfexpr : unit -> unit
-  val _dflexpect : unit -> unit
-  val _dclosure_offsets : unit -> unit
-  val _dfreshen : unit -> unit
+  val drawfexpr : unit -> unit
+  val dfexpr : unit -> unit
+  val dflexpect : unit -> unit
+  val dclosure_offsets : unit -> unit
+  val dfreshen : unit -> unit
 end
 
 module Make_flambda_backend_options (F : Flambda_backend_options) =
 struct
   let list2 = [
-    mk_ocamlcfg F._ocamlcfg;
-    mk_no_ocamlcfg F._no_ocamlcfg;
+    mk_ocamlcfg F.ocamlcfg;
+    mk_no_ocamlcfg F.no_ocamlcfg;
 
-    mk_flambda2_join_points F._flambda2_join_points;
-    mk_no_flambda2_join_points F._no_flambda2_join_points;
+    mk_flambda2_join_points F.flambda2_join_points;
+    mk_no_flambda2_join_points F.no_flambda2_join_points;
     mk_flambda2_unbox_along_intra_function_control_flow
-      F._flambda2_unbox_along_intra_function_control_flow;
+      F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
-      F._no_flambda2_unbox_along_intra_function_control_flow;
-    mk_flambda2_backend_cse_at_toplevel F._flambda2_backend_cse_at_toplevel;
+      F.no_flambda2_unbox_along_intra_function_control_flow;
+    mk_flambda2_backend_cse_at_toplevel F.flambda2_backend_cse_at_toplevel;
     mk_no_flambda2_backend_cse_at_toplevel
-      F._no_flambda2_backend_cse_at_toplevel;
-    mk_flambda2_cse_depth F._flambda2_cse_depth;
+      F.no_flambda2_backend_cse_at_toplevel;
+    mk_flambda2_cse_depth F.flambda2_cse_depth;
     mk_flambda2_expert_code_id_and_symbol_scoping_checks
-      F._flambda2_expert_code_id_and_symbol_scoping_checks;
+      F.flambda2_expert_code_id_and_symbol_scoping_checks;
     mk_no_flambda2_expert_code_id_and_symbol_scoping_checks
-      F._no_flambda2_expert_code_id_and_symbol_scoping_checks;
+      F.no_flambda2_expert_code_id_and_symbol_scoping_checks;
     mk_flambda2_expert_fallback_inlining_heuristic
-      F._flambda2_expert_fallback_inlining_heuristic;
+      F.flambda2_expert_fallback_inlining_heuristic;
     mk_no_flambda2_expert_fallback_inlining_heuristic
-      F._no_flambda2_expert_fallback_inlining_heuristic;
+      F.no_flambda2_expert_fallback_inlining_heuristic;
     mk_flambda2_expert_inline_effects_in_cmm
-      F._flambda2_expert_inline_effects_in_cmm;
+      F.flambda2_expert_inline_effects_in_cmm;
     mk_no_flambda2_expert_inline_effects_in_cmm
-      F._no_flambda2_expert_inline_effects_in_cmm;
+      F.no_flambda2_expert_inline_effects_in_cmm;
     mk_flambda2_expert_phantom_lets
-      F._flambda2_expert_phantom_lets;
+      F.flambda2_expert_phantom_lets;
     mk_no_flambda2_expert_phantom_lets
-      F._no_flambda2_expert_phantom_lets;
+      F.no_flambda2_expert_phantom_lets;
     mk_flambda2_expert_max_block_size_for_projections
-      F._flambda2_expert_max_block_size_for_projections;
+      F.flambda2_expert_max_block_size_for_projections;
     mk_flambda2_expert_max_unboxing_depth
-      F._flambda2_expert_max_unboxing_depth;
+      F.flambda2_expert_max_unboxing_depth;
     mk_flambda2_expert_can_inline_recursive_functions
-      F._flambda2_expert_can_inline_recursive_functions;
+      F.flambda2_expert_can_inline_recursive_functions;
     mk_no_flambda2_expert_can_inline_recursive_functions
-      F._no_flambda2_expert_can_inline_recursive_functions;
+      F.no_flambda2_expert_can_inline_recursive_functions;
     mk_flambda2_debug_permute_every_name
-      F._flambda2_debug_permute_every_name;
+      F.flambda2_debug_permute_every_name;
     mk_no_flambda2_debug_permute_every_name
-      F._no_flambda2_debug_permute_every_name;
+      F.no_flambda2_debug_permute_every_name;
     mk_flambda2_debug_concrete_types_only_on_canonicals
-      F._flambda2_debug_concrete_types_only_on_canonicals;
+      F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
-      F._no_flambda2_debug_concrete_types_only_on_canonicals;
+      F.no_flambda2_debug_concrete_types_only_on_canonicals;
 
-    mk_flambda2_inline_max_depth F._flambda2_inline_max_depth;
-    mk_flambda2_inline_max_rec_depth F._flambda2_inline_max_rec_depth;
-    mk_flambda2_inline_alloc_cost F._flambda2_inline_alloc_cost;
-    mk_flambda2_inline_branch_cost F._flambda2_inline_branch_cost;
-    mk_flambda2_inline_call_cost F._flambda2_inline_call_cost;
-    mk_flambda2_inline_prim_cost F._flambda2_inline_prim_cost;
-    mk_flambda2_inline_indirect_call_cost F._flambda2_inline_indirect_call_cost;
-    mk_flambda2_inline_poly_compare_cost F._flambda2_inline_poly_compare_cost;
+    mk_flambda2_inline_max_depth F.flambda2_inline_max_depth;
+    mk_flambda2_inline_max_rec_depth F.flambda2_inline_max_rec_depth;
+    mk_flambda2_inline_alloc_cost F.flambda2_inline_alloc_cost;
+    mk_flambda2_inline_branch_cost F.flambda2_inline_branch_cost;
+    mk_flambda2_inline_call_cost F.flambda2_inline_call_cost;
+    mk_flambda2_inline_prim_cost F.flambda2_inline_prim_cost;
+    mk_flambda2_inline_indirect_call_cost F.flambda2_inline_indirect_call_cost;
+    mk_flambda2_inline_poly_compare_cost F.flambda2_inline_poly_compare_cost;
     mk_flambda2_inline_small_function_size
-      F._flambda2_inline_small_function_size;
+      F.flambda2_inline_small_function_size;
     mk_flambda2_inline_large_function_size
-      F._flambda2_inline_large_function_size;
-    mk_flambda2_inline_threshold F._flambda2_inline_threshold;
+      F.flambda2_inline_large_function_size;
+    mk_flambda2_inline_threshold F.flambda2_inline_threshold;
     mk_flambda2_speculative_inlining_only_if_arguments_useful
-      F._flambda2_speculative_inlining_only_if_arguments_useful;
+      F.flambda2_speculative_inlining_only_if_arguments_useful;
     mk_no_flambda2_speculative_inlining_only_if_arguments_useful
-      F._no_flambda2_speculative_inlining_only_if_arguments_useful;
+      F.no_flambda2_speculative_inlining_only_if_arguments_useful;
 
-    mk_flambda2_inlining_report_bin F._flambda2_inlining_report_bin;
+    mk_flambda2_inlining_report_bin F.flambda2_inlining_report_bin;
 
-    mk_flambda2_unicode F._flambda2_unicode;
+    mk_flambda2_unicode F.flambda2_unicode;
 
     mk_flambda2_treat_invalid_code_as_unreachable
-      F._flambda2_treat_invalid_code_as_unreachable;
+      F.flambda2_treat_invalid_code_as_unreachable;
     mk_no_flambda2_treat_invalid_code_as_unreachable
-      F._no_flambda2_treat_invalid_code_as_unreachable;
+      F.no_flambda2_treat_invalid_code_as_unreachable;
 
-    mk_drawfexpr F._drawfexpr;
-    mk_dfexpr F._dfexpr;
-    mk_dflexpect F._dflexpect;
-    mk_dclosure_offsets F._dclosure_offsets;
-    mk_dfreshen F._dfreshen;
+    mk_drawfexpr F.drawfexpr;
+    mk_dfexpr F.dfexpr;
+    mk_dflexpect F.dflexpect;
+    mk_dclosure_offsets F.dclosure_offsets;
+    mk_dfreshen F.dfreshen;
   ]
 end
 
@@ -489,131 +489,131 @@ module Flambda_backend_options_impl = struct
   let set r () = r := true
   let clear r () = r := false
 
-  let _ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
-  let _no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
+  let ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
+  let no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
 
-  let _flambda2_join_points = set Flambda2.join_points
-  let _no_flambda2_join_points = clear Flambda2.join_points
-  let _flambda2_unbox_along_intra_function_control_flow =
+  let flambda2_join_points = set Flambda2.join_points
+  let no_flambda2_join_points = clear Flambda2.join_points
+  let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
-  let _no_flambda2_unbox_along_intra_function_control_flow =
+  let no_flambda2_unbox_along_intra_function_control_flow =
     clear Flambda2.unbox_along_intra_function_control_flow
-  let _flambda2_backend_cse_at_toplevel =
+  let flambda2_backend_cse_at_toplevel =
     set Flambda2.backend_cse_at_toplevel
-  let _no_flambda2_backend_cse_at_toplevel =
+  let no_flambda2_backend_cse_at_toplevel =
     clear Flambda2.backend_cse_at_toplevel
-  let _flambda2_cse_depth n = Flambda2.cse_depth := n
-  let _flambda2_expert_code_id_and_symbol_scoping_checks =
+  let flambda2_cse_depth n = Flambda2.cse_depth := n
+  let flambda2_expert_code_id_and_symbol_scoping_checks =
     set Flambda2.Expert.code_id_and_symbol_scoping_checks
-  let _no_flambda2_expert_code_id_and_symbol_scoping_checks =
+  let no_flambda2_expert_code_id_and_symbol_scoping_checks =
     clear Flambda2.Expert.code_id_and_symbol_scoping_checks
-  let _flambda2_expert_fallback_inlining_heuristic =
+  let flambda2_expert_fallback_inlining_heuristic =
     set Flambda2.Expert.fallback_inlining_heuristic
-  let _no_flambda2_expert_fallback_inlining_heuristic =
+  let no_flambda2_expert_fallback_inlining_heuristic =
     clear Flambda2.Expert.fallback_inlining_heuristic
-  let _flambda2_expert_inline_effects_in_cmm =
+  let flambda2_expert_inline_effects_in_cmm =
     set Flambda2.Expert.inline_effects_in_cmm
-  let _no_flambda2_expert_inline_effects_in_cmm =
+  let no_flambda2_expert_inline_effects_in_cmm =
     clear Flambda2.Expert.inline_effects_in_cmm
-  let _flambda2_expert_phantom_lets =
+  let flambda2_expert_phantom_lets =
     set Flambda2.Expert.phantom_lets
-  let _no_flambda2_expert_phantom_lets =
+  let no_flambda2_expert_phantom_lets =
     clear Flambda2.Expert.phantom_lets
-  let _flambda2_expert_max_block_size_for_projections size =
+  let flambda2_expert_max_block_size_for_projections size =
     Flambda2.Expert.max_block_size_for_projections := Some size
-  let _flambda2_expert_max_unboxing_depth depth =
+  let flambda2_expert_max_unboxing_depth depth =
     Flambda2.Expert.max_unboxing_depth := depth
-  let _flambda2_expert_can_inline_recursive_functions () =
+  let flambda2_expert_can_inline_recursive_functions () =
     Flambda2.Expert.can_inline_recursive_functions := true
-  let _no_flambda2_expert_can_inline_recursive_functions () =
+  let no_flambda2_expert_can_inline_recursive_functions () =
     Flambda2.Expert.can_inline_recursive_functions := false
-  let _flambda2_debug_permute_every_name =
+  let flambda2_debug_permute_every_name =
     set Flambda2.Debug.permute_every_name
-  let _no_flambda2_debug_permute_every_name =
+  let no_flambda2_debug_permute_every_name =
     clear Flambda2.Debug.permute_every_name
-  let _flambda2_debug_concrete_types_only_on_canonicals =
+  let flambda2_debug_concrete_types_only_on_canonicals =
     set Flambda2.Debug.concrete_types_only_on_canonicals
-  let _no_flambda2_debug_concrete_types_only_on_canonicals =
+  let no_flambda2_debug_concrete_types_only_on_canonicals =
     clear Flambda2.Debug.concrete_types_only_on_canonicals
 
-  let _flambda2_inline_max_depth spec =
+  let flambda2_inline_max_depth spec =
     Clflags.Int_arg_helper.parse spec
       "Syntax: -flambda2-inline-max-depth <int> | <round>=<int>[,...]"
       Flambda2.Inlining.max_depth
 
-  let _flambda2_inline_max_rec_depth spec =
+  let flambda2_inline_max_rec_depth spec =
     Clflags.Int_arg_helper.parse spec
       "Syntax: -flambda2-inline-max-rec-depth <int> | <round>=<int>[,...]"
       Flambda2.Inlining.max_rec_depth
-  let _flambda2_inline_alloc_cost spec =
+  let flambda2_inline_alloc_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-alloc-cost <float> | <round>=<float>[,...]"
       Flambda2.Inlining.alloc_cost
 
-  let _flambda2_inline_branch_cost spec =
+  let flambda2_inline_branch_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-branch-cost <float> | <round>=<float>[,...]"
       Flambda2.Inlining.branch_cost
 
-  let _flambda2_inline_call_cost spec =
+  let flambda2_inline_call_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-call-cost <float> | <round>=<float>[,...]"
       Flambda2.Inlining.call_cost
 
-  let _flambda2_inline_prim_cost spec =
+  let flambda2_inline_prim_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-prim-cost <float> | <round>=<float>[,...]"
       Flambda2.Inlining.prim_cost
 
-  let _flambda2_inline_indirect_call_cost spec =
+  let flambda2_inline_indirect_call_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-indirect-call-cost <float> | \
        <round>=<float>[,...]"
       Flambda2.Inlining.indirect_call_cost
 
-  let _flambda2_inline_poly_compare_cost spec =
+  let flambda2_inline_poly_compare_cost spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-poly-compare-cost <float> | \
        <round>=<float>[,...]"
       Flambda2.Inlining.poly_compare_cost
 
-  let _flambda2_inline_small_function_size spec =
+  let flambda2_inline_small_function_size spec =
     Clflags.Int_arg_helper.parse spec
       "Syntax: -flambda2-inline-small-function-size <int> | \
        <round>=<int>[,...]"
       Flambda2.Inlining.small_function_size
 
-  let _flambda2_inline_large_function_size spec =
+  let flambda2_inline_large_function_size spec =
     Clflags.Int_arg_helper.parse spec
       "Syntax: -flambda2-inline-large-function-size <int> | \
        <round>=<int>[,...]"
       Flambda2.Inlining.large_function_size
 
-  let _flambda2_inline_threshold spec =
+  let flambda2_inline_threshold spec =
     Clflags.Float_arg_helper.parse spec
       "Syntax: -flambda2-inline-threshold <float> | <round>=<float>[,...]"
       Flambda2.Inlining.threshold
 
-  let _flambda2_speculative_inlining_only_if_arguments_useful =
+  let flambda2_speculative_inlining_only_if_arguments_useful =
     set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
-  let _no_flambda2_speculative_inlining_only_if_arguments_useful =
+  let no_flambda2_speculative_inlining_only_if_arguments_useful =
     clear Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
-  let _flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
+  let flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
 
-  let _flambda2_unicode = set Flambda2.unicode
+  let flambda2_unicode = set Flambda2.unicode
 
-  let _flambda2_treat_invalid_code_as_unreachable =
+  let flambda2_treat_invalid_code_as_unreachable =
     set Flambda2.treat_invalid_code_as_unreachable
-  let _no_flambda2_treat_invalid_code_as_unreachable =
+  let no_flambda2_treat_invalid_code_as_unreachable =
     clear Flambda2.treat_invalid_code_as_unreachable
 
-  let _drawfexpr = set Flambda2.Dump.rawfexpr
-  let _dfexpr = set Flambda2.Dump.fexpr
-  let _dflexpect = set Flambda2.Dump.flexpect
-  let _dclosure_offsets = set Flambda2.Dump.closure_offsets
-  let _dfreshen = set Flambda2.Dump.freshen
+  let drawfexpr = set Flambda2.Dump.rawfexpr
+  let dfexpr = set Flambda2.Dump.fexpr
+  let dflexpect = set Flambda2.Dump.flexpect
+  let dclosure_offsets = set Flambda2.Dump.closure_offsets
+  let dfreshen = set Flambda2.Dump.freshen
 end
 
 module Extra_params = struct
