@@ -2170,11 +2170,14 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         Tstr_value(rec_flag, defs),
-        List.map (fun (id, { Asttypes.loc; _ }, _typ, mode)->
-          Typecore.escape ~loc ~env:newenv mode;
-          Signature_names.check_value names loc id;
+        List.map (fun (id, modes) ->
+          List.iter
+            (fun (loc, mode) -> Typecore.escape ~loc ~env:newenv mode)
+            modes;
+          let (first_loc, _) = List.hd modes in
+          Signature_names.check_value names first_loc id;
           Sig_value(id, Env.find_value (Pident id) newenv, Exported)
-        ) (let_bound_idents_full defs),
+        ) (let_bound_idents_with_modes defs),
         newenv
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in

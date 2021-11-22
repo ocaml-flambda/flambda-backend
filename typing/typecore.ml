@@ -595,10 +595,12 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
   let rec unify_vars p1_vs p2_vs =
     let vars vs = List.map (fun {pv_id; _} -> pv_id) vs in
     match p1_vs, p2_vs with
-      | {pv_id = x1; pv_type = t1; _}::rem1, {pv_id = x2; pv_type = t2; _}::rem2
+      | ({pv_id = x1; pv_type = t1; pv_mode = m1; _} as pv1)::rem1,
+        {pv_id = x2; pv_type = t2; pv_mode = m2; _}::rem2
         when Ident.equal x1 x2 ->
           if x1==x2 then
-            unify_vars rem1 rem2
+            let vars, alist = unify_vars rem1 rem2 in
+            pv1 :: vars, alist
           else begin
             begin try
               unify_var env (newvar ()) t1;
@@ -607,9 +609,12 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
             | Unify trace ->
                 raise(Error(loc, env, Or_pattern_type_clash(x1, trace)))
             end;
-          (x2,x1)::unify_vars rem1 rem2
+            let m = Value_mode.join [m1; m2] in
+            let var = { pv1 with pv_mode = m } in
+            let vars, alist = unify_vars rem1 rem2 in
+            var :: vars, (x2, x1) :: alist
           end
-      | [],[] -> []
+      | [],[] -> [], []
       | {pv_id; _}::_, [] | [],{pv_id; _}::_ ->
           raise (Error (loc, env, Orpat_vars (pv_id, [])))
       | {pv_id = x; _}::_, {pv_id = y; _}::_ ->
@@ -2027,10 +2032,11 @@ and type_pat_aux
         | Error _, Ok p ->
             rp k p
         | Ok p1, Ok p2 ->
-            let alpha_env =
-              enter_orpat_variables loc !env p1_variables p2_variables in
+            let vars, alpha_env =
+              enter_orpat_variables loc !env p1_variables p2_variables
+            in
             let p2 = alpha_pat alpha_env p2 in
-            pattern_variables := p1_variables;
+            pattern_variables := vars;
             module_variables := p1_module_variables;
             let make_pat desc =
               { pat_desc = desc;

@@ -1718,3 +1718,38 @@ let promote (local_ x) = +x
 [%%expect{|
 val promote : local_ int -> int = <fun>
 |}]
+
+(* Or-patterns *)
+let foo (local_ x) y =
+  match y, x with
+  | Some z, None | None, Some z -> z
+  | None, None | Some _, Some _ -> assert false
+[%%expect{|
+val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
+|}]
+
+let foo (local_ x) y =
+  match x, y with
+  | Some z, None | None, Some z -> z
+  | None, None | Some _, Some _ -> assert false
+[%%expect{|
+val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
+|}]
+
+let (Some z, _, _) | (None, Some z, _)
+    | (None, None, z) = (Some (ref 0), (local_ (Some (ref 0))), (ref 0))
+[%%expect{|
+Line 1, characters 33-34:
+1 | let (Some z, _, _) | (None, Some z, _)
+                                     ^
+Error: This value escapes its region
+|}]
+
+let (Some z, _, _) | (None, Some z, _)
+    | (None, None, z) = ((local_ Some (ref 0)), (Some (ref 0)), (ref 0))
+[%%expect{|
+Line 1, characters 10-11:
+1 | let (Some z, _, _) | (None, Some z, _)
+              ^
+Error: This value escapes its region
+|}]

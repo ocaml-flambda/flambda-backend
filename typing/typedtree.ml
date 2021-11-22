@@ -761,11 +761,11 @@ let rec iter_bound_idents
   : type k . _ -> k general_pattern -> _
   = fun f pat ->
   match pat.pat_desc with
-  | Tpat_var (id,s) ->
-     f (id,s,pat.pat_type,pat.pat_mode)
-  | Tpat_alias(p, id, s) ->
+  | Tpat_var (id, _) ->
+     f (id, pat.pat_type)
+  | Tpat_alias(p, id, _) ->
       iter_bound_idents f p;
-      f (id,s,pat.pat_type,pat.pat_mode)
+      f (id, pat.pat_type)
   | Tpat_or(p1, _, _) ->
       (* Invariant : both arguments bind the same variables *)
       iter_bound_idents f p1
@@ -781,7 +781,7 @@ let rev_pat_bound_idents_full pat =
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_,_,_) -> id) idents_full
+  List.rev_map (fun (id,_) -> id) idents_full
 
 let pat_bound_idents_full pat =
   List.rev (rev_pat_bound_idents_full pat)
@@ -793,6 +793,23 @@ let rev_let_bound_idents_full bindings =
   let add id_full = idents_full := id_full :: !idents_full in
   List.iter (fun vb -> iter_bound_idents add vb.vb_pat) bindings;
   !idents_full
+
+let let_bound_idents_with_modes bindings =
+  let modes = Ident.Tbl.create 3 in
+  let rec loop : type k . k general_pattern -> _ =
+    fun pat ->
+      match pat.pat_desc with
+      | Tpat_var (id, { loc }) ->
+          Ident.Tbl.add modes id (loc, pat.pat_mode)
+      | Tpat_alias(p, id, { loc }) ->
+          loop p;
+          Ident.Tbl.add modes id (loc, pat.pat_mode)
+      | d -> shallow_iter_pattern_desc { f = loop } d
+  in
+  List.iter (fun vb -> loop vb.vb_pat) bindings;
+  List.rev_map
+    (fun (id, _) -> id, List.rev (Ident.Tbl.find_all modes id))
+    (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =
   List.rev (rev_let_bound_idents_full bindings)
