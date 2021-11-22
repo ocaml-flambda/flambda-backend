@@ -16,6 +16,7 @@ want to modify the Flambda backend.  Jump to:
   - [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
   - [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
   - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
+  - [How to add a new command line option](#how-to-add-a-new-command-line-option)
   - [Installation tree comparison script](#installation-tree-comparison-script)
 
 ## Branches, pull requests, etc.
@@ -292,6 +293,17 @@ library, and then the compiler.
 - There are currently no compiler tests for different intrinics. It
   relies on the library tests to avoid duplication. Library tests use
   `Core`, but the library itself does not.
+
+## How to add a new command line option
+
+1) Add a ref to `flambda_backend_flags.ml{i}`
+2) Add the flag's constructor `mk_<flag>` in `flambda_backend_args.ml`
+3) Add the callback for the new flag to `Flambda_backend_options` module type
+   in `flambda_backend_args.ml{i}`
+4) List the flag in the body of `Make_flambda_backend_options` functor
+5) Implement the flag in `Flambda_backend_options_impl`
+   by setting the corresponding ref in Flambda_backend_flags
+6) Add the flag to `Extra_params` if it can be set via `OCAMLPARAM`
 
 ## Installation tree comparison script
 

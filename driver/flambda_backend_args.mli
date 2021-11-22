@@ -18,17 +18,6 @@
     different installable tools and (b) override default implementations
     of arguments. *)
 
-(** Steps for adding a new flag:
-    1) add a ref to flambda_backend_flags.ml{i}
-    2) add the flag's constructor "mk_<flag>" in flambda_backend_args.ml
-    3) add the callback for the new flag to Flambda_backend_options module type
-       in flambda_backend_args.ml{i}
-    4) list the flag in the body of Make_flambda_backend_options functor
-    5) implement the flag in Flambda_backend_options_impl
-       by setting the corresponding ref in Flambda_backend_flags
-    6) add the flag to Extra_params if it can be set via OCAMLPARAM
-*)
-
 (** Command line arguments required for flambda backend.  *)
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
