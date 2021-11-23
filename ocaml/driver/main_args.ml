@@ -724,7 +724,8 @@ let mk_extension f =
 ;;
 
 let mk_standard f =
-  "-standard", Arg.Unit f, " Disable all default extensions"
+  "-standard", Arg.Unit f, " Disable all extensions specified using -extension flag \
+                            (before or after -standard flag), or in OCAMLPARAM."
 ;;
 
 let mk_dparsetree f =
