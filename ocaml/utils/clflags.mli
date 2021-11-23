@@ -202,12 +202,14 @@ val set_dumped_pass : string -> bool -> unit
 
 val dump_into_file : bool ref
 
-type extension = Comprehensions
-val extensions : extension list ref
-val set_standard : unit -> unit
-val add_extension: string -> unit
-val is_extension_enabled: extension -> bool
-val string_of_extension: extension -> string
+module Extension : sig
+  type t = Comprehensions
+  val enable: string -> unit
+  val is_enabled : t -> bool
+  val to_string : t -> string
+  val all : t list
+  val set_standard : unit -> unit
+end
 
 (* Support for flags that can also be set from an environment variable *)
 type 'a env_reader = {

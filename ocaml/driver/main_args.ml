@@ -1776,7 +1776,7 @@ module Default = struct
     let _unsafe = set unsafe
     let _warn_error s = Warnings.parse_options true s
     let _warn_help = Warnings.help_warnings
-    let _extension s = add_extension s
+    let _extension s = Extension.enable s
   end
 
   module Native = struct
@@ -1892,7 +1892,7 @@ module Default = struct
     let _config_var = Misc.show_config_variable_and_exit
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
-    let _standard = set_standard
+    let _standard = Extension.set_standard
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _g = set debug
