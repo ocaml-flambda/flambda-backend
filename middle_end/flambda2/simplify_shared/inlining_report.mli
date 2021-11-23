@@ -17,7 +17,7 @@
 type at_call_site =
   | Known_function of
       { code_id : Code_id.exported;  (** code id of the callee *)
-        decision : Call_site_inlining_decision.t
+        decision : Call_site_inlining_decision_type.t
       }  (** Function call where the function's type is known *)
   | Unknown_function  (** Function call where the function's type is unknown. *)
 

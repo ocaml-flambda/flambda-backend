@@ -20,7 +20,7 @@
 type at_call_site =
   | Known_function of
       { code_id : Code_id.exported;
-        decision : Call_site_inlining_decision.t
+        decision : Call_site_inlining_decision_type.t
       }
   | Unknown_function
 
@@ -128,7 +128,7 @@ let [@ocamlformat "disable"] rec print ~depth fmt = function
       stars depth
       (if depth = 0 then "Toplevel application" else "Application")
       Code_id.(name (import code_id)) print_debuginfo dbg
-      Call_site_inlining_decision.report decision;
+      Call_site_inlining_decision_type.report decision;
     print ~depth fmt r
 
 (* Exposed interface *)
