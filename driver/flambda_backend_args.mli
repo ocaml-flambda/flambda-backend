@@ -22,6 +22,8 @@
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
+  val dcfg : unit -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
