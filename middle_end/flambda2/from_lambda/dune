@@ -30,7 +30,7 @@
    -open
    Flambda2_ui
    -open
-   Flambda2_simplify))
+   Flambda2_simplify_shared))
  (ocamlopt_flags
   (:standard -O3))
  (libraries
@@ -47,4 +47,4 @@
   flambda2_term_basics
   flambda2_terms
   flambda2_ui
-  flambda2_simplify))
+  flambda2_simplify_shared))

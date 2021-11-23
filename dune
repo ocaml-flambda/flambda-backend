@@ -338,6 +338,7 @@
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.a}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
    %{dep:middle_end/flambda2/terms/flambda2_terms.a}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.a}
    %{dep:middle_end/flambda2/types/flambda2_types.a}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
@@ -364,6 +365,7 @@
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cma}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cma}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cma}
    %{dep:middle_end/flambda2/types/flambda2_types.cma}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
@@ -390,6 +392,7 @@
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cmxa}
    %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}

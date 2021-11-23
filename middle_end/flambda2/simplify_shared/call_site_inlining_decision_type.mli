@@ -16,12 +16,41 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open! Flambda.Import
+(* CR-someday mshinwell: Maybe have two types, one giving the reasons why
+   something can be inlined, and one giving the reasons why something cannot be
+   inlined. *)
+type t =
+  | Missing_code
+  | Definition_says_not_to_inline
+  | Environment_says_never_inline
+  | Argument_types_not_useful
+  | Unrolling_depth_exceeded
+  | Max_inlining_depth_exceeded
+  | Recursion_depth_exceeded
+  | Never_inlined_attribute
+  | Speculatively_not_inline of
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
+  | Attribute_always
+  | Attribute_unroll of int
+  | Definition_says_inline
+  | Speculatively_inline of
+      { cost_metrics : Cost_metrics.t;
+        evaluated_to : float;
+        threshold : float
+      }
 
-val make_decision :
-  Downwards_acc.t ->
-  simplify_expr:Expr.t Simplify_common.expr_simplifier ->
-  function_type:Flambda2_types.Function_type.t ->
-  apply:Apply.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
-  Call_site_inlining_decision_type.t
+val print : Format.formatter -> t -> unit
+
+val report : Format.formatter -> t -> unit
+
+type can_inline = private
+  | Do_not_inline of
+      { warn_if_attribute_ignored : bool;
+        because_of_definition : bool
+      }
+  | Inline of { unroll_to : int option }
+
+val can_inline : t -> can_inline

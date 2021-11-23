@@ -217,11 +217,13 @@ module Inlining = struct
         let decision, res =
           match inlined_call with
           | Never_inlined ->
-            Call_site_inlining_decision.Never_inlined_attribute, Not_inlinable
+            ( Call_site_inlining_decision_type.Never_inlined_attribute,
+              Not_inlinable )
           | Always_inlined | Hint_inlined ->
-            Call_site_inlining_decision.Attribute_always, Inlinable code
+            Call_site_inlining_decision_type.Attribute_always, Inlinable code
           | Default_inlined ->
-            Call_site_inlining_decision.Definition_says_inline, Inlinable code
+            ( Call_site_inlining_decision_type.Definition_says_inline,
+              Inlinable code )
           | Unroll _ -> assert false
         in
         Inlining_report.record_decision ~dbg
