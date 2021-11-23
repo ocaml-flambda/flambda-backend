@@ -716,7 +716,11 @@ let mk_dump_into_file f =
 ;;
 
 let mk_extension f =
-  "-extension", Arg.String f, "<extension> Enable the extension"
+  let available_extensions =
+    Clflags.Extension.(List.map to_string all)
+  in
+  "-extension", Arg.Symbol (available_extensions, f),
+  "<extension> Enable the extension (may be specified more than once)"
 ;;
 
 let mk_standard f =
