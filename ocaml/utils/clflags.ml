@@ -384,7 +384,8 @@ module Extension = struct
   let extensions = ref ([] : t list)   (* -extension *)
   let equal _t1 _t2 = true
 
-  let set_standard () = extensions := []  (* -standard *)
+  let standard = ref false             (* -standard *)
+  let set_standard () = standard := true
 
   let to_string = function
     | Comprehensions -> "comprehensions"
