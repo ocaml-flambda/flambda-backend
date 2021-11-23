@@ -1719,6 +1719,24 @@ let primloc x = let local_ y = Int32.add x 1l in Int32.to_int y
 val primloc : int32 -> int = <fun>
 |}]
 
+(* (&&) and (||) tail call on the right *)
+let testbool1 x =
+  let local_ b = not x in
+  (b || false) && true
+
+let testbool2 x =
+  let local_ b = not x in
+  true && (false || b)
+[%%expect{|
+val testbool1 : bool -> bool = <fun>
+Line 7, characters 20-21:
+7 |   true && (false || b)
+                        ^
+Error: This local value escapes its region
+  Hint: Cannot return local value without an explicit "local_" annotation
+|}]
+
+
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|

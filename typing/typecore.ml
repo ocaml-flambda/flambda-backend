@@ -281,13 +281,23 @@ let mode_tuple mode tuple_modes =
   let escaping_context = None in
   { position; escaping_context; mode; tuple_modes }
 
-let mode_argument ~position ~partial_app alloc_mode =
+let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
   let vmode = Value_mode.of_alloc alloc_mode in
-  match position, partial_app with
-  | Nontail, _ | _, true->
-      mode_nontail vmode
-  | Tail, false ->
-      mode_tailcall_argument (Value_mode.local_to_regional vmode)
+  if partial_app then mode_nontail vmode
+  else match funct.exp_desc, index, position with
+  | Texp_ident (_, _, {val_kind =
+      Val_prim {Primitive.prim_name = ("%sequor"|"%sequand")}},
+                Id_prim _), 1, Tail ->
+     (* The second argument to (&&) and (||) is in
+        tail position if the call is *)
+     mode_return (Value_mode.local_to_regional vmode)
+  | Texp_ident (_, _, _, Id_prim _), _, _ ->
+     (* Other primitives cannot be tail-called *)
+     mode_nontail vmode
+  | _, _, Nontail ->
+     mode_nontail vmode
+  | _, _, Tail ->
+     mode_tailcall_argument (Value_mode.local_to_regional vmode)
 
 let submode ~loc ~env mode expected_mode =
   let res =
@@ -5138,12 +5148,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       unify_exp env texp ty_expected;
       texp
 
-and type_apply_arg env ~position ~partial_app (lbl, arg) =
+and type_apply_arg env ~funct ~index ~position ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg; mode_arg }) ->
       let mode = Alloc_mode.newvar () in
       Alloc_mode.submode_exn mode mode_arg;
-      let expected_mode = mode_argument ~position ~partial_app mode in
+      let expected_mode =
+        mode_argument ~funct ~index ~position ~partial_app mode in
       let arg = type_expect env expected_mode sarg (mk_expected ty_arg) in
       if is_optional lbl then
         unify_exp env arg (type_option(newvar()));
@@ -5151,7 +5162,8 @@ and type_apply_arg env ~position ~partial_app (lbl, arg) =
   | Arg (Known_arg { sarg; ty_arg; ty_arg0; mode_arg; wrapped_in_some }) ->
       let mode = Alloc_mode.newvar () in
       Alloc_mode.submode_exn mode mode_arg;
-      let expected_mode = mode_argument ~position ~partial_app mode in
+      let expected_mode =
+        mode_argument ~funct ~index ~position ~partial_app mode in
       let arg =
         if wrapped_in_some then
           option_some env
@@ -5186,7 +5198,8 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
       submode ~loc:app_loc ~env
         (Value_mode.of_alloc mres) expected_mode;
       let marg =
-        mode_argument ~position:expected_mode.position ~partial_app:false marg
+        mode_argument ~funct ~index:0 ~position:expected_mode.position 
+          ~partial_app:false marg
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application false exp;
@@ -5214,17 +5227,11 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
         collect_apply_args env funct ignore_labels ty (instance ty)
           (Value_mode.regional_to_global_alloc funct_mode) sargs
       in
-      let position =
-        match funct.exp_desc with
-        | Texp_ident (_, _, _, Id_prim _) ->
-           (* Primitives cannot be tail-called, so their arguments
-              need not be mode-restricted *)
-           Nontail
-        | _ -> expected_mode.position in
+      let position = expected_mode.position in
       let partial_app = is_partial_apply args in
       let args =
-        List.map
-          (fun arg -> type_apply_arg env ~position ~partial_app arg)
+        List.mapi (fun index arg ->
+            type_apply_arg env ~funct ~index ~position ~partial_app arg)
           args
       in
       let ty_ret, mode_ret, args =

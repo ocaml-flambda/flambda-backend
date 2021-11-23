@@ -208,30 +208,30 @@ external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 
 (** {1 Boolean operations} *)
 
-external not : bool -> bool = "%boolnot"
+external not : (bool[@local_opt]) -> bool = "%boolnot"
 (** The boolean negation. *)
 
-external ( && ) : bool -> bool -> bool = "%sequand"
+external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
 (** The boolean 'and'. Evaluation is sequential, left-to-right:
    in [e1 && e2], [e1] is evaluated first, and if it returns [false],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( & ) : bool -> bool -> bool = "%sequand"
+external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
   [@@ocaml.deprecated "Use (&&) instead."]
 (** @deprecated {!Stdlib.( && )} should be used instead.
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( || ) : bool -> bool -> bool = "%sequor"
+external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
 (** The boolean 'or'. Evaluation is sequential, left-to-right:
    in [e1 || e2], [e1] is evaluated first, and if it returns [true],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( or ) : bool -> bool -> bool = "%sequor"
+external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
   [@@ocaml.deprecated "Use (||) instead."]
 (** @deprecated {!Stdlib.( || )} should be used instead.
     Right-associative operator, see {!Ocaml_operators} for more information.
