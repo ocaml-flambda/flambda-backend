@@ -208,8 +208,7 @@ module Extension : sig
   val is_enabled : t -> bool
   val to_string : t -> string
   val all : t list
-  (* [set_standard ()] disables all extensions (enabled before or after it) *)
-  val set_standard : unit -> unit
+  val disable_all : unit -> unit
 end
 
 (* Support for flags that can also be set from an environment variable *)

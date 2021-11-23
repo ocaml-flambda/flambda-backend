@@ -384,8 +384,8 @@ module Extension = struct
   let extensions = ref ([] : t list)   (* -extension *)
   let equal _t1 _t2 = true
 
-  let standard = ref false             (* -standard *)
-  let set_standard () = standard := true
+  let disable_all_extensions = ref false             (* -no-extensions *)
+  let disable_all () = disable_all_extensions := true
 
   let to_string = function
     | Comprehensions -> "comprehensions"
@@ -399,7 +399,7 @@ module Extension = struct
     if not (List.exists (equal t) !extensions) then
       extensions := t::!extensions
 
-  let is_enabled ext = not !standard && List.mem ext !extensions
+  let is_enabled ext = not !disable_all_extensions && List.mem ext !extensions
 end
 
 let dump_into_file = ref false (* -dump-into-file *)
