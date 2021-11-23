@@ -469,6 +469,10 @@ let read_one_param ppf position name v =
       | Some pass -> set_save_ir_after pass true
     end
 
+  | "extension" -> Clflags.Extension.enable v
+  | "standard" ->
+    if check_bool ppf "standard" v then Clflags.Extension.set_standard ()
+
   | _ ->
     if !warnings_for_discarded_params &&
        not (List.mem name !can_discard) then begin
