@@ -850,6 +850,8 @@ method emit_expr (env:environment) exp =
           None
       end
   | Ctrywith(e1, v, e2, _dbg) ->
+      let reg = self#regs_for typ_int in
+      self#insert env (Iop Ibeginregion) [| |] reg;
       let (r1, s1) = self#emit_sequence env e1 in
       let rv = self#regs_for typ_val in
       let (r2, s2) = self#emit_sequence (env_add v rv env) e2 in
@@ -857,7 +859,7 @@ method emit_expr (env:environment) exp =
       self#insert env
         (Itrywith(s1#extract,
                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
-                             (s2#extract)))
+                    (instr_cons (Iop Iendregion) reg [| |] s2#extract)))
         [||] [||];
       r
   | Cregion e when env.region_tail ->
@@ -1197,12 +1199,15 @@ method emit_tail (env:environment) exp =
       self#insert env (Icatch(rec_flag, List.map aux handlers, s_body))
         [||] [||]
   | Ctrywith(e1, v, e2, _dbg) ->
+      let reg = self#regs_for typ_int in
+      self#insert env (Iop Ibeginregion) [| |] reg;
       let (opt_r1, s1) = self#emit_sequence env e1 in
       let rv = self#regs_for typ_val in
       let s2 = self#emit_tail_sequence (env_add v rv env) e2 in
       self#insert env
         (Itrywith(s1#extract,
-                  instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv s2))
+                  instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
+                    (instr_cons (Iop Iendregion) reg [| |] s2)))
         [||] [||];
       begin match opt_r1 with
         None -> ()
