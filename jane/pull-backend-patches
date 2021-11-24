@@ -29,7 +29,7 @@ configure_remote () {
     fi
 }
 
-configure_remote origin 'git@github.com:janestreet/ocaml-jst'
+configure_remote origin 'git@github.com:ocaml-flambda/ocaml-jst'
 configure_remote flambda-backend 'git@github.com:ocaml-flambda/flambda-backend'
 configure_remote ocaml 'git@github.com:ocaml/ocaml'
 
