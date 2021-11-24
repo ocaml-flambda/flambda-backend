@@ -119,9 +119,9 @@ val type_argument:
         type_expr -> type_expr -> Typedtree.expression
 
 val option_some:
-  Env.t -> Typedtree.expression -> Value_mode.t -> Typedtree.expression
+  Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
 val option_none:
-  Env.t -> type_expr -> Value_mode.t -> Location.t -> Typedtree.expression
+  Env.t -> type_expr -> value_mode -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
@@ -134,7 +134,7 @@ val optimise_allocations: unit -> unit
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
 
-val escape : loc:Location.t -> env:Env.t -> Value_mode.t -> unit
+val escape : loc:Location.t -> env:Env.t -> value_mode -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -199,7 +199,7 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
-  | Local_value_escapes of Types.Value_mode.error * escaping_context option
+  | Local_value_escapes of Btype.Value_mode.error * escaping_context option
   | Param_mode_mismatch of type_expr
   | Uncurried_function_escapes
   | Local_return_annotation_mismatch of Location.t

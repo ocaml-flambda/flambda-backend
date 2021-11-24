@@ -22,6 +22,7 @@ open Types
 open Cmo_format
 open Trace
 open Toploop
+module Alloc_mode = Btype.Alloc_mode
 
 (* The standard output formatter *)
 let std_out = std_formatter

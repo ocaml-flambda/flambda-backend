@@ -22,6 +22,7 @@ open Types
 open Typedtree
 open Btype
 open Ctype
+module Value_mode = Btype.Value_mode
 
 type type_forcing_context =
   | If_conditional
@@ -302,8 +303,8 @@ let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
 let submode ~loc ~env mode expected_mode =
   let res =
     match expected_mode.tuple_modes with
-    | [] -> Types.Value_mode.submode mode expected_mode.mode
-    | ts -> Types.Value_mode.submode_meet mode ts
+    | [] -> Btype.Value_mode.submode mode expected_mode.mode
+    | ts -> Btype.Value_mode.submode_meet mode ts
   in
   match res with
   | Ok () -> ()
@@ -315,7 +316,7 @@ let escape ~loc ~env m =
   submode ~loc ~env m mode_global
 
 let eqmode ~loc ~env m1 m2 err =
-  match Types.Alloc_mode.equate m1 m2 with
+  match Btype.Alloc_mode.equate m1 m2 with
   | Ok () -> ()
   | Error () -> raise (Error(loc, env, err))
 
@@ -4631,12 +4632,12 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     eqmode ~loc ~env arg_mode Alloc_mode.local
       (Param_mode_mismatch ty_expected');
   if uncurried_function then begin
-    begin match Types.Alloc_mode.submode arg_mode ret_mode with
+    begin match Btype.Alloc_mode.submode arg_mode ret_mode with
     | Ok () -> ()
     | Error () ->
       raise (Error(loc_fun, env, Uncurried_function_escapes))
     end;
-    begin match Types.Alloc_mode.submode alloc_mode ret_mode with
+    begin match Btype.Alloc_mode.submode alloc_mode ret_mode with
     | Ok () -> ()
     | Error () ->
       raise (Error(loc_fun, env, Uncurried_function_escapes))
@@ -6106,17 +6107,17 @@ let report_type_expected_explanation expl ppf =
 
 let escaping_hint reason context =
   match reason, context with
-  | Types.Value_mode.Locality, Some Return ->
+  | `Locality, Some Return ->
       [ Location.msg
           "@[Hint: Cannot return local value without an explicit@ \
            \"local_\" annotation@]" ]
-  | Types.Value_mode.Locality, Some Tailcall_argument ->
+  | `Locality, Some Tailcall_argument ->
       [ Location.msg
           "@[Hint: This argument cannot be local, because this is a tail call@]" ]
-  | Types.Value_mode.Locality, Some Tailcall_function ->
+  | `Locality, Some Tailcall_function ->
       [ Location.msg
           "@[Hint: This function cannot be local, because this is a tail call@]" ]
-  | Types.Value_mode.Regionality, Some Partial_application ->
+  | `Regionality, Some Partial_application ->
       [ Location.msg
           "@[Hint: It is captured by a partial application@]" ]
   | _, _ -> []
@@ -6477,8 +6478,8 @@ let report_error ~loc env = function
       let sub = escaping_hint reason context in
       let mode =
         match reason with
-        | Locality -> "local "
-        | Regionality -> ""
+        | `Locality -> "local "
+        | `Regionality -> ""
       in
       Location.errorf ~loc ~sub "This %svalue escapes its region" mode
   | Param_mode_mismatch ty ->

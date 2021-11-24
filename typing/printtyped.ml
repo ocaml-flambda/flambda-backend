@@ -314,7 +314,7 @@ and expression i ppf x =
                       expression_extra i ppf extra attrs; i+1)
       (i+1) x.exp_extra
   in
-  (match Types.Value_mode.check_const x.exp_mode with
+  (match Btype.Value_mode.check_const x.exp_mode with
   | Some Global -> line i ppf "value_mode global\n"
   | Some Regional -> line i ppf "value_mode regional\n"
   | Some Local -> line i ppf "value_mode local\n"

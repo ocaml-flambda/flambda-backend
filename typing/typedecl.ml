@@ -1311,7 +1311,7 @@ let make_native_repr env core_type ty ~global_repr =
     end
 
 let prim_const_mode m =
-  match Alloc_mode.check_const m with
+  match Btype.Alloc_mode.check_const m with
   | Some Global -> Prim_global
   | Some Local -> Prim_local
   | None -> assert false

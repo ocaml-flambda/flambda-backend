@@ -2623,7 +2623,7 @@ let unify_package env unify_list lv1 p1 n1 tl1 lv2 p2 n2 tl2 =
   && !package_subtype env p2 n2 tl2 p1 n1 tl1 then () else raise Not_found
 
 let unify_alloc_mode a b =
-  match Types.Alloc_mode.equate a b with
+  match Btype.Alloc_mode.equate a b with
   | Ok () -> ()
   | Error () -> raise (Unify [])
 
@@ -3264,8 +3264,8 @@ let filter_arrow env t l =
     Tvar _ ->
       let lv = t.level in
       let t1 = newvar2 lv and t2 = newvar2 lv in
-      let marg = Types.Alloc_mode.newvar () in
-      let mret = Types.Alloc_mode.newvar () in
+      let marg = Btype.Alloc_mode.newvar () in
+      let mret = Btype.Alloc_mode.newvar () in
       let t' = newty2 lv (Tarrow ((l,marg,mret), t1, t2, Cok)) in
       link_type t t';
       (marg, t1, mret, t2)
@@ -4597,8 +4597,8 @@ let remove_mode_variables ty =
       visited := TypeSet.add ty !visited;
       match ty.desc with
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Types.Alloc_mode.constrain_lower marg in
-         let _ = Types.Alloc_mode.constrain_lower mret in
+         let _ = Btype.Alloc_mode.constrain_lower marg in
+         let _ = Btype.Alloc_mode.constrain_lower mret in
          go targ; go tret
       | _ -> iter_type_expr go ty
     end

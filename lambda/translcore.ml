@@ -85,12 +85,12 @@ let extract_float = function
   | _ -> fatal_error "Translcore.extract_float"
 
 let transl_alloc_mode alloc_mode : Lambda.alloc_mode =
-  match Types.Alloc_mode.constrain_lower alloc_mode with
+  match Btype.Alloc_mode.constrain_lower alloc_mode with
   | Global -> Alloc_heap
   | Local -> Alloc_local
 
 let transl_value_mode mode =
-  let alloc_mode = Types.Value_mode.regional_to_global_alloc mode in
+  let alloc_mode = Btype.Value_mode.regional_to_global_alloc mode in
   transl_alloc_mode alloc_mode
 
 let transl_apply_position position =
@@ -343,7 +343,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         let funct =
           { funct with
             exp_desc = Texp_apply(funct, argl, Nontail);
-            exp_mode = Value_mode.of_alloc rmode }
+            exp_mode = Btype.Value_mode.of_alloc rmode }
         in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised
@@ -450,8 +450,8 @@ and transl_exp0 ~in_new_scope ~scopes e =
       end
   | Texp_setfield(arg, _, lbl, newval) ->
       let mode =
-        let arg_mode = Types.Value_mode.regional_to_local_alloc arg.exp_mode in
-        match Types.Alloc_mode.constrain_lower arg_mode with
+        let arg_mode = Btype.Value_mode.regional_to_local_alloc arg.exp_mode in
+        match Btype.Alloc_mode.constrain_lower arg_mode with
         | Global -> Assignment
         | Local -> Local_assignment
       in

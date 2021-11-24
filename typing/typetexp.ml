@@ -23,6 +23,7 @@ open Parsetree
 open Typedtree
 open Types
 open Ctype
+module Alloc_mode = Btype.Alloc_mode
 
 exception Already_bound
 

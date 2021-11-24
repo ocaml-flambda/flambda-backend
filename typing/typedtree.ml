@@ -40,7 +40,7 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
-    pat_mode: Value_mode.t;
+    pat_mode: value_mode;
     pat_env: Env.t;
     pat_attributes: attribute list;
    }
@@ -86,7 +86,7 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attribute list) list;
     exp_type: type_expr;
-    exp_mode: Value_mode.t;
+    exp_mode: value_mode;
     exp_env: Env.t;
     exp_attributes: attribute list;
    }
@@ -182,9 +182,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : Alloc_mode.t;
-    mode_arg : Alloc_mode.t;
-    mode_ret : Alloc_mode.t }
+  { mode_closure : alloc_mode;
+    mode_arg : alloc_mode;
+    mode_ret : alloc_mode }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 

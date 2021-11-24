@@ -49,7 +49,7 @@ and 'a pattern_data =
     pat_loc: Location.t;
     pat_extra : (pat_extra * Location.t * attributes) list;
     pat_type: Types.type_expr;
-    pat_mode: Types.Value_mode.t;
+    pat_mode: Types.value_mode;
     pat_env: Env.t;
     pat_attributes: attributes;
    }
@@ -151,7 +151,7 @@ and expression =
     exp_loc: Location.t;
     exp_extra: (exp_extra * Location.t * attributes) list;
     exp_type: Types.type_expr;
-    exp_mode: Types.Value_mode.t;
+    exp_mode: Types.value_mode;
     exp_env: Env.t;
     exp_attributes: attributes;
    }
@@ -313,9 +313,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : Types.Alloc_mode.t;
-    mode_arg : Types.Alloc_mode.t;
-    mode_ret : Types.Alloc_mode.t }
+  { mode_closure : Types.alloc_mode;
+    mode_arg : Types.alloc_mode;
+    mode_ret : Types.alloc_mode }
 
 and apply_arg = (expression, omitted_parameter) arg_or_omitted
 
@@ -806,7 +806,7 @@ val let_bound_idents_full:
     value_binding list -> (Ident.t * Types.type_expr) list
 val let_bound_idents_with_modes:
   value_binding list
-  -> (Ident.t * (Location.t * Types.Value_mode.t) list) list
+  -> (Ident.t * (Location.t * Types.value_mode) list) list
 
 (** Alpha conversion of patterns *)
 val alpha_pat:

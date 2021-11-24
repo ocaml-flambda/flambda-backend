@@ -19,7 +19,7 @@ open Misc
 open Asttypes
 open Types
 open Typedtree
-
+module Value_mode = Btype.Value_mode
 
 (*************************************)
 (* Utilities for building patterns   *)

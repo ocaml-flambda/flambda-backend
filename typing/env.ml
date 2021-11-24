@@ -567,7 +567,7 @@ type lookup_error =
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
-  | Local_value_escapes of Longident.t * Value_mode.error
+  | Local_value_escapes of Longident.t * [`Regionality | `Locality]
   | Local_value_used_in_closure of Longident.t
 
 type error =
@@ -3260,8 +3260,8 @@ let report_lookup_error _loc env ppf = function
   | Local_value_escapes(lid, reason) ->
       let mode =
         match reason with
-        | Regionality -> ""
-        | Locality -> "local "
+        | `Regionality -> ""
+        | `Locality -> "local "
       in
       fprintf ppf
         "@[The %svalue %a cannot be used here@ \

@@ -20,6 +20,8 @@ open Types
 open Typecore
 open Typetexp
 open Format
+module Value_mode = Btype.Value_mode
+module Alloc_mode = Btype.Alloc_mode
 
 type 'a class_info = {
   cls_id : Ident.t;

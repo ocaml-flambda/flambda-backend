@@ -20,7 +20,7 @@ open Asttypes
 open Parsetree
 open Types
 open Format
-
+module Value_mode = Btype.Value_mode
 module String = Misc.Stdlib.String
 
 module Sig_component_kind = struct
