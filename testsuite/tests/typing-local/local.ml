@@ -1774,3 +1774,40 @@ Line 1, characters 10-11:
               ^
 Error: This value escapes its region
 |}]
+
+(* Example of backtracking after mode error *)
+let f g n =
+  let a = local_ [n+1] in
+  let () = g a in
+  ()
+let z : (int list -> unit) -> int -> unit = f
+[%%expect{|
+val f : (local_ int list -> unit) -> int -> unit = <fun>
+Line 5, characters 44-45:
+5 | let z : (int list -> unit) -> int -> unit = f
+                                                ^
+Error: This expression has type (local_ int list -> unit) -> int -> unit
+       but an expression was expected of type
+         (int list -> unit) -> int -> unit
+       Type local_ int list -> unit is not compatible with type
+         int list -> unit
+|}]
+
+module M = struct
+  let f g n =
+    let a = local_ [n+1] in
+    let () = g a in
+    ()
+  let z : (int list -> unit) -> int -> unit = f
+end
+[%%expect{|
+Line 6, characters 46-47:
+6 |   let z : (int list -> unit) -> int -> unit = f
+                                                  ^
+Error: This expression has type
+         (local_ int list -> local_ unit) -> int -> unit
+       but an expression was expected of type
+         (int list -> unit) -> int -> unit
+       Type local_ int list -> local_ unit is not compatible with type
+         int list -> unit
+|}]

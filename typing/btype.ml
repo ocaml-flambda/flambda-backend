@@ -78,6 +78,9 @@ type change =
   | Ccommu of commutable ref * commutable
   | Cuniv of type_expr option ref * type_expr option
   | Ctypeset of TypeSet.t ref * TypeSet.t
+  | Cmode_upper of alloc_mode_var * alloc_mode_const
+  | Cmode_lower of alloc_mode_var * alloc_mode_const
+  | Cmode_vlower of alloc_mode_var * alloc_mode_var list
 
 type changes =
     Change of change * changes ref
@@ -92,6 +95,19 @@ let log_change ch =
       let r' = ref Unchanged in
       r := Change (ch, r');
       Weak.set !trail 0 (Some r')
+
+let log_changes chead ctail =
+  if chead = Unchanged then (assert (!ctail = Unchanged))
+  else match Weak.get !trail 0 with None -> ()
+  | Some r ->
+      r := chead;
+      Weak.set !trail 0 (Some ctail)
+
+let append_change ctail ch =
+  assert (!(!ctail) = Unchanged);
+  let r' = ref Unchanged in
+  (!ctail) := Change (ch, r');
+  ctail := r'
 
 (**** Representative of a type ****)
 
@@ -718,6 +734,9 @@ let undo_change = function
   | Ccommu (r, v) -> r := v
   | Cuniv  (r, v) -> r := v
   | Ctypeset (r, v) -> r := v
+  | Cmode_upper (v, u) -> v.upper <- u
+  | Cmode_lower (v, l) -> v.lower <- l
+  | Cmode_vlower (v, vs) -> v.vlower <- vs
 
 type snapshot = changes ref * int
 let last_snapshot = s_ref 0
@@ -864,58 +883,78 @@ module Alloc_mode = struct
     else Printf.fprintf ppf "v%d" i);
     Printf.fprintf ppf "[%a%a]" pp_c v.lower pp_c v.upper
 *)
-  let submode_cv m v =
+
+  let set_lower ~log v lower =
+    append_change log (Cmode_lower (v, v.lower));
+    v.lower <- lower
+
+  let set_upper ~log v upper =
+    append_change log (Cmode_upper (v, v.upper));
+    v.upper <- upper
+
+  let set_vlower ~log v vlower =
+    append_change log (Cmode_vlower (v, v.vlower));
+    v.vlower <- vlower
+
+  let submode_cv ~log m v =
     (* Printf.printf "  %a <= %a\n" pp_c m pp_v v; *)
     if le_const m v.lower then ()
     else if not (le_const m v.upper) then raise NotSubmode
     else begin
       let m = join_const v.lower m in
-      v.lower <- m;
-      if m = v.upper then v.vlower <- []
+      set_lower ~log v m;
+      if m = v.upper then set_vlower ~log v []
     end
 
-  let rec submode_vc v m =
+  let rec submode_vc ~log v m =
     (* Printf.printf "  %a <= %a\n" pp_v v pp_c m; *)
     if le_const v.upper m then ()
     else if not (le_const v.lower m) then raise NotSubmode
     else begin
       let m = meet_const v.upper m in
-      v.upper <- m;
+      set_upper ~log v m;
       v.vlower |> List.iter (fun a ->
         (* a <= v <= m *)
-        submode_vc a m;
-        v.lower <- join_const v.lower a.lower;
+        submode_vc ~log a m;
+        set_lower ~log v (join_const v.lower a.lower);
       );
-      if v.lower = m then v.vlower <- []
+      if v.lower = m then set_vlower ~log v []
     end
 
-  let submode_vv a b =
+  let submode_vv ~log a b =
     (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
     if le_const a.upper b.lower then ()
     else if List.memq a b.vlower then ()
     else begin
-      submode_vc a b.upper;
-      b.vlower <- a :: b.vlower;
-      submode_cv a.lower b;
+      submode_vc ~log a b.upper;
+      set_vlower ~log b (a :: b.vlower);
+      submode_cv ~log a.lower b;
     end
 
   let submode a b =
+    let log_head = ref Unchanged in
+    let log = ref log_head in
     match
       match a, b with
       | Amode a, Amode b ->
          if not (le_const a b) then raise NotSubmode
       | Amodevar v, Amode c ->
          (* Printf.printf "%a <= %a\n" pp_v v pp_c c; *)
-         submode_vc v c
+         submode_vc ~log v c
       | Amode c, Amodevar v ->
          (* Printf.printf "%a <= %a\n" pp_c c pp_v v; *)
-         submode_cv c v
+         submode_cv ~log c v
       | Amodevar a, Amodevar b ->
          (* Printf.printf "%a <= %a\n" pp_v a pp_v b; *)
-         submode_vv a b
+         submode_vv ~log a b
     with
-    | () -> Ok ()
-    | exception NotSubmode -> Error ()
+    | () ->
+       log_changes !log_head !log;
+       Ok ()
+    | exception NotSubmode ->
+       let backlog = rev_log [] !log_head in
+       List.iter undo_change backlog;
+       Error ()
 
   let submode_exn t1 t2 =
     match submode t1 t2 with
@@ -946,7 +985,7 @@ module Alloc_mode = struct
         if all_equal v rest then v
         else begin
           let v = fresh () in
-          List.iter (fun v' -> submode_vv v' v) vars;
+          List.iter (fun v' -> submode_exn (Amodevar v') (Amodevar v)) vars;
           v
         end
       in
@@ -963,7 +1002,7 @@ module Alloc_mode = struct
   let constrain_upper = function
     | Amode m -> m
     | Amodevar v ->
-       submode_cv v.upper v;
+       submode_exn (Amode v.upper) (Amodevar v);
        v.upper
 
   let compress_vlower v =
@@ -977,7 +1016,7 @@ module Alloc_mode = struct
         trans_low v'
       end
     and trans_low v' =
-      submode_cv v'.lower v;
+      submode_exn (Amode v'.lower) (Amodevar v);
       List.iter trans v'.vlower
     in
     List.iter trans_low v.vlower
@@ -986,16 +1025,16 @@ module Alloc_mode = struct
     | Amode m -> m
     | Amodevar v ->
         compress_vlower v;
-        submode_vc v v.lower;
+        submode_exn (Amodevar v) (Amode v.lower);
         v.lower
 
   let newvar () = Amodevar (fresh ())
 
   let check_const = function
     | Amode m -> Some m
-    | Amodevar v when v.lower = v.upper ->
-       Some v.lower
-    | Amodevar _ -> None
+    | Amodevar v ->
+       compress_vlower v;
+       if v.lower = v.upper then Some v.lower else None
 
   let print_const ppf = function
     | Global -> Format.fprintf ppf "Global"
