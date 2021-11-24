@@ -728,6 +728,7 @@ void caml_local_realloc()
   caml_local_arenas* s = caml_get_local_arenas();
   intnat i;
   char* arena;
+  caml_stat_block block;
   if (s == NULL) {
     s = caml_stat_alloc(sizeof(*s));
     s->count = 0;
@@ -748,9 +749,10 @@ void caml_local_realloc()
     /* may need to loop, if a very large allocation was requested */
   } while (s->saved_sp + s->next_length < 0);
 
-  arena = caml_stat_alloc_noexc(s->next_length);
+  arena = caml_stat_alloc_aligned_noexc(s->next_length, 0, &block);
   if (arena == NULL)
     caml_fatal_error("Local allocation stack overflow - out of memory");
+  caml_page_table_add(In_local, arena, arena + s->next_length);
 #ifdef DEBUG
   for (i = 0; i < s->next_length; i += sizeof(value)) {
     *((header_t*)(arena + i)) = Debug_uninit_local;
@@ -765,6 +767,7 @@ void caml_local_realloc()
   s->count++;
   s->arenas[s->count-1].length = s->next_length;
   s->arenas[s->count-1].base = arena;
+  s->arenas[s->count-1].alloc_block = block;
   caml_set_local_arenas(s);
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }

@@ -1698,14 +1698,11 @@ Line 1, characters 0-58:
 Error: Wrong arity for builtin primitive "%int32_add"
 |}]
 
-(*
-TODO: perhaps allow this, but requires caml_compare changes (Is_in_value_area)
 let compare (local_ x) (local_ y) =
   [x = y; x <> y; x < y; x > y; x <= y; x >= y; compare x y = 0; x == y; x != y]
 [%%expect{|
 val compare : local_ 'a -> local_ 'a -> bool list = <fun>
 |}]
-*)
 
 (* integer primitives accept local args *)
 let intf (local_ x) = x |> Int.succ |> Int.add 42 |> pred |> (/) 100 |> (+) 1

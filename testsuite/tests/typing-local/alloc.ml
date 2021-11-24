@@ -204,6 +204,12 @@ let makefloatarray (n:float) =
   ignore_local [| n |];
   ()
 
+external floatarray_create : int -> local_ floatarray =
+  "caml_floatarray_create_local"
+let makeflatfloatarray () =
+  ignore_local (floatarray_create 20);
+  ()
+
 let makeshortarray n =
   ignore_local [| n |];
   ()
@@ -236,6 +242,38 @@ let makelongarray n =
       n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; n; |];
   ()
 
+external local_array: int -> 'a -> local_ 'a array = "caml_make_local_vect"
+
+external array_concat : local_ 'a array list -> local_ 'a array =
+  "caml_array_concat_local"
+external array_append : local_ 'a array -> local_ 'a array -> local_ 'a array =
+  "caml_array_append_local"
+external array_sub : local_ 'a array -> int -> int -> local_ 'a array =
+  "caml_array_sub_local"
+external array_blit :
+  local_ 'a array -> int -> local_ 'a array -> int -> int -> unit = "caml_array_blit"
+external array_fill :
+  local_ 'a array -> int -> int -> 'a -> unit = "caml_array_fill"
+
+let maniparray arr =              (* arr = 1,2,3,1,2,3 *)
+  let x = local_array 2 [2] in    (* 2,2 *)
+  let x = array_append x x in     (* 2,2,2,2 *)
+  array_fill x 1 1 [3];           (* 2,3,2,2 *)
+  array_blit arr 3 x 2 1;         (* 2,3,1,2 *)
+  let x = array_concat [array_sub x 2 1; x; array_sub x 1 1] in
+  assert (x = arr);               (* 1,2,3,1,2,3 *)
+  ()
+
+let manipfarray arr =             (* arr = 1,2,3,1,2,3 *)
+  let x = local_array 2 2. in     (* 2,2 *)
+  let x = array_append x x in     (* 2,2,2,2 *)
+  array_fill x 1 1 3.;            (* 2,3,2,2 *)
+  array_blit arr 3 x 2 1;         (* 2,3,1,2 *)
+  let x = array_concat [array_sub x 2 1; x; array_sub x 1 1] in
+  assert (x = arr);               (* 1,2,3,1,2,3 *)
+  ()
+
+
 let makeref n =
   let r = ref n in
   r := n+1;
@@ -243,6 +281,74 @@ let makeref n =
   decr r;
   ignore_local r;
   ()
+
+external bytes_create :
+  int -> local_ bytes = "caml_create_local_bytes"
+external bytes_set :
+  local_ bytes -> int -> char -> unit = "%bytes_unsafe_set"
+external bytes_fill :
+  local_ bytes -> int -> int -> char -> unit = "caml_fill_bytes"
+external bytes_blit_string :
+  local_ string -> int -> local_ bytes -> int -> int -> unit =
+  "caml_blit_string"
+let hello = Bytes.of_string "hello"
+let makebytes () =
+  let b = bytes_create 5 in
+  bytes_fill b 0 5 'l';
+  bytes_set b 4 'o';
+  bytes_blit_string "he" 0 b 0 2;
+  assert (b = hello)
+
+external get_int32_ne : bytes -> int -> (int32[@local_opt]) = "%caml_bytes_get32"
+external get_int64_ne : bytes -> int -> (int64[@local_opt]) = "%caml_bytes_get64"
+external swap32 : (int32[@local_opt]) -> (int32[@local_opt]) = "%bswap_int32"
+external swap64 : (int64[@local_opt]) -> (int64[@local_opt]) = "%bswap_int64"
+
+let get_int32_be b i = local_
+  if Sys.big_endian then get_int32_ne b i
+  else swap32 (opaque_local (get_int32_ne b i))
+let get_int64_be b i = local_
+  if Sys.big_endian then get_int64_ne b i
+  else swap64 (opaque_local (get_int64_ne b i))
+let data = Bytes.of_string "\x00\x11\x22\x33\x44\x55\x66\x77"
+let readstringbint () =
+  let t =
+    (get_int32_be data 0,
+     get_int32_be data 4,
+     get_int64_be data 0)
+  in
+  assert (t = (0x00112233l, 0x44556677l,
+               0x0011223344556677L))
+
+type bigstring =
+  (char, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t
+external bigstring_get_int32_ne :
+      bigstring -> int -> (int32[@local_opt]) = "%caml_bigstring_get32"
+external bigstring_get_int64_ne :
+      bigstring -> int -> (int64[@local_opt]) = "%caml_bigstring_get64"
+let bigstring_get_int32_be b i = local_
+  if Sys.big_endian then bigstring_get_int32_ne b i
+  else swap32 (opaque_local (bigstring_get_int32_ne b i))
+let bigstring_get_int64_be b i = local_
+  if Sys.big_endian then bigstring_get_int64_ne b i
+  else swap64 (opaque_local (bigstring_get_int64_ne b i))
+let bigstring_of_string s =
+  let open Bigarray in
+  let a = Array1.create char c_layout (String.length s) in
+  for i = 0 to String.length s - 1 do
+    a.{i} <- s.[i]
+  done;
+  a
+let data = bigstring_of_string "\x00\x11\x22\x33\x44\x55\x66\x77"
+let readbigstringbint () =
+  let t =
+    (bigstring_get_int32_be data 0,
+     bigstring_get_int32_be data 4,
+     bigstring_get_int64_be data 0)
+  in
+  assert (t = (0x00112233l, 0x44556677l,
+               0x0011223344556677L))
+
 
 let rec makemanylong n =
   if n = 0 then () else
@@ -275,8 +381,6 @@ let rec makemanylong n =
   makemanylong (n-1);
   ignore_local stuff;
   ()
-
-external local_array: int -> 'a -> local_ 'a array = "caml_make_local_vect"
 
 let makeverylong n =
   (* This is many times larger than the largest allocation so far.
@@ -323,11 +427,17 @@ let () =
   run "intarray" makeintarray 42;
   run "addrarray" makeaddrarray [];
   run "floatarray" makefloatarray 42.;
+  run "flatfloatarray" makeflatfloatarray ();
   run "shortarray" makeshortarray 42;
   run "longarray" makelongarray 42;
   run "floatgenarray" makeshortarray 42.;
   run "longfgarray" makelongarray 42.;
+  run "maniparray" maniparray [| [1]; [2]; [3]; [1]; [2]; [3] |];
+  run "manipfarray" manipfarray [| 1.; 2.; 3.; 1.; 2.; 3. |];
   run "ref" makeref 42;
+  run "bytes" makebytes ();
+  run "stringbint" readstringbint ();
+  run "bigstringbint" readstringbint ();
   run "verylong" makeverylong 42;
   run "manylong" makemanylong 100
 
