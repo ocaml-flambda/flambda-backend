@@ -90,6 +90,14 @@ force-stage0: ocaml-stage0-config.status
 # whose .cmx files are compatible with this new compiler.  Neither are the
 # Flambda backend compiler, or the compilerlibs that form it, built with the
 # Flambda backend compiler itself.  These steps comprise stage2.
+#
+# CR-someday lmaurer: In principle, since Dune is building both stage1 and
+# stage2 and the stage2 Dune workspace is a superset of the stage1 one, it
+# shouldn't be necessary to build stage1 and stage2 in separate invocations of
+# Dune. As of this writing, however, Dune doesn't recognize that the ocamlc
+# in stage2's PATH is itself a build target (I suspect because it resolves
+# ocamlc before building anything), so it tries to build stage2 with whatever
+# compiler is in the user's PATH.
 .PHONY: stage1
 stage1: ocaml-stage1-config.status stage0 config_files find_arch
 	ARCH=$(arch) $(dune) build @$(stage1_build)/install $(dune_flags_stage1) \
