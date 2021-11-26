@@ -937,30 +937,37 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
   | _, _ ->
     let acc, arms =
       match sw.failaction with
-      | None -> acc, Targetint_31_63.Map.of_list arms
+      | None -> acc, Targetint_31_63.Lmap.of_list arms
       | Some (default, trap_action, args) ->
-        Numeric_types.Int.Set.fold
-          (fun case (acc, cases) ->
-            let case = Targetint_31_63.int (Targetint_31_63.Imm.of_int case) in
-            if Targetint_31_63.Map.mem case cases
-            then acc, cases
-            else
-              let acc, args = find_simples acc env args in
-              let trap_action = close_trap_action_opt trap_action in
-              let acc, default =
-                Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:Debuginfo.none
+        let acc, cases, _discrs_seen =
+          Numeric_types.Int.Set.fold
+            (fun case (acc, cases, discrs_seen) ->
+              let case =
+                Targetint_31_63.int (Targetint_31_63.Imm.of_int case)
               in
-              acc, Targetint_31_63.Map.add case default cases)
-          (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
-          (acc, Targetint_31_63.Map.of_list arms)
+              if Targetint_31_63.Set.mem case discrs_seen
+              then acc, cases, discrs_seen
+              else
+                let acc, args = find_simples acc env args in
+                let trap_action = close_trap_action_opt trap_action in
+                let acc, default =
+                  Apply_cont_with_acc.create acc ?trap_action default ~args
+                    ~dbg:Debuginfo.none
+                in
+                ( acc,
+                  Targetint_31_63.Lmap.add case default cases,
+                  Targetint_31_63.Set.add case discrs_seen ))
+            (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
+            (acc, Targetint_31_63.Lmap.of_list arms, Targetint_31_63.Set.empty)
+        in
+        acc, cases
     in
-    if Targetint_31_63.Map.is_empty arms
+    if Targetint_31_63.Lmap.is_empty arms
     then Expr_with_acc.create_invalid acc ()
     else
       let scrutinee = Simple.var untagged_scrutinee in
       let acc, body =
-        match Targetint_31_63.Map.get_singleton arms with
+        match Targetint_31_63.Lmap.get_singleton arms with
         | Some (_discriminant, action) ->
           Expr_with_acc.create_apply_cont acc action
         | None ->

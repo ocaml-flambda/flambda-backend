@@ -1249,7 +1249,7 @@ and switch env res s =
      instructions needed for big switches (but that might be up-to-debate on
      small switches with 3-5 arms). *)
   let scrutinee, tag_discriminant =
-    match Targetint_31_63.Map.cardinal arms with
+    match Targetint_31_63.Lmap.cardinal arms with
     | 2 -> begin
       match match_var_with_extra_info env scrutinee with
       | None -> e, false
@@ -1301,13 +1301,23 @@ and make_arm ~tag_discriminant env res (d, action) =
    scrutinee is adequately tagged/untagged) *)
 and make_switch ~tag_discriminant env res e arms =
   let wrap, env = Env.flush_delayed_lets env in
-  match Targetint_31_63.Map.cardinal arms with
+  match Targetint_31_63.Lmap.bindings arms with
   (* Binary case: if-then-else *)
-  | 2 -> (
-    let aux = make_arm ~tag_discriminant env in
-    let first_arm, res = aux res @@ Targetint_31_63.Map.min_binding arms in
-    let second_arm, res = aux res @@ Targetint_31_63.Map.max_binding arms in
-    match first_arm, second_arm with
+  | [first_arm; second_arm] -> (
+    let first_arm_has_lower_discriminant =
+      Targetint_31_63.compare (fst first_arm) (fst second_arm) < 0
+    in
+    let lower_arm, res =
+      if first_arm_has_lower_discriminant
+      then make_arm ~tag_discriminant env res first_arm
+      else make_arm ~tag_discriminant env res second_arm
+    in
+    let upper_arm, res =
+      if first_arm_has_lower_discriminant
+      then make_arm ~tag_discriminant env res second_arm
+      else make_arm ~tag_discriminant env res first_arm
+    in
+    match lower_arm, upper_arm with
     (* These switchs are actually if-then-elses. On such switches,
        transl_switch_clambda will introduce a let-binding to the scrutinee
        before creating an if-then-else, introducing an indirection that might
@@ -1321,24 +1331,30 @@ and make_switch ~tag_discriminant env res e arms =
     | (x, if_x), (_, if_not) ->
       wrap (C.ite (C.eq (C.int x) e) ~then_:if_x ~else_:if_not), res)
   (* General case *)
-  | n ->
+  | arms ->
+    let n = List.length arms in
+    let max_d =
+      List.sort
+        (fun (discr1, _) (discr2, _) -> Targetint_31_63.compare discr2 discr1)
+        arms
+      |> List.hd |> fst
+    in
     (* The transl_switch_clambda expects an index array such that index.(d) is
        the index in [cases] of the expression to execute when [e] matches
        [d]. *)
-    let max_d, _ = Targetint_31_63.Map.max_binding arms in
     let m = prepare_discriminant ~tag:tag_discriminant max_d in
     let cases = Array.make (n + 1) C.unreachable in
     let index = Array.make (m + 1) n in
     let _, res =
-      Targetint_31_63.Map.fold
-        (fun discriminant action (i, res) ->
+      List.fold_left
+        (fun (i, res) (discriminant, action) ->
           let (d, cmm_action), res =
             make_arm ~tag_discriminant env res (discriminant, action)
           in
           cases.(i) <- cmm_action;
           index.(d) <- i;
           i + 1, res)
-        arms (0, res)
+        (0, res) arms
     in
     wrap (C.transl_switch_clambda Debuginfo.none e index cases), res
 

@@ -51,6 +51,8 @@ module type S = sig
 
   val is_empty : 'a t -> bool
 
+  val cardinal : 'a t -> int
+
   (** The key should not already exist in the map; this is not checked. *)
   val add : key -> 'a -> 'a t -> 'a t
 

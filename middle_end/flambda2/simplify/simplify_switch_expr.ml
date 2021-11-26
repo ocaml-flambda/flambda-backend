@@ -68,7 +68,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
       new_let_conts, arms, identity_arms, not_arms
     | Some action -> (
       let normal_case ~identity_arms ~not_arms =
-        let arms = Targetint_31_63.Map.add arm action arms in
+        let arms = Targetint_31_63.Lmap.add arm action arms in
         new_let_conts, arms, identity_arms, not_arms
       in
       (* Now check to see if the arm is of a form that might mean the whole
@@ -87,7 +87,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
             if Targetint_31_63.equal arm arg
             then
               let identity_arms =
-                Targetint_31_63.Map.add arm action identity_arms
+                Targetint_31_63.Lmap.add arm action identity_arms
               in
               normal_case ~identity_arms ~not_arms
             else if Targetint_31_63.equal arm Targetint_31_63.bool_true
@@ -95,7 +95,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
                     || Targetint_31_63.equal arm Targetint_31_63.bool_false
                        && Targetint_31_63.equal arg Targetint_31_63.bool_true
             then
-              let not_arms = Targetint_31_63.Map.add arm action not_arms in
+              let not_arms = Targetint_31_63.Lmap.add arm action not_arms in
               normal_case ~identity_arms ~not_arms
             else normal_case ~identity_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
@@ -111,38 +111,49 @@ let rebuild_arm uacc arm (action, use_id, arity)
     in
     let new_let_conts = new_let_cont :: new_let_conts in
     let action = Apply_cont.goto new_cont in
-    let arms = Targetint_31_63.Map.add arm action arms in
+    let arms = Targetint_31_63.Lmap.add arm action arms in
     new_let_conts, arms, identity_arms, not_arms
 
 let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     ~after_rebuild =
   let new_let_conts, arms, identity_arms, not_arms =
-    Targetint_31_63.Map.fold (rebuild_arm uacc) arms
+    Targetint_31_63.Lmap.fold (rebuild_arm uacc) arms
       ( [],
-        Targetint_31_63.Map.empty,
-        Targetint_31_63.Map.empty,
-        Targetint_31_63.Map.empty )
+        Targetint_31_63.Lmap.empty,
+        Targetint_31_63.Lmap.empty,
+        Targetint_31_63.Lmap.empty )
   in
   let switch_is_identity =
-    let arm_discrs = Targetint_31_63.Map.keys arms in
-    let identity_arms_discrs = Targetint_31_63.Map.keys identity_arms in
-    if not (Targetint_31_63.Set.equal arm_discrs identity_arms_discrs)
+    if Targetint_31_63.Lmap.is_empty identity_arms
     then None
     else
-      Targetint_31_63.Map.data identity_arms
-      |> List.map Apply_cont.continuation
-      |> Continuation.Set.of_list |> Continuation.Set.get_singleton
+      let arm_discrs = Targetint_31_63.Lmap.keys arms in
+      let identity_arms_discrs = Targetint_31_63.Lmap.keys identity_arms in
+      if not (List.equal Targetint_31_63.equal arm_discrs identity_arms_discrs)
+      then None
+      else
+        Targetint_31_63.Lmap.bindings identity_arms
+        |> List.map (fun (_discr, apply_cont) ->
+               Apply_cont.continuation apply_cont)
+        |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
   let switch_is_boolean_not =
-    let arm_discrs = Targetint_31_63.Map.keys arms in
-    let not_arms_discrs = Targetint_31_63.Map.keys not_arms in
-    if (not (Targetint_31_63.Set.equal arm_discrs Targetint_31_63.all_bools))
-       || not (Targetint_31_63.Set.equal arm_discrs not_arms_discrs)
+    if Targetint_31_63.Lmap.is_empty not_arms
     then None
     else
-      Targetint_31_63.Map.data not_arms
-      |> List.map Apply_cont.continuation
-      |> Continuation.Set.of_list |> Continuation.Set.get_singleton
+      let arm_discrs = Targetint_31_63.Lmap.keys arms in
+      let not_arms_discrs = Targetint_31_63.Lmap.keys not_arms in
+      if (not
+            (List.equal Targetint_31_63.equal arm_discrs
+               [Targetint_31_63.bool_false; Targetint_31_63.bool_true]
+            || List.equal Targetint_31_63.equal arm_discrs
+                 [Targetint_31_63.bool_true; Targetint_31_63.bool_false]))
+         || not (List.equal Targetint_31_63.equal arm_discrs not_arms_discrs)
+      then None
+      else
+        Targetint_31_63.Lmap.data not_arms
+        |> List.map Apply_cont.continuation
+        |> Continuation.Set.of_list |> Continuation.Set.get_singleton
   in
   let create_tagged_scrutinee uacc dest ~make_body =
     (* A problem with using [simplify_let] below is that the continuation [dest]
@@ -186,7 +197,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
             expr, uacc))
   in
   let body, uacc =
-    if Targetint_31_63.Map.cardinal arms < 1
+    if Targetint_31_63.Lmap.cardinal arms < 1
     then
       let uacc = UA.notify_removed ~operation:Removed_operations.branch uacc in
       RE.create_invalid (), uacc
@@ -237,7 +248,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
           let expr, uacc = EB.create_switch uacc ~scrutinee ~arms in
           if Flambda_features.check_invariants ()
              && Simple.is_const scrutinee
-             && Targetint_31_63.Map.cardinal arms > 1
+             && Targetint_31_63.Lmap.cardinal arms > 1
           then
             Misc.fatal_errorf
               "[Switch] with constant scrutinee (type: %a) should have been \
@@ -374,7 +385,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
                (Apply_cont.continuation action)
                (List.map Simple.free_names args))
       in
-      let arms = Targetint_31_63.Map.add arm (action, rewrite_id, []) arms in
+      let arms = Targetint_31_63.Lmap.add arm (action, rewrite_id, []) arms in
       arms, dacc
     | _ :: _ ->
       let { S.simples = args; simple_tys = arg_types } =
@@ -393,7 +404,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
                (Apply_cont.continuation action)
                (List.map Simple.free_names args))
       in
-      let arms = Targetint_31_63.Map.add arm (action, rewrite_id, arity) arms in
+      let arms =
+        Targetint_31_63.Lmap.add arm (action, rewrite_id, arity) arms
+      in
       arms, dacc)
 
 let simplify_switch ~simplify_let dacc switch ~down_to_up =
@@ -404,14 +417,14 @@ let simplify_switch ~simplify_let dacc switch ~down_to_up =
   let scrutinee = T.get_alias_exn scrutinee_ty in
   let typing_env_at_use = DA.typing_env dacc in
   let arms, dacc =
-    Targetint_31_63.Map.fold
+    Targetint_31_63.Lmap.fold
       (simplify_arm ~typing_env_at_use ~scrutinee_ty)
       (Switch.arms switch)
-      (Targetint_31_63.Map.empty, dacc)
+      (Targetint_31_63.Lmap.empty, dacc)
   in
   let dacc = check_cse_environment dacc ~scrutinee in
   let dacc =
-    if Targetint_31_63.Map.cardinal arms <= 1
+    if Targetint_31_63.Lmap.cardinal arms <= 1
     then dacc
     else
       DA.map_data_flow dacc

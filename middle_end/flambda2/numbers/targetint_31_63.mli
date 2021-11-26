@@ -201,6 +201,8 @@ type immediate = t
 (** The comparison function for type [t] ignores [print_as_char]. *)
 include Container_types.S with type t := t
 
+module Lmap : Lmap.S with type key := t
+
 val one : t
 
 val zero : t

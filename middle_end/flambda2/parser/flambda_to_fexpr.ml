@@ -964,7 +964,7 @@ and switch_expr env switch : Fexpr.expr =
         in
         let app_cont = apply_cont env app_cont in
         tag, app_cont)
-      (Switch_expr.arms switch |> Targetint_31_63.Map.bindings)
+      (Switch_expr.arms switch |> Targetint_31_63.Lmap.bindings)
   in
   Switch { scrutinee; cases }
 

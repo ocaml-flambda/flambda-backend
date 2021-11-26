@@ -604,7 +604,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           ( Targetint_31_63.int (Targetint_31_63.Imm.of_int case),
             apply_cont env apply ))
         cases
-      |> Targetint_31_63.Map.of_list
+      |> Targetint_31_63.Lmap.of_list
     in
     Flambda.Expr.create_switch
       (Flambda.Switch.create ~scrutinee:(simple env scrutinee) ~arms)

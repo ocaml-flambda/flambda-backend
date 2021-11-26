@@ -18,14 +18,14 @@
 
 type t =
   { scrutinee : Simple.t;
-    arms : Apply_cont_expr.t Targetint_31_63.Map.t
+    arms : Apply_cont_expr.t Targetint_31_63.Lmap.t
   }
 
 let fprintf = Format.fprintf
 
 let print_arms ppf arms =
   let arms =
-    Targetint_31_63.Map.fold
+    Targetint_31_63.Lmap.fold
       (fun discr action arms_inverse ->
         match Apply_cont_expr.Map.find action arms_inverse with
         | exception Not_found ->
@@ -76,14 +76,14 @@ let create ~scrutinee ~arms = { scrutinee; arms }
 
 let if_then_else ~scrutinee ~if_true ~if_false =
   let arms =
-    Targetint_31_63.Map.of_list
+    Targetint_31_63.Lmap.of_list
       [Targetint_31_63.bool_true, if_true; Targetint_31_63.bool_false, if_false]
   in
   create ~scrutinee ~arms
 
-let iter t ~f = Targetint_31_63.Map.iter f t.arms
+let iter t ~f = Targetint_31_63.Lmap.iter f t.arms
 
-let num_arms t = Targetint_31_63.Map.cardinal t.arms
+let num_arms t = Targetint_31_63.Lmap.cardinal t.arms
 
 let scrutinee t = t.scrutinee
 
@@ -91,7 +91,7 @@ let arms t = t.arms
 
 let free_names { scrutinee; arms } =
   let free_names_in_arms =
-    Targetint_31_63.Map.fold
+    Targetint_31_63.Lmap.fold
       (fun _discr action free_names ->
         Name_occurrences.union (Apply_cont_expr.free_names action) free_names)
       arms Name_occurrences.empty
@@ -101,7 +101,7 @@ let free_names { scrutinee; arms } =
 let apply_renaming ({ scrutinee; arms } as t) perm =
   let scrutinee' = Simple.apply_renaming scrutinee perm in
   let arms' =
-    Targetint_31_63.Map.map_sharing
+    Targetint_31_63.Lmap.map_sharing
       (fun action -> Apply_cont_expr.apply_renaming action perm)
       arms
   in
@@ -111,7 +111,7 @@ let apply_renaming ({ scrutinee; arms } as t) perm =
 
 let all_ids_for_export { scrutinee; arms } =
   let scrutinee_ids = Ids_for_export.from_simple scrutinee in
-  Targetint_31_63.Map.fold
+  Targetint_31_63.Lmap.fold
     (fun _discr action ids ->
       Ids_for_export.union ids (Apply_cont_expr.all_ids_for_export action))
     arms scrutinee_ids

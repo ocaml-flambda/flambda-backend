@@ -180,6 +180,7 @@ end
 
 module Self = Container_types.Make (T0)
 include Self
+module Lmap = Lmap.Make (T0)
 
 module Pair = struct
   include

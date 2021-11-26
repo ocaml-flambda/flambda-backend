@@ -15,6 +15,8 @@ module type S = sig
 
   val is_empty : 'a t -> bool
 
+  val cardinal : 'a t -> int
+
   val add : key -> 'a -> 'a t -> 'a t
 
   val singleton : key -> 'a -> 'a t
@@ -77,6 +79,8 @@ module Make (T : Thing) : S with type key = T.t = struct
   let empty = []
 
   let is_empty m = m = []
+
+  let cardinal = List.length
 
   let add k v m = (k, v) :: m
 
@@ -168,3 +172,4 @@ module Make (T : Thing) : S with type key = T.t = struct
         m;
       invariant m
 end
+[@@inline always]

@@ -77,7 +77,7 @@ val place_lifted_constants :
 val create_switch :
   Upwards_acc.t ->
   scrutinee:Simple.t ->
-  arms:Apply_cont.t Targetint_31_63.Map.t ->
+  arms:Apply_cont.t Targetint_31_63.Lmap.t ->
   Rebuilt_expr.t * Upwards_acc.t
 
 val rebuild_invalid :

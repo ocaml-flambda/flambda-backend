@@ -517,7 +517,7 @@ let place_lifted_constants uacc ~lifted_constants_from_defining_expr
   place_constants uacc ~around:body lifted_constants_from_defining_expr
 
 let create_switch uacc ~scrutinee ~arms =
-  if Targetint_31_63.Map.cardinal arms < 1
+  if Targetint_31_63.Lmap.cardinal arms < 1
   then RE.create_invalid (), UA.notify_added ~code_size:Code_size.invalid uacc
   else
     let change_to_apply_cont action =
@@ -530,11 +530,11 @@ let create_switch uacc ~scrutinee ~arms =
          fine. *)
       RE.create_apply_cont action, uacc
     in
-    match Targetint_31_63.Map.get_singleton arms with
+    match Targetint_31_63.Lmap.get_singleton arms with
     | Some (_discriminant, action) -> change_to_apply_cont action
     | None -> (
       let actions =
-        Apply_cont_expr.Set.of_list (Targetint_31_63.Map.data arms)
+        Apply_cont_expr.Set.of_list (Targetint_31_63.Lmap.data arms)
       in
       match Apply_cont_expr.Set.get_singleton actions with
       | Some action -> change_to_apply_cont action

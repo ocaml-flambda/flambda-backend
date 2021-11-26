@@ -271,7 +271,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
                 Expr_with_acc.create_switch acc
                   (Switch.create ~scrutinee:prim_result
                      ~arms:
-                       (Targetint_31_63.Map.of_list
+                       (Targetint_31_63.Lmap.of_list
                           [ Targetint_31_63.bool_true, condition_passed;
                             Targetint_31_63.bool_false, failure ])))
           in
@@ -309,7 +309,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
         Expr_with_acc.create_switch acc
           (Switch.create ~scrutinee:(Simple.var cond_result)
              ~arms:
-               (Targetint_31_63.Map.of_list
+               (Targetint_31_63.Lmap.of_list
                   [ Targetint_31_63.bool_true, ifso_cont;
                     Targetint_31_63.bool_false, ifnot_cont ]))
       in

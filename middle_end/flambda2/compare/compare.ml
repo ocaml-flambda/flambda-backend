@@ -449,7 +449,7 @@ and subst_apply_cont env apply_cont =
 and subst_switch env switch =
   let scrutinee = subst_simple env (Switch_expr.scrutinee switch) in
   let arms =
-    Targetint_31_63.Map.map_sharing (subst_apply_cont env)
+    Targetint_31_63.Lmap.map_sharing (subst_apply_cont env)
       (Switch_expr.arms switch)
   in
   Expr.create_switch (Switch_expr.create ~scrutinee ~arms)
@@ -1027,9 +1027,9 @@ let switch_exprs env switch1 switch2 : Expr.t Comparison.t =
       ~subst:(fun env (target_imm, apply_cont) ->
         target_imm, subst_apply_cont env apply_cont)
       ~subst_snd:true env
-      (Targetint_31_63.Map.bindings arms1)
-      (Targetint_31_63.Map.bindings arms2)
-    |> Comparison.map ~f:Targetint_31_63.Map.of_list
+      (Targetint_31_63.Lmap.bindings arms1)
+      (Targetint_31_63.Lmap.bindings arms2)
+    |> Comparison.map ~f:Targetint_31_63.Lmap.of_list
   in
   pairs ~f1:compare_arms ~f2:simple_exprs ~subst2:subst_simple env
     (Switch.arms switch1, Switch.scrutinee switch1)

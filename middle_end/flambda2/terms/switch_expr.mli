@@ -28,7 +28,7 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 val create :
-  scrutinee:Simple.t -> arms:Apply_cont_expr.t Targetint_31_63.Map.t -> t
+  scrutinee:Simple.t -> arms:Apply_cont_expr.t Targetint_31_63.Lmap.t -> t
 
 (** Create a [Switch] corresponding to a traditional if-then-else. *)
 val if_then_else :
@@ -45,7 +45,7 @@ val scrutinee : t -> Simple.t
 val iter : t -> f:(Targetint_31_63.t -> Apply_cont_expr.t -> unit) -> unit
 
 (** What the switch will do for each possible value of the discriminant. *)
-val arms : t -> Apply_cont_expr.t Targetint_31_63.Map.t
+val arms : t -> Apply_cont_expr.t Targetint_31_63.Lmap.t
 
 (** How many cases the switch has. (Note that this is not the number of
     destinations reached by the switch, which may be a smaller number.) *)
