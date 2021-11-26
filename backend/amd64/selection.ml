@@ -274,10 +274,21 @@ method! select_operation op args dbg =
          assert false
     end
   | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
-               ty = [|Int|]; ty_args = [XFloat] }
+               ty = [|Int|]; ty_args = [XFloat] } ->
+      (match args with
+      | [Cop(Cload (Double, _), [loc], _dbg)] ->
+        let c = Word_int in
+        let (addr, arg) = self#select_addressing c loc in
+        Iload(c, addr), [arg]
+      | _ -> Imove, args)
   | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
                ty = [|Float|]; ty_args = [XInt64] } ->
-     Imove, args
+      (match args with
+      | [Cop(Cload (Word_int, _), [loc], _dbg)] ->
+        let c = Double in
+        let (addr, arg) = self#select_addressing c loc in
+        Iload(c, addr), [arg]
+      | _ -> Imove, args)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with
       | "caml_rdtsc_unboxed", [|Int|] -> Ispecific Irdtsc, args
