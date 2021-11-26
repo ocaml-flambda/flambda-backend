@@ -277,7 +277,7 @@ method! select_operation op args dbg =
                ty = [|Int|]; ty_args = [XFloat] } ->
       (match args with
       | [Cop(Cload ((Word_int | Word_val | Double), _), [loc], _dbg)] ->
-        let c = Word_val in
+        let c = Word_int in
         let (addr, arg) = self#select_addressing c loc in
         Iload(c, addr), [arg]
       | _ -> Imove, args)
