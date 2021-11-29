@@ -1555,6 +1555,28 @@ module Row_like_for_closures = struct
         | At_least _ -> None
         | Known index -> Some ((tag, index), maps_to)))
 
+  let get_closure t closure_id : _ Or_unknown.t =
+    match get_singleton t with
+    | None -> Unknown
+    | Some ((_tag, index), maps_to) ->
+      if not
+           (Closure_id.Set.mem closure_id
+              (Set_of_closures_contents.closures index))
+      then Unknown
+      else
+        let closure_ty =
+          try
+            Closure_id.Map.find closure_id
+              maps_to.closure_types.closure_id_components_by_index
+          with Not_found ->
+            Misc.fatal_errorf
+              "Closure ID %a is bound in index but not in maps_to@.Index:@ \
+               %a@.Maps_to:@ %a"
+              Closure_id.print closure_id Set_of_closures_contents.print index
+              print_closures_entry maps_to
+        in
+        Known closure_ty
+
   let get_env_var t env_var : _ Or_unknown.t =
     match get_singleton t with
     | None -> Unknown

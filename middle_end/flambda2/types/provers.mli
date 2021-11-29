@@ -210,4 +210,11 @@ val prove_project_var_simple :
   Var_within_closure.t ->
   Simple.t proof
 
+val prove_select_closure_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Closure_id.t ->
+  Simple.t proof
+
 val prove_rec_info : Typing_env.t -> Type_grammar.t -> Rec_info_expr.t proof
