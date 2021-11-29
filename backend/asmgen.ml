@@ -234,7 +234,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
       ++ Profile.record ~accumulate:true "linear_to_cfg"
            (Linear_to_cfg.run ~preserve_orig_labels:true)
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
-      ++ pass_dump_cfg_if ppf_dump dump_cfg "After linear_to_cfg"
+      ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
       ++ save_cfg
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"

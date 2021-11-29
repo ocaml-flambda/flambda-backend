@@ -14,6 +14,7 @@
 (*                                                                        *)
 (**************************************************************************)
 let use_ocamlcfg = ref false            (* -ocamlcfg *)
+let dump_cfg = ref false                (* -dcfg *)
 
 module Flambda2 = struct
   module Default = struct
