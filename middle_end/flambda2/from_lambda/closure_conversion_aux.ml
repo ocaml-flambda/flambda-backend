@@ -459,8 +459,9 @@ module Acc = struct
     { t with
       free_names =
         Name_occurrences.remove_continuation t.free_names cont
-        (* continuation_applications =
-         *   Continuation.Map.remove cont t.continuation_applications *)
+        (* We don't remove the continuation from [t.continuation_applications]
+           here because we need this information of the module block to escape
+           its scope to build the .cmx in [Closure_conversion.close_program]. *)
     }
 
   let remove_code_id_from_free_names code_id t =

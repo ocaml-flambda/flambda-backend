@@ -68,7 +68,7 @@ let load_symbol_approx loader symbol : Code.t Value_approximation.t =
       | Some (Code_present code) -> Some code
       | _ -> None
       (* CR keryan : we want to use metadata in classic mode at some point in
-         the near futur *)
+         the near future *)
     in
     T.extract_symbol_approx typing_env symbol find_code
 
