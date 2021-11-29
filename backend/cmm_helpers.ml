@@ -2696,7 +2696,7 @@ let ext_pointer_load chunk name args dbg =
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
   let p = int_as_pointer arg1 dbg in
-  Some(Cop(Cstore (chunk, Assignment), [p; arg2], dbg))
+  Some(return_unit dbg (Cop(Cstore (chunk, Assignment), [p; arg2], dbg)))
 
 let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality; } in
@@ -2711,11 +2711,12 @@ let bigstring_prefetch ~is_write locality args dbg =
              (* pointer to element "idx" of "ba" of type
                 (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t
                 is simply offset "idx" from "ba_data" *)
-             (Cop (op, [add_int ba_data idx dbg], dbg))))))
+             return_unit dbg (Cop (op, [add_int ba_data idx dbg], dbg))))))
 
 let prefetch ~is_write locality arg dbg =
   let op = Cprefetch { is_write; locality; } in
-  if_operation_supported op ~f:(fun () -> (Cop (op, [arg], dbg)))
+  if_operation_supported op ~f:(fun () ->
+    return_unit dbg (Cop (op, [arg], dbg)))
 
 let ext_pointer_prefetch ~is_write locality arg dbg =
   prefetch ~is_write locality (int_as_pointer arg dbg) dbg
@@ -2818,25 +2819,25 @@ let transl_builtin name args dbg =
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
-    Some(Cop(Cstore (Word_int, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
     Some(Cop(Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
-    Some(Cop(Cstore (Word_int, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Word_int, Assignment), args, dbg)))
   | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
     Some(Cop(Cload (Thirtytwo_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
-    Some(Cop(Cstore (Thirtytwo_signed, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Thirtytwo_signed, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int32" ->
     Some(Cop(Cload (Thirtytwo_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int32" ->
-    Some(Cop(Cstore (Thirtytwo_unsigned, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_load_unboxed_float" ->
     Some(Cop(Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
-    Some(Cop(Cstore (Double, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Double, Assignment), args, dbg)))
   | "caml_native_pointer_load_unsigned_int8" ->
     Some(Cop(Cload (Byte_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_load_signed_int8" ->
@@ -2846,13 +2847,13 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_load_signed_int16" ->
     Some(Cop(Cload (Sixteen_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int8" ->
-    Some(Cop(Cstore (Byte_unsigned, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int8" ->
-    Some(Cop(Cstore (Byte_signed, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Byte_signed, Assignment), args, dbg)))
   | "caml_native_pointer_store_unsigned_int16" ->
-    Some(Cop(Cstore (Sixteen_unsigned, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Sixteen_unsigned, Assignment), args, dbg)))
   | "caml_native_pointer_store_signed_int16" ->
-    Some(Cop(Cstore (Sixteen_signed, Assignment), args, dbg))
+    Some(return_unit dbg (Cop(Cstore (Sixteen_signed, Assignment), args, dbg)))
   (* Ext_pointer: handled as tagged int *)
   | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->
