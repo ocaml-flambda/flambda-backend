@@ -470,7 +470,7 @@ let read_one_param ppf position name v =
     end
 
   | "extension" -> Clflags.Extension.enable v
-  | "standard" ->
+  | "no-extensions" ->
     if check_bool ppf "standard" v then Clflags.Extension.disable_all ()
 
   | _ ->
