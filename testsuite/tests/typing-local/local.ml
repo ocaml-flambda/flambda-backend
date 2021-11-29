@@ -1804,10 +1804,9 @@ end
 Line 6, characters 46-47:
 6 |   let z : (int list -> unit) -> int -> unit = f
                                                   ^
-Error: This expression has type
-         (local_ int list -> local_ unit) -> int -> unit
+Error: This expression has type (local_ int list -> unit) -> int -> unit
        but an expression was expected of type
          (int list -> unit) -> int -> unit
-       Type local_ int list -> local_ unit is not compatible with type
+       Type local_ int list -> unit is not compatible with type
          int list -> unit
 |}]

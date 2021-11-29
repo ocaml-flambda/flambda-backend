@@ -311,7 +311,7 @@ and print_out_ret mode rm ppf ty =
   | Oam_local, Oam_local
   | Oam_global, Oam_global
   | Oam_unknown, _
-  | _, Oam_unknown -> print_out_type_1 mode ppf ty
+  | _, Oam_unknown -> print_out_type_1 rm ppf ty
   | _, Oam_local ->
       pp_print_string ppf "local_";
       pp_print_space ppf ();
