@@ -629,6 +629,13 @@ val prove_project_var_simple :
   Var_within_closure.t ->
   Simple.t proof
 
+val prove_select_closure_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  t ->
+  Closure_id.t ->
+  Simple.t proof
+
 val prove_rec_info : Typing_env.t -> t -> Rec_info_expr.t proof
 
 type var_or_symbol_or_tagged_immediate = private

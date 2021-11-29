@@ -414,6 +414,9 @@ module Row_like_for_closures : sig
   (** Same as For_blocks.get_field: attempt to find the type associated to the
       given environment variable without an expensive meet. *)
   val get_env_var : t -> Var_within_closure.t -> flambda_type Or_unknown.t
+
+  (** Similar to [get_env_var] but for closures within the set. *)
+  val get_closure : t -> Closure_id.t -> flambda_type Or_unknown.t
 end
 
 module Env_extension : sig

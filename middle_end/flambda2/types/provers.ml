@@ -809,6 +809,31 @@ let prove_variant_field_simple env ~min_name_mode t variant_tag field_index =
   in
   (prove_block_field_simple_aux [@inlined]) env ~min_name_mode t get
 
+let prove_select_closure_simple env ~min_name_mode t closure_id : Simple.t proof
+    =
+  let wrong_kind () =
+    Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
+  in
+  match expand_head env t with
+  | Value (Ok (Closures { by_closure_id })) -> (
+    match TG.Row_like_for_closures.get_closure by_closure_id closure_id with
+    | Unknown -> Unknown
+    | Known ty -> begin
+      match TG.get_alias_exn ty with
+      | simple -> begin
+        match TE.get_canonical_simple_exn env ~min_name_mode simple with
+        | simple -> Proved simple
+        | exception Not_found -> Unknown
+      end
+      | exception Not_found -> Unknown
+    end)
+  | Value (Ok _) -> Invalid
+  | Value Unknown -> Unknown
+  | Value Bottom -> Invalid
+  | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+  | Naked_nativeint _ | Rec_info _ ->
+    wrong_kind ()
+
 let prove_project_var_simple env ~min_name_mode t env_var : Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
