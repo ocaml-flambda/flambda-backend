@@ -121,6 +121,13 @@ and test run.
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
 
+Note that currently the Flambda backend tests run entirely on the stage1
+compiler. This is because the stage1 compiler is treated essentially as a
+cross-compiler in `dune-workspace.stage2`, so Dune thinks that the stage2
+executables aren't runnable on this machine. Thus if you try to build
+`@_build/stage2/runtest`, explicitly saying to run the tests using stage2,
+it still falls back to stage1.
+
 ## Running only part of the upstream testsuite
 
 This can be done from the `_runtest` directory after it has been initialised by a previous `make runtest-upstream`.

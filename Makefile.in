@@ -332,11 +332,14 @@ install: stage2
 
 # This target only runs the dune-based tests, not the upstream testsuite.
 # stage2 needs to have been built first.
+#
+# This actually runs the tests on the stage1 compiler, or specifically the
+# stage1 compiler libraries. This is because the tests build executables
+# (linking them with the compiler libraries) and then run the executables,
+# but stage2 has stage1 as its host context (see dune-workspace.stage2), so
+# *all* executables that Dune runs for stage2 come from stage1.
 .PHONY: runtest
 runtest:
-	# It's a shame that dune needs the stage1 compiler on the path here.
-	# Ideally that would be inaccessible within tests (to prevent mistakes
-	# such as running "ocamlopt" rather than one of the stage2 binaries).
 	ARCH=$(arch) $(dune) build $(dune_flags_stage2) @$(stage2_build)/runtest \
 	  --profile=release
 
