@@ -15,6 +15,7 @@
 (**************************************************************************)
 (** Flambda-backend specific command line flags *)
 val use_ocamlcfg : bool ref
+val dump_cfg : bool ref
 
 module Flambda2 : sig
   module Default : sig

@@ -23,6 +23,10 @@ let mk_no_ocamlcfg f =
   "-no-ocamlcfg", Arg.Unit f, " Do not use ocamlcfg"
 ;;
 
+let mk_dcfg f =
+  "-dcfg", Arg.Unit f, " (undocumented)"
+;;
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_join_points f =
@@ -348,6 +352,7 @@ let mk_dfreshen f =
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
+  val dcfg : unit -> unit
 
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
@@ -406,6 +411,7 @@ struct
   let list2 = [
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
+    mk_dcfg F.dcfg;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -491,6 +497,7 @@ module Flambda_backend_options_impl = struct
 
   let ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
   let no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
+  let dcfg = set Flambda_backend_flags.dump_cfg
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
