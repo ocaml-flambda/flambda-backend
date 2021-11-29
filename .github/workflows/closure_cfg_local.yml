@@ -45,8 +45,8 @@ jobs:
     - name: Checkout dune github repo
       uses: actions/checkout@master
       with:
-        repository: 'ocaml-flambda/dune'
-        ref: 'special_dune'
+        repository: 'lukemaurer/dune'
+        ref: 'special-dune-2.9'
         path: 'dune'
 
     - name: Build dune

@@ -20,9 +20,9 @@ One-time setup:
 ```
 $ opam switch 4.11.1  # or "opam switch create 4.11.1" if you haven't got that switch already
 $ eval $(opam env)
-$ git clone https://github.com/ocaml-flambda/dune
+$ git clone https://github.com/lukemaurer/dune
 $ cd dune  # We'll refer to this "dune" directory below as $DUNE_DIR
-$ git checkout origin/special_dune
+$ git checkout origin/special-dune-2.9
 $ make release
 ```
 
