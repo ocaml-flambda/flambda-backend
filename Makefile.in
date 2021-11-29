@@ -16,6 +16,11 @@ stage2_prefix=@stage2_prefix@
 middle_end=@middle_end@
 dune=@dune@
 
+stage1_build=_build1/default
+stage2_build=_build2/default
+
+arch := $(shell grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2)
+
 # The Flambda backend compiler build proceeds, from cold, in three stages.
 # We call these (in order) stage0, stage1 and stage2.  They are documented
 # below.
@@ -38,7 +43,7 @@ stage0: _build0/config.status
 	  $$(pwd)/ocaml/ $$(pwd)/_build0 \
 	  | grep -v '/$$' \
 	  | tee .rsync-output
-	if [ -s .rsync-output ] || ! [ -d @stage0_prefix@ ]; then \
+	if [ -s .rsync-output ] || ! [ -d $(stage0_prefix) ]; then \
 	  (cd _build0 && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat && \
@@ -64,9 +69,9 @@ stage1: ocaml-stage1-config.status stage0 \
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build --root=. --profile=release --build-dir=_build1 @install
-	(cd _build1/install/default/bin && \
+	(cd $(stage1_prefix)/bin && \
 	  rm -f ocamllex && \
 	  ln -s ocamllex.opt ocamllex)
 
@@ -82,7 +87,7 @@ stage2: ocaml-stage2-config.status stage1
 	cp ocaml-stage2-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage1_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build --root=. --profile=release --build-dir=_build2 @install
 
 # This target is like a polling version of upstream "make ocamlopt" (based
@@ -96,7 +101,7 @@ hacking: ocaml-stage1-config.status stage0 \
 	cp ocaml-stage1-config.status ocaml/config.status
 	(cd ocaml && ./config.status)
 	PATH=$(stage0_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build --root=. -w --profile=release --build-dir=_build1 @install
 
 
@@ -145,7 +150,7 @@ _build0/config.status: ocaml/configure.ac
 	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build0
 	(cd _build0 && \
 	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
-	    --prefix=@stage0_prefix@ \
+	    --prefix=$(stage0_prefix) \
 	    --disable-ocamldoc \
 	    --disable-ocamltest \
 	    --disable-debug-runtime \
@@ -264,7 +269,7 @@ runtest:
 	# Ideally that would be inaccessible within tests (to prevent mistakes
 	# such as running "ocamlopt" rather than one of the stage2 binaries).
 	PATH=$(stage1_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) runtest --root=. --profile=release --build-dir=_build2
 
 # Only needed for running the test tools by hand; runtest will take care of
@@ -272,14 +277,14 @@ runtest:
 .PHONY: test-tools
 test-tools: stage1
 	PATH=$(stage1_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build @middle_end/flambda2/tests/tools/all \
 	    --root=. --profile=release --build-dir=_build2
 
 .PHONY: promote
 promote:
 	PATH=$(stage1_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) promote --root=. --build-dir=_build2
 
 # The following horror will be removed when work to allow the testsuite to
@@ -296,31 +301,29 @@ runtest-upstream:
 	# replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
 	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
-	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
-	(cd _runtest && ln -s ../ocaml/Makefile.build_config Makefile.build_config)
-	(cd _runtest && ln -s ../ocaml/Makefile.config_if_required Makefile.config_if_required)
-	(cd _runtest && ln -s ../ocaml/Makefile.config Makefile.config)
-	cp _build2/install/default/bin/* _runtest/
+	# note: the --relative flag to ln fixes the relative path for us
+	ln -s --relative ocaml/Makefile.tools _runtest/
+	ln -s --relative $(stage2_build)/ocaml/Makefile.build_config _runtest/
+	ln -s --relative ocaml/Makefile.config_if_required _runtest/
+	ln -s --relative $(stage2_build)/ocaml/Makefile.config _runtest/
+	cp $(stage2_prefix)/bin/* _runtest/
 	# There seems to be an assumption that ocamlc/ocamlopt/ocamllex are
 	# bytecode...
-	cp -f _build2/install/default/bin/ocamlc.byte _runtest/ocamlc
-	cp -f _build2/install/default/bin/ocamlopt.byte _runtest/ocamlopt
+	cp -f $(stage2_prefix)/bin/ocamlc.byte _runtest/ocamlc
+	cp -f $(stage2_prefix)/bin/ocamlopt.byte _runtest/ocamlopt
 	mkdir _runtest/lex
 	mv _runtest/ocamllex.byte _runtest/lex/ocamllex
 	mkdir _runtest/yacc
 	mv _runtest/ocamlyacc _runtest/yacc/
-	(cd _runtest && ln -s ../_build2/default/ocaml/runtime runtime)
-	(cd _runtest && ln -s ../_build2/install/default/lib/ocaml stdlib)
+	ln -s --relative $(stage2_build)/ocaml/runtime _runtest/runtime
+	ln -s --relative $(stage2_prefix)/lib/ocaml _runtest/stdlib
 	# compilerlibs
 	mkdir _runtest/compilerlibs
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.cma \
-	  _runtest/compilerlibs
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.a \
-	  _runtest/compilerlibs
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmxa \
-	  _runtest/compilerlibs
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cma _runtest/compilerlibs
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.a _runtest/compilerlibs
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cmxa _runtest/compilerlibs
 	mkdir _runtest/toplevel
-	cp _build2/default/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \
+	cp $(stage2_build)/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \
 	  _runtest/toplevel/
 	for lib in \
 	  ui \
@@ -340,27 +343,23 @@ runtest-upstream:
 	  to_cmm \
 	  parser; \
 	do \
-	  cp _build2/default/middle_end/flambda2/$$lib/flambda2_$${lib}.cma \
+	  cp $(stage2_build)/middle_end/flambda2/$$lib/flambda2_$${lib}.cma \
 	    _runtest/compilerlibs; \
 	done
-	cp _build2/default/middle_end/flambda2/flambda2.cma \
+	cp $(stage2_build)/middle_end/flambda2/flambda2.cma \
 	  _runtest/compilerlibs
 	# Various directories are put on the -I paths by tools/Makefile;
 	# utils/ is one such, so we just dump the .cm* files in there for
 	# various things.
 	mkdir _runtest/utils
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmi \
-	  _runtest/utils
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmo \
-	  _runtest/utils
-	cp _build2/install/default/lib/ocaml/compiler-libs/*.cmx \
-	  _runtest/utils
-	cp _build2/install/default/lib/ocaml/*.cmi _runtest/utils
-	cp _build2/install/default/lib/ocaml/*.cma _runtest/utils
-	cp _build2/install/default/lib/ocaml/*.a _runtest/utils
-	cp _build2/install/default/lib/ocaml/*.cmxa _runtest/utils
-	cp _build2/default/ocaml/.ocamlcommon.objs/native/config.o \
-	  _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cmi _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cmo _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cmx _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/*.cmi _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/*.cma _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/*.a _runtest/utils
+	cp $(stage2_prefix)/lib/ocaml/*.cmxa _runtest/utils
+	cp $(stage2_build)/ocaml/.ocamlcommon.objs/native/config.o _runtest/utils
 	# Needed for tests/warnings
 	cp ocaml/utils/warnings.ml _runtest/utils
 	# Suppress linker errors about -I directories not existing.
@@ -368,56 +367,37 @@ runtest-upstream:
 	  parsing typing; do ln -s utils _runtest/$$dir; done
 	# dynlink
 	mkdir -p _runtest/otherlibs/dynlink
-	cp _build2/install/default/lib/ocaml/dynlink* \
-	  _runtest/otherlibs/dynlink
+	cp $(stage2_prefix)/lib/ocaml/dynlink* _runtest/otherlibs/dynlink
 	# stublibs
 	mkdir -p _runtest/lib/ocaml/stublibs/
-	cp _build2/install/default/lib/ocaml/stublibs/*.so \
-	  _runtest/lib/ocaml/stublibs
+	cp $(stage2_prefix)/lib/ocaml/stublibs/*.so _runtest/lib/ocaml/stublibs
 	# str
 	mkdir -p _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/str*.cmi \
-	  _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/libstr*.a \
-	  _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/str*.cma \
-	  _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/str*.cmxa \
-	  _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/str*.a \
-	  _runtest/otherlibs/str
-	cp _build2/install/default/lib/ocaml/str*.cmx \
-	  _runtest/otherlibs/str
+	cp $(stage2_prefix)/lib/ocaml/str*.cmi _runtest/otherlibs/str/
+	cp $(stage2_prefix)/lib/ocaml/libstr*.a _runtest/otherlibs/str
+	cp $(stage2_prefix)/lib/ocaml/str*.cma _runtest/otherlibs/str
+	cp $(stage2_prefix)/lib/ocaml/str*.cmxa _runtest/otherlibs/str
+	cp $(stage2_prefix)/lib/ocaml/str*.a _runtest/otherlibs/str
+	cp $(stage2_prefix)/lib/ocaml/str*.cmx _runtest/otherlibs/str
 	# unix
 	mkdir -p _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/unix*.cmi \
-	  _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/libunix*.a \
-	  _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/unix*.cma \
-	  _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/unix*.cmxa \
-	  _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/unix*.a \
-	  _runtest/otherlibs/unix
-	cp _build2/install/default/lib/ocaml/unix*.cmx \
-	  _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/unix*.cmi _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/libunix*.a _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/unix*.cma _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/unix*.cmxa _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/unix*.a _runtest/otherlibs/unix
+	cp $(stage2_prefix)/lib/ocaml/unix*.cmx _runtest/otherlibs/unix
 	# systhreads
 	mkdir -p _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/threads/*.cmi \
-	  _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/threads/*.cma \
-	  _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/threads/*.a \
-	  _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/threads/*.cmxa \
-	  _runtest/otherlibs/systhreads
-	cp _build2/install/default/lib/ocaml/threads/*.cmx \
-	  _runtest/otherlibs/systhreads
+	cp $(stage2_prefix)/lib/ocaml/threads/*.cmi _runtest/otherlibs/systhreads
+	cp $(stage2_prefix)/lib/ocaml/threads/*.cma _runtest/otherlibs/systhreads
+	cp $(stage2_prefix)/lib/ocaml/threads/*.a _runtest/otherlibs/systhreads
+	cp $(stage2_prefix)/lib/ocaml/threads/*.cmxa _runtest/otherlibs/systhreads
+	cp $(stage2_prefix)/lib/ocaml/threads/*.cmx _runtest/otherlibs/systhreads
 	# ocamldebug
 	mkdir _runtest/debugger
 	mv _runtest/ocamldebug _runtest/debugger
-	cp _build2/default/ocaml/debugger/.main.eobjs/byte/*.cm* \
+	cp $(stage2_build)/ocaml/debugger/.main.eobjs/byte/*.cm* \
 	  _runtest/debugger
 	# The ast_invariants test needs VERSION to be present.  In fact ideally
 	# we should have all the source files in _runtest too for this test,
@@ -427,10 +407,8 @@ runtest-upstream:
 	touch _runtest/VERSION
 	# tools
 	mkdir _runtest/tools
-	cp _build2/default/ocaml/tools/ocamlmklib_byte.bc \
-	  _runtest/tools/ocamlmklib
-	cp _build2/default/tools/ocamlobjinfo_byte.bc \
-	  _runtest/tools/ocamlobjinfo
+	cp $(stage2_build)/ocaml/tools/ocamlmklib_byte.bc _runtest/tools/ocamlmklib
+	cp $(stage2_build)/tools/ocamlobjinfo_byte.bc _runtest/tools/ocamlobjinfo
 	# ocamltest itself
 	mkdir _runtest/ocamltest
 	# This is deliberately run with the stage0 compiler in case the new
@@ -438,17 +416,16 @@ runtest-upstream:
 	# stage2.
 	# This might be causing a spurious rebuild of the runtime
 	PATH=$(stage0_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build --root=. --profile=release --build-dir=_build1 \
 	  ocaml/tools/cmpbyt.bc
 	PATH=$(stage0_prefix)/bin:$$PATH \
-	  ARCH=`grep '^ARCH=' ocaml/Makefile.config | cut -d'=' -f2` \
+	  ARCH=$(arch) \
 	  $(dune) build --root=. --profile=release --build-dir=_build1 \
 	  ocaml/ocamltest/ocamltest.byte
-	cp _build1/default/ocaml/tools/cmpbyt.bc _runtest/tools/cmpbyt
+	cp $(stage1_build)/ocaml/tools/cmpbyt.bc _runtest/tools/cmpbyt
 	# We should build the native ocamltest too.
-	cp _build1/default/ocaml/ocamltest/ocamltest.byte \
-	  _runtest/ocamltest/ocamltest
+	cp $(stage1_build)/ocaml/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
 	grep -v '^#' testsuite/flambda2-test-list > _runtest/flambda2-test-list
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
@@ -489,7 +466,7 @@ compare: _compare/config.status
 	    $(MAKE) install); \
 	fi
 	./scripts/compare.sh $$(pwd)/_compare/_install $(prefix) \
-	  @stage0_prefix@/bin/ocamlobjinfo.opt
+	  $(stage0_prefix)/bin/ocamlobjinfo.opt
 
 # CR mshinwell: Why does the ocamltest build complain about
 # Ocaml_directories being missing?
