@@ -382,7 +382,7 @@ module Extension = struct
   let all = [ Comprehensions ]
 
   let extensions = ref ([] : t list)   (* -extension *)
-  let equal _t1 _t2 = true
+  let equal Comprehensions Comprehensions = true
 
   let disable_all_extensions = ref false             (* -no-extensions *)
   let disable_all () = disable_all_extensions := true
