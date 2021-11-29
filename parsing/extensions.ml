@@ -43,7 +43,8 @@ let structure_item_of_expr ~loc expr =
     pstr_loc=loc;
   }
 
-let map_comprehension ~loc extension_name body comp_list : extension=
+let map_comprehension ~loc:orig_loc extension_name body comp_list : extension =
+  let loc = { orig_loc with Location.loc_ghost = true } in
   (*This is unreachable and just used as a place holder.*)
   let unreachable =
     {
@@ -86,7 +87,7 @@ let map_comprehension ~loc extension_name body comp_list : extension=
     ) comp_list
   in
   let payload = PStr((structure_item_of_expr ~loc body)::list) in
-  { txt=extension_name; loc; }, payload
+  { txt=extension_name; loc=orig_loc; }, payload
 
 let unwrap_expression ~loc = function
 | Pstr_eval(exp, _) -> exp
@@ -162,7 +163,7 @@ let report_error ~loc = function
   | Extension_not_existent extension_name ->
     Location.errorf ~loc "Extension %s does not exsist." extension_name
   | Illegal_comprehension_extension_construct ->
-    Location.errorf ~loc "Wrong extension sytax for comprehensions."
+    Location.errorf ~loc "Wrong extension syntax for comprehensions."
 
 let () =
   Location.register_error_of_exn
