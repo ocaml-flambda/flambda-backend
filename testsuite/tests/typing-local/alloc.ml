@@ -315,7 +315,10 @@ let readstringbint () =
   let t =
     (get_int32_be data 0,
      get_int32_be data 4,
-     get_int64_be data 0)
+     (* 32-bit does not currently support local alloc of int64 in all cases *)
+     (if Sys.word_size = 64
+      then get_int64_be data 0
+      else 0x0011223344556677L))
   in
   assert (t = (0x00112233l, 0x44556677l,
                0x0011223344556677L))
@@ -344,7 +347,10 @@ let readbigstringbint () =
   let t =
     (bigstring_get_int32_be data 0,
      bigstring_get_int32_be data 4,
-     bigstring_get_int64_be data 0)
+     (* 32-bit does not currently support local alloc of int64 in all cases *)
+     (if Sys.word_size = 64
+      then bigstring_get_int64_be data 0
+      else 0x0011223344556677L))
   in
   assert (t = (0x00112233l, 0x44556677l,
                0x0011223344556677L))
@@ -437,7 +443,7 @@ let () =
   run "ref" makeref 42;
   run "bytes" makebytes ();
   run "stringbint" readstringbint ();
-  run "bigstringbint" readstringbint ();
+  run "bigstringbint" readbigstringbint ();
   run "verylong" makeverylong 42;
   run "manylong" makemanylong 100
 
