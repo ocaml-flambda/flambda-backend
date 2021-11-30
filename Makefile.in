@@ -231,6 +231,7 @@ config_files: ocaml-stage1-config.status
 ## For targets not supported in backend, we can install the result of stage0
 .PHONY: install_stage0
 install_stage0: stage0
+	mkdir -p $(prefix)
 	rsync --copy-links --chmod=u+rw,go+r -r $(stage0_prefix)/* $(prefix)
         # CR gyorsh: when is it supposed to be installed for upstream build?
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
