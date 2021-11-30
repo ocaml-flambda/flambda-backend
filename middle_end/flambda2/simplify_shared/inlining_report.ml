@@ -73,6 +73,12 @@ type pass =
   | Before_simplify
   | After_simplify
 
+let print_pass ppf pass =
+  match pass with
+  | After_closure_conversion -> Format.fprintf ppf "afte@r closure@ conversion"
+  | Before_simplify -> Format.fprintf ppf "before@ simplify"
+  | After_simplify -> Format.fprintf ppf "after@ simplify"
+
 module Table : sig
   (* Pretty print a table of values.
 
@@ -148,20 +154,27 @@ module Context = struct
       cost_metrics : Cost_metrics.t option;
       depth : int option;
       unrolling_depth : int option option;
-      are_rebuilding_terms : Are_rebuilding_terms.t
+      are_rebuilding_terms : Are_rebuilding_terms.t;
+      pass : pass
     }
 
   let create ?depth ?unrolling_depth ?cost_metrics ~are_rebuilding_terms ~args
-      () =
-    { args; depth; unrolling_depth; cost_metrics; are_rebuilding_terms }
+      ~pass () =
+    { args; depth; unrolling_depth; cost_metrics; are_rebuilding_terms; pass }
 
   let print ppf
-      { args; cost_metrics; depth; unrolling_depth; are_rebuilding_terms } =
+      { args;
+        cost_metrics;
+        depth;
+        unrolling_depth;
+        are_rebuilding_terms;
+        pass = _
+      } =
     let print_unrolling_depth ppf = function
       | None -> ()
       | Some (Some unroll) ->
-        Format.fprintf ppf "@[<h>Unrolling@ depth:@ %d@]@.@." unroll
-      | Some None -> Format.fprintf ppf "@[<h>Unrolling@ depth unknown@]@.@."
+        Format.fprintf ppf "@[<h>Unrolling@ depth:@ %d@]@,@," unroll
+      | Some None -> Format.fprintf ppf "@[<h>Unrolling@ depth unknown@]@,@,"
     in
     let print_args ppf args =
       let table =
@@ -187,7 +200,7 @@ module Context = struct
             `Float (Inlining_arguments.poly_compare_cost args) ] ]
         |> Table.create
       in
-      Format.fprintf ppf "@[<h>Inlining@ arguments:@;@]@.@[<h>%a@]@.@."
+      Format.fprintf ppf "@[<h>Inlining@ arguments:@;@]@,@[<h>%a@]@,@,"
         Table.print table
     in
     let print_cost_metrics ppf = function
@@ -223,29 +236,30 @@ module Context = struct
         in
 
         Format.fprintf ppf
-          "@[<v>@[<h>Code@ size@ was@ estimated@ to@ be@ %a@]@.@[<h>Benefits@ \
-           of@ inlining@ this@ call:@;\
-           @]@.@[<h>%a@]@]@.@."
+          "@[<v>@[<h>Code@ size@ was@ estimated@ to@ be@ %a@]@,\
+           @,\
+           @[<h>Benefits@ of@ inlining@ this@ call:@;\
+           @]@,\
+           @[<h>%a@]@]@,\
+           @,"
           Code_size.print (Cost_metrics.size c) Table.print table
     in
     let print_depth ppf = function
       | None -> ()
       | Some c ->
-        Format.fprintf ppf "@[<h>Considered@ at@ inlining@ depth@ of@ %d@]@.@."
+        Format.fprintf ppf "@[<h>Considered@ at@ inlining@ depth@ of@ %d@]@,@,"
           c
     in
     let print_are_rebuilding_terms ppf t =
       Format.fprintf ppf
-        "@[<h>Considered@ with@ are_rebuilding_terms@ =@ %a@]@.@."
+        "@[<h>Considered@ with@ are_rebuilding_terms@ =@ %a@]@,@,"
         Are_rebuilding_terms.print t
     in
-    Format.fprintf ppf "@[";
     print_are_rebuilding_terms ppf are_rebuilding_terms;
     print_args ppf args;
     print_cost_metrics ppf cost_metrics;
     print_depth ppf depth;
-    print_unrolling_depth ppf unrolling_depth;
-    Format.fprintf ppf "@]"
+    print_unrolling_depth ppf unrolling_depth
 end
 
 module Decision_with_context = struct
@@ -263,15 +277,18 @@ module Decision_with_context = struct
     | Fundecl c -> Function_decl_inlining_decision_type.report ppf c
 
   let print ppf { context; decision } =
-    Format.fprintf ppf "@[<v>@[<h>%a@]@.@[<h>%a@]@.@]" Context.print context
-      print_decision decision
+    Format.fprintf ppf "@[<v>@[<h>Decision@ taken@ *%a*@]@," print_pass
+      context.pass;
+    Format.fprintf ppf "@[<v 2>@,";
+    Format.fprintf ppf "%a@,@[<h>%a@]@," Context.print context print_decision
+      decision;
+    Format.fprintf ppf "@]@]"
 end
 
 type raw_decision =
   { path : Inlining_history.Absolute.t;
     dbg : Debuginfo.t;
-    decision_with_context : Decision_with_context.t option;
-    pass : pass
+    decision_with_context : Decision_with_context.t option
   }
 
 (* Record all raw decisions inside a list. Decisions are appended as they are
@@ -294,18 +311,18 @@ let record_decision_at_call_site_for_known_function ~tracker ~unrolling_depth
       Context.create
         ~depth:(Inlining_state.depth state)
         ~args:(Inlining_state.arguments state)
-        ~unrolling_depth ~are_rebuilding_terms ()
+        ~unrolling_depth ~are_rebuilding_terms ~pass ()
     in
     log
-      := { pass;
-           decision_with_context = Some { decision = Call decision; context };
+      := { decision_with_context = Some { decision = Call decision; context };
            path;
            dbg
          }
          :: !log
   else ()
 
-let record_decision_at_call_site_for_unknown_function ~tracker ~apply ~pass () =
+let record_decision_at_call_site_for_unknown_function ~tracker ~apply ~pass:_ ()
+    =
   if Flambda_features.inlining_report ()
      || Flambda_features.inlining_report_bin ()
   then
@@ -315,7 +332,7 @@ let record_decision_at_call_site_for_unknown_function ~tracker ~apply ~pass () =
         ~relative:(Apply_expr.relative_history apply)
         tracker
     in
-    log := { pass; decision_with_context = None; path; dbg } :: !log
+    log := { decision_with_context = None; path; dbg } :: !log
   else ()
 
 let record_decision_at_function_definition ~absolute_history ~code_metadata
@@ -326,10 +343,11 @@ let record_decision_at_function_definition ~absolute_history ~code_metadata
     let dbg = Code_metadata.dbg code_metadata in
     let args = Code_metadata.inlining_arguments code_metadata in
     let cost_metrics = Code_metadata.cost_metrics code_metadata in
-    let context = Context.create ~args ~cost_metrics ~are_rebuilding_terms () in
+    let context =
+      Context.create ~args ~cost_metrics ~are_rebuilding_terms ~pass ()
+    in
     log
-      := { pass;
-           decision_with_context = Some { decision = Fundecl decision; context };
+      := { decision_with_context = Some { decision = Fundecl decision; context };
            path = absolute_history;
            dbg
          }
@@ -362,8 +380,8 @@ module Uid = struct
           Compilation_unit.print cu_uid
       with Not_found ->
         Format.fprintf ppf
-          "in compilation unit %a but no inlining reports were generated for \
-           this unit"
+          "in@ compilation@ unit@ %a@ but@ no@ inlining@ reports@ were@ \
+           generated@ for@ this@ unit."
           Compilation_unit.print cu_uid
 end
 
@@ -405,34 +423,18 @@ module Inlining_tree = struct
   module Map = Map.Make (Key)
 
   type item =
-    | Fundecl of fundecl
-    | Call of call
+    | Construct of
+        { decisions : decisions;
+          tree : t;
+          uid : Uid.t
+        }
     | Scope of t
 
   and t = item Map.t
 
-  and fundecl_passes =
-    { after_closure : Decision_with_context.t option;
-      before_simplify : Decision_with_context.t option;
-      after_simplify : Decision_with_context.t option
-    }
-
-  and fundecl =
-    { passes : fundecl_passes;
-      body : t;
-      uid : Uid.t
-    }
-
-  and call =
-    { decision_with_context : Decision_with_context.t option;
-      inlined : t;
-      uid : Uid.t
-    }
+  and decisions = Decision_with_context.t list
 
   let empty = Map.empty
-
-  let empty_fundecl_passes =
-    { after_closure = None; before_simplify = None; after_simplify = None }
 
   let insert_or_update_scope ~scope_type ~name ~cont t =
     let key = Debuginfo.none, Key.Scope (scope_type, name) in
@@ -440,96 +442,47 @@ module Inlining_tree = struct
       if not (Map.mem key t)
       then Map.empty
       else
-        match Map.find key t with
-        | Scope m -> m
-        | Call _ | Fundecl _ -> assert false
+        match Map.find key t with Scope m -> m | Construct _ -> assert false
     in
     Map.add key (Scope (cont m)) t
 
-  let join_decision ~error:_ old next =
-    match old, next with
-    | Some _old, Some next ->
-      (* CR poechsel: This case should be invalid (hitting it would mean that we
-         took several decisions for the same exact path, which either indicates
-         that the inlining history is buggy or that we are simplifying the same
-         exact term several times in a row) but it seems that it can be
-         currently reached. I should investigate it a bit further.
-
-         Misc.fatal_errorf error *)
-      Some next
-    | None, next -> next
-    | old, None -> old
-
-  let join_fundecl_passes (a : fundecl_passes) (b : fundecl_passes) =
-    let after_closure =
-      join_decision a.after_closure b.after_closure
-        ~error:
-          "Each function can have at most one associated decision for the \
-           after closure pass."
-    in
-    let before_simplify =
-      join_decision a.before_simplify b.before_simplify
-        ~error:
-          "Each function can have at most one associated decision for the \
-           before simplify pass."
-    in
-    let after_simplify =
-      join_decision a.after_simplify b.after_simplify
-        ~error:
-          "Each function can have at most one associated decision for the \
-           after simplify pass."
-    in
-    { after_closure; before_simplify; after_simplify }
+  let insert_or_update_generic ?decision_with_context ~compilation_unit ~path
+      ~key ~(cont : item Map.t -> item Map.t) t =
+    Map.update key
+      (function
+        | None ->
+          Some
+            (Construct
+               { tree = cont Map.empty;
+                 decisions = Option.to_list decision_with_context;
+                 uid = Uid.create ~compilation_unit path
+               })
+        | Some (Construct t) ->
+          let decisions =
+            match decision_with_context with
+            | Some decision -> decision :: t.decisions
+            | None -> t.decisions
+          in
+          Some (Construct { tree = cont t.tree; decisions; uid = t.uid })
+        | Some (Scope _) ->
+          Misc.fatal_errorf
+            "A key of type call or fundecl should be associated with an item \
+             of type construct")
+      t
 
   let insert_or_update_call ?decision_with_context ~dbg ~callee
       ~(cont : item Map.t -> item Map.t) t =
     let key = dbg, Key.Call callee in
-    Map.update key
-      (function
-        | None ->
-          Some
-            (Call
-               { inlined = cont Map.empty;
-                 decision_with_context;
-                 uid =
-                   Uid.create
-                     ~compilation_unit:
-                       (Inlining_history.Absolute.compilation_unit callee)
-                     (Inlining_history.Absolute.path callee)
-               })
-        | Some (Call t) ->
-          let decision_with_context =
-            join_decision t.decision_with_context decision_with_context
-              ~error:"Each call can have at most one associated decision"
-          in
+    insert_or_update_generic ?decision_with_context ~key
+      ~compilation_unit:(Inlining_history.Absolute.compilation_unit callee)
+      ~path:(Inlining_history.Absolute.path callee)
+      ~cont t
 
-          Some
-            (Call
-               { inlined = cont t.inlined; decision_with_context; uid = t.uid })
-        | Some (Fundecl _ | Scope _) ->
-          Misc.fatal_errorf "%s"
-            "A key of type call should be associated with an item of type call")
-      t
-
-  let insert_or_update_fundecl ~passes ~compilation_unit ~dbg ~name ~path
-      ~(cont : item Map.t -> item Map.t) t =
+  let insert_or_update_fundecl ?decision_with_context ~compilation_unit ~dbg
+      ~name ~path ~(cont : item Map.t -> item Map.t) t =
     let key = dbg, Key.Fundecl name in
-    Map.update key
-      (function
-        | None ->
-          Some
-            (Fundecl
-               { body = cont Map.empty;
-                 passes;
-                 uid = Uid.create ~compilation_unit path
-               })
-        | Some (Fundecl t) ->
-          let passes = join_fundecl_passes t.passes passes in
-          Some (Fundecl { body = cont t.body; passes; uid = t.uid })
-        | Some (Call _ | Scope _) ->
-          Misc.fatal_errorf
-            "A key of type call should be associated with an item of type call")
-      t
+    insert_or_update_generic ?decision_with_context ~compilation_unit ~path ~key
+      ~cont t
 
   (* Insert a decision into an inlining tree [t].
 
@@ -549,14 +502,13 @@ module Inlining_tree = struct
             insert_or_update_scope ~scope_type:Class ~name ~cont m)
       | Function { dbg; name; prev } ->
         aux prev ~cont:(fun m ->
-            insert_or_update_fundecl ~passes:empty_fundecl_passes ~path ~dbg
-              ~name ~compilation_unit ~cont m)
+            insert_or_update_fundecl ~path ~dbg ~name ~compilation_unit ~cont m)
       | Call { dbg; callee; prev } ->
         aux prev ~cont:(fun m -> insert_or_update_call ~dbg ~callee ~cont m)
       | Inline { prev } -> aux prev ~cont
     in
 
-    let { path; dbg; pass; decision_with_context } = decision in
+    let { path; dbg; decision_with_context } = decision in
     if Compilation_unit.equal compilation_unit
          (Inlining_history.Absolute.compilation_unit path)
     then
@@ -571,21 +523,10 @@ module Inlining_tree = struct
               m)
           prev
       | Function { name; prev; _ } ->
-        let passes =
-          match pass with
-          | After_closure_conversion ->
-            { empty_fundecl_passes with after_closure = decision_with_context }
-          | Before_simplify ->
-            { empty_fundecl_passes with
-              before_simplify = decision_with_context
-            }
-          | After_simplify ->
-            { empty_fundecl_passes with after_simplify = decision_with_context }
-        in
         aux
           ~cont:
-            (insert_or_update_fundecl ~passes ~dbg ~compilation_unit ~path ~name
-               ~cont:(fun x -> x))
+            (insert_or_update_fundecl ?decision_with_context ~dbg
+               ~compilation_unit ~path ~name ~cont:(fun x -> x))
           prev
       | Module _ | Class _ | Inline _ | Empty ->
         Misc.fatal_errorf
@@ -593,25 +534,6 @@ module Inlining_tree = struct
     else t
 
   let stars ppf n = Format.fprintf ppf "%s" (String.make n '*')
-
-  let print_decision ~callee ~compilation_unit ppf = function
-    | None -> begin
-      match callee with
-      | None -> Format.fprintf ppf "Unknown"
-      | Some def ->
-        let defined_in = Inlining_history.Absolute.compilation_unit def in
-        if Compilation_unit.equal defined_in compilation_unit
-        then Format.fprintf ppf "Unknown"
-        else
-          Format.fprintf ppf
-            "@[<h>This@ decision@ was@ taken@ while@ compiling@ %s.@]"
-            (Compilation_unit.string_for_printing defined_in)
-    end
-    | Some decision -> Decision_with_context.print ppf decision
-
-  let print_fundecl_decision = print_decision ~callee:None
-
-  let print_call_decision ~callee = print_decision ~callee:(Some callee)
 
   let print_title ?uid ?(dbg = Debuginfo.none) ~depth ~label ~f ppf w =
     let print_uid ppf uid =
@@ -622,10 +544,34 @@ module Inlining_tree = struct
       then ()
       else Format.fprintf ppf "@ at@ %a" Debuginfo.print_compact dbg
     in
-    Format.fprintf ppf "@[<h>%a@ %s@ %a%a%a@]@." stars depth label f w print_dbg
-      dbg print_uid uid
+    Format.fprintf ppf "@[<h>%a@ %s@ %a%a%a@]@,@," stars depth label f w
+      print_dbg dbg print_uid uid
 
-  let[@ocamlformat "disable"] rec print ~compilation_unit ~depth ppf t =
+  let print_decisions ?callee ~compilation_unit ppf decisions =
+    match decisions with
+    | [] -> begin
+      match callee with
+      | None -> Format.fprintf ppf "Unknown"
+      | Some def ->
+        let defined_in = Inlining_history.Absolute.compilation_unit def in
+        if Compilation_unit.equal defined_in compilation_unit
+        then Format.fprintf ppf "Unknown"
+        else
+          Format.fprintf ppf
+            "@[<hov>This@ decision@ was@ taken@ while@ compiling@ %s.@]"
+            (Compilation_unit.string_for_printing defined_in)
+    end
+    | decisions ->
+      let decisions = List.rev decisions in
+      Format.fprintf ppf "@[<v>@]";
+      List.iter
+        (fun decision_with_context ->
+          Format.fprintf ppf "@[%a@]@," Decision_with_context.print
+            decision_with_context)
+        decisions;
+      Format.fprintf ppf "@]"
+
+  let rec print ~compilation_unit ~depth ppf t =
     Map.iter
       (fun (dbg, key) (v : item) ->
         match key, v with
@@ -638,39 +584,27 @@ module Inlining_tree = struct
         | Scope (Class, name), Scope t ->
           print_title ~depth ~label:"Class" ~f:Format.pp_print_text ppf name;
           print ~compilation_unit ppf ~depth:(depth + 1) t
-        | Call callee, Call { decision_with_context; inlined; uid } ->
-          Format.fprintf ppf
-            "%a@.\
-             @[<v>Defined %a@]@.\
-             @[<v>%a@]@.@.\
-             %a"
-            (print_title ?uid:None ~dbg ~depth ~label:"Application of"
-               ~f:Inlining_history.Absolute.print)
-            (Inlining_history.Absolute.shorten_to_definition callee)
-            (Uid.print_link_hum ~compilation_unit) uid
-            (print_call_decision ~callee ~compilation_unit) decision_with_context
-            (print ~compilation_unit ~depth:(depth + 1)) inlined
-        | Fundecl fundecl, Fundecl { passes = {after_closure; before_simplify; after_simplify}; body ; uid} ->
-          Format.fprintf ppf
-            "@[<v>%a@. \
-             @[<h>%a@ After@ closure@ conversion:@]@.@[<v>%a@]@.@. \
-             @[<h>%a@ Before@ simplify:@]@.@[<v>%a@] \
-             @.@.%a@.@. \
-             @[<h>%a@ After@ simplify:@]@.@[<v>%a@]@.@]"
-            (print_title ~uid ~dbg ~depth ~label:"Definition of"
-               ~f:Format.pp_print_text)
-            fundecl stars (depth + 1)
-            (print_fundecl_decision ~compilation_unit)
-            after_closure stars (depth + 1)
-            (print_fundecl_decision ~compilation_unit)
-            before_simplify
-            (print ~compilation_unit ~depth:(depth + 1))
-            body stars (depth + 1)
-            (print_fundecl_decision ~compilation_unit)
-            after_simplify
-        | Scope _, (Fundecl _ | Call _)
-        | Call _, (Fundecl _ | Scope _)
-        | Fundecl _, (Call _ | Scope _) ->
+        | Call callee, Construct { decisions; tree; uid } ->
+          print_title ppf ?uid:None ~dbg ~depth ~label:"Application of"
+            ~f:Inlining_history.Absolute.print
+            (Inlining_history.Absolute.shorten_to_definition callee);
+          Format.fprintf ppf "@[<v>";
+          Format.fprintf ppf "@[<hov>Defined@ %a@]@,@,"
+            (Uid.print_link_hum ~compilation_unit)
+            uid;
+          Format.fprintf ppf "@[<v>%a@]@,@,"
+            (print_decisions ~callee ~compilation_unit)
+            decisions;
+          Format.fprintf ppf "@]@,@,";
+          print ppf ~compilation_unit ~depth:(depth + 1) tree
+        | Fundecl fundecl, Construct { decisions; tree; uid } ->
+          print_title ppf ~uid ~dbg ~depth ~label:"Definition of"
+            ~f:Format.pp_print_text fundecl;
+          Format.fprintf ppf "@[<v>%a@]@,@,"
+            (print_decisions ?callee:None ~compilation_unit)
+            decisions;
+          print ppf ~compilation_unit ~depth:(depth + 1) tree
+        | Scope _, Construct _ | Call _, Scope _ | Fundecl _, Scope _ ->
           assert false)
       t
 
@@ -694,7 +628,7 @@ let output_then_forget_decisions ~output_prefix =
         lazy
           (List.fold_left
              (Inlining_tree.insert ~compilation_unit)
-             Inlining_tree.empty !log)
+             Inlining_tree.empty (List.rev !log))
       in
       if Flambda_features.inlining_report ()
       then (
