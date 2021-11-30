@@ -720,7 +720,7 @@ let mk_extension f =
     Clflags.Extension.(List.map to_string all)
   in
   "-extension", Arg.Symbol (available_extensions, f),
-  "<extension> Enable the extension (may be specified more than once)"
+  "<extension>  Enable the extension (may be specified more than once)"
 ;;
 
 let mk_no_extensions f =
