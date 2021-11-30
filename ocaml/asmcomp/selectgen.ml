@@ -324,13 +324,14 @@ method is_simple_expr = function
   | Cop(op, args, _) ->
       begin match op with
         (* The following may have side effects *)
-      | Capply _ | Cextcall _ | Calloc | Cstore _ | Craise _ | Cprobe _
-      | Cprobe_is_enabled _ -> false
+      | Capply _ | Cextcall _ | Calloc | Cstore _
+      | Craise _ | Ccheckbound
+      | Cprobe _ | Cprobe_is_enabled _ -> false
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
       | Cabsf | Caddf | Csubf | Cmulf | Cdivf | Cfloatofint | Cintoffloat
-      | Ccmpf _ | Ccheckbound -> List.for_all self#is_simple_expr args
+      | Ccmpf _ -> List.for_all self#is_simple_expr args
       end
   | Cassign _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
   | Ctrywith _ -> false
