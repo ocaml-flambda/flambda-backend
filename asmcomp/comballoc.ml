@@ -63,7 +63,8 @@ let rec combine i allocstate =
           i.arg i.res i.dbg next, allocstate)
       end
   | Iop(Icall_ind | Icall_imm _ | Iextcall _ |
-        Itailcall_ind | Itailcall_imm _ | Iprobe _) ->
+        Itailcall_ind | Itailcall_imm _ | Iprobe _ |
+        Iintop Icheckbound | Iintop_imm (Icheckbound, _)) ->
       let newnext = combine_restart i.next in
       (instr_cons_debug i.desc i.arg i.res i.dbg newnext,
        allocstate)
