@@ -1455,4 +1455,4 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
       ~module_symbol ~used_closure_vars:Unknown,
-    Exported_code.add_code (Acc.code acc) Exported_code.empty )
+    Exported_code.add_code ~keep_code:false (Acc.code acc) Exported_code.empty )

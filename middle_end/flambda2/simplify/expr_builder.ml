@@ -372,8 +372,13 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
     if not will_bind_code
     then uacc
     else
+      let keep_code =
+        not
+          (Downwards_env.at_unit_toplevel
+             (Downwards_acc.denv (UA.creation_dacc uacc)))
+      in
       Rebuilt_static_const.Group.pieces_of_code_for_cmx static_consts
-      |> UA.remember_code_for_cmx uacc
+      |> UA.remember_code_for_cmx uacc ~keep_code
   in
   expr, uacc
 

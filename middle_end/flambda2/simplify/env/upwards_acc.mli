@@ -58,7 +58,7 @@ val map_uenv : t -> f:(Upwards_env.t -> Upwards_env.t) -> t
 (** Replace the environment component of the given upwards accumulator. *)
 val with_uenv : t -> Upwards_env.t -> t
 
-val remember_code_for_cmx : t -> Code.t Code_id.Map.t -> t
+val remember_code_for_cmx : t -> keep_code:bool -> Code.t Code_id.Map.t -> t
 
 val all_code : t -> Exported_code.t
 

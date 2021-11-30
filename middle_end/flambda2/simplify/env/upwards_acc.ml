@@ -125,11 +125,11 @@ let map_uenv t ~f = { t with uenv = f t.uenv }
 
 let with_uenv t uenv = { t with uenv }
 
-let remember_code_for_cmx t code =
+let remember_code_for_cmx t ~keep_code code =
   if ART.do_not_rebuild_terms t.are_rebuilding_terms
   then t
   else
-    let all_code = Exported_code.add_code code t.all_code in
+    let all_code = Exported_code.add_code ~keep_code code t.all_code in
     { t with all_code }
 
 let all_code t = t.all_code
