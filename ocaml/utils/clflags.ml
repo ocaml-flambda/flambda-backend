@@ -397,7 +397,7 @@ module Extension = struct
   let enable extn =
     let t = of_string (String.lowercase_ascii extn) in
     if not (List.exists (equal t) !extensions) then
-      extensions := t::!extensions
+      extensions := t :: !extensions
 
   let is_enabled ext = not !disable_all_extensions && List.mem ext !extensions
 end
