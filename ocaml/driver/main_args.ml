@@ -725,9 +725,10 @@ let mk_extension f =
 
 let mk_no_extensions f =
   "-no-extensions", Arg.Unit f,
-  " Disable all extensions, including extensions that are enabled by default,\n\
-  \    or specified in command line using -extension flags\n\
-  \    (before or after -no-extensions), or in OCAMLPARAM."
+  " Disable all extensions, wherever they are specified; this flag\n\
+  \    overrides the -extension flag (whether specified before or after this\n\
+  \    flag), disables any extensions that are enabled by default, and\n\
+  \    ignores any extensions requested in OCAMLPARAM."
 ;;
 
 let mk_dparsetree f =
