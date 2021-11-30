@@ -377,8 +377,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               element_kind
             })) -> (
       match fields with
-      | [] -> Lift Empty_array
-      | _ :: _ -> (
+      | [||] -> Lift Empty_array
+      | _ -> (
         match element_kind with
         | Unknown -> try_canonical_simple ()
         | Bottom ->
@@ -390,13 +390,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           | Value -> (
             match
               try_to_reify_fields env ~var_allowed alloc_mode
-                ~field_types:fields
+                ~field_types:(Array.to_list fields)
             with
             | Some fields -> Lift (Immutable_value_array { fields })
             | None -> try_canonical_simple ())
           | Naked_number Naked_float -> (
             let fields_rev =
-              List.fold_left
+              Array.fold_left
                 (fun (fields_rev : _ Or_unknown_or_bottom.t) field :
                      _ Or_unknown_or_bottom.t ->
                   match fields_rev with
