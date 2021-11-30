@@ -392,7 +392,7 @@ module Extension = struct
 
   let of_string = function
     | "comprehensions" -> Comprehensions
-    | extn ->  raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+    | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
   let enable extn =
     let t = of_string (String.lowercase_ascii extn) in
