@@ -125,7 +125,7 @@ stage2: ocaml-stage2-config.status find_arch stage1
 # in the middle end and backend.
 .PHONY: hacking
 hacking: ocaml-stage1-config.status stage0 config_files find_arch
-	ARCH=$(arch) $(dune) build $(dune_flags_stage2) -w --profile=release \
+	ARCH=$(arch) $(dune) build $(dune_flags_stage1) -w --profile=release \
 	  @$(stage1_build)/install
 
 
