@@ -204,7 +204,7 @@ val dump_into_file : bool ref
 
 module Extension : sig
   type t = Comprehensions
-  val enable: string -> unit
+  val enable : string -> unit
   val is_enabled : t -> bool
   val to_string : t -> string
   val all : t list
