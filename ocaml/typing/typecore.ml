@@ -5739,7 +5739,7 @@ let report_error ~loc env = function
       Location.errorf ~loc
         "%%probe_is_enabled points must specify a single probe name as a \
          string literal"
-  | Extension_not_enabled(ext) ->
+  | Extension_not_enabled ext ->
     let name = Clflags.Extension.to_string ext in
     Location.errorf ~loc
         "Extension %s must be enabled to use this feature." name
