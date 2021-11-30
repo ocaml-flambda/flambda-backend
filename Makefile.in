@@ -229,11 +229,25 @@ config_files: ocaml-stage1-config.status
 		| sed 's/^SHAREDLIB_CFLAGS=//'` )" > sharedlib_cflags.sexp
 
 ## For targets not supported in backend, we can install the result of stage0
-.PHONY: install_stage0
-install_stage0: stage0
-	mkdir -p $(prefix)
-	rsync --copy-links --chmod=u+rw,go+r -r $(stage0_prefix)/* $(prefix)
-        # CR gyorsh: when is it supposed to be installed for upstream build?
+.PHONY: build_upstream
+build_upstream: ocaml/configure.ac
+	rm -rf _build_upstream
+	mkdir _build_upstream
+	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
+	(cd _build_upstream && \
+	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
+	    --prefix=@prefix@ \
+	    --disable-ocamldoc \
+	    --disable-ocamltest \
+	    --disable-debug-runtime \
+	    --disable-instrumented-runtime \
+	    --disable-debugger && \
+	    $(MAKE) world.opt && \
+	    $(MAKE) ocamlnat)
+
+.PHONY: install_upstream
+install_upstream: build_upstream
+	(cd _build_upstream && $(MAKE) install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
 
 # Most of the installation tree is correctly set up by dune, but we need to
