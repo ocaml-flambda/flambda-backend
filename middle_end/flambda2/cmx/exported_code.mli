@@ -23,7 +23,7 @@ val print : Format.formatter -> t -> unit
 
 val empty : t
 
-val add_code : keep_code:bool -> Code.t Code_id.Map.t -> t -> t
+val add_code : keep_code:(Code_id.t -> bool) -> Code.t Code_id.Map.t -> t -> t
 
 val mark_as_imported : t -> t
 

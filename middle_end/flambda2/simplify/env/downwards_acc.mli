@@ -94,6 +94,12 @@ val used_closure_vars : t -> Name_occurrences.t
 
 val with_used_closure_vars : t -> used_closure_vars:Name_occurrences.t -> t
 
+val add_code_ids_to_remember : t -> Code_id.Set.t -> t
+
+val code_ids_to_remember : t -> Code_id.Set.t
+
+val with_code_ids_to_remember : t -> code_ids_to_remember:Code_id.Set.t -> t
+
 val set_do_not_rebuild_terms_and_disable_inlining : t -> t
 
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t

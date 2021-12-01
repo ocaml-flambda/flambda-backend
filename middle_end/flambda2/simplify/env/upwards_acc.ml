@@ -125,10 +125,13 @@ let map_uenv t ~f = { t with uenv = f t.uenv }
 
 let with_uenv t uenv = { t with uenv }
 
-let remember_code_for_cmx t ~keep_code code =
+let remember_code_for_cmx t code =
   if ART.do_not_rebuild_terms t.are_rebuilding_terms
   then t
   else
+    let keep_code code_id =
+      Code_id.Set.mem code_id (DA.code_ids_to_remember t.creation_dacc)
+    in
     let all_code = Exported_code.add_code ~keep_code code t.all_code in
     { t with all_code }
 
