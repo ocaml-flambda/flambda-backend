@@ -228,7 +228,8 @@ config_files: ocaml-stage1-config.status
 	/bin/echo -n "( `grep \"^SHAREDLIB_CFLAGS=\" ocaml/Makefile.config \
 		| sed 's/^SHAREDLIB_CFLAGS=//'` )" > sharedlib_cflags.sexp
 
-## For targets not supported in backend, we can install the result of stage0
+## Build upstream compiler.
+## Similar to stage0 except the installation directory
 .PHONY: build_upstream
 build_upstream: ocaml/configure.ac
 	rm -rf _build_upstream
