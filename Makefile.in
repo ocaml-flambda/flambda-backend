@@ -238,8 +238,7 @@ build_upstream: ocaml/configure.ac
 	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
 	    --prefix=@prefix@ \
 	    --disable-ocamldoc \
-	    --disable-ocamltest \
-	    --disable-debugger && \
+	    --enable-ocamltest && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat)
 
