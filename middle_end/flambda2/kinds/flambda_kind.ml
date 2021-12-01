@@ -476,6 +476,9 @@ module With_subkind = struct
 
   let any_value = create value Anything
 
+  let is_any_value { kind; subkind } =
+    equal kind Value && Subkind.equal subkind Anything
+
   let naked_immediate = create naked_immediate Anything
 
   let naked_float = create naked_float Anything

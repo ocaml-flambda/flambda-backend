@@ -211,6 +211,11 @@ module With_subkind : sig
 
   val any_value : t
 
+  (* CR lmaurer: Potentially confusing name? *)
+
+  (** True if the given kind is equal to [any_value]. *)
+  val is_any_value : t -> bool
+
   val naked_immediate : t
 
   val naked_float : t
