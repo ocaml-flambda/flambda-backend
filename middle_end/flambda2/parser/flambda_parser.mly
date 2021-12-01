@@ -271,9 +271,13 @@ let_symbol(body):
 symbol_binding:
   | s = static_data_binding { Data s }
   | code = code { Code code }
-  | KWD_DELETED code_id = code_id { Deleted_code code_id }
+  | code_id = deleted_code { Deleted_code code_id }
   | s = static_closure_binding { Closure s }
   | s = static_set_of_closures { Set_of_closures s }
+;
+
+deleted_code:
+  | KWD_CODE; code_id = code_id; KWD_DELETED { code_id }
 ;
 
 code:

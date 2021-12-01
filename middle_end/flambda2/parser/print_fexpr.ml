@@ -673,7 +673,7 @@ and symbol_binding ppf (sb : symbol_binding) =
   | Data ss -> static_data_binding ppf ss
   | Code code -> code_binding ppf code
   | Deleted_code id ->
-    Format.fprintf ppf "@[<hov 1>deleted_code@ %a@]" code_id id
+    Format.fprintf ppf "@[<hov 1>code@ %a@ deleted@]" code_id id
   | Closure clo -> static_closure_binding ppf clo
   | Set_of_closures soc ->
     Format.fprintf ppf "@[<hv>@[<hv2>set_of_closures@ ";
