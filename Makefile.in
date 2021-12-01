@@ -239,8 +239,6 @@ build_upstream: ocaml/configure.ac
 	    --prefix=@prefix@ \
 	    --disable-ocamldoc \
 	    --disable-ocamltest \
-	    --disable-debug-runtime \
-	    --disable-instrumented-runtime \
 	    --disable-debugger && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat)
