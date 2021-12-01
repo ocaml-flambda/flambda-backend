@@ -117,7 +117,7 @@ let lift dacc ty ~bound_to static_const =
     DA.map_denv dacc ~f:(fun denv ->
         DE.add_equation_on_variable denv bound_to var_ty)
   in
-  Simplified_named.reachable term, dacc, var_ty
+  Simplified_named.reachable term ~try_reify:false, dacc
 
 let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
     ~allow_lifting =
@@ -131,8 +131,8 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
   | Invalid _ ->
     let ty = T.bottom_like ty in
     let denv = DE.add_equation_on_variable denv bound_to ty in
-    Simplified_named.invalid (), DA.with_denv dacc denv, ty
-  | Reachable _ -> (
+    Simplified_named.invalid (), DA.with_denv dacc denv
+  | Reachable _ | Reachable_try_reify _ -> (
     let typing_env = DE.typing_env denv in
     let reify_result =
       T.reify ~allowed_if_free_vars_defined_in:typing_env
@@ -147,7 +147,7 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
       then
         let static_const = create_static_const dacc to_lift in
         lift dacc ty ~bound_to static_const
-      else term, dacc, ty
+      else term, dacc
     | Simple simple ->
       (* CR mshinwell: Think about whether this is the best way of handling
          this. *)
@@ -163,12 +163,16 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
           DA.with_denv dacc denv
       in
       if Simple.equal (Simple.var bound_to) simple
-      then term, dacc, ty
-      else Simplified_named.reachable (Named.create_simple simple), dacc, ty
+      then term, dacc
+      else
+        ( Simplified_named.reachable
+            (Named.create_simple simple)
+            ~try_reify:false,
+          dacc )
     | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
     | Cannot_reify ->
-      term, dacc, ty
+      term, dacc
     | Invalid ->
       let ty = T.bottom_like ty in
       let denv = DE.add_equation_on_variable denv bound_to ty in
-      Simplified_named.invalid (), DA.with_denv dacc denv, ty)
+      Simplified_named.invalid (), DA.with_denv dacc denv)

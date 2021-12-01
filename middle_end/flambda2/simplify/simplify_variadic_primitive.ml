@@ -53,8 +53,8 @@ let simplify_make_block_of_values dacc prim dbg tag ~shape
       T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
     | Mutable -> T.any_value
   in
-  let env_extension = TEE.one_equation (Name.var result_var) ty in
-  Simplified_named.reachable term, env_extension, args, dacc
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplified_named.reachable term ~try_reify:true, dacc
 
 let simplify_make_block_of_floats dacc _prim dbg
     ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
@@ -81,16 +81,16 @@ let simplify_make_block_of_floats dacc _prim dbg
       T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float ~fields
     | Mutable -> T.any_value
   in
-  let env_extension = TEE.one_equation (Name.var result_var) ty in
-  Simplified_named.reachable term, env_extension, args, dacc
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplified_named.reachable term ~try_reify:true, dacc
 
 let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
     ~mutable_or_immutable args_with_tys ~result_var =
   let args, tys = List.split args_with_tys in
   let invalid () =
     let ty = T.bottom K.value in
-    let env_extension = TEE.one_equation (Name.var result_var) ty in
-    Simplified_named.invalid (), env_extension, args, dacc
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplified_named.invalid (), dacc
   in
   let length =
     match Targetint_31_63.Imm.of_int_option (List.length args) with
@@ -150,26 +150,27 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
   then invalid ()
   else
     let ty = T.array_of_length ~element_kind:(Known element_kind) ~length in
-    let env_extension =
-      TEE.add_or_replace_equation env_extension (Name.var result_var) ty
-    in
     let named =
       Named.create_prim
         (Variadic (Make_array (array_kind, mutable_or_immutable), args))
         dbg
     in
-    Simplified_named.reachable named, env_extension, args, dacc
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.add_variable_and_extend_typing_environment denv result_var ty
+            env_extension)
+    in
+    Simplified_named.reachable named ~try_reify:true, dacc
 
-let simplify_variadic_primitive dacc (prim : P.variadic_primitive)
-    ~args_with_tys dbg ~result_var =
-  let result_var' = Bound_var.var result_var in
+let simplify_variadic_primitive dacc _original_prim
+    (prim : P.variadic_primitive) ~args_with_tys dbg ~result_var =
   match prim with
   | Make_block (Values (tag, shape), mutable_or_immutable) ->
     simplify_make_block_of_values dacc prim dbg tag ~shape ~mutable_or_immutable
-      args_with_tys ~result_var:result_var'
+      args_with_tys ~result_var
   | Make_block (Naked_floats, mutable_or_immutable) ->
     simplify_make_block_of_floats dacc prim dbg ~mutable_or_immutable
-      args_with_tys ~result_var:result_var'
+      args_with_tys ~result_var
   | Make_array (array_kind, mutable_or_immutable) ->
     simplify_make_array dacc dbg array_kind ~mutable_or_immutable args_with_tys
-      ~result_var:result_var'
+      ~result_var

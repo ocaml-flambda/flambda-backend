@@ -34,18 +34,24 @@ type t = private
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
+  | Reachable_try_reify of
+      { named : simplified_named;
+        cost_metrics : Cost_metrics.t;
+        free_names : Name_occurrences.t
+      }
   | Invalid of Invalid_term_semantics.t
 
 (** It is an error to pass [Set_of_closures] or [Static_consts] to this
     function. (Sets of closures are disallowed because computation of their free
     names might be expensive; use [reachable_with_known_free_names] instead.) *)
-val reachable : Named.t -> t
+val reachable : Named.t -> try_reify:bool -> t
 
 (** It is an error to pass [Static_consts] to this function. *)
 val reachable_with_known_free_names :
   find_code_characteristics:(Code_id.t -> Cost_metrics.code_characteristics) ->
   Named.t ->
   free_names:Name_occurrences.t ->
+  try_reify:bool ->
   t
 
 val invalid : unit -> t

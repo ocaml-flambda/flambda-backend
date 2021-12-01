@@ -184,7 +184,8 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
   | Invalid _ -> data_flow
-  | Reachable { free_names; named; cost_metrics = _ } ->
+  | Reachable { free_names; named; cost_metrics = _ }
+  | Reachable_try_reify { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true

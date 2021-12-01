@@ -20,18 +20,16 @@ open! Simplify_import
 
 let simplify_array_set (array_kind : P.Array_kind.t) init_or_assign dacc dbg
     ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ ~result_var =
-  let result_var' = Bound_var.var result_var in
   let elt_kind = P.Array_kind.element_kind array_kind |> K.With_subkind.kind in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
   (* CR-someday mshinwell: should do a meet on the new value too *)
-  let args = [arg1; arg2; arg3] in
   match array_kind with
   | Bottom ->
     let ty = T.bottom K.value (* Unit *) in
-    let env_extension = TEE.one_equation (Name.var result_var') ty in
-    Simplified_named.invalid (), env_extension, args, dacc
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplified_named.invalid (), dacc
   | Ok array_kind ->
     let elt_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -42,12 +40,11 @@ let simplify_array_set (array_kind : P.Array_kind.t) init_or_assign dacc dbg
     in
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
-    let env_extension = TEE.one_equation (Name.var result_var') ty in
-    Simplified_named.reachable named, env_extension, args, dacc
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplified_named.reachable named ~try_reify:false, dacc
 
-let simplify_ternary_primitive dacc (prim : P.ternary_primitive) ~arg1 ~arg1_ty
-    ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
-  let result_var' = Bound_var.var result_var in
+let simplify_ternary_primitive dacc _original_prim (prim : P.ternary_primitive)
+    ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
   match prim with
   | Array_set (array_kind, init_or_assign) ->
     simplify_array_set array_kind init_or_assign dacc dbg ~arg1 ~arg1_ty ~arg2
@@ -56,5 +53,5 @@ let simplify_ternary_primitive dacc (prim : P.ternary_primitive) ~arg1 ~arg1_ty
     let prim : P.t = Ternary (prim, arg1, arg2, arg3) in
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
-    let env_extension = TEE.one_equation (Name.var result_var') ty in
-    Simplified_named.reachable named, env_extension, [arg1; arg2; arg3], dacc
+    let dacc = DA.add_variable dacc result_var ty in
+    Simplified_named.reachable named ~try_reify:false, dacc
