@@ -530,6 +530,7 @@ and match_against_bound_symbols_static_const_group :
       Bound_symbols.t ->
       init:'a ->
       code:('a -> Code_id.t -> function_params_and_body Code0.t -> 'a) ->
+      deleted_code:('a -> Code_id.t -> 'a) ->
       set_of_closures:
         ('a ->
         closure_symbols:Symbol.t Closure_id.Lmap.t ->
@@ -538,6 +539,7 @@ and match_against_bound_symbols_static_const_group :
       block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
       'a =
  fun t bound_symbols ~init ~code:code_callback
+     ~deleted_code:deleted_code_callback
      ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback ->
   let bound_symbol_pats = Bound_symbols.to_list bound_symbols in
   if List.compare_lengths t bound_symbol_pats <> 0
@@ -551,7 +553,7 @@ and match_against_bound_symbols_static_const_group :
       match_against_bound_symbols_pattern_static_const_or_code static_const
         bound_symbols_pat
         ~code:(fun code_id code -> code_callback acc code_id code)
-        ~deleted_code:(fun _code_id -> acc)
+        ~deleted_code:(fun code_id -> deleted_code_callback acc code_id)
         ~set_of_closures:(fun ~closure_symbols set_of_closures ->
           set_of_closures_callback acc ~closure_symbols set_of_closures)
         ~block_like:(fun symbol static_const ->
@@ -755,6 +757,9 @@ and flatten_for_printing0 bound_symbols defining_exprs =
         }
       in
       flattened_acc @ [flattened], true)
+    ~deleted_code:(fun acc _code_id ->
+      (* CR lmaurer: We should probably be printing deleted code *)
+      acc)
     ~set_of_closures:
       (fun (flattened_acc, second_or_later_rec_binding) ~closure_symbols
            set_of_closures ->

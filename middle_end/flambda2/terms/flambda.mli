@@ -529,6 +529,7 @@ module Static_const_group : sig
     Bound_symbols.t ->
     init:'a ->
     code:('a -> Code_id.t -> Function_params_and_body.t Code0.t -> 'a) ->
+    deleted_code:('a -> Code_id.t -> 'a) ->
     set_of_closures:
       ('a ->
       closure_symbols:Symbol.t Closure_id.Lmap.t ->
