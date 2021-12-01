@@ -393,10 +393,13 @@ let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
     let access_kind : Flambda_primitive.Block_access_kind.t =
       match access_kind with
       | Values { field_kind; tag; size = s } ->
-        let tag = tag |> Tag.Scannable.create_exn in
+        let tag : Tag.Scannable.t Or_unknown.t =
+          match tag with
+          | Some tag -> Known (tag |> Tag.Scannable.create_exn)
+          | None -> Unknown
+        in
         let size = size s in
-        (* CR mshinwell: add support for "Unknown" tags *)
-        Values { field_kind; tag = Known tag; size }
+        Values { field_kind; tag; size }
       | Naked_floats { size = s } ->
         let size = size s in
         Naked_floats { size }

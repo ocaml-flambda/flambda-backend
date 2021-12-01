@@ -161,6 +161,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_SIZE   [@symbol "size"]
 %token KWD_SUCC   [@symbol "succ"]
 %token KWD_SWITCH [@symbol "switch"]
+%token KWD_TAG    [@symbol "tag"]
 %token KWD_TAGGED [@symbol "tagged"]
 %token KWD_TUPLED [@symbol "tupled"]
 %token KWD_UNIT   [@symbol "unit"]
@@ -382,7 +383,7 @@ array_kind:
   | KWD_FLOAT { Naked_floats }
 
 block_access_kind:
-  | field_kind = block_access_field_kind; tag = tag; size = size_opt
+  | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
     { Values { field_kind; tag; size } }
   | KWD_FLOAT; size = size_opt
     { Naked_floats { size } }
@@ -777,6 +778,11 @@ targetint:
 
 tag:
   tag = INT { make_tag ~loc:(make_loc ($startpos, $endpos)) tag }
+;
+
+tag_opt:
+  | KWD_TAG LPAREN; tag = tag; RPAREN { Some tag }
+  | { None }
 ;
 
 plain_int:
