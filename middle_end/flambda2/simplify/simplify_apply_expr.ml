@@ -886,8 +886,8 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
         let apply_continuation_arg_types =
           let from_arity = T.unknown_types_from_arity return_arity in
           match return_types with
-          | None -> from_arity
-          | Some return_types ->
+          | Unknown -> from_arity
+          | Known return_types ->
             assert (List.compare_lengths return_types from_arity = 0);
             return_types
         in

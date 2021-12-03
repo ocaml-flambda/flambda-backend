@@ -18,7 +18,7 @@
 (** Simplification of external calls *)
 
 type t =
-  | Unchanged of { return_types : Flambda2_types.t list option }
+  | Unchanged of { return_types : Flambda2_types.t list Or_unknown.t }
   | Poly_compare_specialized of Downwards_acc.t * Flambda.Expr.t
   | Invalid
 

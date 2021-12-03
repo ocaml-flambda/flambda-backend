@@ -18,7 +18,7 @@
 open! Simplify_import
 
 type t =
-  | Unchanged of { return_types : Flambda2_types.t list option }
+  | Unchanged of { return_types : Flambda2_types.t list Or_unknown.t }
   | Poly_compare_specialized of DA.t * Expr.t
   | Invalid
 
@@ -130,7 +130,7 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
         ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
         | Naked_int64 ),
       (Unknown | Invalid | Wrong_kind) ) ->
-    Unchanged { return_types = None }
+    Unchanged { return_types = Unknown }
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
   let typing_env = DA.typing_env dacc in
@@ -164,7 +164,7 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
        -- but that will need some more infrastructure, since the actual
        continuation definition needs to be changed on the upwards traversal. *)
     let type_of_returned_array = T.array_of_length ~element_kind ~length in
-    Unchanged { return_types = Some [type_of_returned_array] }
+    Unchanged { return_types = Known [type_of_returned_array] }
 
 let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
     ~arg_types =
@@ -210,7 +210,7 @@ let simplify_returning_extcall ~dbg ~cont ~exn_cont:_ dacc fun_name args
       ~boxed_int_prim:(fun kind -> Int_comp (kind, Signed, Yielding_bool Gt))
   | ".extern__caml_make_vect", [_; _], [len_ty; init_value_ty] ->
     simplify_caml_make_vect dacc ~len_ty ~init_value_ty
-  | _ -> Unchanged { return_types = None }
+  | _ -> Unchanged { return_types = Unknown }
 
 (* Exported simplification function *)
 (* ******************************** *)
@@ -225,7 +225,7 @@ let simplify_extcall dacc apply ~callee_ty:_ ~param_arity:_ ~return_arity:_
     |> Linkage_name.to_string
   in
   match Apply.continuation apply with
-  | Never_returns -> Unchanged { return_types = None }
+  | Never_returns -> Unchanged { return_types = Unknown }
   | Return cont ->
     simplify_returning_extcall ~dbg ~cont ~exn_cont dacc fun_name args
       ~arg_types
