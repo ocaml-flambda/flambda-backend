@@ -883,7 +883,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
     let dacc, use_id =
       match Apply.continuation apply with
       | Return apply_continuation ->
-        let arg_types =
+        let apply_continuation_arg_types =
           let from_arity = T.unknown_types_from_arity return_arity in
           match return_types with
           | None -> from_arity
@@ -894,7 +894,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
         let dacc, use_id =
           DA.record_continuation_use dacc apply_continuation
             (Non_inlinable { escaping = true })
-            ~env_at_use:(DA.denv dacc) ~arg_types
+            ~env_at_use:(DA.denv dacc) ~arg_types:apply_continuation_arg_types
         in
         dacc, Some use_id
       | Never_returns -> dacc, None
