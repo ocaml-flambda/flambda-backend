@@ -162,7 +162,9 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
     (* CR-someday mshinwell: We should really adjust the kind of the parameter
        of the return continuation, e.g. to go from "any value" to "float array"
        -- but that will need some more infrastructure, since the actual
-       continuation definition needs to be changed on the upwards traversal. *)
+       continuation definition needs to be changed on the upwards traversal.
+       Also we would need to think about what would happen if there were other
+       uses of the return continuation possibly with different kinds. *)
     let type_of_returned_array = T.array_of_length ~element_kind ~length in
     Unchanged { return_types = Known [type_of_returned_array] }
 

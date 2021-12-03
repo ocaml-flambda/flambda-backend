@@ -1080,40 +1080,15 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     | Rec_info -> Misc.fatal_error "Rec_info kind not expected here"
 
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
-    ~original_term:_ dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty:_ ~result_var =
+    ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
   let result_var' = Bound_var.var result_var in
   let result_kind =
     P.Array_kind.element_kind array_kind |> K.With_subkind.kind
   in
-  let array_kind : _ Or_bottom.t =
-    let typing_env = DA.typing_env dacc in
-    match array_kind with
-    | Naked_floats -> (
-      match
-        T.prove_is_array_with_element_kind typing_env arg1_ty
-          ~element_kind:K.With_subkind.naked_float
-      with
-      | Proved true | Unknown -> Ok array_kind
-      | Proved false | Invalid -> Bottom)
-    | Immediates -> (
-      match
-        T.prove_is_array_with_element_kind typing_env arg1_ty
-          ~element_kind:K.With_subkind.tagged_immediate
-      with
-      | Proved true | Unknown -> Ok array_kind
-      | Proved false | Invalid -> Bottom)
-    | Values -> (
-      match
-        T.prove_is_array_with_element_kind typing_env arg1_ty
-          ~element_kind:K.With_subkind.tagged_immediate
-      with
-      | Proved true ->
-        (* Specialise the array load to [Immediates]. *)
-        Ok P.Array_kind.Immediates
-      | Proved false | Unknown -> Ok array_kind
-      | Invalid -> Bottom)
+  let array_kind =
+    Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
-  (* CR mshinwell: should do a meet on the new value too *)
+  (* CR-someday mshinwell: should do a meet on the new value too *)
   match array_kind with
   | Bottom ->
     let ty = T.bottom result_kind in
