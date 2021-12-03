@@ -23,10 +23,6 @@ want to modify the Flambda backend.  Jump to:
 
 Pull requests should be submitted to the `main` branch, which is the default.
 
-Simple edits to documents can be committed directly via the Github "edit file"
-functionality for people with write access to the repo.  Changes requiring review
-and all code changes must go through PRs.
-
 PRs should not be merged unless all CI checks have passed unless there is a good
 reason.  It is not necessary to wait for CI checks to pass after genuinely trivial
 changes to a PR that was previously passing CI.
