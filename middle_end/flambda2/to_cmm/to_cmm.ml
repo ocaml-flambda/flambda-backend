@@ -456,18 +456,15 @@ let unary_primitive env dbg f arg =
       None, C.unreachable)
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
-       [caml_make_array], which is used by non-Flambda 2 compilers. *)
+       [caml_make_array], which is used by non-Flambda 2 compilers. This seems
+       reasonable given known existing use cases of naked pointers and the fact
+       that they will be forbidden entirely in OCaml 5. *)
     ( None,
-      Cmm.Cifthenelse
-        ( C.and_int arg (C.int ~dbg 1) dbg,
-          dbg,
-          Cconst_int (0, dbg),
-          dbg,
-          Cmm.Cop
-            ( Ccmpi Ceq,
-              [C.get_tag arg dbg; Cconst_int (Obj.double_tag, dbg)],
-              dbg ),
-          dbg ) )
+      C.ite
+        (C.and_int arg (C.int 1 ~dbg) dbg)
+        ~dbg ~then_:(C.int 0 ~dbg) ~then_dbg:dbg
+        ~else_:(C.eq (C.get_tag arg dbg) (C.int Obj.double_tag ~dbg) ~dbg)
+        ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg)
 
