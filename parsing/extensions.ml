@@ -104,7 +104,7 @@ let unwrap_structure ~loc = function
 let unmap_comprehension ~loc payload =
   let str = unwrap_structure ~loc payload in
   let get_hd_and_tl = function
-    | [] -> Misc.fatal_error "Unexpected sturcture in comprehension extension."
+    | [] -> Misc.fatal_error "Unexpected structure in comprehension extension."
     | hd::tl -> hd, tl
   in
   let str_hd, str_tl = get_hd_and_tl str in
@@ -161,7 +161,7 @@ let extension_expr_of_payload ~loc ((name, payload) : extension) =
 
 let report_error ~loc = function
   | Extension_not_existent extension_name ->
-    Location.errorf ~loc "Extension %s does not exsist." extension_name
+    Location.errorf ~loc "Extension %s does not exist." extension_name
   | Illegal_comprehension_extension_construct ->
     Location.errorf ~loc "Wrong extension syntax for comprehensions."
 
