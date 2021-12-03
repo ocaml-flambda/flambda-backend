@@ -23,7 +23,7 @@ let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t
 
 let empty = Code_id.Map.empty
 
-let add_code code_map t =
+let add_code ~keep_code code_map t =
   Code_id.Map.mapi
     (fun code_id code ->
       if not (Code_id.equal code_id (Code.code_id code))
@@ -32,8 +32,9 @@ let add_code code_map t =
           (Code_id.Map.print Code.print)
           code_map;
       let code_or_metadata = Code_or_metadata.create code in
-      if Function_decl_inlining_decision_type.cannot_be_inlined
-           (C.inlining_decision code)
+      if (not (keep_code code_id))
+         && Function_decl_inlining_decision_type.cannot_be_inlined
+              (C.inlining_decision code)
       then Code_or_metadata.remember_only_metadata code_or_metadata
       else code_or_metadata)
     code_map

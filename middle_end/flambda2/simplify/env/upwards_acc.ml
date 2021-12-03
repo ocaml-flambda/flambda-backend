@@ -127,7 +127,10 @@ let remember_code_for_cmx t code =
   if ART.do_not_rebuild_terms t.are_rebuilding_terms
   then t
   else
-    let all_code = Exported_code.add_code code t.all_code in
+    let keep_code code_id =
+      Code_id.Set.mem code_id (DA.code_ids_to_remember t.creation_dacc)
+    in
+    let all_code = Exported_code.add_code ~keep_code code t.all_code in
     { t with all_code }
 
 let all_code t = t.all_code
