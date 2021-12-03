@@ -153,6 +153,11 @@ let create_immutable_float_array are_rebuilding fields =
     Block_not_rebuilt { free_names }
   else create_normal_non_code (Immutable_float_array fields)
 
+let create_empty_array are_rebuilding =
+  if ART.do_not_rebuild_terms are_rebuilding
+  then Block_not_rebuilt { free_names = Name_occurrences.empty }
+  else create_normal_non_code Empty_array
+
 let create_mutable_string are_rebuilding ~initial_value =
   if ART.do_not_rebuild_terms are_rebuilding
   then Block_not_rebuilt { free_names = Name_occurrences.empty }
@@ -180,7 +185,7 @@ let map_set_of_closures t ~f =
           }
       | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Mutable_string _ | Immutable_string _ ->
+      | Empty_array | Mutable_string _ | Immutable_string _ ->
         t)
   end
   | Block_not_rebuilt _ | Set_of_closures_not_rebuilt _ | Code_not_rebuilt _ ->

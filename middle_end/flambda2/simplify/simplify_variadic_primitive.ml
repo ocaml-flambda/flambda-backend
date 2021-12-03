@@ -84,6 +84,82 @@ let simplify_make_block_of_floats dacc _prim dbg
   let env_extension = TEE.one_equation (Name.var result_var) ty in
   Simplified_named.reachable term, env_extension, args, dacc
 
+let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
+    ~mutable_or_immutable args_with_tys ~result_var =
+  let args, tys = List.split args_with_tys in
+  let invalid () =
+    let ty = T.bottom K.value in
+    let env_extension = TEE.one_equation (Name.var result_var) ty in
+    Simplified_named.invalid (), env_extension, args, dacc
+  in
+  let length =
+    match Targetint_31_63.Imm.of_int_option (List.length args) with
+    | Some ti -> T.this_tagged_immediate (Targetint_31_63.int ti)
+    | None -> T.unknown K.value
+  in
+  let element_kind =
+    (* Remember that the element subkinds cannot in general be deduced from the
+       types of the array members, it must be obtained from the array kind
+       annotations that came via [Lambda]. *)
+    P.Array_kind.element_kind array_kind
+  in
+  let initial_element_type : _ Or_unknown.t =
+    match K.With_subkind.descr element_kind with
+    | Tagged_immediate -> Known T.any_tagged_immediate
+    | Block _ | Float_block _ -> Known T.any_block
+    | Any_value -> Known T.any_value
+    | Naked_number _ ->
+      Known (T.unknown (Flambda_kind.With_subkind.kind element_kind))
+    | Boxed_float -> Known T.any_boxed_float
+    | Boxed_int32 -> Known T.any_boxed_int32
+    | Boxed_int64 -> Known T.any_boxed_int64
+    | Boxed_nativeint -> Known T.any_boxed_nativeint
+    | Float_array ->
+      Known
+        (T.array_of_length
+           ~element_kind:(Known Flambda_kind.With_subkind.naked_float)
+           ~length:T.any_tagged_immediate)
+    | Immediate_array ->
+      Known
+        (T.array_of_length
+           ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
+           ~length:T.any_tagged_immediate)
+    | Rec_info -> Misc.fatal_error "Array elements cannot have kind [Rec_info]"
+  in
+  let typing_env = DA.typing_env dacc in
+  let found_bottom = ref false in
+  let env_extension =
+    match initial_element_type with
+    | Unknown -> TEE.empty
+    | Known initial_element_type ->
+      List.fold_left
+        (fun resulting_env_extension element_type ->
+          match T.meet typing_env initial_element_type element_type with
+          | Bottom ->
+            found_bottom := true;
+            resulting_env_extension
+          | Ok (_, env_extension) -> (
+            match TEE.meet typing_env resulting_env_extension env_extension with
+            | Bottom ->
+              found_bottom := true;
+              resulting_env_extension
+            | Ok env_extension -> env_extension))
+        TEE.empty tys
+  in
+  if !found_bottom
+  then invalid ()
+  else
+    let ty = T.array_of_length ~element_kind:(Known element_kind) ~length in
+    let env_extension =
+      TEE.add_or_replace_equation env_extension (Name.var result_var) ty
+    in
+    let named =
+      Named.create_prim
+        (Variadic (Make_array (array_kind, mutable_or_immutable), args))
+        dbg
+    in
+    Simplified_named.reachable named, env_extension, args, dacc
+
 let simplify_variadic_primitive dacc (prim : P.variadic_primitive)
     ~args_with_tys dbg ~result_var =
   let result_var' = Bound_var.var result_var in
@@ -94,15 +170,6 @@ let simplify_variadic_primitive dacc (prim : P.variadic_primitive)
   | Make_block (Naked_floats, mutable_or_immutable) ->
     simplify_make_block_of_floats dacc prim dbg ~mutable_or_immutable
       args_with_tys ~result_var:result_var'
-  | Make_array _ ->
-    (* CR mshinwell: The typing here needs to be improved *)
-    let args, _tys = List.split args_with_tys in
-    let named = Named.create_prim (Variadic (prim, args)) dbg in
-    let length =
-      match Targetint_31_63.Imm.of_int_option (List.length args) with
-      | Some ti -> T.this_tagged_immediate (Targetint_31_63.int ti)
-      | None -> T.unknown K.value
-    in
-    let ty = T.array_of_length ~length in
-    let env_extension = TEE.one_equation (Name.var result_var') ty in
-    Simplified_named.reachable named, env_extension, args, dacc
+  | Make_array (array_kind, mutable_or_immutable) ->
+    simplify_make_array dacc dbg array_kind ~mutable_or_immutable args_with_tys
+      ~result_var:result_var'

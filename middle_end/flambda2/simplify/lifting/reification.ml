@@ -55,6 +55,8 @@ let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
     Rebuilt_static_const.create_boxed_nativeint
       (DA.are_rebuilding_terms dacc)
       (Const i)
+  | Empty_array ->
+    Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc)
 
 let lift dacc ty ~bound_to static_const =
   let dacc, symbol =

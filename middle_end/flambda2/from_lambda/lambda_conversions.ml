@@ -42,6 +42,9 @@ let rec value_kind (vk : L.value_kind) =
     if tag = Obj.double_array_tag
     then KS.float_block ~num_fields:(List.length fields)
     else KS.block (Tag.create_exn tag) (List.map value_kind fields)
+  | Parrayval Pfloatarray -> KS.float_array
+  | Parrayval Pintarray -> KS.immediate_array
+  | Parrayval (Paddrarray | Pgenarray) -> KS.any_value
 
 let inline_attribute (attr : L.inline_attribute) : Inline_attribute.t =
   match attr with
@@ -86,7 +89,7 @@ let convert_block_of_values_field (value_kind : L.value_kind) :
   | Pboxedintval Pint64 -> Boxed_int64
   | Pboxedintval Pnativeint -> Boxed_nativeint
   | Pintval -> Immediate
-  | Pblock _ -> Any_value
+  | Pblock _ | Parrayval _ -> Any_value
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
@@ -185,24 +188,32 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
 
-let convert_array_kind (kind : L.array_kind) : P.Array_kind.t =
+type converted_array_kind =
+  | Array_kind of P.Array_kind.t
+  | Float_array_opt_dynamic
+
+let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   match kind with
   | Pgenarray ->
     check_float_array_optimisation_enabled ();
     Float_array_opt_dynamic
-  | Paddrarray -> Values
-  | Pintarray -> Immediates
-  | Pfloatarray -> Naked_floats
+  | Paddrarray -> Array_kind Values
+  | Pintarray -> Array_kind Immediates
+  | Pfloatarray -> Array_kind Naked_floats
+
+type converted_duplicate_array_kind =
+  | Duplicate_array_kind of P.Duplicate_array_kind.t
+  | Float_array_opt_dynamic
 
 let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
-    P.Duplicate_array_kind.t =
+    converted_duplicate_array_kind =
   match kind with
   | Pgenarray ->
     check_float_array_optimisation_enabled ();
     Float_array_opt_dynamic
-  | Paddrarray -> Values
-  | Pintarray -> Immediates
-  | Pfloatarray -> Naked_floats { length = None }
+  | Paddrarray -> Duplicate_array_kind Values
+  | Pintarray -> Duplicate_array_kind Immediates
+  | Pfloatarray -> Duplicate_array_kind (Naked_floats { length = None })
 
 let convert_bigarray_kind (kind : L.bigarray_kind) : P.bigarray_kind option =
   match kind with

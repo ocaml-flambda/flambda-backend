@@ -878,16 +878,23 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
       down_to_up dacc ~rebuild
     in
     simplify_expr dacc expr ~down_to_up
-  | Unchanged ->
+  | Unchanged { return_types } ->
     let dacc = record_free_names_of_apply_as_used dacc apply in
     let dacc, use_id =
       match Apply.continuation apply with
       | Return apply_continuation ->
+        let apply_continuation_arg_types =
+          let from_arity = T.unknown_types_from_arity return_arity in
+          match return_types with
+          | Unknown -> from_arity
+          | Known return_types ->
+            assert (List.compare_lengths return_types from_arity = 0);
+            return_types
+        in
         let dacc, use_id =
           DA.record_continuation_use dacc apply_continuation
             (Non_inlinable { escaping = true })
-            ~env_at_use:(DA.denv dacc)
-            ~arg_types:(T.unknown_types_from_arity return_arity)
+            ~env_at_use:(DA.denv dacc) ~arg_types:apply_continuation_arg_types
         in
         dacc, Some use_id
       | Never_returns -> dacc, None
@@ -903,6 +910,12 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
     in
     down_to_up dacc
       ~rebuild:(rebuild_c_call apply ~use_id ~exn_cont_use_id ~return_arity)
+  | Invalid ->
+    let rebuild uacc ~after_rebuild =
+      let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
+      EB.rebuild_invalid uacc ~after_rebuild
+    in
+    down_to_up dacc ~rebuild
 
 let simplify_apply ~simplify_expr dacc apply ~down_to_up =
   let dacc, callee_ty, apply, arg_types = simplify_apply_shared dacc apply in

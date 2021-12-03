@@ -89,6 +89,7 @@ type static_data =
   | Boxed_nativeint of targetint or_variable
   | Immutable_float_block of float or_variable list
   | Immutable_float_array of float or_variable list
+  | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
@@ -121,6 +122,8 @@ type kind_with_subkind =
   | Boxed_nativeint
   | Tagged_immediate
   | Rec_info
+  | Float_array
+  | Immediate_array
 
 type static_data_binding =
   { symbol : symbol;
@@ -177,7 +180,6 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Immediates
   | Values
   | Naked_floats
-  | Float_array_opt_dynamic
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float
@@ -250,7 +252,7 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Unsigned
 
 type unop =
-  | Array_length of array_kind
+  | Array_length
   | Box_number of box_kind
   | Get_tag
   | Is_int

@@ -63,10 +63,18 @@ val convert_block_access_field_kind :
 val convert_init_or_assign :
   Lambda.initialization_or_assignment -> Flambda_primitive.Init_or_assign.t
 
-val convert_array_kind : Lambda.array_kind -> Flambda_primitive.Array_kind.t
+type converted_array_kind = private
+  | Array_kind of Flambda_primitive.Array_kind.t
+  | Float_array_opt_dynamic
+
+val convert_array_kind : Lambda.array_kind -> converted_array_kind
+
+type converted_duplicate_array_kind = private
+  | Duplicate_array_kind of Flambda_primitive.Duplicate_array_kind.t
+  | Float_array_opt_dynamic
 
 val convert_array_kind_to_duplicate_array_kind :
-  Lambda.array_kind -> Flambda_primitive.Duplicate_array_kind.t
+  Lambda.array_kind -> converted_duplicate_array_kind
 
 val convert_bigarray_kind :
   Lambda.bigarray_kind -> Flambda_primitive.bigarray_kind option

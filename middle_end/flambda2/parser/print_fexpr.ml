@@ -148,6 +148,8 @@ let kind_with_subkind ppf (k : kind_with_subkind) =
   | Boxed_nativeint -> str "nativeint boxed"
   | Tagged_immediate -> str "imm tagged"
   | Rec_info -> str "rec_info"
+  | Float_array -> str "float_array"
+  | Immediate_array -> str "immediate_array"
 
 let arity ppf (a : arity) =
   match a with
@@ -259,7 +261,6 @@ let array_kind ~space ppf (ak : array_kind) =
     | Immediates -> None
     | Values -> Some "val"
     | Naked_floats -> Some "float"
-    | Float_array_opt_dynamic -> Some "dynamic"
   in
   pp_option ~space Format.pp_print_string ppf str
 
@@ -296,6 +297,7 @@ let static_data ppf : static_data -> unit = function
     Format.fprintf ppf "Float_array [|%a|]"
       (pp_semi_list float_or_variable)
       elements
+  | Empty_array -> Format.fprintf ppf "Empty_array"
   | Mutable_string { initial_value = s } ->
     Format.fprintf ppf "mutable \"%s\"" (s |> String.escaped)
   | Immutable_string s -> Format.fprintf ppf "\"%s\"" (s |> String.escaped)
@@ -416,8 +418,7 @@ let unop ppf u =
     | Untagged_immediate -> print verb_imm "imm"
   in
   match u with
-  | Array_length ak ->
-    Format.fprintf ppf "@[<2>%%array_length%a@]" (array_kind ~space:Before) ak
+  | Array_length -> str "%array_length"
   | Box_number bk -> box_or_unbox "Box" "Tag" bk
   | Get_tag -> str "%get_tag"
   | Is_int -> str "%is_int"

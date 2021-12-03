@@ -41,6 +41,7 @@ type expr_primitive =
         (* Predefined exception *)
         dbg : Debuginfo.t
       }
+  | If_then_else of expr_primitive * expr_primitive * expr_primitive
 
 and simple_or_prim =
   | Simple of Simple.t

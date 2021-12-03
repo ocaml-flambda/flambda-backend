@@ -261,6 +261,8 @@ let rec value_kind_with_subkind (k : Fexpr.kind_with_subkind) :
   | Boxed_nativeint -> KWS.boxed_nativeint
   | Tagged_immediate -> KWS.tagged_immediate
   | Rec_info -> KWS.rec_info
+  | Float_array -> KWS.float_array
+  | Immediate_array -> KWS.immediate_array
 
 let value_kind : Fexpr.kind -> Flambda_kind.t = function
   | Value -> Flambda_kind.value
@@ -351,7 +353,7 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
-  | Array_length ak -> Array_length ak
+  | Array_length -> Array_length
   | Box_number bk -> Box_number bk
   | Unbox_number bk -> Unbox_number bk
   | Get_tag -> Get_tag
@@ -700,6 +702,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         | Immutable_float_array elements ->
           static_const
             (Immutable_float_array (List.map (or_variable float env) elements))
+        | Empty_array -> static_const Empty_array
         | Mutable_string { initial_value = s } ->
           static_const (Mutable_string { initial_value = s })
         | Immutable_string s -> static_const (Immutable_string s)

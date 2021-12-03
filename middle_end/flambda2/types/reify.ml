@@ -37,6 +37,7 @@ type to_lift =
   | Boxed_int32 of Int32.t
   | Boxed_int64 of Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Empty_array
 
 type reification_result =
   | Lift of to_lift
@@ -342,6 +343,14 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n))
     end
+    | Value (Ok (Array { length; element_kind = _ })) -> (
+      match Provers.prove_equals_single_tagged_immediate env length with
+      | Proved length ->
+        if Targetint_31_63.equal length Targetint_31_63.zero
+        then Lift Empty_array
+        else try_canonical_simple ()
+      | Unknown -> try_canonical_simple ()
+      | Invalid -> Invalid)
     | Value Bottom
     | Naked_immediate Bottom
     | Naked_float Bottom
@@ -351,7 +360,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     | Rec_info Bottom ->
       Invalid
     | Value Unknown
-    | Value (Ok (String _ | Array _))
+    | Value (Ok (String _))
     | Naked_immediate Unknown
     | Naked_float Unknown
     | Naked_int32 Unknown

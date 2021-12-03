@@ -79,3 +79,9 @@ val apply_cont_use_kind :
 
 val clear_demoted_trap_action_and_patch_unused_exn_bucket :
   Upwards_acc.t -> Apply_cont.t -> Apply_cont.t
+
+val specialise_array_kind :
+  Downwards_acc.t ->
+  Flambda_primitive.Array_kind.t ->
+  array_ty:Flambda2_types.t ->
+  Flambda_primitive.Array_kind.t Or_bottom.t

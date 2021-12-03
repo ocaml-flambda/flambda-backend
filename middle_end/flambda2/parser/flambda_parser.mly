@@ -120,7 +120,6 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_DIRECT [@symbol "direct"]
 %token KWD_DO_NOT_INLINE [@symbol "do_not_inline"]
 %token KWD_DONE  [@symbol "done"]
-%token KWD_DYNAMIC [@symbol "dynamic"]
 %token KWD_END   [@symbol "end"]
 %token KWD_ERROR [@symbol "error"]
 %token KWD_EXN   [@symbol "exn"]
@@ -325,7 +324,7 @@ recursive:
 ;
 
 unop:
-  | PRIM_ARRAY_LENGTH; ak = array_kind { Array_length ak }
+  | PRIM_ARRAY_LENGTH { Array_length }
   | PRIM_BOX_FLOAT { Box_number Naked_float }
   | PRIM_BOX_INT32 { Box_number Naked_int32 }
   | PRIM_BOX_INT64 { Box_number Naked_int64 }
@@ -377,7 +376,6 @@ array_kind:
   | { Values }
   | KWD_IMM { Immediates }
   | KWD_FLOAT { Naked_floats }
-  | KWD_DYNAMIC { Float_array_opt_dynamic }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag; size = size_opt

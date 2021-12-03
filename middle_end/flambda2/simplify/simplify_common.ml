@@ -225,3 +225,32 @@ let patch_unused_exn_bucket uacc apply_cont =
 let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
   let apply_cont = clear_demoted_trap_action uacc apply_cont in
   patch_unused_exn_bucket uacc apply_cont
+
+let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
+    _ Or_bottom.t =
+  let typing_env = DA.typing_env dacc in
+  match array_kind with
+  | Naked_floats -> (
+    match
+      T.prove_is_array_with_element_kind typing_env array_ty
+        ~element_kind:K.With_subkind.naked_float
+    with
+    | Proved true | Unknown -> Ok array_kind
+    | Proved false | Invalid -> Bottom)
+  | Immediates -> (
+    match
+      T.prove_is_array_with_element_kind typing_env array_ty
+        ~element_kind:K.With_subkind.tagged_immediate
+    with
+    | Proved true | Unknown -> Ok array_kind
+    | Proved false | Invalid -> Bottom)
+  | Values -> (
+    match
+      T.prove_is_array_with_element_kind typing_env array_ty
+        ~element_kind:K.With_subkind.tagged_immediate
+    with
+    | Proved true ->
+      (* Specialise the array operation to [Immediates]. *)
+      Ok P.Array_kind.Immediates
+    | Proved false | Unknown -> Ok array_kind
+    | Invalid -> Bottom)

@@ -54,6 +54,7 @@ type expr_primitive =
         (* Predefined exception *)
         dbg : Debuginfo.t
       }
+  | If_then_else of expr_primitive * expr_primitive * expr_primitive
 
 and simple_or_prim =
   | Simple of Simple.t
@@ -70,6 +71,11 @@ let rec print_expr_primitive ppf expr_primitive =
   | Variadic (prim, _) -> W.print ppf (Variadic prim)
   | Checked { primitive; _ } ->
     Format.fprintf ppf "@[<hov 1>(Checked@ %a)@]" print_expr_primitive primitive
+  | If_then_else (cond, ifso, ifnot) ->
+    Format.fprintf ppf
+      "@[<hov 1>(If_then_else@ (cond@ %a)@ (ifso@ %a)@ (ifnot@ %a))@]"
+      print_expr_primitive cond print_expr_primitive ifso print_expr_primitive
+      ifnot
 
 let print_simple_or_prim ppf (simple_or_prim : simple_or_prim) =
   match simple_or_prim with
@@ -281,6 +287,76 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
     in
     Let_cont_with_acc.build_non_recursive acc primitive_cont ~handler_params:[]
       ~handler:primitive_handler_expr ~body ~is_exn_handler:false
+  | If_then_else (cond, ifso, ifnot) ->
+    let cond_result = Variable.create "cond_result" in
+    let cond_result_pat = Bound_var.create cond_result Name_mode.normal in
+    let ifso_cont = Continuation.create () in
+    let ifso_result = Variable.create "ifso_result" in
+    let ifso_result_pat = Bound_var.create ifso_result Name_mode.normal in
+    let ifnot_cont = Continuation.create () in
+    let ifnot_result = Variable.create "ifnot_result" in
+    let ifnot_result_pat = Bound_var.create ifnot_result Name_mode.normal in
+    let join_point_cont = Continuation.create () in
+    let result_var = Variable.create "if_then_else_result" in
+    let result_param =
+      Bound_parameter.create result_var Flambda_kind.With_subkind.any_value
+    in
+    bind_rec acc exn_cont ~register_const_string cond dbg @@ fun acc cond ->
+    let compute_cond_and_switch acc =
+      let acc, ifso_cont = Apply_cont_with_acc.goto acc ifso_cont in
+      let acc, ifnot_cont = Apply_cont_with_acc.goto acc ifnot_cont in
+      let acc, switch =
+        Expr_with_acc.create_switch acc
+          (Switch.create ~scrutinee:(Simple.var cond_result)
+             ~arms:
+               (Targetint_31_63.Map.of_list
+                  [ Targetint_31_63.bool_true, ifso_cont;
+                    Targetint_31_63.bool_false, ifnot_cont ]))
+      in
+      Let_with_acc.create acc
+        (Bound_pattern.singleton cond_result_pat)
+        cond ~body:switch
+      |> Expr_with_acc.create_let
+    in
+    let join_handler_expr acc =
+      cont acc (Named.create_simple (Simple.var result_var))
+    in
+    let ifso_handler_expr acc =
+      bind_rec acc exn_cont ~register_const_string ifso dbg @@ fun acc ifso ->
+      let acc, apply_cont =
+        Apply_cont_with_acc.create acc join_point_cont
+          ~args:[Simple.var ifso_result] ~dbg
+      in
+      let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
+      Let_with_acc.create acc
+        (Bound_pattern.singleton ifso_result_pat)
+        ifso ~body
+      |> Expr_with_acc.create_let
+    in
+    let ifnot_handler_expr acc =
+      bind_rec acc exn_cont ~register_const_string ifnot dbg @@ fun acc ifnot ->
+      let acc, apply_cont =
+        Apply_cont_with_acc.create acc join_point_cont
+          ~args:[Simple.var ifnot_result] ~dbg
+      in
+      let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
+      Let_with_acc.create acc
+        (Bound_pattern.singleton ifnot_result_pat)
+        ifnot ~body
+      |> Expr_with_acc.create_let
+    in
+    let body acc =
+      Let_cont_with_acc.build_non_recursive acc ifnot_cont ~handler_params:[]
+        ~handler:ifnot_handler_expr ~body:compute_cond_and_switch
+        ~is_exn_handler:false
+    in
+    let body acc =
+      Let_cont_with_acc.build_non_recursive acc ifso_cont ~handler_params:[]
+        ~handler:ifso_handler_expr ~body ~is_exn_handler:false
+    in
+    Let_cont_with_acc.build_non_recursive acc join_point_cont
+      ~handler_params:[result_param] ~handler:join_handler_expr ~body
+      ~is_exn_handler:false
 
 and bind_rec_primitive acc exn_cont ~register_const_string
     (prim : simple_or_prim) (dbg : Debuginfo.t)

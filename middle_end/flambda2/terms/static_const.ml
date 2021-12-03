@@ -29,6 +29,7 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float_array of
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
+  | Empty_array
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
@@ -86,6 +87,10 @@ let [@ocamlformat "disable"] print ppf t =
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
         (Or_variable.print Numeric_types.Float_by_bit_pattern.print))
       fields
+  | Empty_array ->
+    fprintf ppf "@<0>%sEmpty_array@<0>%s"
+      (Flambda_colours.static_part ())
+      (Flambda_colours.normal ())
   | Mutable_string { initial_value = s; } ->
     fprintf ppf "@[<hov 1>(@<0>%sMutable_string@<0>%s@ %S)@]"
       (Flambda_colours.static_part ())
@@ -133,6 +138,7 @@ include Container_types.Make (struct
       Misc.Stdlib.List.compare
         (Or_variable.compare Numeric_types.Float_by_bit_pattern.compare)
         fields1 fields2
+    | Empty_array, Empty_array -> 0
     | ( Mutable_string { initial_value = s1 },
         Mutable_string { initial_value = s2 } )
     | Immutable_string s1, Immutable_string s2 ->
@@ -153,6 +159,8 @@ include Container_types.Make (struct
     | _, Immutable_float_block _ -> 1
     | Immutable_float_array _, _ -> -1
     | _, Immutable_float_array _ -> 1
+    | Empty_array, _ -> -1
+    | _, Empty_array -> 1
     | Mutable_string _, _ -> -1
     | Immutable_string _, Mutable_string _ -> 1
 
@@ -173,7 +181,7 @@ let free_names t =
   | Boxed_int32 or_var -> Or_variable.free_names or_var
   | Boxed_int64 or_var -> Or_variable.free_names or_var
   | Boxed_nativeint or_var -> Or_variable.free_names or_var
-  | Mutable_string { initial_value = _ } | Immutable_string _ ->
+  | Mutable_string { initial_value = _ } | Immutable_string _ | Empty_array ->
     Name_occurrences.empty
   | Immutable_float_block fields | Immutable_float_array fields ->
     List.fold_left
@@ -245,6 +253,7 @@ let apply_renaming t renaming =
           fields
       in
       if not !changed then t else Immutable_float_array fields
+    | Empty_array -> Empty_array
 
 let all_ids_for_export t =
   match t with
@@ -281,12 +290,13 @@ let all_ids_for_export t =
         | Var v -> Ids_for_export.add_variable ids v
         | Const _ -> ids)
       Ids_for_export.empty fields
+  | Empty_array -> Ids_for_export.empty
 
 let is_block t =
   match t with
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
   | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ ->
+  | Mutable_string _ | Empty_array ->
     true
   | Set_of_closures _ -> false
 
@@ -295,7 +305,7 @@ let is_set_of_closures t =
   | Set_of_closures _ -> true
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
   | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ ->
+  | Mutable_string _ | Empty_array ->
     false
 
 let is_fully_static t = free_names t |> Name_occurrences.no_variables
@@ -305,7 +315,7 @@ let can_share0 t =
   | Block (_, Immutable, _)
   | Set_of_closures _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
   | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-  | Immutable_string _ ->
+  | Immutable_string _ | Empty_array ->
     true
   | Block (_, (Mutable | Immutable_unique), _) | Mutable_string _ -> false
 
@@ -315,8 +325,8 @@ let must_be_set_of_closures t =
   match t with
   | Set_of_closures set -> set
   | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-  | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
-  | Mutable_string _ ->
+  | Immutable_float_block _ | Immutable_float_array _ | Empty_array
+  | Immutable_string _ | Mutable_string _ ->
     Misc.fatal_errorf "Not a set of closures:@ %a" print t
 
 let match_against_bound_symbols_pattern t (pat : Bound_symbols.Pattern.t)
@@ -339,13 +349,13 @@ let match_against_bound_symbols_pattern t (pat : Bound_symbols.Pattern.t)
     set_of_closures_callback ~closure_symbols set_of_closures
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_string _ | Mutable_string _ ),
+      | Empty_array | Immutable_string _ | Mutable_string _ ),
       Block_like symbol ) ->
     block_like_callback symbol t
   | Set_of_closures _, (Code _ | Block_like _)
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_string _ | Mutable_string _ ),
+      | Empty_array | Immutable_string _ | Mutable_string _ ),
       (Code _ | Set_of_closures _) ) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
       Bound_symbols.Pattern.print pat print t
