@@ -282,6 +282,22 @@ let all_ids_for_export t =
         | Const _ -> ids)
       Ids_for_export.empty fields
 
+let is_block t =
+  match t with
+  | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
+  | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
+  | Mutable_string _ ->
+    true
+  | Set_of_closures _ -> false
+
+let is_set_of_closures t =
+  match t with
+  | Set_of_closures _ -> true
+  | Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
+  | Immutable_float_block _ | Immutable_float_array _ | Immutable_string _
+  | Mutable_string _ ->
+    false
+
 let is_fully_static t = free_names t |> Name_occurrences.no_variables
 
 let can_share0 t =

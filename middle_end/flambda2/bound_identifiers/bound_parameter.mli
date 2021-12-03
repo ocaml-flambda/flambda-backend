@@ -87,4 +87,6 @@ module List : sig
   val print : Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
+
+  val check_no_duplicates : t -> unit
 end

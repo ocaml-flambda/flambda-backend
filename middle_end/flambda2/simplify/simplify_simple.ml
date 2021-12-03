@@ -20,11 +20,6 @@ module DA = Downwards_acc
 module T = Flambda2_types
 module TE = T.Typing_env
 
-(* CR lmaurer: Not clear why we need both of these. *)
-
-(* These should return [Simple.t], since most invocations just immediately call
-   [T.get_alias_exn] on the result. *)
-
 let simplify_simple dacc simple ~min_name_mode =
   let typing_env = DA.typing_env dacc in
   match TE.type_simple_in_term_exn typing_env simple ~min_name_mode with

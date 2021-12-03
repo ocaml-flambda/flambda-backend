@@ -63,8 +63,7 @@ end
 module type Number_kind_common = sig
   module Num : Container_types.S
 
-  (* CR mshinwell: Rename to standard_int_or_float_kind? *)
-  val kind : Flambda_kind.Standard_int_or_float.t
+  val standard_int_or_float_kind : Flambda_kind.Standard_int_or_float.t
 
   val unboxed_prover :
     Flambda2_types.Typing_env.t ->

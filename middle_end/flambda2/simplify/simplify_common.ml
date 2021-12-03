@@ -161,8 +161,6 @@ type apply_cont_context =
   | Switch_branch
 
 let apply_cont_use_kind ~context apply_cont : Continuation_use_kind.t =
-  (* CR mshinwell: Is [Continuation.sort] reliable enough to detect the toplevel
-     continuation? Probably not -- we should store it in the environment. *)
   let default : Continuation_use_kind.t =
     match context with
     | Apply_cont_expr -> Inlinable

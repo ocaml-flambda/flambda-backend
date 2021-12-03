@@ -31,8 +31,9 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
     let simple = T.get_alias_exn ty in
     Simple.pattern_match simple
       ~name:(fun name ~coercion ->
-        (* CR lmaurer: This will break if you try and put a coerced thing in a
-           block *)
+        (* CR lmaurer for lmaurer: This will break if you try and put a coerced
+           thing in a block mshinwell: is that guaranteed not to occur? It isn't
+           obvious to me why this would be the case. *)
         assert (Coercion.is_id coercion);
         Name.pattern_match name
           ~var:(fun var -> Field_of_static_block.Dynamically_computed var, ty)

@@ -63,19 +63,11 @@ val unit_toplevel_exn_continuation : t -> Continuation.t
 
 val enter_set_of_closures : t -> t
 
-val increment_continuation_scope_level : t -> t
+val increment_continuation_scope : t -> t
 
-val increment_continuation_scope_level_twice : t -> t
+val increment_continuation_scope_twice : t -> t
 
-val get_continuation_scope_level : t -> Scope.t
-
-val now_defining_symbol : t -> Symbol.t -> t
-
-val no_longer_defining_symbol : t -> Symbol.t -> t
-
-val symbol_is_currently_being_defined : t -> Symbol.t -> bool
-
-val symbols_currently_being_defined : t -> Symbol.Set.t
+val get_continuation_scope : t -> Scope.t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
 
@@ -109,8 +101,6 @@ val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
 val define_parameters : t -> params:Bound_parameter.t list -> t
 
-val define_parameters_as_bottom : t -> params:Bound_parameter.t list -> t
-
 val add_parameters :
   ?at_unit_toplevel:bool ->
   t ->
@@ -141,15 +131,7 @@ val with_typing_env : t -> Flambda2_types.Typing_env.t -> t
 val map_typing_env :
   t -> f:(Flambda2_types.Typing_env.t -> Flambda2_types.Typing_env.t) -> t
 
-val check_variable_is_bound : t -> Variable.t -> unit
-
-val check_symbol_is_bound : t -> Symbol.t -> unit
-
-val check_name_is_bound : t -> Name.t -> unit
-
 val check_simple_is_bound : t -> Simple.t -> unit
-
-val check_code_id_is_bound : t -> Code_id.t -> unit
 
 val define_code : t -> code_id:Code_id.t -> code:Code.t -> t
 
@@ -158,21 +140,13 @@ val mem_code : t -> Code_id.t -> bool
 (** This function raises if the code ID is unbound. *)
 val find_code_exn : t -> Code_id.t -> Code_or_metadata.t
 
-(** Appends the locations of inlined call-sites to the given debuginfo and sets
-    the resulting debuginfo as the current one in the environment. *)
-val add_inlined_debuginfo : t -> Debuginfo.t -> t
-(* CR mshinwell: remove? *)
-
 val set_inlined_debuginfo : t -> Debuginfo.t -> t
 
-val add_inlined_debuginfo' : t -> Debuginfo.t -> Debuginfo.t
+val add_inlined_debuginfo : t -> Debuginfo.t -> Debuginfo.t
 
 val get_inlined_debuginfo : t -> Debuginfo.t
 
 val round : t -> int
-
-(** Prevent function inlining from occurring in the given environment. *)
-val disable_function_inlining : t -> t
 
 val can_inline : t -> bool
 

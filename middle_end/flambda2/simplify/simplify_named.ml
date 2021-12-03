@@ -140,9 +140,6 @@ let create_lifted_constant (dacc, lifted_constants)
       | Some (Static_const static_const) ->
         DA.consider_constant_for_sharing dacc symbol static_const
     in
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv -> DE.no_longer_defining_symbol denv symbol)
-    in
     dacc, lifted_constant :: lifted_constants
   | Code code_id ->
     let lifted_constant = LC.create_code code_id static_const in
@@ -206,18 +203,11 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
           DE.add_variable_and_extend_typing_environment denv bound_var
             (T.unknown kind) env_extension)
     in
-    (* CR mshinwell: Add check along the lines of: types are unknown whenever
-       [not (P.With_fixed_value.eligible prim)] holds. *)
     (* Primitives with generative effects correspond to allocations. Without
        this check, we could end up lifting definitions that have a type that
        looks like an allocation but that are instead a projection from a bigger
        structure. *)
     let allow_lifting =
-      (* CR mshinwell: We probably shouldn't lift if the let binding is going to
-         be deleted, as lifting may cause [Dominator]-scoped bindings to be
-         inserted, that cannot be deleted. However this situation probably
-         doesn't arise that much, and won't be an issue once we can lift
-         [Dominator]-scoped bindings. *)
       P.only_generative_effects prim
       && Name_mode.is_normal (Bound_var.name_mode bound_var)
     in
@@ -250,15 +240,6 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
         "[Let] binding symbols is only allowed at the toplevel of compilation \
          units (not even at the toplevel of function bodies):@ %a@ =@ %a"
         Bound_pattern.print bound_pattern Named.print named;
-    let non_closure_symbols_being_defined =
-      Bound_symbols.non_closure_symbols_being_defined bound_symbols
-    in
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv ->
-          Symbol.Set.fold
-            (fun symbol denv -> DE.now_defining_symbol denv symbol)
-            non_closure_symbols_being_defined denv)
-    in
     let bound_symbols, static_consts, dacc =
       try
         Simplify_static_const.simplify_static_consts dacc bound_symbols
@@ -280,7 +261,10 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
         (Rebuilt_static_const.Group.to_list static_consts)
         ~init:(dacc, []) ~f:create_lifted_constant
     in
-    let dacc = DA.add_lifted_constant dacc (LC.concat lifted_constants) in
+    let dacc =
+      DA.add_to_lifted_constant_accumulator dacc
+        (LCS.singleton (LC.concat lifted_constants))
+    in
     (* We don't need to return any bindings; [Simplify_expr.simplify_let] will
        create the "let symbol" binding when it sees the lifted constant. *)
     Simplify_named_result.have_simplified_to_zero_terms dacc

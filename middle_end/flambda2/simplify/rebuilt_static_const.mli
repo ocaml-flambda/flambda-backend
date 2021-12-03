@@ -93,6 +93,12 @@ val map_set_of_closures : t -> f:(Set_of_closures.t -> Set_of_closures.t) -> t
 
 val free_names : t -> Name_occurrences.t
 
+val is_block : t -> bool
+
+val is_set_of_closures : t -> bool
+
+val is_code : t -> bool
+
 val is_fully_static : t -> bool
 
 val make_all_code_deleted : t -> t

@@ -348,10 +348,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
         ~code_age_relation_after_body
   in
   let dacc =
-    (* CR mshinwell: Improve function names to clarify that this function
-       (unlike the function of the same name in [DE]) does not add to the
-       environment, only to the accumulator. *)
-    DA.add_lifted_constants dacc_after_body prior_lifted_constants
+    DA.add_to_lifted_constant_accumulator dacc_after_body prior_lifted_constants
   in
   match uses with
   | No_uses ->
@@ -682,7 +679,7 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
   in
   let inlining_state_at_let_cont = DE.get_inlining_state (DA.denv dacc) in
   let inlined_debuginfo_at_let_cont = DE.get_inlined_debuginfo (DA.denv dacc) in
-  let scope = DE.get_continuation_scope_level (DA.denv dacc) in
+  let scope = DE.get_continuation_scope (DA.denv dacc) in
   let is_exn_handler = CH.is_exn_handler cont_handler in
   let denv_before_body =
     (* We add the parameters assuming that none of them are at toplevel. When we
@@ -692,7 +689,7 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont cont_handler
       ~at_unit_toplevel:false
   in
   let dacc_for_body =
-    DE.increment_continuation_scope_level denv_before_body |> DA.with_denv dacc
+    DE.increment_continuation_scope denv_before_body |> DA.with_denv dacc
   in
   let prior_cont_uses_env = DA.continuation_uses_env dacc_for_body in
   let dacc_for_body =
@@ -723,17 +720,17 @@ let simplify_non_recursive_let_cont ~simplify_expr dacc non_rec ~down_to_up =
       (simplify_non_recursive_let_cont_stage0 ~simplify_expr dacc non_rec
          ~down_to_up)
 
-let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope_level
+let rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild =
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
-        UE.add_non_inlinable_continuation uenv cont original_cont_scope_level
-          ~params ~handler:(Known handler))
+        UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
+          ~handler:(Known handler))
   in
   let handlers = Continuation.Map.singleton cont cont_handler in
   after_rebuild handlers uacc
 
-let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope_level
+let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
     ~name_occurrences_subsequent_exprs ~after_rebuild cont_handler ~params
     ~handler ~free_names_of_handler:_ ~cost_metrics_of_handler:_ uacc =
   let uacc = UA.add_free_names uacc name_occurrences_subsequent_exprs in
@@ -747,12 +744,12 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope_level
     in
     UA.with_name_occurrences uacc ~name_occurrences
   in
-  rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope_level
+  rebuild_recursive_let_cont_handlers cont ~params ~original_cont_scope
     cont_handler ~handler uacc ~after_rebuild
 
 let prepare_to_rebuild_one_recursive_let_cont_handler cont params
-    (extra_params_and_args : EPA.t) ~original_cont_scope_level ~rebuild_handler
-    uacc ~after_rebuild =
+    (extra_params_and_args : EPA.t) ~original_cont_scope ~rebuild_handler uacc
+    ~after_rebuild =
   let required_names = UA.required_names uacc in
   let used_params_list =
     ListLabels.filter params ~f:(fun param ->
@@ -776,19 +773,18 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
         let params = used_params_list @ used_extra_params_list in
-        UE.add_non_inlinable_continuation uenv cont original_cont_scope_level
-          ~params ~handler:Unknown)
+        UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
+          ~handler:Unknown)
   in
   let name_occurrences_subsequent_exprs = UA.name_occurrences uacc in
   let uacc = UA.clear_name_occurrences uacc in
   rebuild_handler uacc
     ~after_rebuild:
-      (after_one_recursive_let_cont_handler_rebuilt cont
-         ~original_cont_scope_level ~name_occurrences_subsequent_exprs
-         ~after_rebuild)
+      (after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
+         ~name_occurrences_subsequent_exprs ~after_rebuild)
 
 let after_downwards_traversal_of_one_recursive_let_cont_handler cont
-    unboxing_decisions ~down_to_up params ~original_cont_scope_level dacc
+    unboxing_decisions ~down_to_up params ~original_cont_scope dacc
     ~rebuild:rebuild_handler =
   let dacc = DA.map_data_flow dacc ~f:(Data_flow.exit_continuation cont) in
   let arg_types_by_use_id =
@@ -813,13 +809,13 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
   down_to_up dacc
     ~rebuild:
       (prepare_to_rebuild_one_recursive_let_cont_handler cont params
-         extra_params_and_args ~original_cont_scope_level ~rebuild_handler)
+         extra_params_and_args ~original_cont_scope ~rebuild_handler)
 
 (* This only takes one handler at present since we don't yet support
    simplification of multiple recursive handlers. *)
 let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~dacc_after_body cont params ~handler ~prior_lifted_constants
-    ~original_cont_scope_level ~down_to_up =
+    ~original_cont_scope ~down_to_up =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
       ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
@@ -838,7 +834,9 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
   in
   let denv = DE.with_typing_env denv typing_env in
   let dacc = DA.with_denv dacc_after_body denv in
-  let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
+  let dacc =
+    DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
+  in
   let dacc = DA.map_denv dacc ~f:DE.set_not_at_unit_toplevel in
   let arg_types_by_use_id_outside_of_handler =
     match CUE.get_continuation_uses (DA.continuation_uses_env dacc) cont with
@@ -875,7 +873,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~is_single_inlinable_use:false ~is_exn_handler:false
     ~down_to_up:
       (after_downwards_traversal_of_one_recursive_let_cont_handler cont
-         unboxing_decisions params ~original_cont_scope_level ~down_to_up)
+         unboxing_decisions params ~original_cont_scope ~down_to_up)
 
 let rebuild_recursive_let_cont ~body handlers ~cost_metrics_of_handlers
     ~uenv_without_cont uacc ~after_rebuild =
@@ -924,18 +922,17 @@ let after_downwards_traversal_of_recursive_let_cont_handlers cont ~rebuild_body
 
 let after_downwards_traversal_of_recursive_let_cont_body ~simplify_expr
     ~denv_before_body cont params ~handler ~prior_lifted_constants
-    ~original_cont_scope_level ~down_to_up dacc_after_body ~rebuild:rebuild_body
-    =
+    ~original_cont_scope ~down_to_up dacc_after_body ~rebuild:rebuild_body =
   simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~dacc_after_body cont params ~handler ~prior_lifted_constants
-    ~original_cont_scope_level
+    ~original_cont_scope
     ~down_to_up:
       (after_downwards_traversal_of_recursive_let_cont_handlers cont
          ~rebuild_body ~down_to_up)
 
 let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
-    cont ~original_cont_scope_level ~down_to_up dacc params ~handler =
-  let dacc = DA.map_denv dacc ~f:DE.increment_continuation_scope_level in
+    cont ~original_cont_scope ~down_to_up dacc params ~handler =
+  let dacc = DA.map_denv dacc ~f:DE.increment_continuation_scope in
   let dacc, prior_lifted_constants =
     (* We clear the lifted constants accumulator so that we can easily obtain,
        below, any constants that are generated during the simplification of the
@@ -947,16 +944,14 @@ let simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
     ~down_to_up:
       (after_downwards_traversal_of_recursive_let_cont_body ~simplify_expr
          ~denv_before_body cont params ~handler ~prior_lifted_constants
-         ~original_cont_scope_level ~down_to_up)
+         ~original_cont_scope ~down_to_up)
 
 let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
     rec_handlers =
   let module CH = Continuation_handler in
   assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
   let denv_before_body = DA.denv dacc in
-  let original_cont_scope_level =
-    DE.get_continuation_scope_level denv_before_body
-  in
+  let original_cont_scope = DE.get_continuation_scope denv_before_body in
   let handlers = Continuation_handlers.to_map rec_handlers in
   let cont, cont_handler =
     match Continuation.Map.bindings handlers with
@@ -969,7 +964,7 @@ let simplify_recursive_let_cont_stage0 ~simplify_expr dacc ~down_to_up ~body
   CH.pattern_match cont_handler
     ~f:
       (simplify_recursive_let_cont_stage1 ~simplify_expr ~denv_before_body ~body
-         cont ~original_cont_scope_level ~down_to_up dacc)
+         cont ~original_cont_scope ~down_to_up dacc)
 
 (* CR mshinwell: We should not simplify recursive continuations with no entry
    point -- could loop forever. (Need to think about this again.) *)

@@ -58,6 +58,9 @@ let singleton_sorted_array_of_constants ~innermost_first =
   then empty
   else Leaf_array { innermost_first }
 
+let singleton_list_of_constants_order_does_not_matter constants =
+  singleton_sorted_array_of_constants ~innermost_first:(Array.of_list constants)
+
 let union_ordered ~innermost ~outermost =
   match innermost, outermost with
   | Empty, _ -> outermost
@@ -130,11 +133,11 @@ let add_to_denv ?maybe_already_defined denv lifted =
             else
               let sym = Name.symbol sym in
               let env_extension =
-                (* CR mshinwell: Sometimes we might already have the types "made
-                   suitable" in the [closure_env] field of the typing
-                   environment, perhaps? For example when lifted constants'
-                   types are coming out of a closure into the enclosing
-                   scope. *)
+                (* CR-someday mshinwell: Sometimes we might already have the
+                   types "made suitable" in the [closure_env] field of the
+                   typing environment, perhaps? For example when lifted
+                   constants' types are coming out of a closure into the
+                   enclosing scope. *)
                 T.make_suitable_for_environment
                   (DE.typing_env denv_at_definition)
                   typ ~suitable_for:typing_env ~bind_to:sym
@@ -155,7 +158,100 @@ let add_to_denv ?maybe_already_defined denv lifted =
           else DE.define_code denv ~code_id ~code)
         pieces_of_code denv)
 
-let add_singleton_to_denv t const = add_to_denv t (singleton const)
+module CIS = Code_id_or_symbol
+module SCC_lifted_constants = Strongly_connected_components_flambda2.Make (CIS)
 
-let add_list_to_denv t consts =
-  ListLabels.fold_left consts ~init:t ~f:add_singleton_to_denv
+let build_dep_graph t =
+  fold t ~init:(CIS.Map.empty, CIS.Map.empty)
+    ~f:(fun (dep_graph, code_id_or_symbol_to_const) lifted_constant ->
+      ListLabels.fold_left (LC.definitions lifted_constant)
+        ~init:(dep_graph, code_id_or_symbol_to_const)
+        ~f:(fun (dep_graph, code_id_or_symbol_to_const) definition ->
+          let module D = LC.Definition in
+          let free_names =
+            let free_names = D.free_names definition in
+            match D.descr definition with
+            | Code _ | Block_like _ -> free_names
+            | Set_of_closures { closure_symbols_with_types; _ } ->
+              (* To avoid existing sets of closures (with or without associated
+                 code) being pulled apart, we add a dependency from each of the
+                 closure symbols (in the current set) to all of the others (in
+                 the current set). *)
+              ListLabels.fold_left
+                (Closure_id.Lmap.data closure_symbols_with_types)
+                ~init:free_names ~f:(fun free_names (symbol, _) ->
+                  Name_occurrences.add_symbol free_names symbol Name_mode.normal)
+          in
+          let free_syms = Name_occurrences.symbols free_names in
+          let free_code_ids =
+            free_names
+            |> Name_occurrences.code_ids_and_newer_version_of_code_ids
+          in
+          let deps =
+            CIS.Set.union
+              (CIS.set_of_symbol_set free_syms)
+              (CIS.set_of_code_id_set free_code_ids)
+          in
+          let being_defined =
+            D.bound_symbols definition |> Bound_symbols.everything_being_defined
+          in
+          CIS.Set.fold
+            (fun being_defined (dep_graph, code_id_or_symbol_to_const) ->
+              let dep_graph = CIS.Map.add being_defined deps dep_graph in
+              let code_id_or_symbol_to_const =
+                CIS.Map.add being_defined
+                  (Lifted_constant.create_definition definition)
+                  code_id_or_symbol_to_const
+              in
+              dep_graph, code_id_or_symbol_to_const)
+            being_defined
+            (dep_graph, code_id_or_symbol_to_const)))
+
+let sort0 t =
+  (* The various lifted constants may exhibit recursion between themselves
+     (specifically between closures and/or code). We use SCC to obtain a
+     topological sort of groups that must be coalesced into single
+     code-and-set-of-closures definitions. *)
+  let lifted_constants_dep_graph, code_id_or_symbol_to_const =
+    build_dep_graph t
+  in
+  let innermost_first =
+    lifted_constants_dep_graph
+    |> SCC_lifted_constants.connected_components_sorted_from_roots_to_leaf
+    |> ArrayLabels.map ~f:(fun (group : SCC_lifted_constants.component) ->
+           let code_id_or_symbols =
+             match group with
+             | No_loop code_id_or_symbol -> [code_id_or_symbol]
+             | Has_loop code_id_or_symbols -> code_id_or_symbols
+           in
+           let _, lifted_constants =
+             ListLabels.fold_left code_id_or_symbols ~init:(CIS.Set.empty, [])
+               ~f:(fun ((already_seen, definitions) as acc) code_id_or_symbol ->
+                 if CIS.Set.mem code_id_or_symbol already_seen
+                 then acc
+                 else
+                   let lifted_constant =
+                     CIS.Map.find code_id_or_symbol code_id_or_symbol_to_const
+                   in
+                   let already_seen =
+                     (* We may encounter the same defining expression more than
+                        once, in the case of sets of closures, which may bind
+                        more than one symbol. We must avoid duplicates in the
+                        resulting [LC.t]. *)
+                     let bound_symbols = LC.bound_symbols lifted_constant in
+                     CIS.Set.union
+                       (Bound_symbols.everything_being_defined bound_symbols)
+                       already_seen
+                   in
+                   already_seen, lifted_constant :: definitions)
+           in
+           LC.concat lifted_constants)
+  in
+  (* We may wish to traverse the array of constants in either direction.
+   * This can be done by virtue of the following property:
+   *   Let the list/array L be a topological sort of a directed graph G.
+   *   Then the reverse of L is a topological sort of the transpose of G.
+   *)
+  singleton_sorted_array_of_constants ~innermost_first
+
+let sort t = if is_empty t then empty else sort0 t

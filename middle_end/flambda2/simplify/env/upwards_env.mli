@@ -20,7 +20,7 @@
 
 type t
 
-val empty : t
+val create : Downwards_env.are_rebuilding_terms -> t
 
 val print : Format.formatter -> t -> unit
 
@@ -55,8 +55,6 @@ val add_linearly_used_inlinable_continuation :
 val add_function_return_or_exn_continuation :
   t -> Continuation.t -> Scope.t -> Flambda_arity.With_subkinds.t -> t
 
-val add_exn_continuation : t -> Exn_continuation.t -> Scope.t -> t
-
 val find_continuation : t -> Continuation.t -> Continuation_in_env.t
 
 val mem_continuation : t -> Continuation.t -> bool
@@ -71,5 +69,3 @@ val add_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t -> t
 val find_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t option
 
 val delete_apply_cont_rewrite : t -> Continuation.t -> t
-
-val will_inline_continuation : t -> Continuation.t -> bool

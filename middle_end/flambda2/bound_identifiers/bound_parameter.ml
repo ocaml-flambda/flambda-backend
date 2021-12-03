@@ -114,4 +114,12 @@ module List = struct
 
   let all_ids_for_export t =
     Ids_for_export.union_list (List.map all_ids_for_export t)
+
+  let check_no_duplicates t =
+    if not (Flambda_features.check_invariants ())
+    then ()
+    else
+      let t_set = Set.of_list t in
+      if Set.cardinal t_set <> List.length t
+      then Misc.fatal_errorf "Duplicates in bound parameter list:@ %a" print t
 end

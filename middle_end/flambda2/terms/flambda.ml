@@ -1009,6 +1009,7 @@ module Continuation_handler = struct
 
   let create params ~handler ~(free_names_of_handler : _ Or_unknown.t)
       ~is_exn_handler =
+    BP.List.check_no_duplicates params;
     let num_normal_occurrences_of_params =
       match free_names_of_handler with
       | Unknown -> Variable.Map.empty
@@ -1095,6 +1096,7 @@ module Function_params_and_body = struct
 
   let create ~return_continuation ~exn_continuation params ~body
       ~free_names_of_body ~my_closure ~my_depth =
+    BP.List.check_no_duplicates params;
     let is_my_closure_used =
       Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
           Name_occurrences.mem_var free_names_of_body my_closure)
@@ -1393,10 +1395,23 @@ module Static_const_or_code = struct
 
   let create_static_const const = Static_const const
 
+  let is_code t =
+    match t with Code _ | Deleted_code -> true | Static_const _ -> false
+
   let is_fully_static t =
     match t with
     | Code _ | Deleted_code -> true
     | Static_const const -> Static_const.is_fully_static const
+
+  let is_block t =
+    match t with
+    | Code _ | Deleted_code -> false
+    | Static_const const -> Static_const.is_block const
+
+  let is_set_of_closures t =
+    match t with
+    | Code _ | Deleted_code -> false
+    | Static_const const -> Static_const.is_set_of_closures const
 
   let to_code t =
     match t with

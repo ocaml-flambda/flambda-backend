@@ -44,6 +44,10 @@ include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
 
+val is_block : t -> bool
+
+val is_set_of_closures : t -> bool
+
 val is_fully_static : t -> bool
 
 val can_share : t -> bool

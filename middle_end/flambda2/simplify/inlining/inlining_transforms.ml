@@ -77,7 +77,7 @@ let inline dacc ~apply ~unroll_to function_decl =
   let args = Apply.args apply in
   let apply_return_continuation = Apply.continuation apply in
   let apply_exn_continuation = Apply.exn_continuation apply in
-  (* CR mshinwell: Add meet constraint to the return continuation *)
+  (* CR-someday mshinwell: Add meet constraint to the return continuation *)
   let denv = DA.denv dacc in
   let code =
     match DE.find_code_exn denv (FT.code_id function_decl) with
