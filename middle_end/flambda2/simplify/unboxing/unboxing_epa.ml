@@ -343,7 +343,7 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
         (Maybe_constant_constructor
            { arg_being_unboxed; is_int = Simple.untagged_const_true })
     else
-      (* CR gbury: one might want to try and use the cse at use to allow
+      (* CR-someday gbury: one might want to try and use the cse at use to allow
          unboxing when the tag is not known statically but can be recovered
          through the cse. *)
       prevent_current_unboxing ()

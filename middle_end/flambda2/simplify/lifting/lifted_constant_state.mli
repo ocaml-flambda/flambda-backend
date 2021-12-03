@@ -38,6 +38,8 @@ val add_outermost : t -> LC.t -> t
 
 val singleton_sorted_array_of_constants : innermost_first:LC.t array -> t
 
+val singleton_list_of_constants_order_does_not_matter : LC.t list -> t
+
 (* Use if the order of constants doesn't matter. *)
 val union : t -> t -> t
 
@@ -54,6 +56,4 @@ val all_defined_symbols : t -> Symbol.Set.t
 
 val add_to_denv : ?maybe_already_defined:unit -> DE.t -> t -> DE.t
 
-val add_singleton_to_denv : DE.t -> LC.t -> DE.t
-
-val add_list_to_denv : DE.t -> LC.t list -> DE.t
+val sort : t -> t

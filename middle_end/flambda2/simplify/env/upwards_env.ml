@@ -18,35 +18,37 @@
 
 type t =
   { continuations : (Scope.t * Continuation_in_env.t) Continuation.Map.t;
-    exn_continuations : Scope.t Exn_continuation.Map.t;
     continuation_aliases : Continuation.t Continuation.Map.t;
-    apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t
+    apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t;
+    are_rebuilding_terms : Downwards_env.are_rebuilding_terms
   }
 
-let empty =
+let create are_rebuilding_terms =
   { continuations = Continuation.Map.empty;
-    exn_continuations = Exn_continuation.Map.empty;
     continuation_aliases = Continuation.Map.empty;
-    apply_cont_rewrites = Continuation.Map.empty
+    apply_cont_rewrites = Continuation.Map.empty;
+    are_rebuilding_terms
   }
 
-let print_scope_level_and_continuation_in_env ppf (scope_level, cont_in_env) =
+let print_scope_level_and_continuation_in_env are_rebuilding_terms ppf
+    (scope_level, cont_in_env) =
   Format.fprintf ppf
     "@[<hov 1>(@[<hov 1>(scope_level@ %a)@]@ @[<hov 1>(cont_in_env@ %a)@])@]"
-    Scope.print scope_level Continuation_in_env.print cont_in_env
+    Scope.print scope_level
+    (Continuation_in_env.print are_rebuilding_terms)
+    cont_in_env
 
-let [@ocamlformat "disable"] print ppf { continuations; exn_continuations; continuation_aliases;
-                apply_cont_rewrites;
-              } =
+let [@ocamlformat "disable"] print ppf
+    { continuations; continuation_aliases;
+      apply_cont_rewrites; are_rebuilding_terms } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(continuations@ %a)@]@ \
-      @[<hov 1>(exn_continuations@ %a)@]@ \
       @[<hov 1>(continuation_aliases@ %a)@]@ \
       @[<hov 1>(apply_cont_rewrites@ %a)@]\
       )@]"
-    (Continuation.Map.print print_scope_level_and_continuation_in_env)
+    (Continuation.Map.print
+      (print_scope_level_and_continuation_in_env are_rebuilding_terms))
     continuations
-    (Exn_continuation.Map.print Scope.print) exn_continuations
     (Continuation.Map.print Continuation.print) continuation_aliases
     (Continuation.Map.print Apply_cont_rewrite.print)
     apply_cont_rewrites
@@ -109,12 +111,6 @@ let add_continuation_alias t cont arity ~alias_for =
       "Cannot add continuation alias %a (as alias for %a); the continuation is \
        already deemed to be an alias"
       Continuation.print cont Continuation.print alias_for;
-  (* CR mshinwell: This should check that they are either both exn handlers or
-     both non-exn handlers if Continuation.is_exn cont || Continuation.is_exn
-     alias_for then begin Misc.fatal_errorf "Cannot alias exception handlers: %a
-     (exn handler? %b) \ as alias for %a (exn handler? %b)" Continuation.print
-     cont (Continuation.is_exn cont) Continuation.print alias_for
-     (Continuation.is_exn alias_for) end; *)
   let alias_for = resolve_continuation_aliases t alias_for in
   let continuation_aliases =
     Continuation.Map.add cont alias_for t.continuation_aliases
@@ -130,21 +126,6 @@ let add_linearly_used_inlinable_continuation t cont scope ~params ~handler
 let add_function_return_or_exn_continuation t cont scope arity =
   add_continuation0 t cont scope
     (Toplevel_or_function_return_or_exn_continuation { arity })
-
-let add_exn_continuation t exn_cont scope =
-  (* CR mshinwell: Think more about keeping these in both maps *)
-  let continuations =
-    let cont = Exn_continuation.exn_handler exn_cont in
-    let cont_in_env : Continuation_in_env.t =
-      Toplevel_or_function_return_or_exn_continuation
-        { arity = Exn_continuation.arity exn_cont }
-    in
-    Continuation.Map.add cont (scope, cont_in_env) t.continuations
-  in
-  let exn_continuations =
-    Exn_continuation.Map.add exn_cont scope t.exn_continuations
-  in
-  { t with continuations; exn_continuations }
 
 let add_apply_cont_rewrite t cont rewrite =
   if Continuation.Map.mem cont t.apply_cont_rewrites
@@ -165,10 +146,3 @@ let delete_apply_cont_rewrite t cont =
   { t with
     apply_cont_rewrites = Continuation.Map.remove cont t.apply_cont_rewrites
   }
-
-let will_inline_continuation t cont =
-  match find_continuation t cont with
-  | Linearly_used_and_inlinable _ -> true
-  | Non_inlinable_zero_arity _ | Non_inlinable_non_zero_arity _
-  | Toplevel_or_function_return_or_exn_continuation _ | Unreachable _ ->
-    false

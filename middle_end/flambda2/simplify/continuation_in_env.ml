@@ -29,20 +29,41 @@ type t =
       { arity : Flambda_arity.With_subkinds.t }
   | Unreachable of { arity : Flambda_arity.With_subkinds.t }
 
-(* CR mshinwell: Write a proper printer *)
-let [@ocamlformat "disable"] print ppf t =
+let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
   match t with
-  | Linearly_used_and_inlinable { params = _; handler = _;
-      free_names_of_handler = _; cost_metrics_of_handler = _ } ->
-    Format.pp_print_string ppf "Linearly_used_and_inlinable _"
-  | Non_inlinable_zero_arity { handler = _; } ->
-    Format.pp_print_string ppf "Non_inlinable_zero_arity _"
-  | Non_inlinable_non_zero_arity { arity = _; } ->
-    Format.pp_print_string ppf "Non_inlinable_non_zero_arity _"
-  | Toplevel_or_function_return_or_exn_continuation { arity = _; } ->
-    Format.pp_print_string ppf
-      "Toplevel_or_function_return_or_exn_continuation _"
-  | Unreachable { arity = _; } -> Format.pp_print_string ppf "Unreachable _"
+  | Linearly_used_and_inlinable { params; handler;
+      free_names_of_handler; cost_metrics_of_handler } ->
+    Format.fprintf ppf "@[<hov 1>(Linearly_used_and_inlinable@ \
+        @[<hov 1>(params@ %a)@]@ \
+        @[<hov 1>(handler@ %a)@]@ \
+        @[<hov 1>(free_names_of_handler@ %a)@]@ \
+        @[<hov 1>(cost_metrics_of_handler@ %a)@]\
+        )@]"
+      Bound_parameter.List.print params
+      (Rebuilt_expr.print are_rebuilding_terms) handler
+      Name_occurrences.print free_names_of_handler
+      Cost_metrics.print cost_metrics_of_handler
+  | Non_inlinable_zero_arity { handler } ->
+    Format.fprintf ppf "@[<hov 1>(Non_inlinable_zero_arity@ \
+        @[<hov 1>(handler@ %a)@]\
+        )@]"
+      (Or_unknown.print (Rebuilt_expr.print are_rebuilding_terms)) handler
+  | Non_inlinable_non_zero_arity { arity } ->
+    Format.fprintf ppf "@[<hov 1>(Non_inlinable_non_zero_arity@ \
+        @[<hov 1>(arity@ %a)@]\
+        )@]"
+      Flambda_arity.With_subkinds.print arity
+  | Toplevel_or_function_return_or_exn_continuation { arity } ->
+    Format.fprintf ppf
+      "@[<hov 1>(Toplevel_or_function_return_or_exn_continuation@ \
+        @[<hov 1>(arity@ %a)@]\
+        )@]"
+      Flambda_arity.With_subkinds.print arity
+  | Unreachable { arity } ->
+    Format.fprintf ppf "@[<hov 1>(Unreachable@ \
+        @[<hov 1>(arity@ %a)@]\
+        )@]"
+      Flambda_arity.With_subkinds.print arity
 
 let arity t =
   match t with

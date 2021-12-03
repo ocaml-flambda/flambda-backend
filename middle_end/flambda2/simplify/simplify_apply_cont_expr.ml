@@ -20,10 +20,10 @@ open! Simplify_import
 
 let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
     ~free_names_of_handler ~cost_metrics_of_handler =
-  (* CR mshinwell: With -g, we can end up with continuations that are just a
-     sequence of phantom lets then "goto". These would normally be treated as
-     aliases, but of course aren't in this scenario, unless the continuations
-     are used linearly. *)
+  (* CR-someday mshinwell: With -g, we can end up with continuations that are
+     just a sequence of phantom lets then "goto". These would normally be
+     treated as aliases, but of course aren't in this scenario, unless the
+     continuations are used linearly. *)
   let apply_cont_to_expr apply_cont =
     assert (Option.is_none (AC.trap_action apply_cont));
     (* We can't easily call [simplify_expr] on the inlined body since [dacc]
@@ -154,6 +154,6 @@ let simplify_apply_cont dacc apply_cont ~down_to_up =
       use_kind ~env_at_use:(DA.denv dacc) ~arg_types
   in
   let dbg = AC.debuginfo apply_cont in
-  let dbg = DE.add_inlined_debuginfo' (DA.denv dacc) dbg in
+  let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
   let apply_cont = AC.with_debuginfo apply_cont ~dbg in
   down_to_up dacc ~rebuild:(rebuild_apply_cont apply_cont ~args ~rewrite_id)

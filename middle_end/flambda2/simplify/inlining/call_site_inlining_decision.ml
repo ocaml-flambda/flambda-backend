@@ -24,7 +24,8 @@ module TE = T.Typing_env
 module UA = Upwards_acc
 module UE = Upwards_env
 
-(* CR mshinwell: We need to emit [Warnings.Inlining_impossible] as required.
+(* CR mshinwell for poechsel: We need to emit [Warnings.Inlining_impossible] as
+   required.
 
    When in fallback-inlining mode: if we want to follow Closure we should not
    complain about function declarations with e.g. [@inline always] if the
@@ -34,9 +35,9 @@ module UE = Upwards_env
    once [Inlining_impossible] handling is implemented for the
    non-fallback-inlining cases. *)
 
-(* CR mshinwell: Overhaul handling of the inlining depth tracking so that it
-   takes into account the depth of closures (or code), as per conversation with
-   lwhite. *)
+(* CR-someday mshinwell: Overhaul handling of the inlining depth tracking so
+   that it takes into account the depth of closures (or code), as per
+   conversation with lwhite. *)
 
 module FT = Flambda2_types.Function_type
 
@@ -56,7 +57,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
        unrolling can happen while speculating right now. *)
     Inlining_transforms.inline dacc ~apply ~unroll_to:None function_type
   in
-  let scope = DE.get_continuation_scope_level (DA.denv dacc) in
+  let scope = DE.get_continuation_scope (DA.denv dacc) in
   let dummy_toplevel_cont =
     Continuation.create ~name:"dummy_toplevel_continuation" ()
   in
@@ -91,9 +92,17 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
             ~used_closure_vars:Unknown ~return_continuation:function_return_cont
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         in
-        (* CR mshinwell: These functions for adding continuations could do with
-           a bit more thought regarding non-exn/exn versions *)
-        let uenv = UE.add_exn_continuation UE.empty exn_continuation scope in
+        let uenv =
+          (* Note that we don't need to do anything special if the exception
+             continuation takes extra arguments, since we are only simplifying
+             the body of the function in question, not substituting it into an
+             existing context. *)
+          UE.add_function_return_or_exn_continuation
+            (UE.create (DA.are_rebuilding_terms dacc))
+            (Exn_continuation.exn_handler exn_continuation)
+            scope
+            [Flambda_kind.With_subkind.any_value]
+        in
         let uenv =
           match Apply.continuation apply with
           | Never_returns -> uenv
@@ -198,8 +207,8 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
         might_inline dacc ~apply ~code_or_metadata ~function_type ~simplify_expr
           ~return_arity
       | None -> (
-        (* CR lmaurer: This seems semantically dodgy: If we really think of a
-           free depth variable as [Unknown], then we shouldn't be considering
+        (* lmaurer: This seems semantically dodgy: If we really think of a free
+           depth variable as [Unknown], then we shouldn't be considering
            inlining here, because we don't _know_ that we're not unrolling. The
            behavior is what we want, though (and is consistent with FLambda 1):
            If there's a free depth variable, that means this is an internal

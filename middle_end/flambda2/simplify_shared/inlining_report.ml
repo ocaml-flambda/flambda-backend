@@ -142,8 +142,8 @@ let output_then_forget_decisions ~output_prefix =
   Misc.try_finally
     ~always:(fun () -> log := [])
     ~exceptionally:(fun () ->
-      (* CR gbury: Is there a more appropritate function to report a warning
-         (that is not one of the numbered warnings *)
+      (* CR gbury: Is there a more appropriate function to report a warning
+         (that is not one of the numbered warnings)? *)
       Format.eprintf "WARNING: inlining report output failed@.")
     (fun () ->
       let l = lazy (List.rev !log) in

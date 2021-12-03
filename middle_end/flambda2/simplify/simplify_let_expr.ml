@@ -46,12 +46,15 @@ let rebuild_let simplify_named_result removed_operations
       (* See the comment in [simplify_let], below; this case is analogous. *)
       lifted_constants_from_defining_expr
     | Not_in_a_closure ->
-      (* CR gbury: do only if we are actually rebuilding terms *)
-      LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
-        ~f:(keep_lifted_constant_only_if_used uacc)
+      if Are_rebuilding_terms.do_not_rebuild_terms
+           (UA.are_rebuilding_terms uacc)
+      then lifted_constants_from_defining_expr
+      else
+        LCS.fold lifted_constants_from_defining_expr ~init:LCS.empty
+          ~f:(keep_lifted_constant_only_if_used uacc)
   in
   let lifted_constants_from_defining_expr =
-    Sort_lifted_constants.sort lifted_constants_from_defining_expr
+    LCS.sort lifted_constants_from_defining_expr
   in
   (* At this point, the free names in [uacc] are the free names of [body], plus
      all used closure vars seen in the whole compilation unit. *)
@@ -181,7 +184,7 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
   | Invalid _ -> data_flow
-  | Reachable { free_names; named; cost_metrics = _ } -> (
+  | Reachable { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
       match named with
       | Simple _ | Set_of_closures _ | Rec_info _ -> true
@@ -191,21 +194,10 @@ let record_new_defining_expression_binding_for_data_flow dacc data_flow
     then DF.add_used_in_current_handler free_names data_flow
     else
       let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
-      (* CR gbury: use Bound_pattern.fold_all_bound_vars instead of a match
-         here. *)
-      match binding.let_bound with
-      | Singleton v ->
-        DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-          data_flow
-      | Set_of_closures { closure_vars; name_mode = _ } ->
-        ListLabels.fold_left closure_vars ~init:data_flow ~f:(fun data_flow v ->
-            DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
-              data_flow)
-      | Symbols _ ->
-        (* This cannot be reached. Simplify_named does not return any symbol
-           bindings, they all go via the lifted constants accumulator in
-           [DA]. *)
-        Misc.fatal_error "[Symbols] not expected here")
+      Bound_pattern.fold_all_bound_vars binding.let_bound ~init:data_flow
+        ~f:(fun data_flow v ->
+          DF.record_var_binding (VB.var v) free_names ~generate_phantom_lets
+            data_flow)
 
 let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     simplify_named_result data_flow =
@@ -240,7 +232,7 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   in
   let dacc = Simplify_named_result.dacc simplify_named_result in
   (* First accumulate variable, symbol and code ID usage information. *)
-  (* CR gbury/pchambart : in the case of an invalid, we currently
+  (* CR-someday gbury/pchambart : in the case of an invalid, we currently
      over-approximate the uses. In case of an invalid, we might want to instead
      flush the uses of the current control flow branch (but this would require a
      more precise stack). *)
@@ -262,7 +254,9 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      the defining expression. (Not even in the case of a [Set_of_closures]
      binding, since "let symbol" is disallowed under a lambda.) *)
   let lifted_constants_from_defining_expr = DA.get_lifted_constants dacc in
-  let dacc = DA.add_lifted_constants dacc prior_lifted_constants in
+  let dacc =
+    DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
+  in
   let dacc =
     DA.map_data_flow dacc
       ~f:

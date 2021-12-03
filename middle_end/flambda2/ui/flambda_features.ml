@@ -85,8 +85,7 @@ module Inlining = struct
 
   let max_rec_depth round_or_default =
     match round_or_default with
-    | Round round ->
-      IH.get ~key:round !Flambda_backend_flags.Flambda2.Inlining.max_rec_depth
+    | Round round -> IH.get ~key:round !I.max_rec_depth
     | Default -> D.max_rec_depth
 
   let call_cost round_or_default =

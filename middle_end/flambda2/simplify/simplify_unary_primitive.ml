@@ -218,14 +218,16 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
     let result_unknown () =
       let env_extension =
         TEE.one_equation result
-          (T.unknown (K.Standard_int_or_float.to_kind I.kind))
+          (T.unknown
+             (K.Standard_int_or_float.to_kind I.standard_int_or_float_kind))
       in
       Simplified_named.reachable original_term, env_extension, dacc
     in
     let result_invalid () =
       let env_extension =
         TEE.one_equation result
-          (T.bottom (K.Standard_int_or_float.to_kind I.kind))
+          (T.bottom
+             (K.Standard_int_or_float.to_kind I.standard_int_or_float_kind))
       in
       Simplified_named.reachable original_term, env_extension, dacc
     in
@@ -262,7 +264,7 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
     let result = Name.var (Bound_var.var result_var) in
     let denv = DA.denv dacc in
     let typing_env = DE.typing_env denv in
-    if K.Standard_int_or_float.equal N.kind dst
+    if K.Standard_int_or_float.equal N.standard_int_or_float_kind dst
     then
       let env_extension = TEE.one_equation result arg_ty in
       Simplified_named.reachable original_term, env_extension, dacc
@@ -426,9 +428,6 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   let result_unknown () =
     let ty = T.unknown K.naked_float in
     let env_extension = TEE.one_equation result ty in
-    (* CR mshinwell: If this says [invalid] not [reachable] then a function that
-       just returns the negation of its float argument will fail to compile.
-       This may indicate a bug elsewhere. *)
     Simplified_named.reachable original_term, env_extension, dacc
   in
   let result_invalid () =

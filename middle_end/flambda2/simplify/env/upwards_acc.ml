@@ -112,8 +112,6 @@ let cost_metrics t = t.cost_metrics
 
 let are_rebuilding_terms t = t.are_rebuilding_terms
 
-(* CR mshinwell: (?) Don't add empty LCS to the list *)
-
 let add_outermost_lifted_constant t const =
   { t with lifted_constants = LCS.add_outermost t.lifted_constants const }
 
@@ -170,6 +168,12 @@ let notify_removed ~operation t =
 
 let add_cost_metrics cost_metrics t =
   { t with cost_metrics = Cost_metrics.( + ) t.cost_metrics cost_metrics }
+
+let add_cost_metrics_and_with_name_occurrences t cost_metrics name_occurrences =
+  { t with
+    cost_metrics = Cost_metrics.( + ) t.cost_metrics cost_metrics;
+    name_occurrences
+  }
 
 let generate_phantom_lets t = t.generate_phantom_lets
 

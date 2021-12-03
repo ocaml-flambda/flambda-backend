@@ -170,8 +170,10 @@ let compute_defining_exprs definitions =
   |> Rebuilt_static_const.Group.create
 
 let create_block_like symbol ~symbol_projections defining_expr denv ty =
-  (* CR mshinwell: check that [defining_expr] is not a set of closures or
-     code *)
+  if not (Rebuilt_static_const.is_block defining_expr)
+  then
+    Misc.fatal_errorf "Defining expression must be a block:@ %a"
+      Rebuilt_static_const.print defining_expr;
   let definition =
     Definition.block_like denv symbol ty ~symbol_projections defining_expr
   in
@@ -185,6 +187,10 @@ let create_block_like symbol ~symbol_projections defining_expr denv ty =
 
 let create_set_of_closures denv ~closure_symbols_with_types ~symbol_projections
     defining_expr =
+  if not (Rebuilt_static_const.is_set_of_closures defining_expr)
+  then
+    Misc.fatal_errorf "Defining expression must be a set of closures:@ %a"
+      Rebuilt_static_const.print defining_expr;
   let definition =
     Definition.set_of_closures denv ~closure_symbols_with_types
       ~symbol_projections defining_expr
@@ -198,6 +204,10 @@ let create_set_of_closures denv ~closure_symbols_with_types ~symbol_projections
   }
 
 let create_code code_id defining_expr =
+  if not (Rebuilt_static_const.is_code defining_expr)
+  then
+    Misc.fatal_errorf "Defining expression must be code:@ %a"
+      Rebuilt_static_const.print defining_expr;
   let definition = Definition.code code_id defining_expr in
   let definitions = [definition] in
   { definitions;

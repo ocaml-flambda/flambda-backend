@@ -82,6 +82,10 @@ val with_cost_metrics : Cost_metrics.t -> t -> t
 
 val add_cost_metrics : Cost_metrics.t -> t -> t
 
+(** This function exists as an optimisation to reduce allocation. *)
+val add_cost_metrics_and_with_name_occurrences :
+  t -> Cost_metrics.t -> Name_occurrences.t -> t
+
 val notify_added : code_size:Code_size.t -> t -> t
 
 val notify_removed : operation:Removed_operations.t -> t -> t

@@ -61,7 +61,8 @@ let does_nothing t =
 
 let create ~original_params ~used_params ~extra_params ~extra_args
     ~used_extra_params =
-  (* CR mshinwell: check there weren't any duplicates in the param lists too *)
+  BP.List.check_no_duplicates original_params;
+  BP.List.check_no_duplicates extra_params;
   if List.length original_params < BP.Set.cardinal used_params
   then
     Misc.fatal_errorf

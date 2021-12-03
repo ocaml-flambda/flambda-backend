@@ -76,10 +76,10 @@ let run ~symbol_for_global ~get_global_info ~round unit =
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation
   in
-  let return_cont_scope = DE.get_continuation_scope_level denv in
-  let denv = DE.increment_continuation_scope_level denv in
-  let exn_cont_scope = DE.get_continuation_scope_level denv in
-  let denv = DE.increment_continuation_scope_level denv in
+  let return_cont_scope = DE.get_continuation_scope denv in
+  let denv = DE.increment_continuation_scope denv in
+  let exn_cont_scope = DE.get_continuation_scope denv in
+  let denv = DE.increment_continuation_scope denv in
   let dacc = DA.create denv Continuation_uses_env.empty in
   let body, uacc =
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation

@@ -42,12 +42,17 @@ let[@ocamlformat "disable"] print ppf
 
 let create ~return_continuation ~exn_continuation ~params ~my_closure ~my_depth
     =
-  let params_set = BP.Set.of_list params in
-  if List.length params <> BP.Set.cardinal params_set
+  BP.List.check_no_duplicates params;
+  (if Flambda_features.check_invariants ()
   then
-    Misc.fatal_errorf
-      "Names provided to [Bound_parameters.create] must be disjoint:@ %a"
-      BP.List.print params;
+    let params_set = BP.List.var_set params in
+    if Variable.equal my_closure my_depth
+       || Variable.Set.mem my_closure params_set
+       || Variable.Set.mem my_depth params_set
+    then
+      Misc.fatal_errorf
+        "[my_closure] and [my_depth] must be disjoint from themselves and the \
+         other parameters");
   { return_continuation; exn_continuation; params; my_closure; my_depth }
 
 let return_continuation t = t.return_continuation

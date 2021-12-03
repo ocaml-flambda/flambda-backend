@@ -41,8 +41,7 @@ module type Binary_arith_like_sig = sig
 
   val cross_product : Lhs.Set.t -> Rhs.Set.t -> Pair.Set.t
 
-  (* CR mshinwell: Rename to [arg_kind] *)
-  val kind : K.Standard_int_or_float.t
+  val arg_kind : K.Standard_int_or_float.t
 
   val result_kind : K.t
 
@@ -185,7 +184,7 @@ end = struct
                 Some (PR.Set.add (Simple other_side) possible_results)
               | Negation_of_the_other_side ->
                 let standard_int_kind : K.Standard_int.t =
-                  match N.kind with
+                  match N.arg_kind with
                   | Tagged_immediate -> Tagged_immediate
                   | Naked_immediate -> Naked_immediate
                   | Naked_int32 -> Naked_int32
@@ -257,16 +256,16 @@ end = struct
      unlike for floats. *)
   let ok_to_evaluate _env = true
 
-  let kind = I.kind
+  let arg_kind = I.standard_int_or_float_kind
 
-  let result_kind = K.Standard_int_or_float.to_kind kind
+  let result_kind = K.Standard_int_or_float.to_kind arg_kind
 
   let prover_lhs = I.unboxed_prover
 
   let prover_rhs = I.unboxed_prover
 
   let unknown _ =
-    match kind with
+    match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float -> T.any_naked_float
@@ -408,9 +407,9 @@ end = struct
 
   type op = P.int_shift_op
 
-  let kind = I.kind
+  let arg_kind = I.standard_int_or_float_kind
 
-  let result_kind = K.Standard_int_or_float.to_kind kind
+  let result_kind = K.Standard_int_or_float.to_kind arg_kind
 
   let ok_to_evaluate _env = true
 
@@ -419,7 +418,7 @@ end = struct
   let prover_rhs = T.prove_naked_immediates
 
   let unknown _ =
-    match kind with
+    match arg_kind with
     | Tagged_immediate -> T.any_tagged_immediate
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float -> T.any_naked_float
@@ -431,6 +430,7 @@ end = struct
 
   let term = I.term_unboxed
 
+  (* CR-someday mshinwell: One day this should maybe be in a standard library *)
   module Pair = struct
     type nonrec t = Lhs.t * Rhs.t
 
@@ -518,7 +518,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -597,7 +597,7 @@ end = struct
 
   type op = P.ordered_comparison P.comparison_behaviour
 
-  let kind = I.kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -679,7 +679,7 @@ end = struct
 
   type op = P.binary_float_arith_op
 
-  let kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = K.Standard_int_or_float.Naked_float
 
   let result_kind = K.naked_float
 
@@ -773,7 +773,7 @@ end = struct
 
   type op = P.comparison P.comparison_behaviour
 
-  let kind = K.Standard_int_or_float.Naked_float
+  let arg_kind = K.Standard_int_or_float.Naked_float
 
   let result_kind = K.naked_immediate
 
@@ -864,7 +864,7 @@ end = struct
 
   type op = P.equality_comparison
 
-  let kind = I.kind
+  let arg_kind = I.standard_int_or_float_kind
 
   let result_kind = K.naked_immediate
 
@@ -977,8 +977,8 @@ let simplify_immutable_block_load (access_kind : P.Block_access_kind.t)
           (Targetint_31_63.to_targetint index)
           Targetint_31_63.Imm.one
       in
-      (* CR mshinwell: We should be able to use the size in the [access_kind] to
-         constrain the type of the block *)
+      (* CR-someday mshinwell: We should be able to use the size in the
+         [access_kind] to constrain the type of the block *)
       let tag : _ Or_unknown.t =
         match access_kind with
         | Values { tag; _ } -> Or_unknown.map tag ~f:Tag.Scannable.to_tag
@@ -1028,13 +1028,13 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
       | _, _ -> (
         let physically_equal =
           false
-          (* CR mshinwell: Resurrect this -- see cps_types branch.
+          (* CR-someday mshinwell: Resurrect this -- see cps_types branch.
              T.values_physically_equal arg1_ty arg2_ty *)
         in
         let physically_distinct =
           false
-          (* CR mshinwell: Resurrect this -- see cps_types branch. (* Structural
-             inequality implies physical inequality. *) let env =
+          (* CR-someday mshinwell: Resurrect this -- see cps_types branch. (*
+             Structural inequality implies physical inequality. *) let env =
              E.get_typing_environment env in T.values_structurally_distinct
              (env, arg1_ty) (env, arg2_ty) *)
         in
