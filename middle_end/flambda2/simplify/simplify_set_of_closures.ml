@@ -636,7 +636,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         code_age_relation,
         used_closure_vars,
         shareable_constants,
-        lifted_consts ) =
+        lifted_consts,
+        code_ids_to_remember ) =
     Closure_id.Lmap.fold
       (fun closure_id old_code_id
            ( result_function_decls_in_set,
@@ -645,7 +646,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
              code_age_relation,
              used_closure_vars,
              shareable_constants,
-             lifted_consts_prev_functions ) ->
+             lifted_consts_prev_functions,
+             code_ids_to_remember ) ->
         let { new_code_id;
               code = new_code;
               dacc_after_body;
@@ -696,6 +698,13 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           | Some dacc_after_body ->
             TE.code_age_relation (DA.typing_env dacc_after_body)
         in
+        let code_ids_to_remember =
+          match dacc_after_body with
+          | None -> code_ids_to_remember
+          | Some dacc_after_body ->
+            Code_id.Set.union code_ids_to_remember
+              (DA.code_ids_to_remember dacc_after_body)
+        in
         let used_closure_vars =
           match uacc_after_upwards_traversal with
           | None -> used_closure_vars
@@ -714,7 +723,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           code_age_relation,
           used_closure_vars,
           shareable_constants,
-          lifted_consts_prev_functions ))
+          lifted_consts_prev_functions,
+          code_ids_to_remember ))
       all_function_decls_in_set
       ( [],
         [],
@@ -722,13 +732,21 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         TE.code_age_relation (DA.typing_env dacc),
         DA.used_closure_vars dacc,
         DA.shareable_constants dacc,
-        LCS.empty )
+        LCS.empty,
+        DA.code_ids_to_remember dacc )
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc lifted_consts
     |> DA.with_used_closure_vars ~used_closure_vars
     |> DA.with_shareable_constants ~shareable_constants
+    |> DA.with_code_ids_to_remember ~code_ids_to_remember
   in
+  let code_ids_to_remember_this_set =
+    List.fold_left
+      (fun code_ids (_closure_id, code_id) -> Code_id.Set.add code_id code_ids)
+      Code_id.Set.empty all_function_decls_in_set
+  in
+  let dacc = DA.add_code_ids_to_remember dacc code_ids_to_remember_this_set in
   let all_function_decls_in_set =
     Closure_id.Lmap.of_list (List.rev all_function_decls_in_set)
   in

@@ -28,12 +28,13 @@ type t =
     used_closure_vars : Name_occurrences.t;
     lifted_constants : LCS.t;
     data_flow : Data_flow.t;
-    demoted_exn_handlers : Continuation.Set.t
+    demoted_exn_handlers : Continuation.Set.t;
+    code_ids_to_remember : Code_id.Set.t
   }
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_closure_vars;
-        lifted_constants; data_flow; demoted_exn_handlers; } =
+        lifted_constants; data_flow; demoted_exn_handlers; code_ids_to_remember; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -41,7 +42,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(used_closure_vars@ %a)@]@ \
       @[<hov 1>(lifted_constant_state@ %a)@]@ \
       @[<hov 1>(data_flow@ %a)@]@ \
-      @[<hov 1>(demoted_exn_handlers@ %a)@]\
+      @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
+      @[<hov 1>(code_ids_to_remember@ %a)@]\
       )@]"
     DE.print denv
     CUE.print continuation_uses_env
@@ -50,6 +52,7 @@ let [@ocamlformat "disable"] print ppf
     LCS.print lifted_constants
     Data_flow.print data_flow
     Continuation.Set.print demoted_exn_handlers
+    Code_id.Set.print code_ids_to_remember
 
 let create denv continuation_uses_env =
   { denv;
@@ -58,7 +61,8 @@ let create denv continuation_uses_env =
     used_closure_vars = Name_occurrences.empty;
     lifted_constants = LCS.empty;
     data_flow = Data_flow.empty;
-    demoted_exn_handlers = Continuation.Set.empty
+    demoted_exn_handlers = Continuation.Set.empty;
+    code_ids_to_remember = Code_id.Set.empty
   }
 
 let denv t = t.denv
@@ -160,6 +164,19 @@ let all_continuations_used t =
   CUE.all_continuations_used t.continuation_uses_env
 
 let with_used_closure_vars t ~used_closure_vars = { t with used_closure_vars }
+
+let add_code_ids_to_remember t code_ids =
+  if DE.at_unit_toplevel t.denv
+  then t
+  else
+    { t with
+      code_ids_to_remember = Code_id.Set.union code_ids t.code_ids_to_remember
+    }
+
+let code_ids_to_remember t = t.code_ids_to_remember
+
+let with_code_ids_to_remember t ~code_ids_to_remember =
+  { t with code_ids_to_remember }
 
 let set_do_not_rebuild_terms_and_disable_inlining t =
   { t with denv = DE.set_do_not_rebuild_terms_and_disable_inlining t.denv }
