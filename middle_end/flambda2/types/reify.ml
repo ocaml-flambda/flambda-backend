@@ -343,7 +343,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n))
     end
-    | Value (Ok (Array { length; kind = _ })) -> (
+    | Value (Ok (Array { length; element_kind = _ })) -> (
       match Provers.prove_equals_single_tagged_immediate env length with
       | Proved length ->
         if Targetint_31_63.equal length Targetint_31_63.zero

@@ -53,7 +53,7 @@ and head_of_kind_value = private
   | Closures of { by_closure_id : row_like_for_closures }
   | String of String_info.Set.t
   | Array of
-      { kind : Flambda_kind.With_subkind.t Or_unknown.t;
+      { element_kind : Flambda_kind.With_subkind.t Or_unknown.t;
         length : t
       }
 
