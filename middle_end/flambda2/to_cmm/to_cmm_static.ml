@@ -328,6 +328,7 @@ let static_const0 env r ~updates ~params_and_body
     in
     env, R.update_data r float_array, e
   | Block_like s, Empty_array ->
+    (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
     let block_name = symbol s, Cmmgen_state.Global in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block block_name header [] in
