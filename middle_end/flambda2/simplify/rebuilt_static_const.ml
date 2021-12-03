@@ -155,7 +155,7 @@ let create_immutable_float_array are_rebuilding fields =
 
 let create_empty_array are_rebuilding =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Non_code_not_rebuilt { free_names = Name_occurrences.empty }
+  then Block_not_rebuilt { free_names = Name_occurrences.empty }
   else create_normal_non_code Empty_array
 
 let create_mutable_string are_rebuilding ~initial_value =
