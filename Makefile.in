@@ -301,11 +301,10 @@ runtest-upstream:
 	# replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
 	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
-	# note: the --relative flag to ln fixes the relative path for us
-	ln -s --relative ocaml/Makefile.tools _runtest/
-	ln -s --relative $(stage2_build)/ocaml/Makefile.build_config _runtest/
-	ln -s --relative ocaml/Makefile.config_if_required _runtest/
-	ln -s --relative $(stage2_build)/ocaml/Makefile.config _runtest/
+	(cd _runtest && ln -s ../ocaml/Makefile.tools Makefile.tools)
+	(cd _runtest && ln -s ../ocaml/Makefile.build_config Makefile.build_config)
+	(cd _runtest && ln -s ../ocaml/Makefile.config_if_required Makefile.config_if_required)
+	(cd _runtest && ln -s ../ocaml/Makefile.config Makefile.config)
 	cp $(stage2_prefix)/bin/* _runtest/
 	# There seems to be an assumption that ocamlc/ocamlopt/ocamllex are
 	# bytecode...
@@ -315,8 +314,8 @@ runtest-upstream:
 	mv _runtest/ocamllex.byte _runtest/lex/ocamllex
 	mkdir _runtest/yacc
 	mv _runtest/ocamlyacc _runtest/yacc/
-	ln -s --relative $(stage2_build)/ocaml/runtime _runtest/runtime
-	ln -s --relative $(stage2_prefix)/lib/ocaml _runtest/stdlib
+	(cd _runtest && ln -s ../_build2/default/ocaml/runtime runtime)
+	(cd _runtest && ln -s ../_build2/install/default/lib/ocaml stdlib)
 	# compilerlibs
 	mkdir _runtest/compilerlibs
 	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cma _runtest/compilerlibs
