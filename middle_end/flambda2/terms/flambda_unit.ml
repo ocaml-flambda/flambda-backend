@@ -194,7 +194,7 @@ module Iter = struct
     Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:()
       ~code:(fun () code_id (code : Code.t) ->
-        f_c ~id:code_id code;
+        f_c ~id:code_id (Some code);
         let params_and_body = Code.params_and_body code in
         Function_params_and_body.pattern_match params_and_body
           ~f:(fun
@@ -207,6 +207,7 @@ module Iter = struct
                ~my_depth:_
                ~free_names_of_body:_
              -> expr f_c f_s body))
+      ~deleted_code:(fun () code_id -> f_c ~id:code_id None)
       ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
         f_s ~closure_symbols:(Some closure_symbols) ~is_phantom:false
           set_of_closures)
