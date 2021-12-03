@@ -169,6 +169,10 @@ let value_kind env ty =
       Pboxedintval Pint64
     | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
       Pboxedintval Pnativeint
+    | Tconstr(p, _, _)
+        when (Path.same p Predef.path_array
+              || Path.same p Predef.path_floatarray) ->
+      Parrayval (array_type_kind env ty)
     | Tconstr(p, _, _) ->
       if Numbers.Int.Set.mem ty.id visited || fuel <= 0 then
         Pgenval
