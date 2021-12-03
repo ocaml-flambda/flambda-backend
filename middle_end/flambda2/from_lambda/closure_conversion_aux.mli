@@ -98,6 +98,8 @@ end
     values during closure conversion, and similarly for static exception
     identifiers. *)
 module Env : sig
+  type value_approximation = Code_or_metadata.t Value_approximation.t
+
   type t
 
   val create :
@@ -139,14 +141,14 @@ module Env : sig
 
   val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
 
-  val add_value_approximation : t -> Name.t -> Code.t Value_approximation.t -> t
+  val add_value_approximation : t -> Name.t -> value_approximation -> t
 
   val add_block_approximation :
-    t -> Name.t -> Code.t Value_approximation.t array -> Alloc_mode.t -> t
+    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
-  val find_value_approximation : t -> Simple.t -> Code.t Value_approximation.t
+  val find_value_approximation : t -> Simple.t -> value_approximation
 
   val current_depth : t -> Variable.t option
 
@@ -182,7 +184,7 @@ module Acc : sig
 
   val lifted_sets_of_closures :
     t ->
-    ((Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
+    ((Symbol.t * Env.value_approximation) Closure_id.Lmap.t
     * Flambda.Set_of_closures.t)
     list
 
@@ -199,7 +201,7 @@ module Acc : sig
   val add_declared_symbol : symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
   val add_lifted_set_of_closures :
-    symbols:(Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t ->
+    symbols:(Symbol.t * Env.value_approximation) Closure_id.Lmap.t ->
     set_of_closures:Flambda.Set_of_closures.t ->
     t ->
     t
@@ -216,7 +218,7 @@ module Acc : sig
   val remove_continuation_from_free_names : Continuation.t -> t -> t
 
   val continuation_known_arguments :
-    cont:Continuation.t -> t -> Code.t Value_approximation.t list option
+    cont:Continuation.t -> t -> Env.value_approximation list option
 
   val with_free_names : Name_occurrences.t -> t -> t
 
@@ -347,7 +349,7 @@ module Apply_cont_with_acc : sig
   val create :
     Acc.t ->
     ?trap_action:Trap_action.t ->
-    ?args_approx:Code.t Value_approximation.t list ->
+    ?args_approx:Env.value_approximation list ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->

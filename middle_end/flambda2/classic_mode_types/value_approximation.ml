@@ -20,7 +20,7 @@
 
 type 'code t =
   | Value_unknown
-  | Closure_approximation of Code_id.t * 'code option
+  | Closure_approximation of Code_id.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 
 let is_unknown = function

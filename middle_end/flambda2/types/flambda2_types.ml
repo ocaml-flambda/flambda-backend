@@ -88,8 +88,8 @@ let extract_symbol_approx env symbol find_code =
           | Bottom | Unknown -> Value_unknown
           | Ok function_type ->
             let code_id = Function_type.code_id function_type in
-            let code = find_code code_id in
-            Closure_approximation (code_id, code)
+            let code_or_meta = find_code code_id in
+            Closure_approximation (code_id, code_or_meta)
         end)
       | Variant
           { immediates = Unknown; blocks = _; is_unique = _; alloc_mode = _ }

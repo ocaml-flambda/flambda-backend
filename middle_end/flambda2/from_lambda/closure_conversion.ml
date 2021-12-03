@@ -34,8 +34,8 @@ module P = Flambda_primitive
 module VB = Bound_var
 
 type close_functions_result =
-  | Lifted of (Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
-  | Dynamic of Set_of_closures.t * Code.t Value_approximation.t Closure_id.Map.t
+  | Lifted of (Symbol.t * Env.value_approximation) Closure_id.Lmap.t
+  | Dynamic of Set_of_closures.t * Env.value_approximation Closure_id.Map.t
 
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
@@ -201,13 +201,13 @@ module Inlining = struct
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
     | Block_approximation _ -> assert false
-    | Closure_approximation (_code_id, None) ->
+    | Closure_approximation (_code_id, Metadata_only _) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Closure_approximation (_code_id, Some code) ->
+    | Closure_approximation (_code_id, Code_present code) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
@@ -1342,17 +1342,20 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
       ~inlining_decision ~absolute_history ~relative_history
   in
   let approx =
+    let code = Code_or_metadata.create code in
+    let meta = Code_or_metadata.remember_only_metadata code in
     if Flambda_features.classic_mode ()
     then begin
       Inlining_report.record_decision_at_function_definition ~absolute_history
-        ~code_metadata:(Code.code_metadata code) ~pass:After_closure_conversion
+        ~code_metadata:(Code_or_metadata.code_metadata meta)
+        ~pass:After_closure_conversion
         ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
         inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
-      then Some code
-      else None
+      then code
+      else meta
     end
-    else None
+    else meta
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in

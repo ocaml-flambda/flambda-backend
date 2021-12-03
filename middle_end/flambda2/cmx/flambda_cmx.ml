@@ -58,17 +58,17 @@ let rec load_cmx_file_contents loader comp_unit =
              loader.imported_units;
       Some typing_env)
 
-let load_symbol_approx loader symbol : Code.t Value_approximation.t =
+let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
+    =
   let comp_unit = Symbol.compilation_unit symbol in
   match load_cmx_file_contents loader comp_unit with
   | None -> Value_unknown
   | Some typing_env ->
     let find_code code_id =
       match Exported_code.find loader.imported_code code_id with
-      | Some (Code_present code) -> Some code
-      | _ -> None
-      (* CR keryan : we want to use metadata in classic mode at some point in
-         the near future *)
+      | Some code_or_meta -> code_or_meta
+      | _ -> assert false
+      (* CR now : is there a case where this could happen ? *)
     in
     T.extract_symbol_approx typing_env symbol find_code
 
