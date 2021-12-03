@@ -85,6 +85,8 @@ val create_immutable_float_array :
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
   t
 
+val create_empty_array : Are_rebuilding_terms.t -> t
+
 val create_mutable_string : Are_rebuilding_terms.t -> initial_value:string -> t
 
 val create_immutable_string : Are_rebuilding_terms.t -> string -> t

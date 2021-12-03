@@ -417,6 +417,8 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
     | Boxed_nativeint -> Boxed_nativeint
     | Tagged_immediate -> Tagged_immediate
     | Rec_info -> Rec_info
+    | Float_array -> Float_array
+    | Immediate_array -> Immediate_array
   in
   convert (Flambda_kind.With_subkind.descr k)
 
@@ -441,7 +443,7 @@ let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
 
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
-  | Array_length ak -> Array_length ak
+  | Array_length -> Array_length
   | Box_number bk -> Box_number bk
   | Get_tag -> Get_tag
   | Is_int -> Is_int
@@ -586,6 +588,7 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_float_block (List.map (or_variable float env) elements)
   | Immutable_float_array elements ->
     Immutable_float_array (List.map (or_variable float env) elements)
+  | Empty_array -> Empty_array
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s
 

@@ -52,9 +52,6 @@ module Block_kind = struct
   type t =
     | Values of Tag.Scannable.t * Block_of_values_field.t list
     | Naked_floats
-  (* There is no equivalent of the dynamic float array checks (c.f.
-     [Array_kind.Float_array_opt_dynamic], below) for blocks; it is known at
-     compile time whether they are all-float. *)
 
   let [@ocamlformat "disable"] print ppf t =
    match t with
@@ -89,21 +86,18 @@ module Array_kind = struct
     | Immediates
     | Values
     | Naked_floats
-    | Float_array_opt_dynamic
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
     | Values -> Format.pp_print_string ppf "Values"
-    | Float_array_opt_dynamic ->
-      Format.pp_print_string ppf "Float_array_opt_dynamic"
 
   let compare = Stdlib.compare
 
   let element_kind_for_set t =
     match t with
-    | Immediates | Values | Float_array_opt_dynamic -> K.value
+    | Immediates | Values -> K.value
     | Naked_floats -> K.naked_float
 
   let element_kind_for_creation = element_kind_for_set
@@ -115,7 +109,12 @@ module Array_kind = struct
     | Immediates -> Pintarray
     | Values -> Paddrarray
     | Naked_floats -> Pfloatarray
-    | Float_array_opt_dynamic -> Pgenarray
+
+  let element_kind t =
+    match t with
+    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
+    | Values -> Flambda_kind.With_subkind.any_value
+    | Naked_floats -> Flambda_kind.With_subkind.naked_float
 end
 
 module Duplicate_block_kind = struct
@@ -160,7 +159,6 @@ module Duplicate_array_kind = struct
     | Immediates
     | Values
     | Naked_floats of { length : Targetint_31_63.Imm.t option }
-    | Float_array_opt_dynamic
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -172,23 +170,16 @@ module Duplicate_array_kind = struct
           @[<hov 1>(length@ %a)@]\
           )@]"
         (Misc.Stdlib.Option.print Targetint_31_63.Imm.print) length
-    | Float_array_opt_dynamic ->
-      Format.pp_print_string ppf "Float_array_opt_dynamic"
 
   let compare t1 t2 =
     match t1, t2 with
-    | Immediates, Immediates
-    | Values, Values
-    | Float_array_opt_dynamic, Float_array_opt_dynamic ->
-      0
+    | Immediates, Immediates | Values, Values -> 0
     | Naked_floats { length = length1 }, Naked_floats { length = length2 } ->
       Option.compare Targetint_31_63.Imm.compare length1 length2
     | Immediates, _ -> -1
     | _, Immediates -> 1
     | Values, _ -> -1
     | _, Values -> 1
-    | Naked_floats _, _ -> -1
-    | _, Naked_floats _ -> 1
 end
 
 module Block_access_field_kind = struct
@@ -299,14 +290,7 @@ let reading_from_a_block mutable_or_immutable =
 let reading_from_an_array (array_kind : Array_kind.t)
     (mutable_or_immutable : Mutability.t) =
   let effects : Effects.t =
-    match array_kind with
-    | Immediates | Values | Naked_floats -> No_effects
-    | Float_array_opt_dynamic ->
-      (* See [To_cmm_helpers.array_load] and [Cmm_helpers.float_array_ref]. If
-         the array (dynamically) has tag [Double_array_tag], then the read will
-         allocate. [Immutable] here means that the returned float itself is
-         immutable. *)
-      Only_generative_effects Immutable
+    match array_kind with Immediates | Values | Naked_floats -> No_effects
   in
   let coeffects =
     match mutable_or_immutable with
@@ -623,7 +607,7 @@ type unary_primitive =
       }
   | Is_int
   | Get_tag
-  | Array_length of Array_kind.t
+  | Array_length
   | Bigarray_length of { dimension : int }
   | String_length of string_or_bytes
   | Int_as_pointer
@@ -646,6 +630,8 @@ type unary_primitive =
       { project_from : Closure_id.t;
         var : Var_within_closure.t
       }
+  | Is_boxed_float
+  | Is_flat_float_array
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -664,7 +650,7 @@ let unary_primitive_eligible_for_cse p ~arg =
     true
   | Duplicate_array _ | Duplicate_block _ -> false
   | Is_int | Get_tag -> true
-  | Array_length _ -> true
+  | Array_length -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
   | Int_as_pointer -> true
@@ -679,6 +665,7 @@ let unary_primitive_eligible_for_cse p ~arg =
        them. *)
     Simple.is_var arg
   | Select_closure _ | Project_var _ -> false
+  | Is_boxed_float | Is_flat_float_array -> true
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -687,7 +674,7 @@ let compare_unary_primitive p1 p2 =
     | Duplicate_block _ -> 1
     | Is_int -> 2
     | Get_tag -> 3
-    | Array_length _ -> 4
+    | Array_length -> 4
     | Bigarray_length _ -> 5
     | String_length _ -> 6
     | Int_as_pointer -> 7
@@ -701,6 +688,8 @@ let compare_unary_primitive p1 p2 =
     | Box_number _ -> 15
     | Select_closure _ -> 16
     | Project_var _ -> 17
+    | Is_boxed_float -> 18
+    | Is_flat_float_array -> 19
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -749,7 +738,7 @@ let compare_unary_primitive p1 p2 =
     let c = K.Standard_int_or_float.compare src1 src2 in
     if c <> 0 then c else K.Standard_int_or_float.compare dst1 dst2
   | Float_arith op1, Float_arith op2 -> Stdlib.compare op1 op2
-  | Array_length kind1, Array_length kind2 -> Stdlib.compare kind1 kind2
+  | Array_length, Array_length -> 0
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
     ->
     Stdlib.compare dim1 dim2
@@ -769,8 +758,9 @@ let compare_unary_primitive p1 p2 =
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
-      | Array_length _ | Bigarray_length _ | Unbox_number _ | Box_number _
-      | Select_closure _ | Project_var _ ),
+      | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
+      | Select_closure _ | Project_var _ | Is_boxed_float | Is_flat_float_array
+        ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -800,8 +790,7 @@ let print_unary_primitive ppf p =
   | Boolean_not -> fprintf ppf "Boolean_not"
   | Reinterpret_int64_as_float -> fprintf ppf "Reinterpret_int64_as_float"
   | Float_arith o -> print_unary_float_arith_op ppf o
-  | Array_length kind ->
-    fprintf ppf "@[<hov 1>(Array_length@ %a)@]" Array_kind.print kind
+  | Array_length -> fprintf ppf "Array_length"
   | Bigarray_length { dimension } ->
     fprintf ppf "Bigarray_length %a" print_num_dimensions dimension
   | Unbox_number Untagged_immediate -> fprintf ppf "Untag_imm"
@@ -818,6 +807,8 @@ let print_unary_primitive ppf p =
     Format.fprintf ppf "@[(Project_var@ (%a@ %a@<0>%s))@]" Closure_id.print
       project_from Var_within_closure.print var_within_closure
       (Flambda_colours.prim_destructive ())
+  | Is_boxed_float -> fprintf ppf "Is_boxed_float"
+  | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -832,10 +823,11 @@ let arg_kind_of_unary_primitive p =
   | Boolean_not -> K.value
   | Reinterpret_int64_as_float -> K.naked_int64
   | Float_arith _ -> K.naked_float
-  | Array_length _ | Bigarray_length _ -> K.value
+  | Array_length | Bigarray_length _ -> K.value
   | Unbox_number _ -> K.value
   | Box_number kind -> K.Boxable_number.to_kind kind
-  | Select_closure _ | Project_var _ -> K.value
+  | Select_closure _ | Project_var _ | Is_boxed_float | Is_flat_float_array ->
+    K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -852,11 +844,11 @@ let result_kind_of_unary_primitive p : result_kind =
   | Boolean_not -> Singleton K.value
   | Reinterpret_int64_as_float -> Singleton K.naked_float
   | Float_arith _ -> Singleton K.naked_float
-  | Array_length _ -> Singleton K.value
+  | Array_length -> Singleton K.value
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.to_kind kind)
-  | Box_number _ | Select_closure _ -> Singleton K.value
-  | Project_var _ -> Singleton K.value
+  | Box_number _ | Select_closure _ | Project_var _ -> Singleton K.value
+  | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
 
 let effects_and_coeffects_of_unary_primitive p =
   match p with
@@ -895,7 +887,7 @@ let effects_and_coeffects_of_unary_primitive p =
     Effects.No_effects, Coeffects.No_coeffects
   (* Since Obj.truncate has been deprecated, array_length should have no
      observable effect *)
-  | Array_length _ -> Effects.No_effects, Coeffects.No_coeffects
+  | Array_length -> Effects.No_effects, Coeffects.No_coeffects
   | Bigarray_length { dimension = _ } ->
     (* This is pretty much a direct access to a field of the bigarray, different
        from reading one of the values actually stored inside the array, hence
@@ -908,6 +900,9 @@ let effects_and_coeffects_of_unary_primitive p =
     Effects.Only_generative_effects Immutable, Coeffects.No_coeffects
   | Select_closure _ | Project_var _ ->
     Effects.No_effects, Coeffects.No_coeffects
+  | Is_boxed_float | Is_flat_float_array ->
+    (* Tags on heap blocks are immutable. *)
+    Effects.No_effects, Coeffects.No_coeffects
 
 let unary_classify_for_printing p =
   match p with
@@ -916,9 +911,10 @@ let unary_classify_for_printing p =
   | Is_int | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
-  | Array_length _ | Bigarray_length _ | Unbox_number _ -> Destructive
+  | Array_length | Bigarray_length _ | Unbox_number _ -> Destructive
   | Box_number _ -> Constructive
   | Select_closure _ | Project_var _ -> Destructive
+  | Is_boxed_float | Is_flat_float_array -> Neither
 
 type binary_int_arith_op =
   | Add
@@ -1301,8 +1297,10 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
     if List.length args >= 1
     then Effects.Only_generative_effects mut, Coeffects.No_coeffects
     else
-      (* zero-sized blocks and arrays are preallocated ("atoms"). *)
-      Effects.No_effects, Coeffects.No_coeffects
+      (* Zero-sized blocks and arrays are immutable and statically allocated,
+         However, we currently only lift primitives that have *exactly*
+         generative effects. *)
+      Effects.Only_generative_effects Immutable, Coeffects.No_coeffects
 
 let variadic_classify_for_printing p =
   match p with Make_block _ | Make_array _ -> Constructive

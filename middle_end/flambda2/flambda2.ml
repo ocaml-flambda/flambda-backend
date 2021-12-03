@@ -146,6 +146,16 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
 let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     ~module_block_size_in_words ~module_initializer =
   Misc.Color.setup (Flambda_features.colour ());
+  (* When the float array optimisation is enabled, the length of an array needs
+     to be computed differently according to the array kind, in the case where
+     the width of a float is not equal to the machine word width (at present,
+     this happens only on 32-bit targets). *)
+  if Cmm_helpers.wordsize_shift <> Cmm_helpers.numfloat_shift
+     && Flambda_features.flat_float_array ()
+  then
+    Misc.fatal_error
+      "Cannot compile on targets where floats are not word-width when the \
+       float array optimisation is enabled";
   let run () =
     let raw_flambda, code =
       Profile.record_call "lambda_to_flambda" (fun () ->

@@ -38,3 +38,9 @@ val meet_shape :
   result_var:Bound_var.t ->
   result_kind:Flambda_kind.t ->
   Typing_env_extension.t Or_bottom.t
+
+val meet_env_extension :
+  Typing_env.Meet_env.t ->
+  Typing_env_extension.t ->
+  Typing_env_extension.t ->
+  Typing_env_extension.t Or_bottom.t

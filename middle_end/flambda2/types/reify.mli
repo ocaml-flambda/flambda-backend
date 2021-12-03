@@ -36,6 +36,7 @@ type to_lift =
   | Boxed_int32 of Numeric_types.Int32.t
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
+  | Empty_array
 
 type reification_result = private
   | Lift of to_lift (* CR mshinwell: rename? *)

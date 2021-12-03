@@ -412,7 +412,7 @@ let unary_primitive env dbg f arg =
         "caml_obj_dup" typ_val [arg] )
   | Is_int -> None, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, C.get_tag arg dbg
-  | Array_length array_kind -> None, C.array_length ~dbg array_kind arg
+  | Array_length -> None, C.array_length ~dbg arg
   | Bigarray_length { dimension } ->
     ( None,
       C.load ~dbg Cmm.Word_int Asttypes.Mutable
@@ -454,6 +454,19 @@ let unary_primitive env dbg f arg =
          environment, then [Env.closure_offset] might return [None], even though
          the set of closures has been seen by [To_cmm_closure]. *)
       None, C.unreachable)
+  | Is_boxed_float ->
+    (* As a note, this omits the [Is_in_value_area] check that exists in
+       [caml_make_array], which is used by non-Flambda 2 compilers. This seems
+       reasonable given known existing use cases of naked pointers and the fact
+       that they will be forbidden entirely in OCaml 5. *)
+    ( None,
+      C.ite
+        (C.and_int arg (C.int 1 ~dbg) dbg)
+        ~dbg ~then_:(C.int 0 ~dbg) ~then_dbg:dbg
+        ~else_:(C.eq (C.get_tag arg dbg) (C.int Obj.double_tag ~dbg) ~dbg)
+        ~else_dbg:dbg )
+  | Is_flat_float_array ->
+    None, Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg)
 
 let binary_primitive env dbg f x y =
   match (f : Flambda_primitive.binary_primitive) with

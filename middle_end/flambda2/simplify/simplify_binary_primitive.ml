@@ -1079,6 +1079,32 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     | Fabricated -> Misc.fatal_error "Fabricated kind not expected here"
     | Rec_info -> Misc.fatal_error "Rec_info kind not expected here"
 
+let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
+    ~original_term:_ dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+  let result_var' = Bound_var.var result_var in
+  let result_kind =
+    P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+  in
+  let array_kind =
+    Simplify_common.specialise_array_kind dacc array_kind ~array_ty
+  in
+  (* CR-someday mshinwell: should do a meet on the new value too *)
+  match array_kind with
+  | Bottom ->
+    let ty = T.bottom result_kind in
+    let env_extension = TEE.one_equation (Name.var result_var') ty in
+    Simplified_named.invalid (), env_extension, dacc
+  | Ok array_kind ->
+    let result_kind' =
+      P.Array_kind.element_kind array_kind |> K.With_subkind.kind
+    in
+    assert (K.equal result_kind result_kind');
+    let prim : P.t = Binary (Array_load (array_kind, mutability), arg1, arg2) in
+    let named = Named.create_prim prim dbg in
+    let ty = T.unknown (P.result_kind' prim) in
+    let env_extension = TEE.one_equation (Name.var result_var') ty in
+    Simplified_named.reachable named, env_extension, dacc
+
 let simplify_binary_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg1_ty
     ~arg2 ~arg2_ty dbg ~result_var =
   let result_var' = Bound_var.var result_var in
@@ -1089,6 +1115,8 @@ let simplify_binary_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg1_ty
     match prim with
     | Block_load (access_kind, Immutable) ->
       simplify_immutable_block_load access_kind ~min_name_mode
+    | Array_load (array_kind, mutability) ->
+      simplify_array_load array_kind mutability
     | Int_arith (kind, op) -> begin
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op
@@ -1125,8 +1153,7 @@ let simplify_binary_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg1_ty
     | Float_arith op -> Binary_float_arith.simplify op
     | Float_comp op -> Binary_float_comp.simplify op
     | Phys_equal (kind, op) -> simplify_phys_equal op kind
-    | Block_load _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
-      ->
+    | Block_load _ | String_or_bigstring_load _ | Bigarray_load _ ->
       fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
           ~result_var:_ ->
         let prim : P.t = Binary (prim, arg1, arg2) in

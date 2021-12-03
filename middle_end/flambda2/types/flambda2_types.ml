@@ -35,7 +35,12 @@ module Typing_env = struct
   module Alias_set = Aliases.Alias_set
 end
 
-module Typing_env_extension = Typing_env_extension
+module Typing_env_extension = struct
+  include Typing_env_extension
+
+  let meet env t1 t2 =
+    Meet_and_join.meet_env_extension (Typing_env.Meet_env.create env) t1 t2
+end
 
 type typing_env = Typing_env.t
 

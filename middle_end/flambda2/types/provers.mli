@@ -99,6 +99,9 @@ val prove_is_a_boxed_int64 :
 val prove_is_a_boxed_nativeint :
   Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
 
+val prove_is_or_is_not_a_boxed_float :
+  Typing_env.t -> Type_grammar.t -> bool proof_allowing_kind_mismatch
+
 val prove_boxed_floats :
   Typing_env.t ->
   Type_grammar.t ->
@@ -125,6 +128,13 @@ val prove_unique_tag_and_size :
   (Tag.t * Targetint_31_63.Imm.t) proof_allowing_kind_mismatch
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof
+
+(** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
+val prove_is_array_with_element_kind :
+  Typing_env.t ->
+  Type_grammar.t ->
+  element_kind:Flambda_kind.With_subkind.t ->
+  bool proof
 
 (* CR mshinwell: Fix comment and/or function name *)
 

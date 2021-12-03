@@ -109,7 +109,6 @@ type token =
   | KWD_EXN
   | KWD_ERROR
   | KWD_END
-  | KWD_DYNAMIC
   | KWD_DO_NOT_INLINE
   | KWD_DONE
   | KWD_DIRECT
