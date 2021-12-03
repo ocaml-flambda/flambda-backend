@@ -290,6 +290,41 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
         dbg
       }
 
+let[@inline always] match_on_array_kind ~array array_kind f : H.expr_primitive =
+  match C.convert_array_kind array_kind with
+  | Array_kind ((Immediates | Values) as array_kind) -> f array_kind
+  | Array_kind Naked_floats -> f P.Array_kind.Naked_floats
+  | Float_array_opt_dynamic ->
+    If_then_else
+      ( Unary (Is_flat_float_array, array),
+        f P.Array_kind.Naked_floats,
+        f P.Array_kind.Values )
+
+let array_load_unsafe ~array ~index (array_kind : P.Array_kind.t) :
+    H.expr_primitive =
+  match array_kind with
+  | Immediates | Values ->
+    Binary (Array_load (array_kind, Mutable), array, index)
+  | Naked_floats ->
+    box_float (Binary (Array_load (Naked_floats, Mutable), array, index))
+
+let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t) :
+    H.expr_primitive =
+  match array_kind with
+  | Immediates | Values ->
+    Ternary (Array_set (array_kind, Assignment), array, index, new_value)
+  | Naked_floats ->
+    Ternary
+      (Array_set (Naked_floats, Assignment), array, index, unbox_float new_value)
+
+let check_array_access ~array ~index primitive dbg : H.expr_primitive =
+  Checked
+    { primitive;
+      validity_conditions = array_access_validity_condition array index;
+      failure = Index_out_of_bounds;
+      dbg
+    }
+
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     (dbg : Debuginfo.t) : H.expr_primitive =
   let args = List.map (fun arg : H.simple_or_prim -> Simple arg) args in
@@ -877,90 +912,24 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         failure = Division_by_zero;
         dbg
       }
-  | Parrayrefu array_kind, [array; index] -> (
-    match C.convert_array_kind array_kind with
-    | Array_kind ((Immediates | Values) as array_kind) ->
-      Binary (Array_load (array_kind, Mutable), array, index)
-    | Array_kind Naked_floats ->
-      box_float (Binary (Array_load (Naked_floats, Mutable), array, index))
-    | Float_array_opt_dynamic ->
-      If_then_else
-        ( Unary (Is_flat_float_array, array),
-          box_float (Binary (Array_load (Naked_floats, Mutable), array, index)),
-          Binary (Array_load (Values, Mutable), array, index) ))
-  | Parrayrefs array_kind, [array; index] -> (
-    let[@inline always] build_term (array_kind : P.Array_kind.t) :
-        H.expr_primitive =
-      let primitive : H.expr_primitive =
-        Binary (Array_load (array_kind, Mutable), array, index)
-      in
-      let primitive =
-        match array_kind with
-        | Immediates | Values -> primitive
-        | Naked_floats -> box_float primitive
-      in
-      Checked
-        { primitive;
-          validity_conditions = array_access_validity_condition array index;
-          failure = Index_out_of_bounds;
-          dbg
-        }
-    in
-    match C.convert_array_kind array_kind with
-    | Array_kind array_kind -> build_term array_kind
-    | Float_array_opt_dynamic ->
-      If_then_else
-        ( Unary (Is_flat_float_array, array),
-          build_term Naked_floats,
-          build_term Values ))
-  | Parraysetu array_kind, [array; index; new_value] -> (
-    match C.convert_array_kind array_kind with
-    | Array_kind ((Immediates | Values) as array_kind) ->
-      Ternary (Array_set (array_kind, Assignment), array, index, new_value)
-    | Array_kind Naked_floats ->
-      Ternary
-        ( Array_set (Naked_floats, Assignment),
-          array,
-          index,
-          unbox_float new_value )
-    | Float_array_opt_dynamic ->
-      If_then_else
-        ( Unary (Is_flat_float_array, array),
-          Ternary
-            ( Array_set (Naked_floats, Assignment),
-              array,
-              index,
-              unbox_float new_value ),
-          Ternary (Array_set (Values, Assignment), array, index, new_value) ))
-  | Parraysets array_kind, [array; index; new_value] -> (
-    (* For these cases (and the [Parrayrefs] ones above) we will end up relying
-       on the backend to CSE the two accesses to the array's header word in the
-       [Pgenarray] case. *)
-    let[@inline always] build_term (array_kind : P.Array_kind.t) :
-        H.expr_primitive =
-      let primitive : H.expr_primitive =
-        Ternary
-          ( Array_set (array_kind, Assignment),
-            array,
-            index,
-            match array_kind with
-            | Immediates | Values -> new_value
-            | Naked_floats -> unbox_float new_value )
-      in
-      Checked
-        { primitive;
-          validity_conditions = array_access_validity_condition array index;
-          failure = Index_out_of_bounds;
-          dbg
-        }
-    in
-    match C.convert_array_kind array_kind with
-    | Array_kind array_kind -> build_term array_kind
-    | Float_array_opt_dynamic ->
-      If_then_else
-        ( Unary (Is_flat_float_array, array),
-          build_term Naked_floats,
-          build_term Values ))
+  | Parrayrefu array_kind, [array; index] ->
+    (* For this and the following cases we will end up relying on the backend to
+       CSE the two accesses to the array's header word in the [Pgenarray]
+       case. *)
+    match_on_array_kind ~array array_kind (array_load_unsafe ~array ~index)
+  | Parrayrefs array_kind, [array; index] ->
+    match_on_array_kind ~array array_kind (fun array_kind ->
+        check_array_access ~array ~index
+          (array_load_unsafe ~array ~index array_kind)
+          dbg)
+  | Parraysetu array_kind, [array; index; new_value] ->
+    match_on_array_kind ~array array_kind
+      (array_set_unsafe ~array ~index ~new_value)
+  | Parraysets array_kind, [array; index; new_value] ->
+    match_on_array_kind ~array array_kind (fun array_kind ->
+        check_array_access ~array ~index
+          (array_set_unsafe ~array ~index ~new_value array_kind)
+          dbg)
   | Pbytessetu, [bytes; index; new_value] ->
     Ternary
       (Bytes_or_bigstring_set (Bytes, Eight), bytes, index, untag_int new_value)
