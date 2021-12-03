@@ -206,11 +206,9 @@ module Flambda2 = struct
 
   let oclassic_flags () =
     classic_mode := true;
-    cse_depth := 2;
-    join_points := false;
-    unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := true;
-    backend_cse_at_toplevel := false
+    backend_cse_at_toplevel := false;
+    Clflags.use_linscan := true
 
   let o2_flags () =
     cse_depth := 2;
