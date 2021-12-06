@@ -630,7 +630,10 @@ let prove_is_array_with_element_kind env t ~element_kind : _ proof =
   | Value Bottom -> Invalid
   | Value (Ok (Array { element_kind = Unknown; _ })) -> Unknown
   | Value (Ok (Array { element_kind = Known element_kind'; _ })) ->
-    Proved (K.With_subkind.equal element_kind' element_kind)
+    Proved
+      (K.equal
+         (K.With_subkind.kind element_kind')
+         (K.With_subkind.kind element_kind))
   | Value (Ok _)
   | Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
   | Naked_nativeint _ | Rec_info _ ->
