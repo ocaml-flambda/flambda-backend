@@ -21,9 +21,7 @@ open! Simplify_import
 let simplify_array_set (array_kind : P.Array_kind.t) init_or_assign dacc dbg
     ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ ~result_var =
   let result_var' = Bound_var.var result_var in
-  let result_kind =
-    P.Array_kind.element_kind array_kind |> K.With_subkind.kind
-  in
+  let elt_kind = P.Array_kind.element_kind array_kind |> K.With_subkind.kind in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
@@ -31,14 +29,14 @@ let simplify_array_set (array_kind : P.Array_kind.t) init_or_assign dacc dbg
   let args = [arg1; arg2; arg3] in
   match array_kind with
   | Bottom ->
-    let ty = T.bottom result_kind in
+    let ty = T.bottom K.value (* Unit *) in
     let env_extension = TEE.one_equation (Name.var result_var') ty in
     Simplified_named.invalid (), env_extension, args, dacc
   | Ok array_kind ->
-    let result_kind' =
+    let elt_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind
     in
-    assert (K.equal result_kind result_kind');
+    assert (K.equal elt_kind elt_kind');
     let prim : P.t =
       Ternary (Array_set (array_kind, init_or_assign), arg1, arg2, arg3)
     in
