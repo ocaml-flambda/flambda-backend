@@ -67,8 +67,10 @@ let load_symbol_approx loader symbol : Code_or_metadata.t Value_approximation.t
     let find_code code_id =
       match Exported_code.find loader.imported_code code_id with
       | Some code_or_meta -> code_or_meta
-      | _ -> assert false
-      (* CR now : is there a case where this could happen ? *)
+      | _ ->
+        Misc.fatal_errorf
+          "Failed to load informations for %a. Code id not found." Code_id.print
+          code_id
     in
     T.extract_symbol_approx typing_env symbol find_code
 
