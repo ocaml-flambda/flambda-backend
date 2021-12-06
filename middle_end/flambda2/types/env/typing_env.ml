@@ -1274,12 +1274,7 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, _code_opt) ->
-        let closure_id =
-          Closure_id.wrap
-            (Compilation_unit.get_current_exn ())
-            (Variable.create (Code_id.name code_id))
-        in
+      | Closure_approximation (code_id, closure_id, _code_opt) ->
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
