@@ -90,7 +90,8 @@ let unix = make_library_modifier
 let dynlink =
   make_library_modifier "dynlink"
     [compiler_subdir ["otherlibs"; "dynlink"];
-     compiler_subdir ["otherlibs"; "dynlink"; "native"]]
+     (* There is no such directory in the flambda backend.
+        compiler_subdir ["otherlibs"; "dynlink"; "native"] *)]
 
 let str = make_library_modifier
   "str" [compiler_subdir ["otherlibs"; "str"]]
