@@ -27,7 +27,7 @@ in
     let $camlTests0 = Block 0 (field_0) in
     cont done ($camlTests0)
 ===>
-let deleted f_0 in
+let code f_0 deleted in
 let code size(1) newer_version_of(f_0) f_0_1 (param : imm tagged) my_closure
                                          my_depth -> k * k1 : imm tagged =
   cont k (0)
