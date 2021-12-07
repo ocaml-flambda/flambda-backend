@@ -623,11 +623,37 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     (* Special case for liftable empty blocks *)
     begin
       match prim with
-      | Pmakeblock (tag, _, _) when tag <> 0 ->
-        (* There should not be any way to reach this from Ocaml code. *)
-        Misc.fatal_error
-          "Non-zero tag on empty block allocation in [Closure_conversion]"
-      | _ -> ()
+      | Pmakeblock (tag, _, _) ->
+        if tag <> 0
+        then
+          (* There should not be any way to reach this from Ocaml code. *)
+          Misc.fatal_error
+            "Non-zero tag on empty block allocation in [Closure_conversion]"
+      | Pmakefloatblock _
+      | Pmakearray (_, _)
+      | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply
+      | Pdirapply | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
+      | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
+      | Pduprecord _ | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint
+      | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
+      | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+      | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat | Pfloatofint | Pnegfloat | Pabsfloat | Paddfloat
+      | Psubfloat | Pmulfloat | Pdivfloat | Pfloatcomp _ | Pstringlength
+      | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
+      | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
+      | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint | Pisout
+      | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _ | Paddbint _
+      | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
+      | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+      | Pbintcomp _ | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _
+      | Pstring_load_16 _ | Pstring_load_32 _ | Pstring_load_64 _
+      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_set_16 _
+      | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbigstring_load_16 _
+      | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
+      | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
+      | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ ->
+        ()
     end;
     let acc, sym =
       register_const0 acc
