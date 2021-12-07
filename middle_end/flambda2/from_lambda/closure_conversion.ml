@@ -621,6 +621,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     Expr_with_acc.create_apply_cont acc apply_cont
   | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
     (* Special case for liftable empty blocks *)
+    begin
+      match prim with
+      | Pmakeblock (tag, _, _) when tag <> 0 ->
+        (* There should not be any way to reach this from Ocaml code. *)
+        Misc.fatal_error
+          "Non-zero tag on empty block allocation in [Closure_conversion]"
+      | _ -> ()
+    end;
     let acc, sym =
       register_const0 acc
         (Static_const.Block (Tag.Scannable.zero, Immutable, []))
