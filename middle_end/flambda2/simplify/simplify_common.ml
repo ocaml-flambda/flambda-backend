@@ -235,22 +235,22 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       T.prove_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.naked_float
     with
-    | Proved true | Unknown -> Ok array_kind
-    | Proved false | Invalid -> Bottom)
+    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
+    | Proved Incompatible | Invalid -> Bottom)
   | Immediates -> (
     match
       T.prove_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.tagged_immediate
     with
-    | Proved true | Unknown -> Ok array_kind
-    | Proved false | Invalid -> Bottom)
+    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
+    | Proved Incompatible | Invalid -> Bottom)
   | Values -> (
     match
       T.prove_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.tagged_immediate
     with
-    | Proved true ->
+    | Proved Exact ->
       (* Specialise the array operation to [Immediates]. *)
       Ok P.Array_kind.Immediates
-    | Proved false | Unknown -> Ok array_kind
-    | Invalid -> Bottom)
+    | Proved Compatible | Unknown -> Ok array_kind
+    | Proved Incompatible | Invalid -> Bottom)

@@ -481,7 +481,13 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     T.prove_is_array_with_element_kind (DA.typing_env dacc) arg_ty
       ~element_kind:K.With_subkind.naked_float
   with
-  | Proved is_flat_float_array ->
+  | Proved ((Exact | Incompatible) as compat) ->
+    let is_flat_float_array =
+      match compat with
+      | Exact -> true
+      | Incompatible -> false
+      | Compatible -> assert false
+    in
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
     let env_extension = TEE.one_equation result ty in
@@ -490,7 +496,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
            (Simple.const (Reg_width_const.naked_immediate imm))),
       env_extension,
       dacc )
-  | Unknown ->
+  | Proved Compatible | Unknown ->
     let ty = T.unknown K.naked_immediate in
     let env_extension = TEE.one_equation result ty in
     Simplified_named.reachable original_term, env_extension, dacc
