@@ -186,8 +186,7 @@ module Inlining = struct
   include Closure_conversion_aux.Inlining
 
   (* CR keryan: we need to emit warnings *)
-  let inlinable env apply =
-    let callee = Apply_expr.callee apply in
+  let inlinable env apply callee_approx =
     let tracker = Env.inlining_history_tracker env in
     let are_rebuilding_terms = Are_rebuilding_terms.of_bool true in
     let compilation_unit =
@@ -195,19 +194,19 @@ module Inlining = struct
       |> Inlining_history.Tracker.absolute
       |> Inlining_history.Absolute.compilation_unit
     in
-    match Env.find_value_approximation env callee with
-    | Value_unknown ->
+    match (callee_approx : Env.value_approximation option) with
+    | None | Some Value_unknown ->
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Block_approximation _ -> assert false
-    | Closure_approximation (_code_id, _, Metadata_only _) ->
+    | Some (Block_approximation _) -> assert false
+    | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
         ~callee:(Inlining_history.Absolute.empty compilation_unit)
         ~are_rebuilding_terms Definition_says_not_to_inline;
       Not_inlinable
-    | Closure_approximation (_code_id, _, Code_present code) ->
+    | Some (Closure_approximation (_code_id, _, Code_present code)) ->
       let fun_params_length =
         Code.params_arity code |> Flambda_arity.With_subkinds.to_arity
         |> Flambda_arity.length
@@ -829,12 +828,36 @@ let close_exact_or_unknown_apply acc env
        mode;
        region_close = _
      } :
-      IR.apply) arity : Acc.t * Expr_with_acc.t =
-  let known_arity = Option.is_some arity in
+      IR.apply) callee_approx : Acc.t * Expr_with_acc.t =
+  let callee = find_simple_from_id env func in
   let mode = LC.alloc_mode mode in
   let acc, call_kind =
     match kind with
-    | Function -> acc, Call_kind.indirect_function_call_unknown_arity mode
+    | Function -> (
+      ( acc,
+        match (callee_approx : Env.value_approximation option) with
+        | Some (Closure_approximation (code_id, closure_id, code_or_meta)) ->
+          let param_arity, return_arity, is_tupled, _closure_used =
+            let meta = Code_or_metadata.code_metadata code_or_meta in
+            Code_metadata.(
+              ( params_arity meta,
+                result_arity meta,
+                is_tupled meta,
+                is_my_closure_used meta ))
+          in
+          if is_tupled
+          then
+            let param_arity =
+              Flambda_arity.With_subkinds.create
+                [Flambda_kind.With_subkind.block Tag.zero param_arity]
+            in
+            Call_kind.indirect_function_call_known_arity ~param_arity
+              ~return_arity mode
+          else
+            Call_kind.direct_function_call code_id closure_id ~return_arity mode
+        | None -> Call_kind.indirect_function_call_unknown_arity mode
+        | _ -> assert false
+        (* See [close_apply] *) ))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
       acc, Call_kind.method_call (LC.method_kind kind) ~obj mode
@@ -842,7 +865,6 @@ let close_exact_or_unknown_apply acc env
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
   in
-  let callee = find_simple_from_id env func in
   let acc, args = find_simples acc env args in
   let inlined_call = LC.inlined_attribute inlined in
   let probe_name =
@@ -856,9 +878,9 @@ let close_exact_or_unknown_apply acc env
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe_name ~relative_history:(Env.relative_history env)
   in
-  if Flambda_features.classic_mode () && known_arity
+  if Flambda_features.classic_mode ()
   then
-    match Inlining.inlinable env apply with
+    match Inlining.inlinable env apply callee_approx with
     | Not_inlinable -> Expr_with_acc.create_apply acc apply
     | Inlinable func_desc ->
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
@@ -1494,8 +1516,8 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
   in
   match code_info with
   | None -> close_exact_or_unknown_apply acc env apply None
-  | Some (arity, true, _, _, _) ->
-    close_exact_or_unknown_apply acc env apply (Some arity)
+  | Some (_arity, true, _, _, _) ->
+    close_exact_or_unknown_apply acc env apply (Some approx)
   | Some
       ( arity,
         false,
@@ -1518,7 +1540,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
       | [] ->
         close_exact_or_unknown_apply acc env
           { apply with args; continuation = apply_continuation }
-          (Some arity)
+          (Some approx)
       | _ ->
         (* In case of partial application, creates a wrapping function from
            scratch to allow inlining and lifting *)
@@ -1551,7 +1573,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
               continuation = return_continuation;
               exn_continuation
             }
-            (Some arity)
+            (Some approx)
         in
         let attr =
           Lambda.
