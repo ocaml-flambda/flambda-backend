@@ -251,22 +251,22 @@ let terminator_of_test :
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-let make_instruction :
-    type a. State.t -> desc:a -> trap_depth:int -> a Cfg.instruction =
- fun state ~desc ~trap_depth ->
+let invalid_trap_depth = -1
+
+let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
+ fun state ~desc ->
   let arg = [||] in
   let res = [||] in
   let dbg = Debuginfo.none in
-  let fdo = Fdo_info.none in
   let live = Reg.Set.empty in
+  let trap_depth = invalid_trap_depth in
   let id = State.get_next_instruction_id state in
+  let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
 
 let copy_instruction :
-    type a.
-    State.t -> Mach.instruction -> desc:a -> trap_depth:int -> a Cfg.instruction
-    =
- fun state instr ~desc ~trap_depth ->
+    type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
+ fun state instr ~desc ->
   let { Mach.arg;
         res;
         dbg;
@@ -278,15 +278,14 @@ let copy_instruction :
       } =
     instr
   in
+  let trap_depth = invalid_trap_depth in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
 
 let copy_instruction_no_reg :
-    type a.
-    State.t -> Mach.instruction -> desc:a -> trap_depth:int -> a Cfg.instruction
-    =
- fun state instr ~desc ~trap_depth ->
+    type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
+ fun state instr ~desc ->
   let { Mach.arg = _;
         res = _;
         dbg;
@@ -300,6 +299,7 @@ let copy_instruction_no_reg :
   in
   let arg = [||] in
   let res = [||] in
+  let trap_depth = invalid_trap_depth in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
@@ -374,15 +374,13 @@ type block_info =
     can_raise : bool
   }
 
-(* [extract_block_info state first ~trap_depth] returns a [block_info]
-   containing all the instructions starting from [first] until some kind of
-   control flow is encountered or the end of the block is reached (i.e. [Iend]).
-   If the returned terminator is [None], it is guaranteed that the [last]
-   instruction is not an [Iop] (as it would either be part of [instrs] or be a
-   terminator). *)
-let extract_block_info :
-    State.t -> Mach.instruction -> trap_depth:int -> block_info =
- fun state first ~trap_depth ->
+(* [extract_block_info state first] returns a [block_info] containing all the
+   instructions starting from [first] until some kind of control flow is
+   encountered or the end of the block is reached (i.e. [Iend]). If the returned
+   terminator is [None], it is guaranteed that the [last] instruction is not an
+   [Iop] (as it would either be part of [instrs] or be a terminator). *)
+let extract_block_info : State.t -> Mach.instruction -> block_info =
+ fun state first ->
   let rec loop (instr : Mach.instruction) acc =
     let return terminator can_raise =
       let instrs = List.rev acc in
@@ -393,13 +391,13 @@ let extract_block_info :
     | Iop op -> begin
       match basic_or_terminator_of_operation state op with
       | Basic desc ->
-        let instr' = copy_instruction state instr ~desc ~trap_depth in
+        let instr' = copy_instruction state instr ~desc in
         if is_noop_move instr'
         then loop instr.next acc
         else loop instr.next (instr' :: acc)
       | Terminator terminator ->
         return
-          (Some (copy_instruction state instr ~desc:terminator ~trap_depth))
+          (Some (copy_instruction state instr ~desc:terminator))
           (Cfg.can_raise_terminator terminator)
     end
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
@@ -413,67 +411,44 @@ let extract_block_info :
    return. *)
 let fallthrough_label : Label.t = -1
 
-(* [add_blocks instr state ~starts_with_pushtrap ~start ~exns ~trap_depth ~next]
-   adds the block beginning at [instr] with label [start], and all
-   recursively-reachable blocks to [state]. [next] is the label of the block to
-   be executed after the one beginning at [instr]. [starts_with_pushtrap]
-   indicates whether the block should be prefixed with a pushtrap instruction
-   (to the passed label), while [exns] is the set of exception successors, and
-   [trap_depth] the trap depth of the body of the block. *)
+(* [add_blocks instr state ~starts_with_pushtrap ~start ~next] adds the block
+   beginning at [instr] with label [start], and all recursively-reachable blocks
+   to [state]. [next] is the label of the block to be executed after the one
+   beginning at [instr]. [starts_with_pushtrap] indicates whether the block
+   should be prefixed with a pushtrap instruction (to the passed label). *)
 let rec add_blocks :
     Mach.instruction ->
     State.t ->
     starts_with_pushtrap:Label.t option ->
     start:Label.t ->
-    exns:Label.Set.t ->
-    trap_depth:int ->
     next:Label.t ->
     unit =
- fun instr state ~starts_with_pushtrap ~start ~exns ~trap_depth ~next ->
+ fun instr state ~starts_with_pushtrap ~start ~next ->
   let { instrs; last; terminator; can_raise } =
-    extract_block_info state instr ~trap_depth
+    extract_block_info state instr
   in
-  let terminate_block ~trap_actions term =
+  let terminate_block ~trap_actions terminator =
     let body = instrs in
     let body =
       match starts_with_pushtrap with
       | None -> body
       | Some lbl_handler ->
-        (* note: trap_depth is already incremented, the value is correct for the
-           rest of the block, but not for the pushtrap instruction itself *)
-        make_instruction state
-          ~desc:(Cfg.Pushtrap { lbl_handler })
-          ~trap_depth:(trap_depth - 1)
-        :: body
+        make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler }) :: body
     in
-    let body_suffix, instr_trap_depth =
-      List.fold_left
-        (fun (body_suffix, instr_trap_depth) -> function
-          | Cmm.Push handler_id ->
-            let lbl_handler = State.get_catch_handler state ~handler_id in
-            let instr =
-              make_instruction state
-                ~desc:(Cfg.Pushtrap { lbl_handler })
-                ~trap_depth:instr_trap_depth
-            in
-            instr :: body_suffix, succ instr_trap_depth
-          | Cmm.Pop ->
-            let instr =
-              make_instruction state ~desc:Cfg.Poptrap
-                ~trap_depth:instr_trap_depth
-            in
-            instr :: body_suffix, pred instr_trap_depth)
-        ([], trap_depth) trap_actions
-    in
-    let body = body @ List.rev body_suffix in
     let body =
-      match term.Cfg.desc with
+      body
+      @ List.map
+          (function
+            | Cmm.Push lbl_handler ->
+              make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
+            | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap)
+          trap_actions
+    in
+    let body =
+      match terminator.Cfg.desc with
       | Cfg.Return ->
         if State.get_contains_calls state
-        then
-          body
-          @ [ make_instruction state ~desc:Cfg.Reloadretaddr
-                ~trap_depth:instr_trap_depth ]
+        then body @ [make_instruction state ~desc:Cfg.Reloadretaddr]
         else body
       | Cfg.Never | Cfg.Always _ | Cfg.Parity_test _ | Cfg.Truth_test _
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
@@ -484,17 +459,15 @@ let rec add_blocks :
       ~block:
         { start;
           body;
-          terminator = { term with trap_depth = instr_trap_depth };
-          predecessors = Label.Set.empty;
+          terminator;
           (* See [Cfg.register_predecessors_for_all_blocks] *)
-          trap_depth =
-            (if Option.is_none starts_with_pushtrap
-            then trap_depth
-            else trap_depth - 1);
-          exns = (if can_raise then exns else Label.Set.empty);
+          predecessors = Label.Set.empty;
+          (* See [Trap_depth_and_exns.update_cfg] *)
+          trap_depth = invalid_trap_depth;
+          exns = Label.Set.empty;
           can_raise;
-          is_trap_handler = false;
           (* See [update_trap_handler_blocks] *)
+          is_trap_handler = false;
           dead = false
         }
   in
@@ -506,8 +479,7 @@ let rec add_blocks :
     | Itrywith _ | Iraise _ ->
       let start = Cmm.new_label () in
       let add_next_block () =
-        add_blocks last.next state ~starts_with_pushtrap:None ~start ~exns
-          ~trap_depth ~next
+        add_blocks last.next state ~starts_with_pushtrap:None ~start ~next
       in
       start, add_next_block
   in
@@ -521,40 +493,35 @@ let rec add_blocks :
       if Label.equal next fallthrough_label
       then
         terminate_block ~trap_actions:[]
-          (copy_instruction_no_reg state last ~desc:Cfg.Never ~trap_depth)
+          (copy_instruction_no_reg state last ~desc:Cfg.Never)
       else
         terminate_block
           ~trap_actions:
             (if State.is_iend_with_poptrap state last then [Cmm.Pop] else [])
-          (copy_instruction_no_reg state last ~desc:(Cfg.Always next)
-             ~trap_depth)
+          (copy_instruction_no_reg state last ~desc:(Cfg.Always next))
     | Ireturn trap_actions ->
       terminate_block ~trap_actions
-        (copy_instruction state last ~desc:Cfg.Return ~trap_depth)
+        (copy_instruction state last ~desc:Cfg.Return)
     | Iifthenelse (test, ifso, ifnot) ->
       let label_true = Cmm.new_label () in
       let label_false = Cmm.new_label () in
       terminate_block ~trap_actions:[]
         (copy_instruction state last
-           ~desc:(terminator_of_test test ~label_false ~label_true)
-           ~trap_depth);
+           ~desc:(terminator_of_test test ~label_false ~label_true));
       let next, add_next_block = prepare_next_block () in
-      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~exns
-        ~trap_depth ~next;
-      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~exns
-        ~trap_depth ~next;
+      add_blocks ifso state ~starts_with_pushtrap:None ~start:label_true ~next;
+      add_blocks ifnot state ~starts_with_pushtrap:None ~start:label_false ~next;
       add_next_block ()
     | Iswitch (indexes, cases) ->
       let case_labels = Array.map (fun _ -> Cmm.new_label ()) cases in
       terminate_block ~trap_actions:[]
         (copy_instruction state last
-           ~desc:(Cfg.Switch (Array.map (fun idx -> case_labels.(idx)) indexes))
-           ~trap_depth);
+           ~desc:(Cfg.Switch (Array.map (fun idx -> case_labels.(idx)) indexes)));
       let next, add_next_block = prepare_next_block () in
       Array.iteri
         (fun idx case ->
           add_blocks case state ~starts_with_pushtrap:None
-            ~start:case_labels.(idx) ~exns ~trap_depth ~next)
+            ~start:case_labels.(idx) ~next)
         cases;
       add_next_block ()
     | Icatch (_rec, _trap_stack, handlers, body) ->
@@ -568,44 +535,40 @@ let rec add_blocks :
       in
       let body_label = Cmm.new_label () in
       terminate_block ~trap_actions:[]
-        (copy_instruction_no_reg state last ~desc:(Cfg.Always body_label)
-           ~trap_depth);
+        (copy_instruction_no_reg state last ~desc:(Cfg.Always body_label));
       let next, add_next_block = prepare_next_block () in
-      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~exns
-        ~trap_depth ~next;
+      add_blocks body state ~starts_with_pushtrap:None ~start:body_label ~next;
       List.iter
         (fun (handler_label, handler) ->
           add_blocks handler state ~starts_with_pushtrap:None
-            ~start:handler_label ~exns ~trap_depth ~next)
+            ~start:handler_label ~next)
         handlers;
       add_next_block ()
     | Iexit (handler_id, trap_actions) ->
       let handler_label = State.get_catch_handler state ~handler_id in
       terminate_block ~trap_actions
-        (copy_instruction_no_reg state last ~desc:(Cfg.Always handler_label)
-           ~trap_depth)
-    | Itrywith (body, Regular, (_trap_stack, handler)) ->
+        (copy_instruction_no_reg state last ~desc:(Cfg.Always handler_label))
+    | Itrywith (body, kind, (_trap_stack, handler)) ->
       let label_body = Cmm.new_label () in
-      let label_handler = Cmm.new_label () in
+      let label_handler, starts_with_pushtrap =
+        match kind with
+        | Regular ->
+          let label = Cmm.new_label () in
+          label, Some label
+        | Delayed label -> label, None
+      in
       terminate_block ~trap_actions:[]
-        (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body)
-           ~trap_depth);
+        (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body));
       let next, add_next_block = prepare_next_block () in
       State.add_iend_with_poptrap state (get_end body);
       State.add_exception_handler state label_handler;
-      add_blocks body state ~starts_with_pushtrap:(Some label_handler)
-        ~start:label_body
-        ~exns:(Label.Set.singleton label_handler)
-        ~trap_depth:(succ trap_depth) ~next;
+      add_blocks body state ~starts_with_pushtrap ~start:label_body ~next;
       add_blocks handler state ~starts_with_pushtrap:None ~start:label_handler
-        ~exns ~trap_depth ~next;
+        ~next;
       add_next_block ()
-    | Itrywith (_, Delayed _, (_, _)) ->
-      Misc.fatal_error
-        "Cfgize.add_blocks: delayed handler are currently not supported"
     | Iraise raise_kind ->
       terminate_block ~trap_actions:[]
-        (copy_instruction state last ~desc:(Cfg.Raise raise_kind) ~trap_depth))
+        (copy_instruction state last ~desc:(Cfg.Raise raise_kind)))
 
 let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
  fun state cfg ->
@@ -619,6 +582,90 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
           label
       | Some block -> block.is_trap_handler <- true)
     (State.get_exception_handlers state)
+
+module Trap_depth_and_exns = struct
+  type handler_stack = Label.t list
+
+  type handler_table = handler_stack Label.Tbl.t
+
+  let record_handler :
+      type a.
+      handler_stack -> handler_table -> can_raise:(a -> bool) -> a -> unit =
+   fun stack table ~can_raise instr ->
+    if can_raise instr
+    then
+      match stack with
+      | [] -> ()
+      | handler_label :: handler_stack ->
+        Label.Tbl.replace table handler_label handler_stack
+
+  let terminator :
+      handler_table ->
+      handler_stack ->
+      Cfg.terminator Cfg.instruction ->
+      handler_stack =
+   fun table stack term ->
+    match term.desc with
+    | Never | Return
+    | Tailcall (Func _)
+    | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
+    | Float_test _ | Int_test _ | Switch _ ->
+      record_handler stack table ~can_raise:Cfg.can_raise_terminator term.desc;
+      stack
+    | Tailcall (Self _) ->
+      if List.length stack <> 0
+      then
+        Misc.fatal_error
+          "Cfgize.Trap_depth_and_exns.basic: unexpected handler on self \
+           tailcall";
+      stack
+
+  let basic :
+      handler_table ->
+      handler_stack ->
+      Cfg.basic Cfg.instruction ->
+      handler_stack =
+   fun table stack instr ->
+    match instr.desc with
+    | Pushtrap { lbl_handler } -> lbl_handler :: stack
+    | Poptrap -> begin
+      match stack with
+      | [] ->
+        Misc.fatal_error
+          "Cfgize.Trap_depth_and_exns.basic: trying to pop from an empty stack"
+      | _ :: stack -> stack
+    end
+    | Op _ | Call _ | Reloadretaddr | Prologue ->
+      record_handler stack table ~can_raise:can_raise_instr instr;
+      stack
+
+  let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
+   fun cfg label stack ->
+    let block = Cfg.get_block_exn cfg label in
+    if block.trap_depth = invalid_trap_depth
+    then begin
+      block.trap_depth <- succ (List.length stack);
+      let table = Label.Tbl.create 17 in
+      let stack =
+        terminator table
+          (ListLabels.fold_left block.body ~init:stack ~f:(basic table))
+          block.terminator
+      in
+      (* non-exceptional successors *)
+      Label.Set.iter
+        (fun successor_label -> update_block cfg successor_label stack)
+        (Cfg.successor_labels ~normal:true ~exn:false block);
+      (* exceptional successors *)
+      Label.Tbl.iter
+        (fun handler_label handler_stack ->
+          block.exns <- Label.Set.add handler_label block.exns;
+          update_block cfg handler_label handler_stack)
+        table
+    end
+
+  let update_cfg : Cfg.t -> unit =
+   fun cfg -> update_block cfg cfg.entry_label []
+end
 
 let fundecl :
     Mach.fundecl ->
@@ -636,7 +683,6 @@ let fundecl :
       } =
     fundecl
   in
-  let initial_trap_depth = 1 in
   let start_label = Cmm.new_label () in
   let tailrec_label = Cmm.new_label () in
   let fun_fast = not (List.mem Cmm.Reduce_code_size fun_codegen_options) in
@@ -661,22 +707,17 @@ let fundecl :
             | true ->
               let dbg = fun_body.dbg in
               let fdo = Fdo_info.none in
-              (* Note: the prologue must come after all `Iname_for_debugger1
+              (* Note: the prologue must come after all `Iname_for_debugger`
                  instructions (this is currently not a concern because we do not
                  support such instructions). *)
-              [ { (make_instruction state ~desc:Cfg.Prologue
-                     ~trap_depth:initial_trap_depth)
-                  with
-                  dbg;
-                  fdo
-                } ]
+              [{ (make_instruction state ~desc:Cfg.Prologue) with dbg; fdo }]
           end;
         terminator =
           copy_instruction_no_reg state fun_body
-            ~desc:(Cfg.Always tailrec_label) ~trap_depth:initial_trap_depth;
-        predecessors = Label.Set.empty;
+            ~desc:(Cfg.Always tailrec_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
-        trap_depth = initial_trap_depth;
+        predecessors = Label.Set.empty;
+        trap_depth = invalid_trap_depth;
         exns = Label.Set.empty;
         can_raise = false;
         is_trap_handler = false;
@@ -687,19 +728,22 @@ let fundecl :
       { start = tailrec_label;
         body = [];
         terminator =
-          copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label)
-            ~trap_depth:initial_trap_depth;
-        predecessors = Label.Set.empty;
+          copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
-        trap_depth = initial_trap_depth;
+        predecessors = Label.Set.empty;
+        trap_depth = invalid_trap_depth;
         exns = Label.Set.empty;
         can_raise = false;
         is_trap_handler = false;
         dead = false
       };
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
-    ~exns:Label.Set.empty ~trap_depth:initial_trap_depth ~next:fallthrough_label;
+    ~next:fallthrough_label;
   update_trap_handler_blocks state cfg;
+  (* note: `Trap_depth_and_exns.update_cfg` may add edges to the graph, and
+     should hence be executed before
+     `Cfg.register_predecessors_for_all_blocks`. *)
+  Trap_depth_and_exns.update_cfg cfg;
   Cfg.register_predecessors_for_all_blocks cfg;
   let cfg_with_layout =
     Cfg_with_layout.create cfg ~layout:(State.get_layout state)

@@ -34,7 +34,7 @@ type basic_block =
     mutable body : basic instruction list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
-    trap_depth : int;
+    mutable trap_depth : int;
     mutable exns : Label.Set.t;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
