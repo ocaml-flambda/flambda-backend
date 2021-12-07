@@ -619,6 +619,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     (* Since raising of an exception doesn't terminate, we don't call [k]. *)
     Expr_with_acc.create_apply_cont acc apply_cont
+  | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
+    (* Special case for liftable empty blocks *)
+    let acc, sym =
+      register_const0 acc
+        (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+        "empty_block"
+    in
+    k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
       ~big_endian:(Env.big_endian env)
