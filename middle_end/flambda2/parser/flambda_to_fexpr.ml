@@ -757,6 +757,8 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
           code_size;
           is_tupled
         }
+    | Code code_id, Deleted_code ->
+      Deleted_code (code_id |> Env.find_code_id_exn env)
     | _, _ ->
       Misc.fatal_errorf "Mismatched pattern and constant: %a vs. %a"
         Bound_symbols.Pattern.print pat Static_const_or_code.print const
