@@ -687,6 +687,9 @@ let close_let acc env id user_visible defining_expr
           | Closure_approximation _ ->
             if Flambda_features.check_invariants ()
             then
+              (* CR keryan: This is hidden behind invariants check because it
+                 can appear on correct code using Lazy or GADT. It might warrant
+                 a proper warning at some point. *)
               Misc.fatal_errorf
                 "Closure approximation found when block approximation was \
                  expected in [Closure_conversion]: %a"
