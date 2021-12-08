@@ -1516,11 +1516,9 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
   in
   match code_info with
   | None -> close_exact_or_unknown_apply acc env apply None
-  | Some (_arity, true, _, _, _) ->
-    close_exact_or_unknown_apply acc env apply (Some approx)
   | Some
       ( arity,
-        false,
+        is_tupled,
         num_trailing_local_params,
         contains_no_escaping_local_allocs,
         result_arity ) -> (
@@ -1532,6 +1530,13 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         | e1 :: l1, _ :: l2 ->
           let args, missing, remains = split l1 l2 in
           e1 :: args, missing, remains
+      in
+      let arity =
+        if is_tupled
+        then
+          Flambda_arity.With_subkinds.create
+            [Flambda_kind.With_subkind.block Tag.zero arity]
+        else arity
       in
       split apply.args arity
     in
