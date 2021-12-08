@@ -175,6 +175,7 @@ and array_kind =
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
   | Pblock of { tag : int; fields : value_kind list }
+  | Parrayval of array_kind
 
 and block_shape =
   value_kind list option
