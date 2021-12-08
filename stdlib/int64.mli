@@ -46,19 +46,19 @@ val one : int64
 val minus_one : int64
 (** The 64-bit integer -1. *)
 
-external neg : int64 -> int64 = "%int64_neg"
+external neg : (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_neg"
 (** Unary negation. *)
 
-external add : int64 -> int64 -> int64 = "%int64_add"
+external add : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_add"
 (** Addition. *)
 
-external sub : int64 -> int64 -> int64 = "%int64_sub"
+external sub : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_sub"
 (** Subtraction. *)
 
-external mul : int64 -> int64 -> int64 = "%int64_mul"
+external mul : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_mul"
 (** Multiplication. *)
 
-external div : int64 -> int64 -> int64 = "%int64_div"
+external div : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_div"
 (** Integer division.
    @raise Division_by_zero if the second
    argument is zero.  This division rounds the real quotient of
@@ -70,7 +70,7 @@ val unsigned_div : int64 -> int64 -> int64
 
     @since 4.08.0 *)
 
-external rem : int64 -> int64 -> int64 = "%int64_mod"
+external rem : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_mod"
 (** Integer remainder.  If [y] is not zero, the result
    of [Int64.rem x y] satisfies the following property:
    [x = Int64.add (Int64.mul (Int64.div x y) y) (Int64.rem x y)].
@@ -97,39 +97,39 @@ val max_int : int64
 val min_int : int64
 (** The smallest representable 64-bit integer, -2{^63}. *)
 
-external logand : int64 -> int64 -> int64 = "%int64_and"
+external logand : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_and"
 (** Bitwise logical and. *)
 
-external logor : int64 -> int64 -> int64 = "%int64_or"
+external logor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_or"
 (** Bitwise logical or. *)
 
-external logxor : int64 -> int64 -> int64 = "%int64_xor"
+external logxor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_xor"
 (** Bitwise logical exclusive or. *)
 
 val lognot : int64 -> int64
 (** Bitwise logical negation. *)
 
-external shift_left : int64 -> int -> int64 = "%int64_lsl"
+external shift_left : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_lsl"
 (** [Int64.shift_left x y] shifts [x] to the left by [y] bits.
    The result is unspecified if [y < 0] or [y >= 64]. *)
 
-external shift_right : int64 -> int -> int64 = "%int64_asr"
+external shift_right : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_asr"
 (** [Int64.shift_right x y] shifts [x] to the right by [y] bits.
    This is an arithmetic shift: the sign bit of [x] is replicated
    and inserted in the vacated bits.
    The result is unspecified if [y < 0] or [y >= 64]. *)
 
-external shift_right_logical : int64 -> int -> int64 = "%int64_lsr"
+external shift_right_logical : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_lsr"
 (** [Int64.shift_right_logical x y] shifts [x] to the right by [y] bits.
    This is a logical shift: zeroes are inserted in the vacated bits
    regardless of the sign of [x].
    The result is unspecified if [y < 0] or [y >= 64]. *)
 
-external of_int : int -> int64 = "%int64_of_int"
+external of_int : int -> (int64[@local_opt]) = "%int64_of_int"
 (** Convert the given integer (type [int]) to a 64-bit integer
     (type [int64]). *)
 
-external to_int : int64 -> int = "%int64_to_int"
+external to_int : (int64[@local_opt]) -> int = "%int64_to_int"
 (** Convert the given 64-bit integer (type [int64]) to an
    integer (type [int]).  On 64-bit platforms, the 64-bit integer
    is taken modulo 2{^63}, i.e. the high-order bit is lost

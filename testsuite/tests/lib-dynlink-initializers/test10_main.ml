@@ -28,7 +28,7 @@ reference = "${test_source_directory}/test10_main.byte.reference"
 module = "test10_main.ml"
 ***** ocamlopt.byte
 program = "test10_plugin.cmxs"
-flags = "-shared"
+flags = "-shared -g"
 all_modules = "test10_plugin.ml"
 ***** ocamlopt.byte
 program = "${test_build_directory}/test10.exe"

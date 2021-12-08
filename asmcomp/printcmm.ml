@@ -114,18 +114,20 @@ let location d =
   else Debuginfo.to_string d
 
 let operation d = function
-  | Capply _ty -> "app" ^ location d
+  | Capply(_ty, _) -> "app" ^ location d
   | Cextcall(lbl, _ty_res, _ty_args, _alloc) ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
-  | Calloc -> "alloc" ^ location d
+  | Calloc Alloc_heap -> "alloc" ^ location d
+  | Calloc Alloc_local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
       | Lambda.Heap_initialization -> "(heap-init)"
       | Lambda.Root_initialization -> "(root-init)"
       | Lambda.Assignment -> ""
+      | Local_assignment -> "(local)"
     in
     Printf.sprintf "store %s%s" (chunk c) init
   | Caddi -> "+"
@@ -221,7 +223,7 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(%s" (operation dbg op);
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
-      | Capply mty -> fprintf ppf "@ %a" machtype mty
+      | Capply(mty, _) -> fprintf ppf "@ %a" machtype mty
       | Cextcall(_, ty_res, ty_args, _) ->
           fprintf ppf "@ %a" extcall_signature (ty_res, ty_args)
       | _ -> ()
@@ -268,6 +270,10 @@ let rec expr ppf = function
   | Ctrywith(e1, id, e2, _dbg) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -2>with@ %a@ %a)@]"
              sequence e1 VP.print id sequence e2
+  | Cregion e ->
+      fprintf ppf "@[<2>(region@ %a)@]" sequence e
+  | Ctail e ->
+      fprintf ppf "@[<2>(tail@ %a)@]" sequence e
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

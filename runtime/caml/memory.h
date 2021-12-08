@@ -51,6 +51,8 @@ CAMLextern value caml_alloc_shr_no_track_noexc (mlsize_t, tag_t);
    parameter. */
 CAMLextern value caml_alloc_shr_for_minor_gc (mlsize_t, tag_t, header_t);
 
+CAMLextern value caml_alloc_local(mlsize_t, tag_t);
+
 CAMLextern void caml_adjust_gc_speed (mlsize_t, mlsize_t);
 CAMLextern void caml_alloc_dependent_memory (mlsize_t bsz);
 CAMLextern void caml_free_dependent_memory (mlsize_t bsz);
@@ -247,6 +249,9 @@ extern void caml_alloc_small_dispatch (intnat wosize, int flags,
 /* Deprecated alias for [caml_modify] */
 
 #define Modify(fp,val) caml_modify((fp), (val))
+
+struct caml_local_arenas* caml_get_local_arenas();
+void caml_set_local_arenas(struct caml_local_arenas* s);
 
 #endif /* CAML_INTERNALS */
 

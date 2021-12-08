@@ -203,6 +203,41 @@ FUNCTION(caml_allocN)
         CFI_ENDPROC
         ENDFUNCTION(caml_allocN)
 
+FUNCTION(caml_call_local_realloc)
+        CFI_STARTPROC
+        movl    G(Caml_state), %ebx
+#if !defined(SYS_mingw) && !defined(SYS_cygwin)
+    /* Touch the stack to trigger a recoverable segfault
+       if insufficient space remains */
+        subl    $(STACK_PROBE_SIZE), %esp; CFI_ADJUST(STACK_PROBE_SIZE);
+        movl    %eax, 0(%esp)
+        addl    $(STACK_PROBE_SIZE), %esp; CFI_ADJUST(-STACK_PROBE_SIZE);
+#endif
+    /* Build array of registers, save it into Caml_state->gc_regs */
+        pushl   %ebp; CFI_ADJUST(4)
+        pushl   %edi; CFI_ADJUST(4)
+        pushl   %esi; CFI_ADJUST(4)
+        pushl   %edx; CFI_ADJUST(4)
+        pushl   %ecx; CFI_ADJUST(4)
+        pushl   %ebx; CFI_ADJUST(4)
+        pushl   %eax; CFI_ADJUST(4)
+        movl    %esp, CAML_STATE(gc_regs, %ebx)
+        /* MacOSX note: 16-alignment of stack preserved at this point */
+    /* Call the garbage collector */
+        call    G(caml_local_realloc)
+    /* Restore all regs used by the code generator */
+        popl    %eax; CFI_ADJUST(-4)
+        popl    %ebx; CFI_ADJUST(-4)
+        popl    %ecx; CFI_ADJUST(-4)
+        popl    %edx; CFI_ADJUST(-4)
+        popl    %esi; CFI_ADJUST(-4)
+        popl    %edi; CFI_ADJUST(-4)
+        popl    %ebp; CFI_ADJUST(-4)
+        ret
+        CFI_ENDPROC
+        ENDFUNCTION(caml_call_local_realloc)
+
+
 /* Call a C function from OCaml */
 
 FUNCTION(caml_c_call)

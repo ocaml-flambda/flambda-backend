@@ -258,6 +258,10 @@ let rec approx_of_expr (env : Env.t) (flam : Flambda.t) : Export_info.approx =
         Closure_id.Map.find closure_id results
       | _ -> Value_unknown
     end
+  | Region body ->
+    approx_of_expr env body
+  | Tail body ->
+    approx_of_expr env body
   | Assign _ -> Value_id (Env.new_unit_descr env)
   | For _ -> Value_id (Env.new_unit_descr env)
   | While _ -> Value_id (Env.new_unit_descr env)
@@ -280,7 +284,7 @@ and descr_of_named (env : Env.t) (named : Flambda.named)
     Value_id (Env.new_descr env (descr_of_constant const))
   | Allocated_const const ->
     Value_id (Env.new_descr env (descr_of_allocated_constant const))
-  | Prim (Pmakeblock (tag, Immutable, _value_kind), args, _dbg) ->
+  | Prim (Pmakeblock (tag, Immutable, _value_kind, _mode), args, _dbg) ->
     let approxs = List.map (Env.find_approx env) args in
     let descr : Export_info.descr =
       Value_block (Tag.create_exn tag, Array.of_list approxs)

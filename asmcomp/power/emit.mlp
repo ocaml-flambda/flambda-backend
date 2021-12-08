@@ -488,6 +488,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop(Istore(_chunk, addr, _)) -> load_store_size addr
     | Lop(Ialloc _) -> 5
     | Lop(Ispecific(Ialloc_far _)) -> 6
+    | Lop(Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop Imod) -> 3
     | Lop(Iintop(Icomp _)) -> 4
     | Lop(Iintop _) -> 1
@@ -777,10 +779,12 @@ let emit_instr i =
           | Single -> "stfs"
           | Double -> "stfd" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
-    | Lop(Ialloc { bytes; dbginfo }) ->
+    | Lop(Ialloc { bytes; dbginfo; mode = Alloc_heap }) ->
         emit_alloc i bytes dbginfo false
     | Lop(Ispecific(Ialloc_far { bytes; dbginfo })) ->
         emit_alloc i bytes dbginfo true
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop Isub) ->               (* subfc has swapped arguments *)
         `	subfc	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
     | Lop(Iintop Imod) ->

@@ -442,6 +442,7 @@ module Result = struct
       inlining_threshold : Inlining_cost.Threshold.t option;
       benefit : Inlining_cost.Benefit.t;
       num_direct_applications : int;
+      may_use_region : bool;
     }
 
   let create () =
@@ -450,6 +451,7 @@ module Result = struct
       inlining_threshold = None;
       benefit = Inlining_cost.Benefit.zero;
       num_direct_applications = 0;
+      may_use_region = false;
     }
 
   let approx t = t.approx
@@ -469,6 +471,11 @@ module Result = struct
     }
 
   let used_static_exceptions t = t.used_static_exceptions
+
+  let set_region_use t b =
+    { t with may_use_region = b }
+
+  let may_use_region t = t.may_use_region
 
   let exit_scope_catch t i =
     { t with

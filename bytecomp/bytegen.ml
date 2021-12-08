@@ -109,7 +109,7 @@ let rec is_tailcall = function
    from the tail call optimization? *)
 
 let preserve_tailcall_for_prim = function
-    Pidentity | Popaque | Pdirapply | Prevapply | Psequor | Psequand ->
+    Pidentity | Popaque | Pdirapply _ | Prevapply _ | Psequor | Psequand ->
       true
   | Pbytes_to_string | Pbytes_of_string | Pignore | Pgetglobal _ | Psetglobal _
   | Pmakeblock _ | Pmakefloatblock _
@@ -118,8 +118,8 @@ let preserve_tailcall_for_prim = function
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat
-  | Pfloatofint | Pnegfloat | Pabsfloat | Paddfloat | Psubfloat | Pmulfloat
-  | Pdivfloat | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
+  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu  | Pstringrefs
   | Pcompare_ints | Pcompare_floats | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
@@ -209,12 +209,12 @@ let rec size_of_lambda env = function
       in
       size_of_lambda env body
   | Lprim(Pmakeblock _, args, _) -> RHS_block (List.length args)
-  | Lprim (Pmakearray ((Paddrarray|Pintarray), _), args, _) ->
+  | Lprim (Pmakearray ((Paddrarray|Pintarray), _, _), args, _) ->
       RHS_block (List.length args)
-  | Lprim (Pmakearray (Pfloatarray, _), args, _)
+  | Lprim (Pmakearray (Pfloatarray, _, _), args, _)
   | Lprim (Pmakefloatblock _, args, _) ->
       RHS_floatblock (List.length args)
-  | Lprim (Pmakearray (Pgenarray, _), _, _) ->
+  | Lprim (Pmakearray (Pgenarray, _, _), _, _) ->
      (* Pgenarray is excluded from recursive bindings by the
         check in Translcore.check_recursive_lambda *)
       RHS_nonrec
@@ -227,6 +227,7 @@ let rec size_of_lambda env = function
   | Lprim (Pduprecord (Record_float, size), _, _) -> RHS_floatblock size
   | Levent (lam, _) -> size_of_lambda env lam
   | Lsequence (_lam, lam') -> size_of_lambda env lam'
+  | Lregion lam -> size_of_lambda env lam
   | _ -> RHS_nonrec
 
 (**** Merging consecutive events ****)
@@ -398,7 +399,7 @@ let comp_primitive p args =
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
-  | Pfloatfield (n, _sem) -> Kgetfloatfield n
+  | Pfloatfield (n, _sem, _mode) -> Kgetfloatfield n
   | Psetfloatfield (n, _init) -> Ksetfloatfield n
   | Pduprecord _ -> Kccall("caml_obj_dup", 1)
   | Pccall p -> Kccall(p.prim_name, p.prim_arity)
@@ -417,13 +418,13 @@ let comp_primitive p args =
   | Poffsetint n -> Koffsetint n
   | Poffsetref n -> Koffsetref n
   | Pintoffloat -> Kccall("caml_int_of_float", 1)
-  | Pfloatofint -> Kccall("caml_float_of_int", 1)
-  | Pnegfloat -> Kccall("caml_neg_float", 1)
-  | Pabsfloat -> Kccall("caml_abs_float", 1)
-  | Paddfloat -> Kccall("caml_add_float", 2)
-  | Psubfloat -> Kccall("caml_sub_float", 2)
-  | Pmulfloat -> Kccall("caml_mul_float", 2)
-  | Pdivfloat -> Kccall("caml_div_float", 2)
+  | Pfloatofint _ -> Kccall("caml_float_of_int", 1)
+  | Pnegfloat _ -> Kccall("caml_neg_float", 1)
+  | Pabsfloat _ -> Kccall("caml_abs_float", 1)
+  | Paddfloat _ -> Kccall("caml_add_float", 2)
+  | Psubfloat _ -> Kccall("caml_sub_float", 2)
+  | Pmulfloat _ -> Kccall("caml_mul_float", 2)
+  | Pdivfloat _ -> Kccall("caml_div_float", 2)
   | Pstringlength -> Kccall("caml_ml_string_length", 1)
   | Pbyteslength -> Kccall("caml_ml_bytes_length", 1)
   | Pstringrefs -> Kccall("caml_string_get", 2)
@@ -467,26 +468,26 @@ let comp_primitive p args =
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
   | Pisint -> Kisint
   | Pisout -> Kisout
-  | Pbintofint bi -> comp_bint_primitive bi "of_int" args
+  | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
-  | Pcvtbint(Pint32, Pnativeint) -> Kccall("caml_nativeint_of_int32", 1)
-  | Pcvtbint(Pnativeint, Pint32) -> Kccall("caml_nativeint_to_int32", 1)
-  | Pcvtbint(Pint32, Pint64) -> Kccall("caml_int64_of_int32", 1)
-  | Pcvtbint(Pint64, Pint32) -> Kccall("caml_int64_to_int32", 1)
-  | Pcvtbint(Pnativeint, Pint64) -> Kccall("caml_int64_of_nativeint", 1)
-  | Pcvtbint(Pint64, Pnativeint) -> Kccall("caml_int64_to_nativeint", 1)
-  | Pnegbint bi -> comp_bint_primitive bi "neg" args
-  | Paddbint bi -> comp_bint_primitive bi "add" args
-  | Psubbint bi -> comp_bint_primitive bi "sub" args
-  | Pmulbint bi -> comp_bint_primitive bi "mul" args
+  | Pcvtbint(Pint32, Pnativeint, _) -> Kccall("caml_nativeint_of_int32", 1)
+  | Pcvtbint(Pnativeint, Pint32, _) -> Kccall("caml_nativeint_to_int32", 1)
+  | Pcvtbint(Pint32, Pint64, _) -> Kccall("caml_int64_of_int32", 1)
+  | Pcvtbint(Pint64, Pint32, _) -> Kccall("caml_int64_to_int32", 1)
+  | Pcvtbint(Pnativeint, Pint64, _) -> Kccall("caml_int64_of_nativeint", 1)
+  | Pcvtbint(Pint64, Pnativeint, _) -> Kccall("caml_int64_to_nativeint", 1)
+  | Pnegbint(bi,_) -> comp_bint_primitive bi "neg" args
+  | Paddbint(bi,_) -> comp_bint_primitive bi "add" args
+  | Psubbint(bi,_) -> comp_bint_primitive bi "sub" args
+  | Pmulbint(bi,_) -> comp_bint_primitive bi "mul" args
   | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args
   | Pmodbint { size = bi } -> comp_bint_primitive bi "mod" args
-  | Pandbint bi -> comp_bint_primitive bi "and" args
-  | Porbint bi -> comp_bint_primitive bi "or" args
-  | Pxorbint bi -> comp_bint_primitive bi "xor" args
-  | Plslbint bi -> comp_bint_primitive bi "shift_left" args
-  | Plsrbint bi -> comp_bint_primitive bi "shift_right_unsigned" args
-  | Pasrbint bi -> comp_bint_primitive bi "shift_right" args
+  | Pandbint(bi,_) -> comp_bint_primitive bi "and" args
+  | Porbint(bi,_) -> comp_bint_primitive bi "or" args
+  | Pxorbint(bi,_) -> comp_bint_primitive bi "xor" args
+  | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
+  | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
+  | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
   | Pbintcomp(_, Ceq) -> Kccall("caml_equal", 2)
   | Pbintcomp(_, Cne) -> Kccall("caml_notequal", 2)
   | Pbintcomp(_, Clt) -> Kccall("caml_lessthan", 2)
@@ -503,7 +504,7 @@ let comp_primitive p args =
   | Pbigstring_set_32(_) -> Kccall("caml_ba_uint8_set32", 3)
   | Pbigstring_set_64(_) -> Kccall("caml_ba_uint8_set64", 3)
   | Pbswap16 -> Kccall("caml_bswap16", 1)
-  | Pbbswap(bi) -> comp_bint_primitive bi "bswap" args
+  | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
   | Pint_as_pointer -> Kccall("caml_int_as_pointer", 1)
   | Pbytes_to_string -> Kccall("caml_string_of_bytes", 1)
   | Pbytes_of_string -> Kccall("caml_bytes_of_string", 1)
@@ -563,7 +564,7 @@ let rec comp_expr env exp sz cont =
                       (Kapply nargs :: cont1))
         end
       end
-  | Lsend(kind, met, obj, args, _) ->
+  | Lsend(kind, met, obj, args, _, _, _) ->
       let args = if kind = Cached then List.tl args else args in
       let nargs = List.length args + 1 in
       let getmethod, args' =
@@ -678,12 +679,14 @@ let rec comp_expr env exp sz cont =
       comp_expr env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr env arg sz (add_const_unit cont)
-  | Lprim(Pdirapply, [func;arg], loc)
-  | Lprim(Prevapply, [arg;func], loc) ->
+  | Lprim(Pdirapply pos, [func;arg], loc)
+  | Lprim(Prevapply pos, [arg;func], loc) ->
       let exp = Lapply{
         ap_loc=loc;
         ap_func=func;
         ap_args=[arg];
+        ap_position=pos;
+        ap_mode=Alloc_heap;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
@@ -739,10 +742,10 @@ let rec comp_expr env exp sz cont =
         (Kpush::
          Kconst (Const_base (Const_int n))::
          Kaddint::cont)
-  | Lprim (Pmakefloatblock _mut, args, loc) ->
+  | Lprim (Pmakefloatblock _, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pmakearray (kind, _), args, loc) ->
+  | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
         Pintarray | Paddrarray ->
@@ -757,9 +760,9 @@ let rec comp_expr env exp sz cont =
                   Kccall("caml_make_array", 1) :: cont)
       end
   | Lprim (Pduparray (kind, mutability),
-           [Lprim (Pmakearray (kind',_),args,_)], loc) ->
+           [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');
-      comp_expr env (Lprim (Pmakearray (kind, mutability), args, loc)) sz cont
+      comp_expr env (Lprim (Pmakearray (kind, mutability, m), args, loc)) sz cont
   | Lprim (Pduparray _, [arg], loc) ->
       let prim_obj_dup =
         Primitive.simple ~name:"caml_obj_dup" ~arity:1 ~alloc:true
@@ -787,10 +790,10 @@ let rec comp_expr env exp sz cont =
         | CFnge -> Kccall("caml_ge_float", 2) :: Kboolnot :: cont
       in
       comp_args env args sz cont
-  | Lprim(Pmakeblock(tag, _mut, _), args, loc) ->
+  | Lprim(Pmakeblock(tag, _mut, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kmakeblock(List.length args, tag) :: cont)
-  | Lprim(Pfloatfield (n, _sem), args, loc) ->
+  | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args env args sz (Kgetfloatfield n :: cont)
   | Lprim(p, args, _) ->
@@ -984,7 +987,8 @@ let rec comp_expr env exp sz cont =
             let info =
               match lam with
                 Lapply{ap_args = args}  -> Event_return (List.length args)
-              | Lsend(_, _, _, args, _) -> Event_return (List.length args + 1)
+              | Lsend(_, _, _, args, _, _, _) ->
+                  Event_return (List.length args + 1)
               | Lprim(_,args,_)         -> Event_return (List.length args)
               | _                       -> Event_other
             in
@@ -996,6 +1000,8 @@ let rec comp_expr env exp sz cont =
           comp_expr env lam sz cont
       end
   | Lifused (_, exp) ->
+      comp_expr env exp sz cont
+  | Lregion exp ->
       comp_expr env exp sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.

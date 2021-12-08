@@ -110,6 +110,17 @@ let protect_longident ppf print_longident longprefix txt =
     else "%a.(%s)" in
   fprintf ppf format print_longident longprefix txt
 
+let is_curry_attr attr =
+  match attr.attr_name.txt with
+  | "curry" -> true
+  | _ -> false
+
+let filter_curry_attrs attrs =
+  List.filter (fun attr -> not (is_curry_attr attr)) attrs
+
+let has_non_curry_attr attrs =
+  List.exists (fun attr -> not (is_curry_attr attr)) attrs
+
 type space_formatter = (unit, Format.formatter, unit) format
 
 let override = function
@@ -291,14 +302,15 @@ and type_with_label ctxt f (label, c) =
   | Optional s -> pp f "?%s:%a" s (core_type1 ctxt) c
 
 and core_type ctxt f x =
-  if x.ptyp_attributes <> [] then begin
+  let filtered_attrs = filter_curry_attrs x.ptyp_attributes in
+  if filtered_attrs <> [] then begin
     pp f "((%a)%a)" (core_type ctxt) {x with ptyp_attributes=[]}
-      (attributes ctxt) x.ptyp_attributes
+      (attributes ctxt) filtered_attrs
   end
   else match x.ptyp_desc with
     | Ptyp_arrow (l, ct1, ct2) ->
         pp f "@[<2>%a@;->@;%a@]" (* FIXME remove parens later *)
-          (type_with_label ctxt) (l,ct1) (core_type ctxt) ct2
+          (type_with_label ctxt) (l,ct1) (return_type ctxt) ct2
     | Ptyp_alias (ct, s) ->
         pp f "@[<2>%a@;as@;%a@]" (core_type1 ctxt) ct tyvar s
     | Ptyp_poly ([], ct) ->
@@ -317,7 +329,7 @@ and core_type ctxt f x =
     | _ -> pp f "@[<2>%a@]" (core_type1 ctxt) x
 
 and core_type1 ctxt f x =
-  if x.ptyp_attributes <> [] then core_type ctxt f x
+  if has_non_curry_attr x.ptyp_attributes then core_type ctxt f x
   else match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
@@ -393,6 +405,10 @@ and core_type1 ctxt f x =
                (list aux  ~sep:"@ and@ ")  cstrs)
     | Ptyp_extension e -> extension ctxt f e
     | _ -> paren true (core_type ctxt) f x
+
+and return_type ctxt f x =
+  if x.ptyp_attributes <> [] then core_type1 ctxt f x
+  else core_type ctxt f x
 
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
@@ -600,9 +616,10 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
-  if x.pexp_attributes <> [] then
+  let filtered_attrs = filter_curry_attrs x.pexp_attributes in
+  if filtered_attrs <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
-      (attributes ctxt) x.pexp_attributes
+      (attributes ctxt) filtered_attrs
   else match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
@@ -615,12 +632,12 @@ and expression ctxt f x =
         when ctxt.semi ->
         paren true (expression reset_ctxt) f x
     | Pexp_fun (l, e0, p, e) ->
-        pp f "@[<2>fun@;%a->@;%a@]"
+        pp f "@[<2>fun@;%a@;%a@]"
           (label_exp ctxt) (l, e0, p)
-          (expression ctxt) e
+          (pp_print_pexp_function ctxt "->") e
     | Pexp_newtype (lid, e) ->
-        pp f "@[<2>fun@;(type@;%s)@;->@;%a@]" lid.txt
-          (expression ctxt) e
+        pp f "@[<2>fun@;(type@;%s)@;%a@]" lid.txt
+          (pp_print_pexp_function ctxt "->") e
     | Pexp_function l ->
         pp f "@[<hv>function%a@]" (case_list ctxt) l
     | Pexp_match (e, l) ->
@@ -751,14 +768,14 @@ and expression ctxt f x =
     | _ -> expression1 ctxt f x
 
 and expression1 ctxt f x =
-  if x.pexp_attributes <> [] then expression ctxt f x
+  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_object cs -> pp f "%a" (class_structure ctxt) cs
     | _ -> expression2 ctxt f x
 (* used in [Pexp_apply] *)
 
 and expression2 ctxt f x =
-  if x.pexp_attributes <> [] then expression ctxt f x
+  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_field (e, li) ->
         pp f "@[<hov2>%a.%a@]" (simple_expr ctxt) e longident_loc li
@@ -767,7 +784,7 @@ and expression2 ctxt f x =
     | _ -> simple_expr ctxt f x
 
 and simple_expr ctxt f x =
-  if x.pexp_attributes <> [] then expression ctxt f x
+  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_construct _  when is_simple_construct (view_expr x) ->
         (match view_expr x with
@@ -1221,22 +1238,22 @@ and payload ctxt f = function
       pp f "?@ "; pattern ctxt f x;
       pp f " when "; expression ctxt f e
 
+and pp_print_pexp_function ctxt sep f x =
+  if x.pexp_attributes <> [] then pp f "%s@;%a" sep (expression ctxt) x
+  else match x.pexp_desc with
+    | Pexp_fun (label, eo, p, e) ->
+      if label=Nolabel then
+        pp f "%a@ %a" (simple_pattern ctxt) p (pp_print_pexp_function ctxt sep) e
+      else
+        pp f "%a@ %a"
+          (label_exp ctxt) (label,eo,p) (pp_print_pexp_function ctxt sep) e
+    | Pexp_newtype (str,e) ->
+      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
+    | _ -> pp f "%s@;%a" sep (expression ctxt) x
+
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; _} =
   (* .pvb_attributes have already been printed by the caller, #bindings *)
-  let rec pp_print_pexp_function f x =
-    if x.pexp_attributes <> [] then pp f "=@;%a" (expression ctxt) x
-    else match x.pexp_desc with
-      | Pexp_fun (label, eo, p, e) ->
-          if label=Nolabel then
-            pp f "%a@ %a" (simple_pattern ctxt) p pp_print_pexp_function e
-          else
-            pp f "%a@ %a"
-              (label_exp ctxt) (label,eo,p) pp_print_pexp_function e
-      | Pexp_newtype (str,e) ->
-          pp f "(type@ %s)@ %a" str.txt pp_print_pexp_function e
-      | _ -> pp f "=@;%a" (expression ctxt) x
-  in
   let tyvars_str tyvars = List.map (fun v -> v.txt) tyvars in
   let is_desugared_gadt p e =
     let gadt_pattern =
@@ -1294,7 +1311,8 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; _} =
                 (core_type ctxt) ty (expression ctxt) x
           end
       | {ppat_desc=Ppat_var _; ppat_attributes=[]} ->
-          pp f "%a@ %a" (simple_pattern ctxt) p pp_print_pexp_function x
+          pp f "%a@ %a" (simple_pattern ctxt) p
+            (pp_print_pexp_function ctxt "=") x
       | _ ->
           pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
     end

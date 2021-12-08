@@ -148,10 +148,10 @@ type memory_chunk =
   | Double
 
 and operation =
-    Capply of machtype
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
   | Cload of memory_chunk * Asttypes.mutable_flag
-  | Calloc
+  | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -195,6 +195,8 @@ type expression =
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
+  | Cregion of expression
+  | Ctail of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -254,6 +256,12 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
+  | Cregion e ->
+      f e;
+      true
+  | Ctail e ->
+      f e;
+      true
   | Cexit _ | Cop (Craise _, _, _) ->
       true
   | Cconst_int _
@@ -266,30 +274,34 @@ let iter_shallow_tail f = function
   | Cop _ ->
       false
 
-let rec map_tail f = function
+let map_shallow_tail f = function
   | Clet(id, exp, body) ->
-      Clet(id, exp, map_tail f body)
+      Clet(id, exp, f body)
   | Clet_mut(id, kind, exp, body) ->
-      Clet_mut(id, kind, exp, map_tail f body)
+      Clet_mut(id, kind, exp, f body)
   | Cphantom_let(id, exp, body) ->
-      Cphantom_let (id, exp, map_tail f body)
+      Cphantom_let (id, exp, f body)
   | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
       Cifthenelse
         (
           cond,
-          ifso_dbg, map_tail f ifso,
-          ifnot_dbg, map_tail f ifnot,
+          ifso_dbg, f ifso,
+          ifnot_dbg, f ifnot,
           dbg
         )
   | Csequence(e1, e2) ->
-      Csequence(e1, map_tail f e2)
+      Csequence(e1, f e2)
   | Cswitch(e, tbl, el, dbg') ->
-      Cswitch(e, tbl, Array.map (fun (e, dbg) -> map_tail f e, dbg) el, dbg')
+      Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg')
   | Ccatch(rec_flag, handlers, body) ->
-      let map_h (n, ids, handler, dbg) = (n, ids, map_tail f handler, dbg) in
-      Ccatch(rec_flag, List.map map_h handlers, map_tail f body)
+      let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
+      Ccatch(rec_flag, List.map map_h handlers, f body)
   | Ctrywith(e1, id, e2, dbg) ->
-      Ctrywith(map_tail f e1, id, map_tail f e2, dbg)
+      Ctrywith(f e1, id, f e2, dbg)
+  | Cregion e ->
+      Cregion(f e)
+  | Ctail e ->
+      Ctail(f e)
   | Cexit _ | Cop (Craise _, _, _) as cmm ->
       cmm
   | Cconst_int _
@@ -299,8 +311,59 @@ let rec map_tail f = function
   | Cvar _
   | Cassign _
   | Ctuple _
-  | Cop _ as c ->
-      f c
+  | Cop _ as cmm -> cmm
+
+let map_tail f =
+  let rec loop = function
+    | Cconst_int _
+    | Cconst_natint _
+    | Cconst_float _
+    | Cconst_symbol _
+    | Cvar _
+    | Cassign _
+    | Ctuple _
+    | Cop _ as c ->
+        f c
+    | cmm -> map_shallow_tail loop cmm
+  in
+  loop
+
+let iter_shallow f = function
+  | Clet (_id, e1, e2) ->
+      f e1; f e2
+  | Clet_mut (_id, _kind, e1, e2) ->
+      f e1; f e2
+  | Cphantom_let (_id, _de, e) ->
+      f e
+  | Cassign (_id, e) ->
+      f e
+  | Ctuple el ->
+      List.iter f el
+  | Cop (_op, el, _dbg) ->
+      List.iter f el
+  | Csequence (e1, e2) ->
+      f e1; f e2
+  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+      f cond; f ifso; f ifnot
+  | Cswitch (_e, _ia, ea, _dbg) ->
+      Array.iter (fun (e, _) -> f e) ea
+  | Ccatch (_rf, hl, body) ->
+      let iter_h (_n, _ids, handler, _dbg) = f handler in
+      List.iter iter_h hl; f body
+  | Cexit (_n, el) ->
+      List.iter f el
+  | Ctrywith (e1, _id, e2, _dbg) ->
+      f e1; f e2
+  | Cregion e ->
+      f e
+  | Ctail e ->
+      f e
+  | Cconst_int _
+  | Cconst_natint _
+  | Cconst_float _
+  | Cconst_symbol _
+  | Cvar _ ->
+      ()
 
 let map_shallow f = function
   | Clet (id, e1, e2) ->
@@ -328,6 +391,10 @@ let map_shallow f = function
       Cexit (n, List.map f el)
   | Ctrywith (e1, id, e2, dbg) ->
       Ctrywith (f e1, id, f e2, dbg)
+  | Cregion e ->
+      Cregion (f e)
+  | Ctail e ->
+      Ctail (f e)
   | Cconst_int _
   | Cconst_natint _
   | Cconst_float _

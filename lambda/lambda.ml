@@ -34,6 +34,7 @@ type immediate_or_pointer =
 
 type initialization_or_assignment =
   | Assignment
+  | Local_assignment
   | Heap_initialization
   | Root_initialization
 
@@ -45,24 +46,32 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type alloc_mode =
+  | Alloc_heap
+  | Alloc_local
+
+type apply_position =
+  | Apply_tail
+  | Apply_nontail
+
 type primitive =
   | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply
-  | Pdirapply
+  | Prevapply of apply_position
+  | Pdirapply of apply_position
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pmakefloatblock of mutable_flag
+  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakefloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int * field_read_semantics
+  | Pfloatfield of int * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Force lazy values *)
@@ -82,15 +91,16 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint
-  | Pnegfloat | Pabsfloat
-  | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat
+  | Pintoffloat | Pfloatofint of alloc_mode
+  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
+  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
+  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
-  | Pmakearray of array_kind * mutable_flag
+  | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
   | Parrayrefu of array_kind
@@ -102,21 +112,22 @@ type primitive =
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
-  | Pbintofint of boxed_integer
+  | Pbintofint of boxed_integer * alloc_mode
   | Pintofbint of boxed_integer
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
-  | Pnegbint of boxed_integer
-  | Paddbint of boxed_integer
-  | Psubbint of boxed_integer
-  | Pmulbint of boxed_integer
-  | Pdivbint of { size : boxed_integer; is_safe : is_safe }
-  | Pmodbint of { size : boxed_integer; is_safe : is_safe }
-  | Pandbint of boxed_integer
-  | Porbint of boxed_integer
-  | Pxorbint of boxed_integer
-  | Plslbint of boxed_integer
-  | Plsrbint of boxed_integer
-  | Pasrbint of boxed_integer
+                * alloc_mode
+  | Pnegbint of boxed_integer * alloc_mode
+  | Paddbint of boxed_integer * alloc_mode
+  | Psubbint of boxed_integer * alloc_mode
+  | Pmulbint of boxed_integer * alloc_mode
+  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pandbint of boxed_integer * alloc_mode
+  | Porbint of boxed_integer * alloc_mode
+  | Pxorbint of boxed_integer * alloc_mode
+  | Plslbint of boxed_integer * alloc_mode
+  | Plsrbint of boxed_integer * alloc_mode
+  | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
@@ -125,19 +136,19 @@ type primitive =
   | Pbigarraydim of int
   (* load/set 16,32,64 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
-  | Pstring_load_32 of bool
-  | Pstring_load_64 of bool
+  | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_64 of bool * alloc_mode
   | Pbytes_load_16 of bool
-  | Pbytes_load_32 of bool
-  | Pbytes_load_64 of bool
+  | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_64 of bool
   (* load/set 16,32,64 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool
-  | Pbigstring_load_64 of bool
+  | Pbigstring_load_32 of bool * alloc_mode
+  | Pbigstring_load_64 of bool * alloc_mode
   | Pbigstring_set_16 of bool
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
@@ -145,7 +156,7 @@ type primitive =
   | Pctconst of compile_time_constant
   (* byte swap *)
   | Pbswap16
-  | Pbbswap of boxed_integer
+  | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
@@ -299,7 +310,7 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type function_kind = Curried | Tupled
+type function_kind = Curried of {nlocal: int} | Tupled
 
 type let_kind = Strict | Alias | StrictOpt | Variable
 
@@ -343,9 +354,12 @@ type lambda =
   | Lwhile of lambda * lambda
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
   | Lassign of Ident.t * lambda
-  | Lsend of meth_kind * lambda * lambda * lambda list * scoped_location
+  | Lsend of
+      meth_kind * lambda * lambda * lambda list
+      * apply_position * alloc_mode * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
+  | Lregion of lambda
 
 and lfunction =
   { kind: function_kind;
@@ -353,11 +367,15 @@ and lfunction =
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
-    loc: scoped_location; }
+    loc: scoped_location;
+    mode: alloc_mode;
+    region: bool; }
 
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
+    ap_position : apply_position;
+    ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
     ap_inlined : inlined_attribute;
@@ -396,6 +414,29 @@ let const_int n = Const_base (Const_int n)
 let const_unit = const_int 0
 
 let lambda_unit = Lconst const_unit
+
+let check_lfunction fn =
+  (* A curried function type with n parameters has n arrows. Of these,
+     the first [n-nlocal] have return mode Heap, while the remainder
+     have return mode Local, except possibly the final one.
+
+     That is, after supplying the first [n-nlocal] arguments, further
+     partial applications must be locally allocated.
+
+     A curried function with no local parameters or returns has kind
+     [Curried {nlocal=0}]. *)
+  let nparams = List.length fn.params in
+  begin match fn.mode, fn.kind with
+  | Alloc_heap, Tupled -> ()
+  | Alloc_local, Tupled ->
+     (* Tupled optimisation does not apply to local functions *)
+     assert false
+  | mode, Curried {nlocal} ->
+     assert (0 <= nlocal);
+     assert (nlocal <= nparams);
+     if not fn.region then assert (nlocal >= 1);
+     if mode = Alloc_local then assert (nlocal = nparams)
+  end
 
 let default_function_attribute = {
   inline = Default_inline;
@@ -471,9 +512,10 @@ let make_key e =
         Lsequence (tr_rec env e1,tr_rec env e2)
     | Lassign (x,e) ->
         Lassign (x,tr_rec env e)
-    | Lsend (m,e1,e2,es,_loc) ->
-        Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,Loc_unknown)
+    | Lsend (m,e1,e2,es,pos,mo,_loc) ->
+        Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,mo,Loc_unknown)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
+    | Lregion e -> Lregion (tr_rec env e)
     | Lletrec _|Lfunction _
     | Lfor _ | Lwhile _
 (* Beware: (PR#6412) the event argument to Levent
@@ -566,12 +608,14 @@ let shallow_iter ~tail ~non_tail:f = function
       f e1; f e2; f e3
   | Lassign(_, e) ->
       f e
-  | Lsend (_k, met, obj, args, _) ->
+  | Lsend (_k, met, obj, args, _, _, _) ->
       List.iter f (met::obj::args)
   | Levent (e, _evt) ->
       tail e
   | Lifused (_v, e) ->
       tail e
+  | Lregion e ->
+      f e
 
 let iter_head_constructor f l =
   shallow_iter ~tail:f ~non_tail:f l
@@ -640,7 +684,7 @@ let rec free_variables = function
       Ident.Set.union set (Ident.Set.remove v (free_variables body))
   | Lassign(id, e) ->
       Ident.Set.add id (free_variables e)
-  | Lsend (_k, met, obj, args, _) ->
+  | Lsend (_k, met, obj, args, _, _, _) ->
       free_variables_list
         (Ident.Set.union (free_variables met) (free_variables obj))
         args
@@ -648,6 +692,8 @@ let rec free_variables = function
       free_variables lam
   | Lifused (_v, e) ->
       (* Shouldn't v be considered a free variable ? *)
+      free_variables e
+  | Lregion e ->
       free_variables e
 
 and free_variables_list set exprs =
@@ -804,8 +850,9 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         assert (not (Ident.Map.mem id s));
         let id = try Ident.Map.find id l with Not_found -> id in
         Lassign(id, subst s l e)
-    | Lsend (k, met, obj, args, loc) ->
-        Lsend (k, subst s l met, subst s l obj, subst_list s l args, loc)
+    | Lsend (k, met, obj, args, pos, mode, loc) ->
+        Lsend (k, subst s l met, subst s l obj, subst_list s l args,
+               pos, mode, loc)
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
@@ -835,6 +882,8 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
     | Lifused (id, e) ->
         let id = try Ident.Map.find id l with Not_found -> id in
         Lifused (id, subst s l e)
+    | Lregion e ->
+        Lregion (subst s l e)
   and subst_list s l li = List.map (subst s l) li
   and subst_decl s l (id, exp) = (id, subst s l exp)
   and subst_case s l (key, case) = (key, subst s l case)
@@ -860,68 +909,78 @@ let duplicate lam =
     Ident.Map.empty
     lam
 
-let shallow_map f = function
+let shallow_map ~tail ~non_tail:f = function
   | Lvar _
   | Lconst _ as lam -> lam
-  | Lapply { ap_func; ap_args; ap_loc; ap_tailcall;
-             ap_inlined; ap_specialised; ap_probe; } ->
+  | Lapply { ap_func; ap_args; ap_position; ap_mode; ap_loc; ap_tailcall;
+             ap_inlined; ap_specialised; ap_probe } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
+        ap_position;
+        ap_mode;
         ap_loc;
         ap_tailcall;
         ap_inlined;
         ap_specialised;
         ap_probe;
       }
-  | Lfunction { kind; params; return; body; attr; loc; } ->
-      Lfunction { kind; params; return; body = f body; attr; loc; }
+  | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
+      Lfunction { kind; params; return; body = f body; attr; loc;
+                  mode; region }
   | Llet (str, k, v, e1, e2) ->
-      Llet (str, k, v, f e1, f e2)
+      Llet (str, k, v, f e1, tail e2)
   | Lletrec (idel, e2) ->
-      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, f e2)
+      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
+  | Lprim (Pidentity, [l], loc) ->
+      Lprim(Pidentity, [tail l], loc)
+  | Lprim (Psequand as p, [l1; l2], loc)
+  | Lprim (Psequor as p, [l1; l2], loc) ->
+      Lprim(p, [f l1; tail l2], loc)
   | Lprim (p, el, loc) ->
       Lprim (p, List.map f el, loc)
   | Lswitch (e, sw, loc) ->
       Lswitch (f e,
                { sw_numconsts = sw.sw_numconsts;
-                 sw_consts = List.map (fun (n, e) -> (n, f e)) sw.sw_consts;
+                 sw_consts = List.map (fun (n, e) -> (n, tail e)) sw.sw_consts;
                  sw_numblocks = sw.sw_numblocks;
-                 sw_blocks = List.map (fun (n, e) -> (n, f e)) sw.sw_blocks;
-                 sw_failaction = Option.map f sw.sw_failaction;
+                 sw_blocks = List.map (fun (n, e) -> (n, tail e)) sw.sw_blocks;
+                 sw_failaction = Option.map tail sw.sw_failaction;
                },
                loc)
   | Lstringswitch (e, sw, default, loc) ->
       Lstringswitch (
         f e,
-        List.map (fun (s, e) -> (s, f e)) sw,
-        Option.map f default,
+        List.map (fun (s, e) -> (s, tail e)) sw,
+        Option.map tail default,
         loc)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
   | Lstaticcatch (body, id, handler) ->
-      Lstaticcatch (f body, id, f handler)
+      Lstaticcatch (tail body, id, tail handler)
   | Ltrywith (e1, v, e2) ->
-      Ltrywith (f e1, v, f e2)
+      Ltrywith (f e1, v, tail e2)
   | Lifthenelse (e1, e2, e3) ->
-      Lifthenelse (f e1, f e2, f e3)
+      Lifthenelse (f e1, tail e2, tail e3)
   | Lsequence (e1, e2) ->
-      Lsequence (f e1, f e2)
+      Lsequence (f e1, tail e2)
   | Lwhile (e1, e2) ->
       Lwhile (f e1, f e2)
   | Lfor (v, e1, e2, dir, e3) ->
       Lfor (v, f e1, f e2, dir, f e3)
   | Lassign (v, e) ->
       Lassign (v, f e)
-  | Lsend (k, m, o, el, loc) ->
-      Lsend (k, f m, f o, List.map f el, loc)
+  | Lsend (k, m, o, el, pos, mode, loc) ->
+      Lsend (k, f m, f o, List.map f el, pos, mode, loc)
   | Levent (l, ev) ->
-      Levent (f l, ev)
+      Levent (tail l, ev)
   | Lifused (v, e) ->
-      Lifused (v, f e)
+      Lifused (v, tail e)
+  | Lregion e ->
+      Lregion (f e)
 
 let map f =
-  let rec g lam = f (shallow_map g lam) in
+  let rec g lam = f (shallow_map ~tail:g ~non_tail:g lam) in
   g
 
 (* To let-bind expressions to variables *)
@@ -987,11 +1046,6 @@ let merge_inline_attributes attr1 attr2 =
     if attr1 = attr2 then Some attr1
     else None
 
-let function_is_curried func =
-  match func.kind with
-  | Curried -> true
-  | Tupled -> false
-
 let max_arity () =
   if !Clflags.native_code then 126 else max_int
   (* 126 = 127 (the maximal number of parameters supported in C--)
@@ -1005,3 +1059,100 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
+
+let join_mode a b =
+  match a, b with
+  | Alloc_local, _ | _, Alloc_local -> Alloc_local
+  | Alloc_heap, Alloc_heap -> Alloc_heap
+
+let sub_mode a b =
+  match a, b with
+  | Alloc_heap, _ -> true
+  | _, Alloc_local -> true
+  | Alloc_local, Alloc_heap -> false
+
+let eq_mode a b =
+  match a, b with
+  | Alloc_heap, Alloc_heap -> true
+  | Alloc_local, Alloc_local -> true
+  | Alloc_heap, Alloc_local -> false
+  | Alloc_local, Alloc_heap -> false
+
+let primitive_may_allocate : primitive -> alloc_mode option = function
+  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
+  | Prevapply _ | Pdirapply _ -> Some Alloc_local
+  | Pgetglobal _ | Psetglobal _ -> None
+  | Pmakeblock (_, _, _, m) -> Some m
+  | Pmakefloatblock (_, m) -> Some m
+  | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
+  | Pfloatfield (_, _, m) -> Some m
+  | Psetfloatfield _ -> None
+  | Pduprecord _ -> Some Alloc_heap
+  | Pccall p ->
+     if not p.prim_alloc then None
+     else begin match p.prim_native_repr_res with
+       | (Prim_local|Prim_poly), _ -> Some Alloc_local
+       | Prim_global, _ -> Some Alloc_heap
+     end
+  | Praise _ -> None
+  | Psequor | Psequand | Pnot
+  | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _
+  | Pandint | Porint | Pxorint
+  | Plslint | Plsrint | Pasrint
+  | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _
+  | Poffsetref _ -> None
+  | Pintoffloat -> None
+  | Pfloatofint m -> Some m
+  | Pnegfloat m | Pabsfloat m
+  | Paddfloat m | Psubfloat m
+  | Pmulfloat m | Pdivfloat m -> Some m
+  | Pfloatcomp _ -> None
+  | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
+  | Pmakearray (_, _, m) -> Some m
+  | Pduparray _ -> Some Alloc_heap
+  | Parraylength _ -> None
+  | Parraysetu _ | Parraysets _
+  | Parrayrefu (Paddrarray|Pintarray)
+  | Parrayrefs (Paddrarray|Pintarray) -> None
+  | Parrayrefu (Pgenarray|Pfloatarray)
+  | Parrayrefs (Pgenarray|Pfloatarray) ->
+     (* The float box from flat floatarray access is always Alloc_heap *)
+     Some Alloc_heap
+  | Pisint | Pisout -> None
+  | Pintofbint _ -> None
+  | Pbintofint (_,m)
+  | Pcvtbint (_,_,m)
+  | Pnegbint (_, m)
+  | Paddbint (_, m)
+  | Psubbint (_, m)
+  | Pmulbint (_, m)
+  | Pdivbint {mode=m}
+  | Pmodbint {mode=m}
+  | Pandbint (_, m)
+  | Porbint (_, m)
+  | Pxorbint (_, m)
+  | Plslbint (_, m)
+  | Plsrbint (_, m)
+  | Pasrbint (_, m) -> Some m
+  | Pbintcomp _ -> None
+  | Pbigarrayset _ | Pbigarraydim _ -> None
+  | Pbigarrayref (_, _, _, _) ->
+     (* Boxes arising from Bigarray access are always Alloc_heap *)
+     Some Alloc_heap
+  | Pstring_load_16 _ | Pbytes_load_16 _ -> None
+  | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
+  | Pbigstring_load_16 _ -> None
+  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ -> None
+  | Pctconst _ -> None
+  | Pbswap16 -> None
+  | Pbbswap (_, m) -> Some m
+  | Pint_as_pointer -> None
+  | Popaque -> None
+  | Pprobe_is_enabled _ -> None

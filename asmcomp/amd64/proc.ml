@@ -312,6 +312,7 @@ let destroyed_at_oper = function
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
+  | Iop(Iendregion) -> [| r11 |]
   | _ ->
     if fp then
 (* prevent any use of the frame pointer ! *)
@@ -358,6 +359,7 @@ let op_is_pure = function
   | Ispecific(Ilea _|Isextend32|Izextend32) -> true
   | Ispecific _ -> false
   | Iprobe _ | Iprobe_is_enabled _-> false
+  | Ibeginregion | Iendregion -> false
   | _ -> true
 
 (* Layout of the stack frame *)

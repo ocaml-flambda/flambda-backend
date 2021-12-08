@@ -117,7 +117,7 @@ let rec printtyp_reset_maybe loc =
   | _ -> ()
 ;;
 
-let call_kind_string k =
+let call_kind_string (k : call) =
   match k with
   | Tail -> "tail"
   | Stack -> "stack"

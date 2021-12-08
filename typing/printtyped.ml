@@ -330,22 +330,30 @@ and expression i ppf x =
                       expression_extra i ppf extra attrs; i+1)
       (i+1) x.exp_extra
   in
+  (match Btype.Value_mode.check_const x.exp_mode with
+  | Some Global -> line i ppf "value_mode global\n"
+  | Some Regional -> line i ppf "value_mode regional\n"
+  | Some Local -> line i ppf "value_mode local\n"
+  | None -> line i ppf "value_mode <modevar>\n");
   match x.exp_desc with
-  | Texp_ident (li,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
+  | Texp_ident (li,_,_,_) -> line i ppf "Texp_ident %a\n" fmt_path li;
   | Texp_instvar (_, li,_) -> line i ppf "Texp_instvar %a\n" fmt_path li;
   | Texp_constant (c) -> line i ppf "Texp_constant %a\n" fmt_constant c;
   | Texp_let (rf, l, e) ->
       line i ppf "Texp_let %a\n" fmt_rec_flag rf;
       list i value_binding ppf l;
       expression i ppf e;
-  | Texp_function { arg_label = p; param = _; cases; partial = _; } ->
+  | Texp_function { arg_label = p; param = _; cases; partial = _; region } ->
       line i ppf "Texp_function\n";
+      line i ppf "region %b\n" region;
       arg_label i ppf p;
       list i case ppf cases;
-  | Texp_apply (e, l) ->
+  | Texp_apply (e, l, m) ->
       line i ppf "Texp_apply\n";
+      line i ppf "apply_mode %s\n"
+        (match m with Tail -> "Tail" | Nontail -> "Nontail");
       expression i ppf e;
-      list i label_x_expression ppf l;
+      list i label_x_apply_arg ppf l;
   | Texp_match (e, l, _partial) ->
       line i ppf "Texp_match\n";
       expression i ppf e;
@@ -410,15 +418,15 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       expression i ppf e3;
-  | Texp_send (e, Tmeth_name s, eo) ->
+  | Texp_send (e, Tmeth_name s, eo, _) ->
       line i ppf "Texp_send \"%s\"\n" s;
       expression i ppf e;
       option i expression ppf eo
-  | Texp_send (e, Tmeth_val s, eo) ->
+  | Texp_send (e, Tmeth_val s, eo, _) ->
       line i ppf "Texp_send \"%a\"\n" fmt_ident s;
       expression i ppf e;
       option i expression ppf eo
-  | Texp_new (li, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
+  | Texp_new (li, _, _, _) -> line i ppf "Texp_new %a\n" fmt_path li;
   | Texp_setinstvar (_, s, _, e) ->
       line i ppf "Texp_setinstvar \"%a\"\n" fmt_path s;
       expression i ppf e;
@@ -635,7 +643,7 @@ and class_expr i ppf x =
   | Tcl_apply (ce, l) ->
       line i ppf "Tcl_apply\n";
       class_expr i ppf ce;
-      list i label_x_expression ppf l;
+      list i label_x_apply_arg ppf l;
   | Tcl_let (rf, l1, l2, ce) ->
       line i ppf "Tcl_let %a\n" fmt_rec_flag rf;
       list i value_binding ppf l1;
@@ -947,10 +955,10 @@ and record_field i ppf = function
   | _, Kept _ ->
       line i ppf "<kept>"
 
-and label_x_expression i ppf (l, e) =
+and label_x_apply_arg i ppf (l, e) =
   line i ppf "<arg>\n";
   arg_label (i+1) ppf l;
-  (match e with None -> () | Some e -> expression (i+1) ppf e)
+  (match e with Omitted _ -> () | Arg e -> expression (i+1) ppf e)
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

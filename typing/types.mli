@@ -66,7 +66,7 @@ and type_desc =
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
-  | Tarrow of arg_label * type_expr * type_expr * commutable
+  | Tarrow of arrow_desc * type_expr * type_expr * commutable
   (** [Tarrow (Nolabel,      e1, e2, c)] ==> [e1    -> e2]
       [Tarrow (Labelled "l", e1, e2, c)] ==> [l:e1  -> e2]
       [Tarrow (Optional "l", e1, e2, c)] ==> [?l:e1 -> e2]
@@ -128,6 +128,23 @@ and type_desc =
 
   | Tpackage of Path.t * Longident.t list * type_expr list
   (** Type of a first-class module (a.k.a package). *)
+
+and arrow_desc =
+  arg_label * alloc_mode * alloc_mode
+
+and alloc_mode_const = Global | Local
+
+and alloc_mode_var = {
+  mutable upper: alloc_mode_const;
+  mutable lower: alloc_mode_const;
+  mutable vlower: alloc_mode_var list;
+  mvid: int;
+}
+
+and alloc_mode =
+  | Amode of alloc_mode_const
+  | Amodevar of alloc_mode_var
+
 
 (** [  `X | `Y ]       (row_closed = true)
     [< `X | `Y ]       (row_closed = true)
@@ -377,10 +394,16 @@ and record_representation =
   | Record_inlined of int               (* Inlined record *)
   | Record_extension of Path.t          (* Inlined record under extension *)
 
+and global_flag =
+  | Global
+  | Nonlocal
+  | Unrestricted
+
 and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutable_flag;
+    ld_global: global_flag;
     ld_type: type_expr;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
@@ -568,6 +591,7 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutable_flag;              (* Is this a mutable field? *)
+    lbl_global: global_flag;        (* Is this a nonlocal field? *)
     lbl_pos: int;                       (* Position in block *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for this record *)
@@ -584,3 +608,8 @@ type label_description =
 val bound_value_identifiers: signature -> Ident.t list
 
 val signature_item_id : signature_item -> Ident.t
+
+type value_mode =
+  (* See Btype.Value_mode *)
+  { r_as_l : alloc_mode;
+    r_as_g : alloc_mode; }

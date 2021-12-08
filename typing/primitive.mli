@@ -29,6 +29,11 @@ type native_repr =
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
+type mode =
+  | Prim_local
+  | Prim_global
+  | Prim_poly
+
 type description = private
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
@@ -42,8 +47,8 @@ type description = private
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: native_repr list;
-    prim_native_repr_res: native_repr }
+    prim_native_repr_args: (mode * native_repr) list;
+    prim_native_repr_res: mode * native_repr }
 
 (* Invariant [List.length d.prim_native_repr_args = d.prim_arity] *)
 
@@ -60,14 +65,14 @@ val make
   -> effects:effects
   -> coeffects:coeffects
   -> native_name:string
-  -> native_repr_args: native_repr list
-  -> native_repr_res: native_repr
+  -> native_repr_args: (mode*native_repr) list
+  -> native_repr_res: mode*native_repr
   -> description
 
 val parse_declaration
   :  Parsetree.value_description
-  -> native_repr_args:native_repr list
-  -> native_repr_res:native_repr
+  -> native_repr_args:(mode*native_repr) list
+  -> native_repr_res:(mode*native_repr)
   -> description
 
 val print

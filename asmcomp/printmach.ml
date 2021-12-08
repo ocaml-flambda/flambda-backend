@@ -152,6 +152,8 @@ let operation op arg ppf res =
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
       reg arg.(0)
+  | Ibeginregion -> fprintf ppf "beginregion"
+  | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
   | Iprobe {name;handler_code_sym} ->

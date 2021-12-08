@@ -77,6 +77,8 @@ val inline_by_copying_function_body
   -> fun_vars:Variable.Set.t
   -> args:Variable.t list
   -> dbg:Debuginfo.t
+  -> position:Lambda.apply_position
+  -> mode:Lambda.alloc_mode
   -> simplify:Inlining_decision_intf.simplify
   -> Flambda.t * Inline_and_simplify_aux.Result.t
 
@@ -103,5 +105,7 @@ val inline_by_copying_function_declaration
   -> free_vars:Flambda.specialised_to Variable.Map.t
   -> direct_call_surrogates:Closure_id.t Closure_id.Map.t
   -> dbg:Debuginfo.t
+  -> position:Lambda.apply_position
+  -> mode:Lambda.alloc_mode
   -> simplify:Inlining_decision_intf.simplify
   -> (Flambda.t * Inline_and_simplify_aux.Result.t) option

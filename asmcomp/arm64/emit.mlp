@@ -511,6 +511,8 @@ module BR = Branch_relaxation.Make (struct
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
+    | Lop (Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop (Iintop (Icomp _)) -> 2
     | Lop (Iintop_imm (Icomp _, _)) -> 2
     | Lop (Iintop (Icheckbound)) -> 2
@@ -771,10 +773,12 @@ let emit_instr i =
         | Word_int | Word_val | Double ->
             `	str	{emit_reg src}, {emit_addressing addr base}\n`
         end
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         assembly_code_for_allocation i ~n ~far:false ~dbginfo
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
         assembly_code_for_allocation i ~n ~far:true ~dbginfo
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop_imm(Iadd, n)) ->
         emit_addimm i.res.(0) i.arg.(0) n
     | Lop(Iintop_imm(Isub, n)) ->

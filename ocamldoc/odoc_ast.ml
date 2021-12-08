@@ -765,7 +765,7 @@ module Analyser =
             in
            (parameter :: params, k)
 
-      | (Parsetree.Pcl_apply (p_class_expr2, _), Tcl_apply (tt_class_expr2, exp_opt_optional_list)) ->
+      | (Parsetree.Pcl_apply (p_class_expr2, _), Tcl_apply (tt_class_expr2, arg_list)) ->
           let applied_name =
             (* we want an ident, or else the class applied will appear in the form object ... end,
                because if the class applied has no name, the code is kinda ugly, isn't it ? *)
@@ -781,12 +781,12 @@ module Analyser =
                     Odoc_messages.object_end
           in
           let param_exps = List.fold_left
-              (fun acc -> fun (_, exp_opt) ->
-                match exp_opt with
-                  None -> acc
-                | Some e -> acc @ [e])
+              (fun acc -> fun (_, arg) ->
+                match arg with
+                | Omitted _ -> acc
+                | Arg e -> acc @ [e])
               []
-              exp_opt_optional_list
+              arg_list
           in
           let param_types = List.map (fun e -> e.Typedtree.exp_type) param_exps in
           let params_code =

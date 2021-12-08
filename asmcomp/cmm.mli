@@ -139,13 +139,13 @@ type memory_chunk =
                                           see PR#10433 *)
 
 and operation =
-    Capply of machtype
+    Capply of machtype * Lambda.apply_position
   | Cextcall of string * machtype * exttype list * bool
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.
           An empty list means "all arguments are machine words [XInt]". *)
   | Cload of memory_chunk * Asttypes.mutable_flag
-  | Calloc
+  | Calloc of Lambda.alloc_mode
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -196,6 +196,8 @@ and expression =
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
       * Debuginfo.t
+  | Cregion of expression
+  | Ctail of expression
 
 type codegen_option =
   | Reduce_code_size
@@ -243,11 +245,18 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
+val map_shallow_tail: (expression -> expression) -> expression -> expression
+  (** Apply the transformation to those immediate sub-expressions of an
+      expression that are in tail position, using the same definition of "tail"
+      as [iter_shallow_tail] *)
+
 val map_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
-      to all inner sub-expressions that can produce the final result.
-      Same disclaimer as for [iter_shallow_tail] about the notion
-      of "tail" sub-expression. *)
+      to all inner sub-expressions that can produce the final result,
+      by recursively applying map_shallow_tail *)
+
+val iter_shallow: (expression -> unit) -> expression -> unit
+  (** Apply the transformation to each immediate sub-expression. *)
 
 val map_shallow: (expression -> expression) -> expression -> expression
   (** Apply the transformation to each immediate sub-expression. *)

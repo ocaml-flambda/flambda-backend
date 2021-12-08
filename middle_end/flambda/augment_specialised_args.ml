@@ -451,6 +451,8 @@ module Make (T : S) = struct
       Variable.Map.data
         new_inner_vars_to_spec_args_bound_in_the_wrapper_renaming
     in
+    let mode =
+      if function_decl.region then Lambda.Alloc_heap else Lambda.Alloc_local in
     (* New definitions that project from existing specialised args need
        to be rewritten to use the corresponding specialised args of
        the wrapper.  Definitions that are just equality to existing
@@ -468,6 +470,8 @@ module Make (T : S) = struct
             spec_args_bound_in_the_wrapper;
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
+          position = Apply_nontail;
+          mode;
           inlined = Default_inlined;
           specialise = Default_specialise;
           probe = None;
@@ -528,9 +532,16 @@ module Make (T : S) = struct
         for_one_function.existing_specialised_args
         Variable.Map.empty
     in
+    let alloc_mode =
+      (* Wrapper closes over no more values than the original function,
+         so can share the same alloc mode *)
+      function_decl.alloc_mode
+    in
     let new_function_decl =
       Flambda.create_function_declaration
         ~params:wrapper_params
+        ~alloc_mode
+        ~region:function_decl.region
         ~body:wrapper_body
         ~stub:true
         ~dbg:Debuginfo.none
@@ -608,8 +619,12 @@ module Make (T : S) = struct
           Variable.Set.elements (Variable.Map.keys
             for_one_function.new_inner_to_new_outer_vars)
         in
+        let last_mode =
+          List.fold_left (fun _mode p -> Parameter.alloc_mode p)
+            function_decl.alloc_mode function_decl.params
+        in
         let new_params =
-          List.map Parameter.wrap new_params
+          List.map (fun p -> Parameter.wrap p last_mode) new_params
         in
         function_decl.params @ new_params
       in
@@ -619,6 +634,8 @@ module Make (T : S) = struct
       let rewritten_function_decl =
         Flambda.create_function_declaration
           ~params:all_params
+          ~alloc_mode:function_decl.alloc_mode
+          ~region:function_decl.region
           ~body:function_decl.body
           ~stub:function_decl.stub
           ~dbg:function_decl.dbg

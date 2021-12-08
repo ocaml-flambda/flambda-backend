@@ -26,7 +26,7 @@ let prim_size (prim : Clambda_primitives.primitive) args =
   | Psetfield (_, isptr, init) ->
     begin match init with
     | Root_initialization -> 1  (* never causes a write barrier hit *)
-    | Assignment | Heap_initialization ->
+    | Assignment | Local_assignment | Heap_initialization ->
       match isptr with
       | Pointer -> 4
       | Immediate -> 1
@@ -116,6 +116,10 @@ let lambda_smaller' lam ~than:threshold =
       size := !size + 2; lambda_size cond; lambda_size body
     | For { body; _ } ->
       size := !size + 4; lambda_size body
+    | Region body ->
+      incr size; lambda_size body
+    | Tail body ->
+      lambda_size body
   and lambda_named_size (named : Flambda.named) =
     if !size > threshold then raise Exit;
     match named with
@@ -267,7 +271,7 @@ module Benefit = struct
     | If_then_else _ | While _ | For _ -> b := remove_branch !b
     | Apply _ | Send _ -> b := remove_call !b
     | Let _ | Let_mutable _ | Let_rec _ | Proved_unreachable | Var _
-    | Static_catch _ -> ()
+    | Region _ | Tail _ | Static_catch _ -> ()
 
   let remove_code_helper_named b (named : Flambda.named) =
     match named with

@@ -34,6 +34,7 @@
 #include "caml/signals.h"
 #include "caml/memprof.h"
 #include "caml/eventlog.h"
+#include "caml/alloc.h"
 
 int caml_huge_fallback_count = 0;
 /* Number of times that mmapping big pages fails and we fell back to small
@@ -673,6 +674,135 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
   }
 }
 
+/* This version of [caml_modify] may additionally be used to mutate
+   locally-allocated objects. (This version is used by mutations
+   generated from OCaml code when the value being modified may be
+   locally allocated) */
+CAMLexport void caml_modify_local (value obj, intnat i, value val)
+{
+  if (Color_hd(Hd_val(obj)) == Local_unmarked) {
+    Field(obj, i) = val;
+  } else {
+    caml_modify(&Field(obj, i), val);
+  }
+}
+
+CAMLexport intnat caml_local_region_begin()
+{
+  return Caml_state->local_sp;
+}
+
+CAMLexport void caml_local_region_end(intnat reg)
+{
+  Caml_state->local_sp = reg;
+}
+
+CAMLexport caml_local_arenas* caml_get_local_arenas()
+{
+  caml_local_arenas* s = Caml_state->local_arenas;
+  if (s != NULL)
+    s->saved_sp = Caml_state->local_sp;
+  return s;
+}
+
+CAMLexport void caml_set_local_arenas(caml_local_arenas* s)
+{
+  Caml_state->local_arenas = s;
+  if (s != NULL) {
+    struct caml_local_arena a = s->arenas[s->count - 1];
+    Caml_state->local_sp = s->saved_sp;
+    Caml_state->local_top = (void*)(a.base + a.length);
+    Caml_state->local_limit = - a.length;
+  } else {
+    Caml_state->local_sp = 0;
+    Caml_state->local_top = NULL;
+    Caml_state->local_limit = 0;
+  }
+}
+
+void caml_local_realloc()
+{
+  caml_local_arenas* s = caml_get_local_arenas();
+  intnat i;
+  char* arena;
+  caml_stat_block block;
+  if (s == NULL) {
+    s = caml_stat_alloc(sizeof(*s));
+    s->count = 0;
+    s->next_length = 0;
+    s->saved_sp = Caml_state->local_sp;
+  }
+  if (s->count == Max_local_arenas)
+    caml_fatal_error("Local allocation stack overflow - exceeded Max_local_arenas");
+
+  do {
+    if (s->next_length == 0) {
+      s->next_length = Init_local_arena_bsize;
+    } else {
+      /* overflow check */
+      CAML_STATIC_ASSERT(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0);
+      s->next_length *= 4;
+    }
+    /* may need to loop, if a very large allocation was requested */
+  } while (s->saved_sp + s->next_length < 0);
+
+  arena = caml_stat_alloc_aligned_noexc(s->next_length, 0, &block);
+  if (arena == NULL)
+    caml_fatal_error("Local allocation stack overflow - out of memory");
+  caml_page_table_add(In_local, arena, arena + s->next_length);
+#ifdef DEBUG
+  for (i = 0; i < s->next_length; i += sizeof(value)) {
+    *((header_t*)(arena + i)) = Debug_uninit_local;
+  }
+#endif
+  for (i = s->saved_sp; i < 0; i += sizeof(value)) {
+    *((header_t*)(arena + s->next_length + i)) = Local_uninit_hd;
+  }
+  caml_gc_message(0x08,
+                  "Growing local stack to %"ARCH_INTNAT_PRINTF_FORMAT"d kB\n",
+                  s->next_length / 1024);
+  s->count++;
+  s->arenas[s->count-1].length = s->next_length;
+  s->arenas[s->count-1].base = arena;
+  s->arenas[s->count-1].alloc_block = block;
+  caml_set_local_arenas(s);
+  CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
+}
+
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+{
+#ifdef NATIVE_CODE
+  intnat sp = Caml_state->local_sp;
+  header_t* hp;
+  sp -= Bhsize_wosize(wosize);
+  Caml_state->local_sp = sp;
+  if (sp < Caml_state->local_limit)
+    caml_local_realloc();
+  hp = (header_t*)((char*)Caml_state->local_top + sp);
+  *hp = Make_header(wosize, tag, Local_unmarked);
+  return Val_hp(hp);
+#else
+  if (wosize <= Max_young_wosize) {
+    return caml_alloc_small(wosize, tag);
+  } else {
+    /* The return value is initialised directly using Field.
+       This is invalid if it may create major -> minor pointers.
+       So, perform a minor GC to prevent this. (See caml_make_vect) */
+    caml_minor_collection();
+    return caml_alloc_shr(wosize, tag);
+  }
+#endif
+}
+
+CAMLprim value caml_local_stack_offset(value blk)
+{
+#ifdef NATIVE_CODE
+  intnat sp = Caml_state->local_sp;
+  return Val_long(-sp);
+#else
+  return Val_long(0);
+#endif
+}
 
 /* Global memory pool.
 

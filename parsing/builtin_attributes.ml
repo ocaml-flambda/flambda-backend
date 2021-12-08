@@ -399,3 +399,9 @@ let parse_standard_implementation_attributes attr =
   afl_inst_ratio_attribute attr;
   flambda_o3_attribute attr;
   flambda_oclassic_attribute attr
+
+let has_curry attr =
+  List.exists (check ["ocaml.curry"; "curry"]) attr
+
+let has_local_opt attr =
+  List.exists (check ["ocaml.local_opt"; "local_opt"]) attr

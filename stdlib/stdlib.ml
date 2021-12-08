@@ -67,63 +67,63 @@ external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
 
 (* Comparisons *)
 
-external ( = ) : 'a -> 'a -> bool = "%equal"
-external ( <> ) : 'a -> 'a -> bool = "%notequal"
-external ( < ) : 'a -> 'a -> bool = "%lessthan"
-external ( > ) : 'a -> 'a -> bool = "%greaterthan"
-external ( <= ) : 'a -> 'a -> bool = "%lessequal"
-external ( >= ) : 'a -> 'a -> bool = "%greaterequal"
-external compare : 'a -> 'a -> int = "%compare"
+external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
+external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%notequal"
+external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessthan"
+external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterthan"
+external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessequal"
+external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
+external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
 
 let min x y = if x <= y then x else y
 let max x y = if x >= y then x else y
 
-external ( == ) : 'a -> 'a -> bool = "%eq"
-external ( != ) : 'a -> 'a -> bool = "%noteq"
+external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
+external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 
 (* Boolean operations *)
 
-external not : bool -> bool = "%boolnot"
-external ( & ) : bool -> bool -> bool = "%sequand"
-external ( && ) : bool -> bool -> bool = "%sequand"
-external ( or ) : bool -> bool -> bool = "%sequor"
-external ( || ) : bool -> bool -> bool = "%sequor"
+external not : (bool[@local_opt]) -> bool = "%boolnot"
+external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
+external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
+external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
+external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
 
 (* Integer operations *)
 
-external ( ~- ) : int -> int = "%negint"
-external ( ~+ ) : int -> int = "%identity"
-external succ : int -> int = "%succint"
-external pred : int -> int = "%predint"
-external ( + ) : int -> int -> int = "%addint"
-external ( - ) : int -> int -> int = "%subint"
-external ( * ) : int -> int -> int = "%mulint"
-external ( / ) : int -> int -> int = "%divint"
-external ( mod ) : int -> int -> int = "%modint"
+external ( ~- ) : (int[@local_opt]) -> int = "%negint"
+external ( ~+ ) : (int[@local_opt]) -> int = "%identity"
+external succ : (int[@local_opt]) -> int = "%succint"
+external pred : (int[@local_opt]) -> int = "%predint"
+external ( + ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%addint"
+external ( - ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%subint"
+external ( * ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%mulint"
+external ( / ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%divint"
+external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
 
 let abs x = if x >= 0 then x else -x
 
-external ( land ) : int -> int -> int = "%andint"
-external ( lor ) : int -> int -> int = "%orint"
-external ( lxor ) : int -> int -> int = "%xorint"
+external ( land ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%andint"
+external ( lor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%orint"
+external ( lxor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%xorint"
 
 let lnot x = x lxor (-1)
 
-external ( lsl ) : int -> int -> int = "%lslint"
-external ( lsr ) : int -> int -> int = "%lsrint"
-external ( asr ) : int -> int -> int = "%asrint"
+external ( lsl ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lslint"
+external ( lsr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
+external ( asr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
 
 let max_int = (-1) lsr 1
 let min_int = max_int + 1
 
 (* Floating-point operations *)
 
-external ( ~-. ) : float -> float = "%negfloat"
-external ( ~+. ) : float -> float = "%identity"
-external ( +. ) : float -> float -> float = "%addfloat"
-external ( -. ) : float -> float -> float = "%subfloat"
-external ( *. ) : float -> float -> float = "%mulfloat"
-external ( /. ) : float -> float -> float = "%divfloat"
+external ( ~-. ) : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
+external ( ~+. ) : (float[@local_opt]) -> (float[@local_opt]) = "%identity"
+external ( +. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
+external ( -. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%subfloat"
+external ( *. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%mulfloat"
+external ( /. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%divfloat"
 external ( ** ) : float -> float -> float = "caml_power_float" "pow"
   [@@unboxed] [@@noalloc]
 external exp : float -> float = "caml_exp_float" "exp" [@@unboxed] [@@noalloc]
@@ -159,7 +159,7 @@ external ceil : float -> float = "caml_ceil_float" "ceil"
   [@@unboxed] [@@noalloc]
 external floor : float -> float = "caml_floor_float" "floor"
   [@@unboxed] [@@noalloc]
-external abs_float : float -> float = "%absfloat"
+external abs_float : (float[@local_opt]) -> (float[@local_opt]) = "%absfloat"
 external copysign : float -> float -> float
                   = "caml_copysign_float" "caml_copysign"
                   [@@unboxed] [@@noalloc]
@@ -169,10 +169,10 @@ external frexp : float -> float * int = "caml_frexp_float"
 external ldexp : (float [@unboxed]) -> (int [@untagged]) -> (float [@unboxed]) =
   "caml_ldexp_float" "caml_ldexp_float_unboxed" [@@noalloc]
 external modf : float -> float * float = "caml_modf_float"
-external float : int -> float = "%floatofint"
-external float_of_int : int -> float = "%floatofint"
-external truncate : float -> int = "%intoffloat"
-external int_of_float : float -> int = "%intoffloat"
+external float : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
+external float_of_int : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
+external truncate : (float[@local_opt]) -> int = "%intoffloat"
+external int_of_float : (float[@local_opt]) -> int = "%intoffloat"
 external float_of_bits : int64 -> float
   = "caml_int64_float_of_bits" "caml_int64_float_of_bits_unboxed"
   [@@unboxed] [@@noalloc]
@@ -229,17 +229,17 @@ external ignore : 'a -> unit = "%ignore"
 
 (* Pair operations *)
 
-external fst : 'a * 'b -> 'a = "%field0_immut"
-external snd : 'a * 'b -> 'b = "%field1_immut"
+external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) = "%field0_immut"
+external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
 
 (* References *)
 
 type 'a ref = { mutable contents : 'a }
-external ref : 'a -> 'a ref = "%makemutable"
-external ( ! ) : 'a ref -> 'a = "%field0"
-external ( := ) : 'a ref -> 'a -> unit = "%setfield0"
-external incr : int ref -> unit = "%incr"
-external decr : int ref -> unit = "%decr"
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
+external incr : (int ref[@local_opt]) -> unit = "%incr"
+external decr : (int ref[@local_opt]) -> unit = "%decr"
 
 (* Result type *)
 
