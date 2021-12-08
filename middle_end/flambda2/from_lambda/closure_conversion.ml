@@ -629,7 +629,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
           (* There should not be any way to reach this from Ocaml code. *)
           Misc.fatal_error
             "Non-zero tag on empty block allocation in [Closure_conversion]"
-      | Pmakefloatblock _
+      | Pmakefloatblock _ ->
+        Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
       | Pmakearray (_, _)
       | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply
       | Pdirapply | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
