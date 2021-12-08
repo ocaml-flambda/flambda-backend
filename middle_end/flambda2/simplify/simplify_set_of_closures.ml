@@ -29,7 +29,7 @@ module C = Simplify_set_of_closures_context
 let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     ~my_depth function_slot_opt ~closure_bound_names_inside_function
     ~inlining_arguments ~absolute_history code_id ~return_continuation
-    ~exn_continuation ~return_cont_params ~loopify_state code_metadata =
+    ~exn_continuation ~loopify_state code_metadata =
   let dacc = C.dacc_inside_functions context in
   let num_leading_heap_params =
     Code_metadata.num_leading_heap_params code_metadata
@@ -89,7 +89,6 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     |> DE.set_loopify_state loopify_state
     |> DE.increment_continuation_scope
   in
-  let denv = DE.add_parameters_with_unknown_types denv return_cont_params in
   let dacc = DA.with_denv dacc denv in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
@@ -151,9 +150,8 @@ type simplify_function_body_result =
 
 let simplify_function_body context ~outer_dacc function_slot_opt
     ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history
-    code_id ~return_cont_params code ~return_continuation ~exn_continuation
-    params ~body ~my_closure ~is_my_closure_used:_ ~my_region ~my_depth
-    ~free_names_of_body:_ =
+    code_id code ~return_continuation ~exn_continuation params ~body ~my_closure
+    ~is_my_closure_used:_ ~my_region ~my_depth ~free_names_of_body:_ =
   let loopify_state =
     if Loopify_attribute.should_loopify (Code.loopify code)
     then Loopify_state.loopify (Continuation.create ~name:"self" ())
@@ -163,8 +161,7 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       ~my_depth function_slot_opt ~closure_bound_names_inside_function
       ~inlining_arguments ~absolute_history code_id ~return_continuation
-      ~exn_continuation ~return_cont_params ~loopify_state
-      (Code.code_metadata code)
+      ~exn_continuation ~loopify_state (Code.code_metadata code)
   in
   let dacc = dacc_at_function_entry in
   if not (DA.no_lifted_constants dacc)
@@ -256,19 +253,16 @@ let compute_result_types ~is_a_functor ~return_cont_uses ~dacc_after_body
   | false, _ -> Unknown
   | true, None -> Bottom
   | true, Some uses ->
-    let env_at_fork_plus_params =
+    let env_at_fork =
       (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to ensure
          that the environment contains bindings for any symbols being defined by
          the set of closures. *)
-      DE.add_parameters_with_unknown_types
-        (DA.denv dacc_at_function_entry)
-        return_cont_params
+      DA.denv dacc_at_function_entry
     in
     let join =
       Join_points.compute_handler_env
-        ~cut_after:
-          (Scope.prev (DE.get_continuation_scope env_at_fork_plus_params))
-        uses ~params:return_cont_params ~env_at_fork_plus_params
+        ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
+        uses ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
         ~code_age_relation_after_body:
           (TE.code_age_relation (DA.typing_env dacc_after_body))
@@ -352,7 +346,7 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~f:
         (simplify_function_body context ~outer_dacc function_slot_opt
            ~closure_bound_names_inside_function ~inlining_arguments
-           ~absolute_history code_id ~return_cont_params code)
+           ~absolute_history code_id code)
   in
   let outer_dacc, lifted_consts_this_function =
     extract_accumulators_from_function outer_dacc ~dacc_after_body

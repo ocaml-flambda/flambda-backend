@@ -425,8 +425,8 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     | Some uses ->
       ( Some
           (Join_points.compute_handler_env uses ~params
-             ~env_at_fork_plus_params:denv_before_body
-             ~consts_lifted_during_body ~code_age_relation_after_body),
+             ~env_at_fork:denv_before_body ~consts_lifted_during_body
+             ~code_age_relation_after_body),
         Continuation_uses.get_use_ids uses )
   in
   let dacc =
@@ -757,12 +757,7 @@ let simplify_non_recursive_let_cont_stage1 ~simplify_expr dacc cont
        later. *)
     DA.get_and_clear_lifted_constants dacc
   in
-  let denv_before_body =
-    (* We add the parameters assuming that none of them are at toplevel. When we
-       do the toplevel calculation before simplifying the handler, we will mark
-       any of the parameters that are in fact at toplevel as such. *)
-    DE.add_parameters_with_unknown_types denv params ~at_unit_toplevel:false
-  in
+  let denv_before_body = DA.denv dacc in
   let dacc_for_body =
     (* This increment is required so that we can extract the portion of the
        environment(s) arising between the fork point and the use(s) of the
