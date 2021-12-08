@@ -127,7 +127,7 @@ type error =
   | Probe_name_format of string
   | Probe_name_undefined of string
   | Probe_is_enabled_format
-  | Extension_not_enabled of Clflags.extension
+  | Extension_not_enabled of Clflags.Extension.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat
@@ -3776,12 +3776,12 @@ and type_expect_
   | Pexp_extension (({ txt = ("extension.list_comprehension"
                             | "extension.arr_comprehension"); _ },
                     _ ) as extension)  ->
-    if Clflags.is_extension_enabled Clflags.Comprehensions then
+    if Clflags.Extension.(is_enabled Comprehensions) then
       let ext_expr = Extensions.extension_expr_of_payload ~loc extension in
       type_extension ~loc ~env ~ty_expected ~sexp ext_expr
     else
       raise
-        (Error (loc, env, Extension_not_enabled(Clflags.Comprehensions)))
+        (Error (loc, env, Extension_not_enabled(Clflags.Extension.Comprehensions)))
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -5739,8 +5739,8 @@ let report_error ~loc env = function
       Location.errorf ~loc
         "%%probe_is_enabled points must specify a single probe name as a \
          string literal"
-  | Extension_not_enabled(ext) ->
-    let name = Clflags.string_of_extension ext in
+  | Extension_not_enabled ext ->
+    let name = Clflags.Extension.to_string ext in
     Location.errorf ~loc
         "Extension %s must be enabled to use this feature." name
   | Literal_overflow ty ->
