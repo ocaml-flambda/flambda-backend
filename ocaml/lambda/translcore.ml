@@ -395,7 +395,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         | Record_unboxed _ -> assert false
         | Record_float -> Psetfloatfield (lbl.lbl_pos, Assignment)
         | Record_extension _ ->
-          Psetfield (lbl.lbl_pos, maybe_pointer newval, Assignment)
+          Psetfield (lbl.lbl_pos + 1, maybe_pointer newval, Assignment)
       in
       Lprim(access, [transl_exp ~scopes arg; transl_exp ~scopes newval],
             of_location ~scopes e.exp_loc)
