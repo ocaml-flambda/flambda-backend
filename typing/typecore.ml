@@ -337,7 +337,7 @@ let simple_pat_mode mode =
 let tuple_pat_mode mode tuple_modes =
   { mode; tuple_modes }
 
-let allocations : Alloc_mode.t list ref = ref []
+let allocations : Alloc_mode.t list ref = Local_store.s_ref []
 
 let reset_allocations () = allocations := []
 
