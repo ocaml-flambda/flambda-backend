@@ -82,11 +82,11 @@ type prim =
   | Comparison of comparison * comparison_kind
   | Raise of Lambda.raise_kind
   | Raise_with_backtrace
-  | Lazy_force
+  | Lazy_force of Lambda.apply_position
   | Loc of loc_kind
-  | Send
-  | Send_self
-  | Send_cache
+  | Send of Lambda.apply_position
+  | Send_self of Lambda.apply_position
+  | Send_cache of Lambda.apply_position
 
 let used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -216,7 +216,7 @@ let lookup_primitive loc poly pos p =
     | "%floatarray_unsafe_get" -> Primitive ((Parrayrefu Pfloatarray), 2)
     | "%floatarray_unsafe_set" -> Primitive ((Parraysetu Pfloatarray), 3)
     | "%obj_is_int" -> Primitive (Pisint, 1)
-    | "%lazy_force" -> Lazy_force
+    | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
     | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
     | "%nativeint_neg" -> Primitive ((Pnegbint (Pnativeint, mode)), 1)
@@ -365,9 +365,9 @@ let lookup_primitive loc poly pos p =
     | "%int_as_pointer" -> Primitive (Pint_as_pointer, 1)
     | "%opaque" -> Primitive (Popaque, 1)
     | "%sys_argv" -> External prim_sys_argv
-    | "%send" -> Send
-    | "%sendself" -> Send_self
-    | "%sendcache" -> Send_cache
+    | "%send" -> Send pos
+    | "%sendself" -> Send_self pos
+    | "%sendcache" -> Send_cache pos
     | "%equal" -> Comparison(Equal, Compare_generic)
     | "%notequal" -> Comparison(Not_equal, Compare_generic)
     | "%lessequal" -> Comparison(Less_equal, Compare_generic)
@@ -691,24 +691,24 @@ let lambda_of_prim prim_name prim loc args arg_exps =
                            [Lvar vexn; bt],
                            loc),
                      Lprim(Praise Raise_reraise, [raise_arg], loc)))
-  | Lazy_force, [arg] ->
-      Matching.inline_lazy_force arg loc
+  | Lazy_force pos, [arg] ->
+      Matching.inline_lazy_force arg pos loc
   | Loc kind, [] ->
       lambda_of_loc kind loc
   | Loc kind, [arg] ->
       let lam = lambda_of_loc kind loc in
       Lprim(Pmakeblock(0, Immutable, None, Alloc_heap), [lam; arg], loc)
-  | Send, [obj; meth] ->
-      Lsend(Public, meth, obj, [], Apply_tail, loc)
-  | Send_self, [obj; meth] ->
-      Lsend(Self, meth, obj, [], Apply_tail, loc)
-  | Send_cache, [obj; meth; cache; pos] ->
-      Lsend(Cached, meth, obj, [cache; pos], Apply_tail, loc)
+  | Send pos, [obj; meth] ->
+      Lsend(Public, meth, obj, [], pos, Alloc_heap, loc)
+  | Send_self pos, [obj; meth] ->
+      Lsend(Self, meth, obj, [], pos, Alloc_heap, loc)
+  | Send_cache apos, [obj; meth; cache; pos] ->
+      Lsend(Cached, meth, obj, [cache; pos], apos, Alloc_heap, loc)
   | Primitive (prim, arity), args when arity = List.length args ->
       Lprim(prim, args, loc)
   | (Raise _ | Raise_with_backtrace
-    | Lazy_force | Loc _ | Primitive _ | Comparison _
-    | Send | Send_self | Send_cache), _ ->
+    | Lazy_force _ | Loc _ | Primitive _ | Comparison _
+    | Send _ | Send_self _ | Send_cache _), _ ->
       raise(Error(to_location loc, Wrong_arity_builtin_primitive prim_name))
 
 let check_primitive_arity loc p =
@@ -725,10 +725,10 @@ let check_primitive_arity loc p =
     | Comparison _ -> p.prim_arity = 2
     | Raise _ -> p.prim_arity = 1
     | Raise_with_backtrace -> p.prim_arity = 2
-    | Lazy_force -> p.prim_arity = 1
+    | Lazy_force _ -> p.prim_arity = 1
     | Loc _ -> p.prim_arity = 1 || p.prim_arity = 0
-    | Send | Send_self -> p.prim_arity = 2
-    | Send_cache -> p.prim_arity = 4
+    | Send _ | Send_self _ -> p.prim_arity = 2
+    | Send_cache _ -> p.prim_arity = 4
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
 
@@ -757,14 +757,14 @@ let transl_primitive loc p env ty ~poly_mode path =
   | _ ->
      let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
      let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
-     let ret_mode = to_alloc_mode p.prim_native_repr_res in
+     let region =
+       match to_alloc_mode p.prim_native_repr_res with
+       | Alloc_heap -> true
+       | Alloc_local -> false
+     in
      let rec count_nlocal = function
        | [] -> assert false
-       | [_] ->
-          begin match ret_mode with
-          | Alloc_local -> 1
-          | Alloc_heap -> 0
-          end
+       | [_] -> if region then 0 else 1
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
@@ -777,7 +777,7 @@ let transl_primitive loc p env ty ~poly_mode path =
          loc;
          body;
          mode = Alloc_heap;
-         ret_mode }
+         region }
      in
      Lambda.check_lfunction lfunc;
      Lfunction lfunc
@@ -821,7 +821,7 @@ let primitive_needs_event_after = function
   | External _ -> true
   | Comparison(comp, knd) ->
       lambda_primitive_needs_event_after (comparison_primitive comp knd)
-  | Lazy_force | Send | Send_self | Send_cache -> true
+  | Lazy_force _ | Send _ | Send_self _ | Send_cache _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ -> false
 
 let transl_primitive_application loc p env ty mode path exp args arg_exps pos =

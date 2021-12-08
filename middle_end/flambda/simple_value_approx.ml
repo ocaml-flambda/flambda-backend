@@ -88,6 +88,7 @@ and function_declaration = {
   closure_origin : Closure_origin.t;
   params : Parameter.t list;
   alloc_mode : Lambda.alloc_mode;
+  region : bool;
   function_body : function_body option;
 }
 
@@ -950,6 +951,7 @@ let function_declaration_approx ~keep_body fun_var
   { function_body;
     params = fun_decl.params;
     alloc_mode = fun_decl.alloc_mode;
+    region = fun_decl.region;
     closure_origin = fun_decl.closure_origin; }
 
 let function_declarations_approx ~keep_body

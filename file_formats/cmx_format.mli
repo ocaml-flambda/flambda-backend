@@ -35,6 +35,7 @@ type export_info =
   | Clambda of Clambda.value_approximation
   | Flambda of Export_info.t
 
+type apply_fn := int * Lambda.alloc_mode
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)
     mutable ui_symbol: string;            (* Prefix for symbols *)
@@ -42,8 +43,8 @@ type unit_infos =
     mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
     mutable ui_imports_cmx: crcs;         (* Infos imported *)
     mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
-    mutable ui_apply_fun: int list;       (* Apply functions needed *)
-    mutable ui_send_fun: int list;        (* Send functions needed *)
+    mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
+    mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_force_link: bool }         (* Always linked *)
 

@@ -39,6 +39,7 @@ type apply = {
   kind : call_kind;
   dbg : Debuginfo.t;
   position : Lambda.apply_position;
+  mode : Lambda.alloc_mode;
   inline : Lambda.inline_attribute;
   (** Instructions from the source code as to whether the callee should
       be inlined. *)
@@ -62,6 +63,7 @@ type send = {
   args : Variable.t list;
   dbg : Debuginfo.t;
   position : Lambda.apply_position;
+  mode : Lambda.alloc_mode;
 }
 
 (** For details on these types, see projection.mli. *)
@@ -308,6 +310,7 @@ and function_declaration = private {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
   alloc_mode : Lambda.alloc_mode;
+  region : bool;
   body : t;
   (* CR-soon mshinwell: inconsistent naming free_variables/free_vars here and
      above *)
@@ -555,6 +558,7 @@ end
 val create_function_declaration
    : params:Parameter.t list
   -> alloc_mode:Lambda.alloc_mode
+  -> region:bool
   -> body:t
   -> stub:bool
   -> dbg:Debuginfo.t

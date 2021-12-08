@@ -51,4 +51,4 @@ val expand_stringswitch:
     scoped_location -> lambda -> (string * lambda) list ->
     lambda option -> lambda
 
-val inline_lazy_force : lambda -> scoped_location -> lambda
+val inline_lazy_force : lambda -> apply_position -> scoped_location -> lambda

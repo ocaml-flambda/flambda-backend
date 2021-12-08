@@ -181,7 +181,7 @@ and expression_desc =
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
   | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial; }
+      cases : value case list; partial : partial; region : bool }
         (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
             See {!Parsetree} for more details.
 
@@ -254,8 +254,9 @@ and expression_desc =
   | Texp_for of
       Ident.t * Parsetree.pattern * expression * expression * direction_flag *
         expression
-  | Texp_send of expression * meth * expression option
-  | Texp_new of Path.t * Longident.t loc * Types.class_declaration
+  | Texp_send of expression * meth * expression option * apply_position
+  | Texp_new of
+      Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
   | Texp_override of Path.t * (Path.t * string loc * expression) list

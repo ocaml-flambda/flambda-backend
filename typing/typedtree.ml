@@ -103,7 +103,7 @@ and expression_desc =
   | Texp_constant of constant
   | Texp_let of rec_flag * value_binding list * expression
   | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial; }
+      cases : value case list; partial : partial; region : bool; }
   | Texp_apply of expression * (arg_label * apply_arg) list * apply_position
   | Texp_match of expression * computation case list * partial
   | Texp_try of expression * value case list
@@ -126,8 +126,9 @@ and expression_desc =
   | Texp_for of
       Ident.t * Parsetree.pattern * expression * expression * direction_flag *
         expression
-  | Texp_send of expression * meth * expression option
-  | Texp_new of Path.t * Longident.t loc * Types.class_declaration
+  | Texp_send of expression * meth * expression option * apply_position
+  | Texp_new of
+      Path.t * Longident.t loc * Types.class_declaration * apply_position
   | Texp_instvar of Path.t * Path.t * string loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
   | Texp_override of Path.t * (Path.t * string loc * expression) list

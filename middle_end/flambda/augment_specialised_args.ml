@@ -451,6 +451,8 @@ module Make (T : S) = struct
       Variable.Map.data
         new_inner_vars_to_spec_args_bound_in_the_wrapper_renaming
     in
+    let mode =
+      if function_decl.region then Lambda.Alloc_heap else Lambda.Alloc_local in
     (* New definitions that project from existing specialised args need
        to be rewritten to use the corresponding specialised args of
        the wrapper.  Definitions that are just equality to existing
@@ -469,6 +471,7 @@ module Make (T : S) = struct
           kind = Direct (Closure_id.wrap new_fun_var);
           dbg = Debuginfo.none;
           position = Apply_nontail;
+          mode;
           inline = Default_inline;
           specialise = Default_specialise;
         }
@@ -537,6 +540,7 @@ module Make (T : S) = struct
       Flambda.create_function_declaration
         ~params:wrapper_params
         ~alloc_mode
+        ~region:function_decl.region
         ~body:wrapper_body
         ~stub:true
         ~dbg:Debuginfo.none
@@ -630,6 +634,7 @@ module Make (T : S) = struct
         Flambda.create_function_declaration
           ~params:all_params
           ~alloc_mode:function_decl.alloc_mode
+          ~region:function_decl.region
           ~body:function_decl.body
           ~stub:function_decl.stub
           ~dbg:function_decl.dbg

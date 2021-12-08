@@ -242,11 +242,15 @@ val iter_shallow_tail: (expression -> unit) -> expression -> bool
       considered to be in tail position (because their result become
       the final result for the expression).  *)
 
+val map_shallow_tail: (expression -> expression) -> expression -> expression
+  (** Apply the transformation to those immediate sub-expressions of an
+      expression that are in tail position, using the same definition of "tail"
+      as [iter_shallow_tail] *)
+
 val map_tail: (expression -> expression) -> expression -> expression
   (** Apply the transformation to an expression, trying to push it
-      to all inner sub-expressions that can produce the final result.
-      Same disclaimer as for [iter_shallow_tail] about the notion
-      of "tail" sub-expression. *)
+      to all inner sub-expressions that can produce the final result,
+      by recursively applying map_shallow_tail *)
 
 val iter_shallow: (expression -> unit) -> expression -> unit
   (** Apply the transformation to each immediate sub-expression. *)

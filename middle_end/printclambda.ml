@@ -96,28 +96,24 @@ and uconstant ppf = function
   | Uconst_ref (s, None) -> fprintf ppf "%S"s
   | Uconst_int i -> fprintf ppf "%i" i
 
+and apply_kind ppf : apply_kind -> unit = function
+  | Apply_nontail, Alloc_heap -> fprintf ppf "apply"
+  | Apply_tail, Alloc_heap -> fprintf ppf "applytail"
+  | Apply_nontail, Alloc_local -> fprintf ppf "apply[L]"
+  | Apply_tail, Alloc_local -> fprintf ppf "applytail[L]"
+
 and lam ppf = function
   | Uvar id ->
       V.print ppf id
   | Uconst c -> uconstant ppf c
-  | Udirect_apply(f, largs, pos, _) ->
-      let form =
-        match pos with
-        | Apply_nontail -> "apply"
-        | Apply_tail -> "applytail"
-      in
+  | Udirect_apply(f, largs, kind, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(%s*@ %s %a)@]" form f lams largs
-  | Ugeneric_apply(lfun, largs, pos, _) ->
-      let form =
-        match pos with
-        | Apply_nontail -> "apply"
-        | Apply_tail -> "applytail"
-      in
+      fprintf ppf "@[<2>(%a*@ %s %a)@]" apply_kind kind f lams largs
+  | Ugeneric_apply(lfun, largs, kind, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(%s@ %a%a)@]" form lam lfun lams largs
+      fprintf ppf "@[<2>(%a@ %a%a)@]" apply_kind kind lam lfun lams largs
   | Uclosure(clos, fv) ->
       let funs ppf =
         List.iter (fprintf ppf "@ @[<2>%a@]" one_fun) in
@@ -235,7 +231,7 @@ and lam ppf = function
        lam hi lam body
   | Uassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" V.print id lam expr
-  | Usend (k, met, obj, largs, pos, _) ->
+  | Usend (k, met, obj, largs, (pos,_) , _) ->
       let form =
         match pos with
         | Apply_nontail -> "send"

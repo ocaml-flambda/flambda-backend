@@ -57,6 +57,7 @@ module Function_decls : sig
       -> closure_bound_var:Variable.t
       -> kind:Lambda.function_kind
       -> mode:Lambda.alloc_mode
+      -> region:bool
       -> params:Ident.t list
       -> body:Lambda.lambda
       -> attr:Lambda.function_attribute
@@ -67,6 +68,7 @@ module Function_decls : sig
     val closure_bound_var : t -> Variable.t
     val kind : t -> Lambda.function_kind
     val mode : t -> Lambda.alloc_mode
+    val region : t -> bool
     val params : t -> Ident.t list
     val body : t -> Lambda.lambda
     val inline : t -> Lambda.inline_attribute

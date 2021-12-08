@@ -257,10 +257,10 @@ let toplevel_substitution sb tree =
     | Assign { being_assigned; new_value; } ->
       let new_value = sb new_value in
       Assign { being_assigned; new_value; }
-    | Apply { func; args; kind; dbg; position; inline; specialise; } ->
+    | Apply { func; args; kind; dbg; position; inline; specialise; mode } ->
       let func = sb func in
       let args = List.map sb args in
-      Apply { func; args; kind; dbg; position; inline; specialise; }
+      Apply { func; args; kind; dbg; position; inline; specialise; mode }
     | If_then_else (cond, e1, e2) ->
       let cond = sb cond in
       If_then_else (cond, e1, e2)
@@ -270,11 +270,11 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def) ->
       let cond = sb cond in
       String_switch (cond, branches, def)
-    | Send { kind; meth; obj; args; dbg; position } ->
+    | Send { kind; meth; obj; args; dbg; position; mode } ->
       let meth = sb meth in
       let obj = sb obj in
       let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg; position }
+      Send { kind; meth; obj; args; dbg; position; mode }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -336,7 +336,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~alloc_mode ~body ~params ~stub : Flambda.t =
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~stub : Flambda.t =
   let free_variables = Flambda.free_variables body in
   let param_set = Parameter.Set.vars params in
   if not (Variable.Set.subset param_set free_variables) then begin
@@ -355,7 +355,7 @@ let make_closure_declaration
   let subst_param param = Parameter.map_var subst param in
   let function_declaration =
     Flambda.create_function_declaration
-      ~params:(List.map subst_param params) ~alloc_mode
+      ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~body ~stub ~dbg:Debuginfo.none ~inline:Default_inline
       ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
@@ -705,15 +705,15 @@ let substitute_read_symbol_field_for_variables
       bind_from_value @@
       bind_to_value @@
       Flambda.For { bound_var; from_value; to_value; direction; body }
-    | Apply { func; args; kind; dbg; position; inline; specialise } ->
+    | Apply { func; args; kind; dbg; position; mode; inline; specialise } ->
       let func, bind_func = make_var_subst func in
       let args, bind_args =
         List.split (List.map make_var_subst args)
       in
       bind_func @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Apply { func; args; kind; dbg; position; inline; specialise }
-    | Send { kind; meth; obj; args; dbg; position } ->
+      Flambda.Apply { func; args; kind; dbg; position; mode; inline; specialise}
+    | Send { kind; meth; obj; args; dbg; position; mode } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
       let args, bind_args =
@@ -722,7 +722,7 @@ let substitute_read_symbol_field_for_variables
       bind_meth @@
       bind_obj @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg; position }
+      Flambda.Send { kind; meth; obj; args; dbg; position; mode }
     | Proved_unreachable
     | Region _
     | Tail _

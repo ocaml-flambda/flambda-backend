@@ -27,7 +27,7 @@ type error = Tags of label * label
 
 exception Error of Location.t * error
 
-let lfunction ?(kind=Curried {nlocal=0}) params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
@@ -37,12 +37,12 @@ let lfunction ?(kind=Curried {nlocal=0}) params body =
       Lfunction {kind; params = params @ params';
                  return = Pgenval;
                  body = body'; attr;
-                 loc; mode = Alloc_heap; ret_mode = Alloc_heap}
+                 loc; mode = Alloc_heap; region}
   |  _ ->
       Lfunction {kind; params; return = Pgenval;
                  body;
                  attr = default_function_attribute;
-                 loc = Loc_unknown; mode = Alloc_heap; ret_mode = Alloc_heap}
+                 loc = Loc_unknown; mode = Alloc_heap; region}
 
 let lapply ap =
   match ap.ap_func with
@@ -57,6 +57,7 @@ let mkappl (func, args) =
     ap_func=func;
     ap_args=args;
     ap_position=Apply_nontail;
+    ap_mode=Alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inline;
     ap_specialised=Default_specialise;
@@ -190,7 +191,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                     body = Matching.for_function ~scopes pat.pat_loc
                              None (Lvar param) [pat, rem] partial;
                     mode = Alloc_heap;
-                    ret_mode = Alloc_heap }
+                    region = true }
        in
        begin match obj_init with
          Lfunction {kind = Curried {nlocal=0}; params; body = rem} ->
@@ -456,7 +457,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                    body = Matching.for_function ~scopes pat.pat_loc
                             None (Lvar param) [pat, rem] partial;
                    mode = Alloc_heap;
-                   ret_mode = Alloc_heap }
+                   region = true }
       in
       (path, path_lam,
        match obj_init with
@@ -508,6 +509,7 @@ let transl_class_rebind ~scopes cl vf =
         ap_func=Lvar obj_init;
         ap_args=[Lvar self];
         ap_position=Apply_nontail;
+        ap_mode=Alloc_heap;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inline;
         ap_specialised=Default_specialise;
@@ -567,7 +569,7 @@ let rec builtin_meths self env env2 body =
         "var", [Lvar n]
     | Lprim(Pfield n, [Lvar e], _) when Ident.same e env ->
         "env", [Lvar env2; Lconst(const_int n)]
-    | Lsend(Self, met, Lvar s, [], _, _) when List.mem s self ->
+    | Lsend(Self, met, Lvar s, [], _, _, _) when List.mem s self ->
         "meth", [met]
     | _ -> raise Not_found
   in
@@ -582,15 +584,15 @@ let rec builtin_meths self env env2 body =
   | Lapply{ap_func = f; ap_args = [p; arg]} when const_path f && const_path p ->
       let s, args = conv arg in
       ("app_const_"^s, f :: p :: args)
-  | Lsend(Self, Lvar n, Lvar s, [arg], _, _) when List.mem s self ->
+  | Lsend(Self, Lvar n, Lvar s, [arg], _, _, _) when List.mem s self ->
       let s, args = conv arg in
       ("meth_app_"^s, Lvar n :: args)
-  | Lsend(Self, met, Lvar s, [], _, _) when List.mem s self ->
+  | Lsend(Self, met, Lvar s, [], _, _, _) when List.mem s self ->
       ("get_meth", [met])
-  | Lsend(Public, met, arg, [], _, _) ->
+  | Lsend(Public, met, arg, [], _, _, _) ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
-  | Lsend(Cached, met, arg, [_;_], _, _) ->
+  | Lsend(Cached, met, arg, [_;_], _, _, _) ->
       let s, args = conv arg in
       ("send_"^s, met :: args)
   | Lfunction {kind = Curried _; params = [x, _]; body} ->
@@ -672,7 +674,7 @@ let free_methods l =
   let rec free l =
     Lambda.iter_head_constructor free l;
     match l with
-    | Lsend(Self, Lvar meth, _, _, _, _) ->
+    | Lsend(Self, Lvar meth, _, _, _, _, _) ->
         fv := Ident.Set.add meth !fv
     | Lsend _ -> ()
     | Lfunction{params} ->
@@ -733,7 +735,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
   let msubst arr = function
-      Lfunction {kind = Curried _ as kind;
+      Lfunction {kind = Curried _ as kind; region;
                  params = (self, Pgenval) :: args; body} ->
         let env = Ident.create_local "env" in
         let body' =
@@ -745,7 +747,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self] env env2 (lfunction args body')
         with Not_found ->
-          [lfunction ~kind ((self, Pgenval) :: args)
+          [lfunction ~kind ~region ((self, Pgenval) :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, Pgenval, env,
                    Lprim(Pfield_computed,
@@ -814,7 +816,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                    loc = Loc_unknown;
                                    return = Pgenval;
                                    mode = Alloc_heap;
-                                   ret_mode = Alloc_heap;
+                                   region = true;
                                    params = [cla, Pgenval]; body = cl_init}) in
     Llet(Strict, Pgenval, class_init, cl_init, lam (free_variables cl_init))
   and lbody fv =
@@ -838,7 +840,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                                   loc = Loc_unknown;
                                   return = Pgenval;
                                   mode = Alloc_heap;
-                                  ret_mode = Alloc_heap;
+                                  region = true;
                                   params = [cla, Pgenval]; body = cl_init};
            lambda_unit; lenvs],
          Loc_unknown)
@@ -896,7 +898,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    attr = default_function_attribute;
                    loc = Loc_unknown;
                    mode = Alloc_heap;
-                   ret_mode = Alloc_heap;
+                   region = true;
                    body = def_ids cla cl_init}, lam)
   and lcache lam =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
@@ -922,7 +924,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            attr = default_function_attribute;
            loc = Loc_unknown;
            mode = Alloc_heap;
-           ret_mode = Alloc_heap;
+           region = true;
            return = Pgenval;
            params = [cla, Pgenval];
            body = def_ids cla cl_init;

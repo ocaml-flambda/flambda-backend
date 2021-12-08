@@ -89,6 +89,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
         expression 
           value_mode global
           Texp_function
+          region true
           Nolabel
           [
             <case>
@@ -107,6 +108,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
               expression 
                 value_mode global
                 Texp_apply
+                apply_mode Tail
                 expression 
                   value_mode <modevar>
                   Texp_ident "Stdlib!.+"
@@ -116,6 +118,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       value_mode <modevar>
                       Texp_apply
+                      apply_mode Nontail
                       expression 
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -125,6 +128,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             value_mode global
                             Texp_apply
+                            apply_mode Nontail
                             expression 
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"
@@ -146,6 +150,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression 
                       value_mode <modevar>
                       Texp_apply
+                      apply_mode Nontail
                       expression 
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -155,6 +160,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression 
                             value_mode global
                             Texp_apply
+                            apply_mode Nontail
                             expression 
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"

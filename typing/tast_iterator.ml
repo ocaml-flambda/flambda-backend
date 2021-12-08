@@ -235,7 +235,7 @@ let expr sub {exp_extra; exp_desc; exp_env; _} =
       sub.expr sub exp1;
       sub.expr sub exp2;
       sub.expr sub exp3
-  | Texp_send (exp, _, expo) ->
+  | Texp_send (exp, _, expo, _) ->
       sub.expr sub exp;
       Option.iter (sub.expr sub) expo
   | Texp_new _ -> ()

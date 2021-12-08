@@ -555,7 +555,7 @@ let rec expression : Typedtree.expression -> term_judg =
       ]
     | Texp_constant _ ->
       empty
-    | Texp_new (pth, _, _) ->
+    | Texp_new (pth, _, _, _) ->
       (*
         G |- c: m[Dereference]
         -----------------------
@@ -698,7 +698,7 @@ let rec expression : Typedtree.expression -> term_judg =
         expression cond << Dereference;
         expression body << Guard;
       ]
-    | Texp_send (e1, _, eo) ->
+    | Texp_send (e1, _, eo, _) ->
       (*
         G |- e: m[Dereference]
         ---------------------- (plus weird 'eo' option)

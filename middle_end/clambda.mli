@@ -21,6 +21,7 @@ open Lambda
 
 type function_label = string
 type arity = Lambda.function_kind * int
+type apply_kind = Lambda.apply_position * Lambda.alloc_mode
 
 type ustructured_constant =
   | Uconst_float of float
@@ -59,9 +60,9 @@ and ulambda =
     Uvar of Backend_var.t
   | Uconst of uconstant
   | Udirect_apply of
-      function_label * ulambda list * Lambda.apply_position * Debuginfo.t
+      function_label * ulambda list * apply_kind * Debuginfo.t
   | Ugeneric_apply of
-      ulambda * ulambda list * Lambda.apply_position * Debuginfo.t
+      ulambda * ulambda list * apply_kind * Debuginfo.t
   | Uclosure of ufunction list * ulambda list
   | Uoffset of ulambda * int
   | Ulet of mutable_flag * value_kind * Backend_var.With_provenance.t
@@ -87,7 +88,7 @@ and ulambda =
   | Uassign of Backend_var.t * ulambda
   | Usend of
       meth_kind * ulambda * ulambda * ulambda list
-      * Lambda.apply_position * Debuginfo.t
+      * apply_kind * Debuginfo.t
   | Uunreachable
   | Uregion of ulambda
   | Utail of ulambda
@@ -117,7 +118,8 @@ type function_description =
     mutable fun_closed: bool;           (* True if environment not used *)
     mutable fun_inline: (Backend_var.With_provenance.t list * ulambda) option;
     mutable fun_float_const_prop: bool; (* Can propagate FP consts *)
-    fun_ret_mode: alloc_mode;           (* May return local allocs *)
+    fun_region: bool;                   (* If false, may locally allocate
+                                           in caller's region *)
   }
 
 (* Approximation of values *)

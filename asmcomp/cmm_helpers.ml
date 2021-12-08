@@ -807,12 +807,16 @@ let lookup_label obj lab dbg =
     let table = Cop (Cload (Word_val, Mutable), [obj], dbg) in
     addr_array_ref table lab dbg)
 
-let call_cached_method obj tag cache pos args apos dbg =
+let send_function_name n (mode : Lambda.alloc_mode) =
+  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
+  "caml_send" ^ Int.to_string n ^ suff
+
+let call_cached_method obj tag cache pos args (apos,mode) dbg =
   let arity = List.length args in
   let cache = array_indexing log2_size_addr cache pos dbg in
-  Compilenv.need_send_fun arity;
+  Compilenv.need_send_fun arity mode;
   Cop(Capply(typ_val, apos),
-      Cconst_symbol("caml_send" ^ Int.to_string arity, dbg) ::
+      Cconst_symbol(send_function_name arity mode, dbg) ::
         obj :: tag :: cache :: args,
       dbg)
 
@@ -859,10 +863,13 @@ let make_checkbound dbg = function
       Cop(Ccheckbound, args, dbg)
 
 (* Record application and currying functions *)
-
-let apply_function_sym n =
+let apply_function_name (n, (mode : Lambda.alloc_mode)) =
+  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
+  "caml_apply" ^ Int.to_string n ^ suff
+let apply_function_sym n mode =
   assert (n > 0);
-  Compilenv.need_apply_fun n; "caml_apply" ^ Int.to_string n
+  Compilenv.need_apply_fun n mode;
+  apply_function_name (n, mode)
 let curry_function_sym ar =
   Compilenv.need_curry_fun ar;
   match ar with
@@ -1713,10 +1720,10 @@ let ptr_offset ptr offset dbg =
   then ptr
   else Cop(Caddv, [ptr; Cconst_int(offset * size_addr, dbg)], dbg)
 
-let direct_apply lbl args pos dbg =
+let direct_apply lbl args (pos, _mode) dbg =
   Cop(Capply(typ_val, pos), Cconst_symbol (lbl, dbg) :: args, dbg)
 
-let generic_apply mut clos args pos dbg =
+let generic_apply mut clos args (pos, mode) dbg =
   match args with
   | [arg] ->
       bind "fun" clos (fun clos ->
@@ -1725,15 +1732,15 @@ let generic_apply mut clos args pos dbg =
   | _ ->
       let arity = List.length args in
       let cargs =
-        Cconst_symbol(apply_function_sym arity, dbg) :: args @ [clos]
+        Cconst_symbol(apply_function_sym arity mode, dbg) :: args @ [clos]
       in
       Cop(Capply(typ_val, pos), cargs, dbg)
 
-let send kind met obj args apos dbg =
+let send kind met obj args akind dbg =
   let call_met obj args clos =
     (* met is never a simple expression, so it never gets turned into an
        Immutable load *)
-    generic_apply Asttypes.Mutable clos (obj :: args) apos dbg
+    generic_apply Asttypes.Mutable clos (obj :: args) akind dbg
   in
   bind "obj" obj (fun obj ->
       match (kind : Lambda.meth_kind), args with
@@ -1741,7 +1748,7 @@ let send kind met obj args apos dbg =
           bind "met" (lookup_label obj met dbg)
             (call_met obj args)
       | Cached, cache :: pos :: args ->
-          call_cached_method obj met cache pos args apos dbg
+          call_cached_method obj met cache pos args akind dbg
       | _ ->
           bind "met" (lookup_tag obj met dbg)
             (call_met obj args))
@@ -1807,23 +1814,51 @@ let cache_public_method meths tag cache dbg =
     Csequence(Cop (Cstore (Word_int, Assignment), [cache; Cvar tagged], dbg),
               Cvar tagged)))))
 
-let region e =
-  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
-  let rec check_local_allocs = function
-    | Cregion _ ->
-       (* Local allocations within a nested region do not affect this region.
-          Note this prevents O(n^2) behaviour with many nested regions. *)
-       ()
+let has_local_allocs e =
+  let rec loop = function
+    | Cregion e ->
+        (* Local allocations within a nested region do not affect this region,
+           except inside a Ctail block *)
+        loop_until_tail e
     | Cop (Calloc Alloc_local, _, _)
     | Cop ((Cextcall _ | Capply _), _, _) ->
-       raise Exit
+        raise Exit
     | e ->
-       iter_shallow check_local_allocs e
+        iter_shallow loop e
+  and loop_until_tail = function
+    | Ctail e -> loop e
+    | Cregion _ -> ()
+    | e -> ignore (iter_shallow_tail loop_until_tail e)
   in
-  match check_local_allocs e with
-  | () -> e
-  | exception Exit -> Cregion e
+  match loop e with
+  | () -> false
+  | exception Exit -> true
 
+let remove_region_tail e =
+  let rec has_tail = function
+    | Ctail _
+    | Cop(Capply(_, Apply_tail), _, _) -> raise Exit
+    | Cregion _ -> ()
+    | e -> ignore (iter_shallow_tail has_tail e)
+  in
+  let rec remove_tail = function
+    | Ctail e -> e
+    | Cop(Capply(mach, Apply_tail), args, dbg) ->
+       Cop(Capply(mach, Apply_nontail), args, dbg)
+    | Cregion _ as e -> e
+    | e ->
+       map_shallow_tail remove_tail e
+  in
+  match has_tail e with
+  | () -> e
+  | exception Exit -> remove_tail e
+
+let region e =
+  (* [Cregion e] is equivalent to [e] if [e] contains no local allocs *)
+  if has_local_allocs e then
+    Cregion e
+  else
+    remove_region_tail e
 
 (* CR mshinwell: These will be filled in by later pull requests. *)
 let placeholder_dbg () = Debuginfo.none
@@ -1840,7 +1875,7 @@ let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
            (app closN-1.code aN closN-1))))
 *)
 
-let apply_function_body arity =
+let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   let dbg = placeholder_dbg in
   let arg = Array.make arity (V.create_local "arg") in
   for i = 1 to arity - 1 do arg.(i) <- V.create_local "arg" done;
@@ -1875,13 +1910,15 @@ let apply_function_body arity =
        :: List.map (fun s -> Cvar s) all_args,
        dbg ()),
    dbg (),
-   app_fun clos 0,
+   (match mode with
+    | Alloc_heap -> Cregion (app_fun clos 0)
+    | Alloc_local -> app_fun clos 0),
    dbg ()))
 
-let send_function arity =
+let send_function (arity, mode) =
   let dbg = placeholder_dbg in
   let cconst_int i = Cconst_int (i, dbg ()) in
-  let (args, clos', body) = apply_function_body (1+arity) in
+  let (args, clos', body) = apply_function_body (1+arity, mode) in
   let cache = V.create_local "cache"
   and obj = List.hd args
   and tag = V.create_local "tag" in
@@ -1915,7 +1952,7 @@ let send_function arity =
   in
   let body = Clet(VP.create clos', clos, body) in
   let cache = cache in
-  let fun_name = "caml_send" ^ Int.to_string arity in
+  let fun_name = send_function_name arity mode in
   let fun_args =
     [obj, typ_val; tag, typ_int; cache, typ_val]
     @ List.map (fun id -> (id, typ_val)) (List.tl args) in
@@ -1931,7 +1968,7 @@ let send_function arity =
 let apply_function arity =
   let (args, clos, body) = apply_function_body arity in
   let all_args = args @ [clos] in
-  let fun_name = "caml_apply" ^ Int.to_string arity in
+  let fun_name = apply_function_name arity in
   let fun_dbg = placeholder_fun_dbg ~human_name:fun_name in
   Cfunction
    {fun_name;
@@ -2129,11 +2166,12 @@ let curry_function = function
      assert (n > 0);
      intermediate_curry_functions ~nlocal ~arity:n 0
 
-module Int = Numbers.Int
+module ApplyFnSet =
+  Set.Make (struct type t = int * Lambda.alloc_mode let compare = compare end)
 module AritySet =
   Set.Make (struct type t = Clambda.arity let compare = compare end)
 
-let default_apply = Int.Set.add 2 (Int.Set.add 3 Int.Set.empty)
+let default_apply = ApplyFnSet.of_list [2,Alloc_heap; 3,Alloc_heap]
   (* These apply funs are always present in the main program because
      the run-time system needs them (cf. runtime/<arch>.S) . *)
 
@@ -2141,14 +2179,14 @@ let generic_functions shared units =
   let (apply,send,curry) =
     List.fold_left
       (fun (apply,send,curry) (ui : Cmx_format.unit_infos) ->
-         List.fold_right Int.Set.add ui.ui_apply_fun apply,
-         List.fold_right Int.Set.add ui.ui_send_fun send,
+         List.fold_right ApplyFnSet.add ui.ui_apply_fun apply,
+         List.fold_right ApplyFnSet.add ui.ui_send_fun send,
          List.fold_right AritySet.add ui.ui_curry_fun curry)
-      (Int.Set.empty,Int.Set.empty,AritySet.empty)
+      (ApplyFnSet.empty,ApplyFnSet.empty,AritySet.empty)
       units in
-  let apply = if shared then apply else Int.Set.union apply default_apply in
-  let accu = Int.Set.fold (fun n accu -> apply_function n :: accu) apply [] in
-  let accu = Int.Set.fold (fun n accu -> send_function n :: accu) send accu in
+  let apply = if shared then apply else ApplyFnSet.union apply default_apply in
+  let accu = ApplyFnSet.fold (fun nr accu -> apply_function nr :: accu) apply [] in
+  let accu = ApplyFnSet.fold (fun nr accu -> send_function nr :: accu) send accu in
   AritySet.fold (fun arity accu -> curry_function arity @ accu) curry accu
 
 (* Primitives *)

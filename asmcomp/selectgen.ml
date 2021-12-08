@@ -863,9 +863,6 @@ method emit_expr (env:environment) exp =
                     (instr_cons (Iop Iendregion) reg [| |] s2#extract)))
         [||] [||];
       r
-  | Cregion e when env.region_tail ->
-     (* Region fusion *)
-     self#emit_expr env e
   | Cregion e ->
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
@@ -876,7 +873,9 @@ method emit_expr (env:environment) exp =
         self#insert env (Iop Iendregion) reg [| |];
         res
      end
-  | Ctail e -> self#emit_expr env e
+  | Ctail e ->
+      assert env.region_tail;
+      self#emit_expr env e
 
 method private emit_sequence (env:environment) exp =
   let s = {< instr_seq = dummy_instr >} in
@@ -1217,6 +1216,20 @@ method emit_tail (env:environment) exp =
           self#insert_moves env r1 loc;
           self#insert env Ireturn loc [||]
       end
+  | Cregion e ->
+      if env.region_tail then
+        self#emit_return env exp
+      else begin
+        let reg = self#regs_for typ_int in
+        self#insert env (Iop Ibeginregion) [| |] reg;
+        let env' = { env with regions = reg::env.regions; region_tail = true } in
+        self#emit_tail env' e
+      end
+  | Ctail e ->
+      assert env.region_tail;
+      self#insert env' (Iop Iendregion) (List.hd env.regions) [| |];
+      self#emit_tail { env with regions = List.tl env.regions;
+                                region_tail = false } e
   | Cop _
   | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
   | Cvar _
@@ -1224,23 +1237,6 @@ method emit_tail (env:environment) exp =
   | Ctuple _
   | Cexit _ ->
     self#emit_return env exp
-  | Cregion e when env.region_tail ->
-     (* Region fusion *)
-     self#emit_tail env e
-  | Cregion e ->
-      let reg = self#regs_for typ_int in
-      self#insert env (Iop Ibeginregion) [| |] reg;
-      assert (env.regions = []);
-      let env = { env with regions = [reg]; region_tail = true } in
-      self#emit_tail env e
-  | Ctail e ->
-      if env.region_tail then begin
-        self#insert env (Iop Iendregion) (List.hd env.regions) [||];
-        self#emit_tail { env with regions = []; region_tail = false } e
-      end else begin
-        self#emit_tail env e
-      end
-
 
 method private emit_tail_sequence env exp =
   let s = {< instr_seq = dummy_instr >} in

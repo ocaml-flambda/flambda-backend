@@ -23,20 +23,19 @@ open Debuginfo.Scoped_location
 
 val pure_module : module_expr -> let_kind
 
+(* Used for translating Alloc_heap values in classes and modules *)
 val transl_exp: scopes:scopes -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
                   -> ?inlined:inline_attribute
                   -> ?specialised:specialise_attribute
                   -> ?position:apply_position
+                  -> ?mode:alloc_mode
                   -> lambda
-                  -> ?funct:expression
-                  -> ?mode:Lambda.alloc_mode
                   -> (arg_label * apply_arg) list
                   -> scoped_location -> lambda
-val transl_let: scopes:scopes -> ?in_structure:bool ->
-                ?mode:Lambda.alloc_mode -> rec_flag
-                -> value_binding list -> lambda -> lambda
+val transl_let: scopes:scopes -> ?in_structure:bool
+                  -> rec_flag -> value_binding list -> lambda -> lambda
 
 val transl_extension_constructor: scopes:scopes ->
   Env.t -> Path.t option ->

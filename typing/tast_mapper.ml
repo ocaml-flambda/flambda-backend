@@ -247,9 +247,9 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { arg_label; param; cases; partial; } ->
+    | Texp_function { arg_label; param; cases; partial; region; } ->
         let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases; partial; }
+        Texp_function { arg_label; param; cases; partial; region; }
     | Texp_apply (exp, list, pos) ->
         Texp_apply (
           sub.expr sub exp,
@@ -323,12 +323,13 @@ let expr sub x =
           dir,
           sub.expr sub exp3
         )
-    | Texp_send (exp, meth, expo) ->
+    | Texp_send (exp, meth, expo, pos) ->
         Texp_send
           (
             sub.expr sub exp,
             meth,
-            Option.map (sub.expr sub) expo
+            Option.map (sub.expr sub) expo,
+            pos
           )
     | Texp_new _
     | Texp_instvar _ as d -> d

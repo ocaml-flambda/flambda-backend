@@ -137,3 +137,7 @@ let[@inline never][@specialise never][@local never] rec foo previous =
       assert (original = in_tail_call)
 
 let () = foo None
+
+let[@inline always] inl a b = let local_ z = (a, b) in let r = fst z + snd z in r
+let[@inline never] lret a b = local_ let local_ _z = [|a;b|] in inl a b
+let () = assert ((lret 1 2)+1 = 4)

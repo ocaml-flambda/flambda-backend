@@ -113,7 +113,7 @@ let lambda_smaller' lam ~than:threshold =
     | For { body; _ } ->
       size := !size + 4; lambda_size body
     | Region body ->
-      size := !size + 2; lambda_size body
+      incr size; lambda_size body
     | Tail body ->
       lambda_size body
   and lambda_named_size (named : Flambda.named) =

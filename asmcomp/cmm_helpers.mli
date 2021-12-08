@@ -281,7 +281,7 @@ val lookup_label : expression -> expression -> Debuginfo.t -> expression
     - args : the additional arguments to the method call *)
 val call_cached_method :
   expression -> expression -> expression -> expression -> expression list ->
-  Lambda.apply_position -> Debuginfo.t -> expression
+  Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Allocations *)
 
@@ -311,7 +311,7 @@ val check_bound :
 
 (** Get the symbol for the generic application with [n] arguments, and
     ensure its presence in the set of defined symbols *)
-val apply_function_sym : int -> string
+val apply_function_sym : int -> Lambda.alloc_mode -> string
 
 (** Get the symbol for the generic currying or tuplifying wrapper with
     [n] arguments, and ensure its presence in the set of defined symbols. *)
@@ -543,7 +543,7 @@ val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
 val direct_apply :
-  string -> expression list -> Lambda.apply_position
+  string -> expression list -> Clambda.apply_kind
   -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments.
@@ -553,7 +553,7 @@ val direct_apply :
     the currently defined closure. *)
 val generic_apply :
   Asttypes.mutable_flag -> expression -> expression list
-  -> Lambda.apply_position -> Debuginfo.t -> expression
+  -> Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Method call : [send kind met obj args dbg]
     - [met] is a method identifier, which can be a hashed variant or an index
@@ -564,7 +564,7 @@ val generic_apply :
     cache and cache position) *)
 val send :
   Lambda.meth_kind -> expression -> expression -> expression list
-  -> Lambda.apply_position -> Debuginfo.t -> expression
+  -> Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Construct [Cregion e], eliding some useless regions *)
 val region : expression -> expression

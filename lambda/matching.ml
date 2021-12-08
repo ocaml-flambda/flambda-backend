@@ -1805,7 +1805,7 @@ let code_force_lazy = get_mod_field "CamlinternalLazy" "force"
    Forward(val_out_of_heap).
 *)
 
-let inline_lazy_force_cond arg loc =
+let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
@@ -1839,14 +1839,15 @@ let inline_lazy_force_cond arg loc =
                       ap_loc = loc;
                       ap_func = force_fun;
                       ap_args = [ varg ];
-                      ap_position = Apply_nontail;
+                      ap_position = pos;
+                      ap_mode = Alloc_heap;
                       ap_inlined = Default_inline;
                       ap_specialised = Default_specialise
                     },
                   (* ... arg *)
                   varg ) ) ) )
 
-let inline_lazy_force_switch arg loc =
+let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let force_fun = Lazy.force code_force_lazy_block in
@@ -1872,7 +1873,8 @@ let inline_lazy_force_switch arg loc =
                           ap_loc = loc;
                           ap_func = force_fun;
                           ap_args = [ varg ];
-                          ap_position = Apply_nontail;
+                          ap_position = pos;
+                          ap_mode = Alloc_heap;
                           ap_inlined = Default_inline;
                           ap_specialised = Default_specialise
                         } )
@@ -1881,7 +1883,7 @@ let inline_lazy_force_switch arg loc =
               },
               loc ) ) )
 
-let inline_lazy_force arg loc =
+let inline_lazy_force arg pos loc =
   if !Clflags.afl_instrument then
     (* Disable inlining optimisation if AFL instrumentation active,
        so that the GC forwarding optimisation is not visible in the
@@ -1892,21 +1894,22 @@ let inline_lazy_force arg loc =
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ arg ];
-        ap_position = Apply_nontail;
+        ap_position = pos;
+        ap_mode = Alloc_heap;
         ap_inlined = Default_inline;
         ap_specialised = Default_specialise
       }
   else if !Clflags.native_code then
     (* Lswitch generates compact and efficient native code *)
-    inline_lazy_force_switch arg loc
+    inline_lazy_force_switch arg pos loc
   else
     (* generating bytecode: Lswitch would generate too many rather big
          tables (~ 250 elts); conditionals are better *)
-    inline_lazy_force_cond arg loc
+    inline_lazy_force_cond arg pos loc
 
 let get_expr_args_lazy ~scopes head (arg, _mut) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg loc, Strict) :: rem
+  (inline_lazy_force arg Apply_nontail loc, Strict) :: rem
 
 let divide_lazy ~scopes head ctx pm =
   divide_line (Context.specialize head)

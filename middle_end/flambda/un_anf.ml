@@ -46,7 +46,7 @@ let ignore_ulambda_list (_ : Clambda.ulambda list) = ()
 let ignore_uphantom_defining_expr_option
       (_ : Clambda.uphantom_defining_expr option) = ()
 let ignore_function_label (_ : Clambda.function_label) = ()
-let ignore_apply_position (_ : Lambda.apply_position) = ()
+let ignore_apply_kind (_ : Clambda.apply_kind) = ()
 let ignore_debuginfo (_ : Debuginfo.t) = ()
 let ignore_int (_ : int) = ()
 let ignore_var (_ : V.t) = ()
@@ -133,15 +133,15 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
          of the closures will be traversed when this function is called from
          [Flambda_to_clambda.to_clambda_closed_set_of_closures].) *)
       ignore_uconstant const
-    | Udirect_apply (label, args, pos, dbg) ->
+    | Udirect_apply (label, args, info, dbg) ->
       ignore_function_label label;
       List.iter (loop ~depth) args;
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, pos, dbg) ->
+    | Ugeneric_apply (func, args, info, dbg) ->
       loop ~depth func;
       List.iter (loop ~depth) args;
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure (functions, captured_variables) ->
       List.iter (loop ~depth) captured_variables;
@@ -226,12 +226,12 @@ let make_var_info (clam : Clambda.ulambda) : var_info =
     | Uassign (var, expr) ->
       add_assignment t var;
       loop ~depth expr
-    | Usend (meth_kind, e1, e2, args, pos, dbg) ->
+    | Usend (meth_kind, e1, e2, args, info, dbg) ->
       ignore_meth_kind meth_kind;
       loop ~depth e1;
       loop ~depth e2;
       List.iter (loop ~depth) args;
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uunreachable ->
       ()
@@ -305,17 +305,17 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       end
     | Uconst const ->
       ignore_uconstant const
-    | Udirect_apply (label, args, pos, dbg) ->
+    | Udirect_apply (label, args, info, dbg) ->
       ignore_function_label label;
       examine_argument_list args;
       (* We don't currently traverse [args]; they should all be variables
          anyway.  If this is added in the future, take care to traverse [args]
          following the evaluation order. *)
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
-    | Ugeneric_apply (func, args, pos, dbg) ->
+    | Ugeneric_apply (func, args, info, dbg) ->
       examine_argument_list (args @ [func]);
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uclosure (functions, captured_variables) ->
       ignore_ulambda_list captured_variables;
@@ -447,13 +447,13 @@ let let_bound_vars_that_can_be_moved var_info (clam : Clambda.ulambda) =
       ignore_var var;
       ignore_ulambda expr;
       let_stack := []
-    | Usend (meth_kind, e1, e2, args, pos, dbg) ->
+    | Usend (meth_kind, e1, e2, args, info, dbg) ->
       ignore_meth_kind meth_kind;
       ignore_ulambda e1;
       ignore_ulambda e2;
       ignore_ulambda_list args;
       let_stack := [];
-      ignore_apply_position pos;
+      ignore_apply_kind info;
       ignore_debuginfo dbg
     | Uunreachable ->
       let_stack := []

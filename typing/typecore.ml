@@ -300,6 +300,13 @@ let mode_argument ~funct ~index ~position ~partial_app alloc_mode =
   | _, _, Tail ->
      mode_tailcall_argument (Value_mode.local_to_regional vmode)
 
+let mode_lazy =
+  let position = Tail in
+  let escaping_context = None in
+  let mode = Value_mode.global in
+  let tuple_modes = [] in
+  { position; escaping_context; mode; tuple_modes }
+
 let submode ~loc ~env mode expected_mode =
   let res =
     match expected_mode.tuple_modes with
@@ -2672,7 +2679,7 @@ let rec is_nonexpansive exp =
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, e2) -> is_nonexpansive e2  (* PR#4354 *)
-  | Texp_new (_, _, cl_decl) -> Ctype.class_type_arity cl_decl.cty_type > 0
+  | Texp_new (_, _, cl_decl, _) -> Ctype.class_type_arity cl_decl.cty_type > 0
   (* Note: nonexpansive only means no _observable_ side effects *)
   | Texp_lazy e -> is_nonexpansive e
   | Texp_object ({cstr_fields=fields; cstr_type = { csig_vars=vars}}, _) ->
@@ -2929,6 +2936,10 @@ let rec type_approx env sexp =
       ty2
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+       [Nolabel, e]) ->
+    type_approx env e
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt = "escape"}, PStr []) },
        [Nolabel, e]) ->
     type_approx env e
   | _ -> newvar ()
@@ -3358,6 +3369,9 @@ and type_expect_
       assert(is_optional l); (* default allowed only with optional argument *)
       let open Ast_helper in
       let default_loc = default.pexp_loc in
+      (* Defaults are always global. They can be moved out of the function's
+         region by Simplf.split_default_wrapper, or they could be evaluated
+         later than expected by Translcore.push_defaults *)
       let scases = [
         Exp.case
           (Pat.construct ~loc:default_loc
@@ -3369,7 +3383,8 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          default;
+          (Exp.apply (Exp.extension (mknoloc "escape", PStr []))
+             [Nolabel, default]);
        ]
       in
       let sloc =
@@ -3407,6 +3422,14 @@ and type_expect_
       submode ~loc ~env Value_mode.local expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode_local sbody
+          ty_expected_explained
+      in
+      { exp with exp_loc = loc }
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt = "escape"}, PStr []) },
+       [Nolabel, sbody]) ->
+      let exp =
+        type_expect ?in_function ~recarg env mode_global sbody
           ty_expected_explained
       in
       { exp with exp_loc = loc }
@@ -3801,7 +3824,8 @@ and type_expect_
       in
       begin match sifnot with
         None ->
-          let ifso = type_expect env (mode_var ()) sifso
+          let ifso =
+            type_expect env (mode_var ()) sifso
               (mk_expected ~explanation:If_no_else_branch Predef.type_unit) in
           rue {
             exp_desc = Texp_ifthenelse(cond, ifso, None);
@@ -3840,10 +3864,12 @@ and type_expect_
         exp_env = env }
   | Pexp_while(scond, sbody) ->
       let cond =
-        type_expect env (mode_var ()) scond
+        type_expect (Env.add_region_lock env) (mode_var ()) scond
           (mk_expected ~explanation:While_loop_conditional Predef.type_bool)
       in
-      let body = type_statement ~explanation:While_loop_body env sbody in
+      let body =
+        type_statement ~explanation:While_loop_body (Env.add_region_lock env) sbody
+      in
       rue {
         exp_desc = Texp_while(cond, body);
         exp_loc = loc; exp_extra = [];
@@ -3875,7 +3901,10 @@ and type_expect_
         | _ ->
             raise (Error (param.ppat_loc, env, Invalid_for_loop_index))
       in
-      let body = type_statement ~explanation:For_loop_body new_env sbody in
+      let body =
+        type_statement ~explanation:For_loop_body
+          (Env.add_region_lock new_env) sbody
+      in
       rue {
         exp_desc = Texp_for(id, param, low, high, dir, body);
         exp_loc = loc; exp_extra = [];
@@ -4097,7 +4126,7 @@ and type_expect_
               assert false
         in
         rue {
-          exp_desc = Texp_send(obj, meth, exp);
+          exp_desc = Texp_send(obj, meth, exp, expected_mode.position);
           exp_loc = loc; exp_extra = [];
           exp_type = typ;
           exp_mode = expected_mode.mode;
@@ -4127,7 +4156,8 @@ and type_expect_
             raise(Error(loc, env, Virtual_class cl.txt))
         | Some ty ->
             rue {
-              exp_desc = Texp_new (cl_path, cl, cl_decl);
+              exp_desc =
+                Texp_new (cl_path, cl, cl_decl, expected_mode.position);
               exp_loc = loc; exp_extra = [];
               exp_type = instance ty; exp_mode = Value_mode.global;
               exp_attributes = sexp.pexp_attributes;
@@ -4279,7 +4309,7 @@ and type_expect_
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let env = Env.add_lock Value_mode.global env in
-      let arg = type_expect env mode_global e (mk_expected ty) in
+      let arg = type_expect env mode_lazy e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
         exp_loc = loc; exp_extra = [];
@@ -4707,7 +4737,9 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
       Warnings.Unerasable_optional_argument;
   let param = name_cases "param" cases in
   re {
-    exp_desc = Texp_function { arg_label = l; param; cases; partial; };
+    exp_desc =
+      Texp_function
+        { arg_label = l; param; cases; partial; region = region_locked };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5126,7 +5158,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let param = name_cases "param" cases in
         { texp with exp_type = ty_fun; exp_mode = mode.mode;
             exp_desc = Texp_function { arg_label = Nolabel; param; cases;
-                                       partial = Total; } }
+                                       partial = Total; region = false } }
       in
       Location.prerr_warning texp.exp_loc
         (Warnings.Eliminated_optional_arguments

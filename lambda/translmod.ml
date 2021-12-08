@@ -126,7 +126,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         stub = true; };
                loc = loc;
                mode = Alloc_heap;
-               ret_mode = Alloc_heap;
+               region = true;
                body = apply_coercion
                    loc Strict cc_res
                    (Lapply{
@@ -134,6 +134,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_func=Lvar id;
                       ap_args=List.rev args;
                       ap_position=Apply_nontail;
+                      ap_mode=Alloc_heap;
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inline;
                       ap_specialised=Default_specialise;
@@ -369,6 +370,7 @@ let eval_rec_bindings bindings cont =
              ap_func=mod_prim "init_mod";
              ap_args=[loc; shape];
              ap_position=Apply_nontail;
+             ap_mode=Alloc_heap;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inline;
              ap_specialised=Default_specialise;
@@ -396,6 +398,7 @@ let eval_rec_bindings bindings cont =
           ap_func=mod_prim "update_mod";
           ap_args=[shape; Lvar id; rhs];
           ap_position=Apply_nontail;
+          ap_mode=Alloc_heap;
           ap_tailcall=Default_tailcall;
           ap_inlined=Default_inline;
           ap_specialised=Default_specialise;
@@ -502,7 +505,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     };
     loc;
     mode = Alloc_heap;
-    ret_mode = Alloc_heap;
+    region = true;
     body;
   }
 
@@ -532,6 +535,7 @@ and transl_module ~scopes cc rootpath mexp =
            ap_func=transl_module ~scopes Tcoerce_none None funct;
            ap_args=[transl_module ~scopes ccarg None arg];
            ap_position=Apply_nontail;
+           ap_mode=Alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=inlined_attribute;
            ap_specialised=Default_specialise})
@@ -1441,6 +1445,7 @@ let toploop_getvalue id =
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
     ap_position=Apply_nontail;
+    ap_mode=Alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inline;
     ap_specialised=Default_specialise;
@@ -1457,6 +1462,7 @@ let toploop_setvalue id lam =
          Const_string(toplevel_name id, Location.none, None)));
        lam];
     ap_position=Apply_nontail;
+    ap_mode=Alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inline;
     ap_specialised=Default_specialise;

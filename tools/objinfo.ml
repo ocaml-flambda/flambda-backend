@@ -168,15 +168,16 @@ let print_cmx_infos (ui, crc) =
       Format.printf "functions@ %a@.@."
         Export_info.print_functions export
   end;
-  let pr_funs _ fns =
-    List.iter (fun arity -> printf " %d" arity) fns in
+  let pr_afuns _ fns =
+    let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
+    List.iter (fun (arity,m) -> printf " %d%s" arity (mode m)) fns in
   let pr_cfuns _ fns =
     List.iter (function
       | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
       | (Lambda.Tupled, a) -> printf " -%d" a) fns in
   printf "Currying functions:%a\n" pr_cfuns ui.ui_curry_fun;
-  printf "Apply functions:%a\n" pr_funs ui.ui_apply_fun;
-  printf "Send functions:%a\n" pr_funs ui.ui_send_fun;
+  printf "Apply functions:%a\n" pr_afuns ui.ui_apply_fun;
+  printf "Send functions:%a\n" pr_afuns ui.ui_send_fun;
   printf "Force link: %s\n" (if ui.ui_force_link then "YES" else "no")
 
 let print_cmxa_infos (lib : Cmx_format.library_infos) =

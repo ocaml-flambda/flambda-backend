@@ -33,6 +33,7 @@ val for_call_site
   -> args_approxs:Simple_value_approx.t list
   -> dbg:Debuginfo.t
   -> position:Lambda.apply_position
+  -> mode:Lambda.alloc_mode
   -> simplify:Inlining_decision_intf.simplify
   -> inline_requested:Lambda.inline_attribute
   -> specialise_requested:Lambda.specialise_attribute

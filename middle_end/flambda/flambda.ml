@@ -31,6 +31,7 @@ type apply = {
   kind : call_kind;
   dbg : Debuginfo.t;
   position : Lambda.apply_position;
+  mode : Lambda.alloc_mode;
   inline : Lambda.inline_attribute;
   specialise : Lambda.specialise_attribute;
 }
@@ -47,6 +48,7 @@ type send = {
   args : Variable.t list;
   dbg : Debuginfo.t;
   position : Lambda.apply_position;
+  mode : Lambda.alloc_mode;
 }
 
 type project_closure = Projection.project_closure
@@ -125,6 +127,7 @@ and function_declaration = {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
   alloc_mode : Lambda.alloc_mode;
+  region : bool;
   body : t;
   free_variables : Variable.Set.t;
   free_symbols : Symbol.Set.t;
@@ -1023,6 +1026,7 @@ let update_body_of_function_declaration (func_decl: function_declaration)
   { closure_origin = func_decl.closure_origin;
     params = func_decl.params;
     alloc_mode = func_decl.alloc_mode;
+    region = func_decl.region;
     body;
     free_variables = free_variables body;
     free_symbols = free_symbols body;
@@ -1041,7 +1045,7 @@ let rec check_param_modes mode = function
        Misc.fatal_errorf "Nonmonotonic partial modes";
      check_param_modes m params
 
-let create_function_declaration ~params ~alloc_mode ~body ~stub ~dbg
+let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute) ~is_a_functor
       ~closure_origin
@@ -1068,6 +1072,7 @@ let create_function_declaration ~params ~alloc_mode ~body ~stub ~dbg
   { closure_origin;
     params;
     alloc_mode;
+    region;
     body;
     free_variables = free_variables body;
     free_symbols = free_symbols body;

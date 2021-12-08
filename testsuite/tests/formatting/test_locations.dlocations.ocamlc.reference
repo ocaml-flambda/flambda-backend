@@ -89,6 +89,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
         expression (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           value_mode global
           Texp_function
+          region true
           Nolabel
           [
             <case>
@@ -107,6 +108,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
               expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+34])
                 value_mode global
                 Texp_apply
+                apply_mode Tail
                 expression (test_locations.ml[19,572+21]..test_locations.ml[19,572+22])
                   value_mode <modevar>
                   Texp_ident "Stdlib!.+"
@@ -116,6 +118,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+20])
                       value_mode <modevar>
                       Texp_apply
+                      apply_mode Nontail
                       expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+12])
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -125,6 +128,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression (test_locations.ml[19,572+13]..test_locations.ml[19,572+20])
                             value_mode global
                             Texp_apply
+                            apply_mode Nontail
                             expression (test_locations.ml[19,572+16]..test_locations.ml[19,572+17])
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"
@@ -146,6 +150,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                     expression (test_locations.ml[19,572+23]..test_locations.ml[19,572+34])
                       value_mode <modevar>
                       Texp_apply
+                      apply_mode Nontail
                       expression (test_locations.ml[19,572+23]..test_locations.ml[19,572+26])
                         value_mode <modevar>
                         Texp_ident "fib"
@@ -155,6 +160,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                           expression (test_locations.ml[19,572+27]..test_locations.ml[19,572+34])
                             value_mode global
                             Texp_apply
+                            apply_mode Nontail
                             expression (test_locations.ml[19,572+30]..test_locations.ml[19,572+31])
                               value_mode <modevar>
                               Texp_ident "Stdlib!.-"

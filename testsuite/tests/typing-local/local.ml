@@ -533,16 +533,18 @@ val foo : ?x:local_ string -> unit -> local_ string = <fun>
 
 let foo ?(local_ x = local_ "hello") () = x;;
 [%%expect{|
-Line 1, characters 42-43:
+Line 1, characters 21-35:
 1 | let foo ?(local_ x = local_ "hello") () = x;;
-                                              ^
-Error: This local value escapes its region
-  Hint: Cannot return local value without an explicit "local_" annotation
+                         ^^^^^^^^^^^^^^
+Error: This value escapes its region
 |}]
 
 let foo ?(local_ x = local_ "hello") () = local_ x;;
 [%%expect{|
-val foo : ?x:local_ string -> unit -> local_ string = <fun>
+Line 1, characters 21-35:
+1 | let foo ?(local_ x = local_ "hello") () = local_ x;;
+                         ^^^^^^^^^^^^^^
+Error: This value escapes its region
 |}]
 
 (*

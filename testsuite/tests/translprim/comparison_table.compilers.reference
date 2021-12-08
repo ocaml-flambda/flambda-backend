@@ -149,12 +149,10 @@
        (function cmp eq ne lt gt le ge vec
          (let
            (uncurry =
-              (function f param
-                (applytail f (field 0 param) (field 1 param)))
+              (function f param (apply f (field 0 param) (field 1 param)))
             map =
               (function f[->L] l[->L]
-                (applytail (field 18 (global Stdlib__list!))
-                  (apply uncurry f) l)))
+                (apply (field 18 (global Stdlib__list!)) (apply uncurry f) l)))
            (makeblock 0
              (makeblock 0 (apply map gen_cmp vec) (apply map cmp vec))
              (apply map
@@ -189,10 +187,10 @@
              (let
                (uncurry =
                   (function f param
-                    (applytail f (field 0 param) (field 1 param)))
+                    (apply f (field 0 param) (field 1 param)))
                 map =
                   (function f[->L] l[->L]
-                    (applytail (field 18 (global Stdlib__list!))
+                    (apply (field 18 (global Stdlib__list!))
                       (apply uncurry f) l)))
                (makeblock 0
                  (makeblock 0 (apply map eta_gen_cmp vec)

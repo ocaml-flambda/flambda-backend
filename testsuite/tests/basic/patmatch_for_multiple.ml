@@ -12,7 +12,7 @@ match (3, 2, 1) with
 ;;
 [%%expect{|
 (let
-  (region *match*/88 = 3
+  (*match*/88 = 3
    *match*/89 = 2
    *match*/90 = 1
    *match*/91 = *match*/88

@@ -513,6 +513,14 @@ let apply_specialised_attribute ppf = function
   | Always_specialise -> fprintf ppf " always_specialise"
   | Never_specialise -> fprintf ppf " never_specialise"
 
+let apply_kind name pos mode =
+  let name =
+    match pos with
+    | Apply_nontail -> name
+    | Apply_tail -> name ^ "tail"
+  in
+  name ^ alloc_kind mode
+
 let rec lam ppf = function
   | Lvar id ->
       Ident.print ppf id
@@ -521,17 +529,13 @@ let rec lam ppf = function
   | Lapply ap ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      let form =
-        match ap.ap_position with
-        | Apply_nontail -> "apply"
-        | Apply_tail -> "applytail"
-      in
+      let form = apply_kind "apply" ap.ap_position ap.ap_mode in
       fprintf ppf "@[<2>(%s@ %a%a%a%a%a)@]" form
         lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_tailcall
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
-  | Lfunction{kind; params; return; body; attr; mode; ret_mode} ->
+  | Lfunction{kind; params; return; body; attr; mode; region} ->
       let pr_params ppf params =
         match kind with
         | Curried {nlocal} ->
@@ -549,23 +553,22 @@ let rec lam ppf = function
                 value_kind ppf k)
               params;
             fprintf ppf ")" in
+      let rmode = if region then Alloc_heap else Alloc_local in
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
         (alloc_kind mode) pr_params params
-        function_attribute attr return_kind (ret_mode, return) lam body
-  | (Llet _ | Lregion(Llet _)) as expr ->
+        function_attribute attr return_kind (rmode, return) lam body
+  | Llet _ as expr ->
       let kind = function
-          Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
+        Alias -> "a" | Strict -> "" | StrictOpt -> "o" | Variable -> "v"
       in
       let rec letbody ~sp = function
-        | Llet(str, k, id, arg, body)
-        | Lregion(Llet(str, k, id, arg, body)) as expr ->
+        | Llet(str, k, id, arg, body) ->
             if sp then fprintf ppf "@ ";
-            let reg = match expr with Lregion _ -> true | _ -> false in
-            fprintf ppf "@[<2>%s%a =%s%a@ %a@]"
-              (if reg then "region " else "")
+            fprintf ppf "@[<2>%a =%s%a@ %a@]"
               Ident.print id (kind str) value_kind k lam arg;
             letbody ~sp:true body
-        | expr -> expr in
+        | expr -> expr
+      in
       fprintf ppf "@[<2>(let@ @[<hv 1>(";
       let expr = letbody ~sp:false expr in
       fprintf ppf ")@]@ %a)@]" lam expr
@@ -652,16 +655,12 @@ let rec lam ppf = function
        lam hi lam body
   | Lassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" Ident.print id lam expr
-  | Lsend (k, met, obj, largs, pos, _) ->
+  | Lsend (k, met, obj, largs, pos, reg, _) ->
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
         if k = Self then "self" else if k = Cached then "cache" else "" in
-      let form =
-        match pos with
-        | Apply_nontail -> "send"
-        | Apply_tail -> "sendtail"
-      in
+      let form = apply_kind "send" pos reg in
       fprintf ppf "@[<2>(%s%s@ %a@ %a%a)@]" form kind lam obj lam met args largs
   | Levent(expr, ev) ->
       let kind =

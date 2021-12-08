@@ -314,7 +314,7 @@ type lambda =
   | Lassign of Ident.t * lambda
   | Lsend of
       meth_kind * lambda * lambda * lambda list
-      * apply_position * scoped_location
+      * apply_position * alloc_mode * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -327,12 +327,13 @@ and lfunction =
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
     mode: alloc_mode;
-    ret_mode: alloc_mode; }
+    region: bool; }
 
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
     ap_position : apply_position;
+    ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
     ap_inlined : inline_attribute;
@@ -381,15 +382,15 @@ let check_lfunction fn =
      A curried function with no local parameters or returns has kind
      [Curried {nlocal=0}]. *)
   let nparams = List.length fn.params in
-  begin match fn.mode, fn.ret_mode, fn.kind with
-  | Alloc_heap, _, Tupled -> ()
-  | Alloc_local, _, Tupled ->
+  begin match fn.mode, fn.kind with
+  | Alloc_heap, Tupled -> ()
+  | Alloc_local, Tupled ->
      (* Tupled optimisation does not apply to local functions *)
      assert false
-  | mode, ret_mode, Curried {nlocal} ->
+  | mode, Curried {nlocal} ->
      assert (0 <= nlocal);
      assert (nlocal <= nparams);
-     if ret_mode = Alloc_local then assert (nlocal >= 1);
+     if not fn.region then assert (nlocal >= 1);
      if mode = Alloc_local then assert (nlocal = nparams)
   end
 
@@ -467,8 +468,8 @@ let make_key e =
         Lsequence (tr_rec env e1,tr_rec env e2)
     | Lassign (x,e) ->
         Lassign (x,tr_rec env e)
-    | Lsend (m,e1,e2,es,pos,_loc) ->
-        Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,Loc_unknown)
+    | Lsend (m,e1,e2,es,pos,mo,_loc) ->
+        Lsend (m,tr_rec env e1,tr_rec env e2,tr_recs env es,pos,mo,Loc_unknown)
     | Lifused (id,e) -> Lifused (id,tr_rec env e)
     | Lregion e -> Lregion (tr_rec env e)
     | Lletrec _|Lfunction _
@@ -563,7 +564,7 @@ let shallow_iter ~tail ~non_tail:f = function
       f e1; f e2; f e3
   | Lassign(_, e) ->
       f e
-  | Lsend (_k, met, obj, args, _, _) ->
+  | Lsend (_k, met, obj, args, _, _, _) ->
       List.iter f (met::obj::args)
   | Levent (e, _evt) ->
       tail e
@@ -639,7 +640,7 @@ let rec free_variables = function
       Ident.Set.union set (Ident.Set.remove v (free_variables body))
   | Lassign(id, e) ->
       Ident.Set.add id (free_variables e)
-  | Lsend (_k, met, obj, args, _, _) ->
+  | Lsend (_k, met, obj, args, _, _, _) ->
       free_variables_list
         (Ident.Set.union (free_variables met) (free_variables obj))
         args
@@ -805,8 +806,9 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         assert (not (Ident.Map.mem id s));
         let id = try Ident.Map.find id l with Not_found -> id in
         Lassign(id, subst s l e)
-    | Lsend (k, met, obj, args, pos, loc) ->
-        Lsend (k, subst s l met, subst s l obj, subst_list s l args, pos, loc)
+    | Lsend (k, met, obj, args, pos, mode, loc) ->
+        Lsend (k, subst s l met, subst s l obj, subst_list s l args,
+               pos, mode, loc)
     | Levent (lam, evt) ->
         let old_env = evt.lev_env in
         let env_updates =
@@ -863,71 +865,77 @@ let duplicate lam =
     Ident.Map.empty
     lam
 
-let shallow_map f = function
+let shallow_map ~tail ~non_tail:f = function
   | Lvar _
   | Lconst _ as lam -> lam
-  | Lapply { ap_func; ap_args; ap_position; ap_loc; ap_tailcall;
+  | Lapply { ap_func; ap_args; ap_position; ap_mode; ap_loc; ap_tailcall;
              ap_inlined; ap_specialised } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
         ap_position;
+        ap_mode;
         ap_loc;
         ap_tailcall;
         ap_inlined;
         ap_specialised;
       }
-  | Lfunction { kind; params; return; body; attr; loc; mode; ret_mode } ->
+  | Lfunction { kind; params; return; body; attr; loc; mode; region } ->
       Lfunction { kind; params; return; body = f body; attr; loc;
-                  mode; ret_mode }
+                  mode; region }
   | Llet (str, k, v, e1, e2) ->
-      Llet (str, k, v, f e1, f e2)
+      Llet (str, k, v, f e1, tail e2)
   | Lletrec (idel, e2) ->
-      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, f e2)
+      Lletrec (List.map (fun (v, e) -> (v, f e)) idel, tail e2)
+  | Lprim (Pidentity, [l], loc) ->
+      Lprim(Pidentity, [tail l], loc)
+  | Lprim (Psequand as p, [l1; l2], loc)
+  | Lprim (Psequor as p, [l1; l2], loc) ->
+      Lprim(p, [f l1; tail l2], loc)
   | Lprim (p, el, loc) ->
       Lprim (p, List.map f el, loc)
   | Lswitch (e, sw, loc) ->
       Lswitch (f e,
                { sw_numconsts = sw.sw_numconsts;
-                 sw_consts = List.map (fun (n, e) -> (n, f e)) sw.sw_consts;
+                 sw_consts = List.map (fun (n, e) -> (n, tail e)) sw.sw_consts;
                  sw_numblocks = sw.sw_numblocks;
-                 sw_blocks = List.map (fun (n, e) -> (n, f e)) sw.sw_blocks;
-                 sw_failaction = Option.map f sw.sw_failaction;
+                 sw_blocks = List.map (fun (n, e) -> (n, tail e)) sw.sw_blocks;
+                 sw_failaction = Option.map tail sw.sw_failaction;
                },
                loc)
   | Lstringswitch (e, sw, default, loc) ->
       Lstringswitch (
         f e,
-        List.map (fun (s, e) -> (s, f e)) sw,
-        Option.map f default,
+        List.map (fun (s, e) -> (s, tail e)) sw,
+        Option.map tail default,
         loc)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
   | Lstaticcatch (body, id, handler) ->
-      Lstaticcatch (f body, id, f handler)
+      Lstaticcatch (tail body, id, tail handler)
   | Ltrywith (e1, v, e2) ->
-      Ltrywith (f e1, v, f e2)
+      Ltrywith (f e1, v, tail e2)
   | Lifthenelse (e1, e2, e3) ->
-      Lifthenelse (f e1, f e2, f e3)
+      Lifthenelse (f e1, tail e2, tail e3)
   | Lsequence (e1, e2) ->
-      Lsequence (f e1, f e2)
+      Lsequence (f e1, tail e2)
   | Lwhile (e1, e2) ->
       Lwhile (f e1, f e2)
   | Lfor (v, e1, e2, dir, e3) ->
       Lfor (v, f e1, f e2, dir, f e3)
   | Lassign (v, e) ->
       Lassign (v, f e)
-  | Lsend (k, m, o, el, pos, loc) ->
-      Lsend (k, f m, f o, List.map f el, pos, loc)
+  | Lsend (k, m, o, el, pos, mode, loc) ->
+      Lsend (k, f m, f o, List.map f el, pos, mode, loc)
   | Levent (l, ev) ->
-      Levent (f l, ev)
+      Levent (tail l, ev)
   | Lifused (v, e) ->
-      Lifused (v, f e)
+      Lifused (v, tail e)
   | Lregion e ->
       Lregion (f e)
 
 let map f =
-  let rec g lam = f (shallow_map g lam) in
+  let rec g lam = f (shallow_map ~tail:g ~non_tail:g lam) in
   g
 
 (* To let-bind expressions to variables *)
@@ -1018,3 +1026,80 @@ let eq_mode a b =
   | Alloc_local, Alloc_local -> true
   | Alloc_heap, Alloc_local -> false
   | Alloc_local, Alloc_heap -> false
+
+let primitive_may_allocate : primitive -> alloc_mode option = function
+  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore -> None
+  | Prevapply _ | Pdirapply _ -> Some Alloc_local
+  | Pgetglobal _ | Psetglobal _ -> None
+  | Pmakeblock (_, _, _, m) -> Some m
+  | Pfield _ | Pfield_computed | Psetfield _ | Psetfield_computed _ -> None
+  | Pfloatfield (_, m) -> Some m
+  | Psetfloatfield _ -> None
+  | Pduprecord _ -> Some Alloc_heap
+  | Pccall p ->
+     if not p.prim_alloc then None
+     else begin match p.prim_native_repr_res with
+       | (Prim_local|Prim_poly), _ -> Some Alloc_local
+       | Prim_global, _ -> Some Alloc_heap
+     end
+  | Praise _ -> None
+  | Psequor | Psequand | Pnot
+  | Pnegint | Paddint | Psubint | Pmulint
+  | Pdivint _ | Pmodint _
+  | Pandint | Porint | Pxorint
+  | Plslint | Plsrint | Pasrint
+  | Pintcomp _
+  | Pcompare_ints | Pcompare_floats | Pcompare_bints _
+  | Poffsetint _
+  | Poffsetref _ -> None
+  | Pintoffloat -> None
+  | Pfloatofint m -> Some m
+  | Pnegfloat m | Pabsfloat m
+  | Paddfloat m | Psubfloat m
+  | Pmulfloat m | Pdivfloat m -> Some m
+  | Pfloatcomp _ -> None
+  | Pstringlength | Pstringrefu  | Pstringrefs
+  | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
+  | Pmakearray (_, _, m) -> Some m
+  | Pduparray _ -> Some Alloc_heap
+  | Parraylength _ -> None
+  | Parraysetu _ | Parraysets _
+  | Parrayrefu (Paddrarray|Pintarray)
+  | Parrayrefs (Paddrarray|Pintarray) -> None
+  | Parrayrefu (Pgenarray|Pfloatarray)
+  | Parrayrefs (Pgenarray|Pfloatarray) ->
+     (* The float box from flat floatarray access is always Alloc_heap *)
+     Some Alloc_heap
+  | Pisint | Pisout -> None
+  | Pintofbint _ -> None
+  | Pbintofint (_,m)
+  | Pcvtbint (_,_,m)
+  | Pnegbint (_, m)
+  | Paddbint (_, m)
+  | Psubbint (_, m)
+  | Pmulbint (_, m)
+  | Pdivbint {mode=m}
+  | Pmodbint {mode=m}
+  | Pandbint (_, m)
+  | Porbint (_, m)
+  | Pxorbint (_, m)
+  | Plslbint (_, m)
+  | Plsrbint (_, m)
+  | Pasrbint (_, m) -> Some m
+  | Pbintcomp _ -> None
+  | Pbigarrayset _ | Pbigarraydim _ -> None
+  | Pbigarrayref (_, _, _, _) ->
+     (* Boxes arising from Bigarray access are always Alloc_heap *)
+     Some Alloc_heap
+  | Pstring_load_16 _ | Pbytes_load_16 _ -> None
+  | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
+  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m) -> Some m
+  | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ -> None
+  | Pbigstring_load_16 _ -> None
+  | Pbigstring_load_32 (_,m) | Pbigstring_load_64 (_,m) -> Some m
+  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ -> None
+  | Pctconst _ -> None
+  | Pbswap16 -> None
+  | Pbbswap (_, m) -> Some m
+  | Pint_as_pointer -> None
+  | Popaque -> None
