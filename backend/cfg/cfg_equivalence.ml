@@ -367,7 +367,7 @@ let check_instruction :
   if is_valid_trap_depth expected.trap_depth
      && is_valid_trap_depth result.trap_depth
      && not (Int.equal expected.trap_depth result.trap_depth)
-    then different location "trap depth";
+  then different location "trap depth";
   (* note: not comparing `id` fields on purpose *)
   ()
 

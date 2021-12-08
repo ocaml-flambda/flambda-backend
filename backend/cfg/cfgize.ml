@@ -586,6 +586,9 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
 module Trap_depth_and_exns = struct
   type handler_stack = Label.t list
 
+  let equal_handler_stack : handler_stack -> handler_stack -> bool =
+   fun left right -> List.equal Label.equal left right
+
   type handler_table = handler_stack Label.Tbl.t
 
   let record_handler :
@@ -597,6 +600,10 @@ module Trap_depth_and_exns = struct
       match stack with
       | [] -> ()
       | handler_label :: handler_stack ->
+        Option.iter
+          (fun existing_stack ->
+            assert (equal_handler_stack existing_stack handler_stack))
+          (Label.Tbl.find_opt table handler_label);
         Label.Tbl.replace table handler_label handler_stack
 
   let terminator :
@@ -645,6 +652,9 @@ module Trap_depth_and_exns = struct
     if block.trap_depth = invalid_trap_depth
     then begin
       block.trap_depth <- succ (List.length stack);
+      (* map from handlers reachable from the block to stacks at the start of
+         such blocks; used to both know which other blocks should be visited (as
+         exceptional successors) and to populate the `exns` field. *)
       let table = Label.Tbl.create 17 in
       let stack =
         terminator table
@@ -662,6 +672,7 @@ module Trap_depth_and_exns = struct
           update_block cfg handler_label handler_stack)
         table
     end
+    else assert (block.trap_depth = succ (List.length stack))
 
   let update_cfg : Cfg.t -> unit =
    fun cfg -> update_block cfg cfg.entry_label []
