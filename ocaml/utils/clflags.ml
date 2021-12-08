@@ -375,23 +375,31 @@ let set_dumped_pass s enabled =
     dumped_passes_list := dumped_passes
   end
 
-type extension = Comprehensions
+module Extension = struct
+  type t = Comprehensions
 
-let extensions = ref ([] : extension list) (* -extensions *)
-let set_standard () = extensions := []
+  let all = [ Comprehensions ]
 
-let string_of_extension = function
-| Comprehensions -> "comprehensions"
+  let extensions = ref ([] : t list)   (* -extension *)
+  let equal Comprehensions Comprehensions = true
 
-let extension_of_string = function
-| "comprehensions" -> Comprehensions
-| extn ->  raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+  let disable_all_extensions = ref false             (* -no-extensions *)
+  let disable_all () = disable_all_extensions := true
 
-let add_extension extn =
-  let extension = extension_of_string (String.lowercase_ascii extn) in
-  extensions := extension::!extensions
+  let to_string = function
+    | Comprehensions -> "comprehensions"
 
-let is_extension_enabled ext = List.mem ext !extensions
+  let of_string = function
+    | "comprehensions" -> Comprehensions
+    | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
+
+  let enable extn =
+    let t = of_string (String.lowercase_ascii extn) in
+    if not (List.exists (equal t) !extensions) then
+      extensions := t :: !extensions
+
+  let is_enabled ext = not !disable_all_extensions && List.mem ext !extensions
+end
 
 let dump_into_file = ref false (* -dump-into-file *)
 
