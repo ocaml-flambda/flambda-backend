@@ -383,7 +383,7 @@ module Extension = struct
   let extensions = ref ([] : t list)   (* -extension *)
   let equal Comprehensions Comprehensions = true
 
-  let disable_all_extensions = ref false             (* -no-extensions *)
+  let disable_all_extensions = ref false             (* -disable-all-extensions *)
   let disable_all () = disable_all_extensions := true
 
   let to_string = function
