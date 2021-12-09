@@ -8,6 +8,8 @@
    -principal
    -nostdlib
    -open
+   Flambda2_lattices
+   -open
    Flambda2_cmx
    -open
    Flambda2_from_lambda
@@ -31,6 +33,7 @@
   ocamlcommon
   ocamlbytecomp
   ocamloptcomp
+  flambda2_lattices
   flambda2_cmx
   flambda2_from_lambda
   flambda2_parser

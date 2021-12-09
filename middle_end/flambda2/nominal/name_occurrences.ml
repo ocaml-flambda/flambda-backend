@@ -580,6 +580,13 @@ module For_continuations = For_one_variety_of_names (struct
   let apply_renaming t perm = Renaming.apply_continuation perm t
 end)
 
+module For_closure_ids = For_one_variety_of_names (struct
+  include Closure_id
+
+  (* We never bind [Closure_id]s using [Name_abstraction]. *)
+  let apply_renaming t _perm = t
+end)
+
 module For_closure_vars = For_one_variety_of_names (struct
   include Var_within_closure
 
@@ -599,6 +606,7 @@ type t =
     continuations : For_continuations.t;
     continuations_with_traps : For_continuations.t;
     continuations_in_trap_actions : For_continuations.t;
+    closure_ids : For_closure_ids.t;
     closure_vars : For_closure_vars.t;
     code_ids : For_code_ids.t;
     newer_version_of_code_ids : For_code_ids.t
@@ -612,14 +620,16 @@ let empty =
     continuations = For_continuations.empty;
     continuations_with_traps = For_continuations.empty;
     continuations_in_trap_actions = For_continuations.empty;
+    closure_ids = For_closure_ids.empty;
     closure_vars = For_closure_vars.empty;
     code_ids = For_code_ids.empty;
     newer_version_of_code_ids = For_code_ids.empty
   }
 
-let [@ocamlformat "disable"] print ppf ({ names; continuations; continuations_with_traps;
-                 continuations_in_trap_actions;
-                 closure_vars; code_ids; newer_version_of_code_ids; } as t) =
+let [@ocamlformat "disable"] print ppf
+      ({ names; continuations; continuations_with_traps;
+         continuations_in_trap_actions; closure_ids; closure_vars; code_ids;
+         newer_version_of_code_ids } as t) =
   if t = empty then
     Format.fprintf ppf "no_occurrences"
   else
@@ -628,6 +638,7 @@ let [@ocamlformat "disable"] print ppf ({ names; continuations; continuations_wi
       @[<hov 1>(continuations %a)@]@ \
       @[<hov 1>(continuations_with_traps %a)@]@ \
       @[<hov 1>(continuations_in_trap_actions %a)@]@ \
+      @[<hov 1>(closure_ids %a)@]@ \
       @[<hov 1>(closure_vars %a)@]@ \
       @[<hov 1>(code_ids %a)@] \
       @[<hov 1>(newer_version_of_code_ids %a)@]@ \
@@ -636,6 +647,7 @@ let [@ocamlformat "disable"] print ppf ({ names; continuations; continuations_wi
     For_continuations.print continuations
     For_continuations.print continuations_with_traps
     For_continuations.print continuations_in_trap_actions
+    For_closure_ids.print closure_ids
     For_closure_vars.print closure_vars
     For_code_ids.print code_ids
     For_code_ids.print newer_version_of_code_ids
@@ -684,6 +696,9 @@ let add_symbol t sym kind =
 
 let add_name t name kind = { t with names = For_names.add t.names name kind }
 
+let add_closure_id t clos_id kind =
+  { t with closure_ids = For_closure_ids.add t.closure_ids clos_id kind }
+
 let add_closure_var t clos_var kind =
   { t with closure_vars = For_closure_vars.add t.closure_vars clos_var kind }
 
@@ -731,12 +746,13 @@ let create_closure_vars clos_vars =
   in
   { empty with closure_vars }
 
-let binary_conjunction ~for_names ~for_continuations ~for_closure_vars
-    ~for_code_ids
+let binary_conjunction ~for_names ~for_continuations ~for_closure_ids
+    ~for_closure_vars ~for_code_ids
     { names = names1;
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
+      closure_ids = closure_ids1;
       closure_vars = closure_vars1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
@@ -745,6 +761,7 @@ let binary_conjunction ~for_names ~for_continuations ~for_closure_vars
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
+      closure_ids = closure_ids2;
       closure_vars = closure_vars2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
@@ -754,16 +771,18 @@ let binary_conjunction ~for_names ~for_continuations ~for_closure_vars
   && for_continuations continuations_with_traps1 continuations_with_traps2
   && for_continuations continuations_in_trap_actions1
        continuations_in_trap_actions2
+  && for_closure_ids closure_ids1 closure_ids2
   && for_closure_vars closure_vars1 closure_vars2
   && for_code_ids code_ids1 code_ids2
   && for_code_ids newer_version_of_code_ids1 newer_version_of_code_ids2
 
-let binary_disjunction ~for_names ~for_continuations ~for_closure_vars
-    ~for_code_ids
+let binary_disjunction ~for_names ~for_continuations ~for_closure_ids
+    ~for_closure_vars ~for_code_ids
     { names = names1;
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
+      closure_ids = closure_ids1;
       closure_vars = closure_vars1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
@@ -772,6 +791,7 @@ let binary_disjunction ~for_names ~for_continuations ~for_closure_vars
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
+      closure_ids = closure_ids2;
       closure_vars = closure_vars2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
@@ -781,15 +801,18 @@ let binary_disjunction ~for_names ~for_continuations ~for_closure_vars
   || for_continuations continuations_with_traps1 continuations_with_traps2
   || for_continuations continuations_in_trap_actions1
        continuations_in_trap_actions2
+  || for_closure_ids closure_ids1 closure_ids2
   || for_closure_vars closure_vars1 closure_vars2
   || for_code_ids code_ids1 code_ids2
   || for_code_ids newer_version_of_code_ids1 newer_version_of_code_ids2
 
-let binary_op ~for_names ~for_continuations ~for_closure_vars ~for_code_ids
+let binary_op ~for_names ~for_continuations ~for_closure_ids ~for_closure_vars
+    ~for_code_ids
     { names = names1;
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
+      closure_ids = closure_ids1;
       closure_vars = closure_vars1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
@@ -798,6 +821,7 @@ let binary_op ~for_names ~for_continuations ~for_closure_vars ~for_code_ids
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
+      closure_ids = closure_ids2;
       closure_vars = closure_vars2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
@@ -811,6 +835,7 @@ let binary_op ~for_names ~for_continuations ~for_closure_vars ~for_code_ids
     for_continuations continuations_in_trap_actions1
       continuations_in_trap_actions2
   in
+  let closure_ids = for_closure_ids closure_ids1 closure_ids2 in
   let closure_vars = for_closure_vars closure_vars1 closure_vars2 in
   let code_ids = for_code_ids code_ids1 code_ids2 in
   let newer_version_of_code_ids =
@@ -820,6 +845,7 @@ let binary_op ~for_names ~for_continuations ~for_closure_vars ~for_code_ids
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
+    closure_ids;
     closure_vars;
     code_ids;
     newer_version_of_code_ids
@@ -830,6 +856,7 @@ let diff
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
+      closure_ids = closure_ids1;
       closure_vars = closure_vars1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
@@ -838,6 +865,7 @@ let diff
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
+      closure_ids = closure_ids2;
       closure_vars = closure_vars2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
@@ -851,6 +879,7 @@ let diff
     For_continuations.diff continuations_in_trap_actions1
       continuations_in_trap_actions2
   in
+  let closure_ids = For_closure_ids.diff closure_ids1 closure_ids2 in
   let closure_vars = For_closure_vars.diff closure_vars1 closure_vars2 in
   let code_ids = For_code_ids.diff code_ids1 code_ids2 in
   let newer_version_of_code_ids =
@@ -862,6 +891,7 @@ let diff
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
+    closure_ids;
     closure_vars;
     code_ids;
     newer_version_of_code_ids
@@ -870,12 +900,14 @@ let diff
 let union t1 t2 =
   binary_op ~for_names:For_names.union
     ~for_continuations:For_continuations.union
+    ~for_closure_ids:For_closure_ids.union
     ~for_closure_vars:For_closure_vars.union ~for_code_ids:For_code_ids.union t1
     t2
 
 let equal t1 t2 =
   binary_conjunction ~for_names:For_names.equal
     ~for_continuations:For_continuations.equal
+    ~for_closure_ids:For_closure_ids.equal
     ~for_closure_vars:For_closure_vars.equal ~for_code_ids:For_code_ids.equal t1
     t2
 
@@ -890,6 +922,7 @@ let no_continuations
       continuations;
       continuations_with_traps = _;
       continuations_in_trap_actions;
+      closure_ids = _;
       closure_vars = _;
       code_ids = _;
       newer_version_of_code_ids = _
@@ -907,17 +940,21 @@ let no_continuations
 let subset_domain t1 t2 =
   binary_conjunction ~for_names:For_names.subset_domain
     ~for_continuations:For_continuations.subset_domain
+    ~for_closure_ids:For_closure_ids.subset_domain
     ~for_closure_vars:For_closure_vars.subset_domain
     ~for_code_ids:For_code_ids.subset_domain t1 t2
 
 let inter_domain_is_non_empty t1 t2 =
   binary_disjunction ~for_names:For_names.inter_domain_is_non_empty
     ~for_continuations:For_continuations.inter_domain_is_non_empty
+    ~for_closure_ids:For_closure_ids.inter_domain_is_non_empty
     ~for_closure_vars:For_closure_vars.inter_domain_is_non_empty
     ~for_code_ids:For_code_ids.inter_domain_is_non_empty t1 t2
 
 let rec union_list ts =
   match ts with [] -> empty | t :: ts -> union t (union_list ts)
+
+let closure_ids t = For_closure_ids.keys t.closure_ids
 
 let closure_vars t = For_closure_vars.keys t.closure_vars
 
@@ -1027,6 +1064,7 @@ let downgrade_occurrences_at_strictly_greater_kind
       continuations;
       continuations_with_traps;
       continuations_in_trap_actions;
+      closure_ids;
       closure_vars;
       code_ids;
       newer_version_of_code_ids
@@ -1047,6 +1085,10 @@ let downgrade_occurrences_at_strictly_greater_kind
     For_continuations.downgrade_occurrences_at_strictly_greater_kind
       continuations_in_trap_actions max_kind
   in
+  let closure_ids =
+    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind closure_ids
+      max_kind
+  in
   let closure_vars =
     For_closure_vars.downgrade_occurrences_at_strictly_greater_kind closure_vars
       max_kind
@@ -1063,6 +1105,7 @@ let downgrade_occurrences_at_strictly_greater_kind
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
+    closure_ids;
     closure_vars;
     code_ids;
     newer_version_of_code_ids
@@ -1082,11 +1125,12 @@ let without_names_or_continuations
       continuations = _;
       continuations_with_traps = _;
       continuations_in_trap_actions = _;
+      closure_ids;
       closure_vars;
       code_ids;
       newer_version_of_code_ids
     } =
-  { empty with closure_vars; code_ids; newer_version_of_code_ids }
+  { empty with closure_ids; closure_vars; code_ids; newer_version_of_code_ids }
 
 let without_code_ids t =
   { t with
@@ -1118,6 +1162,7 @@ let apply_renaming
        continuations;
        continuations_with_traps;
        continuations_in_trap_actions;
+       closure_ids;
        closure_vars;
        code_ids;
        newer_version_of_code_ids
@@ -1135,6 +1180,7 @@ let apply_renaming
     let continuations_in_trap_actions =
       For_continuations.apply_renaming continuations_in_trap_actions renaming
     in
+    let closure_ids = For_closure_ids.apply_renaming closure_ids renaming in
     let closure_vars = For_closure_vars.apply_renaming closure_vars renaming in
     let code_ids = For_code_ids.apply_renaming code_ids renaming in
     let newer_version_of_code_ids =
@@ -1144,6 +1190,7 @@ let apply_renaming
       continuations;
       continuations_with_traps;
       continuations_in_trap_actions;
+      closure_ids;
       closure_vars;
       code_ids;
       newer_version_of_code_ids
@@ -1154,6 +1201,7 @@ let restrict_to_closure_vars
       continuations = _;
       continuations_with_traps = _;
       continuations_in_trap_actions = _;
+      closure_ids = _;
       closure_vars;
       code_ids = _;
       newer_version_of_code_ids = _

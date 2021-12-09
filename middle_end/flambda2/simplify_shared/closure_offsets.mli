@@ -14,10 +14,33 @@
 
 (* Compute offsets for elements in sets of closures *)
 
-(** Compute offsets for a whole compilation unit. Takes the offsets from all cmx
-    files read as input. *)
-val compute_offsets :
-  Exported_offsets.t -> Exported_code.t -> Flambda_unit.t -> Exported_offsets.t
+(** {2 Computing offsets} *)
+
+(** The type of state used to accumulate constraints on offsets *)
+type t
+
+(** *)
+val print : Format.formatter -> t -> unit
+
+(** *)
+val create : unit -> t
+
+(** *)
+val add_set_of_closures :
+  t ->
+  is_phantom:bool ->
+  all_code:Code.t Code_id.Map.t ->
+  Set_of_closures.t ->
+  t
+
+(** *)
+val finalize_offsets :
+  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
+  used_closure_ids:Closure_id.Set.t Or_unknown.t ->
+  t ->
+  Exported_offsets.t
+
+(** {2 Helper functions} *)
 
 (** Returns a cmm name for a closure id. *)
 val closure_name : Closure_id.t -> string
@@ -35,11 +58,7 @@ val filter_closure_vars :
   used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
   Simple.t Var_within_closure.Map.t
 
-(* val map_on_function_decl :
- *   (string -> Closure_id.t -> Code_id.t -> 'a) ->
- *   Flambda_unit.t -> 'a Closure_id.Map.t
- * (\** Map a function on each function body exactly once, and return the
- *     resulting mapping. *\) *)
+(** {2 Offsets & Layouts} *)
 
 (** Layout slots, aka what might be found in a block at a given offset. A layout
     slot can take up more than one word of memory (this is the case for

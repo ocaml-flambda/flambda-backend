@@ -188,16 +188,16 @@ val get_jump_id : t -> Continuation.t -> int
 
 (** {2 Sets of closures and offsets} *)
 
-(** Wrapper around {!To_cmm_closure.closure_offset}. *)
+(** Wrapper around {!Closure_offsets.closure_offset}. *)
 val closure_offset : t -> Closure_id.t -> Exported_offsets.closure_info option
 
-(** Wrapper around {!To_cmm_closure.env_var_offset}. *)
+(** Wrapper around {!Closure_offsets.env_var_offset}. *)
 val env_var_offset :
   t -> Var_within_closure.t -> Exported_offsets.env_var_info option
 
-(** Wrapper around {!To_cmm_closure.layout}. *)
+(** Wrapper around {!Closure_offsets.layout}. *)
 val layout :
-  t -> Closure_id.t list -> Var_within_closure.t list -> To_cmm_closure.layout
+  t -> Closure_id.t list -> Var_within_closure.t list -> Closure_offsets.layout
 
 (** All closure variables used in the whole program. *)
 val used_closure_vars : t -> Var_within_closure.Set.t Or_unknown.t

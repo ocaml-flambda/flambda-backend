@@ -157,7 +157,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       "Cannot compile on targets where floats are not word-width when the \
        float array optimisation is enabled";
   let run () =
-    let raw_flambda, code =
+    let raw_flambda, code, offsets =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~symbol_for_global
             ~big_endian:Arch.big_endian ~module_ident
@@ -169,9 +169,18 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     then
       let output_prefix = prefixname ^ ".cps_conv" in
       Inlining_report.output_then_forget_decisions ~output_prefix);
-    let flambda, cmx, all_code =
+    let flambda, offsets, cmx, all_code =
       if Flambda_features.classic_mode ()
-      then raw_flambda, None, code
+      then
+        let exported_offsets =
+          match (offsets : _ Or_unknown.t) with
+          | Unknown ->
+            Misc.fatal_errorf
+              "Classic mode requires lambda_to_flambda to compute\n\
+              \               the offsets for closure elements"
+          | Known closure_offsets -> closure_offsets
+        in
+        raw_flambda, exported_offsets, None, code
       else
         let raw_flambda =
           if Flambda_features.Debug.permute_every_name ()
@@ -179,7 +188,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
           else raw_flambda
         in
         let round = 0 in
-        let { Simplify.unit = flambda; cmx; all_code } =
+        let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
               Simplify.run ~symbol_for_global ~get_global_info ~round
                 raw_flambda)
@@ -191,7 +200,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
-        flambda, cmx, all_code
+        flambda, exported_offsets, cmx, all_code
     in
     begin
       match Sys.getenv "PRINT_SIZES" with
@@ -203,9 +212,15 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
               Flambda2_identifiers.Code_id.print (Code.code_id code)
               Cost_metrics.print size)
     end;
+    begin
+      match cmx with
+      | None ->
+        () (* Either opaque was passed, or there is no need to export offsets *)
+      | Some cmx -> Compilenv.flambda2_set_export_info cmx
+    end;
     let cmm =
-      Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda cmx
-        ~all_code
+      Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda
+        ~all_code ~offsets
     in
     if not keep_symbol_tables
     then begin

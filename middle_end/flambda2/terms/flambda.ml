@@ -896,7 +896,7 @@ and print_let_symbol ppf t =
   in
   let flattened, body = flatten_let_symbol t in
   match flattened with
-  | [] -> assert false
+  | [] -> fprintf ppf "@[<v>let_symbol <empty> in@ %a@]" print body
   | flat :: flattened ->
     fprintf ppf "@[<v 0>@[<v 0>%a" print_flattened flat;
     print_more flattened;

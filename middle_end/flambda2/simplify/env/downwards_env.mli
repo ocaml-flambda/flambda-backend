@@ -41,6 +41,8 @@ val create :
   unit_toplevel_return_continuation:Continuation.t ->
   t
 
+val all_code : t -> Code.t Code_id.Map.t
+
 val resolver : t -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
 val float_const_prop : t -> bool

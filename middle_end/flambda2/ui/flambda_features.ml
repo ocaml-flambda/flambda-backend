@@ -159,7 +159,8 @@ module Expert = struct
   let max_block_size_for_projections () =
     !Flambda_backend_flags.Flambda2.Expert.max_block_size_for_projections
 
-  let phantom_lets () = !Flambda_backend_flags.Flambda2.Expert.phantom_lets
+  let phantom_lets () = false
+  (* !Flambda_backend_flags.Flambda2.Expert.phantom_lets *)
 
   let max_unboxing_depth () =
     !Flambda_backend_flags.Flambda2.Expert.max_unboxing_depth

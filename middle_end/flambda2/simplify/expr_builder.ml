@@ -25,6 +25,8 @@ module P = Flambda_primitive
 module RE = Rebuilt_expr
 module UA = Upwards_acc
 module UE = Upwards_env
+module DA = Downwards_acc
+module DE = Downwards_env
 module VB = Bound_var
 
 type let_creation_result =
@@ -43,7 +45,38 @@ let equal_let_creation_results r1 r2 =
       _ ) ->
     false
 
-let create_let uacc (bound_vars : BLB.t) defining_expr
+let add_set_of_closures_offsets ~is_phantom named uacc =
+  let aux uacc set_of_closures =
+    match UA.closure_offsets uacc with
+    | Unknown -> uacc
+    | Known closure_offsets ->
+      let dacc = UA.creation_dacc uacc in
+      let all_code = DE.all_code (DA.denv dacc) in
+      let closure_offsets =
+        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
+          ~all_code set_of_closures
+      in
+      UA.with_closure_offsets uacc (Known closure_offsets)
+  in
+  match (named : Named.t) with
+  | Set_of_closures s -> aux uacc s
+  | Rec_info _ | Simple _ | Prim _ -> uacc
+  | Static_consts group ->
+    Static_const_group.to_list group
+    |> List.fold_left
+         (fun acc static_const_or_code ->
+           match (static_const_or_code : Static_const_or_code.t) with
+           | Static_const (Set_of_closures s) -> aux acc s
+           | Code _ | Deleted_code
+           | Static_const
+               ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
+               | Boxed_nativeint _ | Immutable_float_block _
+               | Immutable_float_array _ | Mutable_string _ | Immutable_string _
+               | Empty_array ) ->
+             acc)
+         uacc
+
+let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
   (* The name occurrences component of [uacc] is expected to be in the state
      described in the comment at the top of [Simplify_let.rebuild_let]. *)
@@ -106,7 +139,7 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
     end
     else
       let is_depth =
-        match (defining_expr : Named.t) with
+        match defining_expr with
         | Rec_info _ -> true
         | Simple _ | Prim _ | Set_of_closures _ | Static_consts _ -> false
       in
@@ -154,8 +187,25 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
   match keep_binding with
   | None -> body, uacc, let_creation_result
   | Some name_mode ->
-    let free_names_of_body = UA.name_occurrences uacc in
     let is_phantom = Name_mode.is_phantom name_mode in
+    (* There seems little point in phantomising sets of closures and by not
+       doing so we avoid tricky issues such as avoiding code bindings being held
+       onto by phantom sets of closures. However we can't just delete the
+       bindings as there may be subsequent uses in other phantom bindings. As
+       such we replace any sets of closures to be phantomised by empty sets of
+       closures. *)
+    let defining_expr, free_names_of_defining_expr =
+      if not is_phantom
+      then defining_expr, free_names_of_defining_expr
+      else
+        match defining_expr with
+        | Set_of_closures _ ->
+          ( Named.create_set_of_closures Set_of_closures.empty,
+            Name_occurrences.empty )
+        | Simple _ | Prim _ | Static_consts _ | Rec_info _ ->
+          defining_expr, free_names_of_defining_expr
+    in
+    let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =
       if not is_phantom
       then free_names_of_defining_expr
@@ -176,6 +226,12 @@ let create_let uacc (bound_vars : BLB.t) defining_expr
         (Cost_metrics.increase_due_to_let_expr ~is_phantom
            ~cost_metrics_of_defining_expr)
         free_names_of_let
+    in
+    let uacc =
+      if Are_rebuilding_terms.do_not_rebuild_terms
+           (UA.are_rebuilding_terms uacc)
+      then uacc
+      else add_set_of_closures_offsets ~is_phantom defining_expr uacc
     in
     ( RE.create_let
         (UA.are_rebuilding_terms uacc)
@@ -330,6 +386,9 @@ let create_raw_let_symbol uacc bound_symbols static_consts ~body =
   then RE.term_not_rebuilt (), uacc
   else
     let defining_expr = Rebuilt_static_const.Group.to_named static_consts in
+    let uacc =
+      add_set_of_closures_offsets ~is_phantom:false defining_expr uacc
+    in
     ( RE.create_let
         (UA.are_rebuilding_terms uacc)
         bindable defining_expr ~body ~free_names_of_body,

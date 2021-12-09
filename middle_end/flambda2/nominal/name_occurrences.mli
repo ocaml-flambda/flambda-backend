@@ -61,6 +61,8 @@ val add_symbol : t -> Symbol.t -> Name_mode.t -> t
 
 val add_name : t -> Name.t -> Name_mode.t -> t
 
+val add_closure_id : t -> Closure_id.t -> Name_mode.t -> t
+
 val add_closure_var : t -> Var_within_closure.t -> Name_mode.t -> t
 
 val singleton_code_id : Code_id.t -> Name_mode.t -> t
@@ -114,6 +116,8 @@ val continuations : t -> Continuation.Set.t
 val continuations_with_traps : t -> Continuation.Set.t
 
 val continuations_including_in_trap_actions : t -> Continuation.Set.t
+
+val closure_ids : t -> Closure_id.Set.t
 
 val closure_vars : t -> Var_within_closure.Set.t
 

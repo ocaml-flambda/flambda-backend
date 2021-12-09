@@ -32,5 +32,6 @@ val prepare_cmx_file_contents :
   final_typing_env:Flambda2_types.Typing_env.t option ->
   module_symbol:Symbol.t ->
   used_closure_vars:Var_within_closure.Set.t ->
+  exported_offsets:Exported_offsets.t ->
   Exported_code.t ->
   Flambda_cmx_format.t option

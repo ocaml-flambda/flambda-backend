@@ -43,8 +43,10 @@ let [@ocamlformat "disable"] print ppf { in_order; _ } =
 
 let free_names { funs; _ } =
   Closure_id.Map.fold
-    (fun _closure_id code_id syms ->
-      Name_occurrences.add_code_id syms code_id Name_mode.normal)
+    (fun closure_id code_id syms ->
+      Name_occurrences.add_closure_id
+        (Name_occurrences.add_code_id syms code_id Name_mode.normal)
+        closure_id Name_mode.normal)
     funs Name_occurrences.empty
 
 (* Note: the call to {create} at the end already takes into account the

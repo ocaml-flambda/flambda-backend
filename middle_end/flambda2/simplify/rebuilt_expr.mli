@@ -40,6 +40,8 @@ val is_unreachable : t -> Are_rebuilding_terms.t -> bool
 
 val term_not_rebuilt : unit -> t
 
+(** This should only be used by [Expr_builder] to make sure occurrences of
+    closure IDs and closure variables are recorded. *)
 val create_let :
   Are_rebuilding_terms.t ->
   Bound_pattern.t ->

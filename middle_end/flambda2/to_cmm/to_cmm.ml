@@ -452,7 +452,7 @@ let unary_primitive env dbg f arg =
     | Some _, None | None, Some _ | None, None ->
       (* Note that if a closure var is missing from a set of closures
          environment, then [Env.closure_offset] might return [None], even though
-         the set of closures has been seen by [To_cmm_closure]. *)
+         the set of closures has been seen by [Closure_offsets]. *)
       None, C.unreachable)
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
@@ -768,7 +768,7 @@ and let_set_of_closures env res body closure_vars
   let fun_decls = Set_of_closures.function_decls s in
   let decls = Function_declarations.funs_in_order fun_decls in
   let elts =
-    To_cmm_closure.filter_closure_vars s
+    Closure_offsets.filter_closure_vars s
       ~used_closure_vars:(Env.used_closure_vars env)
   in
   if Var_within_closure.Map.is_empty elts
@@ -1448,7 +1448,7 @@ and fill_layout decls startenv elts env effs acc i = function
     fill_layout decls startenv elts env effs acc offset r
 
 and fill_slot decls startenv elts env acc offset slot =
-  match (slot : To_cmm_closure.layout_slot) with
+  match (slot : Closure_offsets.layout_slot) with
   | Infix_header ->
     let field = C.alloc_infix_header (offset + 1) Debuginfo.none in
     field :: acc, offset + 1, env, Ece.pure
@@ -1530,23 +1530,8 @@ and params_and_body env res fun_name p ~fun_dbg =
 
 (* Compilation units *)
 
-let unit ~make_symbol unit cmx ~all_code =
-  let offsets =
-    match cmx with
-    | None -> Exported_offsets.imported_offsets ()
-    | Some cmx -> Flambda_cmx_format.exported_offsets cmx
-  in
+let unit ~offsets ~make_symbol unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      let offsets = To_cmm_closure.compute_offsets offsets all_code unit in
-      begin
-        match cmx with
-        | None ->
-          ()
-          (* Either opaque was passed, or there is no need to export offsets *)
-        | Some cmx ->
-          let cmx = Flambda_cmx_format.with_exported_offsets cmx offsets in
-          Compilenv.flambda2_set_export_info cmx
-      end;
       let used_closure_vars = Flambda_unit.used_closure_vars unit in
       let dummy_k = Continuation.create () in
       (* The dummy continuation is passed here since we're going to manually

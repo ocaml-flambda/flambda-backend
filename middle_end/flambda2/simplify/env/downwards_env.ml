@@ -113,6 +113,8 @@ let create ~round ~(resolver : resolver)
     get_imported_code
   }
 
+let all_code t = t.all_code
+
 let resolver t = TE.resolver t.typing_env
 
 let typing_env t = t.typing_env
