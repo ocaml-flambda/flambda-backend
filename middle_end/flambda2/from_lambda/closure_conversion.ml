@@ -713,7 +713,13 @@ let close_let acc env id user_visible defining_expr
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
           let approxs =
-            List.map (Env.value_approximation body_env) fields |> Array.of_list
+            List.map
+              (fun field ->
+                match Simple.must_be_symbol field with
+                | None -> Env.find_value_approximation body_env field
+                | Some (sym, _) -> Value_approximation.Value_symbol sym)
+              fields
+            |> Array.of_list
           in
           Some
             (Env.add_block_approximation body_env (Name.var var) approxs
@@ -721,20 +727,21 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> begin
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
-          | Value_symbol _ ->
-            assert false (* find_value_approximation resolves symbols *)
-          | Closure_approximation _ ->
+          | Closure_approximation _ | Value_symbol _ ->
+            (* Here we assume [block] has already been substituted as a known
+               symbol if it exists, and rely on the invariant that the
+               approximation of a symbol is never a symbol. *)
             if Flambda_features.check_invariants ()
             then
               (* CR keryan: This is hidden behind invariants check because it
                  can appear on correct code using Lazy or GADT. It might warrant
                  a proper warning at some point. *)
               Misc.fatal_errorf
-                "Closure approximation found when block approximation was \
+                "Unexpected approximation found when block approximation was \
                  expected in [Closure_conversion]: %a"
                 Named.print defining_expr
             else None
-          | Block_approximation (approx, _alloc_mode) ->
+          | Block_approximation (approx, _alloc_mode) -> (
             let approx =
               Simple.pattern_match field
                 ~const:(fun const ->
@@ -751,7 +758,13 @@ let close_let acc env id user_visible defining_expr
                   | _ -> Value_approximation.Value_unknown)
                 ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
             in
-            Some (Env.add_value_approximation body_env (Name.var var) approx)
+            match approx with
+            | Value_symbol sym ->
+              (* In spirit, this is the same as the simple case but more
+                 cumbersome to detect, we have to remove the now useless
+                 let-binding later. *)
+              Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
+            | _ -> Some (Env.add_value_approximation body_env (Name.var var) approx))
         end
         | _ -> Some body_env
       in
@@ -1949,30 +1962,10 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       acc
   in
   let symbols_approximations =
-    let approx_of_field (field : Field_of_static_block.t) :
-        _ Value_approximation.t =
-      match field with
-      | Symbol sym -> Value_symbol sym
-      | Tagged_immediate _ | Dynamically_computed _ -> Value_unknown
-    in
-    let approx_of_static_const (const : Static_const.t) :
-        _ Value_approximation.t =
-      match const with
-      | Set_of_closures _ -> Value_unknown (* tracked separately *)
-      | Empty_array -> Block_approximation ([||], Alloc_mode.Heap)
-      | Block (_, (Immutable_unique | Mutable), _) -> Value_unknown
-      | Block (_tag, Immutable, fields) ->
-        Block_approximation
-          (Array.of_list (List.map approx_of_field fields), Alloc_mode.Heap)
-      | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
-      | Immutable_float_block _ | Immutable_float_array _ | Mutable_string _
-      | Immutable_string _ ->
-        Value_unknown
-    in
     let symbol_approxs =
       List.fold_left
-        (fun sa (symbol, const) ->
-          Symbol.Map.add symbol (approx_of_static_const const) sa)
+        (fun sa (symbol, _) ->
+          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
         (Symbol.Map.singleton module_symbol module_block_approximation)
         (Acc.declared_symbols acc)
     in

@@ -329,25 +329,12 @@ module Env = struct
     else
       add_value_approximation t name (Block_approximation (approxs, alloc_mode))
 
-  let value_approximation t simple =
-    Simple.pattern_match' simple
-      ~const:(fun _ -> Value_approximation.Value_unknown)
-      ~var:(fun var ~coercion:_ ->
-        try Name.Map.find (Name.var var) t.value_approximations
-        with Not_found -> Value_approximation.Value_unknown)
-      ~symbol:(fun symbol ~coercion:_ ->
-        Value_approximation.Value_symbol symbol)
-
   let find_value_approximation t simple =
     Simple.pattern_match simple
       ~const:(fun _ -> Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
-        match Name.Map.find name t.value_approximations with
-        | Value_symbol symbol -> t.approximation_for_external_symbol symbol
-        | (Value_unknown | Block_approximation _ | Closure_approximation _) as
-          approx ->
-          approx
-        | exception Not_found ->
+        try Name.Map.find name t.value_approximations
+        with Not_found ->
           Name.pattern_match name
             ~var:(fun _ -> Value_approximation.Value_unknown)
             ~symbol:t.approximation_for_external_symbol)
