@@ -336,8 +336,6 @@ module Expr_with_acc : sig
 
   val create_apply : Acc.t -> Apply.t -> Acc.t * t
 
-  val create_let : Acc.t * Let.t -> Acc.t * t
-
   val create_switch : Acc.t -> Switch.t -> Acc.t * t
 
   val create_invalid : Acc.t -> Flambda.Invalid.t -> Acc.t * t
@@ -358,7 +356,11 @@ end
 
 module Let_with_acc : sig
   val create :
-    Acc.t -> Bound_pattern.t -> Named.t -> body:Expr_with_acc.t -> Acc.t * Let.t
+    Acc.t ->
+    Bound_pattern.t ->
+    Named.t ->
+    body:Expr_with_acc.t ->
+    Acc.t * Expr_with_acc.t
 end
 
 module Let_cont_with_acc : sig
