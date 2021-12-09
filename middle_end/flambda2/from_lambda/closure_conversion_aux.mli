@@ -146,6 +146,8 @@ module Env : sig
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
+  val value_approximation : t -> Simple.t -> value_approximation
+
   val find_value_approximation : t -> Simple.t -> value_approximation
 
   val current_depth : t -> Variable.t option

@@ -1270,6 +1270,8 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Value_symbol symbol ->
+        TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero

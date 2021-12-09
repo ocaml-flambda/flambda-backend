@@ -199,7 +199,7 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Block_approximation _) -> assert false
+    | Some (Value_symbol _) | Some (Block_approximation _) -> assert false
     | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -713,8 +713,7 @@ let close_let acc env id user_visible defining_expr
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
           let approxs =
-            List.map (Env.find_value_approximation body_env) fields
-            |> Array.of_list
+            List.map (Env.value_approximation body_env) fields |> Array.of_list
           in
           Some
             (Env.add_block_approximation body_env (Name.var var) approxs
@@ -722,6 +721,8 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> begin
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
+          | Value_symbol _ ->
+            assert false (* find_value_approximation resolves symbols *)
           | Closure_approximation _ ->
             if Flambda_features.check_invariants ()
             then
@@ -1948,10 +1949,30 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       acc
   in
   let symbols_approximations =
+    let approx_of_field (field : Field_of_static_block.t) :
+        _ Value_approximation.t =
+      match field with
+      | Symbol sym -> Value_symbol sym
+      | Tagged_immediate _ | Dynamically_computed _ -> Value_unknown
+    in
+    let approx_of_static_const (const : Static_const.t) :
+        _ Value_approximation.t =
+      match const with
+      | Set_of_closures _ -> Value_unknown (* tracked separately *)
+      | Empty_array -> Block_approximation ([||], Alloc_mode.Heap)
+      | Block (_, (Immutable_unique | Mutable), _) -> Value_unknown
+      | Block (_tag, Immutable, fields) ->
+        Block_approximation
+          (Array.of_list (List.map approx_of_field fields), Alloc_mode.Heap)
+      | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _
+      | Immutable_float_block _ | Immutable_float_array _ | Mutable_string _
+      | Immutable_string _ ->
+        Value_unknown
+    in
     let symbol_approxs =
       List.fold_left
-        (fun sa (symbol, _) ->
-          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
+        (fun sa (symbol, const) ->
+          Symbol.Map.add symbol (approx_of_static_const const) sa)
         (Symbol.Map.singleton module_symbol module_block_approximation)
         (Acc.declared_symbols acc)
     in

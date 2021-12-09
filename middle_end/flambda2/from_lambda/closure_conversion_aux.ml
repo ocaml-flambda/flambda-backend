@@ -156,9 +156,20 @@ module Env = struct
       | approx -> approx
       | exception Not_found ->
         let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        (if Flambda_features.check_invariants ()
+        then
+          match approx with
+          | Value_symbol sym ->
+            Misc.fatal_errorf
+              "Closure_conversion: approximation loader returned a Symbol \
+               approximation (%a) for symbol %a"
+              Symbol.print sym Symbol.print symbol
+          | Value_unknown | Closure_approximation _ | Block_approximation _ ->
+            ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Closure_approximation (_, _, Metadata_only _) ->
+          | Value_unknown | Value_symbol _
+          | Closure_approximation (_, _, Metadata_only _) ->
             approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
@@ -318,12 +329,25 @@ module Env = struct
     else
       add_value_approximation t name (Block_approximation (approxs, alloc_mode))
 
+  let value_approximation t simple =
+    Simple.pattern_match' simple
+      ~const:(fun _ -> Value_approximation.Value_unknown)
+      ~var:(fun var ~coercion:_ ->
+        try Name.Map.find (Name.var var) t.value_approximations
+        with Not_found -> Value_approximation.Value_unknown)
+      ~symbol:(fun symbol ~coercion:_ ->
+        Value_approximation.Value_symbol symbol)
+
   let find_value_approximation t simple =
     Simple.pattern_match simple
       ~const:(fun _ -> Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
-        try Name.Map.find name t.value_approximations
-        with Not_found ->
+        match Name.Map.find name t.value_approximations with
+        | Value_symbol symbol -> t.approximation_for_external_symbol symbol
+        | (Value_unknown | Block_approximation _ | Closure_approximation _) as
+          approx ->
+          approx
+        | exception Not_found ->
           Name.pattern_match name
             ~var:(fun _ -> Value_approximation.Value_unknown)
             ~symbol:t.approximation_for_external_symbol)
