@@ -439,7 +439,8 @@ let rec add_blocks :
       body
       @ List.map
           (function
-            | Cmm.Push lbl_handler ->
+            | Cmm.Push handler_id ->
+              let lbl_handler = State.get_catch_handler state ~handler_id in
               make_instruction state ~desc:(Cfg.Pushtrap { lbl_handler })
             | Cmm.Pop -> make_instruction state ~desc:Cfg.Poptrap)
           trap_actions
@@ -555,7 +556,10 @@ let rec add_blocks :
         | Regular ->
           let label = Cmm.new_label () in
           label, Some label
-        | Delayed label -> label, None
+        | Delayed handler_id ->
+          let label = Cmm.new_label () in
+          State.add_catch_handler state ~handler_id ~label;
+          label, None
       in
       terminate_block ~trap_actions:[]
         (copy_instruction_no_reg state last ~desc:(Cfg.Always label_body));
