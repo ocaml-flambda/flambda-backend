@@ -714,7 +714,7 @@ let close_let acc env id user_visible defining_expr
       let body_env = Env.add_simple_to_substitute env id simple in
       body acc body_env
     | None -> body acc body_env
-    | Some defining_expr ->
+    | Some defining_expr -> (
       (* CR pchambart: Not tail ! *)
       let body_env =
         match defining_expr with
@@ -723,15 +723,21 @@ let close_let acc env id user_visible defining_expr
             List.map (Env.find_value_approximation body_env) fields
             |> Array.of_list
           in
-          Env.add_block_approximation body_env (Name.var var) approxs
+          Some (Env.add_block_approximation body_env (Name.var var) approxs)
         | Prim (Binary (Block_load _, block, field), _) -> begin
           match Env.find_value_approximation body_env block with
-          | Value_unknown -> body_env
+          | Value_unknown -> Some body_env
           | Closure_approximation _ ->
-            Misc.fatal_errorf
-              "Closure approximation found when block approximation was \
-               expected in [Closure_conversion]: %a"
-              Named.print defining_expr
+            if Flambda_features.check_invariants ()
+            then
+              (* CR keryan: This is hidden behind invariants check because it
+                 can appear on correct code using Lazy or GADT. It might warrant
+                 a proper warning at some point. *)
+              Misc.fatal_errorf
+                "Closure approximation found when block approximation was \
+                 expected in [Closure_conversion]: %a"
+                Named.print defining_expr
+            else None
           | Block_approximation approx ->
             let approx : Env.value_approximation =
               Simple.pattern_match field
@@ -749,14 +755,19 @@ let close_let acc env id user_visible defining_expr
                   | _ -> Env.Value_unknown)
                 ~name:(fun _ ~coercion:_ -> Env.Value_unknown)
             in
-            Env.add_value_approximation body_env (Name.var var) approx
+            Some (Env.add_value_approximation body_env (Name.var var) approx)
         end
-        | _ -> body_env
+        | _ -> Some body_env
       in
-      let acc, body = body acc body_env in
-      let var = VB.create var Name_mode.normal in
-      Let_with_acc.create acc (Bound_pattern.singleton var) defining_expr ~body
-      |> Expr_with_acc.create_let
+      match body_env with
+      | Some body_env ->
+        let acc, body = body acc body_env in
+        let var = VB.create var Name_mode.normal in
+        Let_with_acc.create acc
+          (Bound_pattern.singleton var)
+          defining_expr ~body
+        |> Expr_with_acc.create_let
+      | None -> acc, Expr.create_invalid ~semantics:Treat_as_unreachable ())
   in
   close_named acc env ~let_bound_var:var defining_expr cont
 
