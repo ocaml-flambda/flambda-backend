@@ -723,8 +723,8 @@ let mk_extension f =
   "<extension>  Enable the extension (may be specified more than once)"
 ;;
 
-let mk_no_extensions f =
-  "-no-extensions", Arg.Unit f,
+let mk_disable_all_extensions f =
+  "-disable-all-extensions", Arg.Unit f,
   " Disable all extensions, wherever they are specified; this flag\n\
   \    overrides the -extension flag (whether specified before or after this\n\
   \    flag), disables any extensions that are enabled by default, and\n\
@@ -1039,7 +1039,7 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
-  val _no_extensions : unit -> unit
+  val _disable_all_extensions : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array
@@ -1291,7 +1291,7 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
-    mk_no_extensions F._no_extensions;
+    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
     mk_extension F._extension;
 
@@ -1518,7 +1518,7 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
-    mk_no_extensions F._no_extensions;
+    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
     mk_dump_pass F._dump_pass;
     mk_extension F._extension;
@@ -1892,7 +1892,7 @@ module Default = struct
     let _config_var = Misc.show_config_variable_and_exit
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
-    let _no_extensions = Extension.disable_all
+    let _disable_all_extensions = Extension.disable_all
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _g = set debug
