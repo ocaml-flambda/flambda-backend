@@ -470,8 +470,8 @@ let read_one_param ppf position name v =
     end
 
   | "extension" -> Clflags.Extension.enable v
-  | "no-extensions" ->
-    if check_bool ppf "no-extensions" v then Clflags.Extension.disable_all ()
+  | "disable-all-extensions" ->
+    if check_bool ppf name v then Clflags.Extension.disable_all ()
 
   | _ ->
     if !warnings_for_discarded_params &&
