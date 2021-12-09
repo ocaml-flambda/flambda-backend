@@ -23,7 +23,7 @@ module State : sig
 
   val get_layout : t -> Label.t list
 
-  val add_catch_handler : t -> handler_id:int -> label:Label.t -> unit
+  val add_catch_handler : t -> handler_id:int -> Label.t
 
   val get_catch_handler : t -> handler_id:int -> Label.t
 
@@ -84,12 +84,15 @@ end = struct
 
   let get_layout t = List.rev t.layout
 
-  let add_catch_handler t ~handler_id ~label =
+  let add_catch_handler t ~handler_id =
     if Numbers.Int.Tbl.mem t.catch_handlers handler_id
     then
       Misc.fatal_errorf "Cfgize.State.add_catch_handler: duplicate handler %d"
         handler_id
-    else Numbers.Int.Tbl.replace t.catch_handlers handler_id label
+    else
+      let label = Cmm.new_label () in
+      Numbers.Int.Tbl.replace t.catch_handlers handler_id label;
+      label
 
   let get_catch_handler t ~handler_id =
     match Numbers.Int.Tbl.find_opt t.catch_handlers handler_id with
@@ -529,8 +532,7 @@ let rec add_blocks :
       let handlers =
         List.map
           (fun (handler_id, _trap_stack, handler) ->
-            let handler_label = Cmm.new_label () in
-            State.add_catch_handler state ~handler_id ~label:handler_label;
+            let handler_label = State.add_catch_handler state ~handler_id in
             handler_label, handler)
           handlers
       in
@@ -557,8 +559,7 @@ let rec add_blocks :
           let label = Cmm.new_label () in
           label, Some label
         | Delayed handler_id ->
-          let label = Cmm.new_label () in
-          State.add_catch_handler state ~handler_id ~label;
+          let label = State.add_catch_handler state ~handler_id in
           label, None
       in
       terminate_block ~trap_actions:[]
