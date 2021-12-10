@@ -2943,3 +2943,8 @@ let () =
       | _ ->
         None
     )
+
+let reset () =
+  Env.reset_cache ();
+  Envaux.reset_cache ();
+  Typetexp.reset_type_variables ()

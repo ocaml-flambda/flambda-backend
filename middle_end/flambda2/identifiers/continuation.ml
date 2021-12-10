@@ -137,6 +137,8 @@ let grand_table_of_continuations = ref (Table.create ())
 
 let initialise () = grand_table_of_continuations := Table.create ()
 
+let reset () = initialise ()
+
 (* CR mshinwell: Document why this uses [next_raise_count]. Does it need to? It
    would be better if it didn't. *)
 let create ?sort ?name () : t =

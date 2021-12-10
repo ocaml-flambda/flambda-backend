@@ -24,6 +24,8 @@ module Lmap : Lmap.S with type key = t
 
 val initialise : unit -> unit
 
+val reset : unit -> unit
+
 val create : name:string -> Compilation_unit.t -> t
 
 val get_compilation_unit : t -> Compilation_unit.t

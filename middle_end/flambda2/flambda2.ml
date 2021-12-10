@@ -144,7 +144,7 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
         Format.pp_print_flush ppf ())
 
 let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
-    ~module_block_size_in_words ~module_initializer =
+    ~module_block_size_in_words ~module_initializer ~keep_symbol_tables =
   Misc.Color.setup (Flambda_features.colour ());
   (* When the float array optimisation is enabled, the length of an array needs
      to be computed differently according to the array kind, in the case where
@@ -203,7 +203,16 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
               Flambda2_identifiers.Code_id.print (Code.code_id code)
               Cost_metrics.print size)
     end;
-    Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda cmx
-      ~all_code
+    let cmm =
+      Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda cmx
+        ~all_code
+    in
+    if not keep_symbol_tables then begin
+      Compilenv.reset_info_tables ();
+      Flambda2_identifiers.Code_id.reset ();
+      Flambda2_identifiers.Continuation.reset ();
+      Flambda2_identifiers.Reg_width_things.reset ()
+    end;
+    cmm
   in
   Profile.record_call "flambda2" run

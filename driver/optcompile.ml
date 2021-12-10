@@ -64,6 +64,7 @@ let flambda2_ i ~flambda2 typed =
         ~flambda2
         ~ppf_dump:i.ppf_dump
         ~required_globals
+        ~keep_symbol_tables:false
         ())
 
 let flambda i backend typed =

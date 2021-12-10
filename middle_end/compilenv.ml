@@ -36,6 +36,10 @@ let global_infos_table =
 let export_infos_table =
   (Hashtbl.create 10 : (string, Export_info.t) Hashtbl.t)
 
+let reset_info_tables () =
+  Hashtbl.reset global_infos_table;
+  Hashtbl.reset export_infos_table
+
 let imported_sets_of_closures_table =
   (Set_of_closures_id.Tbl.create 10
    : Simple_value_approx.function_declarations option
