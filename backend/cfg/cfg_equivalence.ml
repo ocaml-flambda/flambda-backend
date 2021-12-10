@@ -175,6 +175,8 @@ let equal_raise_kind : Lambda.raise_kind -> Lambda.raise_kind -> bool =
 let array_equal eq left right =
   Array.length left = Array.length right && Array.for_all2 eq left right
 
+let is_valid_trap_depth : int -> bool = fun trap_depth -> trap_depth >= 0
+
 let check_external_call_operation :
     location ->
     Cfg.external_call_operation ->
@@ -362,7 +364,9 @@ let check_instruction :
   then different location "FDO info";
   if check_live && not (Reg.Set.equal expected.live result.live)
   then different location "live register set";
-  if not (Int.equal expected.trap_depth result.trap_depth)
+  if is_valid_trap_depth expected.trap_depth
+     && is_valid_trap_depth result.trap_depth
+     && not (Int.equal expected.trap_depth result.trap_depth)
   then different location "trap depth";
   (* note: not comparing `id` fields on purpose *)
   ()
@@ -489,14 +493,17 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
   check_basic_instruction_list state location 0 expected.body result.body;
   check_terminator_instruction state location expected.terminator
     result.terminator;
-  State.add_label_sets_to_check state
-    (location ^ " (predecessors)")
-    expected.predecessors result.predecessors;
-  if not (Int.equal expected.trap_depth result.trap_depth)
-  then different location "trap depth";
-  State.add_label_sets_to_check state
-    (location ^ " (exceptional successors)")
-    expected.exns result.exns;
+  (* State.add_label_sets_to_check state (location ^ " (predecessors)")
+     expected.predecessors result.predecessors; *)
+  if is_valid_trap_depth expected.trap_depth
+     && is_valid_trap_depth result.trap_depth
+  then begin
+    if not (Int.equal expected.trap_depth result.trap_depth)
+    then different location "trap depth";
+    State.add_label_sets_to_check state
+      (location ^ " (exceptional successors)")
+      expected.exns result.exns
+  end;
   if not (Bool.equal expected.can_raise result.can_raise)
   then different location "can_raise";
   if not (Bool.equal expected.is_trap_handler result.is_trap_handler)
