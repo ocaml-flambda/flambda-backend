@@ -37,7 +37,7 @@ type basic_block =
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
         (** All predecessors, both normal and exceptional paths. *)
-    trap_depth : int;
+    mutable trap_depth : int;
         (** Trap depth of the start of the block. Used for cross checking the
             construction of [exns], and for emitting adjust trap on edges from
             one block to the next. *)
