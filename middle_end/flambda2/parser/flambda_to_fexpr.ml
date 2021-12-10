@@ -419,6 +419,8 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
     | Rec_info -> Rec_info
     | Float_array -> Float_array
     | Immediate_array -> Immediate_array
+    | Value_array -> Value_array
+    | Generic_array -> Generic_array
   in
   convert (Flambda_kind.With_subkind.descr k)
 

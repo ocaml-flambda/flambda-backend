@@ -44,7 +44,8 @@ let rec value_kind (vk : L.value_kind) =
     else KS.block (Tag.create_exn tag) (List.map value_kind fields)
   | Parrayval Pfloatarray -> KS.float_array
   | Parrayval Pintarray -> KS.immediate_array
-  | Parrayval (Paddrarray | Pgenarray) -> KS.any_value
+  | Parrayval Paddrarray -> KS.value_array
+  | Parrayval Pgenarray -> KS.generic_array
 
 let inline_attribute (attr : L.inline_attribute) : Inline_attribute.t =
   match attr with
