@@ -124,6 +124,14 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
         (T.array_of_length
            ~element_kind:(Known Flambda_kind.With_subkind.tagged_immediate)
            ~length:T.any_tagged_immediate)
+    | Value_array ->
+      Known
+        (T.array_of_length
+           ~element_kind:(Known Flambda_kind.With_subkind.any_value)
+           ~length:T.any_tagged_immediate)
+    | Generic_array ->
+      Known
+        (T.array_of_length ~element_kind:Unknown ~length:T.any_tagged_immediate)
     | Rec_info -> Misc.fatal_error "Array elements cannot have kind [Rec_info]"
   in
   let typing_env = DA.typing_env dacc in

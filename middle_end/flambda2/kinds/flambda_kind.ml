@@ -385,6 +385,8 @@ module With_subkind = struct
       | Float_block of { num_fields : int }
       | Float_array
       | Immediate_array
+      | Value_array
+      | Generic_array
 
     include Container_types.Make (struct
       type nonrec t = t
@@ -429,6 +431,14 @@ module With_subkind = struct
           Format.fprintf ppf "@<0>%s=Immediate_array@<0>%s"
             colour
             (Flambda_colours.normal ())
+        | Value_array ->
+          Format.fprintf ppf "@<0>%s=Value_array@<0>%s"
+            colour
+            (Flambda_colours.normal ())
+        | Generic_array ->
+          Format.fprintf ppf "@<0>%s=Generic_array@<0>%s"
+            colour
+            (Flambda_colours.normal ())
 
       let compare = Stdlib.compare
 
@@ -454,7 +464,7 @@ module With_subkind = struct
         | Anything -> ()
         | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
         | Tagged_immediate | Block _ | Float_block _ | Float_array
-        | Immediate_array ->
+        | Immediate_array | Value_array | Generic_array ->
           Misc.fatal_errorf "Only subkind %a is valid for kind %a" Subkind.print
             subkind print kind)
     end;
@@ -492,6 +502,10 @@ module With_subkind = struct
 
   let immediate_array = create value Immediate_array
 
+  let value_array = create value Value_array
+
+  let generic_array = create value Generic_array
+
   let block tag fields =
     if List.exists (fun t -> not (equal t.kind Value)) fields
     then
@@ -523,7 +537,7 @@ module With_subkind = struct
           Subkind.print subkind
       | (Naked_number _ | Fabricated | Rec_info),
         (Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-          | Tagged_immediate | Block _ | Float_block _ | Float_array | Immediate_array) ->
+          | Tagged_immediate | Block _ | Float_block _ | Float_array | Immediate_array | Value_array | Generic_array) ->
         assert false
     (* see [create] *)
 
@@ -553,6 +567,8 @@ module With_subkind = struct
     | Float_block of { num_fields : int }
     | Float_array
     | Immediate_array
+    | Value_array
+    | Generic_array
 
   let rec subkind_descr (t : Subkind.t) : descr =
     match t with
@@ -567,6 +583,8 @@ module With_subkind = struct
     | Float_block { num_fields } -> Float_block { num_fields }
     | Float_array -> Float_array
     | Immediate_array -> Immediate_array
+    | Value_array -> Value_array
+    | Generic_array -> Generic_array
 
   let descr t : descr =
     match t.kind with
@@ -587,6 +605,8 @@ module With_subkind = struct
     | Tagged_immediate, Tagged_immediate
     | Float_array, Float_array
     | Immediate_array, Immediate_array
+    | Value_array, Value_array
+    | Generic_array, Generic_array
     | Rec_info, Rec_info ->
       true
     | Block { tag = t1; fields = fields1 }, Block { tag = t2; fields = fields2 }
@@ -604,16 +624,25 @@ module With_subkind = struct
     | (Block _ | Float_block _), Any_value
     | Float_array, Any_value
     | Immediate_array, Any_value
+    | Value_array, Any_value
+    | Generic_array, Any_value
     | Boxed_float, Any_value
     | Boxed_int32, Any_value
     | Boxed_int64, Any_value
     | Boxed_nativeint, Any_value
-    | Tagged_immediate, Any_value ->
+    | Tagged_immediate, Any_value
+    (* All specialised array kinds may be used at kind [Generic_array], and
+       [Immediate_array] may be used at kind [Value_array] *)
+    | Float_array, Generic_array
+    | Immediate_array, Value_array
+    | Immediate_array, Generic_array
+    | Value_array, Generic_array ->
       true
     (* All other combinations are incompatible. *)
     | ( ( Any_value | Naked_number _ | Boxed_float | Boxed_int32 | Boxed_int64
         | Boxed_nativeint | Tagged_immediate | Block _ | Float_block _
-        | Float_array | Immediate_array | Rec_info ),
+        | Float_array | Immediate_array | Value_array | Generic_array | Rec_info
+          ),
         _ ) ->
       false
 
@@ -625,6 +654,6 @@ module With_subkind = struct
     | Anything -> false
     | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Tagged_immediate | Block _ | Float_block _ | Float_array | Immediate_array
-      ->
+    | Value_array | Generic_array ->
       true
 end

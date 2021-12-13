@@ -150,6 +150,8 @@ let kind_with_subkind ppf (k : kind_with_subkind) =
   | Rec_info -> str "rec_info"
   | Float_array -> str "float_array"
   | Immediate_array -> str "immediate_array"
+  | Value_array -> str "value_array"
+  | Generic_array -> str "generic_array"
 
 let arity ppf (a : arity) =
   match a with
