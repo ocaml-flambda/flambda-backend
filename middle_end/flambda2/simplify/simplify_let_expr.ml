@@ -227,6 +227,8 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      defining expression and the [body]. *)
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   (* Simplify the defining expression. *)
+  (* CR mshinwell/vlaviron: We shouldn't need to continue simplifying the body
+     if [Simplify_named] returns [Invalid]. *)
   let simplify_named_result, removed_operations =
     Simplify_named.simplify_named dacc bound_pattern (L.defining_expr let_expr)
       ~simplify_toplevel

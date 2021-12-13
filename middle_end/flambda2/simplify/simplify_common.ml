@@ -87,7 +87,9 @@ let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in
   match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
-  | Bottom -> Simplified_named.invalid (), dacc
+  | Bottom ->
+    let dacc = DA.add_variable dacc result_var (T.unknown result_kind) in
+    Simplified_named.invalid (), dacc
   | Ok env_extension ->
     let dacc =
       DA.map_denv dacc ~f:(fun denv ->
