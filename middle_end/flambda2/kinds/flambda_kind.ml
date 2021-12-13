@@ -631,6 +631,8 @@ module With_subkind = struct
     | Boxed_int64, Any_value
     | Boxed_nativeint, Any_value
     | Tagged_immediate, Any_value
+    (* All specialised array kinds may be used at kind [Generic_array], and
+       [Immediate_array] may be used at kind [Value_array] *)
     | Float_array, Generic_array
     | Immediate_array, Value_array
     | Immediate_array, Generic_array
