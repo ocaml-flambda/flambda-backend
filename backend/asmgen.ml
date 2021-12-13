@@ -285,26 +285,11 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
          ~exceptionally:(fun () ->
              if create_asm && not keep_asm then remove_file asm_filename);
        if should_emit () then begin
-         (* Compact before calling the assembler, because the assembler can use
-            a lot of memory, and this reduces the peak memory usage by freeing
-            most of the memory from this process before the assembler starts
-            using memory.
-
-            On a run where this frees up around 1.1GB of memory this takes
-            around 0.6s. We only take this time on large jobs where the number
-            of parallel jobs is likely to be constrained by total system
-            memory. *)
-         let _minor, _promoted, major_words = Gc.counters () in
-         (* Uses [major_words] because it doesn't require a heap traversal to
-            compute and for this workload a majority of major words are live at
-            this point. *)
-         if major_words > 500_000_000.0 /. 8.0 then begin
-           reset ();
-           Typemod.reset ();
-           Emitaux.reset ();
-           Reg.reset ();
-           Profile.record_call "assemble_compact" Gc.compact;
-         end;
+         Emitaux.reduce_heap_size ~reset:(fun () ->
+            reset ();
+            Typemod.reset ();
+            Emitaux.reset ();
+            Reg.reset ());
          let assemble_result =
            Profile.record "assemble"
              (Proc.assemble_file asm_filename) obj_filename
