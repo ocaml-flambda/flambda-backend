@@ -124,6 +124,8 @@ type kind_with_subkind =
   | Rec_info
   | Float_array
   | Immediate_array
+  | Value_array
+  | Generic_array
 
 type static_data_binding =
   { symbol : symbol;
