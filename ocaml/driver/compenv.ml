@@ -621,11 +621,13 @@ let c_object_of_filename name =
   Filename.chop_suffix (Filename.basename name) ".c" ^ Config.ext_obj
 
 let process_action
-    (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action =
+    (ppf, implementation, interface, ocaml_mod_ext, ocaml_lib_ext) action
+    ~keep_symbol_tables =
   let impl ~start_from name =
     readenv ppf (Before_compile name);
     let opref = output_prefix name in
-    implementation ~start_from ~source_file:name ~output_prefix:opref;
+    implementation ~start_from ~source_file:name ~output_prefix:opref
+      ~keep_symbol_tables;
     objfiles := (opref ^ ocaml_mod_ext) :: !objfiles
   in
   match action with
@@ -709,7 +711,14 @@ let process_deferred_actions env =
       | ProcessOtherFile name -> Filename.check_suffix name ".cmxa"
       | _ -> false) !deferred_actions then
     fatal "Option -a cannot be used with .cmxa input files.";
-  List.iter (process_action env) (List.rev !deferred_actions);
+  let compiling_multiple_impls =
+    List.length (List.filter (function
+        | ProcessImplementation _ -> true
+        | _ -> false) !deferred_actions) > 1
+  in
+  let keep_symbol_tables = compiling_multiple_impls in
+  List.iter (process_action env ~keep_symbol_tables)
+    (List.rev !deferred_actions);
   output_name := final_output_name;
   stop_early :=
     !compile_only ||

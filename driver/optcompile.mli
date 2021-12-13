@@ -29,7 +29,8 @@ val implementation
     keep_symbol_tables:bool ->
     Cmm.phrase list)
   -> start_from:Clflags.Compiler_pass.t
-  -> source_file:string -> output_prefix:string -> unit
+  -> source_file:string -> output_prefix:string -> keep_symbol_tables:bool
+  -> unit
 
 (** {2 Internal functions} **)
 
