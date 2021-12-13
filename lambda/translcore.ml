@@ -1098,7 +1098,8 @@ and transl_function0
     let arg_mode, kind =
       match cases with
       | [] ->
-        Misc.fatal_error "transl_function0: no cases"
+        (* With Camlp4, a pattern matching might be empty *)
+        Alloc_heap, Pgenval
       | {c_lhs=pat} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
