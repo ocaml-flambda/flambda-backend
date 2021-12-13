@@ -1221,10 +1221,6 @@ let simplify_binary_primitive dacc original_prim (prim : P.binary_primitive)
         let named = Named.create_prim prim dbg in
         let ty = T.unknown (P.result_kind' prim) in
         let dacc = DA.add_variable dacc result_var ty in
-        let dacc =
-          record_any_symbol_projection_for_block_load dacc ~result_var
-            ~block:arg1 ~index:arg2
-        in
         Simplified_named.reachable named ~try_reify:false, dacc
     | String_or_bigstring_load _ | Bigarray_load _ ->
       fun dacc ~original_term:_ dbg ~arg1 ~arg1_ty:_ ~arg2 ~arg2_ty:_
