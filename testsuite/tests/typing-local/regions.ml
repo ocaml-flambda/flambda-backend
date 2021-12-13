@@ -20,9 +20,20 @@ let[@inline never] uses_local x =
   let local_ r = ref x in
   let _ = opaque_identity r in
   ()
-let () = uses_local 42
-let () = check_empty "function call"
+let () =
+  uses_local 42;
+  check_empty "function call"
 
+let[@inline never] uses_local_try x =
+  try
+    let r = local_ ref x in
+    if opaque_identity false then raise Exit;
+    let _ = opaque_identity r in
+    ()
+  with Exit -> ()
+let () =
+  uses_local_try 42;
+  check_empty "exn function call"
 
 let[@inline never][@specialise never][@local never] do_tailcall f =
   let local_ r = ref 42 in

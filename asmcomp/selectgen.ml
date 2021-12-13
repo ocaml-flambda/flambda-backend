@@ -1065,8 +1065,8 @@ method emit_stores env data regs_addr =
 
 (* Same, but in tail position *)
 
-method private emit_return (env:environment) exp =
-  match self#emit_expr env exp with
+method private insert_return (env:environment) r =
+  match r with
     None -> ()
   | Some r ->
       let loc = Proc.loc_results (Reg.typv r) in
@@ -1074,6 +1074,9 @@ method private emit_return (env:environment) exp =
         self#insert env (Iop Iendregion) (List.hd env.regions) [||];
       self#insert_moves env r loc;
       self#insert env Ireturn loc [||]
+
+method private emit_return (env:environment) exp =
+  self#insert_return env (self#emit_expr env exp)
 
 method emit_tail (env:environment) exp =
   let env' =
@@ -1224,13 +1227,7 @@ method emit_tail (env:environment) exp =
                   instr_cons (Iop Imove) [|Proc.loc_exn_bucket|] rv
                     (instr_cons (Iop Iendregion) reg [| |] s2)))
         [||] [||];
-      begin match opt_r1 with
-        None -> ()
-      | Some r1 ->
-          let loc = Proc.loc_results (Reg.typv r1) in
-          self#insert_moves env r1 loc;
-          self#insert env Ireturn loc [||]
-      end
+      self#insert_return env opt_r1
   | Cregion e ->
       if env.region_tail then
         self#emit_return env exp

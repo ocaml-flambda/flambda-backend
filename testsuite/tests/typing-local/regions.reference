@@ -1,5 +1,6 @@
                   startup: OK
             function call: OK
+        exn function call: OK
  during indirect tailcall: OK
   after indirect tailcall: OK
    during direct tailcall: OK
