@@ -207,7 +207,8 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
       Flambda2_to_cmm.To_cmm.unit ~make_symbol:Compilenv.make_symbol flambda cmx
         ~all_code
     in
-    if not keep_symbol_tables then begin
+    if not keep_symbol_tables
+    then begin
       Compilenv.reset_info_tables ();
       Flambda2_identifiers.Code_id.reset ();
       Flambda2_identifiers.Continuation.reset ();
