@@ -88,6 +88,8 @@ val byte_name: description -> string
     compiler itself. *)
 val native_name_is_external : description -> bool
 
+val inst_mode : mode -> description -> description
+
 type error =
   | Old_style_float_with_native_repr_attribute
   | Old_style_noalloc_with_noalloc_attribute

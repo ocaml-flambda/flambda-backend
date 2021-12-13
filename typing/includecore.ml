@@ -36,17 +36,27 @@ let value_descriptions ~loc env name
   match vd1.val_kind with
   | Val_prim p1 ->
      let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
-     if Ctype.moregeneral env true ty1 vd2.val_type then begin
-       match vd2.val_kind with
-           Val_prim p2 ->
-             if p1 = p2 then Tcoerce_none else raise Dont_match
-         | _ ->
-             let pc =
-               {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
-                pc_env = env; pc_loc = vd1.Types.val_loc; } in
-             Tcoerce_primitive pc
-     end else
-       raise Dont_match
+     begin match vd2.val_kind with
+     | Val_prim p2 ->
+        let ty2, _mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+        if not (Ctype.moregeneral env true ty1 ty2) then
+          raise Dont_match;
+        let mode1 : Primitive.mode =
+          match Btype.Alloc_mode.check_const mode1 with
+          | Some Global -> Prim_global
+          | Some Local -> Prim_local
+          | None -> Prim_poly
+        in
+        let p1 = Primitive.inst_mode mode1 p1 in
+        if p1 = p2 then Tcoerce_none else raise Dont_match
+     | _ ->
+        if not (Ctype.moregeneral env true ty1 vd2.val_type) then
+          raise Dont_match;
+        let pc =
+          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+           pc_env = env; pc_loc = vd1.Types.val_loc; } in
+        Tcoerce_primitive pc
+     end
   | _ ->
      if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
        match vd2.val_kind with

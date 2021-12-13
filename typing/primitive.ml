@@ -275,6 +275,15 @@ let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
 
+let inst_mode mode p =
+  let inst_repr = function
+    | Prim_poly, r -> mode, r
+    | (Prim_global|Prim_local) as m, r -> m, r
+  in
+  { p with
+    prim_native_repr_args = List.map inst_repr p.prim_native_repr_args;
+    prim_native_repr_res = inst_repr p.prim_native_repr_res }
+
 let report_error ppf err =
   match err with
   | Old_style_float_with_native_repr_attribute ->

@@ -1630,11 +1630,20 @@ Error: This value escapes its region
 
 (* Poly-moded eta expansion *)
 module Heap32 : sig val add : int32 -> int32 -> int32 end = Int32
+module Heap32E : sig external add : int32 -> int32 -> int32 = "%int32_add" end = Int32
 module Local32 : sig val add : local_ int32 -> local_ int32 -> local_ int32 end = Int32
+module Local32E : sig external add : local_ int32 -> local_ int32 -> local_ int32 = "%int32_add" end = Int32
 [%%expect{|
 module Heap32 : sig val add : int32 -> int32 -> int32 end
+module Heap32E :
+  sig external add : int32 -> int32 -> int32 = "%int32_add" end
 module Local32 :
   sig val add : local_ int32 -> local_ int32 -> local_ int32 end
+module Local32E :
+  sig
+    external add : local_ int32 -> local_ int32 -> local_ int32
+      = "%int32_add"
+  end
 |}]
 module Bad32 : sig val add : local_ int32 -> local_ int32 -> int32 end =
   struct let add = Int32.add end
