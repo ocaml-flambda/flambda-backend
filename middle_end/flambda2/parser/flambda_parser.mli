@@ -68,6 +68,7 @@ type token =
   | KWD_UNIT
   | KWD_TUPLED
   | KWD_TAGGED
+  | KWD_TAG
   | KWD_SWITCH
   | KWD_SUCC
   | KWD_SIZE
