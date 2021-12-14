@@ -1052,9 +1052,9 @@ let remove_code_id t code_id =
     { t with code_ids; newer_version_of_code_ids }
 
 let remove_code_id_or_symbol t (cis : Code_id_or_symbol.t) =
-  match cis with
-  | Code_id code_id -> remove_code_id t code_id
-  | Symbol symbol -> remove_symbol t symbol
+  Code_id_or_symbol.pattern_match cis
+    ~code_id:(fun code_id -> remove_code_id t code_id)
+    ~symbol:(fun symbol -> remove_symbol t symbol)
 
 let remove_continuation t k =
   if For_continuations.is_empty t.continuations

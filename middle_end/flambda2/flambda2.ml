@@ -225,7 +225,6 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     if not keep_symbol_tables
     then begin
       Compilenv.reset_info_tables ();
-      Flambda2_identifiers.Code_id.reset ();
       Flambda2_identifiers.Continuation.reset ();
       Flambda2_identifiers.Reg_width_things.reset ()
     end;
