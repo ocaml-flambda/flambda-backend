@@ -55,7 +55,7 @@ let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
             ~operation:(Removed_operations.prim original_prim)
             Cost_metrics.zero
         in
-        Simplified_named.reachable named ~try_reify:true
+        Simplified_named.reachable named ~try_reify:(Some ty)
         |> Simplified_named.update_cost_metrics cost_metrics
       in
       Applied (simplified_named, dacc)

@@ -54,7 +54,7 @@ let simplify_make_block_of_values dacc prim dbg tag ~shape
     | Mutable -> T.any_value
   in
   let dacc = DA.add_variable dacc result_var ty in
-  Simplified_named.reachable term ~try_reify:true, dacc
+  Simplified_named.reachable term ~try_reify:(Some ty), dacc
 
 let simplify_make_block_of_floats dacc _prim dbg
     ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
@@ -82,7 +82,7 @@ let simplify_make_block_of_floats dacc _prim dbg
     | Mutable -> T.any_value
   in
   let dacc = DA.add_variable dacc result_var ty in
-  Simplified_named.reachable term ~try_reify:true, dacc
+  Simplified_named.reachable term ~try_reify:(Some ty), dacc
 
 let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
     ~mutable_or_immutable args_with_tys ~result_var =
@@ -168,7 +168,7 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
           DE.add_variable_and_extend_typing_environment denv result_var ty
             env_extension)
     in
-    Simplified_named.reachable named ~try_reify:true, dacc
+    Simplified_named.reachable named ~try_reify:(Some ty), dacc
 
 let simplify_variadic_primitive dacc _original_prim
     (prim : P.variadic_primitive) ~args_with_tys dbg ~result_var =

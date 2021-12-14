@@ -117,62 +117,50 @@ let lift dacc ty ~bound_to static_const =
     DA.map_denv dacc ~f:(fun denv ->
         DE.add_equation_on_variable denv bound_to var_ty)
   in
-  Simplified_named.reachable term ~try_reify:false, dacc
+  Simplified_named.reachable term ~try_reify:None, dacc
 
-let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
-    ~allow_lifting =
+let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~allow_lifting ty =
   let occ_kind = Bound_var.name_mode bound_to in
   let bound_to = Bound_var.var bound_to in
   let denv = DA.denv dacc in
-  let ty =
-    TE.find (DE.typing_env denv) (Name.var bound_to) (Some kind_of_bound_to)
+  let typing_env = DE.typing_env denv in
+  let reify_result =
+    T.reify ~allowed_if_free_vars_defined_in:typing_env
+      ~additional_free_var_criterion:(fun var ->
+        DE.is_defined_at_toplevel denv var
+        || Option.is_some (DE.find_symbol_projection denv var))
+      ~allow_unique:true typing_env ty
   in
-  match term with
-  | Invalid _ ->
+  match reify_result with
+  | Lift to_lift ->
+    if Name_mode.is_normal occ_kind && allow_lifting
+    then
+      let static_const = create_static_const dacc to_lift in
+      lift dacc ty ~bound_to static_const
+    else term, dacc
+  | Simple simple ->
+    (* CR mshinwell: Think about whether this is the best way of handling
+       this. *)
+    (* It is possible that the only [Simple] that [reify] could return is in
+       fact [bound_to] -- for example when all other aliases are of an
+       unsuitable occurrence kind. *)
+    let dacc =
+      if Simple.equal simple (Simple.var bound_to)
+      then dacc
+      else
+        let ty = T.alias_type_of (T.kind ty) simple in
+        let denv = DE.add_equation_on_variable denv bound_to ty in
+        DA.with_denv dacc denv
+    in
+    if Simple.equal (Simple.var bound_to) simple
+    then term, dacc
+    else
+      ( Simplified_named.reachable (Named.create_simple simple) ~try_reify:None,
+        dacc )
+  | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
+  | Cannot_reify ->
+    term, dacc
+  | Invalid ->
     let ty = T.bottom_like ty in
     let denv = DE.add_equation_on_variable denv bound_to ty in
     Simplified_named.invalid (), DA.with_denv dacc denv
-  | Reachable _ | Reachable_try_reify _ -> (
-    let typing_env = DE.typing_env denv in
-    let reify_result =
-      T.reify ~allowed_if_free_vars_defined_in:typing_env
-        ~additional_free_var_criterion:(fun var ->
-          DE.is_defined_at_toplevel denv var
-          || Option.is_some (DE.find_symbol_projection denv var))
-        ~allow_unique:true typing_env ~min_name_mode:NM.normal ty
-    in
-    match reify_result with
-    | Lift to_lift ->
-      if Name_mode.is_normal occ_kind && allow_lifting
-      then
-        let static_const = create_static_const dacc to_lift in
-        lift dacc ty ~bound_to static_const
-      else term, dacc
-    | Simple simple ->
-      (* CR mshinwell: Think about whether this is the best way of handling
-         this. *)
-      (* It is possible that the only [Simple] that [reify] could return is in
-         fact [bound_to] -- for example when all other aliases are of an
-         unsuitable occurrence kind. *)
-      let dacc =
-        if Simple.equal simple (Simple.var bound_to)
-        then dacc
-        else
-          let ty = T.alias_type_of (T.kind ty) simple in
-          let denv = DE.add_equation_on_variable denv bound_to ty in
-          DA.with_denv dacc denv
-      in
-      if Simple.equal (Simple.var bound_to) simple
-      then term, dacc
-      else
-        ( Simplified_named.reachable
-            (Named.create_simple simple)
-            ~try_reify:false,
-          dacc )
-    | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
-    | Cannot_reify ->
-      term, dacc
-    | Invalid ->
-      let ty = T.bottom_like ty in
-      let denv = DE.add_equation_on_variable denv bound_to ty in
-      Simplified_named.invalid (), DA.with_denv dacc denv)

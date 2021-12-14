@@ -49,12 +49,14 @@ type reification_result = private
   | Cannot_reify
   | Invalid
 
+(** If this function is provided with an alias type it may assume that the
+    [Simple] forming such alias is canonical. If this isn't the case, nothing
+    will go wrong per se, but the best answer might not be returned. *)
 val reify :
   ?allowed_if_free_vars_defined_in:Typing_env.t ->
   ?additional_free_var_criterion:(Variable.t -> bool) ->
   ?disallowed_free_vars:Variable.Set.t ->
   ?allow_unique:bool ->
   Typing_env.t ->
-  min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   reification_result

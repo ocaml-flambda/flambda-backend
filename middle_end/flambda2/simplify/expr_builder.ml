@@ -301,6 +301,7 @@ let make_new_let_bindings uacc
           }
       | Reachable_try_reify
           { named = defining_expr;
+            ty = _;
             free_names = free_names_of_defining_expr;
             cost_metrics = cost_metrics_of_defining_expr
           } ->

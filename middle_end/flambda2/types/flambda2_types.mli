@@ -130,6 +130,12 @@ module Typing_env : sig
 
   val find : t -> Name.t -> Flambda_kind.t option -> flambda_type
 
+  val find_with_binding_time_and_mode :
+    t ->
+    Name.t ->
+    Flambda_kind.t option ->
+    Type_grammar.t * Binding_time.With_name_mode.t
+
   val find_or_missing : t -> Name.t -> flambda_type option
 
   val find_params : t -> Bound_parameter.t list -> flambda_type list
@@ -680,6 +686,5 @@ val reify :
   ?disallowed_free_vars:Variable.Set.t ->
   ?allow_unique:bool ->
   Typing_env.t ->
-  min_name_mode:Name_mode.t ->
   t ->
   reification_result

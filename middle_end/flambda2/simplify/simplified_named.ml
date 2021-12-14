@@ -38,6 +38,7 @@ type t =
       }
   | Reachable_try_reify of
       { named : simplified_named;
+        ty : Flambda2_types.t;
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
@@ -62,14 +63,15 @@ let reachable (named : Named.t) ~try_reify =
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  if try_reify
-  then
+  match try_reify with
+  | Some ty ->
     Reachable_try_reify
       { named = simplified_named;
+        ty;
         cost_metrics;
         free_names = Named.free_names named
       }
-  else
+  | None ->
     Reachable
       { named = simplified_named;
         cost_metrics;
@@ -94,10 +96,11 @@ let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  if try_reify
-  then
-    Reachable_try_reify { named = simplified_named; cost_metrics; free_names }
-  else Reachable { named = simplified_named; cost_metrics; free_names }
+  match try_reify with
+  | Some ty ->
+    Reachable_try_reify
+      { named = simplified_named; ty; cost_metrics; free_names }
+  | None -> Reachable { named = simplified_named; cost_metrics; free_names }
 
 let invalid () =
   if Flambda_features.treat_invalid_code_as_unreachable ()

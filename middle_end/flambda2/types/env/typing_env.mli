@@ -112,6 +112,12 @@ val add_equations_on_params :
     [variable_is_from_missing_cmx_file]. *)
 val find : t -> Name.t -> Flambda_kind.t option -> Type_grammar.t
 
+val find_with_binding_time_and_mode :
+  t ->
+  Name.t ->
+  Flambda_kind.t option ->
+  Type_grammar.t * Binding_time.With_name_mode.t
+
 val find_or_missing : t -> Name.t -> Type_grammar.t option
 
 val find_params : t -> Bound_parameter.t list -> Type_grammar.t list

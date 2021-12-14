@@ -212,7 +212,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           let prim = Flambda_primitive.(Nullary (Optimised_out k)) in
           let named = Named.create_prim prim Debuginfo.none in
           let simplified_defining_expr =
-            Simplified_named.reachable named ~try_reify:false
+            Simplified_named.reachable named ~try_reify:None
           in
           { Simplify_named_result.let_bound;
             simplified_defining_expr;

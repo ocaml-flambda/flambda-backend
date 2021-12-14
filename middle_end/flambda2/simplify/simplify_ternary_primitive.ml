@@ -38,7 +38,7 @@ let simplify_array_set original_prim (array_kind : P.Array_kind.t) dacc dbg
     let named = Named.create_prim original_prim dbg in
     let ty = T.unknown (P.result_kind' original_prim) in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.reachable named ~try_reify:false, dacc
+    Simplified_named.reachable named ~try_reify:None, dacc
 
 let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty:_ ~arg3 ~arg3_ty:_ dbg ~result_var =
@@ -51,4 +51,4 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
     let named = Named.create_prim prim dbg in
     let ty = T.unknown (P.result_kind' prim) in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.reachable named ~try_reify:false, dacc
+    Simplified_named.reachable named ~try_reify:None, dacc

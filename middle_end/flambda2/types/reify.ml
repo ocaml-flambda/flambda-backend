@@ -53,13 +53,13 @@ type reification_result =
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
 let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
-    ?disallowed_free_vars ?(allow_unique = false) env ~min_name_mode t :
-    reification_result =
+    ?disallowed_free_vars ?(allow_unique = false) env t : reification_result =
   let var_allowed var =
     match allowed_if_free_vars_defined_in with
     | None -> false
     | Some allowed_if_free_vars_defined_in -> (
-      TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
+      TE.mem ~min_name_mode:Name_mode.normal allowed_if_free_vars_defined_in
+        (Name.var var)
       && begin
            match additional_free_var_criterion with
            | None -> true
@@ -71,23 +71,37 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | Some disallowed_free_vars ->
         not (Variable.Set.mem var disallowed_free_vars))
   in
+  let try_canonical_simple () =
+    match TG.get_alias_exn t with
+    | exception Not_found -> Cannot_reify
+    | alias ->
+      Simple.pattern_match' alias
+        ~const:(fun _ ->
+          (* This should have been caught before we called [expand_head]. *)
+          assert false)
+        ~symbol:(fun _ ~coercion:_ -> (* Likewise. *) assert false)
+        ~var:(fun _ ~coercion:_ ->
+          match
+            TE.get_canonical_simple_exn env ~min_name_mode:Name_mode.normal
+              alias
+          with
+          | exception Not_found ->
+            (* Name mode criterion could not be satisfied. *)
+            Cannot_reify
+          | definitely_canonical -> Simple definitely_canonical)
+  in
   let canonical_simple =
-    match TE.get_alias_then_canonical_simple_exn env ~min_name_mode t with
+    match TG.get_alias_exn t with
     | exception Not_found -> None
-    | canonical_simple -> Some canonical_simple
+    | alias ->
+      if Simple.is_symbol alias || Simple.is_const alias
+      then (* In these cases, [alias] is definitely the canonical. *)
+        Some alias
+      else None
   in
   match canonical_simple with
-  | Some canonical_simple when Simple.is_symbol canonical_simple ->
-    (* Don't lift things that are already bound to symbols. Apart from anything
-       else, this could cause aliases between symbols, which are currently
-       forbidden (every symbol has the same binding time). *)
-    Cannot_reify
-  | canonical_simple_opt -> (
-    let try_canonical_simple () =
-      match canonical_simple_opt with
-      | None -> Cannot_reify
-      | Some canonical_simple -> Simple canonical_simple
-    in
+  | Some simple -> Simple simple
+  | None -> (
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with

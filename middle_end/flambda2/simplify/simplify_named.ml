@@ -79,9 +79,9 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if simple == new_simple
-      then Simplified_named.reachable named ~try_reify:false
+      then Simplified_named.reachable named ~try_reify:None
       else
-        Simplified_named.reachable (Named.create_simple simple) ~try_reify:false
+        Simplified_named.reachable (Named.create_simple simple) ~try_reify:None
     in
     Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
       defining_expr ~original_defining_expr:named
@@ -96,8 +96,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       Misc.fatal_errorf "Primitive %a = %a did not yield a result var"
         Bound_var.print bound_var P.print prim;
     match simplified_named with
-    | Reachable_try_reify _ ->
-      let kind = P.result_kind' prim in
+    | Reachable_try_reify { ty; _ } ->
       (* CR mshinwell: Add check along the lines of: types are unknown whenever
          [not (P.With_fixed_value.eligible prim)] holds. *)
       (* Primitives with generative effects correspond to allocations. Without
@@ -115,7 +114,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       in
       let defining_expr, dacc =
         Reification.try_to_reify dacc simplified_named ~bound_to:bound_var
-          ~kind_of_bound_to:kind ~allow_lifting
+          ~allow_lifting ty
       in
       Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
         defining_expr ~original_defining_expr:named
@@ -176,11 +175,11 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     let dacc = DA.add_variable dacc bound_var ty in
     let defining_expr =
       if rec_info_expr == new_rec_info_expr
-      then Simplified_named.reachable named ~try_reify:false
+      then Simplified_named.reachable named ~try_reify:None
       else
         Simplified_named.reachable
           (Named.create_rec_info new_rec_info_expr)
-          ~try_reify:false
+          ~try_reify:None
     in
     Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
       defining_expr ~original_defining_expr:named
