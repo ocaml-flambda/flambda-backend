@@ -74,7 +74,7 @@ let bindings_to_place_in_any_order t =
         let let_bound = Bound_pattern.singleton bound_var in
         let simplified_defining_expr =
           Simple.symbol symbol |> Flambda.Named.create_simple
-          |> Simplified_named.reachable
+          |> Simplified_named.reachable ~try_reify:false
         in
         { let_bound; simplified_defining_expr; original_defining_expr = None }
         :: bindings)

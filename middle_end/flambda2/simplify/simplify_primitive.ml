@@ -19,7 +19,7 @@
 open! Simplify_import
 
 type cse_result =
-  | Applied of (Simplified_named.t * TEE.t * Simple.t list * DA.t)
+  | Applied of (Simplified_named.t * DA.t)
   | Not_applied of DA.t
 
 let apply_cse dacc ~original_prim =
@@ -35,8 +35,7 @@ let apply_cse dacc ~original_prim =
       in
       match canonical with exception Not_found -> None | simple -> Some simple))
 
-let try_cse dacc ~original_prim ~simplified_args_with_tys ~min_name_mode
-    ~result_var : cse_result =
+let try_cse dacc ~original_prim ~min_name_mode ~result_var : cse_result =
   (* CR-someday mshinwell: Use [meet] and [reify] for CSE? (discuss with
      lwhite) *)
   (* CR-someday mshinwell: Find example that suggested we needed to allow
@@ -44,29 +43,28 @@ let try_cse dacc ~original_prim ~simplified_args_with_tys ~min_name_mode
   if not (Name_mode.equal min_name_mode Name_mode.normal)
   then Not_applied dacc
   else
-    let result_var = VB.var result_var in
+    let result_var' = VB.var result_var in
     match apply_cse dacc ~original_prim with
     | Some replace_with ->
       let named = Named.create_simple replace_with in
       let ty = T.alias_type_of (P.result_kind' original_prim) replace_with in
-      let env_extension = TEE.one_equation (Name.var result_var) ty in
-      let args = List.map fst simplified_args_with_tys in
+      let dacc = DA.add_variable dacc result_var ty in
       let simplified_named =
         let cost_metrics =
           Cost_metrics.notify_removed
             ~operation:(Removed_operations.prim original_prim)
             Cost_metrics.zero
         in
-        Simplified_named.reachable named
+        Simplified_named.reachable named ~try_reify:true
         |> Simplified_named.update_cost_metrics cost_metrics
       in
-      Applied (simplified_named, env_extension, args, dacc)
+      Applied (simplified_named, dacc)
     | None ->
       let dacc =
         match P.Eligible_for_cse.create original_prim with
         | None -> dacc
         | Some eligible_prim ->
-          let bound_to = Simple.var result_var in
+          let bound_to = Simple.var result_var' in
           DA.map_denv dacc ~f:(fun denv ->
               DE.add_cse denv eligible_prim ~bound_to)
       in
@@ -74,36 +72,66 @@ let try_cse dacc ~original_prim ~simplified_args_with_tys ~min_name_mode
 
 let simplify_primitive dacc (prim : P.t) dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
-  let args_rev =
-    ListLabels.fold_left (P.args prim) ~init:[] ~f:(fun args_rev arg ->
-        let arg_ty = S.simplify_simple dacc arg ~min_name_mode in
-        let arg = T.get_alias_exn arg_ty in
-        (arg, arg_ty) :: args_rev)
-  in
-  let args = List.rev args_rev in
-  match
-    try_cse dacc ~original_prim:prim ~simplified_args_with_tys:args
-      ~min_name_mode ~result_var
-  with
-  | Applied result -> result
-  | Not_applied dacc -> (
-    match prim, args with
-    | Nullary prim, [] ->
-      Simplify_nullary_primitive.simplify_nullary_primitive dacc prim dbg
-        ~result_var
-    | Unary (prim, _), [(arg, arg_ty)] ->
-      Simplify_unary_primitive.simplify_unary_primitive dacc prim ~arg ~arg_ty
-        dbg ~result_var
-    | Binary (prim, _, _), [(arg1, arg1_ty); (arg2, arg2_ty)] ->
-      Simplify_binary_primitive.simplify_binary_primitive dacc prim ~arg1
-        ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var
-    | ( Ternary (prim, _, _, _),
-        [(arg1, arg1_ty); (arg2, arg2_ty); (arg3, arg3_ty)] ) ->
-      Simplify_ternary_primitive.simplify_ternary_primitive dacc prim ~arg1
-        ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var
-    | Variadic (variadic_prim, _), args_with_tys ->
-      Simplify_variadic_primitive.simplify_variadic_primitive dacc variadic_prim
-        ~args_with_tys dbg ~result_var
-    | (Nullary _ | Unary _ | Binary _ | Ternary _), ([] | _ :: _) ->
-      Misc.fatal_errorf "Mismatch between primitive %a and args %a" P.print prim
-        Simple.List.print (List.map fst args))
+  match prim with
+  | Nullary prim' ->
+    Simplify_nullary_primitive.simplify_nullary_primitive dacc prim prim' dbg
+      ~result_var
+  | Unary (unary_prim, orig_arg) -> (
+    let arg_ty = S.simplify_simple dacc orig_arg ~min_name_mode in
+    let arg = T.get_alias_exn arg_ty in
+    let original_prim : P.t =
+      if orig_arg == arg then prim else Unary (unary_prim, arg)
+    in
+    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    | Applied result -> result
+    | Not_applied dacc ->
+      Simplify_unary_primitive.simplify_unary_primitive dacc original_prim
+        unary_prim ~arg ~arg_ty dbg ~result_var)
+  | Binary (binary_prim, orig_arg1, orig_arg2) -> (
+    let arg1_ty = S.simplify_simple dacc orig_arg1 ~min_name_mode in
+    let arg1 = T.get_alias_exn arg1_ty in
+    let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
+    let arg2 = T.get_alias_exn arg2_ty in
+    let original_prim : P.t =
+      if orig_arg1 == arg1 && orig_arg2 == arg2
+      then prim
+      else Binary (binary_prim, arg1, arg2)
+    in
+    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    | Applied result -> result
+    | Not_applied dacc ->
+      Simplify_binary_primitive.simplify_binary_primitive dacc original_prim
+        binary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var)
+  | Ternary (ternary_prim, orig_arg1, orig_arg2, orig_arg3) -> (
+    let arg1_ty = S.simplify_simple dacc orig_arg1 ~min_name_mode in
+    let arg1 = T.get_alias_exn arg1_ty in
+    let arg2_ty = S.simplify_simple dacc orig_arg2 ~min_name_mode in
+    let arg2 = T.get_alias_exn arg2_ty in
+    let arg3_ty = S.simplify_simple dacc orig_arg3 ~min_name_mode in
+    let arg3 = T.get_alias_exn arg3_ty in
+    let original_prim : P.t =
+      if orig_arg1 == arg1 && orig_arg2 == arg2 && orig_arg3 = arg3
+      then prim
+      else Ternary (ternary_prim, arg1, arg2, arg3)
+    in
+    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    | Applied result -> result
+    | Not_applied dacc ->
+      Simplify_ternary_primitive.simplify_ternary_primitive dacc original_prim
+        ternary_prim ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg
+        ~result_var)
+  | Variadic (variadic_prim, orig_args) -> (
+    let args_with_tys =
+      ListLabels.fold_right orig_args ~init:[] ~f:(fun arg args_rev ->
+          let arg_ty = S.simplify_simple dacc arg ~min_name_mode in
+          let arg = T.get_alias_exn arg_ty in
+          (arg, arg_ty) :: args_rev)
+    in
+    let original_prim : P.t =
+      Variadic (variadic_prim, List.map fst args_with_tys)
+    in
+    match try_cse dacc ~original_prim ~min_name_mode ~result_var with
+    | Applied result -> result
+    | Not_applied dacc ->
+      Simplify_variadic_primitive.simplify_variadic_primitive dacc original_prim
+        variadic_prim ~args_with_tys dbg ~result_var)

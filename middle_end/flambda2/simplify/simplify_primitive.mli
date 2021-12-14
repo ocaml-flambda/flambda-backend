@@ -23,7 +23,4 @@ val simplify_primitive :
   Flambda_primitive.t ->
   Debuginfo.t ->
   result_var:Bound_var.t ->
-  Simplified_named.t
-  * Flambda2_types.Typing_env_extension.t
-  * Simple.t list
-  * Downwards_acc.t
+  Simplified_named.t * Downwards_acc.t

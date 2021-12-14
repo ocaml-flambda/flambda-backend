@@ -52,7 +52,7 @@ val simplify_projection :
   shape:Flambda2_types.t ->
   result_var:Bound_var.t ->
   result_kind:Flambda_kind.t ->
-  Simplified_named.t * Flambda2_types.Typing_env_extension.t * Downwards_acc.t
+  Simplified_named.t * Downwards_acc.t
 
 val update_exn_continuation_extra_args :
   Upwards_acc.t ->

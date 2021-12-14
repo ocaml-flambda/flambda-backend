@@ -23,7 +23,6 @@ module K = Flambda_kind
 module BP = Bound_parameter
 module P = Flambda_primitive
 module T = Flambda2_types
-module TEE = T.Typing_env_extension
 module UA = Upwards_acc
 module UE = Upwards_env
 module AC = Apply_cont_expr
@@ -88,9 +87,16 @@ let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
   let env = DA.typing_env dacc in
   match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
-  | Bottom -> Simplified_named.invalid (), TEE.empty, dacc
+  | Bottom ->
+    let dacc = DA.add_variable dacc result_var (T.bottom result_kind) in
+    Simplified_named.invalid (), dacc
   | Ok env_extension ->
-    Simplified_named.reachable original_term, env_extension, dacc
+    let dacc =
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.define_variable_and_extend_typing_environment denv result_var
+            result_kind env_extension)
+    in
+    Simplified_named.reachable original_term ~try_reify:true, dacc
 
 let update_exn_continuation_extra_args uacc ~exn_cont_use_id apply =
   let exn_cont_rewrite =
