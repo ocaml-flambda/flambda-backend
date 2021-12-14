@@ -1526,13 +1526,13 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         contains_no_escaping_local_allocs,
         result_arity ) -> (
     let args, missing_args, remaining_args =
-      let rec split l1 l2 =
-        match l1, l2 with
-        | _, [] -> [], [], l1
-        | [], _ -> [], l2, []
-        | e1 :: l1, _ :: l2 ->
-          let args, missing, remains = split l1 l2 in
-          e1 :: args, missing, remains
+      let rec split args arity =
+        match args, arity with
+        | _, [] -> [], [], args
+        | [], _ -> [], arity, []
+        | arg :: args, _ :: arity ->
+          let args, missing, remains = split args arity in
+          arg :: args, missing, remains
       in
       let arity =
         if is_tupled
@@ -1570,7 +1570,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         in
         let return_continuation = Continuation.create ~sort:Return () in
         let exn_continuation =
-          { apply.exn_continuation with exn_handler = Continuation.create () }
+          IR.{ exn_handler = Continuation.create (); extra_args = [] }
         in
         let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
         let fbody acc env =
@@ -1642,14 +1642,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
       let apply_return_continuation =
         Apply.Result_continuation.Return apply.continuation
       in
-      let acc, apply_exn_continuation =
-        close_exn_continuation acc env apply.exn_continuation
-      in
       let acc, args = find_simples acc env args in
-      let inlined = LC.inlined_attribute apply.inlined in
-      let probe_name =
-        match apply.probe with None -> None | Some { name } -> Some name
-      in
       let apply_dbg = Debuginfo.from_location apply.loc in
       let needs_region =
         match apply_alloc_mode, contains_no_escaping_local_allocs with
@@ -1657,7 +1650,16 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
           Some (Variable.create "over_app_region", Continuation.create ())
         | Heap, true | Local, _ -> None
       in
-      let perform_over_application =
+      let perform_over_application acc =
+        let acc, apply_exn_continuation =
+          close_exn_continuation acc env apply.exn_continuation
+        in
+        let inlined = LC.inlined_attribute apply.inlined in
+        (* Keeping the attributes is useless in classic mode but matches the
+           behaviour of simplify, and this split is done either way *)
+        let probe_name =
+          match apply.probe with None -> None | Some { name } -> Some name
+        in
         let alloc_mode : Alloc_mode.t =
           if contains_no_escaping_local_allocs then Heap else Local
         in
@@ -1669,14 +1671,14 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
           | None -> apply_return_continuation
           | Some (_, cont) -> Apply.Result_continuation.Return cont
         in
-        Apply.create ~callee:(Simple.var returned_func) ~continuation
-          apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
-          ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name ~relative_history:(Env.relative_history env)
-      in
-      let perform_over_application acc =
+        let over_application =
+          Apply.create ~callee:(Simple.var returned_func) ~continuation
+            apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
+            ~inlining_state:(Inlining_state.default ~round:0)
+            ~probe_name ~relative_history:(Env.relative_history env)
+        in
         match needs_region with
-        | None -> Expr_with_acc.create_apply acc perform_over_application
+        | None -> Expr_with_acc.create_apply acc over_application
         | Some (region, after_over_application) ->
           let over_application_results =
             List.mapi
@@ -1704,8 +1706,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
           in
           Let_cont_with_acc.build_non_recursive acc after_over_application
             ~handler_params:over_application_results ~handler
-            ~body:(fun acc ->
-              Expr_with_acc.create_apply acc perform_over_application)
+            ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
             ~is_exn_handler:false
       in
       let body = exact_call wrapper_cont in
