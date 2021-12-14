@@ -59,6 +59,13 @@ module With_name_mode = struct
     in
     (binding_time lsl 2) lor name_mode
 
+  let symbols = create symbols Name_mode.normal
+
+  let consts_and_discriminants =
+    create consts_and_discriminants Name_mode.normal
+
+  let imported_variables = create imported_variables Name_mode.in_types
+
   let binding_time t = t lsr 2
 
   let[@inline always] name_mode t =

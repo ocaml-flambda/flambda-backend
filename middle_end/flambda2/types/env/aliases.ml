@@ -431,7 +431,6 @@ let name_defined_earlier ~binding_time_resolver ~binding_times_and_modes alias
     else
       let alias_comp_unit = Name.compilation_unit alias in
       let than_comp_unit = Name.compilation_unit than in
-      let _current_comp_unit = Compilation_unit.get_current_exn () in
       (* The compilation unit ordering is arbitrary, but total. *)
       let c = Compilation_unit.compare alias_comp_unit than_comp_unit in
       if c < 0
@@ -461,20 +460,15 @@ let defined_earlier ~binding_time_resolver ~binding_times_and_modes alias ~than
 
 let binding_time_and_name_mode ~binding_times_and_modes elt =
   Simple.pattern_match' elt
-    ~const:(fun _ ->
-      Binding_time.With_name_mode.create Binding_time.consts_and_discriminants
-        Name_mode.normal)
+    ~const:(fun _ -> Binding_time.With_name_mode.consts_and_discriminants)
     ~var:(fun var ~coercion:_ ->
       let name = Name.var var in
       match Name.Map.find name binding_times_and_modes with
       | _, binding_time_and_mode -> binding_time_and_mode
       | exception Not_found ->
         (* This variable must be in another compilation unit. *)
-        Binding_time.With_name_mode.create Binding_time.imported_variables
-          Name_mode.in_types
-      (* CR mshinwell: maybe change resolver's type back again *))
-    ~symbol:(fun _ ~coercion:_ ->
-      Binding_time.With_name_mode.create Binding_time.symbols Name_mode.normal)
+        Binding_time.With_name_mode.imported_variables)
+    ~symbol:(fun _ ~coercion:_ -> Binding_time.With_name_mode.symbols)
 
 let compute_name_mode_unscoped ~binding_times_and_modes elt =
   Binding_time.With_name_mode.name_mode
