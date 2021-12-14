@@ -601,7 +601,7 @@ let binding_time_and_mode t name =
 
 let binding_time_and_mode_of_simple t simple =
   Simple.pattern_match simple
-    ~const:(fun _ -> Binding_time.With_name_mode.consts_and_discriminants)
+    ~const:(fun _ -> Binding_time.With_name_mode.consts)
     ~name:(fun name ~coercion:_ -> binding_time_and_mode t name)
 
 let mem ?min_name_mode t name =
@@ -1056,7 +1056,7 @@ let type_simple_in_term_exn t ?min_name_mode simple =
   let ty, binding_time_and_name_mode_simple =
     let[@inline always] const const =
       ( MTC.type_for_const const,
-        Binding_time.With_name_mode.consts_and_discriminants )
+        Binding_time.With_name_mode.consts )
     in
     let[@inline always] name name ~coercion:_ =
       (* Applying coercion below *)

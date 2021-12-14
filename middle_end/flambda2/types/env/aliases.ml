@@ -460,7 +460,7 @@ let defined_earlier ~binding_time_resolver ~binding_times_and_modes alias ~than
 
 let binding_time_and_name_mode ~binding_times_and_modes elt =
   Simple.pattern_match' elt
-    ~const:(fun _ -> Binding_time.With_name_mode.consts_and_discriminants)
+    ~const:(fun _ -> Binding_time.With_name_mode.consts)
     ~var:(fun var ~coercion:_ ->
       let name = Name.var var in
       match Name.Map.find name binding_times_and_modes with

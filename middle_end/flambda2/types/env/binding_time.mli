@@ -20,7 +20,7 @@ type binding_time = t
 
 include Container_types.S with type t := t
 
-val consts_and_discriminants : t
+val consts : t
 
 val symbols : t
 
@@ -37,7 +37,7 @@ val equal : t -> t -> bool
 module With_name_mode : sig
   type t = private int
 
-  val consts_and_discriminants : t
+  val consts : t
 
   val symbols : t
 
