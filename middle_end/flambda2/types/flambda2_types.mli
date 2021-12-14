@@ -551,9 +551,17 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> t -> bool proof
 
+type array_kind_compatibility =
+  | Exact
+  | Compatible
+  | Incompatible
+
 (** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
 val prove_is_array_with_element_kind :
-  Typing_env.t -> t -> element_kind:Flambda_kind.With_subkind.t -> bool proof
+  Typing_env.t ->
+  t ->
+  element_kind:Flambda_kind.With_subkind.t ->
+  array_kind_compatibility proof
 
 (* CR mshinwell: Fix comment and/or function name *)
 
