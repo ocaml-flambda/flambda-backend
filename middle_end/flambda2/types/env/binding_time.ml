@@ -61,8 +61,7 @@ module With_name_mode = struct
 
   let symbols = create symbols Name_mode.normal
 
-  let consts =
-    create consts Name_mode.normal
+  let consts = create consts Name_mode.normal
 
   let imported_variables = create imported_variables Name_mode.in_types
 

@@ -1055,8 +1055,7 @@ let type_simple_in_term_exn t ?min_name_mode simple =
      [find] below. *)
   let ty, binding_time_and_name_mode_simple =
     let[@inline always] const const =
-      ( MTC.type_for_const const,
-        Binding_time.With_name_mode.consts )
+      MTC.type_for_const const, Binding_time.With_name_mode.consts
     in
     let[@inline always] name name ~coercion:_ =
       (* Applying coercion below *)
