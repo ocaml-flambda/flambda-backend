@@ -1206,7 +1206,7 @@ let data l =
 
 let reset_all () =
   X86_proc.reset_asm_code ();
-  reset ();
+  Emitaux.reset ();
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
   reset_probes ();
