@@ -23,7 +23,7 @@ in
  let Pmakeblock = %Block 0 (f) in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load 0 size(1) (module_block, 0) in
+    let field_0 = %block_load tag(0) size(1) (module_block, 0) in
     let $camlTests0 = Block 0 (field_0) in
     cont done ($camlTests0)
 ===>

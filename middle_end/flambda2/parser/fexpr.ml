@@ -202,7 +202,7 @@ type block_access_field_kind = Flambda_primitive.Block_access_field_kind.t =
 
 type block_access_kind =
   | Values of
-      { tag : tag_scannable;
+      { tag : tag_scannable option;
         size : targetint option;
         field_kind : block_access_field_kind
       }

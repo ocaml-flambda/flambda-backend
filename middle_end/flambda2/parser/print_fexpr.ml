@@ -382,7 +382,9 @@ let binop ppf binop a b =
     let pp_access_kind ppf (access_kind : block_access_kind) =
       match access_kind with
       | Values { field_kind; tag; size } ->
-        Format.fprintf ppf "%a%i%a" pp_field_kind field_kind tag pp_size size
+        Format.fprintf ppf "%a%a%a" pp_field_kind field_kind
+          (pp_option ~space:Before (pp_like "tag(%a)" Format.pp_print_int))
+          tag pp_size size
       | Naked_floats { size } -> Format.fprintf ppf "float%a" pp_size size
     in
     Format.fprintf ppf "@[<2>%%block_load %a%a@ (%a,@ %a)@]"

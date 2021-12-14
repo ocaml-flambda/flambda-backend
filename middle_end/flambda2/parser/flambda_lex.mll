@@ -84,6 +84,7 @@ let keyword_table =
     "size", KWD_SIZE;
     "succ", KWD_SUCC;
     "switch", KWD_SWITCH;
+    "tag", KWD_TAG;
     "tagged", KWD_TAGGED;
     "tupled", KWD_TUPLED;
     "unit", KWD_UNIT;
