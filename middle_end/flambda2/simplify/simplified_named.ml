@@ -36,9 +36,14 @@ type t =
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
+  | Reachable_try_reify of
+      { named : simplified_named;
+        cost_metrics : Cost_metrics.t;
+        free_names : Name_occurrences.t
+      }
   | Invalid of Invalid_term_semantics.t
 
-let reachable (named : Named.t) =
+let reachable (named : Named.t) ~try_reify =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
     | Simple simple ->
@@ -57,14 +62,22 @@ let reachable (named : Named.t) =
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  Reachable
-    { named = simplified_named;
-      cost_metrics;
-      free_names = Named.free_names named
-    }
+  if try_reify
+  then
+    Reachable_try_reify
+      { named = simplified_named;
+        cost_metrics;
+        free_names = Named.free_names named
+      }
+  else
+    Reachable
+      { named = simplified_named;
+        cost_metrics;
+        free_names = Named.free_names named
+      }
 
 let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
-    ~free_names =
+    ~free_names ~try_reify =
   let (simplified_named : simplified_named), cost_metrics =
     match named with
     | Simple simple ->
@@ -81,25 +94,35 @@ let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
         Named.print named
     | Rec_info rec_info_expr -> Rec_info rec_info_expr, Cost_metrics.zero
   in
-  Reachable { named = simplified_named; cost_metrics; free_names }
+  if try_reify
+  then
+    Reachable_try_reify { named = simplified_named; cost_metrics; free_names }
+  else Reachable { named = simplified_named; cost_metrics; free_names }
 
 let invalid () =
   if Flambda_features.treat_invalid_code_as_unreachable ()
   then Invalid Treat_as_unreachable
   else Invalid Halt_and_catch_fire
 
-let [@ocamlformat "disable"] print ppf t =
+let print ppf t =
   match t with
-  | Reachable { named; _ } ->
+  | Reachable { named; _ } | Reachable_try_reify { named; _ } ->
     Named.print ppf (to_named named)
   | Invalid semantics -> Invalid_term_semantics.print ppf semantics
 
-let is_invalid t = match t with Reachable _ -> false | Invalid _ -> true
+let is_invalid t =
+  match t with
+  | Reachable _ | Reachable_try_reify _ -> false
+  | Invalid _ -> true
 
 let cost_metrics t =
-  match t with Reachable r -> r.cost_metrics | Invalid _ -> Cost_metrics.zero
+  match t with
+  | Reachable { cost_metrics; _ } | Reachable_try_reify { cost_metrics; _ } ->
+    cost_metrics
+  | Invalid _ -> Cost_metrics.zero
 
 let update_cost_metrics cost_metrics t =
   match t with
   | Reachable r -> Reachable { r with cost_metrics }
+  | Reachable_try_reify r -> Reachable_try_reify { r with cost_metrics }
   | Invalid _ -> assert false

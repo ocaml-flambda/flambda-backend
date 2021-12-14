@@ -259,6 +259,11 @@ let make_new_let_bindings uacc
           { named = defining_expr;
             free_names = free_names_of_defining_expr;
             cost_metrics = cost_metrics_of_defining_expr
+          }
+      | Reachable_try_reify
+          { named = defining_expr;
+            free_names = free_names_of_defining_expr;
+            cost_metrics = cost_metrics_of_defining_expr
           } ->
         let defining_expr = Simplified_named.to_named defining_expr in
         let expr, uacc, creation_result =
