@@ -31,7 +31,11 @@ module One_level = struct
 
   let [@ocamlformat "disable"] print ~min_binding_time ppf
         { scope = _; level; just_after_level; } =
-    let restrict_to = TEL.defined_names level in
+    let restrict_to =
+      TEL.fold_on_defined_vars (fun var _bt _kind restrict_to ->
+          Name.Set.add (Name.var var) restrict_to)
+        level Name.Set.empty
+    in
     if Name.Set.is_empty restrict_to then
       Format.fprintf ppf "@[<hov 0>\
           %a\
@@ -983,7 +987,8 @@ let add_env_extension_with_extra_variables t env_extension =
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
     TEL.fold_on_defined_vars
-      (fun var kind t -> add_variable_definition t var kind Name_mode.in_types)
+      (fun var _bt kind t ->
+        add_variable_definition t var kind Name_mode.in_types)
       level t
   in
   let t =

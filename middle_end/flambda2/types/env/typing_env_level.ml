@@ -26,18 +26,6 @@ type t =
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
-let defined_variables t = Variable.Map.keys t.defined_vars
-
-let defined_variables_with_kinds t = t.defined_vars
-
-let defined_names t = Name.set_of_var_set (Variable.Map.keys t.defined_vars)
-
-let variables_by_binding_time t = t.binding_times
-
-let find_kind t var = Variable.Map.find var t.defined_vars
-
-let variable_is_defined t var = Variable.Map.mem var t.defined_vars
-
 (* CR mshinwell: print symbol projections along with tidying up this function *)
 let print_equations ppf equations =
   let equations = Name.Map.bindings equations in
@@ -71,16 +59,6 @@ let [@ocamlformat "disable"] print ppf
       Variable.Set.print (Variable.Map.keys defined_vars) (* XXX *)
       print_equations equations
 
-let fold_on_defined_vars f t init =
-  Binding_time.Map.fold
-    (fun _bt vars acc ->
-      Variable.Set.fold
-        (fun var acc ->
-          let kind = Variable.Map.find var t.defined_vars in
-          f var kind acc)
-        vars acc)
-    t.binding_times init
-
 let empty =
   { defined_vars = Variable.Map.empty;
     binding_times = Binding_time.Map.empty;
@@ -107,10 +85,6 @@ let create ~defined_vars ~binding_times ~equations ~symbol_projections =
         "[defined_vars] and [binding_times] disagree on the set of variables \
          involved");
   { defined_vars; binding_times; equations; symbol_projections }
-
-let equations t = t.equations
-
-let symbol_projections t = t.symbol_projections
 
 let add_symbol_projection t var proj =
   let symbol_projections = Variable.Map.add var proj t.symbol_projections in
@@ -139,6 +113,22 @@ let add_or_replace_equation t name ty =
   if TG.is_obviously_unknown ty
   then { t with equations = Name.Map.remove name t.equations }
   else { t with equations = Name.Map.add name ty t.equations }
+
+let equations t = t.equations
+
+let symbol_projections t = t.symbol_projections
+
+let find_kind t var = Variable.Map.find var t.defined_vars
+
+let fold_on_defined_vars f t init =
+  Binding_time.Map.fold
+    (fun bt vars acc ->
+      Variable.Set.fold
+        (fun var acc ->
+          let kind = Variable.Map.find var t.defined_vars in
+          f var bt kind acc)
+        vars acc)
+    t.binding_times init
 
 let concat (t1 : t) (t2 : t) =
   let defined_vars =

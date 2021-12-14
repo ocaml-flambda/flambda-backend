@@ -33,12 +33,6 @@ val create :
   symbol_projections:Symbol_projection.t Variable.Map.t ->
   t
 
-val defined_variables : t -> Variable.Set.t
-
-val defined_variables_with_kinds : t -> Flambda_kind.t Variable.Map.t
-
-val defined_names : t -> Name.Set.t
-
 val equations : t -> Type_grammar.t Name.Map.t
 
 val symbol_projections : t -> Symbol_projection.t Variable.Map.t
@@ -55,9 +49,5 @@ val all_ids_for_export : t -> Ids_for_export.t
 
 val find_kind : t -> Variable.t -> Flambda_kind.t
 
-val variables_by_binding_time : t -> Variable.Set.t Binding_time.Map.t
-
-val variable_is_defined : t -> Variable.t -> bool
-
 val fold_on_defined_vars :
-  (Variable.t -> Flambda_kind.t -> 'a -> 'a) -> t -> 'a -> 'a
+  (Variable.t -> Binding_time.t -> Flambda_kind.t -> 'a -> 'a) -> t -> 'a -> 'a
