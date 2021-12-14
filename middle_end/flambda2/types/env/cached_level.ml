@@ -17,16 +17,16 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 type t =
-  { names_to_types : (Type_grammar.t * Binding_time.t * Name_mode.t) Name.Map.t;
+  { names_to_types :
+      (Type_grammar.t * Binding_time.With_name_mode.t) Name.Map.t;
     aliases : Aliases.t;
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
-let print_kind_and_mode ~min_binding_time ppf (ty, binding_time, mode) =
+let print_kind_and_mode ~min_binding_time ppf (ty, binding_time_and_mode) =
   let kind = Type_grammar.kind ty in
   let mode =
-    Binding_time.With_name_mode.scoped_name_mode
-      (Binding_time.With_name_mode.create binding_time mode)
+    Binding_time.With_name_mode.scoped_name_mode binding_time_and_mode
       ~min_binding_time
   in
   Format.fprintf ppf ":: %a %a" Flambda_kind.print kind Name_mode.print mode
@@ -58,8 +58,11 @@ let symbol_projections t = t.symbol_projections
    allocation. *)
 
 let add_or_replace_binding t (name : Name.t) ty binding_time name_mode =
+  let binding_time_and_mode =
+    Binding_time.With_name_mode.create binding_time name_mode
+  in
   let names_to_types =
-    Name.Map.add name (ty, binding_time, name_mode) t.names_to_types
+    Name.Map.add name (ty, binding_time_and_mode) t.names_to_types
   in
   { names_to_types;
     aliases = t.aliases;
@@ -69,8 +72,7 @@ let add_or_replace_binding t (name : Name.t) ty binding_time name_mode =
 let replace_variable_binding t var ty =
   let names_to_types =
     Name.Map.replace (Name.var var)
-      (function
-        | _old_ty, binding_time, name_mode -> ty, binding_time, name_mode)
+      (function _old_ty, binding_time_and_mode -> ty, binding_time_and_mode)
       t.names_to_types
   in
   { names_to_types;
@@ -107,10 +109,10 @@ let clean_for_export t ~reachable_names =
 let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
   let names_to_types =
     Name.Map.fold
-      (fun name (ty, binding_time, mode) acc ->
+      (fun name (ty, binding_time_and_mode) acc ->
         Name.Map.add
           (Renaming.apply_name renaming name)
-          (Type_grammar.apply_renaming ty renaming, binding_time, mode)
+          (Type_grammar.apply_renaming ty renaming, binding_time_and_mode)
           acc)
       names_to_types Name.Map.empty
   in

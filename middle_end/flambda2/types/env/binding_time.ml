@@ -32,7 +32,7 @@ module Tbl = Container_types.Make_tbl (T) (Map)
 
 let strictly_earlier (t : t) ~than = t < than
 
-let consts_and_discriminants = 0
+let consts = 0
 
 let symbols = 1
 
@@ -58,6 +58,12 @@ module With_name_mode = struct
       | Phantom -> 2
     in
     (binding_time lsl 2) lor name_mode
+
+  let symbols = create symbols Name_mode.normal
+
+  let consts = create consts Name_mode.normal
+
+  let imported_variables = create imported_variables Name_mode.in_types
 
   let binding_time t = t lsr 2
 

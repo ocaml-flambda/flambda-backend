@@ -28,7 +28,7 @@ val print_name_modes :
 val empty : t
 
 val names_to_types :
-  t -> (Type_grammar.t * Binding_time.t * Name_mode.t) Name.Map.t
+  t -> (Type_grammar.t * Binding_time.With_name_mode.t) Name.Map.t
 
 val aliases : t -> Aliases.t
 

@@ -20,7 +20,7 @@ type binding_time = t
 
 include Container_types.S with type t := t
 
-val consts_and_discriminants : t (* CR mshinwell: rename *)
+val consts : t
 
 val symbols : t
 
@@ -36,6 +36,12 @@ val equal : t -> t -> bool
 
 module With_name_mode : sig
   type t = private int
+
+  val consts : t
+
+  val symbols : t
+
+  val imported_variables : t
 
   val create : binding_time -> Name_mode.t -> t
 
