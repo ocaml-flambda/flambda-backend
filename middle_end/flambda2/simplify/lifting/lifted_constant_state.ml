@@ -254,4 +254,5 @@ let sort0 t =
    *)
   singleton_sorted_array_of_constants ~innermost_first
 
-let sort t = if is_empty t then empty else sort0 t
+let sort t =
+  match t with Empty | Leaf _ -> t | Leaf_array _ | Union _ -> sort0 t
