@@ -1,11 +1,11 @@
-(* Generic get primitive, on an array of Values. Should be simplified to
-   a Values primitive. *)
+(* Generic get primitive, on an array of Values. Should be simplified to a
+   Values primitive. *)
 let f (arr : int option array) =
   let[@local] get a = Array.get a 0 in
   get arr
 
-(* Same as above, with the additional length information that removes the
-   bounds check. *)
+(* Same as above, with the additional length information that removes the bounds
+   check. *)
 let g (x : int option) =
   let[@local] get a = Array.get a 0 in
   get [| x |]
