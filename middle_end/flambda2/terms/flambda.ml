@@ -473,6 +473,7 @@ and all_ids_for_export_static_const_group t =
 
 type flattened_for_printing_descr =
   | Flat_code of Code_id.t * function_params_and_body Code0.t
+  | Flat_deleted_code of Code_id.t
   | Flat_set_of_closures of Symbol.t Closure_id.Lmap.t * Set_of_closures.t
   | Flat_block_like of Symbol.t * Static_const.t
 
@@ -484,7 +485,7 @@ type flattened_for_printing =
 
 let _shape_colour descr =
   match descr with
-  | Flat_code _ -> Flambda_colours.code_id ()
+  | Flat_code _ | Flat_deleted_code _ -> Flambda_colours.code_id ()
   | Flat_set_of_closures _ | Flat_block_like _ -> Flambda_colours.symbol ()
 
 let rec named_must_be_static_consts (named : named) =
@@ -757,9 +758,14 @@ and flatten_for_printing0 bound_symbols defining_exprs =
         }
       in
       flattened_acc @ [flattened], true)
-    ~deleted_code:(fun acc _code_id ->
-      (* CR lmaurer: We should probably be printing deleted code *)
-      acc)
+    ~deleted_code:(fun (flattened_acc, second_or_later_rec_binding) code_id ->
+      let flattened =
+        { second_or_later_binding_within_one_set = false;
+          second_or_later_rec_binding;
+          descr = Flat_deleted_code code_id
+        }
+      in
+      flattened_acc @ [flattened], true)
     ~set_of_closures:
       (fun (flattened_acc, second_or_later_rec_binding) ~closure_symbols
            set_of_closures ->
@@ -821,6 +827,7 @@ and print_closure_binding ppf (closure_id, sym) =
 and print_flattened_descr_lhs ppf descr =
   match descr with
   | Flat_code (code_id, _) -> Code_id.print ppf code_id
+  | Flat_deleted_code code_id -> Code_id.print ppf code_id
   | Flat_set_of_closures (closure_symbols, _) ->
     Format.fprintf ppf "@[<hov 0>%a@]"
       (Format.pp_print_list
@@ -834,6 +841,7 @@ and print_flattened_descr_lhs ppf descr =
 and print_flattened_descr_rhs ppf descr =
   match descr with
   | Flat_code (_, code) -> Code0.print ~print_function_params_and_body ppf code
+  | Flat_deleted_code _ -> Format.fprintf ppf "(Deleted)"
   | Flat_set_of_closures (_, set) -> Set_of_closures.print ppf set
   | Flat_block_like (_, static_const) -> Static_const.print ppf static_const
 
