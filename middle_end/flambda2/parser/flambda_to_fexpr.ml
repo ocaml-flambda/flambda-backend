@@ -427,14 +427,27 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
   List.map kind_with_subkind a
 
+let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
+  match Flambda_kind.With_subkind.descr k with
+  | Any_value -> true
+  | Block _ | Float_block _ | Naked_number _ | Boxed_float | Boxed_int32
+  | Boxed_int64 | Boxed_nativeint | Tagged_immediate | Rec_info | Float_array
+  | Immediate_array | Value_array | Generic_array ->
+    false
+
+let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
+    Fexpr.kind_with_subkind option =
+  if is_default_kind_with_subkind k then None else Some (kind_with_subkind k)
+
+let is_default_arity (a : Flambda_arity.With_subkinds.t) =
+  match a with [k] -> is_default_kind_with_subkind k | _ -> false
+
+let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
+  if is_default_arity a then None else Some (arity a)
+
 let kinded_parameter env (kp : Bound_parameter.t) :
     Fexpr.kinded_parameter * Env.t =
-  let k =
-    let k = Bound_parameter.kind kp in
-    if Flambda_kind.With_subkind.is_any_value k
-    then None
-    else Some (kind_with_subkind k)
-  in
+  let k = Bound_parameter.kind kp |> kind_with_subkind_opt in
   let param, env = Env.bind_var env (Bound_parameter.var kp) in
   { param; kind = k }, env
 
@@ -710,11 +723,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         Option.map (Env.find_code_id_exn env) (Code.newer_version_of code)
       in
       let param_arity = Some (arity (Code.params_arity code)) in
-      let ret_arity =
-        match Code.result_arity code with
-        | [k] when Flambda_kind.With_subkind.is_any_value k -> None
-        | other -> Some (arity other)
-      in
+      let ret_arity = Code.result_arity code |> arity_opt in
       let recursive = recursive_flag (Code.recursive code) in
       let inline =
         if Flambda2_terms.Inline_attribute.is_default (Code.inline code)
@@ -895,11 +904,6 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let arities : Fexpr.function_arities option =
-    let is_default_arity a =
-      match a with
-      | [k] -> Flambda_kind.With_subkind.is_any_value k
-      | _ -> false
-    in
     match Apply_expr.call_kind app with
     | Function (Indirect_known_arity { param_arity; return_arity }) ->
       let params_arity = Some (arity param_arity) in
@@ -909,8 +913,12 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       if is_default_arity return_arity
       then None
       else
+        let params_arity =
+          (* Parameter arity is never specified for a direct call *)
+          None
+        in
         let ret_arity = arity return_arity in
-        Some { params_arity = None; ret_arity }
+        Some { params_arity; ret_arity }
     | C_call { param_arity; return_arity; _ } ->
       let params_arity =
         Some (arity (param_arity |> Flambda_arity.With_subkinds.of_arity))
