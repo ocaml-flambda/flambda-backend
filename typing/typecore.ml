@@ -459,15 +459,9 @@ let extract_label_names env ty =
   with Not_found ->
     assert false
 
-let has_stack_attr_pat ppat =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "stack")
-    ppat.ppat_attributes
+let has_local_attr_pat ppat = Builtin_attributes.has_local ppat.ppat_attributes
 
-let has_stack_attr_exp pexp =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "stack")
-    pexp.pexp_attributes
+let has_local_attr_exp pexp = Builtin_attributes.has_local pexp.pexp_attributes
 
 (* Typing of patterns *)
 
@@ -1698,7 +1692,7 @@ and type_pat_aux
       (* explicitly polymorphic type *)
       assert construction_not_used_in_counterexamples;
       let type_mode =
-        if has_stack_attr_pat sp then Alloc_mode.Local
+        if has_local_attr_pat sp then Alloc_mode.Local
         else Alloc_mode.Global
       in
       let cty, ty, force =
@@ -2114,7 +2108,7 @@ and type_pat_aux
       (* Pretend separate = true *)
       begin_def();
       let type_mode =
-        if has_stack_attr_pat sp then Alloc_mode.Local
+        if has_local_attr_pat sp then Alloc_mode.Local
         else Alloc_mode.Global
       in
       let cty, ty, force =
@@ -2841,7 +2835,7 @@ let is_local_returning_expr e =
   let rec loop e =
     match e.pexp_desc with
     | Pexp_apply
-        ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+        ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
          [Nolabel, _]) ->
         true, e.pexp_loc
     | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
@@ -2934,7 +2928,7 @@ let rec type_approx env sexp =
     Pexp_let (_, _, e) -> type_approx env e
   | Pexp_fun (p, _, spat, e) ->
       let marg =
-        if has_stack_attr_pat spat then Alloc_mode.local
+        if has_local_attr_pat spat then Alloc_mode.local
         else Alloc_mode.newvar ()
       in
       let mret = Alloc_mode.newvar () in
@@ -2970,11 +2964,11 @@ let rec type_approx env sexp =
       end;
       ty2
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
        [Nolabel, e]) ->
     type_approx env e
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "escape"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, e]) ->
     type_approx env e
   | _ -> newvar ()
@@ -3420,7 +3414,7 @@ and type_expect_
           (Pat.construct ~loc:default_loc
              (mknoloc (Longident.(Ldot (Lident "*predef*", "None"))))
              None)
-          (Exp.apply (Exp.extension (mknoloc "escape", PStr []))
+          (Exp.apply (Exp.extension (mknoloc "extension.escape", PStr []))
              [Nolabel, default]);
        ]
       in
@@ -3440,12 +3434,12 @@ and type_expect_
           ~attrs:[Attr.mk (mknoloc "#default") (PStr [])]
           [Vb.mk spat smatch] sbody
       in
-      let has_local = has_stack_attr_pat spat in
+      let has_local = has_local_attr_pat spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained
                     l has_local [Exp.case pat body]
   | Pexp_fun (l, None, spat, sbody) ->
-      let has_local = has_stack_attr_pat spat in
+      let has_local = has_local_attr_pat spat in
       type_function ?in_function loc sexp.pexp_attributes env
                     expected_mode ty_expected_explained l has_local
                     [Ast_helper.Exp.case spat sbody]
@@ -3454,7 +3448,7 @@ and type_expect_
         loc sexp.pexp_attributes env expected_mode
         ty_expected_explained Nolabel false caselist
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
        [Nolabel, sbody]) ->
       submode ~loc ~env Value_mode.local expected_mode;
       let exp =
@@ -3463,7 +3457,7 @@ and type_expect_
       in
       { exp with exp_loc = loc }
   | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "escape"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.escape"}, PStr []) },
        [Nolabel, sbody]) ->
       let exp =
         type_expect ?in_function ~recarg env mode_global sbody
@@ -3941,7 +3935,7 @@ and type_expect_
       (* Pretend separate = true, 1% slowdown for lablgtk *)
       begin_def ();
       let type_mode =
-        if has_stack_attr_exp sexp then Alloc_mode.Local
+        if has_local_attr_exp sexp then Alloc_mode.Local
         else Alloc_mode.Global
       in
       let cty = Typetexp.transl_simple_type env false type_mode sty in
@@ -3965,7 +3959,7 @@ and type_expect_
       (* Also see PR#7199 for a problem with the following:
          let separate = !Clflags.principal || Env.has_local_constraints env in*)
       let type_mode =
-        if has_stack_attr_exp sexp then Alloc_mode.Local
+        if has_local_attr_exp sexp then Alloc_mode.Local
         else Alloc_mode.Global
       in
       let (arg, ty',cty,cty') =
@@ -5761,7 +5755,7 @@ and type_let
     | Pexp_constraint (e, _)
     | Pexp_newtype (_, e)
     | Pexp_apply
-      ({ pexp_desc = Pexp_extension({txt = "stack"}, PStr []) },
+      ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
        [Nolabel, e]) -> sexp_is_fun e
     | _ -> false
   in

@@ -202,12 +202,12 @@ let make_params env params =
 
 let has_global_attr attributes =
   List.exists
-    (fun attr -> String.equal attr.attr_name.txt "global")
+    (fun attr -> String.equal attr.attr_name.txt "ocaml.global")
     attributes
 
 let has_nonlocal_attr attributes =
   List.exists
-    (fun attr -> String.equal attr.attr_name.txt "nonlocal")
+    (fun attr -> String.equal attr.attr_name.txt "ocaml.nonlocal")
     attributes
 
 let transl_labels env closed lbls =

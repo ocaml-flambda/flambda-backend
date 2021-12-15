@@ -112,7 +112,7 @@ let protect_longident ppf print_longident longprefix txt =
 
 let is_curry_attr attr =
   match attr.attr_name.txt with
-  | "curry" -> true
+  | "ocaml.curry" -> true
   | _ -> false
 
 let filter_curry_attrs attrs =

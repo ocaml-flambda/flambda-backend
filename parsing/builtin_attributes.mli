@@ -92,4 +92,5 @@ val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
 val has_curry: Parsetree.attributes -> bool
+val has_local: Parsetree.attributes -> bool
 val has_local_opt: Parsetree.attributes -> bool

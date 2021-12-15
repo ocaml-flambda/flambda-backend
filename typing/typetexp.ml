@@ -156,15 +156,10 @@ let transl_type_param env styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_param env styp)
 
-let has_attr s styp =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt s)
-    styp.ptyp_attributes
-
 let rec extract_params styp =
   let final styp =
     let ret_mode =
-      if has_attr "stack" styp then Alloc_mode.Local
+      if Builtin_attributes.has_local styp.ptyp_attributes then Alloc_mode.Local
       else Alloc_mode.Global
     in
     [], styp, ret_mode
@@ -172,11 +167,11 @@ let rec extract_params styp =
   match styp.ptyp_desc with
   | Ptyp_arrow (l, a, r) ->
       let arg_mode =
-        if has_attr "stack" a then Alloc_mode.Local
+        if Builtin_attributes.has_local a.ptyp_attributes then Alloc_mode.Local
         else Alloc_mode.Global
       in
       let params, ret, ret_mode =
-        if has_attr "curry" r then final r
+        if Builtin_attributes.has_curry r.ptyp_attributes then final r
         else extract_params r
       in
       (l, arg_mode, a) :: params, ret, ret_mode

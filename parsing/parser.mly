@@ -158,43 +158,44 @@ let mkuplus ~oploc name arg =
       Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg])
 
 
-let stack_loc = mknoloc "stack"
+let local_loc = mknoloc "ocaml.local"
+let local_ext_loc = mknoloc "extension.local"
 
-let stack_attr =
-  Attr.mk ~loc:Location.none stack_loc (PStr [])
+let local_attr =
+  Attr.mk ~loc:Location.none local_loc (PStr [])
 
-let stack_extension =
-  Exp.mk ~loc:Location.none (Pexp_extension(stack_loc, PStr []))
+let local_extension =
+  Exp.mk ~loc:Location.none (Pexp_extension(local_ext_loc, PStr []))
 
 let mkexp_stack ~loc exp =
-  ghexp ~loc (Pexp_apply(stack_extension, [Nolabel, exp]))
+  ghexp ~loc (Pexp_apply(local_extension, [Nolabel, exp]))
 
 let mkpat_stack pat =
-  {pat with ppat_attributes = stack_attr :: pat.ppat_attributes}
+  {pat with ppat_attributes = local_attr :: pat.ppat_attributes}
 
 let mktyp_stack typ =
-  {typ with ptyp_attributes = stack_attr :: typ.ptyp_attributes}
+  {typ with ptyp_attributes = local_attr :: typ.ptyp_attributes}
 
 let wrap_exp_stack exp =
-  {exp with pexp_attributes = stack_attr :: exp.pexp_attributes}
+  {exp with pexp_attributes = local_attr :: exp.pexp_attributes}
 
-let mkexp_stack_if p ~loc exp =
+let mkexp_local_if p ~loc exp =
   if p then mkexp_stack ~loc exp else exp
 
-let mkpat_stack_if p pat =
+let mkpat_local_if p pat =
   if p then mkpat_stack pat else pat
 
-let mktyp_stack_if p typ =
+let mktyp_local_if p typ =
   if p then mktyp_stack typ else typ
 
-let wrap_exp_stack_if p exp =
+let wrap_exp_local_if p exp =
   if p then wrap_exp_stack exp else exp
 
 let curry_attr =
-  Attr.mk ~loc:Location.none (mknoloc "curry") (PStr [])
+  Attr.mk ~loc:Location.none (mknoloc "ocaml.curry") (PStr [])
 
 let is_curry_attr attr =
-  attr.attr_name.txt = "curry"
+  attr.attr_name.txt = "ocaml.curry"
 
 let mkexp_curry exp =
   {exp with pexp_attributes = curry_attr :: exp.pexp_attributes}
@@ -209,12 +210,12 @@ let maybe_curry_typ typ =
       else mktyp_curry typ
   | _ -> typ
 
-let global_loc = mknoloc "global"
+let global_loc = mknoloc "ocaml.global"
 
 let global_attr =
   Attr.mk ~loc:Location.none global_loc (PStr [])
 
-let nonlocal_loc = mknoloc "nonlocal"
+let nonlocal_loc = mknoloc "ocaml.nonlocal"
 
 let nonlocal_attr =
   Attr.mk ~loc:Location.none nonlocal_loc (PStr [])
@@ -2171,15 +2172,15 @@ seq_expr:
 ;
 labeled_simple_pattern:
     QUESTION LPAREN optional_local label_let_pattern opt_default RPAREN
-      { (Optional (fst $4), $5, mkpat_stack_if $3 (snd $4)) }
+      { (Optional (fst $4), $5, mkpat_local_if $3 (snd $4)) }
   | QUESTION label_var
       { (Optional (fst $2), None, snd $2) }
   | OPTLABEL LPAREN optional_local let_pattern opt_default RPAREN
-      { (Optional $1, $5, mkpat_stack_if $3 $4) }
+      { (Optional $1, $5, mkpat_local_if $3 $4) }
   | OPTLABEL pattern_var
       { (Optional $1, None, $2) }
   | TILDE LPAREN optional_local label_let_pattern RPAREN
-      { (Labelled (fst $4), None, mkpat_stack_if $3 (snd $4)) }
+      { (Labelled (fst $4), None, mkpat_local_if $3 (snd $4)) }
   | TILDE label_var
       { (Labelled (fst $2), None, snd $2) }
   | LABEL simple_pattern
@@ -2559,11 +2560,11 @@ let_binding_body:
         let typ = ghtyp ~loc (Ptyp_poly([],t)) in
         let patloc = ($startpos($2), $endpos($3)) in
         let pat =
-          mkpat_stack_if $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
+          mkpat_local_if $1 (ghpat ~loc:patloc (Ppat_constraint(v, typ)))
         in
         let exp =
-          mkexp_stack_if $1 ~loc:$sloc
-            (wrap_exp_stack_if $1 (mkexp_constraint ~loc:$sloc $5 $3))
+          mkexp_local_if $1 ~loc:$sloc
+            (wrap_exp_local_if $1 (mkexp_constraint ~loc:$sloc $5 $3))
         in
         (pat, exp) }
   | optional_local let_ident COLON typevar_list DOT core_type EQUAL seq_expr
@@ -2573,11 +2574,11 @@ let_binding_body:
       { let typloc = ($startpos($4), $endpos($6)) in
         let patloc = ($startpos($2), $endpos($6)) in
         let pat =
-          mkpat_stack_if $1
+          mkpat_local_if $1
             (ghpat ~loc:patloc
                (Ppat_constraint($2, ghtyp ~loc:typloc (Ptyp_poly($4,$6)))))
         in
-        let exp = mkexp_stack_if $1 ~loc:$sloc $8 in
+        let exp = mkexp_local_if $1 ~loc:$sloc $8 in
         (pat, exp) }
   | let_ident COLON TYPE lident_list DOT core_type EQUAL seq_expr
       { let exp, poly =
@@ -3397,7 +3398,7 @@ strict_function_type:
       domain = extra_rhs(tuple_type)
       MINUSGREATER
       codomain = strict_function_type
-        { Ptyp_arrow(label, mktyp_stack_if local domain, codomain) }
+        { Ptyp_arrow(label, mktyp_local_if local domain, codomain) }
     )
     { $1 }
   | mktyp(
@@ -3409,8 +3410,8 @@ strict_function_type:
       codomain = tuple_type
       %prec MINUSGREATER
         { Ptyp_arrow(label,
-            mktyp_stack_if arg_local domain,
-            mktyp_stack_if ret_local (maybe_curry_typ codomain)) }
+            mktyp_local_if arg_local domain,
+            mktyp_local_if ret_local (maybe_curry_typ codomain)) }
     )
     { $1 }
 ;
