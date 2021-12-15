@@ -60,34 +60,53 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
         Name_occurrences.union names_to_add names_already_added
       in
       let fold_code_id names_to_add code_id =
-        match Exported_code.find code code_id with
-        | None -> names_to_add
-        | Some code_or_metadata ->
-          let free_names = Code_or_metadata.free_names code_or_metadata in
-          let names_to_consider =
-            Name_occurrences
-            .with_only_names_and_code_ids_promoting_newer_version_of free_names
-          in
-          let new_names =
-            Name_occurrences.diff names_to_consider names_already_added
-          in
-          Name_occurrences.union new_names names_to_add
+        if not
+             (Code_id.in_compilation_unit code_id
+                (Compilation_unit.get_current_exn ()))
+        then
+          (* Code in units upon which the current unit depends cannot reference
+             this unit. *)
+          names_to_add
+        else
+          match Exported_code.find code code_id with
+          | None -> names_to_add
+          | Some code_or_metadata ->
+            let free_names = Code_or_metadata.free_names code_or_metadata in
+            let names_to_consider =
+              Name_occurrences
+              .with_only_names_and_code_ids_promoting_newer_version_of
+                free_names
+            in
+            let new_names =
+              Name_occurrences.diff names_to_consider names_already_added
+            in
+            Name_occurrences.union new_names names_to_add
       in
       let fold_name names_to_add name =
-        match TE.find_or_missing typing_env name with
-        | Some ty ->
-          let ty_names = T.free_names ty in
-          let names_to_consider =
-            Name_occurrences
-            .with_only_names_and_code_ids_promoting_newer_version_of ty_names
-          in
-          let new_names =
-            Name_occurrences.diff names_to_consider names_already_added
-          in
-          Name_occurrences.union new_names names_to_add
-        | None ->
-          (* A missing type cannot refer to names defined in the current unit *)
+        if not
+             (Compilation_unit.equal
+                (Name.compilation_unit name)
+                (Compilation_unit.get_current_exn ()))
+        then
+          (* Names in units upon which the current unit depends cannot reference
+             this unit. *)
           names_to_add
+        else
+          match TE.find_or_missing typing_env name with
+          | Some ty ->
+            let ty_names = T.free_names ty in
+            let names_to_consider =
+              Name_occurrences
+              .with_only_names_and_code_ids_promoting_newer_version_of ty_names
+            in
+            let new_names =
+              Name_occurrences.diff names_to_consider names_already_added
+            in
+            Name_occurrences.union new_names names_to_add
+          | None ->
+            (* A missing type cannot refer to names defined in the current
+               unit *)
+            names_to_add
       in
       let from_code_ids =
         Name_occurrences.fold_code_ids names_to_add ~init:Name_occurrences.empty
