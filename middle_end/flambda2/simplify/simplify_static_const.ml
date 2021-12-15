@@ -156,6 +156,15 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields,
       dacc )
   | Empty_array ->
+    (* CR-someday lmaurer: Comment from lthls:
+
+       "Given that no element can be read from it (or stored in it), any kind
+       would work, but if we introduce a specific Invalid kind for these empty
+       arrays we might even be able to delete all the code that tries to read
+       from or write to a known empty array (although one would hope that the
+       bounds check would already be proved to always fail). [...] That might be
+       also useful for preserving the array kind during a join between a
+       specialised non-empty array and the empty array." *)
     let dacc =
       bind_result_sym
         (T.array_of_length ~element_kind:Unknown
