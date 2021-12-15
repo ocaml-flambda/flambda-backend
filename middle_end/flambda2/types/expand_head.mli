@@ -80,12 +80,11 @@ end
 
 val expand_head : Typing_env.t -> Type_grammar.t -> Expanded_type.t
 
-val get_canonical_simples_and_expand_heads :
-  left_env:Typing_env.t ->
-  left_ty:Type_grammar.t ->
-  right_env:Typing_env.t ->
-  right_ty:Type_grammar.t ->
-  Simple.t option * Expanded_type.t * Simple.t option * Expanded_type.t
+val expand_head0 :
+  Typing_env.t ->
+  Type_grammar.t ->
+  known_canonical_simple_at_in_types_mode:Simple.t option ->
+  Expanded_type.t
 
 val is_bottom : Typing_env.t -> Type_grammar.t -> bool
 

@@ -91,12 +91,32 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
       TG.print t2;
   let kind = TG.kind t1 in
   let typing_env = Meet_env.env env in
-  let simple1, expanded1, simple2, expanded2 =
-    Expand_head.get_canonical_simples_and_expand_heads ~left_env:typing_env
-      ~left_ty:t1 ~right_env:typing_env ~right_ty:t2
+  let simple1 =
+    match
+      TE.get_alias_then_canonical_simple_exn typing_env t1
+        ~min_name_mode:Name_mode.in_types
+    with
+    | exception Not_found -> None
+    | canonical_simple -> Some canonical_simple
+  in
+  let simple2 =
+    match
+      TE.get_alias_then_canonical_simple_exn typing_env t2
+        ~min_name_mode:Name_mode.in_types
+    with
+    | exception Not_found -> None
+    | canonical_simple -> Some canonical_simple
   in
   match simple1 with
-  | None -> begin
+  | None -> (
+    let expanded1 =
+      Expand_head.expand_head0 typing_env t1
+        ~known_canonical_simple_at_in_types_mode:simple1
+    in
+    let expanded2 =
+      Expand_head.expand_head0 typing_env t2
+        ~known_canonical_simple_at_in_types_mode:simple2
+    in
     match simple2 with
     | None -> (
       match meet_expanded_head env expanded1 expanded2 with
@@ -127,11 +147,18 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
         let env_extension =
           add_equation simple2 (ET.to_type expanded) env_extension
         in
-        ty, env_extension)
-  end
-  | Some simple1 -> (
+        ty, env_extension))
+  | Some simple1 as simple1_opt -> (
     match simple2 with
     | None -> (
+      let expanded1 =
+        Expand_head.expand_head0 typing_env t1
+          ~known_canonical_simple_at_in_types_mode:simple1_opt
+      in
+      let expanded2 =
+        Expand_head.expand_head0 typing_env t2
+          ~known_canonical_simple_at_in_types_mode:simple2
+      in
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged -> TG.alias_type_of kind simple1, TEE.empty
       | Right_head_unchanged ->
@@ -149,7 +176,7 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
           env_extension |> add_equation simple1 (ET.to_type expanded)
         in
         ty, env_extension)
-    | Some simple2 ->
+    | Some simple2 as simple2_opt ->
       if Simple.equal simple1 simple2
          || Meet_env.already_meeting env simple1 simple2
       then
@@ -160,6 +187,14 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
       else (
         assert (not (Simple.equal simple1 simple2));
         let env = Meet_env.now_meeting env simple1 simple2 in
+        let expanded1 =
+          Expand_head.expand_head0 typing_env t1
+            ~known_canonical_simple_at_in_types_mode:simple1_opt
+        in
+        let expanded2 =
+          Expand_head.expand_head0 typing_env t2
+            ~known_canonical_simple_at_in_types_mode:simple2_opt
+        in
         (* In the following cases we may generate equations "pointing the wrong
            way", for example "y : =x" when [y] is the canonical element. This
            doesn't matter, however, because [TE] sorts this out when adding
@@ -824,14 +859,34 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
     Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1
       TG.print t2;
   let kind = TG.kind t1 in
-  (* CR mshinwell: See if we can optimise out the [option] allocations in
-     [get_canonical_simples_and_expand_heads] *)
-  let canonical_simple1, expanded1, canonical_simple2, expanded2 =
-    Expand_head.get_canonical_simples_and_expand_heads
-      ~left_env:(Join_env.left_join_env env)
-      ~left_ty:t1
-      ~right_env:(Join_env.right_join_env env)
-      ~right_ty:t2
+  (* CR mshinwell: See if we can optimise out the [option] allocations below *)
+  let canonical_simple1 =
+    match
+      TE.get_alias_then_canonical_simple_exn
+        (Join_env.left_join_env env)
+        t1 ~min_name_mode:Name_mode.in_types
+    with
+    | exception Not_found -> None
+    | canonical_simple -> Some canonical_simple
+  in
+  let canonical_simple2 =
+    match
+      TE.get_alias_then_canonical_simple_exn
+        (Join_env.right_join_env env)
+        t2 ~min_name_mode:Name_mode.in_types
+    with
+    | exception Not_found -> None
+    | canonical_simple -> Some canonical_simple
+  in
+  let expanded1 =
+    Expand_head.expand_head0
+      (Join_env.left_join_env env)
+      t1 ~known_canonical_simple_at_in_types_mode:canonical_simple1
+  in
+  let expanded2 =
+    Expand_head.expand_head0
+      (Join_env.right_join_env env)
+      t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2
   in
   (* CR mshinwell: Add shortcut when the canonical simples are equal *)
   let shared_aliases =
