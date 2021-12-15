@@ -156,6 +156,11 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         fields,
       dacc )
   | Empty_array ->
+    let dacc =
+      bind_result_sym
+        (T.array_of_length ~element_kind:Unknown
+           ~length:(T.this_tagged_immediate Targetint_31_63.zero))
+    in
     Rebuilt_static_const.create_empty_array (DA.are_rebuilding_terms dacc), dacc
   | Mutable_string { initial_value } ->
     let str_ty = T.mutable_string ~size:(String.length initial_value) in

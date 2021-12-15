@@ -620,7 +620,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     (* Since raising of an exception doesn't terminate, we don't call [k]. *)
     Expr_with_acc.create_apply_cont acc apply_cont
   | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
-    (* Special case for liftable empty blocks *)
+    (* Special case for liftable empty block or array *)
     begin
       match prim with
       | Pmakeblock (tag, _, _) ->
@@ -657,9 +657,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
         ()
     end;
     let acc, sym =
-      register_const0 acc
-        (Static_const.Block (Tag.Scannable.zero, Immutable, []))
-        "empty_block"
+      match prim with
+      | Pmakeblock _ | Pmakefloatblock _ ->
+        register_const0 acc
+          (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+          "empty_block"
+      | Pmakearray _ ->
+        register_const0 acc Static_const.Empty_array "empty_array"
+      | _ -> assert false
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
