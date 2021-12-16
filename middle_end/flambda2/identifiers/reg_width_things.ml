@@ -730,3 +730,5 @@ let initialise () =
   Variable.initialise ();
   Symbol.initialise ();
   Simple.initialise ()
+
+let reset () = initialise ()

@@ -1204,13 +1204,17 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly() =
+let reset_all () =
   X86_proc.reset_asm_code ();
+  Emitaux.reset ();
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
   reset_probes ();
   float_constants := [];
-  all_functions := [];
+  all_functions := []
+
+let begin_assembly() =
+  reset_all ();
   if system = S_win64 then begin
     D.extrn "caml_call_gc" NEAR;
     D.extrn "caml_c_call" NEAR;
@@ -1592,4 +1596,5 @@ let end_assembly() =
     else
       None
   in
-  X86_proc.generate_code asm
+  X86_proc.generate_code asm;
+  reset_all ()

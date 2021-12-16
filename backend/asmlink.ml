@@ -396,20 +396,7 @@ let link ~ppf_dump objfiles output_name =
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
       (fun () -> make_startup_file ~ppf_dump units_tolink);
-    (* Clear all state and compact before calling the linker, because the linker
-       can use a lot of memory, and this reduces the peak memory usage by freeing
-       most of the memory from this process before the linker starts using memory.
-
-       On a link where this frees up around 1.1GB of memory this takes around 0.6s. We
-       only take this time on large links where the number of parallel linking jobs is
-       likely to be constrained by total system memory. *)
-    let _minor, _promoted, major_words = Gc.counters () in
-    (* Uses [major_words] because it doesn't require a heap traversal to compute and 
-       for this workload a majority of major words are live at this point. *)
-    if major_words > 500_000_000.0 /. 8.0 then 
-      Profile.record_call "asmlink_compact" (fun () ->
-        reset ();
-        Gc.compact ());
+    Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () ->
          call_linker (List.map object_file_name objfiles)

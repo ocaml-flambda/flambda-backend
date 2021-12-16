@@ -33,6 +33,8 @@ val reset: ?packname:string -> string -> unit
         (* Reset the environment and record the name of the unit being
            compiled (arg).  Optional argument is [-for-pack] prefix. *)
 
+val reset_info_tables: unit -> unit
+
 val unit_id_from_name: string -> Ident.t
         (* flambda-only *)
 

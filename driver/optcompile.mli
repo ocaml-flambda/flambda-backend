@@ -26,9 +26,11 @@ val implementation
     module_ident:Ident.t ->
     module_block_size_in_words:int ->
     module_initializer:Lambda.lambda ->
+    keep_symbol_tables:bool ->
     Cmm.phrase list)
   -> start_from:Clflags.Compiler_pass.t
-  -> source_file:string -> output_prefix:string -> unit
+  -> source_file:string -> output_prefix:string -> keep_symbol_tables:bool
+  -> unit
 
 (** {2 Internal functions} **)
 

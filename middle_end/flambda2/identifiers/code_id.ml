@@ -67,6 +67,8 @@ let grand_table_of_code_ids = ref (Table.create ())
 
 let initialise () = grand_table_of_code_ids := Table.create ()
 
+let reset () = initialise ()
+
 let find_data t = Table.find !grand_table_of_code_ids t
 
 let get_compilation_unit t = (find_data t).compilation_unit

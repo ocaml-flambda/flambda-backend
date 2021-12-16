@@ -136,3 +136,7 @@ exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
 val report_error: Env.t -> formatter -> error -> unit
+
+(** Clear several bits of global state that may retain large amounts of memory
+    after typechecking is finished. *)
+val reset : unit -> unit

@@ -40,6 +40,7 @@ val compile_implementation
     Cmmgen pass.  Instead it emits Cmm directly. *)
 val compile_implementation_flambda2
    : ?toplevel:(string -> bool)
+  -> ?keep_symbol_tables:bool
   -> filename:string
   -> prefixname:string
   -> size:int
@@ -52,6 +53,7 @@ val compile_implementation_flambda2
     module_ident:Ident.t ->
     module_block_size_in_words:int ->
     module_initializer:Lambda.lambda ->
+    keep_symbol_tables:bool ->
     Cmm.phrase list)
   -> ppf_dump:Format.formatter
   -> required_globals:Ident.Set.t
