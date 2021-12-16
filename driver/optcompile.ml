@@ -87,7 +87,8 @@ let emit i =
   Compilenv.reset ?packname:!Clflags.for_package i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
-let implementation ~backend ~start_from ~source_file ~output_prefix =
+let implementation ~backend ~start_from ~source_file
+    ~output_prefix ~keep_symbol_tables:_ =
   let backend info typed =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
