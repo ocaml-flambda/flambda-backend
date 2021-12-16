@@ -285,6 +285,11 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
          ~exceptionally:(fun () ->
              if create_asm && not keep_asm then remove_file asm_filename);
        if should_emit () then begin
+         Emitaux.reduce_heap_size ~reset:(fun () ->
+            reset ();
+            Typemod.reset ();
+            Emitaux.reset ();
+            Reg.reset ());
          let assemble_result =
            Profile.record "assemble"
              (Proc.assemble_file asm_filename) obj_filename
@@ -344,9 +349,9 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
       in
       end_gen_implementation ?toplevel ~ppf_dump clambda_with_constants)
 
-let compile_implementation_flambda2 ?toplevel ~filename ~prefixname
-    ~size:module_block_size_in_words ~module_ident ~module_initializer
-    ~flambda2 ~ppf_dump ~required_globals () =
+let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
+    ~filename ~prefixname ~size:module_block_size_in_words ~module_ident
+    ~module_initializer ~flambda2 ~ppf_dump ~required_globals () =
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
@@ -355,6 +360,7 @@ let compile_implementation_flambda2 ?toplevel ~filename ~prefixname
       let cmm_phrases =
         flambda2 ~ppf_dump ~prefixname ~filename ~module_ident
           ~module_block_size_in_words ~module_initializer
+          ~keep_symbol_tables
       in
       end_gen_implementation0 ?toplevel ~ppf_dump (fun () -> cmm_phrases))
 

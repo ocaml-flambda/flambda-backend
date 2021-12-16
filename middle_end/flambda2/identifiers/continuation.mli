@@ -58,3 +58,5 @@ module With_args : sig
 end
 
 val initialise : unit -> unit
+
+val reset : unit -> unit
