@@ -59,50 +59,63 @@ let deciders =
     Unboxers.Nativeint.decider ]
 
 let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
-  match decide tenv param_type deciders with
-  | Some decision ->
-    if unbox_numbers then decision else Do_not_unbox Incomplete_parameter_type
-  | None -> (
-    if depth >= Flambda_features.Expert.max_unboxing_depth ()
-    then Do_not_unbox Max_depth_exceeded
-    else
-      match T.prove_unique_tag_and_size tenv param_type with
-      | Proved (tag, size) when unbox_blocks ->
-        let fields =
-          make_optimistic_fields ~add_tag_to_name:false ~depth tenv param_type
-            tag size
-        in
-        Unbox (Unique_tag_and_size { tag; fields })
-      | Proved _ | Wrong_kind | Invalid | Unknown -> (
-        match T.prove_variant_like tenv param_type with
-        | Proved { const_ctors; non_const_ctors_with_sizes } when unbox_variants
-          ->
-          let tag = Extra_param_and_args.create ~name:"tag" in
-          let const_ctors : U.const_ctors_decision =
-            match const_ctors with
-            | Known set when Targetint_31_63.Set.is_empty set -> Zero
-            | Unknown | Known _ -> make_optimistic_const_ctor ()
+  let param_type_is_alias_to_symbol =
+    match T.get_alias_exn param_type with
+    | exception Not_found -> false
+    | alias ->
+      (* The parameter types will have been computed from the types of the
+         continuation's arguments at the use site(s), which in turn will have
+         been computed from simplified [Simple]s. As such we shouldn't need to
+         canonicalise any alias again here. *)
+      Simple.is_symbol alias
+  in
+  if param_type_is_alias_to_symbol
+  then Do_not_unbox Not_beneficial
+  else
+    match decide tenv param_type deciders with
+    | Some decision ->
+      if unbox_numbers then decision else Do_not_unbox Incomplete_parameter_type
+    | None -> (
+      if depth >= Flambda_features.Expert.max_unboxing_depth ()
+      then Do_not_unbox Max_depth_exceeded
+      else
+        match T.prove_unique_tag_and_size tenv param_type with
+        | Proved (tag, size) when unbox_blocks ->
+          let fields =
+            make_optimistic_fields ~add_tag_to_name:false ~depth tenv param_type
+              tag size
           in
-          let fields_by_tag =
-            Tag.Scannable.Map.mapi
-              (fun scannable_tag size ->
-                let tag = Tag.Scannable.to_tag scannable_tag in
-                make_optimistic_fields ~add_tag_to_name:true ~depth tenv
-                  param_type tag size)
-              non_const_ctors_with_sizes
-          in
-          Unbox (Variant { tag; const_ctors; fields_by_tag })
-        | Proved _ | Wrong_kind | Invalid | Unknown -> begin
-          match T.prove_single_closures_entry' tenv param_type with
-          | Proved (closure_id, closures_entry, _fun_decl) when unbox_closures
-            ->
-            let vars_within_closure =
-              make_optimistic_vars_within_closure ~depth tenv closures_entry
+          Unbox (Unique_tag_and_size { tag; fields })
+        | Proved _ | Wrong_kind | Invalid | Unknown -> (
+          match T.prove_variant_like tenv param_type with
+          | Proved { const_ctors; non_const_ctors_with_sizes }
+            when unbox_variants ->
+            let tag = Extra_param_and_args.create ~name:"tag" in
+            let const_ctors : U.const_ctors_decision =
+              match const_ctors with
+              | Known set when Targetint_31_63.Set.is_empty set -> Zero
+              | Unknown | Known _ -> make_optimistic_const_ctor ()
             in
-            Unbox (Closure_single_entry { closure_id; vars_within_closure })
-          | Proved _ | Wrong_kind | Invalid | Unknown ->
-            Do_not_unbox Incomplete_parameter_type
-        end))
+            let fields_by_tag =
+              Tag.Scannable.Map.mapi
+                (fun scannable_tag size ->
+                  let tag = Tag.Scannable.to_tag scannable_tag in
+                  make_optimistic_fields ~add_tag_to_name:true ~depth tenv
+                    param_type tag size)
+                non_const_ctors_with_sizes
+            in
+            Unbox (Variant { tag; const_ctors; fields_by_tag })
+          | Proved _ | Wrong_kind | Invalid | Unknown -> begin
+            match T.prove_single_closures_entry' tenv param_type with
+            | Proved (closure_id, closures_entry, _fun_decl) when unbox_closures
+              ->
+              let vars_within_closure =
+                make_optimistic_vars_within_closure ~depth tenv closures_entry
+              in
+              Unbox (Closure_single_entry { closure_id; vars_within_closure })
+            | Proved _ | Wrong_kind | Invalid | Unknown ->
+              Do_not_unbox Incomplete_parameter_type
+          end))
 
 and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
     size =
