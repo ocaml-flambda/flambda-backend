@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda.Import
 
@@ -427,13 +427,27 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
   List.map kind_with_subkind a
 
+let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
+  match Flambda_kind.With_subkind.descr k with
+  | Any_value -> true
+  | Block _ | Float_block _ | Naked_number _ | Boxed_float | Boxed_int32
+  | Boxed_int64 | Boxed_nativeint | Tagged_immediate | Rec_info | Float_array
+  | Immediate_array | Value_array | Generic_array ->
+    false
+
+let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
+    Fexpr.kind_with_subkind option =
+  if is_default_kind_with_subkind k then None else Some (kind_with_subkind k)
+
+let is_default_arity (a : Flambda_arity.With_subkinds.t) =
+  match a with [k] -> is_default_kind_with_subkind k | _ -> false
+
+let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
+  if is_default_arity a then None else Some (arity a)
+
 let kinded_parameter env (kp : Bound_parameter.t) :
     Fexpr.kinded_parameter * Env.t =
-  let k =
-    match kind_with_subkind (Bound_parameter.kind kp) with
-    | Any_value -> None
-    | k -> Some k
-  in
+  let k = Bound_parameter.kind kp |> kind_with_subkind_opt in
   let param, env = Env.bind_var env (Bound_parameter.var kp) in
   { param; kind = k }, env
 
@@ -461,7 +475,9 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     let move_to = Env.translate_closure_id env move_to in
     Select_closure { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
-  | _ ->
+  | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
+  | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
+  | Is_boxed_float | Is_flat_float_array ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -489,17 +505,20 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
     in
     Block_load (access_kind, mutability)
   | Phys_equal (k, op) ->
-    let k = match kind k with Value -> None | k -> Some k in
+    let k = if Flambda_kind.is_value k then None else Some (kind k) in
     Phys_equal (k, op)
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
-  | Int_arith (i, o) -> Int_arith (i, o)
+  | Int_arith
+      (((Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) as i), o)
+    ->
+    Int_arith (i, o)
   | Int_comp (Tagged_immediate, Signed, c) -> Infix (Int_comp c)
-  | Int_comp (i, s, c) -> Int_comp (i, s, c)
+  | Int_comp (i, ((Signed | Unsigned) as s), c) -> Int_comp (i, s, c)
   | Int_shift (Tagged_immediate, s) -> Infix (Int_shift s)
   | Int_shift (i, s) -> Int_shift (i, s)
   | Float_arith o -> Infix (Float_arith o)
   | Float_comp c -> Infix (Float_comp c)
-  | _ ->
+  | String_or_bigstring_load _ | Bigarray_load _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
@@ -507,7 +526,7 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
 let ternop (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
   | Array_set (ak, ia) -> Array_set (ak, ia)
-  | _ ->
+  | Block_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
@@ -516,7 +535,7 @@ let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
   | Make_block (Values (tag, _), mutability) ->
     Make_block (tag |> Tag.Scannable.to_int, mutability)
-  | _ ->
+  | Make_block (Naked_floats, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)
@@ -646,9 +665,7 @@ and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body :
 
 and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
   let static_consts =
-    match (defining_expr : Named.t) with
-    | Static_consts static_consts -> static_consts |> Static_const_group.to_list
-    | _ -> assert false
+    Named.must_be_static_consts defining_expr |> Static_const_group.to_list
   in
   let bound_symbols = bound_symbols |> Bound_symbols.to_list in
   let env =
@@ -678,7 +695,8 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
       let symbol = Env.find_symbol_exn env symbol in
       let defining_expr = static_const env const in
       Data { symbol; defining_expr }
-    | Set_of_closures closure_symbols, Static_const (Set_of_closures set) ->
+    | Set_of_closures closure_symbols, Static_const const ->
+      let set = Static_const.must_be_set_of_closures const in
       let fun_decls, elements = set_of_closures env set in
       let symbols_by_closure_id =
         closure_symbols |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
@@ -702,16 +720,12 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         Option.map (Env.find_code_id_exn env) (Code.newer_version_of code)
       in
       let param_arity = Some (arity (Code.params_arity code)) in
-      let ret_arity =
-        match arity (Code.result_arity code) with
-        | [Any_value] -> None
-        | other -> Some other
-      in
+      let ret_arity = Code.result_arity code |> arity_opt in
       let recursive = recursive_flag (Code.recursive code) in
       let inline =
-        match Code.inline code with
-        | Default_inline -> None
-        | other -> Some other
+        if Flambda2_terms.Inline_attribute.is_default (Code.inline code)
+        then None
+        else Some (Code.inline code)
       in
       let is_tupled = Code.is_tupled code in
       let params_and_body =
@@ -758,7 +772,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
         }
     | Code code_id, Deleted_code ->
       Deleted_code (code_id |> Env.find_code_id_exn env)
-    | _, _ ->
+    | (Code _ | Block_like _), _ | Set_of_closures _, (Code _ | Deleted_code) ->
       Misc.fatal_errorf "Mismatched pattern and constant: %a vs. %a"
         Bound_symbols.Pattern.print pat Static_const_or_code.print const
   in
@@ -772,7 +786,8 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
       | Set_of_closures set :: bindings -> begin
         match only_set with None -> loop (Some set) bindings | Some _ -> None
       end
-      | _ :: bindings -> loop only_set bindings
+      | (Data _ | Code _ | Deleted_code _ | Closure _) :: bindings ->
+        loop only_set bindings
     in
     loop None bindings
   in
@@ -785,7 +800,7 @@ and static_let_expr env bound_symbols defining_expr body : Fexpr.expr =
           match binding with
           | Set_of_closures { bindings; elements = _ } ->
             List.map (fun closure -> Fexpr.Closure closure) bindings
-          | _ -> [binding])
+          | Data _ | Code _ | Deleted_code _ | Closure _ -> [binding])
         bindings
     in
     Let_symbol { bindings; closure_elements; body }
@@ -886,15 +901,6 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let arities : Fexpr.function_arities option =
-    let is_default_arity a =
-      match a with
-      | [k] -> begin
-        match Flambda_kind.With_subkind.descr k with
-        | Any_value -> true
-        | _ -> false
-      end
-      | _ -> false
-    in
     match Apply_expr.call_kind app with
     | Function (Indirect_known_arity { param_arity; return_arity }) ->
       let params_arity = Some (arity param_arity) in
@@ -904,8 +910,12 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       if is_default_arity return_arity
       then None
       else
+        let params_arity =
+          (* Parameter arity is never specified for a direct call *)
+          None
+        in
         let ret_arity = arity return_arity in
-        Some { params_arity = None; ret_arity }
+        Some { params_arity; ret_arity }
     | C_call { param_arity; return_arity; _ } ->
       let params_arity =
         Some (arity (param_arity |> Flambda_arity.With_subkinds.of_arity))
@@ -914,12 +924,12 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         arity (return_arity |> Flambda_arity.With_subkinds.of_arity)
       in
       Some { params_arity; ret_arity }
-    | _ -> None
+    | Function Indirect_unknown_arity | Method _ -> None
   in
   let inlined =
-    match Apply_expr.inlined app with
-    | Default_inlined -> None
-    | other -> Some other
+    if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)
+    then None
+    else Some (Apply_expr.inlined app)
   in
   let inlining_state = inlining_state (Apply_expr.inlining_state app) in
   Apply
