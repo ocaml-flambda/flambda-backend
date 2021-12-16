@@ -620,8 +620,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     (* Since raising of an exception doesn't terminate, we don't call [k]. *)
     Expr_with_acc.create_apply_cont acc apply_cont
   | (Pmakeblock _ | Pmakefloatblock _ | Pmakearray _), [] ->
-    (* Special case for liftable empty blocks *)
-    begin
+    (* Special case for liftable empty block or array *)
+    let acc, sym =
       match prim with
       | Pmakeblock (tag, _, _) ->
         if tag <> 0
@@ -629,9 +629,14 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
           (* There should not be any way to reach this from Ocaml code. *)
           Misc.fatal_error
             "Non-zero tag on empty block allocation in [Closure_conversion]"
+        else
+          register_const0 acc
+            (Static_const.Block (Tag.Scannable.zero, Immutable, []))
+            "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
-      | Pmakearray (_, _)
+      | Pmakearray (_, _) ->
+        register_const0 acc Static_const.Empty_array "empty_array"
       | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply
       | Pdirapply | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
       | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
@@ -654,12 +659,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_set_16 _
       | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pctconst _ | Pbswap16
       | Pbbswap _ | Pint_as_pointer | Popaque | Pprobe_is_enabled _ ->
-        ()
-    end;
-    let acc, sym =
-      register_const0 acc
-        (Static_const.Block (Tag.Scannable.zero, Immutable, []))
-        "empty_block"
+        (* Inconsistent with outer match *)
+        assert false
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
