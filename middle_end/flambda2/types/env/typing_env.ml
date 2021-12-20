@@ -72,6 +72,13 @@ module One_level = struct
       just_after_level =
         Cached_level.clean_for_export t.just_after_level ~reachable_names
     }
+
+  let remove_unused_closure_vars t ~used_closure_vars =
+    { t with
+      just_after_level =
+        Cached_level.remove_unused_closure_vars t.just_after_level
+          ~used_closure_vars
+    }
 end
 
 type t =
@@ -318,6 +325,8 @@ exception Missing_cmx_and_kind
 
 (* CR mshinwell: [kind] could also take a [subkind] *)
 let find_with_binding_time_and_mode' t name kind =
+  (* Note that [Pre_serializable] (below) assumes this function only looks up
+     types of names in the cache for the current level. *)
   match Name.Map.find name (names_to_types t) with
   | exception Not_found -> (
     let comp_unit = Name.compilation_unit name in
@@ -1101,16 +1110,28 @@ and free_names_transitive0 t typ ~result =
 let free_names_transitive t typ =
   free_names_transitive0 t typ ~result:Name_occurrences.empty
 
-let clean_for_export t ~reachable_names =
-  let current_level =
-    One_level.clean_for_export t.current_level ~reachable_names
-  in
-  { t with current_level }
+module Pre_serializable : sig
+  type t = typing_env
+
+  val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+
+  val find_or_missing : t -> Name.t -> Type_grammar.t option
+end = struct
+  type t = typing_env
+
+  let create (t : typing_env) ~used_closure_vars =
+    let current_level =
+      One_level.remove_unused_closure_vars t.current_level ~used_closure_vars
+    in
+    { t with current_level }
+
+  let find_or_missing = find_or_missing
+end
 
 module Serializable : sig
   type t
 
-  val create : typing_env -> t
+  val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
   val print : Format.formatter -> t -> unit
 
@@ -1141,9 +1162,20 @@ end = struct
 
   let next_binding_time t = t.next_binding_time
 
-  let create ~defined_symbols ~code_age_relation ~just_after_level
-      ~next_binding_time =
-    { defined_symbols; code_age_relation; just_after_level; next_binding_time }
+  let create (env : Pre_serializable.t) ~reachable_names =
+    let current_level =
+      One_level.clean_for_export env.current_level ~reachable_names
+    in
+    let defined_symbols =
+      Symbol.Set.filter
+        (fun symbol -> Name_occurrences.mem_symbol reachable_names symbol)
+        env.defined_symbols
+    in
+    { defined_symbols;
+      code_age_relation = env.code_age_relation;
+      just_after_level = One_level.just_after_level current_level;
+      next_binding_time = env.next_binding_time
+    }
 
   let [@ocamlformat "disable"] print ppf
       { defined_symbols; code_age_relation; just_after_level;
@@ -1237,12 +1269,6 @@ end = struct
       else t1.next_binding_time
     in
     { defined_symbols; code_age_relation; just_after_level; next_binding_time }
-
-  let create (t : typing_env) =
-    create ~defined_symbols:t.defined_symbols
-      ~code_age_relation:t.code_age_relation
-      ~just_after_level:(One_level.just_after_level t.current_level)
-      ~next_binding_time:t.next_binding_time
 
   let to_typing_env serializable ~resolver ~get_imported_names =
     let defined_symbols = defined_symbols serializable in

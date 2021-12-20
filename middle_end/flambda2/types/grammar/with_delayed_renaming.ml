@@ -58,5 +58,31 @@ let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
     t.free_names <- Some free_names;
     free_names
 
+let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
+    ~remove_unused_closure_vars_descr t ~used_closure_vars =
+  let descr_known_to_contain_no_closure_vars =
+    (* If the free names are already computed (modulo application of a
+       renaming), we can use them as a shortcut, to potentially avoid traversing
+       the [descr]. *)
+    if Option.is_some t.free_names
+    then
+      let free_names = free_names t ~apply_renaming_descr ~free_names_descr in
+      let closure_vars = Name_occurrences.closure_vars free_names in
+      Var_within_closure.Set.is_empty closure_vars
+    else false
+  in
+  if descr_known_to_contain_no_closure_vars
+  then t
+  else
+    let descr =
+      remove_unused_closure_vars_descr
+        (descr ~apply_renaming_descr ~free_names_descr t)
+        ~used_closure_vars
+    in
+    t.descr <- descr;
+    assert (Renaming.is_empty t.delayed_permutation);
+    t.free_names <- None;
+    t
+
 let print ~print_descr ~apply_renaming_descr ~free_names_descr ppf t =
   print_descr ppf (descr ~apply_renaming_descr ~free_names_descr t)

@@ -92,7 +92,7 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
              this unit. *)
           names_to_add
         else
-          match TE.find_or_missing typing_env name with
+          match TE.Pre_serializable.find_or_missing typing_env name with
           | Some ty ->
             let ty_names = T.free_names ty in
             let names_to_consider =
@@ -129,15 +129,15 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->
-    (* CR mshinwell: We should remove typing information about names that do not
-       occur (transitively) in the type of the module block. *)
+    let final_typing_env =
+      TE.Pre_serializable.create final_typing_env ~used_closure_vars
+    in
     let reachable_names =
       compute_reachable_names_and_code ~module_symbol final_typing_env all_code
     in
     let all_code = Exported_code.remove_unreachable all_code ~reachable_names in
     let final_typing_env =
-      TE.clean_for_export final_typing_env ~reachable_names
-      |> TE.Serializable.create
+      TE.Serializable.create final_typing_env ~reachable_names
     in
     Some
       (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets

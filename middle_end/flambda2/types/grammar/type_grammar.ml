@@ -1171,6 +1171,286 @@ let apply_coercion t coercion =
     Misc.fatal_errorf "Cannot apply coercion %a@ to type %a" Coercion.print
       coercion print t
 
+let rec remove_unused_closure_vars t ~used_closure_vars =
+  match t with
+  | Value ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_value
+        ~apply_renaming_head:apply_renaming_head_of_kind_value
+        ~free_names_head:free_names_head_of_kind_value
+    in
+    if ty == ty' then t else Value ty'
+  | Naked_immediate ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_naked_immediate
+        ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
+        ~free_names_head:free_names_head_of_kind_naked_immediate
+    in
+    if ty == ty' then t else Naked_immediate ty'
+  | Naked_float ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_naked_float
+        ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
+        ~free_names_head:free_names_head_of_kind_naked_float
+    in
+    if ty == ty' then t else Naked_float ty'
+  | Naked_int32 ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_naked_int32
+        ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
+        ~free_names_head:free_names_head_of_kind_naked_int32
+    in
+    if ty == ty' then t else Naked_int32 ty'
+  | Naked_int64 ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_naked_int64
+        ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
+        ~free_names_head:free_names_head_of_kind_naked_int64
+    in
+    if ty == ty' then t else Naked_int64 ty'
+  | Naked_nativeint ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_naked_nativeint
+        ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
+        ~free_names_head:free_names_head_of_kind_naked_nativeint
+    in
+    if ty == ty' then t else Naked_nativeint ty'
+  | Rec_info ty ->
+    let ty' =
+      TD.remove_unused_closure_vars ty ~used_closure_vars
+        ~remove_unused_closure_vars_head:
+          remove_unused_closure_vars_head_of_kind_rec_info
+        ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
+        ~free_names_head:free_names_head_of_kind_rec_info
+    in
+    if ty == ty' then t else Rec_info ty'
+
+and remove_unused_closure_vars_head_of_kind_value head ~used_closure_vars =
+  match head with
+  | Variant { blocks; immediates; is_unique } ->
+    let immediates' =
+      let>+ immediates = immediates in
+      remove_unused_closure_vars immediates ~used_closure_vars
+    in
+    let blocks' =
+      let>+ blocks = blocks in
+      remove_unused_closure_vars_row_like_for_blocks blocks ~used_closure_vars
+    in
+    if immediates == immediates' && blocks == blocks'
+    then head
+    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
+  | Boxed_float ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Boxed_float ty'
+  | Boxed_int32 ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Boxed_int32 ty'
+  | Boxed_int64 ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Boxed_int64 ty'
+  | Boxed_nativeint ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Boxed_nativeint ty'
+  | Closures { by_closure_id } ->
+    let by_closure_id' =
+      remove_unused_closure_vars_row_like_for_closures by_closure_id
+        ~used_closure_vars
+    in
+    if by_closure_id == by_closure_id'
+    then head
+    else Closures { by_closure_id = by_closure_id' }
+  | String _ -> head
+  | Array { element_kind; length } ->
+    let length' = remove_unused_closure_vars length ~used_closure_vars in
+    if length == length' then head else Array { element_kind; length = length' }
+
+and remove_unused_closure_vars_head_of_kind_naked_immediate head
+    ~used_closure_vars =
+  match head with
+  | Naked_immediates _ -> head
+  | Is_int ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Is_int ty'
+  | Get_tag ty ->
+    let ty' = remove_unused_closure_vars ty ~used_closure_vars in
+    if ty == ty' then head else Get_tag ty'
+
+and remove_unused_closure_vars_head_of_kind_naked_float head
+    ~used_closure_vars:_ =
+  head
+
+and remove_unused_closure_vars_head_of_kind_naked_int32 head
+    ~used_closure_vars:_ =
+  head
+
+and remove_unused_closure_vars_head_of_kind_naked_int64 head
+    ~used_closure_vars:_ =
+  head
+
+and remove_unused_closure_vars_head_of_kind_naked_nativeint head
+    ~used_closure_vars:_ =
+  head
+
+and remove_unused_closure_vars_head_of_kind_rec_info head ~used_closure_vars:_ =
+  head
+
+and remove_unused_closure_vars_row_like :
+      'index 'maps_to 'known.
+      remove_unused_closure_vars_index:
+        ('index -> used_closure_vars:Var_within_closure.Set.t -> 'index) ->
+      remove_unused_closure_vars_maps_to:
+        ('maps_to -> used_closure_vars:Var_within_closure.Set.t -> 'maps_to) ->
+      known:'known ->
+      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      map_known:
+        ((('index, 'maps_to) row_like_case -> ('index, 'maps_to) row_like_case) ->
+        'known ->
+        'known) ->
+      used_closure_vars:Var_within_closure.Set.t ->
+      ('known * ('index, 'maps_to) row_like_case Or_bottom.t) option =
+ fun ~remove_unused_closure_vars_index ~remove_unused_closure_vars_maps_to
+     ~known ~other ~map_known ~used_closure_vars ->
+  let[@inline always] remove_unused_closure_vars_index = function
+    | Known index ->
+      Known (remove_unused_closure_vars_index index ~used_closure_vars)
+    | At_least index ->
+      At_least (remove_unused_closure_vars_index index ~used_closure_vars)
+  in
+  let known' =
+    map_known
+      (fun { index; maps_to; env_extension } ->
+        { index = remove_unused_closure_vars_index index;
+          env_extension =
+            remove_unused_closure_vars_env_extension env_extension
+              ~used_closure_vars;
+          maps_to =
+            remove_unused_closure_vars_maps_to maps_to ~used_closure_vars
+        })
+      known
+  in
+  let other' : _ Or_bottom.t =
+    match other with
+    | Bottom -> Bottom
+    | Ok { index; maps_to; env_extension } ->
+      (* CR mshinwell: phys-equal tests here and elsewhere are inadequate *)
+      Ok
+        { index = remove_unused_closure_vars_index index;
+          env_extension =
+            remove_unused_closure_vars_env_extension env_extension
+              ~used_closure_vars;
+          maps_to =
+            remove_unused_closure_vars_maps_to maps_to ~used_closure_vars
+        }
+  in
+  if known == known' && other == other' then None else Some (known', other')
+
+and remove_unused_closure_vars_row_like_for_blocks
+    ({ known_tags; other_tags } as row_like_for_tags) ~used_closure_vars =
+  match
+    remove_unused_closure_vars_row_like
+      ~remove_unused_closure_vars_index:(fun block_size ~used_closure_vars:_ ->
+        block_size)
+      ~remove_unused_closure_vars_maps_to:
+        remove_unused_closure_vars_int_indexed_product ~known:known_tags
+      ~other:other_tags ~map_known:Tag.Map.map_sharing ~used_closure_vars
+  with
+  | None -> row_like_for_tags
+  | Some (known_tags, other_tags) -> { known_tags; other_tags }
+
+and remove_unused_closure_vars_row_like_for_closures
+    ({ known_closures; other_closures } as row_like_for_closures)
+    ~used_closure_vars =
+  match
+    remove_unused_closure_vars_row_like
+      ~remove_unused_closure_vars_index:
+        Set_of_closures_contents.remove_unused_closure_vars
+      ~remove_unused_closure_vars_maps_to:
+        remove_unused_closure_vars_closures_entry ~known:known_closures
+      ~other:other_closures ~map_known:Closure_id.Map.map_sharing
+      ~used_closure_vars
+  with
+  | None -> row_like_for_closures
+  | Some (known_closures, other_closures) -> { known_closures; other_closures }
+
+and remove_unused_closure_vars_closures_entry
+    { function_types; closure_types; closure_var_types } ~used_closure_vars =
+  { function_types =
+      Closure_id.Map.map_sharing
+        (fun function_type ->
+          Or_unknown_or_bottom.map function_type ~f:(fun function_type ->
+              remove_unused_closure_vars_function_type function_type
+                ~used_closure_vars))
+        function_types;
+    closure_types =
+      remove_unused_closure_vars_closure_id_indexed_product closure_types
+        ~used_closure_vars;
+    closure_var_types =
+      remove_unused_closure_vars_var_within_closure_indexed_product
+        closure_var_types ~used_closure_vars
+  }
+
+and remove_unused_closure_vars_closure_id_indexed_product
+    { closure_id_components_by_index } ~used_closure_vars =
+  let closure_id_components_by_index =
+    Closure_id.Map.map_sharing
+      (fun ty -> remove_unused_closure_vars ty ~used_closure_vars)
+      closure_id_components_by_index
+  in
+  { closure_id_components_by_index }
+
+and remove_unused_closure_vars_var_within_closure_indexed_product
+    { var_within_closure_components_by_index } ~used_closure_vars =
+  let var_within_closure_components_by_index =
+    (* CR-someday mshinwell: some loss of sharing here, potentially *)
+    Var_within_closure.Map.filter_map
+      (fun closure_var ty ->
+        if (not
+              (Var_within_closure.in_compilation_unit closure_var
+                 (Compilation_unit.get_current_exn ())))
+           || Var_within_closure.Set.mem closure_var used_closure_vars
+        then Some (remove_unused_closure_vars ty ~used_closure_vars)
+        else None)
+      var_within_closure_components_by_index
+  in
+  { var_within_closure_components_by_index }
+
+and remove_unused_closure_vars_int_indexed_product { fields; kind }
+    ~used_closure_vars =
+  let fields = Array.copy fields in
+  for i = 0 to Array.length fields - 1 do
+    fields.(i) <- remove_unused_closure_vars fields.(i) ~used_closure_vars
+  done;
+  { fields; kind }
+
+and remove_unused_closure_vars_function_type
+    ({ code_id; rec_info } as function_type) ~used_closure_vars =
+  let rec_info' = remove_unused_closure_vars rec_info ~used_closure_vars in
+  if rec_info == rec_info'
+  then function_type
+  else { code_id; rec_info = rec_info' }
+
+and remove_unused_closure_vars_env_extension ({ equations } as env_extension)
+    ~used_closure_vars =
+  let changed = ref false in
+  let equations' =
+    Name.Map.map_sharing
+      (fun ty -> remove_unused_closure_vars ty ~used_closure_vars)
+      equations
+  in
+  if !changed then { equations = equations' } else env_extension
+
 let kind t =
   match t with
   | Value _ -> K.value
