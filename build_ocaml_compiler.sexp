@@ -7,6 +7,7 @@
   supports_flambda2
   uses_autoconf
   is_flambda_backend
+  build_m32_from_upstream
   ))
  (features (
    normal

@@ -233,6 +233,30 @@ config_files: ocaml-stage1-config.status
 	/bin/echo -n "( `grep \"^SHAREDLIB_CFLAGS=\" ocaml/Makefile.config \
 		| sed 's/^SHAREDLIB_CFLAGS=//'` )" > sharedlib_cflags.sexp
 
+## Build upstream compiler.
+## Similar to stage0 except the installation directory
+_build_upstream/config.status: ocaml/configure.ac
+	rm -rf _build_upstream
+	mkdir _build_upstream
+	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
+	(cd _build_upstream && \
+	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
+	    --prefix=@prefix@ \
+	    --disable-ocamldoc \
+	    --enable-ocamltest)
+
+.PHONY: build_upstream
+build_upstream: _build_upstream/config.status
+	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
+	(cd _build_upstream && \
+	    $(MAKE) world.opt && \
+	    $(MAKE) ocamlnat)
+
+.PHONY: install_upstream
+install_upstream: build_upstream
+	(cd _build_upstream && $(MAKE) install)
+	cp ocaml/VERSION $(prefix)/lib/ocaml/
+
 # Most of the installation tree is correctly set up by dune, but we need to
 # copy it to the final destination, and rearrange a few things to match
 # upstream.
