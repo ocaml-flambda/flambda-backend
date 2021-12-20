@@ -28,32 +28,79 @@ module IntPairSet =
 
 let mat = IntPairSet.create 42
 
+let max_for_fast_mode = 4000  (* 8Mb memory used *)
+let previous_interference = ref 0
+let fast_mat = Bytes.make (max_for_fast_mode * (max_for_fast_mode - 1) / 2) '\000'
+let max_index = ref (-1)
+
 open Reg
 open Mach
 
 let build_graph fundecl =
   (* The interference graph is represented in two ways:
      - by adjacency lists for each register
-     - by a sparse bit matrix (a set of pairs of register stamps) *)
+     - by a sparse bit matrix (a set of pairs of register stamps)
 
-  IntPairSet.clear mat;
+     The sparse bit matrix is represented by a string unless the
+     number of registers involved in the function is very large.  The
+     index in the string for a pair of register (i, j) assuming i < j
+     is given by:
+         index(i, j) = i * (i - 1) / 2 + j
+     (This takes into account the fact that only half of the square
+     matrix is needed).
+     In the fast "string" case, when we call [add_interf] below the
+     situation will be as follows: an interference (i, j) is
+     registered in the fast matrix iff the character index(i,j) of
+     [fast_mat] has a code equal to [interference].  All strictly
+     lower codes indicate a non-interference.  When we compile the
+     next function, [interference] will have been incremented, which
+     means we automatically treat interferences from the previous
+     function(s) as non-interferences for the current function.  (This
+     trick saves us from clearing the matrix between each function.)
+     If sufficiently many functions are compiled such that the counter
+     might wrap around, the array is re-allocated. *)
+
+  if !previous_interference = 0xff then begin
+    Bytes.fill fast_mat 0 (!max_index + 1) '\000';
+    previous_interference := 1;
+    max_index := (-1);
+  end else
+    incr previous_interference;
+
+  let interference = Char.chr !previous_interference in
+
+  if Reg.num_registers () > max_for_fast_mode then
+    IntPairSet.clear mat;
 
   (* Record an interference between two registers *)
   let add_interf ri rj =
     if Proc.register_class ri = Proc.register_class rj then begin
       let i = ri.stamp and j = rj.stamp in
-      if i <> j then begin
-        let p = if i < j then (i, j) else (j, i) in
-        if not (IntPairSet.mem mat p) then begin
-          IntPairSet.add mat p ();
-          if ri.loc = Unknown then begin
-            ri.interf <- rj :: ri.interf;
-            if not rj.spill then ri.degree <- ri.degree + 1
-          end;
-          if rj.loc = Unknown then begin
-            rj.interf <- ri :: rj.interf;
-            if not ri.spill then rj.degree <- rj.degree + 1
-          end
+        let is_new =
+          i <> j
+          && begin
+          let i, j = if i < j then i, j else j, i in
+          if j < max_for_fast_mode then
+            let index = (j * (j - 1)) lsr 1 + i in
+            if !max_index < index then max_index := index;
+            let b = Bytes.unsafe_get fast_mat index < interference in
+            if b then Bytes.unsafe_set fast_mat index interference;
+            b
+          else
+            let p = (i, j) in
+            let b = not (IntPairSet.mem mat p) in
+            if b then IntPairSet.add mat p ();
+            b
+        end
+      in
+      if is_new then begin
+        if ri.loc = Unknown then begin
+          ri.interf <- rj :: ri.interf;
+          if not rj.spill then ri.degree <- ri.degree + 1
+        end;
+        if rj.loc = Unknown then begin
+          rj.interf <- ri :: rj.interf;
+          if not ri.spill then rj.degree <- rj.degree + 1
         end
       end
     end in
@@ -130,8 +177,13 @@ let build_graph fundecl =
     if i <> j
     && r1.loc = Unknown
     && Proc.register_class r1 = Proc.register_class r2
-    && (let p = if i < j then (i, j) else (j, i) in
-        not (IntPairSet.mem mat p))
+    && begin
+        let i, j = if i < j then i, j else j, i in
+        if j < max_for_fast_mode then
+          let index = (j * (j - 1)) lsr 1 + i in
+          Bytes.unsafe_get fast_mat index < interference
+        else not (IntPairSet.mem mat (i, j))
+    end
     then r1.prefer <- (r2, weight) :: r1.prefer
   in
 
