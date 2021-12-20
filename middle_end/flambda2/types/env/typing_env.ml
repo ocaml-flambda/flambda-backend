@@ -496,8 +496,9 @@ let find_with_binding_time_and_mode' t name kind =
       Name.pattern_match name ~var ~symbol
     else
       match (resolver t) comp_unit with
-      | exception _ ->
-        Misc.fatal_errorf "Exception in resolver@ Backtrace is: %s"
+      | exception exn ->
+        Misc.fatal_errorf "Exception in resolver: %s@ Backtrace is: %s"
+          (Printexc.to_string exn)
           (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
       | None ->
         Name.pattern_match name
