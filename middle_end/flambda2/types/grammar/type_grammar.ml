@@ -419,6 +419,7 @@ and free_names_head_of_kind_rec_info head =
 
 and free_names_row_like :
       'row_tag 'index 'maps_to 'known.
+      free_names_index:('index -> Name_occurrences.t) ->
       free_names_maps_to:('maps_to -> Name_occurrences.t) ->
       known:'known ->
       other:('index, 'maps_to) row_like_case Or_bottom.t ->
@@ -428,11 +429,15 @@ and free_names_row_like :
         'acc ->
         'acc) ->
       Name_occurrences.t =
- fun ~free_names_maps_to ~known ~other ~fold_known ->
+ fun ~free_names_index ~free_names_maps_to ~known ~other ~fold_known ->
+  let[@inline always] free_names_index index =
+    match index with Known index | At_least index -> free_names_index index
+  in
   let from_known =
     fold_known
-      (fun _ { maps_to; env_extension; index = _ } free_names ->
-        Name_occurrences.union free_names
+      (fun _ { maps_to; env_extension; index } free_names ->
+        Name_occurrences.union
+          (Name_occurrences.union free_names (free_names_index index))
           (Name_occurrences.union
              (free_names_env_extension env_extension)
              (free_names_maps_to maps_to)))
@@ -440,19 +445,23 @@ and free_names_row_like :
   in
   match other with
   | Bottom -> from_known
-  | Ok { maps_to; env_extension; index = _ } ->
+  | Ok { maps_to; env_extension; index } ->
     Name_occurrences.union
-      (free_names_maps_to maps_to)
+      (Name_occurrences.union (free_names_index index)
+         (free_names_maps_to maps_to))
       (Name_occurrences.union from_known
          (free_names_env_extension env_extension))
 
 and free_names_row_like_for_blocks { known_tags; other_tags } =
-  free_names_row_like ~free_names_maps_to:free_names_int_indexed_product
-    ~known:known_tags ~other:other_tags ~fold_known:Tag.Map.fold
+  free_names_row_like
+    ~free_names_index:(fun _block_size -> Name_occurrences.empty)
+    ~free_names_maps_to:free_names_int_indexed_product ~known:known_tags
+    ~other:other_tags ~fold_known:Tag.Map.fold
 
 and free_names_row_like_for_closures { known_closures; other_closures } =
-  free_names_row_like ~free_names_maps_to:free_names_closures_entry
-    ~known:known_closures ~other:other_closures ~fold_known:Closure_id.Map.fold
+  free_names_row_like ~free_names_index:Set_of_closures_contents.free_names
+    ~free_names_maps_to:free_names_closures_entry ~known:known_closures
+    ~other:other_closures ~fold_known:Closure_id.Map.fold
 
 and free_names_closures_entry
     { function_types; closure_types; closure_var_types } =
@@ -477,8 +486,10 @@ and free_names_closure_id_indexed_product { closure_id_components_by_index } =
 and free_names_var_within_closure_indexed_product
     { var_within_closure_components_by_index } =
   Var_within_closure.Map.fold
-    (fun _ t free_names_acc ->
-      Name_occurrences.union (free_names t) free_names_acc)
+    (fun closure_var t free_names_acc ->
+      Name_occurrences.add_closure_var
+        (Name_occurrences.union (free_names t) free_names_acc)
+        closure_var Name_mode.normal)
     var_within_closure_components_by_index Name_occurrences.empty
 
 and free_names_int_indexed_product { fields; kind = _ } =

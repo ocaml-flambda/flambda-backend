@@ -75,6 +75,25 @@ let apply_renaming { closures; closure_vars } renaming =
   in
   { closures; closure_vars }
 
+let free_names { closures = _; closure_vars } =
+  Var_within_closure.Set.fold
+    (fun closure_var free_names ->
+      Name_occurrences.add_closure_var free_names closure_var Name_mode.normal)
+    closure_vars Name_occurrences.empty
+
+let remove_unused_closure_vars { closures; closure_vars } ~used_closure_vars =
+  (* CR mshinwell: Consider adding [Used_closure_vars.t] *)
+  let closure_vars =
+    Var_within_closure.Set.filter
+      (fun var ->
+        (not
+           (Var_within_closure.in_compilation_unit var
+              (Compilation_unit.get_current_exn ())))
+        || Var_within_closure.Set.mem var used_closure_vars)
+      closure_vars
+  in
+  { closures; closure_vars }
+
 module With_closure_id = struct
   type nonrec t = Closure_id.t * t
 
