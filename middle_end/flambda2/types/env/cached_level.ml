@@ -103,7 +103,7 @@ let clean_for_export t ~reachable_names =
              current_compilation_unit)
       t.names_to_types
   in
-  let aliases = Aliases.clean_for_export t.aliases in
+  let aliases = Aliases.clean_for_export t.aliases ~reachable_names in
   { t with names_to_types; aliases }
 
 let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
