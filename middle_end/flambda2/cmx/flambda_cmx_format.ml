@@ -21,12 +21,12 @@
 module Const = Reg_width_things.Const
 
 type table_data =
-  { symbols : Symbol.exported Symbol.Map.t;
-    variables : Variable.exported Variable.Map.t;
-    simples : Simple.exported Simple.Map.t;
-    consts : Const.exported Const.Map.t;
-    code_ids : Code_id.exported Code_id.Map.t;
-    continuations : Continuation.exported Continuation.Map.t
+  { symbols : (Symbol.t * Symbol.exported) list;
+    variables : (Variable.t * Variable.exported) list;
+    simples : (Simple.t * Simple.exported) list;
+    consts : (Const.t * Const.exported) list;
+    code_ids : (Code_id.t * Code_id.exported) list;
+    continuations : (Continuation.t * Continuation.exported) list
   }
 
 type t0 =
@@ -50,40 +50,35 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_closure_vars =
   in
   let symbols =
     Symbol.Set.fold
-      (fun symbol symbols ->
-        Symbol.Map.add symbol (Symbol.export symbol) symbols)
-      exported_ids.symbols Symbol.Map.empty
+      (fun symbol symbols -> (symbol, Symbol.export symbol) :: symbols)
+      exported_ids.symbols []
   in
   let variables =
     Variable.Set.fold
       (fun variable variables ->
-        Variable.Map.add variable (Variable.export variable) variables)
-      exported_ids.variables Variable.Map.empty
+        (variable, Variable.export variable) :: variables)
+      exported_ids.variables []
   in
   let simples =
     Reg_width_things.Simple.Set.fold
-      (fun simple simples ->
-        Simple.Map.add simple (Simple.export simple) simples)
-      exported_ids.simples Simple.Map.empty
+      (fun simple simples -> (simple, Simple.export simple) :: simples)
+      exported_ids.simples []
   in
   let consts =
     Const.Set.fold
-      (fun const consts -> Const.Map.add const (Const.export const) consts)
-      exported_ids.consts Const.Map.empty
+      (fun const consts -> (const, Const.export const) :: consts)
+      exported_ids.consts []
   in
   let code_ids =
     Code_id.Set.fold
-      (fun code_id code_ids ->
-        Code_id.Map.add code_id (Code_id.export code_id) code_ids)
-      exported_ids.code_ids Code_id.Map.empty
+      (fun code_id code_ids -> (code_id, Code_id.export code_id) :: code_ids)
+      exported_ids.code_ids []
   in
   let continuations =
     Continuation.Set.fold
       (fun continuation continuations ->
-        Continuation.Map.add continuation
-          (Continuation.export continuation)
-          continuations)
-      exported_ids.continuations Continuation.Map.empty
+        (continuation, Continuation.export continuation) :: continuations)
+      exported_ids.continuations []
   in
   let table_data =
     { symbols; variables; simples; consts; code_ids; continuations }
@@ -96,31 +91,60 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_closure_vars =
       table_data
     } ]
 
+module Make_importer (S : sig
+  type t
+
+  type exported
+
+  val import : exported -> t
+
+  val map_compilation_unit :
+    (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
+
+  include Container_types.S with type t := t
+end) : sig
+  val import : (S.t * S.exported) list -> S.t S.Map.t
+
+  val update_for_pack :
+    pack_units:Compilation_unit.Set.t ->
+    pack:Compilation_unit.t ->
+    (S.t * S.exported) list ->
+    (S.t * S.exported) list
+end = struct
+  let import from_table_data =
+    (* The returned map gives the hash collisions. *)
+    List.fold_left
+      (fun import_map (key, exported) ->
+        let new_key = S.import exported in
+        if key == new_key then import_map else S.Map.add key new_key import_map)
+      S.Map.empty from_table_data
+
+  let update_for_pack ~pack_units ~pack from_table_data =
+    let update_cu unit =
+      if Compilation_unit.Set.mem unit pack_units then pack else unit
+    in
+    List.map
+      (fun (symbol, exported) ->
+        let exported = S.map_compilation_unit update_cu exported in
+        symbol, exported)
+      from_table_data
+end
+[@@inline always]
+
+module Symbol_importer = Make_importer (Symbol)
+module Variable_importer = Make_importer (Variable)
+module Simple_importer = Make_importer (Simple)
+module Const_importer = Make_importer (Const)
+module Code_id_importer = Make_importer (Code_id)
+module Continuation_importer = Make_importer (Continuation)
+
 let import_typing_env_and_code0 t =
-  (* First create map for data that does not contain ids, i.e. everything except
-     simples *)
-  let filter import key data =
-    let new_key = import data in
-    if key == new_key then None else Some new_key
-  in
-  let symbols =
-    Symbol.Map.filter_map (filter Symbol.import) t.table_data.symbols
-  in
-  let variables =
-    Variable.Map.filter_map (filter Variable.import) t.table_data.variables
-  in
-  let simples =
-    Simple.Map.filter_map (filter Simple.import) t.table_data.simples
-  in
-  let consts = Const.Map.filter_map (filter Const.import) t.table_data.consts in
-  let code_ids =
-    Code_id.Map.filter_map (filter Code_id.import) t.table_data.code_ids
-  in
-  let continuations =
-    Continuation.Map.filter_map
-      (filter Continuation.import)
-      t.table_data.continuations
-  in
+  let symbols = Symbol_importer.import t.table_data.symbols in
+  let variables = Variable_importer.import t.table_data.variables in
+  let simples = Simple_importer.import t.table_data.simples in
+  let consts = Const_importer.import t.table_data.consts in
+  let code_ids = Code_id_importer.import t.table_data.code_ids in
+  let continuations = Continuation_importer.import t.table_data.continuations in
   let used_closure_vars = t.used_closure_vars in
   let original_compilation_unit = t.original_compilation_unit in
   let renaming =
@@ -167,37 +191,23 @@ let with_exported_offsets t exported_offsets =
     Misc.fatal_error "Cannot set exported offsets on multiple units"
 
 let update_for_pack0 ~pack_units ~pack t =
-  let update_cu unit =
-    if Compilation_unit.Set.mem unit pack_units then pack else unit
-  in
   let symbols =
-    Symbol.Map.map_sharing
-      (Symbol.map_compilation_unit update_cu)
-      t.table_data.symbols
+    Symbol_importer.update_for_pack ~pack_units ~pack t.table_data.symbols
   in
   let variables =
-    Variable.Map.map_sharing
-      (Variable.map_compilation_unit update_cu)
-      t.table_data.variables
+    Variable_importer.update_for_pack ~pack_units ~pack t.table_data.variables
   in
   let simples =
-    Simple.Map.map_sharing
-      (Simple.map_compilation_unit update_cu)
-      t.table_data.simples
+    Simple_importer.update_for_pack ~pack_units ~pack t.table_data.simples
   in
   let consts =
-    Const.Map.map_sharing
-      (Const.map_compilation_unit update_cu)
-      t.table_data.consts
+    Const_importer.update_for_pack ~pack_units ~pack t.table_data.consts
   in
   let code_ids =
-    Code_id.Map.map_sharing
-      (Code_id.map_compilation_unit update_cu)
-      t.table_data.code_ids
+    Code_id_importer.update_for_pack ~pack_units ~pack t.table_data.code_ids
   in
   let continuations =
-    Continuation.Map.map_sharing
-      (Continuation.map_compilation_unit update_cu)
+    Continuation_importer.update_for_pack ~pack_units ~pack
       t.table_data.continuations
   in
   let table_data =

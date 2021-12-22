@@ -1166,13 +1166,16 @@ end = struct
     let current_level =
       One_level.clean_for_export env.current_level ~reachable_names
     in
+    let code_age_relation =
+      Code_age_relation.clean_for_export env.code_age_relation ~reachable_names
+    in
     let defined_symbols =
       Symbol.Set.filter
         (fun symbol -> Name_occurrences.mem_symbol reachable_names symbol)
         env.defined_symbols
     in
     { defined_symbols;
-      code_age_relation = env.code_age_relation;
+      code_age_relation;
       just_after_level = One_level.just_after_level current_level;
       next_binding_time = env.next_binding_time
     }

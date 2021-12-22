@@ -56,3 +56,5 @@ val union : t -> t -> t
 val all_code_ids_for_export : t -> Code_id.Set.t
 
 val apply_renaming : t -> Renaming.t -> t
+
+val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
