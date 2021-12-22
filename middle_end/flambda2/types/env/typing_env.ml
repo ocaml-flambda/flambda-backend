@@ -1148,13 +1148,13 @@ module Serializable : sig
     typing_env
 end = struct
   type t =
-    { defined_symbols : Symbol.Set.t;
+    { defined_symbols_without_equations : Symbol.t list;
       code_age_relation : Code_age_relation.t;
       just_after_level : Cached_level.t;
       next_binding_time : Binding_time.t
     }
 
-  let defined_symbols t = t.defined_symbols
+  let defined_symbols_without_equations t = t.defined_symbols_without_equations
 
   let code_age_relation t = t.code_age_relation
 
@@ -1169,28 +1169,34 @@ end = struct
     let code_age_relation =
       Code_age_relation.clean_for_export env.code_age_relation ~reachable_names
     in
-    let defined_symbols =
-      Symbol.Set.filter
-        (fun symbol -> Name_occurrences.mem_symbol reachable_names symbol)
-        env.defined_symbols
+    let just_after_level = One_level.just_after_level current_level in
+    let names_to_types = Cached_level.names_to_types just_after_level in
+    let defined_symbols_without_equations =
+      Symbol.Set.fold
+        (fun symbol defined_symbols_without_equations ->
+          if Name_occurrences.mem_symbol reachable_names symbol
+             && not (Name.Map.mem (Name.symbol symbol) names_to_types)
+          then symbol :: defined_symbols_without_equations
+          else defined_symbols_without_equations)
+        env.defined_symbols []
     in
-    { defined_symbols;
+    { defined_symbols_without_equations;
       code_age_relation;
-      just_after_level = One_level.just_after_level current_level;
+      just_after_level;
       next_binding_time = env.next_binding_time
     }
 
   let [@ocamlformat "disable"] print ppf
-      { defined_symbols; code_age_relation; just_after_level;
+      { defined_symbols_without_equations; code_age_relation; just_after_level;
         next_binding_time = _ } =
     Format.fprintf ppf
       "@[<hov 1>(\
-          @[<hov 1>(defined_symbols@ %a)@]@ \
+          @[<hov 1>(defined_symbols_without_equations@ (%a))@]@ \
           @[<hov 1>(code_age_relation@ %a)@]@ \
           @[<hov 1>(type_equations@ %a)@]@ \
           @[<hov 1>(aliases@ %a)@]\
           )@]"
-      Symbol.Set.print defined_symbols
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Symbol.print) defined_symbols_without_equations
       Code_age_relation.print code_age_relation
       (Name.Map.print (fun ppf (ty, _bt_and_mode) -> TG.print ppf ty))
       (Cached_level.names_to_types just_after_level)
@@ -1199,12 +1205,12 @@ end = struct
   (* CR mshinwell for vlaviron: Shouldn't some of this be in
      [Cached_level.all_ids_for_export]? *)
   let all_ids_for_export
-      { defined_symbols;
+      { defined_symbols_without_equations;
         code_age_relation;
         just_after_level;
         next_binding_time = _
       } =
-    let symbols = defined_symbols in
+    let symbols = Symbol.Set.of_list defined_symbols_without_equations in
     let code_ids =
       Code_age_relation.all_code_ids_for_export code_age_relation
     in
@@ -1235,16 +1241,15 @@ end = struct
     ids
 
   let apply_renaming
-      { defined_symbols;
+      { defined_symbols_without_equations;
         code_age_relation;
         just_after_level;
         next_binding_time
       } renaming =
-    let defined_symbols =
-      Symbol.Set.fold
-        (fun sym symbols ->
-          Symbol.Set.add (Renaming.apply_symbol renaming sym) symbols)
-        defined_symbols Symbol.Set.empty
+    let defined_symbols_without_equations =
+      List.map
+        (Renaming.apply_symbol renaming)
+        defined_symbols_without_equations
     in
     let code_age_relation =
       Code_age_relation.apply_renaming code_age_relation renaming
@@ -1252,11 +1257,16 @@ end = struct
     let just_after_level =
       Cached_level.apply_renaming just_after_level renaming
     in
-    { defined_symbols; code_age_relation; just_after_level; next_binding_time }
+    { defined_symbols_without_equations;
+      code_age_relation;
+      just_after_level;
+      next_binding_time
+    }
 
   let merge t1 t2 =
-    let defined_symbols =
-      Symbol.Set.union t1.defined_symbols t2.defined_symbols
+    let defined_symbols_without_equations =
+      t1.defined_symbols_without_equations
+      @ t2.defined_symbols_without_equations
     in
     let code_age_relation =
       Code_age_relation.union t1.code_age_relation t2.code_age_relation
@@ -1271,12 +1281,24 @@ end = struct
       then t2.next_binding_time
       else t1.next_binding_time
     in
-    { defined_symbols; code_age_relation; just_after_level; next_binding_time }
+    { defined_symbols_without_equations;
+      code_age_relation;
+      just_after_level;
+      next_binding_time
+    }
 
   let to_typing_env serializable ~resolver ~get_imported_names =
-    let defined_symbols = defined_symbols serializable in
-    let code_age_relation = code_age_relation serializable in
     let just_after_level = just_after_level serializable in
+    let defined_symbols =
+      Name.Map.fold
+        (fun name _ defined_symbols ->
+          Name.pattern_match name
+            ~var:(fun _ -> defined_symbols)
+            ~symbol:(fun symbol -> Symbol.Set.add symbol defined_symbols))
+        (Cached_level.names_to_types just_after_level)
+        (Symbol.Set.of_list (defined_symbols_without_equations serializable))
+    in
+    let code_age_relation = code_age_relation serializable in
     let next_binding_time = next_binding_time serializable in
     { resolver;
       binding_time_resolver = binding_time_resolver resolver;
