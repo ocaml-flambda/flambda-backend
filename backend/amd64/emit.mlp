@@ -309,7 +309,7 @@ let arg ?(emit_reg=reg) i n =
     (mem64_rip NONE (emit_label lbl))
   | Imem m ->
     if (Array.exists Reg.is_stack m.reg) then
-      Misc.fatal_error ("Emit.arg mem with stack " ^ string_of_int n);
+      Misc.fatal_errorf "Emit.arg mem with stack %d" n ();
     addressing m.addr (data_type_opt m.chunk) m.reg
 
 (* Record live pointers at call points -- see Emitaux *)
