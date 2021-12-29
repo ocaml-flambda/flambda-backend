@@ -63,12 +63,6 @@ end
  * end
  *)
 
-let save_cfg_as_dot : Cfg_with_layout.t -> string -> unit =
- fun cfg_with_layout msg ->
-  Cfg_with_layout.save_as_dot cfg_with_layout ~show_instr:true ~show_exn:true
-    ~annotate_block:(Printf.sprintf "label:%d")
-    ~annotate_succ:(Printf.sprintf "%d->%d") msg
-
 module Make_state (C : Container) : State = struct
   type t =
     { subst : Label.t Label.Tbl.t;
@@ -406,19 +400,11 @@ let rec check_basic_instruction_list :
     check_basic_instruction state location idx expected_hd result_hd;
     check_basic_instruction_list state location (succ idx) expected_tl result_tl
 
-let imm : 'a Cfg.instruction -> index:int -> Targetint.t option =
- fun i ~index ->
-  match Array.length i.arg with
-  | 0 -> None
-  | _ -> (
-    match i.arg.(index) with
-    | Iimm n -> Some n
-    | Iimmf _ | Ireg _ | Imem _ -> None)
-
-let special_immediates expected result =
-  match imm expected ~index:1, imm result ~index:1 with
-  | Some imm1, Some imm2 -> Targetint.equal imm1 (Targetint.pred imm2)
-  | None, _ | _, None -> false
+let special_immediates : 'a Cfg.instruction -> 'a Cfg.instruction -> bool =
+  fun expected result ->
+  match expected.arg.(1), result.arg.(1) with
+  | (Iimm imm1, Iimm imm2) -> Targetint.equal imm1 (Targetint.pred imm2)
+  | (Iimmf _ | Ireg _ | Imem _), _ | _, (Iimmf _ | Ireg _ | Imem _) -> false
 
 let check_terminator_instruction :
     State.t ->
@@ -454,6 +440,8 @@ let check_terminator_instruction :
       State.add_to_explore state location eq1 eq2;
       State.add_to_explore state location gt1 gt2;
       State.add_to_explore state location uo1 uo2
+    (* The following case is morally the same as the one after it, with an
+       immediate which is off by one. *)
     | ( Int_test { lt = lt1; eq = eq1; gt = gt1; is_signed = is_signed1 },
         Int_test { lt = lt2; eq = eq2; gt = gt2; is_signed = is_signed2 } )
       when Bool.equal is_signed1 is_signed2
@@ -469,8 +457,6 @@ let check_terminator_instruction :
       State.add_to_explore state location lt1 lt2;
       State.add_to_explore state location eq1 eq2;
       State.add_to_explore state location gt1 gt2
-    (* The following case is morally the same as the previous one, with a
-       immediate which is off by one. *)
     | Switch a1, Switch a2 when Array.length a1 = Array.length a2 ->
       Array.iter2 (fun l1 l2 -> State.add_to_explore state location l1 l2) a1 a2
     | Return, Return -> ()
@@ -561,6 +547,12 @@ let check_layout : State.t -> Label.t list -> Label.t list -> unit =
     (fun expected_label result_label ->
       State.add_labels_to_check state "layout" expected_label result_label)
     expected result
+
+let save_cfg_as_dot : Cfg_with_layout.t -> string -> unit =
+ fun cfg_with_layout msg ->
+  Cfg_with_layout.save_as_dot cfg_with_layout ~show_instr:true ~show_exn:true
+    ~annotate_block:(Printf.sprintf "label:%d")
+    ~annotate_succ:(Printf.sprintf "%d->%d") msg
 
 let check_cfg_with_layout :
     Mach.fundecl -> Cfg_with_layout.t -> Cfg_with_layout.t -> unit =
