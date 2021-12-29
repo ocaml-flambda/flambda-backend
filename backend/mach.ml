@@ -371,9 +371,10 @@ let equal_operand left right =
   | Iimm left, Iimm right -> Targetint.equal left right
   | Iimmf left, Iimmf right -> Int64.equal left right
   | Ireg left, Ireg right -> Reg.same_loc left right
-  | Imem left, Imem right ->
-    Option.equal Cmm.equal_memory_chunk left.chunk right.chunk &&
-    Arch.equal_addressing_mode left.addr right.addr &&
-    Array.length left.reg = Array.length right.reg &&
-    Array.for_all2 Reg.same_loc left.reg right.reg
+  | Imem { chunk=left_chunk; addr=left_addr; reg=left_reg },
+    Imem { chunk=right_chunk; addr=right_addr; reg=right_reg } ->
+    Option.equal Cmm.equal_memory_chunk left_chunk right_chunk &&
+    Arch.equal_addressing_mode left_addr right_addr &&
+    Array.length left_reg = Array.length right_reg &&
+    Array.for_all2 Reg.same_loc left_reg right_reg
   | (Iimm _ | Iimmf _ | Ireg _ | Imem _),_ -> false
