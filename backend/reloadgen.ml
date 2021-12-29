@@ -74,7 +74,7 @@ method makereg r =
       newr
 
 method private makeregs rv =
-  Array.init (Array.length rv) (fun i -> self#makereg rv.(i))
+  Array.map (self#makereg) rv
 
 method makereg_operand o =
   match o with
@@ -87,7 +87,7 @@ method makereg_operand o =
     Imem { m with reg }
 
 method private makeregs_operands ov =
-  Array.init (Array.length ov) (fun i -> self#makereg_operand ov.(i))
+  Array.map (self#makereg_operand) ov
 
 method private makereg1 ov =
   let newv = Array.copy ov in
