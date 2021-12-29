@@ -32,9 +32,6 @@ class reload_generic : object
   method makeregs_for_memory_operands : Mach.operand array -> Mach.operand array
      (*  Force all "registers" used by memory operands to be in hardware
          registers, not on the stack. *)
-  (* method makeregs_operands : Mach.operand array -> Mach.operand array
-   *    (*  Force all "registers" referred to by the operands
-   *        to be in hardware registers, not on the stack. *) *)
   method makereg_operand : Mach.operand -> Mach.operand
      (*  Force "register" referred to by the operand, if any,
          to be in a hardware register, not on the stack. *)
