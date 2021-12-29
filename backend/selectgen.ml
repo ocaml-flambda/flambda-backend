@@ -174,8 +174,6 @@ module Operands : sig
   val in_registers : unit -> t
   val emit : t -> Reg.t array -> Mach.operand array
 
-  (* val is_immediate : t -> index:int -> bool *)
-
   (* CR gyorsh: temporary, stats for testing *)
   val report : t -> ?swap:bool -> Mach.operation -> unit
   val report_test : t -> ?swap:bool -> Mach.test -> unit
@@ -689,7 +687,7 @@ method effects_of exp =
 (* Says whether an integer constant is a suitable immediate argument for
    the given integer operation *)
 
-method is_immediate op n =
+method is_immediate_int op n =
   match op with
   | Iintop (Ilsl | Ilsr | Iasr) -> n >= 0 && n < Arch.size_int * 8
   | _ -> false
@@ -697,7 +695,7 @@ method is_immediate op n =
 (* Says whether an integer constant is a suitable immediate argument for
    the given integer test *)
 
-method virtual is_immediate_test : Mach.test -> int -> bool
+method virtual is_immediate_test_int : Mach.test -> int -> bool
 
 (* Selection of addressing modes *)
 
@@ -850,13 +848,13 @@ method select_operands op args =
   match args with
   (* Immediate operands of integer operations *)
   | [arg; Cconst_int (n, _)]
-    when self#is_immediate op n ->
+    when self#is_immediate_int op n ->
     let operands = Operands.(selected [|reg 0;imm (Targetint.of_int n)|]) in
     Operands.report operands op;
     (op, [arg], operands)
   | [Cconst_int (n, _); arg]
     when commutative
-      && self#is_immediate (Option.get swap) n ->
+      && self#is_immediate_int (Option.get swap) n ->
     let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
     Operands.report operands ~swap:true op;
     ((Option.get swap), [arg], operands)
@@ -912,13 +910,13 @@ method select_operands_condition op args =
   match args with
   (* Immediate operands of integer operations *)
   | [arg; Cconst_int (n, _)]
-    when self#is_immediate_test op n ->
+    when self#is_immediate_test_int op n ->
     let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
     Operands.report_test operands op;
     (op, arg, operands)
   | [Cconst_int (n, _); arg]
     when commutative
-      && self#is_immediate_test (Option.get swap) n ->
+      && self#is_immediate_test_int (Option.get swap) n ->
     let operands = Operands.(selected [|reg 0; imm (Targetint.of_int n)|]) in
     Operands.report_test operands ~swap:true op;
     ((Option.get swap), arg, operands)

@@ -213,19 +213,19 @@ class selector = object (self)
 
 inherit Selectgen.selector_generic as super
 
-method! is_immediate op n =
+method! is_immediate_int op n =
   match op with
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ | Icheckbound) ->
       is_immediate n
   | _ ->
-      super#is_immediate op n
+      super#is_immediate_int op n
 
 method! is_immediate_float op f =
   match op with
   | Ifloatop (Iaddf | Isubf | Imulf | Idivf) -> f <> +0.0
   | _ -> false
 
-method is_immediate_test _cmp n = is_immediate n
+method is_immediate_test_int _cmp n = is_immediate n
 
 method is_immediate_test_float cmp f =
   match cmp with
