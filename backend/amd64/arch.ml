@@ -176,7 +176,7 @@ let print_specific_operation_name op =
   | Ioffset_loc -> "offset_loc"
   | Isqrtf -> "sqrtf"
   | Ifloat_iround -> "float_iround"
-  | Ifloat_round mode -> "float_round"
+  | Ifloat_round mode -> "float_round "^(string_of_rounding_mode mode)
   | Ifloat_min -> "float_min"
   | Ifloat_max -> "float_max"
   | Ibswap _ -> "bswap"
