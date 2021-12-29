@@ -103,8 +103,8 @@ let rax = phys_reg 0
 let rcx = phys_reg 5
 let rdx = phys_reg 4
 
-(* arg.(0) is the same as res.(0) *)
-let same_reg_res0_arg0 arg res =
+(* Make arg.(0) the same as res.(0) *)
+let make_same_reg_res0_arg0 arg res =
   let arg' = Array.copy arg in
   arg'.(0) <- Ireg res.(0);
   (arg', res)
@@ -114,12 +114,12 @@ let pseudoregs_for_operation op arg res  =
   (* arg.(0) and res.(0) must be the same *)
     Iintop(Iadd|Isub|Imul|Iand|Ior|Ixor)
   | Ifloatop(Iaddf|Isubf|Imulf|Idivf) ->
-      same_reg_res0_arg0 arg res
+      make_same_reg_res0_arg0 arg res
   | Ifloatop(Iabsf | Inegf)
   | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
      (* CR gyorsh: this is not equivalent to the previously used [(res, res)],
         where physically the same arrays are passed. *)
-     same_reg_res0_arg0 arg res
+     make_same_reg_res0_arg0 arg res
   (* For xchg, args must be a register allowing access to high 8 bit register
      (rax, rbx, rcx or rdx). Keep it simple, just force the argument in rax. *)
   | Ispecific(Ibswap { bitwidth = Sixteen }) ->
@@ -131,7 +131,7 @@ let pseudoregs_for_operation op arg res  =
   | Iintop(Ilsl|Ilsr|Iasr) ->
      (* arg.(0) and res.(0) must be the same *)
      if Mach.is_immediate arg.(1) then
-       same_reg_res0_arg0 arg res
+       make_same_reg_res0_arg0 arg res
      else
        (* For shifts with variable shift count, second arg must be in rcx *)
        ([| Ireg res.(0); Ireg rcx|], res)
