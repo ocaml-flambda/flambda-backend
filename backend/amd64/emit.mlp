@@ -926,7 +926,8 @@ let emit_instr fallthrough i =
       assert (Mach.same_loc i.arg.(0) i.res.(0));
       instr_for_intop op (arg i 1) (res i 0)
   | Lop(Ifloatop(Icompf cmp)) ->
-      let cond, _ = Arch.float_compare_and_need_swap cmp in
+      let cond, _need_swap = Arch.float_compare_and_need_swap cmp in
+      (* Arguments were swapped during selection. *)
       I.cmpsd cond (arg i 1) (arg i 0);
       I.movq (arg i 0) (res i 0);
       I.neg (res i 0)
