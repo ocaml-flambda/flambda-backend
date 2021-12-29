@@ -67,11 +67,6 @@ type addressing_mode =
 
 type prefetch_temporal_locality_hint = Nonlocal | Low | Moderate | High
 
-type prefetch_info = {
-  is_write: bool;
-  locality: prefetch_temporal_locality_hint;
-}
-
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
 type rounding_mode = Half_to_even | Down | Up | Towards_zero | Current
