@@ -47,7 +47,7 @@ let subst_regs_in_operands v sub =
   match sub with
     None -> v
   | Some s ->
-      Array.init (Array.length v) (fun i -> subst_reg_in_operand v.(i) s)
+    Array.map (fun o -> subst_reg_in_operand o s) v
 
 (* We maintain equivalence classes of registers using a standard
    union-find algorithm *)
