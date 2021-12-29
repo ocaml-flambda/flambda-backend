@@ -71,22 +71,6 @@ let stackp r =
     Stack _ -> true
   | Reg _ | Unknown -> false
 
-let is_immediate operands ~index =
-  if Array.length operands > index then
-    match operands.(index) with
-    | Iimm _ -> true
-    | Iimmf _ -> assert false
-    | Ireg _ | Imem _ -> false
-  else
-    false
-
-
-(* let same_loc_arg0_res0 res operands =
- *   match operands.(0) with
- *   | Ireg r -> Reg.same_loc r res.(0)
- *   | Iimm _ | Iimmf _ |  Imem _ -> false *)
-
-
 class reload = object (self)
 
 inherit Reloadgen.reload_generic as super
@@ -128,7 +112,7 @@ method! reload_operation op arg res =
   let arg = self#makeregs_for_memory_operands arg in
   match op with
   | Iintop(Iadd) when (not (Reg.same_loc (Mach.arg_reg arg.(0)) res.(0)))
-                      && is_immediate arg ~index:1 ->
+                      && Mach.is_immediate arg.(1) ->
       (* This add will be turned into a lea; args and results must be
          in registers *)
       super#reload_operation op arg res
