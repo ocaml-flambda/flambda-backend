@@ -37,12 +37,7 @@ let append a b =
   | _ -> append a b
 
 let live_and_args i =
-  Array.fold_left (fun s operand ->
-    match operand with
-    | Iimm _ | Iimmf _ -> s
-    | Ireg r -> Reg.Set.add r s
-    | Imem { reg } -> Reg.add_set_array s reg)
-    i.live i.arg
+  Reg.Set.union i.live (Mach.arg_regset i.arg)
 
 let rec deadcode i =
   match i.desc with
