@@ -191,66 +191,6 @@ end = struct
 
   type t = In_registers | Selected of operand_builder array
 
-  (* CR gyorsh: temporary, for testing *)
-
-  let memory_operands_verbose =
-    match Sys.getenv_opt "MEMORY_OPERANDS_VERBOSE" with
-    | Some "1" -> true
-    | Some _ | None -> false
-
-
-  let check_operands arg (operands : operand_builder array) =
-    (* CR gyorsh: maybe check Iimmf/Iimm and arg types against desc types? *)
-    if memory_operands_verbose then begin
-      let n = Array.length arg in
-      let indexes =
-        Array.fold_left (fun acc operand ->
-          match operand with
-          | Iimm _ | Iimmf _ -> acc
-          | Ireg j ->
-            if (j >= n) then
-              Misc.fatal_errorf "Selectgen.check_operands: \
-                                 %d not in args (args length = %d"
-                j n ();
-            j :: acc
-          | Imem m ->
-            Array.iter (fun j ->
-              if (j >= n) then
-                Misc.fatal_errorf "Selectgen.check_operands: \
-                                   %d not in args (args length = %d"
-                  j n ())
-              m.reg;
-            (Array.to_list m.reg) @ acc
-        ) [] operands
-        |> List.sort_uniq Int.compare
-      in
-      if List.length indexes < Array.length arg then
-        Misc.fatal_errorf "Selectgen.check_operands: \
-                           leng of indexes = %d, length of args = %d"
-          (List.length indexes) (Array.length arg) ();
-      List.iteri (fun i j ->
-        if i != j then
-          Misc.fatal_errorf "Indexes.(%d)=%d" i j ())
-        indexes
-    end
-
-  let emit_operand : Reg.t array -> operand_builder -> Mach.operand =
-    fun arg operand ->
-    match operand with
-    | Iimm n -> Iimm n
-    | Iimmf f -> Iimmf f
-    | Ireg i -> Ireg arg.(i)
-    | Imem { chunk; addr; reg; } ->
-      let reg = Array.map (fun j -> arg.(j)) reg in
-      Imem { chunk; addr; reg; }
-
-  let emit : t -> Reg.t array -> Mach.operand array = fun t arg ->
-    match t with
-    | In_registers -> operands_of_regs arg
-    | Selected s ->
-      check_operands arg s;
-      Array.map (emit_operand arg) s
-
   let mem chunk addr ~index ~len =
     let reg = Array.init len (fun i -> index + i) in
     Imem { chunk; addr; reg }
@@ -266,6 +206,12 @@ end = struct
   let selected r = Selected r
 
   (* CR gyorsh: temporary - stats about selected operands *)
+
+  let memory_operands_verbose =
+    match Sys.getenv_opt "MEMORY_OPERANDS_VERBOSE" with
+    | Some "1" -> true
+    | Some _ | None -> false
+
   open Format
 
   let print_reg ppf i = fprintf ppf "reg %i" i
@@ -301,7 +247,7 @@ end = struct
     | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ -> assert false
 
   let report operands ?(swap = false) (op : Mach.operation) =
-    if !Clflags.inlining_report then begin
+    if memory_operands_verbose then begin
       match operands with
       | In_registers -> ()
       | Selected operands ->
@@ -319,7 +265,7 @@ end = struct
     | Ioddtest -> "Ioddtest"
 
   let report_test operands ?(swap = false) (op : Mach.test) =
-    if !Clflags.inlining_report then begin
+    if memory_operands_verbose then begin
       match operands with
       | In_registers -> ()
       | Selected operands ->
@@ -327,6 +273,49 @@ end = struct
           print_operands operands
           (if swap then " (swapped)" else "")
     end
+
+  (* Construct Mach.operands from operand_builder  *)
+
+  let check_operands arg (operands : operand_builder array) =
+    (* CR-someday gyorsh: check Iimmf/Iimm and arg types against desc types? *)
+      let n = Array.length arg in
+      let used_arg = Array.make n false in
+      let used j =
+        if (j >= n) then
+          Misc.fatal_errorf "Selectgen.check_operands: \
+                             reg %d not in args \
+                             (args length = %d, arg = %a, operands = %a"
+            j n print_operands operands Printmach.regs arg ();
+        used_arg.(j) <- true in
+      Array.iter (function
+        | Iimm _ | Iimmf _ -> ()
+        | Ireg j -> used j
+        | Imem m -> Array.iter used m.reg)
+        operands;
+      Array.iteri (fun i is_used ->
+        if not is_used then begin
+          Misc.fatal_errorf "Selectgen.check_operands: \
+                             arg.(%d) not used in operands %a (arg is %a)."
+            i print_operands operands Printmach.regs arg  ()
+        end) used_arg
+
+  let emit_operand : Reg.t array -> operand_builder -> Mach.operand =
+    fun arg operand ->
+    match operand with
+    | Iimm n -> Iimm n
+    | Iimmf f -> Iimmf f
+    | Ireg i -> Ireg arg.(i)
+    | Imem { chunk; addr; reg; } ->
+      let reg = Array.map (fun j -> arg.(j)) reg in
+      Imem { chunk; addr; reg; }
+
+  let emit : t -> Reg.t array -> Mach.operand array = fun t arg ->
+    match t with
+    | In_registers -> operands_of_regs arg
+    | Selected s ->
+      check_operands arg s;
+      Array.map (emit_operand arg) s
+
 end
 
 (* Infer the type of the result of an operation *)
