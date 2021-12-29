@@ -273,9 +273,7 @@ let rec combine3 l1 l2 l3 =
 
 let is_memory operands =
   let is_memory = function
-    | Iimm _ | Ireg _ -> false
-      (* CR gyorsh: Iimmf is target specific, be conservative *)
-    | Iimmf _ -> true
+    | Iimm _ | Iimmf _ | Ireg _ -> false
     | Imem _ -> true
   in
   Array.exists is_memory operands
