@@ -207,10 +207,9 @@ let operation op arg ppf res =
   | Ibeginregion -> fprintf ppf "beginregion"
   | Iendregion -> fprintf ppf "endregion %a" operand arg.(0)
   | Ispecific op ->
-    (Arch.print_specific_operation : (Format.formatter -> Reg.t -> unit) ->
-         (Format.formatter -> Mach.operand -> unit) ->
+    (Arch.print_specific_operation : (Format.formatter -> Mach.operand -> unit) ->
          Arch.specific_operation -> Format.formatter -> Mach.operand array -> unit)
-      reg operand op ppf arg
+      operand op ppf arg
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym operands arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name

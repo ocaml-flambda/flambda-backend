@@ -187,7 +187,7 @@ let print_specific_operation_name op =
   | Icrc32q -> "crc32"
   | Iprefetch _ -> "prefetch"
 
-let print_specific_operation printreg printoperand op ppf arg =
+let print_specific_operation printoperand op ppf arg =
   match op with
   | Ilea -> printoperand ppf arg.(0)
   | Ioffset_loc ->
