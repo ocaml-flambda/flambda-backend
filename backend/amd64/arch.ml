@@ -13,7 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+4+26+27+30+31+32+33+34+35+36+37+38+39"]
 
 (* POPCNT instruction is not available prior to Nehalem, released in 2008. *)
 let popcnt_support = ref true
