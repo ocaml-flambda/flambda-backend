@@ -221,8 +221,8 @@ let dump_op ppf = function
   | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"
-  | Intop op -> Format.fprintf ppf "intop %s" (intop op)
-  | Floatop op -> Format.fprintf ppf "floatop %s" (floatop op)
+  | Intop op -> Format.fprintf ppf "intop%s" (intop op)
+  | Floatop op -> Format.fprintf ppf "floatop%s" (floatop op)
   | Floatofint -> Format.fprintf ppf "floattoint"
   | Intoffloat -> Format.fprintf ppf "intoffloat"
   | Specific _ -> Format.fprintf ppf "specific"
