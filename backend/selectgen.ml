@@ -175,8 +175,9 @@ module Operands : sig
   val emit : t -> Reg.t array -> Mach.operand array
 
   (* CR gyorsh: temporary, stats for testing *)
-  val report : t -> ?swap:bool -> Mach.operation -> unit
-  val report_test : t -> ?swap:bool -> Mach.test -> unit
+  val report : operand_builder array -> ?swap:bool -> Mach.operation -> unit
+  val report_test : operand_builder array -> ?swap:bool -> Mach.test -> unit
+  val print_operands : Format.formatter -> operand_builder array -> unit
 end = struct
 
   type operand_builder =
@@ -234,7 +235,7 @@ end = struct
     | n -> operand ppf v.(0);
       for i = 1 to n-1 do fprintf ppf ", %a" operand v.(i) done
 
-  let print : Mach.operation -> string = function
+  let print_op : Mach.operation -> string = function
     | Iintop op -> (Printmach.intop op)
     | Ifloatop op -> (Printmach.floatop op)
     | Ifloatofint -> "floatofint"
@@ -246,16 +247,6 @@ end = struct
     | Istackoffset _ | Iload (_, _) | Istore _ | Ialloc _
     | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ -> assert false
 
-  let report operands ?(swap = false) (op : Mach.operation) =
-    if memory_operands_verbose then begin
-      match operands with
-      | In_registers -> ()
-      | Selected operands ->
-        fprintf !ppf_dump "@[<h>Selectgen: %s %a%s@]@\n" (print op)
-          print_operands operands
-          (if swap then " (swapped)" else "")
-    end
-
   let print_test : Mach.test -> string = function
     | Itruetest -> "Itruetest"
     | Ifalsetest ->  "Ifalsetest"
@@ -264,14 +255,19 @@ end = struct
     | Ieventest -> "Ieventest"
     | Ioddtest -> "Ioddtest"
 
-  let report_test operands ?(swap = false) (op : Mach.test) =
-    if memory_operands_verbose then begin
-      match operands with
-      | In_registers -> ()
-      | Selected operands ->
-        fprintf !ppf_dump "@[<h>Selectgen: %s %a%s@]@\n" (print_test op)
-          print_operands operands
-          (if swap then " (swapped)" else "")
+  let report operands ?(swap = false) op =
+    if memory_operands_verbose &&
+       not (Array.for_all is_reg operands) then begin
+      fprintf !ppf_dump "@[<h>Selectgen: %s %a%s@]@\n" (print_op op)
+        print_operands operands
+        (if swap then " (swapped)" else "")
+    end
+  let report_test operands ?(swap = false) op =
+    if memory_operands_verbose &&
+       not (Array.for_all is_reg operands) then begin
+      fprintf !ppf_dump "@[<h>Selectgen: %s %a%s@]@\n" (print_test op)
+        print_operands operands
+        (if swap then " (swapped)" else "")
     end
 
   (* Construct Mach.operands from operand_builder  *)
