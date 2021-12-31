@@ -158,9 +158,9 @@ let same_loc operand reg =
   match operand with
   | Iimm _ | Iimmf _ -> false
   | Imem _ ->
-    (* CR gyorsh: can be optimizeed if reg.loc is Stack and mem is
+    (* CR gyorsh: can be optimized if reg.loc is Stack and mem is
        statically known to refer to the same stack location.
-       This case Will need to be handled if we replace the representation of
+       This case will need to be handled if we replace the representation of
        Reg.Stack to use Imem. *)
     false
   | Ireg r -> Reg.same_loc r reg
@@ -356,8 +356,7 @@ let equal_integer_operation left right =
 
 let equal_float_operation left right =
   match left, right with
-  | Icompf left_comp, Icompf right_comp
-       when Cmm.equal_float_comparison left_comp right_comp -> true
+  | Icompf left_comp, Icompf right_comp -> Cmm.equal_float_comparison left_comp right_comp
   | Inegf, Inegf -> true
   | Iabsf, Iabsf -> true
   | Iaddf, Iaddf -> true

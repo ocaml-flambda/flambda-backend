@@ -33,7 +33,7 @@ val size_expr : environment -> Cmm.expression -> int
    are converted from Cmm expression to Mach expressions. This module
    specifies how to construct operands and then emit them
    once the registers are determined in which the result of
-   argument evaluation is place. *)
+   argument evaluation is placed. *)
 module Operands : sig
   type t                  (** a constructor for operand array  *)
   type operand_builder (** a constructor for a single operand  *)
