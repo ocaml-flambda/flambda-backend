@@ -401,9 +401,9 @@ let rec check_basic_instruction_list :
     check_basic_instruction_list state location (succ idx) expected_tl result_tl
 
 let special_immediates : 'a Cfg.instruction -> 'a Cfg.instruction -> bool =
-  fun expected result ->
+ fun expected result ->
   match expected.arg.(1), result.arg.(1) with
-  | (Iimm imm1, Iimm imm2) -> Targetint.equal imm1 (Targetint.pred imm2)
+  | Iimm imm1, Iimm imm2 -> Targetint.equal imm1 (Targetint.pred imm2)
   | (Iimmf _ | Ireg _ | Imem _), _ | _, (Iimmf _ | Ireg _ | Imem _) -> false
 
 let check_terminator_instruction :
