@@ -378,3 +378,48 @@ let equal_operand left right =
     Array.length left_reg = Array.length right_reg &&
     Array.for_all2 Reg.same_loc left_reg right_reg
   | (Iimm _ | Iimmf _ | Ireg _ | Imem _),_ -> false
+
+let integer_operation_arity = function
+  | Icomp _
+  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
+  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> 2
+  | Iclz _ | Ictz _ | Ipopcnt
+  | Icheckbound -> 2
+
+let float_operation_arity = function
+  | Inegf | Iabsf -> 1
+  | Iaddf | Isubf | Imulf | Idivf
+  | Icompf _ -> 2
+
+let operation_arity = function
+  | Imove
+  | Ispill
+  | Ireload -> Some 2
+  | Iconst_int _
+  | Iconst_float _
+  | Iconst_symbol _ -> Some 0
+  | Icall_ind
+  | Icall_imm _
+  | Itailcall_ind
+  | Itailcall_imm _
+  | Iextcall _ -> None
+  | Istackoffset _  -> None
+  | Iload _
+  | Istore _ -> Some 1
+  | Ialloc _ -> None
+  | Iintop op -> Some (integer_operation_arity op)
+  | Ifloatop op -> Some (float_operation_arity op)
+  | Ifloatofint | Iintoffloat -> Some 1
+  | Iopaque -> Some 1
+  | Ispecific _ -> None
+  | Iname_for_debugger _ -> None
+  | Iprobe _ -> None
+  | Iprobe_is_enabled _ -> None
+
+let test_arity = function
+  | Itruetest
+  | Ifalsetest
+  | Ioddtest
+  | Ieventest -> 1
+  | Iinttest _
+  | Ifloattest _ -> 2
