@@ -140,7 +140,8 @@ class virtual selector_generic : object
     (* Can be overridden to deal with special store constant instructions *)
   method memory_operands_supported : Mach.operation -> Cmm.memory_chunk -> bool
     (* Can be overridden to enable memory operands selection *)
-  method memory_operands_supported_condition : Mach.test -> Cmm.memory_chunk -> bool
+  method memory_operands_supported_condition :
+    Mach.test -> Cmm.memory_chunk -> bool
     (*  Can be overridden to enable memory operands selection *)
   method regs_for : Cmm.machtype -> Reg.t array
     (* Return an array of fresh registers of the given type.
