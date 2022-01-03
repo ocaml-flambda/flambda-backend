@@ -24,8 +24,6 @@
    -open
    Flambda2_kinds
    -open
-   Flambda2_cmx
-   -open
    Flambda2_terms))
  (ocamlopt_flags
   (:standard -O3))
@@ -40,5 +38,4 @@
   flambda2_nominal
   flambda2_lattices
   flambda2_kinds
-  flambda2_cmx
   flambda2_terms))
