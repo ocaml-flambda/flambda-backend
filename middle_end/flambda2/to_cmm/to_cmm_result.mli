@@ -25,7 +25,7 @@
 type t
 
 (** The empty result. *)
-val empty : t
+val empty : module_symbol:Symbol.t -> t
 
 (** Archive the current data into the list of already translated data. *)
 val archive_data : t -> t
@@ -42,6 +42,11 @@ val add_gc_roots : t -> Symbol.t list -> t
 
 (** Add a function translation. *)
 val add_function : t -> Cmm.fundecl -> t
+
+(** Record the symbol as having been defined. This is used to keep track of whether
+    the symbol for the current unit has been defined. *)
+val check_for_module_symbol : t -> Symbol.t -> t
+
 
 (* CR mshinwell: Use a "private" record for the return type of this. *)
 
