@@ -1336,9 +1336,9 @@ and transl_match ~scopes e arg pat_expr_list partial =
         (* Simplif doesn't like it if binders are not uniq, so we make sure to
            use different names in the value and the exception branches. *)
         let ids_full = Typedtree.pat_bound_idents_full pv in
-        let ids = List.map (fun (id, _) -> id) ids_full in
+        let ids = List.map (fun (id, _, _) -> id) ids_full in
         let ids_kinds =
-          List.map (fun (id, ty) -> id, Typeopt.value_kind pv.pat_env ty)
+          List.map (fun (id, _, ty) -> id, Typeopt.value_kind pv.pat_env ty)
             ids_full
         in
         let vids = List.map Ident.rename ids in

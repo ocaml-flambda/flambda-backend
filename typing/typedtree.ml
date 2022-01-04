@@ -779,11 +779,11 @@ let rec iter_bound_idents
   : type k . _ -> k general_pattern -> _
   = fun f pat ->
   match pat.pat_desc with
-  | Tpat_var (id, _) ->
-     f (id, pat.pat_type)
-  | Tpat_alias(p, id, _) ->
+  | Tpat_var (id, s) ->
+     f (id,s,pat.pat_type)
+  | Tpat_alias(p, id, s) ->
       iter_bound_idents f p;
-      f (id, pat.pat_type)
+      f (id,s,pat.pat_type)
   | Tpat_or(p1, _, _) ->
       (* Invariant : both arguments bind the same variables *)
       iter_bound_idents f p1
@@ -799,7 +799,7 @@ let rev_pat_bound_idents_full pat =
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_) -> id) idents_full
+  List.rev_map (fun (id,_,_) -> id) idents_full
 
 let pat_bound_idents_full pat =
   List.rev (rev_pat_bound_idents_full pat)
@@ -826,7 +826,7 @@ let let_bound_idents_with_modes bindings =
   in
   List.iter (fun vb -> loop vb.vb_pat) bindings;
   List.rev_map
-    (fun (id, _) -> id, List.rev (Ident.Tbl.find_all modes id))
+    (fun (id, _, _) -> id, List.rev (Ident.Tbl.find_all modes id))
     (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =

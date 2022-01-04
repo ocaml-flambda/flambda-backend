@@ -821,7 +821,7 @@ val exists_pattern: (pattern -> bool) -> pattern -> bool
 
 val let_bound_idents: value_binding list -> Ident.t list
 val let_bound_idents_full:
-    value_binding list -> (Ident.t * Types.type_expr) list
+    value_binding list -> (Ident.t * string loc * Types.type_expr) list
 val let_bound_idents_with_modes:
   value_binding list
   -> (Ident.t * (Location.t * Types.value_mode) list) list
@@ -835,7 +835,7 @@ val mkloc: 'a -> Location.t -> 'a Asttypes.loc
 
 val pat_bound_idents: 'k general_pattern -> Ident.t list
 val pat_bound_idents_full:
-  'k general_pattern -> (Ident.t * Types.type_expr) list
+  'k general_pattern -> (Ident.t * string loc * Types.type_expr) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:
