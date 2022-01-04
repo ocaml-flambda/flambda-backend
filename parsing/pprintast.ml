@@ -518,26 +518,26 @@ and label_exp ctxt f (l,opt,p) =
   match l with
   | Nolabel ->
       (* single case pattern parens needed here *)
-      pp f "%a@ " (simple_pattern ctxt) p
+      pp f "%a" (simple_pattern ctxt) p
   | Optional rest ->
       begin match p with
       | {ppat_desc = Ppat_var {txt;_}; ppat_attributes = []}
         when txt = rest ->
           (match opt with
-           | Some o -> pp f "?(%s=@;%a)@;" rest  (expression ctxt) o
-           | None -> pp f "?%s@ " rest)
+           | Some o -> pp f "?(%s=@;%a)" rest  (expression ctxt) o
+           | None -> pp f "?%s" rest)
       | _ ->
           (match opt with
            | Some o ->
-               pp f "?%s:(%a=@;%a)@;"
+               pp f "?%s:(%a=@;%a)"
                  rest (pattern1 ctxt) p (expression ctxt) o
-           | None -> pp f "?%s:%a@;" rest (simple_pattern ctxt) p)
+           | None -> pp f "?%s:%a" rest (simple_pattern ctxt) p)
       end
   | Labelled l -> match p with
     | {ppat_desc  = Ppat_var {txt;_}; ppat_attributes = []}
       when txt = l ->
-        pp f "~%s@;" l
-    | _ ->  pp f "~%s:%a@;" l (simple_pattern ctxt) p
+        pp f "~%s" l
+    | _ ->  pp f "~%s:%a" l (simple_pattern ctxt) p
 
 and sugar_expr ctxt f e =
   if e.pexp_attributes <> [] then false
@@ -1242,11 +1242,8 @@ and pp_print_pexp_function ctxt sep f x =
   if x.pexp_attributes <> [] then pp f "%s@;%a" sep (expression ctxt) x
   else match x.pexp_desc with
     | Pexp_fun (label, eo, p, e) ->
-      if label=Nolabel then
-        pp f "%a@ %a" (simple_pattern ctxt) p (pp_print_pexp_function ctxt sep) e
-      else
-        pp f "%a@ %a"
-          (label_exp ctxt) (label,eo,p) (pp_print_pexp_function ctxt sep) e
+      pp f "%a@ %a"
+        (label_exp ctxt) (label,eo,p) (pp_print_pexp_function ctxt sep) e
     | Pexp_newtype (str,e) ->
       pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
     | _ -> pp f "%s@;%a" sep (expression ctxt) x
@@ -1414,7 +1411,7 @@ and structure_item ctxt f x =
         pp f "@[<2>%s %a%a%s %a%a=@;%a@]%a" kwd
           virtual_flag x.pci_virt
           (class_params_def ctxt) ls txt
-          (list (label_exp ctxt)) args
+          (list (label_exp ctxt) ~last:"@ ") args
           (option class_constraint) constr
           (class_expr ctxt) cl
           (item_attributes ctxt) x.pci_attributes
