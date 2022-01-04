@@ -711,45 +711,43 @@ and meet_product_var_within_closure_indexed env
 and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
     (prod2 : TG.Product.Int_indexed.t) : _ Or_bottom.t =
   if not (K.equal prod1.kind prod2.kind)
-  then
-    Misc.fatal_errorf
-      "meet_int_indexed_product between mismatching kinds %a and %a@." K.print
-      prod1.kind K.print prod2.kind;
-  let fields1 = prod1.fields in
-  let fields2 = prod2.fields in
-  let any_bottom = ref false in
-  let env_extension = ref TEE.empty in
-  let length = max (Array.length fields1) (Array.length fields2) in
-  let fields =
-    Array.init length (fun index ->
-        let get_opt fields =
-          if index >= Array.length fields then None else Some fields.(index)
-        in
-        match get_opt fields1, get_opt fields2 with
-        | None, None -> assert false
-        | Some t, None | None, Some t -> t
-        | Some ty1, Some ty2 -> begin
-          match meet env ty1 ty2 with
-          | Ok (ty, env_extension') -> begin
-            match meet_env_extension env !env_extension env_extension' with
+  then Bottom
+  else
+    let fields1 = prod1.fields in
+    let fields2 = prod2.fields in
+    let any_bottom = ref false in
+    let env_extension = ref TEE.empty in
+    let length = max (Array.length fields1) (Array.length fields2) in
+    let fields =
+      Array.init length (fun index ->
+          let get_opt fields =
+            if index >= Array.length fields then None else Some fields.(index)
+          in
+          match get_opt fields1, get_opt fields2 with
+          | None, None -> assert false
+          | Some t, None | None, Some t -> t
+          | Some ty1, Some ty2 -> begin
+            match meet env ty1 ty2 with
+            | Ok (ty, env_extension') -> begin
+              match meet_env_extension env !env_extension env_extension' with
+              | Bottom ->
+                any_bottom := true;
+                MTC.bottom_like ty1
+              | Ok extension ->
+                env_extension := extension;
+                ty
+            end
             | Bottom ->
               any_bottom := true;
               MTC.bottom_like ty1
-            | Ok extension ->
-              env_extension := extension;
-              ty
-          end
-          | Bottom ->
-            any_bottom := true;
-            MTC.bottom_like ty1
-        end)
-  in
-  if !any_bottom
-  then Bottom
-  else
-    Ok
-      ( TG.Product.Int_indexed.create_from_array prod1.kind fields,
-        !env_extension )
+          end)
+    in
+    if !any_bottom
+    then Bottom
+    else
+      Ok
+        ( TG.Product.Int_indexed.create_from_array prod1.kind fields,
+          !env_extension )
 
 and meet_function_type (env : Meet_env.t)
     (func_type1 : TG.Function_type.t Or_unknown_or_bottom.t)
