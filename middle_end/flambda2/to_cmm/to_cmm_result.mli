@@ -43,10 +43,9 @@ val add_gc_roots : t -> Symbol.t list -> t
 (** Add a function translation. *)
 val add_function : t -> Cmm.fundecl -> t
 
-(** Record the symbol as having been defined. This is used to keep track of whether
-    the symbol for the current unit has been defined. *)
+(** Record the symbol as having been defined. This is used to keep track of
+    whether the symbol for the current unit has been defined. *)
 val check_for_module_symbol : t -> Symbol.t -> t
-
 
 (* CR mshinwell: Use a "private" record for the return type of this. *)
 
