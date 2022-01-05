@@ -111,7 +111,7 @@ end = struct
         in
         let env_extension =
           T.make_suitable_for_environment env_prior_to_sets type_prior_to_sets
-            ~suitable_for:env_inside_function ~bind_to:(Name.var var)
+            (Everything_not_in env_inside_function) ~bind_to:(Name.var var)
         in
         let env_inside_function =
           TE.add_env_extension_with_extra_variables env_inside_function
@@ -426,7 +426,8 @@ type simplify_function_result =
   { new_code_id : Code_id.t;
     code : Rebuilt_static_const.t option;
     dacc_after_body : DA.t option;
-    uacc_after_upwards_traversal : UA.t option
+    uacc_after_upwards_traversal : UA.t option;
+    lifted_consts_this_function : LCS.t
   }
 
 let simplify_function0 context ~used_closure_vars ~shareable_constants
@@ -447,9 +448,20 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
       (Code.inlining_arguments code)
       inlining_arguments_from_denv
   in
-  let ( params_and_body,
+  let result_arity = Code.result_arity code in
+  let return_cont_params =
+    List.mapi
+      (fun i kind_with_subkind ->
+        BP.create
+          (Variable.create ("result" ^ string_of_int i))
+          kind_with_subkind)
+      result_arity
+  in
+  let ( params,
+        params_and_body,
         dacc_after_body,
         free_names_of_code,
+        return_cont_uses,
         uacc_after_upwards_traversal ) =
     Function_params_and_body.pattern_match (Code.params_and_body code)
       ~f:(fun
@@ -483,6 +495,8 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
                      in
                      TE.with_code_age_relation typing_env code_age_relation)
               |> fun denv ->
+              DE.add_parameters_with_unknown_types denv return_cont_params
+              |> fun denv ->
               (* Lifted constants from previous functions in the set get put
                  into the environment for subsequent functions. *)
               LCS.add_to_denv denv lifted_consts_prev_functions)
@@ -496,7 +510,11 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
         with
         | body, uacc ->
           let dacc_after_body = UA.creation_dacc uacc in
-          (* CR mshinwell: Should probably look at [cont_uses]? *)
+          let return_cont_uses =
+            CUE.get_continuation_uses
+              (DA.continuation_uses_env dacc_after_body)
+              return_continuation
+          in
           let free_names_of_body = UA.name_occurrences uacc in
           let params_and_body =
             RE.Function_params_and_body.create ~free_names_of_body
@@ -542,7 +560,12 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
               Variable.print my_depth
               (RE.print (UA.are_rebuilding_terms uacc))
               body;
-          params_and_body, dacc_after_body, free_names_of_code, uacc
+          ( params,
+            params_and_body,
+            dacc_after_body,
+            free_names_of_code,
+            return_cont_uses,
+            uacc )
         | exception Misc.Fatal_error ->
           let bt = Printexc.get_raw_backtrace () in
           Format.eprintf
@@ -578,24 +601,95 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
       ~dbg;
     decision
   in
+  let lifted_consts_this_function =
+    (* Subtle point: [uacc_after_upwards_traversal] must be used to retrieve all
+       of the lifted constants generated during the simplification of the
+       function, not [dacc_after_body]. The reason for this is that sometimes
+       the constants in [DA] are cleared (but remembered) and reinstated
+       afterwards, for example at a [Let_cont]. It follows that if the turning
+       point where the downwards traversal turns into an upwards traversal is in
+       such a context, not all of the constants may currently be present in
+       [DA]. *)
+    UA.lifted_constants uacc_after_upwards_traversal
+  in
+  let default_result_types =
+    Result_types.create_default ~params ~result_arity
+  in
+  let is_a_functor = Code.is_a_functor code in
+  let result_types =
+    if not is_a_functor
+    then default_result_types
+    else
+      match return_cont_uses with
+      | None -> default_result_types
+      | Some uses -> (
+        (* CR mshinwell: Should we meet the result types with the arity? Also at
+           applications? *)
+        let code_age_relation_after_function =
+          TE.code_age_relation (DA.typing_env dacc_after_body)
+        in
+        let env_at_fork_plus_params =
+          (* We use [C.dacc_inside_functions] not [C.dacc_prior_to_sets] to
+             ensure that the environment contains bindings for any symbols being
+             defined by the set of closures. *)
+          DE.add_parameters_with_unknown_types
+            (DA.denv (C.dacc_inside_functions context))
+            return_cont_params
+        in
+        let join =
+          let consts_lifted_during_body =
+            LCS.union lifted_consts_prev_functions lifted_consts_this_function
+          in
+          Join_points.compute_handler_env
+            ~unknown_if_defined_at_or_later_than:
+              (DE.get_continuation_scope env_at_fork_plus_params)
+            uses ~params:return_cont_params ~env_at_fork_plus_params
+            ~consts_lifted_during_body
+            ~code_age_relation_after_body:code_age_relation_after_function
+        in
+        match join with
+        | No_uses -> default_result_types
+        | Uses { handler_env; _ } ->
+          let params_and_results =
+            BP.List.var_set (params @ return_cont_params)
+          in
+          let results =
+            List.map
+              (fun result ->
+                let typing_env = DE.typing_env handler_env in
+                let ty =
+                  TE.find typing_env (BP.name result)
+                    (Some (K.With_subkind.kind (BP.kind result)))
+                in
+                let env_extension =
+                  T.make_suitable_for_environment typing_env ty
+                    (All_variables_except params_and_results)
+                    ~bind_to:(BP.name result)
+                in
+                result, env_extension)
+              return_cont_params
+          in
+          Result_types.create ~params ~results)
+  in
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
       new_code_id ~params_and_body
       ~free_names_of_params_and_body:free_names_of_code
       ~newer_version_of:(Some old_code_id)
-      ~params_arity:(Code.params_arity code)
-      ~result_arity:(Code.result_arity code) ~stub:(Code.stub code)
-      ~inline:(Code.inline code) ~is_a_functor:(Code.is_a_functor code)
-      ~recursive:(Code.recursive code) ~cost_metrics ~inlining_arguments
-      ~dbg:(Code.dbg code) ~is_tupled:(Code.is_tupled code)
+      ~params_arity:(Code.params_arity code) ~result_arity ~result_types
+      ~stub:(Code.stub code) ~inline:(Code.inline code)
+      ~is_a_functor:(Code.is_a_functor code) ~recursive:(Code.recursive code)
+      ~cost_metrics ~inlining_arguments ~dbg:(Code.dbg code)
+      ~is_tupled:(Code.is_tupled code)
       ~is_my_closure_used:(Code.is_my_closure_used code)
       ~inlining_decision
   in
   { new_code_id;
     code = Some code;
     dacc_after_body = Some dacc_after_body;
-    uacc_after_upwards_traversal = Some uacc_after_upwards_traversal
+    uacc_after_upwards_traversal = Some uacc_after_upwards_traversal;
+    lifted_consts_this_function
   }
 
 let simplify_function context ~used_closure_vars ~shareable_constants
@@ -613,7 +707,8 @@ let simplify_function context ~used_closure_vars ~shareable_constants
     { new_code_id = code_id;
       code = None;
       dacc_after_body = None;
-      uacc_after_upwards_traversal = None
+      uacc_after_upwards_traversal = None;
+      lifted_consts_this_function = LCS.empty
     }
 
 type simplify_set_of_closures0_result =
@@ -656,7 +751,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         let { new_code_id;
               code = new_code;
               dacc_after_body;
-              uacc_after_upwards_traversal
+              uacc_after_upwards_traversal;
+              lifted_consts_this_function
             } =
           simplify_function context ~used_closure_vars ~shareable_constants
             ~closure_offsets closure_id old_code_id
@@ -670,20 +766,6 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
             T.this_rec_info Rec_info_expr.initial
           in
           function_decl_type new_code_id rec_info
-        in
-        let lifted_consts_this_function =
-          (* Subtle point: [uacc_after_upwards_traversal] must be used to
-             retrieve all of the lifted constants generated during the
-             simplification of the function, not [dacc_after_body]. The reason
-             for this is that sometimes the constants in [DA] are cleared (but
-             remembered) and reinstated afterwards, for example at a [Let_cont].
-             It follows that if the turning point where the downwards traversal
-             turns into an upwards traversal is in such a context, not all of
-             the constants may currently be present in [DA]. *)
-          match uacc_after_upwards_traversal with
-          | None -> LCS.empty
-          | Some uacc_after_upwards_traversal ->
-            UA.lifted_constants uacc_after_upwards_traversal
         in
         let result_function_decls_in_set =
           (closure_id, new_code_id) :: result_function_decls_in_set
@@ -792,7 +874,9 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
      [T.make_suitable_for_environment] would be needed here, as the return types
      could name the irrelevant variables bound to the closures. (We could
      further add equalities between those irrelevant variables and the bound
-     closure variables themselves.) *)
+     closure variables themselves.)
+
+     mshinwell: first half fixed, see above where [Code] is created. *)
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
         denv

@@ -74,7 +74,7 @@ module With_extra_variables = struct
 
   let print ppf { existential_vars; equations } =
     Format.fprintf ppf
-      "@[<hov 1>(@[<hov 1>(variables@ @[<hov 1>%a@])@]@[<hov 1>%a@])@ @]"
+      "@[<hov 1>(@[<hov 1>(variables@ @[<hov 1>%a@])@]@ @[<hov 1>%a@])@ @]"
       (Variable.Map.print Flambda_kind.print)
       existential_vars TG.Env_extension.print
       (TG.Env_extension.create ~equations)
@@ -96,4 +96,51 @@ module With_extra_variables = struct
     { existential_vars = t.existential_vars;
       equations = Name.Map.add name ty t.equations
     }
+
+  let free_names { existential_vars; equations } =
+    let variables = Variable.Map.keys existential_vars in
+    let free_names =
+      Name_occurrences.create_variables variables Name_mode.in_types
+    in
+    Name.Map.fold
+      (fun name ty free_names ->
+        let free_names =
+          Name_occurrences.add_name free_names name Name_mode.in_types
+        in
+        Name_occurrences.union free_names (TG.free_names ty))
+      equations free_names
+
+  let apply_renaming { existential_vars; equations } renaming =
+    let existential_vars =
+      Variable.Map.fold
+        (fun var kind result ->
+          let var' = Renaming.apply_variable renaming var in
+          Variable.Map.add var' kind result)
+        existential_vars Variable.Map.empty
+    in
+    let equations =
+      Name.Map.fold
+        (fun name ty result ->
+          let name' = Renaming.apply_name renaming name in
+          let ty' = TG.apply_renaming ty renaming in
+          Name.Map.add name' ty' result)
+        equations Name.Map.empty
+    in
+    { existential_vars; equations }
+
+  let all_ids_for_export { existential_vars; equations } =
+    let variables = Variable.Map.keys existential_vars in
+    let ids = Ids_for_export.create ~variables () in
+    Name.Map.fold
+      (fun name ty ids ->
+        let ids = Ids_for_export.add_name ids name in
+        Ids_for_export.union ids (TG.all_ids_for_export ty))
+      equations ids
+
+  let existential_vars { existential_vars; _ } =
+    Variable.Map.keys existential_vars
+
+  let map_types { existential_vars; equations } ~f =
+    let equations = Name.Map.map f equations in
+    { existential_vars; equations }
 end

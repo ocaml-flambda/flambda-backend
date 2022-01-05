@@ -251,19 +251,34 @@
   ; The driver should be in here too, but is not at present.  This might
   ; be tricky because it has a different name...
   )
- (libraries ocamlcommon stdlib flambda_backend_common flambda2_identifiers flambda2_cmx))
+ (libraries
+  ocamlcommon
+  stdlib
+  flambda_backend_common
+  flambda2_identifiers
+  flambda2_cmx))
 
 (library
  (name flambda_backend_common)
  (wrapped false)
  (modes byte native)
  ; same flags as for ocamlcommon library
- (flags (
-   -nostdlib -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
-   -warn-error A -bin-annot -safe-string -strict-formats
-   -w -67
+ (flags
+  (-nostdlib
+   -strict-sequence
+   -principal
+   -absname
+   -w
+   +a-4-9-40-41-42-44-45-48-66
+   -warn-error
+   A
+   -bin-annot
+   -safe-string
+   -strict-formats
+   -w
+   -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
- ))
+   ))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries stdlib ocamlcommon)
@@ -337,9 +352,9 @@
    %{dep:middle_end/flambda2/lattices/flambda2_lattices.a}
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.a}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
+   %{dep:middle_end/flambda2/types/flambda2_types.a}
    %{dep:middle_end/flambda2/terms/flambda2_terms.a}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.a}
-   %{dep:middle_end/flambda2/types/flambda2_types.a}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
@@ -364,9 +379,9 @@
    %{dep:middle_end/flambda2/lattices/flambda2_lattices.cma}
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cma}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
+   %{dep:middle_end/flambda2/types/flambda2_types.cma}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cma}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cma}
-   %{dep:middle_end/flambda2/types/flambda2_types.cma}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
@@ -391,9 +406,9 @@
    %{dep:middle_end/flambda2/lattices/flambda2_lattices.cmxa}
    %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa}
    %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
+   %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
    %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
    %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cmxa}
-   %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
@@ -1258,38 +1273,89 @@
   (middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm__To_cmm.cmt
    as
    compiler-libs/flambda2_to_cmm__To_cmm.cmt)
-
   (compiler_hooks.mli as compiler-libs/compiler_hooks.mli)
-  (.ocamloptcomp.objs/byte/compiler_hooks.cmi as compiler-libs/compiler_hooks.cmi)
-  (.ocamloptcomp.objs/byte/compiler_hooks.cmo as compiler-libs/compiler_hooks.cmo)
-  (.ocamloptcomp.objs/byte/compiler_hooks.cmt as compiler-libs/compiler_hooks.cmt)
-  (.ocamloptcomp.objs/byte/compiler_hooks.cmti as compiler-libs/compiler_hooks.cmti)
-  (.ocamloptcomp.objs/native/compiler_hooks.cmx as compiler-libs/compiler_hooks.cmx)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmi
+   as
+   compiler-libs/compiler_hooks.cmi)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmo
+   as
+   compiler-libs/compiler_hooks.cmo)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmt
+   as
+   compiler-libs/compiler_hooks.cmt)
+  (.ocamloptcomp.objs/byte/compiler_hooks.cmti
+   as
+   compiler-libs/compiler_hooks.cmti)
+  (.ocamloptcomp.objs/native/compiler_hooks.cmx
+   as
+   compiler-libs/compiler_hooks.cmx)
   (flambda_backend_args.mli as compiler-libs/flambda_backend_args.mli)
-  (.flambda_backend_common.objs/native/flambda_backend_args.cmx as compiler-libs/flambda_backend_args.cmx)
-  (.flambda_backend_common.objs/byte/flambda_backend_args.cmi as compiler-libs/flambda_backend_args.cmi)
-  (.flambda_backend_common.objs/byte/flambda_backend_args.cmo as compiler-libs/flambda_backend_args.cmo)
-  (.flambda_backend_common.objs/byte/flambda_backend_args.cmt as compiler-libs/flambda_backend_args.cmt)
-  (.flambda_backend_common.objs/byte/flambda_backend_args.cmti as compiler-libs/flambda_backend_args.cmti)
+  (.flambda_backend_common.objs/native/flambda_backend_args.cmx
+   as
+   compiler-libs/flambda_backend_args.cmx)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmi
+   as
+   compiler-libs/flambda_backend_args.cmi)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmo
+   as
+   compiler-libs/flambda_backend_args.cmo)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmt
+   as
+   compiler-libs/flambda_backend_args.cmt)
+  (.flambda_backend_common.objs/byte/flambda_backend_args.cmti
+   as
+   compiler-libs/flambda_backend_args.cmti)
   (flambda_backend_flags.mli as compiler-libs/flambda_backend_flags.mli)
-  (.flambda_backend_common.objs/native/flambda_backend_flags.cmx as compiler-libs/flambda_backend_flags.cmx)
-  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmi as compiler-libs/flambda_backend_flags.cmi)
-  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmo as compiler-libs/flambda_backend_flags.cmo)
-  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmt as compiler-libs/flambda_backend_flags.cmt)
-  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmti as compiler-libs/flambda_backend_flags.cmti)
+  (.flambda_backend_common.objs/native/flambda_backend_flags.cmx
+   as
+   compiler-libs/flambda_backend_flags.cmx)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmi
+   as
+   compiler-libs/flambda_backend_flags.cmi)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmo
+   as
+   compiler-libs/flambda_backend_flags.cmo)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmt
+   as
+   compiler-libs/flambda_backend_flags.cmt)
+  (.flambda_backend_common.objs/byte/flambda_backend_flags.cmti
+   as
+   compiler-libs/flambda_backend_flags.cmti)
   (printast_with_mappings.mli as compiler-libs/printast_with_mappings.mli)
-  (.ocamloptcomp.objs/byte/printast_with_mappings.cmi as compiler-libs/printast_with_mappings.cmi)
-  (.ocamloptcomp.objs/byte/printast_with_mappings.cmo as compiler-libs/printast_with_mappings.cmo)
-  (.ocamloptcomp.objs/byte/printast_with_mappings.cmt as compiler-libs/printast_with_mappings.cmt)
-  (.ocamloptcomp.objs/byte/printast_with_mappings.cmti as compiler-libs/printast_with_mappings.cmti)
-  (.ocamloptcomp.objs/native/printast_with_mappings.cmx as compiler-libs/printast_with_mappings.cmx)
-  (location_tracker_formatter.mli as compiler-libs/location_tracker_formatter.mli)
-  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmi as compiler-libs/location_tracker_formatter.cmi)
-  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmo as compiler-libs/location_tracker_formatter.cmo)
-  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmt as compiler-libs/location_tracker_formatter.cmt)
-  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmti as compiler-libs/location_tracker_formatter.cmti)
-  (.ocamloptcomp.objs/native/location_tracker_formatter.cmx as compiler-libs/location_tracker_formatter.cmx)
-  ))
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmi
+   as
+   compiler-libs/printast_with_mappings.cmi)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmo
+   as
+   compiler-libs/printast_with_mappings.cmo)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmt
+   as
+   compiler-libs/printast_with_mappings.cmt)
+  (.ocamloptcomp.objs/byte/printast_with_mappings.cmti
+   as
+   compiler-libs/printast_with_mappings.cmti)
+  (.ocamloptcomp.objs/native/printast_with_mappings.cmx
+   as
+   compiler-libs/printast_with_mappings.cmx)
+  (location_tracker_formatter.mli
+   as
+   compiler-libs/location_tracker_formatter.mli)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmi
+   as
+   compiler-libs/location_tracker_formatter.cmi)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmo
+   as
+   compiler-libs/location_tracker_formatter.cmo)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmt
+   as
+   compiler-libs/location_tracker_formatter.cmt)
+  (.ocamloptcomp.objs/byte/location_tracker_formatter.cmti
+   as
+   compiler-libs/location_tracker_formatter.cmti)
+  (.ocamloptcomp.objs/native/location_tracker_formatter.cmx
+   as
+   compiler-libs/location_tracker_formatter.cmx)))
+
 (install
  (section lib)
  (package ocaml)
@@ -2111,9 +2177,15 @@
   (.ocamloptcomp.objs/byte/variable.cmo as compiler-libs/variable.cmo)
   (.ocamloptcomp.objs/byte/variable.cmt as compiler-libs/variable.cmt)
   (.ocamloptcomp.objs/byte/variable.cmti as compiler-libs/variable.cmti)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmi as compiler-libs/extensions.cmi)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmo as compiler-libs/extensions.cmo)
-  (ocaml/.ocamlcommon.objs/byte/extensions.cmt as compiler-libs/extensions.cmt)
+  (ocaml/.ocamlcommon.objs/byte/extensions.cmi
+   as
+   compiler-libs/extensions.cmi)
+  (ocaml/.ocamlcommon.objs/byte/extensions.cmo
+   as
+   compiler-libs/extensions.cmo)
+  (ocaml/.ocamlcommon.objs/byte/extensions.cmt
+   as
+   compiler-libs/extensions.cmt)
   (ocaml/.ocamlcommon.objs/byte/extensions.cmti
    as
    compiler-libs/extensions.cmti)

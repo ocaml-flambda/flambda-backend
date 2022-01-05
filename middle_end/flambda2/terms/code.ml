@@ -30,6 +30,8 @@ let params_arity = Code0.params_arity
 
 let result_arity = Code0.result_arity
 
+let result_types = Code0.result_types
+
 let stub = Code0.stub
 
 let inline = Code0.inline
@@ -51,15 +53,15 @@ let is_my_closure_used = Code0.is_my_closure_used
 let inlining_decision = Code0.inlining_decision
 
 let create code_id ~params_and_body ~free_names_of_params_and_body
-    ~newer_version_of ~params_arity ~result_arity ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~newer_version_of ~params_arity ~result_arity ~result_types ~stub ~inline
+    ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
     ~is_my_closure_used ~inlining_decision =
   Code0.create
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
     code_id ~params_and_body ~free_names_of_params_and_body ~newer_version_of
-    ~params_arity ~result_arity ~stub ~inline ~is_a_functor ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision
+    ~params_arity ~result_arity ~result_types ~stub ~inline ~is_a_functor
+    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
+    ~is_my_closure_used ~inlining_decision
 
 let with_code_id = Code0.with_code_id
 
@@ -84,3 +86,5 @@ let all_ids_for_export =
   Code0.all_ids_for_export
     ~all_ids_for_export_function_params_and_body:
       Flambda.Function_params_and_body.all_ids_for_export
+
+let map_result_types = Code0.map_result_types

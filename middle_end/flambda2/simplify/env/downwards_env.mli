@@ -104,6 +104,7 @@ val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 val define_parameters : t -> params:Bound_parameter.t list -> t
 
 val add_parameters :
+  ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
   Bound_parameter.t list ->
@@ -111,9 +112,14 @@ val add_parameters :
   t
 
 val add_parameters_with_unknown_types :
-  ?at_unit_toplevel:bool -> t -> Bound_parameter.t list -> t
+  ?name_mode:Name_mode.t ->
+  ?at_unit_toplevel:bool ->
+  t ->
+  Bound_parameter.t list ->
+  t
 
 val add_parameters_with_unknown_types' :
+  ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
   Bound_parameter.t list ->
@@ -128,12 +134,13 @@ val define_variable_and_extend_typing_environment :
   Flambda2_types.Typing_env_extension.t ->
   t
 
+type extension_kind =
+  | Normal of Flambda2_types.Typing_env_extension.t
+  | With_extra_variables of
+      Flambda2_types.Typing_env_extension.With_extra_variables.t
+
 val add_variable_and_extend_typing_environment :
-  t ->
-  Bound_var.t ->
-  Flambda2_types.t ->
-  Flambda2_types.Typing_env_extension.t ->
-  t
+  t -> Bound_var.t -> Flambda2_types.t -> extension_kind -> t
 
 val with_typing_env : t -> Flambda2_types.Typing_env.t -> t
 

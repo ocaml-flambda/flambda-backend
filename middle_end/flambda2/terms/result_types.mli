@@ -2,10 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Vincent Laviron, OCamlPro                        *)
+(*                   Mark Shinwell, Jane Street Europe                    *)
 (*                                                                        *)
-(*   Copyright 2020 OCamlPro SAS                                          *)
-(*   Copyright 2014--2021 Jane Street Group LLC                           *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -15,28 +14,36 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = private
-  | Code_present of Code.t
-  | Metadata_only of Code_metadata.t
+type t
 
-val print : Format.formatter -> t -> unit
+val create :
+  params:Bound_parameter.t list ->
+  results:
+    (Bound_parameter.t
+    * Flambda2_types.Typing_env_extension.With_extra_variables.t)
+    list ->
+  t
 
-val merge : Code_id.t -> t -> t -> t option
+val create_default :
+  params:Bound_parameter.t list ->
+  result_arity:Flambda_arity.With_subkinds.t ->
+  t
 
-val create : Code.t -> t
+val pattern_match :
+  t ->
+  f:
+    (params:Bound_parameter.t list ->
+    results:
+      (Bound_parameter.t
+      * Flambda2_types.Typing_env_extension.With_extra_variables.t)
+      list ->
+    'a) ->
+  'a
 
-val remember_only_metadata : t -> t
-
-val iter_code : t -> f:(Code.t -> unit) -> unit
-
-val map_result_types : t -> f:(Flambda2_types.t -> Flambda2_types.t) -> t
-
-val code_metadata : t -> Code_metadata.t
-
-val code_present : t -> bool
-
-(** As for [Code_metadata], the free names of a value of type [t] do not include
-    the code ID, which is only kept for convenience. *)
 include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
+
+val print : Format.formatter -> t -> unit
+
+val map_result_types : t -> f:(Flambda2_types.t -> Flambda2_types.t) -> t

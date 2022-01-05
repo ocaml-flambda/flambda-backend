@@ -750,7 +750,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
-        let params_and_body, free_names_of_params_and_body, is_my_closure_used =
+        let ( params,
+              params_and_body,
+              free_names_of_params_and_body,
+              is_my_closure_used ) =
           let { Fexpr.params; closure_var; depth_var; ret_cont; exn_cont; body }
               =
             params_and_body
@@ -797,7 +800,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             (* Flambda.Function_params_and_body.free_names params_and_body |>
                names_and_closure_vars *)
           in
-          ( params_and_body,
+          ( params,
+            params_and_body,
             free_names,
             Flambda.Function_params_and_body.is_my_closure_used params_and_body
           )
@@ -812,8 +816,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity ~result_arity ~stub:false ~inline
-            ~is_a_functor:false ~recursive
+            ~newer_version_of ~params_arity ~result_arity
+            ~result_types:(Result_types.create_default ~params ~result_arity)
+            ~stub:false ~inline ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used

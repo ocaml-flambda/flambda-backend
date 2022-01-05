@@ -22,6 +22,7 @@ module K = Flambda_kind
 module BP = Bound_parameter
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
+module TEE = Flambda2_types.Typing_env_extension
 
 type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
@@ -300,7 +301,8 @@ let define_parameters t ~params =
       define_variable t var (K.With_subkind.kind (BP.kind param)))
     t params
 
-let add_parameters ?at_unit_toplevel t params ~param_types =
+let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
+    ~param_types =
   if List.compare_lengths params param_types <> 0
   then
     Misc.fatal_errorf
@@ -313,19 +315,19 @@ let add_parameters ?at_unit_toplevel t params ~param_types =
   in
   List.fold_left2
     (fun t param param_type ->
-      let var = Bound_var.create (BP.var param) Name_mode.normal in
+      let var = Bound_var.create (BP.var param) name_mode in
       add_variable0 t var param_type ~at_unit_toplevel)
     t params param_types
 
-let add_parameters_with_unknown_types' ?at_unit_toplevel t params =
+let add_parameters_with_unknown_types' ?name_mode ?at_unit_toplevel t params =
   let param_types =
     ListLabels.map params ~f:(fun param ->
         T.unknown_with_subkind (BP.kind param))
   in
-  add_parameters ?at_unit_toplevel t params ~param_types, param_types
+  add_parameters ?name_mode ?at_unit_toplevel t params ~param_types, param_types
 
-let add_parameters_with_unknown_types ?at_unit_toplevel t params =
-  fst (add_parameters_with_unknown_types' ?at_unit_toplevel t params)
+let add_parameters_with_unknown_types ?name_mode ?at_unit_toplevel t params =
+  fst (add_parameters_with_unknown_types' ?name_mode ?at_unit_toplevel t params)
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
@@ -347,7 +349,12 @@ let define_variable_and_extend_typing_environment t var kind env_extension =
   let typing_env = TE.add_env_extension typing_env env_extension in
   { t with typing_env; variables_defined_at_toplevel }
 
-let add_variable_and_extend_typing_environment t var ty env_extension =
+type extension_kind =
+  | Normal of TEE.t
+  | With_extra_variables of TEE.With_extra_variables.t
+
+let add_variable_and_extend_typing_environment t var ty
+    (env_extension : extension_kind) =
   (* This is a combined operation to reduce allocation. *)
   let typing_env =
     let var' = Bound_name.var var in
@@ -361,7 +368,12 @@ let add_variable_and_extend_typing_environment t var ty env_extension =
     then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
     else t.variables_defined_at_toplevel
   in
-  let typing_env = TE.add_env_extension typing_env env_extension in
+  let typing_env =
+    match env_extension with
+    | Normal env_extension -> TE.add_env_extension typing_env env_extension
+    | With_extra_variables env_extension ->
+      TE.add_env_extension_with_extra_variables typing_env env_extension
+  in
   { t with typing_env; variables_defined_at_toplevel }
 
 let with_typing_env t typing_env = { t with typing_env }
@@ -384,8 +396,19 @@ let mem_code t id =
 
 let find_code_exn t id =
   match Code_id.Map.find id t.all_code with
-  | exception Not_found -> Exported_code.find_exn (t.get_imported_code ()) id
   | code -> Code_or_metadata.create code
+  | exception Not_found -> (
+    (* This [find_exn] call doesn't load any .cmx files, but in the majority of
+       cases will succeed. *)
+    match Exported_code.find_exn (t.get_imported_code ()) id with
+    | code_or_metadata -> code_or_metadata
+    | exception Not_found -> (
+      (* In this case either the code ID isn't bound due to a compiler error or
+         we haven't yet loaded the relevant .cmx file. Make sure the .cmx is
+         loaded and try again. *)
+      match TE.resolver t.typing_env (Code_id.get_compilation_unit id) with
+      | None -> raise Not_found
+      | Some _typing_env -> Exported_code.find_exn (t.get_imported_code ()) id))
 
 let define_code t ~code_id ~code =
   if not

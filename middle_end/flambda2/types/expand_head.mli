@@ -91,9 +91,13 @@ val is_bottom : Typing_env.t -> Type_grammar.t -> bool
 
 val is_unknown : Typing_env.t -> Type_grammar.t -> bool
 
+type to_erase =
+  | Everything_not_in of Typing_env.t
+  | All_variables_except of Variable.Set.t
+
 val make_suitable_for_environment :
   Typing_env.t ->
   Type_grammar.t ->
-  suitable_for:Typing_env.t ->
+  to_erase ->
   bind_to:Name.t ->
   Typing_env_extension.With_extra_variables.t
