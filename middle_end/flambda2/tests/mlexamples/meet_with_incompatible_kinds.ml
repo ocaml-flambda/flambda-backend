@@ -13,8 +13,8 @@ let aux (type x) (x : x t) =
   match x with
   | Foo _ -> 3.
   | Bar bar ->
-    (* This block load meets bar (aliased to foo (from f, after inlining) here), with a block
-       with fields of kind float which should result on Bottom *)
+    (* This block load meets bar (aliased to foo (from f, after inlining) here),
+       with a block with fields of kind float which should result on Bottom *)
     bar.f
   [@@inline]
 
