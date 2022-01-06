@@ -716,7 +716,7 @@ let analyze ~return_continuation ~exn_continuation ~code_age_relation
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
           ~code_age_relation ~used_closure_vars
       in
-      (* Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps; *)
+      Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps;
       let result = Dependency_graph.required_names deps in
-      (* Format.eprintf "/// result@\n%a@\n@." _print_result result; *)
+      Format.eprintf "/// result@\n%a@\n@." _print_result result;
       result)

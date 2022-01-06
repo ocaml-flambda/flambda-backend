@@ -53,8 +53,8 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       let dacc = UA.creation_dacc uacc in
       let all_code = DE.all_code (DA.denv dacc) in
       let closure_offsets =
-        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
-          ~all_code set_of_closures
+        Closure_offsets.add_set_of_closures closure_offsets
+          ~is_phantom ~all_code set_of_closures
       in
       UA.with_closure_offsets uacc (Known closure_offsets)
   in
@@ -194,17 +194,20 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
        bindings as there may be subsequent uses in other phantom bindings. As
        such we replace any sets of closures to be phantomised by empty sets of
        closures. *)
+    (*
     let defining_expr, free_names_of_defining_expr =
       if not is_phantom
       then defining_expr, free_names_of_defining_expr
       else
         match defining_expr with
-        | Set_of_closures _ ->
-          ( Named.create_set_of_closures Set_of_closures.empty,
-            Name_occurrences.empty )
+        | Set_of_closures _s ->
+          (* let s' = Set_of_closures.make_phantom s in *)
+          let s' = Set_of_closures.empty in
+          ( Named.create_set_of_closures s', Set_of_closures.free_names s' )
         | Simple _ | Prim _ | Static_consts _ | Rec_info _ ->
           defining_expr, free_names_of_defining_expr
     in
+    *)
     let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =
       if not is_phantom

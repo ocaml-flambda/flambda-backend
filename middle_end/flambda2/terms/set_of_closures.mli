@@ -26,6 +26,8 @@ val empty : t
 
 val is_empty : t -> bool
 
+val make_phantom : t -> t
+
 (** Create a set of closures given the code for its functions and the closure
     variables. *)
 val create :
