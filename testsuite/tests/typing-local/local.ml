@@ -288,7 +288,7 @@ val apply3_stack : int -> int = <fun>
  * Overapplication (functions that return functions)
  *)
 
-let g : local_ 'a -> int -> _ = fun _ _ -> (fun (local_ _) (x : int) -> x)
+let g : local_ 'a -> int -> _ = fun _ _ -> (fun[@curry] (local_ _) (x : int) -> x)
 [%%expect{|
 val g : local_ 'a -> int -> (local_ 'b -> int -> int) = <fun>
 |}]
@@ -454,7 +454,7 @@ Error: This local value escapes its region
 |}]
 let bug2 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
-    fun ~a -> fun ~b -> fun ~c -> ()
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> ()
   in
   let bar = local_ foo ~b:"hello" in
   let res = bar ~a:"world" in
@@ -464,15 +464,15 @@ val bug2 : unit -> c:int -> unit = <fun>
 |}]
 let bug3 () =
   let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
-    fun ~a -> fun ~b -> fun ~c -> print_string a
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
   in
   let[@stack] bar = foo ~b:"hello" in
   let res = bar ~a:"world" in
   res
 [%%expect{|
-Line 3, characters 47-48:
-3 |     fun ~a -> fun ~b -> fun ~c -> print_string a
-                                                   ^
+Line 3, characters 63-64:
+3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
+                                                                   ^
 Error: The value a is local, so cannot be used inside a closure that might escape
 |}]
 

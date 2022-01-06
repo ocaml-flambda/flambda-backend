@@ -616,10 +616,9 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
-  let filtered_attrs = filter_curry_attrs x.pexp_attributes in
-  if filtered_attrs <> [] then
+  if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
-      (attributes ctxt) filtered_attrs
+      (attributes ctxt) x.pexp_attributes
   else match x.pexp_desc with
     | Pexp_function _ | Pexp_fun _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
@@ -768,14 +767,14 @@ and expression ctxt f x =
     | _ -> expression1 ctxt f x
 
 and expression1 ctxt f x =
-  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
+  if x.pexp_attributes <> [] then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_object cs -> pp f "%a" (class_structure ctxt) cs
     | _ -> expression2 ctxt f x
 (* used in [Pexp_apply] *)
 
 and expression2 ctxt f x =
-  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
+  if x.pexp_attributes <> [] then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_field (e, li) ->
         pp f "@[<hov2>%a.%a@]" (simple_expr ctxt) e longident_loc li
@@ -784,7 +783,7 @@ and expression2 ctxt f x =
     | _ -> simple_expr ctxt f x
 
 and simple_expr ctxt f x =
-  if has_non_curry_attr x.pexp_attributes then expression ctxt f x
+  if x.pexp_attributes <> [] then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_construct _  when is_simple_construct (view_expr x) ->
         (match view_expr x with

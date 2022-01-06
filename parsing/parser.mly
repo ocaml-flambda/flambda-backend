@@ -197,9 +197,6 @@ let curry_attr =
 let is_curry_attr attr =
   attr.attr_name.txt = "ocaml.curry"
 
-let mkexp_curry exp =
-  {exp with pexp_attributes = curry_attr :: exp.pexp_attributes}
-
 let mktyp_curry typ =
   {typ with ptyp_attributes = curry_attr :: typ.ptyp_attributes}
 
@@ -446,7 +443,6 @@ let wrap_type_annotation ~loc newtypes core_type body =
   let mk_newtypes = mk_newtypes ~loc in
   let exp = mkexp(Pexp_constraint(body,core_type)) in
   let exp = mk_newtypes newtypes exp in
-  let exp = mkexp_curry exp in
   (exp, ghtyp(Ptyp_poly(newtypes, Typ.varify_constructors newtypes core_type)))
 
 let wrap_exp_attrs ~loc body (ext, attrs) =
@@ -2286,12 +2282,10 @@ expr:
   | FUNCTION ext_attributes match_cases
       { Pexp_function $3, $2 }
   | FUN ext_attributes labeled_simple_pattern fun_def
-      { let ext, attrs = $2 in
-        let (l,o,p) = $3 in
-        Pexp_fun(l, o, p, $4), (ext, curry_attr :: attrs) }
+      { let (l,o,p) = $3 in
+        Pexp_fun(l, o, p, $4), $2 }
   | FUN ext_attributes LPAREN TYPE lident_list RPAREN fun_def
-      { let ext, attrs = $2 in
-        (mk_newtypes ~loc:$sloc $5 $7).pexp_desc, (ext, curry_attr :: attrs) }
+      { (mk_newtypes ~loc:$sloc $5 $7).pexp_desc, $2 }
   | MATCH ext_attributes seq_expr WITH match_cases
       { Pexp_match($3, $5), $2 }
   | TRY ext_attributes seq_expr WITH match_cases
