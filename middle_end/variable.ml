@@ -89,7 +89,7 @@ let create_with_same_name_as_ident ?debug_info ident =
 let rename ?current_compilation_unit ?debug_info t =
   let debug_info =
     match debug_info with
-    | Some debug_info -> Some debug_info
+    | Some _ -> debug_info
     | None -> t.debug_info
   in
   create_with_name_string ?current_compilation_unit ?debug_info t.name
