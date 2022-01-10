@@ -102,13 +102,13 @@ let [@ocamlformat "disable"] print ppf
       (Var_within_closure.Map.print Simple.print) closure_elements
 
 let free_names { function_decls; closure_elements } =
-    Var_within_closure.Map.fold
-      (fun closure_var bound_to free_names ->
-         Name_occurrences.add_closure_var
-           (Name_occurrences.union (Simple.free_names bound_to) free_names)
-           closure_var Name_mode.normal)
-      closure_elements
-      (Function_declarations.free_names function_decls)
+  Var_within_closure.Map.fold
+    (fun closure_var bound_to free_names ->
+      Name_occurrences.add_closure_var
+        (Name_occurrences.union (Simple.free_names bound_to) free_names)
+        closure_var Name_mode.normal)
+    closure_elements
+    (Function_declarations.free_names function_decls)
 
 let apply_renaming ({ function_decls; closure_elements } as t) renaming =
   let function_decls' =
@@ -128,12 +128,12 @@ let apply_renaming ({ function_decls; closure_elements } as t) renaming =
     { function_decls = function_decls'; closure_elements = closure_elements' }
 
 let all_ids_for_export { function_decls; closure_elements } =
-    let function_decls_ids =
-      Function_declarations.all_ids_for_export function_decls
-    in
-    Var_within_closure.Map.fold
-      (fun _closure_var simple ids -> Ids_for_export.add_simple ids simple)
-      closure_elements function_decls_ids
+  let function_decls_ids =
+    Function_declarations.all_ids_for_export function_decls
+  in
+  Var_within_closure.Map.fold
+    (fun _closure_var simple ids -> Ids_for_export.add_simple ids simple)
+    closure_elements function_decls_ids
 
 let filter_function_declarations t ~f =
   let function_decls = Function_declarations.filter t.function_decls ~f in

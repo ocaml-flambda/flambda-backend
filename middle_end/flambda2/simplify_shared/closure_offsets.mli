@@ -33,16 +33,14 @@ val add_set_of_closures :
   Set_of_closures.t ->
   t
 
-(** Compute offsets for all closure_ids and env_vars that occur in the
-    current compilation unit, taking into account the constraints
-    introduced by the sharing of closure_id/env_var across multiple
-    sets of closures. *)
+(** Compute offsets for all closure_ids and env_vars that occur in the current
+    compilation unit, taking into account the constraints introduced by the
+    sharing of closure_id/env_var across multiple sets of closures. *)
 val finalize_offsets :
   used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
   used_closure_ids:Closure_id.Set.t Or_unknown.t ->
   t ->
   Exported_offsets.t
-
 
 (** {2 Helper functions} *)
 

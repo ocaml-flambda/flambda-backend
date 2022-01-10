@@ -513,11 +513,12 @@ end = struct
     | Empty -> init
     | One (name, kind) -> f init name kind
     | Potentially_many map ->
-      N.Map.fold (fun name kind acc ->
+      N.Map.fold
+        (fun name kind acc ->
           match For_one_name.max_kind_opt kind with
           | Some name_mode -> f acc name name_mode
-          | None -> acc
-        ) map init
+          | None -> acc)
+        map init
 
   let downgrade_occurrences_at_strictly_greater_kind t max_kind =
     (* CR-someday mshinwell: This can be condensed when the compiler removes the
@@ -970,22 +971,20 @@ let rec union_list ts =
 let closure_ids t = For_closure_ids.keys t.closure_ids
 
 let normal_closure_ids t =
-  For_closure_ids.fold_with_mode t.closure_ids
-    ~init:Closure_id.Set.empty
+  For_closure_ids.fold_with_mode t.closure_ids ~init:Closure_id.Set.empty
     ~f:(fun acc closure_var name_mode ->
-        if Name_mode.is_normal name_mode
-        then Closure_id.Set.add closure_var acc
-        else acc)
+      if Name_mode.is_normal name_mode
+      then Closure_id.Set.add closure_var acc
+      else acc)
 
 let closure_vars t = For_closure_vars.keys t.closure_vars
 
 let normal_closure_vars t =
   For_closure_vars.fold_with_mode t.closure_vars
-    ~init:Var_within_closure.Set.empty
-    ~f:(fun acc closure_var name_mode ->
-        if Name_mode.is_normal name_mode
-        then Var_within_closure.Set.add closure_var acc
-        else acc)
+    ~init:Var_within_closure.Set.empty ~f:(fun acc closure_var name_mode ->
+      if Name_mode.is_normal name_mode
+      then Var_within_closure.Set.add closure_var acc
+      else acc)
 
 let symbols t = For_names.keys t.names |> Name.set_to_symbol_set
 

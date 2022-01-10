@@ -53,8 +53,8 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       let dacc = UA.creation_dacc uacc in
       let all_code = DE.all_code (DA.denv dacc) in
       let closure_offsets =
-        Closure_offsets.add_set_of_closures closure_offsets
-          ~is_phantom ~all_code set_of_closures
+        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
+          ~all_code set_of_closures
       in
       UA.with_closure_offsets uacc (Known closure_offsets)
   in

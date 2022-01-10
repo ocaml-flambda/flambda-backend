@@ -450,11 +450,11 @@ module Greedy = struct
             match EO.closure_offset imported_offsets c with
             | None ->
               (* This means that there is no cmx for the given closure id
-                 (either because of opaque, (or missing cmx ?), or that the offset
-                 is missing from the cms. In any case,
-                 this is a hard error: the closure id must have been given an
-                 offset by its own compilation unit, and we must know it to
-                 avoid choosing a different one. *)
+                 (either because of opaque, (or missing cmx ?), or that the
+                 offset is missing from the cms. In any case, this is a hard
+                 error: the closure id must have been given an offset by its own
+                 compilation unit, and we must know it to avoid choosing a
+                 different one. *)
               Misc.fatal_errorf
                 "Could not find the offset for closure id %a from another \
                  compilation unit (because of -opaque, or missing cmx)."
@@ -500,10 +500,11 @@ module Greedy = struct
       create_env_var_slots set state r
 
   let create_slots_for_set ~is_phantom state all_code set_id =
-    if is_phantom then begin
-      (* if the definition is a phantom one, there is no need to attribute offsets.
-         However, we still remember the closure ids and env vars seen in phantom
-         sets for the check in {!check_used_offsets}. *)
+    if is_phantom
+    then
+      (* if the definition is a phantom one, there is no need to attribute
+         offsets. However, we still remember the closure ids and env vars seen
+         in phantom sets for the check in {!check_used_offsets}. *)
       let function_decls = Set_of_closures.function_decls set_id in
       let closure_map = Function_declarations.funs function_decls in
       let closures = Closure_id.Map.keys closure_map in
@@ -515,8 +516,8 @@ module Greedy = struct
       let phantom_env_vars =
         Var_within_closure.Set.union state.phantom_env_vars env_vars
       in
-      { state with phantom_closure_ids; phantom_env_vars; }
-    end else
+      { state with phantom_closure_ids; phantom_env_vars }
+    else
       let set = make_set set_id in
       let state = add_set_to_state state set in
       (* Fill closure slots *)
@@ -700,8 +701,8 @@ module Greedy = struct
             then offsets
             else
               Misc.fatal_errorf
-                "Closure id %a is used in the current compilation unit, but not \
-                 present in the imported offsets."
+                "Closure id %a is used in the current compilation unit, but \
+                 not present in the imported offsets."
                 Closure_id.print closure_id
           | Some info -> EO.add_closure_offset offsets closure_id info)
       used_closure_ids offsets
@@ -737,12 +738,12 @@ module Greedy = struct
     | Unknown, Known _ | Known _, Unknown | Unknown, Unknown ->
       EO.imported_offsets ()
 
-  (* closure_ids and env vars can sometimes occur in dead/unreachable code,
-     but still appear as normal occurrences because of over-approximations in
-     data_flow, which can keep symbol/code alive even when all the sets of closures
-     that use the symbol/code_id are phantomised.
-     Thus if a closure_id/env_var from the current compilation unit appears as used,
-     but is only present in phantomised sets of closures, then we can consider it as
+  (* closure_ids and env vars can sometimes occur in dead/unreachable code, but
+     still appear as normal occurrences because of over-approximations in
+     data_flow, which can keep symbol/code alive even when all the sets of
+     closures that use the symbol/code_id are phantomised. Thus if a
+     closure_id/env_var from the current compilation unit appears as used, but
+     is only present in phantomised sets of closures, then we can consider it as
      not actually used. *)
   let check_used_offsets state ~used_closure_ids ~used_closure_vars offsets =
     match

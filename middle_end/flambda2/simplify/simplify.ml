@@ -114,7 +114,9 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   in
   let name_occurrences = UA.name_occurrences uacc in
   let used_closure_ids = Name_occurrences.normal_closure_ids name_occurrences in
-  let used_closure_vars = Name_occurrences.normal_closure_vars name_occurrences in
+  let used_closure_vars =
+    Name_occurrences.normal_closure_vars name_occurrences
+  in
   let exported_offsets =
     match UA.closure_offsets uacc with
     | Unknown ->
