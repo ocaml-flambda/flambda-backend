@@ -3498,6 +3498,13 @@ and type_expect_
         wrap_trace_gadt_instances env (lower_args []) ty;
         funct
       in
+      let type_sfunct_args sfunct extra_args =
+        match sfunct.pexp_desc with
+        | Pexp_apply (sfunct, args) ->
+           type_sfunct sfunct, args @ extra_args
+        | _ ->
+           type_sfunct sfunct, extra_args
+      in
       let funct, sargs =
         let funct = type_sfunct sfunct in
         match funct.exp_desc, sargs with
@@ -3505,11 +3512,11 @@ and type_expect_
                       Id_prim _),
           [Nolabel, sarg; Nolabel, actual_sfunct]
           when is_inferred actual_sfunct ->
-            type_sfunct actual_sfunct, [Nolabel, sarg]
+            type_sfunct_args actual_sfunct [Nolabel, sarg]
         | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%apply"}},
                       Id_prim _),
           [Nolabel, actual_sfunct; Nolabel, sarg] ->
-            type_sfunct actual_sfunct, [Nolabel, sarg]
+            type_sfunct_args actual_sfunct [Nolabel, sarg]
         | _ ->
             funct, sargs
       in
