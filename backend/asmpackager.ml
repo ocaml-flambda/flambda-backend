@@ -114,7 +114,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         ~flambda2
         ~ppf_dump
         ~required_globals:required_globals
-        ~keep_symbol_tables:false
+        ~keep_symbol_tables:true
         ()
     end else begin
       let program, middle_end =
