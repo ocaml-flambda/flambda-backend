@@ -14,11 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { phantom: bool;
-    function_decls : Function_declarations.t;
+  { function_decls : Function_declarations.t;
     closure_elements : Simple.t Var_within_closure.Map.t
   }
 
@@ -57,8 +56,7 @@ include Container_types.Make (struct
 end)
 
 let empty =
-  { phantom = false;
-    function_decls = Function_declarations.empty;
+  { function_decls = Function_declarations.empty;
     closure_elements = Var_within_closure.Map.empty
   }
 
@@ -66,12 +64,10 @@ let is_empty { function_decls; closure_elements } =
   Function_declarations.is_empty function_decls
   && Var_within_closure.Map.is_empty closure_elements
 
-let make_phantom t = { t with phantom = true; }
-
 let create function_decls ~closure_elements =
   (* CR mshinwell: Make sure invariant checks are applied here, e.g. that the
      set of closures is indeed closed. *)
-  { phantom = false; function_decls; closure_elements }
+  { function_decls; closure_elements }
 
 let function_decls t = t.function_decls
 
@@ -105,9 +101,7 @@ let [@ocamlformat "disable"] print ppf
       (Function_declarations.print) function_decls
       (Var_within_closure.Map.print Simple.print) closure_elements
 
-let free_names { phantom; function_decls; closure_elements } =
-  if phantom then Name_occurrences.empty
-  else
+let free_names { function_decls; closure_elements } =
     Var_within_closure.Map.fold
       (fun closure_var bound_to free_names ->
          Name_occurrences.add_closure_var
@@ -116,7 +110,7 @@ let free_names { phantom; function_decls; closure_elements } =
       closure_elements
       (Function_declarations.free_names function_decls)
 
-let apply_renaming ({ phantom; function_decls; closure_elements } as t) renaming =
+let apply_renaming ({ function_decls; closure_elements } as t) renaming =
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
   in
@@ -131,11 +125,9 @@ let apply_renaming ({ phantom; function_decls; closure_elements } as t) renaming
   if function_decls == function_decls' && closure_elements == closure_elements'
   then t
   else
-    { phantom; function_decls = function_decls'; closure_elements = closure_elements' }
+    { function_decls = function_decls'; closure_elements = closure_elements' }
 
-let all_ids_for_export { phantom; function_decls; closure_elements } =
-  if phantom then Ids_for_export.empty
-  else
+let all_ids_for_export { function_decls; closure_elements } =
     let function_decls_ids =
       Function_declarations.all_ids_for_export function_decls
     in

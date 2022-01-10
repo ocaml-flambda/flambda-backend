@@ -188,26 +188,6 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
   | None -> body, uacc, let_creation_result
   | Some name_mode ->
     let is_phantom = Name_mode.is_phantom name_mode in
-    (* There seems little point in phantomising sets of closures and by not
-       doing so we avoid tricky issues such as avoiding code bindings being held
-       onto by phantom sets of closures. However we can't just delete the
-       bindings as there may be subsequent uses in other phantom bindings. As
-       such we replace any sets of closures to be phantomised by empty sets of
-       closures. *)
-    (*
-    let defining_expr, free_names_of_defining_expr =
-      if not is_phantom
-      then defining_expr, free_names_of_defining_expr
-      else
-        match defining_expr with
-        | Set_of_closures _s ->
-          (* let s' = Set_of_closures.make_phantom s in *)
-          let s' = Set_of_closures.empty in
-          ( Named.create_set_of_closures s', Set_of_closures.free_names s' )
-        | Simple _ | Prim _ | Static_consts _ | Rec_info _ ->
-          defining_expr, free_names_of_defining_expr
-    in
-    *)
     let free_names_of_body = UA.name_occurrences uacc in
     let free_names_of_defining_expr =
       if not is_phantom

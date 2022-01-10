@@ -115,15 +115,6 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let name_occurrences = UA.name_occurrences uacc in
   let used_closure_ids = Name_occurrences.normal_closure_ids name_occurrences in
   let used_closure_vars = Name_occurrences.normal_closure_vars name_occurrences in
-  let () =
-    match Sys.getenv "DEBUG" with
-    | exception Not_found -> ()
-    | _ -> Format.eprintf "%a\n%!" Flambda.Expr.print body
-  in
-  Format.eprintf "unit:@\n%a@."
-    FU.print (
-    FU.create ~return_continuation ~exn_continuation ~module_symbol ~body
-      ~used_closure_vars:(Known used_closure_vars));
   let exported_offsets =
     match UA.closure_offsets uacc with
     | Unknown ->

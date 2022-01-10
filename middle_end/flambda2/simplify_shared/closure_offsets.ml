@@ -450,7 +450,8 @@ module Greedy = struct
             match EO.closure_offset imported_offsets c with
             | None ->
               (* This means that there is no cmx for the given closure id
-                 (either because of opaque, (or missing cmx ?). In any case,
+                 (either because of opaque, (or missing cmx ?), or that the offset
+                 is missing from the cms. In any case,
                  this is a hard error: the closure id must have been given an
                  offset by its own compilation unit, and we must know it to
                  avoid choosing a different one. *)
@@ -739,7 +740,10 @@ module Greedy = struct
   (* closure_ids and env vars can sometimes occur in dead/unreachable code,
      but still appear as normal occurrences because of over-approximations in
      data_flow, which can keep symbol/code alive even when all the sets of closures
-     that use the symbol/code_id are phantomised. *)
+     that use the symbol/code_id are phantomised.
+     Thus if a closure_id/env_var from the current compilation unit appears as used,
+     but is only present in phantomised sets of closures, then we can consider it as
+     not actually used. *)
   let check_used_offsets state ~used_closure_ids ~used_closure_vars offsets =
     match
       (used_closure_ids, used_closure_vars : _ Or_unknown.t * _ Or_unknown.t)
@@ -798,7 +802,6 @@ let add_set_of_closures state ~is_phantom ~all_code set_of_closures =
   Greedy.create_slots_for_set ~is_phantom state all_code set_of_closures
 
 let finalize_offsets ~used_closure_vars ~used_closure_ids state =
-  Format.eprintf "@\nOffset slots:@\n%a@\n@." Greedy.print state;
   Misc.try_finally
     (fun () -> Greedy.finalize ~used_closure_vars ~used_closure_ids state)
     ~always:(fun () ->

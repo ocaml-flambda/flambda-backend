@@ -16,16 +16,16 @@
 
 (** {2 Computing offsets} *)
 
-(** The type of state used to accumulate constraints on offsets *)
+(** The type of state used to accumulate constraints on offsets. *)
 type t
 
-(** *)
+(** Printing function. *)
 val print : Format.formatter -> t -> unit
 
-(** *)
+(** Create an empty set of constraints. *)
 val create : unit -> t
 
-(** *)
+(** Add a set of closure to the set of constraints. *)
 val add_set_of_closures :
   t ->
   is_phantom:bool ->
@@ -33,12 +33,16 @@ val add_set_of_closures :
   Set_of_closures.t ->
   t
 
-(** *)
+(** Compute offsets for all closure_ids and env_vars that occur in the
+    current compilation unit, taking into account the constraints
+    introduced by the sharing of closure_id/env_var across multiple
+    sets of closures. *)
 val finalize_offsets :
   used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
   used_closure_ids:Closure_id.Set.t Or_unknown.t ->
   t ->
   Exported_offsets.t
+
 
 (** {2 Helper functions} *)
 
@@ -82,7 +86,8 @@ type layout =
 val layout :
   Exported_offsets.t -> Closure_id.t list -> Var_within_closure.t list -> layout
 
+(** Printing function for layouts. *)
 val print_layout : Format.formatter -> layout -> unit
 
-(** Printing functions for layout slots and layouts. *)
+(** Printing functions for layout slots. *)
 val print_layout_slot : Format.formatter -> layout_slot -> unit
