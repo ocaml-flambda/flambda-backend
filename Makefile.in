@@ -180,6 +180,8 @@ check_all_arches: ocaml-stage1-config.status stage0 \
 # configure. We'll run this config.status inside the _build0 copy of
 # the ocaml subtree later.
 ocaml-stage0-config.status: ocaml/configure.ac
+# Make a separate space to run ocaml/configure and harvest the resulting
+# config.status script
 	rm -rf _stage0_configure
 	mkdir _stage0_configure
 	(cd _stage0_configure && \
@@ -280,20 +282,22 @@ config_files: ocaml-stage1-Makefile.config
 
 ## Build upstream compiler.
 ## Similar to stage0 except the installation directory
-_build_upstream/config.status: ocaml/configure.ac
-	rm -rf _build_upstream
-	mkdir _build_upstream
-	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
-	(cd _build_upstream && \
-	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ./configure -C \
-	    --prefix=@prefix@ \
+ocaml-upstream-config.status: ocaml/configure.ac
+	rm -rf _upstream_configure
+	mkdir _upstream_configure
+	(cd _upstream_configure && \
+	  cat ../configure_opts_stage0 | tr -d '\n' | xargs -0 ../ocaml/configure -C \
+	    --prefix=$(prefix) \
 	    --disable-ocamldoc \
 	    --enable-ocamltest)
+	cp _upstream_configure/config.status ocaml-upstream-config.status
 
 .PHONY: build_upstream
-build_upstream: _build_upstream/config.status
+build_upstream: ocaml-upstream-config.status
 	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
+	cp ocaml-stage0-config.status _build_upstream/config.status
 	(cd _build_upstream && \
+	    ./config.status && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat)
 

@@ -44,6 +44,7 @@ _compare/
 _runtest/
 _stage0_configure/
 _stage2_configure/
+_upstream_configure/
 autom4te.cache
 _install/
 
@@ -56,6 +57,7 @@ _install/
 /ocaml-stage0-config.status
 /ocaml-stage1-config.status
 /ocaml-stage2-config.status
+/ocaml-upstream-config.status
 /ocaml-stage1-Makefile.config
 /ocamlopt_flags.sexp
 /oc_cflags.sexp
