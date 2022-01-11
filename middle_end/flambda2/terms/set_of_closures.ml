@@ -102,12 +102,12 @@ let [@ocamlformat "disable"] print ppf
       (Var_within_closure.Map.print Simple.print) closure_elements
 
 let free_names { function_decls; closure_elements } =
-  (* We are here interested in the the uses of closure_id and var_within_closure,
-     so we do not count the closure_ids and var_within_closures that are bound
-     by a set of closures. Indeed, the free_names will alter be used to filter
-     out unused env_vars from sets of closures (in the offset computation and in
-     to_cmm), so if they are added to the free_names here, they can never be
-     simplified away. *)
+  (* We are here interested in the the uses of closure_id and
+     var_within_closure, so we do not count the closure_ids and
+     var_within_closures that are bound by a set of closures. Indeed, the
+     free_names will alter be used to filter out unused env_vars from sets of
+     closures (in the offset computation and in to_cmm), so if they are added to
+     the free_names here, they can never be simplified away. *)
   Name_occurrences.union_list
     [ Function_declarations.free_names function_decls;
       Simple.List.free_names (Var_within_closure.Map.data closure_elements) ]
