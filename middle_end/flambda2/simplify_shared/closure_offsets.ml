@@ -16,19 +16,24 @@
 
 open! Flambda.Import
 
+let closure_var_is_used ~used_closure_vars v =
+  if Compilation_unit.is_current (Var_within_closure.get_compilation_unit v)
+  then Var_within_closure.Set.mem v used_closure_vars
+  else true
+
 let keep_closure_var ~used_closure_vars v =
   match (used_closure_vars : _ Or_unknown.t) with
   | Unknown -> true
-  | Known used_closure_vars ->
-    if Compilation_unit.is_current (Var_within_closure.get_compilation_unit v)
-    then Var_within_closure.Set.mem v used_closure_vars
-    else true
+  | Known used_closure_vars -> closure_var_is_used ~used_closure_vars v
 
 let filter_closure_vars set ~used_closure_vars =
   let closure_elements = Set_of_closures.closure_elements set in
-  Var_within_closure.Map.filter
-    (fun v _ -> keep_closure_var ~used_closure_vars v)
-    closure_elements
+  match (used_closure_vars : _ Or_unknown.t) with
+  | Unknown -> closure_elements
+  | Known used_closure_vars ->
+    Var_within_closure.Map.filter
+      (fun v _ -> closure_var_is_used ~used_closure_vars v)
+      closure_elements
 
 (* Compute offsets for elements within a closure block
 
