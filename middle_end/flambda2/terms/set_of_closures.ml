@@ -110,7 +110,7 @@ let free_names { function_decls; closure_elements } =
      simplified away. *)
   Name_occurrences.union_list
     [ Function_declarations.free_names function_decls;
-      Simple.List.free_name (Var_within_closure.Map.data closure_elements) ]
+      Simple.List.free_names (Var_within_closure.Map.data closure_elements) ]
 
 let apply_renaming ({ function_decls; closure_elements } as t) renaming =
   let function_decls' =
