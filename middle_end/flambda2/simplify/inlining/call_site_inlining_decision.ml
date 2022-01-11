@@ -112,7 +112,7 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids:Unknown
-            ~closure_offsets:Unknown uenv dacc
+            ~compute_closure_offsets:false uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

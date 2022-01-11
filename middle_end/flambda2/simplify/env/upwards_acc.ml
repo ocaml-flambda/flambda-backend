@@ -76,9 +76,13 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Closure_offsets.print) closure_offsets
 
-let create ~required_names ~reachable_code_ids ~closure_offsets uenv dacc =
+let create ~required_names ~reachable_code_ids ~compute_closure_offsets uenv
+    dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
+  let closure_offsets : _ Or_unknown.t =
+    if compute_closure_offsets then DA.closure_offsets dacc else Unknown
+  in
   { uenv;
     creation_dacc = dacc;
     code_age_relation = TE.code_age_relation (DA.typing_env dacc);

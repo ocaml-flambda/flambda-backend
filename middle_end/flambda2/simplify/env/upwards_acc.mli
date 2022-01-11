@@ -24,7 +24,7 @@ val print : Format.formatter -> t -> unit
 val create :
   required_names:Name.Set.t ->
   reachable_code_ids:Data_flow.Reachable_code_ids.t Or_unknown.t ->
-  closure_offsets:Closure_offsets.t Or_unknown.t ->
+  compute_closure_offsets:bool ->
   Upwards_env.t ->
   Downwards_acc.t ->
   t
