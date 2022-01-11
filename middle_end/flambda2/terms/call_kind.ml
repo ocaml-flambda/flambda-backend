@@ -137,11 +137,8 @@ let return_arity t =
 
 let free_names t =
   match t with
-  | Function (Direct { code_id; closure_id; return_arity = _ }) ->
-    Name_occurrences.add_closure_id
-      (Name_occurrences.add_code_id Name_occurrences.empty code_id
-         Name_mode.normal)
-      closure_id Name_mode.normal
+  | Function (Direct { code_id; closure_id = _; return_arity = _ }) ->
+    Name_occurrences.add_code_id Name_occurrences.empty code_id Name_mode.normal
   | Function Indirect_unknown_arity
   | Function (Indirect_known_arity { param_arity = _; return_arity = _ })
   | C_call { alloc = _; param_arity = _; return_arity = _; is_c_builtin = _ } ->
