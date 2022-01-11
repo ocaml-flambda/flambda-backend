@@ -456,7 +456,7 @@ module Greedy = struct
             | None ->
               (* This means that there is no cmx for the given closure id
                  (either because of opaque, (or missing cmx ?), or that the
-                 offset is missing from the cms. In any case, this is a hard
+                 offset is missing from the cmx. In any case, this is a hard
                  error: the closure id must have been given an offset by its own
                  compilation unit, and we must know it to avoid choosing a
                  different one. *)
