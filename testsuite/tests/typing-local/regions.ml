@@ -3,6 +3,7 @@
 
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 external opaque_identity : ('a[@local_opt]) -> ('a[@local_opt]) = "%opaque"
+let[@inline never] ignore_local (local_ x) = let _ = opaque_identity x in ()
 let last_offset = ref 0
 
 let check_empty name =
@@ -82,6 +83,14 @@ let () =
 
 
 
+let[@inline never] local_ret a b = local_ ref (a + b)
+let[@inline never] calls_local_ret () =
+  let local_ r = (local_ret 1) 2 in
+  let () = ignore_local r in
+  ()
+let () =
+  calls_local_ret ();
+  check_empty "apply merging"
 
 
 let () =

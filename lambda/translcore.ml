@@ -108,7 +108,7 @@ let transl_apply_position position =
   | Nontail -> Rc_normal
   | Tail -> Rc_close_at_apply
 
-let maybe_region lam =
+let may_allocate_in_region lam =
   let rec loop = function
     | Lvar _ | Lconst _ -> ()
 
@@ -140,11 +140,11 @@ let maybe_region lam =
       | Levent _ | Lifused _) as lam ->
        Lambda.iter_head_constructor loop lam
   in
-  let may_allocate_in_region lam =
-    match loop lam with
-    | () -> false
-    | exception Exit -> true
-  in
+  match loop lam with
+  | () -> false
+  | exception Exit -> true
+
+let maybe_region lam =
   let rec remove_tail_markers = function
     | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
        Lapply ({ap with ap_region_close = Rc_normal})
@@ -893,7 +893,7 @@ and transl_apply ~scopes
       ?(mode=Alloc_heap)
       lam sargs loc
   =
-  let lapply funct args loc pos =
+  let lapply funct args loc pos mode =
     match funct, pos with
     | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _ ->
         Lsend(k, lmet, lobj, args, pos, mode, loc)
@@ -912,7 +912,8 @@ and transl_apply ~scopes
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
     | Lapply ({ ap_region_close = Rc_normal } as ap), Rc_normal ->
         Lapply
-          {ap with ap_args = ap.ap_args @ args; ap_loc = loc; ap_region_close = pos}
+          {ap with ap_args = ap.ap_args @ args; ap_loc = loc;
+                   ap_region_close = pos; ap_mode = mode}
     | lexp, _ ->
         Lapply {
           ap_loc=loc;
@@ -926,8 +927,9 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-  let rec build_apply lam args loc pos = function
+  let rec build_apply lam args loc pos ap_mode = function
     | Omitted { mode_closure; mode_arg; mode_ret } :: l ->
+        assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name lam =
           match lam with
@@ -938,7 +940,7 @@ and transl_apply ~scopes
               Lvar id
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev args) loc pos
+          if args = [] then lam else lapply lam (List.rev args) loc pos ap_mode
         in
         let handle = protect "func" lam in
         let l =
@@ -952,10 +954,10 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
-          let body = build_apply handle [Lvar id_arg] loc Rc_normal l in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
           let ret_mode = transl_alloc_mode mode_ret in
+          let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
           let nlocal =
             match join_mode mode (join_mode arg_mode ret_mode) with
             | Alloc_local -> 1
@@ -973,8 +975,8 @@ and transl_apply ~scopes
         List.fold_right
           (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
           !defs body
-    | Arg arg :: l -> build_apply lam (arg :: args) loc pos l
-    | [] -> lapply lam (List.rev args) loc pos
+    | Arg arg :: l -> build_apply lam (arg :: args) loc pos ap_mode l
+    | [] -> lapply lam (List.rev args) loc pos ap_mode
   in
   let args =
     List.map
@@ -984,7 +986,7 @@ and transl_apply ~scopes
          | Arg exp -> Arg (transl_exp ~scopes exp))
       sargs
   in
-  build_apply lam [] loc position args
+  build_apply lam [] loc position mode args
 
 and transl_curried_function
       ~scopes loc return
@@ -1113,15 +1115,18 @@ and transl_function0
             (value_kind pat.pat_env pat.pat_type))
           (value_kind pat.pat_env pat.pat_type) other_cases
     in
+    let body =
+      Matching.for_function ~scopes loc repr (Lvar param)
+        (transl_cases ~scopes cases) partial
+    in
+    let region = region || not (may_allocate_in_region body) in
     let nlocal =
       if not region then 1
       else match join_mode mode arg_mode with
         | Alloc_local -> 1
         | Alloc_heap -> 0
     in
-    ((Curried {nlocal}, [param, kind], return, region),
-     Matching.for_function ~scopes loc repr (Lvar param)
-       (transl_cases ~scopes cases) partial)
+    ((Curried {nlocal}, [param, kind], return, region), body)
 
 and transl_function ~scopes e param cases partial region =
   let mode = transl_value_mode e.exp_mode in

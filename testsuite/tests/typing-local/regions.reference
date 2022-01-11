@@ -9,6 +9,7 @@
   after indirect overtail: OK
    during direct overtail: OK
     after direct overtail: OK
+            apply merging: OK
          toplevel binding: OK
      toplevel rec binding: OK
             toplevel eval: OK

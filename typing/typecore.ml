@@ -3521,13 +3521,13 @@ and type_expect_
             funct, sargs
       in
       begin_def ();
-      let (args, ty_res) =
+      let (args, ty_res, position) =
         type_application env loc expected_mode funct funct_mode sargs
       in
       end_def ();
       unify_var env (newvar()) funct.exp_type;
       let exp =
-        { exp_desc = Texp_apply(funct, args, expected_mode.position);
+        { exp_desc = Texp_apply(funct, args, position);
           exp_loc = loc; exp_extra = [];
           exp_type = ty_res;
           exp_mode = expected_mode.mode;
@@ -4822,10 +4822,11 @@ and type_function ?in_function loc attrs env (expected_mode : expected_mode)
     Location.prerr_warning (List.hd cases).c_lhs.pat_loc
       Warnings.Unerasable_optional_argument;
   let param = name_cases "param" cases in
+  let region = region_locked && not uncurried_function in
   re {
     exp_desc =
       Texp_function
-        { arg_label = l; param; cases; partial; region = region_locked };
+        { arg_label = l; param; cases; partial; region };
     exp_loc = loc; exp_extra = [];
     exp_type =
       instance (newgenty (Tarrow((l,arg_mode,ret_mode), ty_arg, ty_res, Cok)));
@@ -5322,7 +5323,7 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
       in
       let exp = type_expect env marg sarg (mk_expected ty_arg) in
       check_partial_application false exp;
-      ([Nolabel, Arg exp], ty_res)
+      ([Nolabel, Arg exp], ty_res, expected_mode.position)
   | _ ->
       let ty = funct.exp_type in
       let ignore_labels =
@@ -5346,8 +5347,8 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
         collect_apply_args env funct ignore_labels ty (instance ty)
           (Value_mode.regional_to_global_alloc funct_mode) sargs
       in
-      let position = expected_mode.position in
       let partial_app = is_partial_apply args in
+      let position = if partial_app then Nontail else expected_mode.position in
       let args =
         List.mapi (fun index arg ->
             type_apply_arg env ~funct ~index ~position ~partial_app arg)
@@ -5359,7 +5360,7 @@ and type_application env app_loc expected_mode funct funct_mode sargs =
       in
       submode ~loc:app_loc ~env
         (Value_mode.of_alloc mode_ret) expected_mode;
-      args, ty_ret
+      args, ty_ret, position
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
