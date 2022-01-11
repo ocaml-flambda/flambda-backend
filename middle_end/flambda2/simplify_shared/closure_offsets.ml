@@ -690,8 +690,6 @@ module Greedy = struct
 
   (* Ensure closure ids/env vars that are used in projections in the current
      compilation unit are present in the offsets returned by finalize *)
-  (* CR mshinwell: these [used_closure_ids] and [used_closure_vars] sets contain
-     more than just the ones used in projections *)
   let collect_used_closure_ids state ~used_closure_ids offsets =
     let imported_offsets = EO.imported_offsets () in
     Closure_id.Set.fold
