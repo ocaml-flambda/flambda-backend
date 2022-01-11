@@ -387,8 +387,9 @@ let binop ppf binop a b =
           tag pp_size size
       | Naked_floats { size } -> Format.fprintf ppf "float%a" pp_size size
     in
-    Format.fprintf ppf "@[<2>%%block_load %a%a@ (%a,@ %a)@]"
-      (mutability ~space:After) mut pp_access_kind access_kind simple a simple b
+    Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
+      (mutability ~space:Before) mut pp_access_kind access_kind simple a simple
+      b
   | Phys_equal (k, comp) ->
     let name = match comp with Eq -> "%phys_eq" | Neq -> "%phys_ne" in
     Format.fprintf ppf "@[<2>%s%a@ (%a,@ %a)@]" name
@@ -626,7 +627,8 @@ let rec expr scope ppf = function
         (pp_like "inlining_state(%a)" inlining_state)
         ppf is
     in
-    Format.fprintf ppf "@[<hv 2>apply@[<2>%a%a%a@]@ %a%a@ @[<hov>-> %a@ %a@]@]"
+    Format.fprintf ppf
+      "@[<hv 2>apply@[<2>%a%a%a@]@ @[<hv 2>%a%a@ @[<hov>-> %a@ %a@]@]@]"
       (call_kind ~space:Before) kind
       (inlined_attribute_opt ~space:Before)
       inlined pp_inlining_state () func_name_with_optional_arities
@@ -702,23 +704,24 @@ and code_binding ppf
        is_tupled
      } :
       code) =
-  Format.fprintf ppf "code@[<h>%a%a@ size(%a)%a@] @[<hov2>%a"
+  Format.fprintf ppf "@[<hv 2>code@[<h>%a%a@ size(%a)%a%a@]@ @[<hv2>@[<hv 2>%a"
     (recursive ~space:Before) rec_
     (inline_attribute_opt ~space:Before)
     inline code_size cs
     (pp_option ~space:Before (pp_like "newer_version_of(%a)" code_id))
-    newer_version_of code_id id;
+    newer_version_of
+    (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
+    is_tupled code_id id;
   let { params; closure_var; depth_var; ret_cont; exn_cont; body } =
     params_and_body
   in
-  Format.fprintf ppf "%a@ %a@ %a@ -> %a@ * %a%a%a@] =@ %a"
+  Format.fprintf ppf
+    "%a@]@ @[<hov 2>%a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a@]@] =@ %a"
     (kinded_parameters ~space:Before)
     params variable closure_var variable depth_var continuation_id ret_cont
     continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
-    ret_arity
-    (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "tupled@ ")
-    is_tupled (expr Outer) body
+    ret_arity (expr Outer) body
 
 let flambda_unit ppf ({ body } : flambda_unit) =
   Format.fprintf ppf "@[<v>@[%a@]@ @]" (expr Outer) body
