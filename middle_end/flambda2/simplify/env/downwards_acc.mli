@@ -25,7 +25,7 @@ val print : Format.formatter -> t -> unit
 val create :
   Downwards_env.t ->
   Continuation_uses_env.t ->
-  Closure_offsets.t Or_unknown.t ->
+  compute_closure_offsets:bool ->
   t
 
 (** Extract the environment component of the given downwards accumulator. *)

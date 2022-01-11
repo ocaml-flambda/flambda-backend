@@ -58,7 +58,12 @@ let [@ocamlformat "disable"] print ppf
     Code_id.Set.print code_ids_to_remember
     (Or_unknown.print Closure_offsets.print) closure_offsets
 
-let create denv continuation_uses_env closure_offsets =
+let create denv continuation_uses_env ~compute_closure_offsets =
+  let closure_offsets : _ Or_unknown.t =
+    if compute_closure_offsets
+    then Known (Closure_offsets.create ())
+    else Unknown
+  in
   { denv;
     continuation_uses_env;
     closure_offsets;
