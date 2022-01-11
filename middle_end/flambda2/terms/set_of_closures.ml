@@ -112,14 +112,6 @@ let free_names { function_decls; closure_elements } =
     [ Function_declarations.free_names function_decls;
       Simple.List.free_name (Var_within_closure.Map.data closure_elements) ]
 
-  Var_within_closure.Map.fold
-    (fun closure_var bound_to free_names ->
-      Name_occurrences.add_closure_var
-        (Name_occurrences.union (Simple.free_names bound_to) free_names)
-        closure_var Name_mode.normal)
-    closure_elements
-    (Function_declarations.free_names function_decls)
-
 let apply_renaming ({ function_decls; closure_elements } as t) renaming =
   let function_decls' =
     Function_declarations.apply_renaming function_decls renaming
