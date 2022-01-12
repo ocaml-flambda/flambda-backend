@@ -262,6 +262,7 @@ let static_const0 env r ~updates ~params_and_body
     (bound_symbols : Bound_symbols.Pattern.t) (static_const : Static_const.t) =
   match bound_symbols, static_const with
   | Block_like s, Block (tag, _mut, fields) ->
+    let r = R.check_for_module_symbol r s in
     let name = symbol s in
     let tag = Tag.Scannable.to_int tag in
     let block_name = name, Cmmgen_state.Global in
