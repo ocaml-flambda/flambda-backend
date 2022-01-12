@@ -95,4 +95,6 @@ module Let_syntax = struct
   let ( let>* ) x f = bind x ~f
 
   let ( let>+ ) x f = map x ~f
+
+  let ( let>+$ ) x f = map_sharing x ~f
 end

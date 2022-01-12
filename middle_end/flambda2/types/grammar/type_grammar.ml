@@ -178,11 +178,11 @@ let rec apply_renaming_head_of_kind_value head renaming =
   match head with
   | Variant { blocks; immediates; is_unique } ->
     let immediates' =
-      let>+ immediates = immediates in
+      let>+$ immediates = immediates in
       apply_renaming immediates renaming
     in
     let blocks' =
-      let>+ blocks = blocks in
+      let>+$ blocks = blocks in
       apply_renaming_row_like_for_blocks blocks renaming
     in
     if immediates == immediates' && blocks == blocks'
@@ -1241,11 +1241,11 @@ and remove_unused_closure_vars_head_of_kind_value head ~used_closure_vars =
   match head with
   | Variant { blocks; immediates; is_unique } ->
     let immediates' =
-      let>+ immediates = immediates in
+      let>+$ immediates = immediates in
       remove_unused_closure_vars immediates ~used_closure_vars
     in
     let blocks' =
-      let>+ blocks = blocks in
+      let>+$ blocks = blocks in
       remove_unused_closure_vars_row_like_for_blocks blocks ~used_closure_vars
     in
     if immediates == immediates' && blocks == blocks'

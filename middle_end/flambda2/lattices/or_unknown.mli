@@ -48,4 +48,8 @@ module Let_syntax : sig
   val ( let>* ) : 'a t -> ('a -> 'b t) -> 'b t
 
   val ( let>+ ) : 'a t -> ('a -> 'b) -> 'b t
+
+  (** [let>+$] returns the input ['a t] if the mapping function returns a value
+      that is physically-equal to its input. *)
+  val ( let>+$ ) : 'a t -> ('a -> 'a) -> 'a t
 end
