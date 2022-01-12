@@ -1,15 +1,12 @@
 (* TEST
    flags = "-g"
+
  *)
 
 
 let id x = Sys.opaque_identity x
 
-module M = struct
-  let raise = raise
-end
-
-let[@inline never] bang () = (M.raise [@inlined never]) Exit
+let[@inline never] bang () = raise Exit
 
 let[@inline never] fn_multi _ _ f = f 42 + 1
 
@@ -100,12 +97,6 @@ let inline_object f =
   end in
   obj#meth
 
-let[@inline never] labelled_arguments_partial k =
-  let[@inline never] f ~a = ignore a; k (); fun ~b -> ignore b; () in
-  let partial = Sys.opaque_identity (f ~b:1) in
-  partial ~a:();
-  42
-
 let[@inline never] lazy_ f =
   let x = Sys.opaque_identity (lazy (1 + f ())) in
   Lazy.force x
@@ -130,7 +121,7 @@ let () =
     (new klass)#meth @@ fun _ ->
     inline_object @@ fun _ ->
     lazy_ @@ fun _ ->
-    labelled_arguments_partial bang
+    bang ()
   with
   | _ -> assert false
   | exception Exit ->
