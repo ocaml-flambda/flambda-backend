@@ -612,16 +612,13 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
        [DA]. *)
     UA.lifted_constants uacc_after_upwards_traversal
   in
-  let default_result_types =
-    Result_types.create_default ~params ~result_arity
-  in
   let is_a_functor = Code.is_a_functor code in
   let result_types =
     if not (Flambda_features.function_result_types ~is_a_functor)
-    then default_result_types
+    then Result_types.create_unknown ~params ~result_arity
     else
       match return_cont_uses with
-      | None -> default_result_types
+      | None -> Result_types.create_bottom ~params ~result_arity
       | Some uses -> (
         (* CR mshinwell: Should we meet the result types with the arity? Also at
            applications? *)
@@ -648,7 +645,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
             ~code_age_relation_after_body:code_age_relation_after_function
         in
         match join with
-        | No_uses -> default_result_types
+        | No_uses -> assert false (* should have been caught above *)
         | Uses { handler_env; _ } ->
           let params_and_results =
             BP.List.var_set (params @ return_cont_params)

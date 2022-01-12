@@ -817,7 +817,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~result_arity
-            ~result_types:(Result_types.create_default ~params ~result_arity)
+            ~result_types:(Result_types.create_unknown ~params ~result_arity)
             ~stub:false ~inline ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)

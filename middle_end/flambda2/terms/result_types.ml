@@ -157,7 +157,7 @@ let create ~params ~results =
   let bound = { Bound.params; results; other_vars } in
   A.create bound env_extensions
 
-let create_default ~params ~result_arity =
+let create_trivial ~params ~result_arity create_type =
   let results =
     List.mapi
       (fun i kind_with_subkind ->
@@ -170,12 +170,19 @@ let create_default ~params ~result_arity =
           T.Typing_env_extension.With_extra_variables.add_or_replace_equation
             T.Typing_env_extension.With_extra_variables.empty
             (Bound_parameter.name bound_parameter)
-            (T.unknown_with_subkind kind_with_subkind)
+            (create_type kind_with_subkind)
         in
         bound_parameter, env_extension)
       result_arity
   in
   create ~params ~results
+
+let create_unknown ~params ~result_arity =
+  create_trivial ~params ~result_arity T.unknown_with_subkind
+
+let create_bottom ~params ~result_arity =
+  create_trivial ~params ~result_arity (fun kind_with_subkind ->
+      T.bottom (Flambda_kind.With_subkind.kind kind_with_subkind))
 
 let pattern_match t ~f =
   A.pattern_match t

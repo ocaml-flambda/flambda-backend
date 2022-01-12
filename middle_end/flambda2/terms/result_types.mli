@@ -24,7 +24,12 @@ val create :
     list ->
   t
 
-val create_default :
+val create_unknown :
+  params:Bound_parameter.t list ->
+  result_arity:Flambda_arity.With_subkinds.t ->
+  t
+
+val create_bottom :
   params:Bound_parameter.t list ->
   result_arity:Flambda_arity.With_subkinds.t ->
   t

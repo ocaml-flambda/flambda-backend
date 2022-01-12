@@ -1209,7 +1209,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~result_arity:[LC.value_kind return]
       ~result_types:
-        (Result_types.create_default ~params ~result_arity:[LC.value_kind return])
+        (Result_types.create_unknown ~params ~result_arity:[LC.value_kind return])
       ~stub ~inline
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~recursive ~newer_version_of:None ~cost_metrics
