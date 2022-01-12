@@ -30,6 +30,8 @@ val safe_string : unit -> bool
 
 val flat_float_array : unit -> bool
 
+val function_result_types : is_a_functor:bool -> bool
+
 val debug : unit -> bool
 
 val opaque : unit -> bool

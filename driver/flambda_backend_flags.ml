@@ -16,6 +16,8 @@
 let use_ocamlcfg = ref false            (* -ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 
+type function_result_types = Never | Functors_only | All_functions
+
 module Flambda2 = struct
   module Default = struct
     let classic_mode = false
@@ -24,6 +26,7 @@ module Flambda2 = struct
     let backend_cse_at_toplevel = false
     let cse_depth = 2
     let treat_invalid_code_as_unreachable = false
+    let function_result_types = Functors_only
     let unicode = true
   end
 
@@ -36,6 +39,7 @@ module Flambda2 = struct
   let treat_invalid_code_as_unreachable =
     ref Default.treat_invalid_code_as_unreachable
   let unicode = ref Default.unicode
+  let function_result_types = ref Default.function_result_types
 
   module Dump = struct
     let rawfexpr = ref false
@@ -222,7 +226,8 @@ module Flambda2 = struct
     join_points := true;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := false;
-    backend_cse_at_toplevel := false
+    backend_cse_at_toplevel := false;
+    function_result_types := Functors_only
 end
 
 let set_oclassic () =

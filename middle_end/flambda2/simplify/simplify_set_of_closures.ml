@@ -617,7 +617,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
   in
   let is_a_functor = Code.is_a_functor code in
   let result_types =
-    if not is_a_functor
+    if not (Flambda_features.function_result_types ~is_a_functor)
     then default_result_types
     else
       match return_cont_uses with
