@@ -123,6 +123,8 @@ type flambda_type = t
 
 val print : Format.formatter -> t -> unit
 
+(** [free_names] returns *all* closure variables occurring in the given type
+    regardless of where in the type such variables occur. *)
 include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
