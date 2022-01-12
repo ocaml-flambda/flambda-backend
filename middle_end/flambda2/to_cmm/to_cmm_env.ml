@@ -299,7 +299,7 @@ let env_var_offset env env_var =
   Exported_offsets.env_var_offset env.offsets env_var
 
 let layout env closures env_vars =
-  To_cmm_closure.layout env.offsets closures env_vars
+  Closure_offsets.layout env.offsets closures env_vars
 
 (* Printing
 

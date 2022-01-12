@@ -22,7 +22,11 @@ type t
 val print : Format.formatter -> t -> unit
 
 (** Create a downwards accumulator. *)
-val create : Downwards_env.t -> Continuation_uses_env.t -> t
+val create :
+  Downwards_env.t ->
+  Continuation_uses_env.t ->
+  compute_closure_offsets:bool ->
+  t
 
 (** Extract the environment component of the given downwards accumulator. *)
 val denv : t -> Downwards_env.t
@@ -98,3 +102,8 @@ val set_do_not_rebuild_terms_and_disable_inlining : t -> t
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val do_not_rebuild_terms : t -> bool
+
+val closure_offsets : t -> Closure_offsets.t Or_unknown.t
+
+val with_closure_offsets :
+  t -> closure_offsets:Closure_offsets.t Or_unknown.t -> t

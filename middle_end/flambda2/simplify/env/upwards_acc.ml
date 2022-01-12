@@ -37,7 +37,8 @@ type t =
     generate_phantom_lets : bool;
     required_names : Name.Set.t;
     reachable_code_ids : Data_flow.Reachable_code_ids.t Or_unknown.t;
-    demoted_exn_handlers : Continuation.Set.t
+    demoted_exn_handlers : Continuation.Set.t;
+    closure_offsets : Closure_offsets.t Or_unknown.t
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -45,7 +46,7 @@ let [@ocamlformat "disable"] print ppf
         name_occurrences; used_closure_vars; all_code = _;
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets; required_names; reachable_code_ids;
-        demoted_exn_handlers; } =
+        demoted_exn_handlers; closure_offsets; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
       @[<hov 1>(code_age_relation@ %a)@]@ \
@@ -58,7 +59,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(generate_phantom_lets@ %b)@]@ \
       @[<hov 1>(required_name@ %a)@]@ \
       @[<hov 1>(reachable_code_ids@ %a)@]@ \
-      @[<hov 1>(demoted_exn_handlers@ %a)@]\
+      @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
+      @[<hov 1>(closure_offsets@ %a@)@]\
       )@]"
     UE.print uenv
     Code_age_relation.print code_age_relation
@@ -72,10 +74,15 @@ let [@ocamlformat "disable"] print ppf
     Name.Set.print required_names
     (Or_unknown.print Data_flow.Reachable_code_ids.print) reachable_code_ids
     Continuation.Set.print demoted_exn_handlers
+    (Or_unknown.print Closure_offsets.print) closure_offsets
 
-let create ~required_names ~reachable_code_ids uenv dacc =
+let create ~required_names ~reachable_code_ids ~compute_closure_offsets uenv
+    dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
+  let closure_offsets : _ Or_unknown.t =
+    if compute_closure_offsets then DA.closure_offsets dacc else Unknown
+  in
   { uenv;
     creation_dacc = dacc;
     code_age_relation = TE.code_age_relation (DA.typing_env dacc);
@@ -86,6 +93,11 @@ let create ~required_names ~reachable_code_ids uenv dacc =
        tracking in [name_occurrences], since it is always accumulated, and never
        saved and restored (like free name information is when dealing with a
        [Let_cont]). *)
+    (* CR gbury: since [used_closure_vars] (and [mshinwell:] various other
+       things), are actually never modified in the uacc, and initialised using
+       the dacc, why not access them through the dacc ? that would reduce the
+       number of words allocated for each uacc (at the cost of an extra
+       lookup) *)
     used_closure_vars = DA.used_closure_vars dacc;
     shareable_constants = DA.shareable_constants dacc;
     cost_metrics = Cost_metrics.zero;
@@ -93,7 +105,8 @@ let create ~required_names ~reachable_code_ids uenv dacc =
     generate_phantom_lets;
     required_names;
     reachable_code_ids;
-    demoted_exn_handlers = DA.demoted_exn_handlers dacc
+    demoted_exn_handlers = DA.demoted_exn_handlers dacc;
+    closure_offsets
   }
 
 let creation_dacc t = t.creation_dacc
@@ -182,3 +195,7 @@ let generate_phantom_lets t = t.generate_phantom_lets
 
 let is_demoted_exn_handler t cont =
   Continuation.Set.mem cont t.demoted_exn_handlers
+
+let closure_offsets t = t.closure_offsets
+
+let with_closure_offsets t closure_offsets = { t with closure_offsets }

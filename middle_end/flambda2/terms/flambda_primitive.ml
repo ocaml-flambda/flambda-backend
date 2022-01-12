@@ -1417,9 +1417,16 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary _ -> Name_occurrences.empty
-  | Unary (Project_var { var = clos_var; project_from = _ }, x0) ->
-    Name_occurrences.add_closure_var (Simple.free_names x0) clos_var
-      Name_mode.normal
+  | Unary (Select_closure { move_from; move_to }, x0) ->
+    Name_occurrences.add_closure_id
+      (Name_occurrences.add_closure_id (Simple.free_names x0) move_to
+         Name_mode.normal)
+      move_from Name_mode.normal
+  | Unary (Project_var { var = clos_var; project_from }, x0) ->
+    Name_occurrences.add_closure_id
+      (Name_occurrences.add_closure_var (Simple.free_names x0) clos_var
+         Name_mode.normal)
+      project_from Name_mode.normal
   | Unary (_prim, x0) -> Simple.free_names x0
   | Binary (_prim, x0, x1) ->
     Name_occurrences.union_list [Simple.free_names x0; Simple.free_names x1]

@@ -14,9 +14,13 @@
    -open
    Flambda2_ui
    -open
+   Flambda2_numbers
+   -open
    Flambda2_term_basics
    -open
    Flambda2_nominal
+   -open
+   Flambda2_lattices
    -open
    Flambda2_kinds
    -open
@@ -29,7 +33,9 @@
   flambda2_identifiers
   flambda2_bound_identifiers
   flambda2_ui
+  flambda2_numbers
   flambda2_term_basics
   flambda2_nominal
+  flambda2_lattices
   flambda2_kinds
   flambda2_terms))

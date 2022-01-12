@@ -21,7 +21,8 @@ open! Simplify_import
 type simplify_result =
   { cmx : Flambda_cmx_format.t option;
     unit : Flambda_unit.t;
-    all_code : Exported_code.t
+    all_code : Exported_code.t;
+    exported_offsets : Exported_offsets.t
   }
 
 let all_predefined_exception_symbols ~symbol_for_global =
@@ -80,7 +81,11 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let denv = DE.increment_continuation_scope denv in
   let exn_cont_scope = DE.get_continuation_scope denv in
   let denv = DE.increment_continuation_scope denv in
-  let dacc = DA.create denv Continuation_uses_env.empty in
+  (* CR gbury: only compute closure offsets if this is the last round. (same
+     remark for the cmx contents) *)
+  let dacc =
+    DA.create denv Continuation_uses_env.empty ~compute_closure_offsets:true
+  in
   let body, uacc =
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
       ~return_arity:[K.With_subkind.any_value] ~exn_continuation
@@ -105,15 +110,26 @@ let run ~symbol_for_global ~get_global_info ~round unit =
     Exported_code.merge (UA.all_code uacc)
       (Exported_code.mark_as_imported !imported_code)
   in
+  let name_occurrences = UA.name_occurrences uacc in
+  let used_closure_ids = Name_occurrences.normal_closure_ids name_occurrences in
   let used_closure_vars =
-    UA.name_occurrences uacc |> Name_occurrences.closure_vars
+    Name_occurrences.normal_closure_vars name_occurrences
+  in
+  let exported_offsets =
+    match UA.closure_offsets uacc with
+    | Unknown ->
+      Misc.fatal_error "Closure offsets must be computed and cannot be unknown"
+    | Known closure_offsets ->
+      Closure_offsets.finalize_offsets closure_offsets
+        ~used_closure_vars:(Known used_closure_vars)
+        ~used_closure_ids:(Known used_closure_ids)
   in
   let cmx =
     Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
-      ~used_closure_vars all_code
+      ~used_closure_vars ~exported_offsets all_code
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~module_symbol ~body
       ~used_closure_vars:(Known used_closure_vars)
   in
-  { cmx; unit; all_code }
+  { cmx; unit; all_code; exported_offsets }
