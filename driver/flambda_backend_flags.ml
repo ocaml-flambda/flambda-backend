@@ -26,7 +26,7 @@ module Flambda2 = struct
     let backend_cse_at_toplevel = false
     let cse_depth = 2
     let treat_invalid_code_as_unreachable = false
-    let function_result_types = Functors_only
+    let function_result_types = Never
     let unicode = true
   end
 
