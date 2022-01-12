@@ -14,10 +14,35 @@
 
 (* Compute offsets for elements in sets of closures *)
 
-(** Compute offsets for a whole compilation unit. Takes the offsets from all cmx
-    files read as input. *)
-val compute_offsets :
-  Exported_offsets.t -> Exported_code.t -> Flambda_unit.t -> Exported_offsets.t
+(** {2 Computing offsets} *)
+
+(** The type of state used to accumulate constraints on offsets. *)
+type t
+
+(** Printing function. *)
+val print : Format.formatter -> t -> unit
+
+(** Create an empty set of constraints. *)
+val create : unit -> t
+
+(** Add a set of closure to the set of constraints. *)
+val add_set_of_closures :
+  t ->
+  is_phantom:bool ->
+  all_code:Code.t Code_id.Map.t ->
+  Set_of_closures.t ->
+  t
+
+(** Compute offsets for all closure_ids and env_vars that occur in the current
+    compilation unit, taking into account the constraints introduced by the
+    sharing of closure_id/env_var across multiple sets of closures. *)
+val finalize_offsets :
+  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
+  used_closure_ids:Closure_id.Set.t Or_unknown.t ->
+  t ->
+  Exported_offsets.t
+
+(** {2 Helper functions} *)
 
 (** Returns a cmm name for a closure id. *)
 val closure_name : Closure_id.t -> string
@@ -35,11 +60,7 @@ val filter_closure_vars :
   used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
   Simple.t Var_within_closure.Map.t
 
-(* val map_on_function_decl :
- *   (string -> Closure_id.t -> Code_id.t -> 'a) ->
- *   Flambda_unit.t -> 'a Closure_id.Map.t
- * (\** Map a function on each function body exactly once, and return the
- *     resulting mapping. *\) *)
+(** {2 Offsets & Layouts} *)
 
 (** Layout slots, aka what might be found in a block at a given offset. A layout
     slot can take up more than one word of memory (this is the case for
@@ -63,7 +84,8 @@ type layout =
 val layout :
   Exported_offsets.t -> Closure_id.t list -> Var_within_closure.t list -> layout
 
+(** Printing function for layouts. *)
 val print_layout : Format.formatter -> layout -> unit
 
-(** Printing functions for layout slots and layouts. *)
+(** Printing functions for layout slots. *)
 val print_layout_slot : Format.formatter -> layout_slot -> unit

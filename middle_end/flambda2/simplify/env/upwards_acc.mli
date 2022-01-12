@@ -24,6 +24,7 @@ val print : Format.formatter -> t -> unit
 val create :
   required_names:Name.Set.t ->
   reachable_code_ids:Data_flow.Reachable_code_ids.t Or_unknown.t ->
+  compute_closure_offsets:bool ->
   Upwards_env.t ->
   Downwards_acc.t ->
   t
@@ -72,6 +73,7 @@ val clear_name_occurrences : t -> t
 
 val add_free_names : t -> Name_occurrences.t -> t
 
+(** Note that this only includes uses of closure vars in projections. *)
 val used_closure_vars : t -> Name_occurrences.t
 
 val remove_all_occurrences_of_free_names : t -> Name_occurrences.t -> t
@@ -95,3 +97,7 @@ val generate_phantom_lets : t -> bool
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val is_demoted_exn_handler : t -> Continuation.t -> bool
+
+val closure_offsets : t -> Closure_offsets.t Or_unknown.t
+
+val with_closure_offsets : t -> Closure_offsets.t Or_unknown.t -> t

@@ -93,7 +93,10 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
           UE.add_function_return_or_exn_continuation uenv exn_continuation
             exn_cont_scope [K.With_subkind.any_value]
         in
-        let uacc = UA.create ~required_names ~reachable_code_ids uenv dacc in
+        let uacc =
+          UA.create ~required_names ~reachable_code_ids
+            ~compute_closure_offsets:true uenv dacc
+        in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in
   (* We don't check occurrences of variables or symbols here because the check

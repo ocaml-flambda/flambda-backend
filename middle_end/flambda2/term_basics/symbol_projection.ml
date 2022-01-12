@@ -96,8 +96,10 @@ let free_names { symbol; projection } =
   let free_names = Name_occurrences.singleton_symbol symbol Name_mode.normal in
   match projection with
   | Block_load _ -> free_names
-  | Project_var { project_from = _; var } ->
-    Name_occurrences.add_closure_var free_names var Name_mode.normal
+  | Project_var { project_from; var } ->
+    Name_occurrences.add_closure_id
+      (Name_occurrences.add_closure_var free_names var Name_mode.normal)
+      project_from Name_mode.normal
 
 let all_ids_for_export { symbol; projection = _ } =
   Ids_for_export.singleton_symbol symbol

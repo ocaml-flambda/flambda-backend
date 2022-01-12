@@ -146,7 +146,7 @@ let rec static_set_of_closures env symbs set prev_update =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
   let elts =
-    To_cmm_closure.filter_closure_vars set
+    Closure_offsets.filter_closure_vars set
       ~used_closure_vars:(Env.used_closure_vars env)
   in
   let layout =
@@ -185,7 +185,7 @@ and fill_static_layout s symbs decls startenv elts env acc updates i = function
     fill_static_layout s symbs decls startenv elts env acc updates offset r
 
 and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
-  match (slot : To_cmm_closure.layout_slot) with
+  match (slot : Closure_offsets.layout_slot) with
   | Infix_header ->
     let field = C.cint (C.infix_header (offset + 1)) in
     env, field :: acc, offset + 1, updates

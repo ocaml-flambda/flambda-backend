@@ -1311,7 +1311,13 @@ let close_functions acc external_env function_declarations =
         Var_within_closure.Map.add var_within_closure external_simple map)
       var_within_closures_from_idents Var_within_closure.Map.empty
   in
-  acc, Set_of_closures.create function_decls ~closure_elements, approximations
+  let set_of_closures =
+    Set_of_closures.create function_decls ~closure_elements
+  in
+  let acc =
+    Acc.add_set_of_closures_offsets ~is_phantom:false acc set_of_closures
+  in
+  acc, set_of_closures, approximations
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) =
@@ -1385,7 +1391,12 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let acc = Acc.create ~symbol_for_global in
+  let closure_offsets : _ Or_unknown.t =
+    if Flambda_features.classic_mode ()
+    then Known (Closure_offsets.create ())
+    else Unknown
+  in
+  let acc = Acc.create ~symbol_for_global ~closure_offsets in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
@@ -1508,8 +1519,16 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
         |> Expr_with_acc.create_let)
       (acc, body) (Acc.declared_symbols acc)
   in
+  let exported_offsets =
+    Or_unknown.map (Acc.closure_offsets acc) ~f:(fun offsets ->
+        (* CR gbury: would it be possible to use the free_names from the acc to
+           compute the used closure vars ? *)
+        Closure_offsets.finalize_offsets offsets ~used_closure_vars:Unknown
+          ~used_closure_ids:Unknown)
+  in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
       ~module_symbol ~used_closure_vars:Unknown,
     Exported_code.add_code
       ~keep_code:(fun _ -> false)
-      (Acc.code acc) Exported_code.empty )
+      (Acc.code acc) Exported_code.empty,
+    exported_offsets )
