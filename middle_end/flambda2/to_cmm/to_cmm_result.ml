@@ -23,10 +23,27 @@ type t =
   { gc_roots : Symbol.t list;
     data_list : Cmm.phrase list;
     functions : Cmm.fundecl list;
-    current_data : Cmm.data_item list
+    current_data : Cmm.data_item list;
+    module_symbol : Symbol.t;
+    module_symbol_defined : bool
   }
 
-let empty = { gc_roots = []; data_list = []; functions = []; current_data = [] }
+let empty ~module_symbol =
+  { gc_roots = [];
+    data_list = [];
+    functions = [];
+    current_data = [];
+    module_symbol;
+    module_symbol_defined = false
+  }
+
+let check_for_module_symbol t symbol =
+  if Symbol.equal symbol t.module_symbol
+  then begin
+    assert (not t.module_symbol_defined);
+    { t with module_symbol_defined = true }
+  end
+  else t
 
 let defines_a_symbol data =
   match (data : Cmm.data_item) with
@@ -60,11 +77,23 @@ let set_data r l =
       Misc.fatal_errorf "To_cmm_result.set_data: %s"
         "about to lose some translated static data items")
 
+let define_module_symbol_if_missing r =
+  if r.module_symbol_defined
+  then r
+  else
+    let s' = Linkage_name.to_string (Symbol.linkage_name r.module_symbol) in
+    let l =
+      C.emit_block (s', Cmmgen_state.Global) (C.black_block_header 0 0) []
+    in
+    set_data r l
+
 let add_gc_roots r l = { r with gc_roots = l @ r.gc_roots }
 
 let add_function r f = { r with functions = f :: r.functions }
 
 let to_cmm r =
+  (* make sure the module symbol is defined *)
+  let r = define_module_symbol_if_missing r in
   (* Make sure we do not forget any current data *)
   let r = archive_data r in
   (* Sort functions according to debuginfo *)

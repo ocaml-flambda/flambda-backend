@@ -1554,7 +1554,8 @@ let unit ~offsets ~make_symbol unit ~all_code =
           (List.map snd return_cont_params)
           (Flambda_unit.return_continuation unit)
       in
-      let body, res = expr env R.empty (Flambda_unit.body unit) in
+      let r = R.empty ~module_symbol:(Flambda_unit.module_symbol unit) in
+      let body, res = expr env r (Flambda_unit.body unit) in
       let body =
         let unit_value = C.targetint Targetint_32_64.one in
         C.ccatch ~rec_flag:false ~body
