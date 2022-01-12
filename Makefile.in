@@ -544,3 +544,17 @@ check-fmt:
 	  git diff --no-ext-diff; \
 	  exit 1; \
 	fi
+
+.PHONY: regen-flambda2-parser
+regen-flambda2-parser:
+	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=$(arch) \
+	  $(dune) build @middle_end/flambda2/parser/regen --auto-promote --root=. \
+	    --build-dir=_build2 \
+	  || true
+# Make sure regeneration is idempotent, and also check that the previous step
+# worked (can't tell the difference between failure and successful
+# auto-promotion)
+	PATH=$(stage0_prefix)/bin:$$PATH \
+	  ARCH=$(arch) \
+	  $(dune) build @middle_end/flambda2/parser/regen --root=. --build-dir=_build2

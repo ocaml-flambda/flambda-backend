@@ -1,43 +1,48 @@
-; Using user actions rather than (ocamllex) and (menhir) because the Makefile
-; runs ocamllex and menhir from this directory rather than the workspace root,
-; meaning the generated source is annotated with the bare filename.
+; To avoid forcing people to have exactly the right Menhir installed, we don't
+; declare the generated .ml files as targets directly. Instead, we provide the
+; @regen alias that regenerates them only if asked for. The Makefile then runs
+; the alias with --auto-promote.
 
-; These rules are disabled by default because you need precisely the correct
-; version of Menhir installed. Comment out (mode fallback) and uncomment (mode
-; promote) in each stanza if you make changes to the Flambda
-; parser.
+(alias (name regen))
 
 (rule
- (mode fallback)
- ;(mode    promote)
- (target flambda_lex.ml)
+ (target flambda_lex.ml.new)
  (deps flambda_lex.mll)
+ (alias regen)
  (action
-  (run ocamllex -q %{deps})))
+  (chdir %{workspace_root}
+   (run ocamllex -q %{deps} -o %{target}))))
 
 (rule
- (mode fallback)
- ;(mode   promote)
- (target flambda_parser.ml)
+ (alias regen)
+ (action
+  (diff flambda_lex.ml flambda_lex.ml.new)))
+
+(rule
+ (alias regen)
  (deps flambda_parser_in.ml)
+ (targets)
  (action
-  (with-stdin-from
-   %{deps}
-   (with-stdout-to
-    %{target}
-    (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+  (progn
+   (with-stdin-from
+    %{deps}
+    (with-stdout-to
+     flambda_parser.ml.new
+     (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))
+   (diff flambda_parser.ml flambda_parser.ml.new))))
 
 (rule
- (mode fallback)
- ;(mode   promote)
- (target flambda_parser.mli)
+ (alias regen)
  (deps flambda_parser_in.mli)
+ (targets)
  (action
-  (with-stdin-from
-   %{deps}
-   (with-stdout-to
-    %{target}
-    (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))))
+  (progn
+   (with-stdin-from
+    %{deps}
+    (with-stdout-to
+     flambda_parser.mli.new
+     (run sed "s/MenhirLib/CamlinternalMenhirLib/g")))
+   (diff flambda_parser.mli flambda_parser.mli.new))))
 
 (rule
  (targets flambda_parser_in.ml flambda_parser_in.mli)
@@ -45,18 +50,19 @@
  (action
   (run menhir --table %{deps} --base flambda_parser_in)))
 
-; NOTE: flambda_parser.messages is massively out of date. No need to activate
-; this rule unless you've fixed it (thanks!).
+; NOTE: flambda_parser.messages is massively out of date.
+
+(alias (name regen-messages))
 
 (rule
- (mode fallback)
- ;(mode   promote)
- (target flambda_parser_messages.ml)
+ (alias regen-messages)
  (deps flambda_parser.messages flambda_parser.mly)
+ (targets)
  (action
-  (with-stdout-to
-   %{target}
-   (run menhir --compile-errors %{deps}))))
+  (progn
+   (with-stdout-to flambda_parser_messages.ml.new
+    (run menhir --compile-errors %{deps}))
+   (diff flambda_parser_messages.ml flambda_parser_messages.ml.new))))
 
 (alias
  (name list-errors))
