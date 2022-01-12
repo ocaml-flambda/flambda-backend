@@ -114,7 +114,7 @@ let make_package_object ~ppf_dump members targetobj targetname coercion
         ~flambda2
         ~ppf_dump
         ~required_globals:required_globals
-        ~keep_symbol_tables:false
+        ~keep_symbol_tables:true
         ()
     end else begin
       let program, middle_end =
@@ -204,6 +204,12 @@ let build_package_cmx members cmxfile =
       (fun m accu ->
         match m.pm_kind with PM_intf -> accu | PM_impl info -> info :: accu)
       members [] in
+  (* CR vlaviron: The code for [pack_units1] and [pack_units2] relies on
+     [Compilenv.unit_for_global] to find the correct compilation unit for the
+     packed modules. This is fragile, and means that we must keep
+     [Compilenv.global_infos_table] alive longer than we would otherwise need.
+     We should consider computing the sets earlier, to remove the dependency
+     on the table. *)
   let pack_units1 : Compilation_unit.Set.t lazy_t =
     lazy (List.fold_left
             (fun set info ->
