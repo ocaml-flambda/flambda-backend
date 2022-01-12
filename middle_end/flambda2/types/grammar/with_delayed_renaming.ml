@@ -60,7 +60,7 @@ let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
 
 let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
     ~remove_unused_closure_vars_descr t ~used_closure_vars =
-  let descr_known_to_contain_no_closure_vars =
+  let descr_known_to_contain_no_unused_closure_vars =
     (* If the free names are already computed (modulo application of a
        renaming), we can use them as a shortcut, to potentially avoid traversing
        the [descr]. *)
@@ -68,10 +68,13 @@ let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
     then
       let free_names = free_names t ~apply_renaming_descr ~free_names_descr in
       let closure_vars = Name_occurrences.closure_vars free_names in
-      Var_within_closure.Set.is_empty closure_vars
+      let unused_closure_vars =
+        Var_within_closure.Set.diff closure_vars used_closure_vars
+      in
+      Var_within_closure.Set.is_empty unused_closure_vars
     else false
   in
-  if descr_known_to_contain_no_closure_vars
+  if descr_known_to_contain_no_unused_closure_vars
   then t
   else
     let descr =
