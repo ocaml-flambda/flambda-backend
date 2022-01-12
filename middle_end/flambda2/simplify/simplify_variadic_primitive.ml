@@ -166,7 +166,7 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
     let dacc =
       DA.map_denv dacc ~f:(fun denv ->
           DE.add_variable_and_extend_typing_environment denv result_var ty
-            (Normal env_extension))
+            env_extension)
     in
     Simplified_named.reachable named ~try_reify:true, dacc
 

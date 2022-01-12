@@ -18,10 +18,8 @@ type t
 
 val create :
   params:Bound_parameter.t list ->
-  results:
-    (Bound_parameter.t
-    * Flambda2_types.Typing_env_extension.With_extra_variables.t)
-    list ->
+  results:Bound_parameter.t list ->
+  Flambda2_types.Typing_env_extension.With_extra_variables.t ->
   t
 
 val create_unknown :
@@ -38,10 +36,8 @@ val pattern_match :
   t ->
   f:
     (params:Bound_parameter.t list ->
-    results:
-      (Bound_parameter.t
-      * Flambda2_types.Typing_env_extension.With_extra_variables.t)
-      list ->
+    results:Bound_parameter.t list ->
+    Flambda2_types.Typing_env_extension.With_extra_variables.t ->
     'a) ->
   'a
 

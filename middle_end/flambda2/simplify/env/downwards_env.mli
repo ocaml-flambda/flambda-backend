@@ -134,13 +134,15 @@ val define_variable_and_extend_typing_environment :
   Flambda2_types.Typing_env_extension.t ->
   t
 
-type extension_kind =
-  | Normal of Flambda2_types.Typing_env_extension.t
-  | With_extra_variables of
-      Flambda2_types.Typing_env_extension.With_extra_variables.t
-
 val add_variable_and_extend_typing_environment :
-  t -> Bound_var.t -> Flambda2_types.t -> extension_kind -> t
+  t ->
+  Bound_var.t ->
+  Flambda2_types.t ->
+  Flambda2_types.Typing_env_extension.t ->
+  t
+
+val extend_typing_environment :
+  t -> Flambda2_types.Typing_env_extension.With_extra_variables.t -> t
 
 val with_typing_env : t -> Flambda2_types.Typing_env.t -> t
 

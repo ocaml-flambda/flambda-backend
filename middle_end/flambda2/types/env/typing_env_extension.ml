@@ -86,10 +86,9 @@ module With_extra_variables = struct
   let empty =
     { existential_vars = Variable.Map.empty; equations = Name.Map.empty }
 
-  let add_definition t var kind ty =
+  let add_definition t var kind =
     let existential_vars = Variable.Map.add var kind t.existential_vars in
-    let equations = Name.Map.add (Name.var var) ty t.equations in
-    { existential_vars; equations }
+    { existential_vars; equations = t.equations }
 
   let add_or_replace_equation t name ty =
     More_type_creators.check_equation name ty;

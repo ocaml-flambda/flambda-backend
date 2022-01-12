@@ -110,8 +110,9 @@ end = struct
           else type_prior_to_sets
         in
         let env_extension =
-          T.make_suitable_for_environment env_prior_to_sets type_prior_to_sets
-            (Everything_not_in env_inside_function) ~bind_to:(Name.var var)
+          T.make_suitable_for_environment env_prior_to_sets
+            (Everything_not_in env_inside_function)
+            [Name.var var, type_prior_to_sets]
         in
         let env_inside_function =
           TE.add_env_extension_with_extra_variables env_inside_function
@@ -134,10 +135,9 @@ end = struct
       (* When not lifting (i.e. the bound names are variables), we need to
          create a fresh set of irrelevant variables, since the let-bound names
          are not in scope for the closure definition(s). *)
-      List.map
-        (fun closure_bound_names ->
-          Closure_id.Map.map_sharing Bound_name.rename closure_bound_names)
-        closure_bound_names_all_sets
+      (* List.map (fun closure_bound_names -> Closure_id.Map.map_sharing
+         Bound_name.rename closure_bound_names) *)
+      closure_bound_names_all_sets
     in
     let closure_types_via_aliases_all_sets =
       List.map
@@ -650,23 +650,22 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
           let params_and_results =
             BP.List.var_set (params @ return_cont_params)
           in
-          let results =
+          let typing_env = DE.typing_env handler_env in
+          let results_and_types =
             List.map
               (fun result ->
-                let typing_env = DE.typing_env handler_env in
                 let ty =
                   TE.find typing_env (BP.name result)
                     (Some (K.With_subkind.kind (BP.kind result)))
                 in
-                let env_extension =
-                  T.make_suitable_for_environment typing_env ty
-                    (All_variables_except params_and_results)
-                    ~bind_to:(BP.name result)
-                in
-                result, env_extension)
+                BP.name result, ty)
               return_cont_params
           in
-          Result_types.create ~params ~results)
+          let env_extension =
+            T.make_suitable_for_environment typing_env
+              (All_variables_except params_and_results) results_and_types
+          in
+          Result_types.create ~params ~results:return_cont_params env_extension)
   in
   let code =
     Rebuilt_static_const.create_code
@@ -867,13 +866,6 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           Bound_name.Map.add bound_name closure_type closure_types)
       fun_types Bound_name.Map.empty
   in
-  (* CR-someday mshinwell: If adding function return types, a call to
-     [T.make_suitable_for_environment] would be needed here, as the return types
-     could name the irrelevant variables bound to the closures. (We could
-     further add equalities between those irrelevant variables and the bound
-     closure variables themselves.)
-
-     mshinwell: first half fixed, see above where [Code] is created. *)
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
         denv
@@ -889,7 +881,18 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
              (fun bound_name closure_type denv ->
                let bound_name = Bound_name.to_name bound_name in
                DE.add_equation_on_name denv bound_name closure_type)
-             closure_types_by_bound_name)
+             closure_types_by_bound_name
+        (* |> Closure_id.Map.fold (fun closure_id inside_name denv -> let
+           inside_name = Bound_name.name inside_name in match
+           Closure_id.Map.find closure_id closure_bound_names with | exception
+           Not_found -> Misc.fatal_errorf "Closure ID %a not found in
+           outside-function map:@ %a" Closure_id.print closure_id
+           (Closure_id.Map.print Bound_name.print) closure_bound_names_inside |
+           outside_name -> let outside_name = Bound_name.name outside_name in (*
+           In the case of lifted sets of closures, the inside and outside names
+           are the same symbols. *) if Name.equal inside_name outside_name then
+           denv else DE.add_equation_on_name denv inside_name (T.alias_type_of
+           K.value (Simple.name outside_name))) closure_bound_names_inside*))
   in
   let set_of_closures =
     Function_declarations.create all_function_decls_in_set

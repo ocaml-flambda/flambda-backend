@@ -22,7 +22,6 @@ module K = Flambda_kind
 module BP = Bound_parameter
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
-module TEE = Flambda2_types.Typing_env_extension
 
 type resolver = Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
@@ -349,12 +348,7 @@ let define_variable_and_extend_typing_environment t var kind env_extension =
   let typing_env = TE.add_env_extension typing_env env_extension in
   { t with typing_env; variables_defined_at_toplevel }
 
-type extension_kind =
-  | Normal of TEE.t
-  | With_extra_variables of TEE.With_extra_variables.t
-
-let add_variable_and_extend_typing_environment t var ty
-    (env_extension : extension_kind) =
+let add_variable_and_extend_typing_environment t var ty env_extension =
   (* This is a combined operation to reduce allocation. *)
   let typing_env =
     let var' = Bound_name.var var in
@@ -368,13 +362,17 @@ let add_variable_and_extend_typing_environment t var ty
     then Variable.Set.add (Bound_var.var var) t.variables_defined_at_toplevel
     else t.variables_defined_at_toplevel
   in
-  let typing_env =
-    match env_extension with
-    | Normal env_extension -> TE.add_env_extension typing_env env_extension
-    | With_extra_variables env_extension ->
-      TE.add_env_extension_with_extra_variables typing_env env_extension
-  in
+  let typing_env = TE.add_env_extension typing_env env_extension in
   { t with typing_env; variables_defined_at_toplevel }
+
+let extend_typing_environment t env_extension =
+  (* There doesn't seem any need to augment [t.variables_defined_at_toplevel]
+     here for the existential variables, since they will have [In_types]
+     mode. *)
+  let typing_env =
+    TE.add_env_extension_with_extra_variables t.typing_env env_extension
+  in
+  { t with typing_env }
 
 let with_typing_env t typing_env = { t with typing_env }
 

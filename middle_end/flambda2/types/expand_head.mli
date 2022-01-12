@@ -95,9 +95,17 @@ type to_erase =
   | Everything_not_in of Typing_env.t
   | All_variables_except of Variable.Set.t
 
+(** This function doesn't descend past an alias type specifying a symbol: the
+    assumption is that such types are already valid in the target environment.
+    (This applies no matter what the setting of [to_erase]).
+
+    If any of the [Name.t]s provided as the "bind-to" names occur already in the
+    supplied environment then the types provided as input to this function will
+    be used instead of the types in such environment. (This situation does not
+    usually occur but does arise when this function is called during function
+    result type computation.) *)
 val make_suitable_for_environment :
   Typing_env.t ->
-  Type_grammar.t ->
   to_erase ->
-  bind_to:Name.t ->
+  (Name.t * Type_grammar.t) list ->
   Typing_env_extension.With_extra_variables.t

@@ -83,7 +83,7 @@ module Typing_env_extension : sig
 
     val empty : t
 
-    val add_definition : t -> Variable.t -> Flambda_kind.t -> flambda_type -> t
+    val add_definition : t -> Variable.t -> Flambda_kind.t -> t
 
     val add_or_replace_equation : t -> Name.t -> flambda_type -> t
 
@@ -288,9 +288,8 @@ type to_erase =
     effort basis. *)
 val make_suitable_for_environment :
   Typing_env.t ->
-  flambda_type ->
   to_erase ->
-  bind_to:Name.t ->
+  (Name.t * flambda_type) list ->
   Typing_env_extension.With_extra_variables.t
 
 val apply_coercion : flambda_type -> Coercion.t -> flambda_type

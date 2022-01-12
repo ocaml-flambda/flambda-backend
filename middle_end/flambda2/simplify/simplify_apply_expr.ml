@@ -169,7 +169,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       match Apply.continuation apply with
       | Never_returns -> dacc, None
       | Return apply_return_continuation ->
-        Result_types.pattern_match result_types ~f:(fun ~params ~results ->
+        Result_types.pattern_match result_types
+          ~f:(fun ~params ~results env_extension ->
             if List.compare_lengths params_arity params <> 0
             then
               Misc.fatal_errorf
@@ -200,16 +201,16 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
             in
             let denv =
               List.fold_left2
-                (fun denv kind (result, env_extension) ->
-                  DE.add_variable_and_extend_typing_environment denv
+                (fun denv kind result ->
+                  DE.add_variable denv
                     (VB.create (BP.var result) NM.in_types)
-                    (T.unknown_with_subkind kind)
-                    (With_extra_variables env_extension))
+                    (T.unknown_with_subkind kind))
                 denv result_arity results
             in
+            let denv = DE.extend_typing_environment denv env_extension in
             let arg_types =
               List.map2
-                (fun kind (result_var, _env_extension) ->
+                (fun kind result_var ->
                   T.alias_type_of (K.With_subkind.kind kind)
                     (BP.simple result_var))
                 result_arity results

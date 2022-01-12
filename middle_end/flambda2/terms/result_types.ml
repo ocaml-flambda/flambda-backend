@@ -15,6 +15,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module T = Flambda2_types
+module TEEV = T.Typing_env_extension.With_extra_variables
 
 module Bound = struct
   type t =
@@ -99,83 +100,47 @@ module Bound = struct
       renaming other_vars fresh_other_vars
 end
 
-module Result_env_extensions = struct
-  type t = T.Typing_env_extension.With_extra_variables.t list
-
-  let apply_renaming t renaming =
-    List.map
-      (fun env_extension ->
-        T.Typing_env_extension.With_extra_variables.apply_renaming env_extension
-          renaming)
-      t
-
-  let free_names t =
-    List.map T.Typing_env_extension.With_extra_variables.free_names t
-    |> Name_occurrences.union_list
-
-  let all_ids_for_export t =
-    List.map T.Typing_env_extension.With_extra_variables.all_ids_for_export t
-    |> Ids_for_export.union_list
-end
-
-module A = Name_abstraction.Make (Bound) (Result_env_extensions)
-module FN = Name_abstraction.Make_free_names (Bound) (Result_env_extensions)
+module A = Name_abstraction.Make (Bound) (TEEV)
+module FN = Name_abstraction.Make_free_names (Bound) (TEEV)
 
 type t = A.t
 
 let print ppf t =
-  let { Bound.params; results; other_vars }, env_extensions =
+  let { Bound.params; results; other_vars }, env_extension =
     Name_abstraction.peek_for_printing t
   in
-  let results = List.combine results env_extensions in
   Format.fprintf ppf
-    "@[<hov 1>(@[<hov 1>(params@ (%a))@]@ @[<hov 1>(other_vars@ (%a))@]@ \
-     @[<hov 1>(results@ (%a))@])@]"
-    Bound_parameter.List.print params
+    "@[<hov 1>(@[<hov 1>(params@ (%a))@]@ @[<hov 1>(results@ %a)@]@ @[<hov \
+     1>(other_vars@ (%a))@]@ @[<hov 1>(env_extension@ (%a))@])@]"
+    Bound_parameter.List.print params Bound_parameter.List.print results
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
-    other_vars
-    (Format.pp_print_list ~pp_sep:Format.pp_print_space
-       (fun ppf (result, env_extension) ->
-         Format.fprintf ppf
-           "@[<hov 1>(@[<hov 1>(result@ %a)@]@ @[<hov 1>(env_extension@ \
-            %a)@])@]"
-           Bound_parameter.print result
-           T.Typing_env_extension.With_extra_variables.print env_extension))
-    results
+    other_vars TEEV.print env_extension
 
-let create ~params ~results =
-  let results, env_extensions = List.split results in
+let create ~params ~results env_extension =
   let other_vars =
-    List.fold_left
-      (fun other_vars env_extension ->
-        (T.Typing_env_extension.With_extra_variables.existential_vars
-           env_extension
-        |> Variable.Set.elements)
-        @ other_vars)
-      [] env_extensions
+    TEEV.existential_vars env_extension |> Variable.Set.elements
   in
   let bound = { Bound.params; results; other_vars } in
-  A.create bound env_extensions
+  A.create bound env_extension
 
 let create_trivial ~params ~result_arity create_type =
   let results =
     List.mapi
       (fun i kind_with_subkind ->
-        let bound_parameter =
-          Bound_parameter.create
-            (Variable.create ("result" ^ string_of_int i))
-            kind_with_subkind
-        in
-        let env_extension =
-          T.Typing_env_extension.With_extra_variables.add_or_replace_equation
-            T.Typing_env_extension.With_extra_variables.empty
-            (Bound_parameter.name bound_parameter)
-            (create_type kind_with_subkind)
-        in
-        bound_parameter, env_extension)
+        Bound_parameter.create
+          (Variable.create ("result" ^ string_of_int i))
+          kind_with_subkind)
       result_arity
   in
-  create ~params ~results
+  let env_extension =
+    List.fold_left
+      (fun env_extension result ->
+        TEEV.add_or_replace_equation env_extension
+          (Bound_parameter.name result)
+          (create_type (Bound_parameter.kind result)))
+      TEEV.empty results
+  in
+  create ~params ~results env_extension
 
 let create_unknown ~params ~result_arity =
   create_trivial ~params ~result_arity T.unknown_with_subkind
@@ -186,9 +151,8 @@ let create_bottom ~params ~result_arity =
 
 let pattern_match t ~f =
   A.pattern_match t
-    ~f:(fun { Bound.params; results; other_vars = _ } env_extensions ->
-      let results = List.combine results env_extensions in
-      f ~params ~results)
+    ~f:(fun { Bound.params; results; other_vars = _ } env_extension ->
+      f ~params ~results env_extension)
 
 let free_names = FN.free_names
 
@@ -198,10 +162,6 @@ let all_ids_for_export = A.all_ids_for_export
 
 let map_result_types t ~f =
   A.pattern_match t
-    ~f:(fun { Bound.params; results; other_vars = _ } env_extensions ->
-      let env_extensions =
-        List.map
-          (T.Typing_env_extension.With_extra_variables.map_types ~f)
-          env_extensions
-      in
-      create ~params ~results:(List.combine results env_extensions))
+    ~f:(fun { Bound.params; results; other_vars = _ } env_extension ->
+      let env_extension = TEEV.map_types ~f env_extension in
+      create ~params ~results env_extension)
