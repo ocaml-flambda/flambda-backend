@@ -493,15 +493,15 @@ let check_scope ~allow_deleted env code_id_or_symbol =
          (Compilation_unit.get_current_exn ()))
   in
   let updated_env =
-    match (code_id_or_symbol : Code_id_or_symbol.t) with
-    | Code_id code_id ->
-      if allow_deleted
-      then env
-      else if Code_id.Set.mem code_id env.deleted
-      then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
-      else
-        { env with used_code_ids = Code_id.Set.add code_id env.used_code_ids }
-    | Symbol _ -> env
+    Code_id_or_symbol.pattern_match code_id_or_symbol
+      ~code_id:(fun code_id ->
+        if allow_deleted
+        then env
+        else if Code_id.Set.mem code_id env.deleted
+        then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
+        else
+          { env with used_code_ids = Code_id.Set.add code_id env.used_code_ids })
+      ~symbol:(fun _ -> env)
   in
   if in_scope || in_another_unit
      || not (Flambda_features.Expert.code_id_and_symbol_scoping_checks ())

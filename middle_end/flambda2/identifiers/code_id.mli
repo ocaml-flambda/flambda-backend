@@ -14,40 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-include Container_types.S
-
-type exported
-
-module Lmap : Lmap.S with type key = t
-
-val initialise : unit -> unit
-
-val reset : unit -> unit
-
-val create : name:string -> Compilation_unit.t -> t
-
-val get_compilation_unit : t -> Compilation_unit.t
-
-val in_compilation_unit : t -> Compilation_unit.t -> bool
-
-val is_imported : t -> bool
-
-val name : t -> string
-
-(* The [rename] function, in addition to changing the stamp of the code ID,
-   changes the compilation unit to the current one. *)
-val rename : t -> t
-
-(** [Code_id]s uniquely determine function symbols. *)
-val code_symbol : t -> Symbol.t
-
-val invert_map : t Map.t -> t Map.t
-
-val export : t -> exported
-
-val import : exported -> t
-
-val map_compilation_unit :
-  (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
+include module type of struct
+  include Reg_width_things.Code_id
+end
