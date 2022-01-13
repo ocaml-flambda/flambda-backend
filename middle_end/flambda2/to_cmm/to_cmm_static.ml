@@ -51,7 +51,8 @@ let name_static env name =
   Name.pattern_match name
     ~var:(fun v -> env, `Var v)
     ~symbol:(fun s ->
-      ( Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s),
+      ( Env.check_scope ~allow_deleted:false env
+          (Code_id_or_symbol.create_symbol s),
         `Data [C.symbol_address (symbol s)] ))
 
 let const_static _env cst =
@@ -75,7 +76,8 @@ let simple_static env s =
 let static_value env v =
   match (v : Field_of_static_block.t) with
   | Symbol s ->
-    ( Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s),
+    ( Env.check_scope ~allow_deleted:false env
+        (Code_id_or_symbol.create_symbol s),
       C.symbol_address (symbol s) )
   | Dynamically_computed _ -> env, C.cint 1n
   | Tagged_immediate i ->
@@ -234,7 +236,8 @@ let update_env_for_code env (code : Code.t) =
   match Code.newer_version_of code with
   | None -> env
   | Some code_id ->
-    Env.check_scope ~allow_deleted:true env (Code_id_or_symbol.Code_id code_id)
+    Env.check_scope ~allow_deleted:true env
+      (Code_id_or_symbol.create_code_id code_id)
 
 let add_function env r ~params_and_body code_id p ~fun_dbg =
   let fun_symbol = Code_id.code_symbol code_id in

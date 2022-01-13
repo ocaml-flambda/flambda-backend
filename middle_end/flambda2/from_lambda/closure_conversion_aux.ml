@@ -337,7 +337,9 @@ module Acc = struct
     }
 
   let remove_symbol_from_free_names symbol t =
-    remove_code_id_or_symbol_from_free_names (Symbol symbol) t
+    remove_code_id_or_symbol_from_free_names
+      (Code_id_or_symbol.create_symbol symbol)
+      t
 
   let remove_var_from_free_names var t =
     { t with free_names = Name_occurrences.remove_var t.free_names var }
@@ -365,7 +367,9 @@ module Acc = struct
     }
 
   let remove_code_id_from_free_names code_id t =
-    remove_code_id_or_symbol_from_free_names (Code_id code_id) t
+    remove_code_id_or_symbol_from_free_names
+      (Code_id_or_symbol.create_code_id code_id)
+      t
 
   let continuation_known_arguments ~cont t =
     match Continuation.Map.find cont t.continuation_applications with

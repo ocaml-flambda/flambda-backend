@@ -64,7 +64,8 @@ let name env name =
     ~var:(fun v -> Env.inline_variable env v)
     ~symbol:(fun s ->
       let env =
-        Env.check_scope ~allow_deleted:false env (Code_id_or_symbol.Symbol s)
+        Env.check_scope ~allow_deleted:false env
+          (Code_id_or_symbol.create_symbol s)
       in
       C.symbol (symbol s), env, Ece.pure)
 
@@ -969,7 +970,7 @@ and apply_call env e =
     -> (
     let env =
       Env.check_scope ~allow_deleted:false env
-        (Code_id_or_symbol.Code_id code_id)
+        (Code_id_or_symbol.create_code_id code_id)
     in
     let info = Env.get_function_info env code_id in
     let params_arity = Code_metadata.params_arity info in

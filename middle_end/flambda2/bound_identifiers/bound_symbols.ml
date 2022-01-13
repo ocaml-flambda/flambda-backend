@@ -83,28 +83,30 @@ module Pattern = struct
 
   let everything_being_defined t =
     match t with
-    | Code code_id -> Code_id_or_symbol.Set.singleton (Code_id code_id)
+    | Code code_id ->
+      Code_id_or_symbol.Set.singleton (Code_id_or_symbol.create_code_id code_id)
     | Set_of_closures closure_symbols ->
       closure_symbols |> Closure_id.Lmap.data |> Symbol.Set.of_list
       |> Code_id_or_symbol.set_of_symbol_set
-    | Block_like symbol -> Code_id_or_symbol.Set.singleton (Symbol symbol)
+    | Block_like symbol ->
+      Code_id_or_symbol.Set.singleton (Code_id_or_symbol.create_symbol symbol)
 
   let everything_being_defined_as_list t =
     match t with
-    | Code code_id -> [Code_id_or_symbol.Code_id code_id]
+    | Code code_id -> [Code_id_or_symbol.create_code_id code_id]
     | Set_of_closures closure_symbols ->
       closure_symbols |> Closure_id.Lmap.data
-      |> List.map Code_id_or_symbol.of_symbol
-    | Block_like symbol -> [Code_id_or_symbol.Symbol symbol]
+      |> List.map Code_id_or_symbol.create_symbol
+    | Block_like symbol -> [Code_id_or_symbol.create_symbol symbol]
 
   let for_all_everything_being_defined t ~f =
     match t with
-    | Code code_id -> f (Code_id_or_symbol.Code_id code_id)
+    | Code code_id -> f (Code_id_or_symbol.create_code_id code_id)
     | Set_of_closures closure_symbols ->
       Closure_id.Lmap.for_all_with_fixed_arg
-        (fun _closure_id symbol f -> f (Code_id_or_symbol.Symbol symbol))
+        (fun _closure_id symbol f -> f (Code_id_or_symbol.create_symbol symbol))
         closure_symbols f
-    | Block_like symbol -> f (Code_id_or_symbol.Symbol symbol)
+    | Block_like symbol -> f (Code_id_or_symbol.create_symbol symbol)
 
   let all_ids_for_export t =
     match t with

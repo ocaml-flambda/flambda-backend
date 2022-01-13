@@ -14,16 +14,6 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type t =
-  | Code_id of Code_id.t
-  | Symbol of Symbol.t
-
-include Container_types.S with type t := t
-
-val compilation_unit : t -> Compilation_unit.t
-
-val set_of_code_id_set : Code_id.Set.t -> Set.t
-
-val set_of_symbol_set : Symbol.Set.t -> Set.t
-
-val of_symbol : Symbol.t -> t
+include module type of struct
+  include Reg_width_things.Code_id_or_symbol
+end
