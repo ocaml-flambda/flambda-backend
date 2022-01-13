@@ -170,12 +170,18 @@ val cut : t -> unknown_if_defined_at_or_later_than:Scope.t -> Typing_env_level.t
 
 val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
 
-val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
+module Pre_serializable : sig
+  type t
+
+  val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+
+  val find_or_missing : t -> Name.t -> Type_grammar.t option
+end
 
 module Serializable : sig
   type t
 
-  val create : typing_env -> t
+  val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
   val print : Format.formatter -> t -> unit
 

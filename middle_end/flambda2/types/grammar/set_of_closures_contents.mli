@@ -36,7 +36,10 @@ val closures : t -> Closure_id.Set.t
 
 val closure_vars : t -> Var_within_closure.Set.t
 
-val apply_renaming : t -> Renaming.t -> t
+include Contains_names.S with type t := t
+
+val remove_unused_closure_vars :
+  t -> used_closure_vars:Var_within_closure.Set.t -> t
 
 module With_closure_id : sig
   type nonrec t = Closure_id.t * t

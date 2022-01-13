@@ -103,7 +103,7 @@ let clean_for_export t ~reachable_names =
              current_compilation_unit)
       t.names_to_types
   in
-  let aliases = Aliases.clean_for_export t.aliases in
+  let aliases = Aliases.clean_for_export t.aliases ~reachable_names in
   { t with names_to_types; aliases }
 
 let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
@@ -144,5 +144,18 @@ let merge t1 t2 =
             Variable.print var Symbol_projection.print proj1
             Symbol_projection.print proj2)
       t1.symbol_projections t2.symbol_projections
+  in
+  { names_to_types; aliases; symbol_projections }
+
+let remove_unused_closure_vars { names_to_types; aliases; symbol_projections }
+    ~used_closure_vars =
+  let names_to_types =
+    Name.Map.map_sharing
+      (fun ((ty, binding_time_and_mode) as info) ->
+        let ty' =
+          Type_grammar.remove_unused_closure_vars ty ~used_closure_vars
+        in
+        if ty == ty' then info else ty', binding_time_and_mode)
+      names_to_types
   in
   { names_to_types; aliases; symbol_projections }

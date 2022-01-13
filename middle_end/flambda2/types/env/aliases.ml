@@ -1219,8 +1219,7 @@ let clean_for_export
     { canonical_elements;
       aliases_of_canonical_names = _;
       aliases_of_consts = _
-    } =
-  (* CR vlaviron: We'd like to remove unreachable entries at some point. *)
+    } ~reachable_names =
   (* From this point, the structure will only be used for looking up names that
      are defined in this compilation unit. No new aliases will be added, name
      modes have become irrelevant (Typing_env takes care of setting the mode to
@@ -1229,7 +1228,9 @@ let clean_for_export
      not imported. *)
   let canonical_elements =
     Name.Map.filter
-      (fun name _canonical -> not (Name.is_imported name))
+      (fun name _canonical_and_coercion_to_canonical ->
+        (not (Name.is_imported name))
+        && Name_occurrences.mem_name reachable_names name)
       canonical_elements
   in
   { canonical_elements;
