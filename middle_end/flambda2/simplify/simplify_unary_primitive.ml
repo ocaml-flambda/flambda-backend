@@ -65,12 +65,13 @@ let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.invalid (), dacc
   | Proved simple ->
+    let ty = T.alias_type_of K.value simple in
     let reachable =
-      Simplified_named.reachable (Named.create_simple simple) ~try_reify:true
+      Simplified_named.reachable
+        (Named.create_simple simple)
+        ~try_reify:(Some ty)
     in
-    let dacc =
-      DA.add_variable dacc result_var (T.alias_type_of K.value simple)
-    in
+    let dacc = DA.add_variable dacc result_var ty in
     reachable, dacc
   | Unknown ->
     let result = Simple.var (Bound_var.var result_var) in
@@ -193,7 +194,7 @@ let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
   (* CR mshinwell: Check [scrutinee_ty] (e.g. its kind)? *)
   let ty = make_shape scrutinee in
-  let dacc = DA.add_variable dacc result_var (make_shape scrutinee) in
+  let dacc = DA.add_variable dacc result_var ty in
   Simplified_named.reachable original_term ~try_reify:(Some ty), dacc
 
 let simplify_is_int dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
