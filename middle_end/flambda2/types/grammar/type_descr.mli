@@ -70,6 +70,15 @@ val free_names :
   'head t ->
   Name_occurrences.t
 
+val remove_unused_closure_vars :
+  apply_renaming_head:('head -> Renaming.t -> 'head) ->
+  free_names_head:('head -> Name_occurrences.t) ->
+  remove_unused_closure_vars_head:
+    ('head -> used_closure_vars:Var_within_closure.Set.t -> 'head) ->
+  'head t ->
+  used_closure_vars:Var_within_closure.Set.t ->
+  'head t
+
 val all_ids_for_export :
   apply_renaming_head:('head -> Renaming.t -> 'head) ->
   free_names_head:('head -> Name_occurrences.t) ->

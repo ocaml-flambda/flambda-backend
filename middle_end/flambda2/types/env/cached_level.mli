@@ -50,3 +50,6 @@ val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
 val apply_renaming : t -> Renaming.t -> t
 
 val merge : t -> t -> t
+
+val remove_unused_closure_vars :
+  t -> used_closure_vars:Var_within_closure.Set.t -> t

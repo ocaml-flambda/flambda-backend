@@ -77,6 +77,15 @@ module T : sig
     free_names_head:('head -> Name_occurrences.t) ->
     'head t ->
     Name_occurrences.t
+
+  val remove_unused_closure_vars :
+    apply_renaming_head:('head -> Renaming.t -> 'head) ->
+    free_names_head:('head -> Name_occurrences.t) ->
+    remove_unused_closure_vars_head:
+      ('head -> used_closure_vars:Var_within_closure.Set.t -> 'head) ->
+    'head t ->
+    used_closure_vars:Var_within_closure.Set.t ->
+    'head t
 end = struct
   module Descr = struct
     type 'head t =
@@ -109,6 +118,14 @@ end = struct
       | Equals simple ->
         Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
           (Simple.free_names simple) Name_mode.in_types
+
+    let remove_unused_closure_vars ~remove_unused_closure_vars_head t
+        ~used_closure_vars =
+      match t with
+      | No_alias head ->
+        let head' = remove_unused_closure_vars_head head ~used_closure_vars in
+        if head == head' then t else No_alias head'
+      | Equals _ -> t
   end
 
   module WDR = With_delayed_renaming
@@ -175,6 +192,21 @@ end = struct
         ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
         ~free_names_descr:(Descr.free_names ~free_names_head)
         wdp
+
+  let remove_unused_closure_vars ~apply_renaming_head ~free_names_head
+      ~remove_unused_closure_vars_head (t : _ t) ~used_closure_vars : _ t =
+    match t with
+    | Unknown | Bottom -> t
+    | Ok wdr ->
+      let wdr' =
+        WDR.remove_unused_closure_vars
+          ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
+          ~free_names_descr:(Descr.free_names ~free_names_head)
+          ~remove_unused_closure_vars_descr:
+            (Descr.remove_unused_closure_vars ~remove_unused_closure_vars_head)
+          wdr ~used_closure_vars
+      in
+      if wdr == wdr' then t else Ok wdr'
 end
 
 include T

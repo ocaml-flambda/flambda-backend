@@ -181,12 +181,18 @@ module Typing_env : sig
   val aliases_of_simple :
     t -> min_name_mode:Name_mode.t -> Simple.t -> Alias_set.t
 
-  val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
+  module Pre_serializable : sig
+    type t
+
+    val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+
+    val find_or_missing : t -> Name.t -> flambda_type option
+  end
 
   module Serializable : sig
     type t
 
-    val create : typing_env -> t
+    val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
     val print : Format.formatter -> t -> unit
 

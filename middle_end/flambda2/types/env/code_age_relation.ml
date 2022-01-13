@@ -113,3 +113,9 @@ let apply_renaming t renaming =
     (fun key v acc ->
       Code_id.Map.add (rename_code_id key) (rename_code_id v) acc)
     t Code_id.Map.empty
+
+let clean_for_export t ~reachable_names =
+  Code_id.Map.filter
+    (fun newer_code_id _older_code_id ->
+      Name_occurrences.mem_code_id reachable_names newer_code_id)
+    t
