@@ -132,11 +132,12 @@ end = struct
       ~closure_element_types_inside_functions_all_sets
       ~old_to_new_code_ids_all_sets =
     let closure_bound_names_all_sets_inside =
-      (* When not lifting (i.e. the bound names are variables), we need to
+      (* When not lifting (i.e. the bound names are variables), we used to
          create a fresh set of irrelevant variables, since the let-bound names
-         are not in scope for the closure definition(s). *)
-      (* List.map (fun closure_bound_names -> Closure_id.Map.map_sharing
-         Bound_name.rename closure_bound_names) *)
+         are not in scope for the closure definition(s). However instead we now
+         actually use the same names, which will be bound at [In_types] mode,
+         and suitably captured by a name abstraction if they escape via function
+         result types. *)
       closure_bound_names_all_sets
     in
     let closure_types_via_aliases_all_sets =
