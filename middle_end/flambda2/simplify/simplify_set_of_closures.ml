@@ -881,18 +881,7 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
              (fun bound_name closure_type denv ->
                let bound_name = Bound_name.to_name bound_name in
                DE.add_equation_on_name denv bound_name closure_type)
-             closure_types_by_bound_name
-        (* |> Closure_id.Map.fold (fun closure_id inside_name denv -> let
-           inside_name = Bound_name.name inside_name in match
-           Closure_id.Map.find closure_id closure_bound_names with | exception
-           Not_found -> Misc.fatal_errorf "Closure ID %a not found in
-           outside-function map:@ %a" Closure_id.print closure_id
-           (Closure_id.Map.print Bound_name.print) closure_bound_names_inside |
-           outside_name -> let outside_name = Bound_name.name outside_name in (*
-           In the case of lifted sets of closures, the inside and outside names
-           are the same symbols. *) if Name.equal inside_name outside_name then
-           denv else DE.add_equation_on_name denv inside_name (T.alias_type_of
-           K.value (Simple.name outside_name))) closure_bound_names_inside*))
+             closure_types_by_bound_name)
   in
   let set_of_closures =
     Function_declarations.create all_function_decls_in_set
