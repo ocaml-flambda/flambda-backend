@@ -264,21 +264,14 @@ module Code_id_data = struct
       name
       Linkage_name.print linkage_name
 
-  let hash { compilation_unit; name = _; linkage_name } =
-    Hashtbl.hash
-      (Compilation_unit.hash compilation_unit, Linkage_name.hash linkage_name)
+  let hash { compilation_unit = _; name = _; linkage_name } =
+    (* As per comment above, just looking at the linkage name suffices (same
+       below), rather than the compilation unit as well. *)
+    Linkage_name.hash linkage_name
 
-  let equal
-      { compilation_unit = compilation_unit1;
-        name = _;
-        linkage_name = linkage_name1
-      }
-      { compilation_unit = compilation_unit2;
-        name = _;
-        linkage_name = linkage_name2
-      } =
+  let equal { compilation_unit = _; name = _; linkage_name = linkage_name1 }
+      { compilation_unit = _; name = _; linkage_name = linkage_name2 } =
     Linkage_name.equal linkage_name1 linkage_name2
-    && Compilation_unit.equal compilation_unit1 compilation_unit2
 end
 
 module Const = struct
@@ -869,9 +862,13 @@ module Code_id_or_symbol = struct
   let create_symbol symbol = symbol
 
   let pattern_match t ~code_id ~symbol =
-    if Table_by_int_id.Id.flags t = Code_id_data.flags
+    let flags = Table_by_int_id.Id.flags t in
+    if flags = Code_id_data.flags
     then code_id t
-    else symbol t
+    else if flags = Symbol_data.flags
+    then symbol t
+    else
+      Misc.fatal_errorf "Code_id_or_symbol 0x%x with wrong flags 0x%x" t flags
 
   let compilation_unit t =
     pattern_match t ~code_id:Code_id.get_compilation_unit
