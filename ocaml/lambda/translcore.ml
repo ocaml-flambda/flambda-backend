@@ -593,6 +593,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
+         let scopes = enter_lazy ~scopes in
          let fn = Lfunction {kind = Curried;
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
@@ -755,7 +756,7 @@ and transl_apply ~scopes
       ?(specialised = Default_specialise)
       lam sargs loc
   =
-  let lapply funct args =
+  let lapply loc funct args =
     match funct with
       Lsend(k, lmet, lobj, largs, _) ->
         Lsend(k, lmet, lobj, largs @ args, loc)
@@ -774,7 +775,7 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-  let rec build_apply lam args = function
+  let rec build_apply lam args loc = function
       (None, optional) :: l ->
         let defs = ref [] in
         let protect name lam =
@@ -790,7 +791,7 @@ and transl_apply ~scopes
           else args, []
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev_map fst args)
+          if args = [] then lam else lapply loc lam (List.rev_map fst args)
         in
         let handle = protect "func" lam in
         let l =
@@ -798,7 +799,8 @@ and transl_apply ~scopes
         in
         let id_arg = Ident.create_local "param" in
         let body =
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
+          let loc = map_scopes enter_partial_or_eta_wrapper loc in
+          match build_apply handle ((Lvar id_arg, optional)::args') loc l with
             Lfunction{kind = Curried; params = ids; return;
                       body = lam; attr; loc}
                 when List.length ids < Lambda.max_arity () ->
@@ -822,11 +824,11 @@ and transl_apply ~scopes
           (fun body (id, lam) -> Llet(Strict, Pgenval, id, lam, body))
           body !defs
     | (Some arg, optional) :: l ->
-        build_apply lam ((arg, optional) :: args) l
+        build_apply lam ((arg, optional) :: args) loc l
     | [] ->
-        lapply lam (List.rev_map fst args)
+        lapply loc lam (List.rev_map fst args)
   in
-  (build_apply lam [] (List.map (fun (l, x) ->
+  (build_apply lam [] loc (List.map (fun (l, x) ->
                                    Option.map (transl_exp ~scopes) x,
                                    Btype.is_optional l)
                                 sargs)
