@@ -37,7 +37,7 @@
  *  - its body is set to the concatenation of `b1.body` and `b2.body`;
  *  - its terminator becomes the terminator of `b2`;
  *  - its `can_raise` is set to that of `b2`;
- *  - its `exns`, and `can_raise_interproc` fields  are set to the "union"
+ *  - its `exns`, and `can_raise_interproc` fields are set to the "union"
  *    of the respective fields in `b1` and `b2`;
  *  - (its other fields are left unchanged);
  *  and `b2` is modified as follows:
@@ -54,7 +54,7 @@
  *  (as opposed to the information encoded in the graph). *)
 
 (* CR gyorsh: with the new requirement on b1 (that it cannot raise) this pass is
-   even closer to eliminate_fallthrough_blocks. the only different I think is
+   even closer to eliminate_fallthrough_blocks. The only difference I think is
    that b1's body need not be empty here. *)
 let rec merge_blocks (modified : bool) (cfg_with_layout : Cfg_with_layout.t) :
     bool =
