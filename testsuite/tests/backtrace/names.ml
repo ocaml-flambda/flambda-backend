@@ -1,12 +1,12 @@
 (* TEST
    flags = "-g"
+
  *)
 
 
 let id x = Sys.opaque_identity x
 
 let[@inline never] bang () = raise Exit
-
 
 let[@inline never] fn_multi _ _ f = f 42 + 1
 
@@ -97,6 +97,10 @@ let inline_object f =
   end in
   obj#meth
 
+let[@inline never] lazy_ f =
+  let x = Sys.opaque_identity (lazy (1 + f ())) in
+  Lazy.force x
+
 let () =
   Printexc.record_backtrace true;
   match
@@ -116,6 +120,7 @@ let () =
     42 +@+ fun _ ->
     (new klass)#meth @@ fun _ ->
     inline_object @@ fun _ ->
+    lazy_ @@ fun _ ->
     bang ()
   with
   | _ -> assert false
