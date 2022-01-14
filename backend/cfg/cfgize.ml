@@ -460,7 +460,7 @@ let rec add_blocks :
           "Cfgize.extract_block_info: unexpected Iop with no terminator";
       let next, add_next_block = prepare_next_block () in
       terminate_block ~trap_actions:[]
-        (copy_instruction state last ~desc:(Cfg.Always next) ~trap_depth);
+        (copy_instruction state last ~desc:(Cfg.Always next));
       add_next_block ()
     | Iend ->
       if Label.equal next fallthrough_label
@@ -566,10 +566,9 @@ module Trap_depth_and_exns = struct
   type handler_table = handler_stack Label.Tbl.t
 
   let record_handler :
-      type a.
-      handler_stack -> handler_table -> can_raise:(a -> bool) -> a -> unit =
-   fun stack table ~can_raise instr ->
-    if can_raise instr
+      handler_stack -> handler_table -> can_raise:bool -> unit =
+   fun stack table ~can_raise ->
+    if can_raise
     then
       match stack with
       | [] -> ()
@@ -591,7 +590,7 @@ module Trap_depth_and_exns = struct
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
-      record_handler stack table ~can_raise:Cfg.can_raise_terminator term.desc;
+      record_handler stack table ~can_raise:(Cfg.can_raise_terminator term.desc);
       stack
     | Tailcall (Self _) ->
       if List.length stack <> 0
@@ -617,7 +616,7 @@ module Trap_depth_and_exns = struct
       | _ :: stack -> stack
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
-      record_handler stack table ~can_raise:can_raise_instr instr;
+      record_handler stack table ~can_raise:(Cfg.can_raise_basic instr.desc);
       stack
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
