@@ -29,6 +29,37 @@ let mk_dcfg f =
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 
+let mk_flambda2_result_types_functors_only f =
+  "-flambda2-result-types-functors-only", Arg.Unit f,
+  Printf.sprintf " Infer result types for functors (but no other\n\
+      \     functions)%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.function_result_types with
+      | Functors_only -> true
+      | Never | All_functions -> false))
+;;
+
+let mk_flambda2_result_types_all_functions f =
+  "-flambda2-result-types-all-functions", Arg.Unit f,
+  Printf.sprintf " Infer result types for all functions\n\
+      \     (including functors)%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.function_result_types with
+      | All_functions -> true
+      | Never | Functors_only -> false))
+;;
+
+let mk_no_flambda2_result_types f =
+  "-flambda2-result-types", Arg.Unit f,
+  Printf.sprintf " Do not infer result types for functions (or\n\
+      \     functors)%s (Flambda 2 only)"
+    (format_default (
+      match Flambda2.Default.function_result_types with
+      | Never -> true
+      | Functors_only | All_functions -> false))
+;;
+
+
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information from all incoming edges to a join\n\
@@ -356,6 +387,9 @@ module type Flambda_backend_options = sig
 
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
+  val flambda2_result_types_functors_only : unit -> unit
+  val flambda2_result_types_all_functions : unit -> unit
+  val no_flambda2_result_types : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -415,6 +449,12 @@ struct
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
+    mk_flambda2_result_types_functors_only
+      F.flambda2_result_types_functors_only;
+    mk_flambda2_result_types_all_functions
+      F.flambda2_result_types_all_functions;
+    mk_no_flambda2_result_types
+      F.no_flambda2_result_types;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -501,6 +541,12 @@ module Flambda_backend_options_impl = struct
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
+  let flambda2_result_types_functors_only () =
+    Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+  let flambda2_result_types_all_functions () =
+    Flambda2.function_result_types := Flambda_backend_flags.All_functions
+  let no_flambda2_result_types () =
+    Flambda2.function_result_types := Flambda_backend_flags.Never
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -648,6 +694,21 @@ module Extra_params = struct
     (* define new params *)
     | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
     | "flambda2-join-points" -> set Flambda2.join_points
+    | "flambda2-result-types" ->
+      (match String.lowercase_ascii v with
+      | "never" ->
+        Flambda2.function_result_types := Flambda_backend_flags.Never
+      | "functors-only" ->
+        Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+      | "all-functions" ->
+        Flambda2.function_result_types := Flambda_backend_flags.All_functions
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-result-types=\
+          never|functors-only|all-functions");
+      true
+    | "flambda2-result-types-all-functions" ->
+      Flambda2.function_result_types := Flambda_backend_flags.All_functions;
+      true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
     | "flambda2-backend-cse-at-toplevel" ->

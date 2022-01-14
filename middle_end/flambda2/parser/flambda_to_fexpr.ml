@@ -77,7 +77,11 @@ end = struct
   let find_exn t id =
     match find t id with
     | Some fexpr_id -> fexpr_id
-    | None -> Misc.fatal_errorf "missing %s %a" I.desc I.print id
+    | None ->
+      Misc.fatal_errorf "missing %s %a (known names: %a)" I.desc I.print id
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space
+           Format.pp_print_string)
+        (String_map.bindings t.names |> List.map fst)
 end
 
 module Global_name_map (I : Convertible_id) : sig

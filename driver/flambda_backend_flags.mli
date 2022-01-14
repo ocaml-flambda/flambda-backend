@@ -17,6 +17,8 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 
+type function_result_types = Never | Functors_only | All_functions
+
 module Flambda2 : sig
   module Default : sig
     val classic_mode : bool
@@ -25,9 +27,12 @@ module Flambda2 : sig
     val backend_cse_at_toplevel : bool
     val cse_depth : int
     val treat_invalid_code_as_unreachable : bool
+    val function_result_types : function_result_types
 
     val unicode : bool
   end
+
+  val function_result_types : function_result_types ref
 
   val classic_mode : bool ref
   val join_points : bool ref

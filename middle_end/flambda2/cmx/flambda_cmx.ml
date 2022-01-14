@@ -16,6 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+module EC = Exported_code
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 
@@ -44,7 +45,7 @@ let rec load_cmx_file_contents ~get_global_info comp_unit ~imported_units
       in
       let newly_imported_names = TE.name_domain typing_env in
       imported_names := Name.Set.union newly_imported_names !imported_names;
-      imported_code := Exported_code.merge all_code !imported_code;
+      imported_code := EC.merge all_code !imported_code;
       let offsets = Flambda_cmx_format.exported_offsets cmx in
       Exported_offsets.import_offsets offsets;
       imported_units
@@ -135,7 +136,13 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     let reachable_names =
       compute_reachable_names_and_code ~module_symbol final_typing_env all_code
     in
-    let all_code = Exported_code.remove_unreachable all_code ~reachable_names in
+    let all_code =
+      (* CR mshinwell: do we need to remove unused closure ID bindings from the
+         result types too? *)
+      all_code
+      |> EC.remove_unused_closure_vars_from_result_types ~used_closure_vars
+      |> EC.remove_unreachable ~reachable_names
+    in
     let final_typing_env =
       TE.Serializable.create final_typing_env ~reachable_names
     in

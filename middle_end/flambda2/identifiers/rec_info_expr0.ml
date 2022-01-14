@@ -72,6 +72,8 @@ module type S = sig
   val hash : t -> int
 
   val map_depth_variables : t -> f:(variable -> variable) -> t
+
+  val erase_variables : t -> t
 end
 
 module Make (Variable : Container_types.S) : S with type variable = Variable.t =
@@ -209,5 +211,16 @@ struct
       if new_t0 == t0 then t else Succ new_t0
     | Unroll_to (depth, t0) ->
       let new_t0 = map_depth_variables t0 ~f in
+      if new_t0 == t0 then t else Unroll_to (depth, new_t0)
+
+  let rec erase_variables t =
+    match t with
+    | Const _ -> t
+    | Var _ -> unknown
+    | Succ t0 ->
+      let new_t0 = erase_variables t0 in
+      if new_t0 == t0 then t else Succ new_t0
+    | Unroll_to (depth, t0) ->
+      let new_t0 = erase_variables t0 in
       if new_t0 == t0 then t else Unroll_to (depth, new_t0)
 end

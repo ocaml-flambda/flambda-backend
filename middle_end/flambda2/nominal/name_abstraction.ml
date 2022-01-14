@@ -86,6 +86,20 @@ module Make (Bindable : Bindable.S) (Term : Term) = struct
 end
 [@@inline always]
 
+module Make_free_names
+    (Bindable : Bindable.S) (Term : sig
+      include Term
+
+      val free_names : t -> Name_occurrences.t
+    end) =
+struct
+  type nonrec t = (Bindable.t, Term.t) t
+
+  let free_names (bindable, term) =
+    Name_occurrences.diff (Term.free_names term) (Bindable.free_names bindable)
+end
+[@@inline always]
+
 module Make_matching_and_renaming
     (Bindable : Bindable.S) (Term : sig
       type t

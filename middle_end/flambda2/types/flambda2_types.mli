@@ -27,6 +27,13 @@ val print : Format.formatter -> t -> unit
 
 val arity_of_list : t list -> Flambda_arity.t
 
+val apply_renaming : t -> Renaming.t -> t
+
+include Contains_ids.S with type t := t
+
+val remove_unused_closure_vars :
+  t -> used_closure_vars:Var_within_closure.Set.t -> t
+
 type typing_env
 
 type typing_env_extension
@@ -76,9 +83,17 @@ module Typing_env_extension : sig
 
     val empty : t
 
-    val add_definition : t -> Variable.t -> Flambda_kind.t -> flambda_type -> t
+    val add_definition : t -> Variable.t -> Flambda_kind.t -> t
 
     val add_or_replace_equation : t -> Name.t -> flambda_type -> t
+
+    val map_types : t -> f:(flambda_type -> flambda_type) -> t
+
+    val existential_vars : t -> Variable.Set.t
+
+    include Contains_ids.S with type t := t
+
+    include Contains_names.S with type t := t
   end
 end
 
@@ -256,6 +271,10 @@ end
 
 val free_names : t -> Name_occurrences.t
 
+type to_erase =
+  | Everything_not_in of Typing_env.t
+  | All_variables_except of Variable.Set.t
+
 (* CR mshinwell: update comment *)
 
 (** This function takes a type [t] and an environment [env] that assigns types
@@ -269,9 +288,8 @@ val free_names : t -> Name_occurrences.t
     effort basis. *)
 val make_suitable_for_environment :
   Typing_env.t ->
-  t ->
-  suitable_for:Typing_env.t ->
-  bind_to:Name.t ->
+  to_erase ->
+  (Name.t * flambda_type) list ->
   Typing_env_extension.With_extra_variables.t
 
 val apply_coercion : flambda_type -> Coercion.t -> flambda_type

@@ -38,6 +38,9 @@ val find_exn : t -> Code_id.t -> Code_or_metadata.t
     be special handling if a code ID is unbound (see comment in the .ml file) *)
 val find : t -> Code_id.t -> Code_or_metadata.t option
 
-val remove_unreachable : t -> reachable_names:Name_occurrences.t -> t
+val remove_unreachable : reachable_names:Name_occurrences.t -> t -> t
+
+val remove_unused_closure_vars_from_result_types :
+  used_closure_vars:Var_within_closure.Set.t -> t -> t
 
 val iter_code : t -> f:(Code.t -> unit) -> unit

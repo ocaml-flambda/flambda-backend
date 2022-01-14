@@ -90,9 +90,27 @@ val is_bottom : Typing_env.t -> Type_grammar.t -> bool
 
 val is_unknown : Typing_env.t -> Type_grammar.t -> bool
 
+type to_erase =
+  | Everything_not_in of Typing_env.t
+  | All_variables_except of Variable.Set.t
+
+(** This function doesn't descend past an alias type specifying a symbol: the
+    assumption is that such types are already valid in the target environment.
+    (This applies no matter what the setting of [to_erase]).
+
+    The returned extension doesn't include equations involving the "bind-to"
+    names but associated to other names. As an example, if one of the "bind-to"
+    names is the result of a projection from a symbol, and the type of the
+    corresponding symbol field is not an alias, then the relation will be lost.
+
+    If any of the [Name.t]s provided as the "bind-to" names occur already in the
+    supplied environment then the types provided as input to this function will
+    be used instead of the types in such environment. (This situation does not
+    usually occur but does arise when this function is called during function
+    result type computation.) *)
 val make_suitable_for_environment :
   Typing_env.t ->
-  Type_grammar.t ->
-  suitable_for:Typing_env.t ->
-  bind_to:Name.t ->
+  to_erase ->
+  (Name.t * Type_grammar.t) list ->
+  (* these [Name.t] values are called the "bind-to" names *)
   Typing_env_extension.With_extra_variables.t

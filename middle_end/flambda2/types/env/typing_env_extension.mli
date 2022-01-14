@@ -59,7 +59,16 @@ module With_extra_variables : sig
 
   val empty : t
 
-  val add_definition : t -> Variable.t -> Flambda_kind.t -> Type_grammar.t -> t
+  val add_definition : t -> Variable.t -> Flambda_kind.t -> t
 
   val add_or_replace_equation : t -> Name.t -> Type_grammar.t -> t
+
+  val existential_vars : t -> Variable.Set.t
+
+  val map_types : t -> f:(Type_grammar.t -> Type_grammar.t) -> t
+
+  (** At present [existential_vars] is not treated as a binding site. *)
+  include Contains_ids.S with type t := t
+
+  include Contains_names.S with type t := t
 end
