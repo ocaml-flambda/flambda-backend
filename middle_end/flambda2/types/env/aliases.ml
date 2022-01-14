@@ -997,6 +997,8 @@ let find_earliest_alias t ~canonical_element ~binding_times_and_modes
      [canonical_elements]. See tests/flambda2-aliases for a test that gave
      incorrect output (saying x/39 had no aliases). It may be worth restoring
      the shortcut, perhaps by returning more information from [canonical]. *)
+  (* CR mshinwell for lmaurer: please import the tests from
+     https://github.com/ocaml-flambda/ocaml/tree/flambda2.0-stable/testsuite/tests/flambda2-aliases *)
   let aliases = get_aliases_of_canonical_element t ~canonical_element in
   let filter_by_scope name_mode names =
     if Name_mode.equal name_mode Name_mode.in_types
@@ -1039,7 +1041,8 @@ let find_earliest_alias t ~canonical_element ~binding_times_and_modes
 
 let get_canonical_element_exn ~binding_time_resolver ~binding_times_and_modes t
     element elt_name_mode ~min_name_mode ~min_binding_time =
-  match canonical t element with
+  let canonical = canonical t element in
+  match canonical with
   | Is_canonical
     when match Name_mode.compare_partial_order elt_name_mode min_name_mode with
          | None -> false
@@ -1047,7 +1050,7 @@ let get_canonical_element_exn ~binding_time_resolver ~binding_times_and_modes t
     element
   | Is_canonical | Alias_of_canonical _ -> (
     let canonical_element, name_mode, coercion_from_canonical_to_element =
-      match canonical t element with
+      match canonical with
       | Is_canonical ->
         Simple.without_coercion element, elt_name_mode, Simple.coercion element
       | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
