@@ -982,89 +982,99 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       ~original_t add_result;
   add_result
 
-(* CR mshinwell: This needs documenting. For the moment we allow relations
-   between canonical elements that are actually incomparable under the name mode
-   ordering, and check in [get_canonical_element_exn] accordingly. However maybe
-   we should never allow these situations to arise. *)
-(* let canonical_mode = name_mode t add_result.canonical_element in let
-   alias_of_mode = name_mode t add_result.alias_of in match
-   Name_mode.compare_partial_order canonical_mode alias_of_mode with | Some _ ->
-   add_result | None -> Misc.fatal_errorf "Canonical %a has mode incomparable
-   with %a in:@ %a" Simple.print add_result.canonical_element Simple.print
-   add_result.alias_of print t *)
+(* CR mshinwell: For the moment we allow relations between canonical elements
+   that are actually incomparable under the name mode ordering, and check in
+   [get_canonical_element_exn] accordingly. However maybe we should never allow
+   these situations to arise. *)
+
+let find_earliest_alias t ~canonical_element ~binding_times_and_modes
+    ~min_binding_time ~min_name_mode ~binding_time_resolver
+    ~coercion_from_canonical_to_element =
+  (* There used to be a shortcut that avoided consulting the aliases in the
+     common case that [element] is itself canonical and has no aliases, since
+     then it does not appear in [canonical_elements]. However, this shortcut was
+     broken: a canonical element *with* known aliases may still not appear in
+     [canonical_elements]. See tests/flambda2-aliases for a test that gave
+     incorrect output (saying x/39 had no aliases). It may be worth restoring
+     the shortcut, perhaps by returning more information from [canonical]. *)
+  (* CR mshinwell for lmaurer: please import the tests from
+     https://github.com/ocaml-flambda/ocaml/tree/flambda2.0-stable/testsuite/tests/flambda2-aliases *)
+  let aliases = get_aliases_of_canonical_element t ~canonical_element in
+  let filter_by_scope name_mode names =
+    if Name_mode.equal name_mode Name_mode.in_types
+    then names
+    else
+      Name.Map.filter
+        (fun name _coercion ->
+          let scoped_name_mode =
+            compute_name_mode ~binding_times_and_modes (Simple.name name)
+              ~min_binding_time
+          in
+          Name_mode.equal name_mode scoped_name_mode)
+        names
+  in
+  match
+    Aliases_of_canonical_element.find_earliest_candidates aliases
+      ~filter_by_scope ~min_name_mode
+  with
+  | Some at_earliest_mode ->
+    (* Aliases_of_canonical_element.find_earliest_candidates only returns
+       non-empty sets *)
+    assert (not (Name.Map.is_empty at_earliest_mode));
+    let earliest, coercion_from_earliest_to_canonical =
+      Name.Map.fold
+        (fun elt coercion ((min_elt, _min_coercion) as min_binding) ->
+          if name_defined_earlier ~binding_time_resolver
+               ~binding_times_and_modes elt ~than:min_elt
+          then elt, coercion
+          else min_binding)
+        at_earliest_mode
+        (Name.Map.min_binding at_earliest_mode)
+    in
+    let coercion_from_earliest_to_element =
+      Coercion.compose_exn coercion_from_earliest_to_canonical
+        ~then_:coercion_from_canonical_to_element
+    in
+    Simple.with_coercion (Simple.name earliest)
+      coercion_from_earliest_to_element
+  | None -> raise Not_found
 
 let get_canonical_element_exn ~binding_time_resolver ~binding_times_and_modes t
     element elt_name_mode ~min_name_mode ~min_binding_time =
-  let canonical_element, name_mode, coercion_from_canonical_to_element =
-    match canonical t element with
-    | Is_canonical ->
-      Simple.without_coercion element, elt_name_mode, Simple.coercion element
-    | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
-      let name_mode =
-        compute_name_mode ~binding_times_and_modes canonical_element
-          ~min_binding_time
-      in
-      canonical_element, name_mode, Coercion.inverse coercion_to_canonical
-  in
-  assert (not (Simple.has_coercion canonical_element));
-  (* Format.eprintf "looking for canonical for %a, candidate canonical %a, min
-     order %a\n%!" Simple.print element Simple.print canonical_element
-     Name_mode.print min_name_mode; *)
-  let find_earliest () =
-    (* There used to be a shortcut that avoided consulting the aliases in the
-       common case that [element] is itself canonical and has no aliases, since
-       then it does not appear in [canonical_elements]. However, this shortcut
-       was broken: a canonical element *with* known aliases may still not appear
-       in [canonical_elements]. See tests/flambda2-aliases for a test that gave
-       incorrect output (saying x/39 had no aliases). It may be worth restoring
-       the shortcut, perhaps by returning more information from [canonical]. *)
-    let aliases = get_aliases_of_canonical_element t ~canonical_element in
-    let filter_by_scope name_mode names =
-      if Name_mode.equal name_mode Name_mode.in_types
-      then names
-      else
-        Name.Map.filter
-          (fun name _coercion ->
-            let scoped_name_mode =
-              compute_name_mode ~binding_times_and_modes (Simple.name name)
-                ~min_binding_time
-            in
-            Name_mode.equal name_mode scoped_name_mode)
-          names
+  let canonical = canonical t element in
+  match canonical with
+  | Is_canonical
+    when match Name_mode.compare_partial_order elt_name_mode min_name_mode with
+         | None -> false
+         | Some c -> c >= 0 ->
+    element
+  | Is_canonical | Alias_of_canonical _ -> (
+    let canonical_element, name_mode, coercion_from_canonical_to_element =
+      match canonical with
+      | Is_canonical ->
+        Simple.without_coercion element, elt_name_mode, Simple.coercion element
+      | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
+        let name_mode =
+          compute_name_mode ~binding_times_and_modes canonical_element
+            ~min_binding_time
+        in
+        canonical_element, name_mode, Coercion.inverse coercion_to_canonical
     in
-    match
-      Aliases_of_canonical_element.find_earliest_candidates aliases
-        ~filter_by_scope ~min_name_mode
-    with
-    | Some at_earliest_mode ->
-      (* Aliases_of_canonical_element.find_earliest_candidates only returns
-         non-empty sets *)
-      assert (not (Name.Map.is_empty at_earliest_mode));
-      let earliest, coercion_from_earliest_to_canonical =
-        Name.Map.fold
-          (fun elt coercion ((min_elt, _min_coercion) as min_binding) ->
-            if name_defined_earlier ~binding_time_resolver
-                 ~binding_times_and_modes elt ~than:min_elt
-            then elt, coercion
-            else min_binding)
-          at_earliest_mode
-          (Name.Map.min_binding at_earliest_mode)
-      in
-      let coercion_from_earliest_to_element =
-        Coercion.compose_exn coercion_from_earliest_to_canonical
-          ~then_:coercion_from_canonical_to_element
-      in
-      Simple.with_coercion (Simple.name earliest)
-        coercion_from_earliest_to_element
-    | None -> raise Not_found
-  in
-  match Name_mode.compare_partial_order name_mode min_name_mode with
-  | None -> find_earliest ()
-  | Some c ->
-    if c >= 0
-    then
-      Simple.with_coercion canonical_element coercion_from_canonical_to_element
-    else find_earliest ()
+    assert (not (Simple.has_coercion canonical_element));
+    match Name_mode.compare_partial_order name_mode min_name_mode with
+    | None ->
+      find_earliest_alias t ~canonical_element ~binding_times_and_modes
+        ~min_binding_time ~min_name_mode ~binding_time_resolver
+        ~coercion_from_canonical_to_element
+    | Some c ->
+      if c >= 0
+      then
+        Simple.with_coercion canonical_element
+          coercion_from_canonical_to_element
+      else
+        find_earliest_alias t ~canonical_element ~binding_times_and_modes
+          ~min_binding_time ~min_name_mode ~binding_time_resolver
+          ~coercion_from_canonical_to_element)
 
 let get_aliases t element =
   match canonical t element with
