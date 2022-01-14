@@ -440,8 +440,9 @@ let find_params t params =
       find t name (Some kind))
     params
 
-let binding_time_and_mode t name =
-  if variable_is_from_missing_cmx_file t name
+let binding_time_and_mode t name ~assume_not_from_missing_cmx_file =
+  if (not assume_not_from_missing_cmx_file)
+     && variable_is_from_missing_cmx_file t name
   then Binding_time.With_name_mode.imported_variables
   else
     Name.pattern_match name
@@ -452,10 +453,11 @@ let binding_time_and_mode t name =
         binding_time_and_mode)
       ~symbol:(fun _sym -> Binding_time.With_name_mode.symbols)
 
-let binding_time_and_mode_of_simple t simple =
+let binding_time_and_mode_of_simple t simple ~assume_not_from_missing_cmx_file =
   Simple.pattern_match simple
     ~const:(fun _ -> Binding_time.With_name_mode.consts)
-    ~name:(fun name ~coercion:_ -> binding_time_and_mode t name)
+    ~name:(fun name ~coercion:_ ->
+      binding_time_and_mode t name ~assume_not_from_missing_cmx_file)
 
 let mem ?min_name_mode t name =
   Name.pattern_match name
@@ -983,6 +985,7 @@ let type_simple_in_term_exn t ?min_name_mode simple =
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
     simple =
+  let variable_is_from_missing_cmx_file = ref false in
   let binding_times_and_modes, aliases_for_simple, min_binding_time =
     Simple.pattern_match simple
       ~const:(fun _ -> names_to_types t, aliases t, t.min_binding_time)
@@ -1029,6 +1032,7 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
                      had a way to learn later that the variable is actually an
                      alias, but that would only happen if for some reason we
                      later successfully load the missing cmx. *)
+                  variable_is_from_missing_cmx_file := true;
                   names_to_types t, aliases t, t.min_binding_time)
           ~symbol:(fun _sym ->
             (* Symbols can't alias, so lookup in the current aliases is fine *)
@@ -1036,9 +1040,7 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
   in
   let name_mode_simple =
     let in_types =
-      Simple.pattern_match simple
-        ~const:(fun _ -> false)
-        ~name:(fun name ~coercion:_ -> variable_is_from_missing_cmx_file t name)
+      if Simple.is_var simple then !variable_is_from_missing_cmx_file else false
     in
     if in_types
     then Name_mode.in_types
@@ -1047,7 +1049,8 @@ let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
       | Some name_mode -> name_mode
       | None ->
         Binding_time.With_name_mode.name_mode
-          (binding_time_and_mode_of_simple t simple)
+          (binding_time_and_mode_of_simple t simple
+             ~assume_not_from_missing_cmx_file:true)
   in
   let min_name_mode =
     match min_name_mode with
@@ -1079,7 +1082,8 @@ let aliases_of_simple t ~min_name_mode simple =
   |> Aliases.Alias_set.filter ~f:(fun alias ->
          let name_mode =
            Binding_time.With_name_mode.name_mode
-             (binding_time_and_mode_of_simple t alias)
+             (binding_time_and_mode_of_simple t alias
+                ~assume_not_from_missing_cmx_file:false)
          in
          match Name_mode.compare_partial_order name_mode min_name_mode with
          | None -> false
