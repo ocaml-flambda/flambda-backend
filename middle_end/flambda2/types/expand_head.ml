@@ -349,25 +349,22 @@ type to_erase =
 
 exception Missing_cmx_file
 
-let free_variables_transitive env ty =
+let free_variables_transitive env already_seen ty =
   let rec free_variables_transitive0 ty ~result =
     (* We don't need to look at symbols because the assumption (see the .mli) is
-       that the type of any symbol is already valid (including any variables it
-       may contain, transitively) in the target environment). *)
+       that all symbols have valid types in the target environment. *)
     let free_vars = TG.free_names ty |> Name_occurrences.with_only_variables in
     if missing_kind env free_vars
     then raise Missing_cmx_file
     else
       let to_traverse = Name_occurrences.diff free_vars result in
+      let result = Name_occurrences.union result to_traverse in
       Name_occurrences.fold_names to_traverse ~init:result
         ~f:(fun result name ->
-          let result =
-            Name_occurrences.add_name result name Name_mode.in_types
-          in
           let ty = TE.find env name None in
           free_variables_transitive0 ty ~result)
   in
-  free_variables_transitive0 ty ~result:Name_occurrences.empty
+  free_variables_transitive0 ty ~result:already_seen
 
 let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
   (match to_erase with
@@ -401,8 +398,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
        function above). *)
     match
       bind_to_and_types |> List.map snd
-      |> List.map (free_variables_transitive env)
-      |> Name_occurrences.union_list
+      |> List.fold_left (free_variables_transitive env) Name_occurrences.empty
     with
     | exception Missing_cmx_file ->
       (* Just forget everything if there is a .cmx file missing. *)

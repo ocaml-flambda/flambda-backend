@@ -99,6 +99,11 @@ type to_erase =
     assumption is that such types are already valid in the target environment.
     (This applies no matter what the setting of [to_erase]).
 
+    The returned extension doesn't include equations involving the "bind-to"
+    names but associated to other names. As an example, if one of the "bind-to"
+    names is the result of a projection from a symbol, and the type of the
+    corresonding symbol field is not an alias, then the relation will be lost.
+
     If any of the [Name.t]s provided as the "bind-to" names occur already in the
     supplied environment then the types provided as input to this function will
     be used instead of the types in such environment. (This situation does not
