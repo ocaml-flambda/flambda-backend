@@ -565,8 +565,8 @@ module Trap_depth_and_exns = struct
 
   type handler_table = handler_stack Label.Tbl.t
 
-  let record_handler :
-      handler_stack -> handler_table -> can_raise:bool -> unit =
+  let record_handler : handler_stack -> handler_table -> can_raise:bool -> unit
+      =
    fun stack table ~can_raise ->
     if can_raise
     then
