@@ -102,7 +102,7 @@ type to_erase =
     The returned extension doesn't include equations involving the "bind-to"
     names but associated to other names. As an example, if one of the "bind-to"
     names is the result of a projection from a symbol, and the type of the
-    corresonding symbol field is not an alias, then the relation will be lost.
+    corresponding symbol field is not an alias, then the relation will be lost.
 
     If any of the [Name.t]s provided as the "bind-to" names occur already in the
     supplied environment then the types provided as input to this function will
@@ -113,4 +113,5 @@ val make_suitable_for_environment :
   Typing_env.t ->
   to_erase ->
   (Name.t * Type_grammar.t) list ->
+  (* these [Name.t] values are called the "bind-to" names *)
   Typing_env_extension.With_extra_variables.t
