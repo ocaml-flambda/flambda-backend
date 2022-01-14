@@ -82,6 +82,8 @@ module type S = sig
   val hash : t -> int
 
   val map_depth_variables : t -> f:(variable -> variable) -> t
+
+  val erase_variables : t -> t
 end
 
 module Make (Variable : Container_types.S) : S with type variable = Variable.t

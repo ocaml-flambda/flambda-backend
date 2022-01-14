@@ -56,14 +56,14 @@ let create_normal_non_code const =
 
 let create_code are_rebuilding code_id ~params_and_body
     ~free_names_of_params_and_body ~newer_version_of ~params_arity ~result_arity
-    ~stub ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments
-    ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
+    ~result_types ~stub ~inline ~is_a_functor ~recursive ~cost_metrics
+    ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used ~inlining_decision =
   if ART.do_not_rebuild_terms are_rebuilding
   then
     let non_constructed_code =
       Non_constructed_code.create code_id ~free_names_of_params_and_body
-        ~newer_version_of ~params_arity ~result_arity ~stub ~inline
-        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+        ~newer_version_of ~params_arity ~result_arity ~result_types ~stub
+        ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
         ~is_tupled ~is_my_closure_used ~inlining_decision
     in
     Code_not_rebuilt non_constructed_code
@@ -74,8 +74,8 @@ let create_code are_rebuilding code_id ~params_and_body
     in
     let code =
       Code.create code_id ~params_and_body ~free_names_of_params_and_body
-        ~newer_version_of ~params_arity ~result_arity ~stub ~inline
-        ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
+        ~newer_version_of ~params_arity ~result_arity ~result_types ~stub
+        ~inline ~is_a_functor ~recursive ~cost_metrics ~inlining_arguments ~dbg
         ~is_tupled ~is_my_closure_used ~inlining_decision
     in
     Normal
@@ -325,7 +325,8 @@ module Group = struct
                ~free_names_of_params_and_body:Name_occurrences.empty
                ~newer_version_of:(NCC.newer_version_of code)
                ~params_arity:(NCC.params_arity code)
-               ~result_arity:(NCC.result_arity code) ~stub:(NCC.stub code)
+               ~result_arity:(NCC.result_arity code)
+               ~result_types:(NCC.result_types code) ~stub:(NCC.stub code)
                ~inline:(NCC.inline code) ~is_a_functor:(NCC.is_a_functor code)
                ~recursive:(NCC.recursive code)
                ~cost_metrics:(NCC.cost_metrics code)

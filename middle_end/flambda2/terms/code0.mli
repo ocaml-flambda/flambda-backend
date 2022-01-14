@@ -30,6 +30,8 @@ val params_arity : 'function_params_and_body t -> Flambda_arity.With_subkinds.t
 
 val result_arity : 'function_params_and_body t -> Flambda_arity.With_subkinds.t
 
+val result_types : 'function_params_and_body t -> Result_types.t
+
 val stub : 'function_params_and_body t -> bool
 
 val inline : 'function_params_and_body t -> Inline_attribute.t
@@ -60,6 +62,7 @@ val create :
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
   result_arity:Flambda_arity.With_subkinds.t ->
+  result_types:Result_types.t ->
   stub:bool ->
   inline:Inline_attribute.t ->
   is_a_functor:bool ->
@@ -110,3 +113,8 @@ val all_ids_for_export :
   Ids_for_export.t
 
 val compare : 'function_params_and_body t -> 'function_params_and_body t -> int
+
+val map_result_types :
+  'function_params_and_body t ->
+  f:(Flambda2_types.t -> Flambda2_types.t) ->
+  'function_params_and_body t

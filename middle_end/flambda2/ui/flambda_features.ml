@@ -32,6 +32,12 @@ let safe_string () = Config.safe_string
 
 let flat_float_array () = Config.flat_float_array
 
+let function_result_types ~is_a_functor =
+  match !Flambda_backend_flags.Flambda2.function_result_types with
+  | Never -> false
+  | Functors_only -> is_a_functor
+  | All_functions -> true
+
 let debug () = !Clflags.debug
 
 let opaque () = !Clflags.opaque

@@ -121,7 +121,8 @@ let rebuild_non_inlined_direct_full_application apply ~use_id ~exn_cont_use_id
   after_rebuild expr uacc
 
 let simplify_direct_full_application ~simplify_expr dacc apply function_type
-    ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect =
+    ~callee's_code_id ~params_arity ~result_arity ~result_types ~down_to_up
+    ~coming_from_indirect =
   let inlined =
     (* CR mshinwell for poechsel: Make sure no other warnings or inlining report
        decisions get emitted when not rebuilding terms. *)
@@ -168,13 +169,59 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       match Apply.continuation apply with
       | Never_returns -> dacc, None
       | Return apply_return_continuation ->
-        let dacc, use_id =
-          DA.record_continuation_use dacc apply_return_continuation
-            (Non_inlinable { escaping = true })
-            ~env_at_use:(DA.denv dacc)
-            ~arg_types:(T.unknown_types_from_arity_with_subkinds result_arity)
-        in
-        dacc, Some use_id
+        Result_types.pattern_match result_types
+          ~f:(fun ~params ~results env_extension ->
+            if List.compare_lengths params_arity params <> 0
+            then
+              Misc.fatal_errorf
+                "Params arity %a does not match up with params in the result \
+                 types structure:@ %a@ for application:@ %a"
+                Flambda_arity.With_subkinds.print params_arity
+                Result_types.print result_types Apply.print apply;
+            if List.compare_lengths result_arity results <> 0
+            then
+              Misc.fatal_errorf
+                "Result arity %a does not match up with the result types \
+                 structure:@ %a@ for application:@ %a"
+                Flambda_arity.With_subkinds.print params_arity
+                Result_types.print result_types Apply.print apply;
+            let denv = DA.denv dacc in
+            let denv =
+              DE.add_parameters_with_unknown_types ~name_mode:Name_mode.in_types
+                denv params
+            in
+            let denv =
+              let args = Apply.args apply in
+              assert (List.compare_lengths params args = 0);
+              List.fold_left2
+                (fun denv param arg ->
+                  DE.add_equation_on_variable denv (BP.var param)
+                    (T.alias_type_of (K.With_subkind.kind (BP.kind param)) arg))
+                denv params args
+            in
+            let denv =
+              List.fold_left2
+                (fun denv kind result ->
+                  DE.add_variable denv
+                    (VB.create (BP.var result) NM.in_types)
+                    (T.unknown_with_subkind kind))
+                denv result_arity results
+            in
+            let denv = DE.extend_typing_environment denv env_extension in
+            let arg_types =
+              List.map2
+                (fun kind result_var ->
+                  T.alias_type_of (K.With_subkind.kind kind)
+                    (BP.simple result_var))
+                result_arity results
+            in
+            let dacc = DA.with_denv dacc denv in
+            let dacc, use_id =
+              DA.record_continuation_use dacc apply_return_continuation
+                (Non_inlinable { escaping = true })
+                ~env_at_use:(DA.denv dacc) ~arg_types
+            in
+            dacc, Some use_id)
     in
     let dacc, exn_cont_use_id =
       DA.record_continuation_use dacc
@@ -191,8 +238,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
            ~exn_cont_use_id ~result_arity ~coming_from_indirect)
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
-    ~callee's_code_id ~callee's_closure_id ~param_arity ~result_arity ~recursive
-    ~down_to_up ~coming_from_indirect =
+    ~callee's_code_id ~callee's_closure_id ~param_arity ~result_arity
+    ~result_types ~recursive ~down_to_up ~coming_from_indirect =
   (* For simplicity, we disallow [@inline] attributes on partial applications.
      The user may always write an explicit wrapper instead with such an
      attribute. *)
@@ -235,11 +282,6 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         arg)
       args param_arity
   in
-  if not (Flambda_arity.With_subkinds.is_singleton_value result_arity)
-  then
-    Misc.fatal_errorf
-      "Partially-applied function with non-[value] return kind: %a" Apply.print
-      apply;
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_closure_id =
@@ -376,8 +418,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
           ~params_arity:(BP.List.arity_with_subkinds remaining_params)
-          ~result_arity ~stub:true ~inline:Default_inline ~is_a_functor:false
-          ~recursive ~cost_metrics:cost_metrics_of_body
+          ~result_arity ~result_types ~stub:true ~inline:Default_inline
+          ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
           ~inlining_arguments:(DE.inlining_arguments (DA.denv dacc))
           ~dbg ~is_tupled:false
           ~is_my_closure_used:
@@ -474,8 +516,8 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-    ~callee's_closure_id ~result_arity ~recursive ~arg_types:_ ~must_be_detupled
-    function_decl ~down_to_up =
+    ~callee's_closure_id ~result_arity ~result_types ~recursive ~arg_types:_
+    ~must_be_detupled function_decl ~down_to_up =
   begin
     match Apply.probe_name apply, Apply.inlined apply with
     | None, _ | Some _, Never_inlined -> ()
@@ -545,7 +587,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       if provided_num_args = num_params
       then
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
-          ~callee's_code_id ~result_arity ~down_to_up ~coming_from_indirect
+          ~callee's_code_id ~params_arity ~result_arity ~result_types
+          ~down_to_up ~coming_from_indirect
       else if provided_num_args > num_params
       then
         simplify_direct_over_application ~simplify_expr dacc apply
@@ -555,7 +598,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       then
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_closure_id ~param_arity:params_arity
-          ~result_arity ~recursive ~down_to_up ~coming_from_indirect
+          ~result_arity ~result_types ~recursive ~down_to_up
+          ~coming_from_indirect
       else
         Misc.fatal_errorf
           "Function with %d params when simplifying direct OCaml function call \
@@ -735,6 +779,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
       ~callee's_closure_id ~arg_types
       ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
+      ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)
       ~must_be_detupled func_decl_type ~down_to_up
   | Unknown -> type_unavailable ()

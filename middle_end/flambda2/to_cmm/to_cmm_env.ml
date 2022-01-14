@@ -188,8 +188,11 @@ let exn_cont env = env.k_exn
 (* Function info *)
 
 let get_function_info env code_id =
-  Exported_code.find_exn env.functions_info code_id
-  |> Code_or_metadata.code_metadata
+  match Exported_code.find_exn env.functions_info code_id with
+  | code_or_metadata -> Code_or_metadata.code_metadata code_or_metadata
+  | exception Not_found ->
+    Misc.fatal_errorf "To_cmm_env.get_function_info: code ID %a not bound"
+      Code_id.print code_id
 
 let get_func_decl_params_arity t code_id =
   let info = get_function_info t code_id in

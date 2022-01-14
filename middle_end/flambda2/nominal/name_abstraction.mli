@@ -48,6 +48,17 @@ module Make (Bindable : Bindable.S) (Term : Term) : sig
   val apply_renaming : t -> Renaming.t -> t
 end
 
+module Make_free_names
+    (Bindable : Bindable.S) (Term : sig
+      include Term
+
+      val free_names : t -> Name_occurrences.t
+    end) : sig
+  type nonrec t = (Bindable.t, Term.t) t
+
+  val free_names : t -> Name_occurrences.t
+end
+
 module Make_matching_and_renaming
     (Bindable : Bindable.S) (Term : sig
       type t
