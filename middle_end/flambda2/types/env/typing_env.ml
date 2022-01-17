@@ -729,12 +729,37 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
               name TG.print ty print t)
         ~const:(fun _ -> ()));
   let simple, t, ty =
-    let aliases = aliases t in
     match TG.get_alias_exn ty with
     | exception Not_found ->
       (* Equations giving concrete types may only be added to the canonical
-         element as known by the alias tracker (the actual canonical, ignoring
-         any name modes). *)
+         element as known by the relevant alias tracker (the actual canonical,
+         ignoring any name modes). *)
+      let aliases =
+        (* If we already have an equation on [name], then we already have the
+           correct alias relation in the current [aliases]. *)
+        if Name.Map.mem name (names_to_types t)
+        then aliases t
+        else
+          (* If we don't have any equation yet, then we can find the canonical
+             element by looking in the corresponding compilation unit *)
+          let comp_unit = Name.compilation_unit name in
+          if Compilation_unit.equal comp_unit
+               (Compilation_unit.get_current_exn ())
+          then aliases t
+          else
+            match (resolver t) comp_unit with
+            | None ->
+              (* The corresponding cmx is unavailable, so even if [name] was not
+                 canonical in its compilation unit we won't ever discover it.
+                 Relying on the current aliases structure is fine. *)
+              aliases t
+            | Some env -> aliases env
+            | exception exn ->
+              Misc.fatal_errorf "Exception in resolver: %s@ Backtrace is: %s"
+                (Printexc.to_string exn)
+                (Printexc.raw_backtrace_to_string
+                   (Printexc.get_raw_backtrace ()))
+      in
       let canonical = Aliases.get_canonical_ignoring_name_mode aliases name in
       canonical, t, ty
     | alias_of ->
@@ -746,6 +771,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
          demote [c_n] and give [name] the type "= c_a" (which will always be
          valid since [c_a] was bound earlier). Otherwise, we demote [c_a] and
          give [alias_of] the type "= c_n". *)
+      let aliases = aliases t in
       let alias = Simple.name name in
       let kind = TG.kind ty in
       let ({ canonical_element; alias_of_demoted_element; t = aliases }
