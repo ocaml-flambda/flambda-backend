@@ -742,22 +742,23 @@ module Greedy = struct
       EO.imported_offsets ()
 
   (* Currently, it happens that some closure_ids/closure_vars can occur in
-   * projections (and thus in the used_closure_ids/vars), but never occur in
-   * the creation of a set of closures (and consequently have no slot, and thus
-   * are not assigned any offset).
-   *
-   * There are two main reasons why this could happen:
-   * - we could have missed some sets of closures creations on the way up and
-   *   not recorded the associated constraints
-   * - the closure_id/closure_var occur in dead code that was kept for some
-   *   reason (mainly due to the over-approximations made by data_flow, which
-   *   keeps alive more things than necessary). This regularly occurs when
-   *   phantom lets are generated, but can also occur without phantom let
-   *   bindings.
-   *
-   * The following check is intended to catch the first of these two cases, but
-   * it cannot distinguish between the two cases, and this check results in a
-   * lot of false positives. Thus we cannot always run this check. *)
+     projections (and thus in the used_closure_ids/vars), but never occur in the
+     creation of a set of closures (and consequently have no slot, and thus are
+     not assigned any offset).
+
+     There are two main reasons why this could happen:
+
+     - we could have missed some sets of closures creations on the way up and
+     not recorded the associated constraints
+
+     - the closure_id/closure_var occur in dead code that was kept for some
+     reason (mainly due to the over-approximations made by data_flow, which
+     keeps alive more things than necessary). This regularly occurs when phantom
+     lets are generated, but can also occur without phantom let bindings.
+
+     The following check is intended to catch the first of these two cases, but
+     it cannot distinguish between the two cases, and this check results in a
+     lot of false positives. Thus we cannot always run this check. *)
   let check_used_offsets state ~used_closure_ids ~used_closure_vars offsets =
     if !Clflags.flambda_invariant_checks
     then
