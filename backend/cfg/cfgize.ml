@@ -332,7 +332,6 @@ type block_info =
   { instrs : Cfg.basic Cfg.instruction list;
     last : Mach.instruction;
     terminator : Cfg.terminator Cfg.instruction option;
-    can_raise : bool
   }
 
 (* [extract_block_info state first] returns a [block_info] containing all the
@@ -343,9 +342,9 @@ type block_info =
 let extract_block_info : State.t -> Mach.instruction -> block_info =
  fun state first ->
   let rec loop (instr : Mach.instruction) acc =
-    let return terminator can_raise instrs =
+    let return terminator instrs =
       let instrs = List.rev instrs in
-      { instrs; last = instr; terminator; can_raise }
+      { instrs; last = instr; terminator; }
     in
     match instr.desc with
     | Iop op -> begin
@@ -357,18 +356,17 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
         else
           let acc = instr' :: acc in
           if Cfg.can_raise_basic desc
-          then return None true acc
+          then return None acc
           else loop instr.next acc
       | Terminator terminator ->
         return
           (Some (copy_instruction state instr ~desc:terminator))
-          (Cfg.can_raise_terminator terminator)
           acc
     end
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ ->
-      return None false acc
-    | Iraise _ -> return None true acc
+      return None acc
+    | Iraise _ -> return None acc
   in
   loop first []
 
@@ -389,7 +387,7 @@ let rec add_blocks :
     next:Label.t ->
     unit =
  fun instr state ~starts_with_pushtrap ~start ~next ->
-  let { instrs; last; terminator; can_raise } =
+  let { instrs; last; terminator } =
     extract_block_info state instr
   in
   let terminate_block ~trap_actions terminator =
@@ -420,6 +418,30 @@ let rec add_blocks :
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
       | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
         body
+    in
+    let can_raise =
+      (* Recompute [can_raise] and check that instruction in the middle
+         of the block do not raise, i.e., only the terminator, or the last
+         instruction (when the terminator is just a goto) can raise. *)
+      let last_can_raise =
+        match (terminator.Cfg.desc : Cfg.terminator) with
+        | Always _ -> true
+        | Raise _ | Tailcall (Func _) | Call_no_return _
+        | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+        | Switch _ | Return
+        | Tailcall (Self _) -> false
+      in
+      let rec check = function
+        | [] -> false
+        | last::[] ->
+          let res = Cfg.can_raise_basic last.Cfg.desc in
+          assert ((not res) || last_can_raise);
+          res
+        | hd::tail ->
+          assert (not (Cfg.can_raise_basic hd.Cfg.desc));
+          check tail
+      in
+      Cfg.can_raise_terminator terminator.Cfg.desc || check body
     in
     State.add_block state ~label:start
       ~block:
