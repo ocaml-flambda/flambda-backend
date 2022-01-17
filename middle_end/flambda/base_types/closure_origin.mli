@@ -20,4 +20,4 @@ val create : Closure_id.t -> t
 
 val get_compilation_unit : t -> Compilation_unit.t
 
-val debug_info : t -> Debuginfo.t option
+val debug_info : t -> Debuginfo.t

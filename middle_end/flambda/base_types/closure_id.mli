@@ -25,3 +25,5 @@
     (viz. [Project_closure]). *)
 
 include module type of Closure_element
+
+val debug_info : t -> Debuginfo.t

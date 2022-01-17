@@ -843,7 +843,7 @@ and simplify_partial_application env r ~lhs_of_application
       }
     in
     let closure_variable =
-      Variable.rename ~debug_info:dbg
+      Variable.rename ~debug_info:(Closure_id.debug_info closure_id_being_applied)
         (Closure_id.unwrap closure_id_being_applied)
     in
     Flambda_utils.make_closure_declaration ~id:closure_variable

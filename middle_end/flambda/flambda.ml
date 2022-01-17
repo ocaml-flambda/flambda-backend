@@ -1044,13 +1044,7 @@ let create_function_declaration ~params ~body ~stub
       "Stubs may not be annotated as [Always_specialise]: %a"
       print body
   end;
-  let dbg_origin =
-    match Closure_origin.debug_info closure_origin with
-    | None ->
-      Misc.fatal_errorf "Debug info missing on closure origin %a"
-        Closure_origin.print closure_origin
-    | Some dbg_origin -> dbg_origin
-  in
+  let dbg_origin = Closure_origin.debug_info closure_origin in
   { closure_origin;
     params;
     body;
