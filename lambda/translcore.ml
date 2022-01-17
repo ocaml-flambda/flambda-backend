@@ -721,6 +721,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
+         let scopes = enter_lazy ~scopes in
          let fn = Lfunction {kind = Curried {nlocal=0};
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
@@ -892,7 +893,7 @@ and transl_apply ~scopes
       ?(mode=Alloc_heap)
       lam sargs loc
   =
-  let lapply funct args pos =
+  let lapply funct args loc pos =
     match funct, pos with
     | Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _ ->
         Lsend(k, lmet, lobj, args, pos, mode, loc)
@@ -925,7 +926,7 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
-  let rec build_apply lam args pos = function
+  let rec build_apply lam args loc pos = function
     | Omitted { mode_closure; mode_arg; mode_ret } :: l ->
         let defs = ref [] in
         let protect name lam =
@@ -937,7 +938,7 @@ and transl_apply ~scopes
               Lvar id
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev args) pos
+          if args = [] then lam else lapply lam (List.rev args) loc pos
         in
         let handle = protect "func" lam in
         let l =
@@ -950,7 +951,8 @@ and transl_apply ~scopes
         in
         let id_arg = Ident.create_local "param" in
         let body =
-          let body = build_apply handle [Lvar id_arg] Apply_nontail l in
+          let loc = map_scopes enter_partial_or_eta_wrapper loc in
+          let body = build_apply handle [Lvar id_arg] loc Apply_nontail l in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
           let ret_mode = transl_alloc_mode mode_ret in
@@ -971,8 +973,8 @@ and transl_apply ~scopes
         List.fold_right
           (fun (id, lam) body -> Llet(Strict, Pgenval, id, lam, body))
           !defs body
-    | Arg arg :: l -> build_apply lam (arg :: args) pos l
-    | [] -> lapply lam (List.rev args) pos
+    | Arg arg :: l -> build_apply lam (arg :: args) loc pos l
+    | [] -> lapply lam (List.rev args) loc pos
   in
   let args =
     List.map
@@ -982,7 +984,7 @@ and transl_apply ~scopes
          | Arg exp -> Arg (transl_exp ~scopes exp))
       sargs
   in
-  build_apply lam [] position args
+  build_apply lam [] loc position args
 
 and transl_curried_function
       ~scopes loc return

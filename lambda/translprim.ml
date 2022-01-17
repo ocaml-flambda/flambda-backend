@@ -755,6 +755,11 @@ let transl_primitive loc p env ty ~poly_mode path =
   in
   let params = make_params p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
+  let loc =
+    Debuginfo.Scoped_location.map_scopes (fun ~scopes ->
+        Debuginfo.Scoped_location.enter_partial_or_eta_wrapper ~scopes)
+      loc
+  in
   let body = lambda_of_prim p.prim_name prim loc args None in
   match params with
   | [] -> body
