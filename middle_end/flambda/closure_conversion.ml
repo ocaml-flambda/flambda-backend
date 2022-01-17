@@ -605,9 +605,6 @@ and close_functions t external_env function_declarations : Flambda.named =
     let param_vars = List.map (Env.find_var closure_env) params in
     let params = List.map Parameter.wrap param_vars in
     let closure_bound_var = Function_decl.closure_bound_var decl in
-    (* The closure_bound_var for a declared function should
-       always have the debug info *)
-    assert (Option.is_some (Variable.debug_info closure_bound_var));
     let unboxed_version = Variable.rename closure_bound_var in
     let body = close t closure_env body in
     let closure_origin =

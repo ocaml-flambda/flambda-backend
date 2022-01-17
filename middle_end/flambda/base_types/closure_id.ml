@@ -18,3 +18,5 @@
 open! Int_replace_polymorphic_compare
 
 include Closure_element
+
+let debug_info t = Option.get (debug_info t)

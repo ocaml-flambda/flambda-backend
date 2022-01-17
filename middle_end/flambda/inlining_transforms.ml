@@ -673,6 +673,5 @@ let inline_by_copying_function_declaration
       in
       let expr = Flambda_utils.bind ~body ~bindings:state.let_bindings in
       let env = E.activate_freshening (E.set_never_inline env) in
-      let env = E.set_inline_debuginfo ~dbg env in
       Some (simplify env r expr)
     end
