@@ -756,6 +756,11 @@ module Greedy = struct
      keeps alive more things than necessary). This regularly occurs when phantom
      lets are generated, but can also occur without phantom let bindings.
 
+     Upon a missing offset for a closure_id/var, to_cmm will generate cmm
+     instructions that produce a segfault. This is safe in the second case, when
+     the closure_id/var with the missing opffset occurs in dead code, but it is
+     incorrect in the first case.
+
      The following check is intended to catch the first of these two cases, but
      it cannot distinguish between the two cases, and this check results in a
      lot of false positives. Thus we cannot always run this check. *)
@@ -793,7 +798,7 @@ module Greedy = struct
                 Misc.fatal_errorf
                   "Missing closure var %a in offsets to export.@ Either a set \
                    of closures was not added to the offset constraints on the \
-                   way up, or the offending closure ID only occurs in dead \
+                   way up, or the offending closure var only occurs in dead \
                    code.@ \n\
                    Used closure vars =@ %a.@ \n\
                    Exported offsets =@ %a" Var_within_closure.print closure_var
