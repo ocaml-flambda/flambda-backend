@@ -741,48 +741,67 @@ module Greedy = struct
     | Unknown, Known _ | Known _, Unknown | Unknown, Unknown ->
       EO.imported_offsets ()
 
-  (* closure_ids and env vars can sometimes occur in dead/unreachable code, but
-     still appear as normal occurrences because of over-approximations in
-     data_flow, which can keep symbol/code alive even when all the sets of
-     closures that use the symbol/code_id are phantomised. Thus if a
-     closure_id/env_var from the current compilation unit appears as used, but
-     is only present in phantomised sets of closures, then we can consider it as
-     not actually used. *)
+  (* Currently, it happens that some closure_ids/closure_vars can occur in
+   * projections (and thus in the used_closure_ids/vars), but never occur in
+   * the creation of a set of closures (and consequently have no slot, and thus
+   * are not assigned any offset).
+   *
+   * There are two main reasons why this could happen:
+   * - we could have missed some sets of closures creations on the way up and
+   *   not recorded the associated constraints
+   * - the closure_id/closure_var occur in dead code that was kept for some
+   *   reason (mainly due to the over-approximations made by data_flow, which
+   *   keeps alive more things than necessary). This regularly occurs when
+   *   phantom lets are generated, but can also occur without phantom let
+   *   bindings.
+   *
+   * The following check is intended to catch the first of these two cases, but
+   * it cannot distinguish between the two cases, and this check results in a
+   * lot of false positives. Thus we cannot always run this check. *)
   let check_used_offsets state ~used_closure_ids ~used_closure_vars offsets =
-    match
-      (used_closure_ids, used_closure_vars : _ Or_unknown.t * _ Or_unknown.t)
-    with
-    | Known used_closure_ids, Known used_closure_vars ->
-      Closure_id.Set.iter
-        (fun closure_id ->
-          match EO.closure_offset offsets closure_id with
-          | None ->
-            if Closure_id.Set.mem closure_id state.phantom_closure_ids
-            then ()
-            else
-              Misc.fatal_errorf
-                "Missing closure ID %a in offsets to export.@ \n\
-                 Used closure IDs =@ %a.@ \n\
-                 Exported offsets =@ %a" Closure_id.print closure_id
-                Closure_id.Set.print used_closure_ids EO.print offsets
-          | Some _ -> ())
-        used_closure_ids;
-      Var_within_closure.Set.iter
-        (fun closure_var ->
-          match EO.env_var_offset offsets closure_var with
-          | None ->
-            if Var_within_closure.Set.mem closure_var state.phantom_env_vars
-            then ()
-            else
-              Misc.fatal_errorf
-                "Missing closure var %a in offsets to export.@ \n\
-                 Used closure vars =@ %a.@ \n\
-                 Exported offsets =@ %a" Var_within_closure.print closure_var
-                Var_within_closure.Set.print used_closure_vars EO.print offsets
-          | Some _ -> ())
-        used_closure_vars;
-      ()
-    | Unknown, Known _ | Known _, Unknown | Unknown, Unknown -> ()
+    if !Clflags.flambda_invariant_checks
+    then
+      match
+        (used_closure_ids, used_closure_vars : _ Or_unknown.t * _ Or_unknown.t)
+      with
+      | Known used_closure_ids, Known used_closure_vars ->
+        Closure_id.Set.iter
+          (fun closure_id ->
+            match EO.closure_offset offsets closure_id with
+            | None ->
+              if Closure_id.Set.mem closure_id state.phantom_closure_ids
+              then ()
+              else
+                Misc.fatal_errorf
+                  "Missing closure ID %a in offsets to export.@ Either a set \
+                   of closures was not added to the offset constraints on the \
+                   way up, or the offending closure ID only occurs in dead \
+                   code.@ \n\
+                   Used closure IDs =@ %a.@ \n\
+                   Exported offsets =@ %a" Closure_id.print closure_id
+                  Closure_id.Set.print used_closure_ids EO.print offsets
+            | Some _ -> ())
+          used_closure_ids;
+        Var_within_closure.Set.iter
+          (fun closure_var ->
+            match EO.env_var_offset offsets closure_var with
+            | None ->
+              if Var_within_closure.Set.mem closure_var state.phantom_env_vars
+              then ()
+              else
+                Misc.fatal_errorf
+                  "Missing closure var %a in offsets to export.@ Either a set \
+                   of closures was not added to the offset constraints on the \
+                   way up, or the offending closure ID only occurs in dead \
+                   code.@ \n\
+                   Used closure vars =@ %a.@ \n\
+                   Exported offsets =@ %a" Var_within_closure.print closure_var
+                  Var_within_closure.Set.print used_closure_vars EO.print
+                  offsets
+            | Some _ -> ())
+          used_closure_vars;
+        ()
+      | Unknown, Known _ | Known _, Unknown | Unknown, Unknown -> ()
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)
