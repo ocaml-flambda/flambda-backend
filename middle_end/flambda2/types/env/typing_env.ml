@@ -764,26 +764,26 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
          ignoring any name modes). *)
       let canonical = find_canonical name in
       Some (canonical, t, ty)
-    | alias_of ->
-      (* Forget where [name] and [alias_of] came from---our job is now to record
-         that they're equal. In general, they have canonical expressions [c_n]
-         and [c_a], respectively, so what we ultimately need to record is that
-         [c_n] = [c_a]. Clearly, only one of them can remain canonical, so we
-         pick whichever was bound earlier. If [c_a] was bound earlier, then we
-         demote [c_n] and give [name] the type "= c_a" (which will always be
-         valid since [c_a] was bound earlier). Otherwise, we demote [c_a] and
-         give [alias_of] the type "= c_n". *)
-      (* The canonical elements [c_a] and [c_n] might not be present in the
+    | alias_rhs ->
+      (* Forget where [name] and [alias_rhs] came from---our job is now to
+         record that they're equal. In general, they have canonical expressions
+         [c_l] and [c_r], respectively, so what we ultimately need to record is
+         that [c_l] = [c_r]. Clearly, only one of them can remain canonical, so
+         we pick whichever was bound earlier. If [c_r] was bound earlier, then
+         we demote [c_l] and give [name] the type "= c_r" (which will always be
+         valid since [c_r] was bound earlier). Otherwise, we demote [c_r] and
+         give [alias_of] the type "= c_l". *)
+      (* The canonical elements [c_r] and [c_l] might not be present in the
          current aliases structure, so we force a lookup of canonical elements
          first using the relevant structure *)
-      let alias = find_canonical name in
-      let alias_of =
-        Simple.pattern_match alias_of
-          ~const:(fun _ -> alias_of)
+      let alias_lhs = find_canonical name in
+      let alias_rhs =
+        Simple.pattern_match alias_rhs
+          ~const:(fun _ -> alias_rhs)
           ~name:(fun name ~coercion ->
             Simple.apply_coercion_exn (find_canonical name) coercion)
       in
-      if Simple.equal alias alias_of
+      if Simple.equal alias_lhs alias_rhs
       then None
       else
         let aliases = aliases t in
@@ -793,7 +793,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
           (* This may raise [Binding_time_resolver_failure]. *)
           Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
             ~binding_times_and_modes:(names_to_types t)
-            ~canonical_element1:alias ~canonical_element2:alias_of
+            ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
         in
         let t = with_aliases t ~aliases in
         (* We need to change the demoted alias's type to point to the new
