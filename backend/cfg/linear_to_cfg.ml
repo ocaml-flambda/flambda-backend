@@ -615,8 +615,17 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iname_for_debugger _ ->
       let desc = to_basic mop in
       block.body <- create_instruction t desc i ~trap_depth :: block.body;
-      if Mach.operation_can_raise mop then record_exn t block traps;
-      create_blocks t i.next block ~trap_depth ~traps)
+      if Mach.operation_can_raise mop
+      then begin
+        (* Instruction that can raise is always at the end of a block. *)
+        record_exn t block traps;
+        let fallthrough = get_or_make_label t i.next in
+        let desc : Cfg.terminator = Always fallthrough.label in
+        let i_no_reg = { i with arg = [||]; res = [||]; fdo = Fdo_info.none } in
+        add_terminator t block i_no_reg desc ~trap_depth ~traps;
+        create_blocks t fallthrough.insn block ~trap_depth ~traps
+      end
+      else create_blocks t i.next block ~trap_depth ~traps)
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =
