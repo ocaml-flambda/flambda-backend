@@ -781,9 +781,7 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
         Simple.pattern_match alias_of
           ~const:(fun _ -> alias_of)
           ~name:(fun name ~coercion ->
-            (* TODO: handle correctly *)
-            ignore coercion;
-            find_canonical name)
+            Simple.apply_coercion_exn (find_canonical name) coercion)
       in
       if Simple.equal alias alias_of
       then None
@@ -794,8 +792,8 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
               : Aliases.add_result) =
           (* This may raise [Binding_time_resolver_failure]. *)
           Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
-            ~binding_times_and_modes:(names_to_types t) ~element1:alias
-            ~element2:alias_of
+            ~binding_times_and_modes:(names_to_types t)
+            ~canonical_element1:alias ~canonical_element2:alias_of
         in
         let t = with_aliases t ~aliases in
         (* We need to change the demoted alias's type to point to the new

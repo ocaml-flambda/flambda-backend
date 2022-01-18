@@ -741,206 +741,46 @@ let invariant_add_result ~binding_time_resolver ~binding_times_and_modes
     | Alias_of_canonical _ -> ()
   end
 
-let add_alias ~binding_time_resolver ~binding_times_and_modes t ~element1
-    ~coercion_from_element2_to_element1 ~element2 =
-  assert (not (Simple.has_coercion element1));
-  assert (not (Simple.has_coercion element2));
-  let add ~canonical_element1 ~canonical_element2
-      ~coercion_from_element1_to_canonical_element1
-      ~coercion_from_element2_to_canonical_element2
-      ~coercion_from_canonical_element2_to_canonical_element1 =
-    assert (not (Simple.has_coercion canonical_element1));
-    assert (not (Simple.has_coercion canonical_element2));
-    if Simple.equal canonical_element1 canonical_element2
-    then
-      let canonical_element = canonical_element1 in
-      (* We don't have to change anything: since [element1] and [element2] have
-         the same canonical element, they must already be aliases. But what to
-         return? According to the contract for [add], [alias_of_demoted_element]
-         must not be canonical and must equal either [element1] or [element2]
-         (before the coercion is updated). Thus we must choose whichever of
-         [element1] and [element2] is not canonical. (They cannot both be
-         canonical: if [element1] is canonical then it's equal to
-         [canonical_element], and the same goes for [element2], but they can't
-         both be equal to [canonical_element] since we assume in [add] that
-         they're different. *)
-      (* CR lmaurer: These elaborate postconditions are there to avoid breaking
-         [Typing_env.add_equations]. It would be better to decouple these
-         functions. Per discussions with poechsel and vlaviron, the information
-         that [Typing_env] is after (besides the updated [Aliases.t]) is really:
-
-         1. What aliases need to be updated?
-
-         2. What do those aliases point to now?
-
-         Currently #1 is always exactly one element, but it could be zero in
-         this case since nothing needs to be updated. *)
-      (*
-       * So the new [add_result] could be something like:
-       * {[
-       *   type add_result = {
-       *     t : t;
-       *     updated_aliases : Name.t list;
-       *     new_canonical_element : Simple.t;
-       *   }
-       * ]}
-       *)
-      (* (It's not actually necessary that [new_canonical_element] is canonical
-         as far as [Typing_env] is concerned, but I think this is easier to
-         explain than "representative_of_new_alias_class" or some such.) *)
-      let alias_of_demoted_element =
-        (* This needs to return a proper alias of canonical_element, so apply
-           the respective coercion *)
-        if Simple.equal (Simple.without_coercion element1) canonical_element
-        then
-          let coercion_from_element2_to_canonical_element =
-            (* Since canonical_element = canonical_element1 =
-               canonical_element2 *)
-            coercion_from_element2_to_canonical_element2
-          in
-          Simple.with_coercion element2
-            coercion_from_element2_to_canonical_element
-        else
-          let coercion_from_element1_to_canonical_element =
-            (* Since canonical_element = canonical_element1 *)
-            coercion_from_element1_to_canonical_element1
-          in
-          Simple.with_coercion element1
-            coercion_from_element1_to_canonical_element
+let add_alias ~binding_time_resolver ~binding_times_and_modes t
+    ~canonical_element1 ~coercion_from_canonical_element2_to_canonical_element1
+    ~canonical_element2 =
+  assert (not (Simple.has_coercion canonical_element1));
+  assert (not (Simple.has_coercion canonical_element2));
+  let ( canonical_element,
+        demoted_canonical,
+        coercion_from_demoted_canonical_to_canonical ) =
+    let which_element =
+      choose_canonical_element_to_be_demoted ~binding_time_resolver
+        ~binding_times_and_modes ~canonical_element1 ~canonical_element2
+    in
+    match which_element with
+    | Demote_canonical_element1 ->
+      let coercion_from_canonical_element1_to_canonical_element2 =
+        Coercion.inverse coercion_from_canonical_element2_to_canonical_element1
       in
-      { t; canonical_element; alias_of_demoted_element }
-    else
-      let ( canonical_element,
-            demoted_canonical,
-            alias_of_demoted_element,
-            coercion_from_demoted_canonical_to_canonical,
-            coercion_from_demoted_alias_to_demoted_canonical ) =
-        let which_element =
-          choose_canonical_element_to_be_demoted ~binding_time_resolver
-            ~binding_times_and_modes ~canonical_element1 ~canonical_element2
-        in
-        match which_element with
-        | Demote_canonical_element1 ->
-          let coercion_from_canonical_element1_to_canonical_element2 =
-            Coercion.inverse
-              coercion_from_canonical_element2_to_canonical_element1
-          in
-          ( canonical_element2,
-            canonical_element1,
-            element1,
-            coercion_from_canonical_element1_to_canonical_element2,
-            coercion_from_element1_to_canonical_element1 )
-        | Demote_canonical_element2 ->
-          ( canonical_element1,
-            canonical_element2,
-            element2,
-            coercion_from_canonical_element2_to_canonical_element1,
-            coercion_from_element2_to_canonical_element2 )
-      in
-      let t =
-        add_alias_between_canonical_elements ~binding_time_resolver
-          ~binding_times_and_modes t ~canonical_element
-          ~coercion_to_canonical:coercion_from_demoted_canonical_to_canonical
-          ~to_be_demoted:demoted_canonical
-      in
-      let coercion_from_demoted_alias_to_canonical =
-        Coercion.compose_exn coercion_from_demoted_alias_to_demoted_canonical
-          ~then_:coercion_from_demoted_canonical_to_canonical
-      in
-      let alias_of_demoted_element =
-        Simple.with_coercion alias_of_demoted_element
-          coercion_from_demoted_alias_to_canonical
-      in
-      { t; canonical_element; alias_of_demoted_element }
+      ( canonical_element2,
+        canonical_element1,
+        coercion_from_canonical_element1_to_canonical_element2 )
+    | Demote_canonical_element2 ->
+      ( canonical_element1,
+        canonical_element2,
+        coercion_from_canonical_element2_to_canonical_element1 )
   in
-  match canonical t element1, canonical t element2 with
-  | Is_canonical, Is_canonical ->
-    let canonical_element1 = element1 in
-    let canonical_element2 = element2 in
-    let coercion_from_element1_to_canonical_element1 = Coercion.id in
-    let coercion_from_element2_to_canonical_element2 = Coercion.id in
-    let coercion_from_canonical_element2_to_canonical_element1 =
-      coercion_from_element2_to_element1
-    in
-    add ~canonical_element1 ~canonical_element2
-      ~coercion_from_element1_to_canonical_element1
-      ~coercion_from_element2_to_canonical_element2
-      ~coercion_from_canonical_element2_to_canonical_element1
-  | ( Alias_of_canonical
-        { canonical_element = canonical_element1;
-          coercion_to_canonical = coercion_from_element1_to_canonical_element1
-        },
-      Is_canonical ) ->
-    let canonical_element2 = element2 in
-    let coercion_from_element2_to_canonical_element2 = Coercion.id in
-    (* element1 <--[c]-- canonical_element2=element2
-     * +
-     * canonical_element1 <--[c1] element1
-     * ~>
-     * canonical_element1 <--[c1 << c]-- canonical_element2 *)
-    let coercion_from_canonical_element2_to_canonical_element1 =
-      Coercion.compose_exn coercion_from_element2_to_element1
-        ~then_:coercion_from_element1_to_canonical_element1
-    in
-    add ~canonical_element1 ~canonical_element2
-      ~coercion_from_element1_to_canonical_element1
-      ~coercion_from_element2_to_canonical_element2
-      ~coercion_from_canonical_element2_to_canonical_element1
-  | ( Is_canonical,
-      Alias_of_canonical
-        { canonical_element = canonical_element2;
-          coercion_to_canonical = coercion_from_element2_to_canonical_element2
-        } ) ->
-    let canonical_element1 = element1 in
-    let coercion_from_element1_to_canonical_element1 = Coercion.id in
-    let coercion_from_canonical_element2_to_canonical_element1 =
-      (* canonical_element1=element1 <--[c]-- element2
-       * +
-       * canonical_element2 <--[c2]-- element2
-       * ~>
-       * element2 <--[c2^-1]-- canonical_element2
-       * ~>
-       * canonical_element1 <--[c << c2^-1]-- canonical_element2
-       *)
-      Coercion.compose_exn
-        (Coercion.inverse coercion_from_element2_to_canonical_element2)
-        ~then_:coercion_from_element2_to_element1
-    in
-    add ~canonical_element1 ~canonical_element2
-      ~coercion_from_element1_to_canonical_element1
-      ~coercion_from_element2_to_canonical_element2
-      ~coercion_from_canonical_element2_to_canonical_element1
-  | ( Alias_of_canonical
-        { canonical_element = canonical_element1;
-          coercion_to_canonical = coercion_from_element1_to_canonical_element1
-        },
-      Alias_of_canonical
-        { canonical_element = canonical_element2;
-          coercion_to_canonical = coercion_from_element2_to_canonical_element2
-        } ) ->
-    let coercion_from_canonical_element2_to_canonical_element1 =
-      (* canonical_element1 <--[c1]-- element1
-       * canonical_element2 <--[c2]-- element2
-       * +
-       * element1 <--[c]-- element2
-       * ~>
-       * element2 <--[c2^-1]-- canonical_element2
-       * ~>
-       * canonical_element1 <--[c1 << c << c2^-1]-- canonical_element2
-       *)
-      Coercion.compose_exn
-        (Coercion.inverse coercion_from_element2_to_canonical_element2)
-        ~then_:
-          (Coercion.compose_exn coercion_from_element2_to_element1
-             ~then_:coercion_from_element1_to_canonical_element1)
-    in
-    add ~canonical_element1 ~canonical_element2
-      ~coercion_from_element1_to_canonical_element1
-      ~coercion_from_element2_to_canonical_element2
-      ~coercion_from_canonical_element2_to_canonical_element1
+  let t =
+    add_alias_between_canonical_elements ~binding_time_resolver
+      ~binding_times_and_modes t ~canonical_element
+      ~coercion_to_canonical:coercion_from_demoted_canonical_to_canonical
+      ~to_be_demoted:demoted_canonical
+  in
+  let alias_of_demoted_element =
+    Simple.with_coercion demoted_canonical
+      coercion_from_demoted_canonical_to_canonical
+  in
+  { t; canonical_element; alias_of_demoted_element }
 
 let add ~binding_time_resolver ~binding_times_and_modes t
-    ~element1:element1_with_coercion ~element2:element2_with_coercion =
+    ~canonical_element1:element1_with_coercion
+    ~canonical_element2:element2_with_coercion =
   let original_t = t in
   (* element1_with_coercion <--[c1]-- element1
    * +
@@ -950,31 +790,33 @@ let add ~binding_time_resolver ~binding_times_and_modes t
    * ~
    * element1 <--[c1^-1 << c2]-- element2
    *)
-  let element1 = element1_with_coercion |> Simple.without_coercion in
-  let element2 = element2_with_coercion |> Simple.without_coercion in
-  let coercion_from_element2_to_element1 =
+  let canonical_element1 = element1_with_coercion |> Simple.without_coercion in
+  let canonical_element2 = element2_with_coercion |> Simple.without_coercion in
+  let coercion_from_canonical_element2_to_canonical_element1 =
     Coercion.compose_exn
       (Simple.coercion element2_with_coercion)
       ~then_:(Coercion.inverse (Simple.coercion element1_with_coercion))
   in
   if Flambda_features.check_invariants ()
   then begin
-    if Simple.equal element1 element2
+    if Simple.equal canonical_element1 canonical_element2
     then
       Misc.fatal_errorf "Cannot alias an element to itself: %a" Simple.print
-        element1;
-    Simple.pattern_match element1
+        canonical_element1;
+    Simple.pattern_match canonical_element1
       ~name:(fun _ ~coercion:_ -> ())
       ~const:(fun const1 ->
-        Simple.pattern_match element2
+        Simple.pattern_match canonical_element2
           ~name:(fun _ ~coercion:_ -> ())
           ~const:(fun const2 ->
             Misc.fatal_errorf "Cannot add alias between two consts: %a, %a"
               Const.print const1 Const.print const2))
   end;
   let add_result =
-    add_alias ~binding_time_resolver ~binding_times_and_modes t ~element1
-      ~coercion_from_element2_to_element1 ~element2
+    add_alias ~binding_time_resolver ~binding_times_and_modes t
+      ~canonical_element1
+      ~coercion_from_canonical_element2_to_canonical_element1
+      ~canonical_element2
   in
   if Flambda_features.check_invariants ()
   then
