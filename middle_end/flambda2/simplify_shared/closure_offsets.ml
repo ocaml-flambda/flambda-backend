@@ -758,7 +758,7 @@ module Greedy = struct
 
      Upon a missing offset for a closure_id/var, to_cmm will generate cmm
      instructions that produce a segfault. This is safe in the second case, when
-     the closure_id/var with the missing opffset occurs in dead code, but it is
+     the closure_id/var with the missing offset occurs in dead code, but it is
      incorrect in the first case.
 
      The following check is intended to catch the first of these two cases, but
