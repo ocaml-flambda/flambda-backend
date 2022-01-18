@@ -422,11 +422,8 @@ let rec add_blocks :
       let terminator_is_goto =
         match (terminator.Cfg.desc : Cfg.terminator) with
         | Always _ -> true
-        | Raise _
-        | Tailcall (Func _)
-        | Call_no_return _ | Never | Parity_test _ | Truth_test _ | Float_test _
-        | Int_test _ | Switch _ | Return
-        | Tailcall (Self _) ->
+        | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
+        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
           false
       in
       let rec check = function
@@ -481,7 +478,7 @@ let rec add_blocks :
           "Cfgize.extract_block_info: unexpected Iop with no terminator";
       let next, add_next_block = prepare_next_block () in
       terminate_block ~trap_actions:[]
-        (copy_instruction state last ~desc:(Cfg.Always next));
+        (copy_instruction_no_reg state last ~desc:(Cfg.Always next));
       add_next_block ()
     | Iend ->
       if Label.equal next fallthrough_label
