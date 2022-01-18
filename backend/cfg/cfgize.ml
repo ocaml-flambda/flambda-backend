@@ -416,10 +416,10 @@ let rec add_blocks :
         body
     in
     let can_raise =
-      (* Recompute [can_raise] and check that instruction in the middle of the
+      (* Recompute [can_raise] and check that instructions in the middle of the
          block do not raise, i.e., only the terminator, or the last instruction
          (when the terminator is just a goto) can raise. *)
-      let last_can_raise =
+      let terminator_is_goto =
         match (terminator.Cfg.desc : Cfg.terminator) with
         | Always _ -> true
         | Raise _
@@ -433,13 +433,14 @@ let rec add_blocks :
         | [] -> false
         | [last] ->
           let res = Cfg.can_raise_basic last.Cfg.desc in
-          assert ((not res) || last_can_raise);
+          assert ((not res) || terminator_is_goto);
           res
         | hd :: tail ->
           assert (not (Cfg.can_raise_basic hd.Cfg.desc));
           check tail
       in
-      Cfg.can_raise_terminator terminator.Cfg.desc || check body
+      let body_can_raise = check body in
+      Cfg.can_raise_terminator terminator.Cfg.desc || body_can_raise
     in
     State.add_block state ~label:start
       ~block:
