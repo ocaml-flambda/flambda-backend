@@ -454,7 +454,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
          semantics of [free_variables_transitive], above. *)
       let equations =
         List.map
-          (fun ((bind_to, ty) as equation) ->
+          (fun ((lhs, ty) as equation) ->
             let ty' =
               match TG.get_alias_exn ty with
               | exception Not_found -> ty
@@ -471,7 +471,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
                 then expand_head env ty |> ET.to_type
                 else ty
             in
-            if ty == ty' then equation else bind_to, ty')
+            if ty == ty' then equation else lhs, ty')
           equations
       in
       (* Now replace any unavailable variables with their fresh counterparts, on
@@ -479,23 +479,33 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
          equations now have fresh variables on their left-hand sides. *)
       let equations =
         List.map
-          (fun (bind_to, ty) ->
-            let bind_to' = Renaming.apply_name renaming bind_to in
+          (fun (lhs, ty) ->
+            let lhs' = Renaming.apply_name renaming lhs in
             let ty = TG.apply_renaming ty renaming in
-            bind_to', ty)
+            lhs', ty)
           equations
       in
       (* Finally form an environment extension with extra variables: the
          existentials are the fresh variables. *)
-      List.fold_left
-        (fun env_extension (bind_to, ty) ->
-          let env_extension =
+      let bind_to_vars =
+        List.fold_left
+          (fun bind_to_vars (bind_to, _) ->
             Name.pattern_match bind_to
-              ~var:(fun bind_to ->
-                TEEV.add_definition env_extension bind_to (TG.kind ty))
+              ~var:(fun var -> Variable.Set.add var bind_to_vars)
+              ~symbol:(fun _ -> bind_to_vars))
+          Variable.Set.empty bind_to_and_types
+      in
+      List.fold_left
+        (fun env_extension (lhs, ty) ->
+          let env_extension =
+            Name.pattern_match lhs
+              ~var:(fun lhs ->
+                if not (Variable.Set.mem lhs bind_to_vars)
+                then TEEV.add_definition env_extension lhs (TG.kind ty)
+                else env_extension)
               ~symbol:(fun _ -> env_extension)
           in
           if TG.is_obviously_unknown ty
           then env_extension
-          else TEEV.add_or_replace_equation env_extension bind_to ty)
+          else TEEV.add_or_replace_equation env_extension lhs ty)
         TEEV.empty equations
