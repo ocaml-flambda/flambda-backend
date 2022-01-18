@@ -446,9 +446,9 @@ let rec add_blocks :
           terminator;
           (* See [Cfg.register_predecessors_for_all_blocks] *)
           predecessors = Label.Set.empty;
-          (* See [Trap_depth_and_exns.update_cfg] *)
+          (* See [Trap_depth_and_exn.update_cfg] *)
           trap_depth = invalid_trap_depth;
-          exns = Label.Set.empty;
+          exn = None;
           can_raise;
           (* See [update_trap_handler_blocks] *)
           is_trap_handler = false;
@@ -575,7 +575,7 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
       | Some block -> block.is_trap_handler <- true)
     (State.get_exception_handlers state)
 
-module Trap_depth_and_exns = struct
+module Trap_depth_and_exn = struct
   type handler_stack = Label.t list
 
   let equal_handler_stack : handler_stack -> handler_stack -> bool =
@@ -614,7 +614,7 @@ module Trap_depth_and_exns = struct
       if List.length stack <> 0
       then
         Misc.fatal_error
-          "Cfgize.Trap_depth_and_exns.basic: unexpected handler on self \
+          "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
            tailcall";
       stack
 
@@ -630,7 +630,7 @@ module Trap_depth_and_exns = struct
       match stack with
       | [] ->
         Misc.fatal_error
-          "Cfgize.Trap_depth_and_exns.basic: trying to pop from an empty stack"
+          "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
       | _ :: stack -> stack
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
@@ -645,7 +645,7 @@ module Trap_depth_and_exns = struct
       block.trap_depth <- succ (List.length stack);
       (* map from handlers reachable from the block to stacks at the start of
          such blocks; used to both know which other blocks should be visited (as
-         exceptional successors) and to populate the `exns` field. *)
+         exceptional successors) and to populate the `exn` field. *)
       let table = Label.Tbl.create 17 in
       let stack =
         terminator table
@@ -656,10 +656,15 @@ module Trap_depth_and_exns = struct
       Label.Set.iter
         (fun successor_label -> update_block cfg successor_label stack)
         (Cfg.successor_labels ~normal:true ~exn:false block);
+      if Label.Tbl.length table > 1
+      then
+        Misc.fatal_error
+          "Cfgize.Trap_depth_and_exn.update_block: block has more than one \
+           exception successor";
       (* exceptional successors *)
       Label.Tbl.iter
         (fun handler_label handler_stack ->
-          block.exns <- Label.Set.add handler_label block.exns;
+          block.exn <- Some handler_label;
           update_block cfg handler_label handler_stack)
         table
     end
@@ -720,7 +725,7 @@ let fundecl :
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
         trap_depth = invalid_trap_depth;
-        exns = Label.Set.empty;
+        exn = None;
         can_raise = false;
         is_trap_handler = false;
         dead = false
@@ -734,7 +739,7 @@ let fundecl :
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
         trap_depth = invalid_trap_depth;
-        exns = Label.Set.empty;
+        exn = None;
         can_raise = false;
         is_trap_handler = false;
         dead = false
@@ -742,10 +747,10 @@ let fundecl :
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
     ~next:fallthrough_label;
   update_trap_handler_blocks state cfg;
-  (* note: `Trap_depth_and_exns.update_cfg` may add edges to the graph, and
+  (* note: `Trap_depth_and_exn.update_cfg` may add edges to the graph, and
      should hence be executed before
      `Cfg.register_predecessors_for_all_blocks`. *)
-  Trap_depth_and_exns.update_cfg cfg;
+  Trap_depth_and_exn.update_cfg cfg;
   Cfg.register_predecessors_for_all_blocks cfg;
   let cfg_with_layout =
     Cfg_with_layout.create cfg ~layout:(State.get_layout state)

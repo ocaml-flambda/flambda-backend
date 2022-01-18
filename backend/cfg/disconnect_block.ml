@@ -80,7 +80,10 @@ let disconnect cfg_with_layout label =
     Label.Set.iter
       (fun pred_label ->
         let pred_block = Label.Tbl.find cfg.blocks pred_label in
-        assert (not (Label.Set.mem label pred_block.exns));
+        Option.iter
+          (fun pred_block_exn ->
+            assert (not (Label.equal label pred_block_exn)))
+          pred_block.exn;
         update_predecessor's_terminators cfg ~pred_block
           ~being_disconnected:label ~target_label)
       block.predecessors

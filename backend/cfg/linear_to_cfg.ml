@@ -169,7 +169,7 @@ let create_empty_block t start ~trap_depth ~traps =
     { start;
       body = [];
       terminator;
-      exns = Label.Set.empty;
+      exn = None;
       predecessors = Label.Set.empty;
       trap_depth;
       is_trap_handler = false;
@@ -252,7 +252,11 @@ let register_exns t label (block : C.basic_block) =
       match T.top_exn trap_stack with
       | None -> Misc.fatal_errorf "register_exns: empty trap stack for %d" label
       | Some l ->
-        if Label.equal l t.interproc_handler then acc else Label.Set.add l acc
+        if Label.equal l t.interproc_handler
+        then acc
+        else if Option.is_none acc
+        then Some l
+        else Misc.fatal_errorf "register_exns: multiple handlers for %d" label
       | exception T.Unresolved ->
         (* must be dead block or flow from exception handler only *)
         assert block.dead;
@@ -264,16 +268,16 @@ let register_exns t label (block : C.basic_block) =
             label;
         acc
     in
-    block.exns <- List.fold_left f Label.Set.empty exns;
+    block.exn <- List.fold_left f None exns;
     if !C.verbose
     then (
       Printf.printf "%s: %d exn stacks at %d: " t.cfg.fun_name
         (List.length exns) label;
       List.iter T.print exns;
       Printf.printf "%s: %d exns at %d: " t.cfg.fun_name
-        (Label.Set.cardinal block.exns)
+        (match block.exn with None -> 0 | Some _ -> 1)
         label;
-      Label.Set.iter (Printf.printf "%d ") block.exns;
+      Option.iter (Printf.printf "%d ") block.exn;
       Printf.printf "\n")
 
 let check_and_register_traps t =
@@ -310,7 +314,7 @@ let check_and_register_traps t =
   (* after all exn successors are computed, check that if a block can_raise,
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =
-    let n = Label.Set.cardinal block.exns in
+    let n = match block.exn with None -> 0 | Some _ -> 1 in
     assert ((not block.can_raise) || n > 0 || Cfg.can_raise_interproc block)
   in
   C.iter_blocks t.cfg ~f
