@@ -307,48 +307,6 @@ let copy_instruction_no_reg :
   let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
 
-let can_raise_operation : Cfg.operation -> bool =
- fun op ->
-  match op with
-  | Move -> false
-  | Spill -> false
-  | Reload -> false
-  | Const_int _ -> false
-  | Const_float _ -> false
-  | Const_symbol _ -> false
-  | Stackoffset _ -> false
-  | Load _ -> false
-  | Store _ -> false
-  | Intop _ -> false
-  | Intop_imm _ -> false
-  | Negf -> false
-  | Absf -> false
-  | Addf -> false
-  | Subf -> false
-  | Mulf -> false
-  | Divf -> false
-  | Compf _ -> false
-  | Floatofint -> false
-  | Intoffloat -> false
-  | Probe _ -> true
-  | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
-  | Specific _ -> false (* CR xclerc for xclerc: double check *)
-  | Opaque -> false
-  | Name_for_debugger _ -> false
-
-let can_raise_instr : Cfg.basic Cfg.instruction -> bool =
- fun instr ->
-  match instr.desc with
-  | Op op -> can_raise_operation op
-  | Call _ -> true
-  | Reloadretaddr -> false
-  | Pushtrap _ -> false
-  | Poptrap -> false
-  | Prologue -> false
-
-let can_raise_instrs : Cfg.basic Cfg.instruction list -> bool =
- fun instrs -> List.exists can_raise_instr instrs
-
 let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
   match instr.Cfg.desc with
   | Op (Move | Spill | Reload) ->
@@ -373,8 +331,7 @@ let rec get_end : Mach.instruction -> Mach.instruction =
 type block_info =
   { instrs : Cfg.basic Cfg.instruction list;
     last : Mach.instruction;
-    terminator : Cfg.terminator Cfg.instruction option;
-    can_raise : bool
+    terminator : Cfg.terminator Cfg.instruction option
   }
 
 (* [extract_block_info state first] returns a [block_info] containing all the
@@ -385,10 +342,9 @@ type block_info =
 let extract_block_info : State.t -> Mach.instruction -> block_info =
  fun state first ->
   let rec loop (instr : Mach.instruction) acc =
-    let return terminator can_raise =
-      let instrs = List.rev acc in
-      let can_raise = can_raise || can_raise_instrs instrs in
-      { instrs; last = instr; terminator; can_raise }
+    let return terminator instrs =
+      let instrs = List.rev instrs in
+      { instrs; last = instr; terminator }
     in
     match instr.desc with
     | Iop op -> begin
@@ -397,16 +353,18 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
         let instr' = copy_instruction state instr ~desc in
         if is_noop_move instr'
         then loop instr.next acc
-        else loop instr.next (instr' :: acc)
+        else
+          let acc = instr' :: acc in
+          if Cfg.can_raise_basic desc
+          then return None acc
+          else loop instr.next acc
       | Terminator terminator ->
-        return
-          (Some (copy_instruction state instr ~desc:terminator))
-          (Cfg.can_raise_terminator terminator)
+        return (Some (copy_instruction state instr ~desc:terminator)) acc
     end
     | Iend | Ireturn _ | Iifthenelse _ | Iswitch _ | Icatch _ | Iexit _
     | Itrywith _ ->
-      return None false
-    | Iraise _ -> return None true
+      return None acc
+    | Iraise _ -> return None acc
   in
   loop first []
 
@@ -427,9 +385,7 @@ let rec add_blocks :
     next:Label.t ->
     unit =
  fun instr state ~starts_with_pushtrap ~start ~next ->
-  let { instrs; last; terminator; can_raise } =
-    extract_block_info state instr
-  in
+  let { instrs; last; terminator } = extract_block_info state instr in
   let terminate_block ~trap_actions terminator =
     let body = instrs in
     let body =
@@ -458,6 +414,30 @@ let rec add_blocks :
       | Cfg.Float_test _ | Cfg.Int_test _ | Cfg.Switch _ | Cfg.Raise _
       | Cfg.Tailcall _ | Cfg.Call_no_return _ ->
         body
+    in
+    let can_raise =
+      (* Recompute [can_raise] and check that instructions in the middle of the
+         block do not raise, i.e., only the terminator, or the last instruction
+         (when the terminator is just a goto) can raise. *)
+      let terminator_is_goto =
+        match (terminator.Cfg.desc : Cfg.terminator) with
+        | Always _ -> true
+        | Raise _ | Tailcall _ | Call_no_return _ | Never | Parity_test _
+        | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return ->
+          false
+      in
+      let rec check = function
+        | [] -> false
+        | [last] ->
+          let res = Cfg.can_raise_basic last.Cfg.desc in
+          assert ((not res) || terminator_is_goto);
+          res
+        | hd :: tail ->
+          assert (not (Cfg.can_raise_basic hd.Cfg.desc));
+          check tail
+      in
+      let body_can_raise = check body in
+      Cfg.can_raise_terminator terminator.Cfg.desc || body_can_raise
     in
     State.add_block state ~label:start
       ~block:
@@ -491,8 +471,15 @@ let rec add_blocks :
   | Some terminator -> terminate_block ~trap_actions:[] terminator
   | None -> (
     match last.desc with
-    | Iop _ ->
-      Misc.fatal_error "Cfgize.extract_block_info: Iop with no terminator"
+    | Iop op ->
+      if not (Mach.operation_can_raise op)
+      then
+        Misc.fatal_error
+          "Cfgize.extract_block_info: unexpected Iop with no terminator";
+      let next, add_next_block = prepare_next_block () in
+      terminate_block ~trap_actions:[]
+        (copy_instruction_no_reg state last ~desc:(Cfg.Always next));
+      add_next_block ()
     | Iend ->
       if Label.equal next fallthrough_label
       then
@@ -596,11 +583,10 @@ module Trap_depth_and_exns = struct
 
   type handler_table = handler_stack Label.Tbl.t
 
-  let record_handler :
-      type a.
-      handler_stack -> handler_table -> can_raise:(a -> bool) -> a -> unit =
-   fun stack table ~can_raise instr ->
-    if can_raise instr
+  let record_handler : handler_stack -> handler_table -> can_raise:bool -> unit
+      =
+   fun stack table ~can_raise ->
+    if can_raise
     then
       match stack with
       | [] -> ()
@@ -622,7 +608,7 @@ module Trap_depth_and_exns = struct
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
-      record_handler stack table ~can_raise:Cfg.can_raise_terminator term.desc;
+      record_handler stack table ~can_raise:(Cfg.can_raise_terminator term.desc);
       stack
     | Tailcall (Self _) ->
       if List.length stack <> 0
@@ -648,7 +634,7 @@ module Trap_depth_and_exns = struct
       | _ :: stack -> stack
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
-      record_handler stack table ~can_raise:can_raise_instr instr;
+      record_handler stack table ~can_raise:(Cfg.can_raise_basic instr.desc);
       stack
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
