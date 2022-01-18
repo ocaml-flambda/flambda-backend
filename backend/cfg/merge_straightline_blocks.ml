@@ -28,7 +28,7 @@
 (* Two blocks `b1` and `b2` can be merged if:
  * - `b1` is not the entry block;
  * - `b1` has only one non-exceptional successor, `b2`;
- * - `b1` cannot raise
+ * - `b1` cannot raise;
  * - `b2` has only one predecessor, `b1`;
  * - `b1` and `b2` are distinct blocks;
  * - the terminator of `b1` is not a tailcall to self.
