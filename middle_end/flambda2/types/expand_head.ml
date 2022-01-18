@@ -400,33 +400,6 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
           TEEV.add_or_replace_equation result bind_to (MTC.unknown_like ty))
         TEEV.empty bind_to_and_types
     | free_vars ->
-      (* Fetch the type equation for each free variable. Also add in the
-         equations about the "bind-to" names provided to this function. If any
-         of the "bind-to" names are already defined in [env], the type given in
-         [bind_to_and_types] takes precedence over such definition. *)
-      let equations =
-        let free_vars =
-          List.fold_left
-            (fun free_vars (bind_to, _) ->
-              Name.pattern_match bind_to
-                ~var:(fun var -> Name_occurrences.remove_var free_vars var)
-                ~symbol:(fun _ -> free_vars))
-            free_vars bind_to_and_types
-        in
-        Name_occurrences.fold_variables free_vars ~init:[]
-          ~f:(fun equations var ->
-            let name = Name.var var in
-            let ty = TE.find env name None in
-            (name, ty) :: equations)
-      in
-      let equations =
-        List.fold_left
-          (fun equations (bind_to, ty) ->
-            (* This cannot cause a duplicate key in the association list by
-               virtue of the [remove_var] calls above. *)
-            (bind_to, ty) :: equations)
-          equations bind_to_and_types
-      in
       (* Determine which variables will be unavailable and thus need fresh ones
          assigning to them. *)
       let unavailable_vars =
@@ -443,6 +416,24 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
               if not (Variable.Set.mem var to_keep)
               then var :: unavailable_vars
               else unavailable_vars)
+      in
+      (* Fetch the type equation for each free variable. Also add in the
+         equations about the "bind-to" names provided to this function. If any
+         of the "bind-to" names are already defined in [env], the type given in
+         [bind_to_and_types] takes precedence over such definition. *)
+      let equations =
+        ListLabels.fold_left unavailable_vars ~init:[] ~f:(fun equations var ->
+            let name = Name.var var in
+            let ty = TE.find env name None in
+            (name, ty) :: equations)
+      in
+      let equations =
+        List.fold_left
+          (fun equations (bind_to, ty) ->
+            (* The [bind_to] variables are not expected to be unavailable, so
+               this shouldn't cause duplicates. *)
+            (bind_to, ty) :: equations)
+          equations bind_to_and_types
       in
       (* Make fresh variables for the unavailable variables and form a
          renaming. *)
@@ -463,7 +454,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
          semantics of [free_variables_transitive], above. *)
       let equations =
         List.map
-          (fun ((bind_to, ty) as equation) ->
+          (fun ((lhs, ty) as equation) ->
             let ty' =
               match TG.get_alias_exn ty with
               | exception Not_found -> ty
@@ -480,7 +471,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
                 then expand_head env ty |> ET.to_type
                 else ty
             in
-            if ty == ty' then equation else bind_to, ty')
+            if ty == ty' then equation else lhs, ty')
           equations
       in
       (* Now replace any unavailable variables with their fresh counterparts, on
@@ -488,29 +479,33 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
          equations now have fresh variables on their left-hand sides. *)
       let equations =
         List.map
-          (fun (bind_to, ty) ->
-            let bind_to' = Renaming.apply_name renaming bind_to in
+          (fun (lhs, ty) ->
+            let lhs' = Renaming.apply_name renaming lhs in
             let ty = TG.apply_renaming ty renaming in
-            let fresh_var =
-              Name.pattern_match bind_to'
-                ~var:(fun var ->
-                  if not (Name.equal bind_to bind_to') then Some var else None)
-                ~symbol:(fun _ -> None)
-            in
-            bind_to', fresh_var, ty)
+            lhs', ty)
           equations
       in
       (* Finally form an environment extension with extra variables: the
          existentials are the fresh variables. *)
+      let bind_to_vars =
+        List.fold_left
+          (fun bind_to_vars (bind_to, _) ->
+            Name.pattern_match bind_to
+              ~var:(fun var -> Variable.Set.add var bind_to_vars)
+              ~symbol:(fun _ -> bind_to_vars))
+          Variable.Set.empty bind_to_and_types
+      in
       List.fold_left
-        (fun env_extension (bind_to, fresh_var, ty) ->
+        (fun env_extension (lhs, ty) ->
           let env_extension =
-            match fresh_var with
-            | Some bind_to ->
-              TEEV.add_definition env_extension bind_to (TG.kind ty)
-            | None -> env_extension
+            Name.pattern_match lhs
+              ~var:(fun lhs ->
+                if not (Variable.Set.mem lhs bind_to_vars)
+                then TEEV.add_definition env_extension lhs (TG.kind ty)
+                else env_extension)
+              ~symbol:(fun _ -> env_extension)
           in
           if TG.is_obviously_unknown ty
           then env_extension
-          else TEEV.add_or_replace_equation env_extension bind_to ty)
+          else TEEV.add_or_replace_equation env_extension lhs ty)
         TEEV.empty equations
