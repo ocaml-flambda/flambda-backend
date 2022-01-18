@@ -621,7 +621,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
         record_exn t block traps;
         let fallthrough = get_or_make_label t i.next in
         let desc : Cfg.terminator = Always fallthrough.label in
-        add_terminator t block i desc ~trap_depth ~traps;
+        let i_no_reg = { i with arg = [||]; res = [||]; fdo = Fdo_info.none } in
+        add_terminator t block i_no_reg desc ~trap_depth ~traps;
         create_blocks t fallthrough.insn block ~trap_depth ~traps
       end
       else create_blocks t i.next block ~trap_depth ~traps)
