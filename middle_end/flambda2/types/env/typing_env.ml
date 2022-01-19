@@ -73,12 +73,12 @@ module One_level = struct
         Cached_level.clean_for_export t.just_after_level ~reachable_names
     }
 
-  let remove_unused_closure_vars t ~used_closure_vars =
-    { t with
-      just_after_level =
-        Cached_level.remove_unused_closure_vars t.just_after_level
-          ~used_closure_vars
-    }
+  let remove_unused_closure_vars_and_shortcut_aliases t ~used_closure_vars =
+    let just_after_level, canonicalise =
+      Cached_level.remove_unused_closure_vars_and_shortcut_aliases
+        t.just_after_level ~used_closure_vars
+    in
+    { t with just_after_level }, canonicalise
 end
 
 type t =
@@ -1175,17 +1175,21 @@ let free_names_transitive t typ =
 module Pre_serializable : sig
   type t = typing_env
 
-  val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+  val create :
+    typing_env ->
+    used_closure_vars:Var_within_closure.Set.t ->
+    t * (Simple.t -> Simple.t)
 
   val find_or_missing : t -> Name.t -> Type_grammar.t option
 end = struct
   type t = typing_env
 
   let create (t : typing_env) ~used_closure_vars =
-    let current_level =
-      One_level.remove_unused_closure_vars t.current_level ~used_closure_vars
+    let current_level, canonicalise =
+      One_level.remove_unused_closure_vars_and_shortcut_aliases t.current_level
+        ~used_closure_vars
     in
-    { t with current_level }
+    { t with current_level }, canonicalise
 
   let find_or_missing = find_or_missing
 end

@@ -50,26 +50,13 @@ let apply_renaming ~apply_renaming_descr ~free_names_descr t renaming =
     in
     { descr; free_names }
 
-let remove_unused_closure_vars ~free_names_descr
-    ~remove_unused_closure_vars_descr t ~used_closure_vars =
-  let descr_known_to_contain_no_unused_closure_vars =
-    (* If the free names are already computed (modulo application of a
-       renaming), we can use them as a shortcut, to potentially avoid traversing
-       the [descr]. *)
-    if Option.is_some t.free_names
-    then
-      let free_names = free_names t ~free_names_descr in
-      let closure_vars = Name_occurrences.closure_vars free_names in
-      let unused_closure_vars =
-        Var_within_closure.Set.diff closure_vars used_closure_vars
-      in
-      Var_within_closure.Set.is_empty unused_closure_vars
-    else false
+let remove_unused_closure_vars_and_shortcut_aliases
+    ~remove_unused_closure_vars_and_shortcut_aliases_descr t
+    ~used_closure_vars ~canonicalise =
+  let descr =
+    remove_unused_closure_vars_and_shortcut_aliases_descr (descr t)
+      ~used_closure_vars ~canonicalise
   in
-  if descr_known_to_contain_no_unused_closure_vars
-  then t
-  else
-    let descr = remove_unused_closure_vars_descr (descr t) ~used_closure_vars in
-    { descr; free_names = None }
+  if descr == t.descr then t else { descr; free_names = None; }
 
 let print ~print_descr ppf t = print_descr ppf (descr t)

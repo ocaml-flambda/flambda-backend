@@ -75,11 +75,13 @@ let remove_unreachable ~reachable_names t =
       Name_occurrences.mem_code_id reachable_names code_id)
     t
 
-let remove_unused_closure_vars_from_result_types ~used_closure_vars t =
+let remove_unused_closure_vars_from_result_types_and_shortcut_aliases
+    ~used_closure_vars ~canonicalise t =
   Code_id.Map.map
     (fun code_or_metadata ->
       Code_or_metadata.map_result_types code_or_metadata ~f:(fun result_ty ->
-          Flambda2_types.remove_unused_closure_vars result_ty ~used_closure_vars))
+          Flambda2_types.remove_unused_closure_vars_and_shortcut_aliases
+            result_ty ~used_closure_vars ~canonicalise))
     t
 
 let all_ids_for_export t =

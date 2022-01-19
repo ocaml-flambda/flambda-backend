@@ -130,7 +130,7 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->
-    let final_typing_env =
+    let final_typing_env, canonicalise =
       TE.Pre_serializable.create final_typing_env ~used_closure_vars
     in
     let reachable_names =
@@ -140,7 +140,8 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
       (* CR mshinwell: do we need to remove unused closure ID bindings from the
          result types too? *)
       all_code
-      |> EC.remove_unused_closure_vars_from_result_types ~used_closure_vars
+      |> EC.remove_unused_closure_vars_from_result_types_and_shortcut_aliases
+           ~used_closure_vars ~canonicalise
       |> EC.remove_unreachable ~reachable_names
     in
     let final_typing_env =

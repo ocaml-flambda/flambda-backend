@@ -74,12 +74,15 @@ module T : sig
     'head t ->
     Name_occurrences.t
 
-  val remove_unused_closure_vars :
-    free_names_head:('head -> Name_occurrences.t) ->
-    remove_unused_closure_vars_head:
-      ('head -> used_closure_vars:Var_within_closure.Set.t -> 'head) ->
+  val remove_unused_closure_vars_and_shortcut_aliases :
+    remove_unused_closure_vars_and_shortcut_aliases_head:
+      ('head ->
+      used_closure_vars:Var_within_closure.Set.t ->
+      canonicalise:(Simple.t -> Simple.t) ->
+      'head) ->
     'head t ->
     used_closure_vars:Var_within_closure.Set.t ->
+    canonicalise:(Simple.t -> Simple.t) ->
     'head t
 end = struct
   module Descr = struct
@@ -114,13 +117,19 @@ end = struct
         Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
           (Simple.free_names simple) Name_mode.in_types
 
-    let remove_unused_closure_vars ~remove_unused_closure_vars_head t
-        ~used_closure_vars =
+    let remove_unused_closure_vars_and_shortcut_aliases
+        ~remove_unused_closure_vars_and_shortcut_aliases_head t
+        ~used_closure_vars ~canonicalise =
       match t with
       | No_alias head ->
-        let head' = remove_unused_closure_vars_head head ~used_closure_vars in
+        let head' =
+          remove_unused_closure_vars_and_shortcut_aliases_head head
+            ~used_closure_vars ~canonicalise
+        in
         if head == head' then t else No_alias head'
-      | Equals _ -> t
+      | Equals alias ->
+        let canonical = canonicalise alias in
+        if alias == canonical then t else Equals canonical
   end
 
   module WCFN = With_cached_free_names
@@ -176,17 +185,17 @@ end = struct
         ~free_names_head:(WCFN.free_names ~free_names_descr:free_names_head)
         descr
 
-  let remove_unused_closure_vars ~free_names_head
-      ~remove_unused_closure_vars_head (t : _ t) ~used_closure_vars : _ t =
+  let remove_unused_closure_vars_and_shortcut_aliases
+      ~remove_unused_closure_vars_and_shortcut_aliases_head (t : _ t) ~used_closure_vars ~canonicalise : _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok descr ->
       let descr' =
-        Descr.remove_unused_closure_vars
-          ~remove_unused_closure_vars_head:
-            (WCFN.remove_unused_closure_vars ~free_names_descr:free_names_head
-               ~remove_unused_closure_vars_descr:remove_unused_closure_vars_head)
-          descr ~used_closure_vars
+        Descr.remove_unused_closure_vars_and_shortcut_aliases
+          ~remove_unused_closure_vars_and_shortcut_aliases_head:
+            (WCFN.remove_unused_closure_vars_and_shortcut_aliases
+               ~remove_unused_closure_vars_and_shortcut_aliases_descr:remove_unused_closure_vars_and_shortcut_aliases_head)
+          descr ~used_closure_vars ~canonicalise
       in
       if descr == descr' then t else Ok descr'
 end
