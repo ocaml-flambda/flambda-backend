@@ -189,6 +189,7 @@ module I : sig
   val neg : arg -> unit
   val nop: unit -> unit
   val or_: arg -> arg -> unit
+  val pause: unit -> unit
   val pop: arg -> unit
   val popcnt : arg -> arg -> unit
   val prefetch : bool -> prefetch_temporal_locality_hint -> arg -> unit

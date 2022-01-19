@@ -316,6 +316,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
+                 | Ipause
                  | Iprefetch _
                  | Ifloat_round _
                  | Ifloat_iround | Ifloat_min | Ifloat_max
@@ -393,7 +394,7 @@ let max_register_pressure =
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload (_, _)
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _
+  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
              | Ifloat_round _
              | Ifloat_iround | Ifloat_min | Ifloat_max
@@ -409,6 +410,7 @@ let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Ispecific(Ipause)
   | Ispecific(Iprefetch _) -> false
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
              | Ifloat_min | Ifloat_max) -> true
