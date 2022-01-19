@@ -51,7 +51,11 @@ module Join_env : sig
 
   val right_join_env : t -> typing_env
 
-  val now_joining : t -> Simple.t -> Simple.t -> t
+  type now_joining_result =
+    | Continue of t
+    | Stop
+
+  val now_joining : t -> Simple.t -> Simple.t -> now_joining_result
 
   val already_joining : t -> Simple.t -> Simple.t -> bool
 end

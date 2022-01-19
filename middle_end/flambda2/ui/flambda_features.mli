@@ -26,6 +26,8 @@ val backend_cse_at_toplevel : unit -> bool
 
 val cse_depth : unit -> int
 
+val join_depth : unit -> int
+
 val safe_string : unit -> bool
 
 val flat_float_array : unit -> bool

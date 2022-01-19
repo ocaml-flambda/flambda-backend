@@ -25,6 +25,7 @@ module Flambda2 = struct
     let unbox_along_intra_function_control_flow = true
     let backend_cse_at_toplevel = false
     let cse_depth = 2
+    let join_depth = 2
     let treat_invalid_code_as_unreachable = false
     let function_result_types = Never
     let unicode = true
@@ -36,6 +37,7 @@ module Flambda2 = struct
     ref Default.unbox_along_intra_function_control_flow
   let backend_cse_at_toplevel = ref Default.backend_cse_at_toplevel
   let cse_depth = ref Default.cse_depth
+  let join_depth = ref Default.join_depth
   let treat_invalid_code_as_unreachable =
     ref Default.treat_invalid_code_as_unreachable
   let unicode = ref Default.unicode
@@ -216,6 +218,7 @@ module Flambda2 = struct
 
   let o2_flags () =
     cse_depth := 2;
+    join_depth := 2;
     join_points := false;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := false;
@@ -223,6 +226,7 @@ module Flambda2 = struct
 
   let o3_flags () =
     cse_depth := 2;
+    join_depth := 2;
     join_points := true;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := false;
