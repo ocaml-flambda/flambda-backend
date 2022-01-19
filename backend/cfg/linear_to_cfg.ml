@@ -207,7 +207,7 @@ let register_block t (block : C.basic_block) traps =
   | None -> ()
   | Some trap_stack ->
     t.unresolved_traps_to_pop
-      <- (resolve_traps_to_pop t [trap_stack]) @ t.unresolved_traps_to_pop);
+      <- resolve_traps_to_pop t [trap_stack] @ t.unresolved_traps_to_pop);
   Label.Tbl.add t.cfg.blocks block.start block
 
 let check_traps t label (block : C.basic_block) =
@@ -251,23 +251,22 @@ let register_exns t label (block : C.basic_block) =
   | Some trap_stack ->
     assert (Option.is_none block.exn);
     (match T.top_exn trap_stack with
-     | None -> Misc.fatal_errorf "register_exns: empty trap stack for %d" label
-     | Some l ->
-       if not (Label.equal l t.interproc_handler)
-       then block.exn <- Some l
-     | exception T.Unresolved ->
-       (* must be dead block or flow from exception handler only *)
-       assert block.dead;
-       if !C.verbose
-       then
-         Printf.printf
-           "unknown trap stack in exns of block %d: the block must be dead, \
-            or there is a bug in trap stacks."
-           label);
+    | None -> Misc.fatal_errorf "register_exns: empty trap stack for %d" label
+    | Some l ->
+      if not (Label.equal l t.interproc_handler) then block.exn <- Some l
+    | exception T.Unresolved ->
+      (* must be dead block or flow from exception handler only *)
+      assert block.dead;
+      if !C.verbose
+      then
+        Printf.printf
+          "unknown trap stack in exns of block %d: the block must be dead, or \
+           there is a bug in trap stacks."
+          label);
     if !C.verbose
-    then (
+    then
       Printf.printf "%s: %d exn %s: " t.cfg.fun_name label
-        (match block.exn with None -> "none" | Some l -> Int.to_string l))
+        (match block.exn with None -> "none" | Some l -> Int.to_string l)
 
 let check_and_register_traps t =
   (* check that all blocks referred to in pushtraps are marked as
