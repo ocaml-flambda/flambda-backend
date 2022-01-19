@@ -2353,6 +2353,15 @@ let arraylength kind arg dbg =
    to Arbitrary_effects and Has_coeffects, resp.
    Check if this can be improved (e.g., bswap). *)
 
+let if_operation_supported op ~f =
+  match Proc.operation_supported op with
+  | true -> Some (f ())
+  | false -> None
+
+let if_operation_supported_bi bi op ~f =
+  if bi = Primitive.Pint64 && size_int = 4 then None
+  else if_operation_supported op ~f
+
 let bbswap bi arg dbg =
   let prim, tyarg = match (bi : Primitive.boxed_integer) with
     | Pnativeint -> "nativeint", XInt
@@ -2368,6 +2377,20 @@ let bbswap bi arg dbg =
       [arg],
       dbg)
 
+let bbswap bi arg dbg =
+  let bitwidth =
+    match (bi : Primitive.boxed_integer) with
+    | Pnativeint -> size_int * 8
+    | Pint32 -> 32
+    | Pint64 -> 64
+  in
+  let op = Cbswap { bitwidth } in
+  if (bi = Primitive.Pint64 && size_int = 4) ||
+     not (Proc.operation_supported op) then
+    bbswap bi arg dbg
+  else
+    Cop (op,[arg],dbg)
+
 let bswap16 arg dbg =
   (Cop(Cextcall { func = "caml_bswap16_direct";
                   builtin = false;
@@ -2378,14 +2401,12 @@ let bswap16 arg dbg =
        [arg],
        dbg))
 
-let if_operation_supported op ~f =
-  match Proc.operation_supported op with
-  | true -> Some (f ())
-  | false -> None
-
-let if_operation_supported_bi bi op ~f =
-  if bi = Primitive.Pint64 && size_int = 4 then None
-  else if_operation_supported op ~f
+let bswap16 arg dbg =
+  let op = Cbswap { bitwidth = 16 } in
+  if Proc.operation_supported op then
+    Cop (op,[arg],dbg)
+  else
+    bswap16 arg dbg
 
 let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero; } in

@@ -183,6 +183,7 @@ and operation =
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
+  | Cbswap of { bitwidth: int; }
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt

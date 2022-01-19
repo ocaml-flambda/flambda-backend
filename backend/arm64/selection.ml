@@ -87,8 +87,7 @@ let is_immediate n =
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_ops =
-  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
-    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
+  [ "sqrt"; ]
 
 let use_direct_addressing _symb =
   (not !Clflags.dlcode) && (not Arch.macosx)
@@ -227,13 +226,8 @@ method! select_operation op args dbg =
   | Cextcall { func = "sqrt" } ->
       (Ispecific Isqrtf, args)
   (* Recognize bswap instructions *)
-  | Cextcall { func = "caml_bswap16_direct" } ->
-      (Ispecific(Ibswap 16), args)
-  | Cextcall { func = "caml_int32_direct_bswap"; } ->
-      (Ispecific(Ibswap 32), args)
-  | Cextcall { func = "caml_int64_direct_bswap"; } |
-    Cextcall { func = "caml_nativeint_direct_bswap" } ->
-      (Ispecific (Ibswap 64), args)
+  | Cbswap { bitwidth } ->
+      (Ispecific(Ibswap bitwidth), args)
   (* Other operations are regular *)
   | _ ->
       super#select_operation op args dbg
