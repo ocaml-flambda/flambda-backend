@@ -259,7 +259,7 @@
   flambda_backend_common
   flambda2_identifiers
   flambda2_cmx
-  dwarf_low))
+  dwarf_high))
 
 (library
  (name flambda_backend_common)
@@ -347,6 +347,7 @@
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.a}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.a}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:flambda_backend_common.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
@@ -377,6 +378,7 @@
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cma}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cma}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
@@ -407,6 +409,7 @@
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cmxa}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cmxa}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
@@ -2656,4 +2659,38 @@
    (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/dwarf_low__Abbreviations_table_entry.cmx as compiler-libs/dwarf_low__Abbreviations_table_entry.cmx)
    (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/dwarf_low__Location_or_range_list_entry.cmx as compiler-libs/dwarf_low__Location_or_range_list_entry.cmx)
    (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/dwarf_low__Address_table.cmx as compiler-libs/dwarf_low__Address_table.cmx)
+
+   ;; dwarf high
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Assign_abbrevs.cmx as compiler-libs/dwarf_high__Assign_abbrevs.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Dwarf_attribute_helpers.cmx as compiler-libs/dwarf_high__Dwarf_attribute_helpers.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Proto_die.cmx as compiler-libs/dwarf_high__Proto_die.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Dwarf_world.cmx as compiler-libs/dwarf_high__Dwarf_world.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high.cmx as compiler-libs/dwarf_high.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Operator_builder.cmx as compiler-libs/dwarf_high__Operator_builder.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Simple_location_description_lang.cmx as compiler-libs/dwarf_high__Simple_location_description_lang.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/dwarf_high__Dwarf_name_laundry.cmx as compiler-libs/dwarf_high__Dwarf_name_laundry.cmx)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Proto_die.cmo as compiler-libs/dwarf_high__Proto_die.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_name_laundry.cmi as compiler-libs/dwarf_high__Dwarf_name_laundry.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_world.cmi as compiler-libs/dwarf_high__Dwarf_world.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Assign_abbrevs.cmt as compiler-libs/dwarf_high__Assign_abbrevs.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_attribute_helpers.cmo as compiler-libs/dwarf_high__Dwarf_attribute_helpers.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Simple_location_description_lang.cmi as compiler-libs/dwarf_high__Simple_location_description_lang.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high.cmo as compiler-libs/dwarf_high.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Operator_builder.cmt as compiler-libs/dwarf_high__Operator_builder.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_name_laundry.cmt as compiler-libs/dwarf_high__Dwarf_name_laundry.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_world.cmt as compiler-libs/dwarf_high__Dwarf_world.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Assign_abbrevs.cmi as compiler-libs/dwarf_high__Assign_abbrevs.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Simple_location_description_lang.cmt as compiler-libs/dwarf_high__Simple_location_description_lang.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Operator_builder.cmi as compiler-libs/dwarf_high__Operator_builder.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_world.cmo as compiler-libs/dwarf_high__Dwarf_world.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_name_laundry.cmo as compiler-libs/dwarf_high__Dwarf_name_laundry.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Proto_die.cmi as compiler-libs/dwarf_high__Proto_die.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_attribute_helpers.cmi as compiler-libs/dwarf_high__Dwarf_attribute_helpers.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high.cmi as compiler-libs/dwarf_high.cmi)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Simple_location_description_lang.cmo as compiler-libs/dwarf_high__Simple_location_description_lang.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Proto_die.cmt as compiler-libs/dwarf_high__Proto_die.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Dwarf_attribute_helpers.cmt as compiler-libs/dwarf_high__Dwarf_attribute_helpers.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Assign_abbrevs.cmo as compiler-libs/dwarf_high__Assign_abbrevs.cmo)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high.cmt as compiler-libs/dwarf_high.cmt)
+   (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Operator_builder.cmo as compiler-libs/dwarf_high__Operator_builder.cmo)
  ))
