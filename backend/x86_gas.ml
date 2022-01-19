@@ -213,6 +213,7 @@ let print_instr b = function
   | NEG arg -> i1 b "neg" arg
   | NOP -> i0 b "nop"
   | OR (arg1, arg2) -> i2_s b "or" arg1 arg2
+  | PAUSE -> i0 b "pause"
   | POP  arg -> i1_s b "pop" arg
   | POPCNT (arg1, arg2) -> i2_s b "popcnt" arg1 arg2
   | PREFETCH (is_write, hint, arg1) ->

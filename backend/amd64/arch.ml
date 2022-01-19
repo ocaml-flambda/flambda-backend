@@ -98,6 +98,7 @@ type specific_operation =
   | Irdtsc                             (* read timestamp *)
   | Irdpmc                             (* read performance counter *)
   | Icrc32q                            (* compute crc *)
+  | Ipause                             (* hint for spin-wait loops *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -215,6 +216,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "rdpmc %a" printreg arg.(0)
   | Icrc32q ->
       fprintf ppf "crc32 %a %a" printreg arg.(0) printreg arg.(1)
+  | Ipause ->
+      fprintf ppf "pause"
   | Iprefetch { is_write; locality; } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
@@ -313,6 +316,7 @@ let equal_specific_operation left right =
   | Ifloat_round x, Ifloat_round y -> equal_rounding_mode x y
   | Ifloat_min, Ifloat_min -> true
   | Ifloat_max, Ifloat_max -> true
+  | Ipause, Ipause -> true
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
     Bool.equal left_is_write right_is_write
@@ -320,6 +324,6 @@ let equal_specific_operation left right =
     && equal_addressing_mode left_addr right_addr
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
     | Isqrtf | Ifloatsqrtf _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc
-    | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+    | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Ipause
     | Icrc32q | Iprefetch _), _ ->
     false
