@@ -1,0 +1,9 @@
+(include_subdirs unqualified)
+
+(library
+  (name dwarf_low)
+  (wrapped true)
+  (flags (:standard -principal -nostdlib -open Dwarf_deps))
+  (ocamlopt_flags (:standard -O3))
+  (libraries stdlib  dwarf_deps)
+)

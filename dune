@@ -257,7 +257,7 @@
   flambda_backend_common
   flambda2_identifiers
   flambda2_cmx
-  dwarf_deps))
+  dwarf_low))
 
 (library
  (name flambda_backend_common)
