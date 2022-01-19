@@ -315,7 +315,7 @@ let check_and_register_traps t =
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =
     let n = match block.exn with None -> 0 | Some _ -> 1 in
-    assert ((not block.can_raise) || n > 0 || Cfg.can_raise_interproc block)
+    assert ((not block.can_raise) || n = 1 || Cfg.can_raise_interproc block)
   in
   C.iter_blocks t.cfg ~f
 
