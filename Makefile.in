@@ -454,7 +454,7 @@ runtest-upstream:
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 cd _runtest/testsuite \
-	  && if false; \
+	  && if true; \
              then \
                if [ "$(middle_end)" = "flambda2" ]; then \
                  make list-parallel FILE=$$(pwd)/../flambda2-test-list; \
