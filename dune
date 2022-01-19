@@ -256,7 +256,8 @@
   stdlib
   flambda_backend_common
   flambda2_identifiers
-  flambda2_cmx))
+  flambda2_cmx
+  dwarf_deps))
 
 (library
  (name flambda_backend_common)
@@ -281,7 +282,7 @@
    ))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries stdlib ocamlcommon)
+ (libraries stdlib ocamlcommon dwarf_deps)
  (modules flambda_backend_args flambda_backend_flags))
 
 (executable
