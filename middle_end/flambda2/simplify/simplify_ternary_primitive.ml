@@ -29,7 +29,7 @@ let simplify_array_set original_prim (array_kind : P.Array_kind.t) dacc dbg
   | Bottom ->
     let ty = T.bottom K.value (* Unit *) in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.value, dacc
   | Ok array_kind ->
     let elt_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind

@@ -137,7 +137,7 @@ end = struct
     in
     let[@inline always] result_invalid () =
       let dacc = DA.add_variable dacc result_var (T.bottom kind) in
-      Simplified_named.invalid (), dacc
+      Simplified_named.invalid kind, dacc
     in
     let check_possible_results ~possible_results =
       if PR.Set.is_empty possible_results
@@ -989,7 +989,7 @@ let[@inline always] simplify_immutable_block_load0
   let[@inline always] invalid () =
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid result_kind, dacc
   in
   let exactly simple =
     let dacc =
@@ -1156,7 +1156,7 @@ let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
   | Bottom ->
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid result_kind, dacc
   | Ok array_kind ->
     let result_kind' =
       P.Array_kind.element_kind array_kind |> K.With_subkind.kind

@@ -39,7 +39,10 @@ type t = private
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
-  | Invalid of Invalid_term_semantics.t
+  | Invalid of
+      { result_kind : Flambda_kind.t;
+        semantics : Invalid_term_semantics.t
+      }
 
 (** It is an error to pass [Set_of_closures] or [Static_consts] to this
     function. (Sets of closures are disallowed because computation of their free
@@ -54,9 +57,9 @@ val reachable_with_known_free_names :
   try_reify:bool ->
   t
 
-val invalid : unit -> t
+val invalid : Flambda_kind.t -> t
 
-val is_invalid : t -> bool
+val is_invalid : t -> Flambda_kind.t option
 
 val print : Format.formatter -> t -> unit
 

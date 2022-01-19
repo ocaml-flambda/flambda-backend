@@ -90,7 +90,7 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
   let invalid () =
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.value, dacc
   in
   let length =
     match Targetint_31_63.Imm.of_int_option (List.length args) with

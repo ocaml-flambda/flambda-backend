@@ -131,7 +131,7 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
   | Invalid _ ->
     let ty = T.bottom_like ty in
     let denv = DE.add_equation_on_variable denv bound_to ty in
-    Simplified_named.invalid (), DA.with_denv dacc denv
+    Simplified_named.invalid kind_of_bound_to, DA.with_denv dacc denv
   | Reachable _ | Reachable_try_reify _ -> (
     let typing_env = DE.typing_env denv in
     let reify_result =
@@ -175,4 +175,4 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
     | Invalid ->
       let ty = T.bottom_like ty in
       let denv = DE.add_equation_on_variable denv bound_to ty in
-      Simplified_named.invalid (), DA.with_denv dacc denv)
+      Simplified_named.invalid kind_of_bound_to, DA.with_denv dacc denv)

@@ -82,6 +82,6 @@ let bindings_to_place_in_any_order t =
 
 let is_invalid t =
   match t.descr with
-  | Zero_terms | Multiple_bindings_to_symbols _ -> false
+  | Zero_terms | Multiple_bindings_to_symbols _ -> None
   | Single_term { simplified_defining_expr; _ } ->
     Simplified_named.is_invalid simplified_defining_expr

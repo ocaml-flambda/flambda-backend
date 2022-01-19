@@ -41,7 +41,10 @@ type t =
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
-  | Invalid of Invalid_term_semantics.t
+  | Invalid of
+      { result_kind : Flambda_kind.t;
+        semantics : Invalid_term_semantics.t
+      }
 
 let reachable (named : Named.t) ~try_reify =
   let (simplified_named : simplified_named), cost_metrics =
@@ -99,21 +102,25 @@ let reachable_with_known_free_names ~find_code_characteristics (named : Named.t)
     Reachable_try_reify { named = simplified_named; cost_metrics; free_names }
   else Reachable { named = simplified_named; cost_metrics; free_names }
 
-let invalid () =
-  if Flambda_features.treat_invalid_code_as_unreachable ()
-  then Invalid Treat_as_unreachable
-  else Invalid Halt_and_catch_fire
+let invalid result_kind =
+  let semantics : Invalid_term_semantics.t =
+    if Flambda_features.treat_invalid_code_as_unreachable ()
+    then Treat_as_unreachable
+    else Halt_and_catch_fire
+  in
+  Invalid { result_kind; semantics }
 
 let print ppf t =
   match t with
   | Reachable { named; _ } | Reachable_try_reify { named; _ } ->
     Named.print ppf (to_named named)
-  | Invalid semantics -> Invalid_term_semantics.print ppf semantics
+  | Invalid { result_kind = _; semantics } ->
+    Invalid_term_semantics.print ppf semantics
 
 let is_invalid t =
   match t with
-  | Reachable _ | Reachable_try_reify _ -> false
-  | Invalid _ -> true
+  | Reachable _ | Reachable_try_reify _ -> None
+  | Invalid { result_kind; _ } -> Some result_kind
 
 let cost_metrics t =
   match t with

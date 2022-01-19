@@ -63,7 +63,7 @@ let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
   | Invalid ->
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.value, dacc
   | Proved simple ->
     let reachable =
       Simplified_named.reachable (Named.create_simple simple) ~try_reify:true
@@ -94,7 +94,7 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
   | Invalid ->
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.value, dacc
   | Proved simple ->
     (* Owing to the semantics of [Simplify_set_of_closures] when computing the
        types of closure variables -- in particular because it allows depth
@@ -224,7 +224,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
     then
       let ty = T.bottom K.naked_immediate in
       let dacc = DA.add_variable dacc result_var ty in
-      Simplified_named.invalid (), dacc
+      Simplified_named.invalid K.naked_immediate, dacc
     else
       match String_info.Set.get_singleton str_infos with
       | None ->
@@ -245,7 +245,7 @@ let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
   | Invalid ->
     let ty = T.bottom K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.naked_immediate, dacc
 
 module Unary_int_arith (I : A.Int_number_kind) = struct
   let simplify (op : P.unary_int_arith_op) dacc ~original_term ~arg:_ ~arg_ty
@@ -453,7 +453,7 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   let[@inline always] result_invalid () =
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.value, dacc
   in
   match proof with
   | Proved imms -> (
@@ -518,7 +518,7 @@ let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     Simplified_named.reachable original_term ~try_reify:false, dacc
   | Invalid ->
     let dacc = DA.add_variable dacc result_var (T.bottom K.naked_float) in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.naked_float, dacc
 
 let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     ~arg:_ ~arg_ty ~result_var =
@@ -534,7 +534,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   let[@inline always] result_invalid () =
     let ty = T.bottom K.naked_float in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.naked_float, dacc
   in
   match proof with
   | Proved fs when DE.float_const_prop denv -> (
@@ -575,7 +575,7 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   | Invalid | Wrong_kind ->
     let ty = T.bottom K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.naked_immediate, dacc
 
 let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
@@ -606,7 +606,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
   | Invalid ->
     let ty = T.bottom K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
-    Simplified_named.invalid (), dacc
+    Simplified_named.invalid K.naked_immediate, dacc
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =

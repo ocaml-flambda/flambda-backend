@@ -53,4 +53,4 @@ val bindings_to_place_in_any_order : t -> binding_to_place list
 
 val with_dacc : dacc:Downwards_acc.t -> t -> t
 
-val is_invalid : t -> bool
+val is_invalid : t -> Flambda_kind.t option

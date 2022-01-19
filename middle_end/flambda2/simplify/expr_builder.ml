@@ -289,11 +289,11 @@ let make_new_let_bindings uacc
        ->
       match (simplified_defining_expr : Simplified_named.t) with
       | Invalid _ ->
-        let uacc =
-          UA.with_name_occurrences uacc ~name_occurrences:Name_occurrences.empty
-          |> UA.notify_added ~code_size:Code_size.invalid
-        in
-        RE.create_invalid (), uacc
+        Misc.fatal_error
+          "We should not rebuild invalid let-bindings. The resulting uacc \
+           would be incorrect and lead to bugs (missing symbols, among other \
+           things). Let-binding whose defining expressions simplifies to \
+           invalid should have been caught on the way down."
       | Reachable
           { named = defining_expr;
             free_names = free_names_of_defining_expr;

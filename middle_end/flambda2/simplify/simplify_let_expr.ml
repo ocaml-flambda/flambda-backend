@@ -219,8 +219,61 @@ let update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
     ~init:data_flow
     ~f:(record_new_defining_expression_binding_for_data_flow dacc)
 
-let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
-    bound_pattern ~body =
+let simplify_let_reachable
+    ~(simplify_expr : Expr.t Simplify_common.expr_simplifier) ~down_to_up
+    prior_lifted_constants simplify_named_result removed_operations ~body =
+  let dacc = Simplify_named_result.dacc simplify_named_result in
+  (* First accumulate variable, symbol and code ID usage information. *)
+  (* CR-someday gbury/pchambart : in the case of an invalid, we currently
+     over-approximate the uses. In case of an invalid, we might want to instead
+     flush the uses of the current control flow branch (but this would require a
+     more precise stack). *)
+  (* We currently over-approximate the use of variables in symbols: both in the
+     lifted constants, and in the bound constants, which we consider to be
+     always used, leading to the free_names in their defining expressions to be
+     considered as used unconditionally. *)
+  let closure_info = DE.closure_info (DA.denv dacc) in
+  (* Next remember any lifted constants that were generated during the
+     simplification of the defining expression and sort them, since they may be
+     mutually recursive. Then add back in to [dacc] the [prior_lifted_constants]
+     remembered above. This results in the definitions and types for all these
+     constants being available at a subsequent [Let_cont]. At such a point,
+     [dacc] will be queried to retrieve all of the constants, which are then
+     manually transferred into the computed [dacc] at the join point for
+     subsequent simplification of the continuation handler(s).
+
+     Note that no lifted constants are ever placed during the simplification of
+     the defining expression. (Not even in the case of a [Set_of_closures]
+     binding, since "let symbol" is disallowed under a lambda.) *)
+  let lifted_constants_from_defining_expr = DA.get_lifted_constants dacc in
+  let dacc =
+    DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
+  in
+  let dacc =
+    DA.map_data_flow dacc
+      ~f:
+        (update_data_flow dacc closure_info ~lifted_constants_from_defining_expr
+           simplify_named_result)
+  in
+  let at_unit_toplevel = DE.at_unit_toplevel (DA.denv dacc) in
+  (* Simplify the body of the let-expression and make the new [Let] bindings
+     around the simplified body. [Simplify_named] will already have prepared
+     [dacc] with the necessary bindings for the simplification of the body. *)
+  let down_to_up dacc ~rebuild:rebuild_body =
+    let rebuild uacc ~after_rebuild =
+      let after_rebuild body uacc =
+        rebuild_let simplify_named_result removed_operations
+          ~lifted_constants_from_defining_expr ~at_unit_toplevel ~closure_info
+          ~body uacc ~after_rebuild
+      in
+      rebuild_body uacc ~after_rebuild
+    in
+    down_to_up dacc ~rebuild
+  in
+  simplify_expr dacc body ~down_to_up
+
+let simplify_let0 ~(simplify_expr : Expr.t Simplify_common.expr_simplifier)
+    ~simplify_toplevel dacc let_expr ~down_to_up bound_pattern ~body =
   let module L = Flambda.Let in
   let original_dacc = dacc in
   (* Remember then clear the lifted constants memory in [DA] so we can easily
@@ -232,64 +285,59 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
     Simplify_named.simplify_named dacc bound_pattern (L.defining_expr let_expr)
       ~simplify_toplevel
   in
-  (* We don't need to simplify the body of the [Let] if the defining expression
-     simplified to [Invalid]. *)
-  if Simplify_named_result.is_invalid simplify_named_result
-  then
-    down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->
-        let uacc = UA.notify_removed ~operation:removed_operations uacc in
-        EB.rebuild_invalid uacc ~after_rebuild)
-  else
-    let dacc = Simplify_named_result.dacc simplify_named_result in
-    (* First accumulate variable, symbol and code ID usage information. *)
-    (* CR-someday gbury/pchambart : in the case of an invalid, we currently
-       over-approximate the uses. In case of an invalid, we might want to
-       instead flush the uses of the current control flow branch (but this would
-       require a more precise stack). *)
-    (* We currently over-approximate the use of variables in symbols: both in
-       the lifted constants, and in the bound constants, which we consider to be
-       always used, leading to the free_names in their defining expressions to
-       be considered as used unconditionally. *)
-    let closure_info = DE.closure_info (DA.denv dacc) in
-    (* Next remember any lifted constants that were generated during the
-       simplification of the defining expression and sort them, since they may
-       be mutually recursive. Then add back in to [dacc] the
-       [prior_lifted_constants] remembered above. This results in the
-       definitions and types for all these constants being available at a
-       subsequent [Let_cont]. At such a point, [dacc] will be queried to
-       retrieve all of the constants, which are then manually transferred into
-       the computed [dacc] at the join point for subsequent simplification of
-       the continuation handler(s).
+  match Simplify_named_result.is_invalid simplify_named_result with
+  | Some result_kind ->
+    let name_mode = Bound_pattern.name_mode bound_pattern in
+    if Name_mode.is_normal name_mode
+    then
+      (* We don't need to simplify the body of the [Let] if the defining
+         expression simplified to [Invalid]. *)
+      down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->
+          let uacc = UA.notify_removed ~operation:removed_operations uacc in
+          EB.rebuild_invalid uacc ~after_rebuild)
+    else if Name_mode.is_phantom name_mode
+    then
+      (* In the case of phantom bindings, it can happen that the defining expr
+         simplifies to bottom, but we don't want to generate an invalid for the
+         let-binding.
 
-       Note that no lifted constants are ever placed during the simplification
-       of the defining expression. (Not even in the case of a [Set_of_closures]
-       binding, since "let symbol" is disallowed under a lambda.) *)
-    let lifted_constants_from_defining_expr = DA.get_lifted_constants dacc in
-    let dacc =
-      DA.add_to_lifted_constant_accumulator dacc prior_lifted_constants
-    in
-    let dacc =
-      DA.map_data_flow dacc
-        ~f:
-          (update_data_flow dacc closure_info
-             ~lifted_constants_from_defining_expr simplify_named_result)
-    in
-    let at_unit_toplevel = DE.at_unit_toplevel (DA.denv dacc) in
-    (* Simplify the body of the let-expression and make the new [Let] bindings
-       around the simplified body. [Simplify_named] will already have prepared
-       [dacc] with the necessary bindings for the simplification of the body. *)
-    let down_to_up dacc ~rebuild:rebuild_body =
-      let rebuild uacc ~after_rebuild =
-        let after_rebuild body uacc =
-          rebuild_let simplify_named_result removed_operations
-            ~lifted_constants_from_defining_expr ~at_unit_toplevel ~closure_info
-            ~body uacc ~after_rebuild
-        in
-        rebuild_body uacc ~after_rebuild
+         Such an example happens, e.g. when a function from another compilation
+         unit is inlined, and in its body, a let-binding to a project var
+         remains as phantom, but the closure_var being projected has been
+         removed (rightfully, since it wasn't used, except in the phantom
+         let-binding). This results in a bottom being returned when applying
+         meet_shape in simplify_common.simplify_projection. *)
+      (* There are two reasons justifying this must be a singleton:
+
+         - Sets of closures cannot simplify to Invalid, and Symbols cannot be
+         bound with name mode phantom.
+
+         - All creation sites for a Simplified_Named.Invalid (incidentally,
+         these only happen in the primitive simplifications) provide the kind of
+         the result_var, which only makes sense if the bound_pattern is a
+         singleton. *)
+      let result_var = Bound_pattern.must_be_singleton bound_pattern in
+      let dbg = Debuginfo.none in
+      let optimised_out =
+        Named.create_prim (Nullary (Optimised_out result_kind)) dbg
       in
-      down_to_up dacc ~rebuild
-    in
-    simplify_expr dacc body ~down_to_up
+      let ty = T.unknown result_kind in
+      let dacc = DA.add_variable original_dacc result_var ty in
+      let simplified_named =
+        Simplified_named.reachable optimised_out ~try_reify:false
+      in
+      let simplify_named_result =
+        Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
+          simplified_named ~original_defining_expr:(L.defining_expr let_expr)
+      in
+      (* phantom bindings should not count towards removed operations *)
+      let removed_operations = Removed_operations.zero in
+      simplify_let_reachable ~simplify_expr ~down_to_up prior_lifted_constants
+        simplify_named_result removed_operations ~body
+    else Misc.fatal_errorf "Trying to let-bind an in_types name"
+  | None ->
+    simplify_let_reachable ~simplify_expr ~down_to_up prior_lifted_constants
+      simplify_named_result removed_operations ~body
 
 let simplify_let ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up =
   let module L = Flambda.Let in
