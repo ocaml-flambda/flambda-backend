@@ -451,23 +451,11 @@ runtest-upstream:
 	cp $(stage1_build)/ocaml/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
 	grep -v '^#' testsuite/flambda2-test-list > _runtest/flambda2-test-list
 	# CR xclerc for xclerc: re-enable `parallel` detection
+	@echo "DEBUG: `pwd`"
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
 	 cd _runtest/testsuite \
-	  && if false; \
-             then \
-               if [ "$(middle_end)" = "flambda2" ]; then \
-                 make list-parallel FILE=$$(pwd)/../flambda2-test-list; \
-	       else \
-                 make parallel; \
-               fi \
-             else \
-               if [ "$(middle_end)" = "flambda2" ]; then \
-                 make list FILE=$$(pwd)/../flambda2-test-list; \
-	       else \
-                 make all; \
-               fi \
-             fi)
+	  && make all)
 
 # Compare the Flambda backend installation tree against the upstream one.
 # "make install" needs to have been done first.
