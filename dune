@@ -259,7 +259,7 @@
   flambda_backend_common
   flambda2_identifiers
   flambda2_cmx
-  dwarf_high))
+  dwarf_ocaml))
 
 (library
  (name flambda_backend_common)
@@ -348,6 +348,7 @@
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.a}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.a}
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
+   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
    %{dep:flambda_backend_common.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
@@ -378,7 +379,7 @@
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cma}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cma}
-   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
+   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
@@ -409,7 +410,7 @@
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cmxa}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cmxa}
-   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
+   %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
@@ -2693,4 +2694,26 @@
    (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Assign_abbrevs.cmo as compiler-libs/dwarf_high__Assign_abbrevs.cmo)
    (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high.cmt as compiler-libs/dwarf_high.cmt)
    (backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/dwarf_high__Operator_builder.cmo as compiler-libs/dwarf_high__Operator_builder.cmo)
+
+   ;; dwarf ocaml
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_concrete_instances.cmt as compiler-libs/dwarf_ocaml__Dwarf_concrete_instances.cmt)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf.cmi as compiler-libs/dwarf_ocaml__Dwarf.cmi)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_compilation_unit.cmi as compiler-libs/dwarf_ocaml__Dwarf_compilation_unit.cmi)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_state.cmi as compiler-libs/dwarf_ocaml__Dwarf_state.cmi)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_concrete_instances.cmi as compiler-libs/dwarf_ocaml__Dwarf_concrete_instances.cmi)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf.cmt as compiler-libs/dwarf_ocaml__Dwarf.cmt)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml.cmo as compiler-libs/dwarf_ocaml.cmo)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_compilation_unit.cmt as compiler-libs/dwarf_ocaml__Dwarf_compilation_unit.cmt)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_state.cmt as compiler-libs/dwarf_ocaml__Dwarf_state.cmt)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf.cmo as compiler-libs/dwarf_ocaml__Dwarf.cmo)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml.cmt as compiler-libs/dwarf_ocaml.cmt)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_state.cmo as compiler-libs/dwarf_ocaml__Dwarf_state.cmo)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_compilation_unit.cmo as compiler-libs/dwarf_ocaml__Dwarf_compilation_unit.cmo)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml__Dwarf_concrete_instances.cmo as compiler-libs/dwarf_ocaml__Dwarf_concrete_instances.cmo)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/byte/dwarf_ocaml.cmi as compiler-libs/dwarf_ocaml.cmi)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml.cmx as compiler-libs/dwarf_ocaml.cmx)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml__Dwarf_concrete_instances.cmx as compiler-libs/dwarf_ocaml__Dwarf_concrete_instances.cmx)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml__Dwarf.cmx as compiler-libs/dwarf_ocaml__Dwarf.cmx)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml__Dwarf_compilation_unit.cmx as compiler-libs/dwarf_ocaml__Dwarf_compilation_unit.cmx)
+   (backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/dwarf_ocaml__Dwarf_state.cmx as compiler-libs/dwarf_ocaml__Dwarf_state.cmx)
  ))
