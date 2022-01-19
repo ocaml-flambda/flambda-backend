@@ -113,13 +113,16 @@ default:
 
 .PHONY: all
 all:
+	@echo "DEBUG: all `pwd` $(TESTLOG)"
 	@rm -f $(TESTLOG)
 	@$(MAKE) --no-print-directory new-without-report
 	@$(MAKE) --no-print-directory report
 
 .PHONY: new-without-report
 new-without-report: lib tools
+	@echo "DEBUG: new-without-report"
 	@rm -f $(failstamp)
+	$(ocamltest) -find-test-dirs tests
 	@(IFS=$$(printf "\r\n"); \
 	$(ocamltest) -find-test-dirs tests | while IFS='' read -r dir; do \
 	  echo Running tests from \'$$dir\' ... ; \
