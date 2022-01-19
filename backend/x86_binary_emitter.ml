@@ -1287,6 +1287,8 @@ let emit_prefetch b ~is_write ~hint rm =
     emit_mod_rm_reg b no_rex [ 0x0F; 0x0D ] rm (rd_of_prefetch_hint T1)
   | _ -> assert false
 
+let emit_pause b = buf_opcodes b [ 0xF3; 0x90 ]
+
 let emit_rdtsc b = buf_opcodes b [ 0x0F; 0x31 ]
 
 let emit_rdpmc b = buf_opcodes b [ 0x0F; 0x33 ]
@@ -1544,6 +1546,7 @@ let assemble_instr b loc = function
   | NEG dst -> emit_neg b dst
   | NOP -> buf_int8 b 0x90
   | OR (src, dst) -> emit_OR b dst src
+  | PAUSE -> emit_pause b
   | PUSH dst -> emit_push b dst
   | POP dst -> emit_pop b dst
   | POPCNT (src, dst) -> emit_popcnt b ~dst ~src

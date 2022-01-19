@@ -149,6 +149,7 @@ let pseudoregs_for_operation op arg res =
                 |Ipopcnt|Iclz _|Ictz _), _)
   | Ispecific (Isqrtf|Isextend32|Izextend32|Ilea _|Istore_int (_, _, _)
               |Ifloat_iround|Ifloat_round _
+              |Ipause
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
@@ -312,6 +313,8 @@ method! select_operation op args dbg =
          Ispecific Ifloat_min, args
       | "caml_float_max_unboxed", [|Float|] ->
          Ispecific Ifloat_max, args
+      | "caml_pause_hint", [|Val|] ->
+         Ispecific Ipause, args
       | _ ->
         super#select_operation op args dbg
       end

@@ -196,6 +196,7 @@ module I = struct
   let neg x = emit (NEG x)
   let nop () = emit NOP
   let or_ x y = emit (OR (x, y))
+  let pause () = emit (PAUSE)
   let pop x = emit (POP x)
   let popcnt x y = emit (POPCNT (x, y))
   let prefetch is_write locality x = emit (PREFETCH (is_write, locality, x))

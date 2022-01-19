@@ -189,6 +189,7 @@ type instruction =
   | NEG of arg
   | NOP
   | OR of arg * arg
+  | PAUSE
   | POP of arg
   | POPCNT of arg * arg
   | PREFETCH of bool * prefetch_temporal_locality_hint * arg
