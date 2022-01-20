@@ -79,3 +79,9 @@ let bindings_to_place_in_any_order t =
         { let_bound; simplified_defining_expr; original_defining_expr = None }
         :: bindings)
       bound_vars_to_symbols []
+
+let is_invalid t =
+  match t.descr with
+  | Zero_terms | Multiple_bindings_to_symbols _ -> false
+  | Single_term { simplified_defining_expr; _ } ->
+    Simplified_named.is_invalid simplified_defining_expr
