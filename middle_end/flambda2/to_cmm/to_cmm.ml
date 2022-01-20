@@ -94,7 +94,7 @@ let default_of_kind (k : Flambda_kind.t) =
   | Naked_number Naked_int64 when C.arch32 -> C.unsupported_32_bits ()
   | Naked_number Naked_int64 -> C.int 0
   | Naked_number Naked_nativeint -> C.int 0
-  | Fabricated -> Misc.fatal_error "Fabricated_kind have no default value"
+  | Region -> Misc.fatal_error "Region_kind have no default value"
   | Rec_info -> Misc.fatal_error "Rec_info has no default value"
 
 (* Function symbol *)
@@ -400,6 +400,7 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
   match (prim : Flambda_primitive.nullary_primitive) with
   | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
   | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
+  | Begin_region -> None, Cop (Cbeginregion, [], dbg)
 
 let unary_primitive env dbg f arg =
   match (f : Flambda_primitive.unary_primitive) with
@@ -438,7 +439,7 @@ let unary_primitive env dbg f arg =
       match kind with Untagged_immediate -> Some (Env.Untag arg) | _ -> None
     in
     extra, C.unbox_number ~dbg kind arg
-  | Box_number kind -> None, C.box_number ~dbg kind arg
+  | Box_number (kind, alloc_mode) -> None, C.box_number ~dbg kind alloc_mode arg
   | Select_closure { move_from = c1; move_to = c2 } -> begin
     match Env.closure_offset env c1, Env.closure_offset env c2 with
     | Some { offset = c1_offset; _ }, Some { offset = c2_offset; _ } ->
@@ -468,6 +469,7 @@ let unary_primitive env dbg f arg =
         ~else_dbg:dbg )
   | Is_flat_float_array ->
     None, Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg)
+  | End_region -> None, C.return_unit dbg (Cmm.Cop (Cendregion, [arg], dbg))
 
 let binary_primitive env dbg f x y =
   match (f : Flambda_primitive.binary_primitive) with
@@ -501,8 +503,10 @@ let ternary_primitive _env dbg f x y z =
 
 let variadic_primitive _env dbg f args =
   match (f : Flambda_primitive.variadic_primitive) with
-  | Make_block (kind, _mut) -> C.make_block ~dbg kind args
-  | Make_array (kind, _mut) -> C.make_array ~dbg kind args
+  | Make_block (kind, _mut, alloc_mode) ->
+    C.make_block ~dbg kind alloc_mode args
+  | Make_array (kind, _mut, alloc_mode) ->
+    C.make_array ~dbg kind alloc_mode args
 
 let arg_list env l =
   let aux (list, env, effs) x =
@@ -551,7 +555,7 @@ let machtype_of_kind k =
   | Naked_number Naked_float -> typ_float
   | Naked_number Naked_int64 -> typ_int64
   | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) -> typ_int
-  | Fabricated | Rec_info -> assert false
+  | Region | Rec_info -> assert false
 
 let machtype_of_kinded_parameter p =
   Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
@@ -777,6 +781,7 @@ and let_set_of_closures env res body closure_vars
   else
     let_dynamic_set_of_closures env res body closure_vars
       ~num_normal_occurrences_of_bound_vars decls elts
+      ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
 
 and let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
     effs =
@@ -965,9 +970,10 @@ and apply_call env e =
   match Apply_expr.call_kind e with
   (* Effects from arguments are ignored since a function call will always be
      given arbitrary effects and coeffects. *)
-  | Call_kind.Function
-      (Call_kind.Function_call.Direct { code_id; closure_id = _; return_arity })
-    -> (
+  | Function
+      { function_call = Direct { code_id; closure_id = _; return_arity };
+        alloc_mode = _
+      } -> (
     let env =
       Env.check_scope ~allow_deleted:false env
         (Code_id_or_symbol.create_code_id code_id)
@@ -994,14 +1000,15 @@ and apply_call env e =
     | Some name ->
       Cmm.Cop (Cprobe { name; handler_code_sym = f_code }, args, dbg), env, effs
     )
-  | Call_kind.Function Call_kind.Function_call.Indirect_unknown_arity ->
+  | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe e;
     let f, env, _ = simple env f in
     let args, env, _ = arg_list env args in
-    C.indirect_call ~dbg typ_val f args, env, effs
-  | Call_kind.Function
-      (Call_kind.Function_call.Indirect_known_arity
-        { return_arity; param_arity }) ->
+    C.indirect_call ~dbg typ_val alloc_mode f args, env, effs
+  | Function
+      { function_call = Indirect_known_arity { return_arity; param_arity };
+        alloc_mode
+      } ->
     fail_if_probe e;
     if not (check_arity param_arity args)
     then
@@ -1015,7 +1022,7 @@ and apply_call env e =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
       in
-      C.indirect_full_call ~dbg ty f args, env, effs
+      C.indirect_full_call ~dbg ty alloc_mode f args, env, effs
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
@@ -1032,13 +1039,14 @@ and apply_call env e =
     ( wrap dbg (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args f ty args),
       env,
       effs )
-  | Call_kind.Method { kind; obj } ->
+  | Call_kind.Method { kind; obj; alloc_mode } ->
     fail_if_probe e;
     let obj, env, _ = simple env obj in
     let meth, env, _ = simple env f in
     let kind = meth_kind kind in
     let args, env, _ = arg_list env args in
-    C.send kind meth obj args (Rc_normal, Alloc_heap) dbg, env, effs
+    let alloc_mode = C.convert_alloc_mode alloc_mode in
+    C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
 
 (* function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
@@ -1396,22 +1404,27 @@ and let_static_set_of_closures env res body closure_vars s =
 
 (* Sets of closures with a non-empty environment are allocated *)
 and let_dynamic_set_of_closures env res body closure_vars
-    ~num_normal_occurrences_of_bound_vars decls elts =
+    ~num_normal_occurrences_of_bound_vars decls elts
+    ~(closure_alloc_mode : Alloc_mode.t) =
   (* Create the allocation block for the set of closures *)
   let layout =
     Env.layout env
       (List.map fst (Closure_id.Lmap.bindings decls))
       (List.map fst (Var_within_closure.Map.bindings elts))
   in
-  (* Allocating the closure has at least generative effects *)
+  (* Allocating the closure has at least generative effects. It is also deemed
+     to have coeffects if it is a local closure allocation. *)
   let effs =
-    Effects.Only_generative_effects Immutable, Coeffects.No_coeffects
+    ( Effects.Only_generative_effects Immutable,
+      match closure_alloc_mode with
+      | Heap -> Coeffects.No_coeffects
+      | Local -> Coeffects.Has_coeffects )
   in
   let decl_map = decls |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list in
   let l, env, effs =
     fill_layout decl_map layout.startenv elts env effs [] 0 layout.slots
   in
-  let csoc = C.make_closure_block l in
+  let csoc = C.make_closure_block closure_alloc_mode l in
   (* Create a variable to hold the set of closure *)
   let soc_var = Variable.create "*set_of_closures*" in
   let env = Env.bind_variable env soc_var effs false csoc in
@@ -1460,20 +1473,23 @@ and fill_slot decls startenv elts env acc offset slot =
     let code_id = Closure_id.Map.find c decls in
     (* CR-someday mshinwell: We should probably use the code's [dbg], but it
        would be tricky to get hold of, and this is very unlikely to make any
-       difference in practice. *)
+       difference in practice. mshinwell: this can now be got from
+       Code_metadata. *)
     let dbg = Debuginfo.none in
     let code_symbol = Code_id.code_symbol code_id in
     let code_name = Linkage_name.to_string (Symbol.linkage_name code_symbol) in
-    let arity = Env.get_func_decl_params_arity env code_id in
+    let arity, closure_code_pointers =
+      Env.get_func_decl_params_arity env code_id
+    in
     let closure_info = C.closure_info ~arity ~startenv:(startenv - offset) in
     (* We build here the **reverse** list of fields for the closure *)
-    match arity with
-    | Curried _, (1 | 0) ->
+    match closure_code_pointers with
+    | Full_application_only ->
       let acc =
         C.nativeint ~dbg closure_info :: C.symbol ~dbg code_name :: acc
       in
       acc, offset + 2, env, Ece.pure
-    | arity ->
+    | Full_and_partial_application ->
       let acc =
         C.symbol ~dbg code_name
         :: C.nativeint ~dbg closure_info

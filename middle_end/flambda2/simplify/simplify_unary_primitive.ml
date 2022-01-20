@@ -149,39 +149,51 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     let result_var = Bound_var.var result_var in
     match boxable_number_kind with
     | Naked_float ->
-      T.boxed_float_alias_to ~naked_float:result_var, K.naked_float
+      T.boxed_float_alias_to ~naked_float:result_var Unknown, K.naked_float
     | Naked_int32 ->
-      T.boxed_int32_alias_to ~naked_int32:result_var, K.naked_int32
+      T.boxed_int32_alias_to ~naked_int32:result_var Unknown, K.naked_int32
     | Naked_int64 ->
-      T.boxed_int64_alias_to ~naked_int64:result_var, K.naked_int64
+      T.boxed_int64_alias_to ~naked_int64:result_var Unknown, K.naked_int64
     | Naked_nativeint ->
-      T.boxed_nativeint_alias_to ~naked_nativeint:result_var, K.naked_nativeint
+      ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var Unknown,
+        K.naked_nativeint )
     | Untagged_immediate ->
       T.tagged_immediate_alias_to ~naked_immediate:result_var, K.naked_immediate
+  in
+  let alloc_mode =
+    T.prove_alloc_mode_of_boxed_number (DA.typing_env dacc) boxed_number_ty
   in
   let reachable, dacc =
     Simplify_common.simplify_projection dacc ~original_term
       ~deconstructing:boxed_number_ty ~shape ~result_var ~result_kind
   in
-  let box_prim : P.t =
-    Unary (Box_number boxable_number_kind, Simple.var (Bound_var.var result_var))
-  in
   let dacc =
-    DA.map_denv dacc ~f:(fun denv ->
-        DE.add_cse denv (P.Eligible_for_cse.create_exn box_prim) ~bound_to:arg)
+    (* We can only add the inverse CSE equation if we know the alloc mode for
+       certain and it is [Heap]. (As per [Flambda_primitive] we don't currently
+       CSE local allocations.) *)
+    match alloc_mode with
+    | Unknown | Known Local -> dacc
+    | Known Heap ->
+      let box_prim : P.t =
+        Unary
+          ( Box_number (boxable_number_kind, Heap),
+            Simple.var (Bound_var.var result_var) )
+      in
+      DA.map_denv dacc ~f:(fun denv ->
+          DE.add_cse denv (P.Eligible_for_cse.create_exn box_prim) ~bound_to:arg)
   in
   reachable, dacc
 
-let simplify_box_number (boxable_number_kind : K.Boxable_number.t) dacc
-    ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
+let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
+    dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty ~result_var =
   (* CR mshinwell: This should check the kind of [naked_number_ty] (or the
      creation functions used below should). *)
   let ty =
     match boxable_number_kind with
-    | Naked_float -> T.box_float naked_number_ty
-    | Naked_int32 -> T.box_int32 naked_number_ty
-    | Naked_int64 -> T.box_int64 naked_number_ty
-    | Naked_nativeint -> T.box_nativeint naked_number_ty
+    | Naked_float -> T.box_float naked_number_ty (Known alloc_mode)
+    | Naked_int32 -> T.box_int32 naked_number_ty (Known alloc_mode)
+    | Naked_int64 -> T.box_int64 naked_number_ty (Known alloc_mode)
+    | Naked_nativeint -> T.box_nativeint naked_number_ty (Known alloc_mode)
     | Untagged_immediate -> T.tag_immediate naked_number_ty
   in
   let dacc = DA.add_variable dacc result_var ty in
@@ -620,7 +632,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_select_closure ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
       simplify_unbox_number boxable_number_kind
-    | Box_number boxable_number_kind -> simplify_box_number boxable_number_kind
+    | Box_number (boxable_number_kind, alloc_mode) ->
+      simplify_box_number boxable_number_kind alloc_mode
     | Is_int -> simplify_is_int
     | Get_tag -> simplify_get_tag
     | Array_length -> simplify_array_length
@@ -648,7 +661,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
     | Int_as_pointer | Bigarray_length _ | Duplicate_array _ | Duplicate_block _
-    | Opaque_identity ->
+    | Opaque_identity | End_region ->
       (* CR mshinwell: In these cases, the type of the argument should still be
          checked. Same for binary/ternary/etc. *)
       fun dacc ~original_term:_ ~arg ~arg_ty:_ ~result_var ->

@@ -138,6 +138,7 @@ module Init_or_assign : sig
   type t =
     | Initialization
     | Assignment
+    | Local_assignment
 
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
@@ -206,7 +207,7 @@ type signed_or_unsigned =
   | Signed
   | Unsigned
 
-(** Primitive taking exactly zero arguments *)
+(** Primitives taking exactly zero arguments. *)
 type nullary_primitive =
   | Optimised_out of Flambda_kind.t
       (** Used for phantom bindings for which there is not enough information
@@ -214,6 +215,9 @@ type nullary_primitive =
           let-binding. *)
   | Probe_is_enabled of { name : string }
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
+  | Begin_region
+      (** Starting delimiter of local allocation region, returning a region
+          name. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -279,7 +283,7 @@ type unary_primitive =
      [Flambda_kind.Of_naked_number.t] arguments (one input, one output). *)
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
-  | Box_number of Flambda_kind.Boxable_number.t
+  | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
   | Select_closure of
       { move_from : Closure_id.t;
         move_to : Closure_id.t
@@ -296,6 +300,8 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
+  | End_region
+      (** Ending delimiter of local allocation region, accepting a region name. *)
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"
@@ -353,8 +359,8 @@ type ternary_primitive =
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =
-  | Make_block of Block_kind.t * Mutability.t
-  | Make_array of Array_kind.t * Mutability.t
+  | Make_block of Block_kind.t * Mutability.t * Alloc_mode.t
+  | Make_array of Array_kind.t * Mutability.t * Alloc_mode.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 

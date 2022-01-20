@@ -276,7 +276,7 @@ let value_kind : Fexpr.kind -> Flambda_kind.t = function
     | Naked_int64 -> Flambda_kind.naked_int64
     | Naked_nativeint -> Flambda_kind.naked_nativeint
   end
-  | Fabricated -> Misc.fatal_error "Fabricated should not be used"
+  | Region -> Misc.fatal_error "Region should not be used"
   | Rec_info -> Flambda_kind.rec_info
 
 let value_kind_with_subkind_opt :
@@ -356,7 +356,7 @@ let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number bk
+  | Box_number bk -> Box_number (bk, Heap)
   | Unbox_number bk -> Unbox_number bk
   | Get_tag -> Get_tag
   | Is_int -> Is_int
@@ -429,7 +429,7 @@ let varop (varop : Fexpr.varop) n : Flambda_primitive.variadic_primitive =
     let kind : Flambda_primitive.Block_kind.t =
       Values (Tag.Scannable.create_exn tag, shape)
     in
-    Make_block (kind, mutability)
+    Make_block (kind, mutability, Heap)
 
 let prim env (p : Fexpr.prim) : Flambda_primitive.t =
   match p with
@@ -476,7 +476,7 @@ let set_of_closures env fun_decls closure_elements =
     in
     List.map convert closure_elements |> Var_within_closure.Map.of_list
   in
-  Set_of_closures.create fun_decls ~closure_elements
+  Set_of_closures.create ~closure_elements Heap fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =
@@ -816,9 +816,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let code =
           (* CR mshinwell: [inlining_decision] should maybe be set properly *)
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
-            ~newer_version_of ~params_arity ~result_arity
+            ~newer_version_of ~params_arity ~num_trailing_local_params:0
+            ~result_arity
             ~result_types:(Result_types.create_unknown ~params ~result_arity)
-            ~stub:false ~inline ~is_a_functor:false ~recursive
+            ~contains_no_escaping_local_allocs:false ~stub:false ~inline
+            ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~dbg:Debuginfo.none ~is_tupled ~is_my_closure_used
@@ -857,16 +859,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id closure_id ~return_arity
+        Call_kind.direct_function_call code_id closure_id ~return_arity Heap
       | Function Indirect -> begin
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
           let param_arity = arity params_arity in
           let return_arity = arity ret_arity in
           Call_kind.indirect_function_call_known_arity ~param_arity
-            ~return_arity
+            ~return_arity Heap
         | None | Some { params_arity = None; ret_arity = _ } ->
-          Call_kind.indirect_function_call_unknown_arity ()
+          Call_kind.indirect_function_call_unknown_arity Heap
       end
       | C_call { alloc } -> begin
         match arities with

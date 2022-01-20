@@ -51,7 +51,7 @@ let keyword_table =
     "end", KWD_END;
     "error", KWD_ERROR;
     "exn", KWD_EXN;
-    "fabricated", KWD_FABRICATED;
+    "region", KWD_FABRICATED;
     "float", KWD_FLOAT;
     "halt_and_catch_fire", KWD_HCF;
     "hint", KWD_HINT;

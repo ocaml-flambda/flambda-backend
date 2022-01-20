@@ -25,22 +25,24 @@ module L = Lambda
 module P = Flambda_primitive
 
 let tag_int (arg : H.expr_primitive) : H.expr_primitive =
-  Unary (Box_number Untagged_immediate, Prim arg)
+  Unary (Box_number (Untagged_immediate, Heap), Prim arg)
 
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number Untagged_immediate, arg))
 
 let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) : H.expr_primitive
     =
-  C.alloc_mode mode;
-  Unary (Box_number Flambda_kind.Boxable_number.Naked_float, Prim arg)
+  Unary
+    ( Box_number (Flambda_kind.Boxable_number.Naked_float, C.alloc_mode mode),
+      Prim arg )
 
 let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number Flambda_kind.Boxable_number.Naked_float, arg))
 
 let box_bint bi mode (arg : H.expr_primitive) : H.expr_primitive =
-  C.alloc_mode mode;
-  Unary (Box_number (C.boxable_number_of_boxed_integer bi), Prim arg)
+  Unary
+    ( Box_number (C.boxable_number_of_boxed_integer bi, C.alloc_mode mode),
+      Prim arg )
 
 let unbox_bint bi (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number (C.boxable_number_of_boxed_integer bi), arg))
@@ -186,7 +188,7 @@ let bigstring_ref ~size_int access_size mode arg1 arg2 dbg : H.expr_primitive =
       dbg
     }
 
-let bigarray_box_raw_value_read kind =
+let bigarray_box_raw_value_read kind alloc_mode =
   let error what =
     Misc.fatal_errorf "Don't know how to unbox %s to store it in a bigarray"
       what
@@ -195,8 +197,8 @@ let bigarray_box_raw_value_read kind =
   | Value -> Fun.id
   | Naked_number k ->
     let bi = K.Boxable_number.of_naked_number_kind k in
-    fun arg -> H.Unary (Box_number bi, Prim arg)
-  | Fabricated -> error "a fabricated expression"
+    fun arg -> H.Unary (Box_number (bi, alloc_mode), Prim arg)
+  | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
 let bigarray_unbox_value_to_store kind =
@@ -209,7 +211,7 @@ let bigarray_unbox_value_to_store kind =
   | Naked_number k ->
     let bi = K.Boxable_number.of_naked_number_kind k in
     fun arg -> H.Prim (Unary (Unbox_number bi, arg))
-  | Fabricated -> error "a fabricated expression"
+  | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
 let bigarray_dim_bound b dimension =
@@ -243,7 +245,7 @@ let bigarray_indexing layout b args =
           (Binary
              ( Int_arith (I.Tagged_immediate, Mul),
                rem,
-               Prim (Unary (Box_number Untagged_immediate, bound)) ))
+               Prim (Unary (Box_number (Untagged_immediate, Heap), bound)) ))
       in
       let offset =
         H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, idx))
@@ -338,17 +340,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   in
   match prim, args with
   | Pmakeblock (tag, mutability, shape, mode), _ ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     let tag = Tag.Scannable.create_exn tag in
     let shape = C.convert_block_shape shape ~num_fields:(List.length args) in
     let mutability = C.convert_mutable_flag mutability in
-    Variadic (Make_block (Values (tag, shape), mutability), args)
+    Variadic (Make_block (Values (tag, shape), mutability, mode), args)
   | Pmakefloatblock (mutability, mode), _ ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     let mutability = C.convert_mutable_flag mutability in
-    Variadic (Make_block (Naked_floats, mutability), List.map unbox_float args)
+    Variadic
+      (Make_block (Naked_floats, mutability, mode), List.map unbox_float args)
   | Pmakearray (array_kind, mutability, mode), _ -> (
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     let array_kind = C.convert_array_kind array_kind in
     let mutability = C.convert_mutable_flag mutability in
     match array_kind with
@@ -358,20 +361,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         | Immediates | Values -> args
         | Naked_floats -> List.map unbox_float args
       in
-      Variadic (Make_array (array_kind, mutability), args)
+      Variadic (Make_array (array_kind, mutability, mode), args)
     | Float_array_opt_dynamic -> (
       (* If this is an empty array we can just give it array kind [Values].
          (Even empty flat float arrays have tag zero.) *)
       match args with
-      | [] -> Variadic (Make_array (Values, Immutable), [])
+      | [] -> Variadic (Make_array (Values, Immutable, Heap), [])
       | elt :: _ ->
         (* Test the first element to see if it's a boxed float: if it is, this
            array must be created as a flat float array. *)
         If_then_else
           ( Unary (Is_boxed_float, elt),
             Variadic
-              (Make_array (Naked_floats, Immutable), List.map unbox_float args),
-            Variadic (Make_array (Values, Immutable), args) )))
+              ( Make_array (Naked_floats, Immutable, mode),
+                List.map unbox_float args ),
+            Variadic (Make_array (Values, Immutable, mode), args) )))
   | Popaque, [arg] -> Unary (Opaque_identity, arg)
   | Pduprecord (repr, num_fields), [arg] ->
     let kind : P.Duplicate_block_kind.t =
@@ -540,17 +544,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     tag_int (Binary (String_or_bigstring_load (String, Sixteen), arg1, arg2))
   | Pstring_load_32 (true (* unsafe *), mode), [arg1; arg2]
   | Pbytes_load_32 (true (* unsafe *), mode), [arg1; arg2] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Unary
-      ( Box_number Naked_int32,
+      ( Box_number (Naked_int32, mode),
         Prim
           (Binary (String_or_bigstring_load (String, Thirty_two), arg1, arg2))
       )
   | Pstring_load_64 (true (* unsafe *), mode), [arg1; arg2]
   | Pbytes_load_64 (true (* unsafe *), mode), [arg1; arg2] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Unary
-      ( Box_number Naked_int64,
+      ( Box_number (Naked_int64, mode),
         Prim
           (Binary (String_or_bigstring_load (String, Sixty_four), arg1, arg2))
       )
@@ -566,11 +570,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         dbg
       }
   | Pstring_load_32 (false, mode), [str; index] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Checked
       { primitive =
           Unary
-            ( Box_number Naked_int32,
+            ( Box_number (Naked_int32, mode),
               Prim
                 (Binary
                    (String_or_bigstring_load (String, Thirty_two), str, index))
@@ -582,11 +586,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         dbg
       }
   | Pstring_load_64 (false, mode), [str; index] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Checked
       { primitive =
           Unary
-            ( Box_number Naked_int64,
+            ( Box_number (Naked_int64, mode),
               Prim
                 (Binary
                    (String_or_bigstring_load (String, Sixty_four), str, index))
@@ -610,11 +614,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         dbg
       }
   | Pbytes_load_32 (false, mode), [bytes; index] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Checked
       { primitive =
           Unary
-            ( Box_number Naked_int32,
+            ( Box_number (Naked_int32, mode),
               Prim
                 (Binary
                    (String_or_bigstring_load (Bytes, Thirty_two), bytes, index))
@@ -626,11 +630,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         dbg
       }
   | Pbytes_load_64 (false, mode), [bytes; index] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Checked
       { primitive =
           Unary
-            ( Box_number Naked_int64,
+            ( Box_number (Naked_int64, mode),
               Prim
                 (Binary
                    (String_or_bigstring_load (Bytes, Sixty_four), bytes, index))
@@ -712,10 +716,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            tagged_immediate_as_naked_nativeint arg1,
            tagged_immediate_as_naked_nativeint arg2 ))
   | Pbintofint (bi, mode), [arg] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     let dst = C.standard_int_or_float_of_boxed_integer bi in
     Unary
-      ( Box_number (C.boxable_number_of_boxed_integer bi),
+      ( Box_number (C.boxable_number_of_boxed_integer bi, mode),
         Prim (Unary (Num_conv { src = I_or_f.Tagged_immediate; dst }, arg)) )
   | Pintofbint bi, [arg] ->
     let src = C.standard_int_or_float_of_boxed_integer bi in
@@ -1016,25 +1020,25 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     tag_int
       (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))
   | Pbbswap (Pint32, mode), [arg] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Unary
-      ( Box_number Naked_int32,
+      ( Box_number (Naked_int32, mode),
         Prim
           (Unary
              ( Int_arith (Naked_int32, Swap_byte_endianness),
                Prim (Unary (Unbox_number Naked_int32, arg)) )) )
   | Pbbswap (Pint64, mode), [arg] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Unary
-      ( Box_number Naked_int64,
+      ( Box_number (Naked_int64, mode),
         Prim
           (Unary
              ( Int_arith (Naked_int64, Swap_byte_endianness),
                Prim (Unary (Unbox_number Naked_int64, arg)) )) )
   | Pbbswap (Pnativeint, mode), [arg] ->
-    C.alloc_mode mode;
+    let mode = C.alloc_mode mode in
     Unary
-      ( Box_number Naked_nativeint,
+      ( Box_number (Naked_nativeint, mode),
         Prim
           (Unary
              ( Int_arith (Naked_nativeint, Swap_byte_endianness),
@@ -1051,7 +1055,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
           b, indexes
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
-      let box = bigarray_box_raw_value_read kind in
+      let box = bigarray_box_raw_value_read kind Heap in
       box (bigarray_ref ~dbg ~unsafe kind layout b indexes)
     | None, _ ->
       Misc.fatal_errorf

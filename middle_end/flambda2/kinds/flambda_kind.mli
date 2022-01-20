@@ -42,7 +42,7 @@ type naked_int64 = empty_naked_int64 * Numeric_types.Int64.Set.t
 
 type naked_nativeint = empty_naked_nativeint * Targetint_32_64.Set.t
 
-type fabricated = private Fabricated
+type region = private Region
 
 type rec_info = private Rec_info
 
@@ -62,11 +62,11 @@ type t = private
   | Value  (** OCaml values that may exist at source level. *)
   | Naked_number of Naked_number_kind.t
       (** The kind of unboxed numbers and untagged immediates. *)
-  | Fabricated
+  | Region
       (** Values which have been introduced by Flambda and are never accessible
           at the source language level (for example sets of closures). *)
   | Rec_info
-      (** Recursion depths of identifiers. Like [Fabricated], not accessible at
+      (** Recursion depths of identifiers. Like [Region], not accessible at
           the source level, but also not accessible at run time. *)
 
 type kind = t
@@ -84,9 +84,9 @@ val naked_int64 : t
 
 val naked_nativeint : t
 
-(* CR mshinwell: Fabricated kinds are only used in Flambda_static now. Make a
+(* CR mshinwell: Region kinds are only used in Flambda_static now. Make a
    separate type. *)
-val fabricated : t
+val region : t
 
 val rec_info : t
 

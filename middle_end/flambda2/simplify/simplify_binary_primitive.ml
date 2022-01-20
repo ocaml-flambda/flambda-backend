@@ -1140,7 +1140,7 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
     | Naked_number Naked_nativeint ->
       Binary_int_eq_comp_nativeint.simplify op dacc ~original_term dbg ~arg1
         ~arg1_ty ~arg2 ~arg2_ty ~result_var
-    | Fabricated -> Misc.fatal_error "Fabricated kind not expected here"
+    | Region -> Misc.fatal_error "Region kind not expected here"
     | Rec_info -> Misc.fatal_error "Rec_info kind not expected here"
 
 let simplify_array_load (array_kind : P.Array_kind.t) mutability dacc
