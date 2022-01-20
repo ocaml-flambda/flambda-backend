@@ -284,9 +284,8 @@ let simplify_let0 ~(simplify_expr : Expr.t Simplify_common.expr_simplifier)
   in
   (* Simplify the defining expression. *)
   let simplify_named_result, removed_operations =
-    Simplify_named.simplify_named
-      original_dacc_without_prior_lifted_constants bound_pattern (L.defining_expr let_expr)
-      ~simplify_toplevel
+    Simplify_named.simplify_named original_dacc_without_prior_lifted_constants
+      bound_pattern (L.defining_expr let_expr) ~simplify_toplevel
   in
   match Simplify_named_result.is_invalid simplify_named_result with
   | Some result_kind ->
@@ -325,7 +324,10 @@ let simplify_let0 ~(simplify_expr : Expr.t Simplify_common.expr_simplifier)
         Named.create_prim (Nullary (Optimised_out result_kind)) dbg
       in
       let ty = T.unknown result_kind in
-      let dacc = DA.add_variable original_dacc_without_prior_lifted_constants result_var ty in
+      let dacc =
+        DA.add_variable original_dacc_without_prior_lifted_constants result_var
+          ty
+      in
       let simplified_named =
         Simplified_named.reachable optimised_out ~try_reify:false
       in
