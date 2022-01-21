@@ -928,12 +928,22 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
   match Aliases.Alias_set.find_best shared_aliases with
   | Some alias -> Known (TG.alias_type_of kind alias)
   | None -> (
-    match canonical_simple1, canonical_simple2 with
-    | Some simple1, Some simple2
+    match
+      ( canonical_simple1,
+        TG.is_obviously_bottom t1,
+        canonical_simple2,
+        TG.is_obviously_bottom t2 )
+    with
+    | _, true, _, _ -> Known t2
+    | _, _, _, true -> Known t1
+    | Some simple1, _, Some simple2, _
       when Join_env.already_joining env simple1 simple2 ->
       (* CR vlaviron: Fix this to Unknown when Product can handle it *)
       Known (MTC.unknown kind)
-    | Some _, Some _ | Some _, None | None, Some _ | None, None ->
+    | Some _, _, Some _, _
+    | Some _, _, None, _
+    | None, _, Some _, _
+    | None, _, None, _ ->
       let env =
         match canonical_simple1, canonical_simple2 with
         | Some simple1, Some simple2 -> Join_env.now_joining env simple1 simple2
