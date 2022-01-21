@@ -877,30 +877,30 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
     | canonical_simple -> Some canonical_simple
   in
   let expanded1 =
-    Expand_head.expand_head0
-      (Join_env.left_join_env env)
-      t1 ~known_canonical_simple_at_in_types_mode:canonical_simple1
+    lazy
+      (Expand_head.expand_head0
+         (Join_env.left_join_env env)
+         t1 ~known_canonical_simple_at_in_types_mode:canonical_simple1)
   in
   let expanded2 =
-    Expand_head.expand_head0
-      (Join_env.right_join_env env)
-      t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2
+    lazy
+      (Expand_head.expand_head0
+         (Join_env.right_join_env env)
+         t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2)
   in
   (* CR mshinwell: Add shortcut when the canonical simples are equal *)
   let shared_aliases =
     let shared_aliases =
       match
         ( canonical_simple1,
-          ET.descr expanded1,
+          TG.is_obviously_bottom t1,
           canonical_simple2,
-          ET.descr expanded2 )
+          TG.is_obviously_bottom t2 )
       with
-      | None, _, None, _
-      | None, (Ok _ | Unknown), _, _
-      | _, _, None, (Ok _ | Unknown) ->
+      | None, _, None, _ | None, false, _, _ | _, _, None, false ->
         Aliases.Alias_set.empty
-      | Some simple1, _, _, Bottom -> Aliases.Alias_set.singleton simple1
-      | _, Bottom, Some simple2, _ -> Aliases.Alias_set.singleton simple2
+      | Some simple1, _, _, true -> Aliases.Alias_set.singleton simple1
+      | _, true, Some simple2, _ -> Aliases.Alias_set.singleton simple2
       | Some simple1, _, Some simple2, _ ->
         if Simple.same simple1 simple2
         then Aliases.Alias_set.singleton simple1
@@ -941,7 +941,10 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
       in
       (* CR mshinwell: this should presumably check for Unknown (in the same way
          as the meet case checks for Bottom) *)
-      Known (ET.to_type (join_expanded_head env kind expanded1 expanded2)))
+      Known
+        (ET.to_type
+           (join_expanded_head env kind (Lazy.force expanded1)
+              (Lazy.force expanded2))))
 
 and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
   match ET.descr expanded1, ET.descr expanded2 with
