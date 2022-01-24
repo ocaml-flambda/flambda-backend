@@ -313,6 +313,7 @@ let destroyed_at_oper = function
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
   | Itrywith _ -> [| r11 |]
+  | Iop(Iendregion) -> [| r11 |]
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
@@ -337,6 +338,7 @@ let destroyed_at_oper = function
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
+  | Iop(Ibeginregion)
     ->
     if fp then
 (* prevent any use of the frame pointer ! *)
@@ -362,6 +364,7 @@ let safe_register_pressure = function
   | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+  | Ibeginregion | Iendregion
     -> if fp then 10 else 11
 
 let max_register_pressure =
@@ -401,6 +404,7 @@ let max_register_pressure =
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+  | Ibeginregion | Iendregion
     -> consumes ~int:0 ~float:0
 
 (* Pure operations (without any side effect besides updating their result
@@ -410,6 +414,7 @@ let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Ibeginregion | Iendregion -> false
   | Ispecific(Ipause)
   | Ispecific(Iprefetch _) -> false
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
@@ -451,7 +456,7 @@ let init () =
 let operation_supported = function
   | Cpopcnt -> !popcnt_support
   | Cprefetch _
-  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cclz _ | Cctz _

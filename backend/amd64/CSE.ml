@@ -47,6 +47,7 @@ method! class_of_operation op =
   | Istackoffset _ | Iload _ | Istore _ | Ialloc _
   | Iintop _ | Iintop_imm _
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+  | Ibeginregion | Iendregion
     -> super#class_of_operation op
 
 end

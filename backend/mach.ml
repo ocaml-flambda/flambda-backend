@@ -61,7 +61,8 @@ type operation =
   | Istackoffset of int
   | Iload of Cmm.memory_chunk * Arch.addressing_mode
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
-  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo; }
+  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
+                mode : Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
   | Icompf of float_comparison
@@ -73,6 +74,7 @@ type operation =
       provenance : unit option; is_assignment : bool; }
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
+  | Ibeginregion | Iendregion
 
 type instruction =
   { desc: instruction_desc;
@@ -173,7 +175,8 @@ let rec instr_iter f i =
             | Icompf _
             | Ifloatofint | Iintoffloat
             | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
-            | Iopaque) ->
+            | Iopaque
+            | Ibeginregion | Iendregion) ->
         instr_iter f i.next
 
 let operation_can_raise op =

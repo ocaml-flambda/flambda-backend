@@ -34,6 +34,7 @@ type immediate_or_pointer =
 
 type initialization_or_assignment =
   | Assignment
+  | Local_assignment
   | Heap_initialization
   | Root_initialization
 
@@ -44,6 +45,14 @@ type is_safe =
 type field_read_semantics =
   | Reads_agree
   | Reads_vary
+
+type alloc_mode =
+  | Alloc_heap
+  | Alloc_local
+
+type apply_position =
+  | Apply_tail
+  | Apply_nontail
 
 type primitive =
   | Pidentity
@@ -1005,3 +1014,21 @@ let mod_field ?(read_semantics=Reads_agree) pos =
 
 let mod_setfield pos =
   Psetfield (pos, Pointer, Root_initialization)
+
+let join_mode a b =
+  match a, b with
+  | Alloc_local, _ | _, Alloc_local -> Alloc_local
+  | Alloc_heap, Alloc_heap -> Alloc_heap
+
+let sub_mode a b =
+  match a, b with
+  | Alloc_heap, _ -> true
+  | _, Alloc_local -> true
+  | Alloc_local, Alloc_heap -> false
+
+let eq_mode a b =
+  match a, b with
+  | Alloc_heap, Alloc_heap -> true
+  | Alloc_local, Alloc_local -> true
+  | Alloc_heap, Alloc_local -> false
+  | Alloc_local, Alloc_heap -> false

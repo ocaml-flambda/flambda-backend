@@ -219,7 +219,8 @@ expr:
   | LPAREN LETMUT letmutdef sequence RPAREN { make_letmutdef $3 $4 }
   | LPAREN ASSIGN IDENT expr RPAREN { Cassign(find_ident $3, $4) }
   | LPAREN APPLY location expr exprlist machtype RPAREN
-                { Cop(Capply $6, $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
+                { Cop(Capply ($6, Lambda.Apply_nontail),
+                      $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
   | LPAREN EXTCALL STRING exprlist machtype RPAREN
                {Cop(Cextcall {func=$3; ty=$5; alloc=false;
                               builtin=false;
@@ -228,7 +229,7 @@ expr:
                               coeffects=Has_coeffects;
                               ty_args=[];},
                      List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.Alloc_heap, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }

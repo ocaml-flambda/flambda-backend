@@ -249,6 +249,7 @@ method class_of_operation op =
   | Ispecific _ -> Op_other
   | Iname_for_debugger _ -> Op_pure
   | Iprobe_is_enabled _ -> Op_other
+  | Ibeginregion | Iendregion -> Op_other
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 

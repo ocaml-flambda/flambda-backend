@@ -65,7 +65,8 @@ type operation =
   | Iload of Cmm.memory_chunk * Arch.addressing_mode
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
                                  (* false = initialization, true = assignment *)
-  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo; }
+  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
+                mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
   | Icompf of float_comparison
@@ -83,6 +84,7 @@ type operation =
             identifier is forgotten. *)
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
+  | Ibeginregion | Iendregion
 
 type instruction =
   { desc: instruction_desc;
