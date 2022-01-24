@@ -29,6 +29,11 @@ type native_repr =
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
 
+type mode =
+  | Prim_local
+  | Prim_global
+  | Prim_poly
+
 type description =
   { prim_name: string;         (* Name of primitive  or C function *)
     prim_arity: int;           (* Number of arguments *)
@@ -37,8 +42,8 @@ type description =
     prim_effects: effects;
     prim_coeffects: coeffects;
     prim_native_name: string;  (* Name of C function for the nat. code gen. *)
-    prim_native_repr_args: native_repr list;
-    prim_native_repr_res: native_repr }
+    prim_native_repr_args: (mode * native_repr) list;
+    prim_native_repr_res: mode * native_repr }
 
 type error =
   | Old_style_float_with_native_repr_attribute
@@ -50,22 +55,22 @@ type error =
 exception Error of Location.t * error
 
 let is_ocaml_repr = function
-  | Same_as_ocaml_repr -> true
-  | Unboxed_float
-  | Unboxed_integer _
-  | Untagged_int -> false
+  | _, Same_as_ocaml_repr -> true
+  | _, Unboxed_float
+  | _, Unboxed_integer _
+  | _, Untagged_int -> false
 
 let is_unboxed = function
-  | Same_as_ocaml_repr
-  | Untagged_int -> false
-  | Unboxed_float
-  | Unboxed_integer _ -> true
+  | _, Same_as_ocaml_repr
+  | _, Untagged_int -> false
+  | _, Unboxed_float
+  | _, Unboxed_integer _ -> true
 
 let is_untagged = function
-  | Untagged_int -> true
-  | Same_as_ocaml_repr
-  | Unboxed_float
-  | Unboxed_integer _ -> false
+  | _, Untagged_int -> true
+  | _, Same_as_ocaml_repr
+  | _, Unboxed_float
+  | _, Unboxed_integer _ -> false
 
 let rec make_native_repr_args arity x =
   if arity = 0 then
@@ -81,8 +86,9 @@ let simple ~name ~arity ~alloc =
    prim_effects = Arbitrary_effects;
    prim_coeffects = Has_coeffects;
    prim_native_name = "";
-   prim_native_repr_args = make_native_repr_args arity Same_as_ocaml_repr;
-   prim_native_repr_res = Same_as_ocaml_repr}
+   prim_native_repr_args =
+     make_native_repr_args arity (Prim_global, Same_as_ocaml_repr);
+   prim_native_repr_res = (Prim_global, Same_as_ocaml_repr) }
 
 let make ~name ~alloc ~c_builtin ~effects ~coeffects
       ~native_name ~native_repr_args ~native_repr_res =
@@ -94,7 +100,7 @@ let make ~name ~alloc ~c_builtin ~effects ~coeffects
    prim_coeffects = coeffects;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
-   prim_native_repr_res = native_repr_res}
+   prim_native_repr_res = native_repr_res }
 
 let parse_declaration valdecl ~native_repr_args ~native_repr_res =
   let arity = List.length native_repr_args in
@@ -171,7 +177,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_native_repr_args arity Unboxed_float, Unboxed_float)
+      (make_native_repr_args arity (Prim_global, Unboxed_float),
+       (Prim_global, Unboxed_float))
     else
       (native_repr_args, native_repr_res)
   in
@@ -183,7 +190,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
    prim_coeffects = coeffects;
    prim_native_name = native_name;
    prim_native_repr_args = native_repr_args;
-   prim_native_repr_res = native_repr_res}
+   prim_native_repr_res = native_repr_res }
 
 open Outcometree
 
@@ -242,10 +249,10 @@ let print p osig_val_decl =
       attrs
   in
   let attr_of_native_repr = function
-    | Same_as_ocaml_repr -> None
-    | Unboxed_float
-    | Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
-    | Untagged_int -> if all_untagged then None else Some oattr_untagged
+    | _, Same_as_ocaml_repr -> None
+    | _, Unboxed_float
+    | _, Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
+    | _, Untagged_int -> if all_untagged then None else Some oattr_untagged
   in
   let type_attrs =
     List.map attr_of_native_repr p.prim_native_repr_args @
@@ -267,6 +274,15 @@ let byte_name p =
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
+
+let inst_mode mode p =
+  let inst_repr = function
+    | Prim_poly, r -> mode, r
+    | (Prim_global|Prim_local) as m, r -> m, r
+  in
+  { p with
+    prim_native_repr_args = List.map inst_repr p.prim_native_repr_args;
+    prim_native_repr_res = inst_repr p.prim_native_repr_res }
 
 let report_error ppf err =
   match err with

@@ -1812,7 +1812,7 @@ let code_force_lazy = get_mod_field "CamlinternalLazy" "force"
 
 let lazy_forward_field = Lambda.Pfield (0, Reads_vary)
 
-let inline_lazy_force_cond arg loc =
+let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
@@ -1846,14 +1846,16 @@ let inline_lazy_force_cond arg loc =
                       ap_loc = loc;
                       ap_func = force_fun;
                       ap_args = [ varg ];
+                      ap_region_close = pos;
+                      ap_mode = Alloc_heap;
                       ap_inlined = Default_inlined;
                       ap_specialised = Default_specialise;
-                       ap_probe=None
+                      ap_probe=None
                     },
                   (* ... arg *)
                   varg ) ) ) )
 
-let inline_lazy_force_switch arg loc =
+let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
   let varg = Lvar idarg in
   let force_fun = Lazy.force code_force_lazy_block in
@@ -1880,6 +1882,8 @@ let inline_lazy_force_switch arg loc =
                           ap_loc = loc;
                           ap_func = force_fun;
                           ap_args = [ varg ];
+                          ap_region_close = pos;
+                          ap_mode = Alloc_heap;
                           ap_inlined = Default_inlined;
                           ap_specialised = Default_specialise;
                           ap_probe=None;
@@ -1889,7 +1893,7 @@ let inline_lazy_force_switch arg loc =
               },
               loc ) ) )
 
-let inline_lazy_force arg loc =
+let inline_lazy_force arg pos loc =
   if !Clflags.afl_instrument then
     (* Disable inlining optimisation if AFL instrumentation active,
        so that the GC forwarding optimisation is not visible in the
@@ -1900,6 +1904,8 @@ let inline_lazy_force arg loc =
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ arg ];
+        ap_region_close = pos;
+        ap_mode = Alloc_heap;
         ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_probe=None;
@@ -1908,15 +1914,15 @@ let inline_lazy_force arg loc =
     (* CR vlaviron: Find a way for Flambda 2 to avoid both the call to
        caml_obj_tag and the switch on arbitrary tags *)
     (* Lswitch generates compact and efficient native code *)
-    inline_lazy_force_switch arg loc
+    inline_lazy_force_switch arg pos loc
   else
     (* generating bytecode: Lswitch would generate too many rather big
          tables (~ 250 elts); conditionals are better *)
-    inline_lazy_force_cond arg loc
+    inline_lazy_force_cond arg pos loc
 
 let get_expr_args_lazy ~scopes head (arg, _mut) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg loc, Strict) :: rem
+  (inline_lazy_force arg Rc_normal loc, Strict) :: rem
 
 let divide_lazy ~scopes head ctx pm =
   divide_line (Context.specialize head)
@@ -1991,7 +1997,9 @@ let get_expr_args_record ~scopes head (arg, _mut) rem =
         | Record_inlined _ ->
             Lprim (Pfield (lbl.lbl_pos, sem), [ arg ], loc)
         | Record_unboxed _ -> arg
-        | Record_float -> Lprim (Pfloatfield (lbl.lbl_pos, sem), [ arg ], loc)
+        | Record_float ->
+           (* TODO: could optimise to Alloc_local sometimes *)
+           Lprim (Pfloatfield (lbl.lbl_pos, sem, Alloc_heap), [ arg ], loc)
         | Record_extension _ ->
             Lprim (Pfield (lbl.lbl_pos + 1, sem), [ arg ], loc)
       in
@@ -3367,7 +3375,7 @@ let failure_handler ~scopes loc ~failer () =
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None),
+            ( Pmakeblock (0, Immutable, None, Alloc_heap),
               [ slot;
                 Lconst
                   (Const_block
@@ -3519,6 +3527,7 @@ let rec map_return f = function
   | ( Lvar _ | Lconst _ | Lapply _ | Lfunction _ | Lsend _ | Lprim _ | Lwhile _
     | Lfor _ | Lassign _ | Lifused _ ) as l ->
       f l
+  | Lregion l -> Lregion (map_return f l)
 
 (* The 'opt' reference indicates if the optimization is worthy.
 
@@ -3694,7 +3703,7 @@ let compile_flattened ~scopes repr partial ctx pmh =
       let lam, total = compile_match_nonempty ~scopes repr partial ctx b in
       compile_orhandlers (compile_match ~scopes repr partial) lam total ctx hs
 
-let do_for_multiple_match ~scopes loc paraml pat_act_list partial =
+let do_for_multiple_match ~scopes loc paraml mode pat_act_list partial =
   let repr = None in
   let partial = check_partial pat_act_list partial in
   let raise_num, arg, pm1 =
@@ -3708,7 +3717,8 @@ let do_for_multiple_match ~scopes loc paraml pat_act_list partial =
       | Total -> (-1, Default_environment.empty)
     in
     let loc = Scoped_location.of_location ~scopes loc in
-    let arg = Lprim (Pmakeblock (0, Immutable, None), paraml, loc) in
+    let arg = Lprim (Pmakeblock (0, Immutable, None, mode),
+                     paraml, loc) in
     ( raise_num,
       arg,
       { cases = List.map (fun (pat, act) -> ([ pat ], act)) pat_act_list;
@@ -3769,8 +3779,8 @@ let bind_opt (v, eo) k =
   | None -> k
   | Some e -> Lambda.bind Strict v e k
 
-let for_multiple_match ~scopes loc paraml pat_act_list partial =
+let for_multiple_match ~scopes loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml = List.map (fun (v, _) -> Lvar v) v_paraml in
   List.fold_right bind_opt v_paraml
-    (do_for_multiple_match ~scopes loc paraml pat_act_list partial)
+    (do_for_multiple_match ~scopes loc paraml mode pat_act_list partial)

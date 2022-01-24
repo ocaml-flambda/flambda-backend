@@ -127,7 +127,7 @@ let make_array ~loc ~kind ~size ~array =
       (* This array can be Immutable since it is empty and will later be 
          replaced when an example value (to create the array) is known.
          That is also why the biding is a Variable. *)
-      let init = Lprim(Pmakearray(Pgenarray, Immutable), [] ,loc) in
+      let init = Lprim(Pmakearray(Pgenarray, Immutable, Alloc_heap), [], loc) in
       binding Variable Pgenval array init
   | Pintarray | Paddrarray ->
       let init = make_array_prim ~loc size (int 0) in
@@ -439,15 +439,19 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
       pat_id , pval, args, func, body, mats
   in
   let fn =
-    Lfunction {kind = Curried;
+    Lfunction {kind = Curried {nlocal=0};
               params= [param, pval; acc_var, Pgenval];
               return = Pgenval;
               attr = default_function_attribute;
               loc = loc;
-              body = body}
+              body = body;
+              mode = Alloc_heap;
+              region = true}
   in
   Lapply{
     ap_loc=loc;
+    ap_region_close=Rc_normal;
+    ap_mode=Alloc_heap;
     ap_func=func;
     ap_args= fn::args;
     ap_tailcall=Default_tailcall;
@@ -460,7 +464,7 @@ let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
   let acc_var = Ident.create_local "acc" in
   let bdy =
     Lprim(
-      Pmakeblock(0, Immutable, None),
+      Pmakeblock(0, Immutable, None, Alloc_heap),
       [(transl_exp ~scopes  body); Lvar(acc_var)], loc)
   in
   let res_list, res_var = List.fold_left
@@ -489,6 +493,8 @@ let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
         ap_loc=loc;
         ap_func=comp_rev ();
         ap_args=[res_list];
+        ap_region_close=Rc_normal;
+        ap_mode=Alloc_heap;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;

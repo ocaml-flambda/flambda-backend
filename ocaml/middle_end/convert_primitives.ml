@@ -24,9 +24,9 @@ let convert_unsafety is_unsafe : Clambda_primitives.is_safe =
 
 let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   match prim with
-  | Pmakeblock (tag, mutability, shape) ->
+  | Pmakeblock (tag, mutability, shape, _) ->
       Pmakeblock (tag, mutability, shape)
-  | Pmakefloatblock mutability ->
+  | Pmakefloatblock (mutability, _) ->
       Pmakearray (Pfloatarray, mutability)
   | Pfield (field, _) -> Pfield field
   | Pfield_computed _sem -> Pfield_computed
@@ -34,7 +34,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Psetfield (field, imm_or_pointer, init_or_assign)
   | Psetfield_computed (imm_or_pointer, init_or_assign) ->
       Psetfield_computed (imm_or_pointer, init_or_assign)
-  | Pfloatfield (field, _sem) -> Pfloatfield field
+  | Pfloatfield (field, _sem, _mode) -> Pfloatfield field
   | Psetfloatfield (field, init_or_assign) ->
       Psetfloatfield (field, init_or_assign)
   | Pduprecord (repr, size) -> Pduprecord (repr, size)
@@ -62,13 +62,13 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Poffsetint offset -> Poffsetint offset
   | Poffsetref offset -> Poffsetref offset
   | Pintoffloat -> Pintoffloat
-  | Pfloatofint -> Pfloatofint
-  | Pnegfloat -> Pnegfloat
-  | Pabsfloat -> Pabsfloat
-  | Paddfloat -> Paddfloat
-  | Psubfloat -> Psubfloat
-  | Pmulfloat -> Pmulfloat
-  | Pdivfloat -> Pdivfloat
+  | Pfloatofint _ -> Pfloatofint
+  | Pnegfloat _ -> Pnegfloat
+  | Pabsfloat _ -> Pabsfloat
+  | Paddfloat _ -> Paddfloat
+  | Psubfloat _ -> Psubfloat
+  | Pmulfloat _ -> Pmulfloat
+  | Pdivfloat _ -> Pdivfloat
   | Pfloatcomp comp -> Pfloatcomp comp
   | Pstringlength -> Pstringlength
   | Pstringrefu -> Pstringrefu
@@ -78,7 +78,7 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytessetu -> Pbytessetu
   | Pbytesrefs -> Pbytesrefs
   | Pbytessets -> Pbytessets
-  | Pmakearray (kind, mutability) -> Pmakearray (kind, mutability)
+  | Pmakearray (kind, mutability, _) -> Pmakearray (kind, mutability)
   | Pduparray (kind, mutability) -> Pduparray (kind, mutability)
   | Parraylength kind -> Parraylength kind
   | Parrayrefu kind -> Parrayrefu kind
@@ -87,20 +87,20 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Parraysets kind -> Parraysets kind
   | Pisint -> Pisint
   | Pisout -> Pisout
-  | Pcvtbint (src, dest) -> Pcvtbint (src, dest)
-  | Pnegbint bi -> Pnegbint bi
-  | Paddbint bi -> Paddbint bi
-  | Psubbint bi -> Psubbint bi
-  | Pmulbint bi -> Pmulbint bi
-  | Pbintofint bi -> Pbintofint bi
+  | Pcvtbint (src, dest, _) -> Pcvtbint (src, dest)
+  | Pnegbint (bi, _) -> Pnegbint bi
+  | Paddbint (bi, _) -> Paddbint bi
+  | Psubbint (bi, _) -> Psubbint bi
+  | Pmulbint (bi, _) -> Pmulbint bi
+  | Pbintofint (bi, _) -> Pbintofint bi
   | Pintofbint bi -> Pintofbint bi
-  | Pandbint bi -> Pandbint bi
-  | Porbint bi -> Porbint bi
-  | Pxorbint bi -> Pxorbint bi
-  | Plslbint bi -> Plslbint bi
-  | Plsrbint bi -> Plsrbint bi
-  | Pasrbint bi -> Pasrbint bi
-  | Pbbswap bi -> Pbbswap bi
+  | Pandbint (bi, _) -> Pandbint bi
+  | Porbint (bi, _) -> Porbint bi
+  | Pxorbint (bi, _) -> Pxorbint bi
+  | Plslbint (bi, _) -> Plslbint bi
+  | Plsrbint (bi, _) -> Plsrbint bi
+  | Pasrbint (bi, _) -> Pasrbint bi
+  | Pbbswap (bi, _) -> Pbbswap bi
   | Pdivbint { size; is_safe } -> Pdivbint { size; is_safe }
   | Pmodbint { size; is_safe } -> Pmodbint { size; is_safe }
   | Pbintcomp (bi, comp) -> Pbintcomp (bi, comp)
@@ -110,15 +110,15 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbigarrayset (safe, dims, kind, layout)
   | Pstring_load_16 is_unsafe ->
       Pstring_load (Sixteen, convert_unsafety is_unsafe)
-  | Pstring_load_32 is_unsafe ->
+  | Pstring_load_32 (is_unsafe, _) ->
       Pstring_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pstring_load_64 is_unsafe ->
+  | Pstring_load_64 (is_unsafe, _) ->
       Pstring_load (Sixty_four, convert_unsafety is_unsafe)
   | Pbytes_load_16 is_unsafe ->
       Pbytes_load (Sixteen, convert_unsafety is_unsafe)
-  | Pbytes_load_32 is_unsafe ->
+  | Pbytes_load_32 (is_unsafe, _) ->
       Pbytes_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pbytes_load_64 is_unsafe ->
+  | Pbytes_load_64 (is_unsafe, _) ->
       Pbytes_load (Sixty_four, convert_unsafety is_unsafe)
   | Pbytes_set_16 is_unsafe ->
       Pbytes_set (Sixteen, convert_unsafety is_unsafe)
@@ -128,9 +128,9 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
       Pbytes_set (Sixty_four, convert_unsafety is_unsafe)
   | Pbigstring_load_16 is_unsafe ->
       Pbigstring_load (Sixteen, convert_unsafety is_unsafe)
-  | Pbigstring_load_32 is_unsafe ->
+  | Pbigstring_load_32 (is_unsafe, _) ->
       Pbigstring_load (Thirty_two, convert_unsafety is_unsafe)
-  | Pbigstring_load_64 is_unsafe ->
+  | Pbigstring_load_64 (is_unsafe, _) ->
       Pbigstring_load (Sixty_four, convert_unsafety is_unsafe)
   | Pbigstring_set_16 is_unsafe ->
       Pbigstring_set (Sixteen, convert_unsafety is_unsafe)
@@ -148,8 +148,8 @@ let convert (prim : Lambda.primitive) : Clambda_primitives.primitive =
   | Pbytes_of_string
   | Pctconst _
   | Pignore
-  | Prevapply
-  | Pdirapply
+  | Prevapply _
+  | Pdirapply _
   | Pidentity
   | Pgetglobal _
   | Psetglobal _

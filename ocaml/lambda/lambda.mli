@@ -66,19 +66,19 @@ type primitive =
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply
-  | Pdirapply
+  | Prevapply of region_close
+  | Pdirapply of region_close
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape
-  | Pmakefloatblock of mutable_flag
+  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakefloatblock of mutable_flag * alloc_mode
   | Pfield of int * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int * field_read_semantics
+  | Pfloatfield of int * field_read_semantics * alloc_mode
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
@@ -98,15 +98,16 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pintoffloat | Pfloatofint
-  | Pnegfloat | Pabsfloat
-  | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat
+  | Pintoffloat | Pfloatofint of alloc_mode
+  | Pnegfloat of alloc_mode | Pabsfloat of alloc_mode
+  | Paddfloat of alloc_mode | Psubfloat of alloc_mode
+  | Pmulfloat of alloc_mode | Pdivfloat of alloc_mode
   | Pfloatcomp of float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
-  | Pmakearray of array_kind * mutable_flag
+  | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
@@ -121,21 +122,22 @@ type primitive =
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
-  | Pbintofint of boxed_integer
+  | Pbintofint of boxed_integer * alloc_mode
   | Pintofbint of boxed_integer
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
-  | Pnegbint of boxed_integer
-  | Paddbint of boxed_integer
-  | Psubbint of boxed_integer
-  | Pmulbint of boxed_integer
-  | Pdivbint of { size : boxed_integer; is_safe : is_safe }
-  | Pmodbint of { size : boxed_integer; is_safe : is_safe }
-  | Pandbint of boxed_integer
-  | Porbint of boxed_integer
-  | Pxorbint of boxed_integer
-  | Plslbint of boxed_integer
-  | Plsrbint of boxed_integer
-  | Pasrbint of boxed_integer
+                * alloc_mode
+  | Pnegbint of boxed_integer * alloc_mode
+  | Paddbint of boxed_integer * alloc_mode
+  | Psubbint of boxed_integer * alloc_mode
+  | Pmulbint of boxed_integer * alloc_mode
+  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
+  | Pandbint of boxed_integer * alloc_mode
+  | Porbint of boxed_integer * alloc_mode
+  | Pxorbint of boxed_integer * alloc_mode
+  | Plslbint of boxed_integer * alloc_mode
+  | Plsrbint of boxed_integer * alloc_mode
+  | Pasrbint of boxed_integer * alloc_mode
   | Pbintcomp of boxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
@@ -144,19 +146,19 @@ type primitive =
   | Pbigarraydim of int
   (* load/set 16,32,64 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
-  | Pstring_load_32 of bool
-  | Pstring_load_64 of bool
+  | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_64 of bool * alloc_mode
   | Pbytes_load_16 of bool
-  | Pbytes_load_32 of bool
-  | Pbytes_load_64 of bool
+  | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_64 of bool
   (* load/set 16,32,64 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of bool
-  | Pbigstring_load_32 of bool
-  | Pbigstring_load_64 of bool
+  | Pbigstring_load_32 of bool * alloc_mode
+  | Pbigstring_load_64 of bool * alloc_mode
   | Pbigstring_set_16 of bool
   | Pbigstring_set_32 of bool
   | Pbigstring_set_64 of bool
@@ -164,7 +166,7 @@ type primitive =
   | Pctconst of compile_time_constant
   (* byte swap *)
   | Pbswap16
-  | Pbbswap of boxed_integer
+  | Pbbswap of boxed_integer * alloc_mode
   (* Integer to external pointer *)
   | Pint_as_pointer
   (* Inhibition of optimisation *)
@@ -267,7 +269,10 @@ type local_attribute =
   | Never_local (* [@local never] *)
   | Default_local (* [@local maybe] or no [@local] attribute *)
 
-type function_kind = Curried | Tupled
+type function_kind = Curried of {nlocal: int} | Tupled
+(* [nlocal] determines how many arguments may be partially applied
+   before the resulting closure must be locally allocated.
+   See [check_lfunction] for details *)
 
 type let_kind = Strict | Alias | StrictOpt | Variable
 (* Meaning of kinds for let x = e in e':
@@ -320,9 +325,11 @@ type lambda =
   | Lwhile of lambda * lambda
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
   | Lassign of Ident.t * lambda
-  | Lsend of meth_kind * lambda * lambda * lambda list * scoped_location
+  | Lsend of meth_kind * lambda * lambda * lambda list
+             * region_close * alloc_mode * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
+  | Lregion of lambda
 
 and lfunction =
   { kind: function_kind;
@@ -330,11 +337,17 @@ and lfunction =
     return: value_kind;
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
-    loc : scoped_location; }
+    loc : scoped_location;
+    mode : alloc_mode;     (* alloc mode of the closure itself *)
+    region : bool;         (* false if this function may locally
+                              allocate in the caller's region *)
+  }
 
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
+    ap_region_close : region_close;
+    ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
     ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
@@ -385,6 +398,7 @@ val make_key: lambda -> lambda option
 val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
+val check_lfunction : lfunction -> unit
 val name_lambda: let_kind -> lambda -> (Ident.t -> lambda) -> lambda
 val name_lambda_list: lambda list -> (lambda list -> lambda) -> lambda
 
@@ -446,7 +460,10 @@ val map : (lambda -> lambda) -> lambda -> lambda
   (** Bottom-up rewriting, applying the function on
       each node from the leaves to the root. *)
 
-val shallow_map  : (lambda -> lambda) -> lambda -> lambda
+val shallow_map  :
+  tail:(lambda -> lambda) ->
+  non_tail:(lambda -> lambda) ->
+  lambda -> lambda
   (** Rewrite each immediate sub-term with the function. *)
 
 val bind : let_kind -> Ident.t -> lambda -> lambda -> lambda
@@ -462,8 +479,6 @@ val swap_float_comparison : float_comparison -> float_comparison
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
 
-val function_is_curried : lfunction -> bool
-
 val max_arity : unit -> int
   (** Maximal number of parameters for a function, or in other words,
       maximal length of the [params] list of a [lfunction] record.
@@ -473,6 +488,11 @@ val max_arity : unit -> int
 val join_mode : alloc_mode -> alloc_mode -> alloc_mode
 val sub_mode : alloc_mode -> alloc_mode -> bool
 val eq_mode : alloc_mode -> alloc_mode -> bool
+
+val primitive_may_allocate : primitive -> alloc_mode option
+  (** Whether and where a primitive may allocate.
+      [Some Alloc_local] permits both options: that is, primitives that
+      may allocate on both the GC heap and locally report this value. *)
 
 (***********************)
 (* For static failures *)

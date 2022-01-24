@@ -34,12 +34,17 @@ val check_primitive_arity :
 
 val transl_primitive :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
-  Types.type_expr -> Path.t option -> Lambda.lambda
+  Types.type_expr ->
+  poly_mode:Lambda.alloc_mode ->
+  Path.t option ->
+  Lambda.lambda
 
 val transl_primitive_application :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
-  Types.type_expr -> Path.t -> Typedtree.expression option ->
-  Lambda.lambda list -> Typedtree.expression list -> Lambda.lambda
+  Types.type_expr -> Lambda.alloc_mode -> Path.t ->
+  Typedtree.expression option ->
+  Lambda.lambda list -> Typedtree.expression list ->
+  Lambda.region_close -> Lambda.lambda
 
 (* Errors *)
 

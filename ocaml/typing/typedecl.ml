@@ -1280,12 +1280,12 @@ let make_native_repr env core_type ty ~global_repr =
   error_if_has_deep_native_repr_attributes core_type;
   match get_native_repr_attribute core_type.ptyp_attributes ~global_repr with
   | Native_repr_attr_absent ->
-    Same_as_ocaml_repr
+    Primitive.Prim_global, Same_as_ocaml_repr
   | Native_repr_attr_present kind ->
     begin match native_repr_of_type env kind ty with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
-    | Some repr -> repr
+    | Some repr -> Primitive.Prim_global, repr
     end
 
 let rec parse_native_repr_attributes env core_type ty ~global_repr =

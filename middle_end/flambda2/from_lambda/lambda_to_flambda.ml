@@ -375,10 +375,12 @@ let transform_primitive env (prim : L.primitive) args loc =
     let ident = Ident.create_local "ignore" in
     let result = L.Lconst (Const_base (Const_int 0)) in
     Transformed (L.Llet (Strict, Pgenval, ident, arg, result))
-  | Pdirapply, [funct; arg] | Prevapply, [arg; funct] ->
+  | Pdirapply pos, [funct; arg] | Prevapply pos, [arg; funct] ->
     let apply : L.lambda_apply =
       { ap_func = funct;
         ap_args = [arg];
+        ap_region_close = pos;
+        ap_mode = Alloc_heap;
         ap_loc = loc;
         ap_tailcall = Default_tailcall;
         (* CR-someday lwhite: it would be nice to be able to give inlined
@@ -399,13 +401,13 @@ let transform_primitive env (prim : L.primitive) args loc =
       "[Psetfield (Pgetglobal ...)] is forbidden upon entry to the middle end"
   | Pfield (index, _), _ when index < 0 ->
     Misc.fatal_error "Pfield with negative field index"
-  | Pfloatfield (i, _), _ when i < 0 ->
+  | Pfloatfield (i, _, _), _ when i < 0 ->
     Misc.fatal_error "Pfloatfield with negative field index"
   | Psetfield (index, _, _), _ when index < 0 ->
     Misc.fatal_error "Psetfield with negative field index"
-  | Pmakeblock (tag, _, _), _ when tag < 0 || tag >= Obj.no_scan_tag ->
+  | Pmakeblock (tag, _, _, _), _ when tag < 0 || tag >= Obj.no_scan_tag ->
     Misc.fatal_errorf "Pmakeblock with wrong or non-scannable block tag %d" tag
-  | Pmakefloatblock _mut, args when List.length args < 1 ->
+  | Pmakefloatblock (_mut, _mode), args when List.length args < 1 ->
     Misc.fatal_errorf "Pmakefloatblock must have at least one argument"
   | Pfloatcomp CFnlt, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFlt, args, loc)], loc)
@@ -571,17 +573,17 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pccall _ | Praise _ | Parrayrefs _ | Parraysets _ | Pmodint _ | Pdivint _
   | Pstringrefs | Pbytesrefs | Pbytessets
   | Pstring_load_16 false
-  | Pstring_load_32 false
-  | Pstring_load_64 false
+  | Pstring_load_32 (false, _)
+  | Pstring_load_64 (false, _)
   | Pbytes_load_16 false
-  | Pbytes_load_32 false
-  | Pbytes_load_64 false
+  | Pbytes_load_32 (false, _)
+  | Pbytes_load_64 (false, _)
   | Pbytes_set_16 false
   | Pbytes_set_32 false
   | Pbytes_set_64 false
   | Pbigstring_load_16 false
-  | Pbigstring_load_32 false
-  | Pbigstring_load_64 false
+  | Pbigstring_load_32 (false, _)
+  | Pbigstring_load_64 (false, _)
   | Pbigstring_set_16 false
   | Pbigstring_set_32 false
   | Pbigstring_set_64 false
@@ -596,34 +598,34 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
   | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
     true
-  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply
-  | Pdirapply | Pgetglobal _ | Psetglobal _ | Pmakeblock _ | Pmakefloatblock _
+  | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
+  | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pmakeblock _ | Pmakefloatblock _
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
   | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Psequand | Psequor | Pnot
   | Pnegint | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
   | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats
-  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint
-  | Pnegfloat | Pabsfloat | Paddfloat | Psubfloat | Pmulfloat | Pdivfloat
-  | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
-  | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _
-  | Parraysetu _ | Pisint | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
-  | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Pbigarraydim _
+  | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat | Pfloatofint _
+  | Pnegfloat _ | Pabsfloat _ | Paddfloat _ | Psubfloat _ | Pmulfloat _
+  | Pdivfloat _ | Pfloatcomp _ | Pstringlength | Pstringrefu | Pbyteslength
+  | Pbytesrefu | Pbytessetu | Pmakearray _ | Pduparray _ | Parraylength _
+  | Parrayrefu _ | Parraysetu _ | Pisint | Pisout | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
+  | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
+  | Pasrbint _ | Pbintcomp _ | Pbigarraydim _
   | Pbigarrayref (true, _, _, _)
   | Pbigarrayset (true, _, _, _)
   | Pstring_load_16 true
-  | Pstring_load_32 true
-  | Pstring_load_64 true
+  | Pstring_load_32 (true, _)
+  | Pstring_load_64 (true, _)
   | Pbytes_load_16 true
-  | Pbytes_load_32 true
-  | Pbytes_load_64 true
+  | Pbytes_load_32 (true, _)
+  | Pbytes_load_64 (true, _)
   | Pbytes_set_16 true
   | Pbytes_set_32 true
   | Pbytes_set_64 true
   | Pbigstring_load_16 true
-  | Pbigstring_load_32 true
-  | Pbigstring_load_64 true
+  | Pbigstring_load_32 (true, _)
+  | Pbigstring_load_64 (true, _)
   | Pbigstring_set_16 true
   | Pbigstring_set_32 true
   | Pbigstring_set_64 true
@@ -648,12 +650,15 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
   | Lapply
       { ap_func;
         ap_args;
+        ap_region_close = _;
+        ap_mode;
         ap_loc;
         ap_tailcall;
         ap_inlined;
         ap_specialised;
         ap_probe
       } ->
+    LC.alloc_mode ap_mode;
     cps_non_tail_list acc env ccenv ap_args
       (fun acc env ccenv args ->
         cps_non_tail acc env ccenv ap_func
@@ -832,7 +837,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false
           ~params ~recursive ~body ~handler)
       ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
-  | Lsend (meth_kind, meth, obj, args, loc) ->
+  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
+    LC.alloc_mode mode;
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -933,6 +939,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion _ -> LC.local_unsupported ()
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
@@ -944,7 +951,7 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
   | Lapply _ | Lfunction _ | Llet _ | Lletrec _ | Lprim _ | Lswitch _
   | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
   | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
-  | Levent _ | Lifused _ ->
+  | Levent _ | Lifused _ | Lregion _ ->
     cps_non_tail acc env ccenv lam
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
@@ -1143,7 +1150,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     in
     CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false ~params
       ~recursive ~body ~handler
-  | Lsend (meth_kind, meth, obj, args, loc) ->
+  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
+    LC.alloc_mode mode;
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -1229,6 +1237,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
+  | Lregion _ -> LC.local_unsupported ()
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
@@ -1269,11 +1278,12 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     List.map
       (fun (fun_id, binding) ->
         match binding with
-        | L.Lfunction { kind; params; body = fbody; attr; loc; return; _ } ->
-          begin
+        | L.Lfunction
+            { kind; params; body = fbody; attr; loc; mode; region; return; _ }
+          -> begin
           match
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-              ~return ~attr ~loc
+              ~return ~attr ~loc ~mode ~region
           with
           | ([(_, L.Lfunction _)] | [(_, L.Lfunction _); (_, L.Lfunction _)]) as
             binding ->
@@ -1358,8 +1368,9 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
     [] bindings_with_wrappers
 
 and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
-    ({ kind; params; return; body; attr; loc } : L.lfunction) : Function_decl.t
-    =
+    ({ kind; params; return; body; attr; loc; mode; region = _ } : L.lfunction)
+    : Function_decl.t =
+  LC.alloc_mode mode;
   let body_cont = Continuation.create ~sort:Return () in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
@@ -1442,6 +1453,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in
           consts_rev, wrappers
+        | Lregion _ -> LC.local_unsupported ()
         | Lvar _ (* mutable *)
         | Lapply _ | Lfunction _ | Llet _ | Lletrec _ | Lprim _ | Lswitch _
         | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
