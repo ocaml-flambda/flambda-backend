@@ -578,37 +578,32 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
 module Trap_depth_and_exn = struct
   type handler_stack = Label.t list
 
-  let equal_handler_stack : handler_stack -> handler_stack -> bool =
-   fun left right -> List.equal Label.equal left right
+  type handler_option = (Label.t * handler_stack) option ref
 
-  type handler_table = handler_stack Label.Tbl.t
-
-  let record_handler : handler_stack -> handler_table -> can_raise:bool -> unit
+  let record_handler : handler_stack -> handler_option -> can_raise:bool -> unit
       =
-   fun stack table ~can_raise ->
+   fun stack exceptional_successor ~can_raise ->
     if can_raise
     then
       match stack with
       | [] -> ()
       | handler_label :: handler_stack ->
-        Option.iter
-          (fun existing_stack ->
-            assert (equal_handler_stack existing_stack handler_stack))
-          (Label.Tbl.find_opt table handler_label);
-        Label.Tbl.replace table handler_label handler_stack
+        assert (Option.is_none !exceptional_successor);
+        exceptional_successor := Some (handler_label, handler_stack)
 
   let terminator :
-      handler_table ->
+      handler_option ->
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
       handler_stack =
-   fun table stack term ->
+   fun exceptional_successor stack term ->
     match term.desc with
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
-      record_handler stack table ~can_raise:(Cfg.can_raise_terminator term.desc);
+      record_handler stack exceptional_successor
+        ~can_raise:(Cfg.can_raise_terminator term.desc);
       stack
     | Tailcall (Self _) ->
       if List.length stack <> 0
@@ -619,11 +614,11 @@ module Trap_depth_and_exn = struct
       stack
 
   let basic :
-      handler_table ->
+      handler_option ->
       handler_stack ->
       Cfg.basic Cfg.instruction ->
       handler_stack =
-   fun table stack instr ->
+   fun exceptional_successor stack instr ->
     match instr.desc with
     | Pushtrap { lbl_handler } -> lbl_handler :: stack
     | Poptrap -> begin
@@ -634,7 +629,8 @@ module Trap_depth_and_exn = struct
       | _ :: stack -> stack
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
-      record_handler stack table ~can_raise:(Cfg.can_raise_basic instr.desc);
+      record_handler stack exceptional_successor
+        ~can_raise:(Cfg.can_raise_basic instr.desc);
       stack
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
@@ -643,30 +639,23 @@ module Trap_depth_and_exn = struct
     if block.trap_depth = invalid_trap_depth
     then begin
       block.trap_depth <- succ (List.length stack);
-      (* map from handlers reachable from the block to stacks at the start of
-         such blocks; used to both know which other blocks should be visited (as
-         exceptional successors) and to populate the `exn` field. *)
-      let table = Label.Tbl.create 17 in
+      let exceptional_successor = ref None in
       let stack =
-        terminator table
-          (ListLabels.fold_left block.body ~init:stack ~f:(basic table))
+        terminator exceptional_successor
+          (ListLabels.fold_left block.body ~init:stack
+             ~f:(basic exceptional_successor))
           block.terminator
       in
       (* non-exceptional successors *)
       Label.Set.iter
         (fun successor_label -> update_block cfg successor_label stack)
         (Cfg.successor_labels ~normal:true ~exn:false block);
-      if Label.Tbl.length table > 1
-      then
-        Misc.fatal_error
-          "Cfgize.Trap_depth_and_exn.update_block: block has more than one \
-           exception successor";
-      (* exceptional successors *)
-      Label.Tbl.iter
-        (fun handler_label handler_stack ->
+      (* exceptional successor *)
+      Option.iter
+        (fun (handler_label, handler_stack) ->
           block.exn <- Some handler_label;
           update_block cfg handler_label handler_stack)
-        table
+        !exceptional_successor
     end
     else assert (block.trap_depth = succ (List.length stack))
 
