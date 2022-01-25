@@ -611,7 +611,7 @@ let box_float dbg m c = Cop(Calloc m, [alloc_float_header m dbg; c], dbg)
 let unbox_float dbg =
   map_tail
     (function
-      | Cop(Calloc Alloc_heap, [Cconst_natint (hdr, _); c], _)
+      | Cop(Calloc _, [Cconst_natint (hdr, _); c], _)
         when Nativeint.equal hdr float_header ->
           c
       | Cconst_symbol (s, _dbg) as cmm ->
@@ -1190,20 +1190,20 @@ let unbox_int dbg bi =
   in
   map_tail
     (function
-      | Cop(Calloc Alloc_heap,
+      | Cop(Calloc _,
             [hdr; ops;
              Cop(Clsl, [contents; Cconst_int (32, _)], _dbg')], _dbg)
         when bi = Primitive.Pint32 && size_int = 8 && big_endian
              && alloc_matches_boxed_int bi ~hdr ~ops ->
           (* Force sign-extension of low 32 bits *)
           sign_extend_32 dbg contents
-      | Cop(Calloc Alloc_heap,
+      | Cop(Calloc _,
             [hdr; ops; contents], _dbg)
         when bi = Primitive.Pint32 && size_int = 8 && not big_endian
              && alloc_matches_boxed_int bi ~hdr ~ops ->
           (* Force sign-extension of low 32 bits *)
           sign_extend_32 dbg contents
-      | Cop(Calloc Alloc_heap, [hdr; ops; contents], _dbg)
+      | Cop(Calloc _, [hdr; ops; contents], _dbg)
         when alloc_matches_boxed_int bi ~hdr ~ops ->
           contents
       | Cconst_symbol (s, _dbg) as cmm ->

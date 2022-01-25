@@ -285,7 +285,7 @@ let equal_boxed_number bn1 bn2 =
   match bn1, bn2 with
   | Boxed_float _, Boxed_float _ -> true
   | Boxed_integer(ui1, m, _), Boxed_integer(ui2, m', _) ->
-    equal_unboxed_integer ui1 ui2 && m = m'
+    equal_unboxed_integer ui1 ui2 && Lambda.eq_mode m m'
   | _, _ -> false
 
 let box_number bn arg =
@@ -526,7 +526,7 @@ let rec transl env e =
             bigarray_get unsafe elt_kind layout
               (transl env arg1) (List.map (transl env) argl) dbg in
           begin match elt_kind with
-          (* TODO: local alloaction of bigarray elements *)
+          (* TODO: local allocation of bigarray elements *)
             Pbigarray_float32 | Pbigarray_float64 -> box_float dbg Alloc_heap elt
           | Pbigarray_complex32 | Pbigarray_complex64 -> elt
           | Pbigarray_int32 -> box_int dbg Pint32 Alloc_heap elt

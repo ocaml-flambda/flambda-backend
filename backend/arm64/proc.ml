@@ -288,6 +288,7 @@ let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  | Ibeginregion | Iendregion
   | Ispecific(Ishiftcheckbound _) -> false
   | _ -> true
 

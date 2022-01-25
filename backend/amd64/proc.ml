@@ -385,6 +385,8 @@ let max_register_pressure =
     consumes ~int:1 ~float:0
   | Istore(Single, _, _) | Icompf _ ->
     consumes ~int:0 ~float:1
+  | Iendregion ->
+    consumes ~int:1 ~float:0
   | Iintop(Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
            | Ipopcnt|Iclz _| Ictz _|Icheckbound)
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Iand | Ior | Ixor | Ilsl | Ilsr
@@ -404,7 +406,7 @@ let max_register_pressure =
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
              | Ibswap _ | Ifloatsqrtf _ | Isqrtf)
   | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion
+  | Ibeginregion
     -> consumes ~int:0 ~float:0
 
 (* Pure operations (without any side effect besides updating their result
