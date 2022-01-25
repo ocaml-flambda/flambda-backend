@@ -41,6 +41,8 @@ val create_import_map :
   original_compilation_unit:Compilation_unit.t ->
   t
 
+val has_import_map : t -> bool
+
 (** Note that [compose] is not commutative on the permutation component. The
     permutation in the result of [compose ~second ~first] is that permutation
     acting initially like [first] then subsequently like [second]. [second] must
