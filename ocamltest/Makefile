@@ -129,8 +129,8 @@ ocaml_plugin := \
   ocaml_backends.mli ocaml_backends.ml \
   ocaml_filetypes.mli ocaml_filetypes.ml \
   ocaml_variables.mli ocaml_variables.ml \
-  ocaml_modifiers.mli ocaml_modifiers.ml \
   ocaml_directories.mli ocaml_directories.ml \
+  ocaml_modifiers.mli ocaml_modifiers.ml \
   ocaml_files.mli ocaml_files.ml \
   ocaml_flags.mli ocaml_flags.ml \
   ocaml_commands.mli ocaml_commands.ml \
@@ -250,7 +250,7 @@ ocamltest.opt$(EXE): $(deps_opt) $(native_modules)
 %.ml: %.mll
 	$(ocamllex) $(OCAMLLEX_FLAGS) $<
 
-ocamltest_unix.ml: ocamltest_unix_$(ocamltest_unix).ml
+ocamltest_unix.ml: ocamltest_unix.$(ocamltest_unix).ml
 	echo '# 1 "$^"' > $@
 	cat $^ >> $@
 
@@ -292,6 +292,7 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	    $(call SUBST,WINDOWS_UNICODE) \
 	    $(call SUBST,FUNCTION_SECTIONS) \
 	    $(call SUBST,NAKED_POINTERS) \
+	    $(call SUBST,PROBES) \
 	    $< > $@
 
 # Manual

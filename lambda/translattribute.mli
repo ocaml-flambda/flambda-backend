@@ -55,11 +55,11 @@ val get_local_attribute
 
 val get_and_remove_inlined_attribute
    : Typedtree.expression
-  -> Lambda.inline_attribute * Typedtree.expression
+  -> Lambda.inlined_attribute * Typedtree.expression
 
 val get_and_remove_inlined_attribute_on_module
    : Typedtree.module_expr
-  -> Lambda.inline_attribute * Typedtree.module_expr
+  -> Lambda.inlined_attribute * Typedtree.module_expr
 
 val get_and_remove_specialised_attribute
    : Typedtree.expression

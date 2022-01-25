@@ -1,3 +1,4 @@
+# 1 "camlinternalMod.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Run-time support for recursive modules.
     All functions in this module are for system use only, not for the

@@ -1,3 +1,4 @@
+# 1 "stdLabels.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Standard labeled libraries.
 
@@ -29,6 +32,8 @@
    ]}
 
 *)
+
+[@@@ocaml.nolabels]
 
 module Array = ArrayLabels
 module Bytes = BytesLabels

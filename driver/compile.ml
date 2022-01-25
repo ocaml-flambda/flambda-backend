@@ -23,7 +23,10 @@ let with_info =
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
-  Compile_common.interface info
+  Compile_common.interface
+    ~hook_parse_tree:(fun _ -> ())
+    ~hook_typed_tree:(fun _ -> ())
+    info
 
 (** Bytecode compilation backend for .ml files. *)
 
@@ -54,13 +57,18 @@ let emit_bytecode i (bytecode, required_globals) =
          (Emitcode.to_file oc i.module_name cmofile ~required_globals);
     )
 
-let implementation ~start_from ~source_file ~output_prefix =
+let implementation ~start_from ~source_file ~output_prefix
+    ~keep_symbol_tables:_ =
   let backend info typed =
     let bytecode = to_bytecode info typed in
     emit_bytecode info bytecode
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmo" @@ fun info ->
   match (start_from : Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
+  | Parsing ->
+    Compile_common.implementation
+      ~hook_parse_tree:(fun _ -> ())
+      ~hook_typed_tree:(fun _ -> ())
+      info ~backend
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

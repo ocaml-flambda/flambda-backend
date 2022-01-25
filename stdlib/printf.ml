@@ -1,3 +1,4 @@
+# 1 "printf.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,12 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
+
+[@@@ocaml.warning "Ae"]
 
 open CamlinternalFormatBasics
 open CamlinternalFormat

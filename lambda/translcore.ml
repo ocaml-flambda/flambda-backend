@@ -43,6 +43,16 @@ let transl_object =
   ref (fun ~scopes:_ _id _s _cl -> assert false :
        scopes:scopes -> Ident.t -> string list -> class_expr -> lambda)
 
+(* Probe handlers are generated from %probe as closed functions
+   during transl_exp and immediately lifted to top level. *)
+let probe_handlers = ref []
+let clear_probe_handlers () = probe_handlers := []
+let declare_probe_handlers lam =
+  List.fold_left (fun acc (funcid, func) ->
+      Llet(Strict, Pgenval, funcid, func, acc))
+    lam
+    !probe_handlers
+
 (* Compile an exception/extension definition *)
 
 let prim_fresh_oo_id =
@@ -62,7 +72,7 @@ let transl_extension_constructor ~scopes env path ext =
   let loc = of_location ~scopes ext.ext_loc in
   match ext.ext_kind with
     Text_decl _ ->
-      Lprim (Pmakeblock (Obj.object_tag, Immutable, None),
+      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -359,16 +369,21 @@ and transl_exp0 ~in_new_scope ~scopes e =
         fields representation extended_expression
   | Texp_field(arg, _, lbl) ->
       let targ = transl_exp ~scopes arg in
+      let sem =
+        match lbl.lbl_mut with
+        | Immutable -> Reads_agree
+        | Mutable -> Reads_vary
+      in
       begin match lbl.lbl_repres with
           Record_regular | Record_inlined _ ->
-          Lprim (Pfield lbl.lbl_pos, [targ],
+          Lprim (Pfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_unboxed _ -> targ
         | Record_float ->
-          Lprim (Pfloatfield lbl.lbl_pos, [targ],
+          Lprim (Pfloatfield (lbl.lbl_pos, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_extension _ ->
-          Lprim (Pfield (lbl.lbl_pos + 1), [targ],
+          Lprim (Pfield (lbl.lbl_pos + 1, sem), [targ],
                  of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, _, lbl, newval) ->
@@ -447,6 +462,16 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_while(cond, body) ->
       Lwhile(transl_exp ~scopes cond,
              event_before ~scopes body (transl_exp ~scopes body))
+  | Texp_arr_comprehension (body, blocks) ->
+    (*One block consists of comprehension statements connected by "and".*)
+    let loc = of_location ~scopes e.exp_loc in
+    let array_kind = Typeopt.array_kind e in
+    Translcomprehension.transl_arr_comprehension
+      body blocks ~array_kind ~scopes ~loc ~transl_exp
+  | Texp_list_comprehension (body, blocks) ->
+    let loc = of_location ~scopes e.exp_loc in
+    Translcomprehension.transl_list_comprehension
+      body blocks ~scopes ~loc ~transl_exp
   | Texp_for(param, _, low, high, dir, body) ->
       Lfor(param, transl_exp ~scopes low, transl_exp ~scopes high, dir,
            event_before ~scopes body (transl_exp ~scopes body))
@@ -468,17 +493,19 @@ and transl_exp0 ~in_new_scope ~scopes e =
       Lapply{
         ap_loc=loc;
         ap_func=
-          Lprim(Pfield 0, [transl_class_path loc e.exp_env cl], loc);
+          Lprim(Pfield (0, Reads_vary),
+              [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
         ap_tailcall=Default_tailcall;
-        ap_inlined=Default_inline;
+        ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
+        ap_probe=None;
       }
   | Texp_instvar(path_self, path, _) ->
       let loc = of_location ~scopes e.exp_loc in
       let self = transl_value_path loc e.exp_env path_self in
       let var = transl_value_path loc e.exp_env path in
-      Lprim(Pfield_computed, [self; var], loc)
+      Lprim(Pfield_computed Reads_vary, [self; var], loc)
   | Texp_setinstvar(path_self, path, _, expr) ->
       let loc = of_location ~scopes e.exp_loc in
       let self = transl_value_path loc e.exp_env path_self in
@@ -494,8 +521,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_func=Translobj.oo_prim "copy";
              ap_args=[self];
              ap_tailcall=Default_tailcall;
-             ap_inlined=Default_inline;
+             ap_inlined=Default_inlined;
              ap_specialised=Default_specialise;
+             ap_probe=None;
            },
            List.fold_right
              (fun (path, _, expr) rem ->
@@ -565,6 +593,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
          transl_exp ~scopes e
       | `Other ->
          (* other cases compile to a lazy block holding a function *)
+         let scopes = enter_lazy ~scopes in
          let fn = Lfunction {kind = Curried;
                              params= [Ident.create_local "param", Pgenval];
                              return = Pgenval;
@@ -602,7 +631,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           let body, _ =
             List.fold_left (fun (body, pos) id ->
               Llet(Alias, Pgenval, id,
-                   Lprim(Pfield pos, [Lvar oid],
+                   Lprim(mod_field pos, [Lvar oid],
                          of_location ~scopes od.open_loc), body),
               pos + 1
             ) (transl_exp ~scopes e, 0)
@@ -611,6 +640,64 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Llet(pure, Pgenval, oid,
                !transl_module ~scopes Tcoerce_none None od.open_expr, body)
       end
+  | Texp_probe {name; handler=exp} ->
+    if !Clflags.native_code && !Clflags.probes then begin
+      let lam = transl_exp ~scopes exp in
+      let map =
+        Ident.Set.fold (fun v acc -> Ident.Map.add v (Ident.rename v) acc)
+          (free_variables lam)
+          Ident.Map.empty
+      in
+      let arg_idents, param_idents = Ident.Map.bindings map |> List.split in
+      let body = Lambda.rename map lam in
+      let attr =
+        { inline = Never_inline;
+          specialise = Always_specialise;
+          local = Never_local;
+          is_a_functor = false;
+          stub = false;
+        } in
+      let funcid = Ident.create_local ("probe_handler_" ^ name) in
+      let handler =
+        let scopes = enter_value_definition ~scopes funcid in
+        { kind = Curried;
+          params = List.map (fun v -> v, Pgenval) param_idents;
+          return = Pgenval;
+          body;
+          loc = of_location ~scopes exp.exp_loc;
+          attr;
+        }
+      in
+      let app =
+        { ap_func = Lvar funcid;
+          ap_args = List.map (fun id -> Lvar id) arg_idents;
+          ap_loc = of_location e.exp_loc ~scopes;
+          ap_tailcall = Default_tailcall;
+          ap_inlined = Never_inlined;
+          ap_specialised = Always_specialise;
+          ap_probe = Some {name};
+        }
+      in
+      begin match Config.flambda || Config.flambda2 with
+      | true ->
+          Llet(Strict, Pgenval, funcid, Lfunction handler, Lapply app)
+      | false ->
+        (* Needs to be lifted to top level manually here,
+           because functions that contain other function declarations
+           are not inlined by Closure. For example, adding a probe into
+           the body of function foo will prevent foo from being inlined
+           into another function. *)
+        probe_handlers := (funcid, Lfunction handler)::!probe_handlers;
+        Lapply app
+      end
+    end else begin
+      lambda_unit
+    end
+  | Texp_probe_is_enabled {name} ->
+    if !Clflags.native_code && !Clflags.probes then
+      Lprim(Pprobe_is_enabled {name}, [], of_location ~scopes e.exp_loc)
+    else
+      lambda_unit
 
 and pure_module m =
   match m.mod_desc with
@@ -665,11 +752,11 @@ and transl_tupled_cases ~scopes patl_expr_list =
 
 and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
-      ?(inlined = Default_inline)
+      ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
       lam sargs loc
   =
-  let lapply funct args =
+  let lapply loc funct args =
     match funct with
       Lsend(k, lmet, lobj, largs, _) ->
         Lsend(k, lmet, lobj, largs @ args, loc)
@@ -685,9 +772,10 @@ and transl_apply ~scopes
           ap_tailcall=tailcall;
           ap_inlined=inlined;
           ap_specialised=specialised;
+          ap_probe=None;
         }
   in
-  let rec build_apply lam args = function
+  let rec build_apply lam args loc = function
       (None, optional) :: l ->
         let defs = ref [] in
         let protect name lam =
@@ -703,7 +791,7 @@ and transl_apply ~scopes
           else args, []
         in
         let lam =
-          if args = [] then lam else lapply lam (List.rev_map fst args)
+          if args = [] then lam else lapply loc lam (List.rev_map fst args)
         in
         let handle = protect "func" lam in
         let l =
@@ -711,9 +799,11 @@ and transl_apply ~scopes
         in
         let id_arg = Ident.create_local "param" in
         let body =
-          match build_apply handle ((Lvar id_arg, optional)::args') l with
+          let loc = map_scopes enter_partial_or_eta_wrapper loc in
+          match build_apply handle ((Lvar id_arg, optional)::args') loc l with
             Lfunction{kind = Curried; params = ids; return;
-                      body = lam; attr; loc} ->
+                      body = lam; attr; loc}
+                when List.length ids < Lambda.max_arity () ->
               Lfunction{kind = Curried;
                         params = (id_arg, Pgenval)::ids;
                         return;
@@ -734,11 +824,11 @@ and transl_apply ~scopes
           (fun body (id, lam) -> Llet(Strict, Pgenval, id, lam, body))
           body !defs
     | (Some arg, optional) :: l ->
-        build_apply lam ((arg, optional) :: args) l
+        build_apply lam ((arg, optional) :: args) loc l
     | [] ->
-        lapply lam (List.rev_map fst args)
+        lapply loc lam (List.rev_map fst args)
   in
-  (build_apply lam [] (List.map (fun (l, x) ->
+  (build_apply lam [] loc (List.map (fun (l, x) ->
                                    Option.map (transl_exp ~scopes) x,
                                    Btype.is_optional l)
                                 sargs)
@@ -929,16 +1019,21 @@ and transl_record ~scopes loc env fields repres opt_init_expr =
     let init_id = Ident.create_local "init" in
     let lv =
       Array.mapi
-        (fun i (_, definition) ->
+        (fun i (lbl, definition) ->
            match definition with
            | Kept typ ->
                let field_kind = value_kind env typ in
+               let sem =
+                 match lbl.lbl_mut with
+                 | Immutable -> Reads_agree
+                 | Mutable -> Reads_vary
+               in
                let access =
                  match repres with
-                   Record_regular | Record_inlined _ -> Pfield i
+                   Record_regular | Record_inlined _ -> Pfield (i, sem)
                  | Record_unboxed _ -> assert false
-                 | Record_extension _ -> Pfield (i + 1)
-                 | Record_float -> Pfloatfield i in
+                 | Record_extension _ -> Pfield (i + 1, sem)
+                 | Record_float -> Pfloatfield (i, sem) in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
                field_kind
@@ -948,8 +1043,8 @@ and transl_record ~scopes loc env fields repres opt_init_expr =
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
-    let mut =
-      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Mutable) fields
+    let mut : Lambda.mutable_flag =
+      if Array.exists (fun (lbl, _) -> lbl.lbl_mut = Asttypes.Mutable) fields
       then Mutable
       else Immutable in
     let lam =
@@ -961,7 +1056,7 @@ and transl_record ~scopes loc env fields repres opt_init_expr =
         | Record_inlined tag -> Lconst(Const_block(tag, cl))
         | Record_unboxed _ -> Lconst(match cl with [v] -> v | _ -> assert false)
         | Record_float ->
-            Lconst(Const_float_array(List.map extract_float cl))
+            Lconst(Const_float_block(List.map extract_float cl))
         | Record_extension _ ->
             raise Not_constant
       with Not_constant ->
@@ -973,7 +1068,7 @@ and transl_record ~scopes loc env fields repres opt_init_expr =
             Lprim(Pmakeblock(tag, mut, Some shape), ll, loc)
         | Record_unboxed _ -> (match ll with [v] -> v | _ -> assert false)
         | Record_float ->
-            Lprim(Pmakearray (Pfloatarray, mut), ll, loc)
+            Lprim(Pmakefloatblock mut, ll, loc)
         | Record_extension path ->
             let slot = transl_extension_path loc env path in
             Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape)), slot :: ll, loc)
@@ -1124,8 +1219,9 @@ and transl_letop ~scopes loc env let_ ands param case partial =
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
                ap_tailcall = Default_tailcall;
-               ap_inlined = Default_inline;
+               ap_inlined = Default_inlined;
                ap_specialised = Default_specialise;
+               ap_probe=None;
              })
         in
         bind Strict left_id prev_lam (loop lam rest)
@@ -1152,8 +1248,9 @@ and transl_letop ~scopes loc env let_ ands param case partial =
     ap_func = op;
     ap_args=[exp; func];
     ap_tailcall = Default_tailcall;
-    ap_inlined = Default_inline;
+    ap_inlined = Default_inlined;
     ap_specialised = Default_specialise;
+    ap_probe=None;
   }
 
 (* Wrapper for class compilation *)

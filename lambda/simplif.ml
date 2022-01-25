@@ -40,9 +40,10 @@ let rec eliminate_ref id = function
   | Lletrec(idel, e2) ->
       Lletrec(List.map (fun (v, e) -> (v, eliminate_ref id e)) idel,
               eliminate_ref id e2)
-  | Lprim(Pfield 0, [Lvar v], _) when Ident.same v id ->
+  | Lprim(Pfield (0, _sem), [Lvar v], _) when Ident.same v id ->
       Lvar id
-  | Lprim(Psetfield(0, _, _), [Lvar v; e], _) when Ident.same v id ->
+  | Lprim(Psetfield(0, _, _), [Lvar v; e], _)
+    when Ident.same v id ->
       Lassign(id, eliminate_ref id e)
   | Lprim(Poffsetref delta, [Lvar v], loc) when Ident.same v id ->
       Lassign(id, Lprim(Poffsetint delta, [Lvar id], loc))
@@ -225,8 +226,9 @@ let simplify_exits lam =
             ap_func=f;
             ap_args=[x];
             ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inline;
+            ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
+            ap_probe=None;
           }
         (* Simplify %apply, for n-ary functions with n > 1 *)
       | Pdirapply, [Lapply ap; x]
@@ -238,8 +240,9 @@ let simplify_exits lam =
             ap_func=f;
             ap_args=[x];
             ap_tailcall=Default_tailcall;
-            ap_inlined=Default_inline;
+            ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
+            ap_probe=None;
           }
         (* Simplify %identity *)
       | Pidentity, [e] -> e
@@ -704,7 +707,22 @@ and list_emit_tail_infos is_tail =
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
   let rec aux map = function
     | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
-        Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+        (not (Clflags.is_flambda2 ()))
+          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
+          && not (List.mem_assoc optparam map)
+      ->
+        let wrapper_body, inner = aux ((optparam, id) :: map) rest in
+        Llet(Strict, k, id, def, wrapper_body), inner
+    | Llet(Strict, k, id,
+        (Lswitch(Lvar optparam,
+           {sw_numconsts = 1;
+            sw_consts = [_];
+            sw_numblocks = 1;
+            sw_blocks = [_];
+            sw_failaction = None}, _dbg)
+         as def), rest) when
+        Clflags.is_flambda2 ()
+          && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
         let wrapper_body, inner = aux ((optparam, id) :: map) rest in
@@ -725,8 +743,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
             ap_args = args;
             ap_loc = Loc_unknown;
             ap_tailcall = Default_tailcall;
-            ap_inlined = Default_inline;
+            ap_inlined = Default_inlined;
             ap_specialised = Default_specialise;
+            ap_probe=None;
           }
         in
         let inner_params = List.map map_param (List.map fst params) in
@@ -787,10 +806,11 @@ let simplify_local_functions lam =
   in
   let enabled = function
     | {local = Always_local; _}
-    | {local = Default_local; inline = (Never_inline | Default_inline); _}
+    | {local = Default_local;
+       inline = (Never_inline | Default_inline | Available_inline); _}
       -> true
     | {local = Default_local;
-       inline = (Always_inline | Unroll _ | Hint_inline); _}
+       inline = (Always_inline | Unroll _); _}
     | {local = Never_local; _}
       -> false
   in

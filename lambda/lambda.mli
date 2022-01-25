@@ -17,6 +17,9 @@
 
 open Asttypes
 
+(* Overriding Asttypes.mutable_flag *)
+type mutable_flag = Immutable | Immutable_unique | Mutable
+
 type compile_time_constant =
   | Big_endian
   | Word_size
@@ -45,6 +48,10 @@ type is_safe =
   | Safe
   | Unsafe
 
+type field_read_semantics =
+  | Reads_agree
+  | Reads_vary
+
 type primitive =
   | Pidentity
   | Pbytes_to_string
@@ -57,11 +64,12 @@ type primitive =
   | Psetglobal of Ident.t
   (* Operations on heap blocks *)
   | Pmakeblock of int * mutable_flag * block_shape
-  | Pfield of int
-  | Pfield_computed
+  | Pmakefloatblock of mutable_flag
+  | Pfield of int * field_read_semantics
+  | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int
+  | Pfloatfield of int * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* External call *)
@@ -152,6 +160,8 @@ type primitive =
   | Pint_as_pointer
   (* Inhibition of optimisation *)
   | Popaque
+  (* Statically-defined probes *)
+  | Pprobe_is_enabled of { name: string }
 
 and integer_comparison =
     Ceq | Cne | Clt | Cgt | Cle | Cge
@@ -164,6 +174,8 @@ and array_kind =
 
 and value_kind =
     Pgenval | Pfloatval | Pboxedintval of boxed_integer | Pintval
+  | Pblock of { tag : int; fields : value_kind list }
+  | Parrayval of array_kind
 
 and block_shape =
   value_kind list option
@@ -201,6 +213,7 @@ type structured_constant =
   | Const_block of int * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
+  | Const_float_block of string list
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -208,14 +221,27 @@ type tailcall_attribute =
        [@tailcall false] has [false] *)
   | Default_tailcall (* no [@tailcall] attribute *)
 
+(* Function declaration inlining annotations *)
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
-  | Hint_inline (* [@inline hint] *)
+  | Available_inline (* [@inline available] *)
   | Unroll of int (* [@unroll x] *)
   | Default_inline (* no [@inline] attribute *)
 
+(* Call site inlining annotations *)
+type inlined_attribute =
+  | Always_inlined (* [@inlined] or [@inlined always] *)
+  | Never_inlined (* [@inlined never] *)
+  | Hint_inlined (* [@inlined hint] *)
+  | Unroll of int (* [@unroll x] *)
+  | Default_inlined (* no [@inlined] attribute *)
+
 val equal_inline_attribute : inline_attribute -> inline_attribute -> bool
+val equal_inlined_attribute : inlined_attribute -> inlined_attribute -> bool
+
+type probe_desc = { name: string }
+type probe = probe_desc option
 
 type specialise_attribute =
   | Always_specialise (* [@specialise] or [@specialise always] *)
@@ -302,8 +328,10 @@ and lambda_apply =
     ap_args : lambda list;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
-    ap_inlined : inline_attribute; (* specified with the [@inlined] attribute *)
-    ap_specialised : specialise_attribute; }
+    ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
+    ap_specialised : specialise_attribute;
+    ap_probe : probe;
+  }
 
 and lambda_switch =
   { sw_numconsts: int;                  (* Number of integer cases *)
@@ -454,3 +482,10 @@ val merge_inline_attributes
   -> inline_attribute option
 
 val reset: unit -> unit
+
+(** Helpers for module block accesses.
+    Module accesses are always immutable, except in translobj where the
+    method cache is stored in a mutable module field.
+*)
+val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
+val mod_setfield: int -> primitive

@@ -23,8 +23,8 @@ let for_primitive (prim : Clambda_primitives.primitive) =
   match prim with
   | Pmakeblock _
   | Pmakearray (_, Mutable) -> Only_generative_effects, No_coeffects
-  | Pmakearray (_, Immutable) -> No_effects, No_coeffects
-  | Pduparray (_, Immutable) ->
+  | Pmakearray (_, (Immutable | Immutable_unique)) -> No_effects, No_coeffects
+  | Pduparray (_, (Immutable | Immutable_unique)) ->
       No_effects, No_coeffects  (* Pduparray (_, Immutable) is allowed only on
                                    immutable arrays. *)
   | Pduparray (_, Mutable) | Pduprecord _ ->
@@ -34,6 +34,7 @@ let for_primitive (prim : Clambda_primitives.primitive) =
                | "caml_nativeint_format" | "caml_int64_format" ) } ->
       No_effects, No_coeffects
   | Pccall _ -> Arbitrary_effects, Has_coeffects
+  | Pprobe_is_enabled _ -> No_effects, Has_coeffects
   | Praise _ -> Arbitrary_effects, No_coeffects
   | Pnot
   | Pnegint

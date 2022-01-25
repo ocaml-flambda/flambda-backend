@@ -108,14 +108,14 @@ let invert_then_else = function
 
 let mut_from_env env ptr =
   match env.environment_param with
-  | None -> Mutable
+  | None -> Asttypes.Mutable
   | Some environment_param ->
     match ptr with
     | Cvar ptr ->
       (* Loads from the current function's closure are immutable. *)
-      if V.same environment_param ptr then Immutable
-      else Mutable
-    | _ -> Mutable
+      if V.same environment_param ptr then Asttypes.Immutable
+      else Asttypes.Mutable
+    | _ -> Asttypes.Mutable
 
 let get_field env ptr n dbg =
   let mut = mut_from_env env ptr in
@@ -411,7 +411,11 @@ let rec transl env e =
       let ptr = transl env arg in
       let dbg = Debuginfo.none in
       ptr_offset ptr offset dbg
-  | Udirect_apply(lbl, args, dbg) ->
+  | Udirect_apply(handler_code_sym, args, Some { name; }, dbg) ->
+      let args = List.map (transl env) args in
+      return_unit dbg
+        (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
+  | Udirect_apply(lbl, args, None, dbg) ->
       let args = List.map (transl env) args in
       direct_apply lbl args dbg
   | Ugeneric_apply(clos, args, dbg) ->
@@ -523,7 +527,9 @@ let rec transl env e =
           let dim_ofs = 4 + n in
           tag_int (Cop(Cload (Word_int, Mutable),
             [field_address (transl env b) dim_ofs dbg],
-            dbg)) dbg
+                       dbg)) dbg
+      | (Pprobe_is_enabled {name}, []) ->
+          tag_int (Cop(Cprobe_is_enabled {name}, [], dbg)) dbg
       | (p, [arg]) ->
           transl_prim_1 env p arg dbg
       | (p, [arg1; arg2]) ->
@@ -534,6 +540,7 @@ let rec transl env e =
       | (Pbigarrayset (_, _, _, _), [])
       | (Pbigarrayref (_, _, _, _), [])
       | ((Pbigarraydim _ | Pduparray (_, _)), ([] | _::_::_::_::_))
+      | (Pprobe_is_enabled _, _)
         ->
           fatal_error "Cmmgen.transl:prim, wrong arity"
       | ((Pfield_computed|Psequand
@@ -683,7 +690,7 @@ and transl_catch env nfail ids body handler dbg =
          let strict =
            match kind with
            | Pfloatval | Pboxedintval _ -> false
-           | Pintval | Pgenval -> true
+           | Pintval | Pgenval | Pblock _ | Parrayval _ -> true
          in
          u := join_unboxed_number_kind ~strict !u
              (is_unboxed_number_cmm ~strict c)
@@ -860,7 +867,7 @@ and transl_prim_1 env p arg dbg =
     | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
     | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
     | Pbigarraydim _ | Pstring_load _ | Pbytes_load _ | Pbytes_set _
-    | Pbigstring_load _ | Pbigstring_set _)
+    | Pbigstring_load _ | Pbigstring_set _ | Pprobe_is_enabled _)
     ->
       fatal_errorf "Cmmgen.transl_prim_1: %a"
         Printclambda_primitives.primitive p
@@ -1037,6 +1044,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   | Parraysets _ | Pbintofint _ | Pintofbint _ | Pcvtbint (_, _)
   | Pnegbint _ | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _)
   | Pbigarraydim _ | Pbytes_set _ | Pbigstring_set _ | Pbbswap _
+  | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_2: %a"
         Printclambda_primitives.primitive p
@@ -1095,6 +1103,7 @@ and transl_prim_3 env p arg1 arg2 arg3 dbg =
   | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pbintcomp (_, _)
   | Pbigarrayref (_, _, _, _) | Pbigarrayset (_, _, _, _) | Pbigarraydim _
   | Pstring_load _ | Pbytes_load _ | Pbigstring_load _ | Pbbswap _
+  | Pprobe_is_enabled _
     ->
       fatal_errorf "Cmmgen.transl_prim_3: %a"
         Printclambda_primitives.primitive p
@@ -1136,7 +1145,7 @@ and transl_let env str kind id exp body =
            we do it only if this indeed allows us to get rid of
            some allocations in the bound expression. *)
         is_unboxed_number_cmm ~strict:false cexp
-    | _, Pgenval ->
+    | _, (Pgenval | Pblock _ | Parrayval _) ->
         (* Here we don't know statically that the bound expression
            evaluates to an unboxable number type.  We need to be stricter
            and ensure that all possible branches in the expression
@@ -1151,7 +1160,7 @@ and transl_let env str kind id exp body =
       (* N.B. [body] must still be traversed even if [exp] will never return:
          there may be constant closures inside that need lifting out. *)
       begin match str, kind with
-      | Immutable, _ -> Clet(id, cexp, transl env body)
+      | (Immutable | Immutable_unique), _ -> Clet(id, cexp, transl env body)
       | Mutable, Pintval -> Clet_mut(id, typ_int, cexp, transl env body)
       | Mutable, _ -> Clet_mut(id, typ_val, cexp, transl env body)
       end
@@ -1162,7 +1171,7 @@ and transl_let env str kind id exp body =
       let body =
         transl (add_unboxed_id (VP.var id) unboxed_id boxed_number env) body in
       begin match str, boxed_number with
-      | Immutable, _ -> Clet (v, cexp, body)
+      | (Immutable | Immutable_unique), _ -> Clet (v, cexp, body)
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
 

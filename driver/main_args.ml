@@ -180,7 +180,7 @@ let mk_inline_toplevel f =
 
 let mk_inlining_report f =
   "-inlining-report", Arg.Unit f, " Emit `.<round>.inlining' file(s) (one per \
-      round) showing the inliner's decisions"
+      round) showing the inliner's decisions (Flambda 1 and 2)"
 ;;
 
 let mk_dump_pass f =
@@ -299,6 +299,22 @@ let mk_keep_locs f =
 let mk_no_keep_locs f =
   "-no-keep-locs", Arg.Unit f, " Do not keep locations in .cmi files"
 ;;
+
+let mk_probes f =
+  if Config.probes then
+    "-probes", Arg.Unit f, " Emit tracing probes as specified by [%%probe ..]"
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      tracing probes: -probes not available.")
+    in
+    "-probes", Arg.Unit err, " (option not available)"
+;;
+
+let mk_no_probes f =
+    "-no-probes", Arg.Unit f, " Ignore [%%probe ..]"
+;;
+
 
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
@@ -699,6 +715,22 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
+let mk_extension f =
+  let available_extensions =
+    Clflags.Extension.(List.map to_string all)
+  in
+  "-extension", Arg.Symbol (available_extensions, f),
+  "<extension>  Enable the extension (may be specified more than once)"
+;;
+
+let mk_disable_all_extensions f =
+  "-disable-all-extensions", Arg.Unit f,
+  " Disable all extensions, wherever they are specified; this flag\n\
+  \    overrides the -extension flag (whether specified before or after this\n\
+  \    flag), disables any extensions that are enabled by default, and\n\
+  \    ignores any extensions requested in OCAMLPARAM."
+;;
+
 let mk_dparsetree f =
   "-dparsetree", Arg.Unit f, " (undocumented)"
 ;;
@@ -744,30 +776,30 @@ let mk_dclambda f =
 ;;
 
 let mk_dflambda f =
-  "-dflambda", Arg.Unit f, " Print Flambda terms"
+  "-dflambda", Arg.Unit f, " Print Flambda (1 or 2) terms on exit from Flambda"
 ;;
 
 let mk_drawflambda f =
-  "-drawflambda", Arg.Unit f, " Print Flambda terms after closure conversion"
+  "-drawflambda", Arg.Unit f, " Print Flambda terms after closure conversion\n\
+  \     (for Flambda 2, after [Lambda_to_flambda])"
 ;;
 
 let mk_dflambda_invariants f =
-  "-dflambda-invariants", Arg.Unit f, " Check Flambda invariants \
-      around each pass"
+  "-dflambda-invariants", Arg.Unit f, " Check Flambda (1 and 2) invariants"
 ;;
 
 let mk_dflambda_no_invariants f =
-  "-dflambda-no-invariants", Arg.Unit f, " Do not Check Flambda invariants \
-      around each pass"
+  "-dflambda-no-invariants", Arg.Unit f, " Do not check Flambda (1 and 2) \
+      invariants"
 ;;
 
 let mk_dflambda_let f =
-  "-dflambda-let", Arg.Int f, "<stamp>  Print when the given Flambda [Let] \
+  "-dflambda-let", Arg.Int f, "<stamp>  Print when the given Flambda 1 [Let] \
       is created"
 ;;
 
 let mk_dflambda_verbose f =
-  "-dflambda-verbose", Arg.Unit f, " Print Flambda terms including around \
+  "-dflambda-verbose", Arg.Unit f, " Print Flambda 1 terms including around \
       each pass"
 ;;
 
@@ -777,6 +809,10 @@ let mk_dinstr f =
 
 let mk_dcamlprimc f =
   "-dcamlprimc", Arg.Unit f, " (undocumented)"
+;;
+
+let mk_dcmm_invariants f =
+  "-dcmm-invariants", Arg.Unit f, " Extra sanity checks on Cmm"
 ;;
 
 let mk_dcmm f =
@@ -951,6 +987,7 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+  val _extension : string -> unit
 
 end
 
@@ -1002,6 +1039,7 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
+  val _disable_all_extensions : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array
@@ -1087,6 +1125,7 @@ module type Optcommon_options = sig
   val _dflambda_verbose : unit -> unit
   val _drawclambda : unit -> unit
   val _dclambda : unit -> unit
+  val _dcmm_invariants : unit -> unit
   val _dcmm : unit -> unit
   val _dsel : unit -> unit
   val _dcombine : unit -> unit
@@ -1119,6 +1158,8 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
+  val _probes : unit -> unit
+  val _no_probes : unit -> unit
 end;;
 
 module type Opttop_options = sig
@@ -1250,7 +1291,9 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
+    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
+    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1314,6 +1357,7 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
+    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1348,6 +1392,8 @@ struct
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
     mk_save_ir_after ~native:true F._save_ir_after;
+    mk_probes F._probes;
+    mk_no_probes F._no_probes;
     mk_i F._i;
     mk_I F._I;
     mk_impl F._impl;
@@ -1445,12 +1491,14 @@ struct
     mk_dlambda F._dlambda;
     mk_drawclambda F._drawclambda;
     mk_dclambda F._dclambda;
+    mk_dcmm_invariants F._dcmm_invariants;
     mk_dflambda F._dflambda;
     mk_drawflambda F._drawflambda;
     mk_dflambda_invariants F._dflambda_invariants;
     mk_dflambda_no_invariants F._dflambda_no_invariants;
     mk_dflambda_let F._dflambda_let;
     mk_dflambda_verbose F._dflambda_verbose;
+
     mk_dcmm F._dcmm;
     mk_dsel F._dsel;
     mk_dcombine F._dcombine;
@@ -1470,8 +1518,10 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
+    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
     mk_dump_pass F._dump_pass;
+    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1555,6 +1605,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_drawlambda F._drawlambda;
     mk_drawclambda F._drawclambda;
     mk_dclambda F._dclambda;
+    mk_dcmm_invariants F._dcmm_invariants;
     mk_drawflambda F._drawflambda;
     mk_dflambda F._dflambda;
     mk_dcmm F._dcmm;
@@ -1726,17 +1777,19 @@ module Default = struct
     let _unsafe = set unsafe
     let _warn_error s = Warnings.parse_options true s
     let _warn_help = Warnings.help_warnings
+    let _extension s = Extension.enable s
   end
 
   module Native = struct
     let _S = set keep_asm_file
     let _clambda_checks () = clambda_checks := true
-    let _classic_inlining () = classic_inlining := true
+    let _classic_inlining () = set_oclassic ()
     let _compact = clear optimize_for_speed
     let _dalloc = set dump_regalloc
     let _davail () = dump_avail := true
     let _dclambda = set dump_clambda
     let _dcmm = set dump_cmm
+    let _dcmm_invariants = set cmm_invariants
     let _dcombine = set dump_combine
     let _dcse = set dump_cse
     let _dflambda = set dump_flambda
@@ -1816,15 +1869,8 @@ module Default = struct
        collected, then checked all at once for illegal combinations, and then
        transformed into the settings of the individual parameters.
     *)
-    let _o2 () =
-      default_simplify_rounds := 2;
-      use_inlining_arguments_set o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
-    let _o3 () =
-      default_simplify_rounds := 3;
-      use_inlining_arguments_set o3_arguments;
-      use_inlining_arguments_set ~round:1 o2_arguments;
-      use_inlining_arguments_set ~round:0 o1_arguments
+    let _o2 () = Clflags.set_o2 ()
+    let _o3 () = Clflags.set_o3 ()
     let _remove_unused_arguments = set remove_unused_arguments
     let _rounds n = simplify_rounds := (Some n)
     let _unbox_closures = set unbox_closures
@@ -1846,6 +1892,7 @@ module Default = struct
     let _config_var = Misc.show_config_variable_and_exit
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
+    let _disable_all_extensions = Extension.disable_all
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _g = set debug
@@ -1947,6 +1994,8 @@ module Default = struct
          OCaml 4.08.0"
     let _shared () = shared := true; dlcode := true
     let _v () = Compenv.print_version_and_library "native-code compiler"
+    let _no_probes = clear probes
+    let _probes = set probes
   end
 
   module Odoc_args = struct

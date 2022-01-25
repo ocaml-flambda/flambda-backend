@@ -1,3 +1,4 @@
+# 1 "uchar.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Unicode characters.
 

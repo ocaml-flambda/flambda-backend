@@ -1,3 +1,4 @@
+# 1 "bytesLabels.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (* NOTE:
    If this file is bytesLabels.mli, run tools/sync_stdlib_docs after editing it
@@ -53,6 +56,8 @@
    @since 4.02.0
 
    *)
+
+[@@@ocaml.nolabels]
 
 external length : bytes -> int = "%bytes_length"
 (** Return the length (number of bytes) of the argument. *)

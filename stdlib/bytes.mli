@@ -1,3 +1,4 @@
+# 1 "bytes.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (* NOTE:
    If this file is bytesLabels.mli, run tools/sync_stdlib_docs after editing it

@@ -31,6 +31,7 @@ type type_forcing_context =
   | If_no_else_branch
   | While_loop_conditional
   | While_loop_body
+  | In_comprehension_argument
   | For_loop_start_index
   | For_loop_stop_index
   | For_loop_body
@@ -178,6 +179,13 @@ type error =
   | Unrefuted_pattern of Typedtree.pattern
   | Invalid_extension_constructor_payload
   | Not_an_extension_constructor
+  | Probe_format
+  | Probe_name_too_long of string
+  | Probe_name_format of string
+  | Probe_name_undefined of string
+  (* CR-soon mshinwell: Use an inlined record *)
+  | Probe_is_enabled_format
+  | Extension_not_enabled of Clflags.Extension.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Illegal_letrec_pat

@@ -27,6 +27,7 @@ module Int_arg_helper : sig
   val parse_no_error : string -> parsed ref -> parse_result
 
   val get : key:int -> parsed -> int
+  val default : int -> parsed
 end
 
 (** Optimization parameters represented as floats indexed by round number. *)
@@ -41,30 +42,12 @@ module Float_arg_helper : sig
   val parse_no_error : string -> parsed ref -> parse_result
 
   val get : key:int -> parsed -> float
+  val default : float -> parsed
 end
-
-type inlining_arguments = {
-  inline_call_cost : int option;
-  inline_alloc_cost : int option;
-  inline_prim_cost : int option;
-  inline_branch_cost : int option;
-  inline_indirect_cost : int option;
-  inline_lifting_benefit : int option;
-  inline_branch_factor : float option;
-  inline_max_depth : int option;
-  inline_max_unroll : int option;
-  inline_threshold : float option;
-  inline_toplevel_threshold : int option;
-}
-
-val classic_arguments : inlining_arguments
-val o1_arguments : inlining_arguments
-val o2_arguments : inlining_arguments
-val o3_arguments : inlining_arguments
-
-(** Set all the inlining arguments for a round.
-    The default is set if no round is provided. *)
-val use_inlining_arguments_set : ?round:int -> inlining_arguments -> unit
+val set_int_arg :
+    int option -> Int_arg_helper.parsed ref -> int -> int option -> unit
+val set_float_arg :
+    int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
 val objfiles : string list ref
 val ccobjs : string list ref
@@ -201,6 +184,7 @@ val default_unbox_closures_factor : int
 val unbox_free_vars_of_closures : bool ref
 val unbox_specialised_args : bool ref
 val clambda_checks : bool ref
+val cmm_invariants : bool ref
 val default_inline_max_depth : int
 val inline_max_depth : Int_arg_helper.parsed ref
 val remove_unused_arguments : bool ref
@@ -209,12 +193,22 @@ val classic_inlining : bool ref
 val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
+val probes : bool ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool
 val set_dumped_pass : string -> bool -> unit
 
 val dump_into_file : bool ref
+
+module Extension : sig
+  type t = Comprehensions
+  val enable : string -> unit
+  val is_enabled : t -> bool
+  val to_string : t -> string
+  val all : t list
+  val disable_all : unit -> unit
+end
 
 (* Support for flags that can also be set from an environment variable *)
 type 'a env_reader = {
@@ -235,8 +229,20 @@ val unboxed_types : bool ref
 val insn_sched : bool ref
 val insn_sched_default : bool
 
+val set_oclassic : unit -> unit
+val set_o2 : unit -> unit
+val set_o3 : unit -> unit
+
+module Compiler_ir : sig
+  type t = Linear | Cfg
+  val all : t list
+  val to_string : t -> string
+  val extension : t -> string
+  val extract_extension_with_pass : string -> (t * string) option
+end
+
 module Compiler_pass : sig
-  type t = Parsing | Typing | Scheduling | Emit
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool
@@ -250,6 +256,8 @@ val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool
 val set_save_ir_after : Compiler_pass.t -> bool -> unit
 val should_save_ir_after : Compiler_pass.t -> bool
+
+val is_flambda2 : unit -> bool
 
 val arg_spec : (string * Arg.spec * string) list ref
 

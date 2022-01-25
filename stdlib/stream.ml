@@ -1,3 +1,4 @@
+# 1 "stream.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
 
 type 'a t = 'a cell option
 and 'a cell = { mutable count : int; mutable data : 'a data }

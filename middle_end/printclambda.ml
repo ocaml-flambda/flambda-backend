@@ -15,15 +15,14 @@
 
 
 open Format
-open Asttypes
 open Clambda
 
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
 let mutable_flag = function
-  | Mutable-> "[mut]"
-  | Immutable -> ""
+  | Lambda.Mutable-> "[mut]"
+  | Lambda.Immutable | Lambda.Immutable_unique -> ""
 
 let value_kind =
   let open Lambda in
@@ -31,9 +30,17 @@ let value_kind =
   | Pgenval -> ""
   | Pintval -> ":int"
   | Pfloatval -> ":float"
+  | Parrayval Pgenarray -> ":genarray"
+  | Parrayval Pintarray -> ":intarray"
+  | Parrayval Pfloatarray -> ":floatarray"
+  | Parrayval Paddrarray -> ":addrarray"
   | Pboxedintval Pnativeint -> ":nativeint"
   | Pboxedintval Pint32 -> ":int32"
   | Pboxedintval Pint64 -> ":int64"
+  | Pblock { tag; fields } ->
+    asprintf ":[%d: %a]" tag
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+         Printlambda.value_kind') fields
 
 let rec structured_constant ppf = function
   | Uconst_float x -> fprintf ppf "%F" x
@@ -100,10 +107,15 @@ and lam ppf = function
   | Uvar id ->
       V.print ppf id
   | Uconst c -> uconstant ppf c
-  | Udirect_apply(f, largs, _) ->
+  | Udirect_apply(f, largs, probe, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply*@ %s %a)@]" f lams largs
+      let pr ppf (probe : Lambda.probe) =
+        match probe with
+        | None -> ()
+        | Some {name} -> fprintf ppf " (probe %s)" name
+      in
+      fprintf ppf "@[<2>(apply*@ %s %a%a)@]" f lams largs pr probe
   | Ugeneric_apply(lfun, largs, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in

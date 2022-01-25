@@ -1,3 +1,4 @@
+# 1 "camlinternalLazy.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Run-time support for lazy values.
     All functions in this module are for system use only, not for the

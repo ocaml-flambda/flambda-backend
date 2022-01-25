@@ -1,3 +1,4 @@
+# 1 "pervasives.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -11,6 +12,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
 
 (** @deprecated Use {!Stdlib} *)
 
@@ -148,8 +153,8 @@ let int_of_string_opt = int_of_string_opt
 let string_of_float = string_of_float
 external float_of_string : string -> float = "caml_float_of_string"
 let float_of_string_opt = float_of_string_opt
-external fst : 'a * 'b -> 'a = "%field0"
-external snd : 'a * 'b -> 'b = "%field1"
+external fst : 'a * 'b -> 'a = "%field0_immut"
+external snd : 'a * 'b -> 'b = "%field1_immut"
 let ( @ )  = ( @ )
 type nonrec in_channel = in_channel
 type nonrec out_channel = out_channel

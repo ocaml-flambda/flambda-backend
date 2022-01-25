@@ -25,19 +25,16 @@ let with_info =
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
-  Compile_common.interface info
+  Compile_common.interface
+    ~hook_parse_tree:(fun _ -> ())
+    ~hook_typed_tree:(fun _ -> ())
+    info
 
 let (|>>) (x, y) f = (x, f y)
 
 (** Native compilation backend for .ml files. *)
 
 let flambda i backend typed =
-  if !Clflags.classic_inlining then begin
-    Clflags.default_simplify_rounds := 1;
-    Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-    Clflags.unbox_free_vars_of_closures := false;
-    Clflags.unbox_specialised_args := false
-  end;
   typed
   |> Profile.(record transl)
       (Translmod.transl_implementation_flambda i.module_name)
@@ -67,7 +64,7 @@ let flambda i backend typed =
     Compilenv.save_unit_info (cmx i))
 
 let clambda i backend typed =
-  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
+  Clflags.set_oclassic ();
   typed
   |> Profile.(record transl)
     (Translmod.transl_store_implementation i.module_name)
@@ -90,7 +87,8 @@ let emit i =
   Compilenv.reset ?packname:!Clflags.for_package i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
 
-let implementation ~backend ~start_from ~source_file ~output_prefix =
+let implementation ~backend ~start_from ~source_file
+    ~output_prefix ~keep_symbol_tables:_ =
   let backend info typed =
     Compilenv.reset ?packname:!Clflags.for_package info.module_name;
     if Config.flambda
@@ -99,7 +97,11 @@ let implementation ~backend ~start_from ~source_file ~output_prefix =
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   match (start_from:Clflags.Compiler_pass.t) with
-  | Parsing -> Compile_common.implementation info ~backend
+  | Parsing ->
+    Compile_common.implementation
+      ~hook_parse_tree:(fun _ -> ())
+      ~hook_typed_tree:(fun _ -> ())
+      info ~backend
   | Emit -> emit info
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)

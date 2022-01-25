@@ -25,7 +25,12 @@
 # add stdlib__ as prefix to a module except for internal modules
 # and the stdlib module itself
 define add_stdlib_prefix
-  $(or $(filter stdlib camlinternal%,$1), stdlib__$1)
+  $(or $(filter stdlib camlinternal%,$1),\
+    stdlib__$(shell echo $1 | cut -c1 | tr '[:lower:]' '[:upper:]')$\
+            $(shell echo $1 | cut -c2-))
+endef
+define add_stdlib_dep_prefix
+  $(or $(filter stdlib camlinternal%,$1),stdlib__$1)
 endef
 
 # Modules should be listed in dependency order.
@@ -38,7 +43,9 @@ STDLIB_MODS=\
   printexc fun gc digest random hashtbl weak \
   format scanf callback camlinternalOO oo camlinternalMod genlex ephemeron \
   filename complex arrayLabels listLabels bytesLabels stringLabels moreLabels \
-  stdLabels bigarray
+  stdLabels bigarray camlinternalComprehension
 
-STDLIB_MODULES=\
+STDLIB_MODULES:=\
   $(foreach module, $(STDLIB_MODS), $(call add_stdlib_prefix,$(module)))
+STDLIB_DEP_MODULES:=\
+  $(foreach module, $(STDLIB_MODS), $(call add_stdlib_dep_prefix,$(module)))

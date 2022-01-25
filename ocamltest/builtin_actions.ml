@@ -193,6 +193,12 @@ let naked_pointers = make
      "Runtime system supports naked pointers"
      "Runtime system does not support naked pointers")
 
+let probes = make
+  "probes"
+  (Actions_helpers.pass_or_skip (Ocamltest_config.probes)
+     "Target supports probes"
+     "Target does not support probes")
+
 let has_symlink = make
   "has_symlink"
   (Actions_helpers.pass_or_skip (Unix.has_symlink () )
@@ -254,6 +260,7 @@ let _ =
     arch64;
     has_symlink;
     setup_build_env;
+    setup_simple_build_env;
     run;
     script;
     check_program_output;
@@ -263,5 +270,6 @@ let _ =
     arch_i386;
     arch_power;
     function_sections;
-    naked_pointers
+    naked_pointers;
+    probes;
   ]

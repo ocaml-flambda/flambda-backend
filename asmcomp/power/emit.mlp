@@ -486,8 +486,8 @@ module BR = Branch_relaxation.Make (struct
       then load_store_size addr + 1
       else load_store_size addr
     | Lop(Istore(_chunk, addr, _)) -> load_store_size addr
-    | Lop(Ialloc _) -> 4
-    | Lop(Ispecific(Ialloc_far _)) -> 5
+    | Lop(Ialloc _) -> 5
+    | Lop(Ispecific(Ialloc_far _)) -> 6
     | Lop(Iintop Imod) -> 3
     | Lop(Iintop(Icomp _)) -> 4
     | Lop(Iintop _) -> 1
@@ -498,6 +498,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop(Iintoffloat) -> 4
     | Lop(Ispecific _) -> 1
     | Lop (Iname_for_debugger _) -> 0
+    | Lop (Iprobe _ |Iprobe_is_enabled _) ->
+      Misc.fatal_error ("Probes not supported.")
     | Lreloadretaddr -> 2
     | Lreturn -> 2
     | Llabel _ -> 0
@@ -523,6 +525,26 @@ module BR = Branch_relaxation.Make (struct
   let relax_intop_checkbound () = assert false
   let relax_intop_imm_checkbound ~bound:_ = assert false
 end)
+
+(* Assembly code for inlined allocation *)
+
+let emit_alloc i bytes dbginfo far =
+  if !call_gc_label = 0 then call_gc_label := new_label ();
+  let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+  `	{emit_string lg}	0, {emit_int offset}(30)\n`;
+  `	addi    31, 31, {emit_int(-bytes)}\n`;
+  `	{emit_string cmplg}	31, 0\n`;
+  if not far then begin
+    `	bltl	{emit_label !call_gc_label}\n`;
+    record_frame i.live (Dbg_alloc dbginfo);
+    `	addi	{emit_reg i.res.(0)}, 31, {emit_int size_addr}\n`
+  end else begin
+    let lbl = new_label() in
+    `	bge	{emit_label lbl}\n`;
+    `	bl	{emit_label !call_gc_label}\n`;
+    record_frame i.live (Dbg_alloc dbginfo);
+    `{emit_label lbl}:	addi	{emit_reg i.res.(0)}, 31, {emit_int size_addr}\n`
+  end
 
 (* Output the assembly code for an instruction *)
 
@@ -740,7 +762,7 @@ let emit_instr i =
           | Thirtytwo_signed -> if ppc64 then "lwa" else "lwz"
 	  | Word_int | Word_val -> lg
           | Single -> "lfs"
-          | Double | Double_u -> "lfd" in
+          | Double -> "lfd" in
         emit_load_store loadinstr addr i.arg 0 i.res.(0);
         if chunk = Byte_signed then
           `	extsb	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
@@ -752,24 +774,12 @@ let emit_instr i =
 	  | Thirtytwo_unsigned | Thirtytwo_signed -> "stw"
 	  | Word_int | Word_val -> stg
           | Single -> "stfs"
-          | Double | Double_u -> "stfd" in
+          | Double -> "stfd" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
-    | Lop(Ialloc { bytes = n; dbginfo }) ->
-        if !call_gc_label = 0 then call_gc_label := new_label ();
-        `	addi    31, 31, {emit_int(-n)}\n`;
-        `	{emit_string cmplg}	31, 30\n`;
-        `	bltl	{emit_label !call_gc_label}\n`;
-        record_frame i.live (Dbg_alloc dbginfo);
-        `	addi	{emit_reg i.res.(0)}, 31, {emit_int size_addr}\n`;
-    | Lop(Ispecific(Ialloc_far { bytes = n; dbginfo })) ->
-        if !call_gc_label = 0 then call_gc_label := new_label ();
-        let lbl = new_label() in
-        `	addi    31, 31, {emit_int(-n)}\n`;
-        `	{emit_string cmplg}	31, 30\n`;
-        `	bge	{emit_label lbl}\n`;
-        `	bl	{emit_label !call_gc_label}\n`;
-        record_frame i.live (Dbg_alloc dbginfo);
-        `{emit_label lbl}:	addi	{emit_reg i.res.(0)}, 31, {emit_int size_addr}\n`
+    | Lop(Ialloc { bytes; dbginfo }) ->
+        emit_alloc i bytes dbginfo false
+    | Lop(Ispecific(Ialloc_far { bytes; dbginfo })) ->
+        emit_alloc i bytes dbginfo true
     | Lop(Iintop Isub) ->               (* subfc has swapped arguments *)
         `	subfc	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
     | Lop(Iintop Imod) ->
@@ -851,6 +861,8 @@ let emit_instr i =
         let instr = name_for_specific sop in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
     | Lop (Iname_for_debugger _) -> ()
+    | Lop (Iprobe _ |Iprobe_is_enabled _) ->
+      Misc.fatal_error ("Probes not supported.")
     | Lreloadretaddr ->
         `	{emit_string lg}	11, {emit_int(retaddr_offset())}(1)\n`;
         `	mtlr	11\n`
@@ -985,8 +997,8 @@ let emit_instr i =
               Domainstate.(idx_of_field Domain_backtrace_pos)
             in
             begin match abi with
-            | ELF32 -> `	stw	0, {emit_int (backtrace_pos * 8)}(28)\n`
-            | _ -> `	std	0, {emit_int (backtrace_pos * 8)}(28)\n`
+            | ELF32 -> `	stw	0, {emit_int (backtrace_pos * 8)}(30)\n`
+            | _ -> `	std	0, {emit_int (backtrace_pos * 8)}(30)\n`
             end;
             emit_call "caml_raise_exn";
             record_frame Reg.Set.empty (Dbg_raise i.dbg);

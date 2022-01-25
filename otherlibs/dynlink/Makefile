@@ -33,20 +33,14 @@ OCAMLOPT=$(BEST_OCAMLOPT) -g -nostdlib -I $(ROOTDIR)/stdlib
 COMPFLAGS=-strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66 \
 	  -warn-error A \
           -bin-annot -safe-string -strict-formats
-ifeq "$(FLAMBDA)" "true"
-OPTCOMPFLAGS += -O3
-endif
-
-COMPFLAGS += -I byte
-OPTCOMPFLAGS += -I native
 
 LOCAL_SRC=dynlink_compilerlibs
 
-OBJS=byte/dynlink_compilerlibs.cmo dynlink_types.cmo \
-  dynlink_platform_intf.cmo dynlink_common.cmo byte/dynlink.cmo
+OBJS=dynlink_compilerlibs.cmo dynlink_types.cmo \
+  dynlink_platform_intf.cmo dynlink_common.cmo dynlink.cmo
 
-NATOBJS=native/dynlink_compilerlibs.cmx dynlink_types.cmx \
-  dynlink_platform_intf.cmx dynlink_common.cmx native/dynlink.cmx
+NATOBJS=dynlink_compilerlibs.cmx dynlink_types.cmx \
+  dynlink_platform_intf.cmx dynlink_common.cmx dynlink.cmx
 
 # We need/desire access to compilerlibs for various reasons:
 # - The bytecode dynamic linker is in compilerlibs and has many dependencies
@@ -69,7 +63,8 @@ COMPILERLIBS_INTFS=\
   parsing/parsetree.mli \
   typing/outcometree.mli \
   file_formats/cmo_format.mli \
-  file_formats/cmxs_format.mli
+  file_formats/cmxs_format.mli \
+  bytecomp/debug_event.mli
 
 # .ml files from compilerlibs that have corresponding .mli files.
 COMPILERLIBS_SOURCES=\
@@ -188,16 +183,13 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 # Rules for building the [Dynlink_compilerlibs] bytecode and native packs
 # from their components.
 
-byte/dynlink_compilerlibs.cmo: $(COMPILERLIBS_CMO)
+dynlink_compilerlibs.cmo: $(COMPILERLIBS_CMO)
 	$(OCAMLC) $(COMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMO)
 
-byte/dynlink_compilerlibs.cmi: byte/dynlink_compilerlibs.cmo
+dynlink_compilerlibs.cmi: dynlink_compilerlibs.cmo
 
-native/dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
+dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
 	$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
-
-%/dynlink.cmi: dynlink.cmi dynlink.mli
-	cp $^ $*/
 
 # Rules for building the interface of the [Dynlink_compilerlibs] packs.
 # To avoid falling foul of the problem described below, the .cmo and .cmx
@@ -213,17 +205,10 @@ all: dynlink.cma $(extract_crc)
 allopt: dynlink.cmxa
 
 dynlink.cma: $(OBJS)
-	$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I byte -o $@ $^
+	$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
 
 dynlink.cmxa: $(NATOBJS)
-	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I native \
-	            -o $@ $^
-# As for all other .cmxa files, ensure that the .cmx files are in the same
-# directory. If this were omitted, ocamldoc in particular will fail to build
-# with a -opaque warning. Note that installopt refers to $(NATOBJS) so doesn't
-# require this file to exist, hence its inclusion in the recipe for dynlink.cmxa
-# rather than as a dependency elsewhere.
-	cp native/dynlink.cmx dynlink.cmx
+	$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
 
 # Since there is no .mli for [Dynlink_platform_intf], we need to be
 # careful that compilation of the .cmx file does not write the .cmi file again,
@@ -234,7 +219,7 @@ dynlink_platform_intf.mli: dynlink_platform_intf.ml
 
 $(eval $(call PROGRAM_SYNONYM,extract_crc))
 
-$(extract_crc): dynlink.cma byte/dynlink_compilerlibs.cmo extract_crc.cmo
+$(extract_crc): dynlink.cma dynlink_compilerlibs.cmo extract_crc.cmo
 	$(OCAMLC) -o $@ $^
 
 install:
@@ -258,8 +243,7 @@ installopt:
 
 partialclean:
 	rm -f $(extract_crc) *.cm[ioaxt] *.cmti *.cmxa \
-	      byte/*.cm[iot] byte/*.cmti \
-	      native/*.cm[ixt] native/*.cmti native/*.o native/*.obj \
+	      *.cm[iotx] *.cmti *.o *.obj \
 	      $(LOCAL_SRC)/*.cm[ioaxt] $(LOCAL_SRC)/*.cmti \
         $(LOCAL_SRC)/*.o $(LOCAL_SRC)/*.obj
 
@@ -267,24 +251,20 @@ clean: partialclean
 	rm -f extract_crc extract_crc.exe
 	rm -f *.a *.lib *.o *.obj *.so *.dll dynlink_platform_intf.mli \
 	      $(LOCAL_SRC)/*.ml $(LOCAL_SRC)/*.mli $(LOCAL_SRC)/Makefile \
-	      $(LOCAL_SRC)/.depend byte/dynlink.mli native/dynlink.mli
+	      $(LOCAL_SRC)/.depend
 
 .PHONY: beforedepend
 beforedepend: dynlink_platform_intf.mli
 
 .PHONY: depend
 DEPEND_DUMMY_FILES=\
-  native/dynlink_compilerlibs.ml \
-  byte/dynlink_compilerlibs.mli \
-  byte/dynlink.mli \
-  native/dynlink.mli
+  dynlink_compilerlibs.ml \
+  dynlink_compilerlibs.mli
 
 depend: beforedepend
 	touch $(DEPEND_DUMMY_FILES)
 	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend
-	$(CAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	  -I native -native *.ml native/dynlink.ml >> .depend
+	  -bytecode -native *.mli *.ml dynlink.ml > .depend
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend

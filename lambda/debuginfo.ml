@@ -24,10 +24,16 @@ module Scoped_location = struct
     | Sc_module_definition
     | Sc_class_definition
     | Sc_method_definition
+    | Sc_partial_or_eta_wrapper
+    | Sc_lazy
 
   type scopes =
     | Empty
     | Cons of {item: scope_item; str: string; str_fun: string}
+
+  let str = function
+    | Empty -> ""
+    | Cons r -> r.str
 
   let str_fun = function
     | Empty -> "(fun)"
@@ -45,8 +51,12 @@ module Scoped_location = struct
        | 'a'..'z' | 'A'..'Z' | '_' | '0'..'9' -> s
        | _ -> "(" ^ s ^ ")"
 
-  let dot ?(sep = ".") scopes s =
-    let s = add_parens_if_symbolic s in
+  let dot ?(sep = ".") ?no_parens scopes s =
+    let s =
+      match no_parens with
+      | None -> add_parens_if_symbolic s
+      | Some () -> s
+    in
     match scopes with
     | Empty -> s
     | Cons {str; _} -> str ^ sep ^ s
@@ -72,9 +82,25 @@ module Scoped_location = struct
     in
     cons Sc_method_definition str
 
+  let enter_lazy ~scopes = cons Sc_lazy (str scopes)
+
+  let enter_partial_or_eta_wrapper ~scopes =
+    cons Sc_partial_or_eta_wrapper (dot ~no_parens:() scopes "(partial)")
+
   let string_of_scopes = function
     | Empty -> "<unknown>"
     | Cons {str; _} -> str
+
+  let string_of_scopes =
+    let module StringSet = Set.Make (String) in
+    let repr = ref StringSet.empty in
+    fun scopes ->
+      let res = string_of_scopes scopes in
+      match StringSet.find_opt res !repr with
+      | Some x -> x
+      | None ->
+        repr := StringSet.add res !repr;
+        res
 
   type t =
     | Loc_unknown
@@ -95,6 +121,11 @@ module Scoped_location = struct
   let string_of_scoped_location = function
     | Loc_unknown -> "??"
     | Loc_known { loc = _; scopes } -> string_of_scopes scopes
+
+  let map_scopes f t =
+    match t with
+    | Loc_unknown -> Loc_unknown
+    | Loc_known { loc; scopes } -> Loc_known { loc; scopes = f ~scopes }
 end
 
 type item = {

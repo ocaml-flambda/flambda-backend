@@ -1,3 +1,4 @@
+# 1 "gc.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,6 +14,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Memory management control and statistics; finalised values. *)
 

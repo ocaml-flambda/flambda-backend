@@ -1,3 +1,4 @@
+# 1 "oo.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
+
+[@@@ocaml.flambda_o3]
 
 let copy = CamlinternalOO.copy
 external id : < .. > -> int = "%field1"

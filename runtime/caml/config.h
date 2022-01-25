@@ -219,7 +219,7 @@ typedef uint64_t uintnat;
 #define Minor_heap_max (1 << 28)
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
+#define Minor_heap_def 1048576
 
 
 /* Minimum size increment when growing the heap (words).
@@ -240,7 +240,7 @@ typedef uint64_t uintnat;
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    total size of live objects. */
-#define Percent_free_def 80
+#define Percent_free_def 100
 
 /* Default setting for the compacter: 500%
    (i.e. trigger the compacter when 5/6 of the heap is free or garbage)

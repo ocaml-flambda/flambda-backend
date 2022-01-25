@@ -231,16 +231,20 @@ WITH_FPIC=@fpic@
 TARGET=@target@
 HOST=@host@
 FLAMBDA=@flambda@
+FLAMBDA2=@flambda2@
 WITH_FLAMBDA_INVARIANTS=@flambda_invariants@
+WITH_CMM_INVARIANTS=@cmm_invariants@
 FORCE_SAFE_STRING=@force_safe_string@
 DEFAULT_SAFE_STRING=@default_safe_string@
 WINDOWS_UNICODE=@windows_unicode@
 AFL_INSTRUMENT=@afl@
 FLAT_FLOAT_ARRAY=@flat_float_array@
 FUNCTION_SECTIONS=@function_sections@
+PROBES=@probes@
 AWK=@AWK@
 STDLIB_MANPAGES=@stdlib_manpages@
 NAKED_POINTERS=@naked_pointers@
+INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
 
 ### Native command to build ocamlrun.exe
 

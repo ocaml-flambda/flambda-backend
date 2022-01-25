@@ -1,3 +1,4 @@
+# 1 "obj.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +13,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+open! Stdlib
 
 (** Operations on internal representations of values.
 
@@ -28,7 +31,7 @@ external magic : 'a -> 'b = "%identity"
 val [@inline always] is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
-external size : t -> int = "%obj_size"
+val size : t -> int
 external reachable_words : t -> int = "caml_obj_reachable_words"
   (**
      Computes the total size (in words, including the headers) of all
@@ -39,26 +42,20 @@ external reachable_words : t -> int = "caml_obj_reachable_words"
      @Since 4.04
   *)
 
-external field : t -> int -> t = "%obj_field"
+val field : t -> int -> t
 
 (** When using flambda:
 
-    [set_field] MUST NOT be called on immutable blocks.  (Blocks allocated
-    in C stubs, or with [new_block] below, are always considered mutable.)
-
-    The same goes for [set_double_field] and [set_tag].  However, for
-    [set_tag], in the case of immutable blocks where the middle-end optimizers
-    never see code that discriminates on their tag (for example records), the
-    operation should be safe.  Such uses are nonetheless discouraged.
+    [set_field] and [set_double_field] MUST NOT be called on immutable
+    blocks.  (Blocks allocated in C stubs, or with [new_block] below,
+    are always considered mutable.)
 
     For experts only:
     [set_field] et al can be made safe by first wrapping the block in
     {!Sys.opaque_identity}, so any information about its contents will not
     be propagated.
 *)
-external set_field : t -> int -> t -> unit = "%obj_set_field"
-external set_tag : t -> int -> unit = "caml_obj_set_tag"
-  [@@ocaml.deprecated "Use with_tag instead."]
+val set_field : t -> int -> t -> unit
 
 val [@inline always] double_field : t -> int -> float  (* @since 3.11.2 *)
 val [@inline always] set_double_field : t -> int -> float -> unit
@@ -72,8 +69,6 @@ external set_raw_field : t -> int -> raw_data -> unit
 
 external new_block : int -> int -> t = "caml_obj_block"
 external dup : t -> t = "caml_obj_dup"
-external truncate : t -> int -> unit = "caml_obj_truncate"
-  [@@ocaml.deprecated]
 external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
          (* @since 3.12.0 *)
 external with_tag : int -> t -> t = "caml_obj_with_tag"

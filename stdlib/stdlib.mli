@@ -1,3 +1,4 @@
+# 1 "stdlib.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -25,9 +26,11 @@
     {{!modules}standard library modules}.
 *)
 
+[@@@ocaml.warning "-49"]
+
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a = "%raise"
+external raise : exn -> 'a = "%reraise"
 (** Raise the given exception value *)
 
 external raise_notrace : exn -> 'a = "%raise_notrace"
@@ -778,10 +781,10 @@ external float_of_string : string -> float = "caml_float_of_string"
 
 (** {1 Pair operations} *)
 
-external fst : 'a * 'b -> 'a = "%field0"
+external fst : 'a * 'b -> 'a = "%field0_immut"
 (** Return the first component of a pair. *)
 
-external snd : 'a * 'b -> 'b = "%field1"
+external snd : 'a * 'b -> 'b = "%field1_immut"
 (** Return the second component of a pair. *)
 
 
