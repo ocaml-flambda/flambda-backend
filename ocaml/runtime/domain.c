@@ -60,7 +60,6 @@ void caml_init_domain ()
   Caml_state->local_sp = 0;
   Caml_state->local_top = NULL;
   Caml_state->local_limit = 0;
-  Caml_state->local_total = 0;
 
   Caml_state->top_of_stack = NULL;
   Caml_state->bottom_of_stack = NULL; /* no stack initially */

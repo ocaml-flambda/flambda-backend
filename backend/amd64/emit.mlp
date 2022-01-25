@@ -994,11 +994,7 @@ let emit_instr fallthrough i =
   | Lop(Ibeginregion) ->
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
   | Lop(Iendregion) ->
-      I.mov (arg i 0) r11;
-      I.sub (domain_field Domainstate.Domain_local_sp) r11;
-      I.add r11 (domain_field Domainstate.Domain_local_total);
-      I.add (domain_field Domainstate.Domain_local_sp) r11;
-      I.mov r11 (domain_field Domainstate.Domain_local_sp)
+      I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _) ->
     let probe_label = new_label () in
