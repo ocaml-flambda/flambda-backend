@@ -43,12 +43,6 @@ let[@inline always] descr ~apply_renaming_descr ~free_names_descr t =
     t.free_names <- Some free_names;
     descr
 
-let apply_renaming t perm =
-  let delayed_permutation =
-    Renaming.compose ~second:perm ~first:t.delayed_permutation
-  in
-  { t with delayed_permutation }
-
 let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
   let descr = descr ~apply_renaming_descr ~free_names_descr t in
   match t.free_names with
@@ -57,6 +51,16 @@ let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
     let free_names = free_names_descr descr in
     t.free_names <- Some free_names;
     free_names
+
+let apply_renaming ~apply_renaming_descr ~free_names_descr t perm =
+  let free_names = free_names ~apply_renaming_descr ~free_names_descr t in
+  if not (Name_occurrences.affected_by_renaming free_names perm)
+  then t
+  else
+    let delayed_permutation =
+      Renaming.compose ~second:perm ~first:t.delayed_permutation
+    in
+    { t with delayed_permutation }
 
 let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
     ~remove_unused_closure_vars_descr t ~used_closure_vars =

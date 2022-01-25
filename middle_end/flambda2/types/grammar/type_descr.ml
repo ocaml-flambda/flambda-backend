@@ -70,7 +70,12 @@ module T : sig
     'head t ->
     Simple.t
 
-  val apply_renaming : 'head t -> Renaming.t -> 'head t
+  val apply_renaming :
+    apply_renaming_head:('head -> Renaming.t -> 'head) ->
+    free_names_head:('head -> Name_occurrences.t) ->
+    'head t ->
+    Renaming.t ->
+    'head t
 
   val free_names :
     apply_renaming_head:('head -> Renaming.t -> 'head) ->
@@ -177,11 +182,17 @@ end = struct
         | Equals alias -> alias
         | No_alias _ -> assert false))
 
-  let apply_renaming (t : _ t) renaming : _ t =
+  let apply_renaming ~apply_renaming_head ~free_names_head (t : _ t) renaming :
+      _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok wdp ->
-      let wdp' = WDR.apply_renaming wdp renaming in
+      let wdp' =
+        WDR.apply_renaming
+          ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
+          ~free_names_descr:(Descr.free_names ~free_names_head)
+          wdp renaming
+      in
       if wdp == wdp' then t else Ok wdp'
 
   let free_names ~apply_renaming_head ~free_names_head (t : _ t) =

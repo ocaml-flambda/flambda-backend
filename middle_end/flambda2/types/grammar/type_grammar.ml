@@ -147,34 +147,61 @@ type flambda_type = t
 let row_like_is_bottom ~known ~(other : _ Or_bottom.t) ~is_empty_map_known =
   is_empty_map_known known && match other with Bottom -> true | Ok _ -> false
 
-let apply_renaming t renaming =
+let rec apply_renaming t renaming =
   if Renaming.is_empty renaming
   then t
   else
     match t with
     | Value ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming ~apply_renaming_head:apply_renaming_head_of_kind_value
+          ~free_names_head:free_names_head_of_kind_value ty renaming
+      in
       if ty == ty' then t else Value ty'
     | Naked_immediate ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
+          ~free_names_head:free_names_head_of_kind_naked_immediate ty renaming
+      in
       if ty == ty' then t else Naked_immediate ty'
     | Naked_float ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
+          ~free_names_head:free_names_head_of_kind_naked_float ty renaming
+      in
       if ty == ty' then t else Naked_float ty'
     | Naked_int32 ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
+          ~free_names_head:free_names_head_of_kind_naked_int32 ty renaming
+      in
       if ty == ty' then t else Naked_int32 ty'
     | Naked_int64 ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
+          ~free_names_head:free_names_head_of_kind_naked_int64 ty renaming
+      in
       if ty == ty' then t else Naked_int64 ty'
     | Naked_nativeint ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
+          ~free_names_head:free_names_head_of_kind_naked_nativeint ty renaming
+      in
       if ty == ty' then t else Naked_nativeint ty'
     | Rec_info ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
+          ~free_names_head:free_names_head_of_kind_rec_info ty renaming
+      in
       if ty == ty' then t else Rec_info ty'
 
-let rec apply_renaming_head_of_kind_value head renaming =
+and apply_renaming_head_of_kind_value head renaming =
   match head with
   | Variant { blocks; immediates; is_unique } ->
     let immediates' =
@@ -361,7 +388,7 @@ and apply_renaming_env_extension ({ equations } as env_extension) renaming =
   in
   if !changed then { equations = equations' } else env_extension
 
-let rec free_names t =
+and free_names t =
   match t with
   | Value ty ->
     TD.free_names ~apply_renaming_head:apply_renaming_head_of_kind_value

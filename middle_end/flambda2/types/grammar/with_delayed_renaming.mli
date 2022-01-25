@@ -47,7 +47,12 @@ val print :
   'descr t ->
   unit
 
-val apply_renaming : 'descr t -> Renaming.t -> 'descr t
+val apply_renaming :
+  apply_renaming_descr:('descr -> Renaming.t -> 'descr) ->
+  free_names_descr:('descr -> Name_occurrences.t) ->
+  'descr t ->
+  Renaming.t ->
+  'descr t
 
 val free_names :
   apply_renaming_descr:('descr -> Renaming.t -> 'descr) ->

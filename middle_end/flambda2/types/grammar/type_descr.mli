@@ -62,7 +62,12 @@ val apply_coercion :
   'head t ->
   'head t Or_bottom.t
 
-val apply_renaming : 'head t -> Renaming.t -> 'head t
+val apply_renaming :
+  apply_renaming_head:('head -> Renaming.t -> 'head) ->
+  free_names_head:('head -> Name_occurrences.t) ->
+  'head t ->
+  Renaming.t ->
+  'head t
 
 val free_names :
   apply_renaming_head:('head -> Renaming.t -> 'head) ->
