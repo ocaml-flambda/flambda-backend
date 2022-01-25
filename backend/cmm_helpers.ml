@@ -2811,6 +2811,8 @@ let transl_builtin name args dbg =
     mulhi ~signed:true Pint64 args dbg
   | "caml_unsigned_int64_mulh_unboxed" ->
     mulhi ~signed:false Pint64 args dbg
+  | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
+    Some (zero_extend_32 dbg (one_arg name args))
   (* Native_pointer: handled as unboxed nativeint *)
   | "caml_ext_pointer_as_native_pointer" ->
     Some(int_as_pointer (one_arg name args) dbg)
