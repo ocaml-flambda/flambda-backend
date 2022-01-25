@@ -483,7 +483,8 @@ method effects_of exp =
       | Cextcall { effects = e; coeffects = ce; } ->
         EC.create (select_effects e) (select_coeffects ce)
       | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
-      | Calloc _ -> EC.none
+      | Calloc Alloc_heap -> EC.none
+      | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Cprefetch _ -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
