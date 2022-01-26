@@ -221,6 +221,8 @@ let dump_op ppf = function
     Format.fprintf ppf "probe %s %s" name handler_code_sym
   | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
   | Opaque -> Format.fprintf ppf "opaque"
+  | Begin_region -> Format.fprintf ppf "beginregion"
+  | End_region -> Format.fprintf ppf "endregion"
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
 
 let dump_call ppf = function
@@ -319,6 +321,8 @@ let can_raise_operation : operation -> bool = function
   | Specific _ -> false (* CR xclerc for xclerc: double check *)
   | Opaque -> false
   | Name_for_debugger _ -> false
+  | Begin_region -> false
+  | End_region -> false
 
 let can_raise_basic : basic -> bool = function
   | Op op -> can_raise_operation op

@@ -185,6 +185,7 @@ let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
     P.Init_or_assign.t =
   match i_or_a with
   | Assignment -> Assignment
+  | Local_assignment -> assert false (* temporary *)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"

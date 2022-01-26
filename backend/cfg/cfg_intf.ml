@@ -49,7 +49,8 @@ module S = struct
     | External of external_call_operation
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Debuginfo.alloc_dbginfo;
+          mode : Lambda.alloc_mode
         }
     | Checkbound of { immediate : int option }
 
@@ -80,6 +81,8 @@ module S = struct
         }
     | Probe_is_enabled of { name : string }
     | Opaque
+    | Begin_region
+    | End_region
     | Specific of Arch.specific_operation
     | Name_for_debugger of
         { ident : Ident.t;

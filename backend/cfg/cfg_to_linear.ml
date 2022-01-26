@@ -51,7 +51,8 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
   | Call (P (Checkbound { immediate = None })) -> Lop (Iintop Icheckbound)
   | Call (P (Checkbound { immediate = Some i })) ->
     Lop (Iintop_imm (Icheckbound, i))
-  | Call (P (Alloc { bytes; dbginfo })) -> Lop (Ialloc { bytes; dbginfo })
+  | Call (P (Alloc { bytes; dbginfo; mode })) ->
+    Lop (Ialloc { bytes; dbginfo; mode })
   | Op op ->
     let op : Mach.operation =
       match op with
@@ -79,6 +80,8 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
       | Probe_is_enabled { name } -> Iprobe_is_enabled { name }
       | Opaque -> Iopaque
       | Specific op -> Ispecific op
+      | Begin_region -> Ibeginregion
+      | End_region -> Iendregion
       | Name_for_debugger { ident; which_parameter; provenance; is_assignment }
         ->
         Iname_for_debugger { ident; which_parameter; provenance; is_assignment }

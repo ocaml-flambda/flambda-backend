@@ -36,15 +36,16 @@ type export_info =
   | Flambda1 of Export_info.t
   | Flambda2 of Flambda2_cmx.Flambda_cmx_format.t option
 
+type apply_fn := int * Lambda.alloc_mode
 type unit_infos =
   { mutable ui_name: modname;             (* Name of unit implemented *)
     mutable ui_symbol: string;            (* Prefix for symbols *)
     mutable ui_defines: string list;      (* Unit and sub-units implemented *)
     mutable ui_imports_cmi: crcs;         (* Interfaces imported *)
     mutable ui_imports_cmx: crcs;         (* Infos imported *)
-    mutable ui_curry_fun: int list;       (* Currying functions needed *)
-    mutable ui_apply_fun: int list;       (* Apply functions needed *)
-    mutable ui_send_fun: int list;        (* Send functions needed *)
+    mutable ui_curry_fun: Clambda.arity list; (* Currying functions needed *)
+    mutable ui_apply_fun: apply_fn list;  (* Apply functions needed *)
+    mutable ui_send_fun: apply_fn list;   (* Send functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_force_link: bool }         (* Always linked *)
 

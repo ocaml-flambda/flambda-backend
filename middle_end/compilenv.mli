@@ -104,9 +104,9 @@ val get_global_info' : Ident.t -> Cmx_format.export_info option
 val flambda2_set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
         (* Set the export information for the current unit (Flambda 2 only). *)
 
-val need_curry_fun: int -> unit
-val need_apply_fun: int -> unit
-val need_send_fun: int -> unit
+val need_curry_fun: Clambda.arity -> unit
+val need_apply_fun: int -> Lambda.alloc_mode -> unit
+val need_send_fun: int -> Lambda.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 

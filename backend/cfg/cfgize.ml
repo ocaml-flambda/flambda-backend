@@ -158,7 +158,8 @@ let basic_or_terminator_of_operation :
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
   | Iload (mem, mode) -> Basic (Op (Load (mem, mode)))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
-  | Ialloc { bytes; dbginfo } -> Basic (Call (P (Alloc { bytes; dbginfo })))
+  | Ialloc { bytes; dbginfo; mode } ->
+    Basic (Call (P (Alloc { bytes; dbginfo; mode })))
   | Iintop Icheckbound -> Basic (Call (P (Checkbound { immediate = None })))
   | Iintop_imm (Icheckbound, i) ->
     Basic (Call (P (Checkbound { immediate = Some i })))
@@ -189,6 +190,8 @@ let basic_or_terminator_of_operation :
   | Iprobe { name; handler_code_sym } ->
     Basic (Op (Probe { name; handler_code_sym }))
   | Iprobe_is_enabled { name } -> Basic (Op (Probe_is_enabled { name }))
+  | Ibeginregion -> Basic (Op Begin_region)
+  | Iendregion -> Basic (Op End_region)
 
 let float_test_of_float_comparison :
     Cmm.float_comparison ->
@@ -316,7 +319,8 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
       | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ )
+      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
+      | End_region )
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 

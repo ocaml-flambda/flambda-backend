@@ -288,6 +288,7 @@ let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque
+  | Ibeginregion | Iendregion
   | Ispecific(Ishiftcheckbound _) -> false
   | _ -> true
 
@@ -314,7 +315,7 @@ let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _
     -> false   (* Not implemented *)
-  | Capply _ | Cextcall _ | Cload _ | Calloc | Cstore _
+  | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Ccmpi _ | Caddv | Cadda | Ccmpa _

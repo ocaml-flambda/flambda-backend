@@ -250,6 +250,8 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     when Arch.equal_specific_operation expected_spec result_spec ->
     ()
   | Opaque, Opaque -> ()
+  | Begin_region, Begin_region -> ()
+  | End_region, End_region -> ()
   | ( Name_for_debugger
         { ident = left_ident;
           which_parameter = left_which_parameter;
@@ -276,9 +278,16 @@ let check_prim_call_operation :
   match expected, result with
   | External expected, External result ->
     check_external_call_operation location expected result
-  | ( Alloc { bytes = expected_bytes; dbginfo = _expected_dbginfo },
-      Alloc { bytes = result_bytes; dbginfo = _result_dbginfo } )
-    when Int.equal expected_bytes result_bytes ->
+  | ( Alloc
+        { bytes = expected_bytes;
+          dbginfo = _expected_dbginfo;
+          mode = expected_mode
+        },
+      Alloc
+        { bytes = result_bytes; dbginfo = _result_dbginfo; mode = result_mode }
+    )
+    when Int.equal expected_bytes result_bytes
+         && Lambda.eq_mode expected_mode result_mode ->
     (* CR xclerc for xclerc: also check debug info *)
     ()
   | ( Checkbound { immediate = expected_immediate },
