@@ -198,7 +198,16 @@ let layout env closures env_vars =
       assert false
   in
   let slots = List.rev acc_slots in
-  { startenv; slots }
+  (* The Gc assumes that a set of closures block actually starts with a closure
+     slot at offset 0. Or more precisely, the GC unconditionally reads the
+     second field of a set of closures to find out the start of environment.
+     Thus we add a check here to ensure that the slots start with a closure at
+     offset 0. *)
+  match slots with
+  | (0, Closure _) :: _ -> { startenv; slots }
+  | _ ->
+    Misc.fatal_error
+      "Sets of closures must start with a closure slot at offset 0"
 
 let print_layout_slot fmt = function
   | Env_var v -> Format.fprintf fmt "var %a" Var_within_closure.print v
