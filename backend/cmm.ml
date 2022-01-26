@@ -167,7 +167,7 @@ type memory_chunk =
   | Double
 
 and operation =
-    Capply of machtype * Lambda.apply_position
+    Capply of machtype * Lambda.region_close
   | Cextcall of
       { func: string;
         ty: machtype;

@@ -21,7 +21,7 @@ open Lambda
 
 type function_label = string
 type arity = Lambda.function_kind * int
-type apply_kind = Lambda.apply_position * Lambda.alloc_mode
+type apply_kind = Lambda.region_close * Lambda.alloc_mode
 
 type ustructured_constant =
   | Uconst_float of float

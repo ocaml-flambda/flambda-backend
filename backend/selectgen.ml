@@ -1282,7 +1282,7 @@ method emit_tail (env:environment) exp =
   | Cphantom_let (_var, _defining_expr, body) ->
       self#emit_tail env body
   | Cop((Capply(ty, pos)) as op, args, dbg) ->
-      let tail = (pos = Lambda.Apply_tail) in
+      let tail = (pos = Lambda.Rc_close_at_apply) in
       let endregion = env.region_tail in
       begin match self#emit_parts_list env' args with
         None -> ()

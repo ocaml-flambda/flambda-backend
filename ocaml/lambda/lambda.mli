@@ -57,9 +57,9 @@ type alloc_mode =
   | Alloc_heap
   | Alloc_local
 
-type apply_position =
-  | Apply_tail
-  | Apply_nontail
+type region_close =
+  | Rc_close_at_apply
+  | Rc_normal
 
 type primitive =
   | Pidentity

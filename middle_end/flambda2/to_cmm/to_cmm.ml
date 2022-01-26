@@ -1038,7 +1038,7 @@ and apply_call env e =
     let meth, env, _ = simple env f in
     let kind = meth_kind kind in
     let args, env, _ = arg_list env args in
-    C.send kind meth obj args (Apply_nontail, Alloc_heap) dbg, env, effs
+    C.send kind meth obj args (Rc_normal, Alloc_heap) dbg, env, effs
 
 (* function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra

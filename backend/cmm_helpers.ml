@@ -1939,14 +1939,14 @@ let has_local_allocs e =
 let remove_region_tail e =
   let rec has_tail = function
     | Ctail _
-    | Cop(Capply(_, Apply_tail), _, _) -> raise Exit
+    | Cop(Capply(_, Rc_close_at_apply), _, _) -> raise Exit
     | Cregion _ -> ()
     | e -> ignore (iter_shallow_tail has_tail e)
   in
   let rec remove_tail = function
     | Ctail e -> e
-    | Cop(Capply(mach, Apply_tail), args, dbg) ->
-       Cop(Capply(mach, Apply_nontail), args, dbg)
+    | Cop(Capply(mach, Rc_close_at_apply), args, dbg) ->
+       Cop(Capply(mach, Rc_normal), args, dbg)
     | Cregion _ as e -> e
     | e ->
        map_shallow_tail remove_tail e
@@ -1984,7 +1984,7 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   let clos = V.create_local "clos" in
   let rec app_fun clos n =
     if n = arity-1 then
-      Cop(Capply(typ_val, Apply_nontail),
+      Cop(Capply(typ_val, Rc_normal),
           [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
            Cvar arg.(n);
            Cvar clos],
@@ -1992,7 +1992,7 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
     else begin
       let newclos = V.create_local "clos" in
       Clet(VP.create newclos,
-           Cop(Capply(typ_val, Apply_nontail),
+           Cop(Capply(typ_val, Rc_normal),
                [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
                 Cvar arg.(n); Cvar clos], dbg ()),
            app_fun newclos (n+1))
@@ -2007,7 +2007,7 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
                         Cconst_int(pos_arity_in_closinfo, dbg())], dbg());
                    Cconst_int(arity, dbg())], dbg()),
    dbg (),
-   Cop(Capply(typ_val, Apply_nontail),
+   Cop(Capply(typ_val, Rc_normal),
        get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
        :: List.map (fun s -> Cvar s) all_args,
        dbg ()),
@@ -2100,7 +2100,7 @@ let tuplify_function arity =
    {fun_name;
     fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
     fun_body =
-      Cop(Capply(typ_val, Apply_nontail),
+      Cop(Capply(typ_val, Rc_normal),
           get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ())
           :: access_components 0 @ [Cvar clos],
           (dbg ()));
@@ -2143,7 +2143,7 @@ let final_curry_function ~nlocal ~arity =
   let last_clos = V.create_local "clos" in
   let rec curry_fun args clos n =
     if n = 0 then
-      Cop(Capply(typ_val, Apply_nontail),
+      Cop(Capply(typ_val, Rc_normal),
           get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()) ::
             args @ [Cvar last_arg; Cvar clos],
           dbg ())
@@ -2227,7 +2227,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
           let direct_args = iter (num+2) in
           let rec iter i args clos =
             if i = 0 then
-              Cop(Capply(typ_val, Apply_nontail),
+              Cop(Capply(typ_val, Rc_normal),
                   (get_field_gen Asttypes.Mutable (Cvar clos) 2 (dbg ()))
                   :: args @ [Cvar clos],
                   dbg ())
@@ -3165,7 +3165,7 @@ let entry_point namelist =
     List.fold_right
       (fun name next ->
         let entry_sym = Compilenv.make_symbol ~unitname:name (Some "entry") in
-        Csequence(Cop(Capply(typ_void, Apply_nontail),
+        Csequence(Cop(Capply(typ_void, Rc_normal),
                          [cconst_symbol entry_sym], dbg ()),
                   Csequence(incr_global_inited (), next)))
       namelist (cconst_int 1) in

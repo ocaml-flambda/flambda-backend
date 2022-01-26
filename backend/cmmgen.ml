@@ -449,16 +449,16 @@ let rec transl env e =
         (Cop(Cprobe { name; handler_code_sym; }, args, dbg))
   | Udirect_apply(lbl, args, None, dbg) ->
       let args = List.map (transl env) args in
-      direct_apply lbl args (Apply_nontail, Alloc_heap) dbg
+      direct_apply lbl args (Rc_normal, Alloc_heap) dbg
   | Ugeneric_apply(clos, args, dbg) ->
       let clos = transl env clos in
       let args = List.map (transl env) args in
-      generic_apply (mut_from_env env clos) clos args (Apply_nontail, Alloc_heap) dbg
+      generic_apply (mut_from_env env clos) clos args (Rc_normal, Alloc_heap) dbg
   | Usend(kind, met, obj, args, dbg) ->
       let met = transl env met in
       let obj = transl env obj in
       let args = List.map (transl env) args in
-      send kind met obj args (Apply_nontail, Alloc_heap) dbg
+      send kind met obj args (Rc_normal, Alloc_heap) dbg
   | Ulet(str, kind, id, exp, body) ->
       transl_let env str kind id exp body
   | Uphantom_let (var, defining_expr, body) ->
