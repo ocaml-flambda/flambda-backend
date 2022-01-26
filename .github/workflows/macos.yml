@@ -1,4 +1,4 @@
-name: flambda2
+name: macos
 
 on: [push, pull_request]
 
