@@ -36,6 +36,7 @@ type immediate_or_pointer =
 
 type initialization_or_assignment =
   | Assignment
+  | Local_assignment (* mutations of blocks that may be locally allocated *)
   (* Initialization of in heap values, like [caml_initialize] C primitive.  The
      field should not have been read before and initialization should happen
      only once. *)
@@ -51,6 +52,14 @@ type is_safe =
 type field_read_semantics =
   | Reads_agree
   | Reads_vary
+
+type alloc_mode =
+  | Alloc_heap
+  | Alloc_local
+
+type region_close =
+  | Rc_close_at_apply
+  | Rc_normal
 
 type primitive =
   | Pidentity
@@ -460,6 +469,10 @@ val max_arity : unit -> int
       maximal length of the [params] list of a [lfunction] record.
       This is unlimited ([max_int]) for bytecode, but limited
       (currently to 126) for native code. *)
+
+val join_mode : alloc_mode -> alloc_mode -> alloc_mode
+val sub_mode : alloc_mode -> alloc_mode -> bool
+val eq_mode : alloc_mode -> alloc_mode -> bool
 
 (***********************)
 (* For static failures *)

@@ -56,6 +56,11 @@ void caml_init_domain ()
   Caml_state->external_raise = NULL;
   Caml_state->exn_bucket = Val_unit;
 
+  Caml_state->local_arenas = NULL;
+  Caml_state->local_sp = 0;
+  Caml_state->local_top = NULL;
+  Caml_state->local_limit = 0;
+
   Caml_state->top_of_stack = NULL;
   Caml_state->bottom_of_stack = NULL; /* no stack initially */
   Caml_state->last_return_address = 1; /* not in OCaml code initially */

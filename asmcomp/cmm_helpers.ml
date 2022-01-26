@@ -2180,6 +2180,7 @@ let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
+  | Local_assignment, _ -> assert false (* temporary *)
   | Assignment, Pointer -> Caml_modify
   | Heap_initialization, Pointer -> Caml_initialize
   | Assignment, Immediate
