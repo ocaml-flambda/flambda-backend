@@ -257,11 +257,11 @@ let toplevel_substitution sb tree =
     | Assign { being_assigned; new_value; } ->
       let new_value = sb new_value in
       Assign { being_assigned; new_value; }
-    | Apply { func; args; kind; dbg; position; mode;
+    | Apply { func; args; kind; dbg; reg_close; mode;
               inlined; specialise; probe; } ->
       let func = sb func in
       let args = List.map sb args in
-      Apply { func; args; kind; dbg; position; mode;
+      Apply { func; args; kind; dbg; reg_close; mode;
               inlined; specialise; probe; }
     | If_then_else (cond, e1, e2) ->
       let cond = sb cond in
@@ -272,11 +272,11 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def) ->
       let cond = sb cond in
       String_switch (cond, branches, def)
-    | Send { kind; meth; obj; args; dbg; position; mode } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth = sb meth in
       let obj = sb obj in
       let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg; position; mode }
+      Send { kind; meth; obj; args; dbg; reg_close; mode }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -707,7 +707,7 @@ let substitute_read_symbol_field_for_variables
       bind_from_value @@
       bind_to_value @@
       Flambda.For { bound_var; from_value; to_value; direction; body }
-    | Apply { func; args; kind; dbg; position; mode;
+    | Apply { func; args; kind; dbg; reg_close; mode;
               inlined; specialise; probe } ->
       let func, bind_func = make_var_subst func in
       let args, bind_args =
@@ -715,9 +715,9 @@ let substitute_read_symbol_field_for_variables
       in
       bind_func @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Apply { func; args; kind; dbg; position; mode;
+      Flambda.Apply { func; args; kind; dbg; reg_close; mode;
                       inlined; specialise; probe }
-    | Send { kind; meth; obj; args; dbg; position; mode } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
       let args, bind_args =
@@ -726,7 +726,7 @@ let substitute_read_symbol_field_for_variables
       bind_meth @@
       bind_obj @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg; position; mode }
+      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode }
     | Proved_unreachable
     | Region _
     | Tail _

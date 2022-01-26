@@ -38,7 +38,7 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
-  position : Lambda.apply_position;
+  reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
   inlined : Lambda.inlined_attribute;
   (** Instructions from the source code as to whether the callee should
@@ -64,7 +64,7 @@ type send = {
   obj : Variable.t;
   args : Variable.t list;
   dbg : Debuginfo.t;
-  position : Lambda.apply_position;
+  reg_close : Lambda.region_close;
   mode : Lambda.alloc_mode;
 }
 

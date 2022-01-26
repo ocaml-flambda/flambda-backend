@@ -83,11 +83,11 @@ type prim =
   | Comparison of comparison * comparison_kind
   | Raise of Lambda.raise_kind
   | Raise_with_backtrace
-  | Lazy_force of Lambda.apply_position
+  | Lazy_force of Lambda.region_close
   | Loc of loc_kind
-  | Send of Lambda.apply_position
-  | Send_self of Lambda.apply_position
-  | Send_cache of Lambda.apply_position
+  | Send of Lambda.region_close
+  | Send_self of Lambda.region_close
+  | Send_cache of Lambda.region_close
 
 let used_primitives = Hashtbl.create 7
 let add_used_primitive loc env path =
@@ -720,7 +720,7 @@ let check_primitive_arity loc p =
     | Prim_global, _ | Prim_poly, _ -> Alloc_heap
     | Prim_local, _ -> Alloc_local
   in
-  let prim = lookup_primitive loc mode Apply_nontail p in
+  let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
     match prim with
     | Primitive (_,arity) -> arity = p.prim_arity
@@ -741,7 +741,7 @@ let check_primitive_arity loc p =
 let transl_primitive loc p env ty ~poly_mode path =
   let prim =
     lookup_primitive_and_mark_used
-      (to_location loc) poly_mode Apply_nontail p env path
+      (to_location loc) poly_mode Rc_normal p env path
   in
   let has_constant_constructor = false in
   let prim =

@@ -87,7 +87,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
            redundancy here (func is also unboxed_version) *)
         kind = Direct (Closure_id.wrap unboxed_version);
         dbg = Debuginfo.none;
-        position = Apply_nontail;
+        reg_close = Rc_normal;
         mode = if region then Alloc_heap else Alloc_local;
         inlined = Default_inlined;
         specialise = Default_specialise;
@@ -232,7 +232,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let set_of_closures_var set_of_closures
       (name_expr (Project_closure (project_closure)) ~name)
-  | Lapply { ap_func; ap_args; ap_loc; ap_position; ap_mode;
+  | Lapply { ap_func; ap_args; ap_loc; ap_region_close; ap_mode;
              ap_tailcall = _; ap_inlined; ap_specialised; ap_probe; } ->
     Lift_code.lifting_helper (close_list t env ap_args)
       ~evaluation_order:`Right_to_left
@@ -246,7 +246,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
               args;
               kind = Indirect;
               dbg = Debuginfo.from_location ap_loc;
-              position = ap_position;
+              reg_close = ap_region_close;
               mode = ap_mode;
               inlined = ap_inlined;
               specialise = ap_specialised;
@@ -321,7 +321,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, position, mode, loc) ->
+  | Lsend (kind, meth, obj, args, reg_close, mode, loc) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in
@@ -332,7 +332,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
           ~name:Names.send_arg
           ~create_body:(fun args ->
               Send { kind; meth = meth_var; obj = obj_var; args;
-                     dbg; position; mode })))
+                     dbg; reg_close; mode })))
   | Lprim ((Pdivint Safe | Pmodint Safe
            | Pdivbint { is_safe = Safe } | Pmodbint { is_safe = Safe }) as prim,
            [arg1; arg2], loc)
@@ -429,7 +429,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     let apply : Lambda.lambda_apply =
       { ap_func = funct;
         ap_args = [arg];
-        ap_position = pos;
+        ap_region_close = pos;
         ap_mode = Alloc_heap;
         ap_loc = loc;
         (* CR-someday lwhite: it would be nice to be able to give

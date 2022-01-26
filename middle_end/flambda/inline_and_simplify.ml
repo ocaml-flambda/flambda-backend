@@ -674,7 +674,7 @@ and simplify_set_of_closures original_env r
 
 and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
   let {
-    Flambda. func = lhs_of_application; args; kind = _; dbg; position; mode;
+    Flambda. func = lhs_of_application; args; kind = _; dbg; reg_close; mode;
     inlined = inlined_requested; specialise = specialise_requested;
     probe = probe_requested;
   } = apply in
@@ -766,12 +766,12 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
             if nargs = arity then
               simplify_full_application env r ~function_decls
                 ~lhs_of_application ~closure_id_being_applied ~function_decl
-                ~value_set_of_closures ~args ~args_approxs ~dbg ~position ~mode
+                ~value_set_of_closures ~args ~args_approxs ~dbg ~reg_close ~mode
                 ~inlined_requested ~specialise_requested ~probe_requested
             else if nargs > arity then
               simplify_over_application env r ~args ~args_approxs
                 ~function_decls ~lhs_of_application ~closure_id_being_applied
-                ~function_decl ~value_set_of_closures ~dbg ~position ~mode
+                ~function_decl ~value_set_of_closures ~dbg ~reg_close ~mode
                 ~inlined_requested ~specialise_requested
             else if nargs > 0 && nargs < arity then
               simplify_partial_application env r ~lhs_of_application
@@ -785,7 +785,7 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
           wrap result, r
         | Wrong ->  (* Insufficient approximation information to simplify. *)
           Apply ({ func = lhs_of_application; args; kind = Indirect; dbg;
-                   position; mode;
+                   reg_close; mode;
                    inlined = inlined_requested;
                    specialise = specialise_requested;
                    probe = probe_requested;
@@ -794,12 +794,12 @@ and simplify_apply env r ~(apply : Flambda.apply) : Flambda.t * R.t =
 
 and simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures ~args
-      ~args_approxs ~dbg ~position ~mode
+      ~args_approxs ~dbg ~reg_close ~mode
       ~inlined_requested ~specialise_requested ~probe_requested
   =
   Inlining_decision.for_call_site ~env ~r ~function_decls
     ~lhs_of_application ~closure_id_being_applied ~function_decl
-    ~value_set_of_closures ~args ~args_approxs ~dbg ~position ~mode ~simplify
+    ~value_set_of_closures ~args ~args_approxs ~dbg ~reg_close ~mode ~simplify
     ~inlined_requested ~specialise_requested ~probe_requested
 
 and simplify_partial_application env r ~lhs_of_application
@@ -850,7 +850,7 @@ and simplify_partial_application env r ~lhs_of_application
         args = Parameter.List.vars freshened_params;
         kind = Direct closure_id_being_applied;
         dbg;
-        position = Apply_nontail;
+        reg_close = Rc_normal;
         mode;
         inlined = Default_inlined;
         specialise = Default_specialise;
@@ -879,7 +879,7 @@ and simplify_partial_application env r ~lhs_of_application
 
 and simplify_over_application env r ~args ~args_approxs ~function_decls
       ~lhs_of_application ~closure_id_being_applied ~function_decl
-      ~value_set_of_closures ~dbg ~position ~mode
+      ~value_set_of_closures ~dbg ~reg_close ~mode
       ~inlined_requested ~specialise_requested =
   let arity = A.function_arity function_decl in
   assert (arity < List.length args);
@@ -896,14 +896,14 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
     simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures
       ~args:full_app_args ~args_approxs:full_app_approxs ~dbg
-      ~position:Lambda.Apply_nontail ~mode:mode'
+      ~reg_close:Lambda.Rc_normal ~mode:mode'
       ~inlined_requested ~specialise_requested ~probe_requested:None
   in
   let func_var = Variable.create Internal_variable_names.full_apply in
   let expr : Flambda.t =
     Flambda.create_let func_var (Expr expr)
       (Apply { func = func_var; args = remaining_args; kind = Indirect; dbg;
-               position = Apply_nontail; mode;
+               reg_close = Rc_normal; mode;
                inlined = inlined_requested; specialise = specialise_requested;
                probe = None})
   in
@@ -914,9 +914,9 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
     | _ -> expr
   in
   let expr =
-    match position with
-    | Lambda.Apply_tail -> Flambda.Tail expr
-    | Lambda.Apply_nontail -> expr
+    match reg_close with
+    | Lambda.Rc_close_at_apply -> Flambda.Tail expr
+    | Lambda.Rc_normal -> expr
   in
   simplify (E.set_never_inline env) r expr
 
@@ -961,7 +961,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
          from each call to [simplify_set_of_closures] must be composed.
          Note that this function only composes with [first_freshening] owing
          to the structure of the code below (this new [simplify] is always
-         in tail position). *)
+         in tail reg_close). *)
       (* CR-someday mshinwell: It was mooted that maybe we could try
          structurally-typed closures (i.e. where we would never rename the
          closure elements), or something else, to try to remove
@@ -1290,12 +1290,12 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     let cond, r = simplify env r cond in
     let body, r = simplify env r body in
     While (cond, body), ret r (A.value_unknown Other)
-  | Send { kind; meth; obj; args; dbg; position; mode } ->
+  | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
     let dbg = E.add_inlined_debuginfo env ~dbg in
     simplify_free_variable env meth ~f:(fun env meth _meth_approx ->
       simplify_free_variable env obj ~f:(fun env obj _obj_approx ->
         simplify_free_variables env args ~f:(fun _env args _args_approx ->
-          Send { kind; meth; obj; args; dbg; position; mode },
+          Send { kind; meth; obj; args; dbg; reg_close; mode },
             ret r (A.value_unknown Other))))
   | For { bound_var; from_value; to_value; direction; body; } ->
     simplify_free_variable env from_value ~f:(fun env from_value _approx ->

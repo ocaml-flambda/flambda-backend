@@ -134,7 +134,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_loc=loc;
                       ap_func=Lvar id;
                       ap_args=List.rev args;
-                      ap_position=Apply_nontail;
+                      ap_region_close=Rc_normal;
                       ap_mode=Alloc_heap;
                       ap_tailcall=Default_tailcall;
                       ap_inlined=Default_inlined;
@@ -399,7 +399,7 @@ let eval_rec_bindings bindings cont =
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
              ap_args=[loc; shape];
-             ap_position=Apply_nontail;
+             ap_region_close=Rc_normal;
              ap_mode=Alloc_heap;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inlined;
@@ -428,7 +428,7 @@ let eval_rec_bindings bindings cont =
           ap_loc=Loc_unknown;
           ap_func=mod_prim "update_mod";
           ap_args=[shape; Lvar id; rhs];
-          ap_position=Apply_nontail;
+          ap_region_close=Rc_normal;
           ap_mode=Alloc_heap;
           ap_tailcall=Default_tailcall;
           ap_inlined=Default_inlined;
@@ -568,7 +568,7 @@ and transl_module ~scopes cc rootpath mexp =
            ap_loc=loc;
            ap_func=transl_module ~scopes Tcoerce_none None funct;
            ap_args=[transl_module ~scopes ccarg None arg];
-           ap_position=Apply_nontail;
+           ap_region_close=Rc_normal;
            ap_mode=Alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=inlined_attribute;
@@ -1504,7 +1504,7 @@ let toploop_getvalue id =
                   Loc_unknown);
     ap_args=[Lconst(Const_base(
       Const_string (toplevel_name id, Location.none, None)))];
-    ap_position=Apply_nontail;
+    ap_region_close=Rc_normal;
     ap_mode=Alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inlined;
@@ -1522,7 +1522,7 @@ let toploop_setvalue id lam =
       [Lconst(Const_base(
          Const_string(toplevel_name id, Location.none, None)));
        lam];
-    ap_position=Apply_nontail;
+    ap_region_close=Rc_normal;
     ap_mode=Alloc_heap;
     ap_tailcall=Default_tailcall;
     ap_inlined=Default_inlined;

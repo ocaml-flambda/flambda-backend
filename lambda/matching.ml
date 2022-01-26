@@ -1846,7 +1846,7 @@ let inline_lazy_force_cond arg pos loc =
                       ap_loc = loc;
                       ap_func = force_fun;
                       ap_args = [ varg ];
-                      ap_position = pos;
+                      ap_region_close = pos;
                       ap_mode = Alloc_heap;
                       ap_inlined = Default_inlined;
                       ap_specialised = Default_specialise;
@@ -1882,7 +1882,7 @@ let inline_lazy_force_switch arg pos loc =
                           ap_loc = loc;
                           ap_func = force_fun;
                           ap_args = [ varg ];
-                          ap_position = pos;
+                          ap_region_close = pos;
                           ap_mode = Alloc_heap;
                           ap_inlined = Default_inlined;
                           ap_specialised = Default_specialise;
@@ -1904,7 +1904,7 @@ let inline_lazy_force arg pos loc =
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ arg ];
-        ap_position = pos;
+        ap_region_close = pos;
         ap_mode = Alloc_heap;
         ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
@@ -1922,7 +1922,7 @@ let inline_lazy_force arg pos loc =
 
 let get_expr_args_lazy ~scopes head (arg, _mut) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg Apply_nontail loc, Strict) :: rem
+  (inline_lazy_force arg Rc_normal loc, Strict) :: rem
 
 let divide_lazy ~scopes head ctx pm =
   divide_line (Context.specialize head)

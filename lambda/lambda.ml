@@ -50,17 +50,17 @@ type alloc_mode =
   | Alloc_heap
   | Alloc_local
 
-type apply_position =
-  | Apply_tail
-  | Apply_nontail
+type region_close =
+  | Rc_normal
+  | Rc_close_at_apply
 
 type primitive =
   | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply of apply_position
-  | Pdirapply of apply_position
+  | Prevapply of region_close
+  | Pdirapply of region_close
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -356,7 +356,7 @@ type lambda =
   | Lassign of Ident.t * lambda
   | Lsend of
       meth_kind * lambda * lambda * lambda list
-      * apply_position * alloc_mode * scoped_location
+      * region_close * alloc_mode * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -374,7 +374,7 @@ and lfunction =
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
-    ap_position : apply_position;
+    ap_region_close : region_close;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
@@ -912,12 +912,12 @@ let duplicate lam =
 let shallow_map ~tail ~non_tail:f = function
   | Lvar _
   | Lconst _ as lam -> lam
-  | Lapply { ap_func; ap_args; ap_position; ap_mode; ap_loc; ap_tailcall;
+  | Lapply { ap_func; ap_args; ap_region_close; ap_mode; ap_loc; ap_tailcall;
              ap_inlined; ap_specialised; ap_probe } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
-        ap_position;
+        ap_region_close;
         ap_mode;
         ap_loc;
         ap_tailcall;

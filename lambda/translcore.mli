@@ -29,7 +29,7 @@ val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
                   -> ?inlined:inlined_attribute
                   -> ?specialised:specialise_attribute
-                  -> ?position:apply_position
+                  -> ?position:region_close
                   -> ?mode:alloc_mode
                   -> lambda
                   -> (arg_label * apply_arg) list

@@ -104,10 +104,10 @@ and uconstant ppf = function
   | Uconst_int i -> fprintf ppf "%i" i
 
 and apply_kind ppf : apply_kind -> unit = function
-  | Apply_nontail, Alloc_heap -> fprintf ppf "apply"
-  | Apply_tail, Alloc_heap -> fprintf ppf "applytail"
-  | Apply_nontail, Alloc_local -> fprintf ppf "apply[L]"
-  | Apply_tail, Alloc_local -> fprintf ppf "applytail[L]"
+  | Rc_normal, Alloc_heap -> fprintf ppf "apply"
+  | Rc_close_at_apply, Alloc_heap -> fprintf ppf "applytail"
+  | Rc_normal, Alloc_local -> fprintf ppf "apply[L]"
+  | Rc_close_at_apply, Alloc_local -> fprintf ppf "applytail[L]"
 
 and lam ppf = function
   | Uvar id ->
@@ -246,8 +246,8 @@ and lam ppf = function
   | Usend (k, met, obj, largs, (pos,_) , _) ->
       let form =
         match pos with
-        | Apply_nontail -> "send"
-        | Apply_tail -> "sendtail"
+        | Rc_normal -> "send"
+        | Rc_close_at_apply -> "sendtail"
       in
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in

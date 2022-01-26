@@ -268,7 +268,7 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
         defs
     in
     Uletrec (defs, to_clambda t env body)
-  | Apply { func; args; kind = Direct direct_func; probe; dbg; position; mode} ->
+  | Apply { func; args; kind = Direct direct_func; probe; dbg; reg_close; mode} ->
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
        explicitly added (by [to_clambda_direct_apply]); there is no special
@@ -276,11 +276,11 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
        For an indirect call, we do not need to do anything here; Cmmgen will
        do the equivalent of the previous paragraph when it generates a direct
        call to [caml_apply]. *)
-    to_clambda_direct_apply t func args direct_func probe dbg position mode env
-  | Apply { func; args; kind = Indirect; probe = None; dbg; position; mode } ->
+    to_clambda_direct_apply t func args direct_func probe dbg reg_close mode env
+  | Apply { func; args; kind = Indirect; probe = None; dbg; reg_close; mode } ->
     let callee = subst_var env func in
     Ugeneric_apply (check_closure t callee (Flambda.Expr (Var func)),
-      subst_vars env args, (position, mode), dbg)
+      subst_vars env args, (reg_close, mode), dbg)
   | Apply { probe = Some {name}; _ } ->
     Misc.fatal_errorf "Cannot apply indirect handler for probe %s" name ()
   | Switch (arg, sw) ->
@@ -359,9 +359,9 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda =
           Flambda.print flam
     in
     Uassign (id, subst_var env new_value)
-  | Send { kind; meth; obj; args; dbg; position; mode } ->
+  | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
     Usend (kind, subst_var env meth, subst_var env obj,
-      subst_vars env args, (position,mode), dbg)
+      subst_vars env args, (reg_close,mode), dbg)
   | Region body ->
       let body = to_clambda t env body in
       let is_trivial =

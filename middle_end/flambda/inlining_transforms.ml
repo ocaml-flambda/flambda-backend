@@ -97,7 +97,7 @@ let inline_by_copying_function_body ~env ~r
       ~(function_decl : A.function_declaration)
       ~(function_body : A.function_body)
       ~fun_vars
-      ~args ~dbg ~position ~mode:_ ~simplify =
+      ~args ~dbg ~reg_close ~mode:_ ~simplify =
   assert (E.mem env lhs_of_application);
   assert (List.for_all (E.mem env) args);
   let r =
@@ -129,9 +129,9 @@ let inline_by_copying_function_body ~env ~r
       body
   in
   let body =
-    match position with
-    | Lambda.Apply_tail -> Flambda.Tail body
-    | Lambda.Apply_nontail -> body
+    match reg_close with
+    | Lambda.Rc_close_at_apply -> Flambda.Tail body
+    | Lambda.Rc_normal -> body
   in
   let bindings_for_params_to_args =
     (* Bind the function's parameters to the arguments from the call site. *)
@@ -611,7 +611,7 @@ let inline_by_copying_function_declaration
     ~(free_vars : Flambda.specialised_to Variable.Map.t)
     ~(direct_call_surrogates : Closure_id.t Closure_id.Map.t)
     ~(dbg : Debuginfo.t)
-    ~(position : Lambda.apply_position)
+    ~(reg_close : Lambda.region_close)
     ~(mode : Lambda.alloc_mode)
     ~(simplify : Inlining_decision_intf.simplify) =
   let state = empty_state in
@@ -671,7 +671,7 @@ let inline_by_copying_function_declaration
       in
       let apply : Flambda.apply =
         { func = closure_var; args; kind = Direct closure_id; dbg;
-          position; mode;
+          reg_close; mode;
           inlined = inlined_requested; specialise = Default_specialise;
           probe = probe_requested;
         }

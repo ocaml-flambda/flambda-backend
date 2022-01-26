@@ -880,8 +880,8 @@ let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
   | Some(params, body), _  ->
      let body =
        match pos with
-       | Apply_nontail -> body
-       | Apply_tail -> tail body
+       | Rc_normal -> body
+       | Rc_close_at_apply -> tail body
      in
      bind_params env loc fundesc params uargs ufunct body
 
@@ -989,7 +989,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
        when fun_arity > nargs *)
-  | Lapply{ap_func = funct; ap_args = args; ap_position=pos; ap_mode=mode;
+  | Lapply{ap_func = funct; ap_args = args; ap_region_close=pos; ap_mode=mode;
            ap_probe = probe; ap_loc = loc;
            ap_inlined = attribute} ->
       let nargs = List.length args in
@@ -1057,7 +1057,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
-                 ap_position=Apply_nontail;
+                 ap_region_close=Rc_normal;
                  ap_mode=ret_mode;
                  ap_tailcall=Default_tailcall;
                  ap_inlined=Default_inlined;
@@ -1091,9 +1091,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           let body =
             Ugeneric_apply(direct_apply env ~loc ~attribute
                               fundesc ufunct first_args
-                              Apply_nontail mode'
+                              Rc_normal mode'
                               ~probe,
-                           rem_args, (Apply_nontail, mode), dbg)
+                           rem_args, (Rc_normal, mode), dbg)
           in
           let body =
             match mode, fundesc.fun_region with
@@ -1102,8 +1102,8 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           in
           let body =
             match pos with
-            | Apply_nontail -> body
-            | Apply_tail -> tail body
+            | Rc_normal -> body
+            | Rc_close_at_apply -> tail body
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->
@@ -1208,7 +1208,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_loc=loc;
            ap_func=funct;
            ap_args=[arg];
-           ap_position=pos;
+           ap_region_close=pos;
            ap_mode=Alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=Default_inlined;

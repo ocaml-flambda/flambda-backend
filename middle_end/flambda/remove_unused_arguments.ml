@@ -94,7 +94,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       args = Parameter.List.vars args;
       kind;
       dbg = fun_decl.dbg;
-      position = Apply_nontail;
+      reg_close = Rc_normal;
       mode = if fun_decl.region then Alloc_heap else Alloc_local;
       inlined = Default_inlined;
       specialise = Default_specialise;

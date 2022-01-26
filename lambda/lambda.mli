@@ -57,17 +57,18 @@ type alloc_mode =
   | Alloc_heap
   | Alloc_local
 
-type apply_position =
-  | Apply_tail
-  | Apply_nontail
+(* Tail calls can close their enclosing region early *)
+type region_close =
+  | Rc_normal
+  | Rc_close_at_apply
 
 type primitive =
   | Pidentity
   | Pbytes_to_string
   | Pbytes_of_string
   | Pignore
-  | Prevapply of apply_position
-  | Pdirapply of apply_position
+  | Prevapply of region_close
+  | Pdirapply of region_close
     (* Globals *)
   | Pgetglobal of Ident.t
   | Psetglobal of Ident.t
@@ -326,7 +327,7 @@ type lambda =
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
-             * apply_position * alloc_mode * scoped_location
+             * region_close * alloc_mode * scoped_location
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda
@@ -346,7 +347,7 @@ and lfunction =
 and lambda_apply =
   { ap_func : lambda;
     ap_args : lambda list;
-    ap_position : apply_position;
+    ap_region_close : region_close;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;

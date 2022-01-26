@@ -105,8 +105,8 @@ let transl_value_mode mode =
 
 let transl_apply_position position =
   match position with
-  | Nontail -> Apply_nontail
-  | Tail -> Apply_tail
+  | Nontail -> Rc_normal
+  | Tail -> Rc_close_at_apply
 
 let maybe_region lam =
   let rec loop = function
@@ -146,10 +146,10 @@ let maybe_region lam =
     | exception Exit -> true
   in
   let rec remove_tail_markers = function
-    | Lapply ({ap_position = Apply_tail} as ap) ->
-       Lapply ({ap with ap_position = Apply_nontail})
-    | Lsend (k, lmet, lobj, largs, Apply_tail, mode, loc) ->
-       Lsend (k, lmet, lobj, largs, Apply_nontail, mode, loc)
+    | Lapply ({ap_region_close = Rc_close_at_apply} as ap) ->
+       Lapply ({ap with ap_region_close = Rc_normal})
+    | Lsend (k, lmet, lobj, largs, Rc_close_at_apply, mode, loc) ->
+       Lsend (k, lmet, lobj, largs, Rc_normal, mode, loc)
     | Lregion _ as lam -> lam
     | lam ->
        Lambda.shallow_map ~tail:remove_tail_markers ~non_tail:Fun.id lam
@@ -361,7 +361,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let prim_exp = if extra_args = [] then Some e else None in
       let position =
         if extra_args = [] then transl_apply_position pos
-        else Apply_nontail
+        else Rc_normal
       in
       let prim_mode = transl_alloc_mode pmode in
       let lam =
@@ -613,7 +613,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           Lprim(Pfield (0, Reads_vary),
               [transl_class_path loc e.exp_env cl], loc);
         ap_args=[lambda_unit];
-        ap_position=pos;
+        ap_region_close=pos;
         ap_mode=Alloc_heap;
         ap_tailcall=Default_tailcall;
         ap_inlined=Default_inlined;
@@ -639,7 +639,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
              ap_loc=Loc_unknown;
              ap_func=Translobj.oo_prim "copy";
              ap_args=[self];
-             ap_position=Apply_nontail;
+             ap_region_close=Rc_normal;
              ap_mode=Alloc_heap;
              ap_tailcall=Default_tailcall;
              ap_inlined=Default_inlined;
@@ -804,7 +804,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let app =
         { ap_func = Lvar funcid;
           ap_args = List.map (fun id -> Lvar id) arg_idents;
-          ap_position = Apply_nontail;
+          ap_region_close = Rc_normal;
           ap_mode = Alloc_heap;
           ap_loc = of_location e.exp_loc ~scopes;
           ap_tailcall = Default_tailcall;
@@ -889,7 +889,7 @@ and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
       ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
-      ?(position=Apply_nontail)
+      ?(position=Rc_normal)
       ?(mode=Alloc_heap)
       lam sargs loc
   =
@@ -899,7 +899,7 @@ and transl_apply ~scopes
         Lsend(k, lmet, lobj, args, pos, mode, loc)
     | Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lsend(k, lmet, lobj, largs, Apply_nontail, _, _), Apply_nontail ->
+    | Lsend(k, lmet, lobj, largs, Rc_normal, _, _), Rc_normal ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
       Lsend((Self | Public) as k, lmet, lobj, [], _, _, _), _), _ ->
@@ -908,17 +908,17 @@ and transl_apply ~scopes
       Lsend(Cached, lmet, lobj, ([_; _] as largs), _, _, _), _), _ ->
         Lsend(Cached, lmet, lobj, largs @ args, pos, mode, loc)
     | Levent(
-      Lsend(k, lmet, lobj, largs, Apply_nontail, _, _), _), Apply_nontail ->
+      Lsend(k, lmet, lobj, largs, Rc_normal, _, _), _), Rc_normal ->
         Lsend(k, lmet, lobj, largs @ args, pos, mode, loc)
-    | Lapply ({ ap_position = Apply_nontail } as ap), Apply_nontail ->
+    | Lapply ({ ap_region_close = Rc_normal } as ap), Rc_normal ->
         Lapply
-          {ap with ap_args = ap.ap_args @ args; ap_loc = loc; ap_position = pos}
+          {ap with ap_args = ap.ap_args @ args; ap_loc = loc; ap_region_close = pos}
     | lexp, _ ->
         Lapply {
           ap_loc=loc;
           ap_func=lexp;
           ap_args=args;
-          ap_position=pos;
+          ap_region_close=pos;
           ap_mode=mode;
           ap_tailcall=tailcall;
           ap_inlined=inlined;
@@ -952,7 +952,7 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
-          let body = build_apply handle [Lvar id_arg] loc Apply_nontail l in
+          let body = build_apply handle [Lvar id_arg] loc Rc_normal l in
           let mode = transl_alloc_mode mode_closure in
           let arg_mode = transl_alloc_mode mode_arg in
           let ret_mode = transl_alloc_mode mode_ret in
@@ -1424,7 +1424,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
                ap_loc = of_location ~scopes and_.bop_loc;
                ap_func = op;
                ap_args=[Lvar left_id; Lvar right_id];
-               ap_position=Apply_nontail;
+               ap_region_close=Rc_normal;
                ap_mode=Alloc_heap;
                ap_tailcall = Default_tailcall;
                ap_inlined = Default_inlined;
@@ -1457,7 +1457,7 @@ and transl_letop ~scopes loc env let_ ands param case partial =
     ap_loc = of_location ~scopes loc;
     ap_func = op;
     ap_args=[exp; func];
-    ap_position=Apply_nontail;
+    ap_region_close=Rc_normal;
     ap_mode=Alloc_heap;
     ap_tailcall = Default_tailcall;
     ap_inlined = Default_inlined;

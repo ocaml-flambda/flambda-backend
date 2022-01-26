@@ -580,8 +580,8 @@ let apply_probe ppf = function
 let apply_kind name pos mode =
   let name =
     match pos with
-    | Apply_nontail -> name
-    | Apply_tail -> name ^ "tail"
+    | Rc_normal -> name
+    | Rc_close_at_apply -> name ^ "tail"
   in
   name ^ alloc_kind mode
 
@@ -593,7 +593,7 @@ let rec lam ppf = function
   | Lapply ap ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      let form = apply_kind "apply" ap.ap_position ap.ap_mode in
+      let form = apply_kind "apply" ap.ap_region_close ap.ap_mode in
       fprintf ppf "@[<2>(%s@ %a%a%a%a%a%a)@]" form
         lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_tailcall
