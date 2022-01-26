@@ -151,18 +151,20 @@ let trywith_kind ppf kind =
   | Delayed i -> fprintf ppf "<delayed %d>" i
 
 let operation d = function
-  | Capply _ty -> "app" ^ location d
+  | Capply(_ty, _) -> "app" ^ location d
   | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload (c, Asttypes.Immutable) -> Printf.sprintf "load %s" (chunk c)
   | Cload (c, Asttypes.Mutable) -> Printf.sprintf "load_mut %s" (chunk c)
-  | Calloc -> "alloc" ^ location d
+  | Calloc Alloc_heap -> "alloc" ^ location d
+  | Calloc Alloc_local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
       | Lambda.Heap_initialization -> "(heap-init)"
       | Lambda.Root_initialization -> "(root-init)"
       | Lambda.Assignment -> ""
+      | Local_assignment -> "(local)"
     in
     Printf.sprintf "store %s%s" (chunk c) init
   | Caddi -> "+"
@@ -265,7 +267,7 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(%s" (operation dbg op);
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
-      | Capply mty -> fprintf ppf "@ %a" machtype mty
+      | Capply(mty, _) -> fprintf ppf "@ %a" machtype mty
       | Cextcall { ty; ty_args; alloc = _; func = _; returns; } ->
         let ty = if returns then Some ty else None in
         fprintf ppf "@ %a" extcall_signature (ty, ty_args)
@@ -323,6 +325,10 @@ let rec expr ppf = function
             trywith_kind kind sequence e1 VP.print id;
       with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->
             fprintf ppf "%a)@]" sequence e2);
+  | Cregion e ->
+      fprintf ppf "@[<2>(region@ %a)@]" sequence e
+  | Ctail e ->
+      fprintf ppf "@[<2>(tail@ %a)@]" sequence e
 
 and sequence ppf = function
   | Csequence(e1, e2) -> fprintf ppf "%a@ %a" sequence e1 sequence e2

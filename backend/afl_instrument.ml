@@ -88,6 +88,8 @@ and instrument = function
      in
      Ccatch (isrec, cases, instrument body)
   | Cexit (ex, args, traps) -> Cexit (ex, List.map instrument args, traps)
+  | Cregion e -> Cregion (instrument e)
+  | Ctail e -> Ctail (instrument e)
 
   (* these are base cases and have no logging *)
   | Cconst_int _ | Cconst_natint _ | Cconst_float _

@@ -134,11 +134,11 @@ let unbox_number ?(dbg = Debuginfo.none) kind arg =
 
 let box_number ?(dbg = Debuginfo.none) kind arg =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> box_float dbg arg
+  | Naked_float -> box_float dbg Alloc_heap arg
   | Untagged_immediate -> tag_int arg dbg
   | _ ->
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
-    box_int_gen dbg primitive_kind arg
+    box_int_gen dbg primitive_kind Alloc_heap arg
 
 let box_int64 ?dbg arg =
   box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 arg
@@ -537,7 +537,7 @@ let ccatch ~rec_flag ~handlers ~body =
 (* Function calls *)
 
 let direct_call ?(dbg = Debuginfo.none) ty f_code_sym args =
-  Cmm.Cop (Cmm.Capply ty, f_code_sym :: args, dbg)
+  Cmm.Cop (Cmm.Capply (ty, Rc_normal), f_code_sym :: args, dbg)
 
 let indirect_call ?(dbg = Debuginfo.none) ty f = function
   | [arg] ->
@@ -546,13 +546,13 @@ let indirect_call ?(dbg = Debuginfo.none) ty f = function
     let v' = Backend_var.With_provenance.create v in
     letin v' f
     @@ Cmm.Cop
-         ( Cmm.Capply ty,
+         ( Cmm.Capply (ty, Rc_normal),
            [load Cmm.Word_int Asttypes.Mutable (var v); arg; var v],
            dbg )
   | args ->
     let arity = List.length args in
-    let l = (symbol (apply_function_sym arity) :: args) @ [f] in
-    Cmm.Cop (Cmm.Capply ty, l, dbg)
+    let l = (symbol (apply_function_sym arity Alloc_heap) :: args) @ [f] in
+    Cmm.Cop (Cmm.Capply (ty, Rc_normal), l, dbg)
 
 let indirect_full_call ?(dbg = Debuginfo.none) ty f = function
   (* the single-argument case is already optimized by indirect_call *)
@@ -565,7 +565,8 @@ let indirect_full_call ?(dbg = Debuginfo.none) ty f = function
     let fun_ptr =
       load Cmm.Word_int Asttypes.Mutable @@ field_address (var v) 2 dbg
     in
-    letin v' f @@ Cmm.Cop (Cmm.Capply ty, (fun_ptr :: args) @ [var v], dbg)
+    letin v' f
+    @@ Cmm.Cop (Cmm.Capply (ty, Rc_normal), (fun_ptr :: args) @ [var v], dbg)
 
 (* Cmm phrases *)
 

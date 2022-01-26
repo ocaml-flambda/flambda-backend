@@ -53,30 +53,19 @@ val infix_header : int -> nativeint
 (** Header for a boxed float value *)
 val float_header : nativeint
 
-(** Header for an unboxed float array of the given size *)
-val floatarray_header : int -> nativeint
-
-(** Header for a string (or bytes) of the given length *)
-val string_header : int -> nativeint
-
 (** Boxed integer headers *)
 val boxedint32_header : nativeint
 val boxedint64_header : nativeint
 val boxedintnat_header : nativeint
 
 (** Closure info for a closure of given arity and distance to environment *)
-val closure_info : arity:int -> startenv:int -> nativeint
+val closure_info : arity:Clambda.arity -> startenv:int -> nativeint
 
 (** Wrappers *)
-val alloc_float_header : Debuginfo.t -> expression
-val alloc_floatarray_header : int -> Debuginfo.t -> expression
-val alloc_closure_header : int -> Debuginfo.t -> expression
 val alloc_infix_header : int -> Debuginfo.t -> expression
 val alloc_closure_info :
-      arity:int -> startenv:int -> Debuginfo.t -> expression
-val alloc_boxedint32_header : Debuginfo.t -> expression
-val alloc_boxedint64_header : Debuginfo.t -> expression
-val alloc_boxedintnat_header : Debuginfo.t -> expression
+      arity:(Lambda.function_kind * int) -> startenv:int ->
+      Debuginfo.t -> expression
 
 (** Integers *)
 
@@ -183,7 +172,7 @@ val raise_symbol : Debuginfo.t -> string -> expression
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
-val box_float : Debuginfo.t -> expression -> expression
+val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 val unbox_float : Debuginfo.t -> expression -> expression
 
 (** Complex number creation and access *)
@@ -314,15 +303,17 @@ val lookup_label : expression -> expression -> Debuginfo.t -> expression
     - args : the additional arguments to the method call *)
 val call_cached_method :
   expression -> expression -> expression -> expression -> expression list ->
-  Debuginfo.t -> expression
+  Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Allocations *)
 
 (** Allocate a block of regular values with the given tag *)
-val make_alloc : Debuginfo.t -> int -> expression list -> expression
+val make_alloc :
+  ?mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
 (** Allocate a block of unboxed floats with the given tag *)
-val make_float_alloc : Debuginfo.t -> int -> expression list -> expression
+val make_float_alloc :
+  ?mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
 (** Bounds checking *)
 
@@ -345,12 +336,11 @@ val opaque : expression -> Debuginfo.t -> expression
 
 (** Get the symbol for the generic application with [n] arguments, and
     ensure its presence in the set of defined symbols *)
-val apply_function_sym : int -> string
+val apply_function_sym : int -> Lambda.alloc_mode -> string
 
-(** If [n] is positive, get the symbol for the generic currying wrapper with
-    [n] arguments, and ensure its presence in the set of defined symbols.
-    Otherwise, do the same for the generic tuple wrapper with [-n] arguments. *)
-val curry_function_sym : int -> string
+(** Get the symbol for the generic currying or tuplifying wrapper with
+    [n] arguments, and ensure its presence in the set of defined symbols. *)
+val curry_function_sym : Clambda.arity -> string
 
 (** Bigarrays *)
 
@@ -402,7 +392,8 @@ val caml_int64_ops : string
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
-  Debuginfo.t -> Primitive.boxed_integer -> expression -> expression
+  Debuginfo.t -> Primitive.boxed_integer -> Lambda.alloc_mode ->
+  expression -> expression
 
 (** Unbox a given boxed integer *)
 val unbox_int :
@@ -436,7 +427,7 @@ val unaligned_load :
 
 (** [box_sized size dbg exp] *)
 val box_sized :
-  Clambda_primitives.memory_access_size ->
+  Clambda_primitives.memory_access_size -> Lambda.alloc_mode ->
   Debuginfo.t -> expression -> expression
 
 (** Primitives *)
@@ -478,8 +469,6 @@ val bswap16 : unary_primitive
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
-type assignment_kind = Caml_modify | Caml_initialize | Simple
-
 (** [setfield offset value_is_ptr init ptr value dbg] *)
 val setfield :
   int -> Lambda.immediate_or_pointer -> Lambda.initialization_or_assignment ->
@@ -512,9 +501,11 @@ val stringref_safe : binary_primitive
 
 (** Load by chunk from string/bytes, bigstring. Args: string, index *)
 val string_load :
-  Clambda_primitives.memory_access_size -> Lambda.is_safe -> binary_primitive
+  Clambda_primitives.memory_access_size -> Lambda.is_safe ->
+  Lambda.alloc_mode -> binary_primitive
 val bigstring_load :
-  Clambda_primitives.memory_access_size -> Lambda.is_safe -> binary_primitive
+  Clambda_primitives.memory_access_size -> Lambda.is_safe ->
+  Lambda.alloc_mode -> binary_primitive
 
 (** Arrays *)
 
@@ -584,7 +575,9 @@ val strmatch_compile :
 val ptr_offset : expression -> int -> Debuginfo.t -> expression
 
 (** Direct application of a function via a symbol *)
-val direct_apply : string -> expression list -> Debuginfo.t -> expression
+val direct_apply :
+  string -> expression list -> Clambda.apply_kind
+  -> Debuginfo.t -> expression
 
 (** Generic application of a function to one or several arguments.
     The mutable_flag argument annotates the loading of the code pointer
@@ -592,8 +585,8 @@ val direct_apply : string -> expression list -> Debuginfo.t -> expression
     default, with a special case when the load is from (the first function of)
     the currently defined closure. *)
 val generic_apply :
-  Asttypes.mutable_flag ->
-  expression -> expression list -> Debuginfo.t -> expression
+  Asttypes.mutable_flag -> expression -> expression list
+  -> Clambda.apply_kind -> Debuginfo.t -> expression
 
 (** Method call : [send kind met obj args dbg]
     - [met] is a method identifier, which can be a hashed variant or an index
@@ -603,8 +596,11 @@ val generic_apply :
     of any way for the frontend to generate any arguments other than the
     cache and cache position) *)
 val send :
-  Lambda.meth_kind -> expression -> expression -> expression list ->
-  Debuginfo.t -> expression
+  Lambda.meth_kind -> expression -> expression -> expression list
+  -> Clambda.apply_kind -> Debuginfo.t -> expression
+
+(** Construct [Cregion e], eliding some useless regions *)
+val region : expression -> expression
 
 (** [cextcall prim args dbg type_of_result] returns Cextcall operation
     that corresponds to [prim]. If [prim] is a C builtin supported on the

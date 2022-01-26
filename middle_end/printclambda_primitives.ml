@@ -75,6 +75,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
         | Assignment -> ""
+        | Local_assignment -> "(local)"
       in
       fprintf ppf "setfield_%s%s %i" instr init n
   | Psetfield_computed (ptr, init) ->
@@ -88,6 +89,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
         | Assignment -> ""
+        | Local_assignment -> "(local)"
       in
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield n -> fprintf ppf "floatfield %i" n
@@ -97,6 +99,7 @@ let primitive ppf (prim:Clambda_primitives.primitive) =
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
         | Assignment -> ""
+        | Local_assignment -> "(local)"
       in
       fprintf ppf "setfloatfield%s %i" init n
   | Pduprecord (rep, size) ->

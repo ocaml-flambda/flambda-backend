@@ -393,7 +393,7 @@ let to_basic (mop : Mach.operation) : C.basic =
          | Ipopcnt | Iclz _ | Ictz _ | Ilsl | Ilsr | Iasr | Icomp _ ) as op),
         i ) ->
     Op (Intop_imm (op, i))
-  | Ialloc { bytes; dbginfo } -> Call (P (Alloc { bytes; dbginfo }))
+  | Ialloc { bytes; dbginfo; mode } -> Call (P (Alloc { bytes; dbginfo; mode }))
   | Iprobe { name; handler_code_sym } -> Op (Probe { name; handler_code_sym })
   | Iprobe_is_enabled { name } -> Op (Probe_is_enabled { name })
   | Istackoffset i -> Op (Stackoffset i)
@@ -415,6 +415,8 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Ifloatofint -> Op Floatofint
   | Iintoffloat -> Op Intoffloat
   | Iopaque -> Op Opaque
+  | Ibeginregion -> Op Begin_region
+  | Iendregion -> Op End_region
   | Ispecific op -> Op (Specific op)
   | Iname_for_debugger { ident; which_parameter; provenance; is_assignment } ->
     Op (Name_for_debugger { ident; which_parameter; provenance; is_assignment })
@@ -611,8 +613,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _
     | Iintop_imm (_, _)
-    | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _
-    | Iname_for_debugger _ ->
+    | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _ | Ibeginregion
+    | Iendregion | Iname_for_debugger _ ->
       let desc = to_basic mop in
       block.body <- create_instruction t desc i ~trap_depth :: block.body;
       if Mach.operation_can_raise mop

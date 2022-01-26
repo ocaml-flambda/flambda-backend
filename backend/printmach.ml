@@ -145,8 +145,10 @@ let operation op arg ppf res =
        (Array.sub arg 1 (Array.length arg - 1))
        reg arg.(0)
        (if is_assign then "(assign)" else "(init)")
-  | Ialloc { bytes = n; } ->
+  | Ialloc { bytes = n; mode = Alloc_heap } ->
     fprintf ppf "alloc %i" n;
+  | Ialloc { bytes = n; mode = Alloc_local } ->
+    fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
       if is_unary_op op then begin
         assert (Array.length arg = 1);
@@ -173,6 +175,8 @@ let operation op arg ppf res =
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
       reg arg.(0)
+  | Ibeginregion -> fprintf ppf "beginregion"
+  | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
   | Iprobe {name;handler_code_sym} ->

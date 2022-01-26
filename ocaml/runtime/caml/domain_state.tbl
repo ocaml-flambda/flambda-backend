@@ -36,6 +36,11 @@ DOMAIN_STATE(struct caml_ephe_ref_table*, ephe_ref_table)
 DOMAIN_STATE(struct caml_custom_table*, custom_table)
 /* See minor_gc.c */
 
+DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
+DOMAIN_STATE(intnat, local_sp)
+DOMAIN_STATE(void*, local_top)
+DOMAIN_STATE(intnat, local_limit)
+
 DOMAIN_STATE(struct mark_stack*, mark_stack)
 /* See major_gc.c */
 
