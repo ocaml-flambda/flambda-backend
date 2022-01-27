@@ -645,7 +645,7 @@ module Trap_depth_and_exn = struct
       let stack, exceptional_successor =
         ListLabels.fold_left block.body ~init:(stack, None)
           ~f:(fun (stack, exceptional_successor) instr ->
-              process_basic exceptional_successor stack instr)
+            process_basic exceptional_successor stack instr)
       in
       let stack, exceptional_successor =
         process_terminator exceptional_successor stack block.terminator
