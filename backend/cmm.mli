@@ -152,6 +152,8 @@ type trywith_kind =
       This allows for sharing a single handler in several places, or having
       multiple entry and exit points to a single trywith block. *)
 
+type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -184,7 +186,7 @@ and operation =
   | Cstore of memory_chunk * Lambda.initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool }  | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
-  | Cbswap of { bitwidth: int }
+  | Cbswap of { bitwidth: bswap_bitwidth; }
   | Cclz of { arg_is_non_zero: bool; }
   | Cctz of { arg_is_non_zero: bool; }
   | Cpopcnt

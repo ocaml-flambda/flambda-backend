@@ -96,13 +96,12 @@ let pseudoregs_for_operation op arg res =
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf
-  | Ispecific(Ibswap (32|64)) ->
+  | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
      (rax, rbx, rcx or rdx). Keep it simple, just force the argument in rax. *)
-  | Ispecific(Ibswap 16) ->
+  | Ispecific(Ibswap { bitwidth = Sixteen }) ->
       ([| rax |], [| rax |])
-  | Ispecific (Ibswap _) -> assert false
   (* For imulh, first arg must be in rax, rax is clobbered, and result is in
      rdx. *)
   | Iintop(Imulh _) ->
@@ -165,6 +164,12 @@ let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   | Low -> Low
   | Moderate -> Moderate
   | High -> High
+
+let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth =
+  function
+  | Sixteen -> Sixteen
+  | Thirtytwo -> Thirtytwo
+  | Sixtyfour -> Sixtyfour
 
 let one_arg name args =
   match args with
@@ -330,7 +335,8 @@ method! select_operation op args dbg =
           super#select_operation op args dbg
       end
   | Cbswap { bitwidth } ->
-    (Ispecific (Ibswap bitwidth), args)
+    let bitwidth = select_bitwidth bitwidth in
+    (Ispecific (Ibswap { bitwidth }), args)
   (* Recognize sign extension *)
   | Casr ->
       begin match args with

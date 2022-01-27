@@ -2378,11 +2378,11 @@ let bbswap bi arg dbg =
       dbg)
 
 let bbswap bi arg dbg =
-  let bitwidth =
+  let bitwidth : Cmm.bswap_bitwidth =
     match (bi : Primitive.boxed_integer) with
-    | Pnativeint -> size_int * 8
-    | Pint32 -> 32
-    | Pint64 -> 64
+    | Pnativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
+    | Pint32 -> Thirtytwo
+    | Pint64 -> Sixtyfour
   in
   let op = Cbswap { bitwidth } in
   if (bi = Primitive.Pint64 && size_int = 4) ||
@@ -2402,7 +2402,7 @@ let bswap16 arg dbg =
        dbg))
 
 let bswap16 arg dbg =
-  let op = Cbswap { bitwidth = 16 } in
+  let op = Cbswap { bitwidth = Cmm.Sixteen } in
   if Proc.operation_supported op then
     Cop (op,[arg],dbg)
   else
