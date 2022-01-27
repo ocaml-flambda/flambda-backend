@@ -590,11 +590,11 @@ module Trap_depth_and_exn = struct
     if can_raise
     then (
       match stack with
-      | [] -> stack, None
+      | [] -> stack, exceptional_successor
       | handler_label :: handler_stack ->
         assert (Option.is_none exceptional_successor);
         stack, Some (handler_label, handler_stack))
-    else stack, None
+    else stack, exceptional_successor
 
   let process_terminator :
       handler_option ->
