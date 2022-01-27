@@ -315,6 +315,7 @@ let operation_supported = function
   | Cclz _ | Cctz _ | Cpopcnt
   | Cprefetch _
     -> false   (* Not implemented *)
+  | Cbswap _
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
