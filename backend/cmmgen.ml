@@ -412,7 +412,7 @@ let rec transl env e =
           match s with
           | None -> Some mode
           | Some m' ->
-             if (mode <> m') then
+             if not (Lambda.eq_mode mode m') then
                Misc.fatal_errorf "Inconsistent modes in let rec at %s"
                  (Debuginfo.to_string dbg);
              s) None fundecls in
