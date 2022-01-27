@@ -2353,15 +2353,6 @@ let arraylength kind arg dbg =
    to Arbitrary_effects and Has_coeffects, resp.
    Check if this can be improved (e.g., bswap). *)
 
-let if_operation_supported op ~f =
-  match Proc.operation_supported op with
-  | true -> Some (f ())
-  | false -> None
-
-let if_operation_supported_bi bi op ~f =
-  if bi = Primitive.Pint64 && size_int = 4 then None
-  else if_operation_supported op ~f
-
 let bbswap bi arg dbg =
   let bitwidth : Cmm.bswap_bitwidth =
     match (bi : Primitive.boxed_integer) with
@@ -2401,6 +2392,15 @@ let bswap16 arg dbg =
                   ty = typ_int; alloc = false; ty_args = []; },
        [arg],
        dbg))
+
+let if_operation_supported op ~f =
+  match Proc.operation_supported op with
+  | true -> Some (f ())
+  | false -> None
+
+let if_operation_supported_bi bi op ~f =
+  if bi = Primitive.Pint64 && size_int = 4 then None
+  else if_operation_supported op ~f
 
 let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero; } in
