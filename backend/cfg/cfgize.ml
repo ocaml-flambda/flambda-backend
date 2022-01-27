@@ -578,24 +578,29 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
 module Trap_depth_and_exn = struct
   type handler_stack = Label.t list
 
-  type handler_option = (Label.t * handler_stack) option ref
+  (* Optional exceptional successor, starting at label with stack. *)
+  type handler_option = (Label.t * handler_stack) option
 
-  let record_handler : handler_stack -> handler_option -> can_raise:bool -> unit
-      =
+  let record_handler :
+      handler_stack ->
+      handler_option ->
+      can_raise:bool ->
+      handler_stack * handler_option =
    fun stack exceptional_successor ~can_raise ->
     if can_raise
-    then
+    then (
       match stack with
-      | [] -> ()
+      | [] -> stack, None
       | handler_label :: handler_stack ->
-        assert (Option.is_none !exceptional_successor);
-        exceptional_successor := Some (handler_label, handler_stack)
+        assert (Option.is_none exceptional_successor);
+        stack, Some (handler_label, handler_stack))
+    else stack, None
 
-  let terminator :
+  let process_terminator :
       handler_option ->
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
-      handler_stack =
+      handler_stack * handler_option =
    fun exceptional_successor stack term ->
     match term.desc with
     | Never | Return
@@ -603,35 +608,33 @@ module Trap_depth_and_exn = struct
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
       record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_terminator term.desc);
-      stack
+        ~can_raise:(Cfg.can_raise_terminator term.desc)
     | Tailcall (Self _) ->
       if List.length stack <> 0
       then
         Misc.fatal_error
           "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
-           tailcall";
-      stack
+           tailcall"
+      else stack, exceptional_successor
 
-  let basic :
+  let process_basic :
       handler_option ->
       handler_stack ->
       Cfg.basic Cfg.instruction ->
-      handler_stack =
+      handler_stack * handler_option =
    fun exceptional_successor stack instr ->
     match instr.desc with
-    | Pushtrap { lbl_handler } -> lbl_handler :: stack
+    | Pushtrap { lbl_handler } -> lbl_handler :: stack, exceptional_successor
     | Poptrap -> begin
       match stack with
       | [] ->
         Misc.fatal_error
           "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
-      | _ :: stack -> stack
+      | _ :: stack -> stack, exceptional_successor
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
       record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_basic instr.desc);
-      stack
+        ~can_raise:(Cfg.can_raise_basic instr.desc)
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
    fun cfg label stack ->
@@ -639,12 +642,13 @@ module Trap_depth_and_exn = struct
     if block.trap_depth = invalid_trap_depth
     then begin
       block.trap_depth <- succ (List.length stack);
-      let exceptional_successor = ref None in
-      let stack =
-        terminator exceptional_successor
-          (ListLabels.fold_left block.body ~init:stack
-             ~f:(basic exceptional_successor))
-          block.terminator
+      let stack, exceptional_successor =
+        ListLabels.fold_left block.body ~init:(stack, None)
+          ~f:(fun (stack, exceptional_successor) instr ->
+              process_basic exceptional_successor stack instr)
+      in
+      let stack, exceptional_successor =
+        process_terminator exceptional_successor stack block.terminator
       in
       (* non-exceptional successors *)
       Label.Set.iter
@@ -655,7 +659,7 @@ module Trap_depth_and_exn = struct
         (fun (handler_label, handler_stack) ->
           block.exn <- Some handler_label;
           update_block cfg handler_label handler_stack)
-        !exceptional_successor
+        exceptional_successor
     end
     else assert (block.trap_depth = succ (List.length stack))
 
