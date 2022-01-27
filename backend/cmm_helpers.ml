@@ -2363,21 +2363,6 @@ let if_operation_supported_bi bi op ~f =
   else if_operation_supported op ~f
 
 let bbswap bi arg dbg =
-  let prim, tyarg = match (bi : Primitive.boxed_integer) with
-    | Pnativeint -> "nativeint", XInt
-    | Pint32 -> "int32", XInt32
-    | Pint64 -> "int64", XInt64
-  in
-  Cop(Cextcall { func = Printf.sprintf "caml_%s_direct_bswap" prim;
-                 builtin = false;
-                 returns = true;
-                 effects = Arbitrary_effects;
-                 coeffects = Has_coeffects;
-                 ty = typ_int; alloc = false; ty_args = [tyarg]; },
-      [arg],
-      dbg)
-
-let bbswap bi arg dbg =
   let bitwidth : Cmm.bswap_bitwidth =
     match (bi : Primitive.boxed_integer) with
     | Pnativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
@@ -2387,12 +2372,28 @@ let bbswap bi arg dbg =
   let op = Cbswap { bitwidth } in
   if (bi = Primitive.Pint64 && size_int = 4) ||
      not (Proc.operation_supported op) then
-    bbswap bi arg dbg
+    let prim, tyarg = match (bi : Primitive.boxed_integer) with
+      | Pnativeint -> "nativeint", XInt
+      | Pint32 -> "int32", XInt32
+      | Pint64 -> "int64", XInt64
+    in
+    Cop(Cextcall { func = Printf.sprintf "caml_%s_direct_bswap" prim;
+                   builtin = false;
+                   returns = true;
+                   effects = Arbitrary_effects;
+                   coeffects = Has_coeffects;
+                   ty = typ_int; alloc = false; ty_args = [tyarg]; },
+        [arg],
+        dbg)
   else
     Cop (op,[arg],dbg)
 
 let bswap16 arg dbg =
-  (Cop(Cextcall { func = "caml_bswap16_direct";
+  let op = Cbswap { bitwidth = Cmm.Sixteen } in
+  if Proc.operation_supported op then
+    Cop (op,[arg],dbg)
+  else
+    (Cop(Cextcall { func = "caml_bswap16_direct";
                   builtin = false;
                   returns = true;
                   effects = Arbitrary_effects;
@@ -2400,13 +2401,6 @@ let bswap16 arg dbg =
                   ty = typ_int; alloc = false; ty_args = []; },
        [arg],
        dbg))
-
-let bswap16 arg dbg =
-  let op = Cbswap { bitwidth = Cmm.Sixteen } in
-  if Proc.operation_supported op then
-    Cop (op,[arg],dbg)
-  else
-    bswap16 arg dbg
 
 let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero; } in
