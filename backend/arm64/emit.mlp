@@ -532,9 +532,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
     | Lop (Ispecific (Ishiftarith _)) -> 1
     | Lop (Ispecific (Imuladd | Imulsub)) -> 1
-    | Lop (Ispecific (Ibswap 16)) -> 2
-    | Lop (Ispecific (Ibswap (32|64))) -> 1
-    | Lop (Ispecific (Ibswap _)) -> assert false
+    | Lop (Ispecific (Ibswap { bitwidth = Sixteen } )) -> 2
+    | Lop (Ispecific (Ibswap { bitwidth = (Thirtytwo | Sixtyfour) })) -> 1
     | Lop (Ispecific Imove32) -> 1
     | Lop (Iname_for_debugger _) -> 0
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->
@@ -899,16 +898,15 @@ let emit_instr i =
                      | Imulsub -> "msub"
                      | _ -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
-    | Lop(Ispecific(Ibswap size)) ->
-        begin match size with
-        | 16 ->
+    | Lop(Ispecific(Ibswap { bitwidth })) ->
+        begin match bitwidth with
+        | Sixteen ->
             `	rev16	{emit_wreg i.res.(0)}, {emit_wreg i.arg.(0)}\n`;
             `	ubfm	{emit_reg i.res.(0)}, {emit_reg i.res.(0)}, #0, #15\n`
-        | 32 ->
+        | Thirtytwo ->
             `	rev	{emit_wreg i.res.(0)}, {emit_wreg i.arg.(0)}\n`
-        | 64 ->
+        | Sixtyfour ->
             `	rev	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-        | _ -> assert false
         end
     | Lop (Iname_for_debugger _) -> ()
     | Lop (Iprobe _ | Iprobe_is_enabled _) ->

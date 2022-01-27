@@ -97,6 +97,12 @@ let is_stack_slot rv =
         | [| { loc = Stack _ } |] -> true
         | _ -> false)
 
+let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth =
+  function
+  | Sixteen -> Sixteen
+  | Thirtytwo -> Thirtytwo
+  | Sixtyfour -> Sixtyfour
+
 (* Instruction selection *)
 
 class selector = object(self)
@@ -227,7 +233,8 @@ method! select_operation op args dbg =
       (Ispecific Isqrtf, args)
   (* Recognize bswap instructions *)
   | Cbswap { bitwidth } ->
-      (Ispecific(Ibswap bitwidth), args)
+    let bitwidth = select_bitwidth bitwidth in
+      (Ispecific(Ibswap { bitwidth }), args)
   (* Other operations are regular *)
   | _ ->
       super#select_operation op args dbg
