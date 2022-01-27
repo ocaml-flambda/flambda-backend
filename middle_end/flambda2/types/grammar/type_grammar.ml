@@ -157,6 +157,206 @@ type flambda_type = t
 let row_like_is_bottom ~known ~(other : _ Or_bottom.t) ~is_empty_map_known =
   is_empty_map_known known && match other with Bottom -> true | Ok _ -> false
 
+let rec free_names0 ~follow_closure_vars t =
+  let[@inline] type_descr_free_names ~free_names_head ty =
+    if follow_closure_vars
+    then TD.free_names ~free_names_head ty
+    else TD.free_names_no_cache ~free_names_head ty
+  in
+  match t with
+  | Value ty ->
+    type_descr_free_names
+      ~free_names_head:(free_names_head_of_kind_value0 ~follow_closure_vars)
+      ty
+  | Naked_immediate ty ->
+    type_descr_free_names
+      ~free_names_head:
+        (free_names_head_of_kind_naked_immediate0 ~follow_closure_vars)
+      ty
+  | Naked_float ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_naked_float ty
+  | Naked_int32 ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_naked_int32 ty
+  | Naked_int64 ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_naked_int64 ty
+  | Naked_nativeint ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_naked_nativeint ty
+  | Rec_info ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_rec_info ty
+  | Region ty ->
+    type_descr_free_names
+      ~free_names_head:free_names_head_of_kind_region ty
+
+and free_names_head_of_kind_value0 ~follow_closure_vars head =
+  match head with
+  | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
+    Name_occurrences.union
+      (Or_unknown.free_names
+         (free_names_row_like_for_blocks ~follow_closure_vars)
+         blocks)
+      (Or_unknown.free_names (free_names0 ~follow_closure_vars) immediates)
+  | Mutable_block { alloc_mode = _ } -> Name_occurrences.empty
+  | Boxed_float (ty, _alloc_mode) -> free_names0 ~follow_closure_vars ty
+  | Boxed_int32 (ty, _alloc_mode) -> free_names0 ~follow_closure_vars ty
+  | Boxed_int64 (ty, _alloc_mode) -> free_names0 ~follow_closure_vars ty
+  | Boxed_nativeint (ty, _alloc_mode) -> free_names0 ~follow_closure_vars ty
+  | Closures { by_closure_id; alloc_mode = _ } ->
+    free_names_row_like_for_closures ~follow_closure_vars by_closure_id
+  | String _ -> Name_occurrences.empty
+  | Array { element_kind = _; length } ->
+    free_names0 ~follow_closure_vars length
+
+and free_names_head_of_kind_naked_immediate0 ~follow_closure_vars head =
+  match head with
+  | Naked_immediates _ -> Name_occurrences.empty
+  | Is_int ty | Get_tag ty -> free_names0 ~follow_closure_vars ty
+
+and free_names_head_of_kind_naked_float _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_int32 _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_int64 _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_nativeint _ = Name_occurrences.empty
+
+and free_names_head_of_kind_rec_info head =
+  Rec_info_expr.free_names_in_types head
+
+and free_names_head_of_kind_region () = Name_occurrences.empty
+
+and free_names_row_like :
+      'row_tag 'index 'maps_to 'known.
+      free_names_index:('index -> Name_occurrences.t) ->
+      free_names_maps_to:
+        (follow_closure_vars:bool -> 'maps_to -> Name_occurrences.t) ->
+      follow_closure_vars:bool ->
+      known:'known ->
+      other:('index, 'maps_to) row_like_case Or_bottom.t ->
+      fold_known:
+        (('row_tag -> ('index, 'maps_to) row_like_case -> 'acc -> 'acc) ->
+        'known ->
+        'acc ->
+        'acc) ->
+      Name_occurrences.t =
+ fun ~free_names_index ~free_names_maps_to ~follow_closure_vars ~known ~other
+     ~fold_known ->
+  let[@inline always] free_names_index index =
+    match index with Known index | At_least index -> free_names_index index
+  in
+  let from_known =
+    fold_known
+      (fun _ { maps_to; env_extension; index } free_names ->
+        Name_occurrences.union
+          (Name_occurrences.union free_names (free_names_index index))
+          (Name_occurrences.union
+             (free_names_env_extension ~follow_closure_vars env_extension)
+             (free_names_maps_to ~follow_closure_vars maps_to)))
+      known Name_occurrences.empty
+  in
+  match other with
+  | Bottom -> from_known
+  | Ok { maps_to; env_extension; index } ->
+    Name_occurrences.union
+      (Name_occurrences.union (free_names_index index)
+         (free_names_maps_to ~follow_closure_vars maps_to))
+      (Name_occurrences.union from_known
+         (free_names_env_extension ~follow_closure_vars env_extension))
+
+and free_names_row_like_for_blocks ~follow_closure_vars
+    { known_tags; other_tags } =
+  free_names_row_like
+    ~free_names_index:(fun _block_size -> Name_occurrences.empty)
+    ~free_names_maps_to:free_names_int_indexed_product ~follow_closure_vars
+    ~known:known_tags ~other:other_tags ~fold_known:Tag.Map.fold
+
+and free_names_row_like_for_closures ~follow_closure_vars
+    { known_closures; other_closures } =
+  free_names_row_like ~free_names_index:Set_of_closures_contents.free_names
+    ~free_names_maps_to:free_names_closures_entry ~follow_closure_vars
+    ~known:known_closures ~other:other_closures ~fold_known:Closure_id.Map.fold
+
+and free_names_closures_entry ~follow_closure_vars
+    { function_types; closure_types; closure_var_types } =
+  let function_types_free_names =
+    Closure_id.Map.fold
+      (fun closure_id function_decl free_names ->
+        Name_occurrences.union free_names
+          (Name_occurrences.add_closure_id
+             (free_names_function_type ~follow_closure_vars function_decl)
+             closure_id Name_mode.normal))
+      function_types Name_occurrences.empty
+  in
+  let closure_elements_free_names =
+    if follow_closure_vars
+    then
+      Name_occurrences.union
+        (free_names_closure_id_indexed_product ~follow_closure_vars
+           closure_types)
+        (free_names_var_within_closure_indexed_product ~follow_closure_vars
+           closure_var_types)
+    else
+      free_names_closure_id_indexed_product ~follow_closure_vars closure_types
+  in
+  Name_occurrences.union function_types_free_names closure_elements_free_names
+
+and free_names_closure_id_indexed_product ~follow_closure_vars
+    { closure_id_components_by_index } =
+  Closure_id.Map.fold
+    (fun _ t free_names_acc ->
+      Name_occurrences.union (free_names0 ~follow_closure_vars t) free_names_acc)
+    closure_id_components_by_index Name_occurrences.empty
+
+and free_names_var_within_closure_indexed_product ~follow_closure_vars
+    { var_within_closure_components_by_index } =
+  Var_within_closure.Map.fold
+    (fun closure_var t free_names_acc ->
+      Name_occurrences.add_closure_var
+        (Name_occurrences.union
+           (free_names0 ~follow_closure_vars t)
+           free_names_acc)
+        closure_var Name_mode.normal)
+    var_within_closure_components_by_index Name_occurrences.empty
+
+and free_names_int_indexed_product ~follow_closure_vars { fields; kind = _ } =
+  Array.fold_left
+    (fun free_names_acc t ->
+      Name_occurrences.union (free_names0 ~follow_closure_vars t) free_names_acc)
+    Name_occurrences.empty fields
+
+and free_names_function_type ~follow_closure_vars
+    (function_type : _ Or_unknown_or_bottom.t) =
+  match function_type with
+  | Bottom | Unknown -> Name_occurrences.empty
+  | Ok { code_id; rec_info } ->
+    Name_occurrences.add_code_id
+      (free_names0 ~follow_closure_vars rec_info)
+      code_id Name_mode.normal
+
+and free_names_env_extension ~follow_closure_vars { equations } =
+  Name.Map.fold
+    (fun name t acc ->
+      let acc =
+        Name_occurrences.union acc (free_names0 ~follow_closure_vars t)
+      in
+      Name_occurrences.add_name acc name Name_mode.in_types)
+    equations Name_occurrences.empty
+
+let free_names_except_through_closure_vars t =
+  free_names0 ~follow_closure_vars:false t
+
+let free_names t = free_names0 ~follow_closure_vars:true t
+
+let free_names_head_of_kind_value t =
+  free_names_head_of_kind_value0 ~follow_closure_vars:true t
+
+let free_names_head_of_kind_naked_immediate t =
+  free_names_head_of_kind_naked_immediate0 ~follow_closure_vars:true t
+
 let rec apply_renaming t renaming =
   if Renaming.is_empty renaming
   then t
@@ -409,154 +609,6 @@ and apply_renaming_env_extension ({ equations } as env_extension) renaming =
       equations Name.Map.empty
   in
   if !changed then { equations = equations' } else env_extension
-
-and free_names t =
-  match t with
-  | Value ty -> TD.free_names ~free_names_head:free_names_head_of_kind_value ty
-  | Naked_immediate ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_naked_immediate ty
-  | Naked_float ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_naked_float ty
-  | Naked_int32 ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_naked_int32 ty
-  | Naked_int64 ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_naked_int64 ty
-  | Naked_nativeint ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_naked_nativeint ty
-  | Rec_info ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_rec_info ty
-  | Region ty ->
-    TD.free_names ~free_names_head:free_names_head_of_kind_region ty
-
-and free_names_head_of_kind_value head =
-  match head with
-  | Variant { blocks; immediates; is_unique = _; alloc_mode = _ } ->
-    Name_occurrences.union
-      (Or_unknown.free_names free_names_row_like_for_blocks blocks)
-      (Or_unknown.free_names free_names immediates)
-  | Mutable_block { alloc_mode = _ } -> Name_occurrences.empty
-  | Boxed_float (ty, _alloc_mode) -> free_names ty
-  | Boxed_int32 (ty, _alloc_mode) -> free_names ty
-  | Boxed_int64 (ty, _alloc_mode) -> free_names ty
-  | Boxed_nativeint (ty, _alloc_mode) -> free_names ty
-  | Closures { by_closure_id; alloc_mode = _ } ->
-    free_names_row_like_for_closures by_closure_id
-  | String _ -> Name_occurrences.empty
-  | Array { element_kind = _; length } -> free_names length
-
-and free_names_head_of_kind_naked_immediate head =
-  match head with
-  | Naked_immediates _ -> Name_occurrences.empty
-  | Is_int ty | Get_tag ty -> free_names ty
-
-and free_names_head_of_kind_naked_float _ = Name_occurrences.empty
-
-and free_names_head_of_kind_naked_int32 _ = Name_occurrences.empty
-
-and free_names_head_of_kind_naked_int64 _ = Name_occurrences.empty
-
-and free_names_head_of_kind_naked_nativeint _ = Name_occurrences.empty
-
-and free_names_head_of_kind_rec_info head =
-  Rec_info_expr.free_names_in_types head
-
-and free_names_head_of_kind_region () = Name_occurrences.empty
-
-and free_names_row_like :
-      'row_tag 'index 'maps_to 'known.
-      free_names_index:('index -> Name_occurrences.t) ->
-      free_names_maps_to:('maps_to -> Name_occurrences.t) ->
-      known:'known ->
-      other:('index, 'maps_to) row_like_case Or_bottom.t ->
-      fold_known:
-        (('row_tag -> ('index, 'maps_to) row_like_case -> 'acc -> 'acc) ->
-        'known ->
-        'acc ->
-        'acc) ->
-      Name_occurrences.t =
- fun ~free_names_index ~free_names_maps_to ~known ~other ~fold_known ->
-  let[@inline always] free_names_index index =
-    match index with Known index | At_least index -> free_names_index index
-  in
-  let from_known =
-    fold_known
-      (fun _ { maps_to; env_extension; index } free_names ->
-        Name_occurrences.union
-          (Name_occurrences.union free_names (free_names_index index))
-          (Name_occurrences.union
-             (free_names_env_extension env_extension)
-             (free_names_maps_to maps_to)))
-      known Name_occurrences.empty
-  in
-  match other with
-  | Bottom -> from_known
-  | Ok { maps_to; env_extension; index } ->
-    Name_occurrences.union
-      (Name_occurrences.union (free_names_index index)
-         (free_names_maps_to maps_to))
-      (Name_occurrences.union from_known
-         (free_names_env_extension env_extension))
-
-and free_names_row_like_for_blocks { known_tags; other_tags } =
-  free_names_row_like
-    ~free_names_index:(fun _block_size -> Name_occurrences.empty)
-    ~free_names_maps_to:free_names_int_indexed_product ~known:known_tags
-    ~other:other_tags ~fold_known:Tag.Map.fold
-
-and free_names_row_like_for_closures { known_closures; other_closures } =
-  free_names_row_like ~free_names_index:Set_of_closures_contents.free_names
-    ~free_names_maps_to:free_names_closures_entry ~known:known_closures
-    ~other:other_closures ~fold_known:Closure_id.Map.fold
-
-and free_names_closures_entry
-    { function_types; closure_types; closure_var_types } =
-  let function_types_free_names =
-    Closure_id.Map.fold
-      (fun closure_id function_decl free_names ->
-        Name_occurrences.union free_names
-          (Name_occurrences.add_closure_id
-             (free_names_function_type function_decl)
-             closure_id Name_mode.normal))
-      function_types Name_occurrences.empty
-  in
-  Name_occurrences.union function_types_free_names
-    (Name_occurrences.union
-       (free_names_closure_id_indexed_product closure_types)
-       (free_names_var_within_closure_indexed_product closure_var_types))
-
-and free_names_closure_id_indexed_product { closure_id_components_by_index } =
-  Closure_id.Map.fold
-    (fun _ t free_names_acc ->
-      Name_occurrences.union (free_names t) free_names_acc)
-    closure_id_components_by_index Name_occurrences.empty
-
-and free_names_var_within_closure_indexed_product
-    { var_within_closure_components_by_index } =
-  Var_within_closure.Map.fold
-    (fun closure_var t free_names_acc ->
-      Name_occurrences.add_closure_var
-        (Name_occurrences.union (free_names t) free_names_acc)
-        closure_var Name_mode.normal)
-    var_within_closure_components_by_index Name_occurrences.empty
-
-and free_names_int_indexed_product { fields; kind = _ } =
-  Array.fold_left
-    (fun free_names_acc t ->
-      Name_occurrences.union (free_names t) free_names_acc)
-    Name_occurrences.empty fields
-
-and free_names_function_type (function_type : _ Or_unknown_or_bottom.t) =
-  match function_type with
-  | Bottom | Unknown -> Name_occurrences.empty
-  | Ok { code_id; rec_info } ->
-    Name_occurrences.add_code_id (free_names rec_info) code_id Name_mode.normal
-
-and free_names_env_extension { equations } =
-  Name.Map.fold
-    (fun name t acc ->
-      let acc = Name_occurrences.union acc (free_names t) in
-      Name_occurrences.add_name acc name Name_mode.in_types)
-    equations Name_occurrences.empty
 
 let rec print ppf t =
   match t with
@@ -1575,6 +1627,381 @@ and remove_unused_closure_vars_and_shortcut_aliases_env_extension
   in
   if !changed then { equations = equations' } else env_extension
 
+let rec project_variables_out ~to_project ~expand t =
+  match t with
+  | Value ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Value ty -> ty
+      | ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Value], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_value ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_value ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Value ty'
+  | Naked_immediate ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_immediate ty -> ty
+      | ( Value _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_immediate], got \
+           type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_immediate ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_immediate ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_immediate ty'
+  | Naked_float ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_float ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_float], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_float ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_float ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_float ty'
+  | Naked_int32 ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_int32 ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int64 _
+        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_int32], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_int32 ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_int32 ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_int32 ty'
+  | Naked_int64 ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_int64 ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_int64], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_int64 ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_int64 ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_int64 ty'
+  | Naked_nativeint ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_nativeint ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+        | Naked_int64 _ | Rec_info _ | Region _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_nativeint], got \
+           type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_nativeint ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_nativeint ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_nativeint ty'
+  | Rec_info ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Rec_info ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+        | Naked_int64 _ | Naked_nativeint _ | Region _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Rec_info], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_rec_info ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_rec_info ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Rec_info ty'
+  | Region ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Region ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+        | Naked_int64 _ | Naked_nativeint _ | Rec_info _) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Region], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_region ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_region ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Region ty'
+
+and project_head_of_kind_value ~to_project ~expand head =
+  match head with
+  | Variant { blocks; immediates; is_unique; alloc_mode } ->
+    let immediates' =
+      let>+$ immediates = immediates in
+      project_variables_out ~to_project ~expand immediates
+    in
+    let blocks' =
+      let>+$ blocks = blocks in
+      project_row_like_for_blocks ~to_project ~expand blocks
+    in
+    if immediates == immediates' && blocks == blocks'
+    then head
+    else Variant { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
+  | Mutable_block _ -> head
+  | Boxed_float (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_float (ty', alloc_mode)
+  | Boxed_int32 (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_int32 (ty', alloc_mode)
+  | Boxed_int64 (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_int64 (ty', alloc_mode)
+  | Boxed_nativeint (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_nativeint (ty', alloc_mode)
+  | Closures { by_closure_id; alloc_mode } ->
+    let by_closure_id' =
+      project_row_like_for_closures ~to_project ~expand by_closure_id
+    in
+    if by_closure_id == by_closure_id'
+    then head
+    else Closures { by_closure_id = by_closure_id' ; alloc_mode }
+  | String _ -> head
+  | Array { element_kind; length } ->
+    let length' = project_variables_out ~to_project ~expand length in
+    if length == length' then head else Array { element_kind; length = length' }
+
+and project_head_of_kind_naked_immediate ~to_project ~expand head =
+  match head with
+  | Naked_immediates _ -> head
+  | Is_int ty ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Is_int ty'
+  | Get_tag ty ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Get_tag ty'
+
+and project_head_of_kind_naked_float ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_naked_int32 ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_naked_int64 ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_naked_nativeint ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_rec_info ~to_project ~expand:_ head =
+  match (head : head_of_kind_rec_info) with
+  | Const _ | Succ _ | Unroll_to _ -> head
+  | Var var ->
+    if not (Variable.Set.mem var to_project)
+    then head
+    else Misc.fatal_error "Project of depth variables is not implemented"
+
+and project_head_of_kind_region ~to_project:_ ~expand:_ () = ()
+
+and project_row_like_for_blocks ~to_project ~expand
+    ({ known_tags; other_tags } as blocks) =
+  let known_tags' =
+    Tag.Map.map_sharing
+      (fun ({ index; maps_to; env_extension } as case) ->
+        let env_extension' =
+          project_env_extension ~to_project ~expand env_extension
+        in
+        let maps_to' =
+          project_int_indexed_product ~to_project ~expand maps_to
+        in
+        if env_extension == env_extension' && maps_to == maps_to'
+        then case
+        else { index; env_extension = env_extension'; maps_to = maps_to' })
+      known_tags
+  in
+  let other_tags' : _ Or_bottom.t =
+    match other_tags with
+    | Bottom -> Bottom
+    | Ok { index; maps_to; env_extension } ->
+      let env_extension' =
+        project_env_extension ~to_project ~expand env_extension
+      in
+      let maps_to' = project_int_indexed_product ~to_project ~expand maps_to in
+      if env_extension == env_extension' && maps_to == maps_to'
+      then other_tags
+      else Ok { index; env_extension = env_extension'; maps_to = maps_to' }
+  in
+  if known_tags == known_tags' && other_tags == other_tags'
+  then blocks
+  else { known_tags = known_tags'; other_tags = other_tags' }
+
+and project_row_like_for_closures ~to_project ~expand
+    ({ known_closures; other_closures } as closures) =
+  let known_closures' =
+    Closure_id.Map.map_sharing
+      (fun ({ index; maps_to; env_extension } as case) ->
+        let env_extension' =
+          project_env_extension ~to_project ~expand env_extension
+        in
+        let maps_to' = project_closures_entry ~to_project ~expand maps_to in
+        if env_extension == env_extension' && maps_to == maps_to'
+        then case
+        else { index; env_extension = env_extension'; maps_to = maps_to' })
+      known_closures
+  in
+  let other_closures' : _ Or_bottom.t =
+    match other_closures with
+    | Bottom -> Bottom
+    | Ok { index; maps_to; env_extension } ->
+      let env_extension' =
+        project_env_extension ~to_project ~expand env_extension
+      in
+      let maps_to' = project_closures_entry ~to_project ~expand maps_to in
+      if env_extension == env_extension' && maps_to == maps_to'
+      then other_closures
+      else Ok { index; env_extension = env_extension'; maps_to = maps_to' }
+  in
+  if known_closures == known_closures' && other_closures == other_closures'
+  then closures
+  else { known_closures = known_closures'; other_closures = other_closures' }
+
+and project_closures_entry ~to_project ~expand
+    ({ function_types; closure_types; closure_var_types } as closures_entry) =
+  let function_types' =
+    Closure_id.Map.map_sharing
+      (fun function_type ->
+        Or_unknown_or_bottom.map_sharing function_type ~f:(fun function_type ->
+            project_function_type ~to_project ~expand function_type))
+      function_types
+  in
+  let closure_types' =
+    project_closure_id_indexed_product ~to_project ~expand closure_types
+  in
+  let closure_var_types' =
+    project_var_within_closure_indexed_product ~to_project ~expand
+      closure_var_types
+  in
+  if function_types == function_types'
+     && closure_types == closure_types'
+     && closure_var_types == closure_var_types'
+  then closures_entry
+  else
+    { function_types = function_types';
+      closure_types = closure_types';
+      closure_var_types = closure_var_types'
+    }
+
+and project_closure_id_indexed_product ~to_project ~expand
+    ({ closure_id_components_by_index } as product) =
+  let closure_id_components_by_index' =
+    Closure_id.Map.map_sharing
+      (project_variables_out ~to_project ~expand)
+      closure_id_components_by_index
+  in
+  if closure_id_components_by_index == closure_id_components_by_index'
+  then product
+  else { closure_id_components_by_index = closure_id_components_by_index' }
+
+and project_var_within_closure_indexed_product ~to_project ~expand
+    ({ var_within_closure_components_by_index } as product) =
+  let var_within_closure_components_by_index' =
+    Var_within_closure.Map.map_sharing
+      (project_variables_out ~to_project ~expand)
+      var_within_closure_components_by_index
+  in
+  if var_within_closure_components_by_index
+     == var_within_closure_components_by_index'
+  then product
+  else
+    { var_within_closure_components_by_index =
+        var_within_closure_components_by_index'
+    }
+
+and project_int_indexed_product ~to_project ~expand
+    ({ fields; kind } as product) =
+  let changed = ref false in
+  let fields' = Array.copy fields in
+  for i = 0 to Array.length fields - 1 do
+    let field = fields.(i) in
+    let field' = project_variables_out ~to_project ~expand field in
+    if field != field'
+    then begin
+      changed := true;
+      fields'.(i) <- field'
+    end
+  done;
+  if !changed then { fields = fields'; kind } else product
+
+and project_function_type ~to_project ~expand
+    ({ code_id; rec_info } as function_type) =
+  let rec_info' = project_variables_out ~to_project ~expand rec_info in
+  if rec_info == rec_info'
+  then function_type
+  else { code_id; rec_info = rec_info' }
+
+and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
+  let changed = ref false in
+  let equations' =
+    Name.Map.fold
+      (fun name ty acc ->
+        let keep_equation () =
+          let ty' = project_variables_out ~to_project ~expand ty in
+          if ty != ty' then changed := true;
+          Name.Map.add name ty' acc
+        in
+        Name.pattern_match name
+          ~symbol:(fun _ -> keep_equation ())
+          ~var:(fun var ->
+            if Variable.Set.mem var to_project
+            then begin
+              changed := true;
+              acc
+            end
+            else keep_equation ()))
+      equations Name.Map.empty
+  in
+  if !changed then { equations = equations' } else env_extension
+
 let kind t =
   match t with
   | Value _ -> K.value
@@ -2030,7 +2457,7 @@ module Env_extension = struct
 
   let apply_renaming = apply_renaming_env_extension
 
-  let free_names = free_names_env_extension
+  let free_names = free_names_env_extension ~follow_closure_vars:true
 
   let print = print_env_extension
 

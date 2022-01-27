@@ -74,6 +74,11 @@ module T : sig
     'head t ->
     Name_occurrences.t
 
+  val free_names_no_cache :
+    free_names_head:('head -> Name_occurrences.t) ->
+    'head t ->
+    Name_occurrences.t
+
   val remove_unused_closure_vars_and_shortcut_aliases :
     remove_unused_closure_vars_and_shortcut_aliases_head:
       ('head ->
@@ -83,6 +88,14 @@ module T : sig
     'head t ->
     used_closure_vars:Var_within_closure.Set.t ->
     canonicalise:(Simple.t -> Simple.t) ->
+    'head t
+
+  val project_variables_out :
+    free_names_head:('head -> Name_occurrences.t) ->
+    to_project:Variable.Set.t ->
+    expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
+    project_head:('head -> 'head) ->
+    'head t ->
     'head t
 end = struct
   module Descr = struct
@@ -130,6 +143,24 @@ end = struct
       | Equals alias ->
         let canonical = canonicalise alias in
         if alias == canonical then t else Equals canonical
+
+    type ('head, 'descr) project_result =
+      | Not_expanded of 'head t
+      | Expanded of 'descr
+
+    let project_variables_out ~to_project ~expand ~project_head t =
+      match t with
+      | No_alias head ->
+        let head' = project_head head in
+        if head == head' then Not_expanded t else Not_expanded (No_alias head')
+      | Equals simple ->
+        Simple.pattern_match' simple
+          ~const:(fun _ -> Not_expanded t)
+          ~symbol:(fun _ ~coercion:_ -> Not_expanded t)
+          ~var:(fun var ~coercion ->
+            if Variable.Set.mem var to_project
+            then Expanded (expand var ~coercion)
+            else Not_expanded t)
   end
 
   module WCFN = With_cached_free_names
@@ -185,6 +216,14 @@ end = struct
         ~free_names_head:(WCFN.free_names ~free_names_descr:free_names_head)
         descr
 
+  let free_names_no_cache ~free_names_head (t : _ t) =
+    match t with
+    | Unknown | Bottom -> Name_occurrences.empty
+    | Ok descr ->
+      Descr.free_names
+        ~free_names_head:(WCFN.free_names_no_cache ~free_names_descr:free_names_head)
+        descr
+
   let remove_unused_closure_vars_and_shortcut_aliases
       ~remove_unused_closure_vars_and_shortcut_aliases_head (t : _ t)
       ~used_closure_vars ~canonicalise : _ t =
@@ -200,6 +239,22 @@ end = struct
           descr ~used_closure_vars ~canonicalise
       in
       if descr == descr' then t else Ok descr'
+
+  let project_variables_out ~free_names_head ~to_project
+      ~expand ~project_head (t : _ t) : _ t =
+    match t with
+    | Unknown | Bottom -> t
+    | Ok descr -> (
+      let project_head wdr =
+        WCFN.project_variables_out
+          ~free_names_descr:free_names_head ~to_project
+          ~project_descr:project_head wdr
+      in
+      match
+        Descr.project_variables_out ~to_project ~expand ~project_head descr
+      with
+      | Not_expanded descr' -> if descr == descr' then t else Ok descr'
+      | Expanded t' -> t')
 end
 
 include T
