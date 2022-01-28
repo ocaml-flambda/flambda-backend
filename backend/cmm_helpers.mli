@@ -267,6 +267,8 @@ val unboxed_float_array_ref :
 val float_array_ref : expression -> expression -> Debuginfo.t -> expression
 val addr_array_set :
   expression -> expression -> expression -> Debuginfo.t -> expression
+val addr_array_set_local :
+  expression -> expression -> expression -> Debuginfo.t -> expression
 val addr_array_initialize :
   expression -> expression -> expression -> Debuginfo.t -> expression
 val int_array_set :
@@ -309,11 +311,11 @@ val call_cached_method :
 
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
-  ?mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :
-  ?mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
 
 (** Bounds checking *)
 
