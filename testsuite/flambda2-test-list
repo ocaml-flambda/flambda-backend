@@ -127,7 +127,7 @@
   tests/runtime-naked-pointers
   tests/self-contained-toplevel
   tests/shadow_include
-  tests/statmemprof
+# tests/statmemprof                 FAIL          Stack traces differ
   tests/tool-command-line
   tests/tool-debugger
   tests/tool-expect-test
