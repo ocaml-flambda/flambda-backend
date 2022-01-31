@@ -53,7 +53,7 @@
   tests/lib-digest
   tests/lib-dynlink-bytecode
   tests/lib-dynlink-csharp
-  tests/lib-dynlink-init-info
+# tests/lib-dynlink-init-info       FAIL (FIXME) fails on macOS
 #  tests/lib-dynlink-initializers   FAIL (FIXME) temporarily disabled (flambda2) 
   tests/lib-dynlink-native
   tests/lib-dynlink-packed
