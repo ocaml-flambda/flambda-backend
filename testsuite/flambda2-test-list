@@ -33,6 +33,7 @@
   tests/functors
 # tests/gc-roots                    FAIL (FIXME)  test_stdlabels.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/generalized-open
+  tests/instrumented-runtime
 # tests/int64-unboxing              FAIL (FIXME)  'test.ml' (unboxing of recursive continuation parameter)
   tests/lazy
   tests/let-syntax
@@ -41,22 +42,27 @@
   tests/lexing
   tests/lib-arg
   tests/lib-array
+  tests/lib-atomic
   tests/lib-bigarray
   tests/lib-bigarray-2
   tests/lib-bigarray-file
   tests/lib-bool
   tests/lib-buffer
   tests/lib-bytes
+  tests/lib-channels
   tests/lib-digest
   tests/lib-dynlink-bytecode
   tests/lib-dynlink-csharp
+  tests/lib-dynlink-init-info
 #  tests/lib-dynlink-initializers   FAIL (FIXME) temporarily disabled (flambda2) 
   tests/lib-dynlink-native
   tests/lib-dynlink-packed
   tests/lib-dynlink-pr4229
 #  tests/lib-dynlink-pr4839         FAIL (FIXME) temporarily disabled (flambda2) 
   tests/lib-dynlink-pr6950
+  tests/lib-dynlink-pr9209
   tests/lib-dynlink-private
+  tests/lib-either
   tests/lib-filename
   tests/lib-float
   tests/lib-floatarray
@@ -113,12 +119,15 @@
   tests/printing-types
   tests/raise-counts
   tests/regression
+  tests/reproducibility
   tests/required-external
   tests/runtime-C-exceptions
   tests/runtime-errors
   tests/runtime-objects
+  tests/runtime-naked-pointers
   tests/self-contained-toplevel
   tests/shadow_include
+  tests/statmemprof
   tests/tool-command-line
   tests/tool-debugger
   tests/tool-expect-test
@@ -134,6 +143,9 @@
   tests/tool-ocamldoc
   tests/tool-ocamldoc-open
   tests/tool-ocamlobjinfo
+  tests/tool-ocamlopt-save-ir
+  tests/tool-ocamlopt-stop-after
+  tests/tool-ocamltest
   tests/tool-toplevel
   tests/tool-toplevel-invocation
   tests/translprim
