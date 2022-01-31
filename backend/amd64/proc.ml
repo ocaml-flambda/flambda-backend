@@ -465,5 +465,5 @@ let operation_supported = function
   | Cfloatofint | Cintoffloat | Ccmpf _
   | Craise _
   | Ccheckbound
-  | Cprobe _ | Cprobe_is_enabled _ | Copaque
+  | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cbeginregion | Cendregion
     -> true

@@ -207,6 +207,8 @@ let operation d = function
     Printf.sprintf "prefetch is_write=%b prefetch_temporal_locality_hint=%s"
       is_write (temporal_locality locality)
   | Copaque -> "opaque"
+  | Cbeginregion -> "beginregion"
+  | Cendregion -> "endregion"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

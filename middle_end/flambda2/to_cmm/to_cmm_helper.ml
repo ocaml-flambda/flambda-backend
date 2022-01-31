@@ -319,19 +319,22 @@ let check_alloc_fields = function
 let make_array ?(dbg = Debuginfo.none) kind args =
   check_alloc_fields args;
   match (kind : Flambda_primitive.Array_kind.t) with
-  | Immediates | Values -> make_alloc dbg 0 args
-  | Naked_floats -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
+  | Immediates | Values -> make_alloc ~mode:Alloc_heap dbg 0 args
+  | Naked_floats ->
+    make_float_alloc ~mode:Alloc_heap dbg (Tag.to_int Tag.double_array_tag) args
 
 let make_block ?(dbg = Debuginfo.none) kind args =
   check_alloc_fields args;
   match (kind : Flambda_primitive.Block_kind.t) with
-  | Values (tag, _) -> make_alloc dbg (Tag.Scannable.to_int tag) args
-  | Naked_floats -> make_float_alloc dbg (Tag.to_int Tag.double_array_tag) args
+  | Values (tag, _) ->
+    make_alloc ~mode:Alloc_heap dbg (Tag.Scannable.to_int tag) args
+  | Naked_floats ->
+    make_float_alloc ~mode:Alloc_heap dbg (Tag.to_int Tag.double_array_tag) args
 
 let make_closure_block ?(dbg = Debuginfo.none) l =
   assert (List.compare_length_with l 0 > 0);
   let tag = Tag.(to_int closure_tag) in
-  make_alloc dbg tag l
+  make_alloc ~mode:Alloc_heap dbg tag l
 
 (* Block access *)
 
