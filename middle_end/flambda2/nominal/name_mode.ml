@@ -64,6 +64,8 @@ let is_normal t = match t with Normal -> true | In_types | Phantom -> false
 
 let is_phantom t = match t with Phantom -> true | In_types | Normal -> false
 
+let is_in_types t = match t with In_types -> true | Normal | Phantom -> false
+
 let min_in_types = In_types
 
 let min_in_terms = Phantom
