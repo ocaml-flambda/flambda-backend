@@ -58,7 +58,7 @@ let rec combine i allocstate =
            match state with
            | No_alloc -> assert false
            | Pending_alloc { totalsz; dbginfos; mode = m; _ } ->
-              assert (m = mode);
+              assert (Lambda.eq_mode m mode);
               totalsz, dbginfos in
          let next =
            let offset = totalsz - sz in

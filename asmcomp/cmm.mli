@@ -256,7 +256,7 @@ val map_tail: (expression -> expression) -> expression -> expression
       by recursively applying map_shallow_tail *)
 
 val iter_shallow: (expression -> unit) -> expression -> unit
-  (** Apply the transformation to each immediate sub-expression. *)
+  (** Apply the callback to each immediate sub-expression. *)
 
 val map_shallow: (expression -> expression) -> expression -> expression
   (** Apply the transformation to each immediate sub-expression. *)

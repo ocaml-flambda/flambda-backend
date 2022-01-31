@@ -388,7 +388,8 @@ method effects_of exp =
     let from_op =
       match op with
       | Capply _ | Cextcall _ | Cprobe _ | Copaque -> EC.arbitrary
-      | Calloc _ -> EC.none
+      | Calloc Alloc_heap -> EC.none
+      | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
       | Cstore _ -> EC.effect_only Effect.Arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
