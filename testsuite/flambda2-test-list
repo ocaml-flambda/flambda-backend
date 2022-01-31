@@ -16,11 +16,11 @@
   tests/basic-more
   tests/basic-multdef
   tests/basic-private
+  tests/c-api
   tests/callback
   tests/compatibility
   tests/compiler-libs
   tests/comprehension
-  tests/c-api
   tests/embedded
   tests/ephe-c-api
   tests/exotic-syntax
@@ -39,9 +39,9 @@
   tests/generalized-open
 # tests/int64-unboxing              FAIL (FIXME)  'test.ml' (unboxing of recursive continuation parameter)
   tests/lazy
+  tests/let-syntax
   tests/letrec-check
   tests/letrec-compilation
-  tests/let-syntax
   tests/lexing
   tests/lib-arg
   tests/lib-array
@@ -95,8 +95,8 @@
   tests/lib-uchar
   tests/lib-unix
   tests/link-test
-  tests/locale
   tests/local-functions
+  tests/locale
   tests/loops
   tests/manual-intf-c
   tests/match-exception
@@ -108,8 +108,8 @@
   tests/no-alias-deps
 # tests/opaque                      FAIL          'test.ml' (cmx file loading)
   tests/output-complete-obj
-  tests/parsetree
   tests/parse-errors
+  tests/parsetree
   tests/parsing
   tests/ppx-attributes
   tests/ppx-contexts
@@ -131,6 +131,7 @@
   tests/tool-expect-test
   tests/tool-lexyacc
   tests/tool-ocaml
+  tests/tool-ocaml-annot
   tests/tool-ocamlc-compat32
   tests/tool-ocamlc-error-cleanup
   tests/tool-ocamlc-open
@@ -140,14 +141,13 @@
   tests/tool-ocamldoc
   tests/tool-ocamldoc-open
   tests/tool-ocamlobjinfo
-  tests/tool-ocaml-annot
   tests/tool-toplevel
   tests/tool-toplevel-invocation
   tests/translprim
   tests/typing-core-bugs
   tests/typing-deprecated
-  tests/typing-extensions
   tests/typing-extension-constructor
+  tests/typing-extensions
   tests/typing-fstclassmod
   tests/typing-gadts
   tests/typing-immediate
@@ -165,9 +165,9 @@
   tests/typing-objects-bugs
   tests/typing-ocamlc-i
   tests/typing-poly
+  tests/typing-poly-bugs
   tests/typing-polyvariants-bugs
   tests/typing-polyvariants-bugs-2
-  tests/typing-poly-bugs
   tests/typing-private
   tests/typing-private-bugs
   tests/typing-recmod
