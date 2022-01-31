@@ -325,4 +325,5 @@ let operation_supported = function
   | Craise _
   | Ccheckbound
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
+  | Cbeginregion | Cendregion
     -> true

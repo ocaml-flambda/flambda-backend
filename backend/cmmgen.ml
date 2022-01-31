@@ -437,7 +437,7 @@ let rec transl env e =
         | [] -> Debuginfo.none
         | fundecl::_ -> fundecl.dbg
       in
-      make_alloc dbg Obj.closure_tag (transl_fundecls 0 fundecls)
+      make_alloc ~mode:Alloc_heap dbg Obj.closure_tag (transl_fundecls 0 fundecls)
   | Uoffset(arg, offset) ->
       (* produces a valid Caml value, pointing just after an infix header *)
       let ptr = transl env arg in
