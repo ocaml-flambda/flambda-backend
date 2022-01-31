@@ -25,11 +25,7 @@
   tests/ephe-c-api
   tests/exotic-syntax
   tests/extension-constructor
-  tests/flambda2
-  tests/flambda2-aliases
   tests/flambda
-  tests/flambda-specialization
-  tests/flambda-unboxing
 # tests/float-unboxing              FAIL (FIXME)  'float_subst_boxed_number.ml' see flambdatest/mlexamples/float_unboxing.ml for a simplified error example
   tests/fma
   tests/formats-transition
@@ -68,7 +64,6 @@
   tests/lib-fun
 # tests/lib-hashtbl                 FAIL (FIXME)  htbl.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/lib-int
-  tests/lib-int32
   tests/lib-int64
   tests/lib-internalformat
   tests/lib-list
@@ -97,7 +92,6 @@
   tests/link-test
   tests/local-functions
   tests/locale
-  tests/loops
   tests/manual-intf-c
   tests/match-exception
   tests/match-exception-warnings
@@ -125,7 +119,6 @@
   tests/runtime-objects
   tests/self-contained-toplevel
   tests/shadow_include
-  tests/tool-caml-tex
   tests/tool-command-line
   tests/tool-debugger
   tests/tool-expect-test
