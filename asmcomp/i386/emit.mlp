@@ -835,9 +835,6 @@ let emit_instr fallthrough i =
   | Lop (Iendregion) ->
      I.mov (reg i.arg.(0)) eax;
      load_domain_state ebx;
-     I.sub (domain_field Domainstate.Domain_local_sp RBX) eax;
-     I.add eax (domain_field Domainstate.Domain_local_total RBX);
-     I.add (domain_field Domainstate.Domain_local_sp RBX) eax;
      I.mov eax (domain_field Domainstate.Domain_local_sp RBX)
   | Lop (Iname_for_debugger _) -> ()
   | Lop (Iprobe _ |Iprobe_is_enabled _) -> assert false

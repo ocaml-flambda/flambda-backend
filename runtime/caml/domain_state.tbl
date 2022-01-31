@@ -41,8 +41,6 @@ DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)
 
-DOMAIN_STATE(intnat, local_total)
-
 DOMAIN_STATE(struct mark_stack*, mark_stack)
 /* See major_gc.c */
 
