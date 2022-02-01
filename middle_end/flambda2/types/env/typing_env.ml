@@ -74,11 +74,14 @@ module One_level = struct
     }
 
   let remove_unused_closure_vars_and_shortcut_aliases t ~used_closure_vars =
-    let just_after_level, canonicalise =
+    let just_after_level =
       Cached_level.remove_unused_closure_vars_and_shortcut_aliases
         t.just_after_level ~used_closure_vars
     in
-    { t with just_after_level }, canonicalise
+    { t with just_after_level }
+
+  let canonicalise t =
+    Cached_level.canonicalise t.just_after_level
 end
 
 type t =
@@ -1186,11 +1189,11 @@ end = struct
   type t = typing_env
 
   let create (t : typing_env) ~used_closure_vars =
-    let current_level, canonicalise =
+    let current_level =
       One_level.remove_unused_closure_vars_and_shortcut_aliases t.current_level
         ~used_closure_vars
     in
-    { t with current_level }, canonicalise
+    { t with current_level }, One_level.canonicalise current_level
 
   let find_or_missing = find_or_missing
 end

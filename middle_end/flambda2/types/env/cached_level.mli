@@ -52,4 +52,6 @@ val apply_renaming : t -> Renaming.t -> t
 val merge : t -> t -> t
 
 val remove_unused_closure_vars_and_shortcut_aliases :
-  t -> used_closure_vars:Var_within_closure.Set.t -> t * (Simple.t -> Simple.t)
+  t -> used_closure_vars:Var_within_closure.Set.t -> t
+
+val canonicalise : t -> Simple.t -> Simple.t

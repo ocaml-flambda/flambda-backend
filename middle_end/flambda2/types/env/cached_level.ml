@@ -147,16 +147,17 @@ let merge t1 t2 =
   in
   { names_to_types; aliases; symbol_projections }
 
-let remove_unused_closure_vars_and_shortcut_aliases
-    { names_to_types; aliases; symbol_projections } ~used_closure_vars =
-  let canonicalise simple =
-    Simple.pattern_match simple
-      ~const:(fun _ -> simple)
-      ~name:(fun name ~coercion ->
+let canonicalise t simple =
+  Simple.pattern_match simple
+    ~const:(fun _ -> simple)
+    ~name:(fun name ~coercion ->
         Simple.apply_coercion_exn
-          (Aliases.get_canonical_ignoring_name_mode aliases name)
+          (Aliases.get_canonical_ignoring_name_mode t.aliases name)
           coercion)
-  in
+
+let remove_unused_closure_vars_and_shortcut_aliases
+    ({ names_to_types; aliases; symbol_projections } as t) ~used_closure_vars =
+  let canonicalise = canonicalise t in
   let names_to_types =
     Name.Map.map_sharing
       (fun ((ty, binding_time_and_mode) as info) ->
@@ -167,4 +168,4 @@ let remove_unused_closure_vars_and_shortcut_aliases
         if ty == ty' then info else ty', binding_time_and_mode)
       names_to_types
   in
-  { names_to_types; aliases; symbol_projections }, canonicalise
+  { names_to_types; aliases; symbol_projections }
