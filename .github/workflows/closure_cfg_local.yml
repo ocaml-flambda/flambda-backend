@@ -1,4 +1,4 @@
-name: flambda1_cfg
+name: closure_cfg_local
 
 on: [push, pull_request]
 
@@ -58,16 +58,16 @@ jobs:
       working-directory: flambda_backend
       run: autoconf
 
-    - name: Configure Flambda backend (Flambda 1 mode)
+    - name: Configure Flambda backend (Closure mode)
       working-directory: flambda_backend
       run: |
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
-          --enable-middle-end=flambda \
+          --enable-middle-end=closure \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build, install and test Flambda backend (Flambda 1 mode with ocamlcfg)
+    - name: Build, install and test Flambda backend (Closure mode with ocamlcfg and local allocs)
       working-directory: flambda_backend
       run: make -j $J ci
       env:
-        OCAMLPARAM: '_,ocamlcfg=1'
+        OCAMLPARAM: '_,ocamlcfg=1,extension=local'
