@@ -139,7 +139,7 @@ clean:: partialclean
 
 ifeq "$(COMPUTE_DEPS)" "true"
 ifneq "$(COBJS)" ""
-include $(addprefix $(DEPDIR)/, $(COBJS:.$(O)=.$(D)))
+-include $(addprefix $(DEPDIR)/, $(COBJS:.$(O)=.$(D)))
 endif
 endif
 

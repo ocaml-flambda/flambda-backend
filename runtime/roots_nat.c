@@ -268,19 +268,10 @@ static void compute_index_for_global_root_scan (value* glob_block, int* start)
    heap. */
 void caml_oldify_local_roots (void)
 {
-  char * sp;
-  uintnat retaddr;
-  value * regs;
-  frame_descr * d;
-  uintnat h;
   intnat i, j;
-  int n, ofs;
-  unsigned short * p;
   value * glob;
-  value * root;
   value glob_block;
   int start;
-  struct caml__roots_block *lr;
   link *lnk;
 
   /* The global roots */
@@ -307,60 +298,12 @@ void caml_oldify_local_roots (void)
     }
   }
 
-  /* The stack and local roots */
-  sp = Caml_state->bottom_of_stack;
-  retaddr = Caml_state->last_return_address;
-  regs = Caml_state->gc_regs;
-  if (sp != NULL) {
-    while (1) {
-      /* Find the descriptor corresponding to the return address */
-      h = Hash_retaddr(retaddr);
-      while(1) {
-        d = caml_frame_descriptors[h];
-        if (d->retaddr == retaddr) break;
-        h = (h+1) & caml_frame_descriptors_mask;
-      }
-      if (d->frame_size != 0xFFFF) {
-        /* Scan the roots in this frame */
-        for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-          ofs = *p;
-          if (ofs & 1) {
-            root = regs + (ofs >> 1);
-          } else {
-            root = (value *)(sp + ofs);
-          }
-          Oldify (root);
-        }
-        /* Move to next frame */
-        sp += (d->frame_size & 0xFFFC);
-        retaddr = Saved_return_address(sp);
-#ifdef Already_scanned
-        /* Stop here if the frame has been scanned during earlier GCs  */
-        if (Already_scanned(sp, retaddr)) break;
-        /* Mark frame as already scanned */
-        Mark_scanned(sp, retaddr);
-#endif
-      } else {
-        /* This marks the top of a stack chunk for an ML callback.
-           Skip C portion of stack and continue with next ML stack chunk. */
-        struct caml_context * next_context = Callback_link(sp);
-        sp = next_context->bottom_of_stack;
-        retaddr = next_context->last_retaddr;
-        regs = next_context->gc_regs;
-        /* A null sp means no more ML stack chunks; stop here. */
-        if (sp == NULL) break;
-      }
-    }
-  }
-  /* Local C roots */
-  for (lr = Caml_state->local_roots; lr != NULL; lr = lr->next) {
-    for (i = 0; i < lr->ntables; i++){
-      for (j = 0; j < lr->nitems; j++){
-        root = &(lr->tables[i][j]);
-        Oldify (root);
-      }
-    }
-  }
+  /* Stack & local C roots */
+  caml_do_local_roots_nat(NULL, &caml_oldify_one, Caml_state->bottom_of_stack,
+                          Caml_state->last_return_address, Caml_state->gc_regs,
+                          Caml_state->local_roots,
+                          caml_get_local_arenas());
+
   /* Global C roots */
   caml_scan_global_young_roots(&caml_oldify_one);
   /* Finalised values */
@@ -464,9 +407,10 @@ void caml_do_roots (scanning_action f, int do_globals)
   CAML_EV_END(EV_MAJOR_ROOTS_DYNAMIC_GLOBAL);
   /* The stack and local roots */
   CAML_EV_BEGIN(EV_MAJOR_ROOTS_LOCAL);
-  caml_do_local_roots_nat(f, Caml_state->bottom_of_stack,
+  caml_do_local_roots_nat(f, f, Caml_state->bottom_of_stack,
                           Caml_state->last_return_address, Caml_state->gc_regs,
-                          Caml_state->local_roots);
+                          Caml_state->local_roots,
+                          caml_get_local_arenas());
   CAML_EV_END(EV_MAJOR_ROOTS_LOCAL);
   /* Global C roots */
   CAML_EV_BEGIN(EV_MAJOR_ROOTS_C);
@@ -486,9 +430,154 @@ void caml_do_roots (scanning_action f, int do_globals)
   CAML_EV_END(EV_MAJOR_ROOTS_HOOK);
 }
 
-void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
+/* Returns 1 if it visits an unmarked local block */
+static int visit(scanning_action maj, scanning_action min,
+                 value* p)
+{
+  value v = *p, vblock = v;
+  header_t hd;
+  if (!Is_block(v))
+    return 0;
+
+  hd = Hd_val(vblock);
+  /* Compaction can create things that look like Infix_tag,
+     but have color Caml_gray (cf. eptr in compact.c).
+     So, check Color_hd(hd) too. */
+  if (Color_hd(hd) == 0 && Tag_hd(hd) == Infix_tag) {
+    vblock -= Infix_offset_val(v);
+    hd = Hd_val(vblock);
+  }
+
+  if (Color_hd(hd) == Caml_black)
+    return 0;
+
+  if (Is_young(vblock)) {
+    if (min != NULL) min(v, p);
+    return 0;
+  }
+
+  if (Color_hd(hd) == Local_unmarked) {
+    Hd_val(vblock) = With_color_hd(hd, Local_marked);
+    return 1;
+  }
+
+  if (maj != NULL) maj(v, p);
+  return 0;
+}
+
+static int get_local_ix(caml_local_arenas* loc, value v)
+{
+  int i;
+  CAMLassert(Is_block(v));
+  for (i = 0; i < loc->count; i++) {
+    struct caml_local_arena arena = loc->arenas[i];
+    if (arena.base <= (char*)v && (char*)v < arena.base + arena.length)
+      return i;
+  }
+  caml_fatal_error("not a local value");
+}
+
+static void do_local_allocations(caml_local_arenas* loc,
+                                 scanning_action maj, scanning_action min)
+{
+  int arena_ix;
+  intnat sp;
+  struct caml_local_arena arena;
+
+  if (loc == NULL) return;
+  CAMLassert(loc->count > 0);
+  sp = loc->saved_sp;
+  arena_ix = loc->count - 1;
+  arena = loc->arenas[arena_ix];
+
+  while (sp < 0) {
+    header_t* hp = (header_t*)(arena.base + arena.length + sp), hd = *hp;
+    intnat i;
+
+    if (hd == Local_uninit_hd) {
+      CAMLassert(arena_ix > 0);
+      arena = loc->arenas[--arena_ix];
+      continue;
+    }
+    if (Color_hd(hd) != Local_marked) {
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    *hp = With_color_hd(hd, Local_scanned);
+    if (Tag_hd(hd) >= No_scan_tag) {
+      sp += Bhsize_hd(hd);
+      continue;
+    }
+    i = 0;
+    if (Tag_hd(hd) == Closure_tag)
+      i = Start_env_closinfo(Closinfo_val(Val_hp(hp)));
+    for (; i < Wosize_hd(hd); i++) {
+      value *p = &Field(Val_hp(hp), i);
+      int marked_local = visit(maj, min, p);
+      if (marked_local) {
+        int ix = get_local_ix(loc, *p);
+        struct caml_local_arena a = loc->arenas[ix];
+        intnat newsp = (char*)p - (a.base + a.length);
+        if (sp <= newsp) {
+          /* forwards pointer, common case */
+          CAMLassert(ix <= arena_ix);
+        } else {
+          /* If backwards pointers are ever supported (e.g. local recursive
+             values), then this should reset sp and iterate to a fixpoint */
+          CAMLassert(ix >= arena_ix);
+          caml_fatal_error("backwards local pointer");
+        }
+      }
+    }
+    sp += Bhsize_hd(hd);
+  }
+
+  /* clear marks */
+  sp = loc->saved_sp;
+  arena_ix = loc->count - 1;
+  arena = loc->arenas[arena_ix];
+#ifdef DEBUG
+  { header_t* hp;
+    for (hp = (header_t*)arena.base;
+         hp < (header_t*)(arena.base + arena.length + sp);
+         hp++) {
+      *hp = Debug_free_local;
+    }
+  }
+#endif
+
+  while (sp < 0) {
+    header_t* hp = (header_t*)(arena.base + arena.length + sp);
+    if (*hp == Local_uninit_hd) {
+      arena = loc->arenas[--arena_ix];
+#ifdef DEBUG
+      for (hp = (header_t*)arena.base;
+           hp < (header_t*)(arena.base + arena.length + sp);
+           hp++) {
+        *hp = Debug_free_local;
+      }
+#endif
+      continue;
+    }
+#ifdef DEBUG
+    CAMLassert(Color_hd(*hp) != Local_marked);
+    if (Color_hd(*hp) == Local_unmarked) {
+      intnat i;
+      for (i = 0; i < Wosize_hd(*hp); i++) {
+        Field(Val_hp(hp), i) = Debug_free_local;
+      }
+    }
+#endif
+    *hp = With_color_hd(*hp, Local_unmarked);
+    sp += Bhsize_hp(hp);
+  }
+}
+
+void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
+                             char * bottom_of_stack,
                              uintnat last_retaddr, value * gc_regs,
-                             struct caml__roots_block * local_roots)
+                             struct caml__roots_block * local_roots,
+                             caml_local_arenas* arenas)
 {
   char * sp;
   uintnat retaddr;
@@ -521,7 +610,7 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
           } else {
             root = (value *)(sp + ofs);
           }
-          f (*root, root);
+          visit(maj, min, root);
         }
         /* Move to next frame */
         sp += (d->frame_size & 0xFFFC);
@@ -546,10 +635,12 @@ void caml_do_local_roots_nat(scanning_action f, char * bottom_of_stack,
     for (i = 0; i < lr->ntables; i++){
       for (j = 0; j < lr->nitems; j++){
         root = &(lr->tables[i][j]);
-        f (*root, root);
+        visit(maj, min, root);
       }
     }
   }
+  /* Local allocations */
+  do_local_allocations(arenas, maj, min);
 }
 
 uintnat (*caml_stack_usage_hook)(void) = NULL;

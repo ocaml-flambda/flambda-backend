@@ -376,21 +376,23 @@ let set_dumped_pass s enabled =
   end
 
 module Extension = struct
-  type t = Comprehensions
+  type t = Comprehensions | Local
 
-  let all = [ Comprehensions ]
+  let all = [ Comprehensions; Local ]
 
   let extensions = ref ([] : t list)   (* -extension *)
-  let equal Comprehensions Comprehensions = true
+  let equal (a : t) (b : t) = (a = b)
 
   let disable_all_extensions = ref false             (* -disable-all-extensions *)
   let disable_all () = disable_all_extensions := true
 
   let to_string = function
     | Comprehensions -> "comprehensions"
+    | Local -> "local"
 
   let of_string = function
     | "comprehensions" -> Comprehensions
+    | "local" -> Local
     | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
   let enable extn =

@@ -72,7 +72,7 @@ let rec iterator ~scope rebuild_env =
 
   and expr sub exp =
     begin match exp.exp_desc with
-    | Texp_ident (path, _, _) ->
+    | Texp_ident (path, _, _, _) ->
         let full_name = Path.name ~paren:Oprint.parenthesized_ident path in
         let env =
           if rebuild_env then

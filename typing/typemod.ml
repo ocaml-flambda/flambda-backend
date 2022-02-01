@@ -20,7 +20,7 @@ open Asttypes
 open Parsetree
 open Types
 open Format
-
+module Value_mode = Btype.Value_mode
 module String = Misc.Stdlib.String
 
 module Sig_component_kind = struct
@@ -1624,12 +1624,12 @@ let path_of_module mexp =
 
 (* Check that all core type schemes in a structure are closed *)
 
-let rec closed_modtype env = function
+let rec check_modtype env f = function
     Mty_ident _ -> true
   | Mty_alias _ -> true
   | Mty_signature sg ->
       let env = Env.add_signature sg env in
-      List.for_all (closed_signature_item env) sg
+      List.for_all (check_signature_item env f) sg
   | Mty_functor(arg_opt, body) ->
       let env =
         match arg_opt with
@@ -1638,25 +1638,36 @@ let rec closed_modtype env = function
         | Named (Some id, param) ->
             Env.add_module ~arg:true id Mp_present param env
       in
-      closed_modtype env body
+      check_modtype env f body
 
-and closed_signature_item env = function
-    Sig_value(_id, desc, _) -> Ctype.closed_schema env desc.val_type
-  | Sig_module(_id, _, md, _, _) -> closed_modtype env md.md_type
+and check_signature_item env f = function
+    Sig_value(_id, desc, _) -> f desc.val_type
+  | Sig_module(_id, _, md, _, _) -> check_modtype env f md.md_type
   | _ -> true
 
 let check_nongen_scheme env sig_item =
+  let check ty =
+    Ctype.remove_mode_variables ty; Ctype.closed_schema env ty
+  in
+  let ok = check_signature_item env check sig_item in
   match sig_item with
-    Sig_value(_id, vd, _) ->
-      if not (Ctype.closed_schema env vd.val_type) then
-        raise (Error (vd.val_loc, env, Non_generalizable vd.val_type))
-  | Sig_module (_id, _, md, _, _) ->
-      if not (closed_modtype env md.md_type) then
-        raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
+    Sig_value(_id, vd, _) when not ok ->
+     raise (Error (vd.val_loc, env, Non_generalizable vd.val_type))
+  | Sig_module (_id, _, md, _, _) when not ok ->
+     raise(Error(md.md_loc, env, Non_generalizable_module md.md_type))
   | _ -> ()
 
 let check_nongen_schemes env sg =
   List.iter (check_nongen_scheme env) sg
+
+let closed_modtype env mty =
+  let check ty =
+    Ctype.remove_mode_variables ty; Ctype.closed_schema env ty
+  in check_modtype env check mty
+
+let remove_mode_variables env sg =
+  let rm ty = Ctype.remove_mode_variables ty; true in
+  List.for_all (check_signature_item env rm) sg |> ignore
 
 (* Helpers for typing recursive modules *)
 
@@ -1948,6 +1959,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv, true
       in
+      let newenv = Env.add_lock Value_mode.global newenv in
       let body = type_module sttn funct_body None newenv sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
@@ -2157,13 +2169,23 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
         let () = if rec_flag = Recursive then
           Typecore.check_recursive_bindings env defs
         in
+        if toplevel then begin
+          (* Values bound by '_' still escape in the toplevel, because
+              they may be printed even though they are not named *)
+          defs |> List.iter (fun vb ->
+            Typecore.escape ~loc:vb.vb_pat.pat_loc ~env:newenv vb.vb_expr.exp_mode);
+        end;
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         Tstr_value(rec_flag, defs),
-        List.map (fun (id, { Asttypes.loc; _ }, _typ)->
-          Signature_names.check_value names loc id;
+        List.map (fun (id, modes) ->
+          List.iter
+            (fun (loc, mode) -> Typecore.escape ~loc ~env:newenv mode)
+            modes;
+          let (first_loc, _) = List.hd modes in
+          Signature_names.check_value names first_loc id;
           Sig_value(id, Env.find_value (Pident id) newenv, Exported)
-        ) (let_bound_idents_full defs),
+        ) (let_bound_idents_with_modes defs),
         newenv
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
@@ -2447,11 +2469,28 @@ and type_structure ?(toplevel = false) funct_body anchor env sstr =
   if toplevel then run ()
   else Builtin_attributes.warning_scope [] run
 
+(* The toplevel will print some types not present in the signature *)
+let remove_mode_variables_for_toplevel str =
+  match str.str_items with
+  | [{ str_desc =
+         ( Tstr_eval (exp, _)
+         | Tstr_value (Nonrecursive,
+                       [{vb_pat = {pat_desc=Tpat_any};
+                         vb_expr = exp}])) }] ->
+     (* These types are printed by the toplevel,
+        even though they do not appear in sg *)
+     Ctype.remove_mode_variables exp.exp_type
+  | _ -> ()
+
 let type_toplevel_phrase env s =
   Env.reset_required_globals ();
   Env.reset_probes ();
+  Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, env) =
     type_structure ~toplevel:true false None env s in
+  remove_mode_variables env sg;
+  remove_mode_variables_for_toplevel str;
+  Typecore.optimise_allocations ();
   (str, sg, to_remove_from_sg, env)
 
 let type_module_alias = type_module ~alias:true true false None
@@ -2627,6 +2666,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
+      Typecore.reset_allocations ();
       Env.reset_required_globals ();
       Env.reset_probes ();
       if !Clflags.print_types then (* #7656 *)
@@ -2636,6 +2676,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         Typecore.force_delayed_checks ();
+        Typecore.optimise_allocations ();
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
               (Printtyp.printed_signature sourcefile) simple_sg
@@ -2658,6 +2699,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
               sourcefile sg intf_file dclsig
           in
           Typecore.force_delayed_checks ();
+          Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
@@ -2674,6 +2716,7 @@ let type_implementation sourcefile outputprefix modulename initial_env ast =
           check_nongen_schemes finalenv simple_sg;
           normalize_signature simple_sg;
           Typecore.force_delayed_checks ();
+          Typecore.optimise_allocations ();
           (* See comment above. Here the target signature contains all
              the value being exported. We can still capture unused
              declarations like "let x = true;; let x = 1;;", because in this

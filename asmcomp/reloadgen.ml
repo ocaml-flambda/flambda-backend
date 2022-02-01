@@ -75,6 +75,10 @@ method reload_operation op arg res =
        so that the presence of a probe does not affect
        register allocation of the rest of the code. *)
     (arg, res)
+  | Iopaque ->
+      (* arg = result, can be on stack or register *)
+      assert (arg.(0).stamp = res.(0).stamp);
+      (arg, res)
   | _ ->
       (self#makeregs arg, self#makeregs res)
 

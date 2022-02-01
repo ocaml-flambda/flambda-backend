@@ -348,6 +348,48 @@ void caml_oldify_mopup (void)
   if (redo) goto again;
 }
 
+#ifdef DEBUG
+static void verify_minor_heap()
+{
+  header_t* p;
+  struct caml_local_arena* arena = Caml_state->local_arenas ?
+    &Caml_state->local_arenas->arenas[Caml_state->local_arenas->count-1] : NULL;
+  for (p = (header_t*)Caml_state->young_ptr;
+       p < (header_t*)Caml_state->young_alloc_end;
+       p += Whsize_hp(p)) {
+    header_t hd = *p;
+    CAMLassert_young_header(hd);
+    if (Tag_hd(hd) < No_scan_tag) {
+      intnat i = 0;
+      if (Tag_hd(hd) == Closure_tag)
+        i = Start_env_closinfo(Closinfo_val(Val_hp(p)));
+      for (; i < Wosize_hd(hd); i++) {
+        value v = Field(Val_hp(p), i);
+        if (Is_block(v)) {
+          if (Is_young(v)) CAMLassert ((value)Caml_state->young_ptr < v);
+          if (arena) {
+            CAMLassert(!(arena->base <= (char*)v &&
+                         (char*)v < arena->base + arena->length));
+          }
+        }
+      }
+    }
+  }
+  if (arena) {
+    value** r;
+    for (r = Caml_state->ref_table->base;
+         r < Caml_state->ref_table->ptr; r++) {
+      CAMLassert(!(arena->base <= (char*)*r &&
+                   (char*)*r < arena->base + arena->length));
+      if (Is_block(**r)) {
+        CAMLassert(!(arena->base <= (char*)**r &&
+                     (char*)**r < arena->base + arena->length));
+      }
+    }
+  }
+}
+#endif
+
 /* Make sure the minor heap is empty by performing a minor collection
    if needed.
 */
@@ -360,6 +402,9 @@ void caml_empty_minor_heap (void)
 
   if (Caml_state->young_ptr != Caml_state->young_alloc_end){
     CAMLassert_young_header(*(header_t*)Caml_state->young_ptr);
+#ifdef DEBUG
+    verify_minor_heap();
+#endif
     if (caml_minor_gc_begin_hook != NULL) (*caml_minor_gc_begin_hook) ();
     prev_alloc_words = caml_allocated_words;
     Caml_state->in_minor_collection = 1;

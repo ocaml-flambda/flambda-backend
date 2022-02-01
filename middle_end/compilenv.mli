@@ -95,9 +95,9 @@ val approx_for_global: Compilation_unit.t -> Export_info.t option
         (* Loads the exported information declaring the compilation_unit
            flambda-only *)
 
-val need_curry_fun: int -> unit
-val need_apply_fun: int -> unit
-val need_send_fun: int -> unit
+val need_curry_fun: Clambda.arity -> unit
+val need_apply_fun: int -> Lambda.alloc_mode -> unit
+val need_send_fun: int -> Lambda.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 

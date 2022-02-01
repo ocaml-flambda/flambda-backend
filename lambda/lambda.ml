@@ -51,8 +51,8 @@ type alloc_mode =
   | Alloc_local
 
 type region_close =
-  | Rc_close_at_apply
   | Rc_normal
+  | Rc_close_at_apply
 
 type primitive =
   | Pidentity

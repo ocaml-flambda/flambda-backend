@@ -403,7 +403,7 @@ let expression sub exp =
   in
   let desc =
     match exp.exp_desc with
-      Texp_ident (_path, lid, _) -> Pexp_ident (map_loc sub lid)
+      Texp_ident (_path, lid, _, _) -> Pexp_ident (map_loc sub lid)
     | Texp_constant cst -> Pexp_constant (constant cst)
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
@@ -425,12 +425,12 @@ let expression sub exp =
         Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
           Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
                           (List.map (sub.case sub) cases))
-    | Texp_apply (exp, list) ->
+    | Texp_apply (exp, list, _) ->
         Pexp_apply (sub.expr sub exp,
-          List.fold_right (fun (label, expo) list ->
-              match expo with
-                None -> list
-              | Some exp -> (label, sub.expr sub exp) :: list
+          List.fold_right (fun (label, arg) list ->
+              match arg with
+              | Omitted _ -> list
+              | Arg exp -> (label, sub.expr sub exp) :: list
           ) list [])
     | Texp_match (exp, cases, _) ->
       Pexp_match (sub.expr sub exp, List.map (sub.case sub) cases)
@@ -485,11 +485,11 @@ let expression sub exp =
         Pexp_for (name,
           sub.expr sub exp1, sub.expr sub exp2,
           dir, sub.expr sub exp3)
-    | Texp_send (exp, meth, _) ->
+    | Texp_send (exp, meth, _, _) ->
         Pexp_send (sub.expr sub exp, match meth with
             Tmeth_name name -> mkloc name loc
           | Tmeth_val id -> mkloc (Ident.name id) loc)
-    | Texp_new (_path, lid, _) -> Pexp_new (map_loc sub lid)
+    | Texp_new (_path, lid, _, _) -> Pexp_new (map_loc sub lid)
     | Texp_instvar (_, path, name) ->
       Pexp_ident ({loc = sub.location sub name.loc ; txt = lident_of_path path})
     | Texp_setinstvar (_, _path, lid, exp) ->
@@ -736,8 +736,8 @@ let class_expr sub cexpr =
         Pcl_apply (sub.class_expr sub cl,
           List.fold_right (fun (label, expo) list ->
               match expo with
-                None -> list
-              | Some exp -> (label, sub.expr sub exp) :: list
+              | Omitted _ -> list
+              | Arg exp -> (label, sub.expr sub exp) :: list
           ) args [])
 
     | Tcl_let (rec_flat, bindings, _ivars, cl) ->

@@ -82,7 +82,7 @@
 #define Is_in_heap_or_young(a) (Classify_addr(a) & (In_heap | In_young))
 
 #define Is_in_value_area(a)                                     \
-  (Classify_addr(a) & (In_heap | In_young | In_static_data))
+  (Classify_addr(a) & (In_heap | In_young | In_static_data | In_local))
 
 #define Is_in_static_data(a) (Classify_addr(a) & In_static_data)
 
@@ -95,6 +95,7 @@
 #define In_heap 1
 #define In_young 2
 #define In_static_data 4
+#define In_local 8
 
 #ifdef ARCH_SIXTYFOUR
 

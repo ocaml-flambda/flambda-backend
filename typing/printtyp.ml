@@ -496,9 +496,10 @@ let rec raw_type ppf ty =
 and raw_type_list tl = raw_list raw_type tl
 and raw_type_desc ppf = function
     Tvar name -> fprintf ppf "Tvar %a" print_name name
-  | Tarrow(l,t1,t2,c) ->
-      fprintf ppf "@[<hov1>Tarrow(\"%s\",@,%a,@,%a,@,%s)@]"
-        (string_of_label l) raw_type t1 raw_type t2
+  | Tarrow((l,arg,ret),t1,t2,c) ->
+      fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
+        (string_of_label l) Alloc_mode.print arg Alloc_mode.print ret
+        raw_type t1 raw_type t2
         (safe_commu_repr [] c)
   | Ttuple tl ->
       fprintf ppf "@[<1>Ttuple@,%a@]" raw_type_list tl
@@ -961,7 +962,7 @@ let rec tree_of_typexp sch ty =
         let non_gen = is_non_gen sch ty in
         let name_gen = if non_gen then new_weak_name ty else new_name in
         Otyp_var (non_gen, name_of_type name_gen ty)
-    | Tarrow(l, ty1, ty2, _) ->
+    | Tarrow ((l, marg, mret), ty1, ty2, _) ->
         let lab =
           if !print_labels || is_optional l then string_of_label l else ""
         in
@@ -973,7 +974,20 @@ let rec tree_of_typexp sch ty =
                 tree_of_typexp sch ty
             | _ -> Otyp_stuff "<hidden>"
           else tree_of_typexp sch ty1 in
-        Otyp_arrow (lab, t1, tree_of_typexp sch ty2)
+        let am =
+          match Alloc_mode.check_const marg with
+          | Some Global -> Oam_global
+          | Some Local -> Oam_local
+          | None -> Oam_unknown
+        in
+        let t2 = tree_of_typexp sch ty2 in
+        let rm =
+          match Alloc_mode.check_const mret with
+          | Some Global -> Oam_global
+          | Some Local -> Oam_local
+          | None -> Oam_unknown
+        in
+        Otyp_arrow (lab, am, t1, rm, t2)
     | Ttuple tyl ->
         Otyp_tuple (tree_of_typlist sch tyl)
     | Tconstr(p, tyl, _abbrev) ->
@@ -1314,7 +1328,14 @@ and tree_of_constructor cd =
       (name, args, Some ret)
 
 and tree_of_label l =
-  (Ident.name l.ld_id, l.ld_mutable = Mutable, tree_of_typexp false l.ld_type)
+  let gom =
+    match l.ld_mutable, l.ld_global with
+    | Mutable, _ -> Ogom_mutable
+    | Immutable, Global -> Ogom_global
+    | Immutable, Nonlocal -> Ogom_nonlocal
+    | Immutable, Unrestricted -> Ogom_immutable
+  in
+  (Ident.name l.ld_id, gom, tree_of_typexp false l.ld_type)
 
 let constructor ppf c =
   reset_except_context ();

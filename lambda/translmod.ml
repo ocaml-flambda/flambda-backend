@@ -96,8 +96,8 @@ let rec apply_coercion loc strict restr arg =
       let param = Ident.create_local "funarg" in
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
       apply_coercion_result loc strict arg [param, Pgenval] [carg] cc_res
-  | Tcoerce_primitive { pc_loc = _; pc_desc; pc_env; pc_type } ->
-      let poly_mode = Lambda.Alloc_heap in
+  | Tcoerce_primitive { pc_loc = _; pc_desc; pc_env; pc_type; pc_poly_mode } ->
+      let poly_mode = Translcore.transl_alloc_mode pc_poly_mode in
       Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
   | Tcoerce_alias (env, path, cc) ->
       let lam = transl_module_path loc env path in
@@ -614,7 +614,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
                           Translprim.transl_primitive
                             (of_location ~scopes p.pc_loc)
                             p.pc_desc p.pc_env p.pc_type
-                            ~poly_mode:Lambda.Alloc_heap
+                            ~poly_mode:(Translcore.transl_alloc_mode p.pc_poly_mode)
                             None
                       | _ -> apply_coercion loc Strict cc (get_field pos))
                     pos_cc_list, loc)
@@ -1035,8 +1035,8 @@ let field_of_str loc str =
   let ids = Array.of_list (defined_idents str.str_items) in
   fun (pos, cc) ->
     match cc with
-    | Tcoerce_primitive { pc_loc = _; pc_desc; pc_env; pc_type } ->
-        let poly_mode = Lambda.Alloc_heap in
+    | Tcoerce_primitive { pc_loc = _; pc_desc; pc_env; pc_type; pc_poly_mode } ->
+        let poly_mode = Translcore.transl_alloc_mode pc_poly_mode in
         Translprim.transl_primitive loc pc_desc pc_env pc_type ~poly_mode None
     | Tcoerce_alias (env, path, cc) ->
         let lam = transl_module_path loc env path in
@@ -1367,7 +1367,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
     List.fold_right (add_ident may_coerce) idlist subst
 
   and store_primitive (pos, prim) cont =
-    let poly_mode = Lambda.Alloc_heap in
+    let poly_mode = Translcore.transl_alloc_mode prim.pc_poly_mode in
     Lsequence(Lprim(mod_setfield pos,
                     [Lprim(Pgetglobal glob, [], Loc_unknown);
                      Translprim.transl_primitive Loc_unknown

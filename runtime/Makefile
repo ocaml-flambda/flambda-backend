@@ -416,5 +416,5 @@ DEP_FILES += $(addsuffix d, $(DEP_FILES)) \
 DEP_FILES := $(addsuffix .$(D), $(DEP_FILES))
 
 ifeq "$(COMPUTE_DEPS)" "true"
-include $(addprefix $(DEPDIR)/, $(DEP_FILES))
+-include $(addprefix $(DEPDIR)/, $(DEP_FILES))
 endif

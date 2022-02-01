@@ -34,9 +34,11 @@ CAMLextern void caml_do_local_roots_byt (scanning_action, value *, value *,
 #define caml_do_local_roots caml_do_local_roots_byt
 #else
 CAMLextern void caml_do_local_roots_nat (
-                     scanning_action f, char * c_bottom_of_stack,
+                     scanning_action maj, scanning_action min,
+                     char * c_bottom_of_stack,
                      uintnat last_retaddr, value * v_gc_regs,
-                     struct caml__roots_block * gc_local_roots);
+                     struct caml__roots_block * gc_local_roots,
+                     struct caml_local_arenas* local_arenas);
 #define caml_do_local_roots caml_do_local_roots_nat
 #endif
 

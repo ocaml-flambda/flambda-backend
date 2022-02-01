@@ -20,6 +20,8 @@ open Types
 open Typecore
 open Typetexp
 open Format
+module Value_mode = Btype.Value_mode
+module Alloc_mode = Btype.Alloc_mode
 
 type 'a class_info = {
   cls_id : Ident.t;
@@ -177,7 +179,8 @@ let rec constructor_type constr cty =
   | Cty_signature _ ->
       constr
   | Cty_arrow (l, ty, cty) ->
-      Ctype.newty (Tarrow (l, ty, constructor_type constr cty, Cok))
+      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
+                           ty, constructor_type constr cty, Cok))
 
 let rec class_body cty =
   match cty with
@@ -211,23 +214,26 @@ let rec abbreviate_class_type path params cty =
 (* Check that all type variables are generalizable *)
 (* Use Env.empty to prevent expansion of recursively defined object types;
    cf. typing-poly/poly.ml *)
+let closed_type ty =
+  Ctype.remove_mode_variables ty; Ctype.closed_schema Env.empty ty
+
 let rec closed_class_type =
   function
     Cty_constr (_, params, _) ->
-      List.for_all (Ctype.closed_schema Env.empty) params
+      List.for_all closed_type params
   | Cty_signature sign ->
-      Ctype.closed_schema Env.empty sign.csig_self
+      closed_type sign.csig_self
         &&
-      Vars.fold (fun _ (_, _, ty) cc -> Ctype.closed_schema Env.empty ty && cc)
+      Vars.fold (fun _ (_, _, ty) cc -> closed_type ty && cc)
         sign.csig_vars
         true
   | Cty_arrow (_, ty, cty) ->
-      Ctype.closed_schema Env.empty ty
+      closed_type ty
         &&
       closed_class_type cty
 
 let closed_class cty =
-  List.for_all (Ctype.closed_schema Env.empty) cty.cty_params
+  List.for_all closed_type cty.cty_params
     &&
   closed_class_type cty.cty_type
 
@@ -354,7 +360,7 @@ let virtual_method val_env meths self_type lab priv sty loc =
      Ctype.filter_self_method val_env lab priv meths self_type
   in
   let sty = Ast_helper.Typ.force_poly sty in
-  let cty = transl_simple_type val_env false sty in
+  let cty = transl_simple_type val_env false Global sty in
   let ty = cty.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify trace ->
@@ -389,15 +395,15 @@ so that we can get an immediate value. Is that correct ? Ask Jacques. *)
       !delayed_meth_specs;
       returned_cty
   | _ ->
-      let cty = transl_simple_type val_env false sty in
+      let cty = transl_simple_type val_env false Global sty in
       let ty = cty.ctyp_type in
       unif ty;
       cty
 
 let type_constraint val_env sty sty' loc =
-  let cty  = transl_simple_type val_env false sty in
+  let cty  = transl_simple_type val_env false Global sty in
   let ty = cty.ctyp_type in
-  let cty' = transl_simple_type val_env false sty' in
+  let cty' = transl_simple_type val_env false Global sty' in
   let ty' = cty'.ctyp_type in
   begin
     try Ctype.unify val_env ty ty' with Ctype.Unify trace ->
@@ -452,7 +458,7 @@ and class_type_field_aux env self_type meths
        val_sig, concr_meths, inher)
 
   | Pctf_val ({txt=lab}, mut, virt, sty) ->
-      let cty = transl_simple_type env false sty in
+      let cty = transl_simple_type env false Global sty in
       let ty = cty.ctyp_type in
       (mkctf (Tctf_val (lab, mut, virt, cty)) :: fields,
       add_val lab (mut, virt, ty) val_sig, concr_meths, inher)
@@ -483,7 +489,7 @@ and class_type_field_aux env self_type meths
 
 and class_signature env {pcsig_self=sty; pcsig_fields=sign} =
   let meths = ref Meths.empty in
-  let self_cty = transl_simple_type env false sty in
+  let self_cty = transl_simple_type env false Global sty in
   let self_cty = { self_cty with
     ctyp_type = Ctype.expand_head env self_cty.ctyp_type } in
   let self_type =  self_cty.ctyp_type in
@@ -546,7 +552,7 @@ and class_type_aux env scty =
                                                    List.length styl)));
       let ctys = List.map2
         (fun sty ty ->
-          let cty' = transl_simple_type env false sty in
+          let cty' = transl_simple_type env false Global sty in
           let ty' = cty'.ctyp_type in
           begin
            try Ctype.unify env ty' ty with Ctype.Unify trace ->
@@ -564,7 +570,7 @@ and class_type_aux env scty =
       cltyp (Tcty_signature clsig) typ
 
   | Pcty_arrow (l, sty, scty) ->
-      let cty = transl_simple_type env false sty in
+      let cty = transl_simple_type env false Global sty in
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
@@ -652,7 +658,7 @@ and class_field_aux self_loc cl_num self_type meths vars
 
   | Pcf_val (lab, mut, Cfk_virtual styp) ->
       if !Clflags.principal then Ctype.begin_def ();
-      let cty = Typetexp.transl_simple_type val_env false styp in
+      let cty = Typetexp.transl_simple_type val_env false Global styp in
       let ty = cty.ctyp_type in
       if !Clflags.principal then begin
         Ctype.end_def ();
@@ -727,7 +733,9 @@ and class_field_aux self_loc cl_num self_type meths vars
           begin match sty with None -> ()
                 | Some sty ->
                     let sty = Ast_helper.Typ.force_poly sty in
-                    let cty' = Typetexp.transl_simple_type val_env false sty in
+                    let cty' =
+                      Typetexp.transl_simple_type val_env false Global sty
+                    in
                     let ty' = cty'.ctyp_type in
               Ctype.unify val_env ty' ty
           end;
@@ -757,7 +765,8 @@ and class_field_aux self_loc cl_num self_type meths vars
              (* Read the generalized type *)
              let (_, ty) = Meths.find lab.txt !meths in
              let meth_type = mk_expected (
-               Btype.newgenty (Tarrow(Nolabel, self_type, ty, Cok))
+               Btype.newgenty (Tarrow((Nolabel, Alloc_mode.global, Alloc_mode.global),
+                                      self_type, ty, Cok))
              ) in
              Ctype.raise_nongen_level ();
              vars := vars_local;
@@ -784,7 +793,7 @@ and class_field_aux self_loc cl_num self_type meths vars
           Ctype.raise_nongen_level ();
           let meth_type = mk_expected (
             Ctype.newty
-              (Tarrow (Nolabel, self_type,
+              (Tarrow ((Nolabel, Alloc_mode.global, Alloc_mode.global), self_type,
                        Ctype.instance Predef.type_unit, Cok))
           ) in
           vars := vars_local;
@@ -814,6 +823,8 @@ and class_field_aux self_loc cl_num self_type meths vars
 and class_structure cl_num final val_env met_env loc
   { pcstr_self = spat; pcstr_fields = str } =
   (* Environment for substructures *)
+  let val_env = Env.add_lock Value_mode.global val_env in
+  let met_env = Env.add_lock Value_mode.global met_env in
   let par_env = met_env in
 
   (* Location of self. Used for locations of self arguments *)
@@ -952,7 +963,7 @@ and class_expr_aux cl_num val_env met_env scl =
       if Path.same decl.cty_path unbound_class then
         raise(Error(scl.pcl_loc, val_env, Unbound_class_2 lid.txt));
       let tyl = List.map
-          (fun sty -> transl_simple_type val_env false sty)
+          (fun sty -> transl_simple_type val_env false Global sty)
           styl
       in
       let (params, clty) =
@@ -1041,9 +1052,11 @@ and class_expr_aux cl_num val_env met_env scl =
             let vd = Env.find_value path val_env' in
             (id,
              {exp_desc =
-              Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd);
+              Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd,
+                         Id_value);
               exp_loc = Location.none; exp_extra = [];
               exp_type = Ctype.instance vd.val_type;
+              exp_mode = Value_mode.global;
               exp_attributes = []; (* check *)
               exp_env = val_env'})
           end
@@ -1059,6 +1072,7 @@ and class_expr_aux cl_num val_env met_env scl =
         Typecore.check_partial val_env pat.pat_type pat.pat_loc
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
+      let val_env' = Env.add_lock Value_mode.global val_env' in
       Ctype.raise_nongen_level ();
       let cl = class_expr cl_num val_env' met_env scl' in
       Ctype.end_def ();
@@ -1109,18 +1123,18 @@ and class_expr_aux cl_num val_env met_env scl =
             let name = Btype.label_name l
             and optional = Btype.is_optional l in
             let use_arg sarg l' =
-              Some (
+              Arg (
                 if not optional || Btype.is_optional l' then
                   type_argument val_env sarg ty ty0
                 else
                   let ty' = extract_option_type val_env ty
                   and ty0' = extract_option_type val_env ty0 in
                   let arg = type_argument val_env sarg ty' ty0' in
-                  option_some val_env arg
+                  option_some val_env arg Value_mode.global
               )
             in
             let eliminate_optional_arg () =
-              Some (option_none val_env ty0 Location.none)
+              Arg (option_none val_env ty0 Value_mode.global Location.none)
             in
             let remaining_sargs, arg =
               if ignore_labels then begin
@@ -1151,10 +1165,18 @@ and class_expr_aux cl_num val_env met_env scl =
                     sargs,
                     if Btype.is_optional l && List.mem_assoc Nolabel sargs then
                       eliminate_optional_arg ()
-                    else
-                      None
+                    else begin
+                      let mode_closure = Alloc_mode.global in
+                      let mode_arg = Alloc_mode.global in
+                      let mode_ret = Alloc_mode.global in
+                      Omitted { mode_closure; mode_arg; mode_ret }
+                    end
             in
-            let omitted = if arg = None then (l,ty0) :: omitted else omitted in
+            let omitted =
+              match arg with
+              | Omitted _ -> (l,ty0) :: omitted
+              | Arg _ -> omitted
+            in
             type_args ((l,arg)::args) omitted ty_fun ty_fun0 remaining_sargs
         | _ ->
             match sargs with
@@ -1184,16 +1206,21 @@ and class_expr_aux cl_num val_env met_env scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-          (fun (id, _id_loc, _typ) (vals, met_env) ->
+          (fun (id, modes) (vals, met_env) ->
+             List.iter
+               (fun (loc, mode) -> Typecore.escape ~loc ~env:val_env mode)
+               modes;
              let path = Pident id in
              (* do not mark the value as used *)
              let vd = Env.find_value path val_env in
              Ctype.begin_def ();
              let expr =
                {exp_desc =
-                Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd);
+                Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd,
+                           Id_value);
                 exp_loc = Location.none; exp_extra = [];
                 exp_type = Ctype.instance vd.val_type;
+                exp_mode = Value_mode.global;
                 exp_attributes = [];
                 exp_env = val_env;
                }
@@ -1212,7 +1239,7 @@ and class_expr_aux cl_num val_env met_env scl =
              ((id', expr)
               :: vals,
               Env.add_value id' desc met_env))
-          (let_bound_idents_full defs)
+          (let_bound_idents_with_modes defs)
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env scl' in
@@ -1280,7 +1307,8 @@ let rec approx_declaration cl =
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar () in
-      Ctype.newty (Tarrow (l, arg, approx_declaration cl, Cok))
+      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
+                           arg, approx_declaration cl, Cok))
   | Pcl_let (_, _, cl) ->
       approx_declaration cl
   | Pcl_constraint (cl, _) ->
@@ -1293,7 +1321,8 @@ let rec approx_description ct =
       let arg =
         if Btype.is_optional l then Ctype.instance var_option
         else Ctype.newvar () in
-      Ctype.newty (Tarrow (l, arg, approx_description ct, Cok))
+      Ctype.newty (Tarrow ((l, Alloc_mode.global, Alloc_mode.global),
+                           arg, approx_description ct, Cok))
   | _ -> Ctype.newvar ()
 
 (*******************************)

@@ -78,6 +78,12 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+type escaping_context =
+  | Return
+  | Tailcall_argument
+  | Tailcall_function
+  | Partial_application
+
 val type_binding:
         Env.t -> rec_flag ->
           Parsetree.value_binding list ->
@@ -104,7 +110,6 @@ val check_partial:
         ?lev:int -> Env.t -> type_expr ->
         Location.t -> Typedtree.value Typedtree.case list -> Typedtree.partial
 val type_expect:
-        ?in_function:(Location.t * type_expr) ->
         Env.t -> Parsetree.expression -> type_expected -> Typedtree.expression
 val type_exp:
         Env.t -> Parsetree.expression -> Typedtree.expression
@@ -114,15 +119,23 @@ val type_argument:
         Env.t -> Parsetree.expression ->
         type_expr -> type_expr -> Typedtree.expression
 
-val option_some: Env.t -> Typedtree.expression -> Typedtree.expression
-val option_none: Env.t -> type_expr -> Location.t -> Typedtree.expression
+val option_some:
+  Env.t -> Typedtree.expression -> value_mode -> Typedtree.expression
+val option_none:
+  Env.t -> type_expr -> value_mode -> Location.t -> Typedtree.expression
 val extract_option_type: Env.t -> type_expr -> type_expr
 val generalizable: int -> type_expr -> bool
 val reset_delayed_checks: unit -> unit
 val force_delayed_checks: unit -> unit
 
+val reset_allocations: unit -> unit
+val optimise_allocations: unit -> unit
+
+
 val name_pattern : string -> Typedtree.pattern list -> Ident.t
 val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
+
+val escape : loc:Location.t -> env:Env.t -> value_mode -> unit
 
 val self_coercion : (Path.t * Location.t list ref) list ref
 
@@ -194,6 +207,10 @@ type error =
   | Letop_type_clash of string * Ctype.Unification_trace.t
   | Andop_type_clash of string * Ctype.Unification_trace.t
   | Bindings_type_clash of Ctype.Unification_trace.t
+  | Local_value_escapes of Btype.Value_mode.error * escaping_context option
+  | Param_mode_mismatch of type_expr
+  | Uncurried_function_escapes
+  | Local_return_annotation_mismatch of Location.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
