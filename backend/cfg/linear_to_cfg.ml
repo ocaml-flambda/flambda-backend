@@ -51,7 +51,7 @@ type t =
        will be able to store the trap_stacks directly within their nodes, but it
        is a major restructuring of create_blocks, which won't be needed when we
        split blocks to have only one stack each. *)
-    exns : T.t list Label.Tbl.t;
+    exns : T.t Label.Tbl.t;
         (** Maps labels to trap stacks at each raise point in the corresponding
             block. *)
     (* CR-someday gyorsh: this won't be needed after block splitting, as it will
@@ -150,8 +150,9 @@ let resolve_traps_to_pop t ls =
 let record_exn t (block : C.basic_block) traps =
   block.can_raise <- true;
   match Label.Tbl.find_opt t.exns block.start with
-  | None -> Label.Tbl.add t.exns block.start [traps]
-  | Some ls -> Label.Tbl.replace t.exns block.start (traps :: ls)
+  | None -> Label.Tbl.add t.exns block.start traps
+  | Some _ ->
+    Misc.fatal_errorf "Cannot record another exception for %d" block.start
 
 let create_empty_block t start ~trap_depth ~traps =
   let terminator : C.terminator C.instruction =
@@ -169,7 +170,7 @@ let create_empty_block t start ~trap_depth ~traps =
     { start;
       body = [];
       terminator;
-      exns = Label.Set.empty;
+      exn = None;
       predecessors = Label.Set.empty;
       trap_depth;
       is_trap_handler = false;
@@ -204,9 +205,9 @@ let register_block t (block : C.basic_block) traps =
      recorded and resolved at the end of the pass. *)
   (match Label.Tbl.find_opt t.exns block.start with
   | None -> ()
-  | Some ls ->
+  | Some trap_stack ->
     t.unresolved_traps_to_pop
-      <- resolve_traps_to_pop t ls @ t.unresolved_traps_to_pop);
+      <- resolve_traps_to_pop t [trap_stack] @ t.unresolved_traps_to_pop);
   Label.Tbl.add t.cfg.blocks block.start block
 
 let check_traps t label (block : C.basic_block) =
@@ -247,34 +248,25 @@ let register_exns t label (block : C.basic_block) =
      Unknown frames or labels. *)
   match Label.Tbl.find_opt t.exns label with
   | None -> ()
-  | Some exns ->
-    let f acc trap_stack =
-      match T.top_exn trap_stack with
-      | None -> Misc.fatal_errorf "register_exns: empty trap stack for %d" label
-      | Some l ->
-        if Label.equal l t.interproc_handler then acc else Label.Set.add l acc
-      | exception T.Unresolved ->
-        (* must be dead block or flow from exception handler only *)
-        assert block.dead;
-        if !C.verbose
-        then
-          Printf.printf
-            "unknown trap stack in exns of block %d: the block must be dead, \
-             or there is a bug in trap stacks."
-            label;
-        acc
-    in
-    block.exns <- List.fold_left f Label.Set.empty exns;
+  | Some trap_stack ->
+    assert (Option.is_none block.exn);
+    (match T.top_exn trap_stack with
+    | None -> Misc.fatal_errorf "register_exns: empty trap stack for %d" label
+    | Some l ->
+      if not (Label.equal l t.interproc_handler) then block.exn <- Some l
+    | exception T.Unresolved ->
+      (* must be dead block or flow from exception handler only *)
+      assert block.dead;
+      if !C.verbose
+      then
+        Printf.printf
+          "unknown trap stack in exns of block %d: the block must be dead, or \
+           there is a bug in trap stacks."
+          label);
     if !C.verbose
-    then (
-      Printf.printf "%s: %d exn stacks at %d: " t.cfg.fun_name
-        (List.length exns) label;
-      List.iter T.print exns;
-      Printf.printf "%s: %d exns at %d: " t.cfg.fun_name
-        (Label.Set.cardinal block.exns)
-        label;
-      Label.Set.iter (Printf.printf "%d ") block.exns;
-      Printf.printf "\n")
+    then
+      Printf.printf "%s: %d exn %s: " t.cfg.fun_name label
+        (match block.exn with None -> "none" | Some l -> Int.to_string l)
 
 let check_and_register_traps t =
   (* check that all blocks referred to in pushtraps are marked as
@@ -310,8 +302,8 @@ let check_and_register_traps t =
   (* after all exn successors are computed, check that if a block can_raise,
      then it has a registered exn successor or interproc exn. *)
   let f _ (block : C.basic_block) =
-    let n = Label.Set.cardinal block.exns in
-    assert ((not block.can_raise) || n > 0 || Cfg.can_raise_interproc block)
+    let n = match block.exn with None -> 0 | Some _ -> 1 in
+    assert ((not block.can_raise) || n = 1 || Cfg.can_raise_interproc block)
   in
   C.iter_blocks t.cfg ~f
 

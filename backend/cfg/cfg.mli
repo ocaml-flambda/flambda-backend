@@ -41,7 +41,7 @@ type basic_block =
         (** Trap depth of the start of the block. Used for cross checking the
             construction of [exns], and for emitting adjust trap on edges from
             one block to the next. *)
-    mutable exns : Label.Set.t;
+    mutable exn : Label.t option;
         (** All possible handlers of a raise that (1) can be triggered either by
             an explicit raise, or instructions such as calls and allocations,
             that appear(s) in this block; and (2) are within the same function.
