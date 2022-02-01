@@ -1,0 +1,30 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                     Thomas Refis, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2018 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(ocamllex debugger_lexer)
+(ocamlyacc debugger_parser)
+
+(executable
+  (name main)
+  (modes byte)
+  (flags (:standard -principal -w -9
+    -nostdlib -cclib "-I ../runtime" -cclib "-L ../runtime" -cclib -lcamlrun))
+  (link_deps (file ../stdlib/camlheader) (file ../runtime/libcamlrun.a))
+  (modules_without_implementation parser_aux)
+  (libraries ocamlcommon ocamltoplevel stdlib unix dynlink_internal))
+
+(install
+  (files (main.bc as ocamldebug))
+  (section bin)
+  (package ocaml))
