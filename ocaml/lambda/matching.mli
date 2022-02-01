@@ -34,7 +34,7 @@ val for_let:
         lambda
 val for_multiple_match:
         scopes:scopes -> Location.t ->
-        lambda list -> (pattern * lambda) list -> partial ->
+        lambda list -> alloc_mode -> (pattern * lambda) list -> partial ->
         lambda
 
 val for_tupled_function:
@@ -51,4 +51,4 @@ val expand_stringswitch:
     scoped_location -> lambda -> (string * lambda) list ->
     lambda option -> lambda
 
-val inline_lazy_force : lambda -> scoped_location -> lambda
+val inline_lazy_force : lambda -> region_close -> scoped_location -> lambda

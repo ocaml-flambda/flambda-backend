@@ -747,18 +747,18 @@ and transl_make_array dbg env kind args =
 and transl_ccall env prim args dbg =
   let transl_arg native_repr arg =
     match native_repr with
-    | Same_as_ocaml_repr ->
+    | _, Same_as_ocaml_repr ->
         (XInt, transl env arg)
-    | Unboxed_float ->
+    | _, Unboxed_float ->
         (XFloat, transl_unbox_float dbg env arg)
-    | Unboxed_integer bi ->
+    | _, Unboxed_integer bi ->
         let xty =
           match bi with
           | Pnativeint -> XInt
           | Pint32 -> XInt32
           | Pint64 -> XInt64 in
         (xty, transl_unbox_int dbg env bi arg)
-    | Untagged_int ->
+    | _, Untagged_int ->
         (XInt, untag_int (transl env arg) dbg)
   in
   let rec transl_args native_repr_args args =
@@ -776,12 +776,12 @@ and transl_ccall env prim args dbg =
   in
   let typ_res, wrap_result =
     match prim.prim_native_repr_res with
-    | Same_as_ocaml_repr -> (typ_val, fun x -> x)
-    | Unboxed_float -> (typ_float, box_float dbg)
-    | Unboxed_integer Pint64 when size_int = 4 ->
+    | _, Same_as_ocaml_repr -> (typ_val, fun x -> x)
+    | _, Unboxed_float -> (typ_float, box_float dbg)
+    | _, Unboxed_integer Pint64 when size_int = 4 ->
         ([|Int; Int|], box_int dbg Pint64)
-    | Unboxed_integer bi -> (typ_int, box_int dbg bi)
-    | Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Unboxed_integer bi -> (typ_int, box_int dbg bi)
+    | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
   in
   let typ_args, args = transl_args prim.prim_native_repr_args args in
   wrap_result

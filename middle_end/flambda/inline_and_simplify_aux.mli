@@ -296,6 +296,13 @@ module Result : sig
   (** Mark that the given static exception has been used. *)
   val use_static_exception : t -> Static_exception.t -> t
 
+  (** Mark/clear whether local allocations may be made in
+      the nearest enclosing region *)
+  val set_region_use : t -> bool -> t
+
+  (** Whether [set_region_use _ true] has been called *)
+  val may_use_region : t -> bool
+
   (** Mark that we are moving up out of the scope of a static-catch block
       that catches the given static exception identifier.  This has the effect
       of removing the identifier from the [used_staticfail] set. *)

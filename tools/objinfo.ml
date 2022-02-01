@@ -179,7 +179,7 @@ let print_cmx_infos (ui, crc) =
     List.iter (fun (arity,m) -> printf " %d%s" arity (mode m)) fns in
   let pr_cfuns _ fns =
     List.iter (function
-      | (Lambda.Curried, a) -> printf " %dL" a
+      | (Lambda.Curried {nlocal},a) -> printf " %dL%d" a nlocal
       | (Lambda.Tupled, a) -> printf " -%d" a) fns in
   printf "Currying functions:%a\n" pr_cfuns ui.ui_curry_fun;
   printf "Apply functions:%a\n" pr_afuns ui.ui_apply_fun;

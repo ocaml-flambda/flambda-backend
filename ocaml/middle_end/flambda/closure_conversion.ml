@@ -41,10 +41,11 @@ let add_default_argument_wrappers lam =
   let f (lam : Lambda.lambda) : Lambda.lambda =
     match lam with
     | Llet (( Strict | Alias | StrictOpt), _k, id,
-        Lfunction {kind; params; body = fbody; attr; loc}, body) ->
+        Lfunction {kind; params; body = fbody; attr; loc;
+                   mode; region}, body) ->
       begin match
         Simplif.split_default_wrapper ~id ~kind ~params
-          ~body:fbody ~return:Pgenval ~attr ~loc
+          ~body:fbody ~return:Pgenval ~attr ~loc ~mode ~region
       with
       | [fun_id, def] -> Llet (Alias, Pgenval, fun_id, def, body)
       | [fun_id, def; inner_fun_id, def_inner] ->
@@ -58,9 +59,10 @@ let add_default_argument_wrappers lam =
           List.flatten
             (List.map
                (function
-                 | (id, Lambda.Lfunction {kind; params; body; attr; loc}) ->
+                 | (id, Lambda.Lfunction {kind; params; body; attr; loc;
+                                          mode; region}) ->
                    Simplif.split_default_wrapper ~id ~kind ~params ~body
-                     ~return:Pgenval ~attr ~loc
+                     ~return:Pgenval ~attr ~loc ~mode ~region
                  | _ -> assert false)
                defs)
         in
@@ -313,7 +315,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       in
       Let_rec (defs, close t env body)
     end
-  | Lsend (kind, meth, obj, args, loc) ->
+  | Lsend (kind, meth, obj, args, _, _, loc) ->
     let meth_var = Variable.create Names.meth in
     let obj_var = Variable.create Names.obj in
     let dbg = Debuginfo.from_location loc in
@@ -415,11 +417,13 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
     in
     Flambda.create_let var defining_expr
       (name_expr (Const (Int 0)) ~name:Names.unit)
-  | Lprim (Pdirapply, [funct; arg], loc)
-  | Lprim (Prevapply, [arg; funct], loc) ->
+  | Lprim (Pdirapply pos, [funct; arg], loc)
+  | Lprim (Prevapply pos, [arg; funct], loc) ->
     let apply : Lambda.lambda_apply =
       { ap_func = funct;
         ap_args = [arg];
+        ap_region_close = pos;
+        ap_mode = Alloc_heap;
         ap_loc = loc;
         (* CR-someday lwhite: it would be nice to be able to give
            application attributes to functions applied with the application
@@ -569,6 +573,8 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
        or by completely removing it (replacing by unit). *)
     Misc.fatal_error "[Lifused] should have been removed by \
         [Simplif.simplify_lets]"
+  | Lregion _ ->
+     assert false
 
 (** Perform closure conversion on a set of function declarations, returning a
     set of closures.  (The set will often only contain a single function;
@@ -614,7 +620,7 @@ and close_functions t external_env function_declarations : Flambda.named =
         ~closure_origin
     in
     match Function_decl.kind decl with
-    | Curried -> Variable.Map.add closure_bound_var fun_decl map
+    | Curried _ -> Variable.Map.add closure_bound_var fun_decl map
     | Tupled ->
       let unboxed_version = Variable.rename closure_bound_var in
       let generic_function_stub =

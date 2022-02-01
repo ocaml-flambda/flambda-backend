@@ -196,8 +196,13 @@ let get_function_info env code_id =
 
 let get_func_decl_params_arity t code_id =
   let info = get_function_info t code_id in
-  let l = Code_metadata.params_arity info in
-  if Code_metadata.is_tupled info then ~-(List.length l) else List.length l
+  let l = List.length (Code_metadata.params_arity info) in
+  let k =
+    if Code_metadata.is_tupled info
+    then Lambda.Tupled
+    else Lambda.Curried { nlocal = 0 }
+  in
+  k, l
 
 (* Variables *)
 

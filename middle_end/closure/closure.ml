@@ -65,14 +65,33 @@ let rec build_closure_env env_param pos = function
 let getglobal dbg id =
   Uprim(P.Pread_symbol (Compilenv.symbol_for_global id), [], dbg)
 
+let region ulam =
+  let is_trivial =
+    match ulam with
+    | Uvar _ | Uconst _ -> true
+    | _ -> false
+  in
+  if is_trivial then ulam
+  else Uregion ulam
+
+let tail ulam =
+  let is_trivial =
+    match ulam with
+    | Uvar _ | Uconst _ -> true
+    | _ -> false
+  in
+  if is_trivial then ulam
+  else Utail ulam
+
 (* Check if a variable occurs in a [clambda] term. *)
 
 let occurs_var var u =
   let rec occurs = function
       Uvar v -> v = var
     | Uconst _ -> false
-    | Udirect_apply(_lbl, args, _, _) -> List.exists occurs args
-    | Ugeneric_apply(funct, args, _) -> occurs funct || List.exists occurs args
+    | Udirect_apply(_lbl, args, _, _, _) -> List.exists occurs args
+    | Ugeneric_apply(funct, args, _, _) ->
+        occurs funct || List.exists occurs args
     | Uclosure(_fundecls, clos) -> List.exists occurs clos
     | Uoffset(u, _ofs) -> occurs u
     | Ulet(_str, _kind, _id, def, body) -> occurs def || occurs body
@@ -96,9 +115,11 @@ let occurs_var var u =
     | Uwhile(cond, body) -> occurs cond || occurs body
     | Ufor(_id, lo, hi, _dir, body) -> occurs lo || occurs hi || occurs body
     | Uassign(id, u) -> id = var || occurs u
-    | Usend(_, met, obj, args, _) ->
+    | Usend(_, met, obj, args, _, _) ->
         occurs met || occurs obj || List.exists occurs args
     | Uunreachable -> false
+    | Uregion e -> occurs e
+    | Utail e -> occurs e
   and occurs_array a =
     try
       for i = 0 to Array.length a - 1 do
@@ -155,13 +176,13 @@ let lambda_smaller lam threshold =
     match lam with
       Uvar _ -> ()
     | Uconst _ -> incr size
-    | Udirect_apply(_, args, None, _) ->
+    | Udirect_apply(_, args, None, _, _) ->
         size := !size + 4; lambda_list_size args
     | Udirect_apply _ -> ()
     (* We aim for probe points to not affect inlining decisions.
        Actual cost is either 1, 5 or 6 bytes, depending on their kind,
        on x86-64. *)
-    | Ugeneric_apply(fn, args, _) ->
+    | Ugeneric_apply(fn, args, _, _) ->
         size := !size + 6; lambda_size fn; lambda_list_size args
     | Uclosure _ ->
         raise Exit (* inlining would duplicate function definitions *)
@@ -206,10 +227,15 @@ let lambda_smaller lam threshold =
         size := !size + 4; lambda_size low; lambda_size high; lambda_size body
     | Uassign(_id, lam) ->
         incr size;  lambda_size lam
-    | Usend(_, met, obj, args, _) ->
+    | Usend(_, met, obj, args, _, _) ->
         size := !size + 8;
         lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
+    | Uregion e ->
+        size := !size + 2;
+        lambda_size e
+    | Utail e ->
+        lambda_size e
   and lambda_list_size l = List.iter lambda_size l
   and lambda_array_size a = Array.iter lambda_size a in
   try
@@ -234,6 +260,8 @@ let rec is_pure = function
   | Uoffset(arg, _) -> is_pure arg
   | Ulet(Immutable, _, _var, def, body) ->
       is_pure def && is_pure body
+  | Uregion body -> is_pure body
+  | Utail body -> is_pure body
   | _ -> false
 
 (* Simplify primitive operations on known arguments *)
@@ -289,10 +317,10 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
       | Pnot -> make_const_bool (n1 = 0)
       | Pnegint -> make_const_int (- n1)
       | Poffsetint n -> make_const_int (n + n1)
-      | Pfloatofint when fpc -> make_const_float (float_of_int n1)
-      | Pbintofint Pnativeint -> make_const_natint (Nativeint.of_int n1)
-      | Pbintofint Pint32 -> make_const_int32 (Int32.of_int n1)
-      | Pbintofint Pint64 -> make_const_int64 (Int64.of_int n1)
+      | Pfloatofint _ when fpc -> make_const_float (float_of_int n1)
+      | Pbintofint (Pnativeint,_) -> make_const_natint (Nativeint.of_int n1)
+      | Pbintofint (Pint32,_) -> make_const_int32 (Int32.of_int n1)
+      | Pbintofint (Pint64,_) -> make_const_int64 (Int64.of_int n1)
       | Pbswap16 -> make_const_int (((n1 land 0xff) lsl 8)
                                     lor ((n1 land 0xff00) lsr 8))
       | _ -> default
@@ -324,18 +352,18 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)))] when fpc ->
       begin match p with
       | Pintoffloat -> make_const_int (int_of_float n1)
-      | Pnegfloat -> make_const_float (-. n1)
-      | Pabsfloat -> make_const_float (abs_float n1)
+      | Pnegfloat _ -> make_const_float (-. n1)
+      | Pabsfloat _ -> make_const_float (abs_float n1)
       | _ -> default
       end
   (* float, float *)
   | [Value_const(Uconst_ref(_, Some (Uconst_float n1)));
      Value_const(Uconst_ref(_, Some (Uconst_float n2)))] when fpc ->
       begin match p with
-      | Paddfloat -> make_const_float (n1 +. n2)
-      | Psubfloat -> make_const_float (n1 -. n2)
-      | Pmulfloat -> make_const_float (n1 *. n2)
-      | Pdivfloat -> make_const_float (n1 /. n2)
+      | Paddfloat _ -> make_const_float (n1 +. n2)
+      | Psubfloat _ -> make_const_float (n1 -. n2)
+      | Pmulfloat _ -> make_const_float (n1 *. n2)
+      | Pdivfloat _ -> make_const_float (n1 /. n2)
       | Pfloatcomp c  -> make_float_comparison c n1 n2
       | _ -> default
       end
@@ -343,25 +371,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n)))] ->
       begin match p with
       | Pintofbint Pnativeint -> make_const_int (Nativeint.to_int n)
-      | Pcvtbint(Pnativeint, Pint32) -> make_const_int32 (Nativeint.to_int32 n)
-      | Pcvtbint(Pnativeint, Pint64) -> make_const_int64 (Int64.of_nativeint n)
-      | Pnegbint Pnativeint -> make_const_natint (Nativeint.neg n)
+      | Pcvtbint(Pnativeint, Pint32, _) -> make_const_int32 (Nativeint.to_int32 n)
+      | Pcvtbint(Pnativeint, Pint64, _) -> make_const_int64 (Int64.of_nativeint n)
+      | Pnegbint (Pnativeint,_) -> make_const_natint (Nativeint.neg n)
       | _ -> default
       end
   (* nativeint, nativeint *)
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n1)));
      Value_const(Uconst_ref(_, Some (Uconst_nativeint n2)))] ->
       begin match p with
-      | Paddbint Pnativeint -> make_const_natint (Nativeint.add n1 n2)
-      | Psubbint Pnativeint -> make_const_natint (Nativeint.sub n1 n2)
-      | Pmulbint Pnativeint -> make_const_natint (Nativeint.mul n1 n2)
+      | Paddbint (Pnativeint,_) -> make_const_natint (Nativeint.add n1 n2)
+      | Psubbint (Pnativeint,_) -> make_const_natint (Nativeint.sub n1 n2)
+      | Pmulbint (Pnativeint,_) -> make_const_natint (Nativeint.mul n1 n2)
       | Pdivbint {size=Pnativeint} when n2 <> 0n ->
           make_const_natint (Nativeint.div n1 n2)
       | Pmodbint {size=Pnativeint} when n2 <> 0n ->
           make_const_natint (Nativeint.rem n1 n2)
-      | Pandbint Pnativeint -> make_const_natint (Nativeint.logand n1 n2)
-      | Porbint Pnativeint ->  make_const_natint (Nativeint.logor n1 n2)
-      | Pxorbint Pnativeint -> make_const_natint (Nativeint.logxor n1 n2)
+      | Pandbint (Pnativeint,_) -> make_const_natint (Nativeint.logand n1 n2)
+      | Porbint (Pnativeint,_) ->  make_const_natint (Nativeint.logor n1 n2)
+      | Pxorbint (Pnativeint,_) -> make_const_natint (Nativeint.logxor n1 n2)
       | Pbintcomp(Pnativeint, c)  -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -369,11 +397,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_nativeint n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Plslbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_left n1 n2)
-      | Plsrbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Plsrbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_right_logical n1 n2)
-      | Pasrbint Pnativeint when 0 <= n2 && n2 < 8 * B.size_int ->
+      | Pasrbint (Pnativeint,_) when 0 <= n2 && n2 < 8 * B.size_int ->
           make_const_natint (Nativeint.shift_right n1 n2)
       | _ -> default
       end
@@ -381,25 +409,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n)))] ->
       begin match p with
       | Pintofbint Pint32 -> make_const_int (Int32.to_int n)
-      | Pcvtbint(Pint32, Pnativeint) -> make_const_natint (Nativeint.of_int32 n)
-      | Pcvtbint(Pint32, Pint64) -> make_const_int64 (Int64.of_int32 n)
-      | Pnegbint Pint32 -> make_const_int32 (Int32.neg n)
+      | Pcvtbint(Pint32, Pnativeint,_) -> make_const_natint (Nativeint.of_int32 n)
+      | Pcvtbint(Pint32, Pint64,_) -> make_const_int64 (Int64.of_int32 n)
+      | Pnegbint(Pint32,_) -> make_const_int32 (Int32.neg n)
       | _ -> default
       end
   (* int32, int32 *)
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n1)));
      Value_const(Uconst_ref(_, Some (Uconst_int32 n2)))] ->
       begin match p with
-      | Paddbint Pint32 -> make_const_int32 (Int32.add n1 n2)
-      | Psubbint Pint32 -> make_const_int32 (Int32.sub n1 n2)
-      | Pmulbint Pint32 -> make_const_int32 (Int32.mul n1 n2)
+      | Paddbint(Pint32,_) -> make_const_int32 (Int32.add n1 n2)
+      | Psubbint(Pint32,_) -> make_const_int32 (Int32.sub n1 n2)
+      | Pmulbint(Pint32,_) -> make_const_int32 (Int32.mul n1 n2)
       | Pdivbint {size=Pint32} when n2 <> 0l ->
           make_const_int32 (Int32.div n1 n2)
       | Pmodbint {size=Pint32} when n2 <> 0l ->
           make_const_int32 (Int32.rem n1 n2)
-      | Pandbint Pint32 -> make_const_int32 (Int32.logand n1 n2)
-      | Porbint Pint32 -> make_const_int32 (Int32.logor n1 n2)
-      | Pxorbint Pint32 -> make_const_int32 (Int32.logxor n1 n2)
+      | Pandbint(Pint32,_) -> make_const_int32 (Int32.logand n1 n2)
+      | Porbint(Pint32,_) -> make_const_int32 (Int32.logor n1 n2)
+      | Pxorbint(Pint32,_) -> make_const_int32 (Int32.logxor n1 n2)
       | Pbintcomp(Pint32, c) -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -407,11 +435,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int32 n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Plslbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_left n1 n2)
-      | Plsrbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Plsrbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_right_logical n1 n2)
-      | Pasrbint Pint32 when 0 <= n2 && n2 < 32 ->
+      | Pasrbint(Pint32,_) when 0 <= n2 && n2 < 32 ->
           make_const_int32 (Int32.shift_right n1 n2)
       | _ -> default
       end
@@ -419,25 +447,25 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n)))] ->
       begin match p with
       | Pintofbint Pint64 -> make_const_int (Int64.to_int n)
-      | Pcvtbint(Pint64, Pint32) -> make_const_int32 (Int64.to_int32 n)
-      | Pcvtbint(Pint64, Pnativeint) -> make_const_natint (Int64.to_nativeint n)
-      | Pnegbint Pint64 -> make_const_int64 (Int64.neg n)
+      | Pcvtbint(Pint64, Pint32,_) -> make_const_int32 (Int64.to_int32 n)
+      | Pcvtbint(Pint64, Pnativeint,_) -> make_const_natint (Int64.to_nativeint n)
+      | Pnegbint(Pint64,_) -> make_const_int64 (Int64.neg n)
       | _ -> default
       end
   (* int64, int64 *)
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n1)));
      Value_const(Uconst_ref(_, Some (Uconst_int64 n2)))] ->
       begin match p with
-      | Paddbint Pint64 -> make_const_int64 (Int64.add n1 n2)
-      | Psubbint Pint64 -> make_const_int64 (Int64.sub n1 n2)
-      | Pmulbint Pint64 -> make_const_int64 (Int64.mul n1 n2)
+      | Paddbint(Pint64,_) -> make_const_int64 (Int64.add n1 n2)
+      | Psubbint(Pint64,_) -> make_const_int64 (Int64.sub n1 n2)
+      | Pmulbint(Pint64,_) -> make_const_int64 (Int64.mul n1 n2)
       | Pdivbint {size=Pint64} when n2 <> 0L ->
           make_const_int64 (Int64.div n1 n2)
       | Pmodbint {size=Pint64} when n2 <> 0L ->
           make_const_int64 (Int64.rem n1 n2)
-      | Pandbint Pint64 -> make_const_int64 (Int64.logand n1 n2)
-      | Porbint Pint64 -> make_const_int64 (Int64.logor n1 n2)
-      | Pxorbint Pint64 -> make_const_int64 (Int64.logxor n1 n2)
+      | Pandbint(Pint64,_) -> make_const_int64 (Int64.logand n1 n2)
+      | Porbint(Pint64,_) -> make_const_int64 (Int64.logor n1 n2)
+      | Pxorbint(Pint64,_) -> make_const_int64 (Int64.logxor n1 n2)
       | Pbintcomp(Pint64, c) -> make_integer_comparison c n1 n2
       | _ -> default
       end
@@ -445,11 +473,11 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
   | [Value_const(Uconst_ref(_, Some (Uconst_int64 n1)));
      Value_const(Uconst_int n2)] ->
       begin match p with
-      | Plslbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Plslbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_left n1 n2)
-      | Plsrbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Plsrbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_right_logical n1 n2)
-      | Pasrbint Pint64 when 0 <= n2 && n2 < 64 ->
+      | Pasrbint(Pint64,_) when 0 <= n2 && n2 < 64 ->
           make_const_int64 (Int64.shift_right n1 n2)
       | _ -> default
       end
@@ -459,7 +487,7 @@ let simplif_arith_prim_pure ~backend fpc p (args, approxs) dbg =
      default
 
 let field_approx n = function
-  | Value_tuple a when n < Array.length a -> a.(n)
+  | Value_tuple (_,a) when n < Array.length a -> a.(n)
   | Value_const (Uconst_ref(_, Some (Uconst_block(_, l))))
     when n < List.length l ->
       Value_const (List.nth l n)
@@ -469,7 +497,7 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
   let open Clambda_primitives in
   match p, args, approxs with
   (* Block construction *)
-  | Pmakeblock(tag, Immutable, _kind), _, _ ->
+  | Pmakeblock(tag, Immutable, _kind, mode), _, _ ->
       let field = function
         | Value_const c -> c
         | _ -> raise Exit
@@ -481,7 +509,7 @@ let simplif_prim_pure ~backend fpc p (args, approxs) dbg =
         in
         make_const (Uconst_ref (name, Some cst))
       with Exit ->
-        (Uprim(p, args, dbg), Value_tuple (Array.of_list approxs))
+        (Uprim(p, args, dbg), Value_tuple (mode, Array.of_list approxs))
       end
   (* Field access *)
   | Pfield n, _, [ Value_const(Uconst_ref(_, Some (Uconst_block(_, l)))) ]
@@ -514,8 +542,8 @@ let simplif_prim ~backend fpc p (args, approxs as args_approxs) dbg =
     (* XXX : always return the same approxs as simplif_prim_pure? *)
     let approx =
       match p with
-      | P.Pmakeblock(_, Immutable, _kind) ->
-          Value_tuple (Array.of_list approxs)
+      | P.Pmakeblock(_, Immutable, _kind, mode) ->
+          Value_tuple (mode, Array.of_list approxs)
       | _ ->
           Value_unknown
     in
@@ -555,13 +583,14 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
     Uvar v ->
       begin try V.Map.find v sb with Not_found -> ulam end
   | Uconst _ -> ulam
-  | Udirect_apply(lbl, args, probe, dbg) ->
+  | Udirect_apply(lbl, args, probe, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
-      Udirect_apply(lbl, List.map (substitute loc st sb rn) args, probe, dbg)
-  | Ugeneric_apply(fn, args, dbg) ->
+      Udirect_apply(lbl, List.map (substitute loc st sb rn) args,
+                    probe, kind, dbg)
+  | Ugeneric_apply(fn, args, kind, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Ugeneric_apply(substitute loc st sb rn fn,
-                     List.map (substitute loc st sb rn) args, dbg)
+                     List.map (substitute loc st sb rn) args, kind, dbg)
   | Uclosure(defs, env) ->
       (* Question: should we rename function labels as well?  Otherwise,
          there is a risk that function labels are not globally unique.
@@ -695,12 +724,16 @@ let rec substitute loc ((backend, fpc) as st) sb rn ulam =
         with Not_found ->
           id in
       Uassign(id', substitute loc st sb rn u)
-  | Usend(k, u1, u2, ul, dbg) ->
+  | Usend(k, u1, u2, ul, pos, dbg) ->
       let dbg = subst_debuginfo loc dbg in
       Usend(k, substitute loc st sb rn u1, substitute loc st sb rn u2,
-            List.map (substitute loc st sb rn) ul, dbg)
+            List.map (substitute loc st sb rn) ul, pos, dbg)
   | Uunreachable ->
       Uunreachable
+  | Uregion e ->
+      region (substitute loc st sb rn e)
+  | Utail e ->
+      tail (substitute loc st sb rn e)
 
 type env = {
   backend : (module Backend_intf.S);
@@ -755,8 +788,9 @@ let bind_params { backend; mutable_vars; _ } loc fdesc params args funct body =
           let p1' = VP.rename p1 in
           let u1, u2 =
             match VP.name p1, a1 with
-            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind), [a], dbg) ->
-                a, Uprim(P.Pmakeblock(0, Immutable, kind),
+            | "*opt*", Uprim(P.Pmakeblock(0, Immutable, kind, mode),
+                             [a], dbg) ->
+                a, Uprim(P.Pmakeblock(0, Immutable, kind, mode),
                          [Uvar (VP.var p1')], dbg)
             | _ ->
                 a1, Uvar (VP.var p1')
@@ -798,11 +832,12 @@ let fail_if_probe ~probe msg =
 
 (* Generate a direct application *)
 
-let direct_apply env fundesc ufunct uargs ~probe ~loc ~attribute =
+let direct_apply env fundesc ufunct uargs pos mode ~probe ~loc ~attribute =
   match fundesc.fun_inline, attribute with
   | _, Never_inlined
   | None, _ ->
      let dbg = Debuginfo.from_location loc in
+     let kind = (pos, mode) in
      warning_if_forced_inlined ~loc ~attribute
        "Function information unavailable";
      if not fundesc.fun_closed then begin
@@ -815,10 +850,10 @@ let direct_apply env fundesc ufunct uargs ~probe ~loc ~attribute =
        fail_if_probe ~probe "Erroneously marked to be inlined"
      end;
      if fundesc.fun_closed && is_pure ufunct then
-       Udirect_apply(fundesc.fun_label, uargs, probe, dbg)
+       Udirect_apply(fundesc.fun_label, uargs, probe, kind, dbg)
      else if not fundesc.fun_closed &&
                is_substituable ~mutable_vars:env.mutable_vars ufunct then
-       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, dbg)
+       Udirect_apply(fundesc.fun_label, uargs @ [ufunct], probe, kind, dbg)
      else begin
        let args = List.map (fun arg ->
          if is_substituable ~mutable_vars:env.mutable_vars arg then
@@ -833,15 +868,21 @@ let direct_apply env fundesc ufunct uargs ~probe ~loc ~attribute =
            | Some (v, e) -> Ulet(Immutable, Pgenval, v, e, app))
          (if fundesc.fun_closed then
             Usequence (ufunct,
-                       Udirect_apply (fundesc.fun_label, app_args, probe, dbg))
+                       Udirect_apply (fundesc.fun_label, app_args,
+                                      probe, kind, dbg))
           else
             let clos = V.create_local "clos" in
             Ulet(Immutable, Pgenval, VP.create clos, ufunct,
                  Udirect_apply(fundesc.fun_label, app_args @ [Uvar clos],
-                               probe, dbg)))
+                               probe, kind, dbg)))
          args
        end
   | Some(params, body), _  ->
+     let body =
+       match pos with
+       | Rc_normal -> body
+       | Rc_close_at_apply -> tail body
+     in
      bind_params env loc fundesc params uargs ufunct body
 
 (* Add [Value_integer] info to the approximation of an application *)
@@ -947,28 +988,42 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
 
     (* We convert [f a] to [let a' = a in let f' = f in fun b c -> f' a' b c]
        when fun_arity > nargs *)
-  | Lapply{ap_func = funct; ap_args = args; ap_probe = probe; ap_loc = loc;
-        ap_inlined = attribute} ->
+  | Lapply{ap_func = funct; ap_args = args; ap_region_close=pos; ap_mode=mode;
+           ap_probe = probe; ap_loc = loc;
+           ap_inlined = attribute} ->
       let nargs = List.length args in
+      if nargs = 0 then
+        Misc.fatal_errorf "Closure: 0-ary application at %a"
+          Location.print_loc (Debuginfo.Scoped_location.to_location loc);
+      assert (nargs > 0);
       begin match (close env funct, close_list env args) with
-        ((ufunct, Value_closure(fundesc, approx_res)),
+        ((ufunct, Value_closure(_,
+                                ({fun_arity=(Tupled, nparams)} as fundesc),
+                                approx_res)),
          [Uprim(P.Pmakeblock _, uargs, _)])
-        when List.length uargs = - fundesc.fun_arity ->
+        when List.length uargs = nparams ->
           let app =
-            direct_apply env ~loc ~attribute fundesc ufunct uargs ~probe in
+            direct_apply env ~loc ~attribute fundesc ufunct uargs
+              pos mode ~probe in
           (app, strengthen_approx app approx_res)
-      | ((ufunct, Value_closure(fundesc, approx_res)), uargs)
-        when nargs = fundesc.fun_arity ->
+      | ((ufunct, Value_closure(_,
+                                ({fun_arity=(Curried _, nparams)} as fundesc),
+                                approx_res)), uargs)
+        when nargs = nparams ->
           let app =
-            direct_apply env ~loc ~attribute fundesc ufunct uargs ~probe in
+            direct_apply env ~loc ~attribute fundesc ufunct uargs
+              pos mode ~probe in
           (app, strengthen_approx app approx_res)
 
-      | ((ufunct, (Value_closure(fundesc, _) as fapprox)), uargs)
-          when nargs < fundesc.fun_arity ->
+      | ((ufunct, (Value_closure(
+            clos_mode,
+            ({fun_arity=(Curried {nlocal}, nparams)} as fundesc),
+            _) as fapprox)), uargs)
+          when nargs < nparams ->
         let first_args = List.map (fun arg ->
           (V.create_local "arg", arg) ) uargs in
         let final_args =
-          Array.to_list (Array.init (fundesc.fun_arity - nargs)
+          Array.to_list (Array.init (nparams - nargs)
                                     (fun _ -> V.create_local "arg")) in
         let rec iter args body =
           match args with
@@ -983,21 +1038,39 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         in
         let funct_var = V.create_local "funct" in
         let fenv = V.Map.add funct_var fapprox fenv in
+        let new_clos_mode, kind =
+          (* If the closure has a local suffix, and we've supplied
+             enough args to hit it, then the closure must be local
+             (because the args or closure might be). *)
+          assert (nparams >= nlocal);
+          let heap_params = nparams - nlocal in
+          if nargs <= heap_params then
+            Alloc_heap, Curried {nlocal}
+          else
+            let supplied_local_args = nargs - heap_params in
+            Alloc_local, Curried {nlocal = nlocal - supplied_local_args}
+        in
+        if clos_mode = Alloc_local then assert (new_clos_mode = Alloc_local);
+        let ret_mode = if fundesc.fun_region then Alloc_heap else Alloc_local in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
           (Lfunction{
-               kind = Curried;
+               kind;
                return = Pgenval;
                params = List.map (fun v -> v, Pgenval) final_args;
                body = Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
+                 ap_region_close=Rc_normal;
+                 ap_mode=ret_mode;
                  ap_tailcall=Default_tailcall;
                  ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
                };
                loc;
+               mode = new_clos_mode;
+               region = fundesc.fun_region;
                attr = default_function_attribute})
         in
         let new_fun =
@@ -1008,19 +1081,33 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         fail_if_probe ~probe "Partial application";
         (new_fun, approx)
 
-      | ((ufunct, Value_closure(fundesc, _approx_res)), uargs)
-        when fundesc.fun_arity > 0 && nargs > fundesc.fun_arity ->
+      | ((ufunct, Value_closure(_, ({fun_arity = (Curried _, nparams)} as fundesc),
+                                _approx_res)), uargs)
+        when nargs > nparams ->
           let args = List.map (fun arg -> V.create_local "arg", arg) uargs in
-          let (first_args, rem_args) = split_list fundesc.fun_arity args in
+          let (first_args, rem_args) = split_list nparams args in
           let first_args = List.map (fun (id, _) -> Uvar id) first_args in
           let rem_args = List.map (fun (id, _) -> Uvar id) rem_args in
           let dbg = Debuginfo.from_location loc in
           warning_if_forced_inlined ~loc ~attribute "Over-application";
           fail_if_probe ~probe "Over-application";
+          let mode' = if fundesc.fun_region then Alloc_heap else Alloc_local in
           let body =
             Ugeneric_apply(direct_apply env ~loc ~attribute
-                              fundesc ufunct first_args ~probe,
-                           rem_args, dbg)
+                              fundesc ufunct first_args
+                              Rc_normal mode'
+                              ~probe,
+                           rem_args, (Rc_normal, mode), dbg)
+          in
+          let body =
+            match mode, fundesc.fun_region with
+            | Alloc_heap, false -> region body
+            | _ -> body
+          in
+          let body =
+            match pos with
+            | Rc_normal -> body
+            | Rc_close_at_apply -> tail body
           in
           let result =
             List.fold_left (fun body (id, defining_expr) ->
@@ -1033,13 +1120,13 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           let dbg = Debuginfo.from_location loc in
           warning_if_forced_inlined ~loc ~attribute "Unknown function";
           fail_if_probe ~probe "Unknown function";
-          (Ugeneric_apply(ufunct, uargs, dbg), Value_unknown)
+          (Ugeneric_apply(ufunct, uargs, (pos, mode), dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, loc) ->
+  | Lsend(kind, met, obj, args, pos, mode, loc) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
-      (Usend(kind, umet, uobj, close_list env args, dbg),
+      (Usend(kind, umet, uobj, close_list env args, (pos,mode), dbg),
        Value_unknown)
   | Llet(str, kind, id, lam, body) ->
       let (ulam, alam) = close_named env id lam in
@@ -1118,13 +1205,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       Usequence(fst (close env arg), expr), approx
   | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
       close env arg
-  | Lprim(Pdirapply,[funct;arg], loc)
-  | Lprim(Prevapply,[arg;funct], loc) ->
+  | Lprim(Pdirapply pos,[funct;arg], loc)
+  | Lprim(Prevapply pos,[arg;funct], loc) ->
       close env
         (Lapply{
            ap_loc=loc;
            ap_func=funct;
            ap_args=[arg];
+           ap_region_close=pos;
+           ap_mode=Alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=Default_inlined;
            ap_specialised=Default_specialise;
@@ -1245,6 +1334,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       close env lam
   | Lifused _ ->
       assert false
+  | Lregion lam ->
+      let ulam, approx = close env lam in
+      region ulam, approx
 
 and close_list env = function
     [] -> []
@@ -1272,8 +1364,9 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     List.flatten
       (List.map
          (function
-           | (id, Lfunction{kind; params; return; body; attr; loc}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params
+           | (id, Lfunction{kind; params; return; body; attr;
+                            loc; mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )
@@ -1296,32 +1389,36 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
   let uncurried_defs =
     List.map
       (function
-          (id, Lfunction{kind; params; return; body; loc}) ->
+          (id, Lfunction({kind; params; return; body; loc; mode; region}
+                         as funct)) ->
+            Lambda.check_lfunction funct;
             let label = Compilenv.make_symbol (Some (V.unique_name id)) in
             let arity = List.length params in
             let fundesc =
               {fun_label = label;
-               fun_arity = (if kind = Tupled then -arity else arity);
+               fun_arity = (kind, arity);
                fun_closed = initially_closed;
                fun_inline = None;
-               fun_float_const_prop = !Clflags.float_const_prop } in
+               fun_float_const_prop = !Clflags.float_const_prop;
+               fun_region = region} in
             let dbg = Debuginfo.from_location loc in
-            (id, params, return, body, fundesc, dbg)
+            (id, params, return, body, mode, fundesc, dbg)
         | (_, _) -> fatal_error "Closure.close_functions")
       fun_defs in
   (* Build an approximate fenv for compiling the functions *)
   let fenv_rec =
     List.fold_right
-      (fun (id, _params, _return, _body, fundesc, _dbg) fenv ->
-        V.Map.add id (Value_closure(fundesc, Value_unknown)) fenv)
+      (fun (id, _params, _return, _body, mode, fundesc, _dbg) fenv ->
+        V.Map.add id (Value_closure(mode, fundesc, Value_unknown)) fenv)
       uncurried_defs fenv in
   (* Determine the offsets of each function's closure in the shared block *)
   let env_pos = ref (-1) in
   let clos_offsets =
     List.map
-      (fun (_id, _params, _return, _body, fundesc, _dbg) ->
+      (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
-        env_pos := !env_pos + 1 + (if fundesc.fun_arity <> 1 then 3 else 2);
+        env_pos := !env_pos + 1 +
+          (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
@@ -1329,13 +1426,13 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
      does not use its environment parameter is invalidated. *)
   let useless_env = ref initially_closed in
   (* Translate each function definition *)
-  let clos_fundef (id, params, return, body, fundesc, dbg) env_pos =
+  let clos_fundef (id, params, return, body, mode, fundesc, dbg) env_pos =
     let env_param = V.create_local "env" in
     let cenv_fv =
       build_closure_env env_param (fv_pos - env_pos) fv in
     let cenv_body =
       List.fold_right2
-        (fun (id, _params, _return, _body, _fundesc, _dbg) pos env ->
+        (fun (id, _params, _return, _body, _mode, _fundesc, _dbg) pos env ->
           V.Map.add id (Uoffset(Uvar env_param, pos - env_pos)) env)
         uncurried_defs clos_offsets cenv_fv in
     let (ubody, approx) =
@@ -1356,6 +1453,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
         body   = ubody;
         dbg;
         env = Some env_param;
+        mode;
       }
     in
     (* give more chance of function with default parameters (i.e.
@@ -1382,7 +1480,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     if lambda_smaller ubody threshold
     then fundesc.fun_inline <- Some(fun_params, ubody);
 
-    (f, (id, env_pos, Value_closure(fundesc, approx))) in
+    (f, (id, env_pos, Value_closure(mode, fundesc, approx))) in
   (* Translate all function definitions. *)
   let clos_info_list =
     if initially_closed then begin
@@ -1394,7 +1492,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
          recompile *)
         Compilenv.backtrack snap; (* PR#6337 *)
         List.iter
-          (fun (_id, _params, _return, _body, fundesc, _dbg) ->
+          (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
              fundesc.fun_closed <- false;
              fundesc.fun_inline <- None;
           )
@@ -1477,13 +1575,13 @@ and close_switch env cases num_keys default =
 
 let collect_exported_structured_constants a =
   let rec approx = function
-    | Value_closure (fd, a) ->
+    | Value_closure (_, fd, a) ->
         approx a;
         begin match fd.fun_inline with
         | Some (_, u) -> ulam u
         | None -> ()
         end
-    | Value_tuple a -> Array.iter approx a
+    | Value_tuple (_,a) -> Array.iter approx a
     | Value_const c -> const c
     | Value_unknown | Value_global_field _ -> ()
   and const = function
@@ -1501,8 +1599,8 @@ let collect_exported_structured_constants a =
   and ulam = function
     | Uvar _ -> ()
     | Uconst c -> const c
-    | Udirect_apply (_, ul, _, _) -> List.iter ulam ul
-    | Ugeneric_apply (u, ul, _) -> ulam u; List.iter ulam ul
+    | Udirect_apply (_, ul, _, _, _) -> List.iter ulam ul
+    | Ugeneric_apply (u, ul, _, _) -> ulam u; List.iter ulam ul
     | Uclosure (fl, ul) ->
         List.iter (fun f -> ulam f.body) fl;
         List.iter ulam ul
@@ -1527,8 +1625,10 @@ let collect_exported_structured_constants a =
     | Uifthenelse (u1, u2, u3)
     | Ufor (_, u1, u2, _, u3) -> ulam u1; ulam u2; ulam u3
     | Uassign (_, u) -> ulam u
-    | Usend (_, u1, u2, ul, _) -> ulam u1; ulam u2; List.iter ulam ul
+    | Usend (_, u1, u2, ul, _, _) -> ulam u1; ulam u2; List.iter ulam ul
     | Uunreachable -> ()
+    | Uregion u -> ulam u
+    | Utail u -> ulam u
   in
   approx a
 
@@ -1542,7 +1642,7 @@ let intro ~backend ~size lam =
   reset ();
   let id = Compilenv.make_symbol None in
   global_approx := Array.init size (fun i -> Value_global_field (id, i));
-  Compilenv.set_global_approx(Value_tuple !global_approx);
+  Compilenv.set_global_approx(Value_tuple (Alloc_heap, !global_approx));
   let (ulam, _approx) =
     close { backend; fenv = V.Map.empty;
             cenv = V.Map.empty; mutable_vars = V.Set.empty } lam
@@ -1553,6 +1653,6 @@ let intro ~backend ~size lam =
   in
   if opaque
   then Compilenv.set_global_approx(Value_unknown)
-  else collect_exported_structured_constants (Value_tuple !global_approx);
+  else collect_exported_structured_constants (Value_tuple (Alloc_heap, !global_approx));
   global_approx := [||];
   ulam

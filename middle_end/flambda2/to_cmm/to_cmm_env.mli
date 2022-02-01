@@ -74,7 +74,7 @@ val get_function_info : t -> Code_id.t -> Code_metadata.t
 
 (** Retrieve the parameter arity of the function declaration (taking into
     account both the function's own arity and the [is_tupled] flag) *)
-val get_func_decl_params_arity : t -> Code_id.t -> int
+val get_func_decl_params_arity : t -> Code_id.t -> Clambda.arity
 
 (** {2 Variable bindings} *)
 
