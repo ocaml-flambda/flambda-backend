@@ -125,18 +125,19 @@ end = struct
 
   module WCFN = With_cached_free_names
 
-  type 'head t = 'head Descr.t WCFN.t Or_unknown_or_bottom.t
+  type 'head t = 'head WCFN.t Descr.t Or_unknown_or_bottom.t
 
   let[@inline always] descr (t : 'head t) : 'head Descr.t Or_unknown_or_bottom.t
       =
     match t with
     | Unknown -> Unknown
     | Bottom -> Bottom
-    | Ok wdp -> Ok (WCFN.descr wdp)
+    | Ok (Equals simple) -> Ok (Equals simple)
+    | Ok (No_alias wcfn) -> Ok (No_alias (WCFN.descr wcfn))
 
-  let create head : _ t = Ok (WCFN.create (Descr.No_alias head))
+  let create head : _ t = Ok (Descr.No_alias (WCFN.create head))
 
-  let create_equals simple : _ t = Ok (WCFN.create (Descr.Equals simple))
+  let create_equals simple : _ t = Ok (Descr.Equals simple)
 
   let bottom : _ t = Bottom
 
@@ -150,44 +151,44 @@ end = struct
 
   let[@inline always] get_alias_exn (t : _ t) =
     match t with
-    | Unknown | Bottom -> raise Not_found
-    | Ok wdp -> (
-      match WCFN.descr wdp with
-      | Equals alias -> alias
-      | No_alias _ -> raise Not_found)
+    | Unknown | Bottom | Ok (No_alias _) -> raise Not_found
+    | Ok (Equals alias) -> alias
 
   let apply_renaming ~apply_renaming_head ~free_names_head (t : _ t) renaming :
       _ t =
     match t with
     | Unknown | Bottom -> t
-    | Ok wdp ->
-      let wdp' =
-        WCFN.apply_renaming
-          ~apply_renaming_descr:(Descr.apply_renaming ~apply_renaming_head)
-          ~free_names_descr:(Descr.free_names ~free_names_head)
-          wdp renaming
+    | Ok descr ->
+      let descr' =
+        Descr.apply_renaming
+          ~apply_renaming_head:
+            (WCFN.apply_renaming ~apply_renaming_descr:apply_renaming_head
+               ~free_names_descr:free_names_head)
+          descr renaming
       in
-      if wdp == wdp' then t else Ok wdp'
+      if descr == descr' then t else Ok descr'
 
   let free_names ~free_names_head (t : _ t) =
     match t with
     | Unknown | Bottom -> Name_occurrences.empty
-    | Ok wdp ->
-      WCFN.free_names ~free_names_descr:(Descr.free_names ~free_names_head) wdp
+    | Ok descr ->
+      Descr.free_names
+        ~free_names_head:(WCFN.free_names ~free_names_descr:free_names_head)
+        descr
 
   let remove_unused_closure_vars ~free_names_head
       ~remove_unused_closure_vars_head (t : _ t) ~used_closure_vars : _ t =
     match t with
     | Unknown | Bottom -> t
-    | Ok wdr ->
-      let wdr' =
-        WCFN.remove_unused_closure_vars
-          ~free_names_descr:(Descr.free_names ~free_names_head)
-          ~remove_unused_closure_vars_descr:
-            (Descr.remove_unused_closure_vars ~remove_unused_closure_vars_head)
-          wdr ~used_closure_vars
+    | Ok descr ->
+      let descr' =
+        Descr.remove_unused_closure_vars
+          ~remove_unused_closure_vars_head:
+            (WCFN.remove_unused_closure_vars ~free_names_descr:free_names_head
+               ~remove_unused_closure_vars_descr:remove_unused_closure_vars_head)
+          descr ~used_closure_vars
       in
-      if wdr == wdr' then t else Ok wdr'
+      if descr == descr' then t else Ok descr'
 end
 
 include T
