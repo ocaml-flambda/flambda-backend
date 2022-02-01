@@ -17,3 +17,4 @@
   tests/opaque                     FAIL          'test.ml' (cmx file loading)
   tests/statmemprof                FAIL          Stack traces differ
   tests/warnings                   FAIL          'w55.ml' (@inline attribute), 'w59.ml' (missing warnings when using Obj functions)
+  tests/typing-local               FAIL          Local allocations not yet supported in Flambda2

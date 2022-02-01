@@ -940,9 +940,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion lam ->
-     (* CR sdolan: Ignoring Lregion is only correct because
-        Flambda2 does not yet generate local allocations *)
-     cps_non_tail acc env ccenv lam k k_exn
+    (* CR sdolan: Ignoring Lregion is only correct because Flambda2 does not yet
+       generate local allocations *)
+    cps_non_tail acc env ccenv lam k k_exn
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
@@ -1241,9 +1241,9 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion lam ->
-     (* CR sdolan: Ignoring Lregion is only correct because
-        Flambda2 does not yet generate local allocations *)
-     cps_tail acc env ccenv lam k k_exn
+    (* CR sdolan: Ignoring Lregion is only correct because Flambda2 does not yet
+       generate local allocations *)
+    cps_tail acc env ccenv lam k k_exn
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
