@@ -176,6 +176,8 @@ let create_import_map ~symbols ~variables ~simples ~consts ~code_ids
   then empty
   else { empty with import_map = Some import_map }
 
+let has_import_map t = Option.is_some t.import_map
+
 let [@ocamlformat "disable"] print ppf
       { continuations; variables; code_ids; symbols; import_map = _; } =
   Format.fprintf ppf "@[<hov 1>(\
