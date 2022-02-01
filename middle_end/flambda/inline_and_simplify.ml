@@ -961,7 +961,7 @@ and simplify_named env r (tree : Flambda.named) : Flambda.named * R.t =
          from each call to [simplify_set_of_closures] must be composed.
          Note that this function only composes with [first_freshening] owing
          to the structure of the code below (this new [simplify] is always
-         in tail reg_close). *)
+         in tail position). *)
       (* CR-someday mshinwell: It was mooted that maybe we could try
          structurally-typed closures (i.e. where we would never rename the
          closure elements), or something else, to try to remove

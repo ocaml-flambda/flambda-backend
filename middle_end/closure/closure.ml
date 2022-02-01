@@ -232,7 +232,7 @@ let lambda_smaller lam threshold =
         lambda_size met; lambda_size obj; lambda_list_size args
     | Uunreachable -> ()
     | Uregion e ->
-        incr size;
+        size := !size + 2;
         lambda_size e
     | Utail e ->
         lambda_size e
@@ -992,6 +992,10 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_probe = probe; ap_loc = loc;
            ap_inlined = attribute} ->
       let nargs = List.length args in
+      if nargs = 0 then
+        Misc.fatal_errorf "Closure: 0-ary application at %a"
+          Location.print_loc (Debuginfo.Scoped_location.to_location loc);
+      assert (nargs > 0);
       begin match (close env funct, close_list env args) with
         ((ufunct, Value_closure(_,
                                 ({fun_arity=(Tupled, nparams)} as fundesc),
@@ -1038,6 +1042,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           (* If the closure has a local suffix, and we've supplied
              enough args to hit it, then the closure must be local
              (because the args or closure might be). *)
+          assert (nparams >= nlocal);
           let heap_params = nparams - nlocal in
           if nargs <= heap_params then
             Alloc_heap, Curried {nlocal}
@@ -1413,7 +1418,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
       (fun (_id, _params, _return, _body, _mode, fundesc, _dbg) ->
         let pos = !env_pos + 1 in
         env_pos := !env_pos + 1 +
-          (match fundesc.fun_arity with (Curried _, 1) -> 2 | _ -> 3);
+          (match fundesc.fun_arity with (Curried _, (0|1)) -> 2 | _ -> 3);
         pos)
       uncurried_defs in
   let fv_pos = !env_pos in
