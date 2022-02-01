@@ -340,9 +340,11 @@ end = struct
   let affected_by_renaming t perm =
     match t with
     | Empty -> false
-    | One (name, _kind) -> name != N.apply_renaming name perm
+    | One (name, _kind) -> not (N.equal name (N.apply_renaming name perm))
     | Potentially_many map ->
-      N.Map.exists (fun name _kind -> name != N.apply_renaming name perm) map
+      N.Map.exists
+        (fun name _kind -> not (N.equal name (N.apply_renaming name perm)))
+        map
 
   let diff t1 t2 =
     match t1, t2 with

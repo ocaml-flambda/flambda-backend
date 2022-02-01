@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 type 'descr t =
-  { mutable descr : 'descr;
+  { descr : 'descr;
     mutable free_names : Name_occurrences.t option
   }
 
@@ -34,19 +34,19 @@ let[@inline always] free_names ~free_names_descr t =
     t.free_names <- Some free_names;
     free_names
 
-let apply_renaming ~apply_renaming_descr ~free_names_descr t perm =
+let apply_renaming ~apply_renaming_descr ~free_names_descr t renaming =
   let free_names = free_names ~free_names_descr t in
-  if (not (Renaming.has_import_map perm))
-     && not (Name_occurrences.affected_by_renaming free_names perm)
+  if (not (Renaming.has_import_map renaming))
+     && not (Name_occurrences.affected_by_renaming free_names renaming)
   then t
   else
-    let descr = apply_renaming_descr t.descr perm in
+    let descr = apply_renaming_descr t.descr renaming in
     let free_names =
       (* CR lmaurer: Make extra-sure that [Name_occurrences.apply_renaming]
          returns a [phys_equal] result if no change, then consider moving this
          call in place of [affected_by_renaming] above to avoid traversing
          twice. *)
-      Some (Name_occurrences.apply_renaming free_names perm)
+      Some (Name_occurrences.apply_renaming free_names renaming)
     in
     { descr; free_names }
 
@@ -70,8 +70,6 @@ let remove_unused_closure_vars ~free_names_descr
   then t
   else
     let descr = remove_unused_closure_vars_descr (descr t) ~used_closure_vars in
-    t.descr <- descr;
-    t.free_names <- None;
-    t
+    { descr; free_names = None }
 
 let print ~print_descr ppf t = print_descr ppf (descr t)
