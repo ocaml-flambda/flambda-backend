@@ -91,27 +91,30 @@ let function_sections = %%FUNCTION_SECTIONS%%
 let probes = %%PROBES%%
 let afl_instrument = %%AFL_INSTRUMENT%%
 
+(* When artifacts are incompatible with upstream OCaml, ocaml-jst uses
+   magic numbers ending in 5xx. (The AST and bytecode executables remain
+   compatible, so use upstream numbers) *)
 let exec_magic_number = "Caml1999X029"
     (* exec_magic_number is duplicated in runtime/caml/exec.h *)
-and cmi_magic_number = "Caml1999I029"
-and cmo_magic_number = "Caml1999O029"
-and cma_magic_number = "Caml1999A029"
+and cmi_magic_number = "Caml1999I500"
+and cmo_magic_number = "Caml1999O500"
+and cma_magic_number = "Caml1999A500"
 and cmx_magic_number =
   if flambda || flambda2 then
-    "Caml2021y029"
+    "Caml2021y500"
   else
-    "Caml2021Y029"
+    "Caml2021Y500"
 and cmxa_magic_number =
   if flambda || flambda2 then
-    "Caml2021z029"
+    "Caml2021z500"
   else
-    "Caml2021Z029"
+    "Caml2021Z500"
 and ast_impl_magic_number = "Caml1999M029"
 and ast_intf_magic_number = "Caml1999N029"
-and cmxs_magic_number = "Caml1999D029"
-and cmt_magic_number = "Caml1999T029"
-and linear_magic_number = "Caml1999L029"
-and cfg_magic_number = "Caml2021G029"
+and cmxs_magic_number = "Caml1999D500"
+and cmt_magic_number = "Caml1999T500"
+and linear_magic_number = "Caml1999L500"
+and cfg_magic_number = "Caml2021G500"
 
 let interface_suffix = ref ".mli"
 
