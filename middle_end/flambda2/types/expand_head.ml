@@ -448,32 +448,6 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
               ~guaranteed_fresh:fresh_var)
           unavailable_to_fresh_vars Renaming.empty
       in
-      (* For any type equation specifying an alias type, if that alias will be
-         unavailable, then expand the head of the type. Note that this cannot
-         yield any more variables that we haven't seen already, by virtue of the
-         semantics of [free_variables_transitive], above. *)
-      let equations =
-        List.map
-          (fun ((lhs, ty) as equation) ->
-            let ty' =
-              match TG.get_alias_exn ty with
-              | exception Not_found -> ty
-              | alias ->
-                (* Care: the alias may contain a coercion, which could contain a
-                   variable. *)
-                let contains_unavailable_var =
-                  Name_occurrences.fold_variables (Simple.free_names alias)
-                    ~init:false ~f:(fun contains_unavailable_var var ->
-                      contains_unavailable_var
-                      || Variable.Map.mem var unavailable_to_fresh_vars)
-                in
-                if contains_unavailable_var
-                then expand_head env ty |> ET.to_type
-                else ty
-            in
-            if ty == ty' then equation else lhs, ty')
-          equations
-      in
       (* Now replace any unavailable variables with their fresh counterparts, on
          both sides of the equations map. At the same time identify which
          equations now have fresh variables on their left-hand sides. *)
