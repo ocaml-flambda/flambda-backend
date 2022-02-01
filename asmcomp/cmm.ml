@@ -167,6 +167,7 @@ and operation =
   | Cprobe of { name: string; handler_code_sym: string; }
   | Cprobe_is_enabled of { name: string }
   | Copaque
+  | Cbeginregion | Cendregion
 
 type expression =
     Cconst_int of int * Debuginfo.t

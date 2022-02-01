@@ -762,7 +762,6 @@ let unboxed_float_array_ref arr ofs dbg =
 let float_array_ref arr ofs dbg =
   box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
-(* TODO support mutation of local arrays *)
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
@@ -772,6 +771,10 @@ let int_array_set arr ofs newval dbg =
 let float_array_set arr ofs newval dbg =
   Cop(Cstore (Double, Lambda.Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
+
+let addr_array_set_local arr ofs newval dbg =
+  Cop(Cextcall("caml_modify_local", typ_void, [], false),
+      [arr; untag_int ofs dbg; newval], dbg)
 
 (* String length *)
 
@@ -844,14 +847,14 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
          fill_fields 1 args)
   end
 
-let make_alloc ?(mode=Lambda.Alloc_heap) dbg tag args =
+let make_alloc ~mode dbg tag args =
   let addr_array_init arr ofs newval dbg =
     Cop(Cextcall("caml_initialize", typ_void, [], false),
         [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
   in
   make_alloc_generic ~mode addr_array_init dbg tag (List.length args) args
 
-let make_float_alloc ?(mode=Lambda.Alloc_heap) dbg tag args =
+let make_float_alloc ~mode dbg tag args =
   make_alloc_generic ~mode float_array_set dbg tag
                      (List.length args * size_float / size_addr) args
 
@@ -2489,9 +2492,7 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
   | Caml_modify ->
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
-      (* TODO: support this, if there are any uses.
-         (Currently, setfield_computed is only used by classes) *)
-      Misc.fatal_error "setfield_computed: local"
+      return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
   | Simple ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 

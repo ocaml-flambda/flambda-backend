@@ -109,6 +109,11 @@ let oper_result_type = function
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
+  | Cbeginregion ->
+    (* This must not be typ_val; the begin-region operation returns a
+       naked pointer into the local allocation stack. *)
+    typ_int
+  | Cendregion -> typ_void
 
 (* Infer the size in bytes of the result of an expression whose evaluation
    may be deferred (cf. [emit_parts]). *)
@@ -349,6 +354,7 @@ method is_simple_expr = function
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
       | Craise _ | Ccheckbound
       | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
+      | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi | Cdivi | Cmodi | Cand | Cor
       | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf
@@ -391,6 +397,7 @@ method effects_of exp =
       | Calloc Alloc_heap -> EC.none
       | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
       | Cstore _ -> EC.effect_only Effect.Arbitrary
+      | Cbeginregion | Cendregion -> EC.arbitrary
       | Craise _ | Ccheckbound -> EC.effect_only Effect.Raise
       | Cload (_, Asttypes.Immutable) -> EC.none
       | Cload (_, Asttypes.Mutable) -> EC.coeffect_only Coeffect.Read_mutable
@@ -519,6 +526,8 @@ method select_operation op args _dbg =
   | (Cprobe { name; handler_code_sym; }, _) ->
     Iprobe { name; handler_code_sym; }, args
   | (Cprobe_is_enabled {name}, _) -> Iprobe_is_enabled {name}, []
+  | (Cbeginregion, _) -> Ibeginregion, []
+  | (Cendregion, _) -> Iendregion, args
   | _ -> Misc.fatal_error "Selection.select_oper"
 
 method private select_arith_comm op = function
