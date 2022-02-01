@@ -75,7 +75,7 @@ and one_fun ppf f =
       )
   in
   fprintf ppf "(fun@ %s%s@ %d@ @[<2>%a@]@ @[<2>%a@])"
-    f.label (value_kind f.return) f.arity idents f.params lam f.body
+    f.label (value_kind f.return) (snd f.arity) idents f.params lam f.body
 
 and phantom_defining_expr ppf = function
   | Uphantom_const const -> uconstant ppf const
@@ -103,11 +103,17 @@ and uconstant ppf = function
   | Uconst_ref (s, None) -> fprintf ppf "%S"s
   | Uconst_int i -> fprintf ppf "%i" i
 
+and apply_kind ppf : apply_kind -> unit = function
+  | Rc_normal, Alloc_heap -> fprintf ppf "apply"
+  | Rc_close_at_apply, Alloc_heap -> fprintf ppf "apply[end_region]"
+  | Rc_normal, Alloc_local -> fprintf ppf "apply[L]"
+  | Rc_close_at_apply, Alloc_local -> fprintf ppf "apply[end_region][L]"
+
 and lam ppf = function
   | Uvar id ->
       V.print ppf id
   | Uconst c -> uconstant ppf c
-  | Udirect_apply(f, largs, probe, _) ->
+  | Udirect_apply(f, largs, probe, kind, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let pr ppf (probe : Lambda.probe) =
@@ -115,11 +121,11 @@ and lam ppf = function
         | None -> ()
         | Some {name} -> fprintf ppf " (probe %s)" name
       in
-      fprintf ppf "@[<2>(apply*@ %s %a%a)@]" f lams largs pr probe
-  | Ugeneric_apply(lfun, largs, _) ->
+      fprintf ppf "@[<2>(%a*@ %s %a%a)@]" apply_kind kind f lams largs pr probe
+  | Ugeneric_apply(lfun, largs, kind, _) ->
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
-      fprintf ppf "@[<2>(apply@ %a%a)@]" lam lfun lams largs
+      fprintf ppf "@[<2>(%a@ %a%a)@]" apply_kind kind lam lfun lams largs
   | Uclosure(clos, fv) ->
       let funs ppf =
         List.iter (fprintf ppf "@ @[<2>%a@]" one_fun) in
@@ -237,16 +243,26 @@ and lam ppf = function
        lam hi lam body
   | Uassign(id, expr) ->
       fprintf ppf "@[<2>(assign@ %a@ %a)@]" V.print id lam expr
-  | Usend (k, met, obj, largs, _) ->
+  | Usend (k, met, obj, largs, (pos,_) , _) ->
+      let form =
+        match pos with
+        | Rc_normal -> "send"
+        | Rc_close_at_apply -> "send[end_region]"
+      in
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let kind =
         if k = Lambda.Self then "self"
         else if k = Lambda.Cached then "cache"
         else "" in
-      fprintf ppf "@[<2>(send%s@ %a@ %a%a)@]" kind lam obj lam met args largs
+      fprintf ppf "@[<2>(%s%s@ %a@ %a%a)@]"
+        form kind lam obj lam met args largs
   | Uunreachable ->
       fprintf ppf "unreachable"
+  | Uregion e ->
+      fprintf ppf "@[<2>(region@ %a)@]" lam e
+  | Utail e ->
+      fprintf ppf "@[<2>(tail@ %a)@]" lam e
 
 and sequence ppf ulam = match ulam with
   | Usequence(l1, l2) ->
@@ -258,9 +274,14 @@ let clambda ppf ulam =
 
 
 let rec approx ppf = function
-    Value_closure(fundesc, a) ->
-      Format.fprintf ppf "@[<2>function %s@ arity %i"
-        fundesc.fun_label fundesc.fun_arity;
+    Value_closure(_, fundesc, a) ->
+      Format.fprintf ppf "@[<2>function %s"
+        fundesc.fun_label;
+      begin match fundesc.fun_arity with
+      | Tupled, n -> Format.fprintf ppf "@ arity -%i" n
+      | Curried {nlocal=0}, n -> Format.fprintf ppf "@ arity %i" n
+      | Curried {nlocal=k}, n -> Format.fprintf ppf "@ arity %i(%i L)" n k
+      end;
       if fundesc.fun_closed then begin
         Format.fprintf ppf "@ (closed)"
       end;
@@ -268,7 +289,7 @@ let rec approx ppf = function
         Format.fprintf ppf "@ (inline)"
       end;
       Format.fprintf ppf "@ -> @ %a@]" approx a
-  | Value_tuple a ->
+  | Value_tuple (_,a) ->
       let tuple ppf a =
         for i = 0 to Array.length a - 1 do
           if i > 0 then Format.fprintf ppf ";@ ";

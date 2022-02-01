@@ -388,12 +388,12 @@ let close_c_call acc ~let_bound_var
   in
   let box_return_value =
     match prim_native_repr_res with
-    | Same_as_ocaml_repr -> None
-    | Unboxed_float -> Some (P.Box_number Naked_float)
-    | Unboxed_integer Pnativeint -> Some (P.Box_number Naked_nativeint)
-    | Unboxed_integer Pint32 -> Some (P.Box_number Naked_int32)
-    | Unboxed_integer Pint64 -> Some (P.Box_number Naked_int64)
-    | Untagged_int -> Some (P.Box_number Untagged_immediate)
+    | _, Same_as_ocaml_repr -> None
+    | _, Unboxed_float -> Some (P.Box_number Naked_float)
+    | _, Unboxed_integer Pnativeint -> Some (P.Box_number Naked_nativeint)
+    | _, Unboxed_integer Pint32 -> Some (P.Box_number Naked_int32)
+    | _, Unboxed_integer Pint64 -> Some (P.Box_number Naked_int64)
+    | _, Untagged_int -> Some (P.Box_number Untagged_immediate)
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -440,7 +440,7 @@ let close_c_call acc ~let_bound_var
       then Misc.fatal_errorf "Expected arity one for %s" prim_native_name
       else
         match prim_native_repr_args, prim_native_repr_res with
-        | [Unboxed_integer Pint64], Unboxed_float -> begin
+        | [(_, Unboxed_integer Pint64)], (_, Unboxed_float) -> begin
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted_int64" in
@@ -477,15 +477,16 @@ let close_c_call acc ~let_bound_var
   let call : Acc.t -> Acc.t * Expr_with_acc.t =
     List.fold_left2
       (fun (call : Simple.t list -> Acc.t -> Acc.t * Expr_with_acc.t) arg
-           (arg_repr : Primitive.native_repr) ->
+           (arg_repr : Primitive.mode * Primitive.native_repr) ->
         let unbox_arg : P.unary_primitive option =
           match arg_repr with
-          | Same_as_ocaml_repr -> None
-          | Unboxed_float -> Some (P.Unbox_number Naked_float)
-          | Unboxed_integer Pnativeint -> Some (P.Unbox_number Naked_nativeint)
-          | Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
-          | Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
-          | Untagged_int -> Some (P.Unbox_number Untagged_immediate)
+          | _, Same_as_ocaml_repr -> None
+          | _, Unboxed_float -> Some (P.Unbox_number Naked_float)
+          | _, Unboxed_integer Pnativeint ->
+            Some (P.Unbox_number Naked_nativeint)
+          | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
+          | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
+          | _, Untagged_int -> Some (P.Unbox_number Untagged_immediate)
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc
@@ -623,7 +624,8 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     (* Special case for liftable empty block or array *)
     let acc, sym =
       match prim with
-      | Pmakeblock (tag, _, _) ->
+      | Pmakeblock (tag, _, _, mode) ->
+        LC.alloc_mode mode;
         if tag <> 0
         then
           (* There should not be any way to reach this from Ocaml code. *)
@@ -635,17 +637,18 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
             "empty_block"
       | Pmakefloatblock _ ->
         Misc.fatal_error "Unexpected empty float block in [Closure_conversion]"
-      | Pmakearray (_, _) ->
+      | Pmakearray (_, _, mode) ->
+        LC.alloc_mode mode;
         register_const0 acc Static_const.Empty_array "empty_array"
-      | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply
-      | Pdirapply | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
+      | Pidentity | Pbytes_to_string | Pbytes_of_string | Pignore | Prevapply _
+      | Pdirapply _ | Pgetglobal _ | Psetglobal _ | Pfield _ | Pfield_computed _
       | Psetfield _ | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _
       | Pduprecord _ | Pccall _ | Praise _ | Psequand | Psequor | Pnot | Pnegint
       | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint
       | Pxorint | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
       | Pcompare_floats | Pcompare_bints _ | Poffsetint _ | Poffsetref _
-      | Pintoffloat | Pfloatofint | Pnegfloat | Pabsfloat | Paddfloat
-      | Psubfloat | Pmulfloat | Pdivfloat | Pfloatcomp _ | Pstringlength
+      | Pintoffloat | Pfloatofint _ | Pnegfloat _ | Pabsfloat _ | Paddfloat _
+      | Psubfloat _ | Pmulfloat _ | Pdivfloat _ | Pfloatcomp _ | Pstringlength
       | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu | Pbytessetu
       | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _ | Parrayrefu _
       | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint | Pisout
@@ -994,7 +997,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
     Code_id.create ~name:(Closure_id.to_string closure_id) compilation_unit
   in
   let is_curried =
-    match Function_decl.kind decl with Curried -> true | Tupled -> false
+    match Function_decl.kind decl with Curried _ -> true | Tupled -> false
   in
   (* The free variables are: - The parameters: direct substitution by
      [Variable]s - The function being defined: accessible through [my_closure] -
@@ -1180,7 +1183,7 @@ let close_one_function acc ~external_env ~by_closure_id decl
   in
   let params_arity = Bound_parameter.List.arity_with_subkinds params in
   let is_tupled =
-    match Function_decl.kind decl with Curried -> false | Tupled -> true
+    match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
   let code_size = Cost_metrics.size cost_metrics in
   let inline_threshold = Inlining.threshold () in

@@ -84,7 +84,7 @@ let closure_info ~arity ~startenv =
   let arity =
     match arity with
     | Lambda.Tupled, n -> -n
-    | Lambda.Curried, n -> n
+    | Lambda.Curried _, n -> n
   in
   assert (-128 <= arity && arity <= 127);
   assert (0 <= startenv && startenv < 1 lsl (pos_arity_in_closinfo - 1));
@@ -947,9 +947,7 @@ let apply_function_sym n mode =
 let curry_function_sym ar =
   Compilenv.need_curry_fun ar;
   match ar with
-  | Lambda.Curried, n ->
-     assert (n > 0);
-     let nlocal = 0 in (* temporary *)
+  | Lambda.Curried {nlocal}, n ->
      "caml_curry" ^ Int.to_string n ^
        (if nlocal > 0 then "L" ^ Int.to_string nlocal else "")
   | Lambda.Tupled, n ->
@@ -1502,7 +1500,7 @@ let default_prim name =
 
 
 let int64_native_prim name arity ~alloc =
-  let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
+  let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   let effects, coeffects =
     if alloc
@@ -1515,37 +1513,39 @@ let int64_native_prim name arity ~alloc =
     ~native_repr_args:(make_args arity)
     ~native_repr_res:u64
 
+(* TODO: On 32-bit, these will do heap allocations even in situations
+   where local allocs are allowed *)
 let simplif_primitive_32bits :
   Clambda_primitives.primitive -> Clambda_primitives.primitive = function
-    Pbintofint Pint64 -> Pccall (default_prim "caml_int64_of_int")
+    Pbintofint (Pint64,_) -> Pccall (default_prim "caml_int64_of_int")
   | Pintofbint Pint64 -> Pccall (default_prim "caml_int64_to_int")
-  | Pcvtbint(Pint32, Pint64) -> Pccall (default_prim "caml_int64_of_int32")
-  | Pcvtbint(Pint64, Pint32) -> Pccall (default_prim "caml_int64_to_int32")
-  | Pcvtbint(Pnativeint, Pint64) ->
+  | Pcvtbint(Pint32, Pint64,_) -> Pccall (default_prim "caml_int64_of_int32")
+  | Pcvtbint(Pint64, Pint32,_) -> Pccall (default_prim "caml_int64_to_int32")
+  | Pcvtbint(Pnativeint, Pint64,_) ->
       Pccall (default_prim "caml_int64_of_nativeint")
-  | Pcvtbint(Pint64, Pnativeint) ->
+  | Pcvtbint(Pint64, Pnativeint,_) ->
       Pccall (default_prim "caml_int64_to_nativeint")
-  | Pnegbint Pint64 -> Pccall (int64_native_prim "caml_int64_neg" 1
+  | Pnegbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_neg" 1
                                  ~alloc:false)
-  | Paddbint Pint64 -> Pccall (int64_native_prim "caml_int64_add" 2
+  | Paddbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_add" 2
                                  ~alloc:false)
-  | Psubbint Pint64 -> Pccall (int64_native_prim "caml_int64_sub" 2
+  | Psubbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_sub" 2
                                  ~alloc:false)
-  | Pmulbint Pint64 -> Pccall (int64_native_prim "caml_int64_mul" 2
+  | Pmulbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_mul" 2
                                  ~alloc:false)
   | Pdivbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_div" 2
                                         ~alloc:true)
   | Pmodbint {size=Pint64} -> Pccall (int64_native_prim "caml_int64_mod" 2
                                         ~alloc:true)
-  | Pandbint Pint64 -> Pccall (int64_native_prim "caml_int64_and" 2
+  | Pandbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_and" 2
                                  ~alloc:false)
-  | Porbint Pint64 ->  Pccall (int64_native_prim "caml_int64_or" 2
+  | Porbint(Pint64,_) ->  Pccall (int64_native_prim "caml_int64_or" 2
                                  ~alloc:false)
-  | Pxorbint Pint64 -> Pccall (int64_native_prim "caml_int64_xor" 2
+  | Pxorbint(Pint64,_) -> Pccall (int64_native_prim "caml_int64_xor" 2
                                  ~alloc:false)
-  | Plslbint Pint64 -> Pccall (default_prim "caml_int64_shift_left")
-  | Plsrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right_unsigned")
-  | Pasrbint Pint64 -> Pccall (default_prim "caml_int64_shift_right")
+  | Plslbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_left")
+  | Plsrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right_unsigned")
+  | Pasrbint(Pint64,_) -> Pccall (default_prim "caml_int64_shift_right")
   | Pbintcomp(Pint64, Lambda.Ceq) -> Pccall (default_prim "caml_equal")
   | Pbintcomp(Pint64, Lambda.Cne) -> Pccall (default_prim "caml_notequal")
   | Pbintcomp(Pint64, Lambda.Clt) -> Pccall (default_prim "caml_lessthan")
@@ -1557,12 +1557,12 @@ let simplif_primitive_32bits :
       Pccall (default_prim ("caml_ba_get_" ^ Int.to_string n))
   | Pbigarrayset(_unsafe, n, Pbigarray_int64, _layout) ->
       Pccall (default_prim ("caml_ba_set_" ^ Int.to_string n))
-  | Pstring_load(Sixty_four, _) -> Pccall (default_prim "caml_string_get64")
-  | Pbytes_load(Sixty_four, _) -> Pccall (default_prim "caml_bytes_get64")
+  | Pstring_load(Sixty_four, _, _) -> Pccall (default_prim "caml_string_get64")
+  | Pbytes_load(Sixty_four, _, _) -> Pccall (default_prim "caml_bytes_get64")
   | Pbytes_set(Sixty_four, _) -> Pccall (default_prim "caml_bytes_set64")
-  | Pbigstring_load(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_get64")
+  | Pbigstring_load(Sixty_four,_,_) -> Pccall (default_prim "caml_ba_uint8_get64")
   | Pbigstring_set(Sixty_four,_) -> Pccall (default_prim "caml_ba_uint8_set64")
-  | Pbbswap Pint64 -> Pccall (default_prim "caml_int64_bswap")
+  | Pbbswap (Pint64,_) -> Pccall (default_prim "caml_int64_bswap")
   | p -> p
 
 let simplif_primitive p : Clambda_primitives.primitive =
@@ -2199,7 +2199,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
     let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
     let mode : Lambda.alloc_mode =
       if num >= arity - nlocal then Alloc_local else Alloc_heap in
-    let curried n : Clambda.arity = (Curried, n) in
+    let curried n : Clambda.arity = (Curried {nlocal=min nlocal n}, n) in
     Cfunction
      {fun_name = name2;
       fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
@@ -2272,9 +2272,9 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
 let curry_function = function
   | Lambda.Tupled, n ->
      assert (n > 0); [tuplify_function n]
-  | Lambda.Curried, n ->
+  | Lambda.Curried {nlocal}, n ->
      assert (n > 0);
-     intermediate_curry_functions ~nlocal:0 ~arity:n 0
+     intermediate_curry_functions ~nlocal ~arity:n 0
 
 module ApplyFnSet =
   Set.Make (struct type t = int * Lambda.alloc_mode let compare = compare end)
@@ -3296,7 +3296,7 @@ let fundecls_size fundecls =
     (fun (f : Clambda.ufunction) ->
        let indirect_call_code_pointer_size =
          match f.arity with
-         | (0 | 1) -> 0
+         | Curried _, (0 | 1) -> 0
            (* arity 1 does not need an indirect call handler.
               arity 0 cannot be indirect called *)
          | _ -> 1
@@ -3317,12 +3317,6 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
     else
       []
   in
-  let fnarity (fn : Clambda.ufunction) =
-    if fn.arity >= 0 then
-      Lambda.Curried, fn.arity
-    else
-      Lambda.Tupled, -fn.arity
-  in
   match (fundecls : Clambda.ufunction list) with
     [] ->
       (* This should probably not happen: dead code has normally been
@@ -3335,8 +3329,8 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
       let rec emit_others pos = function
           [] -> clos_vars @ cont
       | (f2 : Clambda.ufunction) :: rem ->
-          match (Lambda.Curried, f2.arity) with
-          | Curried, (0|1) as arity ->
+          match f2.arity with
+          | Curried _, (0|1) as arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
             Csymbol_address f2.label ::
@@ -3345,7 +3339,7 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
           | arity ->
             Cint(infix_header pos) ::
             (closure_symbol f2) @
-            Csymbol_address(curry_function_sym (fnarity f2)) ::
+            Csymbol_address(curry_function_sym arity) ::
             Cint(closure_info ~arity ~startenv:(startenv - pos)) ::
             Csymbol_address f2.label ::
             emit_others (pos + 4) rem in
@@ -3353,8 +3347,8 @@ let emit_constant_closure ((_, global_symb) as symb) fundecls clos_vars cont =
                                  + List.length clos_vars)) ::
       cdefine_symbol symb @
       (closure_symbol f1) @
-      match fnarity f1 with
-      | Curried, (0|1) as arity ->
+      match f1.arity with
+      | Curried _, (0|1) as arity ->
         Csymbol_address f1.label ::
         Cint(closure_info ~arity ~startenv) ::
         emit_others 3 remainder

@@ -297,6 +297,12 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       mark_var meth curr;
       mark_var obj curr;
       List.iter (fun arg -> mark_var arg curr) args
+    | Region body ->
+      mark_curr curr;
+      mark_loop ~toplevel [] body
+    | Tail body ->
+      mark_curr curr;
+      mark_loop ~toplevel [] body
     | Proved_unreachable ->
       mark_curr curr
 
@@ -335,18 +341,18 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
        makeblock(Mutable) can be a 'constant' if it is allocated at
        toplevel: if this expression is evaluated only once.
     *)
-    | Prim (Pmakeblock (_tag, (Immutable | Immutable_unique), _value_kind),
-            args, _dbg) ->
+    | Prim (Pmakeblock (_tag, (Immutable | Immutable_unique),
+                        _value_kind, _mode), args, _dbg) ->
       mark_vars args curr
 (*  (* CR-someday pchambart: If global mutables are allowed: *)
     | Prim(Lambda.Pmakeblock(_tag, Asttypes.Mutable), args, _dbg, _)
       when toplevel ->
       List.iter (mark_loop ~toplevel curr) args
 *)
-    | Prim (Pmakearray (Pfloatarray, (Immutable | Immutable_unique)),
+    | Prim (Pmakearray (Pfloatarray, (Immutable | Immutable_unique), _mode),
             args, _) ->
       mark_vars args curr
-    | Prim (Pmakearray (Pfloatarray, Mutable), args, _) ->
+    | Prim (Pmakearray (Pfloatarray, Mutable, _mode), args, _) ->
       (* CR-someday pchambart: Toplevel float arrays could always be
          statically allocated using an equivalent of the
          Initialize_symbol construction.

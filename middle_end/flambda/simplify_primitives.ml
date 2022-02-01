@@ -41,7 +41,7 @@ let phys_equal (approxs:A.t list) =
 let is_known_to_be_some_kind_of_int (arg:A.descr) =
   match arg with
   | Value_int _ | Value_char _ -> true
-  | Value_block (_, _) | Value_float _ | Value_set_of_closures _
+  | Value_block _ | Value_float _ | Value_set_of_closures _
   | Value_closure _ | Value_string _ | Value_float_array _
   | A.Value_boxed_int _ | Value_unknown _ | Value_extern _
   | Value_symbol _ | Value_unresolved _ | Value_bottom -> false
@@ -108,7 +108,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     : Flambda.named * A.t * Inlining_cost.Benefit.t =
   let fpc = !Clflags.float_const_prop in
   match p with
-  | Pmakeblock(tag_int, (Immutable | Immutable_unique), shape) ->
+  | Pmakeblock(tag_int, (Immutable | Immutable_unique), shape, mode) ->
     let tag = Tag.create_exn tag_int in
     let shape = match shape with
       | None -> List.map (fun _ -> Lambda.Pgenval) args
@@ -116,19 +116,19 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     in
     let approxs = List.map2 A.augment_with_kind approxs shape in
     let shape = List.map2 A.augment_kind_with_approx approxs shape in
-    Prim (Pmakeblock(tag_int, Lambda.Immutable, Some shape), args, dbg),
+    Prim (Pmakeblock(tag_int, Lambda.Immutable, Some shape, mode), args, dbg),
     A.value_block tag (Array.of_list approxs), C.Benefit.zero
   | Praise _ ->
     expr, A.value_bottom, C.Benefit.zero
-  | Pmakearray(_, _) when is_empty approxs ->
-    Prim (Pmakeblock(0, Lambda.Immutable, Some []), [], dbg),
+  | Pmakearray(_, _, mode) when is_empty approxs ->
+    Prim (Pmakeblock(0, Lambda.Immutable, Some [], mode), [], dbg),
     A.value_block (Tag.create_exn 0) [||], C.Benefit.zero
-  | Pmakearray (Pfloatarray, Mutable) ->
+  | Pmakearray (Pfloatarray, Mutable, _) ->
       let approx =
         A.value_mutable_float_array ~size:(List.length args)
       in
       expr, approx, C.Benefit.zero
-  | Pmakearray (Pfloatarray, (Immutable | Immutable_unique)) ->
+  | Pmakearray (Pfloatarray, (Immutable | Immutable_unique), _) ->
       let approx =
         A.value_immutable_float_array (Array.of_list approxs)
       in
@@ -173,11 +173,11 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
       | Pbswap16 -> S.const_int_expr expr (S.swap16 x)
       | Pisint -> S.const_bool_expr expr true
       | Poffsetint y -> S.const_int_expr expr (x + y)
-      | Pfloatofint when fpc -> S.const_float_expr expr (float_of_int x)
-      | Pbintofint Pnativeint ->
+      | Pfloatofint _ when fpc -> S.const_float_expr expr (float_of_int x)
+      | Pbintofint (Pnativeint,_) ->
         S.const_boxed_int_expr expr Nativeint (Nativeint.of_int x)
-      | Pbintofint Pint32 -> S.const_boxed_int_expr expr Int32 (Int32.of_int x)
-      | Pbintofint Pint64 -> S.const_boxed_int_expr expr Int64 (Int64.of_int x)
+      | Pbintofint (Pint32,_) -> S.const_boxed_int_expr expr Int32 (Int32.of_int x)
+      | Pbintofint (Pint64,_) -> S.const_boxed_int_expr expr Int64 (Int64.of_int x)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [Value_int x; Value_int y] ->
@@ -208,16 +208,16 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     | [Value_float (Some x)] when fpc ->
       begin match p with
       | Pintoffloat -> S.const_int_expr expr (int_of_float x)
-      | Pnegfloat -> S.const_float_expr expr (-. x)
-      | Pabsfloat -> S.const_float_expr expr (abs_float x)
+      | Pnegfloat _ -> S.const_float_expr expr (-. x)
+      | Pabsfloat _ -> S.const_float_expr expr (abs_float x)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
       end
     | [Value_float (Some n1); Value_float (Some n2)] when fpc ->
       begin match p with
-      | Paddfloat -> S.const_float_expr expr (n1 +. n2)
-      | Psubfloat -> S.const_float_expr expr (n1 -. n2)
-      | Pmulfloat -> S.const_float_expr expr (n1 *. n2)
-      | Pdivfloat -> S.const_float_expr expr (n1 /. n2)
+      | Paddfloat _ -> S.const_float_expr expr (n1 +. n2)
+      | Psubfloat _ -> S.const_float_expr expr (n1 -. n2)
+      | Pmulfloat _ -> S.const_float_expr expr (n1 *. n2)
+      | Pdivfloat _ -> S.const_float_expr expr (n1 /. n2)
       | Pfloatcomp c  -> S.const_float_comparison_expr expr c n1 n2
       | Pcompare_floats -> S.const_int_expr expr (Float.compare n1 n2)
       | _ -> expr, A.value_unknown Other, C.Benefit.zero
@@ -277,7 +277,7 @@ let primitive (p : Clambda_primitives.primitive) (args, approxs)
     | [Value_float_array { size; contents }] ->
         begin match p with
         | Parraylength _ -> S.const_int_expr expr size
-        | Pfloatfield i ->
+        | Pfloatfield (i,_) ->
           begin match contents with
           | A.Contents a when i >= 0 && i < size ->
             begin match A.check_approx_for_float a.(i) with

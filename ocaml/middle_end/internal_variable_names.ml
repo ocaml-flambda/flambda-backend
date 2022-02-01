@@ -319,8 +319,8 @@ let of_primitive : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string
   | Pbytes_to_string -> pbytes_to_string
   | Pignore -> pignore
-  | Prevapply -> prevapply
-  | Pdirapply -> pdirapply
+  | Prevapply _ -> prevapply
+  | Pdirapply _ -> pdirapply
   | Pgetglobal _ -> pgetglobal
   | Psetglobal _ -> psetglobal
   | Pmakeblock _ -> pmakeblock
@@ -356,13 +356,13 @@ let of_primitive : Lambda.primitive -> string = function
   | Poffsetint _ -> poffsetint
   | Poffsetref _ -> poffsetref
   | Pintoffloat -> pintoffloat
-  | Pfloatofint -> pfloatofint
-  | Pnegfloat -> pnegfloat
-  | Pabsfloat -> pabsfloat
-  | Paddfloat -> paddfloat
-  | Psubfloat -> psubfloat
-  | Pmulfloat -> pmulfloat
-  | Pdivfloat -> pdivfloat
+  | Pfloatofint _ -> pfloatofint
+  | Pnegfloat _ -> pnegfloat
+  | Pabsfloat _ -> pabsfloat
+  | Paddfloat _ -> paddfloat
+  | Psubfloat _ -> psubfloat
+  | Pmulfloat _ -> pmulfloat
+  | Pdivfloat _ -> pdivfloat
   | Pfloatcomp _ -> pfloatcomp
   | Pstringlength -> pstringlength
   | Pstringrefu -> pstringrefu
@@ -427,8 +427,8 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Pbytes_of_string -> pbytes_of_string_arg
   | Pbytes_to_string -> pbytes_to_string_arg
   | Pignore -> pignore_arg
-  | Prevapply -> prevapply_arg
-  | Pdirapply -> pdirapply_arg
+  | Prevapply _ -> prevapply_arg
+  | Pdirapply _ -> pdirapply_arg
   | Pgetglobal _ -> pgetglobal_arg
   | Psetglobal _ -> psetglobal_arg
   | Pmakeblock _ -> pmakeblock_arg
@@ -464,13 +464,13 @@ let of_primitive_arg : Lambda.primitive -> string = function
   | Poffsetint _ -> poffsetint_arg
   | Poffsetref _ -> poffsetref_arg
   | Pintoffloat -> pintoffloat_arg
-  | Pfloatofint -> pfloatofint_arg
-  | Pnegfloat -> pnegfloat_arg
-  | Pabsfloat -> pabsfloat_arg
-  | Paddfloat -> paddfloat_arg
-  | Psubfloat -> psubfloat_arg
-  | Pmulfloat -> pmulfloat_arg
-  | Pdivfloat -> pdivfloat_arg
+  | Pfloatofint _ -> pfloatofint_arg
+  | Pnegfloat _ -> pnegfloat_arg
+  | Pabsfloat _ -> pabsfloat_arg
+  | Paddfloat _ -> paddfloat_arg
+  | Psubfloat _ -> psubfloat_arg
+  | Pmulfloat _ -> pmulfloat_arg
+  | Pdivfloat _ -> pdivfloat_arg
   | Pfloatcomp _ -> pfloatcomp_arg
   | Pstringlength -> pstringlength_arg
   | Pstringrefu -> pstringrefu_arg

@@ -67,3 +67,5 @@ type return_type =
   | Other
 
 val return_type_of_primitive: Clambda_primitives.primitive -> return_type
+
+val may_locally_allocate : Clambda_primitives.primitive -> bool

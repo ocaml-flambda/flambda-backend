@@ -960,19 +960,23 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
         let fenv = V.Map.add funct_var fapprox fenv in
         let (new_fun, approx) = close { backend; fenv; cenv; mutable_vars }
           (Lfunction{
-               kind = Curried;
+               kind = Curried {nlocal=0};
                return = Pgenval;
                params = List.map (fun v -> v, Pgenval) final_args;
                body = Lapply{
                  ap_loc=loc;
                  ap_func=(Lvar funct_var);
                  ap_args=internal_args;
+                 ap_region_close=Rc_normal;
+                 ap_mode=Alloc_heap;
                  ap_tailcall=Default_tailcall;
                  ap_inlined=Default_inlined;
                  ap_specialised=Default_specialise;
                  ap_probe=None;
                };
                loc;
+               mode = Alloc_heap;
+               region = true;
                attr = default_function_attribute})
         in
         let new_fun =
@@ -1010,7 +1014,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
           fail_if_probe ~probe "Unknown function";
           (Ugeneric_apply(ufunct, uargs, dbg), Value_unknown)
       end
-  | Lsend(kind, met, obj, args, loc) ->
+  | Lsend(kind, met, obj, args, _, _, loc) ->
       let (umet, _) = close env met in
       let (uobj, _) = close env obj in
       let dbg = Debuginfo.from_location loc in
@@ -1093,13 +1097,15 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       Usequence(fst (close env arg), expr), approx
   | Lprim((Pidentity | Pbytes_to_string | Pbytes_of_string), [arg], _loc) ->
       close env arg
-  | Lprim(Pdirapply,[funct;arg], loc)
-  | Lprim(Prevapply,[arg;funct], loc) ->
+  | Lprim(Pdirapply pos,[funct;arg], loc)
+  | Lprim(Prevapply pos,[arg;funct], loc) ->
       close env
         (Lapply{
            ap_loc=loc;
            ap_func=funct;
            ap_args=[arg];
+           ap_region_close=pos;
+           ap_mode=Alloc_heap;
            ap_tailcall=Default_tailcall;
            ap_inlined=Default_inlined;
            ap_specialised=Default_specialise;
@@ -1220,6 +1226,9 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       close env lam
   | Lifused _ ->
       assert false
+  | Lregion _ ->
+      assert false
+
 
 and close_list env = function
     [] -> []
@@ -1247,8 +1256,9 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
     List.flatten
       (List.map
          (function
-           | (id, Lfunction{kind; params; return; body; attr; loc}) ->
-               Simplif.split_default_wrapper ~id ~kind ~params
+           | (id, Lfunction{kind; params; return; body; attr;
+                            loc; mode; region}) ->
+               Simplif.split_default_wrapper ~id ~kind ~params ~mode ~region
                  ~body ~attr ~loc ~return
            | _ -> assert false
          )

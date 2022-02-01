@@ -77,6 +77,8 @@ let description_of_toplevel_node (expr : Flambda.t) =
   | Try_with _ -> "trywith"
   | While _ -> "while"
   | For _ -> "for"
+  | Region _ -> "region"
+  | Tail _ -> "tail"
 
 let equal_direction_flag
       (x : Asttypes.direction_flag)
@@ -150,6 +152,12 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
       && equal_direction_flag direction1 direction2
       && same body1 body2
   | For _, _ | _, For _ -> false
+  | Region body1, Region body2 ->
+    same body1 body2
+  | Region _, _ | _, Region _ -> false
+  | Tail body1, Tail body2 ->
+    same body1 body2
+  | Tail _, _ | _, Tail _ -> false
   | Assign { being_assigned = being_assigned1; new_value = new_value1; },
     Assign { being_assigned = being_assigned2; new_value = new_value2; } ->
     Mutable_variable.equal being_assigned1 being_assigned2
@@ -249,10 +257,12 @@ let toplevel_substitution sb tree =
     | Assign { being_assigned; new_value; } ->
       let new_value = sb new_value in
       Assign { being_assigned; new_value; }
-    | Apply { func; args; kind; dbg; inlined; specialise; probe; } ->
+    | Apply { func; args; kind; dbg; reg_close; mode;
+              inlined; specialise; probe; } ->
       let func = sb func in
       let args = List.map sb args in
-      Apply { func; args; kind; dbg; inlined; specialise; probe; }
+      Apply { func; args; kind; dbg; reg_close; mode;
+              inlined; specialise; probe; }
     | If_then_else (cond, e1, e2) ->
       let cond = sb cond in
       If_then_else (cond, e1, e2)
@@ -262,11 +272,11 @@ let toplevel_substitution sb tree =
     | String_switch (cond, branches, def) ->
       let cond = sb cond in
       String_switch (cond, branches, def)
-    | Send { kind; meth; obj; args; dbg } ->
+    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth = sb meth in
       let obj = sb obj in
       let args = List.map sb args in
-      Send { kind; meth; obj; args; dbg }
+      Send { kind; meth; obj; args; dbg; reg_close; mode }
     | For { bound_var; from_value; to_value; direction; body } ->
       let from_value = sb from_value in
       let to_value = sb to_value in
@@ -274,7 +284,7 @@ let toplevel_substitution sb tree =
     | Static_raise (static_exn, args) ->
       let args = List.map sb args in
       Static_raise (static_exn, args)
-    | Static_catch _ | Try_with _ | While _
+    | Static_catch _ | Try_with _ | While _ | Region _ | Tail _
     | Let _ | Let_rec _ | Proved_unreachable -> flam
   in
   let aux_named (named : Flambda.named) : Flambda.named =
@@ -328,7 +338,7 @@ let toplevel_substitution_named sb named =
   | _ -> assert false
 
 let make_closure_declaration
-      ~is_classic_mode ~id ~body ~params ~stub : Flambda.t =
+      ~is_classic_mode ~id ~alloc_mode ~region ~body ~params ~stub : Flambda.t =
   let free_variables = Flambda.free_variables body in
   let param_set = Parameter.Set.vars params in
   if not (Variable.Set.subset param_set free_variables) then begin
@@ -346,7 +356,8 @@ let make_closure_declaration
   let subst id = Variable.Map.find id sb in
   let subst_param param = Parameter.map_var subst param in
   let function_declaration =
-    Flambda.create_function_declaration ~params:(List.map subst_param params)
+    Flambda.create_function_declaration
+      ~params:(List.map subst_param params) ~alloc_mode  ~region
       ~body ~stub ~inline:Default_inline
       ~specialise:Default_specialise ~is_a_functor:false
       ~closure_origin:(Closure_origin.create (Closure_id.wrap id))
@@ -696,15 +707,17 @@ let substitute_read_symbol_field_for_variables
       bind_from_value @@
       bind_to_value @@
       Flambda.For { bound_var; from_value; to_value; direction; body }
-    | Apply { func; args; kind; dbg; inlined; specialise; probe } ->
+    | Apply { func; args; kind; dbg; reg_close; mode;
+              inlined; specialise; probe } ->
       let func, bind_func = make_var_subst func in
       let args, bind_args =
         List.split (List.map make_var_subst args)
       in
       bind_func @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Apply { func; args; kind; dbg; inlined; specialise; probe }
-    | Send { kind; meth; obj; args; dbg } ->
+      Flambda.Apply { func; args; kind; dbg; reg_close; mode;
+                      inlined; specialise; probe }
+    | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth, bind_meth = make_var_subst meth in
       let obj, bind_obj = make_var_subst obj in
       let args, bind_args =
@@ -713,8 +726,10 @@ let substitute_read_symbol_field_for_variables
       bind_meth @@
       bind_obj @@
       List.fold_right (fun f expr -> f expr) bind_args @@
-      Flambda.Send { kind; meth; obj; args; dbg }
+      Flambda.Send { kind; meth; obj; args; dbg; reg_close; mode }
     | Proved_unreachable
+    | Region _
+    | Tail _
     | While _
     | Try_with _
     | Static_catch _ ->

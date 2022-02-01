@@ -84,13 +84,15 @@ let rec eliminate_ref id = function
            dir, eliminate_ref id e3)
   | Lassign(v, e) ->
       Lassign(v, eliminate_ref id e)
-  | Lsend(k, m, o, el, loc) ->
+  | Lsend(k, m, o, el, pos, mode, loc) ->
       Lsend(k, eliminate_ref id m, eliminate_ref id o,
-            List.map (eliminate_ref id) el, loc)
+            List.map (eliminate_ref id) el, pos, mode, loc)
   | Levent(l, ev) ->
       Levent(eliminate_ref id l, ev)
   | Lifused(v, e) ->
       Lifused(v, eliminate_ref id e)
+  | Lregion e ->
+      Lregion(eliminate_ref id e)
 
 (* Simplification of exits *)
 
@@ -163,9 +165,10 @@ let simplify_exits lam =
   | Lwhile(l1, l2) -> count l1; count l2
   | Lfor(_, l1, l2, _dir, l3) -> count l1; count l2; count l3
   | Lassign(_v, l) -> count l
-  | Lsend(_k, m, o, ll, _) -> List.iter count (m::o::ll)
+  | Lsend(_k, m, o, ll, _, _, _) -> List.iter count (m::o::ll)
   | Levent(l, _) -> count l
   | Lifused(_v, l) -> count l
+  | Lregion l -> count l
 
   and count_default sw = match sw.sw_failaction with
   | None -> ()
@@ -208,8 +211,8 @@ let simplify_exits lam =
   | Lapply ap ->
       Lapply{ap with ap_func = simplif ap.ap_func;
                      ap_args = List.map simplif ap.ap_args}
-  | Lfunction{kind; params; return; body = l; attr; loc} ->
-     Lfunction{kind; params; return; body = simplif l; attr; loc}
+  | Lfunction{kind; params; return; body = l; attr; loc; mode; region} ->
+     Lfunction{kind; params; return; body=simplif l; attr; loc; mode; region}
   | Llet(str, kind, v, l1, l2) -> Llet(str, kind, v, simplif l1, simplif l2)
   | Lletrec(bindings, body) ->
       Lletrec(List.map (fun (v, l) -> (v, simplif l)) bindings, simplif body)
@@ -217,28 +220,34 @@ let simplify_exits lam =
     let ll = List.map simplif ll in
     match p, ll with
         (* Simplify %revapply, for n-ary functions with n > 1 *)
-      | Prevapply, [x; Lapply ap]
-      | Prevapply, [x; Levent (Lapply ap,_)] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Prevapply, [x; f] ->
+      | Prevapply Rc_normal, [x; Lapply ap]
+      | Prevapply Rc_normal, [x; Levent (Lapply ap,_)] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc;
+                          ap_region_close = Rc_normal}
+      | Prevapply pos, [x; f] ->
           Lapply {
             ap_loc=loc;
             ap_func=f;
             ap_args=[x];
+            ap_region_close=pos;
+            ap_mode=Alloc_heap;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
             ap_probe=None;
           }
         (* Simplify %apply, for n-ary functions with n > 1 *)
-      | Pdirapply, [Lapply ap; x]
-      | Pdirapply, [Levent (Lapply ap,_); x] ->
-        Lapply {ap with ap_args = ap.ap_args @ [x]; ap_loc = loc}
-      | Pdirapply, [f; x] ->
+      | Pdirapply Rc_normal, [Lapply ap; x]
+      | Pdirapply Rc_normal, [Levent (Lapply ap,_); x] ->
+          Lapply {ap with ap_args = ap.ap_args @ [x];
+                          ap_loc = loc; ap_region_close=Rc_normal}
+      | Pdirapply pos, [f; x] ->
           Lapply {
             ap_loc=loc;
             ap_func=f;
             ap_args=[x];
+            ap_region_close=pos;
+            ap_mode=Alloc_heap;
             ap_tailcall=Default_tailcall;
             ap_inlined=Default_inlined;
             ap_specialised=Default_specialise;
@@ -250,8 +259,8 @@ let simplify_exits lam =
         (* Simplify Obj.with_tag *)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
         [Lconst (Const_base (Const_int tag));
-         Lprim (Pmakeblock (_, mut, shape), fields, loc)] ->
-         Lprim (Pmakeblock(tag, mut, shape), fields, loc)
+         Lprim (Pmakeblock (_, mut, shape, mode), fields, loc)] ->
+         Lprim (Pmakeblock(tag, mut, shape, mode), fields, loc)
       | Pccall { Primitive.prim_name = "caml_obj_with_tag"; _ },
         [Lconst (Const_base (Const_int tag));
          Lconst (Const_block (_, fields))] ->
@@ -323,10 +332,11 @@ let simplify_exits lam =
   | Lfor(v, l1, l2, dir, l3) ->
       Lfor(v, simplif l1, simplif l2, dir, simplif l3)
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
+  | Lsend(k, m, o, ll, pos, mode, loc) ->
+      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) -> Lifused (v,simplif l)
+  | Lregion l -> Lregion (simplif l)
   in
   simplif lam
 
@@ -340,7 +350,7 @@ let simplify_exits lam =
 
 let exact_application {kind; params; _} args =
   match kind with
-  | Curried ->
+  | Curried _ ->
       if List.length params <> List.length args
       then None
       else Some args
@@ -465,10 +475,12 @@ let simplify_lets lam =
       (* Lalias-bound variables are never assigned, so don't increase
          v's refcount *)
       count bv l
-  | Lsend(_, m, o, ll, _) -> List.iter (count bv) (m::o::ll)
+  | Lsend(_, m, o, ll, _, _, _) -> List.iter (count bv) (m::o::ll)
   | Levent(l, _) -> count bv l
   | Lifused(v, l) ->
       if count_var v > 0 then count bv l
+  | Lregion l ->
+      count bv l
 
   and count_default bv sw = match sw.sw_failaction with
   | None -> ()
@@ -520,25 +532,32 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
-  | Lfunction{kind; params; return=return1; body = l; attr; loc} ->
+  | Lfunction({kind=Curried {nlocal=0}; params; return=_return1; body = l;
+               attr=_; loc=_; mode; region=true} as fn) ->
       begin match simplif l with
-        Lfunction{kind=Curried; params=params'; return=return2; body; attr; loc}
-        when kind = Curried && optimize &&
+        Lfunction{kind=Curried _ as kind; params=params'; return=return2;
+                  body; attr; loc; mode=inner_mode; region}
+        when optimize &&
              List.length params + List.length params' <= Lambda.max_arity() ->
+          (* The returned function's mode should match the outer return mode *)
+          assert (inner_mode = Alloc_heap);
           (* The return type is the type of the value returned after
              applying all the parameters to the function. The return
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-          Lfunction{kind; params = params @ params'; return; body; attr; loc}
+          Lfunction{kind; params = params @ params'; return;
+                    body; attr; loc; mode; region}
       | body ->
-          Lfunction{kind; params; return = return1; body; attr; loc}
+          Lfunction{fn with body}
       end
+  | Lfunction fn -> Lfunction {fn with body = simplif fn.body}
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
   | Llet(Strict, kind, v,
-         Lprim(Pmakeblock(0, Mutable, kind_ref) as prim, [linit], loc), lbody)
+         Lprim(Pmakeblock(0, Mutable, kind_ref, _mode) as prim, [linit], loc),
+         lbody)
     when optimize ->
       let slinit = simplif linit in
       let slbody = simplif lbody in
@@ -596,11 +615,12 @@ let simplify_lets lam =
   | Lfor(v, l1, l2, dir, l3) ->
       Lfor(v, simplif l1, simplif l2, dir, simplif l3)
   | Lassign(v, l) -> Lassign(v, simplif l)
-  | Lsend(k, m, o, ll, loc) ->
-      Lsend(k, simplif m, simplif o, List.map simplif ll, loc)
+  | Lsend(k, m, o, ll, pos, mode, loc) ->
+      Lsend(k, simplif m, simplif o, List.map simplif ll, pos, mode, loc)
   | Levent(l, ev) -> Levent(simplif l, ev)
   | Lifused(v, l) ->
       if count_var v > 0 then simplif l else lambda_unit
+  | Lregion l -> Lregion (simplif l)
   in
   simplif lam
 
@@ -683,13 +703,15 @@ let rec emit_tail_infos is_tail lambda =
       emit_tail_infos false body
   | Lassign (_, lam) ->
       emit_tail_infos false lam
-  | Lsend (_, meth, obj, args, _loc) ->
+  | Lsend (_, meth, obj, args, _, _, _loc) ->
       emit_tail_infos false meth;
       emit_tail_infos false obj;
       list_emit_tail_infos false args
   | Levent (lam, _) ->
       emit_tail_infos is_tail lam
   | Lifused (_, lam) ->
+      emit_tail_infos is_tail lam
+  | Lregion lam ->
       emit_tail_infos is_tail lam
 and list_emit_tail_infos_fun f is_tail =
   List.iter (fun x -> emit_tail_infos is_tail (f x))
@@ -704,14 +726,15 @@ and list_emit_tail_infos is_tail =
    'Some' constructor, only to deconstruct it immediately in the
    function's body. *)
 
-let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
-  let rec aux map = function
+let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
+      ~attr ~loc ~mode ~region:orig_region =
+  let rec aux map add_region = function
     | Llet(Strict, k, id, (Lifthenelse(Lvar optparam, _, _) as def), rest) when
         (not (Clflags.is_flambda2 ()))
           && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
-        let wrapper_body, inner = aux ((optparam, id) :: map) rest in
+        let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
         Llet(Strict, k, id, def, wrapper_body), inner
     | Llet(Strict, k, id,
         (Lswitch(Lvar optparam,
@@ -725,8 +748,9 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
           && Ident.name optparam = "*opt*" && List.mem_assoc optparam params
           && not (List.mem_assoc optparam map)
       ->
-        let wrapper_body, inner = aux ((optparam, id) :: map) rest in
+        let wrapper_body, inner = aux ((optparam, id) :: map) add_region rest in
         Llet(Strict, k, id, def, wrapper_body), inner
+    | Lregion rest -> aux map true rest
     | _ when map = [] -> raise Exit
     | body ->
         (* Check that those *opt* identifiers don't appear in the remaining
@@ -742,6 +766,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
             ap_func = Lvar inner_id;
             ap_args = args;
             ap_loc = Loc_unknown;
+            ap_region_close = Rc_normal;
+            ap_mode = Alloc_heap;
             ap_tailcall = Default_tailcall;
             ap_inlined = Default_inlined;
             ap_specialised = Default_specialise;
@@ -756,19 +782,29 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body ~attr ~loc =
           ) Ident.Map.empty inner_params new_ids
         in
         let body = Lambda.rename subst body in
+        let body = if add_region then Lregion body else body in
         let inner_fun =
-          Lfunction { kind = Curried;
+          Lfunction { kind = Curried {nlocal=0};
             params = List.map (fun id -> id, Pgenval) new_ids;
-            return; body; attr; loc; }
+            return; body; attr; loc; mode; region=true }
         in
         (wrapper_body, (inner_id, inner_fun))
   in
   try
-    let body, inner = aux [] body in
+    (* TODO: enable this optimisation even in the presence of local returns *)
+    begin match kind with
+    | Curried {nlocal} when nlocal > 0 -> raise Exit
+    | Tupled when not orig_region -> raise Exit
+    | _ -> assert orig_region
+    end;
+    let body, inner = aux [] false body in
     let attr = default_stub_attribute in
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc}); inner]
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode;
+                        region=true});
+     inner]
   with Exit ->
-    [(fun_id, Lfunction{kind; params; return; body; attr; loc})]
+    [(fun_id, Lfunction{kind; params; return; body; attr; loc; mode;
+                        region=orig_region})]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the
@@ -798,6 +834,7 @@ let simplify_local_functions lam =
      by the outermost lambda for which the the current lambda
      is in tail position. *)
   let current_scope = ref lam in
+  let current_region_scope = ref lam in
   let check_static lf =
     if lf.attr.local = Always_local then
       Location.prerr_warning (to_location lf.loc)
@@ -824,7 +861,8 @@ let simplify_local_functions lam =
             let st = next_raise_count () in
             let sc =
               (* Do not move higher than current lambda *)
-              if scope == !current_scope then cont
+              if scope == !current_scope
+              || scope == !current_region_scope then cont
               else scope
             in
             Hashtbl.add static_id id st;
@@ -837,18 +875,23 @@ let simplify_local_functions lam =
             (* note: if scope = None, the function is unused *)
             non_tail lf.body
         end
-    | Lapply {ap_func = Lvar id; ap_args; _} ->
+    | Lapply {ap_func = Lvar id; ap_args; ap_region_close; _} ->
+        let curr_scope =
+          match ap_region_close with
+          | Rc_normal -> !current_scope
+          | Rc_close_at_apply -> !current_region_scope
+        in
         begin match Hashtbl.find_opt slots id with
         | Some {func; _}
           when exact_application func ap_args = None ->
             (* Wrong arity *)
             Hashtbl.remove slots id
-        | Some {scope = Some scope; _} when scope != !current_scope ->
+        | Some {scope = Some scope; _} when scope != curr_scope ->
             (* Different "tail scope" *)
             Hashtbl.remove slots id
         | Some ({scope = None; _} as slot) ->
             (* First use of the function: remember the current tail scope *)
-            slot.scope <- Some !current_scope
+            slot.scope <- Some curr_scope
         | _ ->
             ()
         end;
@@ -858,15 +901,26 @@ let simplify_local_functions lam =
     | Lfunction lf as lam ->
         check_static lf;
         Lambda.shallow_iter ~tail ~non_tail lam
+    | Lregion lam -> region lam
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
   and non_tail lam =
     with_scope ~scope:lam lam
+  and region lam =
+    let old_tail_scope = !current_region_scope in
+    current_region_scope := !current_scope;
+    current_scope := lam;
+    tail lam;
+    current_scope := !current_region_scope;
+    current_region_scope := old_tail_scope
   and with_scope ~scope lam =
     let old_scope = !current_scope in
+    let old_tail_scope = !current_region_scope in
     current_scope := scope;
+    current_region_scope := scope;
     tail lam;
-    current_scope := old_scope
+    current_scope := old_scope;
+    current_region_scope := old_tail_scope
   in
   tail lam;
   let rec rewrite lam0 =
@@ -883,7 +937,7 @@ let simplify_local_functions lam =
               Lstaticraise (st, List.map rewrite exact_args)
          end
       | lam ->
-          Lambda.shallow_map rewrite lam
+          Lambda.shallow_map ~tail:rewrite ~non_tail:rewrite lam
     in
     List.fold_right
       (fun (st, lf) lam ->
