@@ -744,9 +744,10 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
         else
           match (resolver t) comp_unit with
           | None ->
-            (* The corresponding cmx is unavailable, so even if [name] was not
-               canonical in its compilation unit we won't ever discover it.
-               Relying on the current aliases structure is fine. *)
+            (* The corresponding cmx is unavailable. However, we have ensured
+               that all equations exported in cmx files point to canonical
+               aliases, so there is no way for a non-canonical name to appear
+               outside its own compilation unit. *)
             aliases t
           | Some env -> aliases env
           | exception exn ->
