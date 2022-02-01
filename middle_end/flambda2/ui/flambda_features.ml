@@ -28,6 +28,8 @@ let backend_cse_at_toplevel () =
 
 let cse_depth () = !Flambda_backend_flags.Flambda2.cse_depth
 
+let join_depth () = !Flambda_backend_flags.Flambda2.join_depth
+
 let safe_string () = Config.safe_string
 
 let flat_float_array () = Config.flat_float_array

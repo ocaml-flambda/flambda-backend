@@ -26,6 +26,7 @@ module Flambda2 : sig
     val unbox_along_intra_function_control_flow : bool
     val backend_cse_at_toplevel : bool
     val cse_depth : int
+    val join_depth : int
     val treat_invalid_code_as_unreachable : bool
     val function_result_types : function_result_types
 
@@ -39,6 +40,7 @@ module Flambda2 : sig
   val unbox_along_intra_function_control_flow : bool ref
   val backend_cse_at_toplevel : bool ref
   val cse_depth : int ref
+  val join_depth : int ref
   val treat_invalid_code_as_unreachable : bool ref
 
   val unicode : bool ref

@@ -925,23 +925,30 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
         ~f:(fun simple -> not (Simple.same simple (Simple.name bound_name)))
         shared_aliases
   in
+  let unknown () : _ Or_unknown.t =
+    (* CR vlaviron: Fix this to Unknown when Product can handle it *)
+    Known (MTC.unknown kind)
+  in
   match Aliases.Alias_set.find_best shared_aliases with
   | Some alias -> Known (TG.alias_type_of kind alias)
   | None -> (
     match canonical_simple1, canonical_simple2 with
     | Some simple1, Some simple2
       when Join_env.already_joining env simple1 simple2 ->
-      (* CR vlaviron: Fix this to Unknown when Product can handle it *)
-      Known (MTC.unknown kind)
-    | Some _, Some _ | Some _, None | None, Some _ | None, None ->
-      let env =
-        match canonical_simple1, canonical_simple2 with
-        | Some simple1, Some simple2 -> Join_env.now_joining env simple1 simple2
-        | Some _, None | None, Some _ | None, None -> env
+      unknown ()
+    | Some _, Some _ | Some _, None | None, Some _ | None, None -> (
+      let join_heads env : _ Or_unknown.t =
+        (* CR mshinwell: this should presumably check for Unknown (in the same
+           way as the meet case checks for Bottom) *)
+        Known (ET.to_type (join_expanded_head env kind expanded1 expanded2))
       in
-      (* CR mshinwell: this should presumably check for Unknown (in the same way
-         as the meet case checks for Bottom) *)
-      Known (ET.to_type (join_expanded_head env kind expanded1 expanded2)))
+      match canonical_simple1, canonical_simple2 with
+      | Some simple1, Some simple2 -> begin
+        match Join_env.now_joining env simple1 simple2 with
+        | Continue env -> join_heads env
+        | Stop -> unknown ()
+      end
+      | Some _, None | None, Some _ | None, None -> join_heads env))
 
 and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
   match ET.descr expanded1, ET.descr expanded2 with
