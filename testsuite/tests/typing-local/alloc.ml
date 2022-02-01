@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   flags += "-extension local" *)
 
 type t = int
 

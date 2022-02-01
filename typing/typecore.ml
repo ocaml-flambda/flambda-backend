@@ -367,9 +367,11 @@ let register_allocation (expected_mode : expected_mode) =
     (Value_mode.regional_to_global_alloc expected_mode.mode)
 
 let optimise_allocations () =
-  List.iter
-    (fun mode -> ignore (Alloc_mode.constrain_upper mode))
-    !allocations;
+  if Clflags.Extension.is_enabled Local then begin
+    List.iter
+      (fun mode -> ignore (Alloc_mode.constrain_upper mode))
+      !allocations
+  end;
   reset_allocations ()
 
 (* Typing of constants *)

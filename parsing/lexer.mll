@@ -101,6 +101,15 @@ let keyword_table =
     "asr", INFIXOP4("asr")
 ]
 
+let lookup_keyword name =
+  match Hashtbl.find keyword_table name with
+  | LOCAL | NONLOCAL | GLOBAL
+       when not (Clflags.Extension.is_enabled Local) ->
+     LIDENT name
+  | kw -> kw
+  | exception Not_found ->
+     LIDENT name
+
 (* To buffer string literals *)
 
 let string_buffer = Buffer.create 256
@@ -403,8 +412,7 @@ rule token = parse
       { warn_latin1 lexbuf;
         OPTLABEL name }
   | lowercase identchar * as name
-      { try Hashtbl.find keyword_table name
-        with Not_found -> LIDENT name }
+      { lookup_keyword name }
   | lowercase_latin1 identchar_latin1 * as name
       { warn_latin1 lexbuf; LIDENT name }
   | uppercase identchar * as name

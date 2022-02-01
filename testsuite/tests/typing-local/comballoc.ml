@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   flags += "-extension local" *)
 let glob = ref []
 
 let[@inline never] f g n =

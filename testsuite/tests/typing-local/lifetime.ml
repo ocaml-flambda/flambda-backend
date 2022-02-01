@@ -1,4 +1,5 @@
-(* TEST *)
+(* TEST
+   flags += "-extension local" *)
 
 let final = ref false
 let rtrue = ref true

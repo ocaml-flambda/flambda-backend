@@ -1,4 +1,5 @@
 (* TEST
+   flags += "-extension local"
    * bytecode
      reference = "${test_source_directory}/curry.byte.reference"
    * native

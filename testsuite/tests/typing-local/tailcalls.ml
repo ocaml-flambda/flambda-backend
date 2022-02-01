@@ -1,4 +1,5 @@
 (* TEST
+   flags += "-extension local"
    * native *)
 
 open Printexc
