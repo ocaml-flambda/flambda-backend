@@ -1356,7 +1356,7 @@ let default_prim name =
 
 
 let int64_native_prim name arity ~alloc =
-  let u64 = Primitive.Unboxed_integer Primitive.Pint64 in
+  let u64 = Primitive.(Prim_global, Unboxed_integer Pint64) in
   let rec make_args = function 0 -> [] | n -> u64 :: make_args (n - 1) in
   let effects = Primitive.Arbitrary_effects in
   let coeffects = Primitive.Has_coeffects in
@@ -2180,6 +2180,7 @@ let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
+  | Local_assignment, _ -> assert false (* temporary *)
   | Assignment, Pointer -> Caml_modify
   | Heap_initialization, Pointer -> Caml_initialize
   | Assignment, Immediate

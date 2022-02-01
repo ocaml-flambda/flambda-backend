@@ -456,7 +456,7 @@ method select_operation op args _dbg =
         match init with
         | Lambda.Root_initialization -> false
         | Lambda.Heap_initialization -> false
-        | Lambda.Assignment -> true
+        | Lambda.Assignment | Lambda.Local_assignment -> true
       in
       if chunk = Word_int || chunk = Word_val then begin
         let (op, newarg2) = self#select_store is_assign addr arg2 in
