@@ -939,7 +939,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
-  | Lregion _ -> LC.local_unsupported ()
+  | Lregion lam ->
+     (* CR sdolan: Ignoring Lregion is only correct because
+        Flambda2 does not yet generate local allocations *)
+     cps_non_tail acc env ccenv lam k k_exn
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
@@ -1237,7 +1240,10 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
        by completely removing it (replacing by unit). *)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
-  | Lregion _ -> LC.local_unsupported ()
+  | Lregion lam ->
+     (* CR sdolan: Ignoring Lregion is only correct because
+        Flambda2 does not yet generate local allocations *)
+     cps_tail acc env ccenv lam k k_exn
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
@@ -1453,12 +1459,11 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
             (arm, k, None, IR.Const cst :: extra_args) :: consts_rev
           in
           consts_rev, wrappers
-        | Lregion _ -> LC.local_unsupported ()
         | Lvar _ (* mutable *)
         | Lapply _ | Lfunction _ | Llet _ | Lletrec _ | Lprim _ | Lswitch _
         | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
         | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
-        | Levent _ | Lifused _ ->
+        | Levent _ | Lifused _ | Lregion _ ->
           (* The continuations created here (and for failactions) are local and
              their bodies will not modify mutable variables. Hence, it is safe
              to exclude them from passing along the extra arguments for mutable
