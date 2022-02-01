@@ -76,10 +76,9 @@ type add_result = private
 
 (** Add an alias relationship to the tracker. The two simple expressions must be
     different and not both constants. They must both be canonical (as returned
-    by [get_canonical_ignoring_name_mode]), and in addition it is forbidden to
-    pass an argument that may be discovered not to be canonical by loading a
-    cmx. If [add t s1 mode1 s2 mode2] returns [{ t = t'; canonical_element;
-    alias_of_demoted_element }], then according to [t'],
+    by [get_canonical_ignoring_name_mode]). If [add t s1 mode1 s2 mode2] returns
+    [{ t = t'; canonical_element; alias_of_demoted_element }], then according to
+    [t'],
 
     - [canonical_element] is the canonical element of both [s1] and [s2];
 

@@ -202,6 +202,12 @@ module Typing_env : sig
   module Pre_serializable : sig
     type t
 
+    (* This function ensures that all occurrences of aliases in the returned
+       environment are canonical. But some types, like function return types,
+       live outside the typing environment. To ensure that they can be exported
+       safely, they must go through
+       [remove_unused_closure_vars_and_shortcut_aliases] too, with the
+       [canonicalise] argument set to the function returned here. *)
     val create :
       typing_env ->
       used_closure_vars:Var_within_closure.Set.t ->
