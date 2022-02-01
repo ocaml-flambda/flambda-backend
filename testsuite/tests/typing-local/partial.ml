@@ -29,3 +29,9 @@ let test () =
   Printf.printf "\n%!"
 
 let () = test ()
+
+let[@inline never] rec spin ({contents} as r) a b =
+  if b = 0 then contents + a
+  else (Sys.opaque_identity spin) r a (b-1)
+
+let () = Printf.printf "%d\n" (spin (ref 1) 1 1_000_000)
