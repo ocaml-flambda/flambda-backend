@@ -1990,14 +1990,39 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   let arg = Array.make arity (V.create_local "arg") in
   for i = 1 to arity - 1 do arg.(i) <- V.create_local "arg" done;
   let clos = V.create_local "clos" in
+  (* In the slowpath, a region is necessary in case
+     the initial applications do local allocations *)
+  let region =
+    match mode with
+    | Alloc_heap -> Some (V.create_local "region")
+    | Alloc_local -> None
+  in
   let rec app_fun clos n =
-    if n = arity-1 then
-      Cop(Capply(typ_val, Rc_normal),
-          [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
-           Cvar arg.(n);
-           Cvar clos],
-          dbg ())
-    else begin
+    if n = arity-1 then begin
+      let app =
+        Cop(Capply(typ_val, Rc_normal),
+            [get_field_gen Asttypes.Mutable (Cvar clos) 0 (dbg ());
+             Cvar arg.(n);
+             Cvar clos],
+            dbg ())
+      in
+      match region with
+      | None -> app
+      | Some region ->
+         (* To preserve tail-call behaviour, we do a runtime check whether
+            anything has been allocated in [region]. If not, then we can do
+            a direct tail call without waiting to end the region afterwards. *)
+         Cifthenelse(
+           Cop(Ccmpi Ceq, [Cvar region;
+                           Cop (Cbeginregion, [], dbg())], dbg ()),
+           dbg (),
+           app,
+           dbg (),
+           (let res = V.create_local "result" in
+            Clet(VP.create res, app,
+                 Csequence(Cop(Cendregion, [Cvar region], dbg ()), Cvar res))),
+           dbg ())
+    end else begin
       let newclos = V.create_local "clos" in
       Clet(VP.create newclos,
            Cop(Capply(typ_val, Rc_normal),
@@ -2005,10 +2030,17 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
                 Cvar arg.(n); Cvar clos], dbg ()),
            app_fun newclos (n+1))
     end in
+  let code =
+    match region with
+    | None -> app_fun clos 0
+    | Some reg ->
+       Clet(VP.create reg, Cop(Cbeginregion, [], dbg ()),
+            app_fun clos 0)
+  in
   let args = Array.to_list arg in
   let all_args = args @ [clos] in
   (args, clos,
-   if arity = 1 then app_fun clos 0 else
+   if arity = 1 then code else
    Cifthenelse(
    Cop(Ccmpi Ceq, [Cop(Casr,
                        [get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg());
@@ -2020,9 +2052,7 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
        :: List.map (fun s -> Cvar s) all_args,
        dbg ()),
    dbg (),
-   (match mode with
-    | Alloc_heap -> Cregion (app_fun clos 0)
-    | Alloc_local -> app_fun clos 0),
+   code,
    dbg ()))
 
 let send_function (arity, mode) =
