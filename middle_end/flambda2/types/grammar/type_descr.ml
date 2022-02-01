@@ -186,7 +186,8 @@ end = struct
         descr
 
   let remove_unused_closure_vars_and_shortcut_aliases
-      ~remove_unused_closure_vars_and_shortcut_aliases_head (t : _ t) ~used_closure_vars ~canonicalise : _ t =
+      ~remove_unused_closure_vars_and_shortcut_aliases_head (t : _ t)
+      ~used_closure_vars ~canonicalise : _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok descr ->
@@ -194,7 +195,8 @@ end = struct
         Descr.remove_unused_closure_vars_and_shortcut_aliases
           ~remove_unused_closure_vars_and_shortcut_aliases_head:
             (WCFN.remove_unused_closure_vars_and_shortcut_aliases
-               ~remove_unused_closure_vars_and_shortcut_aliases_descr:remove_unused_closure_vars_and_shortcut_aliases_head)
+               ~remove_unused_closure_vars_and_shortcut_aliases_descr:
+                 remove_unused_closure_vars_and_shortcut_aliases_head)
           descr ~used_closure_vars ~canonicalise
       in
       if descr == descr' then t else Ok descr'

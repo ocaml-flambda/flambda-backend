@@ -51,12 +51,12 @@ let apply_renaming ~apply_renaming_descr ~free_names_descr t renaming =
     { descr; free_names }
 
 let remove_unused_closure_vars_and_shortcut_aliases
-    ~remove_unused_closure_vars_and_shortcut_aliases_descr t
-    ~used_closure_vars ~canonicalise =
+    ~remove_unused_closure_vars_and_shortcut_aliases_descr t ~used_closure_vars
+    ~canonicalise =
   let descr =
     remove_unused_closure_vars_and_shortcut_aliases_descr (descr t)
       ~used_closure_vars ~canonicalise
   in
-  if descr == t.descr then t else { descr; free_names = None; }
+  if descr == t.descr then t else { descr; free_names = None }
 
 let print ~print_descr ppf t = print_descr ppf (descr t)

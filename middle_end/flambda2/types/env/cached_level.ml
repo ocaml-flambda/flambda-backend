@@ -151,9 +151,9 @@ let canonicalise t simple =
   Simple.pattern_match simple
     ~const:(fun _ -> simple)
     ~name:(fun name ~coercion ->
-        Simple.apply_coercion_exn
-          (Aliases.get_canonical_ignoring_name_mode t.aliases name)
-          coercion)
+      Simple.apply_coercion_exn
+        (Aliases.get_canonical_ignoring_name_mode t.aliases name)
+        coercion)
 
 let remove_unused_closure_vars_and_shortcut_aliases
     ({ names_to_types; aliases; symbol_projections } as t) ~used_closure_vars =

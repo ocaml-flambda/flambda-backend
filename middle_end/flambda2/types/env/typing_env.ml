@@ -80,8 +80,7 @@ module One_level = struct
     in
     { t with just_after_level }
 
-  let canonicalise t =
-    Cached_level.canonicalise t.just_after_level
+  let canonicalise t = Cached_level.canonicalise t.just_after_level
 end
 
 type t =
