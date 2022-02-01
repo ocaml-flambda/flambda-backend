@@ -183,25 +183,28 @@ module Join_env = struct
   type t =
     { central_env : Meet_env.t;
       left_join_env : typing_env;
-      right_join_env : typing_env
+      right_join_env : typing_env;
+      depth : int
     }
 
   let [@ocamlformat "disable"] print ppf
-      { central_env; left_join_env; right_join_env } =
+      { central_env; left_join_env; right_join_env; depth } =
     let join_env name ppf env =
       Format.fprintf ppf "@ @[<hov 1>(%s@ %a)@]@" name print env
     in
     Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(central_env@ %a)@]\
-        %a%a)@]"
+        %a%a@ (depth %d))@]"
       Meet_env.print central_env
       (join_env "left_join_env") left_join_env
       (join_env "right_join_env") right_join_env
+      depth
 
   let create central_env ~left_env ~right_env =
     { central_env = Meet_env.create central_env;
       left_join_env = left_env;
-      right_join_env = right_env
+      right_join_env = right_env;
+      depth = 0
     }
 
   let target_join_env t = Meet_env.env t.central_env
@@ -210,10 +213,21 @@ module Join_env = struct
 
   let right_join_env t = t.right_join_env
 
+  type now_joining_result =
+    | Continue of t
+    | Stop
+
   (* CR mshinwell: fix naming, it's odd at the moment to be using
      [already_meeting]... *)
   let now_joining t simple1 simple2 =
-    { t with central_env = Meet_env.now_meeting t.central_env simple1 simple2 }
+    if t.depth >= Flambda_features.join_depth ()
+    then Stop
+    else
+      Continue
+        { t with
+          central_env = Meet_env.now_meeting t.central_env simple1 simple2;
+          depth = t.depth + 1
+        }
 
   let already_joining { central_env; _ } simple1 simple2 =
     Meet_env.already_meeting central_env simple1 simple2

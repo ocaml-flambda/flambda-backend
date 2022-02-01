@@ -110,6 +110,13 @@ let mk_flambda2_cse_depth f =
     Flambda2.Default.cse_depth
 ;;
 
+let mk_flambda2_join_depth f =
+  "-flambda2-join-depth", Arg.Int f,
+  Printf.sprintf " Depth threshold for alias expansion in join\n\
+      \     (default %d) (Flambda 2 only)"
+    Flambda2.Default.join_depth
+;;
+
 let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
   "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
   Printf.sprintf " Perform checks on static\n\
@@ -395,6 +402,7 @@ module type Flambda_backend_options = sig
   val flambda2_backend_cse_at_toplevel : unit -> unit
   val no_flambda2_backend_cse_at_toplevel : unit -> unit
   val flambda2_cse_depth : int -> unit
+  val flambda2_join_depth : int -> unit
   val flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
   val no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
   val flambda2_expert_fallback_inlining_heuristic : unit -> unit
@@ -463,6 +471,7 @@ struct
     mk_no_flambda2_backend_cse_at_toplevel
       F.no_flambda2_backend_cse_at_toplevel;
     mk_flambda2_cse_depth F.flambda2_cse_depth;
+    mk_flambda2_join_depth F.flambda2_join_depth;
     mk_flambda2_expert_code_id_and_symbol_scoping_checks
       F.flambda2_expert_code_id_and_symbol_scoping_checks;
     mk_no_flambda2_expert_code_id_and_symbol_scoping_checks
@@ -556,6 +565,7 @@ module Flambda_backend_options_impl = struct
   let no_flambda2_backend_cse_at_toplevel =
     clear Flambda2.backend_cse_at_toplevel
   let flambda2_cse_depth n = Flambda2.cse_depth := n
+  let flambda2_join_depth n = Flambda2.join_depth := n
   let flambda2_expert_code_id_and_symbol_scoping_checks =
     set Flambda2.Expert.code_id_and_symbol_scoping_checks
   let no_flambda2_expert_code_id_and_symbol_scoping_checks =
@@ -715,6 +725,8 @@ module Extra_params = struct
        set Flambda2.backend_cse_at_toplevel
     | "flambda2-cse-depth" ->
        set_int Flambda2.cse_depth
+    | "flambda2-join-depth" ->
+       set_int Flambda2.join_depth
     | "flambda2-expert-inline-effects-in-cmm" ->
        set Flambda2.Expert.inline_effects_in_cmm
     | "flambda2-expert-phantom-lets" ->
