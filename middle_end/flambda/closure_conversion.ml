@@ -617,7 +617,8 @@ and close_functions t external_env function_declarations : Flambda.named =
       match Function_decl.mode decl, Function_decl.kind decl with
       | _, Curried {nlocal} -> List.length params - nlocal
       | Alloc_heap, Tupled -> List.length params
-      | Alloc_local, Tupled -> 0
+      | Alloc_local, Tupled ->
+         Misc.fatal_error "Closure_conversion: Tupled Alloc_local function found"
     in
     let params = List.mapi (fun i v ->
       let alloc_mode : Lambda.alloc_mode =

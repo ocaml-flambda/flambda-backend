@@ -105,9 +105,9 @@ and uconstant ppf = function
 
 and apply_kind ppf : apply_kind -> unit = function
   | Rc_normal, Alloc_heap -> fprintf ppf "apply"
-  | Rc_close_at_apply, Alloc_heap -> fprintf ppf "applytail"
+  | Rc_close_at_apply, Alloc_heap -> fprintf ppf "apply[end_region]"
   | Rc_normal, Alloc_local -> fprintf ppf "apply[L]"
-  | Rc_close_at_apply, Alloc_local -> fprintf ppf "applytail[L]"
+  | Rc_close_at_apply, Alloc_local -> fprintf ppf "apply[end_region][L]"
 
 and lam ppf = function
   | Uvar id ->
@@ -247,7 +247,7 @@ and lam ppf = function
       let form =
         match pos with
         | Rc_normal -> "send"
-        | Rc_close_at_apply -> "sendtail"
+        | Rc_close_at_apply -> "send[end_region]"
       in
       let args ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in

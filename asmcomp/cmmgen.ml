@@ -387,7 +387,7 @@ let rec transl env e =
           match s with
           | None -> Some mode
           | Some m' ->
-             if (mode <> m') then
+             if not (Lambda.eq_mode mode m') then
                Misc.fatal_errorf "Inconsistent modes in let rec at %s"
                  (Debuginfo.to_string dbg);
              s) None fundecls in
@@ -1163,7 +1163,10 @@ and transl_let env str kind id exp body =
        reference) and it contains a type of unboxable numbers, then
        force unboxing.  Indeed, if not boxed, each assignment to the variable
        might require some boxing, but such local references are often
-       used in loops and we really want to avoid repeated boxing. *)
+       used in loops and we really want to avoid repeated boxing.
+
+       We conservatively mark these as Alloc_heap, although with more tracking
+       of allocation mode it may be possible to mark some Alloc_local *)
     match str, kind with
     | Mutable, Pfloatval ->
         Boxed (Boxed_float (Alloc_heap, dbg), false)

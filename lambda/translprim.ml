@@ -707,8 +707,6 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       Lsend(Self, meth, obj, [], pos, Alloc_heap, loc)
   | Send_cache apos, [obj; meth; cache; pos] ->
       Lsend(Cached, meth, obj, [cache; pos], apos, Alloc_heap, loc)
-  | Primitive (prim, arity), args when arity = List.length args ->
-      Lprim(prim, args, loc)
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _), _ ->

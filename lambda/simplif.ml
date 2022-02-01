@@ -556,7 +556,8 @@ let simplify_lets lam =
       Hashtbl.add subst v (simplif (Lvar w));
       simplif l2
   | Llet(Strict, kind, v,
-         Lprim(Pmakeblock(0, Mutable, kind_ref, _mode) as prim, [linit], loc), lbody)
+         Lprim(Pmakeblock(0, Mutable, kind_ref, _mode) as prim, [linit], loc),
+         lbody)
     when optimize ->
       let slinit = simplif linit in
       let slbody = simplif lbody in
