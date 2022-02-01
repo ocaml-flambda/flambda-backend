@@ -66,7 +66,7 @@ let run_dead_block : Cfg_with_layout.t -> unit =
               <- Label.Set.remove label succ_block.predecessors)
           (Cfg.successor_labels ~normal:true ~exn:true block);
         block.terminator <- { block.terminator with desc = Cfg_intf.S.Never };
-        block.exns <- Label.Set.empty)
+        block.exn <- None)
       unreachable_labels;
     Label.Set.iter
       (fun label -> Cfg_with_layout.remove_block cfg_with_layout label)

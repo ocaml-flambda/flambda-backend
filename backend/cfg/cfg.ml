@@ -35,7 +35,7 @@ type basic_block =
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
     mutable trap_depth : int;
-    mutable exns : Label.Set.t;
+    mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
     mutable dead : bool
@@ -85,9 +85,15 @@ let successor_labels ~normal ~exn block =
   match normal, exn with
   | false, false -> Label.Set.empty
   | true, false -> successor_labels_normal block.terminator
-  | false, true -> block.exns
-  | true, true ->
-    Label.Set.union block.exns (successor_labels_normal block.terminator)
+  | false, true -> (
+    match block.exn with
+    | None -> Label.Set.empty
+    | Some label -> Label.Set.singleton label)
+  | true, true -> (
+    match block.exn with
+    | None -> successor_labels_normal block.terminator
+    | Some label ->
+      Label.Set.add label (successor_labels_normal block.terminator))
 
 let predecessor_labels block = Label.Set.elements block.predecessors
 
@@ -102,7 +108,7 @@ let replace_successor_labels t ~normal ~exn block ~f =
         dst;
     dst
   in
-  if exn then block.exns <- Label.Set.map f block.exns;
+  if exn then block.exn <- Option.map f block.exn;
   if normal
   then
     let desc =
