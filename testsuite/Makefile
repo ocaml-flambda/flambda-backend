@@ -238,7 +238,7 @@ one: lib tools
 	@$(MAKE) check-failstamp
 	@if [ -n '$(LIST)' ] ; then \
      while IFS='' read -r LINE; do \
-       $(MAKE) --no-print-directory exec-one DIR=$$LINE ; \
+       $(MAKE) --no-print-directory exec-one DIR="`echo $$LINE | sed 's/^ *//g'`" ; \
      done < $$LIST 2>&1 | tee $(TESTLOG) ; \
      $(MAKE) report ; fi
 
