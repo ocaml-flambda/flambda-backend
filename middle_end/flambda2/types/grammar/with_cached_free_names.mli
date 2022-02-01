@@ -19,7 +19,7 @@
 (** Management of cached free names. *)
 
 type 'descr t =
-  { mutable descr : 'descr;
+  { descr : 'descr;
     mutable free_names : Name_occurrences.t option
   }
 
