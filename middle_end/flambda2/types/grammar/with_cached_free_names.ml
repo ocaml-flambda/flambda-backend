@@ -17,40 +17,16 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 type 'descr t =
-  { mutable descr : 'descr;
-    mutable delayed_permutation : Renaming.t;
+  { descr : 'descr;
     mutable free_names : Name_occurrences.t option
   }
 
-let create descr =
-  { descr; delayed_permutation = Renaming.empty; free_names = None }
+let create descr = { descr; free_names = None }
 
-let peek_descr t = t.descr
+let[@inline always] descr t = t.descr
 
-let[@inline always] descr ~apply_renaming_descr ~free_names_descr t =
-  if Renaming.is_empty t.delayed_permutation
-  then t.descr
-  else
-    let descr = apply_renaming_descr t.descr t.delayed_permutation in
-    t.descr <- descr;
-    let free_names =
-      match t.free_names with
-      | None -> free_names_descr descr
-      | Some free_names ->
-        Name_occurrences.apply_renaming free_names t.delayed_permutation
-    in
-    t.delayed_permutation <- Renaming.empty;
-    t.free_names <- Some free_names;
-    descr
-
-let apply_renaming t perm =
-  let delayed_permutation =
-    Renaming.compose ~second:perm ~first:t.delayed_permutation
-  in
-  { t with delayed_permutation }
-
-let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
-  let descr = descr ~apply_renaming_descr ~free_names_descr t in
+let[@inline always] free_names ~free_names_descr t =
+  let descr = descr t in
   match t.free_names with
   | Some free_names -> free_names
   | None ->
@@ -58,7 +34,23 @@ let[@inline always] free_names ~apply_renaming_descr ~free_names_descr t =
     t.free_names <- Some free_names;
     free_names
 
-let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
+let apply_renaming ~apply_renaming_descr ~free_names_descr t renaming =
+  let free_names = free_names ~free_names_descr t in
+  if (not (Renaming.has_import_map renaming))
+     && not (Name_occurrences.affected_by_renaming free_names renaming)
+  then t
+  else
+    let descr = apply_renaming_descr t.descr renaming in
+    let free_names =
+      (* CR lmaurer: Make extra-sure that [Name_occurrences.apply_renaming]
+         returns a [phys_equal] result if no change, then consider moving this
+         call in place of [affected_by_renaming] above to avoid traversing
+         twice. *)
+      Some (Name_occurrences.apply_renaming free_names renaming)
+    in
+    { descr; free_names }
+
+let remove_unused_closure_vars ~free_names_descr
     ~remove_unused_closure_vars_descr t ~used_closure_vars =
   let descr_known_to_contain_no_unused_closure_vars =
     (* If the free names are already computed (modulo application of a
@@ -66,7 +58,7 @@ let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
        the [descr]. *)
     if Option.is_some t.free_names
     then
-      let free_names = free_names t ~apply_renaming_descr ~free_names_descr in
+      let free_names = free_names t ~free_names_descr in
       let closure_vars = Name_occurrences.closure_vars free_names in
       let unused_closure_vars =
         Var_within_closure.Set.diff closure_vars used_closure_vars
@@ -77,15 +69,7 @@ let remove_unused_closure_vars ~apply_renaming_descr ~free_names_descr
   if descr_known_to_contain_no_unused_closure_vars
   then t
   else
-    let descr =
-      remove_unused_closure_vars_descr
-        (descr ~apply_renaming_descr ~free_names_descr t)
-        ~used_closure_vars
-    in
-    t.descr <- descr;
-    assert (Renaming.is_empty t.delayed_permutation);
-    t.free_names <- None;
-    t
+    let descr = remove_unused_closure_vars_descr (descr t) ~used_closure_vars in
+    { descr; free_names = None }
 
-let print ~print_descr ~apply_renaming_descr ~free_names_descr ppf t =
-  print_descr ppf (descr ~apply_renaming_descr ~free_names_descr t)
+let print ~print_descr ppf t = print_descr ppf (descr t)

@@ -37,6 +37,9 @@ val equal : t -> t -> bool
 
 val apply_renaming : t -> Renaming.t -> t
 
+(** True if and only if [not (equal (apply_renaming t perm) t)] *)
+val affected_by_renaming : t -> Renaming.t -> bool
+
 val singleton_continuation : Continuation.t -> t
 
 val singleton_continuation_in_trap_action : Continuation.t -> t

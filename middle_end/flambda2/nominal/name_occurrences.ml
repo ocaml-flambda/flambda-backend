@@ -42,6 +42,8 @@ end) : sig
 
   val apply_renaming : t -> Renaming.t -> t
 
+  val affected_by_renaming : t -> Renaming.t -> bool
+
   val diff : t -> t -> t
 
   val union : t -> t -> t
@@ -334,6 +336,15 @@ end = struct
           map N.Map.empty
       in
       Potentially_many map
+
+  let affected_by_renaming t perm =
+    match t with
+    | Empty -> false
+    | One (name, _kind) -> not (N.equal name (N.apply_renaming name perm))
+    | Potentially_many map ->
+      N.Map.exists
+        (fun name _kind -> not (N.equal name (N.apply_renaming name perm)))
+        map
 
   let diff t1 t2 =
     match t1, t2 with
@@ -1223,6 +1234,23 @@ let apply_renaming
       code_ids;
       newer_version_of_code_ids
     }
+
+let affected_by_renaming
+    { names;
+      continuations;
+      continuations_with_traps = _;
+      continuations_in_trap_actions;
+      closure_ids = _;
+      closure_vars = _;
+      code_ids;
+      newer_version_of_code_ids
+    } renaming =
+  For_names.affected_by_renaming names renaming
+  || For_continuations.affected_by_renaming continuations renaming
+  || For_continuations.affected_by_renaming continuations_in_trap_actions
+       renaming
+  || For_code_ids.affected_by_renaming code_ids renaming
+  || For_code_ids.affected_by_renaming newer_version_of_code_ids renaming
 
 let restrict_to_closure_vars
     { names = _;

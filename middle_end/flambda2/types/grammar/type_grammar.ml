@@ -147,34 +147,61 @@ type flambda_type = t
 let row_like_is_bottom ~known ~(other : _ Or_bottom.t) ~is_empty_map_known =
   is_empty_map_known known && match other with Bottom -> true | Ok _ -> false
 
-let apply_renaming t renaming =
+let rec apply_renaming t renaming =
   if Renaming.is_empty renaming
   then t
   else
     match t with
     | Value ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming ~apply_renaming_head:apply_renaming_head_of_kind_value
+          ~free_names_head:free_names_head_of_kind_value ty renaming
+      in
       if ty == ty' then t else Value ty'
     | Naked_immediate ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
+          ~free_names_head:free_names_head_of_kind_naked_immediate ty renaming
+      in
       if ty == ty' then t else Naked_immediate ty'
     | Naked_float ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
+          ~free_names_head:free_names_head_of_kind_naked_float ty renaming
+      in
       if ty == ty' then t else Naked_float ty'
     | Naked_int32 ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
+          ~free_names_head:free_names_head_of_kind_naked_int32 ty renaming
+      in
       if ty == ty' then t else Naked_int32 ty'
     | Naked_int64 ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
+          ~free_names_head:free_names_head_of_kind_naked_int64 ty renaming
+      in
       if ty == ty' then t else Naked_int64 ty'
     | Naked_nativeint ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
+          ~free_names_head:free_names_head_of_kind_naked_nativeint ty renaming
+      in
       if ty == ty' then t else Naked_nativeint ty'
     | Rec_info ty ->
-      let ty' = TD.apply_renaming ty renaming in
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
+          ~free_names_head:free_names_head_of_kind_rec_info ty renaming
+      in
       if ty == ty' then t else Rec_info ty'
 
-let rec apply_renaming_head_of_kind_value head renaming =
+and apply_renaming_head_of_kind_value head renaming =
   match head with
   | Variant { blocks; immediates; is_unique } ->
     let immediates' =
@@ -361,31 +388,21 @@ and apply_renaming_env_extension ({ equations } as env_extension) renaming =
   in
   if !changed then { equations = equations' } else env_extension
 
-let rec free_names t =
+and free_names t =
   match t with
-  | Value ty ->
-    TD.free_names ~apply_renaming_head:apply_renaming_head_of_kind_value
-      ~free_names_head:free_names_head_of_kind_value ty
+  | Value ty -> TD.free_names ~free_names_head:free_names_head_of_kind_value ty
   | Naked_immediate ty ->
-    TD.free_names
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
-      ~free_names_head:free_names_head_of_kind_naked_immediate ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_naked_immediate ty
   | Naked_float ty ->
-    TD.free_names ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
-      ~free_names_head:free_names_head_of_kind_naked_float ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_naked_float ty
   | Naked_int32 ty ->
-    TD.free_names ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
-      ~free_names_head:free_names_head_of_kind_naked_int32 ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_naked_int32 ty
   | Naked_int64 ty ->
-    TD.free_names ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
-      ~free_names_head:free_names_head_of_kind_naked_int64 ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_naked_int64 ty
   | Naked_nativeint ty ->
-    TD.free_names
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
-      ~free_names_head:free_names_head_of_kind_naked_nativeint ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_naked_nativeint ty
   | Rec_info ty ->
-    TD.free_names ~apply_renaming_head:Rec_info_expr.apply_renaming
-      ~free_names_head:free_names_head_of_kind_rec_info ty
+    TD.free_names ~free_names_head:free_names_head_of_kind_rec_info ty
 
 and free_names_head_of_kind_value head =
   match head with
@@ -512,45 +529,34 @@ and free_names_env_extension { equations } =
     equations Name_occurrences.empty
 
 let rec print ppf t =
-  let no_renaming thing _ = thing in
-  let no_free_names _ = Name_occurrences.empty in
   match t with
   | Value ty ->
     Format.fprintf ppf "@[<hov 1>(Val@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_value
-         ~apply_renaming_head:apply_renaming_head_of_kind_value
-         ~free_names_head:free_names_head_of_kind_value)
+      (TD.print ~print_head:print_head_of_kind_value)
       ty
   | Naked_immediate ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_immediate@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_naked_immediate
-         ~apply_renaming_head:no_renaming ~free_names_head:no_free_names)
+      (TD.print ~print_head:print_head_of_kind_naked_immediate)
       ty
   | Naked_float ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_float@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_naked_float
-         ~apply_renaming_head:no_renaming ~free_names_head:no_free_names)
+      (TD.print ~print_head:print_head_of_kind_naked_float)
       ty
   | Naked_int32 ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_int32@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_naked_int32
-         ~apply_renaming_head:no_renaming ~free_names_head:no_free_names)
+      (TD.print ~print_head:print_head_of_kind_naked_int32)
       ty
   | Naked_int64 ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_int64@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_naked_int64
-         ~apply_renaming_head:no_renaming ~free_names_head:no_free_names)
+      (TD.print ~print_head:print_head_of_kind_naked_int64)
       ty
   | Naked_nativeint ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_nativeint@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_naked_nativeint
-         ~apply_renaming_head:no_renaming ~free_names_head:no_free_names)
+      (TD.print ~print_head:print_head_of_kind_naked_nativeint)
       ty
   | Rec_info ty ->
     Format.fprintf ppf "@[<hov 1>(Rec_info@ %a)@]"
-      (TD.print ~print_head:print_head_of_kind_rec_info
-         ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
-         ~free_names_head:free_names_head_of_kind_rec_info)
+      (TD.print ~print_head:print_head_of_kind_rec_info)
       ty
 
 and print_head_of_kind_value ppf head =
@@ -706,40 +712,27 @@ and print_env_extension ppf { equations } =
 let rec all_ids_for_export t =
   match t with
   | Value ty ->
-    TD.all_ids_for_export ~apply_renaming_head:apply_renaming_head_of_kind_value
-      ~free_names_head:free_names_head_of_kind_value
+    TD.all_ids_for_export
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_value ty
   | Naked_immediate ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
-      ~free_names_head:free_names_head_of_kind_naked_immediate
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_immediate
       ty
   | Naked_float ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
-      ~free_names_head:free_names_head_of_kind_naked_float
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_float ty
   | Naked_int32 ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
-      ~free_names_head:free_names_head_of_kind_naked_int32
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int32 ty
   | Naked_int64 ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
-      ~free_names_head:free_names_head_of_kind_naked_int64
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_int64 ty
   | Naked_nativeint ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
-      ~free_names_head:free_names_head_of_kind_naked_nativeint
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_naked_nativeint
       ty
   | Rec_info ty ->
     TD.all_ids_for_export
-      ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
-      ~free_names_head:free_names_head_of_kind_rec_info
       ~all_ids_for_export_head:all_ids_for_export_head_of_kind_rec_info ty
 
 and all_ids_for_export_head_of_kind_value head =
@@ -884,56 +877,48 @@ let rec apply_coercion t coercion : t Or_bottom.t =
     | Value ty ->
       let<+ ty' =
         TD.apply_coercion ~apply_coercion_head:apply_coercion_head_of_kind_value
-          ~apply_renaming_head:apply_renaming_head_of_kind_value
-          ~free_names_head:free_names_head_of_kind_value coercion ty
+          coercion ty
       in
       if ty == ty' then t else Value ty'
     | Naked_immediate ty ->
       let<+ ty' =
         TD.apply_coercion
           ~apply_coercion_head:apply_coercion_head_of_kind_naked_immediate
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
-          ~free_names_head:free_names_head_of_kind_naked_immediate coercion ty
+          coercion ty
       in
       if ty == ty' then t else Naked_immediate ty'
     | Naked_float ty ->
       let<+ ty' =
         TD.apply_coercion
-          ~apply_coercion_head:apply_coercion_head_of_kind_naked_float
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
-          ~free_names_head:free_names_head_of_kind_naked_float coercion ty
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_float coercion
+          ty
       in
       if ty == ty' then t else Naked_float ty'
     | Naked_int32 ty ->
       let<+ ty' =
         TD.apply_coercion
-          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int32
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
-          ~free_names_head:free_names_head_of_kind_naked_int32 coercion ty
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int32 coercion
+          ty
       in
       if ty == ty' then t else Naked_int32 ty'
     | Naked_int64 ty ->
       let<+ ty' =
         TD.apply_coercion
-          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int64
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
-          ~free_names_head:free_names_head_of_kind_naked_int64 coercion ty
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int64 coercion
+          ty
       in
       if ty == ty' then t else Naked_int64 ty'
     | Naked_nativeint ty ->
       let<+ ty' =
         TD.apply_coercion
           ~apply_coercion_head:apply_coercion_head_of_kind_naked_nativeint
-          ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
-          ~free_names_head:free_names_head_of_kind_naked_nativeint coercion ty
+          coercion ty
       in
       if ty == ty' then t else Naked_nativeint ty'
     | Rec_info ty ->
       let<+ ty' =
         TD.apply_coercion
-          ~apply_coercion_head:apply_coercion_head_of_kind_rec_info
-          ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
-          ~free_names_head:free_names_head_of_kind_rec_info coercion ty
+          ~apply_coercion_head:apply_coercion_head_of_kind_rec_info coercion ty
       in
       if ty == ty' then t else Rec_info ty'
 
@@ -1178,7 +1163,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_value
-        ~apply_renaming_head:apply_renaming_head_of_kind_value
         ~free_names_head:free_names_head_of_kind_value
     in
     if ty == ty' then t else Value ty'
@@ -1187,7 +1171,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_naked_immediate
-        ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
         ~free_names_head:free_names_head_of_kind_naked_immediate
     in
     if ty == ty' then t else Naked_immediate ty'
@@ -1196,7 +1179,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_naked_float
-        ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
         ~free_names_head:free_names_head_of_kind_naked_float
     in
     if ty == ty' then t else Naked_float ty'
@@ -1205,7 +1187,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_naked_int32
-        ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
         ~free_names_head:free_names_head_of_kind_naked_int32
     in
     if ty == ty' then t else Naked_int32 ty'
@@ -1214,7 +1195,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_naked_int64
-        ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
         ~free_names_head:free_names_head_of_kind_naked_int64
     in
     if ty == ty' then t else Naked_int64 ty'
@@ -1223,7 +1203,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_naked_nativeint
-        ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
         ~free_names_head:free_names_head_of_kind_naked_nativeint
     in
     if ty == ty' then t else Naked_nativeint ty'
@@ -1232,7 +1211,6 @@ let rec remove_unused_closure_vars t ~used_closure_vars =
       TD.remove_unused_closure_vars ty ~used_closure_vars
         ~remove_unused_closure_vars_head:
           remove_unused_closure_vars_head_of_kind_rec_info
-        ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
         ~free_names_head:free_names_head_of_kind_rec_info
     in
     if ty == ty' then t else Rec_info ty'
@@ -1921,33 +1899,13 @@ let kind t =
 
 let get_alias_exn t =
   match t with
-  | Value ty ->
-    TD.get_alias_exn ty ~apply_renaming_head:apply_renaming_head_of_kind_value
-      ~free_names_head:free_names_head_of_kind_value
-  | Naked_immediate ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
-      ~free_names_head:free_names_head_of_kind_naked_immediate
-  | Naked_float ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
-      ~free_names_head:free_names_head_of_kind_naked_float
-  | Naked_int32 ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
-      ~free_names_head:free_names_head_of_kind_naked_int32
-  | Naked_int64 ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
-      ~free_names_head:free_names_head_of_kind_naked_int64
-  | Naked_nativeint ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
-      ~free_names_head:free_names_head_of_kind_naked_nativeint
-  | Rec_info ty ->
-    TD.get_alias_exn ty
-      ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
-      ~free_names_head:free_names_head_of_kind_rec_info
+  | Value ty -> TD.get_alias_exn ty
+  | Naked_immediate ty -> TD.get_alias_exn ty
+  | Naked_float ty -> TD.get_alias_exn ty
+  | Naked_int32 ty -> TD.get_alias_exn ty
+  | Naked_int64 ty -> TD.get_alias_exn ty
+  | Naked_nativeint ty -> TD.get_alias_exn ty
+  | Rec_info ty -> TD.get_alias_exn ty
 
 let is_obviously_bottom t =
   match t with
@@ -2171,34 +2129,13 @@ end
 
 let descr t : Descr.t =
   match t with
-  | Value ty ->
-    Value
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_value
-         ~free_names_head:free_names_head_of_kind_value ty)
-  | Naked_immediate ty ->
-    Naked_immediate
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_naked_immediate
-         ~free_names_head:free_names_head_of_kind_naked_immediate ty)
-  | Naked_float ty ->
-    Naked_float
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_naked_float
-         ~free_names_head:free_names_head_of_kind_naked_float ty)
-  | Naked_int32 ty ->
-    Naked_int32
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_naked_int32
-         ~free_names_head:free_names_head_of_kind_naked_int32 ty)
-  | Naked_int64 ty ->
-    Naked_int64
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_naked_int64
-         ~free_names_head:free_names_head_of_kind_naked_int64 ty)
-  | Naked_nativeint ty ->
-    Naked_nativeint
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_naked_nativeint
-         ~free_names_head:free_names_head_of_kind_naked_nativeint ty)
-  | Rec_info ty ->
-    Rec_info
-      (TD.descr ~apply_renaming_head:apply_renaming_head_of_kind_rec_info
-         ~free_names_head:free_names_head_of_kind_rec_info ty)
+  | Value ty -> Value (TD.descr ty)
+  | Naked_immediate ty -> Naked_immediate (TD.descr ty)
+  | Naked_float ty -> Naked_float (TD.descr ty)
+  | Naked_int32 ty -> Naked_int32 (TD.descr ty)
+  | Naked_int64 ty -> Naked_int64 (TD.descr ty)
+  | Naked_nativeint ty -> Naked_nativeint (TD.descr ty)
+  | Rec_info ty -> Rec_info (TD.descr ty)
 
 let create_from_head_value head = Value (TD.create head)
 
