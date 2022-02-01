@@ -207,6 +207,7 @@ let destroyed_at_oper = function
   | Iop(Iintop Imulh) -> [| eax |]
   | Iop(Iintop(Icomp _) | Iintop_imm(Icomp _, _)) -> [| eax |]
   | Iop(Iintoffloat) -> [| eax |]
+  | Iop(Ibeginregion|Iendregion) -> [| eax; ebx |]
   | Iifthenelse(Ifloattest _, _, _) -> [| eax |]
   | Itrywith _ -> [| edx |]
   | _ -> [||]
@@ -232,9 +233,10 @@ let max_register_pressure = function
 let op_is_pure = function
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) -> false
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
   | Ispecific(Ilea _) -> true
   | Ispecific _ -> false
+  | Ibeginregion | Iendregion -> false
   | _ -> true
 
 (* Layout of the stack frame *)

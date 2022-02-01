@@ -260,13 +260,17 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { arg_label; param; cases; partial; } ->
+    | Texp_function { arg_label; param; cases; partial; region; } ->
         let cases = List.map (sub.case sub) cases in
-        Texp_function { arg_label; param; cases; partial; }
-    | Texp_apply (exp, list) ->
+        Texp_function { arg_label; param; cases; partial; region; }
+    | Texp_apply (exp, list, pos) ->
         Texp_apply (
           sub.expr sub exp,
-          List.map (tuple2 id (Option.map (sub.expr sub))) list
+          List.map (function
+            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
+            | (lbl, Omitted o) -> (lbl, Omitted o))
+            list,
+          pos
         )
     | Texp_match (exp, cases, p) ->
         Texp_match (
@@ -342,12 +346,13 @@ let expr sub x =
           dir,
           sub.expr sub exp3
         )
-    | Texp_send (exp, meth, expo) ->
+    | Texp_send (exp, meth, expo, pos) ->
         Texp_send
           (
             sub.expr sub exp,
             meth,
-            Option.map (sub.expr sub) expo
+            Option.map (sub.expr sub) expo,
+            pos
           )
     | Texp_new _
     | Texp_instvar _ as d -> d
@@ -569,7 +574,10 @@ let class_expr sub x =
     | Tcl_apply (cl, args) ->
         Tcl_apply (
           sub.class_expr sub cl,
-          List.map (tuple2 id (Option.map (sub.expr sub))) args
+          List.map (function
+            | (lbl, Arg exp) -> (lbl, Arg (sub.expr sub exp))
+            | (lbl, Omitted o) -> (lbl, Omitted o))
+            args
         )
     | Tcl_let (rec_flag, value_bindings, ivars, cl) ->
         let (rec_flag, value_bindings) =

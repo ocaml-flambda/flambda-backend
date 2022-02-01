@@ -121,7 +121,7 @@ exception Undefined_recursive_module of (string * int * int)
 
 (** {1 Comparisons} *)
 
-external ( = ) : 'a -> 'a -> bool = "%equal"
+external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
 (** [e1 = e2] tests for structural equality of [e1] and [e2].
    Mutable structures (e.g. references and arrays) are equal
    if and only if their current contents are structurally equal,
@@ -130,27 +130,27 @@ external ( = ) : 'a -> 'a -> bool = "%equal"
    Equality between cyclic data structures may not terminate.
    Left-associative operator, see {!Ocaml_operators} for more information. *)
 
-external ( <> ) : 'a -> 'a -> bool = "%notequal"
+external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%notequal"
 (** Negation of {!Stdlib.( = )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( < ) : 'a -> 'a -> bool = "%lessthan"
+external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( > ) : 'a -> 'a -> bool = "%greaterthan"
+external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( <= ) : 'a -> 'a -> bool = "%lessequal"
+external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessequal"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( >= ) : 'a -> 'a -> bool = "%greaterequal"
+external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
 (** Structural ordering functions. These functions coincide with
    the usual orderings over integers, characters, strings, byte sequences
    and floating-point numbers, and extend them to a
@@ -162,7 +162,7 @@ external ( >= ) : 'a -> 'a -> bool = "%greaterequal"
    Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external compare : 'a -> 'a -> int = "%compare"
+external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
 (** [compare x y] returns [0] if [x] is equal to [y],
    a negative integer if [x] is less than [y], and a positive integer
    if [x] is greater than [y].  The ordering implemented by [compare]
@@ -191,7 +191,7 @@ val max : 'a -> 'a -> 'a
     The result is unspecified if one of the arguments contains
     the float value [nan]. *)
 
-external ( == ) : 'a -> 'a -> bool = "%eq"
+external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
 (** [e1 == e2] tests for physical equality of [e1] and [e2].
    On mutable types such as references, arrays, byte sequences, records with
    mutable fields and objects with mutable instance variables,
@@ -203,7 +203,7 @@ external ( == ) : 'a -> 'a -> bool = "%eq"
    Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( != ) : 'a -> 'a -> bool = "%noteq"
+external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 (** Negation of {!Stdlib.( == )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
@@ -211,30 +211,30 @@ external ( != ) : 'a -> 'a -> bool = "%noteq"
 
 (** {1 Boolean operations} *)
 
-external not : bool -> bool = "%boolnot"
+external not : (bool[@local_opt]) -> bool = "%boolnot"
 (** The boolean negation. *)
 
-external ( && ) : bool -> bool -> bool = "%sequand"
+external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
 (** The boolean 'and'. Evaluation is sequential, left-to-right:
    in [e1 && e2], [e1] is evaluated first, and if it returns [false],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( & ) : bool -> bool -> bool = "%sequand"
+external ( & ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
   [@@ocaml.deprecated "Use (&&) instead."]
 (** @deprecated {!Stdlib.( && )} should be used instead.
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( || ) : bool -> bool -> bool = "%sequor"
+external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
 (** The boolean 'or'. Evaluation is sequential, left-to-right:
    in [e1 || e2], [e1] is evaluated first, and if it returns [true],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( or ) : bool -> bool -> bool = "%sequor"
+external ( or ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
   [@@ocaml.deprecated "Use (||) instead."]
 (** @deprecated {!Stdlib.( || )} should be used instead.
     Right-associative operator, see {!Ocaml_operators} for more information.
@@ -329,40 +329,40 @@ external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
     All operations are taken modulo 2{^[Sys.int_size]}.
     They do not fail on overflow. *)
 
-external ( ~- ) : int -> int = "%negint"
+external ( ~- ) : (int[@local_opt]) -> int = "%negint"
 (** Unary negation. You can also write [- e] instead of [~- e].
     Unary operator, see {!Ocaml_operators} for more information.
 *)
 
 
-external ( ~+ ) : int -> int = "%identity"
+external ( ~+ ) : (int[@local_opt]) -> int = "%identity"
 (** Unary addition. You can also write [+ e] instead of [~+ e].
     Unary operator, see {!Ocaml_operators} for more information.
     @since 3.12.0
 *)
 
-external succ : int -> int = "%succint"
+external succ : (int[@local_opt]) -> int = "%succint"
 (** [succ x] is [x + 1]. *)
 
-external pred : int -> int = "%predint"
+external pred : (int[@local_opt]) -> int = "%predint"
 (** [pred x] is [x - 1]. *)
 
-external ( + ) : int -> int -> int = "%addint"
+external ( + ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%addint"
 (** Integer addition.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( - ) : int -> int -> int = "%subint"
+external ( - ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%subint"
 (** Integer subtraction.
     Left-associative operator, , see {!Ocaml_operators} for more information.
 *)
 
-external ( * ) : int -> int -> int = "%mulint"
+external ( * ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%mulint"
 (** Integer multiplication.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( / ) : int -> int -> int = "%divint"
+external ( / ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%divint"
 (** Integer division.
    Integer division rounds the real quotient of its arguments towards zero.
    More precisely, if [x >= 0] and [y > 0], [x / y] is the greatest integer
@@ -373,7 +373,7 @@ external ( / ) : int -> int -> int = "%divint"
    @raise Division_by_zero if the second argument is 0.
 *)
 
-external ( mod ) : int -> int -> int = "%modint"
+external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
 (** Integer remainder.  If [y] is not zero, the result
    of [x mod y] satisfies the following properties:
    [x = (x / y) * y + x mod y] and
@@ -398,17 +398,17 @@ val min_int : int
 
 (** {2 Bitwise operations} *)
 
-external ( land ) : int -> int -> int = "%andint"
+external ( land ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%andint"
 (** Bitwise logical and.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lor ) : int -> int -> int = "%orint"
+external ( lor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%orint"
 (** Bitwise logical or.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lxor ) : int -> int -> int = "%xorint"
+external ( lxor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%xorint"
 (** Bitwise logical exclusive or.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
@@ -416,13 +416,13 @@ external ( lxor ) : int -> int -> int = "%xorint"
 val lnot : int -> int
 (** Bitwise logical negation. *)
 
-external ( lsl ) : int -> int -> int = "%lslint"
+external ( lsl ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lslint"
 (** [n lsl m] shifts [n] to the left by [m] bits.
     The result is unspecified if [m < 0] or [m > Sys.int_size].
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lsr ) : int -> int -> int = "%lsrint"
+external ( lsr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
 (** [n lsr m] shifts [n] to the right by [m] bits.
     This is a logical shift: zeroes are inserted regardless of
     the sign of [n].
@@ -430,7 +430,7 @@ external ( lsr ) : int -> int -> int = "%lsrint"
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( asr ) : int -> int -> int = "%asrint"
+external ( asr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
 (** [n asr m] shifts [n] to the right by [m] bits.
     This is an arithmetic shift: the sign bit of [n] is replicated.
     The result is unspecified if [m < 0] or [m > Sys.int_size].
@@ -451,33 +451,33 @@ external ( asr ) : int -> int -> int = "%asrint"
     ([+.], [-.], [*.], [/.]) with [nan] as an argument return [nan], ...
 *)
 
-external ( ~-. ) : float -> float = "%negfloat"
+external ( ~-. ) : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
 (** Unary negation. You can also write [-. e] instead of [~-. e].
     Unary operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( ~+. ) : float -> float = "%identity"
+external ( ~+. ) : (float[@local_opt]) -> (float[@local_opt]) = "%identity"
 (** Unary addition. You can also write [+. e] instead of [~+. e].
     Unary operator, see {!Ocaml_operators} for more information.
     @since 3.12.0
 *)
 
-external ( +. ) : float -> float -> float = "%addfloat"
+external ( +. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
 (** Floating-point addition.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( -. ) : float -> float -> float = "%subfloat"
+external ( -. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%subfloat"
 (** Floating-point subtraction.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( *. ) : float -> float -> float = "%mulfloat"
+external ( *. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%mulfloat"
 (** Floating-point multiplication.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( /. ) : float -> float -> float = "%divfloat"
+external ( /. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%divfloat"
 (** Floating-point division.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
@@ -580,7 +580,7 @@ external floor : float -> float = "caml_floor_float" "floor"
     equal to [f].
     The result is returned as a float. *)
 
-external abs_float : float -> float = "%absfloat"
+external abs_float : (float[@local_opt]) -> (float[@local_opt]) = "%absfloat"
 (** [abs_float f] returns the absolute value of [f]. *)
 
 external copysign : float -> float -> float
@@ -614,16 +614,16 @@ external modf : float -> float * float = "caml_modf_float"
 (** [modf f] returns the pair of the fractional and integral
    part of [f]. *)
 
-external float : int -> float = "%floatofint"
+external float : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
 (** Same as {!Stdlib.float_of_int}. *)
 
-external float_of_int : int -> float = "%floatofint"
+external float_of_int : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
 (** Convert an integer to floating-point. *)
 
-external truncate : float -> int = "%intoffloat"
+external truncate : (float[@local_opt]) -> int = "%intoffloat"
 (** Same as {!Stdlib.int_of_float}. *)
 
-external int_of_float : float -> int = "%intoffloat"
+external int_of_float : (float[@local_opt]) -> int = "%intoffloat"
 (** Truncate the given floating-point number to an integer.
    The result is unspecified if the argument is [nan] or falls outside the
    range of representable integers. *)
@@ -781,10 +781,10 @@ external float_of_string : string -> float = "caml_float_of_string"
 
 (** {1 Pair operations} *)
 
-external fst : 'a * 'b -> 'a = "%field0_immut"
+external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) = "%field0_immut"
 (** Return the first component of a pair. *)
 
-external snd : 'a * 'b -> 'b = "%field1_immut"
+external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
 (** Return the second component of a pair. *)
 
 
@@ -1182,26 +1182,26 @@ type 'a ref = { mutable contents : 'a }
 (** The type of references (mutable indirection cells) containing
    a value of type ['a]. *)
 
-external ref : 'a -> 'a ref = "%makemutable"
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
 (** Return a fresh reference containing the given value. *)
 
-external ( ! ) : 'a ref -> 'a = "%field0"
+external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
 (** [!r] returns the current contents of reference [r].
    Equivalent to [fun r -> r.contents].
    Unary operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( := ) : 'a ref -> 'a -> unit = "%setfield0"
+external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
 (** [r := a] stores the value of [a] in reference [r].
    Equivalent to [fun r v -> r.contents <- v].
    Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external incr : int ref -> unit = "%incr"
+external incr : (int ref[@local_opt]) -> unit = "%incr"
 (** Increment the integer contained in the given reference.
    Equivalent to [fun r -> r := succ !r]. *)
 
-external decr : int ref -> unit = "%decr"
+external decr : (int ref[@local_opt]) -> unit = "%decr"
 (** Decrement the integer contained in the given reference.
    Equivalent to [fun r -> r := pred !r]. *)
 

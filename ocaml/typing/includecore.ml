@@ -33,18 +33,37 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
-  if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
-    match (vd1.val_kind, vd2.val_kind) with
-        (Val_prim p1, Val_prim p2) ->
-          if p1 = p2 then Tcoerce_none else raise Dont_match
-      | (Val_prim p, _) ->
-          let pc = {pc_desc = p; pc_type = vd2.Types.val_type;
-                  pc_env = env; pc_loc = vd1.Types.val_loc; } in
-          Tcoerce_primitive pc
-      | (_, Val_prim _) -> raise Dont_match
-      | (_, _) -> Tcoerce_none
-  end else
-    raise Dont_match
+  match vd1.val_kind with
+  | Val_prim p1 ->
+     let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
+     begin match vd2.val_kind with
+     | Val_prim p2 ->
+        let ty2, _mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+        if not (Ctype.moregeneral env true ty1 ty2) then
+          raise Dont_match;
+        let mode1 : Primitive.mode =
+          match Btype.Alloc_mode.check_const mode1 with
+          | Some Global -> Prim_global
+          | Some Local -> Prim_local
+          | None -> Prim_poly
+        in
+        let p1 = Primitive.inst_mode mode1 p1 in
+        if p1 = p2 then Tcoerce_none else raise Dont_match
+     | _ ->
+        if not (Ctype.moregeneral env true ty1 vd2.val_type) then
+          raise Dont_match;
+        let pc =
+          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+           pc_env = env; pc_loc = vd1.Types.val_loc; } in
+        Tcoerce_primitive pc
+     end
+  | _ ->
+     if Ctype.moregeneral env true vd1.val_type vd2.val_type then begin
+       match vd2.val_kind with
+         | Val_prim _ -> raise Dont_match
+         | _ -> Tcoerce_none
+     end else
+       raise Dont_match
 
 (* Inclusion between "private" annotations *)
 
@@ -137,6 +156,7 @@ let choose_other ord first second =
 type label_mismatch =
   | Type
   | Mutability of position
+  | Nonlocality of position * bool
 
 type record_mismatch =
   | Label_mismatch of Types.label_declaration
@@ -186,6 +206,15 @@ let report_label_mismatch first second ppf err =
   | Mutability ord ->
       pr "%s is mutable and %s is not."
         (String.capitalize_ascii  (choose ord first second))
+        (choose_other ord first second)
+  | Nonlocality(ord, nonlocal) ->
+      let sort =
+        if nonlocal then "nonlocal"
+        else "global"
+      in
+      pr "%s is %s and %s is not."
+        (String.capitalize_ascii  (choose ord first second))
+        sort
         (choose_other ord first second)
 
 let report_record_mismatch first second decl ppf err =
@@ -337,11 +366,24 @@ and compare_labels env params1 params2
       if ld1.ld_mutable <> ld2.ld_mutable
       then
         let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-        Some (Mutability  ord)
-      else
-        if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
-        then None
-        else Some (Type : label_mismatch)
+        Some (Mutability ord)
+      else begin
+        match ld1.ld_global, ld2.ld_global with
+        | Global, (Nonlocal | Unrestricted) ->
+          Some (Nonlocality(First, false))
+        | (Nonlocal | Unrestricted), Global ->
+          Some (Nonlocality(Second, false))
+        | Nonlocal, Unrestricted ->
+          Some (Nonlocality(First, true))
+        | Unrestricted, Nonlocal ->
+          Some (Nonlocality(Second, true))
+        | Global, Global
+        | Nonlocal, Nonlocal
+        | Unrestricted, Unrestricted ->
+          if Ctype.equal env true (ld1.ld_type::params1) (ld2.ld_type::params2)
+          then None
+          else Some (Type : label_mismatch)
+      end
 
 and compare_records ~loc env params1 params2 n
     (labels1 : Types.label_declaration list)

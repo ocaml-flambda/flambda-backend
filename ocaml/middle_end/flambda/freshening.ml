@@ -321,7 +321,9 @@ module Project_var = struct
           Flambda_utils.toplevel_substitution subst.sb_var func_decl.body
         in
         let function_decl =
-          Flambda.create_function_declaration ~params ~body
+          Flambda.create_function_declaration
+            ~params ~alloc_mode:func_decl.alloc_mode ~region:func_decl.region
+            ~body
             ~stub:func_decl.stub ~dbg:func_decl.dbg
             ~inline:func_decl.inline ~specialise:func_decl.specialise
             ~is_a_functor:func_decl.is_a_functor

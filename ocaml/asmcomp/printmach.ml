@@ -132,8 +132,10 @@ let operation op arg ppf res =
        (Array.sub arg 1 (Array.length arg - 1))
        reg arg.(0)
        (if is_assign then "(assign)" else "(init)")
-  | Ialloc { bytes = n; } ->
+  | Ialloc { bytes = n; mode = Alloc_heap } ->
     fprintf ppf "alloc %i" n;
+  | Ialloc { bytes = n; mode = Alloc_local } ->
+    fprintf ppf "alloc_local %i" n;
   | Iintop(op) -> fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
   | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
   | Inegf -> fprintf ppf "-f %a" reg arg.(0)
@@ -144,6 +146,7 @@ let operation op arg ppf res =
   | Idivf -> fprintf ppf "%a /f %a" reg arg.(0) reg arg.(1)
   | Ifloatofint -> fprintf ppf "floatofint %a" reg arg.(0)
   | Iintoffloat -> fprintf ppf "intoffloat %a" reg arg.(0)
+  | Iopaque -> fprintf ppf "opaque %a" reg arg.(0)
   | Iname_for_debugger { ident; which_parameter; } ->
     fprintf ppf "name_for_debugger %a%s=%a"
       V.print ident
@@ -151,6 +154,8 @@ let operation op arg ppf res =
         | None -> ""
         | Some index -> sprintf "[P%d]" index)
       reg arg.(0)
+  | Ibeginregion -> fprintf ppf "beginregion"
+  | Iendregion -> fprintf ppf "endregion %a" reg arg.(0)
   | Ispecific op ->
       Arch.print_specific_operation reg op ppf arg
   | Iprobe {name;handler_code_sym} ->

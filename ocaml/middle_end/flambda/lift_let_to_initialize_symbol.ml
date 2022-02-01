@@ -81,7 +81,8 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
     let extracted =
       let renamed = Variable.rename var in
       match named with
-      | Prim (Pmakeblock (tag, (Immutable | Immutable_unique), _value_kind),
+      | Prim (Pmakeblock (tag, (Immutable | Immutable_unique),
+                          _value_kind, Alloc_heap),
               args, _dbg) ->
         let tag = Tag.create_exn tag in
         let args =
@@ -128,7 +129,7 @@ let rec accumulate ~substitution ~copied_lets ~extracted_lets
         Flambda_utils.toplevel_substitution def_substitution
           (Let_rec (renamed_defs,
                     Flambda_utils.name_expr ~name
-                      (Prim (Pmakeblock (0, Immutable, None),
+                      (Prim (Pmakeblock (0, Immutable, None, Alloc_heap),
                              List.map fst renamed_defs,
                              Debuginfo.none))))
       in

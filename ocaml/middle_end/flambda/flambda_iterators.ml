@@ -45,6 +45,8 @@ let apply_on_subexpressions f f_named (flam : Flambda.t) =
   | While (f1,f2) ->
     f f1; f f2
   | For { body; _ } -> f body
+  | Region body -> f body
+  | Tail body -> f body
 
 let rec list_map_sharing f l =
   match l with
@@ -159,6 +161,18 @@ let map_subexpressions f f_named (tree:Flambda.t) : Flambda.t =
       tree
     else
       For { bound_var; from_value; to_value; direction; body = new_body; }
+  | Region body ->
+    let new_body = f body in
+    if new_body == body then
+      tree
+    else
+      Region new_body
+  | Tail body ->
+    let new_body = f body in
+    if new_body == body then
+      tree
+    else
+      Tail new_body
 
 let iter_general = Flambda.iter_general
 
@@ -384,6 +398,18 @@ let map_general ~toplevel f f_named tree =
           else
             For { bound_var; from_value; to_value; direction;
               body = new_body; }
+        | Region body ->
+          let new_body = aux body in
+          if new_body == body then
+            tree
+          else
+            Region new_body
+        | Tail body ->
+          let new_body = aux body in
+          if new_body == body then
+            tree
+          else
+            Tail new_body
       in
       f exp
   and aux_done_something expr done_something =
@@ -410,8 +436,8 @@ let map_general ~toplevel f f_named tree =
                   func_decl
                 end else begin
                   done_something := true;
-                  Flambda.update_function_declaration func_decl
-                    ~params:func_decl.params ~body:new_body
+                  Flambda.update_function_declaration_body func_decl
+                    ~body:new_body
                 end)
               function_decls.funs
           in
@@ -494,8 +520,7 @@ let map_symbols_on_set_of_closures
         if not (body == func_decl.body) then begin
           done_something := true;
         end;
-        Flambda.update_function_declaration func_decl
-          ~params:func_decl.params ~body)
+        Flambda.update_function_declaration_body func_decl ~body)
       function_decls.funs
   in
   if not !done_something then
@@ -582,8 +607,8 @@ let map_function_bodies (set_of_closures : Flambda.set_of_closures) ~f =
           function_decl
         else begin
           done_something := true;
-          Flambda.update_function_declaration function_decl
-            ~body:new_body ~params:function_decl.params
+          Flambda.update_function_declaration_body function_decl
+            ~body:new_body
         end)
       set_of_closures.function_decls.funs
   in
@@ -613,8 +638,7 @@ let map_sets_of_closures_of_program (program : Flambda.program)
                 function_decl
               else begin
                 done_something := true;
-                Flambda.update_function_declaration function_decl
-                  ~body ~params:function_decl.params
+                Flambda.update_function_declaration_body function_decl ~body
               end)
             set_of_closures.function_decls.funs
         in
@@ -709,8 +733,7 @@ let map_exprs_at_toplevel_of_program (program : Flambda.program)
               function_decl
             else begin
               done_something := true;
-              Flambda.update_function_declaration function_decl
-                ~body ~params:function_decl.params
+              Flambda.update_function_declaration_body function_decl ~body
             end)
           set_of_closures.function_decls.funs
       in

@@ -488,6 +488,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop(Istore(_chunk, addr, _)) -> load_store_size addr
     | Lop(Ialloc _) -> 5
     | Lop(Ispecific(Ialloc_far _)) -> 6
+    | Lop(Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop Imod) -> 3
     | Lop(Iintop(Icomp _)) -> 4
     | Lop(Iintop _) -> 1
@@ -496,6 +498,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop(Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) -> 1
     | Lop(Ifloatofint) -> 9
     | Lop(Iintoffloat) -> 4
+    | Lop(Iopaque) -> 0
     | Lop(Ispecific _) -> 1
     | Lop (Iname_for_debugger _) -> 0
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
@@ -776,10 +779,12 @@ let emit_instr i =
           | Single -> "stfs"
           | Double -> "stfd" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
-    | Lop(Ialloc { bytes; dbginfo }) ->
+    | Lop(Ialloc { bytes; dbginfo; mode = Alloc_heap }) ->
         emit_alloc i bytes dbginfo false
     | Lop(Ispecific(Ialloc_far { bytes; dbginfo })) ->
         emit_alloc i bytes dbginfo true
+    | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+       Misc.fatal_error "Local allocations not supported on this architecture"
     | Lop(Iintop Isub) ->               (* subfc has swapped arguments *)
         `	subfc	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
     | Lop(Iintop Imod) ->
@@ -857,6 +862,8 @@ let emit_instr i =
           `	lwz	{emit_reg i.res.(0)}, 4(1)\n`;
           `	addi	1, 1, 16\n`
         end
+    | Lop(Iopaque) ->
+        assert (i.arg.(0).loc = i.res.(0).loc)
     | Lop(Ispecific sop) ->
         let instr = name_for_specific sop in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`

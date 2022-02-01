@@ -8,7 +8,7 @@
         core_type (stop_after_typing_impl.ml[13,365+16]..stop_after_typing_impl.ml[13,365+19])
           Ttyp_constr "int!"
           []
-        core_type (stop_after_typing_impl.ml[13,365+23]..stop_after_typing_impl.ml[13,365+26])
+        core_type (stop_after_typing_impl.ml[13,365+16]..stop_after_typing_impl.ml[13,365+19])
           Ttyp_constr "int!"
           []
       [

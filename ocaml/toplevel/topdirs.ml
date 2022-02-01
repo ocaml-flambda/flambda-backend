@@ -22,6 +22,7 @@ open Types
 open Cmo_format
 open Trace
 open Toploop
+module Alloc_mode = Btype.Alloc_mode
 
 (* The standard output formatter *)
 let std_out = std_formatter
@@ -268,7 +269,7 @@ let _ = add_directive "mod_use" (Directive_string (dir_mod_use std_out))
 let filter_arrow ty =
   let ty = Ctype.expand_head !toplevel_env ty in
   match ty.desc with
-  | Tarrow (lbl, l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
+  | Tarrow ((lbl,_,_), l, r, _) when not (Btype.is_optional lbl) -> Some (l, r)
   | _ -> None
 
 let rec extract_last_arrow desc =
@@ -320,8 +321,10 @@ let match_generic_printer_type desc path args printer_type =
     List.map (fun ty_var -> Ctype.newconstr printer_type [ty_var]) args in
   let ty_expected =
     List.fold_right
-      (fun ty_arg ty -> Ctype.newty (Tarrow (Asttypes.Nolabel, ty_arg, ty,
-                                             Cunknown)))
+      (fun ty_arg ty -> Ctype.newty
+         (Tarrow ((Asttypes.Nolabel,Alloc_mode.global,Alloc_mode.global),
+                  ty_arg, ty,
+                  Cunknown)))
       ty_args (Ctype.newconstr printer_type [ty_target]) in
   Ctype.unify !toplevel_env
     ty_expected
@@ -547,7 +550,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc = Env.lookup_value ~loc lid env in
+       let _path, desc, _ = Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."

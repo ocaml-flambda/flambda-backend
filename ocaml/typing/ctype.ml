@@ -289,12 +289,43 @@ let repr = repr
 
 (**** Type maps ****)
 
-module TypePairs =
-  Hashtbl.Make (struct
+module TypePairs = struct
+  module H = Hashtbl.Make (struct
     type t = type_expr * type_expr
     let equal (t1, t1') (t2, t2') = (t1 == t2) && (t1' == t2')
     let hash (t, t') = t.id + 93 * t'.id
- end)
+  end)
+
+  type t = {
+    set : unit H.t;
+    mutable elems : (type_expr * type_expr) list;
+    (* elems preserves the (reversed) insertion order of elements *)
+  }
+
+  let create n =
+    { elems = []; set = H.create n }
+
+  let clear t =
+    t.elems <- [];
+    H.clear t.set
+
+  let repr2 (t1, t2) = (repr t1, repr t2)
+
+  let add t p =
+    let p = repr2 p in
+    if H.mem t.set p then () else begin
+      H.add t.set p ();
+      t.elems <- p :: t.elems
+    end
+
+  let mem t p = H.mem t.set (repr2 p)
+
+  let iter f t =
+    (* iterate in insertion order, not Hashtbl.iter order *)
+    List.rev t.elems
+    |> List.iter (fun (t1,t2) ->
+        f (t1, t2))
+end
 
 
 (**** unification mode ****)
@@ -305,7 +336,7 @@ type unification_mode =
 
 type equations_generation =
   | Forbidden
-  | Allowed of { equated_types : unit TypePairs.t }
+  | Allowed of { equated_types : TypePairs.t }
 
 let umode = ref Expression
 let equations_generation = ref Forbidden
@@ -1509,6 +1540,39 @@ let instance_label fixed lbl =
     (vars, ty_arg, ty_res)
   )
 
+let prim_mode mvar = function
+  | Primitive.Prim_global, _ -> Alloc_mode.global
+  | Primitive.Prim_local, _ -> Alloc_mode.local
+  | Primitive.Prim_poly, _ -> mvar
+
+let rec instance_prim_locals locals mvar macc finalret ty =
+  match locals, (repr ty).desc with
+  | l :: locals, Tarrow ((lbl,_,mret),arg,ret,commu) ->
+     let marg = prim_mode mvar l in
+     let macc = Alloc_mode.join [marg; mret; macc] in
+     let mret =
+       match locals with
+       | [] -> finalret
+       | _ :: _ -> macc (* curried arrow *)
+     in
+     let ret = instance_prim_locals locals mvar macc finalret ret in
+     newty2 ty.level (Tarrow ((lbl,marg,mret),arg,ret, commu))
+  | _ :: _, _ -> assert false
+  | [], _ ->
+     ty
+
+let instance_prim_mode (desc : Primitive.description) ty =
+  let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
+  if is_poly desc.prim_native_repr_res ||
+       List.exists is_poly desc.prim_native_repr_args then
+    let mode = Alloc_mode.newvar () in
+    let finalret = prim_mode mode desc.prim_native_repr_res in
+    instance_prim_locals desc.prim_native_repr_args
+      mode Alloc_mode.global finalret ty,
+    mode
+  else
+    ty, Alloc_mode.global
+
 (**** Instantiation with parameter substitution ****)
 
 let unify' = (* Forward declaration *)
@@ -2269,14 +2333,13 @@ let rec mcomp type_pairs env t1 t2 =
       (* Expansion may have changed the representative of the types... *)
       let t1' = repr t1' and t2' = repr t2' in
       if t1' == t2' then () else
-      begin try TypePairs.find type_pairs (t1', t2')
-      with Not_found ->
-        TypePairs.add type_pairs (t1', t2') ();
+      if not (TypePairs.mem type_pairs (t1', t2')) then begin
+        TypePairs.add type_pairs (t1', t2');
         match (t1'.desc, t2'.desc) with
         | (Tvar _, _)
         | (_, Tvar _)  ->
             ()
-        | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _))
+        | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _))
           when l1 = l2 || not (is_optional l1 || is_optional l2) ->
             mcomp type_pairs env t1 t2;
             mcomp type_pairs env u1 u2;
@@ -2431,7 +2494,8 @@ and mcomp_record_description type_pairs env =
     | l1 :: xs, l2 :: ys ->
         mcomp type_pairs env l1.ld_type l2.ld_type;
         if Ident.name l1.ld_id = Ident.name l2.ld_id &&
-           l1.ld_mutable = l2.ld_mutable
+           l1.ld_mutable = l2.ld_mutable &&
+           l1.ld_global = l2.ld_global
         then iter xs ys
         else raise (Unify [])
     | [], [] -> ()
@@ -2477,7 +2541,7 @@ let order_type_pair t1 t2 =
   if t1.id <= t2.id then (t1, t2) else (t2, t1)
 
 let add_type_equality t1 t2 =
-  TypePairs.add unify_eq_set (order_type_pair t1 t2) ()
+  TypePairs.add unify_eq_set (order_type_pair t1 t2)
 
 let eq_package_path env p1 p2 =
   Path.same p1 p2 ||
@@ -2558,6 +2622,10 @@ let unify_package env unify_list lv1 p1 n1 tl1 lv2 p2 n2 tl2 =
   || !package_subtype env p1 n1 tl1 p2 n2 tl2
   && !package_subtype env p2 n2 tl2 p1 n1 tl1 then () else raise Not_found
 
+let unify_alloc_mode a b =
+  match Btype.Alloc_mode.equate a b with
+  | Ok () -> ()
+  | Error () -> raise (Unify [])
 
 (* force unification in Reither when one side has a non-conjunctive type *)
 let rigid_variants = ref false
@@ -2567,8 +2635,7 @@ let unify_eq t1 t2 =
   match !umode with
   | Expression -> false
   | Pattern ->
-      try TypePairs.find unify_eq_set (order_type_pair t1 t2); true
-      with Not_found -> false
+      TypePairs.mem unify_eq_set (order_type_pair t1 t2)
 
 let unify1_var env t1 t2 =
   assert (is_Tvar t1);
@@ -2587,7 +2654,7 @@ let unify1_var env t1 t2 =
 let record_equation t1 t2 =
   match !equations_generation with
   | Forbidden -> assert false
-  | Allowed { equated_types } -> TypePairs.add equated_types (t1, t2) ()
+  | Allowed { equated_types } -> TypePairs.add equated_types (t1, t2)
 
 let rec unify (env:Env.t ref) t1 t2 =
   (* First step: special cases (optimizations) *)
@@ -2706,9 +2773,14 @@ and unify3 env t1 t1' t2 t2' =
     end;
     try
       begin match (d1, d2) with
-        (Tarrow (l1, t1, u1, c1), Tarrow (l2, t2, u2, c2)) when l1 = l2 ||
-        (!Clflags.classic || !umode = Pattern) &&
-        not (is_optional l1 || is_optional l2) ->
+        (Tarrow ((l1,a1,r1), t1, u1, c1),
+         Tarrow ((l2,a2,r2), t2, u2, c2))
+           when
+             (l1 = l2 ||
+              (!Clflags.classic || !umode = Pattern) &&
+               not (is_optional l1 || is_optional l2)) ->
+          unify_alloc_mode a1 a2;
+          unify_alloc_mode r1 r2;
           unify  env t1 t2; unify env  u1 u2;
           begin match commu_repr c1, commu_repr c2 with
             Clink r, c2 -> set_commu r c2
@@ -3192,12 +3264,14 @@ let filter_arrow env t l =
     Tvar _ ->
       let lv = t.level in
       let t1 = newvar2 lv and t2 = newvar2 lv in
-      let t' = newty2 lv (Tarrow (l, t1, t2, Cok)) in
+      let marg = Btype.Alloc_mode.newvar () in
+      let mret = Btype.Alloc_mode.newvar () in
+      let t' = newty2 lv (Tarrow ((l,marg,mret), t1, t2, Cok)) in
       link_type t t';
-      (t1, t2)
-  | Tarrow(l', t1, t2, _)
-    when l = l' || !Clflags.classic && l = Nolabel && not (is_optional l') ->
-      (t1, t2)
+      (marg, t1, mret, t2)
+  | Tarrow((l', arg, ret), t1, t2, _)
+    when (l = l' || !Clflags.classic && l = Nolabel && not (is_optional l)) ->
+      (arg, t1, ret, t2)
   | _ ->
       raise (Unify [])
 
@@ -3308,19 +3382,22 @@ let rec moregen inst_nongen type_pairs env t1 t2 =
         (* Expansion may have changed the representative of the types... *)
         let t1' = repr t1' and t2' = repr t2' in
         if t1' == t2' then () else
-        begin try
-          TypePairs.find type_pairs (t1', t2')
-        with Not_found ->
-          TypePairs.add type_pairs (t1', t2') ();
+        if not (TypePairs.mem type_pairs (t1', t2')) then begin
+          TypePairs.add type_pairs (t1', t2');
           match (t1'.desc, t2'.desc) with
             (Tvar _, _) when may_instantiate inst_nongen t1' ->
               moregen_occur env t1'.level t2;
               update_scope t1'.scope t2;
               link_type t1' t2
-          | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _)) when l1 = l2
-            || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+          | (Tarrow ((l1,a1,r1), t1, u1, _),
+             Tarrow ((l2,a2,r2), t2, u2, _)) when
+               (l1 = l2 
+                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
               moregen inst_nongen type_pairs env t1 t2;
-              moregen inst_nongen type_pairs env u1 u2
+              moregen inst_nongen type_pairs env u1 u2;
+              (* FIXME *)
+              unify_alloc_mode a1 a2;
+              unify_alloc_mode r1 r2
           | (Ttuple tl1, Ttuple tl2) ->
               moregen_list inst_nongen type_pairs env tl1 tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -3575,10 +3652,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
         (* Expansion may have changed the representative of the types... *)
         let t1' = repr t1' and t2' = repr t2' in
         if t1' == t2' then () else
-        begin try
-          TypePairs.find type_pairs (t1', t2')
-        with Not_found ->
-          TypePairs.add type_pairs (t1', t2') ();
+        if not (TypePairs.mem type_pairs (t1', t2')) then begin
+          TypePairs.add type_pairs (t1', t2');
           match (t1'.desc, t2'.desc) with
             (Tvar _, Tvar _) when rename ->
               begin try
@@ -3589,10 +3664,14 @@ let rec eqtype rename type_pairs subst env t1 t2 =
                 then raise (Unify []);
                 subst := (t1', t2') :: !subst
               end
-          | (Tarrow (l1, t1, u1, _), Tarrow (l2, t2, u2, _)) when l1 = l2
-            || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+          | (Tarrow ((l1,a1,r1), t1, u1, _),
+             Tarrow ((l2,a2,r2), t2, u2, _)) when
+               (l1 = l2
+                || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
               eqtype rename type_pairs subst env t1 t2;
               eqtype rename type_pairs subst env u1 u2;
+              eqtype_alloc_mode a1 a2;
+              eqtype_alloc_mode r1 r2
           | (Ttuple tl1, Ttuple tl2) ->
               eqtype_list rename type_pairs subst env tl1 tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -3699,6 +3778,10 @@ and eqtype_row rename type_pairs subst env row1 row2 =
       | _ -> raise (Unify []))
     pairs
 
+and eqtype_alloc_mode m1 m2 =
+  (* FIXME implement properly *)
+  unify_alloc_mode m1 m2
+
 (* Must empty univar_pairs first *)
 let eqtype_list rename type_pairs subst env tl1 tl2 =
   univar_pairs := [];
@@ -3801,7 +3884,7 @@ let match_class_types ?(trace=true) env pat_sch subj_sch =
     let sign2 = signature_of_class_type subj in
     let t1 = repr sign1.csig_self in
     let t2 = repr sign2.csig_self in
-    TypePairs.add type_pairs (t1, t2) ();
+    TypePairs.add type_pairs (t1, t2);
     let (fields1, rest1) = flatten_fields (object_fields t1)
     and (fields2, rest2) = flatten_fields (object_fields t2) in
     let (pairs, miss1, miss2) = associate_fields fields1 fields2 in
@@ -3926,7 +4009,7 @@ let match_class_declarations env patt_params patt_type subj_params subj_type =
   let sign2 = signature_of_class_type subj_type in
   let t1 = repr sign1.csig_self in
   let t2 = repr sign2.csig_self in
-  TypePairs.add type_pairs (t1, t2) ();
+  TypePairs.add type_pairs (t1, t2);
   let (fields1, rest1) = flatten_fields (object_fields t1)
   and (fields2, rest2) = flatten_fields (object_fields t2) in
   let (pairs, miss1, miss2) = associate_fields fields1 fields2 in
@@ -4083,6 +4166,7 @@ let rec build_subtype env visited loops posi level t =
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
       let c = max c1 c2 in
+      (* FIXME update arrow modes *)
       if c > Unchanged then (newty (Tarrow(l, t1', t2', Cok)), c)
       else (t, Unchanged)
   | Ttuple tlist ->
@@ -4257,18 +4341,21 @@ let rec subtype_rec env trace t1 t2 cstrs =
   let t2 = repr t2 in
   if t1 == t2 then cstrs else
 
-  begin try
-    TypePairs.find subtypes (t1, t2);
+  if TypePairs.mem subtypes (t1, t2) then
     cstrs
-  with Not_found ->
-    TypePairs.add subtypes (t1, t2) ();
+  else begin
+    TypePairs.add subtypes (t1, t2);
     match (t1.desc, t2.desc) with
       (Tvar _, _) | (_, Tvar _) ->
         (trace, t1, t2, !univar_pairs)::cstrs
-    | (Tarrow(l1, t1, u1, _), Tarrow(l2, t2, u2, _)) when l1 = l2
-      || !Clflags.classic && not (is_optional l1 || is_optional l2) ->
+    | (Tarrow((l1,a1,r1), t1, u1, _),
+       Tarrow((l2,a2,r2), t2, u2, _)) when
+         (l1 = l2
+          || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
         let cstrs = subtype_rec env (Trace.diff t2 t1::trace) t2 t1 cstrs in
-        subtype_rec env (Trace.diff u1 u2::trace) u1 u2 cstrs
+        unify_alloc_mode a1 a2; (* FIXME *)
+        unify_alloc_mode r1 r2;
+        subtype_rec env (Trace.diff u1 u2::trace) u1 u2 cstrs;
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_list env trace tl1 tl2 cstrs
     | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.same p1 p2 ->
@@ -4500,6 +4587,22 @@ let cyclic_abbrev env id ty =
     | _ ->
         false
   in check_cycle [] ty
+
+(* Ensure all mode variables are fully determined *)
+let remove_mode_variables ty =
+  let visited = ref TypeSet.empty in
+  let rec go ty =
+    let ty = repr ty in
+    if TypeSet.mem ty !visited then () else begin
+      visited := TypeSet.add ty !visited;
+      match ty.desc with
+      | Tarrow ((_,marg,mret),targ,tret,_) ->
+         let _ = Btype.Alloc_mode.constrain_lower marg in
+         let _ = Btype.Alloc_mode.constrain_lower mret in
+         go targ; go tret
+      | _ -> iter_type_expr go ty
+    end
+  in go ty
 
 (* Check for non-generalizable type variables *)
 exception Non_closed0

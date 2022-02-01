@@ -196,14 +196,14 @@ open Outcometree
 
 let rec add_native_repr_attributes ty attrs =
   match ty, attrs with
-  | Otyp_arrow (label, a, b), attr_opt :: rest ->
-    let b = add_native_repr_attributes b rest in
+  | Otyp_arrow (label, am, a, rm, r), attr_opt :: rest ->
+    let r = add_native_repr_attributes r rest in
     let a =
       match attr_opt with
       | None -> a
       | Some attr -> Otyp_attribute (a, attr)
     in
-    Otyp_arrow (label, a, b)
+    Otyp_arrow (label, am, a, rm, r)
   | _, [Some attr] -> Otyp_attribute (ty, attr)
   | _ ->
     assert (List.for_all (fun x -> x = None) attrs);

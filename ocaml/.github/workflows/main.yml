@@ -3,8 +3,10 @@ name: main
 on: [push, pull_request]
 
 jobs:
-  no-naked-pointers:
+  no-naked-pointers-local:
     runs-on: ubuntu-latest
+    env:
+      OCAMLPARAM: "_,extension=local"
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -16,8 +18,10 @@ jobs:
     - name: Run the testsuite
       run: |
         make -C testsuite USE_RUNTIME=d all
-  i386-static:
+  i386-static-local:
     runs-on: ubuntu-latest
+    env:
+      OCAMLPARAM: "_,extension=local"
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -41,6 +45,38 @@ jobs:
         bash -xe tools/ci/actions/runner.sh other-checks
   full-flambda:
     runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Packages
+      run: |
+        sudo apt-get update -y && sudo apt-get install -y texlive-latex-extra texlive-fonts-recommended
+  # Ensure that make distclean can be run from an empty tree
+    - name: distclean
+      run: |
+        MAKE_ARG=-j make distclean
+    - name: configure tree
+      run: |
+        MAKE_ARG=-j XARCH=x64 CONFIG_ARG='--enable-flambda --enable-dependency-generation' OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh configure
+    - name: Build
+      run: |
+        MAKE_ARG=-j OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh build
+    - name: Run the testsuite
+      run: |
+        MAKE_ARG=-j OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh test
+    - name: Build API Documentation
+      run: |
+        MAKE_ARG=-j OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh api-docs
+    - name: Install
+      run: |
+        MAKE_ARG=-j OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh install
+    - name: Other checks
+      run: |
+        MAKE_ARG=-j OCAMLRUNPARAM=b,v=0 bash -xe tools/ci/actions/runner.sh other-checks
+  full-flambda-local:
+    runs-on: ubuntu-latest
+    env:
+      OCAMLPARAM: "_,extension=local"
     steps:
     - name: Checkout
       uses: actions/checkout@v2

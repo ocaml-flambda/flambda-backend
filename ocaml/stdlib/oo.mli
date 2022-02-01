@@ -18,6 +18,8 @@ open! Stdlib
 
 (** Operations on objects *)
 
+[@@@ocaml.noprincipal] (* preserve structure sharing in copy (PR#9767) *)
+
 val copy : (< .. > as 'a) -> 'a
 (** [Oo.copy o] returns a copy of object [o], that is a fresh
    object with the same methods and instance variables as [o]. *)

@@ -57,9 +57,10 @@ type alloc_mode =
   | Alloc_heap
   | Alloc_local
 
+(* Tail calls can close their enclosing region early *)
 type region_close =
-  | Rc_close_at_apply
   | Rc_normal
+  | Rc_close_at_apply
 
 type primitive =
   | Pidentity

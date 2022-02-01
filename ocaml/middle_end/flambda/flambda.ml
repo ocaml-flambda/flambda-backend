@@ -30,6 +30,8 @@ type apply = {
   args : Variable.t list;
   kind : call_kind;
   dbg : Debuginfo.t;
+  reg_close : Lambda.region_close;
+  mode : Lambda.alloc_mode;
   inlined : Lambda.inlined_attribute;
   specialise : Lambda.specialise_attribute;
   probe : Lambda.probe;
@@ -46,6 +48,8 @@ type send = {
   obj : Variable.t;
   args : Variable.t list;
   dbg : Debuginfo.t;
+  reg_close : Lambda.region_close;
+  mode : Lambda.alloc_mode;
 }
 
 type project_closure = Projection.project_closure
@@ -73,6 +77,8 @@ type t =
   | Try_with of t * Variable.t * t
   | While of t * t
   | For of for_loop
+  | Region of t
+  | Tail of t
   | Proved_unreachable
 
 and named =
@@ -108,6 +114,7 @@ and set_of_closures = {
   free_vars : specialised_to Variable.Map.t;
   specialised_args : specialised_to Variable.Map.t;
   direct_call_surrogates : Variable.t Variable.Map.t;
+  alloc_mode : Lambda.alloc_mode;
 }
 
 and function_declarations = {
@@ -120,6 +127,8 @@ and function_declarations = {
 and function_declaration = {
   closure_origin: Closure_origin.t;
   params : Parameter.t list;
+  alloc_mode : Lambda.alloc_mode;
+  region : bool;
   body : t;
   free_variables : Variable.Set.t;
   free_symbols : Symbol.Set.t;
@@ -337,6 +346,11 @@ let rec lam ppf (flam : t) =
       (match direction with
         Asttypes.Upto -> "to" | Asttypes.Downto -> "downto")
       Variable.print to_value lam body
+  | Region body ->
+    fprintf ppf "@[<2>(region@ %a)@]" lam body
+  | Tail body ->
+    fprintf ppf "@[<2>(tail@ %a)@]" lam body
+
 and print_named ppf (named : named) =
   match named with
   | Symbol (symbol) -> Symbol.print ppf symbol
@@ -362,11 +376,8 @@ and print_named ppf (named : named) =
     (* lam ppf expr *)
 
 and print_function_declaration ppf var (f : function_declaration) =
-  let param ppf p =
-    Variable.print ppf (Parameter.var p)
-  in
   let params ppf =
-    List.iter (fprintf ppf "@ %a" param) in
+    List.iter (fprintf ppf "@ %a" Parameter.print) in
   let stub =
     if f.stub then
       " *stub*"
@@ -399,7 +410,7 @@ and print_function_declaration ppf var (f : function_declaration) =
 
 and print_set_of_closures ppf (set_of_closures : set_of_closures) =
   match set_of_closures with
-  | { function_decls; free_vars; specialised_args} ->
+  | { function_decls; free_vars; specialised_args; alloc_mode } ->
     let funs ppf =
       Variable.Map.iter (print_function_declaration ppf)
     in
@@ -418,9 +429,14 @@ and print_set_of_closures ppf (set_of_closures : set_of_closures) =
           spec_args
       end
     in
+    let alloc_mode = match alloc_mode with
+      | Alloc_heap -> "Alloc_heap"
+      | Alloc_local -> "Alloc_local"
+    in
     fprintf ppf "@[<2>(set_of_closures id=%a@ %a@ @[<2>free_vars={%a@ }@]@ \
         @[<2>specialised_args={%a})@]@ \
         @[<2>direct_call_surrogates=%a@]@ \
+        @[<2>alloc_mode=%s@]@ \
         @[<2>set_of_closures_origin=%a@]@]]"
       Set_of_closures_id.print function_decls.set_of_closures_id
       funs function_decls.funs
@@ -428,6 +444,7 @@ and print_set_of_closures ppf (set_of_closures : set_of_closures) =
       spec specialised_args
       (Variable.Map.print Variable.print)
       set_of_closures.direct_call_surrogates
+      alloc_mode
       Set_of_closures_origin.print function_decls.set_of_closures_origin
 
 and print_const ppf (c : const) =
@@ -604,6 +621,10 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         free_variable meth;
         free_variable obj;
         List.iter free_variable args;
+      | Region body ->
+        aux body
+      | Tail body ->
+        aux body
       | Proved_unreachable -> ()
     in
     aux tree;
@@ -685,6 +706,8 @@ let create_let var defining_expr body : t =
     | Expr (Let { var = var1; defining_expr; body = Var var2;
           free_vars_of_defining_expr; _ }) when Variable.equal var1 var2 ->
       defining_expr, free_vars_of_defining_expr
+    (* TODO: This let-conversion is blocked by Region constructors.
+       It might be worth optimising this. *)
     | _ -> defining_expr, free_variables_named defining_expr
   in
   Let {
@@ -799,6 +822,10 @@ let iter_general ~toplevel f f_named maybe_named =
       | String_switch (_, sw, def) ->
         List.iter (fun (_,l) -> aux l) sw;
         Option.iter aux def
+      | Region body ->
+        aux body
+      | Tail body ->
+        aux body
   and aux_named (named : named) =
     f_named named;
     match named with
@@ -870,6 +897,10 @@ module With_free_variables = struct
         free_vars_of_body;
       }
 
+  let create_region (t : expr t) =
+    let Expr (body, fv) = t in
+    Expr (Region body, fv)
+
   let expr (t : expr t) =
     match t with
     | Expr (expr, free_vars) -> Named (Expr expr, free_vars)
@@ -894,18 +925,19 @@ let fold_lets_option
   let finish ~last_body ~acc ~rev_lets =
     let module W = With_free_variables in
     let acc, t =
-      List.fold_left (fun (acc, t) (var, defining_expr) ->
+      List.fold_left (fun (acc, t) (has_region, var, defining_expr) ->
           let free_vars_of_body = W.free_variables t in
           let acc, var, defining_expr =
             filter_defining_expr acc var defining_expr free_vars_of_body
           in
-          match defining_expr with
-          | None -> acc, t
-          | Some defining_expr ->
-            let let_expr =
-              W.create_let_reusing_body var defining_expr t
-            in
-            acc, W.of_expr let_expr)
+          let t =
+            match defining_expr with
+            | None -> t
+            | Some defining_expr ->
+              W.of_expr (W.create_let_reusing_body var defining_expr t)
+          in
+          let t = if has_region then W.create_region t else t in
+          acc, t)
         (acc, W.of_expr last_body)
         rev_lets
     in
@@ -913,11 +945,13 @@ let fold_lets_option
   in
   let rec loop (t : t) ~acc ~rev_lets =
     match t with
-    | Let { var; defining_expr; body; _ } ->
+    | Let { var; defining_expr; body; _ }
+    | Region (Let { var; defining_expr; body; _ }) ->
       let acc, var, defining_expr =
         for_defining_expr acc var defining_expr
       in
-      let rev_lets = (var, defining_expr) :: rev_lets in
+      let has_region = match t with Region _ -> true | _ -> false in
+      let rev_lets = (has_region, var, defining_expr) :: rev_lets in
       loop body ~acc ~rev_lets
     | t ->
       let last_body, acc = for_last_body acc t in
@@ -998,6 +1032,8 @@ let update_body_of_function_declaration (func_decl: function_declaration)
       ~body : function_declaration =
   { closure_origin = func_decl.closure_origin;
     params = func_decl.params;
+    alloc_mode = func_decl.alloc_mode;
+    region = func_decl.region;
     body;
     free_variables = free_variables body;
     free_symbols = free_symbols body;
@@ -1008,22 +1044,15 @@ let update_body_of_function_declaration (func_decl: function_declaration)
     is_a_functor = func_decl.is_a_functor;
   }
 
-let update_function_decl's_params_and_body
-      (func_decl : function_declaration) ~params ~body =
-  { closure_origin = func_decl.closure_origin;
-    params;
-    body;
-    free_variables = free_variables body;
-    free_symbols = free_symbols body;
-    stub = func_decl.stub;
-    dbg = func_decl.dbg;
-    inline = func_decl.inline;
-    specialise = func_decl.specialise;
-    is_a_functor = func_decl.is_a_functor;
-  }
+let rec check_param_modes mode = function
+  | [] -> ()
+  | p :: params ->
+     let m = Parameter.alloc_mode p in
+     if not (Lambda.sub_mode mode m) then
+       Misc.fatal_errorf "Nonmonotonic partial modes";
+     check_param_modes m params
 
-
-let create_function_declaration ~params ~body ~stub ~dbg
+let create_function_declaration ~params ~alloc_mode ~region ~body ~stub ~dbg
       ~(inline : Lambda.inline_attribute)
       ~(specialise : Lambda.specialise_attribute) ~is_a_functor
       ~closure_origin
@@ -1046,8 +1075,11 @@ let create_function_declaration ~params ~body ~stub ~dbg
       "Stubs may not be annotated as [Always_specialise]: %a"
       print body
   end;
+  check_param_modes alloc_mode params;
   { closure_origin;
     params;
+    alloc_mode;
+    region;
     body;
     free_variables = free_variables body;
     free_symbols = free_symbols body;
@@ -1058,10 +1090,10 @@ let create_function_declaration ~params ~body ~stub ~dbg
     is_a_functor;
   }
 
-let update_function_declaration fun_decl ~params ~body =
+let update_function_declaration_body fun_decl ~body =
   let free_variables = free_variables body in
   let free_symbols = free_symbols body in
-  { fun_decl with params; body; free_variables; free_symbols }
+  { fun_decl with body; free_variables; free_symbols }
 
 let create_function_declarations ~is_classic_mode ~funs =
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -1179,10 +1211,19 @@ let create_set_of_closures ~function_decls ~free_vars ~specialised_args
         print_function_declarations function_decls
     end
   end;
+  let alloc_mode =
+    match Variable.Map.data function_decls.funs with
+    | f :: fs ->
+       assert (List.for_all (fun (g : function_declaration) ->
+                   Lambda.eq_mode f.alloc_mode g.alloc_mode) fs);
+       f.alloc_mode
+    | [] -> assert false
+  in
   { function_decls;
     free_vars;
     specialised_args;
     direct_call_surrogates;
+    alloc_mode
   }
 
 let used_params function_decl =

@@ -368,7 +368,7 @@ let emit_instr i =
         | Double -> "fsd"
       in
       `	{emit_string instr}	{emit_reg i.arg.(0)}, {emit_int ofs}({emit_reg i.arg.(1)})\n`
-  | Lop(Ialloc {bytes; dbginfo}) ->
+  | Lop(Ialloc {bytes; dbginfo; mode = Alloc_heap}) ->
       let lbl_frame_lbl = record_frame_label i.live (Dbg_alloc dbginfo) in
       let lbl_after_alloc = new_label () in
       let lbl_call_gc = new_label () in
@@ -388,6 +388,8 @@ let emit_instr i =
         { gc_lbl = lbl_call_gc;
           gc_return_lbl = lbl_after_alloc;
           gc_frame_lbl = lbl_frame_lbl } :: !call_gc_sites
+  | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
+     Misc.fatal_error "Local allocations not supported on this architecture"
   | Lop(Iintop(Icomp cmp)) ->
       begin match cmp with
       | Isigned Clt ->
@@ -438,6 +440,8 @@ let emit_instr i =
       `	fcvt.d.l	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
   | Lop(Iintoffloat) ->
       `	fcvt.l.d	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, rtz\n`
+  | Lop(Iopaque) ->
+      assert (i.arg.(0).loc = i.res.(0).loc)
   | Lop(Ispecific sop) ->
       let instr = name_for_specific sop in
       `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`

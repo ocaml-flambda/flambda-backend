@@ -18,7 +18,14 @@
 open Asttypes
 open Types
 
-module TypePairs : Hashtbl.S with type key = type_expr * type_expr
+module TypePairs : sig
+  type t
+  val create: int -> t
+  val clear: t -> unit
+  val add: t -> type_expr * type_expr -> unit
+  val mem: t -> type_expr * type_expr -> bool
+  val iter: (type_expr * type_expr -> unit) -> t -> unit
+end
 
 module Unification_trace: sig
   (** Unification traces are used to explain unification errors
@@ -231,6 +238,11 @@ val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_label:
         bool -> label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
+val prim_mode :
+        alloc_mode -> (Primitive.mode * Primitive.native_repr) -> alloc_mode
+val instance_prim_mode:
+        Primitive.description -> type_expr -> type_expr * alloc_mode
+
 val apply:
         Env.t -> type_expr list -> type_expr -> type_expr list -> type_expr
         (* [apply [p1...pN] t [a1...aN]] match the arguments [ai] to
@@ -257,14 +269,16 @@ val unify: Env.t -> type_expr -> type_expr -> unit
         (* Unify the two types given. Raise [Unify] if not possible. *)
 val unify_gadt:
         equations_level:int -> allow_recursive:bool ->
-        Env.t ref -> type_expr -> type_expr -> unit TypePairs.t
+        Env.t ref -> type_expr -> type_expr -> TypePairs.t
         (* Unify the two types given and update the environment with the
            local constraints. Raise [Unify] if not possible.
            Returns the pairs of types that have been equated.  *)
 val unify_var: Env.t -> type_expr -> type_expr -> unit
         (* Same as [unify], but allow free univars when first type
            is a variable. *)
-val filter_arrow: Env.t -> type_expr -> arg_label -> type_expr * type_expr
+val unify_alloc_mode: alloc_mode -> alloc_mode -> unit
+val filter_arrow: Env.t -> type_expr -> arg_label ->
+                  alloc_mode * type_expr * alloc_mode * type_expr
         (* A special case of unification (with l:'a -> 'b). *)
 val filter_method: Env.t -> string -> private_flag -> type_expr -> type_expr
         (* A special case of unification (with {m : 'a; 'b}). *)
@@ -350,6 +364,9 @@ val nondep_cltype_declaration:
 val cyclic_abbrev: Env.t -> Ident.t -> type_expr -> bool
 val is_contractive: Env.t -> Path.t -> bool
 val normalize_type: type_expr -> unit
+
+val remove_mode_variables: type_expr -> unit
+        (* Ensure mode variables are fully determined *)
 
 val closed_schema: Env.t -> type_expr -> bool
         (* Check whether the given type scheme contains no non-generic

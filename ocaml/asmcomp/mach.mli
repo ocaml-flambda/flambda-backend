@@ -54,11 +54,13 @@ type operation =
   | Iload of Cmm.memory_chunk * Arch.addressing_mode
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
                                  (* false = initialization, true = assignment *)
-  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo; }
+  | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
+                mode: Lambda.alloc_mode }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
   | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat
+  | Iopaque
   | Ispecific of Arch.specific_operation
   | Iname_for_debugger of { ident : Backend_var.t; which_parameter : int option;
       provenance : unit option; is_assignment : bool; }
@@ -70,6 +72,7 @@ type operation =
             identifier is forgotten. *)
   | Iprobe of { name: string; handler_code_sym: string; }
   | Iprobe_is_enabled of { name: string }
+  | Ibeginregion | Iendregion
 
 type instruction =
   { desc: instruction_desc;

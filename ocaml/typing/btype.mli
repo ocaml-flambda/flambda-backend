@@ -253,3 +253,138 @@ val iter_type_expr_cstr_args: (type_expr -> unit) ->
   (constructor_arguments -> unit)
 val map_type_expr_cstr_args: (type_expr -> type_expr) ->
   (constructor_arguments -> constructor_arguments)
+
+
+
+module Alloc_mode : sig
+
+  (* Modes are ordered so that [global] is a submode of [local] *)
+  type t = Types.alloc_mode
+  type const = Types.alloc_mode_const = Global | Local
+
+  val global : t
+
+  val local : t
+
+  val of_const : const -> t
+
+  val min_mode : t
+
+  val max_mode : t
+
+  val submode : t -> t -> (unit, unit) result
+
+  val submode_exn : t -> t -> unit
+
+  val equate : t -> t -> (unit, unit) result
+
+  val join_const : const -> const -> const
+
+  val join : t list -> t
+
+  (* Force a mode variable to its upper bound *)
+  val constrain_upper : t -> const
+
+  (* Force a mode variable to its lower bound *)
+  val constrain_lower : t -> const
+
+  val newvar : unit -> t
+
+  val check_const : t -> const option
+
+  val print : Format.formatter -> t -> unit
+
+end
+
+module Value_mode : sig
+
+ type const =
+   | Global
+   | Regional
+   | Local
+
+  type t = Types.value_mode
+
+  val global : t
+
+  val regional : t
+
+  val local : t
+
+  val of_const : const -> t
+
+  val max_mode : t
+
+  val min_mode : t
+
+  (** Injections from [Alloc_mode.t] into [Value_mode.t] *)
+
+  (** [of_alloc] maps [Global] to [Global] and [Local] to [Local] *)
+  val of_alloc : Alloc_mode.t -> t
+
+  (** Kernel operators *)
+
+  (** The kernel operator [local_to_regional] maps [Local] to
+      [Regional] and leaves the others unchanged. *)
+  val local_to_regional : t -> t
+
+  (** The kernel operator [regional_to_global] maps [Regional]
+      to [Global] and leaves the others unchanged. *)
+  val regional_to_global : t -> t
+
+  (** Closure operators *)
+
+  (** The closure operator [regional_to_local] maps [Regional]
+      to [Local] and leaves the others unchanged. *)
+  val regional_to_local : t -> t
+
+  (** The closure operator [global_to_regional] maps [Global] to
+      [Regional] and leaves the others unchanged. *)
+  val global_to_regional : t -> t
+
+  (** Note that the kernal and closure operators are in the following
+      adjunction relationship:
+      {v
+        local_to_regional
+        -| regional_to_local
+        -| regional_to_global
+        -| global_to_regional
+      v}
+
+      Equivalently,
+      {v
+        local_to_regional a <= b  iff  a <= regional_to_local b
+        regional_to_local a <= b  iff  a <= regional_to_global b
+        regional_to_global a <= b  iff  a <= global_to_regional b
+      v}
+   *)
+
+  (** Versions of the operators that return [Alloc.t] *)
+
+  (** Maps [Regional] to [Global] and leaves the others unchanged. *)
+  val regional_to_global_alloc : t -> Alloc_mode.t
+
+  (** Maps [Regional] to [Local] and leaves the others unchanged. *)
+  val regional_to_local_alloc : t -> Alloc_mode.t
+
+  type error = [`Regionality | `Locality]
+
+  val submode : t -> t -> (unit, error) result
+
+  val submode_exn : t -> t -> unit
+
+  val submode_meet : t -> t list -> (unit, error) result
+
+  val join : t list -> t
+
+  val constrain_upper : t -> const
+
+  val constrain_lower : t -> const
+
+  val newvar : unit -> t
+
+  val check_const : t -> const option
+
+  val print : Format.formatter -> t -> unit
+
+end

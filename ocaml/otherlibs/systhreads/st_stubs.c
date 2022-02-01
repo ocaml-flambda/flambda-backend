@@ -79,6 +79,7 @@ struct caml_thread_struct {
   value * gc_regs;          /* Saved value of Caml_state->gc_regs */
   char * exception_pointer; /* Saved value of Caml_state->exception_pointer */
   struct caml__roots_block * local_roots; /* Saved value of local_roots */
+  struct caml_local_arenas * local_arenas;
   struct longjmp_buffer * exit_buf; /* For thread exit */
 #else
   value * stack_low; /* The execution stack for this thread */
@@ -148,8 +149,8 @@ static void caml_thread_scan_roots(scanning_action action)
     if (th != curr_thread) {
 #ifdef NATIVE_CODE
       if (th->bottom_of_stack != NULL)
-        caml_do_local_roots(action, th->bottom_of_stack, th->last_retaddr,
-                       th->gc_regs, th->local_roots);
+        caml_do_local_roots(action, action, th->bottom_of_stack, th->last_retaddr,
+                       th->gc_regs, th->local_roots, th->local_arenas);
 #else
       caml_do_local_roots(action, th->sp, th->stack_high, th->local_roots);
 #endif
@@ -181,6 +182,7 @@ Caml_inline void caml_thread_save_runtime_state(void)
   curr_thread->last_retaddr = Caml_state->last_return_address;
   curr_thread->gc_regs = Caml_state->gc_regs;
   curr_thread->exception_pointer = Caml_state->exception_pointer;
+  curr_thread->local_arenas = caml_get_local_arenas();
 #else
   curr_thread->stack_low = Caml_state->stack_low;
   curr_thread->stack_high = Caml_state->stack_high;
@@ -204,6 +206,7 @@ Caml_inline void caml_thread_restore_runtime_state(void)
   Caml_state->last_return_address = curr_thread->last_retaddr;
   Caml_state->gc_regs = curr_thread->gc_regs;
   Caml_state->exception_pointer = curr_thread->exception_pointer;
+  caml_set_local_arenas(curr_thread->local_arenas);
 #else
   Caml_state->stack_low = curr_thread->stack_low;
   Caml_state->stack_high = curr_thread->stack_high;
@@ -332,6 +335,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->last_retaddr = 1;
   th->exception_pointer = NULL;
   th->local_roots = NULL;
+  th->local_arenas = NULL;
   th->exit_buf = NULL;
 #else
   /* Allocate the stacks */
