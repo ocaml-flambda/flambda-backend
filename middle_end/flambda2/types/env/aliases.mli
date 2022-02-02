@@ -75,8 +75,9 @@ type add_result = private
   }
 
 (** Add an alias relationship to the tracker. The two simple expressions must be
-    different and not both constants. If [add t s1 mode1 s2 mode2] returns [{ t
-    = t'; canonical_element; alias_of_demoted_element }], then according to
+    different and not both constants. They must both be canonical (as returned
+    by [get_canonical_ignoring_name_mode]). If [add t s1 mode1 s2 mode2] returns
+    [{ t = t'; canonical_element; alias_of_demoted_element }], then according to
     [t'],
 
     - [canonical_element] is the canonical element of both [s1] and [s2];
@@ -84,15 +85,13 @@ type add_result = private
     - [alias_of_demoted_element] is either [s1] or [s2] (possibly with a new
     coercion; see note on [add_result]); and
 
-    - in the case that [alias_of_demoted_element] was canonical before (meaning
-    that either [s1] or [s2] happened to be canonical), it is no longer
-    canonical. *)
+    - [alias_of_demoted_element] is no longer canonical. *)
 val add :
   binding_time_resolver:(Name.t -> Binding_time.With_name_mode.t) ->
   binding_times_and_modes:(_ * Binding_time.With_name_mode.t) Name.Map.t ->
   t ->
-  element1:Simple.t ->
-  element2:Simple.t ->
+  canonical_element1:Simple.t ->
+  canonical_element2:Simple.t ->
   add_result
 
 (** [get_canonical_element] returns [None] only when the

@@ -177,7 +177,10 @@ val free_names_transitive : t -> Type_grammar.t -> Name_occurrences.t
 module Pre_serializable : sig
   type t
 
-  val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+  val create :
+    typing_env ->
+    used_closure_vars:Var_within_closure.Set.t ->
+    t * (Simple.t -> Simple.t)
 
   val find_or_missing : t -> Name.t -> Type_grammar.t option
 end
