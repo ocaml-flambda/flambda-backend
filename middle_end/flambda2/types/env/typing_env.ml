@@ -73,12 +73,14 @@ module One_level = struct
         Cached_level.clean_for_export t.just_after_level ~reachable_names
     }
 
-  let remove_unused_closure_vars t ~used_closure_vars =
-    { t with
-      just_after_level =
-        Cached_level.remove_unused_closure_vars t.just_after_level
-          ~used_closure_vars
-    }
+  let remove_unused_closure_vars_and_shortcut_aliases t ~used_closure_vars =
+    let just_after_level =
+      Cached_level.remove_unused_closure_vars_and_shortcut_aliases
+        t.just_after_level ~used_closure_vars
+    in
+    { t with just_after_level }
+
+  let canonicalise t = Cached_level.canonicalise t.just_after_level
 end
 
 type t =
@@ -728,82 +730,127 @@ and add_equation1 t name ty ~(meet_type : meet_type) =
               "Directly recursive equation@ %a = %a@ disallowed:@ %a" Name.print
               name TG.print ty print t)
         ~const:(fun _ -> ()));
-  let simple, t, ty =
-    let aliases = aliases t in
+  let find_canonical name =
+    let aliases =
+      (* If we already have an equation on [name], then we already have the
+         correct alias relation in the current [aliases]. *)
+      if Name.Map.mem name (names_to_types t)
+      then aliases t
+      else
+        (* If we don't have any equation yet, then we can find the canonical
+           element by looking in the corresponding compilation unit *)
+        let comp_unit = Name.compilation_unit name in
+        if Compilation_unit.equal comp_unit
+             (Compilation_unit.get_current_exn ())
+        then aliases t
+        else
+          match (resolver t) comp_unit with
+          | None ->
+            (* The corresponding cmx is unavailable. However, we have ensured
+               that all equations exported in cmx files point to canonical
+               aliases, so there is no way for a non-canonical name to appear
+               outside its own compilation unit. *)
+            aliases t
+          | Some env -> aliases env
+          | exception exn ->
+            Misc.fatal_errorf "Exception in resolver: %s@ Backtrace is: %s"
+              (Printexc.to_string exn)
+              (Printexc.raw_backtrace_to_string (Printexc.get_raw_backtrace ()))
+    in
+    Aliases.get_canonical_ignoring_name_mode aliases name
+  in
+  let inputs =
     match TG.get_alias_exn ty with
     | exception Not_found ->
       (* Equations giving concrete types may only be added to the canonical
-         element as known by the alias tracker (the actual canonical, ignoring
-         any name modes). *)
-      let canonical = Aliases.get_canonical_ignoring_name_mode aliases name in
-      canonical, t, ty
-    | alias_of ->
-      (* Forget where [name] and [alias_of] came from---our job is now to record
-         that they're equal. In general, they have canonical expressions [c_n]
-         and [c_a], respectively, so what we ultimately need to record is that
-         [c_n] = [c_a]. Clearly, only one of them can remain canonical, so we
-         pick whichever was bound earlier. If [c_a] was bound earlier, then we
-         demote [c_n] and give [name] the type "= c_a" (which will always be
-         valid since [c_a] was bound earlier). Otherwise, we demote [c_a] and
-         give [alias_of] the type "= c_n". *)
-      let alias = Simple.name name in
-      let kind = TG.kind ty in
-      let ({ canonical_element; alias_of_demoted_element; t = aliases }
-            : Aliases.add_result) =
-        (* This may raise [Binding_time_resolver_failure]. *)
-        Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
-          ~binding_times_and_modes:(names_to_types t) ~element1:alias
-          ~element2:alias_of
+         element as known by the relevant alias tracker (the actual canonical,
+         ignoring any name modes). *)
+      let canonical = find_canonical name in
+      Some (canonical, t, ty)
+    | alias_rhs ->
+      (* Forget where [name] and [alias_rhs] came from---our job is now to
+         record that they're equal. In general, they have canonical expressions
+         [c_l] and [c_r], respectively, so what we ultimately need to record is
+         that [c_l] = [c_r]. Clearly, only one of them can remain canonical, so
+         we pick whichever was bound earlier. If [c_r] was bound earlier, then
+         we demote [c_l] and give [name] the type "= c_r" (which will always be
+         valid since [c_r] was bound earlier). Otherwise, we demote [c_r] and
+         give [alias_of] the type "= c_l". *)
+      (* The canonical elements [c_r] and [c_l] might not be present in the
+         current aliases structure, so we force a lookup of canonical elements
+         first using the relevant structure *)
+      let alias_lhs = find_canonical name in
+      let alias_rhs =
+        Simple.pattern_match alias_rhs
+          ~const:(fun _ -> alias_rhs)
+          ~name:(fun name ~coercion ->
+            Simple.apply_coercion_exn (find_canonical name) coercion)
       in
-      let t = with_aliases t ~aliases in
-      (* We need to change the demoted alias's type to point to the new
-         canonical element. *)
-      let ty = TG.alias_type_of kind canonical_element in
-      alias_of_demoted_element, t, ty
+      if Simple.equal alias_lhs alias_rhs
+      then None
+      else
+        let aliases = aliases t in
+        let kind = TG.kind ty in
+        let ({ canonical_element; alias_of_demoted_element; t = aliases }
+              : Aliases.add_result) =
+          (* This may raise [Binding_time_resolver_failure]. *)
+          Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
+            ~binding_times_and_modes:(names_to_types t)
+            ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
+        in
+        let t = with_aliases t ~aliases in
+        (* We need to change the demoted alias's type to point to the new
+           canonical element. *)
+        let ty = TG.alias_type_of kind canonical_element in
+        Some (alias_of_demoted_element, t, ty)
   in
-  (* We have [(coerce <bare_lhs> <coercion>) : <ty>]. Thus [<bare_lhs> : (coerce
-     <ty> <coercion>^-1)]. *)
-  let bare_lhs = Simple.without_coercion simple in
-  let coercion_from_bare_lhs_to_ty = Simple.coercion simple in
-  let coercion_from_ty_to_bare_lhs =
-    Coercion.inverse coercion_from_bare_lhs_to_ty
-  in
-  let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
-  (* Beware: if we're about to add the equation on a name which is different
-     from the one that the caller passed in, then we need to make sure that the
-     type we assign to that name is the most precise available. This
-     necessitates calling [meet].
+  match inputs with
+  | None -> t
+  | Some (simple, t, ty) ->
+    (* We have [(coerce <bare_lhs> <coercion>) : <ty>]. Thus [<bare_lhs> :
+       (coerce <ty> <coercion>^-1)]. *)
+    let bare_lhs = Simple.without_coercion simple in
+    let coercion_from_bare_lhs_to_ty = Simple.coercion simple in
+    let coercion_from_ty_to_bare_lhs =
+      Coercion.inverse coercion_from_bare_lhs_to_ty
+    in
+    let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
+    (* Beware: if we're about to add the equation on a name which is different
+       from the one that the caller passed in, then we need to make sure that
+       the type we assign to that name is the most precise available. This
+       necessitates calling [meet].
 
-     For example, suppose [p] is defined earlier than [x], with [p] of type
-     [Unknown] and [x] of type [ty]. If the caller says that the best type of
-     [p] is now to be "= x", then this function will add an equation on [x]
-     rather than [p], due to the definition ordering. However we should not just
-     say that [x] has type "= p", as that would forget any existing information
-     about [x]. Instead we should say that [x] has type "(= p) meet ty".
+       For example, suppose [p] is defined earlier than [x], with [p] of type
+       [Unknown] and [x] of type [ty]. If the caller says that the best type of
+       [p] is now to be "= x", then this function will add an equation on [x]
+       rather than [p], due to the definition ordering. However we should not
+       just say that [x] has type "= p", as that would forget any existing
+       information about [x]. Instead we should say that [x] has type "(= p)
+       meet ty".
 
-     Note also that [p] and [x] may have different name modes! *)
-  let ty, t =
-    let[@inline always] name eqn_name ~coercion =
+       Note also that [p] and [x] may have different name modes! *)
+    let ty, t =
+      let[@inline always] name eqn_name ~coercion =
+        assert (Coercion.is_id coercion);
+        (* true by definition *)
+        if Name.equal name eqn_name
+        then ty, t
+        else
+          let env = Meet_env.create t in
+          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+          match meet_type env ty existing_ty with
+          | Bottom -> MTC.bottom (TG.kind ty), t
+          | Ok (meet_ty, env_extension) ->
+            meet_ty, add_env_extension t env_extension ~meet_type
+      in
+      Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
+    in
+    let[@inline always] name name ~coercion =
       assert (Coercion.is_id coercion);
       (* true by definition *)
-      if Name.equal name eqn_name
-      then ty, t
-      else
-        let env = Meet_env.create t in
-        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-        match meet_type env ty existing_ty with
-        | Bottom -> MTC.bottom (TG.kind ty), t
-        | Ok (meet_ty, env_extension) ->
-          meet_ty, add_env_extension t env_extension ~meet_type
+      add_equation0 t name ty
     in
-    Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
-  in
-  let[@inline always] name name ~coercion =
-    assert (Coercion.is_id coercion);
-    (* true by definition *)
-    add_equation0 t name ty
-  in
-  Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
+    Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 
 and[@inline always] add_equation t name ty ~meet_type =
   match add_equation1 t name ty ~meet_type with
@@ -1131,7 +1178,10 @@ let free_names_transitive t typ =
 module Pre_serializable : sig
   type t = typing_env
 
-  val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+  val create :
+    typing_env ->
+    used_closure_vars:Var_within_closure.Set.t ->
+    t * (Simple.t -> Simple.t)
 
   val find_or_missing : t -> Name.t -> Type_grammar.t option
 end = struct
@@ -1139,9 +1189,10 @@ end = struct
 
   let create (t : typing_env) ~used_closure_vars =
     let current_level =
-      One_level.remove_unused_closure_vars t.current_level ~used_closure_vars
+      One_level.remove_unused_closure_vars_and_shortcut_aliases t.current_level
+        ~used_closure_vars
     in
-    { t with current_level }
+    { t with current_level }, One_level.canonicalise current_level
 
   let find_or_missing = find_or_missing
 end

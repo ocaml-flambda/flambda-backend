@@ -64,12 +64,15 @@ val apply_renaming :
 val free_names :
   free_names_head:('head -> Name_occurrences.t) -> 'head t -> Name_occurrences.t
 
-val remove_unused_closure_vars :
-  free_names_head:('head -> Name_occurrences.t) ->
-  remove_unused_closure_vars_head:
-    ('head -> used_closure_vars:Var_within_closure.Set.t -> 'head) ->
+val remove_unused_closure_vars_and_shortcut_aliases :
+  remove_unused_closure_vars_and_shortcut_aliases_head:
+    ('head ->
+    used_closure_vars:Var_within_closure.Set.t ->
+    canonicalise:(Simple.t -> Simple.t) ->
+    'head) ->
   'head t ->
   used_closure_vars:Var_within_closure.Set.t ->
+  canonicalise:(Simple.t -> Simple.t) ->
   'head t
 
 val all_ids_for_export :

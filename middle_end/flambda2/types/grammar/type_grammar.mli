@@ -129,8 +129,11 @@ include Contains_names.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val remove_unused_closure_vars :
-  t -> used_closure_vars:Var_within_closure.Set.t -> t
+val remove_unused_closure_vars_and_shortcut_aliases :
+  t ->
+  used_closure_vars:Var_within_closure.Set.t ->
+  canonicalise:(Simple.t -> Simple.t) ->
+  t
 
 val kind : t -> Flambda_kind.t
 

@@ -31,8 +31,11 @@ val apply_renaming : t -> Renaming.t -> t
 
 include Contains_ids.S with type t := t
 
-val remove_unused_closure_vars :
-  t -> used_closure_vars:Var_within_closure.Set.t -> t
+val remove_unused_closure_vars_and_shortcut_aliases :
+  t ->
+  used_closure_vars:Var_within_closure.Set.t ->
+  canonicalise:(Simple.t -> Simple.t) ->
+  t
 
 type typing_env
 
@@ -199,7 +202,16 @@ module Typing_env : sig
   module Pre_serializable : sig
     type t
 
-    val create : typing_env -> used_closure_vars:Var_within_closure.Set.t -> t
+    (* This function ensures that all occurrences of aliases in the returned
+       environment are canonical. But some types, like function return types,
+       live outside the typing environment. To ensure that they can be exported
+       safely, they must go through
+       [remove_unused_closure_vars_and_shortcut_aliases] too, with the
+       [canonicalise] argument set to the function returned here. *)
+    val create :
+      typing_env ->
+      used_closure_vars:Var_within_closure.Set.t ->
+      t * (Simple.t -> Simple.t)
 
     val find_or_missing : t -> Name.t -> flambda_type option
   end
