@@ -87,7 +87,8 @@ let is_immediate n =
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_ops =
-  [ "sqrt"; ]
+  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
+    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
 
 let use_direct_addressing _symb =
   (not !Clflags.dlcode) && (not Arch.macosx)
@@ -96,12 +97,6 @@ let is_stack_slot rv =
   Reg.(match rv with
         | [| { loc = Stack _ } |] -> true
         | _ -> false)
-
-let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth =
-  function
-  | Sixteen -> Sixteen
-  | Thirtytwo -> Thirtytwo
-  | Sixtyfour -> Sixtyfour
 
 (* Instruction selection *)
 
@@ -232,9 +227,13 @@ method! select_operation op args dbg =
   | Cextcall { func = "sqrt" } ->
       (Ispecific Isqrtf, args)
   (* Recognize bswap instructions *)
-  | Cbswap { bitwidth } ->
-    let bitwidth = select_bitwidth bitwidth in
-      (Ispecific(Ibswap { bitwidth }), args)
+  | Cextcall { func = "caml_bswap16_direct" } ->
+      (Ispecific(Ibswap 16), args)
+  | Cextcall { func = "caml_int32_direct_bswap"; } ->
+      (Ispecific(Ibswap 32), args)
+  | Cextcall { func = "caml_int64_direct_bswap"; } |
+    Cextcall { func = "caml_nativeint_direct_bswap" } ->
+      (Ispecific (Ibswap 64), args)
   (* Other operations are regular *)
   | _ ->
       super#select_operation op args dbg

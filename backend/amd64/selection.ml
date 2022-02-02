@@ -96,12 +96,13 @@ let pseudoregs_for_operation op arg res =
   (* One-address unary operations: arg.(0) and res.(0) must be the same *)
   | Iintop_imm((Iadd|Isub|Imul|Iand|Ior|Ixor|Ilsl|Ilsr|Iasr), _)
   | Iabsf | Inegf
-  | Ispecific(Ibswap { bitwidth = (Thirtytwo | Sixtyfour) }) ->
+  | Ispecific(Ibswap (32|64)) ->
       (res, res)
   (* For xchg, args must be a register allowing access to high 8 bit register
      (rax, rbx, rcx or rdx). Keep it simple, just force the argument in rax. *)
-  | Ispecific(Ibswap { bitwidth = Sixteen }) ->
+  | Ispecific(Ibswap 16) ->
       ([| rax |], [| rax |])
+  | Ispecific (Ibswap _) -> assert false
   (* For imulh, first arg must be in rax, rax is clobbered, and result is in
      rdx. *)
   | Iintop(Imulh _) ->
@@ -165,12 +166,6 @@ let select_locality (l : Cmm.prefetch_temporal_locality_hint)
   | Moderate -> Moderate
   | High -> High
 
-let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth =
-  function
-  | Sixteen -> Sixteen
-  | Thirtytwo -> Thirtytwo
-  | Sixtyfour -> Sixtyfour
-
 let one_arg name args =
   match args with
   | [arg] -> arg
@@ -180,7 +175,8 @@ let one_arg name args =
 (* If you update [inline_ops], you may need to update [is_simple_expr] and/or
    [effects_of], below. *)
 let inline_ops =
-  [ "sqrt"; ]
+  [ "sqrt"; "caml_bswap16_direct"; "caml_int32_direct_bswap";
+    "caml_int64_direct_bswap"; "caml_nativeint_direct_bswap" ]
 
 let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
 
@@ -334,9 +330,13 @@ method! select_operation op args dbg =
       | _ ->
           super#select_operation op args dbg
       end
-  | Cbswap { bitwidth } ->
-    let bitwidth = select_bitwidth bitwidth in
-    (Ispecific (Ibswap { bitwidth }), args)
+  | Cextcall { func = "caml_bswap16_direct"; } ->
+      (Ispecific (Ibswap 16), args)
+  | Cextcall { func = "caml_int32_direct_bswap"; } ->
+      (Ispecific (Ibswap 32), args)
+  | Cextcall { func = "caml_int64_direct_bswap"; }
+  | Cextcall { func = "caml_nativeint_direct_bswap"; } ->
+      (Ispecific (Ibswap 64), args)
   (* Recognize sign extension *)
   | Casr ->
       begin match args with
