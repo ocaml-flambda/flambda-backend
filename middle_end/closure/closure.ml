@@ -992,7 +992,7 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
            ap_probe = probe; ap_loc = loc;
            ap_inlined = attribute} ->
       let nargs = List.length args in
-      if nargs = 0 then
+      if nargs = 0 && probe = None then
         Misc.fatal_errorf "Closure: 0-ary application at %a"
           Location.print_loc (Debuginfo.Scoped_location.to_location loc);
       assert (nargs > 0);
