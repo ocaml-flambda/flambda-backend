@@ -142,8 +142,12 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Naked_immediate, Swap_byte_endianness -> C.bswap16 arg dbg
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when C.arch32 -> C.unsupported_32_bits ()
-  (* General case (including byte swap for 64-bit on 32-bit archi) *)
+  (* General case *)
   | _, Neg -> C.sub_int (C.int 0) arg dbg
+  (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
+  | Naked_int32, Swap_byte_endianness when C.arch64 ->
+    let primitive_kind = primitive_boxed_int_of_standard_int kind in
+    C.sign_extend_32 dbg (C.bbswap primitive_kind arg dbg)
   | _, Swap_byte_endianness ->
     let primitive_kind = primitive_boxed_int_of_standard_int kind in
     C.bbswap primitive_kind arg dbg
