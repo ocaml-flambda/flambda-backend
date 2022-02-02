@@ -93,15 +93,23 @@ let clean_for_export t ~reachable_names =
   (* Names coming from other compilation units or unreachable are removed *)
   let current_compilation_unit = Compilation_unit.get_current_exn () in
   let names_to_types =
-    Name.Map.filter
-      (fun name _info ->
-        Name_occurrences.mem_name reachable_names name
-        && Compilation_unit.equal
-             (Name.compilation_unit name)
-             current_compilation_unit)
+    Name.Map.filter_map
+      (fun name (ty, binding_time_and_mode) ->
+        if Name_occurrences.mem_name reachable_names name
+           && Compilation_unit.equal
+                (Name.compilation_unit name)
+                current_compilation_unit
+        then
+          let binding_time_and_mode =
+            if Name.is_var name
+            then Binding_time.With_name_mode.imported_variables
+            else binding_time_and_mode
+          in
+          Some (ty, binding_time_and_mode)
+        else None)
       t.names_to_types
   in
-  let aliases = Aliases.clean_for_export t.aliases ~reachable_names in
+  let aliases = Aliases.empty in
   { t with names_to_types; aliases }
 
 let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
@@ -130,7 +138,7 @@ let merge t1 t2 =
   let names_to_types =
     Name.Map.disjoint_union t1.names_to_types t2.names_to_types
   in
-  let aliases = Aliases.merge t1.aliases t2.aliases in
+  let aliases = Aliases.empty in
   let symbol_projections =
     Variable.Map.union
       (fun var proj1 proj2 ->

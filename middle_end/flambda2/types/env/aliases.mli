@@ -137,10 +137,4 @@ val get_aliases : t -> Simple.t -> Alias_set.t
 
 val get_canonical_ignoring_name_mode : t -> Name.t -> Simple.t
 
-(** Combine two alias trackers, assuming that any names they have in common have
-    the same name mode (if not, something is very wrong anyway). *)
-val merge : t -> t -> t
-
-val clean_for_export : t -> reachable_names:Name_occurrences.t -> t
-
 val apply_renaming : t -> Renaming.t -> t

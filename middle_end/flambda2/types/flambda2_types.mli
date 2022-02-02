@@ -101,23 +101,64 @@ end
 module Typing_env : sig
   type t = typing_env
 
+  module Pre_serializable : sig
+    type t
+
+    (* This function ensures that all occurrences of aliases in the returned
+       environment are canonical. But some types, like function return types,
+       live outside the typing environment. To ensure that they can be exported
+       safely, they must go through
+       [remove_unused_closure_vars_and_shortcut_aliases] too, with the
+       [canonicalise] argument set to the function returned here. *)
+    val create :
+      typing_env ->
+      used_value_slots:Value_slot.Set.t ->
+      t * (Simple.t -> Simple.t)
+
+    val find_or_missing : t -> Name.t -> flambda_type option
+  end
+
+  module Serializable : sig
+    type t
+
+    val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
+
+    val create_from_closure_conversion_approx :
+      'a Value_approximation.t Symbol.Map.t -> t
+
+    val predefined_exceptions : Symbol.Set.t -> t
+
+    val free_function_slots_and_value_slots : t -> Name_occurrences.t
+
+    val print : Format.formatter -> t -> unit
+
+    val name_domain : t -> Name.Set.t
+
+    val all_ids_for_export : t -> Ids_for_export.t
+
+    val apply_renaming : t -> Renaming.t -> t
+
+    val merge : t -> t -> t
+
+    val extract_symbol_approx :
+      t -> Symbol.t -> (Code_id.t -> 'code) -> 'code Value_approximation.t
+  end
+
   val invariant : t -> unit
 
   val print : Format.formatter -> t -> unit
 
   val create :
-    resolver:(Compilation_unit.t -> t option) ->
+    resolver:(Compilation_unit.t -> Serializable.t option) ->
     get_imported_names:(unit -> Name.Set.t) ->
     t
 
   val closure_env : t -> t
 
-  val resolver : t -> Compilation_unit.t -> t option
+  val resolver : t -> Compilation_unit.t -> Serializable.t option
 
   val code_age_relation_resolver :
     t -> Compilation_unit.t -> Code_age_relation.t option
-
-  val name_domain : t -> Name.Set.t
 
   val current_scope : t -> Scope.t
 
@@ -196,48 +237,6 @@ module Typing_env : sig
 
   val aliases_of_simple :
     t -> min_name_mode:Name_mode.t -> Simple.t -> Alias_set.t
-
-  module Pre_serializable : sig
-    type t
-
-    (* This function ensures that all occurrences of aliases in the returned
-       environment are canonical. But some types, like function return types,
-       live outside the typing environment. To ensure that they can be exported
-       safely, they must go through
-       [remove_unused_value_slots_and_shortcut_aliases] too, with the
-       [canonicalise] argument set to the function returned here. *)
-    val create :
-      typing_env ->
-      used_value_slots:Value_slot.Set.t ->
-      t * (Simple.t -> Simple.t)
-
-    val find_or_missing : t -> Name.t -> flambda_type option
-  end
-
-  module Serializable : sig
-    type t
-
-    val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
-
-    val free_function_slots_and_value_slots : t -> Name_occurrences.t
-
-    val create_from_closure_conversion_approx :
-      'a Value_approximation.t Symbol.Map.t -> t
-
-    val print : Format.formatter -> t -> unit
-
-    val to_typing_env :
-      t ->
-      resolver:(Compilation_unit.t -> typing_env option) ->
-      get_imported_names:(unit -> Name.Set.t) ->
-      typing_env
-
-    val all_ids_for_export : t -> Ids_for_export.t
-
-    val apply_renaming : t -> Renaming.t -> t
-
-    val merge : t -> t -> t
-  end
 end
 
 val meet : Typing_env.t -> t -> t -> (t * Typing_env_extension.t) Or_bottom.t
@@ -758,9 +757,3 @@ val reify :
 
 val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
-
-val extract_symbol_approx :
-  Typing_env.t ->
-  Symbol.t ->
-  (Code_id.t -> 'code) ->
-  'code Value_approximation.t
