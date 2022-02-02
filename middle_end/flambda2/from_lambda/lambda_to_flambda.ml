@@ -79,12 +79,12 @@ module Env : sig
 
   val entering_region : t -> Ident.t -> t
 
-  val innermost_region : t -> Ident.t
-
   (** The innermost (newest) region is first in the list. *)
   val region_stack : t -> Ident.t list
 
   val region_stack_at_handler : t -> Continuation.t -> Ident.t list
+
+  val pop_regions_to_context : t -> Continuation.t -> Ident.t option
 end = struct
   type t =
     { current_unit_id : Ident.t;
@@ -112,7 +112,8 @@ end = struct
       static_exn_continuation = Numeric_types.Int.Map.empty;
       recursive_static_catches = Numeric_types.Int.Set.empty;
       region_stack = [];
-      region_stack_at_handler = Continuation.Map.empty
+      region_stack_at_handler =
+        Continuation.Map.singleton return_continuation []
     }
 
   let current_unit_id t = t.current_unit_id
@@ -163,9 +164,10 @@ end = struct
         if push_to_try_stack then cont :: t.try_stack else t.try_stack
       in
       let region_stack_at_handler =
-        match recursive with
-        | Nonrecursive -> t.region_stack_at_handler
-        | Recursive -> new_region_stack_at_handler
+        (* match recursive with
+         * | Nonrecursive -> t.region_stack_at_handler
+         * | Recursive -> *)
+        new_region_stack_at_handler
       in
       { t with
         mutables_needed_by_continuations;
@@ -270,12 +272,6 @@ end = struct
 
   let entering_region t id = { t with region_stack = id :: t.region_stack }
 
-  let innermost_region t =
-    match t.region_stack with
-    | region :: _ -> region
-    | [] ->
-      Misc.fatal_error "Cannot get innermost region as no regions are open"
-
   let region_stack t = t.region_stack
 
   let region_stack_at_handler t continuation =
@@ -284,6 +280,22 @@ end = struct
       Misc.fatal_errorf "No region stack recorded for handler %a"
         Continuation.print continuation
     | stack -> stack
+
+  let pop_regions_to_context t continuation =
+    let initial_stack_context = region_stack_at_handler t continuation in
+    let rec pop to_pop region_stack =
+      match initial_stack_context, region_stack with
+      | [], [] -> to_pop
+      | [], region :: regions -> pop (Some region) regions
+      | _initial_stack_top :: _, [] ->
+        Misc.fatal_errorf "Unable to restore region stack for %a"
+          Continuation.print continuation
+      | initial_stack_top :: _, region :: regions ->
+        if Ident.equal initial_stack_top region
+        then to_pop
+        else pop (Some region) regions
+    in
+    pop None t.region_stack
 end
 
 module CCenv = Closure_conversion_aux.Env
@@ -623,33 +635,45 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   CC.close_let_cont acc ccenv ~name:cont ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
 
+let restore_continuation_context acc env ccenv cont body =
+  match Env.pop_regions_to_context env cont with
+  | None -> body acc ccenv
+  | Some region ->
+    CC.close_let acc ccenv
+      (Ident.create_local "unit")
+      Not_user_visible (End_region region) ~body
+
 let apply_cont_with_extra_args acc env ccenv cont traps args =
   let extra_args =
     List.map
       (fun var : IR.simple -> Var var)
       (Env.extra_args_for_continuation env cont)
   in
-  CC.close_apply_cont acc ccenv cont traps (args @ extra_args)
+  restore_continuation_context acc env ccenv cont (fun acc ccenv ->
+      CC.close_apply_cont acc ccenv cont traps (args @ extra_args))
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
-  match extra_args with
-  | [] -> CC.close_apply acc ccenv apply
-  | _ :: _ ->
-    let wrapper_cont = Continuation.create () in
-    let return_value = Ident.create_local "return_val" in
-    let args =
-      List.map (fun var : IR.simple -> Var var) (return_value :: extra_args)
-    in
-    let handler acc ccenv =
-      CC.close_apply_cont acc ccenv apply.continuation None args
-    in
-    let body acc ccenv =
-      CC.close_apply acc ccenv { apply with continuation = wrapper_cont }
-    in
-    CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
-      ~params:[return_value, Not_user_visible, Pgenval]
-      ~recursive:Nonrecursive ~body ~handler
+  let body acc ccenv =
+    match extra_args with
+    | [] -> CC.close_apply acc ccenv apply
+    | _ :: _ ->
+      let wrapper_cont = Continuation.create () in
+      let return_value = Ident.create_local "return_val" in
+      let args =
+        List.map (fun var : IR.simple -> Var var) (return_value :: extra_args)
+      in
+      let handler acc ccenv =
+        CC.close_apply_cont acc ccenv apply.continuation None args
+      in
+      let body acc ccenv =
+        CC.close_apply acc ccenv { apply with continuation = wrapper_cont }
+      in
+      CC.close_let_cont acc ccenv ~name:wrapper_cont ~is_exn_handler:false
+        ~params:[return_value, Not_user_visible, Pgenval]
+        ~recursive:Nonrecursive ~body ~handler
+  in
+  restore_continuation_context acc env ccenv apply.continuation body
 
 let primitive_can_raise (prim : Lambda.primitive) =
   match prim with
@@ -736,7 +760,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
   | Lapply
       { ap_func;
         ap_args;
-        ap_region_close;
+        ap_region_close = _;
         ap_mode;
         ap_loc;
         ap_tailcall;
@@ -744,13 +768,6 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         ap_specialised;
         ap_probe
       } ->
-    (* It is important that any necessary [End_region] marker (from a
-       surrounding [Lregion]) is inserted before the tail call! *)
-    let need_end_region =
-      match ap_region_close with
-      | Rc_normal -> false
-      | Rc_close_at_apply -> true
-    in
     cps_non_tail_list acc env ccenv ap_args
       (fun acc env ccenv args ->
         cps_non_tail acc env ccenv ap_func
@@ -779,16 +796,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                     mode = ap_mode
                   }
                 in
-                if not need_end_region
-                then wrap_return_continuation acc env ccenv apply
-                else
-                  (* CR vlaviron: Need to close all regions, or equivalently the
-                     outermost one *)
-                  let region = Env.innermost_region env in
-                  CC.close_let acc ccenv (Ident.create_local "unit")
-                    Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                      let acc = Acc.add_region_closed_early acc region in
-                      wrap_return_continuation acc env ccenv apply))
+                wrap_return_continuation acc env ccenv apply)
               ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
           k_exn)
       k_exn
@@ -939,11 +947,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false
           ~params ~recursive ~body ~handler)
       ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
-  | Lsend (meth_kind, meth, obj, args, pos, mode, loc) ->
-    (* See comments in the [Lapply] case above. *)
-    let need_end_region =
-      match pos with Rc_normal -> false | Rc_close_at_apply -> true
-    in
+  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -974,17 +978,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         mode
                       }
                     in
-                    if not need_end_region
-                    then wrap_return_continuation acc env ccenv apply
-                    else
-                      (* CR vlaviron: Need to close all regions, or equivalently
-                         the outermost one *)
-                      let region = Env.innermost_region env in
-                      CC.close_let acc ccenv (Ident.create_local "unit")
-                        Not_user_visible (End_region region)
-                        ~body:(fun acc ccenv ->
-                          let acc = Acc.add_region_closed_early acc region in
-                          wrap_return_continuation acc env ccenv apply))
+                    wrap_return_continuation acc env ccenv apply)
                   ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
               k_exn)
           k_exn)
@@ -1074,15 +1068,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let env = Env.entering_region env region in
-        cps_non_tail acc env ccenv body
-          (fun acc env ccenv result ->
-            if Acc.region_closed_early acc region
-            then k acc env ccenv result
-            else
-              CC.close_let acc ccenv (Ident.create_local "unit")
-                Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                  k acc env ccenv result))
-          k_exn)
+        cps_non_tail acc env ccenv body k k_exn)
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
@@ -1114,7 +1100,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Lapply
       { ap_func;
         ap_args;
-        ap_region_close;
+        ap_region_close = _;
         ap_mode;
         ap_loc;
         ap_tailcall;
@@ -1122,11 +1108,6 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         ap_specialised;
         ap_probe
       } ->
-    let need_end_region =
-      match ap_region_close with
-      | Rc_normal -> false
-      | Rc_close_at_apply -> true
-    in
     cps_non_tail_list acc env ccenv ap_args
       (fun acc env ccenv args ->
         cps_non_tail acc env ccenv ap_func
@@ -1150,16 +1131,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                 mode = ap_mode
               }
             in
-            if not need_end_region
-            then wrap_return_continuation acc env ccenv apply
-            else
-              (* CR vlaviron: Need to close all regions, or equivalently the
-                 outermost one *)
-              let region = Env.innermost_region env in
-              CC.close_let acc ccenv (Ident.create_local "unit")
-                Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                  let acc = Acc.add_region_closed_early acc region in
-                  wrap_return_continuation acc env ccenv apply))
+            wrap_return_continuation acc env ccenv apply)
           k_exn)
       k_exn
   | Lfunction func ->
@@ -1318,10 +1290,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     in
     CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false ~params
       ~recursive ~body ~handler
-  | Lsend (meth_kind, meth, obj, args, pos, mode, loc) ->
-    let need_end_region =
-      match pos with Rc_normal -> false | Rc_close_at_apply -> true
-    in
+  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -1347,16 +1316,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                     mode
                   }
                 in
-                if not need_end_region
-                then wrap_return_continuation acc env ccenv apply
-                else
-                  (* CR vlaviron: Need to close all regions, or equivalently the
-                     outermost one *)
-                  let region = Env.innermost_region env in
-                  CC.close_let acc ccenv (Ident.create_local "unit")
-                    Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                      let acc = Acc.add_region_closed_early acc region in
-                      wrap_return_continuation acc env ccenv apply))
+                wrap_return_continuation acc env ccenv apply)
               k_exn)
           k_exn)
       k_exn
@@ -1429,15 +1389,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let env = Env.entering_region env region in
-        cps_non_tail acc env ccenv body
-          (fun acc env ccenv result ->
-            if Acc.region_closed_early acc region
-            then cps_tail acc env ccenv (L.Lvar result) k k_exn
-            else
-              CC.close_let acc ccenv (Ident.create_local "unit")
-                Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                  cps_tail acc env ccenv (L.Lvar result) k k_exn))
-          k_exn)
+        cps_tail acc env ccenv body k k_exn)
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
