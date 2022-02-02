@@ -66,8 +66,8 @@ type t = private
       (** Values which have been introduced by Flambda and are never accessible
           at the source language level (for example sets of closures). *)
   | Rec_info
-      (** Recursion depths of identifiers. Like [Region], not accessible at
-          the source level, but also not accessible at run time. *)
+      (** Recursion depths of identifiers. Like [Region], not accessible at the
+          source level, but also not accessible at run time. *)
 
 type kind = t
 
