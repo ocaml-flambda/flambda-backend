@@ -1181,7 +1181,7 @@ and transl_unbox_int_low dbg env bi e =
   if bi = Pint32 then low_32 dbg e else e
 
 and transl_unbox_sized size dbg env exp =
-  match (size : Clambda_primitives.memory_access_size) with
+  match size with
   | Sixteen ->
      ignore_high_bit_int (untag_int (transl env exp) dbg)
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
