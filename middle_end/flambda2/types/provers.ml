@@ -343,6 +343,7 @@ let prove_equals_tagged_immediates env t : Targetint_31_63.Set.t proof =
       then Unknown
       else prove_naked_immediates env imms
   end
+  | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -385,6 +386,7 @@ let prove_tags_and_sizes env t : Targetint_31_63.Imm.t Tag.Map.t proof =
           | Known tags_and_sizes -> Proved tags_and_sizes)
       else Unknown
   end
+  | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -452,6 +454,7 @@ let prove_variant_like env t : variant_like_proof proof_allowing_kind_mismatch =
           in
           Proved { const_ctors; non_const_ctors_with_sizes }))
   end
+  | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -813,6 +816,7 @@ let[@inline] prove_block_field_simple_aux env ~min_name_mode t get_field :
           end)
     end
   end
+  | Value (Ok (Mutable_block _)) -> Unknown
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
