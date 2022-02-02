@@ -132,7 +132,7 @@ let kind ppf (k : kind) =
   match k with
   | Value -> Format.pp_print_string ppf "val"
   | Naked_number nnk -> naked_number_kind ppf nnk
-  | Fabricated -> Format.pp_print_string ppf "fabricated"
+  | Region -> Format.pp_print_string ppf "region"
   | Rec_info -> Format.pp_print_string ppf "rec_info"
 
 let kind_with_subkind ppf (k : kind_with_subkind) =
@@ -267,7 +267,12 @@ let array_kind ~space ppf (ak : array_kind) =
   pp_option ~space Format.pp_print_string ppf str
 
 let init_or_assign ppf ia =
-  let str = match ia with Initialization -> "=" | Assignment -> "<-" in
+  let str =
+    match ia with
+    | Initialization -> "="
+    | Assignment -> "<-"
+    | Local_assignment -> "<-local"
+  in
   Format.fprintf ppf "%s" str
 
 let boxed_variable ppf var ~kind =

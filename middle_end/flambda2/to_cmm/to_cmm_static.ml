@@ -213,14 +213,16 @@ and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
     let code_symbol = Code_id.code_symbol code_id in
     let code_name = Linkage_name.to_string (Symbol.linkage_name code_symbol) in
     let acc = List.rev (C.define_symbol ~global:true external_name) @ acc in
-    let arity = Env.get_func_decl_params_arity env code_id in
+    let arity, closure_code_pointers =
+      Env.get_func_decl_params_arity env code_id
+    in
     let closure_info = C.closure_info ~arity ~startenv:(startenv - offset) in
     (* We build here the **reverse** list of fields for the closure *)
-    match arity with
-    | Curried _, (1 | 0) ->
+    match closure_code_pointers with
+    | Full_application_only ->
       let acc = C.cint closure_info :: C.symbol_address code_name :: acc in
       env, acc, offset + 2, updates
-    | arity ->
+    | Full_and_partial_application ->
       let acc =
         C.symbol_address code_name :: C.cint closure_info
         :: C.symbol_address (C.curry_function_sym arity)

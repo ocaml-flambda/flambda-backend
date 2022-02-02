@@ -55,21 +55,40 @@ type reification_result =
 let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     ?disallowed_free_vars ?(allow_unique = false) env ~min_name_mode t :
     reification_result =
-  let var_allowed var =
-    match allowed_if_free_vars_defined_in with
-    | None -> false
-    | Some allowed_if_free_vars_defined_in -> (
-      TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
-      && begin
-           match additional_free_var_criterion with
-           | None -> true
-           | Some criterion -> criterion var
-         end
-      &&
-      match disallowed_free_vars with
-      | None -> true
-      | Some disallowed_free_vars ->
-        not (Variable.Set.mem var disallowed_free_vars))
+  let var_allowed (alloc_mode : Alloc_mode.t Or_unknown.t) var =
+    (* It is only safe to lift a [Local] allocation if it can be guaranteed that
+       no locally-allocated value is reachable from it: therefore, any variables
+       involved in the definition of an (inconstant) value to be lifted have
+       their types checked to ensure they cannot hold locally-allocated values.
+       Conversely, [Heap] allocations can be lifted even if inconstant, because
+       the OCaml type system will have validated the correctness of the original
+       non-lifted terms; any places in the compiler where new [Local] blocks are
+       created (e.g. during partial application wrapper expansion) will have
+       been checked to ensure they do not break the invariants; and finally
+       because the Flambda 2 type system accurately propagates the allocation
+       modes (and if it loses information there, we won't lift). *)
+    let allowed =
+      match allowed_if_free_vars_defined_in with
+      | None -> false
+      | Some allowed_if_free_vars_defined_in -> (
+        TE.mem ~min_name_mode allowed_if_free_vars_defined_in (Name.var var)
+        && begin
+             match additional_free_var_criterion with
+             | None -> true
+             | Some criterion -> criterion var
+           end
+        &&
+        match disallowed_free_vars with
+        | None -> true
+        | Some disallowed_free_vars ->
+          not (Variable.Set.mem var disallowed_free_vars))
+    in
+    allowed
+    &&
+    match alloc_mode with
+    | Known Heap -> true
+    | Unknown | Known Local ->
+      Provers.never_holds_locally_allocated_values env var Flambda_kind.value
   in
   let canonical_simple =
     match TE.get_alias_then_canonical_simple_exn env ~min_name_mode t with
@@ -91,11 +110,11 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
-    | Value (Ok (Variant blocks_imms)) -> (
-      if blocks_imms.is_unique && not allow_unique
+    | Value (Ok (Variant { is_unique; blocks; immediates; alloc_mode })) -> (
+      if is_unique && not allow_unique
       then try_canonical_simple ()
       else
-        match blocks_imms.blocks, blocks_imms.immediates with
+        match blocks, immediates with
         | Known blocks, Known imms ->
           if Expand_head.is_bottom env imms
           then
@@ -129,7 +148,9 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                            fields have coercions. *)
                         None
                       | Proved (Var var, _) ->
-                        if var_allowed var then Some (Var var) else None
+                        if var_allowed alloc_mode var
+                        then Some (Var var)
+                        else None
                       | Proved (Symbol sym, _) -> Some (Symbol sym)
                       | Proved (Tagged_immediate imm, _) ->
                         Some (Tagged_immediate imm)
@@ -144,7 +165,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                   Lift
                     (Immutable_block
                        { tag;
-                         is_unique = blocks_imms.is_unique;
+                         is_unique;
                          fields = vars_or_symbols_or_tagged_immediates
                        })
                 else try_canonical_simple ())
@@ -162,9 +183,10 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
           else try_canonical_simple ()
         | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
           try_canonical_simple ())
-    | Value (Ok (Closures closures)) -> begin
+    | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
+    | Value (Ok (Closures { by_closure_id; alloc_mode })) -> begin
       (* CR mshinwell: Here and above, move to separate function. *)
-      match TG.Row_like_for_closures.get_singleton closures.by_closure_id with
+      match TG.Row_like_for_closures.get_singleton by_closure_id with
       | None -> try_canonical_simple ()
       | Some ((closure_id, contents), closures_entry) ->
         (* CR mshinwell: What about if there were multiple entries in the
@@ -201,7 +223,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                           closure_var_type
                       with
                       | Proved (Var var, coercion) ->
-                        if var_allowed var
+                        if var_allowed alloc_mode var
                         then
                           Some (Simple.with_coercion (Simple.var var) coercion)
                         else None
@@ -307,7 +329,9 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | None -> try_canonical_simple ()
       | Some n -> Simple (Simple.const (Reg_width_const.naked_nativeint n))
     end
-    | Value (Ok (Boxed_float ty_naked_float)) -> begin
+    (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
+       is an alias type. That would require checking the alloc mode. *)
+    | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> begin
       match Provers.prove_naked_floats env ty_naked_float with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -316,7 +340,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f))
     end
-    | Value (Ok (Boxed_int32 ty_naked_int32)) -> begin
+    | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> begin
       match Provers.prove_naked_int32s env ty_naked_int32 with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -325,7 +349,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int32 n))
     end
-    | Value (Ok (Boxed_int64 ty_naked_int64)) -> begin
+    | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> begin
       match Provers.prove_naked_int64s env ty_naked_int64 with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -334,7 +358,7 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int64 n))
     end
-    | Value (Ok (Boxed_nativeint ty_naked_nativeint)) -> begin
+    | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> begin
       match Provers.prove_naked_nativeints env ty_naked_nativeint with
       | Unknown -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -357,7 +381,8 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     | Naked_int32 Bottom
     | Naked_int64 Bottom
     | Naked_nativeint Bottom
-    | Rec_info Bottom ->
+    | Rec_info Bottom
+    | Region Bottom ->
       Invalid
     | Value Unknown
     | Value (Ok (String _))
@@ -367,5 +392,6 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
     | Naked_int64 Unknown
     | Naked_nativeint Unknown
     | Rec_info Unknown
+    | Region (Unknown | Ok _)
     | Rec_info (Ok _) ->
       try_canonical_simple ())

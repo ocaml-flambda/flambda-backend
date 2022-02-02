@@ -49,22 +49,37 @@ val any_tagged_bool : Type_grammar.t
 
 val any_naked_bool : Type_grammar.t
 
-val this_boxed_float : Numeric_types.Float_by_bit_pattern.t -> Type_grammar.t
+val this_boxed_float :
+  Numeric_types.Float_by_bit_pattern.t ->
+  Alloc_mode.t Or_unknown.t ->
+  Type_grammar.t
 
-val this_boxed_int32 : int32 -> Type_grammar.t
+val this_boxed_int32 : int32 -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
-val this_boxed_int64 : int64 -> Type_grammar.t
+val this_boxed_int64 : int64 -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
-val this_boxed_nativeint : Targetint_32_64.t -> Type_grammar.t
+val this_boxed_nativeint :
+  Targetint_32_64.t -> Alloc_mode.t Or_unknown.t -> Type_grammar.t
 
-val these_boxed_floats : Type_grammar.head_of_kind_naked_float -> Type_grammar.t
+val these_boxed_floats :
+  Type_grammar.head_of_kind_naked_float ->
+  Alloc_mode.t Or_unknown.t ->
+  Type_grammar.t
 
-val these_boxed_int32s : Type_grammar.head_of_kind_naked_int32 -> Type_grammar.t
+val these_boxed_int32s :
+  Type_grammar.head_of_kind_naked_int32 ->
+  Alloc_mode.t Or_unknown.t ->
+  Type_grammar.t
 
-val these_boxed_int64s : Type_grammar.head_of_kind_naked_int64 -> Type_grammar.t
+val these_boxed_int64s :
+  Type_grammar.head_of_kind_naked_int64 ->
+  Alloc_mode.t Or_unknown.t ->
+  Type_grammar.t
 
 val these_boxed_nativeints :
-  Type_grammar.head_of_kind_naked_nativeint -> Type_grammar.t
+  Type_grammar.head_of_kind_naked_nativeint ->
+  Alloc_mode.t Or_unknown.t ->
+  Type_grammar.t
 
 val any_boxed_float : Type_grammar.t
 
@@ -82,6 +97,7 @@ val immutable_block :
   is_unique:bool ->
   Tag.t ->
   field_kind:Flambda_kind.t ->
+  Alloc_mode.t Or_unknown.t ->
   fields:Type_grammar.t list ->
   Type_grammar.t
 
@@ -95,6 +111,7 @@ val immutable_block_with_size_at_least :
 val variant :
   const_ctors:Type_grammar.t ->
   non_const_ctors:Type_grammar.t list Tag.Scannable.Map.t ->
+  Alloc_mode.t Or_unknown.t ->
   Type_grammar.t
 
 val open_variant_from_const_ctors_type :
@@ -111,6 +128,7 @@ val exactly_this_closure :
     Type_grammar.function_type Or_unknown_or_bottom.t Closure_id.Map.t ->
   all_closures_in_set:Type_grammar.t Closure_id.Map.t ->
   all_closure_vars_in_set:Type_grammar.t Var_within_closure.Map.t ->
+  Alloc_mode.t Or_unknown.t ->
   Type_grammar.t
 
 val at_least_the_closures_with_ids :

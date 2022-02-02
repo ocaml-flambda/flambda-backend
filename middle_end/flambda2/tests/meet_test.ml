@@ -24,7 +24,7 @@ let test_meet_chains_two_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         ~fields:[T.any_tagged_immediate])
+         (Known Heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -57,7 +57,7 @@ let test_meet_chains_three_vars () =
   let env =
     TE.add_equation env (Name.var var1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
-         ~fields:[T.any_tagged_immediate])
+         (Known Heap) ~fields:[T.any_tagged_immediate])
   in
   let var2 = Variable.create "var2" in
   let var2' = Bound_var.create var2 Name_mode.normal in
@@ -109,7 +109,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vy)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors
+    T.variant ~const_ctors ~non_const_ctors (Known Heap)
   in
   let ty2 =
     let non_const_ctors =
@@ -118,7 +118,7 @@ let meet_variants_don't_lose_aliases () =
           Tag.Scannable.create_exn 1, [T.alias_type_of K.value (Simple.var vb)]
         ]
     in
-    T.variant ~const_ctors ~non_const_ctors
+    T.variant ~const_ctors ~non_const_ctors (Known Heap)
   in
   match T.meet env ty1 ty2 with
   | Bottom -> assert false
@@ -153,11 +153,13 @@ let test_meet_two_blocks () =
   let env =
     TE.add_equation env (Name.var block1)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
+         (Known Heap)
          ~fields:[T.alias_type_of K.value (Simple.var field1)])
   in
   let env =
     TE.add_equation env (Name.var block2)
       (T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
+         (Known Heap)
          ~fields:[T.alias_type_of K.value (Simple.var field2)])
   in
 
