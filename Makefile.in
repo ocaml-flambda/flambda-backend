@@ -247,7 +247,9 @@ _build_upstream/config.status: ocaml/configure.ac
 
 .PHONY: build_upstream
 build_upstream: _build_upstream/config.status
-	rsync -a $$(pwd)/ocaml/ $$(pwd)/_build_upstream
+	rsync -a \
+	  --filter=':- $$(pwd)/ocaml/.gitignore' \
+		$$(pwd)/ocaml/ $$(pwd)/_build_upstream
 	(cd _build_upstream && \
 	    $(MAKE) world.opt && \
 	    $(MAKE) ocamlnat)
