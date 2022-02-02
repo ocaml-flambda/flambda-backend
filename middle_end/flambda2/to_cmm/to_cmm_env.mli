@@ -72,9 +72,15 @@ val exn_cont : t -> Continuation.t
 (** Retrieve known information on the given function *)
 val get_function_info : t -> Code_id.t -> Code_metadata.t
 
+type closure_code_pointers =
+  | Full_application_only
+  | Full_and_partial_application
+
 (** Retrieve the parameter arity of the function declaration (taking into
-    account both the function's own arity and the [is_tupled] flag) *)
-val get_func_decl_params_arity : t -> Code_id.t -> Clambda.arity
+    account both the function's own arity and the [is_tupled] flag) together
+    with the code pointer layout for the closure. *)
+val get_func_decl_params_arity :
+  t -> Code_id.t -> Clambda.arity * closure_code_pointers
 
 (** {2 Variable bindings} *)
 

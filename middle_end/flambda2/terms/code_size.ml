@@ -142,9 +142,11 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
 
 let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
+  (* XXX these need checking for [Local_assignment] *)
   match kind, init with
-  | Values _, (Assignment | Initialization) -> 1 (* cadda + store *)
-  | Naked_floats _, (Assignment | Initialization) -> 1
+  | Values _, (Assignment | Local_assignment | Initialization) ->
+    1 (* cadda + store *)
+  | Naked_floats _, (Assignment | Local_assignment | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_kind.t)
     (_init : Flambda_primitive.Init_or_assign.t) =
@@ -317,6 +319,7 @@ let nullary_prim_size prim =
   match (prim : Flambda_primitive.nullary_primitive) with
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
+  | Begin_region -> 1
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
@@ -334,12 +337,12 @@ let unary_prim_size prim =
   | Boolean_not -> 1
   | Reinterpret_int64_as_float -> 0
   | Unbox_number k -> unbox_number k
-  | Box_number k -> box_number k
+  | Box_number (k, _alloc_mode) -> box_number k
   | Select_closure _ -> 1 (* caddv *)
   | Project_var _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
-  | Is_flat_float_array -> 4
-(* tag load + comparison *)
+  | Is_flat_float_array -> 4 (* tag load + comparison *)
+  | End_region -> 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
@@ -373,10 +376,10 @@ let ternary_prim_size prim =
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with
-  | Make_block (_, _mut)
+  | Make_block (_, _mut, _alloc_mode)
   (* CR mshinwell: I think Make_array for a generic array ("Anything") is more
      expensive than the other cases *)
-  | Make_array (_, _mut) ->
+  | Make_array (_, _mut, _alloc_mode) ->
     alloc_size + List.length args
 
 let prim (prim : Flambda_primitive.t) =
@@ -394,10 +397,12 @@ let static_consts _ = 0
 
 let apply apply =
   match Apply_expr.call_kind apply with
-  | Function (Direct _) -> direct_call_size
+  | Function { function_call = Direct _; _ } -> direct_call_size
   (* CR mshinwell: Check / fix these numbers *)
-  | Function Indirect_unknown_arity -> indirect_call_size
-  | Function (Indirect_known_arity _) -> indirect_call_size
+  | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
+    indirect_call_size
+  | Function { function_call = Indirect_known_arity _; alloc_mode = _ } ->
+    indirect_call_size
   | C_call { alloc = true; _ } -> alloc_extcall_size
   | C_call { alloc = false; _ } -> nonalloc_extcall_size
   | Method _ -> 8
@@ -406,8 +411,10 @@ let apply apply =
 let apply_cont apply_cont =
   let size =
     match Apply_cont_expr.trap_action apply_cont with
+    (* Current rough estimates are from amd64/emit.mlp *)
     | None -> 0
-    | Some (Push _ | Pop _) -> 0 + 4
+    | Some (Push _) -> 4
+    | Some (Pop _) -> 2
   in
   size + 1
 

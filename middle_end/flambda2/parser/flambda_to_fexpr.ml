@@ -401,7 +401,7 @@ let simple env s =
 let kind (k : Flambda_kind.t) : Fexpr.kind =
   match k with
   | Value -> Value
-  | Fabricated -> Fabricated
+  | Region -> Region
   | Naked_number nnk -> Naked_number nnk
   | Rec_info -> Rec_info
 
@@ -464,7 +464,8 @@ let recursive_flag (r : Recursive.t) : Fexpr.is_recursive =
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
   | Array_length -> Array_length
-  | Box_number bk -> Box_number bk
+  (* CR mshinwell: support local allocs in fexpr *)
+  | Box_number (bk, _alloc_mode) -> Box_number bk
   | Get_tag -> Get_tag
   | Is_int -> Is_int
   | Num_conv { src; dst } -> Num_conv { src; dst }
@@ -481,7 +482,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
-  | Is_boxed_float | Is_flat_float_array ->
+  | Is_boxed_float | Is_flat_float_array | End_region ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -537,9 +538,9 @@ let ternop (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
 
 let varop (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
-  | Make_block (Values (tag, _), mutability) ->
+  | Make_block (Values (tag, _), mutability, _alloc_mode) ->
     Make_block (tag |> Tag.Scannable.to_int, mutability)
-  | Make_block (Naked_floats, _) | Make_array _ ->
+  | Make_block (Naked_floats, _, _) | Make_array _ ->
     Misc.fatal_errorf "TODO: Variadic primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Variadic op)
@@ -890,7 +891,10 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let args = List.map (simple env) (Apply_expr.args app) in
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
-    | Function (Direct { code_id; closure_id; return_arity = _ }) ->
+    | Function
+        { function_call = Direct { code_id; closure_id; return_arity = _ };
+          alloc_mode = _
+        } ->
       let code_id = Env.find_code_id_exn env code_id in
       let closure_id = Env.translate_closure_id env closure_id in
       let closure_id =
@@ -899,18 +903,24 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         else Some closure_id
       in
       Function (Direct { code_id; closure_id })
-    | Function (Indirect_unknown_arity | Indirect_known_arity _) ->
+    | Function
+        { function_call = Indirect_unknown_arity | Indirect_known_arity _;
+          alloc_mode = _
+        } ->
       Function Indirect
     | C_call { alloc; _ } -> C_call { alloc }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
   in
   let arities : Fexpr.function_arities option =
     match Apply_expr.call_kind app with
-    | Function (Indirect_known_arity { param_arity; return_arity }) ->
+    | Function
+        { function_call = Indirect_known_arity { param_arity; return_arity };
+          alloc_mode = _
+        } ->
       let params_arity = Some (arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function (Direct { return_arity; _ }) ->
+    | Function { function_call = Direct { return_arity; _ }; alloc_mode = _ } ->
       if is_default_arity return_arity
       then None
       else
@@ -928,7 +938,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
         arity (return_arity |> Flambda_arity.With_subkinds.of_arity)
       in
       Some { params_arity; ret_arity }
-    | Function Indirect_unknown_arity | Method _ -> None
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
+    | Method _ ->
+      None
   in
   let inlined =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)

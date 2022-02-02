@@ -123,11 +123,11 @@ module type Boxable = sig
     Flambda2_types.t ->
     Num.Set.t Flambda2_types.proof
 
-  val this_boxed : Num.t -> Flambda2_types.t
+  val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
-  val these_boxed : Num.Set.t -> Flambda2_types.t
+  val these_boxed : Num.Set.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
-  val box : Flambda2_types.t -> Flambda2_types.t
+  val box : Flambda2_types.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
   type naked_number_kind
 end

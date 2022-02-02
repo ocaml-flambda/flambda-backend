@@ -53,6 +53,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let field_types = List.map type_of_var fields in
     let shape =
       T.immutable_block ~is_unique:false tag ~field_kind ~fields:field_types
+        Unknown
     in
     let denv = add_equation_on_var denv param_var shape in
     List.fold_left
@@ -155,7 +156,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
             block_fields)
         fields_by_tag
     in
-    let shape = T.variant ~const_ctors ~non_const_ctors in
+    let shape = T.variant ~const_ctors ~non_const_ctors Unknown in
     let denv = add_equation_on_var denv param_var shape in
     (* Recurse on the fields *)
     Tag.Scannable.Map.fold
@@ -170,15 +171,15 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     denv_of_number_decision K.naked_immediate shape param_var naked_immediate
       denv
   | Unbox (Number (Naked_float, { param = naked_float; args = _ })) ->
-    let shape = T.boxed_float_alias_to ~naked_float in
+    let shape = T.boxed_float_alias_to ~naked_float Unknown in
     denv_of_number_decision K.naked_float shape param_var naked_float denv
   | Unbox (Number (Naked_int32, { param = naked_int32; args = _ })) ->
-    let shape = T.boxed_int32_alias_to ~naked_int32 in
+    let shape = T.boxed_int32_alias_to ~naked_int32 Unknown in
     denv_of_number_decision K.naked_int32 shape param_var naked_int32 denv
   | Unbox (Number (Naked_int64, { param = naked_int64; args = _ })) ->
-    let shape = T.boxed_int64_alias_to ~naked_int64 in
+    let shape = T.boxed_int64_alias_to ~naked_int64 Unknown in
     denv_of_number_decision K.naked_int64 shape param_var naked_int64 denv
   | Unbox (Number (Naked_nativeint, { param = naked_nativeint; args = _ })) ->
-    let shape = T.boxed_nativeint_alias_to ~naked_nativeint in
+    let shape = T.boxed_nativeint_alias_to ~naked_nativeint Unknown in
     denv_of_number_decision K.naked_nativeint shape param_var naked_nativeint
       denv

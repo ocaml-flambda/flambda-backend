@@ -36,6 +36,8 @@ module Expanded_type : sig
 
   val create_rec_info : Type_grammar.head_of_kind_rec_info -> t
 
+  val create_region : Type_grammar.head_of_kind_region -> t
+
   val create_bottom : Flambda_kind.t -> t
 
   val create_unknown : Flambda_kind.t -> t
@@ -58,6 +60,7 @@ module Expanded_type : sig
     | Naked_int64 of Type_grammar.head_of_kind_naked_int64
     | Naked_nativeint of Type_grammar.head_of_kind_naked_nativeint
     | Rec_info of Type_grammar.head_of_kind_rec_info
+    | Region of Type_grammar.head_of_kind_region
 
   val descr : t -> descr Or_unknown_or_bottom.t
 
@@ -74,6 +77,7 @@ module Expanded_type : sig
     | Naked_nativeint of
         Type_grammar.head_of_kind_naked_nativeint Or_unknown_or_bottom.t
     | Rec_info of Type_grammar.head_of_kind_rec_info Or_unknown_or_bottom.t
+    | Region of Type_grammar.head_of_kind_region Or_unknown_or_bottom.t
 
   val descr_oub : t -> descr_oub
 end

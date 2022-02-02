@@ -5194,7 +5194,7 @@ module Tables = struct
 # 5195 "flambda_parser_in.ml"
         ) = 
 # 528 "flambda_parser.mly"
-                   ( Fabricated )
+                   ( Region )
 # 5199 "flambda_parser_in.ml"
          in
         {

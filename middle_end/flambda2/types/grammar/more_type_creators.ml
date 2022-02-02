@@ -29,7 +29,7 @@ let unknown (kind : K.t) =
   | Naked_number Naked_int64 -> TG.any_naked_int64
   | Naked_number Naked_nativeint -> TG.any_naked_nativeint
   | Rec_info -> TG.any_rec_info
-  | Fabricated -> Misc.fatal_error "Unused kind to be removed"
+  | Region -> TG.any_region
 
 let unknown_like t = unknown (TG.kind t)
 
@@ -42,7 +42,7 @@ let bottom (kind : K.t) =
   | Naked_number Naked_int64 -> TG.bottom_naked_int64
   | Naked_number Naked_nativeint -> TG.bottom_naked_nativeint
   | Rec_info -> TG.bottom_rec_info
-  | Fabricated -> Misc.fatal_error "Unused kind to be removed"
+  | Region -> TG.bottom_region
 
 let bottom_like t = bottom (TG.kind t)
 
@@ -60,7 +60,7 @@ let these_naked_nativeints is = TG.these_naked_nativeints ~no_alias:false is
 
 let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
-    ~blocks:(Known TG.Row_like_for_blocks.bottom)
+    ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
 
 let these_tagged_immediates0 ~no_alias imms =
   match Targetint_31_63.Set.get_singleton imms with
@@ -71,7 +71,7 @@ let these_tagged_immediates0 ~no_alias imms =
     else
       TG.create_variant ~is_unique:false
         ~immediates:(Known (these_naked_immediates imms))
-        ~blocks:(Known TG.Row_like_for_blocks.bottom)
+        ~blocks:(Known TG.Row_like_for_blocks.bottom) (Known Heap)
 
 let these_tagged_immediates imms = these_tagged_immediates0 ~no_alias:false imms
 
@@ -80,33 +80,41 @@ let any_tagged_bool = these_tagged_immediates Targetint_31_63.all_bools
 let any_naked_bool =
   TG.these_naked_immediates ~no_alias:false Targetint_31_63.all_bools
 
-let this_boxed_float f = TG.box_float (TG.this_naked_float f)
+let this_boxed_float f alloc_mode =
+  TG.box_float (TG.this_naked_float f) alloc_mode
 
-let this_boxed_int32 i = TG.box_int32 (TG.this_naked_int32 i)
+let this_boxed_int32 i alloc_mode =
+  TG.box_int32 (TG.this_naked_int32 i) alloc_mode
 
-let this_boxed_int64 i = TG.box_int64 (TG.this_naked_int64 i)
+let this_boxed_int64 i alloc_mode =
+  TG.box_int64 (TG.this_naked_int64 i) alloc_mode
 
-let this_boxed_nativeint i = TG.box_nativeint (TG.this_naked_nativeint i)
+let this_boxed_nativeint i alloc_mode =
+  TG.box_nativeint (TG.this_naked_nativeint i) alloc_mode
 
-let these_boxed_floats fs = TG.box_float (these_naked_floats fs)
+let these_boxed_floats fs alloc_mode =
+  TG.box_float (these_naked_floats fs) alloc_mode
 
-let these_boxed_int32s is = TG.box_int32 (these_naked_int32s is)
+let these_boxed_int32s is alloc_mode =
+  TG.box_int32 (these_naked_int32s is) alloc_mode
 
-let these_boxed_int64s is = TG.box_int64 (these_naked_int64s is)
+let these_boxed_int64s is alloc_mode =
+  TG.box_int64 (these_naked_int64s is) alloc_mode
 
-let these_boxed_nativeints is = TG.box_nativeint (these_naked_nativeints is)
+let these_boxed_nativeints is alloc_mode =
+  TG.box_nativeint (these_naked_nativeints is) alloc_mode
 
-let any_boxed_float = TG.box_float TG.any_naked_float
+let any_boxed_float = TG.box_float TG.any_naked_float Unknown
 
-let any_boxed_int32 = TG.box_int32 TG.any_naked_int32
+let any_boxed_int32 = TG.box_int32 TG.any_naked_int32 Unknown
 
-let any_boxed_int64 = TG.box_int64 TG.any_naked_int64
+let any_boxed_int64 = TG.box_int64 TG.any_naked_int64 Unknown
 
-let any_boxed_nativeint = TG.box_nativeint TG.any_naked_nativeint
+let any_boxed_nativeint = TG.box_nativeint TG.any_naked_nativeint Unknown
 
 let any_block =
   TG.create_variant ~is_unique:false
-    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown
+    ~immediates:(Known TG.bottom_naked_immediate) ~blocks:Unknown Unknown
 
 let blocks_with_these_tags tags : _ Or_unknown.t =
   if not (Tag.Set.for_all Tag.is_structured_block tags)
@@ -120,9 +128,10 @@ let blocks_with_these_tags tags : _ Or_unknown.t =
        values, which could have tag 0. *)
     Known
       (TG.create_variant ~is_unique:false
-         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks))
+         ~immediates:(Known TG.bottom_naked_immediate) ~blocks:(Known blocks)
+         Unknown)
 
-let immutable_block ~is_unique tag ~field_kind ~fields =
+let immutable_block ~is_unique tag ~field_kind alloc_mode ~fields =
   match Targetint_31_63.Imm.of_int_option (List.length fields) with
   | None ->
     (* CR mshinwell: This should be a special kind of error. *)
@@ -133,6 +142,7 @@ let immutable_block ~is_unique tag ~field_kind ~fields =
         (Known
            (TG.Row_like_for_blocks.create ~field_kind ~field_tys:fields
               (Closed tag)))
+      alloc_mode
 
 let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
   let n = Targetint_31_63.Imm.to_int n in
@@ -146,8 +156,9 @@ let immutable_block_with_size_at_least ~tag ~n ~field_kind ~field_n_minus_one =
     ~immediates:(Known (bottom K.naked_immediate))
     ~blocks:
       (Known (TG.Row_like_for_blocks.create ~field_kind ~field_tys (Open tag)))
+    Unknown
 
-let variant ~const_ctors ~non_const_ctors =
+let variant ~const_ctors ~non_const_ctors alloc_mode =
   let blocks =
     let field_tys_by_tag =
       Tag.Scannable.Map.fold
@@ -158,11 +169,11 @@ let variant ~const_ctors ~non_const_ctors =
     TG.Row_like_for_blocks.create_exactly_multiple ~field_tys_by_tag
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:(Known blocks)
+    ~blocks:(Known blocks) alloc_mode
 
 let open_variant_from_const_ctors_type ~const_ctors =
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
-    ~blocks:Unknown
+    ~blocks:Unknown Unknown
 
 let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
   let n = Targetint_31_63.Imm.to_int n in
@@ -177,10 +188,11 @@ let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
       (Known
          (TG.Row_like_for_blocks.create ~field_kind:K.value ~field_tys
             (Open Unknown)))
+    Unknown
 
 let exactly_this_closure closure_id ~all_function_decls_in_set:function_types
     ~all_closures_in_set:closure_types
-    ~all_closure_vars_in_set:closure_var_types =
+    ~all_closure_vars_in_set:closure_var_types alloc_mode =
   let closure_types = TG.Product.Closure_id_indexed.create closure_types in
   let closures_entry =
     let closure_var_types =
@@ -197,7 +209,7 @@ let exactly_this_closure closure_id ~all_function_decls_in_set:function_types
     TG.Row_like_for_closures.create_exactly closure_id set_of_closures_contents
       closures_entry
   in
-  TG.create_closures by_closure_id
+  TG.create_closures alloc_mode by_closure_id
 
 let at_least_the_closures_with_ids ~this_closure closure_ids_and_bindings =
   let closure_id_components_by_index =
@@ -226,7 +238,7 @@ let at_least_the_closures_with_ids ~this_closure closure_ids_and_bindings =
     TG.Row_like_for_closures.create_at_least this_closure
       set_of_closures_contents closures_entry
   in
-  TG.create_closures by_closure_id
+  TG.create_closures Unknown by_closure_id
 
 let closure_with_at_least_these_closure_vars ~this_closure closure_vars =
   let closure_var_types =
@@ -249,7 +261,7 @@ let closure_with_at_least_these_closure_vars ~this_closure closure_vars =
     TG.Row_like_for_closures.create_at_least this_closure
       set_of_closures_contents closures_entry
   in
-  TG.create_closures by_closure_id
+  TG.create_closures Unknown by_closure_id
 
 let closure_with_at_least_this_closure_var ~this_closure closure_var
     ~closure_element_var =
@@ -305,10 +317,12 @@ let rec unknown_with_descr (descr : Flambda_kind.With_subkind.descr) =
     assert (not (Tag.equal tag Tag.double_array_tag));
     immutable_block ~is_unique:false tag ~field_kind:Flambda_kind.value
       ~fields:(List.map unknown_with_descr fields)
+      Unknown
   | Float_block { num_fields } ->
     immutable_block ~is_unique:false Tag.double_array_tag
       ~field_kind:Flambda_kind.naked_float
       ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
+      Unknown
   | Float_array ->
     TG.array_of_length
       ~element_kind:(Known Flambda_kind.With_subkind.naked_float)

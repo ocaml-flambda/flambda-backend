@@ -76,9 +76,12 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       let fields = field_tys in
       match is_mutable with
       | Immutable ->
+        (* XXX Should we have [Alloc_mode.Static]? *)
         T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
+          (Known Heap)
       | Immutable_unique ->
         T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
+          (Known Heap)
       | Mutable -> T.any_value
     in
     let dacc = bind_result_sym ty in
@@ -89,7 +92,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   (* CR mshinwell: Need to reify to change Equals types into new terms *)
   | Boxed_float or_var ->
     let or_var, ty =
-      simplify_or_variable dacc (fun f -> T.this_boxed_float f) or_var K.value
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_float f (Known Heap))
+        or_var K.value
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_boxed_float
@@ -98,7 +103,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       dacc )
   | Boxed_int32 or_var ->
     let or_var, ty =
-      simplify_or_variable dacc (fun f -> T.this_boxed_int32 f) or_var K.value
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_int32 f (Known Heap))
+        or_var K.value
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_boxed_int32
@@ -107,7 +114,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       dacc )
   | Boxed_int64 or_var ->
     let or_var, ty =
-      simplify_or_variable dacc (fun f -> T.this_boxed_int64 f) or_var K.value
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_int64 f (Known Heap))
+        or_var K.value
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_boxed_int64
@@ -117,7 +126,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Boxed_nativeint or_var ->
     let or_var, ty =
       simplify_or_variable dacc
-        (fun f -> T.this_boxed_nativeint f)
+        (fun f -> T.this_boxed_nativeint f (Known Heap))
         or_var K.value
     in
     let dacc = bind_result_sym ty in

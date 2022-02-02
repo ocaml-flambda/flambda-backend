@@ -104,7 +104,7 @@ type kind =
   (* can't alias because Flambda_kind.t is private *)
   | Value
   | Naked_number of naked_number_kind
-  | Fabricated
+  | Region
   | Rec_info
 
 type kind_with_subkind =
@@ -230,6 +230,7 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
   | Assignment
+  | Local_assignment
 
 type comparison = Flambda_primitive.comparison =
   | Eq

@@ -32,6 +32,10 @@ val newer_version_of : t -> Code_id.t option
 
 val params_arity : t -> Flambda_arity.With_subkinds.t
 
+val num_leading_heap_params : t -> int
+
+val num_trailing_local_params : t -> int
+
 val result_arity : t -> Flambda_arity.With_subkinds.t
 
 val result_types : t -> Result_types.t
@@ -56,14 +60,18 @@ val is_my_closure_used : t -> bool
 
 val inlining_decision : t -> Function_decl_inlining_decision_type.t
 
+val contains_no_escaping_local_allocs : t -> bool
+
 val create :
   Code_id.t ->
   params_and_body:Flambda.Function_params_and_body.t ->
   free_names_of_params_and_body:Name_occurrences.t ->
   newer_version_of:Code_id.t option ->
   params_arity:Flambda_arity.With_subkinds.t ->
+  num_trailing_local_params:int ->
   result_arity:Flambda_arity.With_subkinds.t ->
   result_types:Result_types.t ->
+  contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
   is_a_functor:bool ->

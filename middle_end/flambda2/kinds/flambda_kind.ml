@@ -28,7 +28,7 @@ type empty_naked_int64 = private Naked_int64
 
 type empty_naked_nativeint = private Naked_nativeint
 
-type fabricated = private Fabricated
+type region = private Region
 
 type rec_info = private Rec_info
 
@@ -74,7 +74,7 @@ end
 type t =
   | Value
   | Naked_number of Naked_number_kind.t
-  | Fabricated
+  | Region
   | Rec_info
 
 type kind = t
@@ -91,7 +91,7 @@ let naked_int64 = Naked_number Naked_int64
 
 let naked_nativeint = Naked_number Naked_nativeint
 
-let fabricated = Fabricated
+let region = Region
 
 let rec_info = Rec_info
 
@@ -109,14 +109,14 @@ include Container_types.Make (struct
       match t1, t2 with
       | Value, Value -> 0
       | Naked_number n1, Naked_number n2 -> Naked_number_kind.compare n1 n2
-      | Fabricated, Fabricated -> 0
+      | Region, Region -> 0
       | Rec_info, Rec_info -> 0
       | Value, _ -> -1
       | _, Value -> 1
       | Naked_number _, _ -> -1
       | _, Naked_number _ -> 1
-      | Fabricated, _ -> -1
-      | _, Fabricated -> 1
+      | Region, _ -> -1
+      | _, Region -> 1
 
   let equal t1 t2 = compare t1 t2 = 0
 
@@ -153,12 +153,12 @@ include Container_types.Make (struct
         Format.fprintf ppf "(Naked_number %a)"
           Naked_number_kind.print naked_number_kind
       end
-    | Fabricated ->
+    | Region ->
       if unicode then
-        Format.fprintf ppf "@<0>%s@<1>\u{1d53d}@<0>%s"
+        Format.fprintf ppf "@<0>%s@<1>\u{1d53d}@<1>\u{1d558}@<0>%s"
           colour (Flambda_colours.normal ())
       else
-        Format.fprintf ppf "Fab"
+        Format.fprintf ppf "Region"
     | Rec_info ->
       if unicode then
         Format.fprintf ppf "@<0>%s@<1>\u{211d}@<0>%s"
@@ -168,14 +168,14 @@ include Container_types.Make (struct
 end)
 
 let is_value t =
-  match t with Value -> true | Naked_number _ | Fabricated | Rec_info -> false
+  match t with Value -> true | Naked_number _ | Region | Rec_info -> false
 
 let is_naked_float t =
   match t with
   | Naked_number Naked_float -> true
   | Value
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-  | Fabricated | Rec_info ->
+  | Region | Rec_info ->
     false
 
 module Standard_int = struct
@@ -459,7 +459,7 @@ module With_subkind = struct
     begin
       match kind with
       | Value -> ()
-      | Naked_number _ | Fabricated | Rec_info -> (
+      | Naked_number _ | Region | Rec_info -> (
         match subkind with
         | Anything -> ()
         | Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
@@ -535,7 +535,7 @@ module With_subkind = struct
         Format.fprintf ppf "@[%a%a@]"
           print kind
           Subkind.print subkind
-      | (Naked_number _ | Fabricated | Rec_info),
+      | (Naked_number _ | Region | Rec_info),
         (Boxed_float | Boxed_int32 | Boxed_int64 | Boxed_nativeint
           | Tagged_immediate | Block _ | Float_block _ | Float_array | Immediate_array | Value_array | Generic_array) ->
         assert false
@@ -591,7 +591,7 @@ module With_subkind = struct
     | Value -> subkind_descr t.subkind
     | Naked_number naked_number_kind -> Naked_number naked_number_kind
     | Rec_info -> Rec_info
-    | Fabricated -> Misc.fatal_error "Not implemented"
+    | Region -> Misc.fatal_error "Not implemented"
 
   let rec compatible_descr descr ~when_used_at =
     match descr, when_used_at with

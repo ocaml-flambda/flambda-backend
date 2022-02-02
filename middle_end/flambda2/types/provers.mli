@@ -149,13 +149,19 @@ val prove_is_array_with_element_kind :
 val prove_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
-  (Closure_id.t * Type_grammar.Closures_entry.t * Type_grammar.Function_type.t)
+  (Closure_id.t
+  * Alloc_mode.t Or_unknown.t
+  * Type_grammar.Closures_entry.t
+  * Type_grammar.Function_type.t)
   proof
 
 val prove_single_closures_entry' :
   Typing_env.t ->
   Type_grammar.t ->
-  (Closure_id.t * Type_grammar.Closures_entry.t * Type_grammar.Function_type.t)
+  (Closure_id.t
+  * Alloc_mode.t Or_unknown.t
+  * Type_grammar.Closures_entry.t
+  * Type_grammar.Function_type.t)
   proof_allowing_kind_mismatch
 
 val prove_strings : Typing_env.t -> Type_grammar.t -> String_info.Set.t proof
@@ -218,3 +224,9 @@ val prove_select_closure_simple :
   Simple.t proof
 
 val prove_rec_info : Typing_env.t -> Type_grammar.t -> Rec_info_expr.t proof
+
+val prove_alloc_mode_of_boxed_number :
+  Typing_env.t -> Type_grammar.t -> Alloc_mode.t Or_unknown.t
+
+val never_holds_locally_allocated_values :
+  Typing_env.t -> Variable.t -> Flambda_kind.t -> bool

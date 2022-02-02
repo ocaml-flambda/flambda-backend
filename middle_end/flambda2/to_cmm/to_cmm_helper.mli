@@ -84,6 +84,7 @@ val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> Cmm.expression
 val make_array :
   ?dbg:Debuginfo.t ->
   Flambda_primitive.Array_kind.t ->
+  Alloc_mode.t ->
   Cmm.expression list ->
   Cmm.expression
 
@@ -91,12 +92,13 @@ val make_array :
 val make_block :
   ?dbg:Debuginfo.t ->
   Flambda_primitive.Block_kind.t ->
+  Alloc_mode.t ->
   Cmm.expression list ->
   Cmm.expression
 
 (** Create a closure block. *)
 val make_closure_block :
-  ?dbg:Debuginfo.t -> Cmm.expression list -> Cmm.expression
+  ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression
 
 (** {2 Boxed numbers} *)
 
@@ -104,11 +106,13 @@ val make_closure_block :
 val box_number :
   ?dbg:Debuginfo.t ->
   Flambda_kind.Boxable_number.t ->
+  Alloc_mode.t ->
   Cmm.expression ->
   Cmm.expression
 
 (** Shortcut for [box_number Flambda_kind.Boxable_number.Naked_int64] *)
-val box_int64 : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
+val box_int64 :
+  ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression -> Cmm.expression
 
 (** Unbox a boxed number. *)
 val unbox_number :
@@ -118,6 +122,8 @@ val unbox_number :
   Cmm.expression
 
 (** {2 Block access} *)
+
+val convert_alloc_mode : Alloc_mode.t -> Lambda.alloc_mode
 
 (** [infix_field_address ptr n dbg] returns an expression for the address of the
     [n]-th field of the set of closures block pointed to by [ptr]. This function
@@ -440,6 +446,7 @@ val direct_call :
 val indirect_call :
   ?dbg:Debuginfo.t ->
   Cmm.machtype ->
+  Alloc_mode.t ->
   Cmm.expression ->
   Cmm.expression list ->
   Cmm.expression
@@ -449,6 +456,7 @@ val indirect_call :
 val indirect_full_call :
   ?dbg:Debuginfo.t ->
   Cmm.machtype ->
+  Alloc_mode.t ->
   Cmm.expression ->
   Cmm.expression list ->
   Cmm.expression

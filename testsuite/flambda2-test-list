@@ -9,12 +9,11 @@
   tests/gc-roots                   FAIL (FIXME)  test_stdlabels.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/int64-unboxing             FAIL (FIXME)  'test.ml' (unboxing of recursive continuation parameter)
   tests/lib-dynlink-init-info      FAIL (FIXME)  fails on macOS
-  tests/lib-dynlink-initializers   FAIL (FIXME)  temporarily disabled (flambda2) 
-  tests/lib-dynlink-pr4839         FAIL (FIXME)  temporarily disabled (flambda2) 
+  tests/lib-dynlink-initializers   FAIL (FIXME)  temporarily disabled (flambda2)
+  tests/lib-dynlink-pr4839         FAIL (FIXME)  temporarily disabled (flambda2)
   tests/lib-hashtbl                FAIL (FIXME)  htbl.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/lib-stdlabels              FAIL (FIXME)  test_stdlabels.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/lib-threads                FAIL (FIXME)  beat.ml seems to fail under heavy load (macOS box on GitHub CI)
   tests/opaque                     FAIL          'test.ml' (cmx file loading)
   tests/statmemprof                FAIL          Stack traces differ
   tests/warnings                   FAIL          'w55.ml' (@inline attribute), 'w59.ml' (missing warnings when using Obj functions)
-  tests/typing-local               FAIL          Local allocations not yet supported in Flambda2

@@ -37,6 +37,8 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
+    | Begin_region
+    | End_region of Ident.t
     | Prim of
         { prim : Lambda.primitive;
           args : simple list;
@@ -61,7 +63,8 @@ module IR = struct
       tailcall : Lambda.tailcall_attribute;
       inlined : Lambda.inlined_attribute;
       specialised : Lambda.specialise_attribute;
-      probe : Lambda.probe
+      probe : Lambda.probe;
+      mode : Lambda.alloc_mode
     }
 
   type switch =
@@ -82,6 +85,8 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
+    | Begin_region -> fprintf ppf "Begin_region"
+    | End_region id -> fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print id
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
         (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple)
@@ -92,7 +97,7 @@ module Env = struct
   type value_approximation =
     | Value_unknown
     | Closure_approximation of Code_id.t * Code.t option
-    | Block_approximation of value_approximation array
+    | Block_approximation of value_approximation array * Alloc_mode.t
 
   type t =
     { variables : Variable.t Ident.Map.t;
@@ -237,10 +242,11 @@ module Env = struct
   let add_closure_approximation t name (code_id, approx) =
     add_value_approximation t name (Closure_approximation (code_id, approx))
 
-  let add_block_approximation t name approxs =
+  let add_block_approximation t name approxs alloc_mode =
     if Array.for_all (( = ) Value_unknown) approxs
     then t
-    else add_value_approximation t name (Block_approximation approxs)
+    else
+      add_value_approximation t name (Block_approximation (approxs, alloc_mode))
 
   let find_value_approximation t simple =
     Simple.pattern_match simple
@@ -269,7 +275,8 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
-      closure_offsets : Closure_offsets.t Or_unknown.t
+      closure_offsets : Closure_offsets.t Or_unknown.t;
+      regions_closed_early : Ident.Set.t
     }
 
   let cost_metrics t = t.cost_metrics
@@ -292,7 +299,8 @@ module Acc = struct
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       symbol_for_global;
-      closure_offsets
+      closure_offsets;
+      regions_closed_early = Ident.Set.empty
     }
 
   let declared_symbols t = t.declared_symbols
@@ -401,6 +409,13 @@ module Acc = struct
           ~all_code:t.code set_of_closures
       in
       { t with closure_offsets = Known closure_offsets }
+
+  let add_region_closed_early t region =
+    { t with
+      regions_closed_early = Ident.Set.add region t.regions_closed_early
+    }
+
+  let region_closed_early t region = Ident.Set.mem region t.regions_closed_early
 end
 
 module Function_decls = struct
@@ -418,12 +433,16 @@ module Function_decls = struct
         attr : Lambda.function_attribute;
         loc : Lambda.scoped_location;
         stub : bool;
-        recursive : Recursive.t
+        recursive : Recursive.t;
+        closure_alloc_mode : Lambda.alloc_mode;
+        num_trailing_local_params : int;
+        contains_no_escaping_local_allocs : bool
       }
 
     let create ~let_rec_ident ~closure_id ~kind ~params ~return
         ~return_continuation ~exn_continuation ~body ~attr ~loc
-        ~free_idents_of_body ~stub recursive =
+        ~free_idents_of_body ~stub recursive ~closure_alloc_mode
+        ~num_trailing_local_params ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
         | None -> Ident.create_local "unnamed_function"
@@ -441,7 +460,10 @@ module Function_decls = struct
         attr;
         loc;
         stub;
-        recursive
+        recursive;
+        closure_alloc_mode;
+        num_trailing_local_params;
+        contains_no_escaping_local_allocs
       }
 
     let let_rec_ident t = t.let_rec_ident
@@ -473,12 +495,22 @@ module Function_decls = struct
     let loc t = t.loc
 
     let recursive t = t.recursive
+
+    let closure_alloc_mode t = t.closure_alloc_mode
+
+    let num_trailing_local_params t = t.num_trailing_local_params
+
+    let contains_no_escaping_local_allocs t =
+      t.contains_no_escaping_local_allocs
   end
 
   type t =
     { function_decls : Function_decl.t list;
-      all_free_idents : Ident.Set.t
+      all_free_idents : Ident.Set.t;
+      alloc_mode : Lambda.alloc_mode
     }
+
+  let alloc_mode t = t.alloc_mode
 
   (* All identifiers free in the bodies of the given function declarations,
      indexed by the identifiers corresponding to the functions themselves. *)
@@ -517,8 +549,11 @@ module Function_decls = struct
          (List.map fst (all_params function_decls)))
       (let_rec_idents function_decls)
 
-  let create function_decls =
-    { function_decls; all_free_idents = all_free_idents function_decls }
+  let create function_decls alloc_mode =
+    { function_decls;
+      all_free_idents = all_free_idents function_decls;
+      alloc_mode
+    }
 
   let to_list t = t.function_decls
 

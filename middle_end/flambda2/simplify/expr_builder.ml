@@ -436,9 +436,9 @@ let remove_unused_closure_vars uacc static_const =
               closure_var)
           closure_vars
       in
-      Set_of_closures.create
-        (Set_of_closures.function_decls set_of_closures)
-        ~closure_elements)
+      Set_of_closures.create ~closure_elements
+        (Set_of_closures.alloc_mode set_of_closures)
+        (Set_of_closures.function_decls set_of_closures))
 
 let create_let_symbols uacc lifted_constant ~body =
   let bound_symbols = LC.bound_symbols lifted_constant in

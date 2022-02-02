@@ -63,7 +63,7 @@ let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
   let _free_names, res =
     let_prim ~dbg v_comp (P.Binary (cmp_prim, a, b))
     @@ let_prim ~dbg tagged
-         (P.Unary (Box_number Untagged_immediate, Simple.var v_comp))
+         (P.Unary (Box_number (Untagged_immediate, Heap), Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)
@@ -79,7 +79,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
     @@ let_prim ~dbg v_comp
          (P.Binary (cmp_prim, Simple.var a_naked, Simple.var b_naked))
     @@ let_prim ~dbg tagged
-         (P.Unary (Box_number Untagged_immediate, Simple.var v_comp))
+         (P.Unary (Box_number (Untagged_immediate, Heap), Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)

@@ -39,7 +39,7 @@ let exttype_of_kind k =
     | Thirty_two -> Cmm.XInt32
     | Sixty_four -> Cmm.XInt64
   end
-  | Fabricated -> Misc.fatal_error "[Fabricated] kind not expected here"
+  | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
 (* Void *)
@@ -107,6 +107,11 @@ let sequence x y =
   | _, Cmm.Ctuple [] -> x
   | _, _ -> Cmm.Csequence (x, y)
 
+(* Allocation modes *)
+
+let convert_alloc_mode (alloc_mode : Alloc_mode.t) : Lambda.alloc_mode =
+  match alloc_mode with Heap -> Alloc_heap | Local -> Alloc_local
+
 (* Boxing/unboxing *)
 
 let primitive_boxed_int_of_standard_int b =
@@ -132,16 +137,17 @@ let unbox_number ?(dbg = Debuginfo.none) kind arg =
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
     unbox_int dbg primitive_kind arg
 
-let box_number ?(dbg = Debuginfo.none) kind arg =
+let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
+  let alloc_mode = convert_alloc_mode alloc_mode in
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> box_float dbg Alloc_heap arg
+  | Naked_float -> box_float dbg alloc_mode arg
   | Untagged_immediate -> tag_int arg dbg
   | _ ->
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
-    box_int_gen dbg primitive_kind Alloc_heap arg
+    box_int_gen dbg primitive_kind alloc_mode arg
 
-let box_int64 ?dbg arg =
-  box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 arg
+let box_int64 ?dbg alloc_mode arg =
+  box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 alloc_mode arg
 
 (* Constructors for operations *)
 
@@ -252,7 +258,14 @@ let int_of_float = unary Cmm.Cintoffloat
 
 let float_of_int = unary Cmm.Cfloatofint
 
-let letin v e body = Cmm.Clet (v, e, body)
+let letin v e (body : Cmm.expression) =
+  match body with
+  | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' -> e
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
+  | Cregion _ | Ctail _ ->
+    Cmm.Clet (v, e, body)
 
 let letin_mut v ty e body = Cmm.Clet_mut (v, ty, e, body)
 
@@ -316,25 +329,36 @@ let check_alloc_fields = function
        be lifted so they can be statically allocated)"
   | _ -> ()
 
-let make_array ?(dbg = Debuginfo.none) kind args =
+let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
   match (kind : Flambda_primitive.Array_kind.t) with
-  | Immediates | Values -> make_alloc ~mode:Alloc_heap dbg 0 args
+  | Immediates | Values ->
+    make_alloc ~mode:(convert_alloc_mode alloc_mode) dbg 0 args
   | Naked_floats ->
-    make_float_alloc ~mode:Alloc_heap dbg (Tag.to_int Tag.double_array_tag) args
+    make_float_alloc
+      ~mode:(convert_alloc_mode alloc_mode)
+      dbg
+      (Tag.to_int Tag.double_array_tag)
+      args
 
-let make_block ?(dbg = Debuginfo.none) kind args =
+let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
   match (kind : Flambda_primitive.Block_kind.t) with
   | Values (tag, _) ->
-    make_alloc ~mode:Alloc_heap dbg (Tag.Scannable.to_int tag) args
+    make_alloc
+      ~mode:(convert_alloc_mode alloc_mode)
+      dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
-    make_float_alloc ~mode:Alloc_heap dbg (Tag.to_int Tag.double_array_tag) args
+    make_float_alloc
+      ~mode:(convert_alloc_mode alloc_mode)
+      dbg
+      (Tag.to_int Tag.double_array_tag)
+      args
 
-let make_closure_block ?(dbg = Debuginfo.none) l =
+let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
   assert (List.compare_length_with l 0 > 0);
   let tag = Tag.(to_int closure_tag) in
-  make_alloc ~mode:Alloc_heap dbg tag l
+  make_alloc ~mode:(convert_alloc_mode alloc_mode) dbg tag l
 
 (* Block access *)
 
@@ -382,6 +406,7 @@ let addr_array_store init arr index value dbg =
   match (init : P.Init_or_assign.t) with
   | Assignment -> addr_array_set arr index value dbg
   | Initialization -> addr_array_initialize arr index value dbg
+  | Local_assignment -> addr_array_set_local arr index value dbg
 
 let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
     (init : P.Init_or_assign.t) arr index value =
@@ -542,11 +567,13 @@ let ccatch ~rec_flag ~handlers ~body =
 let direct_call ?(dbg = Debuginfo.none) ty f_code_sym args =
   Cmm.Cop (Cmm.Capply (ty, Rc_normal), f_code_sym :: args, dbg)
 
-let indirect_call ?(dbg = Debuginfo.none) ty f = function
+let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
   | [arg] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
+    (* We always use [Apply_nontail] since the [Lambda_to_flambda] pass has
+       already taken care of the placement of region begin/end primitives. *)
     letin v' f
     @@ Cmm.Cop
          ( Cmm.Capply (ty, Rc_normal),
@@ -554,12 +581,13 @@ let indirect_call ?(dbg = Debuginfo.none) ty f = function
            dbg )
   | args ->
     let arity = List.length args in
-    let l = (symbol (apply_function_sym arity Alloc_heap) :: args) @ [f] in
+    let alloc_mode = convert_alloc_mode alloc_mode in
+    let l = (symbol (apply_function_sym arity alloc_mode) :: args) @ [f] in
     Cmm.Cop (Cmm.Capply (ty, Rc_normal), l, dbg)
 
-let indirect_full_call ?(dbg = Debuginfo.none) ty f = function
+let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty f args
+  | [_] as args -> indirect_call ~dbg ty alloc_mode f args
   | args ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in

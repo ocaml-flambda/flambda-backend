@@ -19,7 +19,8 @@
 open! Simplify_import
 
 let simplify_make_block_of_values dacc prim dbg tag ~shape
-    ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
+    ~(mutable_or_immutable : Mutability.t) alloc_mode args_with_tys ~result_var
+    =
   let args, _arg_tys = List.split args_with_tys in
   (if List.compare_lengths shape args <> 0
   then
@@ -41,23 +42,31 @@ let simplify_make_block_of_values dacc prim dbg tag ~shape
   assert (List.compare_lengths fields shape = 0);
   let term : Named.t =
     Named.create_prim
-      (Variadic (Make_block (Values (tag, shape), mutable_or_immutable), args))
+      (Variadic
+         ( Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode),
+           args ))
       dbg
   in
   let tag = Tag.Scannable.to_tag tag in
   let ty =
     match mutable_or_immutable with
     | Immutable ->
-      T.immutable_block ~is_unique:false tag ~field_kind:K.value ~fields
+      T.immutable_block ~is_unique:false tag ~field_kind:K.value
+        (Known alloc_mode) ~fields
     | Immutable_unique ->
-      T.immutable_block ~is_unique:true tag ~field_kind:K.value ~fields
-    | Mutable -> T.any_value
+      T.immutable_block ~is_unique:true tag ~field_kind:K.value
+        (Known alloc_mode) ~fields
+    | Mutable -> T.mutable_block (Known alloc_mode)
   in
   let dacc = DA.add_variable dacc result_var ty in
+  (* CR mshinwell: here and in the next function, should we be adding CSE
+     equations, like we do for unboxing boxed numbers? (see
+     Simplify_unary_primitive) *)
   Simplified_named.reachable term ~try_reify:true, dacc
 
 let simplify_make_block_of_floats dacc _prim dbg
-    ~(mutable_or_immutable : Mutability.t) args_with_tys ~result_var =
+    ~(mutable_or_immutable : Mutability.t) alloc_mode args_with_tys ~result_var
+    =
   let args = List.map fst args_with_tys in
   let fields =
     List.map
@@ -69,23 +78,26 @@ let simplify_make_block_of_floats dacc _prim dbg
   in
   let term : Named.t =
     Named.create_prim
-      (Variadic (Make_block (Naked_floats, mutable_or_immutable), args))
+      (Variadic
+         (Make_block (Naked_floats, mutable_or_immutable, alloc_mode), args))
       dbg
   in
   let tag = Tag.double_array_tag in
   let ty =
     match mutable_or_immutable with
     | Immutable ->
-      T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float ~fields
+      T.immutable_block ~is_unique:false tag ~field_kind:K.naked_float
+        (Known alloc_mode) ~fields
     | Immutable_unique ->
-      T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float ~fields
+      T.immutable_block ~is_unique:true tag ~field_kind:K.naked_float
+        (Known alloc_mode) ~fields
     | Mutable -> T.any_value
   in
   let dacc = DA.add_variable dacc result_var ty in
   Simplified_named.reachable term ~try_reify:true, dacc
 
 let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
-    ~mutable_or_immutable args_with_tys ~result_var =
+    ~mutable_or_immutable alloc_mode args_with_tys ~result_var =
   let args, tys = List.split args_with_tys in
   let invalid () =
     let ty = T.bottom K.value in
@@ -160,7 +172,8 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
     let ty = T.array_of_length ~element_kind:(Known element_kind) ~length in
     let named =
       Named.create_prim
-        (Variadic (Make_array (array_kind, mutable_or_immutable), args))
+        (Variadic
+           (Make_array (array_kind, mutable_or_immutable, alloc_mode), args))
         dbg
     in
     let dacc =
@@ -173,12 +186,12 @@ let simplify_make_array dacc dbg (array_kind : P.Array_kind.t)
 let simplify_variadic_primitive dacc _original_prim
     (prim : P.variadic_primitive) ~args_with_tys dbg ~result_var =
   match prim with
-  | Make_block (Values (tag, shape), mutable_or_immutable) ->
+  | Make_block (Values (tag, shape), mutable_or_immutable, alloc_mode) ->
     simplify_make_block_of_values dacc prim dbg tag ~shape ~mutable_or_immutable
+      alloc_mode args_with_tys ~result_var
+  | Make_block (Naked_floats, mutable_or_immutable, alloc_mode) ->
+    simplify_make_block_of_floats dacc prim dbg ~mutable_or_immutable alloc_mode
       args_with_tys ~result_var
-  | Make_block (Naked_floats, mutable_or_immutable) ->
-    simplify_make_block_of_floats dacc prim dbg ~mutable_or_immutable
+  | Make_array (array_kind, mutable_or_immutable, alloc_mode) ->
+    simplify_make_array dacc dbg array_kind ~mutable_or_immutable alloc_mode
       args_with_tys ~result_var
-  | Make_array (array_kind, mutable_or_immutable) ->
-    simplify_make_array dacc dbg array_kind ~mutable_or_immutable args_with_tys
-      ~result_var

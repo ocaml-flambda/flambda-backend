@@ -166,7 +166,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     let bound_to = Bound_var.create bound_to NM.normal in
     let defining_expr =
       Named.create_prim
-        (Unary (Box_number Untagged_immediate, scrutinee))
+        (Unary (Box_number (Untagged_immediate, Heap), scrutinee))
         Debuginfo.none
     in
     let let_expr =
@@ -327,7 +327,8 @@ let check_cse_environment dacc ~scrutinee =
      the CSE environment and registering it as a required variable like the
      scrutinee. If it is not available, no problem can occur. *)
   match
-    find_cse_simple dacc (Unary (Box_number Untagged_immediate, scrutinee))
+    find_cse_simple dacc
+      (Unary (Box_number (Untagged_immediate, Heap), scrutinee))
   with
   | None -> dacc
   | Some tagged_scrutinee -> (

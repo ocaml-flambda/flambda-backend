@@ -22,15 +22,14 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val empty : t
-
 val is_empty : t -> bool
 
 (** Create a set of closures given the code for its functions and the closure
     variables. *)
 val create :
-  Function_declarations.t ->
   closure_elements:Simple.t Var_within_closure.Map.t ->
+  Alloc_mode.t ->
+  Function_declarations.t ->
   t
 
 (** The function declarations associated with the set of closures. *)
@@ -41,6 +40,8 @@ val closure_elements : t -> Simple.t Var_within_closure.Map.t
 
 (** Returns true iff the given set of closures has an empty environment. *)
 val has_empty_environment : t -> bool
+
+val alloc_mode : t -> Alloc_mode.t
 
 (** Returns true iff the given set of closures does not contain any variables in
     its environment. (If this condition is satisfied, a set of closures may be

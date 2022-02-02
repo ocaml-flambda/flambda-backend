@@ -77,10 +77,16 @@ let is_self_tail_call dacc apply =
     &&
     (* 3rd check: check this is a self-call. *)
     match Apply.call_kind apply with
-    | Function (Direct { code_id = apply_code_id; _ }) ->
+    | Function
+        { function_call = Direct { code_id = apply_code_id; _ };
+          alloc_mode = _
+        } ->
       Code_id.equal fun_code_id apply_code_id
     | Method _ | C_call _
-    | Function (Indirect_known_arity _ | Indirect_unknown_arity) ->
+    | Function
+        { function_call = Indirect_known_arity _ | Indirect_unknown_arity;
+          alloc_mode = _
+        } ->
       false)
 
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
@@ -125,42 +131,138 @@ let project_tuple ~dbg ~size ~field tuple =
   let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
   Named.create_prim prim dbg
 
-let split_direct_over_application apply ~param_arity =
+let split_direct_over_application apply ~param_arity ~result_arity
+    ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs =
   let arity = List.length param_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
-  let full_app_args, remaining_args = Misc.Stdlib.List.split_at arity args in
+  let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
   let func_var = Variable.create "full_apply" in
+  let needs_region =
+    (* If the function being called might do a local allocation that escapes,
+       then we need a region for such function's return value, unless the
+       allocation mode of the [Apply] is already [Local]. Note that we must not
+       add an extra region if the allocation mode of the [Apply] is [Local],
+       otherwise the allocation stack pointer might be reset (by the
+       [End_region] primitive corresponding to such region) whilst the return
+       value is still live (and with the caller expecting such value to have
+       been allocated in their region). *)
+    match apply_alloc_mode, contains_no_escaping_local_allocs with
+    | Heap, false ->
+      Some (Variable.create "over_app_region", Continuation.create ())
+    | Heap, true | Local, _ -> None
+  in
   let perform_over_application =
-    Apply.create ~callee:(Simple.var func_var)
-      ~continuation:(Apply.continuation apply)
+    let alloc_mode : Alloc_mode.t =
+      if contains_no_escaping_local_allocs then Heap else Local
+    in
+    let continuation =
+      (* If there is no need for a new region, then the second (over)
+         application jumps directly to the return continuation of the original
+         [Apply]. Otherwise it will need to go through [cont], which we define
+         below, so that the [End_region] marker for the new region can be
+         inserted. *)
+      match needs_region with
+      | None -> Apply.continuation apply
+      | Some (_, cont) -> Apply.Result_continuation.Return cont
+    in
+    Apply.create ~callee:(Simple.var func_var) ~continuation
       (Apply.exn_continuation apply)
       ~args:remaining_args
-      ~call_kind:(Call_kind.indirect_function_call_unknown_arity ())
+      ~call_kind:(Call_kind.indirect_function_call_unknown_arity alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
       ~probe_name:(Apply.probe_name apply)
   in
+  let perform_over_application_free_names =
+    Apply.free_names perform_over_application
+  in
+  let perform_over_application =
+    match needs_region with
+    | None -> Expr.create_apply perform_over_application
+    | Some (region, after_over_application) ->
+      (* This wraps the second application (the over application itself) with
+         [Begin_region] ... [End_region]. This application might raise an
+         exception, but that doesn't need any special handling, since we're not
+         actually introducing any more local allocations here. (Missing the
+         [End_region] on the exceptional return path is fine, c.f. the usual
+         compilation of [try ... with] -- see [Closure_conversion].) *)
+      let over_application_results =
+        List.mapi
+          (fun i kind ->
+            BP.create (Variable.create ("result" ^ string_of_int i)) kind)
+          result_arity
+      in
+      let call_return_continuation, call_return_continuation_free_names =
+        match Apply.continuation apply with
+        | Return return_cont ->
+          let apply_cont =
+            Apply_cont.create return_cont
+              ~args:(List.map BP.simple over_application_results)
+              ~dbg:(Apply.dbg apply)
+          in
+          Expr.create_apply_cont apply_cont, Apply_cont.free_names apply_cont
+        | Never_returns ->
+          (* The whole overapplication never returns, so this point is
+             unreachable. *)
+          Expr.create_invalid (), Name_occurrences.empty
+      in
+      let handler_expr =
+        Let.create
+          (Bound_pattern.singleton
+             (Bound_var.create (Variable.create "unit") Name_mode.normal))
+          (Named.create_prim
+             (Unary (End_region, Simple.var region))
+             (Apply.dbg apply))
+          ~body:call_return_continuation
+          ~free_names_of_body:(Known call_return_continuation_free_names)
+        |> Expr.create_let
+      in
+      let handler_expr_free_names =
+        Name_occurrences.add_variable call_return_continuation_free_names region
+          Name_mode.normal
+      in
+      let handler =
+        Continuation_handler.create over_application_results
+          ~handler:handler_expr
+          ~free_names_of_handler:(Known handler_expr_free_names)
+          ~is_exn_handler:false
+      in
+      Let_cont.create_non_recursive after_over_application handler
+        ~body:(Expr.create_apply perform_over_application)
+        ~free_names_of_body:(Known perform_over_application_free_names)
+  in
   let after_full_application = Continuation.create () in
   let after_full_application_handler =
     let func_param = BP.create func_var K.With_subkind.any_value in
-    let free_names_of_expr = Apply.free_names perform_over_application in
-    Continuation_handler.create [func_param]
-      ~handler:(Expr.create_apply perform_over_application)
-      ~free_names_of_handler:(Known free_names_of_expr) ~is_exn_handler:false
+    Continuation_handler.create [func_param] ~handler:perform_over_application
+      ~free_names_of_handler:(Known perform_over_application_free_names)
+      ~is_exn_handler:false
   in
   let full_apply =
     Apply.with_continuation_callee_and_args apply
       (Return after_full_application) ~callee:(Apply.callee apply)
-      ~args:full_app_args
+      ~args:first_args
   in
-  let expr =
+  let both_applications =
     Let_cont.create_non_recursive after_full_application
       after_full_application_handler
       ~body:(Expr.create_apply full_apply)
       ~free_names_of_body:(Known (Apply.free_names full_apply))
   in
-  expr
+  match needs_region with
+  | None -> both_applications
+  | Some (region, _) ->
+    Let.create
+      (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
+      (Named.create_prim (Nullary Begin_region) (Apply.dbg apply))
+      ~body:both_applications
+      ~free_names_of_body:
+        (Known
+           (Name_occurrences.union
+              (Apply.free_names full_apply)
+              perform_over_application_free_names))
+    |> Expr.create_let
 
 type apply_cont_context =
   | Apply_cont_expr

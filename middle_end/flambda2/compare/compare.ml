@@ -270,7 +270,7 @@ let subst_set_of_closures env set =
            subst_closure_var env var, subst_simple env simple)
     |> Var_within_closure.Map.of_list
   in
-  Set_of_closures.create decls ~closure_elements
+  Set_of_closures.create Heap ~closure_elements decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
@@ -284,10 +284,11 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function (Direct { code_id; closure_id; return_arity }) ->
+  | Function { function_call = Direct { code_id; closure_id; return_arity }; _ }
+    ->
     let code_id = subst_code_id env code_id in
     let closure_id = subst_closure_id env closure_id in
-    Call_kind.direct_function_call code_id closure_id ~return_arity
+    Call_kind.direct_function_call code_id closure_id ~return_arity Heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -893,17 +894,23 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   match call_kind1, call_kind2 with
   | ( Function
-        (Direct
-          { code_id = code_id1;
-            closure_id = closure_id1;
-            return_arity = return_arity1
-          }),
+        { function_call =
+            Direct
+              { code_id = code_id1;
+                closure_id = closure_id1;
+                return_arity = return_arity1
+              };
+          _
+        },
       Function
-        (Direct
-          { code_id = code_id2;
-            closure_id = closure_id2;
-            return_arity = return_arity2
-          }) ) ->
+        { function_call =
+            Direct
+              { code_id = code_id2;
+                closure_id = closure_id2;
+                return_arity = return_arity2
+              };
+          _
+        } ) ->
     triples ~f1:code_ids ~f2:closure_ids
       ~f3:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
       ~subst3:(fun _ arity -> arity)
@@ -911,23 +918,32 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
       (code_id1, closure_id1, return_arity1)
       (code_id2, closure_id2, return_arity2)
     |> Comparison.map ~f:(fun (code_id, closure_id, return_arity) ->
-           Call_kind.direct_function_call code_id closure_id ~return_arity)
+           Call_kind.direct_function_call code_id closure_id ~return_arity Heap)
   | ( Function
-        (Indirect_known_arity
-          { param_arity = param_arity1; return_arity = return_arity1 }),
+        { function_call =
+            Indirect_known_arity
+              { param_arity = param_arity1; return_arity = return_arity1 };
+          _
+        },
       Function
-        (Indirect_known_arity
-          { param_arity = param_arity2; return_arity = return_arity2 }) ) ->
+        { function_call =
+            Indirect_known_arity
+              { param_arity = param_arity2; return_arity = return_arity2 };
+          _
+        } ) ->
     if Flambda_arity.With_subkinds.equal param_arity1 param_arity2
        && Flambda_arity.With_subkinds.equal return_arity1 return_arity2
     then Equivalent
     else Different { approximant = call_kind1 }
-  | Function Indirect_unknown_arity, Function Indirect_unknown_arity ->
+  | ( Function { function_call = Indirect_unknown_arity; _ },
+      Function { function_call = Indirect_unknown_arity; _ } ) ->
     Equivalent
-  | Method { kind = kind1; obj = obj1 }, Method { kind = kind2; obj = obj2 } ->
+  | ( Method { kind = kind1; obj = obj1; _ },
+      Method { kind = kind2; obj = obj2; _ } ) ->
     pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
       (kind1, obj1) (kind2, obj2)
-    |> Comparison.map ~f:(fun (kind, obj) -> Call_kind.method_call kind ~obj)
+    |> Comparison.map ~f:(fun (kind, obj) ->
+           Call_kind.method_call kind ~obj Heap)
   | ( C_call
         { alloc = alloc1;
           param_arity = param_arity1;

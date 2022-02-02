@@ -39,8 +39,10 @@ include Container_types.Make (struct
       match Continuation.sort k, trap_action, args with
       | Normal_or_exn, None, [] -> "goto", None
       | Normal_or_exn, None, _::_ -> "apply_cont", None
-      | Normal_or_exn, Some (Push _), [] -> "goto", trap_action
-      | Normal_or_exn, Some (Push _), _::_ -> "apply_cont", trap_action
+      | Normal_or_exn, Some (Push _ ), [] ->
+        "goto", trap_action
+      | Normal_or_exn, Some (Push _ ), _::_ ->
+        "apply_cont", trap_action
       | Normal_or_exn, Some (Pop { exn_handler; _ }), _ ->
         if Continuation.equal k exn_handler then "raise", trap_action
         else

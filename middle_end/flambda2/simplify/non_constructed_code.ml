@@ -24,6 +24,10 @@ let newer_version_of = Code0.newer_version_of
 
 let params_arity = Code0.params_arity
 
+let num_leading_heap_params = Code0.num_leading_heap_params
+
+let num_trailing_local_params = Code0.num_trailing_local_params
+
 let result_arity = Code0.result_arity
 
 let result_types = Code0.result_types
@@ -48,15 +52,19 @@ let is_my_closure_used = Code0.is_my_closure_used
 
 let inlining_decision = Code0.inlining_decision
 
+let contains_no_escaping_local_allocs = Code0.contains_no_escaping_local_allocs
+
 let create code_id ~free_names_of_params_and_body ~newer_version_of
-    ~params_arity ~result_arity ~result_types ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision =
+    ~params_arity ~num_trailing_local_params ~result_arity ~result_types
+    ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision =
   Code0.create ~print_function_params_and_body:Unit.print code_id
     ~params_and_body:() ~free_names_of_params_and_body ~newer_version_of
-    ~params_arity ~result_arity ~result_types ~stub ~inline ~is_a_functor
-    ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision
+    ~params_arity ~num_trailing_local_params ~result_arity ~result_types
+    ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
+    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
+    ~inlining_decision
 
 let print = Code0.print ~print_function_params_and_body:Unit.print
 

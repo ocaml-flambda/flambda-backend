@@ -179,7 +179,9 @@ let expression_for_failure acc exn_cont ~register_const_string primitive dbg
         Named.create_prim
           (Variadic
              ( Make_block
-                 (Values (Tag.Scannable.zero, [Any_value; Any_value]), Immutable),
+                 ( Values (Tag.Scannable.zero, [Any_value; Any_value]),
+                   Immutable,
+                   Heap ),
                contents_of_exn_bucket ))
           dbg
       in

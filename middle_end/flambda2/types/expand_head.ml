@@ -44,6 +44,8 @@ module Expanded_type : sig
 
   val create_rec_info : Type_grammar.head_of_kind_rec_info -> t
 
+  val create_region : Type_grammar.head_of_kind_region -> t
+
   val create_bottom : Flambda_kind.t -> t
 
   val create_unknown : Flambda_kind.t -> t
@@ -66,6 +68,7 @@ module Expanded_type : sig
     | Naked_int64 of Type_grammar.head_of_kind_naked_int64
     | Naked_nativeint of Type_grammar.head_of_kind_naked_nativeint
     | Rec_info of Type_grammar.head_of_kind_rec_info
+    | Region of Type_grammar.head_of_kind_region
 
   val descr : t -> descr Or_unknown_or_bottom.t
 
@@ -82,6 +85,7 @@ module Expanded_type : sig
     | Naked_nativeint of
         Type_grammar.head_of_kind_naked_nativeint Or_unknown_or_bottom.t
     | Rec_info of Type_grammar.head_of_kind_rec_info Or_unknown_or_bottom.t
+    | Region of Type_grammar.head_of_kind_region Or_unknown_or_bottom.t
 
   val descr_oub : t -> descr_oub
 end = struct
@@ -93,6 +97,7 @@ end = struct
     | Naked_int64 of TG.head_of_kind_naked_int64
     | Naked_nativeint of TG.head_of_kind_naked_nativeint
     | Rec_info of TG.head_of_kind_rec_info
+    | Region of TG.head_of_kind_region
 
   type t =
     { kind : K.t;
@@ -119,6 +124,8 @@ end = struct
     { kind = K.naked_nativeint; descr = Ok (Naked_nativeint head) }
 
   let create_rec_info head = { kind = K.rec_info; descr = Ok (Rec_info head) }
+
+  let create_region head = { kind = K.region; descr = Ok (Region head) }
 
   let create_bottom kind = { kind; descr = Bottom }
 
@@ -199,13 +206,23 @@ end = struct
         match TG.apply_coercion_head_of_kind_rec_info head coercion with
         | Bottom -> create_bottom K.rec_info
         | Ok head -> create_rec_info head))
+    | Region Unknown -> create_unknown K.region
+    | Region Bottom -> create_bottom K.region
+    | Region (Ok (No_alias head)) -> (
+      match coercion with
+      | None -> create_region head
+      | Some coercion -> (
+        match TG.apply_coercion_head_of_kind_region head coercion with
+        | Bottom -> create_bottom K.region
+        | Ok head -> create_region head))
     | Value (Ok (Equals _))
     | Naked_immediate (Ok (Equals _))
     | Naked_float (Ok (Equals _))
     | Naked_int32 (Ok (Equals _))
     | Naked_int64 (Ok (Equals _))
     | Naked_nativeint (Ok (Equals _))
-    | Rec_info (Ok (Equals _)) ->
+    | Rec_info (Ok (Equals _))
+    | Region (Ok (Equals _)) ->
       Misc.fatal_errorf "Type cannot be an alias type:@ %a" TG.print ty
 
   let to_type (t : t) =
@@ -220,7 +237,8 @@ end = struct
       | Naked_int32 head -> TG.create_from_head_naked_int32 head
       | Naked_int64 head -> TG.create_from_head_naked_int64 head
       | Naked_nativeint head -> TG.create_from_head_naked_nativeint head
-      | Rec_info head -> TG.create_from_head_rec_info head)
+      | Rec_info head -> TG.create_from_head_rec_info head
+      | Region head -> TG.create_from_head_region head)
 
   type descr_oub =
     | Value of Type_grammar.head_of_kind_value Or_unknown_or_bottom.t
@@ -235,6 +253,7 @@ end = struct
     | Naked_nativeint of
         Type_grammar.head_of_kind_naked_nativeint Or_unknown_or_bottom.t
     | Rec_info of Type_grammar.head_of_kind_rec_info Or_unknown_or_bottom.t
+    | Region of Type_grammar.head_of_kind_region Or_unknown_or_bottom.t
 
   let descr_oub t : descr_oub =
     match t.descr with
@@ -247,7 +266,7 @@ end = struct
       | Naked_number Naked_int64 -> Naked_int64 Unknown
       | Naked_number Naked_nativeint -> Naked_nativeint Unknown
       | Rec_info -> Rec_info Unknown
-      | Fabricated -> Misc.fatal_error "Unused kind, to be removed")
+      | Region -> Region Unknown)
     | Bottom -> (
       match t.kind with
       | Value -> Value Bottom
@@ -257,7 +276,7 @@ end = struct
       | Naked_number Naked_int64 -> Naked_int64 Bottom
       | Naked_number Naked_nativeint -> Naked_nativeint Bottom
       | Rec_info -> Rec_info Bottom
-      | Fabricated -> Misc.fatal_error "Unused kind, to be removed")
+      | Region -> Region Bottom)
     | Ok (Value head) -> Value (Ok head)
     | Ok (Naked_immediate head) -> Naked_immediate (Ok head)
     | Ok (Naked_float head) -> Naked_float (Ok head)
@@ -265,6 +284,7 @@ end = struct
     | Ok (Naked_int64 head) -> Naked_int64 (Ok head)
     | Ok (Naked_nativeint head) -> Naked_nativeint (Ok head)
     | Ok (Rec_info head) -> Rec_info (Ok head)
+    | Ok (Region head) -> Region (Ok head)
 end
 
 module ET = Expanded_type

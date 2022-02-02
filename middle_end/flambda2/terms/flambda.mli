@@ -157,7 +157,11 @@ module Named : sig
   (** Build an expression boxing the name. The returned kind is the one of the
       unboxed version. *)
   val box_value :
-    Name.t -> Flambda_kind.t -> Debuginfo.t -> named * Flambda_kind.t
+    Name.t ->
+    Flambda_kind.t ->
+    Debuginfo.t ->
+    Alloc_mode.t ->
+    named * Flambda_kind.t
 
   (** Build an expression unboxing the name. The returned kind is the one of the
       unboxed version. *)

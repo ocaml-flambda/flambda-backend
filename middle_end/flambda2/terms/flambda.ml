@@ -1495,20 +1495,22 @@ module Named = struct
 
   let apply_renaming = apply_renaming_named
 
-  let box_value name (kind : Flambda_kind.t) dbg : t * Flambda_kind.t =
+  let box_value name (kind : Flambda_kind.t) dbg alloc_mode : t * Flambda_kind.t
+      =
     let simple = Simple.name name in
     match kind with
     | Value -> Simple simple, kind
     | Naked_number Naked_immediate -> Misc.fatal_error "Not yet supported"
     | Naked_number Naked_float ->
-      Prim (Unary (Box_number Naked_float, simple), dbg), K.value
+      Prim (Unary (Box_number (Naked_float, alloc_mode), simple), dbg), K.value
     | Naked_number Naked_int32 ->
-      Prim (Unary (Box_number Naked_int32, simple), dbg), K.value
+      Prim (Unary (Box_number (Naked_int32, alloc_mode), simple), dbg), K.value
     | Naked_number Naked_int64 ->
-      Prim (Unary (Box_number Naked_int64, simple), dbg), K.value
+      Prim (Unary (Box_number (Naked_int64, alloc_mode), simple), dbg), K.value
     | Naked_number Naked_nativeint ->
-      Prim (Unary (Box_number Naked_nativeint, simple), dbg), K.value
-    | Fabricated -> Misc.fatal_error "Cannot box values of [Fabricated] kind"
+      ( Prim (Unary (Box_number (Naked_nativeint, alloc_mode), simple), dbg),
+        K.value )
+    | Region -> Misc.fatal_error "Cannot box values of [Region] kind"
     | Rec_info -> Misc.fatal_error "Cannot box values of [Rec_info] kind"
 
   let unbox_value name (kind : Flambda_kind.t) dbg : t * Flambda_kind.t =
@@ -1525,7 +1527,7 @@ module Named = struct
     | Naked_number Naked_nativeint ->
       ( Prim (Unary (Unbox_number Naked_nativeint, simple), dbg),
         K.naked_nativeint )
-    | Fabricated -> Misc.fatal_error "Cannot unbox values of [Fabricated] kind"
+    | Region -> Misc.fatal_error "Cannot unbox values of [Region] kind"
     | Rec_info -> Misc.fatal_error "Cannot unbox values of [Rec_info] kind"
 
   let at_most_generative_effects (t : t) =
@@ -1551,7 +1553,7 @@ module Named = struct
         Simple.const (Reg_width_const.naked_int64 Int64.zero)
       | Naked_number Naked_nativeint ->
         Simple.const (Reg_width_const.naked_nativeint Targetint_32_64.zero)
-      | Fabricated -> Misc.fatal_error "[Fabricated] kind not expected here"
+      | Region -> Misc.fatal_error "[Region] kind not expected here"
       | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
     in
     Simple simple
