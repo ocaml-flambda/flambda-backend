@@ -323,6 +323,13 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
+  | ( Variant { alloc_mode = alloc_mode1; _ },
+      Mutable_block { alloc_mode = alloc_mode2 } )
+  | ( Mutable_block { alloc_mode = alloc_mode1 },
+      Variant { alloc_mode = alloc_mode2; _ } ) ->
+    (* CR mshinwell: It would be better to track per-field mutability. *)
+    let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
+    TG.Head_of_kind_value.create_mutable_block alloc_mode, TEE.empty
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
