@@ -1,0 +1,65 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                     Thomas Refis, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2018 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(library
+ (name unix)
+ (wrapped false)
+ (modes byte native)
+ (flags (
+   -nostdlib -absname -w +a-4-9-41-42-44-45-48 -warn-error A -bin-annot
+   -g -safe-string -strict-sequence -strict-formats
+ ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags (:standard -linkall))
+ (libraries stdlib)
+ (foreign_stubs (language c) (names
+   accept access addrofstr alarm bind channels chdir chmod chown chroot close
+   fsync closedir connect cst2constr cstringv dup dup2 envir errmsg execv execve
+   execvp exit fchmod fchown fcntl fork ftruncate getaddrinfo getcwd getegid
+   geteuid getgid getgr getgroups gethost gethostname getlogin getnameinfo
+   getpeername getpid getppid getproto getpw gettimeofday getserv getsockname
+   getuid gmtime initgroups isatty itimer kill link listen lockf lseek mkdir
+   mkfifo mmap mmap_ba nice open opendir pipe putenv read readdir readlink
+   rename rewinddir rmdir select sendrecv setgid setgroups setsid setuid
+   shutdown signals sleep socket socketaddr socketpair sockopt stat strofaddr
+   symlink termios time times truncate umask unixsupport unlink utimes wait
+   write spawn)
+   (flags ((:include %{project_root}/oc_cflags.sexp)
+           (:include %{project_root}/sharedlib_cflags.sexp)
+           (:include %{project_root}/oc_cppflags.sexp)))
+   (include_dirs %{project_root}/ocaml/runtime)
+ ))
+
+(install
+  (files
+    .unix.objs/native/unix.cmx
+    .unix.objs/native/unixLabels.cmx
+    unix.cmxa
+    unix.a
+    unix.cma
+    .unix.objs/byte/unix.cmi
+    .unix.objs/byte/unix.cmti
+    .unix.objs/byte/unixLabels.cmi
+    .unix.objs/byte/unixLabels.cmti
+    unix.cmxs
+    unix.mli
+    unixLabels.mli
+    libunix_stubs.a
+    libunix_stubs_native.a
+    (dllunix_stubs.so as stublibs/dllunix_stubs.so)
+    (socketaddr.h as caml/socketaddr.h)
+    (unixsupport.h as caml/unixsupport.h)
+  )
+  (section lib)
+  (package ocaml))
