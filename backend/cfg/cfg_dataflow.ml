@@ -132,3 +132,188 @@ module Forward (D : Domain) (T : Transfer with type domain = D.t) :
     done;
     if !iteration < max_iteration then Result.Ok res else Result.Error res
 end
+
+(* CR xclerc for xclerc: unify with `Domain` or rename. *)
+module type DomainXXX = sig
+  type t
+
+  val bot : t
+
+  val compare : t -> t -> int
+
+  val join : t -> t -> t
+
+  val less_equal : t -> t -> bool
+
+  val to_string : t -> string
+end
+
+(* CR xclerc for xclerc: unify with `Transfer` or rename. *)
+module type TransferXXX = sig
+  type domain
+
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+
+  val terminator : domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+
+  val exception_ : domain -> domain
+end
+
+(* CR xclerc for xclerc: unify with `S` or rename. *)
+module type SXXX = sig
+  type domain
+
+  type map = domain Label.Tbl.t
+
+  val run : Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+end
+
+module Backward (D : DomainXXX) (T : TransferXXX with type domain = D.t) :
+  SXXX with type domain = D.t = struct
+
+  (* CR xclerc for xclerc: see what can be shared with `Forward`. *)
+
+  type domain = D.t
+
+  type map = domain Label.Tbl.t
+
+  module WorkSetElement = struct
+    type t =
+      { label : Label.t;
+        value : domain
+      }
+
+    let compare { label = left_label; value = left_value }
+        { label = right_label; value = right_value } =
+      match Label.compare left_label right_label with
+      | 0 -> D.compare left_value right_value
+      | res -> res
+  end
+
+  module WorkSet = Set.Make (WorkSetElement)
+
+  let transfer_block
+    : domain -> exn:domain -> Cfg.basic_block -> domain
+    = fun value ~exn block ->
+      ListLabels.fold_right
+        block.body
+        ~init:(T.terminator value ~exn block.terminator)
+        ~f:(fun instr value ->
+            T.basic value ~exn instr)
+
+  let is_exit_block
+    : Cfg.basic_block -> bool
+    = fun block ->
+      match block.terminator.desc with
+      | Never            -> assert false
+      | Always         _ -> false
+      | Parity_test    _ -> false
+      | Truth_test     _ -> false
+      | Float_test     _ -> false
+      | Int_test       _ -> false
+      | Switch         _ -> false
+      | Return           -> true
+      | Raise          _ -> block.trap_depth = 1
+      | Tailcall       _ -> true
+      | Call_no_return _ -> true
+
+  let create
+    : Cfg.t -> init:domain -> map * WorkSet.t ref
+    = fun cfg ~init ->
+      let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+      let set = ref WorkSet.empty in
+      let value = init in
+      Cfg.iter_blocks cfg ~f:(fun label block ->
+          if is_exit_block block || true (* CR xclerc for xclerc: remove `|| true` *)
+          then begin
+            Label.Tbl.replace map label value;
+            set := WorkSet.add { WorkSetElement.label; value } !set
+          end);
+      map, set
+
+  let remove_and_return :
+    Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
+    fun cfg set ->
+    let element = WorkSet.choose !set in
+    set := WorkSet.remove element !set;
+    element, Cfg.get_block_exn cfg element.label
+
+  let run :
+    Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+    =
+    fun cfg ?(max_iteration = max_int) ~init () ->
+    let res, work_set = create cfg ~init in
+    let iteration = ref 0 in
+    (* note: `handler_map` contains the value at the *start* of the block. *)
+    let handler_map : D.t Label.Tbl.t =
+      Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks)
+    in
+    while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
+      incr iteration;
+      let element, block = remove_and_return cfg work_set in
+      let exn : domain =
+        Option.map
+          (fun exceptional_successor -> Label.Tbl.find_opt handler_map exceptional_successor)
+          block.exn
+        |> Option.join
+        |> Option.value ~default:D.bot
+      in
+      let value = transfer_block element.value ~exn block in
+      if block.is_trap_handler then begin
+        let old_value =
+          Option.value
+            (Label.Tbl.find_opt handler_map block.start)
+            ~default:D.bot
+        in
+        let new_value = T.exception_ value in
+        if not (D.less_equal new_value old_value) then begin
+          Label.Tbl.replace handler_map block.start new_value;
+          List.iter
+            (fun predecessor_label ->
+               let current_value =
+                 Option.value
+                   (Label.Tbl.find_opt res predecessor_label)
+                   ~default:D.bot
+               in
+               work_set :=
+                 WorkSet.add
+                   { WorkSetElement.label = predecessor_label; value = current_value; }
+                   !work_set)
+            (Cfg.predecessor_labels block)
+        end
+      end else begin
+        List.iter
+          (fun predecessor_label ->
+             let old_value =
+               Option.value
+                 (Label.Tbl.find_opt res predecessor_label)
+                 ~default:D.bot
+             in
+             let new_value = D.join old_value value in
+             if not (D.less_equal new_value old_value) then begin
+               Label.Tbl.replace res predecessor_label new_value;
+               let already_in_workset = ref false in
+               work_set :=
+                 WorkSet.filter
+                   (fun { WorkSetElement.label; value; } ->
+                      if Label.equal label predecessor_label then begin
+                        if D.less_equal new_value value then begin
+                          already_in_workset := true;
+                        end;
+                        not (D.less_equal value new_value)
+                      end else
+                        true)
+                   !work_set;
+               if not !already_in_workset then begin
+                 work_set :=
+                   WorkSet.add
+                     { WorkSetElement.label = predecessor_label; value = new_value }
+                     !work_set
+               end
+             end)
+          (Cfg.predecessor_labels block)
+      end;
+    done;
+    if !iteration < max_iteration then Result.Ok res else Result.Error res
+
+end

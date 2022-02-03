@@ -170,21 +170,63 @@ let ocamlcfg_verbose =
   | Some "1" -> true
   | Some _ | None -> false
 
+let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_layout.t =
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  Cfg.iter_blocks cfg ~f:(fun _label block ->
+      let canary = Reg.create Cmm.Val in
+      canary.Reg.raw_name <- Reg.Raw_name.create_from_var (Ident.create_local "canary");
+      let canary_singleton = Reg.Set.singleton canary in
+      ListLabels.iter block.body ~f:(fun instr -> instr.Cfg.live <- canary_singleton);
+      block.terminator.Cfg.live <- canary_singleton);
+  begin match Cfg_liveness.Liveness.run cfg ~init:Reg.Set.empty () with
+    | Result.Ok (_ : Cfg_liveness.Liveness.map) -> ()
+    | Result.Error (_ : Cfg_liveness.Liveness.map) ->
+      Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
+        cfg.Cfg.fun_name;
+  end;
+  Cfg.iter_blocks cfg ~f:(fun _label block ->
+      block.body <- ListLabels.filter block.body ~f:(fun instr ->
+          not (Cfg.is_noop_move instr)));
+  let layout : Label.t list =
+    ListLabels.filter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
+        Cfg.mem_block (Cfg_with_layout.cfg cfg_with_layout) label)
+  in
+  let result =
+    Cfg_with_layout.create
+      cfg
+      ~layout
+      ~preserve_orig_labels:false
+      ~new_labels:Label.Set.empty
+  in
+  Eliminate_fallthrough_blocks.run result;
+  Merge_straightline_blocks.run result;
+  Eliminate_dead_code.run_dead_block result;
+  Simplify_terminator.run cfg;
+  result
+
 let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   if ocamlcfg_verbose then begin
     Format.eprintf "processing function %s...\n%!" f.Mach.fun_name;
   end;
+  (* We do not simplify terminators here because it interferes with liveness
+     when we have a terminator with:
+     (i) all its edges leading to the same block;
+     (ii) a condition making a pseudo-register live.
+    In such a case, the terminator would be simplified to a mere jump, the
+    condition would disappear, and the pseudo-register would no longer be
+    live. Is it fine in itself, but would break the equivalence check. *)
   let result =
     Cfgize.fundecl
       f
       ~preserve_orig_labels:false
-      ~simplify_terminators:true
+      ~simplify_terminators:false
   in
   let expected = Linear_to_cfg.run res ~preserve_orig_labels:false in
   Eliminate_fallthrough_blocks.run expected;
   Merge_straightline_blocks.run expected;
   Eliminate_dead_code.run_dead_block expected;
-  Simplify_terminator.run (Cfg_with_layout.cfg expected);
+  Simplify_terminator.run (Cfg_with_layout.cfg expected); (* CR xclerc for xclerc: should it be removed? *)
+  let result = recompute_liveness_on_cfg result in
   Cfg_equivalence.check_cfg_with_layout f expected result;
   if ocamlcfg_verbose then begin
     Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"

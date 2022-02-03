@@ -48,3 +48,41 @@ end
 
 module Forward (D : Domain) (_ : Transfer with type domain = D.t) :
   S with type domain = D.t
+
+(* CR xclerc for xclerc: unify with `Domain` or rename. *)
+module type DomainXXX = sig
+  type t
+
+  val bot : t
+
+  val compare : t -> t -> int
+
+  val join : t -> t -> t
+
+  val less_equal : t -> t -> bool
+
+  val to_string : t -> string
+end
+
+(* CR xclerc for xclerc: unify with `Transfer` or rename. *)
+module type TransferXXX = sig
+  type domain
+
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+
+  val terminator : domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+
+  val exception_ : domain -> domain
+end
+
+(* CR xclerc for xclerc: unify with `S` or rename. *)
+module type SXXX = sig
+  type domain
+
+  type map = domain Label.Tbl.t
+
+  val run : Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+end
+
+module Backward (D : DomainXXX) (_ : TransferXXX with type domain = D.t) :
+  SXXX with type domain = D.t

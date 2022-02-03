@@ -354,3 +354,17 @@ let print_basic oc i =
 
 let print_terminator oc ?sep ti =
   Format.kasprintf (Printf.fprintf oc "%s") "%a" (dump_terminator ?sep) ti
+
+let is_noop_move instr =
+  match instr.desc with
+  | Op (Move | Spill | Reload) ->
+    (* CR xclerc for xclerc: is testing the location enough? *)
+    Reg.same_loc instr.arg.(0) instr.res.(0)
+  | Op
+      ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
+      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
+      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
+      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
+      | End_region )
+  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    false
