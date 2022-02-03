@@ -3,7 +3,7 @@
   tests/asmcomp                    FAIL
   tests/asmgen                     FAIL
   tests/backtrace                  FAIL (FIXME)  there is practically no backtrace info
-  tests/basic                      FAIL (FIXME)  sets.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
+#  tests/basic                      FAIL (FIXME)  sets.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
   tests/basic-modules              FAIL (FIXME)  PR#8948 not merged yet in trunk
   tests/float-unboxing             FAIL (FIXME)  'float_subst_boxed_number.ml' see flambdatest/mlexamples/float_unboxing.ml for a simplified error example
   tests/gc-roots                   FAIL (FIXME)  test_stdlabels.ml has different bytecodes (ocamlc.byte vs ocamlc.byte) - the digest of the main module differ
