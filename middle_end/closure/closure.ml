@@ -995,7 +995,6 @@ let rec close ({ backend; fenv; cenv ; mutable_vars } as env) lam =
       if nargs = 0 && probe = None then
         Misc.fatal_errorf "Closure: 0-ary application at %a"
           Location.print_loc (Debuginfo.Scoped_location.to_location loc);
-      assert (nargs > 0);
       begin match (close env funct, close_list env args) with
         ((ufunct, Value_closure(_,
                                 ({fun_arity=(Tupled, nparams)} as fundesc),
