@@ -310,20 +310,6 @@ let copy_instruction_no_reg :
   let fdo = Fdo_info.none in
   { desc; arg; res; dbg; live; trap_depth; id; fdo }
 
-let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
-  match instr.Cfg.desc with
-  | Op (Move | Spill | Reload) ->
-    (* CR xclerc for xclerc: is testing the location enough? *)
-    Reg.same_loc instr.Cfg.arg.(0) instr.Cfg.res.(0)
-  | Op
-      ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
-      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
-      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
-      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
-      | End_region )
-  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
-    false
-
 let rec get_end : Mach.instruction -> Mach.instruction =
  fun instr ->
   match instr.Mach.desc with
@@ -355,13 +341,14 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
       match basic_or_terminator_of_operation state op with
       | Basic desc ->
         let instr' = copy_instruction state instr ~desc in
-        if is_noop_move instr'
-        then loop instr.next acc
-        else
-          let acc = instr' :: acc in
-          if Cfg.can_raise_basic desc
-          then return None acc
-          else loop instr.next acc
+        (* note: useless moves (See `Cfg.is_noop_move`) are no longer removed
+           because we want to compute liveness information on CFG values, and
+           (i) such moves are necessary to compute the live sets and (ii) they
+           can only be identified as useless after register allocation. *)
+        let acc = instr' :: acc in
+        if Cfg.can_raise_basic desc
+        then return None acc
+        else loop instr.next acc
       | Terminator terminator ->
         return (Some (copy_instruction state instr ~desc:terminator)) acc
     end
@@ -605,7 +592,8 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
       handler_stack * handler_option =
-   fun exceptional_successor stack term ->
+    fun exceptional_successor stack term ->
+    term.trap_depth <- succ (List.length stack);
     match term.desc with
     | Never | Return
     | Tailcall (Func _)
@@ -626,7 +614,8 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.basic Cfg.instruction ->
       handler_stack * handler_option =
-   fun exceptional_successor stack instr ->
+    fun exceptional_successor stack instr ->
+    instr.trap_depth <- succ (List.length stack);
     match instr.desc with
     | Pushtrap { lbl_handler } -> lbl_handler :: stack, exceptional_successor
     | Poptrap -> begin
@@ -643,17 +632,24 @@ module Trap_depth_and_exn = struct
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
    fun cfg label stack ->
     let block = Cfg.get_block_exn cfg label in
-    if block.trap_depth = invalid_trap_depth
-    then begin
-      block.trap_depth <- succ (List.length stack);
-      let stack, exceptional_successor =
-        ListLabels.fold_left block.body ~init:(stack, None)
-          ~f:(fun (stack, exceptional_successor) instr ->
-            process_basic exceptional_successor stack instr)
-      in
-      let stack, exceptional_successor =
-        process_terminator exceptional_successor stack block.terminator
-      in
+    let was_invalid =
+      if block.trap_depth = invalid_trap_depth then
+        true
+      else begin
+        assert (block.trap_depth = succ (List.length stack));
+        false
+      end
+    in
+    block.trap_depth <- succ (List.length stack);
+    let stack, exceptional_successor =
+      ListLabels.fold_left block.body ~init:(stack, None)
+        ~f:(fun (stack, exceptional_successor) instr ->
+          process_basic exceptional_successor stack instr)
+    in
+    let stack, exceptional_successor =
+      process_terminator exceptional_successor stack block.terminator
+    in
+    if was_invalid then begin
       (* non-exceptional successors *)
       Label.Set.iter
         (fun successor_label -> update_block cfg successor_label stack)
@@ -665,7 +661,6 @@ module Trap_depth_and_exn = struct
           update_block cfg handler_label handler_stack)
         exceptional_successor
     end
-    else assert (block.trap_depth = succ (List.length stack))
 
   let update_cfg : Cfg.t -> unit =
    fun cfg -> update_block cfg cfg.entry_label []
@@ -758,7 +753,6 @@ let fundecl :
      integer test. This simplification should happen *after* the one about
      straightline blocks because merging blocks creates more opportunities for
      terminator simplification. *)
-  Eliminate_fallthrough_blocks.run cfg_with_layout;
   Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
   if simplify_terminators then Simplify_terminator.run cfg;

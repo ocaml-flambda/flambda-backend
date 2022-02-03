@@ -219,6 +219,7 @@
   cfg_to_linear
   cfg_with_layout
   cfg_dataflow
+  cfg_liveness
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -600,6 +601,7 @@
   (cfg_to_linear.mli as compiler-libs/cfg_to_linear.mli)
   (cfg_with_layout.mli as compiler-libs/cfg_with_layout.mli)
   (cfg_dataflow.mli as compiler-libs/cfg_dataflow.mli)
+  (cfg_liveness.mli as compiler-libs/cfg_liveness.mli)
   (eliminate_dead_code.mli as compiler-libs/eliminate_dead_code.mli)
   (disconnect_block.mli as compiler-libs/disconnect_block.mli)
   (eliminate_dead_blocks.mli as compiler-libs/eliminate_dead_blocks.mli)
@@ -1005,6 +1007,18 @@
   (.ocamloptcomp.objs/byte/cfg_dataflow.cmti
    as
    compiler-libs/cfg_dataflow.cmti)
+  (.ocamloptcomp.objs/byte/cfg_liveness.cmi
+   as
+   compiler-libs/cfg_liveness.cmi)
+  (.ocamloptcomp.objs/byte/cfg_liveness.cmo
+   as
+   compiler-libs/cfg_liveness.cmo)
+  (.ocamloptcomp.objs/byte/cfg_liveness.cmt
+   as
+   compiler-libs/cfg_liveness.cmt)
+  (.ocamloptcomp.objs/byte/cfg_liveness.cmti
+   as
+   compiler-libs/cfg_liveness.cmti)
   (.ocamloptcomp.objs/byte/eliminate_dead_code.cmi
    as
    compiler-libs/eliminate_dead_code.cmi)
@@ -1223,6 +1237,9 @@
   (.ocamloptcomp.objs/native/cfg_dataflow.cmx
    as
    compiler-libs/cfg_dataflow.cmx)
+  (.ocamloptcomp.objs/native/cfg_liveness.cmx
+   as
+   compiler-libs/cfg_liveness.cmx)
   (.ocamloptcomp.objs/native/eliminate_dead_code.cmx
    as
    compiler-libs/eliminate_dead_code.cmx)
