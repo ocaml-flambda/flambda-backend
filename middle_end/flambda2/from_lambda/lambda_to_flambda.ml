@@ -77,14 +77,16 @@ module Env : sig
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
 
-  val entering_region : t -> Ident.t -> t
+  val entering_region : t -> Ident.t -> closure_continuation:Continuation.t -> t
 
   (** The innermost (newest) region is first in the list. *)
   val region_stack : t -> Ident.t list
 
-  val region_stack_at_handler : t -> Continuation.t -> Ident.t list
+  val region_stack_in_cont_scope : t -> Continuation.t -> Ident.t list
 
   val pop_regions_to_context : t -> Continuation.t -> Ident.t option
+
+  val region_closure_continuation : t -> Ident.t -> Continuation.t
 end = struct
   type t =
     { current_unit_id : Ident.t;
@@ -96,7 +98,8 @@ end = struct
       static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
       recursive_static_catches : Numeric_types.Int.Set.t;
       region_stack : Ident.t list;
-      region_stack_at_handler : Ident.t list Continuation.Map.t
+      region_stack_in_cont_scope : Ident.t list Continuation.Map.t;
+      region_closure_continuations : Continuation.t Ident.Map.t
     }
 
   let create ~current_unit_id ~return_continuation ~exn_continuation =
@@ -112,8 +115,9 @@ end = struct
       static_exn_continuation = Numeric_types.Int.Map.empty;
       recursive_static_catches = Numeric_types.Int.Set.empty;
       region_stack = [];
-      region_stack_at_handler =
-        Continuation.Map.singleton return_continuation []
+      region_stack_in_cont_scope =
+        Continuation.Map.singleton return_continuation [];
+      region_closure_continuations = Ident.Map.empty
     }
 
   let current_unit_id t = t.current_unit_id
@@ -152,8 +156,8 @@ end = struct
 
   let add_continuation t cont ~push_to_try_stack (recursive : Asttypes.rec_flag)
       =
-    let new_region_stack_at_handler =
-      Continuation.Map.add cont t.region_stack t.region_stack_at_handler
+    let region_stack_in_cont_scope =
+      Continuation.Map.add cont t.region_stack t.region_stack_in_cont_scope
     in
     let body_env =
       let mutables_needed_by_continuations =
@@ -163,16 +167,10 @@ end = struct
       let try_stack =
         if push_to_try_stack then cont :: t.try_stack else t.try_stack
       in
-      let region_stack_at_handler =
-        (* match recursive with
-         * | Nonrecursive -> t.region_stack_at_handler
-         * | Recursive -> *)
-        new_region_stack_at_handler
-      in
       { t with
         mutables_needed_by_continuations;
         try_stack;
-        region_stack_at_handler
+        region_stack_in_cont_scope
       }
     in
     let current_values_of_mutables_in_scope =
@@ -191,7 +189,7 @@ end = struct
       in
       { handler_env with
         current_values_of_mutables_in_scope;
-        region_stack_at_handler = new_region_stack_at_handler
+        region_stack_in_cont_scope
       }
     in
     let extra_params =
@@ -206,8 +204,8 @@ end = struct
           Continuation.Map.add cont t.try_stack t.try_stack_at_handler;
         static_exn_continuation =
           Numeric_types.Int.Map.add static_exn cont t.static_exn_continuation;
-        region_stack_at_handler =
-          Continuation.Map.add cont t.region_stack t.region_stack_at_handler
+        region_stack_in_cont_scope =
+          Continuation.Map.add cont t.region_stack t.region_stack_in_cont_scope
       }
     in
     let recursive : Asttypes.rec_flag =
@@ -270,19 +268,24 @@ end = struct
       Misc.fatal_errorf "Mutable variable %a not bound in env" Ident.print id
     | id, _kind -> id
 
-  let entering_region t id = { t with region_stack = id :: t.region_stack }
+  let entering_region t id ~closure_continuation =
+    { t with
+      region_stack = id :: t.region_stack;
+      region_closure_continuations =
+        Ident.Map.add id closure_continuation t.region_closure_continuations
+    }
 
   let region_stack t = t.region_stack
 
-  let region_stack_at_handler t continuation =
-    match Continuation.Map.find continuation t.region_stack_at_handler with
+  let region_stack_in_cont_scope t continuation =
+    match Continuation.Map.find continuation t.region_stack_in_cont_scope with
     | exception Not_found ->
       Misc.fatal_errorf "No region stack recorded for handler %a"
         Continuation.print continuation
     | stack -> stack
 
   let pop_regions_to_context t continuation =
-    let initial_stack_context = region_stack_at_handler t continuation in
+    let initial_stack_context = region_stack_in_cont_scope t continuation in
     let rec pop to_pop region_stack =
       match initial_stack_context, region_stack with
       | [], [] -> to_pop
@@ -296,6 +299,12 @@ end = struct
         else pop (Some region) regions
     in
     pop None t.region_stack
+
+  let region_closure_continuation t id =
+    try Ident.Map.find id t.region_closure_continuations
+    with Not_found ->
+      Misc.fatal_errorf "No region closure continuation found for %a"
+        Ident.print id
 end
 
 module CCenv = Closure_conversion_aux.Env
@@ -375,7 +384,9 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     | [], _ :: _ -> assert false
     (* see above *)
   in
-  let region_stack_at_handler = Env.region_stack_at_handler env continuation in
+  let region_stack_at_handler =
+    Env.region_stack_in_cont_scope env continuation
+  in
   let region_stack_now = Env.region_stack env in
   if List.length region_stack_at_handler > List.length region_stack_now
   then
@@ -635,13 +646,18 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
   CC.close_let_cont acc ccenv ~name:cont ~is_exn_handler
     ~params:(params @ extra_params) ~recursive:Nonrecursive ~body ~handler
 
-let restore_continuation_context acc env ccenv cont body =
+let restore_continuation_context acc env ccenv cont ~close_early body =
   match Env.pop_regions_to_context env cont with
-  | None -> body acc ccenv
+  | None -> body acc ccenv cont
   | Some region ->
-    CC.close_let acc ccenv
-      (Ident.create_local "unit")
-      Not_user_visible (End_region region) ~body
+    if close_early
+    then
+      CC.close_let acc ccenv (Ident.create_local "unit")
+        Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+          body acc ccenv cont)
+    else
+      let region_closure_cont = Env.region_closure_continuation env region in
+      body acc ccenv region_closure_cont
 
 let apply_cont_with_extra_args acc env ccenv cont traps args =
   let extra_args =
@@ -649,14 +665,15 @@ let apply_cont_with_extra_args acc env ccenv cont traps args =
       (fun var : IR.simple -> Var var)
       (Env.extra_args_for_continuation env cont)
   in
-  restore_continuation_context acc env ccenv cont (fun acc ccenv ->
+  restore_continuation_context acc env ccenv cont ~close_early:false
+    (fun acc ccenv cont ->
       CC.close_apply_cont acc ccenv cont traps (args @ extra_args))
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
-  let body acc ccenv =
+  let body acc ccenv continuation =
     match extra_args with
-    | [] -> CC.close_apply acc ccenv apply
+    | [] -> CC.close_apply acc ccenv { apply with continuation }
     | _ :: _ ->
       let wrapper_cont = Continuation.create () in
       let return_value = Ident.create_local "return_val" in
@@ -664,7 +681,7 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         List.map (fun var : IR.simple -> Var var) (return_value :: extra_args)
       in
       let handler acc ccenv =
-        CC.close_apply_cont acc ccenv apply.continuation None args
+        CC.close_apply_cont acc ccenv continuation None args
       in
       let body acc ccenv =
         CC.close_apply acc ccenv { apply with continuation = wrapper_cont }
@@ -673,7 +690,13 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
         ~params:[return_value, Not_user_visible, Pgenval]
         ~recursive:Nonrecursive ~body ~handler
   in
-  restore_continuation_context acc env ccenv apply.continuation body
+  let close_early =
+    match apply.region_close with
+    | Rc_normal -> false
+    | Rc_close_at_apply -> true
+  in
+  restore_continuation_context acc env ccenv apply.continuation ~close_early
+    body
 
 let primitive_can_raise (prim : Lambda.primitive) =
   match prim with
@@ -760,7 +783,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
   | Lapply
       { ap_func;
         ap_args;
-        ap_region_close = _;
+        ap_region_close;
         ap_mode;
         ap_loc;
         ap_tailcall;
@@ -790,6 +813,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                     args;
                     loc = ap_loc;
                     tailcall = ap_tailcall;
+                    region_close = ap_region_close;
                     inlined = ap_inlined;
                     specialised = ap_specialised;
                     probe = ap_probe;
@@ -947,7 +971,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false
           ~params ~recursive ~body ~handler)
       ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
-  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
+  | Lsend (meth_kind, meth, obj, args, pos, mode, loc) ->
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -972,6 +996,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         args;
                         loc;
                         tailcall = Default_tailcall;
+                        region_close = pos;
                         inlined = Default_inlined;
                         specialised = Default_specialise;
                         probe = None;
@@ -1067,8 +1092,26 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     let region = Ident.create_local "region" in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
-        let env = Env.entering_region env region in
-        cps_non_tail acc env ccenv body k k_exn)
+        let return = Ident.create_local "body_return" in
+        let_cont_nonrecursive_with_extra_params acc env ccenv
+          ~is_exn_handler:false
+          ~params:[return, Not_user_visible, Pgenval]
+          ~body:(fun acc env ccenv return_continuation ->
+            let wrap_return = Ident.create_local "region_return" in
+            let_cont_nonrecursive_with_extra_params acc env ccenv
+              ~is_exn_handler:false
+              ~params:[wrap_return, Not_user_visible, Pgenval]
+              ~body:(fun acc env ccenv closure_continuation ->
+                let env =
+                  Env.entering_region env region ~closure_continuation
+                in
+                cps_tail acc env ccenv body return_continuation k_exn)
+              ~handler:(fun acc env ccenv ->
+                CC.close_let acc ccenv (Ident.create_local "unit")
+                  Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    apply_cont_with_extra_args acc env ccenv return_continuation
+                      None [IR.Var wrap_return])))
+          ~handler:(fun acc env ccenv -> k acc env ccenv return))
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
     (k : Acc.t -> Env.t -> CCenv.t -> IR.simple -> Acc.t * Expr_with_acc.t)
@@ -1100,7 +1143,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Lapply
       { ap_func;
         ap_args;
-        ap_region_close = _;
+        ap_region_close;
         ap_mode;
         ap_loc;
         ap_tailcall;
@@ -1125,6 +1168,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                 args;
                 loc = ap_loc;
                 tailcall = ap_tailcall;
+                region_close = ap_region_close;
                 inlined = ap_inlined;
                 specialised = ap_specialised;
                 probe = ap_probe;
@@ -1290,7 +1334,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     in
     CC.close_let_cont acc ccenv ~name:continuation ~is_exn_handler:false ~params
       ~recursive ~body ~handler
-  | Lsend (meth_kind, meth, obj, args, _pos, mode, loc) ->
+  | Lsend (meth_kind, meth, obj, args, pos, mode, loc) ->
     cps_non_tail_simple acc env ccenv obj
       (fun acc env ccenv obj ->
         cps_non_tail acc env ccenv meth
@@ -1310,6 +1354,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                     args;
                     loc;
                     tailcall = Default_tailcall;
+                    region_close = pos;
                     inlined = Default_inlined;
                     specialised = Default_specialise;
                     probe = None;
@@ -1388,8 +1433,18 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     let region = Ident.create_local "region" in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
-        let env = Env.entering_region env region in
-        cps_tail acc env ccenv body k k_exn)
+        let wrap_return = Ident.create_local "region_return" in
+        let_cont_nonrecursive_with_extra_params acc env ccenv
+          ~is_exn_handler:false
+          ~params:[wrap_return, Not_user_visible, Pgenval]
+          ~body:(fun acc env ccenv closure_continuation ->
+            let env = Env.entering_region env region ~closure_continuation in
+            cps_tail acc env ccenv body k k_exn)
+          ~handler:(fun acc env ccenv ->
+            CC.close_let acc ccenv (Ident.create_local "unit")
+              Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                apply_cont_with_extra_args acc env ccenv k None
+                  [IR.Var wrap_return])))
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
