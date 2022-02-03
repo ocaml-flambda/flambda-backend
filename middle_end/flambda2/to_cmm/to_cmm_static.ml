@@ -191,6 +191,15 @@ and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
   | Infix_header ->
     let field = C.cint (C.infix_header (offset + 1)) in
     env, field :: acc, offset + 1, updates
+  | Dummy_closure_info ->
+    (* the following assumed the start of env is relative to the start of the
+       while block. *)
+    assert (offset = 1);
+    (* The arity should not matter here, the field should only ever be read to
+       get the start of env.*)
+    let closure_info = C.closure_info ~arity:(Tupled, 1) ~startenv in
+    let acc = C.cint closure_info :: acc in
+    env, acc, offset + 1, updates
   | Env_var v ->
     let env, contents =
       simple_static env (Var_within_closure.Map.find v elts)

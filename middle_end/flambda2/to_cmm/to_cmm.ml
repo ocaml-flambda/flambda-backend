@@ -1473,6 +1473,15 @@ and fill_slot decls startenv elts env acc offset slot =
   | Env_var v ->
     let field, env, eff = simple env (Var_within_closure.Map.find v elts) in
     field :: acc, offset + 1, env, eff
+  | Dummy_closure_info ->
+    (* the following assumed the start of env is relative to the start of the
+       while block. *)
+    assert (offset = 1);
+    (* The arity should not matter here, the field should only ever be read to
+       get the start of env.*)
+    let closure_info = C.closure_info ~arity:(Tupled, 1) ~startenv in
+    let acc = C.nativeint closure_info :: acc in
+    acc, offset + 1, env, Ece.pure
   | Closure (c : Closure_id.t) -> (
     let code_id = Closure_id.Map.find c decls in
     (* CR-someday mshinwell: We should probably use the code's [dbg], but it

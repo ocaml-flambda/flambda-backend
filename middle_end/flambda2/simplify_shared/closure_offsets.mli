@@ -69,6 +69,7 @@ type layout_slot =
   | Env_var of Var_within_closure.t
   | Infix_header
   | Closure of Closure_id.t
+  | Dummy_closure_info
 (**)
 
 (** Alias for complete layouts. The list is sorted according to offsets (in
