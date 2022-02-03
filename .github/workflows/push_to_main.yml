@@ -1,8 +1,9 @@
-name: merge
+name: push_to_main
 
 on:
-  pull_request:
-    types: [closed]
+  push:
+    branches:
+      - main
 
 jobs:
   build:
