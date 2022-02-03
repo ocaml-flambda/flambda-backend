@@ -579,11 +579,8 @@ let check_cfg_with_layout :
   try
     let state = State.make () in
     check_cfg state (Cfg_with_layout.cfg expected) (Cfg_with_layout.cfg result);
-    (* CR xclerc for xclerc: re-enable
-    check_layout state
-      (Cfg_with_layout.layout expected)
-      (Cfg_with_layout.layout result);
-    *)
+    (* CR xclerc for xclerc: re-enable check_layout state
+       (Cfg_with_layout.layout expected) (Cfg_with_layout.layout result); *)
     State.check state (Cfg_with_layout.cfg expected);
     let num_seen = State.num_seen state in
     if not
