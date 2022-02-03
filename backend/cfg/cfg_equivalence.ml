@@ -554,7 +554,7 @@ let check_cfg : State.t -> Cfg.t -> Cfg.t -> unit =
   State.add_to_explore state expected.entry_label result.entry_label;
   explore_cfg state expected result
 
-let check_layout : State.t -> Label.t list -> Label.t list -> unit =
+let _check_layout : State.t -> Label.t list -> Label.t list -> unit =
  fun state expected result ->
   let expected_length = List.length expected in
   let result_length = List.length result in
@@ -579,9 +579,11 @@ let check_cfg_with_layout :
   try
     let state = State.make () in
     check_cfg state (Cfg_with_layout.cfg expected) (Cfg_with_layout.cfg result);
+    (* CR xclerc for xclerc: re-enable
     check_layout state
       (Cfg_with_layout.layout expected)
       (Cfg_with_layout.layout result);
+    *)
     State.check state (Cfg_with_layout.cfg expected);
     let num_seen = State.num_seen state in
     if not

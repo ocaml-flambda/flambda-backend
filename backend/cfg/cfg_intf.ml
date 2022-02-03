@@ -130,8 +130,8 @@ module S = struct
       res : Reg.t array;
       dbg : Debuginfo.t;
       fdo : Fdo_info.t;
-      live : Reg.Set.t;
-      trap_depth : int;
+      mutable live : Reg.Set.t;
+      mutable trap_depth : int;
       id : int
     }
 
