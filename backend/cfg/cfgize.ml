@@ -592,7 +592,7 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
       handler_stack * handler_option =
-    fun exceptional_successor stack term ->
+   fun exceptional_successor stack term ->
     term.trap_depth <- succ (List.length stack);
     match term.desc with
     | Never | Return
@@ -614,7 +614,7 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.basic Cfg.instruction ->
       handler_stack * handler_option =
-    fun exceptional_successor stack instr ->
+   fun exceptional_successor stack instr ->
     instr.trap_depth <- succ (List.length stack);
     match instr.desc with
     | Pushtrap { lbl_handler } -> lbl_handler :: stack, exceptional_successor
@@ -633,8 +633,8 @@ module Trap_depth_and_exn = struct
    fun cfg label stack ->
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
-      if block.trap_depth = invalid_trap_depth then
-        true
+      if block.trap_depth = invalid_trap_depth
+      then true
       else begin
         assert (block.trap_depth = succ (List.length stack));
         false
@@ -649,7 +649,8 @@ module Trap_depth_and_exn = struct
     let stack, exceptional_successor =
       process_terminator exceptional_successor stack block.terminator
     in
-    if was_invalid then begin
+    if was_invalid
+    then begin
       (* non-exceptional successors *)
       Label.Set.iter
         (fun successor_label -> update_block cfg successor_label stack)
