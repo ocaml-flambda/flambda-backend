@@ -51,7 +51,9 @@ val add_set_of_closures :
     compilation unit, taking into account the constraints introduced by the
     sharing of closure_id/env_var across multiple sets of closures. *)
 val finalize_offsets :
-  used_names:used_names Or_unknown.t -> t -> Exported_offsets.t
+  used_names:used_names Or_unknown.t ->
+  t ->
+  Var_within_closure.Set.t Or_unknown.t * Exported_offsets.t
 
 (** {2 Helper functions} *)
 

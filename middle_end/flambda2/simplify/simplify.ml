@@ -111,8 +111,10 @@ let run ~symbol_for_global ~get_global_info ~round unit =
       (Exported_code.mark_as_imported !imported_code)
   in
   let name_occurrences = UA.name_occurrences uacc in
-  let used_closure_ids = Name_occurrences.closure_ids_normal name_occurrences in
-  let used_closure_vars =
+  let closure_ids_normal =
+    Name_occurrences.closure_ids_normal name_occurrences
+  in
+  let closure_vars_normal =
     Name_occurrences.closure_vars_normal name_occurrences
   in
   let closure_ids_in_types =
@@ -121,19 +123,29 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let closure_vars_in_types =
     Name_occurrences.closure_vars_in_types name_occurrences
   in
-  let exported_offsets =
+  (* CR gbury/lthls: we should also add the free_names from the typing env
+     (after the preparation for cmx/removal of unused closure vars) to the
+     exported offsets. *)
+  let used_closure_vars, exported_offsets =
     match UA.closure_offsets uacc with
     | Unknown ->
       Misc.fatal_error "Closure offsets must be computed and cannot be unknown"
-    | Known closure_offsets ->
-      Closure_offsets.finalize_offsets closure_offsets
-        ~used_names:
-          (Known
-             { closure_vars_normal = used_closure_vars;
-               closure_ids_normal = used_closure_ids;
-               closure_vars_in_types;
-               closure_ids_in_types
-             })
+    | Known closure_offsets -> (
+      let used_names : Closure_offsets.used_names Or_unknown.t =
+        Known
+          { closure_vars_normal;
+            closure_ids_normal;
+            closure_vars_in_types;
+            closure_ids_in_types
+          }
+      in
+      match Closure_offsets.finalize_offsets closure_offsets ~used_names with
+      | Known used_closure_vars, offsets -> used_closure_vars, offsets
+      | Unknown, _ ->
+        (* could be an assert false *)
+        Misc.fatal_error
+          "Closure offsets should not have returned Unknown when given a known \
+           used_names.")
   in
   let cmx =
     Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
