@@ -38,7 +38,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: dune_build_compiler
       run: |
-        ./configure --prefix=$GITHUB_WORKSPACE/dune_build_compiler/_install
+        ./configure --prefix=$GITHUB_WORKSPACE/dune_build_compiler/_install --disable-debug-runtime --disable-debugger --disable-ocamldoc --disable-ocamltest --disable-installing-source-artifacts --disable-stdlib-manpages
         make -j $J world.opt
         make install
 
