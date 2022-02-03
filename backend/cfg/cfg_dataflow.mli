@@ -70,7 +70,8 @@ module type TransferXXX = sig
 
   val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
 
-  val terminator : domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+  val terminator :
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
 
   val exception_ : domain -> domain
 end
@@ -81,7 +82,8 @@ module type SXXX = sig
 
   type map = domain Label.Tbl.t
 
-  val run : Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+  val run :
+    Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
 end
 
 module Backward (D : DomainXXX) (_ : TransferXXX with type domain = D.t) :
