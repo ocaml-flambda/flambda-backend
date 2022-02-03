@@ -11,8 +11,20 @@ let buf = create_buf 32
 let read buf ~pos = unsafe_get32 buf pos |> bswap32 |> Stdlib.Int32.to_int
 let write buf ~pos n = unsafe_set32 buf pos (n |> Stdlib.Int32.of_int |> bswap32)
 
-let () =
-  let n = -2147483648L |> Stdlib.Int64.to_int in
+let numbers =
+    [ 0x11223344l |> Stdlib.Int32.to_int
+    ; 0xf0f0f0f0l |> Stdlib.Int32.to_int
+    ; 0l |> Stdlib.Int32.to_int
+    ; -1l |> Stdlib.Int32.to_int
+    ; Stdlib.Int32.max_int |> Stdlib.Int32.to_int
+    ; Stdlib.Int32.min_int |> Stdlib.Int32.to_int
+    ]
+  ;;
+
+let test n =
   write buf ~pos:0 n;
   let n' = read buf ~pos:0 in
   assert (Int.equal n n')
+
+let () =
+  List.iter test numbers
