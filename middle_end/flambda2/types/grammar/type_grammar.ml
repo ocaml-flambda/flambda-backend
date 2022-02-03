@@ -512,9 +512,11 @@ and free_names_closures_entry
     { function_types; closure_types; closure_var_types } =
   let function_types_free_names =
     Closure_id.Map.fold
-      (fun _closure_id function_decl free_names ->
+      (fun closure_id function_decl free_names ->
         Name_occurrences.union free_names
-          (free_names_function_type function_decl))
+          (Name_occurrences.add_closure_id
+             (free_names_function_type function_decl)
+             closure_id Name_mode.normal))
       function_types Name_occurrences.empty
   in
   Name_occurrences.union function_types_free_names
