@@ -927,6 +927,7 @@ let close_apply acc env
        exn_continuation;
        loc;
        tailcall = _;
+       region_close = _;
        inlined;
        specialised = _;
        probe;
