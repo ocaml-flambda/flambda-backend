@@ -147,6 +147,16 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     let final_typing_env =
       TE.Serializable.create final_typing_env ~reachable_names
     in
+    let closure_elts_used_in_typing_env =
+      TE.Serializable.free_closure_ids_and_closure_vars final_typing_env
+    in
+    let exported_offsets =
+      exported_offsets
+      |> Closure_offsets.collect_used_closure_ids
+           (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
+      |> Closure_offsets.collect_used_closure_vars
+           (Name_occurrences.closure_vars closure_elts_used_in_typing_env)
+    in
     Some
       (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
          ~used_closure_vars)
