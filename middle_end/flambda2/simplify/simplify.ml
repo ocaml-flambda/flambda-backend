@@ -123,9 +123,6 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let closure_vars_in_types =
     Name_occurrences.closure_vars_in_types name_occurrences
   in
-  (* CR gbury/lthls: we should also add the free_names from the typing env
-     (after the preparation for cmx/removal of unused closure vars) to the
-     exported offsets. *)
   let used_closure_vars, exported_offsets =
     match UA.closure_offsets uacc with
     | Unknown ->
