@@ -37,6 +37,9 @@ codegen_OCAMLFLAGS = $(addprefix -I $(TOPDIR)/, $(codegen_DIRS)) -w +40 -g
 codegen_LIBS = $(addprefix $(COMPILERLIBSDIR)/,\
   ocamlcommon \
   dwarf_flags \
+  dwarf_low \
+  dwarf_high \
+  dwarf_ocaml \
   flambda2_cmx \
   flambda2_ui \
   flambda2_algorithms \
