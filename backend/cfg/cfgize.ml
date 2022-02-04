@@ -302,7 +302,7 @@ let is_noop_move (instr : Cfg.basic Cfg.instruction) : bool =
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Floatop _ | Floatofint | Intoffloat | Probe _
       | Opaque | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region)
+      | Begin_region | End_region )
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 
