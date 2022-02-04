@@ -63,15 +63,13 @@ val closure_name : Closure_id.t -> string
 (** Returns the address for a function code from the global name of a closure. *)
 val closure_code : string -> string
 
-(** Returns the assignments of closure variables to [Simple]s from the given set
-    of closures, but ignoring any closure variable that does not occur in
-    [used_closure_vars], so long as [used_closure_vars] is [Known]. If
-    [used_closure_vars] is [Unknown] then assignments for all closure variables
-    are returned. *)
-val filter_closure_vars :
-  Flambda.Set_of_closures.t ->
-  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
-  Simple.t Var_within_closure.Map.t
+(** Add (if necessary) the offsets for the given set of closure ids. *)
+val collect_used_closure_ids :
+  Closure_id.Set.t -> Exported_offsets.t -> Exported_offsets.t
+
+(** Add (if necessary) the offsets for the given set of closure ids. *)
+val collect_used_closure_vars :
+  Var_within_closure.Set.t -> Exported_offsets.t -> Exported_offsets.t
 
 (** {2 Offsets & Layouts} *)
 
@@ -88,6 +86,7 @@ type layout_slot =
     increasing order). *)
 type layout =
   { startenv : int;
+    empty_env : bool;
     slots : (int * layout_slot) list
   }
 

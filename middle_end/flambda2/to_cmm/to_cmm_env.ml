@@ -93,9 +93,6 @@ type t =
   { (* Global information. Those are computed once and valid for a whole unit.*)
     offsets : Exported_offsets.t;
     (* Offsets for closure_ids and var_within_closures. *)
-    used_closure_vars : Var_within_closure.Set.t Or_unknown.t;
-    (* Closure variables that are used by the context begin translated. (used to
-       remove unused closure variables). *)
     functions_info : Exported_code.t;
     (* Information about known functions *)
     (* Semi-global information.
@@ -141,11 +138,9 @@ type t =
     stages : stage list (* archived stages, in reverse chronological order. *)
   }
 
-let mk offsets functions_info k_return ~exn_continuation:k_exn
-    ~used_closure_vars =
+let mk offsets functions_info k_return ~exn_continuation:k_exn =
   { k_return;
     k_exn;
-    used_closure_vars;
     offsets;
     functions_info;
     stages = [];
@@ -163,7 +158,6 @@ let mk offsets functions_info k_return ~exn_continuation:k_exn
 let enter_function_def env k_return k_exn =
   { (* global info *)
     offsets = env.offsets;
-    used_closure_vars = env.used_closure_vars;
     (* semi-global info *)
     names_in_scope = env.names_in_scope;
     functions_info = env.functions_info;
@@ -316,7 +310,12 @@ let closure_offset env closure =
 let env_var_offset env env_var =
   Exported_offsets.env_var_offset env.offsets env_var
 
-let layout env closures env_vars =
+let layout env set_of_closures =
+  let fun_decls = Set_of_closures.function_decls set_of_closures in
+  let decls = Function_declarations.funs_in_order fun_decls in
+  let elts = Set_of_closures.closure_elements set_of_closures in
+  let closures = List.map fst (Closure_id.Lmap.bindings decls) in
+  let env_vars = List.map fst (Var_within_closure.Map.bindings elts) in
   Closure_offsets.layout env.offsets closures env_vars
 
 (* Printing
@@ -487,8 +486,6 @@ let flush_delayed_lets ?(entering_loop = false) env =
   wrap, { env with stages = []; pures = pures_to_keep }
 
 (* Use and Scoping checks *)
-
-let used_closure_vars t = t.used_closure_vars
 
 let add_to_scope env names =
   { env with

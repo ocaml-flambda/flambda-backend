@@ -16,7 +16,7 @@
 
 (** Offsets for closures and environment variables inside sets of closures.
     They're computed for elements defined in the current compilation unit by
-    [To_cmm_closure], and read from cmx files for external symbols. Because an
+    [Closure_offsets], and read from cmx files for external symbols. Because an
     external cmx can reference elements from another cmx that the current
     compilation cannot see, all offsets read from external cmx files must be
     re-exported. *)
@@ -31,7 +31,9 @@ type closure_info =
            3 fields (caml_curry + arity + code pointer) otherwise *)
   }
 
-type env_var_info = { offset : int }
+type env_var_info =
+  | Removed
+  | Alive of { offset : int }
 
 type t =
   { closure_offsets : closure_info Closure_id.Map.t;
@@ -41,8 +43,9 @@ type t =
 let print_closure_info fmt (info : closure_info) =
   Format.fprintf fmt "@[<h>(o:%d, s:%d)@]" info.offset info.size
 
-let print_env_var_info fmt (info : env_var_info) =
-  Format.fprintf fmt "@[<h>(o:%d)@]" info.offset
+let print_env_var_info fmt = function
+  | Removed -> Format.fprintf fmt "@[<h>(removed)@]"
+  | Alive { offset } -> Format.fprintf fmt "@[<h>(o:%d)@]" offset
 
 let [@ocamlformat "disable"] print fmt env =
   Format.fprintf fmt "{@[<v>closures: @[<v>%a@]@,env_vars: @[<v>%a@]@]}"
@@ -101,7 +104,10 @@ let equal_closure_info (info1 : closure_info) (info2 : closure_info) =
   info1.offset = info2.offset && info1.size = info2.size
 
 let equal_env_var_info (info1 : env_var_info) (info2 : env_var_info) =
-  info1.offset = info2.offset
+  match info1, info2 with
+  | Removed, Removed -> true
+  | Alive { offset = o1 }, Alive { offset = o2 } -> o1 = o2
+  | Removed, Alive _ | Alive _, Removed -> false
 
 let imported_offsets () = !current_offsets
 

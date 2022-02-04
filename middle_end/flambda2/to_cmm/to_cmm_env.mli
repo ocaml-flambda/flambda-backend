@@ -43,15 +43,14 @@ val classify : Effects_and_coeffects.t -> kind
 (** Environment for flambda to cmm translation *)
 type t
 
-(** [mk offsets k k_exn ~used_closure_vars] creates a local environment for
-    translating a flambda expression, with return continuation [k], exception
-    continuation [k_exn], and which uses the given closures variables. *)
+(** [mk offsets k k_exn] creates a local environment for translating a flambda
+    expression, with return continuation [k], exception continuation [k_exn],
+    and which uses the given closures variables. *)
 val mk :
   Exported_offsets.t ->
   Exported_code.t ->
   Continuation.t ->
   exn_continuation:Continuation.t ->
-  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
   t
 
 (** [enter_function_def env k k_exn] creates a local environment for translating
@@ -202,11 +201,7 @@ val env_var_offset :
   t -> Var_within_closure.t -> Exported_offsets.env_var_info option
 
 (** Wrapper around {!Closure_offsets.layout}. *)
-val layout :
-  t -> Closure_id.t list -> Var_within_closure.t list -> Closure_offsets.layout
-
-(** All closure variables used in the whole program. *)
-val used_closure_vars : t -> Var_within_closure.Set.t Or_unknown.t
+val layout : t -> Set_of_closures.t -> Closure_offsets.layout
 
 (** Add the given names to the current scope *)
 val add_to_scope : t -> Code_id_or_symbol.Set.t -> t

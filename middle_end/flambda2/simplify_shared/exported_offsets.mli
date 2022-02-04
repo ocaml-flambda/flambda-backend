@@ -25,7 +25,9 @@ type closure_info =
            3 fields (caml_curry + arity + code pointer) otherwise *)
   }
 
-type env_var_info = { offset : int }
+type env_var_info =
+  | Removed
+  | Alive of { offset : int }
 
 (** The empty environment *)
 val empty : t

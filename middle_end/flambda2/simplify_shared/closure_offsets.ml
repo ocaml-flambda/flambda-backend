@@ -15,6 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Flambda.Import
+module EO = Exported_offsets
 
 type used_names =
   { closure_ids_normal : Closure_id.Set.t;
@@ -23,7 +24,7 @@ type used_names =
     closure_vars_in_types : Var_within_closure.Set.t
   }
 
-let closure_var_is_used ~used_closure_vars v =
+let[@inline] closure_var_is_used ~used_closure_vars v =
   if Compilation_unit.is_current (Var_within_closure.get_compilation_unit v)
   then Var_within_closure.Set.mem v used_closure_vars
   else true
@@ -33,14 +34,39 @@ let keep_closure_var ~used_closure_vars v =
   | Unknown -> true
   | Known used_closure_vars -> closure_var_is_used ~used_closure_vars v
 
-let filter_closure_vars set ~used_closure_vars =
-  let closure_elements = Set_of_closures.closure_elements set in
-  match (used_closure_vars : _ Or_unknown.t) with
-  | Unknown -> closure_elements
-  | Known used_closure_vars ->
-    Var_within_closure.Map.filter
-      (fun v _ -> closure_var_is_used ~used_closure_vars v)
-      closure_elements
+let collect_used_closure_ids closure_id_set offsets =
+  let imported_offsets = EO.imported_offsets () in
+  Closure_id.Set.fold
+    (fun closure_id offsets ->
+      if Compilation_unit.is_current
+           (Closure_id.get_compilation_unit closure_id)
+      then offsets
+      else
+        match EO.closure_offset imported_offsets closure_id with
+        | None ->
+          Misc.fatal_errorf
+            "Closure id %a is used in the current compilation unit, but not \
+             present in the imported offsets."
+            Closure_id.print closure_id
+        | Some info -> EO.add_closure_offset offsets closure_id info)
+    closure_id_set offsets
+
+let collect_used_closure_vars closure_var_set offsets =
+  let imported_offsets = EO.imported_offsets () in
+  Var_within_closure.Set.fold
+    (fun env_var offsets ->
+      if Compilation_unit.is_current
+           (Var_within_closure.get_compilation_unit env_var)
+      then offsets
+      else
+        match EO.env_var_offset imported_offsets env_var with
+        | None ->
+          Misc.fatal_errorf
+            "Env var %a is used in the current compilation unit, but not \
+             present in the imported offsets."
+            Var_within_closure.print env_var
+        | Some info -> EO.add_env_var_offset offsets env_var info)
+    closure_var_set offsets
 
 (* Compute offsets for elements within a closure block
 
@@ -109,10 +135,9 @@ type layout_slot =
 
 type layout =
   { startenv : int;
+    empty_env : bool;
     slots : (int * layout_slot) list
   }
-
-module EO = Exported_offsets
 
 let order_closures env l acc =
   List.fold_left
@@ -128,7 +153,8 @@ let order_env_vars env l acc =
   List.fold_left
     (fun acc env_var ->
       match EO.env_var_offset env env_var with
-      | Some { offset } ->
+      | Some Removed -> acc
+      | Some (Alive { offset }) ->
         Numeric_types.Int.Map.add offset (Env_var env_var) acc
       | None ->
         Misc.fatal_errorf "No closure var offset for %a"
@@ -181,16 +207,16 @@ let layout env closures env_vars =
   let startenv_opt, acc_slots =
     Numeric_types.Int.Map.fold layout_aux map (None, [])
   in
-  let startenv =
+  let startenv, empty_env =
     (* If there are no env vars, the start of env is considered to be the
        (non-existing) slot after the last slot used, and if the set is empty,
        the value does not matter. *)
     match startenv_opt, acc_slots with
-    | Some i, _ -> i
-    | None, [] -> 0
+    | Some i, _ -> i, false
+    | None, [] -> 0, true
     | None, (j, Closure closure) :: _ -> begin
       match EO.closure_offset env closure with
-      | Some { size; _ } -> j + size
+      | Some { size; _ } -> j + size, true
       | None ->
         (* the closure was found earlier during the call to order_closures *)
         assert false
@@ -211,7 +237,7 @@ let layout env closures env_vars =
      Thus we add a check here to ensure that the slots start with a closure at
      offset 0. *)
   match slots with
-  | (0, Closure _) :: _ -> { startenv; slots }
+  | (0, Closure _) :: _ -> { startenv; slots; empty_env }
   | _ ->
     Misc.fatal_error
       "Sets of closures must start with a closure slot at offset 0"
@@ -256,6 +282,7 @@ module Greedy = struct
   type slot_pos =
     | Assigned of int
     | Unassigned
+    | Removed
 
   type set_of_closures =
     { id : int;
@@ -280,9 +307,7 @@ module Greedy = struct
   type state =
     { used_offsets : EO.t;
       closures : slot Closure_id.Map.t;
-      phantom_closure_ids : Closure_id.Set.t;
       env_vars : slot Var_within_closure.Map.t;
-      phantom_env_vars : Var_within_closure.Set.t;
       sets_of_closures : set_of_closures list
     }
 
@@ -306,9 +331,7 @@ module Greedy = struct
   let create_initial_state () =
     { used_offsets = EO.empty;
       closures = Closure_id.Map.empty;
-      phantom_closure_ids = Closure_id.Set.empty;
       env_vars = Var_within_closure.Map.empty;
-      phantom_env_vars = Var_within_closure.Set.empty;
       sets_of_closures = []
     }
 
@@ -330,6 +353,7 @@ module Greedy = struct
   let print_slot_pos fmt = function
     | Assigned i -> Format.fprintf fmt "%d" i
     | Unassigned -> Format.fprintf fmt "?"
+    | Removed -> Format.fprintf fmt "x"
 
   let print_slot fmt s =
     Format.fprintf fmt "@[<h>[pos: %a;@ size: %d;@ sets: %a;@ desc: %a]@]@,"
@@ -361,7 +385,7 @@ module Greedy = struct
   let update_set_for_slot slot set =
     begin
       match slot.pos with
-      | Unassigned -> ()
+      | Unassigned | Removed -> ()
       | Assigned i -> begin
         match slot.desc with
         | Env_var _ ->
@@ -403,8 +427,21 @@ module Greedy = struct
       let (info : EO.closure_info) = { EO.offset; size = slot.size } in
       EO.add_closure_offset env c info
     | Env_var v ->
-      let (info : EO.env_var_info) = { EO.offset } in
+      let (info : EO.env_var_info) = EO.Alive { offset } in
       EO.add_env_var_offset env v info
+
+  let mark_slot_as_removed env slot =
+    match slot.pos with
+    | Removed -> env
+    | Unassigned -> (
+      slot.pos <- Removed;
+      match slot.desc with
+      | Closure _ -> Misc.fatal_error "Closure cannot be removed currently"
+      | Env_var v ->
+        let (info : EO.env_var_info) = EO.Removed in
+        EO.add_env_var_offset env v info)
+    | Assigned _ ->
+      Misc.fatal_error "Cannot remove closure var which is already assigned"
 
   (* Sets of Closures *)
 
@@ -511,7 +548,13 @@ module Greedy = struct
                 "Could not find the offset for env var %a from another \
                  compilation unit (because of -opaque, or missing cmx)."
                 Var_within_closure.print v
-            | Some ({ offset } as info) ->
+            | Some Removed ->
+              Misc.fatal_errorf
+                "The closure var %a has been removed by its original \
+                 compilation unit, it should not occur in a set of closures in \
+                 this compilation unit."
+                Var_within_closure.print v
+            | Some (Alive { offset } as info) ->
               let s =
                 { desc = Env_var v; size = 1; pos = Assigned offset; sets = [] }
               in
@@ -522,22 +565,7 @@ module Greedy = struct
 
   let create_slots_for_set ~is_phantom state all_code set_id =
     if is_phantom
-    then
-      (* if the definition is a phantom one, there is no need to attribute
-         offsets. However, we still remember the closure ids and env vars seen
-         in phantom sets for the check in {!check_used_offsets}. *)
-      let function_decls = Set_of_closures.function_decls set_id in
-      let closure_map = Function_declarations.funs function_decls in
-      let closures = Closure_id.Map.keys closure_map in
-      let phantom_closure_ids =
-        Closure_id.Set.union state.phantom_closure_ids closures
-      in
-      let env_map = Set_of_closures.closure_elements set_id in
-      let env_vars = Var_within_closure.Map.keys env_map in
-      let phantom_env_vars =
-        Var_within_closure.Set.union state.phantom_env_vars env_vars
-      in
-      { state with phantom_closure_ids; phantom_env_vars }
+    then state
     else
       let set = make_set set_id in
       let state = add_set_to_state state set in
@@ -572,7 +600,8 @@ module Greedy = struct
     then res
     else fold_on_unallocated_closure_slots f res state
 
-  let rec fold_on_unallocated_env_var_slots ~used_closure_vars f acc state =
+  let rec fold_on_unallocated_env_var_slots ~used_closure_vars f_kept f_removed
+      acc state =
     let has_work_been_done = ref false in
     let rec aux acc set =
       match set.unallocated_env_var_slots with
@@ -582,16 +611,18 @@ module Greedy = struct
         if keep_closure_var ~used_closure_vars v
         then begin
           has_work_been_done := true;
-          f acc slot
+          f_kept acc slot
         end
-        else aux acc set
+        else aux (f_removed acc slot) set
       | { desc = Closure _; _ } :: _ -> assert false
       (* invariant *)
     in
     let res = List.fold_left aux acc state.sets_of_closures in
     if not !has_work_been_done
     then res
-    else fold_on_unallocated_env_var_slots ~used_closure_vars f res state
+    else
+      fold_on_unallocated_env_var_slots ~used_closure_vars f_kept f_removed res
+        state
 
   (* Find the first space available to fit a given slot.
 
@@ -618,13 +649,13 @@ module Greedy = struct
     (* first offset used by a slot *)
     let first_used_by s =
       match s.pos with
-      | Unassigned -> assert false
+      | Unassigned | Removed -> assert false
       | Assigned pos -> if is_closure_slot s && pos <> 0 then pos - 1 else pos
     in
     (* first potentially free offset after a slot *)
     let first_free_after slot =
       match slot.pos with
-      | Unassigned -> assert false
+      | Unassigned | Removed -> assert false
       | Assigned i -> i + slot.size
     in
     (* Adjust a starting position to not point in the middle of a block.
@@ -696,56 +727,19 @@ module Greedy = struct
       let offset = first_available_offset slot 0 slot.sets in
       add_slot_offset env slot offset
     | Assigned _pos -> env
+    | Removed ->
+      Misc.fatal_error
+        "Slot has been explicitly removed, it cannot be assigned anymore"
 
   let assign_closure_offsets state env =
     fold_on_unallocated_closure_slots assign_slot_offset env state
 
   let assign_env_var_offsets ~used_closure_vars state env =
-    fold_on_unallocated_env_var_slots ~used_closure_vars assign_slot_offset env
-      state
+    fold_on_unallocated_env_var_slots ~used_closure_vars assign_slot_offset
+      mark_slot_as_removed env state
 
   (* Ensure closure ids/env vars that are used in projections in the current
      compilation unit are present in the offsets returned by finalize *)
-  let collect_used_closure_ids state closure_id_set offsets =
-    let imported_offsets = EO.imported_offsets () in
-    Closure_id.Set.fold
-      (fun closure_id offsets ->
-        if Compilation_unit.is_current
-             (Closure_id.get_compilation_unit closure_id)
-        then offsets
-        else
-          match EO.closure_offset imported_offsets closure_id with
-          | None ->
-            if Closure_id.Set.mem closure_id state.phantom_closure_ids
-            then offsets
-            else
-              Misc.fatal_errorf
-                "Closure id %a is used in the current compilation unit, but \
-                 not present in the imported offsets."
-                Closure_id.print closure_id
-          | Some info -> EO.add_closure_offset offsets closure_id info)
-      closure_id_set offsets
-
-  let collect_used_closure_vars state closure_var_set offsets =
-    let imported_offsets = EO.imported_offsets () in
-    Var_within_closure.Set.fold
-      (fun env_var offsets ->
-        if Compilation_unit.is_current
-             (Var_within_closure.get_compilation_unit env_var)
-        then offsets
-        else
-          match EO.env_var_offset imported_offsets env_var with
-          | None ->
-            if Var_within_closure.Set.mem env_var state.phantom_env_vars
-            then offsets
-            else
-              Misc.fatal_errorf
-                "Env var %a is used in the current compilation unit, but not \
-                 present in the imported offsets."
-                Var_within_closure.print env_var
-          | Some info -> EO.add_env_var_offset offsets env_var info)
-      closure_var_set offsets
-
   let imported_and_used_offsets ~used_names state =
     match (used_names : _ Or_unknown.t) with
     | Known
@@ -755,83 +749,45 @@ module Greedy = struct
           closure_vars_in_types
         } ->
       state.used_offsets
-      |> collect_used_closure_ids state closure_ids_normal
-      |> collect_used_closure_ids state closure_ids_in_types
-      |> collect_used_closure_vars state closure_vars_normal
-      |> collect_used_closure_vars state closure_vars_in_types
+      |> collect_used_closure_ids closure_ids_normal
+      |> collect_used_closure_ids closure_ids_in_types
+      |> collect_used_closure_vars closure_vars_normal
+      |> collect_used_closure_vars closure_vars_in_types
     | Unknown -> EO.imported_offsets ()
-
-  (* Currently, it happens that some closure_ids/closure_vars can occur in
-     projections (and thus in the used_closure_ids/vars), but never occur in the
-     creation of a set of closures (and consequently have no slot, and thus are
-     not assigned any offset).
-
-     There are two main reasons why this could happen:
-
-     - we could have missed some sets of closures creations on the way up and
-     not recorded the associated constraints
-
-     - the closure_id/closure_var occur in dead code that was kept for some
-     reason (mainly due to the over-approximations made by data_flow, which
-     keeps alive more things than necessary). This regularly occurs when phantom
-     lets are generated, but can also occur without phantom let bindings.
-
-     Upon a missing offset for a closure_id/var, to_cmm will generate cmm
-     instructions that produce a segfault. This is safe in the second case, when
-     the closure_id/var with the missing offset occurs in dead code, but it is
-     incorrect in the first case.
-
-     The following check is intended to catch the first of these two cases, but
-     it cannot distinguish between the two cases, and this check results in a
-     lot of false positives. Thus we cannot always run this check. *)
-  (* let check_used_offsets state ~used_names offsets = if
-     !Clflags.flambda_invariant_checks then match (used_names : _ Or_unknown.t)
-     with | Known { closure_ids_normal; closure_ids_in_types;
-     closure_vars_normal; closure_vars_in_types } -> Closure_id.Set.iter (fun
-     closure_id -> match EO.closure_offset offsets closure_id with | None -> if
-     Closure_id.Set.mem closure_id state.phantom_closure_ids then () else
-     Misc.fatal_errorf "Missing closure ID %a in offsets to export.@ Either a
-     set \ of closures was not added to the offset constraints on the \ way up,
-     or the offending closure ID only occurs in dead \ code.@ \n\ Used closure
-     IDs =@ %a.@ \n\ In types closure IDs =@ %a.@ \n\ Exported offsets =@ %a"
-     Closure_id.print closure_id Closure_id.Set.print closure_ids_normal
-     Closure_id.Set.print closure_ids_in_types EO.print offsets | Some _ -> ())
-     (Closure_id.Set.union closure_ids_normal closure_ids_in_types);
-     Var_within_closure.Set.iter (fun closure_var -> match EO.env_var_offset
-     offsets closure_var with | None -> if Var_within_closure.Set.mem
-     closure_var state.phantom_env_vars then () else Misc.fatal_errorf "Missing
-     closure var %a in offsets to export.@ Either a set \ of closures was not
-     added to the offset constraints on the \ way up, or the offending closure
-     var only occurs in dead \ code.@ \n\ Used closure vars =@ %a.@ \n\ In types
-     closure vars =@ %a.@ \n\ Exported offsets =@ %a" Var_within_closure.print
-     closure_var Var_within_closure.Set.print closure_vars_normal
-     Var_within_closure.Set.print closure_vars_in_types EO.print offsets | Some
-     _ -> ()) (Var_within_closure.Set.union closure_vars_normal
-     closure_vars_in_types); () | Unknown -> () *)
 
   (* We only want to keep closure vars that appear in the creation of a set of
      closures, *and* appear as projection (at normal name mode). *)
-  let alive_closure_vars closure_vars_in_projections state =
-    Var_within_closure.Set.filter
-      (fun closure_var ->
-        (* a closure var appears in a set of closures iff it has a slot *)
-        match find_env_var_slot state closure_var with
-        | None -> false
-        | Some _ -> true)
-      closure_vars_in_projections
+  let alive_closure_vars state offsets used_names =
+    match (used_names : used_names Or_unknown.t) with
+    | Unknown -> Or_unknown.Unknown, offsets
+    | Known { closure_vars_normal; _ } ->
+      let offsets = ref offsets in
+      let used_closure_vars =
+        Var_within_closure.Set.filter
+          (fun closure_var ->
+            if Compilation_unit.is_current
+                 (Var_within_closure.get_compilation_unit closure_var)
+            then (
+              (* a closure var appears in a set of closures iff it has a slot *)
+              match find_env_var_slot state closure_var with
+              | Some _ -> true
+              | None ->
+                offsets := EO.add_env_var_offset !offsets closure_var Removed;
+                false)
+            else true)
+          closure_vars_normal
+      in
+      Or_unknown.Known used_closure_vars, !offsets
 
   (* Transform an internal accumulator state for slots into an actual mapping
      that assigns offsets. *)
   let finalize ~used_names state =
-    let used_closure_vars =
-      Or_unknown.map used_names ~f:(fun { closure_vars_normal; _ } ->
-          alive_closure_vars closure_vars_normal state)
+    let offsets = imported_and_used_offsets ~used_names state in
+    let used_closure_vars, offsets =
+      alive_closure_vars state offsets used_names
     in
-    let offsets =
-      imported_and_used_offsets ~used_names state
-      |> assign_closure_offsets state
-      |> assign_env_var_offsets ~used_closure_vars state
-    in
+    let offsets = assign_closure_offsets state offsets in
+    let offsets = assign_env_var_offsets ~used_closure_vars state offsets in
     used_closure_vars, offsets
 end
 
