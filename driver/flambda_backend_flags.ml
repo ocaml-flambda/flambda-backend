@@ -16,6 +16,8 @@
 let use_ocamlcfg = ref false            (* -ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 
+let use_cpp_mangling = ref false        (* -use-cpp-mangling *)
+
 type function_result_types = Never | Functors_only | All_functions
 
 module Flambda2 = struct

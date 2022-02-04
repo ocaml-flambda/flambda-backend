@@ -120,7 +120,10 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | Some id -> concat_symbol prefix id
 
 let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
-  Mangling.fun_symbol ~unitname ~loc ~id
+  if !Flambda_backend_flags.use_cpp_mangling then
+    Mangling.fun_symbol ~unitname ~loc ~id
+  else
+    make_symbol ~unitname (Some id)
 
 let current_unit_linkage_name () =
   Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
@@ -437,9 +440,27 @@ let structured_constants () =
          exported = Hashtbl.mem exported_constants symbol;
          definition;
          provenance = Some provenance;
-       })
+        })
 
-let function_label closure_id =
+let legacy_closure_symbol fv =
+  let compilation_unit = Closure_id.get_compilation_unit fv in
+  let unitname =
+    Linkage_name.to_string (Compilation_unit.get_linkage_name compilation_unit)
+  in
+  let linkage_name =
+    concat_symbol unitname ((Closure_id.unique_name fv) ^ "_closure")
+  in
+  Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
+
+let legacy_function_label fv =
+  let compilation_unit = Closure_id.get_compilation_unit fv in
+  let unitname =
+    Linkage_name.to_string
+      (Compilation_unit.get_linkage_name compilation_unit)
+  in
+  (concat_symbol unitname (Closure_id.unique_name fv))
+
+let cpp_function_label closure_id =
   let unitname =
     Closure_id.get_compilation_unit closure_id
     |> Compilation_unit.get_linkage_name
@@ -457,10 +478,22 @@ let function_label closure_id =
   in
   make_fun_symbol ~unitname scoped_loc name
 
-let closure_symbol closure_id =
+let cpp_closure_symbol closure_id =
   let compilation_unit = Closure_id.get_compilation_unit closure_id in
-  let linkage_name = (function_label closure_id) ^ "_closure" in
+  let linkage_name = (cpp_function_label closure_id) ^ "_closure" in
   Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
+
+let function_label closure_id =
+  if !Flambda_backend_flags.use_cpp_mangling then
+    cpp_function_label closure_id
+  else
+    legacy_function_label closure_id
+
+let closure_symbol closure_id =
+  if !Flambda_backend_flags.use_cpp_mangling then
+    cpp_closure_symbol closure_id
+  else
+    legacy_closure_symbol closure_id
 
 let require_global global_ident =
   if not (Ident.is_predef global_ident) then

@@ -17,6 +17,8 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 
+val use_cpp_mangling : bool ref
+
 type function_result_types = Never | Functors_only | All_functions
 
 module Flambda2 : sig

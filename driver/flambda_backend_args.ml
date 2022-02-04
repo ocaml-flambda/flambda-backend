@@ -27,6 +27,9 @@ let mk_dcfg f =
   "-dcfg", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_use_cpp_mangling f =
+  "-use-cpp-mangling", Arg.Unit f, " Use cpp mangling for function symbols."
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -392,6 +395,8 @@ module type Flambda_backend_options = sig
   val no_ocamlcfg : unit -> unit
   val dcfg : unit -> unit
 
+  val use_cpp_mangling : unit -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -454,6 +459,8 @@ struct
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
+
+    mk_use_cpp_mangling F.use_cpp_mangling;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -547,6 +554,8 @@ module Flambda_backend_options_impl = struct
   let ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
   let no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
   let dcfg = set Flambda_backend_flags.dump_cfg
+
+  let use_cpp_mangling = set Flambda_backend_flags.use_cpp_mangling
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -703,6 +712,7 @@ module Extra_params = struct
         Flambda_backend_flags.set_o3 (); true
     (* define new params *)
     | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
+    | "use-cpp-mangling" -> set Flambda_backend_flags.use_cpp_mangling
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
