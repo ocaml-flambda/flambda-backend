@@ -221,6 +221,8 @@ module Typing_env : sig
 
     val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
+    val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+
     val print : Format.formatter -> t -> unit
 
     val to_typing_env :

@@ -169,3 +169,21 @@ let remove_unused_closure_vars_and_shortcut_aliases
       names_to_types
   in
   { names_to_types; aliases; symbol_projections }
+
+let free_closure_ids_and_closure_vars
+    { names_to_types; aliases = _; symbol_projections } =
+  let from_projections =
+    Variable.Map.fold
+      (fun _var proj free_names ->
+        Name_occurrences.union free_names
+          (Name_occurrences.restrict_to_closure_vars_and_closure_ids
+             (Symbol_projection.free_names proj)))
+      symbol_projections Name_occurrences.empty
+  in
+  Name.Map.fold
+    (fun _name (ty, _binding_time) free_names ->
+      let free_names_of_ty = Type_grammar.free_names ty in
+      Name_occurrences.union free_names
+        (Name_occurrences.restrict_to_closure_vars_and_closure_ids
+           free_names_of_ty))
+    names_to_types from_projections

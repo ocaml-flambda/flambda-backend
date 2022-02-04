@@ -138,6 +138,8 @@ val only_newer_version_of_code_ids : t -> Code_id.Set.t
 
 val restrict_to_closure_vars : t -> t
 
+val restrict_to_closure_vars_and_closure_ids : t -> t
+
 val code_ids_and_newer_version_of_code_ids : t -> Code_id.Set.t
 
 val without_code_ids : t -> t

@@ -55,3 +55,5 @@ val remove_unused_closure_vars_and_shortcut_aliases :
   t -> used_closure_vars:Var_within_closure.Set.t -> t
 
 val canonicalise : t -> Simple.t -> Simple.t
+
+val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
