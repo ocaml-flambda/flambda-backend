@@ -182,20 +182,6 @@ module Flambda2 = struct
     }
 
     let o2_arguments = {
-      max_depth = Some 2;
-      max_rec_depth = Some 0;
-      call_cost = Some (2.0 *. Default.call_cost);
-      alloc_cost = Some (2.0 *. Default.alloc_cost);
-      prim_cost = Some (2.0 *. Default.prim_cost);
-      branch_cost = Some (2.0 *. Default.branch_cost);
-      indirect_call_cost = Some (2.0 *. Default.indirect_call_cost);
-      poly_compare_cost = Some (2.0 *. Default.poly_compare_cost);
-      small_function_size = Some (2 * Default.small_function_size);
-      large_function_size = Some (4 * Default.large_function_size);
-      threshold = Some 25.;
-    }
-
-    let o3_arguments = {
       max_depth = Some 3;
       max_rec_depth = Some 0;
       call_cost = Some (3.0 *. Default.call_cost);
@@ -208,6 +194,8 @@ module Flambda2 = struct
       large_function_size = Some (50 * Default.large_function_size);
       threshold = Some 100.;
     }
+
+    let o3_arguments = o2_arguments
   end
 
   let oclassic_flags () =
@@ -219,18 +207,13 @@ module Flambda2 = struct
   let o2_flags () =
     cse_depth := 2;
     join_depth := 2;
-    join_points := false;
+    join_points := true;
     unbox_along_intra_function_control_flow := true;
     Expert.fallback_inlining_heuristic := false;
     backend_cse_at_toplevel := false
 
   let o3_flags () =
-    cse_depth := 2;
-    join_depth := 2;
-    join_points := true;
-    unbox_along_intra_function_control_flow := true;
-    Expert.fallback_inlining_heuristic := false;
-    backend_cse_at_toplevel := false;
+    o2_flags ();
     function_result_types := Functors_only
 end
 
