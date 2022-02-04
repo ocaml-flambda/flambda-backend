@@ -1,4 +1,4 @@
-name: flambda2_cfg
+name: flambda2_cfg_local
 
 on: [push, pull_request]
 
