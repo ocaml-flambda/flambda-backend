@@ -139,7 +139,6 @@ method! reload_operation op arg res =
       (* Note: Imulh, Idiv, Imod: arg(0) and res(0) already forced in regs
                Ilsl, Ilsr, Iasr: arg(1) already forced in regs *)
       (arg, res)
-  | Iintop_imm ((Ipopcnt | Iclz _ | Ictz _), _) -> assert false
   | Iintop(Imul) | Ifloatop (Iaddf | Isubf | Imulf | Idivf) ->
       (* First argument (= result) must be in register, second arg
          can reside in the stack *)

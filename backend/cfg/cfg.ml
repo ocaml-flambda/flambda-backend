@@ -311,14 +311,7 @@ let can_raise_operation : operation -> bool = function
   | Load _ -> false
   | Store _ -> false
   | Intop _ -> false
-  | Intop_imm _ -> false
-  | Negf -> false
-  | Absf -> false
-  | Addf -> false
-  | Subf -> false
-  | Mulf -> false
-  | Divf -> false
-  | Compf _ -> false
+  | Floatop _ -> false
   | Floatofint -> false
   | Intoffloat -> false
   | Probe _ -> true

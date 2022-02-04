@@ -151,9 +151,6 @@ val operation_can_raise : operation -> bool
 val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
 val equal_trap_stack : trap_stack -> trap_stack -> bool
 
-(* [operation_arity op] is None if the number of operands of [op]
-   depends on the input program or the target. *)
-val operation_arity : operation -> int option
 val test_arity : test -> int
 val integer_operation_arity : integer_operation -> int
 val float_operation_arity : float_operation -> int

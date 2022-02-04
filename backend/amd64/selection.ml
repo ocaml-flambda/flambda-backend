@@ -232,6 +232,7 @@ method! memory_operands_supported op chunk =
   | Ifloatofint, (Word_int | Word_val) -> true
   | Iintoffloat, Double -> true
   | (Ifloatop _ | Ispecific _ | Ifloatofint | Iintoffloat), _ -> false
+  | (Ibeginregion|Iendregion), _ -> false
   | ((Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Iopaque
      | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
      | Itailcall_imm _ |Iextcall _ | Istackoffset _
@@ -348,7 +349,7 @@ method! select_operation op args dbg =
       (match args with
       | [Cop(Cload (Double, _), [loc], _dbg)] ->
         let c = Word_int in
-        let (addr, arg) = self#select_addressing c loc in
+        let (addr, arg, _) = self#select_addressing c loc in
         Iload(c, addr), [arg], in_reg
       | _ -> Imove, args, in_reg)
   | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
@@ -356,7 +357,7 @@ method! select_operation op args dbg =
       (match args with
       | [Cop(Cload (Word_int, _), [loc], _dbg)] ->
         let c = Double in
-        let (addr, arg) = self#select_addressing c loc in
+        let (addr, arg, _) = self#select_addressing c loc in
         Iload(c, addr), [arg], in_reg
       | _ -> Imove, args, in_reg)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->

@@ -186,6 +186,7 @@ let print_specific_operation_name op =
   | Irdpmc -> "rdpmc"
   | Icrc32q -> "crc32"
   | Iprefetch _ -> "prefetch"
+  | Ipause -> "pause"
 
 let print_specific_operation printoperand op ppf arg =
   match op with
