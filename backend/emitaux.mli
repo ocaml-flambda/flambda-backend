@@ -40,6 +40,12 @@ val emit_debug_info_gen :
   (file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit) ->
   unit
 
+(** Get the file number associated with the filename (or allocate one) *)
+val get_file_num
+   : file_emitter:(file_num:int -> file_name:string -> unit)
+  -> string
+  -> int
+
 type frame_debuginfo =
   | Dbg_alloc of Debuginfo.alloc_dbginfo
   | Dbg_raise of Debuginfo.t

@@ -346,6 +346,11 @@ runtest-upstream:
 	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.a _runtest/compilerlibs
 	cp $(stage2_prefix)/lib/ocaml/compiler-libs/*.cmxa _runtest/compilerlibs
 	cp _build2/default/backend/debug/dwarf/dwarf_flags/dwarf_flags.cma \
+	cp _build2/default/backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma \
+	  _runtest/compilerlibs
+	cp _build2/default/backend/debug/dwarf/dwarf_high/dwarf_high.cma \
+	  _runtest/compilerlibs
+	cp _build2/default/backend/debug/dwarf/dwarf_low/dwarf_low.cma \
 	  _runtest/compilerlibs
 	mkdir _runtest/toplevel
 	cp $(stage2_build)/ocaml/toplevel/.ocamltoplevel.objs/byte/*.cm* \

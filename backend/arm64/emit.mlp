@@ -1085,7 +1085,7 @@ let data l =
 
 (* Beginning / end of an assembly file *)
 
-let begin_assembly() =
+let begin_assembly ~init_dwarf:_ =
   reset_debug_info();
   `	.file	\"\"\n`;  (* PR#7037 *)
   let lbl_begin = Compilenv.make_symbol (Some "data_begin") in
@@ -1097,7 +1097,7 @@ let begin_assembly() =
   `	.globl	{emit_symbol lbl_begin}\n`;
   `{emit_symbol lbl_begin}:\n`
 
-let end_assembly () =
+let end_assembly _dwarf =
   let lbl_end = Compilenv.make_symbol (Some "code_end") in
   emit_named_text_section lbl_end;
   `	.globl	{emit_symbol lbl_end}\n`;

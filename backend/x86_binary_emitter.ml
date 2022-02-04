@@ -1646,7 +1646,7 @@ let assemble_line b loc ins =
         for _ = 1 to n do
           buf_int8 b 0
         done
-    | Hidden _ | Weak _ | Reloc _ -> ()
+    | Hidden _ | Weak _ | Reloc _ | NewLine | Sleb128 _ | Uleb128 _ | Direct_assignment _ -> ()
   with e ->
     Printf.eprintf "Exception %s:\n%!" (Printexc.to_string e);
     (*

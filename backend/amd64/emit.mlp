@@ -1180,6 +1180,8 @@ let fundecl fundecl =
       cfi_adjust_cfa_offset (-n);
     end;
   end;
+  let end_symbol = Dwarf_ocaml.Dwarf_concrete_instances.end_symbol_name fundecl.fun_name in
+  D.label (emit_symbol end_symbol);
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
@@ -1215,8 +1217,11 @@ let reset_all () =
   float_constants := [];
   all_functions := []
 
-let begin_assembly() =
+let begin_assembly ~init_dwarf =
   reset_all ();
+
+  init_dwarf ();
+
   if system = S_win64 then begin
     D.extrn "caml_call_gc" NEAR;
     D.extrn "caml_c_call" NEAR;
@@ -1227,7 +1232,6 @@ let begin_assembly() =
     D.extrn "caml_ml_array_bound_error" NEAR;
     D.extrn "caml_raise_exn" NEAR;
   end;
-
 
   if !Clflags.dlcode || Arch.win64 then begin
     (* from amd64.S; could emit these constants on demand *)
@@ -1507,7 +1511,7 @@ let emit_probe_notes () =
   | [] -> ()
   | _ -> emit_probe_notes0 ()
 
-let end_assembly() =
+let end_assembly dwarf =
   if !float_constants <> [] then begin
     begin match system with
     | S_macosx -> D.section ["__TEXT";"__literal8"] None ["8byte_literals"]
@@ -1598,5 +1602,6 @@ let end_assembly() =
     else
       None
   in
+  Option.iter Dwarf_ocaml.Dwarf.emit dwarf;
   X86_proc.generate_code asm;
   reset_all ()
