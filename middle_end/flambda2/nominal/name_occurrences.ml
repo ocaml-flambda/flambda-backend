@@ -1263,3 +1263,15 @@ let restrict_to_closure_vars
       newer_version_of_code_ids = _
     } =
   { empty with closure_vars }
+
+let restrict_to_closure_vars_and_closure_ids
+    { names = _;
+      continuations = _;
+      continuations_with_traps = _;
+      continuations_in_trap_actions = _;
+      closure_ids;
+      closure_vars;
+      code_ids = _;
+      newer_version_of_code_ids = _
+    } =
+  { empty with closure_ids; closure_vars }

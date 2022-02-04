@@ -1202,6 +1202,8 @@ module Serializable : sig
 
   val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
+  val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+
   val print : Format.formatter -> t -> unit
 
   val all_ids_for_export : t -> Ids_for_export.t
@@ -1254,6 +1256,9 @@ end = struct
       just_after_level;
       next_binding_time = env.next_binding_time
     }
+
+  let free_closure_ids_and_closure_vars t =
+    Cached_level.free_closure_ids_and_closure_vars t.just_after_level
 
   let [@ocamlformat "disable"] print ppf
       { defined_symbols_without_equations; code_age_relation; just_after_level;
