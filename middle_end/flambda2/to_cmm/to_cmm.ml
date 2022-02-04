@@ -449,7 +449,14 @@ let unary_primitive env dbg f arg =
     | Some { offset = c1_offset; _ }, Some { offset = c2_offset; _ } ->
       let diff = c2_offset - c1_offset in
       None, C.infix_field_address ~dbg arg diff
-    | Some _, None | None, Some _ | None, None -> None, C.unreachable
+    (* missing offset: this is an error *)
+    | Some _, None ->
+      Misc.fatal_errorf "missing offset for closure %a" Closure_id.print c1
+    | None, Some _ ->
+      Misc.fatal_errorf "missing offset for closure %a" Closure_id.print c2
+    | None, None ->
+      Misc.fatal_errorf "missing offset for closures %a and %a" Closure_id.print
+        c1 Closure_id.print c2
   end
   | Project_var { project_from; var } -> (
     match Env.env_var_offset env var, Env.closure_offset env project_from with
@@ -464,7 +471,7 @@ let unary_primitive env dbg f arg =
       None, C.unreachable
     (* missing offset: this is an error *)
     | (Some _ | None), None ->
-      Misc.fatal_errorf "missing offset for closure" Closure_id.print
+      Misc.fatal_errorf "missing offset for closure %a" Closure_id.print
         project_from
     | None, Some _ ->
       Misc.fatal_errorf "missing offset for env_var %a" Var_within_closure.print
