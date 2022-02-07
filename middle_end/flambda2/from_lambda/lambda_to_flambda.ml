@@ -683,6 +683,9 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
   match Env.pop_regions_up_to_context env cont with
   | None -> body acc ccenv cont
   | Some region ->
+    (* If we need to close regions early then do it now, else switch the return
+       continuation to the one closing said regions, if any. See comment in
+       [cps_non_tail] at [Lregion] case. *)
     if close_early
     then
       CC.close_let acc ccenv (Ident.create_local "unit")
@@ -1151,6 +1154,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     Misc.fatal_error
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion body ->
+    (* Here we need to build a continuation to jump to when we need to close the
+       region to avoid duplication. Since we're non tail, we also need to have a
+       new continuation for the code after the body.*)
     let region = Ident.create_local "region" in
     let dbg = Debuginfo.none in
     CC.close_let acc ccenv region Not_user_visible Begin_region
@@ -1165,6 +1171,23 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~is_exn_handler:false
               ~params:[wrap_return, Not_user_visible, Pgenval]
               ~body:(fun acc env ccenv continuation_closing_region ->
+                (* We register this region to be closed by the newly created
+                   continuation. When we reach at point in [body] where we have
+                   to jump to [return_continuation] (i.e. leaving the body), we
+                   will switch to [closure_continuation] to ensure it's closed
+                   at the right time. Exception jumps and tailcall cases will
+                   generate their own [End_region] and use [return_continuation]
+                   directly. *)
+                (* In the case where we jump out of scope to several regions at
+                   once, this continuation will be skipped entirely and will use
+                   only the one of outermost region to close. For this to be
+                   correct we rely on the fact that the code structure ensure
+                   this is equivalent to going through the string of nested
+                   [closure_continuation]s we generate, i.e. the only endpoint
+                   possible is [return_continuation]. *)
+                (* In the event this continuation isn't used (e.g. the only exit
+                   is a tailcall), the [Let_cont] will be discarded by
+                   [Closure_conversion]. *)
                 let env =
                   Env.entering_region env region ~continuation_closing_region
                     ~continuation_after_closing_region:return_continuation
@@ -1173,6 +1196,9 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
+                    (* Both body and handler end up to [return_continuation] by
+                       default. [restore_region_context] will switch the jump to
+                       this handler if needed. *)
                     apply_cont_with_extra_args acc env ccenv ~dbg
                       return_continuation None [IR.Var wrap_return])))
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
@@ -1552,6 +1578,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           ~is_exn_handler:false
           ~params:[wrap_return, Not_user_visible, Pgenval]
           ~body:(fun acc env ccenv continuation_closing_region ->
+            (* See case in [cps_non_tail] *)
             let env =
               Env.entering_region env region ~continuation_closing_region
                 ~continuation_after_closing_region:k
