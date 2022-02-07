@@ -79,12 +79,8 @@ let mangle_cpp name =
   "_Z" ^ mangle_name name
 
 let file_template_arg file =
-  (* Take the file name only *)
-  let filename =
-    if String.contains file '/'
-    then snd (String.split_last_exn file '/')
-    else file
-  in
+  (* Take the base name only *)
+  let filename = Filename.basename file in
   match String.split_on_char '.' filename with
   | [] -> Misc.fatal_error "Empty split"
   | hd :: tl ->
