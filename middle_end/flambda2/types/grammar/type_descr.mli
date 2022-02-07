@@ -64,6 +64,9 @@ val apply_renaming :
 val free_names :
   free_names_head:('head -> Name_occurrences.t) -> 'head t -> Name_occurrences.t
 
+val free_names_no_cache :
+  free_names_head:('head -> Name_occurrences.t) -> 'head t -> Name_occurrences.t
+
 val remove_unused_closure_vars_and_shortcut_aliases :
   remove_unused_closure_vars_and_shortcut_aliases_head:
     ('head ->
@@ -73,6 +76,14 @@ val remove_unused_closure_vars_and_shortcut_aliases :
   'head t ->
   used_closure_vars:Var_within_closure.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
+  'head t
+
+val project_variables_out :
+  free_names_head:('head -> Name_occurrences.t) ->
+  to_project:Variable.Set.t ->
+  expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
+  project_head:('head -> 'head) ->
+  'head t ->
   'head t
 
 val all_ids_for_export :

@@ -45,6 +45,11 @@ val free_names :
   'descr t ->
   Name_occurrences.t
 
+val free_names_no_cache :
+  free_names_descr:('descr -> Name_occurrences.t) ->
+  'descr t ->
+  Name_occurrences.t
+
 val remove_unused_closure_vars_and_shortcut_aliases :
   remove_unused_closure_vars_and_shortcut_aliases_descr:
     ('descr ->
@@ -54,4 +59,11 @@ val remove_unused_closure_vars_and_shortcut_aliases :
   'descr t ->
   used_closure_vars:Var_within_closure.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
+  'descr t
+
+val project_variables_out :
+  free_names_descr:('descr -> Name_occurrences.t) ->
+  to_project:Variable.Set.t ->
+  project_descr:('descr -> 'descr) ->
+  'descr t ->
   'descr t
