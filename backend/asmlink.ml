@@ -322,6 +322,7 @@ let link_shared ~ppf_dump objfiles output_name =
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
+      ~may_reduce_heap:true
       (fun () ->
          make_shared_startup_file ~ppf_dump
            (List.map (fun (ui,_,crc) -> (ui,crc)) units_tolink)
@@ -395,6 +396,7 @@ let link ~ppf_dump objfiles output_name =
     Asmgen.compile_unit ~output_prefix:output_name
       ~asm_filename:startup ~keep_asm:!Clflags.keep_startup_file
       ~obj_filename:startup_obj
+      ~may_reduce_heap:true
       (fun () -> make_startup_file ~ppf_dump units_tolink);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
