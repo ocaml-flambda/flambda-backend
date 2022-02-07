@@ -267,7 +267,7 @@ let compile_genfuns ~ppf_dump f =
        | _ -> ())
     (Cmm_helpers.generic_functions true [Compilenv.current_unit_infos ()])
 
-let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
+let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduce_heap gen =
   reset ();
   let create_asm = should_emit () &&
                    (keep_asm || not !Emitaux.binary_backend_available) in
@@ -285,7 +285,8 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename gen =
          ~exceptionally:(fun () ->
              if create_asm && not keep_asm then remove_file asm_filename);
        if should_emit () then begin
-         Emitaux.reduce_heap_size ~reset:(fun () ->
+         if may_reduce_heap then
+           Emitaux.reduce_heap_size ~reset:(fun () ->
             reset ();
             Typemod.reset ();
             Emitaux.reset ();
@@ -342,6 +343,7 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
+    ~may_reduce_heap:(Option.is_none toplevel) 
     (fun () ->
       Ident.Set.iter Compilenv.require_global program.required_globals;
       let clambda_with_constants =
@@ -355,6 +357,7 @@ let compile_implementation_flambda2 ?toplevel ?(keep_symbol_tables=true)
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
+    ~may_reduce_heap:(Option.is_none toplevel)
     (fun () ->
       Ident.Set.iter Compilenv.require_global required_globals;
       let cmm_phrases =
@@ -381,7 +384,7 @@ let linear_gen_implementation filename =
   emit_end_assembly ()
 
 let compile_implementation_linear output_prefix ~progname =
-  compile_unit ~output_prefix
+  compile_unit ~may_reduce_heap:true ~output_prefix
     ~asm_filename:(asm_filename output_prefix) ~keep_asm:!keep_asm_file
     ~obj_filename:(output_prefix ^ ext_obj)
     (fun () ->
