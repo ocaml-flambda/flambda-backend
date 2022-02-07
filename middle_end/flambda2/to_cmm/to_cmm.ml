@@ -446,36 +446,46 @@ let unary_primitive env dbg f arg =
   | Box_number (kind, alloc_mode) -> None, C.box_number ~dbg kind alloc_mode arg
   | Select_closure { move_from = c1; move_to = c2 } -> begin
     match Env.closure_offset env c1, Env.closure_offset env c2 with
-    | Some { offset = c1_offset; _ }, Some { offset = c2_offset; _ } ->
+    | ( Some (Id_slot { offset = c1_offset; _ }),
+        Some (Id_slot { offset = c2_offset; _ }) ) ->
       let diff = c2_offset - c1_offset in
       None, C.infix_field_address ~dbg arg diff
+    (* one of the ids has been marked as dead, the code should be
+       unreachable. *)
+    | Some Dead_id, Some (Id_slot _)
+    | Some (Id_slot _), Some Dead_id
+    | Some Dead_id, Some Dead_id ->
+      None, C.unreachable
     (* missing offset: this is an error *)
     | Some _, None ->
       Misc.fatal_errorf "missing offset for closure %a" Closure_id.print c1
     | None, Some _ ->
       Misc.fatal_errorf "missing offset for closure %a" Closure_id.print c2
     | None, None ->
-      Misc.fatal_errorf "missing offset for closures %a and %a" Closure_id.print
-        c1 Closure_id.print c2
+      Misc.fatal_errorf "missing offsets for closures %a and %a"
+        Closure_id.print c1 Closure_id.print c2
   end
   | Project_var { project_from; var } -> (
     match Env.env_var_offset env var, Env.closure_offset env project_from with
     (* Normal case: we have offsets for everything *)
-    | Some (Alive { offset }), Some { offset = base; _ } ->
+    | Some (Var_slot { offset }), Some (Id_slot { offset = base; _ }) ->
       None, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
-    (* the closure var has been explicitly removed, the code is unreachable *)
-    | Some Removed, Some _ ->
-      (* Note that if a closure var is missing from a set of closures
-         environment, then [Env.closure_offset] might return [None], even though
-         the set of closures has been seen by [Closure_offsets]. *)
+    (* the closure var and/or id has been explicitly removed, the code is
+       unreachable *)
+    | Some Dead_var, Some (Id_slot _)
+    | Some (Var_slot _), Some Dead_id
+    | Some Dead_var, Some Dead_id ->
       None, C.unreachable
     (* missing offset: this is an error *)
-    | (Some _ | None), None ->
+    | Some _, None ->
       Misc.fatal_errorf "missing offset for closure %a" Closure_id.print
         project_from
     | None, Some _ ->
       Misc.fatal_errorf "missing offset for env_var %a" Var_within_closure.print
-        var)
+        var
+    | None, None ->
+      Misc.fatal_errorf "missing offsets for closure id %a and var %a"
+        Closure_id.print project_from Var_within_closure.print var)
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
        [caml_make_array], which is used by non-Flambda 2 compilers. This seems
@@ -1449,9 +1459,11 @@ and let_dynamic_set_of_closures env res body closure_vars s
   let env =
     List.fold_left2
       (fun acc cid v ->
-        let v = Bound_var.var v in
-        let e, effs = get_closure_by_offset env soc_cmm_var cid in
-        let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
+        match get_closure_by_offset env soc_cmm_var cid with
+        | None -> acc
+        | Some (e, effs) ->
+          let v = Bound_var.var v in
+          let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
       env
       (Closure_id.Lmap.keys decls)
       closure_vars
@@ -1462,8 +1474,9 @@ and let_dynamic_set_of_closures env res body closure_vars s
 
 and get_closure_by_offset env set_cmm cid =
   match Env.closure_offset env cid with
-  | Some { offset; _ } ->
-    C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure
+  | Some (Id_slot { offset; _ }) ->
+    Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
+  | Some Dead_id -> None
   | None -> Misc.fatal_errorf "No closure offset for %a" Closure_id.print cid
 
 and fill_layout decls startenv elts env effs acc i = function

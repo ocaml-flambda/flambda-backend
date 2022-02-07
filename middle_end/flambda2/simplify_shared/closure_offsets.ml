@@ -143,7 +143,8 @@ let order_closures env l acc =
   List.fold_left
     (fun acc closure ->
       match EO.closure_offset env closure with
-      | Some { size = _; offset } ->
+      | Some Dead_id -> acc
+      | Some (Id_slot { size = _; offset }) ->
         Numeric_types.Int.Map.add offset (Closure closure) acc
       | None ->
         Misc.fatal_errorf "No closure offset for %a" Closure_id.print closure)
@@ -153,8 +154,8 @@ let order_env_vars env l acc =
   List.fold_left
     (fun acc env_var ->
       match EO.env_var_offset env env_var with
-      | Some Removed -> acc
-      | Some (Alive { offset }) ->
+      | Some Dead_var -> acc
+      | Some (Var_slot { offset }) ->
         Numeric_types.Int.Map.add offset (Env_var env_var) acc
       | None ->
         Misc.fatal_errorf "No closure var offset for %a"
@@ -216,8 +217,8 @@ let layout env closures env_vars =
     | None, [] -> 0, true
     | None, (j, Closure closure) :: _ -> begin
       match EO.closure_offset env closure with
-      | Some { size; _ } -> j + size, true
-      | None ->
+      | Some (Id_slot { size; _ }) -> j + size, true
+      | Some Dead_id | None ->
         (* the closure was found earlier during the call to order_closures *)
         assert false
     end
@@ -424,10 +425,10 @@ module Greedy = struct
     List.iter (add_slot_offset_to_set offset slot) slot.sets;
     match slot.desc with
     | Closure c ->
-      let (info : EO.closure_info) = { EO.offset; size = slot.size } in
+      let (info : EO.closure_info) = EO.Id_slot { offset; size = slot.size } in
       EO.add_closure_offset env c info
     | Env_var v ->
-      let (info : EO.env_var_info) = EO.Alive { offset } in
+      let (info : EO.env_var_info) = EO.Var_slot { offset } in
       EO.add_env_var_offset env v info
 
   let mark_slot_as_removed env slot =
@@ -438,7 +439,7 @@ module Greedy = struct
       match slot.desc with
       | Closure _ -> Misc.fatal_error "Closure cannot be removed currently"
       | Env_var v ->
-        let (info : EO.env_var_info) = EO.Removed in
+        let (info : EO.env_var_info) = EO.Dead_var in
         EO.add_env_var_offset env v info)
     | Assigned _ ->
       Misc.fatal_error "Cannot remove closure var which is already assigned"
@@ -517,7 +518,13 @@ module Greedy = struct
                 "Could not find the offset for closure id %a from another \
                  compilation unit (because of -opaque, or missing cmx)."
                 Closure_id.print c
-            | Some ({ offset; size } as info) ->
+            | Some Dead_id ->
+              Misc.fatal_errorf
+                "The closure id %a is dead in its original compilation unit, \
+                 it should not occur in a set of closures in this compilation \
+                 unit."
+                Closure_id.print c
+            | Some (Id_slot { offset; size } as info) ->
               let s =
                 { desc = Closure c; size; pos = Assigned offset; sets = [] }
               in
@@ -548,13 +555,13 @@ module Greedy = struct
                 "Could not find the offset for env var %a from another \
                  compilation unit (because of -opaque, or missing cmx)."
                 Var_within_closure.print v
-            | Some Removed ->
+            | Some Dead_var ->
               Misc.fatal_errorf
                 "The closure var %a has been removed by its original \
                  compilation unit, it should not occur in a set of closures in \
                  this compilation unit."
                 Var_within_closure.print v
-            | Some (Alive { offset } as info) ->
+            | Some (Var_slot { offset } as info) ->
               let s =
                 { desc = Env_var v; size = 1; pos = Assigned offset; sets = [] }
               in
@@ -756,12 +763,27 @@ module Greedy = struct
     | Unknown -> EO.imported_offsets ()
 
   (* We only want to keep closure vars that appear in the creation of a set of
-     closures, *and* appear as projection (at normal name mode). *)
-  let alive_closure_vars state offsets used_names =
+     closures, *and* appear as projection (at normal name mode). And we need to
+     mark closure_vars/ids that are not alive, as dead in the exported_offsets,
+     so that later compilation unit do not mistake that for a missing offset
+     info on a closure_var/id. *)
+  let alive_closure_elts state offsets used_names =
     match (used_names : used_names Or_unknown.t) with
     | Unknown -> Or_unknown.Unknown, offsets
-    | Known { closure_vars_normal; _ } ->
+    | Known { closure_vars_normal; closure_ids_normal; _ } ->
       let offsets = ref offsets in
+      let () =
+        Closure_id.Set.iter
+          (fun closure_id ->
+            if Compilation_unit.is_current
+                 (Closure_id.get_compilation_unit closure_id)
+            then
+              match find_closure_slot state closure_id with
+              | Some _ -> ()
+              | None ->
+                offsets := EO.add_closure_offset !offsets closure_id Dead_id)
+          closure_ids_normal
+      in
       let used_closure_vars =
         Var_within_closure.Set.filter
           (fun closure_var ->
@@ -772,7 +794,7 @@ module Greedy = struct
               match find_env_var_slot state closure_var with
               | Some _ -> true
               | None ->
-                offsets := EO.add_env_var_offset !offsets closure_var Removed;
+                offsets := EO.add_env_var_offset !offsets closure_var Dead_var;
                 false)
             else true)
           closure_vars_normal
@@ -784,7 +806,7 @@ module Greedy = struct
   let finalize ~used_names state =
     let offsets = imported_and_used_offsets ~used_names state in
     let used_closure_vars, offsets =
-      alive_closure_vars state offsets used_names
+      alive_closure_elts state offsets used_names
     in
     let offsets = assign_closure_offsets state offsets in
     let offsets = assign_env_var_offsets ~used_closure_vars state offsets in

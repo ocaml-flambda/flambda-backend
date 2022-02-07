@@ -22,30 +22,35 @@
     re-exported. *)
 
 type closure_info =
-  { offset : int;
-    size : int
-        (* Number of fields taken for the function:
+  | Dead_id
+  | Id_slot of
+      { offset : int;
+        size : int
+            (* Number of fields taken for the function:
 
-           2 fields (code pointer + arity) for function of arity one
+               2 fields (code pointer + arity) for function of arity one
 
-           3 fields (caml_curry + arity + code pointer) otherwise *)
-  }
+               3 fields (caml_curry + arity + code pointer) otherwise *)
+      }
 
 type env_var_info =
-  | Removed
-  | Alive of { offset : int }
+  | Dead_var
+  | Var_slot of { offset : int }
 
 type t =
   { closure_offsets : closure_info Closure_id.Map.t;
     env_var_offsets : env_var_info Var_within_closure.Map.t
   }
 
-let print_closure_info fmt (info : closure_info) =
-  Format.fprintf fmt "@[<h>(o:%d, s:%d)@]" info.offset info.size
+let print_closure_info fmt = function
+  | Dead_id -> Format.fprintf fmt "@[<h>(dead)@]"
+  | Id_slot { offset; size } ->
+    Format.fprintf fmt "@[<h>(o:%d, s:%d)@]" offset size
 
-let print_env_var_info fmt = function
-  | Removed -> Format.fprintf fmt "@[<h>(removed)@]"
-  | Alive { offset } -> Format.fprintf fmt "@[<h>(o:%d)@]" offset
+let print_env_var_info fmt (info : env_var_info) =
+  match info with
+  | Dead_var -> Format.fprintf fmt "@[<h>(removed)@]"
+  | Var_slot { offset } -> Format.fprintf fmt "@[<h>(o:%d)@]" offset
 
 let [@ocamlformat "disable"] print fmt env =
   Format.fprintf fmt "{@[<v>closures: @[<v>%a@]@,env_vars: @[<v>%a@]@]}"
@@ -101,13 +106,17 @@ let map_env_var_offsets env f =
 let current_offsets = ref empty
 
 let equal_closure_info (info1 : closure_info) (info2 : closure_info) =
-  info1.offset = info2.offset && info1.size = info2.size
+  match info1, info2 with
+  | Dead_id, Dead_id -> true
+  | Id_slot { offset = o1; size = s1 }, Id_slot { offset = o2; size = s2 } ->
+    o1 = o2 && s1 = s2
+  | Dead_id, Id_slot _ | Id_slot _, Dead_id -> false
 
 let equal_env_var_info (info1 : env_var_info) (info2 : env_var_info) =
   match info1, info2 with
-  | Removed, Removed -> true
-  | Alive { offset = o1 }, Alive { offset = o2 } -> o1 = o2
-  | Removed, Alive _ | Alive _, Removed -> false
+  | Dead_var, Dead_var -> true
+  | Var_slot { offset = o1 }, Var_slot { offset = o2 } -> o1 = o2
+  | Dead_var, Var_slot _ | Var_slot _, Dead_var -> false
 
 let imported_offsets () = !current_offsets
 
