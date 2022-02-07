@@ -93,6 +93,9 @@ let remembered = ref Ident.empty
 
 let rec remember phrase_name i = function
   | [] -> ()
+  | Sig_module (_, _, { md_type = Mty_alias _; _ }, _, _)
+    :: rest ->
+      remember phrase_name i rest
   | Sig_value  (id, _, _) :: rest
   | Sig_module (id, _, _, _, _) :: rest
   | Sig_typext (id, _, _, _) :: rest
@@ -103,7 +106,7 @@ let rec remember phrase_name i = function
 
 let toplevel_value id =
   try Ident.find_same id !remembered
-  with _ -> Misc.fatal_error @@ "Unknown ident: " ^ Ident.unique_name id
+  with _ -> failwith ("Unknown ident: " ^ Ident.unique_name id)
 
 let close_phrase lam =
   let open Lambda in
@@ -410,7 +413,7 @@ let execute_phrase print_outcome ppf phr =
       let (str, sg, names, newenv) = Typemod.type_toplevel_phrase oldenv sstr in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
-      ignore (Includemod.signatures oldenv ~mark:Mark_positive sg sg');
+      let coercion = Includemod.signatures oldenv ~mark:Mark_positive sg sg' in
       Typecore.force_delayed_checks ();
       let str, sg', rewritten =
         match str.str_items with
@@ -432,7 +435,7 @@ let execute_phrase print_outcome ppf phr =
           let { Lambda.module_ident; main_module_block_size = size;
                 required_globals; code = res } =
             Translmod.transl_implementation_flambda !phrase_name
-              (str, Tcoerce_none)
+              (str, coercion)
           in
           remember module_ident 0 sg';
           module_ident, close_phrase res, required_globals, size
