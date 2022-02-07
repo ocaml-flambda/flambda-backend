@@ -241,8 +241,9 @@ let free_names
         Name_mode.normal
   in
   Name_occurrences.union free_names
-    (Result_types.free_names result_types
-    |> Name_occurrences.without_closure_vars)
+    (Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
+       (Result_types.free_names result_types)
+       Name_mode.in_types)
 
 let apply_renaming
     ({ code_id;
