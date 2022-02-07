@@ -27,7 +27,7 @@ let escape_symbols part =
   let buf = Buffer.create 16 in
   let was_hex_last = ref false in
   let handle_char = function
-    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') as c ->
+    | ('A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_') as c ->
       if !was_hex_last then Buffer.add_string buf "__";
       Buffer.add_char buf c;
       was_hex_last := false
@@ -56,10 +56,12 @@ and template_arg =
 let mangle_cpp name =
   let with_length s =
     let s = escape_symbols s in
-    Printf.sprintf "%d%s" (String.length s) s in
+    Printf.sprintf "%d%s" (String.length s) s
+  in
   let rec mangle_expression = function
     | String s -> with_length s
-    | Dot (e, name) -> Printf.sprintf "dt%s%s" (mangle_expression e) (with_length name)
+    | Dot (e, name) ->
+      Printf.sprintf "dt%s%s" (mangle_expression e) (with_length name)
   in
   let rec mangle_name = function
     | Simple s -> with_length s
@@ -79,7 +81,8 @@ let mangle_cpp name =
 let file_template_arg file =
   (* Take the file name only *)
   let filename =
-    if String.contains file '/' then snd (String.split_last_exn file '/')
+    if String.contains file '/'
+    then snd (String.split_last_exn file '/')
     else file
   in
   match String.split_on_char '.' filename with
@@ -114,72 +117,76 @@ let name_op = function
 
 let build_location_info loc =
   let loc = Debuginfo.Scoped_location.to_location loc in
-  let (file, line, startchar) = Location.get_pos_info loc.loc_start in
+  let file, line, startchar = Location.get_pos_info loc.loc_start in
   let endchar = loc.loc_end.pos_cnum - loc.loc_start.pos_bol in
   let line_str = Printf.sprintf "ln_%d" line in
-  let info = [ file_template_arg file; Cpp_name (Simple line_str) ] in
-  if startchar >= 0 then
+  let info = [file_template_arg file; Cpp_name (Simple line_str)] in
+  if startchar >= 0
+  then
     let char_str = Printf.sprintf "ch_%d_to_%d" startchar endchar in
-    info @ [ Cpp_name (Simple char_str) ]
+    info @ [Cpp_name (Simple char_str)]
   else info
 
-(* OCaml names can contain single quotes but need to be escaped
-   for C++ identifiers. *)
+(* OCaml names can contain single quotes but need to be escaped for C++
+   identifiers. *)
 let convert_identifier str =
   match String.split_on_char '\'' str with
   | [] -> Misc.fatal_error "empty split"
-  | [ s ] -> Simple s
+  | [s] -> Simple s
   | parts ->
     let s = String.concat "_Q" parts in
-    Templated (s, [ Cpp_name (Simple "quoted")] )
+    Templated (s, [Cpp_name (Simple "quoted")])
 
 let convert_closure_id id loc =
-  if String.begins_with id "anon_fn[" then
+  if String.begins_with id "anon_fn["
+  then
     (* Keep the unique integer stamp *)
-    let (_init, stamp) = String.split_last_exn id '_' in
+    let _init, stamp = String.split_last_exn id '_' in
     (* Put the location inside C++ template args *)
     Templated ("anon_fn_" ^ stamp, build_location_info loc)
   else
     match id.[0] with
     (* A regular identifier *)
-    | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') -> convert_identifier id
+    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> convert_identifier id
     (* An operator *)
     | _op ->
-      let (op, stamp) = String.split_last_exn id '_' in
+      let op, stamp = String.split_last_exn id '_' in
       Templated ("op_" ^ stamp, [Cpp_name (Simple (name_op op))])
 
 let convert_scope scope =
   let n = String.length scope in
   (* anonymous function *)
-  if String.equal scope "(fun)" then Templated ("anon_fn", [])
-  (* operators *)
-  else if n > 2 && String.get scope 0 = '(' && String.get scope (n - 1) = ')' then
+  if String.equal scope "(fun)"
+  then Templated ("anon_fn", []) (* operators *)
+  else if n > 2 && String.get scope 0 = '(' && String.get scope (n - 1) = ')'
+  then
     let op = String.sub scope 1 (n - 2) in
-    Templated ("op", [ Cpp_name (Simple (name_op op)) ])
-  (* regular identifiers *)
+    Templated ("op", [Cpp_name (Simple (name_op op))])
+    (* regular identifiers *)
   else convert_identifier scope
 
 let list_of_scopes scopes =
   (* Works for now since the only separators are '.' and '#' *)
   let scope_str = Debuginfo.Scoped_location.string_of_scopes scopes in
-  String.split_on_chars scope_str [ '.'; '#' ]
+  String.split_on_chars scope_str ['.'; '#']
 
 let scope_matches_closure_id scope closure_id =
-  (* If the `id` is an anonymous function this corresponds to that,
-      and, even if not, then the function has likely been given
-      a name via some aliasing (e.g. `let f = fun x -> ...`) *)
-  String.equal scope "(fun)" ||
+  (* If the `id` is an anonymous function this corresponds to that, and, even if
+     not, then the function has likely been given a name via some aliasing (e.g.
+     `let f = fun x -> ...`) *)
+  String.equal scope "(fun)"
   (* Normal case where closure id and scope match directly *)
-  String.begins_with closure_id scope ||
-  (* For operators, the scope is wrapped in parens *)
-  ( String.length scope >= 3 &&
-    String.begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
+  || String.begins_with closure_id scope
+  || (* For operators, the scope is wrapped in parens *)
+  String.length scope >= 3
+  && String.begins_with closure_id
+       (String.sub scope 1 (String.length scope - 2))
 
-(* Returns a pair of the top-level module and the list of scopes
-   the strictly contain the closure id *)
+(* Returns a pair of the top-level module and the list of scopes the strictly
+   contain the closure id *)
 let module_and_scopes ~unitname loc id =
   match (loc : Debuginfo.Scoped_location.t) with
-  | Loc_known { loc = _; scopes } ->
+  | Loc_known { loc = _; scopes } -> (
     let scopes = list_of_scopes scopes in
     (* Remove last scope if it matches closure id *)
     let scopes =
@@ -190,35 +197,33 @@ let module_and_scopes ~unitname loc id =
       | _ -> scopes
     in
     (* If the scope is now empty, use the unitname as the top-level module *)
-    begin match scopes with
-      | [] -> unitname, []
-      | top_module :: sub_scopes -> top_module, sub_scopes
-    end
+    match scopes with
+    | [] -> unitname, []
+    | top_module :: sub_scopes -> top_module, sub_scopes)
   | Loc_unknown -> unitname, []
 
 let remove_prefix ~prefix str =
   let n = String.length prefix in
-  if String.begins_with str prefix then
-    String.sub str n (String.length str - n)
-  else
-    str
+  if String.begins_with str prefix
+  then String.sub str n (String.length str - n)
+  else str
 
 let fun_symbol ~unitname ~loc ~id =
-  let unitname = remove_prefix ~prefix:"caml" unitname  in
+  let unitname = remove_prefix ~prefix:"caml" unitname in
   let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
   let namespace_parts name =
     String.split_on_string name "__" |> List.map (fun part -> Simple part)
   in
   let parts =
-    List.concat [
-      namespace_parts top_level_module;
-      List.map convert_scope sub_scopes;
-      [ convert_closure_id id loc ];
-      if String.equal top_level_module unitname then []
-      else [
-        Templated ("inlined_in",
-          [ Cpp_name (Scoped (namespace_parts unitname)) ])
+    List.concat
+      [ namespace_parts top_level_module;
+        List.map convert_scope sub_scopes;
+        [convert_closure_id id loc];
+        (if String.equal top_level_module unitname
+        then []
+        else
+          [ Templated
+              ("inlined_in", [Cpp_name (Scoped (namespace_parts unitname))]) ])
       ]
-    ]
   in
   mangle_cpp (Scoped parts)
