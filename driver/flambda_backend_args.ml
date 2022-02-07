@@ -28,7 +28,7 @@ let mk_dcfg f =
 ;;
 
 let mk_use_cpp_mangling f =
-  "-use-cpp-mangling", Arg.Unit f, " Use cpp mangling for function symbols."
+  "-gcpp-mangling", Arg.Unit f, " Use C++ mangling for function symbols"
 
 module Flambda2 = Flambda_backend_flags.Flambda2
 
