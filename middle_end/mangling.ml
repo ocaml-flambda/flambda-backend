@@ -178,7 +178,7 @@ let scope_matches_closure_id scope closure_id =
   && String.begins_with closure_id
        (String.sub scope 1 (String.length scope - 2))
 
-(* Returns a pair of the top-level module and the list of scopes the strictly
+(* Returns a pair of the top-level module and the list of scopes that strictly
    contain the closure id *)
 let module_and_scopes ~unitname loc id =
   match (loc : Debuginfo.Scoped_location.t) with
