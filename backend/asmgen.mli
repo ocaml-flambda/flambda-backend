@@ -78,5 +78,6 @@ val compile_unit
    -> asm_filename:string
    -> keep_asm:bool
    -> obj_filename:string
+   -> may_reduce_heap:bool
    -> (unit -> unit)
    -> unit
