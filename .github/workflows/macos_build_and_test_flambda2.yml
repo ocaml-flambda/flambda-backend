@@ -1,6 +1,9 @@
-name: macos
+name: macos_build_and_test_flambda2
 
-on: [pull_request]
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -72,6 +75,6 @@ jobs:
           --enable-middle-end=flambda2 \
           --with-dune=$GITHUB_WORKSPACE/dune/dune.exe
 
-    - name: Build (Flambda 2 mode)
+    - name: Build, install and test Flambda backend (Flambda 2 mode)
       working-directory: flambda_backend
-      run: make -j $J stage2
+      run: make -j $J ci
