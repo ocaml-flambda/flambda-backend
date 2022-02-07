@@ -21,44 +21,7 @@
  * SOFTWARE.
  *)
 
-let begins_with ?(from = 0) str prefix =
-  let rec helper idx =
-    if idx < 0 then true
-    else
-      String.get str (from + idx) = String.get prefix idx && helper (idx-1)
-  in
-  let n = String.length str in
-  let m = String.length prefix in
-  if n >= from + m then helper (m-1) else false
-
-let split_on_string str split =
-  let n = String.length str in
-  let m = String.length split in
-  let rec helper acc last_idx idx =
-    if idx = n then
-      let cur = String.sub str last_idx (idx - last_idx) in
-      List.rev (cur :: acc)
-    else if begins_with ~from:idx str split then
-      let cur = String.sub str last_idx (idx - last_idx) in
-      helper (cur :: acc) (idx + m) (idx + m)
-    else
-      helper acc last_idx (idx + 1)
-  in
-  helper [] 0 0
-
-let split_on_chars str chars =
-  let rec helper chars_left s acc =
-    match chars_left with
-    | [] -> s :: acc
-    | c :: cs ->
-      List.fold_right (helper cs) (String.split_on_char c s) acc
-  in
-  helper chars str []
-
-let split_last_exn str c =
-  let n = String.length str in
-  let ridx = String.rindex str c in
-  (String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1))
+module String = Misc.Stdlib.String
 
 let escape_symbols part =
   let buf = Buffer.create 16 in
@@ -116,7 +79,7 @@ let mangle_cpp name =
 let file_template_arg file =
   (* Take the file name only *)
   let filename =
-    if String.contains file '/' then snd (split_last_exn file '/')
+    if String.contains file '/' then snd (String.split_last_exn file '/')
     else file
   in
   match String.split_on_char '.' filename with
@@ -171,9 +134,9 @@ let convert_identifier str =
     Templated (s, [ Cpp_name (Simple "quoted")] )
 
 let convert_closure_id id loc =
-  if begins_with id "anon_fn[" then
+  if String.begins_with id "anon_fn[" then
     (* Keep the unique integer stamp *)
-    let (_init, stamp) = split_last_exn id '_' in
+    let (_init, stamp) = String.split_last_exn id '_' in
     (* Put the location inside C++ template args *)
     Templated ("anon_fn_" ^ stamp, build_location_info loc)
   else
@@ -182,7 +145,7 @@ let convert_closure_id id loc =
     | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_') -> convert_identifier id
     (* An operator *)
     | _op ->
-      let (op, stamp) = split_last_exn id '_' in
+      let (op, stamp) = String.split_last_exn id '_' in
       Templated ("op_" ^ stamp, [Cpp_name (Simple (name_op op))])
 
 let convert_scope scope =
@@ -199,7 +162,7 @@ let convert_scope scope =
 let list_of_scopes scopes =
   (* Works for now since the only separators are '.' and '#' *)
   let scope_str = Debuginfo.Scoped_location.string_of_scopes scopes in
-  split_on_chars scope_str [ '.'; '#' ]
+  String.split_on_chars scope_str [ '.'; '#' ]
 
 let scope_matches_closure_id scope closure_id =
   (* If the `id` is an anonymous function this corresponds to that,
@@ -207,10 +170,10 @@ let scope_matches_closure_id scope closure_id =
       a name via some aliasing (e.g. `let f = fun x -> ...`) *)
   String.equal scope "(fun)" ||
   (* Normal case where closure id and scope match directly *)
-  begins_with closure_id scope ||
+  String.begins_with closure_id scope ||
   (* For operators, the scope is wrapped in parens *)
   ( String.length scope >= 3 &&
-    begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
+    String.begins_with closure_id (String.sub scope 1 (String.length scope - 2)))
 
 (* Returns a pair of the top-level module and the list of scopes
    the strictly contain the closure id *)
@@ -235,7 +198,7 @@ let module_and_scopes ~unitname loc id =
 
 let remove_prefix ~prefix str =
   let n = String.length prefix in
-  if begins_with str prefix then
+  if String.begins_with str prefix then
     String.sub str n (String.length str - n)
   else
     str
@@ -244,7 +207,7 @@ let fun_symbol ~unitname ~loc ~id =
   let unitname = remove_prefix ~prefix:"caml" unitname  in
   let top_level_module, sub_scopes = module_and_scopes ~unitname loc id in
   let namespace_parts name =
-    split_on_string name "__" |> List.map (fun part -> Simple part)
+    String.split_on_string name "__" |> List.map (fun part -> Simple part)
   in
   let parts =
     List.concat [
