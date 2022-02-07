@@ -34,6 +34,10 @@ let[@inline always] free_names ~free_names_descr t =
     t.free_names <- Some free_names;
     free_names
 
+let[@inline always] free_names_no_cache ~free_names_descr t =
+  let descr = descr t in
+  free_names_descr descr
+
 let apply_renaming ~apply_renaming_descr ~free_names_descr t renaming =
   let free_names = free_names ~free_names_descr t in
   if (not (Renaming.has_import_map renaming))
@@ -58,5 +62,19 @@ let remove_unused_closure_vars_and_shortcut_aliases
       ~used_closure_vars ~canonicalise
   in
   if descr == t.descr then t else { descr; free_names = None }
+
+let project_variables_out ~free_names_descr ~to_project ~project_descr t =
+  let free_names = free_names t ~free_names_descr in
+  let has_variable_to_project =
+    Variable.Set.fold
+      (fun var has_variable_to_project ->
+        has_variable_to_project || Name_occurrences.mem_var free_names var)
+      to_project false
+  in
+  if has_variable_to_project
+  then
+    let descr' = project_descr t.descr in
+    if descr' == t.descr then t else create descr'
+  else t
 
 let print ~print_descr ppf t = print_descr ppf (descr t)
