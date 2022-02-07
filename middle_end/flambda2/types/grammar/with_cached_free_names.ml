@@ -34,8 +34,7 @@ let[@inline always] free_names ~free_names_descr t =
     t.free_names <- Some free_names;
     free_names
 
-let[@inline always] free_names_no_cache ~free_names_descr
-    t =
+let[@inline always] free_names_no_cache ~free_names_descr t =
   let descr = descr t in
   free_names_descr descr
 
@@ -64,8 +63,7 @@ let remove_unused_closure_vars_and_shortcut_aliases
   in
   if descr == t.descr then t else { descr; free_names = None }
 
-let project_variables_out ~free_names_descr ~to_project
-    ~project_descr t =
+let project_variables_out ~free_names_descr ~to_project ~project_descr t =
   let free_names = free_names t ~free_names_descr in
   let has_variable_to_project =
     Variable.Set.fold

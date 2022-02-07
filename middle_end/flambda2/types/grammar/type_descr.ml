@@ -221,7 +221,8 @@ end = struct
     | Unknown | Bottom -> Name_occurrences.empty
     | Ok descr ->
       Descr.free_names
-        ~free_names_head:(WCFN.free_names_no_cache ~free_names_descr:free_names_head)
+        ~free_names_head:
+          (WCFN.free_names_no_cache ~free_names_descr:free_names_head)
         descr
 
   let remove_unused_closure_vars_and_shortcut_aliases
@@ -240,14 +241,13 @@ end = struct
       in
       if descr == descr' then t else Ok descr'
 
-  let project_variables_out ~free_names_head ~to_project
-      ~expand ~project_head (t : _ t) : _ t =
+  let project_variables_out ~free_names_head ~to_project ~expand ~project_head
+      (t : _ t) : _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok descr -> (
       let project_head wdr =
-        WCFN.project_variables_out
-          ~free_names_descr:free_names_head ~to_project
+        WCFN.project_variables_out ~free_names_descr:free_names_head ~to_project
           ~project_descr:project_head wdr
       in
       match

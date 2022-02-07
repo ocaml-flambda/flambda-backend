@@ -174,23 +174,21 @@ let rec free_names0 ~follow_closure_vars t =
         (free_names_head_of_kind_naked_immediate0 ~follow_closure_vars)
       ty
   | Naked_float ty ->
-    type_descr_free_names
-      ~free_names_head:free_names_head_of_kind_naked_float ty
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_float
+      ty
   | Naked_int32 ty ->
-    type_descr_free_names
-      ~free_names_head:free_names_head_of_kind_naked_int32 ty
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_int32
+      ty
   | Naked_int64 ty ->
-    type_descr_free_names
-      ~free_names_head:free_names_head_of_kind_naked_int64 ty
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_int64
+      ty
   | Naked_nativeint ty ->
     type_descr_free_names
       ~free_names_head:free_names_head_of_kind_naked_nativeint ty
   | Rec_info ty ->
-    type_descr_free_names
-      ~free_names_head:free_names_head_of_kind_rec_info ty
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_rec_info ty
   | Region ty ->
-    type_descr_free_names
-      ~free_names_head:free_names_head_of_kind_region ty
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_region ty
 
 and free_names_head_of_kind_value0 ~follow_closure_vars head =
   match head with
@@ -1640,9 +1638,8 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
-        ~free_names_head:free_names_head_of_kind_value ~to_project
-        ~expand:expand_with_coercion
+      TD.project_variables_out ~free_names_head:free_names_head_of_kind_value
+        ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_value ~to_project ~expand)
         ty
     in
@@ -1671,7 +1668,7 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_float ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_int32 _ | Naked_int64 _
-        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_float], got type %a"
           Variable.print var print ty
@@ -1689,7 +1686,7 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_int32 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int64 _
-        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_int32], got type %a"
           Variable.print var print ty
@@ -1707,7 +1704,7 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_int64 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-        | Naked_nativeint _ | Rec_info _ | Region _) as ty ->
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_int64], got type %a"
           Variable.print var print ty
@@ -1725,7 +1722,7 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_nativeint ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-        | Naked_int64 _ | Rec_info _ | Region _) as ty ->
+        | Naked_int64 _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_nativeint], got \
            type %a"
@@ -1744,15 +1741,14 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Rec_info ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Region _) as ty ->
+        | Naked_int64 _ | Naked_nativeint _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Rec_info], got type %a"
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
-        ~free_names_head:free_names_head_of_kind_rec_info ~to_project
-        ~expand:expand_with_coercion
+      TD.project_variables_out ~free_names_head:free_names_head_of_kind_rec_info
+        ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_rec_info ~to_project ~expand)
         ty
     in
@@ -1762,15 +1758,14 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Region ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Rec_info _) as ty ->
+        | Naked_int64 _ | Naked_nativeint _ | Rec_info _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Region], got type %a"
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
-        ~free_names_head:free_names_head_of_kind_region ~to_project
-        ~expand:expand_with_coercion
+      TD.project_variables_out ~free_names_head:free_names_head_of_kind_region
+        ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_region ~to_project ~expand)
         ty
     in
@@ -1789,7 +1784,9 @@ and project_head_of_kind_value ~to_project ~expand head =
     in
     if immediates == immediates' && blocks == blocks'
     then head
-    else Variant { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
+    else
+      Variant
+        { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
   | Mutable_block _ -> head
   | Boxed_float (ty, alloc_mode) ->
     let ty' = project_variables_out ~to_project ~expand ty in
@@ -1809,7 +1806,7 @@ and project_head_of_kind_value ~to_project ~expand head =
     in
     if by_closure_id == by_closure_id'
     then head
-    else Closures { by_closure_id = by_closure_id' ; alloc_mode }
+    else Closures { by_closure_id = by_closure_id'; alloc_mode }
   | String _ -> head
   | Array { element_kind; length } ->
     let length' = project_variables_out ~to_project ~expand length in
