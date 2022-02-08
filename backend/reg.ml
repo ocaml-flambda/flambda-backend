@@ -56,6 +56,7 @@ and stack_location =
     Local of int
   | Incoming of int
   | Outgoing of int
+  | Domainstate of int
 
 type reg = t
 
@@ -250,9 +251,11 @@ let equal_stack_location left right =
   | Local left, Local right -> Int.equal left right
   | Incoming left, Incoming right -> Int.equal left right
   | Outgoing left, Outgoing right -> Int.equal left right
-  | Local _, (Incoming _ | Outgoing _)
-  | Incoming _, (Local _ | Outgoing _)
-  | Outgoing _, (Local _ | Incoming _) ->
+  | Domainstate left, Domainstate right -> Int.equal left right
+  | Local _, (Incoming _ | Outgoing _ | Domainstate _)
+  | Incoming _, (Local _ | Outgoing _ | Domainstate _)
+  | Outgoing _, (Local _ | Incoming _ | Domainstate _)
+  | Domainstate _, (Local _ | Incoming _ | Outgoing _)->
     false
 
 let equal_location left right =

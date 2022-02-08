@@ -103,6 +103,7 @@ let slot_offset loc cl =
       then !stack_offset + n * 8
       else !stack_offset + (num_stack_slots.(0) + n) * 8
   | Outgoing n -> n
+  | Domainstate _ -> assert false (* not a stack slot *)
 
 let emit_stack_offset n =
   if n < 0
@@ -206,14 +207,18 @@ let emit_Llabel fallthrough lbl =
 
 (* Output a pseudo-register *)
 
+let x86_data_type_for_stack_slot = function
+  | Float -> REAL8
+  | _ -> QWORD
+
 let reg = function
   | { loc = Reg.Reg r } -> register_name r
-  | { loc = Stack s; typ = Float } as r ->
+  | { loc = Stack (Domainstate n); typ = ty } ->
+      let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
+      mem64 (x86_data_type_for_stack_slot ty) ofs R14
+  | { loc = Stack s; typ = ty } as r ->
       let ofs = slot_offset s (register_class r) in
-      mem64 REAL8 ofs RSP
-  | { loc = Stack s } as r ->
-      let ofs = slot_offset s (register_class r) in
-      mem64 QWORD ofs RSP
+      mem64 (x86_data_type_for_stack_slot ty) ofs RSP
   | { loc = Unknown } ->
       assert false
 
