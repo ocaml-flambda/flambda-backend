@@ -1391,7 +1391,7 @@ and close_functions { backend; fenv; cenv; mutable_vars } fun_defs =
           (id, Lfunction({kind; params; return; body; loc; mode; region}
                          as funct)) ->
             Lambda.check_lfunction funct;
-            let label = Compilenv.make_symbol (Some (V.unique_name id)) in
+            let label = Compilenv.make_fun_symbol loc (V.unique_name id) in
             let arity = List.length params in
             let fundesc =
               {fun_label = label;

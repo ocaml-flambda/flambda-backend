@@ -86,6 +86,7 @@
   clambda_primitives
   compilation_unit
   compilenv
+  mangling
   convert_primitives
   internal_variable_names
   linkage_name
@@ -445,6 +446,7 @@
   (clambda_primitives.mli as compiler-libs/clambda_primitives.mli)
   (compilation_unit.mli as compiler-libs/compilation_unit.mli)
   (compilenv.mli as compiler-libs/compilenv.mli)
+  (mangling.mli as compiler-libs/mangling.mli)
   (convert_primitives.mli as compiler-libs/convert_primitives.mli)
   (internal_variable_names.mli as compiler-libs/internal_variable_names.mli)
   (linkage_name.mli as compiler-libs/linkage_name.mli)
@@ -1539,6 +1541,10 @@
   (.ocamloptcomp.objs/byte/compilenv.cmo as compiler-libs/compilenv.cmo)
   (.ocamloptcomp.objs/byte/compilenv.cmt as compiler-libs/compilenv.cmt)
   (.ocamloptcomp.objs/byte/compilenv.cmti as compiler-libs/compilenv.cmti)
+  (.ocamloptcomp.objs/byte/mangling.cmi as compiler-libs/mangling.cmi)
+  (.ocamloptcomp.objs/byte/mangling.cmo as compiler-libs/mangling.cmo)
+  (.ocamloptcomp.objs/byte/mangling.cmt as compiler-libs/mangling.cmt)
+  (.ocamloptcomp.objs/byte/mangling.cmti as compiler-libs/mangling.cmti)
   (.ocamloptcomp.objs/byte/convert_primitives.cmi
    as
    compiler-libs/convert_primitives.cmi)
@@ -2244,6 +2250,7 @@
    as
    compiler-libs/compilation_unit.cmx)
   (.ocamloptcomp.objs/native/compilenv.cmx as compiler-libs/compilenv.cmx)
+  (.ocamloptcomp.objs/native/mangling.cmx as compiler-libs/mangling.cmx)
   (.ocamloptcomp.objs/native/convert_primitives.cmx
    as
    compiler-libs/convert_primitives.cmx)

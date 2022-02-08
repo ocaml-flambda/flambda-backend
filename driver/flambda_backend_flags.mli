@@ -19,6 +19,7 @@ val dump_cfg : bool ref
 
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
+val use_cpp_mangling : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
 

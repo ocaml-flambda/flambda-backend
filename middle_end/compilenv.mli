@@ -61,6 +61,8 @@ val make_symbol: ?unitname:string -> string option -> string
            [make_symbol ~unitname:u (Some id)] returns the asm symbol that
            corresponds to symbol [id] in the compilation unit [u]
            (or the current unit). *)
+val make_fun_symbol: ?unitname:string -> Debuginfo.Scoped_location.t
+  -> string -> string
 
 val symbol_in_current_unit: string -> bool
         (* Return true if the given asm symbol belongs to the
