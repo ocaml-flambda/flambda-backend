@@ -173,6 +173,15 @@ module Stdlib : sig
     val print : Format.formatter -> t -> unit
 
     val for_all : (char -> bool) -> t -> bool
+
+    val begins_with : ?from:int -> string -> prefix:string -> bool
+
+    val split_on_string : string -> split_on:string -> string list
+
+    val split_on_chars : string -> split_on:char list -> string list
+
+    (** Splits on the last occurrence of the given character. *)
+    val split_last_exn : string -> split_on:char -> string * string
   end
 
   external compare : 'a -> 'a -> int = "%compare"

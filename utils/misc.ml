@@ -97,6 +97,8 @@ let rec split_last = function
 
 module Stdlib = struct
   module List = struct
+    include List
+
     type 'a t = 'a list
 
     let rec compare cmp l1 l2 =
@@ -227,6 +229,45 @@ module Stdlib = struct
 
     let print ppf t =
       Format.pp_print_string ppf t
+
+    let begins_with ?(from = 0) str ~prefix =
+      let rec helper idx =
+        if idx < 0 then true
+        else
+          String.get str (from + idx) = String.get prefix idx && helper (idx-1)
+      in
+      let n = String.length str in
+      let m = String.length prefix in
+      if n >= from + m then helper (m-1) else false
+
+    let split_on_string str ~split_on =
+      let n = String.length str in
+      let m = String.length split_on in
+      let rec helper acc last_idx idx =
+        if idx = n then
+          let cur = String.sub str last_idx (idx - last_idx) in
+          List.rev (cur :: acc)
+        else if begins_with ~from:idx str ~prefix:split_on then
+          let cur = String.sub str last_idx (idx - last_idx) in
+          helper (cur :: acc) (idx + m) (idx + m)
+        else
+          helper acc last_idx (idx + 1)
+      in
+      helper [] 0 0
+
+    let split_on_chars str ~split_on:chars =
+      let rec helper chars_left s acc =
+        match chars_left with
+        | [] -> s :: acc
+        | c :: cs ->
+          List.fold_right (helper cs) (String.split_on_char c s) acc
+      in
+      helper chars str []
+
+    let split_last_exn str ~split_on =
+      let n = String.length str in
+      let ridx = String.rindex str split_on in
+      String.sub str 0 ridx, String.sub str (ridx + 1) (n - ridx - 1)
   end
 
   external compare : 'a -> 'a -> int = "%compare"
