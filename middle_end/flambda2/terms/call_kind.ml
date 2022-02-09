@@ -158,10 +158,13 @@ let return_arity t =
 let free_names t =
   match t with
   | Function
-      { function_call = Direct { code_id; closure_id = _; return_arity = _ };
+      { function_call = Direct { code_id; closure_id; return_arity = _ };
         alloc_mode = _
       } ->
-    Name_occurrences.add_code_id Name_occurrences.empty code_id Name_mode.normal
+    Name_occurrences.add_closure_id
+      (Name_occurrences.add_code_id Name_occurrences.empty code_id
+         Name_mode.normal)
+      closure_id Name_mode.normal
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function
       { function_call =
