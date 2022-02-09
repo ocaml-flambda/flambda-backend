@@ -19,6 +19,20 @@
 (** The type of state used to accumulate constraints on offsets. *)
 type t
 
+(** The type of names that are used (and pertinent for offset computing) *)
+type used_names =
+  { closure_ids_normal : Closure_id.Set.t;
+        (** Closure ids that appear in projections with normal name mode *)
+    closure_ids_in_types : Closure_id.Set.t;
+        (** Closure ids that appear in types (and thus can be eventually used in
+            normal name mode later) *)
+    closure_vars_normal : Var_within_closure.Set.t;
+        (** Closure vars that appear in projections with normal name mode *)
+    closure_vars_in_types : Var_within_closure.Set.t
+        (** Closure vars that appear in types (and thus can be eventually used
+            in normal name mode later) *)
+  }
+
 (** Printing function. *)
 val print : Format.formatter -> t -> unit
 
@@ -37,10 +51,9 @@ val add_set_of_closures :
     compilation unit, taking into account the constraints introduced by the
     sharing of closure_id/env_var across multiple sets of closures. *)
 val finalize_offsets :
-  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
-  used_closure_ids:Closure_id.Set.t Or_unknown.t ->
+  used_names:used_names Or_unknown.t ->
   t ->
-  Exported_offsets.t
+  Var_within_closure.Set.t Or_unknown.t * Exported_offsets.t
 
 (** {2 Helper functions} *)
 
@@ -50,15 +63,15 @@ val closure_name : Closure_id.t -> string
 (** Returns the address for a function code from the global name of a closure. *)
 val closure_code : string -> string
 
-(** Returns the assignments of closure variables to [Simple]s from the given set
-    of closures, but ignoring any closure variable that does not occur in
-    [used_closure_vars], so long as [used_closure_vars] is [Known]. If
-    [used_closure_vars] is [Unknown] then assignments for all closure variables
-    are returned. *)
-val filter_closure_vars :
-  Flambda.Set_of_closures.t ->
-  used_closure_vars:Var_within_closure.Set.t Or_unknown.t ->
-  Simple.t Var_within_closure.Map.t
+(** Ensure the offsets for the given closure ids are in the given exported
+    offsets. *)
+val reexport_closure_ids :
+  Closure_id.Set.t -> Exported_offsets.t -> Exported_offsets.t
+
+(** Ensure the offsets for the given closure ids are in the given exported
+    offsets. *)
+val reexport_closure_vars :
+  Var_within_closure.Set.t -> Exported_offsets.t -> Exported_offsets.t
 
 (** {2 Offsets & Layouts} *)
 
@@ -75,6 +88,7 @@ type layout_slot =
     increasing order). *)
 type layout =
   { startenv : int;
+    empty_env : bool;
     slots : (int * layout_slot) list
   }
 

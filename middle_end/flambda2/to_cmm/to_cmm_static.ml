@@ -143,19 +143,12 @@ let get_whole_closure_symbol =
       r := Some s;
       s
 
-let rec static_set_of_closures env symbs set prev_update =
+let rec static_set_of_closures env symbs set (layout : Closure_offsets.layout)
+    prev_update =
   let clos_symb = ref None in
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
-  let elts =
-    Closure_offsets.filter_closure_vars set
-      ~used_closure_vars:(Env.used_closure_vars env)
-  in
-  let layout =
-    Env.layout env
-      (List.map fst (Closure_id.Map.bindings decls))
-      (List.map fst (Var_within_closure.Map.bindings elts))
-  in
+  let elts = Set_of_closures.closure_elements set in
   let env, l, updates, length =
     fill_static_layout clos_symb symbs decls layout.startenv elts env []
       prev_update 0 layout.slots
@@ -258,7 +251,8 @@ let preallocate_set_of_closures (r, updates, env) ~closure_symbols
     let closure_symbols =
       closure_symbols |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
     in
-    static_set_of_closures env closure_symbols set_of_closures updates
+    let layout = Env.layout env set_of_closures in
+    static_set_of_closures env closure_symbols set_of_closures layout updates
   in
   let r = R.set_data r data in
   r, updates, env

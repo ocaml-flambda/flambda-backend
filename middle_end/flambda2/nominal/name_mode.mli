@@ -36,6 +36,8 @@ val is_normal : t -> bool
 
 val is_phantom : t -> bool
 
+val is_in_types : t -> bool
+
 val min_in_types : t
 
 val min_in_terms : t

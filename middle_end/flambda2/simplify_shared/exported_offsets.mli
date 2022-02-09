@@ -16,16 +16,20 @@
 type t
 
 type closure_info =
-  { offset : int;
-    size : int
-        (* Number of fields taken for the function:
+  | Dead_id
+  | Id_slot of
+      { offset : int;
+        size : int
+            (* Number of fields taken for the function:
 
-           2 fields (code pointer + arity) for function of arity one
+               2 fields (code pointer + arity) for function of arity one
 
-           3 fields (caml_curry + arity + code pointer) otherwise *)
-  }
+               3 fields (caml_curry + arity + code pointer) otherwise *)
+      }
 
-type env_var_info = { offset : int }
+type env_var_info =
+  | Dead_var
+  | Var_slot of { offset : int }
 
 (** The empty environment *)
 val empty : t

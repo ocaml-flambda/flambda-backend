@@ -446,20 +446,24 @@ let unary_primitive env dbg f arg =
   | Box_number (kind, alloc_mode) -> None, C.box_number ~dbg kind alloc_mode arg
   | Select_closure { move_from = c1; move_to = c2 } -> begin
     match Env.closure_offset env c1, Env.closure_offset env c2 with
-    | Some { offset = c1_offset; _ }, Some { offset = c2_offset; _ } ->
+    | Id_slot { offset = c1_offset; _ }, Id_slot { offset = c2_offset; _ } ->
       let diff = c2_offset - c1_offset in
       None, C.infix_field_address ~dbg arg diff
-    | Some _, None | None, Some _ | None, None -> None, C.unreachable
+    (* one of the ids has been marked as dead, the code should be
+       unreachable. *)
+    | Dead_id, Id_slot _ | Id_slot _, Dead_id | Dead_id, Dead_id ->
+      None, C.unreachable
   end
-  | Project_var { project_from; var } -> (
+  | Project_var { project_from; var } -> begin
     match Env.env_var_offset env var, Env.closure_offset env project_from with
-    | Some { offset }, Some { offset = base; _ } ->
+    (* Normal case: we have offsets for everything *)
+    | Var_slot { offset }, Id_slot { offset = base; _ } ->
       None, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
-    | Some _, None | None, Some _ | None, None ->
-      (* Note that if a closure var is missing from a set of closures
-         environment, then [Env.closure_offset] might return [None], even though
-         the set of closures has been seen by [Closure_offsets]. *)
-      None, C.unreachable)
+    (* the closure var and/or id has been explicitly removed, the code is
+       unreachable *)
+    | Dead_var, Id_slot _ | Var_slot _, Dead_id | Dead_var, Dead_id ->
+      None, C.unreachable
+  end
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
        [caml_make_array], which is used by non-Flambda 2 compilers. This seems
@@ -774,17 +778,12 @@ and let_symbol env res bound_symbols consts body =
 
 and let_set_of_closures env res body closure_vars
     ~num_normal_occurrences_of_bound_vars s =
-  let fun_decls = Set_of_closures.function_decls s in
-  let decls = Function_declarations.funs_in_order fun_decls in
-  let elts =
-    Closure_offsets.filter_closure_vars s
-      ~used_closure_vars:(Env.used_closure_vars env)
-  in
-  if Var_within_closure.Map.is_empty elts
-  then let_static_set_of_closures env res body closure_vars s
+  let layout = Env.layout env s in
+  if layout.empty_env
+  then let_static_set_of_closures env res body closure_vars s layout
   else
     let_dynamic_set_of_closures env res body closure_vars
-      ~num_normal_occurrences_of_bound_vars decls elts
+      ~num_normal_occurrences_of_bound_vars s layout
       ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
 
 and let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
@@ -1359,7 +1358,7 @@ and invalid _env res _e = C.unreachable, res
 
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)
-and let_static_set_of_closures env res body closure_vars s =
+and let_static_set_of_closures env res body closure_vars s layout =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let cids =
@@ -1379,7 +1378,7 @@ and let_static_set_of_closures env res body closure_vars s =
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
-    To_cmm_static.static_set_of_closures env closure_symbols s None
+    To_cmm_static.static_set_of_closures env closure_symbols s layout None
   in
   (* As there is no env vars for the set of closures, there must be no
      updates *)
@@ -1407,15 +1406,13 @@ and let_static_set_of_closures env res body closure_vars s =
   expr env res body
 
 (* Sets of closures with a non-empty environment are allocated *)
-and let_dynamic_set_of_closures env res body closure_vars
-    ~num_normal_occurrences_of_bound_vars decls elts
+and let_dynamic_set_of_closures env res body closure_vars s
+    (layout : Closure_offsets.layout) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) =
-  (* Create the allocation block for the set of closures *)
-  let layout =
-    Env.layout env
-      (List.map fst (Closure_id.Lmap.bindings decls))
-      (List.map fst (Var_within_closure.Map.bindings elts))
-  in
+  (* unwrap the set of closures a bit *)
+  let fun_decls = Set_of_closures.function_decls s in
+  let decls = Function_declarations.funs_in_order fun_decls in
+  let elts = Set_of_closures.closure_elements s in
   (* Allocating the closure has at least generative effects. It is also deemed
      to have coeffects if it is a local closure allocation. *)
   let effs =
@@ -1440,9 +1437,11 @@ and let_dynamic_set_of_closures env res body closure_vars
   let env =
     List.fold_left2
       (fun acc cid v ->
-        let v = Bound_var.var v in
-        let e, effs = get_closure_by_offset env soc_cmm_var cid in
-        let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
+        match get_closure_by_offset env soc_cmm_var cid with
+        | None -> acc
+        | Some (e, effs) ->
+          let v = Bound_var.var v in
+          let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
       env
       (Closure_id.Lmap.keys decls)
       closure_vars
@@ -1453,9 +1452,9 @@ and let_dynamic_set_of_closures env res body closure_vars
 
 and get_closure_by_offset env set_cmm cid =
   match Env.closure_offset env cid with
-  | Some { offset; _ } ->
-    C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure
-  | None -> Misc.fatal_errorf "No closure offset for %a" Closure_id.print cid
+  | Id_slot { offset; _ } ->
+    Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
+  | Dead_id -> None
 
 and fill_layout decls startenv elts env effs acc i = function
   | [] -> List.rev acc, env, effs
@@ -1553,7 +1552,6 @@ and params_and_body env res fun_name p ~fun_dbg =
 
 let unit ~offsets ~make_symbol unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      let used_closure_vars = Flambda_unit.used_closure_vars unit in
       let dummy_k = Continuation.create () in
       (* The dummy continuation is passed here since we're going to manually
          arrange that the return continuation turns into "return unit". (Module
@@ -1561,7 +1559,6 @@ let unit ~offsets ~make_symbol unit ~all_code =
       let env =
         Env.mk offsets all_code dummy_k
           ~exn_continuation:(Flambda_unit.exn_continuation unit)
-          ~used_closure_vars
       in
       let _env, return_cont_params =
         (* Note: the environment would be used if we needed to compile the
