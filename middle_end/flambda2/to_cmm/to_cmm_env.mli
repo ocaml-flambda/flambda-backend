@@ -194,11 +194,10 @@ val get_jump_id : t -> Continuation.t -> int
 (** {2 Sets of closures and offsets} *)
 
 (** Wrapper around {!Closure_offsets.closure_offset}. *)
-val closure_offset : t -> Closure_id.t -> Exported_offsets.closure_info option
+val closure_offset : t -> Closure_id.t -> Exported_offsets.closure_info
 
 (** Wrapper around {!Closure_offsets.env_var_offset}. *)
-val env_var_offset :
-  t -> Var_within_closure.t -> Exported_offsets.env_var_info option
+val env_var_offset : t -> Var_within_closure.t -> Exported_offsets.env_var_info
 
 (** Wrapper around {!Closure_offsets.layout}. *)
 val layout : t -> Set_of_closures.t -> Closure_offsets.layout

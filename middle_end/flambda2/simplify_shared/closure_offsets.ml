@@ -38,7 +38,7 @@ let keep_closure_var ~used_closure_vars v =
    smaller than the `imported_offsets`, it might be better for performance to
    check whether the closure_id/var is already in the offsets before looking it
    up in the imported offsets ? *)
-let collect_used_closure_ids closure_id_set offsets =
+let reexport_closure_ids closure_id_set offsets =
   let imported_offsets = EO.imported_offsets () in
   Closure_id.Set.fold
     (fun closure_id offsets ->
@@ -55,7 +55,7 @@ let collect_used_closure_ids closure_id_set offsets =
         | Some info -> EO.add_closure_offset offsets closure_id info)
     closure_id_set offsets
 
-let collect_used_closure_vars closure_var_set offsets =
+let reexport_closure_vars closure_var_set offsets =
   let imported_offsets = EO.imported_offsets () in
   Var_within_closure.Set.fold
     (fun env_var offsets ->
@@ -760,10 +760,10 @@ module Greedy = struct
           closure_vars_in_types
         } ->
       state.used_offsets
-      |> collect_used_closure_ids closure_ids_normal
-      |> collect_used_closure_ids closure_ids_in_types
-      |> collect_used_closure_vars closure_vars_normal
-      |> collect_used_closure_vars closure_vars_in_types
+      |> reexport_closure_ids closure_ids_normal
+      |> reexport_closure_ids closure_ids_in_types
+      |> reexport_closure_vars closure_vars_normal
+      |> reexport_closure_vars closure_vars_in_types
     | Unknown -> EO.imported_offsets ()
 
   (* We only want to keep closure vars that appear in the creation of a set of
@@ -775,19 +775,19 @@ module Greedy = struct
     match (used_names : used_names Or_unknown.t) with
     | Unknown -> Or_unknown.Unknown, offsets
     | Known { closure_vars_normal; closure_ids_normal; _ } ->
-      let offsets = ref offsets in
-      let () =
-        Closure_id.Set.iter
-          (fun closure_id ->
+      let offsets =
+        Closure_id.Set.fold
+          (fun closure_id acc ->
             if Compilation_unit.is_current
                  (Closure_id.get_compilation_unit closure_id)
             then
               match find_closure_slot state closure_id with
-              | Some _ -> ()
-              | None ->
-                offsets := EO.add_closure_offset !offsets closure_id Dead_id)
-          closure_ids_normal
+              | Some _ -> acc
+              | None -> EO.add_closure_offset acc closure_id Dead_id
+            else acc)
+          closure_ids_normal offsets
       in
+      let offsets = ref offsets in
       let used_closure_vars =
         Var_within_closure.Set.filter
           (fun closure_var ->

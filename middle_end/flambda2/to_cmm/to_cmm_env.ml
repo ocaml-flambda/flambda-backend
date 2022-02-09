@@ -305,10 +305,18 @@ let get_exn_extra_args env k =
 (* Offsets *)
 
 let closure_offset env closure =
-  Exported_offsets.closure_offset env.offsets closure
+  match Exported_offsets.closure_offset env.offsets closure with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for closure id %a" Closure_id.print
+      closure
 
 let env_var_offset env env_var =
-  Exported_offsets.env_var_offset env.offsets env_var
+  match Exported_offsets.env_var_offset env.offsets env_var with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for closure var %a"
+      Var_within_closure.print env_var
 
 let layout env set_of_closures =
   let fun_decls = Set_of_closures.function_decls set_of_closures in

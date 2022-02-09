@@ -18,8 +18,8 @@
     They're computed for elements defined in the current compilation unit by
     [Closure_offsets], and read from cmx files for external symbols. Because an
     external cmx can reference elements from another cmx that the current
-    compilation cannot see, all offsets read from external cmx files must be
-    re-exported. *)
+    compilation cannot see, all offsets that occurs in the current compilation
+    unit should be re-exported. *)
 
 type closure_info =
   | Dead_id
@@ -62,10 +62,23 @@ let empty =
     env_var_offsets = Var_within_closure.Map.empty
   }
 
+let equal_closure_info (info1 : closure_info) (info2 : closure_info) =
+  match info1, info2 with
+  | Dead_id, Dead_id -> true
+  | Id_slot { offset = o1; size = s1 }, Id_slot { offset = o2; size = s2 } ->
+    o1 = o2 && s1 = s2
+  | Dead_id, Id_slot _ | Id_slot _, Dead_id -> false
+
+let equal_env_var_info (info1 : env_var_info) (info2 : env_var_info) =
+  match info1, info2 with
+  | Dead_var, Dead_var -> true
+  | Var_slot { offset = o1 }, Var_slot { offset = o2 } -> o1 = o2
+  | Dead_var, Var_slot _ | Var_slot _, Dead_var -> false
+
 let add_closure_offset env closure offset =
   match Closure_id.Map.find closure env.closure_offsets with
   | o ->
-    assert (o = offset);
+    assert (equal_closure_info o offset);
     env
   | exception Not_found ->
     let closure_offsets =
@@ -76,7 +89,7 @@ let add_closure_offset env closure offset =
 let add_env_var_offset env env_var offset =
   match Var_within_closure.Map.find env_var env.env_var_offsets with
   | o ->
-    assert (o = offset);
+    assert (equal_env_var_info o offset);
     env
   | exception Not_found ->
     let env_var_offsets =
@@ -104,19 +117,6 @@ let map_env_var_offsets env f =
   Var_within_closure.Map.mapi f env.env_var_offsets
 
 let current_offsets = ref empty
-
-let equal_closure_info (info1 : closure_info) (info2 : closure_info) =
-  match info1, info2 with
-  | Dead_id, Dead_id -> true
-  | Id_slot { offset = o1; size = s1 }, Id_slot { offset = o2; size = s2 } ->
-    o1 = o2 && s1 = s2
-  | Dead_id, Id_slot _ | Id_slot _, Dead_id -> false
-
-let equal_env_var_info (info1 : env_var_info) (info2 : env_var_info) =
-  match info1, info2 with
-  | Dead_var, Dead_var -> true
-  | Var_slot { offset = o1 }, Var_slot { offset = o2 } -> o1 = o2
-  | Dead_var, Var_slot _ | Var_slot _, Dead_var -> false
 
 let imported_offsets () = !current_offsets
 

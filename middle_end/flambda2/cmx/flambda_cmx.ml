@@ -164,13 +164,13 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     in
     let exported_offsets =
       exported_offsets
-      |> Closure_offsets.collect_used_closure_ids
+      |> Closure_offsets.reexport_closure_ids
            (Name_occurrences.closure_ids free_names_of_all_code)
-      |> Closure_offsets.collect_used_closure_vars
+      |> Closure_offsets.reexport_closure_vars
            (Name_occurrences.closure_vars free_names_of_all_code)
-      |> Closure_offsets.collect_used_closure_ids
+      |> Closure_offsets.reexport_closure_ids
            (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
-      |> Closure_offsets.collect_used_closure_vars
+      |> Closure_offsets.reexport_closure_vars
            (Name_occurrences.closure_vars closure_elts_used_in_typing_env)
     in
     Some

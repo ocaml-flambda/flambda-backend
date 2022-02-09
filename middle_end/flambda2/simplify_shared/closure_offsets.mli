@@ -63,12 +63,14 @@ val closure_name : Closure_id.t -> string
 (** Returns the address for a function code from the global name of a closure. *)
 val closure_code : string -> string
 
-(** Add (if necessary) the offsets for the given set of closure ids. *)
-val collect_used_closure_ids :
+(** Ensure the offsets for the given closure ids are in the given exported
+    offsets. *)
+val reexport_closure_ids :
   Closure_id.Set.t -> Exported_offsets.t -> Exported_offsets.t
 
-(** Add (if necessary) the offsets for the given set of closure ids. *)
-val collect_used_closure_vars :
+(** Ensure the offsets for the given closure ids are in the given exported
+    offsets. *)
+val reexport_closure_vars :
   Var_within_closure.Set.t -> Exported_offsets.t -> Exported_offsets.t
 
 (** {2 Offsets & Layouts} *)

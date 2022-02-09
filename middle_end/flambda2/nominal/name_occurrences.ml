@@ -983,16 +983,16 @@ let closure_ids t = For_closure_ids.keys t.closure_ids
 
 let closure_ids_normal t =
   For_closure_ids.fold_with_mode t.closure_ids ~init:Closure_id.Set.empty
-    ~f:(fun acc closure_var name_mode ->
+    ~f:(fun acc closure_id name_mode ->
       if Name_mode.is_normal name_mode
-      then Closure_id.Set.add closure_var acc
+      then Closure_id.Set.add closure_id acc
       else acc)
 
 let closure_ids_in_types t =
   For_closure_ids.fold_with_mode t.closure_ids ~init:Closure_id.Set.empty
-    ~f:(fun acc closure_var name_mode ->
+    ~f:(fun acc closure_id name_mode ->
       if Name_mode.is_in_types name_mode
-      then Closure_id.Set.add closure_var acc
+      then Closure_id.Set.add closure_id acc
       else acc)
 
 let closure_vars t = For_closure_vars.keys t.closure_vars
