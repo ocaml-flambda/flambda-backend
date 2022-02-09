@@ -34,6 +34,10 @@ let keep_closure_var ~used_closure_vars v =
   | Unknown -> true
   | Known used_closure_vars -> closure_var_is_used ~used_closure_vars v
 
+(* CR gbury: considering that the goal is to have `offsets` significantly
+   smaller than the `imported_offsets`, it might be better for performance to
+   check whether the closure_id/var is already in the offsets before looking it
+   up in the imported offsets ? *)
 let collect_used_closure_ids closure_id_set offsets =
   let imported_offsets = EO.imported_offsets () in
   Closure_id.Set.fold

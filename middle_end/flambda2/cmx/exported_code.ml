@@ -23,6 +23,12 @@ let print ppf t = Code_id.Map.print Code_or_metadata.print ppf t
 
 let empty = Code_id.Map.empty
 
+let free_names t =
+  Code_id.Map.fold
+    (fun _code_id code acc ->
+      Name_occurrences.union acc (Code_or_metadata.free_names code))
+    t Name_occurrences.empty
+
 let add_code ~keep_code code_map t =
   Code_id.Map.mapi
     (fun code_id code ->

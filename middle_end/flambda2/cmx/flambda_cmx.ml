@@ -147,11 +147,27 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     let final_typing_env =
       TE.Serializable.create final_typing_env ~reachable_names
     in
+    (* We need to re-export offsets for everything reachable from the cmx file;
+       closure_vars/ids can be reachable from the typing env, and the exported
+       code.
+
+       In the case of the exported code, we already have offsets for all
+       closure_ids/vars reachable from the code of the current compilation unit,
+       but since we also re-export code from other compilation units, we need to
+       take those into account. *)
+    (* CR gbury: it might be more efficient to not compute the free names for
+       all exported code, but fold over the exported code to avoid allocating
+       some free_names *)
+    let free_names_of_all_code = EC.free_names all_code in
     let closure_elts_used_in_typing_env =
       TE.Serializable.free_closure_ids_and_closure_vars final_typing_env
     in
     let exported_offsets =
       exported_offsets
+      |> Closure_offsets.collect_used_closure_ids
+           (Name_occurrences.closure_ids free_names_of_all_code)
+      |> Closure_offsets.collect_used_closure_vars
+           (Name_occurrences.closure_vars free_names_of_all_code)
       |> Closure_offsets.collect_used_closure_ids
            (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
       |> Closure_offsets.collect_used_closure_vars
