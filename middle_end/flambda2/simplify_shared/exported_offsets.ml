@@ -18,7 +18,7 @@
     They're computed for elements defined in the current compilation unit by
     [Closure_offsets], and read from cmx files for external symbols. Because an
     external cmx can reference elements from another cmx that the current
-    compilation cannot see, all offsets that occurs in the current compilation
+    compilation cannot see, all offsets that occur in the current compilation
     unit should be re-exported. *)
 
 type closure_info =
