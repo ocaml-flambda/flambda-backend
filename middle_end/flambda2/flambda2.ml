@@ -180,15 +180,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         then
           let output_prefix = prefixname ^ ".cps_conv" in
           Inlining_report.output_then_forget_decisions ~output_prefix);
-        let exported_offsets =
-          match (offsets : _ Or_unknown.t) with
-          | Unknown ->
-            Misc.fatal_errorf
-              "Classic mode requires lambda_to_flambda to compute\n\
-              \               the offsets for closure elements"
-          | Known closure_offsets -> closure_offsets
-        in
-        raw_flambda, exported_offsets, cmx, code
+        raw_flambda, offsets, cmx, code
       end
       else
         let raw_flambda =

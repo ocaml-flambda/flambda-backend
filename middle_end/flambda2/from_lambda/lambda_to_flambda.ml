@@ -1770,7 +1770,7 @@ let lambda_to_flambda ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     Flambda_unit.t
     * Exported_code.t
     * Flambda_cmx_format.t option
-    * Exported_offsets.t Or_unknown.t =
+    * Exported_offsets.t =
   let current_unit_id =
     Compilation_unit.get_persistent_ident (Compilation_unit.get_current_exn ())
   in

@@ -363,7 +363,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
-      closure_offsets : Closure_offsets.t Or_unknown.t;
+      closure_offsets : Closure_offsets.t;
       regions_closed_early : Ident.Set.t
     }
 
@@ -491,14 +491,11 @@ module Acc = struct
   let symbol_for_global t = t.symbol_for_global
 
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
-    match t.closure_offsets with
-    | Unknown -> t
-    | Known closure_offsets ->
-      let closure_offsets =
-        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
-          set_of_closures
-      in
-      { t with closure_offsets = Known closure_offsets }
+    let closure_offsets =
+      Closure_offsets.add_set_of_closures t.closure_offsets ~is_phantom
+        set_of_closures
+    in
+    { t with closure_offsets }
 
   let add_region_closed_early t region =
     { t with

@@ -1563,11 +1563,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let closure_offsets : _ Or_unknown.t =
-    if Flambda_features.classic_mode ()
-    then Known (Closure_offsets.create ())
-    else Unknown
-  in
+  let closure_offsets = Closure_offsets.create () in
   let acc = Acc.create ~symbol_for_global ~closure_offsets in
   let load_fields_body acc =
     let field_vars =
@@ -1693,34 +1689,39 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
-  let used_closure_vars = Name_occurrences.closure_vars (Acc.free_names acc) in
   let all_code =
     Exported_code.add_code (Acc.code acc)
       ~keep_code:(fun _ -> true)
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
+  let used_closure_vars, exported_offsets =
+    let used_names =
+      let free_names = Acc.free_names acc in
+      Or_unknown.Known
+        Closure_offsets.
+          { closure_ids_normal = Name_occurrences.closure_ids free_names;
+            closure_ids_in_types = Closure_id.Set.empty;
+            closure_vars_normal = Name_occurrences.closure_vars free_names;
+            closure_vars_in_types = Var_within_closure.Set.empty
+          }
+    in
+    Closure_offsets.finalize_offsets (Acc.closure_offsets acc)
+      ~get_code_metadata ~used_names
+  in
+  let used_closure_vars =
+    match used_closure_vars with
+    | Known used_closure_vars -> used_closure_vars
+    | Unknown ->
+      Misc.fatal_error
+        "Closure_conversion needs to know its used closure variables."
+  in
   let cmx =
     Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
-      ~used_closure_vars all_code
-  in
-  let exported_offsets =
-    Or_unknown.map (Acc.closure_offsets acc) ~f:(fun offsets ->
-        (* CR gbury: would it be possible to use the free_names from the acc to
-           compute the used closure vars ? *)
-        (* CR gbury: in classic mode, make use of the used_closure_vars returned
-           by Closure offsets (once we give it a non-unknown used_names, as per
-           the above CR). *)
-        let _used_closure_vars, offsets =
-          Closure_offsets.finalize_offsets offsets ~get_code_metadata
-            ~used_names:Unknown
-        in
-        offsets)
+      ~exported_offsets ~used_closure_vars all_code
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_closure_vars:Unknown,
-    (* CR keryan: this should use [used_closure_vars] as well but it doesn't
-       work well with cmx from simplify yet (issue #331) *)
+      ~module_symbol ~used_closure_vars:(Known used_closure_vars),
     all_code,
     cmx,
     exported_offsets )

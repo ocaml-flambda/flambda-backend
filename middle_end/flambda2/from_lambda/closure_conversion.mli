@@ -76,4 +76,4 @@ val close_program :
   Flambda_unit.t
   * Exported_code.t
   * Flambda_cmx_format.t option
-  * Exported_offsets.t Or_unknown.t
+  * Exported_offsets.t
