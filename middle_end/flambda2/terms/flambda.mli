@@ -52,7 +52,7 @@ and expr_descr = private
           frames from the stack, which thus allows for the raising of
           exceptions. *)
   | Switch of Switch.t  (** Conditional control flow. *)
-  | Invalid of Invalid_term_semantics.t
+  | Invalid of { message : string }
       (** Code proved type-incorrect and therefore unreachable. *)
 
 and let_expr
@@ -99,6 +99,20 @@ and static_const_or_code = private
 
 and static_const_group
 
+module Invalid : sig
+  type t =
+    | Body_of_unreachable_continuation of Continuation.t
+    | Apply_cont_of_unreachable_continuation of Continuation.t
+    | Defining_expr_of_let of Bound_pattern.t * named
+    | Closure_type_was_invalid of Apply.t
+    | Zero_switch_arms
+    | Code_not_rebuilt
+    | To_cmm_dummy_body
+    | Application_never_returns of Apply.t
+    | Over_application_never_returns of Apply.t
+    | Message of string
+end
+
 module Expr : sig
   (** The type of equivalence classes of expressions up to alpha-renaming of
       bound [Variable]s and [Continuation]s. *)
@@ -123,8 +137,7 @@ module Expr : sig
 
   val create_switch : Switch_expr.t -> t
 
-  (** Create an expression indicating type-incorrect or unreachable code. *)
-  val create_invalid : ?semantics:Invalid_term_semantics.t -> unit -> t
+  val create_invalid : Invalid.t -> t
 
   val bind_parameters_to_args_no_simplification :
     params:Bound_parameter.t list -> args:Simple.t list -> body:expr -> expr

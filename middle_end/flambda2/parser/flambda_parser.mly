@@ -123,7 +123,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_END   [@symbol "end"]
 %token KWD_ERROR [@symbol "error"]
 %token KWD_EXN   [@symbol "exn"]
-%token KWD_FABRICATED [@symbol "fabricated"]
+%token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
 %token KWD_FLOAT_ARRAY [@symbol "Float_array"]
 %token KWD_FLOAT_BLOCK [@symbol "Float_block"]
@@ -525,7 +525,7 @@ naked_number_kind:
 kind:
   | KWD_VAL { Value }
   | nnk = naked_number_kind { Naked_number nnk }
-  | KWD_FABRICATED { Fabricated }
+  | KWD_REGION { Region }
   | KWD_REC_INFO { Rec_info }
 ;
 kind_with_subkind:
@@ -590,8 +590,8 @@ continuation_body:
 ;
 
 atomic_expr:
-  | KWD_HCF { Invalid Halt_and_catch_fire }
-  | KWD_UNREACHABLE { Invalid Treat_as_unreachable }
+  | KWD_HCF { Invalid { message = "halt-and-catch-fire" } }
+  | KWD_UNREACHABLE { Invalid { message =  "treat-as-unreachable" } }
   | KWD_CONT; ac = apply_cont_expr { Apply_cont ac }
   | KWD_SWITCH; scrutinee = simple; cases = switch { Switch {scrutinee; cases} }
   | KWD_APPLY e = apply_expr { Apply e }

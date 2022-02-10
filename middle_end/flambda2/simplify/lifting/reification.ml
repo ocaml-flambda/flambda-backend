@@ -128,7 +128,7 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
     TE.find (DE.typing_env denv) (Name.var bound_to) (Some kind_of_bound_to)
   in
   match term with
-  | Invalid _ ->
+  | Invalid ->
     let ty = T.bottom_like ty in
     let denv = DE.add_equation_on_variable denv bound_to ty in
     Simplified_named.invalid (), DA.with_denv dacc denv

@@ -1064,8 +1064,8 @@ let rec exprs env e1 e2 : Expr.t Comparison.t =
         apply_cont_exprs env apply_cont1 apply_cont2
         |> Comparison.map ~f:Expr.create_apply_cont
       | Switch switch1, Switch switch2 -> switch_exprs env switch1 switch2
-      | Invalid invalid1, Invalid invalid2 ->
-        if Invalid_term_semantics.compare invalid1 invalid2 = 0
+      | Invalid { message = message1 }, Invalid { message = message2 } ->
+        if String.equal message1 message2
         then Equivalent
         else Different { approximant = e1 }
       | _, _ -> Different { approximant = subst_expr env e1 })

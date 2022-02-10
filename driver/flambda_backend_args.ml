@@ -339,24 +339,6 @@ let mk_no_flambda2_speculative_inlining_only_if_arguments_useful f =
       (format_not_default
         Flambda2.Inlining.Default.speculative_inlining_only_if_arguments_useful)
 
-let mk_flambda2_treat_invalid_code_as_unreachable f =
-  "-flambda2-treat-invalid-code-as-unreachable", Arg.Unit f,
-  Printf.sprintf " Treat code deemed as\n\
-      \     invalid by the Flambda 2 type system as unreachable, thus causing\n\
-      \     it (and potentially calling code) to be deleted%s\n\
-      \     (Flambda 2 only)"
-    (format_default Flambda2.Default.treat_invalid_code_as_unreachable)
-;;
-
-let mk_no_flambda2_treat_invalid_code_as_unreachable f =
-  "-no-flambda2-treat-invalid-code-as-unreachable", Arg.Unit f,
-  Printf.sprintf " Do not treat code deemed as\n\
-      \     invalid by the Flambda 2 type system as unreachable, instead\n\
-      \     replacing it by a trap (which currently causes a segfault)%s\n\
-      \     (Flambda 2 only)"
-    (format_not_default Flambda2.Default.treat_invalid_code_as_unreachable)
-;;
-
 let mk_flambda2_inlining_report_bin f =
   "-flambda2-inlining-report-bin", Arg.Unit f, " Write inlining report\n\
     \     in binary format (Flambda 2 only)"
@@ -442,9 +424,6 @@ module type Flambda_backend_options = sig
   val flambda2_inlining_report_bin : unit -> unit
 
   val flambda2_unicode : unit -> unit
-
-  val flambda2_treat_invalid_code_as_unreachable : unit -> unit
-  val no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
 
   val drawfexpr : unit -> unit
   val dfexpr : unit -> unit
@@ -533,11 +512,6 @@ struct
     mk_flambda2_inlining_report_bin F.flambda2_inlining_report_bin;
 
     mk_flambda2_unicode F.flambda2_unicode;
-
-    mk_flambda2_treat_invalid_code_as_unreachable
-      F.flambda2_treat_invalid_code_as_unreachable;
-    mk_no_flambda2_treat_invalid_code_as_unreachable
-      F.no_flambda2_treat_invalid_code_as_unreachable;
 
     mk_drawfexpr F.drawfexpr;
     mk_dfexpr F.dfexpr;
@@ -676,11 +650,6 @@ module Flambda_backend_options_impl = struct
 
   let flambda2_unicode = set Flambda2.unicode
 
-  let flambda2_treat_invalid_code_as_unreachable =
-    set Flambda2.treat_invalid_code_as_unreachable
-  let no_flambda2_treat_invalid_code_as_unreachable =
-    clear Flambda2.treat_invalid_code_as_unreachable
-
   let drawfexpr = set Flambda2.Dump.rawfexpr
   let dfexpr = set Flambda2.Dump.fexpr
   let dflexpect = set Flambda2.Dump.flexpect
@@ -791,8 +760,6 @@ module Extra_params = struct
          Flambda2.Inlining.threshold; true
     | "flambda2-speculative-inlining-only-if-arguments-useful" ->
        set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
-    | "flambda2-treat-invalid-code-as-unreachable" ->
-       set Flambda2.treat_invalid_code_as_unreachable
     | "flambda2-inlining-report-bin" ->
        set Flambda2.Inlining.report_bin
     | "flambda2-expert-code-id-and-symbol-scoping-checks" ->

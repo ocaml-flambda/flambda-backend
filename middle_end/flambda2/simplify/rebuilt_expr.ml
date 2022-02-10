@@ -17,10 +17,6 @@
 open! Flambda.Import
 module ART = Are_rebuilding_terms
 
-(* This is delayed to ensure evaluation happens after processing of command-line
-   flags, to ensure that the desired semantics for [Invalid] is respected. *)
-let invalid = lazy (Expr.create_invalid ())
-
 type t = Expr.t
 
 type rebuilt_expr = t
@@ -43,10 +39,10 @@ let is_unreachable t are_rebuilding =
   then false
   else
     match Expr.descr t with
-    | Invalid Treat_as_unreachable -> true
-    | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _
-    | Invalid Halt_and_catch_fire ->
+    | Invalid _ ->
+      (* CR mshinwell: Change this to [true]. *)
       false
+    | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ -> false
 
 let [@ocamlformat "disable"] print are_rebuilding ppf t =
   if ART.do_not_rebuild_terms are_rebuilding then
@@ -54,12 +50,12 @@ let [@ocamlformat "disable"] print are_rebuilding ppf t =
   else
     Expr.print ppf t
 
-let term_not_rebuilt () = Lazy.force invalid
+let term_not_rebuilt = Expr.create_invalid Code_not_rebuilt
 
 let create_let are_rebuilding bound_vars defining_expr ~body ~free_names_of_body
     =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else
     Let.create bound_vars defining_expr ~body
       ~free_names_of_body:(Known free_names_of_body)
@@ -67,7 +63,7 @@ let create_let are_rebuilding bound_vars defining_expr ~body ~free_names_of_body
 
 let create_apply are_rebuilding apply =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else Expr.create_apply apply
 
 let create_apply_cont apply_cont = Expr.create_apply_cont apply_cont
@@ -95,7 +91,7 @@ module Continuation_handler = struct
   type t = Continuation_handler.t
 
   let dummy =
-    Continuation_handler.create [] ~handler:(Lazy.force invalid)
+    Continuation_handler.create [] ~handler:term_not_rebuilt
       ~free_names_of_handler:Unknown ~is_exn_handler:false
 
   let create are_rebuilding params ~handler ~free_names_of_handler
@@ -110,7 +106,7 @@ end
 let create_non_recursive_let_cont are_rebuilding cont handler ~body
     ~free_names_of_body =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else
     Let_cont.create_non_recursive cont handler ~body
       ~free_names_of_body:(Known free_names_of_body)
@@ -118,7 +114,7 @@ let create_non_recursive_let_cont are_rebuilding cont handler ~body
 let create_non_recursive_let_cont' are_rebuilding cont handler ~body
     ~num_free_occurrences_of_cont_in_body ~is_applied_with_traps =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else
     Let_cont.create_non_recursive' ~cont handler ~body
       ~num_free_occurrences_of_cont_in_body:
@@ -126,15 +122,15 @@ let create_non_recursive_let_cont' are_rebuilding cont handler ~body
 
 let create_recursive_let_cont are_rebuilding handlers ~body =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else Let_cont.create_recursive handlers ~body
 
 let create_switch are_rebuilding switch =
   if ART.do_not_rebuild_terms are_rebuilding
-  then Lazy.force invalid
+  then term_not_rebuilt
   else Expr.create_switch switch
 
-let create_invalid () = Lazy.force invalid
+let create_invalid reason = Expr.create_invalid reason
 
 let bind_no_simplification are_rebuilding ~bindings ~body ~cost_metrics_of_body
     ~free_names_of_body =

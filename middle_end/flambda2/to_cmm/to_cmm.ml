@@ -716,7 +716,7 @@ let rec expr env res e =
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid e' -> invalid env res e'
+  | Invalid { message } -> invalid env res ~message
 
 and let_expr env res t =
   Let.pattern_match' t
@@ -1354,7 +1354,23 @@ and make_switch ~tag_discriminant env res e arms =
     in
     wrap (C.transl_switch_clambda Debuginfo.none e index cases), res
 
-and invalid _env res _e = C.unreachable, res
+and invalid _env res ~message =
+  let message_sym =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create (Variable.unique_name (Variable.create "invalid")))
+    |> symbol
+  in
+  let res =
+    C.emit_string_constant (message_sym, Cmmgen_state.Global) message []
+    |> R.add_data_items res
+  in
+  let call_expr =
+    C.extcall ~dbg:Debuginfo.none ~alloc:false ~is_c_builtin:false
+      ~returns:false ~ty_args:[XInt] "caml_flambda2_invalid" typ_void
+      [C.symbol message_sym]
+  in
+  call_expr, res
 
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)

@@ -435,7 +435,7 @@ let static_consts env r ~params_and_body bound_symbols static_consts =
   with Misc.Fatal_error as e ->
     (* Create a new "let symbol" with a dummy body to better print the bound
        symbols and static consts. *)
-    let dummy_body = Expr.create_invalid () in
+    let dummy_body = Expr.create_invalid To_cmm_dummy_body in
     let tmp_let_symbol =
       Let.create
         (Bound_pattern.symbols bound_symbols)

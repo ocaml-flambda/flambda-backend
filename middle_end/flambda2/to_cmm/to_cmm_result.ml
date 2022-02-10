@@ -87,6 +87,8 @@ let define_module_symbol_if_missing r =
     in
     set_data r l
 
+let add_data_items r l = { r with data_list = add_to_data_list l r.data_list }
+
 let add_gc_roots r l = { r with gc_roots = l @ r.gc_roots }
 
 let add_function r f = { r with functions = f :: r.functions }

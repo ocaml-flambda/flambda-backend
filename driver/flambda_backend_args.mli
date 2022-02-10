@@ -72,9 +72,6 @@ module type Flambda_backend_options = sig
 
   val flambda2_unicode : unit -> unit
 
-  val flambda2_treat_invalid_code_as_unreachable : unit -> unit
-  val no_flambda2_treat_invalid_code_as_unreachable : unit -> unit
-
   val drawfexpr : unit -> unit
   val dfexpr : unit -> unit
   val dflexpect : unit -> unit

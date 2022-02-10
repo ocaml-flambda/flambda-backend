@@ -51,7 +51,6 @@ let keyword_table =
     "end", KWD_END;
     "error", KWD_ERROR;
     "exn", KWD_EXN;
-    "fabricated", KWD_FABRICATED;
     "float", KWD_FLOAT;
     "halt_and_catch_fire", KWD_HCF;
     "hint", KWD_HINT;
@@ -78,6 +77,7 @@ let keyword_table =
     "push", KWD_PUSH;
     "rec", KWD_REC;
     "rec_info", KWD_REC_INFO;
+    "region", KWD_REGION;
     "regular", KWD_REGULAR;
     "reraise", KWD_RERAISE;
     "set_of_closures", KWD_SET_OF_CLOSURES;

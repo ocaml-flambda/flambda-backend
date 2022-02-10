@@ -312,10 +312,6 @@ let static_data ppf : static_data -> unit = function
 let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
-let invalid ppf = function
-  | Halt_and_catch_fire -> Format.fprintf ppf "HCF"
-  | Treat_as_unreachable -> Format.fprintf ppf "Unreachable"
-
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
   @@
@@ -589,7 +585,7 @@ let parens ~if_scope_is scope ppf f =
   else f scope ppf
 
 let rec expr scope ppf = function
-  | Invalid inv -> invalid ppf inv
+  | Invalid { message } -> Format.fprintf ppf "@[invalid (%s)@]" message
   | Apply_cont ac -> Format.fprintf ppf "@[cont %a@]" apply_cont ac
   | Let let_ ->
     parens ~if_scope_is:Where_body scope ppf (fun scope ppf ->
