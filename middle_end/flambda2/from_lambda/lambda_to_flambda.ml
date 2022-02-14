@@ -1032,7 +1032,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           ~params:[result_var, Not_user_visible, kind]
           ~body:(fun acc env ccenv after_continuation ->
             let_cont_nonrecursive_with_extra_params acc env ccenv
-              ~is_exn_handler:true ~params:[id, User_visible, Pgenval]
+              ~is_exn_handler:true
+              ~params:[id, User_visible, Pgenval]
               ~body:(fun acc env ccenv handler_continuation ->
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false
