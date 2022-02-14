@@ -949,6 +949,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
   | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
+    (* CR-someday poechsel: Use [kind] *)
     let result_var = Ident.create_local "staticcatch_result" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[result_var, IR.Not_user_visible, Pgenval]
@@ -1303,6 +1304,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     | Transformed lam -> cps_tail acc env ccenv lam k k_exn
   end
   | Lswitch (scrutinee, switch, _loc, _kind) ->
+    (* CR-someday poechsel: Use [kind] *)
     cps_switch acc env ccenv switch ~scrutinee k k_exn
   | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps_tail acc env ccenv
@@ -1320,6 +1322,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         compile_staticfail acc env ccenv ~continuation ~args:(args @ extra_args))
       k_exn
   | Lstaticcatch (body, (static_exn, args), handler, _kind) ->
+    (* CR-someday poechsel: Use [kind] *)
     let continuation = Continuation.create () in
     let { Env.body_env; handler_env; extra_params } =
       Env.add_static_exn_continuation env static_exn continuation
