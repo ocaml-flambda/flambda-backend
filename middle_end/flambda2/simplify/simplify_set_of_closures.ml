@@ -1005,6 +1005,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
   in
   Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
     bindings
+    ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
 
 let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     set_of_closures ~closure_elements ~closure_element_types ~simplify_toplevel

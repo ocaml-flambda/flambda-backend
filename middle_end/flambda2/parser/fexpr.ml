@@ -132,10 +132,6 @@ type static_data_binding =
     defining_expr : static_data
   }
 
-type invalid_term_semantics = Invalid_term_semantics.t =
-  | Treat_as_unreachable
-  | Halt_and_catch_fire
-
 type raise_kind = Trap_action.raise_kind =
   | Regular
   | Reraise
@@ -400,7 +396,7 @@ type expr =
       { scrutinee : simple;
         cases : (int * apply_cont) list
       }
-  | Invalid of invalid_term_semantics
+  | Invalid of { message : string }
 
 and closure_elements = closure_element list
 

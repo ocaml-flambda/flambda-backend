@@ -202,3 +202,19 @@ int caml_runtime_warnings_active(void)
   }
   return 1;
 }
+
+/* Flambda 2 invalid term markers */
+
+CAMLnoreturn_start
+void caml_flambda2_invalid (value message)
+CAMLnoreturn_end;
+
+void caml_flambda2_invalid (value message)
+{
+  fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
+    String_val(message));
+  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
+  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
+  abort ();
+}
+

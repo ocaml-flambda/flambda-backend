@@ -601,7 +601,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
   | Bottom ->
     down_to_up dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
-        EB.rebuild_invalid uacc ~after_rebuild)
+        EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild)
   | Ok callee's_code_id ->
     let call_kind =
       Call_kind.direct_function_call callee's_code_id callee's_closure_id
@@ -851,7 +851,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   | Invalid ->
     let rebuild uacc ~after_rebuild =
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
-      EB.rebuild_invalid uacc ~after_rebuild
+      EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
     in
     down_to_up dacc ~rebuild
 
@@ -1023,7 +1023,7 @@ let simplify_c_call ~simplify_expr dacc apply ~callee_ty ~param_arity
   | Invalid ->
     let rebuild uacc ~after_rebuild =
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
-      EB.rebuild_invalid uacc ~after_rebuild
+      EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild
     in
     down_to_up dacc ~rebuild
 

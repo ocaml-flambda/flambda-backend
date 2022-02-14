@@ -46,9 +46,6 @@ let opaque () = !Clflags.opaque
 
 let float_const_prop () = !Clflags.float_const_prop
 
-let treat_invalid_code_as_unreachable () =
-  !Flambda_backend_flags.Flambda2.treat_invalid_code_as_unreachable
-
 let optimize_for_speed () = !Clflags.optimize_for_speed
 
 let inlining_report () = !Clflags.inlining_report

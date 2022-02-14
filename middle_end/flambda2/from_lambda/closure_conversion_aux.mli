@@ -308,8 +308,7 @@ module Expr_with_acc : sig
 
   val create_switch : Acc.t -> Switch.t -> Acc.t * t
 
-  val create_invalid :
-    Acc.t -> ?semantics:Invalid_term_semantics.t -> unit -> Acc.t * t
+  val create_invalid : Acc.t -> Flambda.Invalid.t -> Acc.t * t
 end
 
 module Apply_cont_with_acc : sig

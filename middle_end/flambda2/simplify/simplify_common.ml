@@ -205,7 +205,8 @@ let split_direct_over_application apply ~param_arity ~result_arity
         | Never_returns ->
           (* The whole overapplication never returns, so this point is
              unreachable. *)
-          Expr.create_invalid (), Name_occurrences.empty
+          ( Expr.create_invalid (Over_application_never_returns apply),
+            Name_occurrences.empty )
       in
       let handler_expr =
         Let.create

@@ -307,10 +307,6 @@ let lsr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
 let asr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
   Cmm.Cop (Cmm.Cor, [asr_int arg1 arg2 dbg; Cmm.Cconst_int (1, dbg)], dbg)
 
-(* unreachable/invalid expression *)
-
-let unreachable = load Cmm.Word_int Asttypes.Mutable (int 0)
-
 (* Block creation *)
 
 (* Blocks of size 0 (i.e. with an empty list of fields) must be statically

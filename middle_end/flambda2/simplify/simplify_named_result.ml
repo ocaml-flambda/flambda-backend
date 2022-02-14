@@ -21,7 +21,10 @@ type descr =
         simplified_defining_expr : Simplified_named.t;
         original_defining_expr : Flambda.Named.t
       }
-  | Multiple_bindings_to_symbols of Symbol.t Bound_var.Map.t
+  | Multiple_bindings_to_symbols of
+      { bound_vars_to_symbols : Symbol.t Bound_var.Map.t;
+        original_defining_expr : Flambda.Named.t
+      }
 
 type t =
   { dacc : Downwards_acc.t;
@@ -45,9 +48,14 @@ let have_simplified_to_single_term dacc bound_pattern defining_expr
         }
   }
 
-let have_lifted_set_of_closures dacc bound_vars_to_symbols =
+let have_lifted_set_of_closures dacc bound_vars_to_symbols
+    ~original_defining_expr =
   (* The benefit of lifting the set of closure is added in [simplify_named]. *)
-  { dacc; descr = Multiple_bindings_to_symbols bound_vars_to_symbols }
+  { dacc;
+    descr =
+      Multiple_bindings_to_symbols
+        { bound_vars_to_symbols; original_defining_expr }
+  }
 
 let descr t = t.descr
 
@@ -56,7 +64,7 @@ let dacc t = t.dacc
 type binding_to_place =
   { let_bound : Bound_pattern.t;
     simplified_defining_expr : Simplified_named.t;
-    original_defining_expr : Flambda.Named.t option
+    original_defining_expr : Flambda.Named.t
   }
 
 let bindings_to_place_in_any_order t =
@@ -64,11 +72,9 @@ let bindings_to_place_in_any_order t =
   | Zero_terms -> []
   | Single_term { let_bound; simplified_defining_expr; original_defining_expr }
     ->
-    [ { let_bound;
-        simplified_defining_expr;
-        original_defining_expr = Some original_defining_expr
-      } ]
-  | Multiple_bindings_to_symbols bound_vars_to_symbols ->
+    [{ let_bound; simplified_defining_expr; original_defining_expr }]
+  | Multiple_bindings_to_symbols
+      { bound_vars_to_symbols; original_defining_expr } ->
     Bound_var.Map.fold
       (fun bound_var symbol bindings ->
         let let_bound = Bound_pattern.singleton bound_var in
@@ -76,7 +82,7 @@ let bindings_to_place_in_any_order t =
           Simple.symbol symbol |> Flambda.Named.create_simple
           |> Simplified_named.reachable ~try_reify:false
         in
-        { let_bound; simplified_defining_expr; original_defining_expr = None }
+        { let_bound; simplified_defining_expr; original_defining_expr }
         :: bindings)
       bound_vars_to_symbols []
 

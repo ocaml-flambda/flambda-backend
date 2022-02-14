@@ -50,7 +50,7 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
           { Simplify_named_result.let_bound;
             simplified_defining_expr =
               Simplified_named.reachable named ~try_reify:false;
-            original_defining_expr = Some named
+            original_defining_expr = named
           })
     in
     let expr, uacc =
@@ -123,7 +123,9 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
     (* We allow this transformation even if there is a trap action, on the basis
        that there wouldn't be any opportunity to collect any backtrace, even if
        the [Apply_cont] were compiled as "raise". *)
-    after_rebuild (RE.create_invalid ()) uacc
+    after_rebuild
+      (RE.create_invalid (Apply_cont_of_unreachable_continuation cont))
+      uacc
   | Non_inlinable_zero_arity _ | Non_inlinable_non_zero_arity _
   | Toplevel_or_function_return_or_exn_continuation _ ->
     let apply_cont_to_expr apply_cont =

@@ -119,7 +119,7 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
       in
       Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
         defining_expr ~original_defining_expr:named
-    | Reachable _ | Invalid _ ->
+    | Reachable _ | Invalid ->
       Simplify_named_result.have_simplified_to_single_term dacc bound_pattern
         simplified_named ~original_defining_expr:named)
   | Set_of_closures set_of_closures ->
@@ -199,7 +199,7 @@ let removed_operations (named : Named.t) result =
         (* Nothing was deleted, there is no need to adjust the negative
            benefit *)
         zero
-      | Invalid _
+      | Invalid
       | Reachable { named = Prim _; _ }
       | Reachable { named = Simple _; _ }
       | Reachable { named = Rec_info _; _ }
@@ -223,7 +223,7 @@ let removed_operations (named : Named.t) result =
       | Reachable_try_reify { named = Simple _; _ } ->
         (* A simple has 0 benefit. *)
         zero
-      | Invalid _
+      | Invalid
       | Reachable { named = Set_of_closures _; _ }
       | Reachable { named = Prim _; _ }
       | Reachable { named = Rec_info _; _ }
@@ -247,7 +247,7 @@ let removed_operations (named : Named.t) result =
       | Reachable { named = Set_of_closures _; _ }
       | Reachable_try_reify { named = Simple _; _ }
       | Reachable_try_reify { named = Set_of_closures _; _ }
-      | Invalid _ ->
+      | Invalid ->
         Removed_operations.prim original_prim
       | Reachable { named = Rec_info _; _ }
       | Reachable_try_reify { named = Rec_info _; _ } ->

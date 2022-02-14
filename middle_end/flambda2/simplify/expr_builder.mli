@@ -82,6 +82,7 @@ val create_switch :
 
 val rebuild_invalid :
   Upwards_acc.t ->
+  Flambda.Invalid.t ->
   after_rebuild:
     (Rebuilt_expr.t -> Upwards_acc.t -> Rebuilt_expr.t * Upwards_acc.t) ->
   Rebuilt_expr.t * Upwards_acc.t

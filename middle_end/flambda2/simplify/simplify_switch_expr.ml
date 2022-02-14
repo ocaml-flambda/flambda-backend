@@ -189,7 +189,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     if Targetint_31_63.Map.cardinal arms < 1
     then
       let uacc = UA.notify_removed ~operation:Removed_operations.branch uacc in
-      RE.create_invalid (), uacc
+      RE.create_invalid Zero_switch_arms, uacc
     else
       let dbg = Debuginfo.none in
       match switch_is_identity with

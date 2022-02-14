@@ -131,7 +131,7 @@ module Iter = struct
     | Apply e' -> apply_expr f_c f_s e'
     | Apply_cont e' -> apply_cont f_c f_s e'
     | Switch e' -> switch f_c f_s e'
-    | Invalid e' -> invalid f_c f_s e'
+    | Invalid { message = _ } -> ()
 
   and named let_expr (bound_pattern : Bound_pattern.t) f_c f_s n =
     match (n : Named.t) with
@@ -187,8 +187,6 @@ module Iter = struct
   and apply_cont _ _ _ = ()
 
   and switch _ _ _ = ()
-
-  and invalid _ _ _ = ()
 
   and static_consts f_c f_s bound_symbols static_consts =
     Static_const_group.match_against_bound_symbols static_consts bound_symbols

@@ -111,6 +111,40 @@ let function_name simple =
         ~symbol:(fun sym ~coercion:_ -> symbol sym))
     ~const:(fun _ -> fail simple)
 
+(* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
+   simply generating code that segfaults *)
+let invalid _env res ~message =
+  let message_sym =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create (Variable.unique_name (Variable.create "invalid")))
+    |> symbol
+  in
+  let res =
+    C.emit_string_constant (message_sym, Cmmgen_state.Global) message []
+    |> R.add_data_items res
+  in
+  let call_expr =
+    C.extcall ~dbg:Debuginfo.none ~alloc:false ~is_c_builtin:false
+      ~returns:false ~ty_args:[XInt] "caml_flambda2_invalid" typ_void
+      [C.symbol message_sym]
+  in
+  call_expr, res
+
+let dead_closure_elts_msg dbg closure_ids closure_vars =
+  let aux s pp fmt = function
+    | [] -> ()
+    | _ :: _ as l ->
+      let pp_sep fmt () = Format.fprintf fmt ",@ " in
+      Format.fprintf fmt "@[<h>%s: %a@]@ " s (Format.pp_print_list ~pp_sep pp) l
+  in
+  Format.asprintf "@[<hv>[%a]@ Unreachable code because of@ %a%a@]"
+    Debuginfo.print_compact dbg
+    (aux "dead closure ids" Closure_id.print)
+    closure_ids
+    (aux "dead closure vars" Var_within_closure.print)
+    closure_vars
+
 (* 'Simple' expression *)
 
 let simple env s =
@@ -406,35 +440,42 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
   | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
   | Begin_region -> None, Cop (Cbeginregion, [], dbg)
 
-let unary_primitive env dbg f arg =
+let unary_primitive env res dbg f arg =
   match (f : Flambda_primitive.unary_primitive) with
   | Duplicate_array _ ->
     ( None,
+      res,
       C.extcall ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" typ_val [arg] )
   | Duplicate_block _ ->
     ( None,
+      res,
       C.extcall ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" typ_val [arg] )
-  | Is_int -> None, C.and_int arg (C.int ~dbg 1) dbg
-  | Get_tag -> None, C.get_tag arg dbg
-  | Array_length -> None, C.array_length ~dbg arg
+  | Is_int -> None, res, C.and_int arg (C.int ~dbg 1) dbg
+  | Get_tag -> None, res, C.get_tag arg dbg
+  | Array_length -> None, res, C.array_length ~dbg arg
   | Bigarray_length { dimension } ->
     ( None,
+      res,
       C.load ~dbg Cmm.Word_int Asttypes.Mutable
         (C.field_address arg (4 + dimension) dbg) )
-  | String_length _ -> None, C.string_length arg dbg
-  | Int_as_pointer -> None, C.int_as_pointer arg dbg
-  | Opaque_identity -> None, C.opaque arg dbg
-  | Int_arith (kind, op) -> None, unary_int_arith_primitive env dbg kind op arg
-  | Float_arith op -> None, unary_float_arith_primitive env dbg op arg
-  | Num_conv { src; dst } -> arithmetic_conversion dbg src dst arg
-  | Boolean_not -> None, C.mk_not dbg arg
+  | String_length _ -> None, res, C.string_length arg dbg
+  | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
+  | Opaque_identity -> None, res, C.opaque arg dbg
+  | Int_arith (kind, op) ->
+    None, res, unary_int_arith_primitive env dbg kind op arg
+  | Float_arith op -> None, res, unary_float_arith_primitive env dbg op arg
+  | Num_conv { src; dst } ->
+    let extra, expr = arithmetic_conversion dbg src dst arg in
+    extra, res, expr
+  | Boolean_not -> None, res, C.mk_not dbg arg
   | Reinterpret_int64_as_float ->
     (* CR-someday mshinwell: We should add support for this operation in the
        backend. It isn't the identity as there may need to be a move between
        different register kinds (e.g. integer to XMM registers on x86-64). *)
     ( None,
+      res,
       C.extcall ~alloc:false ~returns:true ~is_c_builtin:false
         ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
         "caml_int64_float_of_bits_unboxed" typ_float [arg] )
@@ -442,27 +483,48 @@ let unary_primitive env dbg f arg =
     let extra =
       match kind with Untagged_immediate -> Some (Env.Untag arg) | _ -> None
     in
-    extra, C.unbox_number ~dbg kind arg
-  | Box_number (kind, alloc_mode) -> None, C.box_number ~dbg kind alloc_mode arg
+    extra, res, C.unbox_number ~dbg kind arg
+  | Box_number (kind, alloc_mode) ->
+    None, res, C.box_number ~dbg kind alloc_mode arg
   | Select_closure { move_from = c1; move_to = c2 } -> begin
     match Env.closure_offset env c1, Env.closure_offset env c2 with
     | Id_slot { offset = c1_offset; _ }, Id_slot { offset = c2_offset; _ } ->
       let diff = c2_offset - c1_offset in
-      None, C.infix_field_address ~dbg arg diff
+      None, res, C.infix_field_address ~dbg arg diff
     (* one of the ids has been marked as dead, the code should be
        unreachable. *)
-    | Dead_id, Id_slot _ | Id_slot _, Dead_id | Dead_id, Dead_id ->
-      None, C.unreachable
+    | Dead_id, Id_slot _ ->
+      let message = dead_closure_elts_msg dbg [c1] [] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
+    | Id_slot _, Dead_id ->
+      let message = dead_closure_elts_msg dbg [c2] [] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
+    | Dead_id, Dead_id ->
+      let message = dead_closure_elts_msg dbg [c1; c2] [] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
   end
   | Project_var { project_from; var } -> begin
     match Env.env_var_offset env var, Env.closure_offset env project_from with
     (* Normal case: we have offsets for everything *)
     | Var_slot { offset }, Id_slot { offset = base; _ } ->
-      None, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
+      None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
     (* the closure var and/or id has been explicitly removed, the code is
        unreachable *)
-    | Dead_var, Id_slot _ | Var_slot _, Dead_id | Dead_var, Dead_id ->
-      None, C.unreachable
+    | Dead_var, Id_slot _ ->
+      let message = dead_closure_elts_msg dbg [] [var] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
+    | Var_slot _, Dead_id ->
+      let message = dead_closure_elts_msg dbg [project_from] [] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
+    | Dead_var, Dead_id ->
+      let message = dead_closure_elts_msg dbg [project_from] [var] in
+      let expr, res = invalid env res ~message in
+      None, res, expr
   end
   | Is_boxed_float ->
     (* As a note, this omits the [Is_in_value_area] check that exists in
@@ -470,14 +532,18 @@ let unary_primitive env dbg f arg =
        reasonable given known existing use cases of naked pointers and the fact
        that they will be forbidden entirely in OCaml 5. *)
     ( None,
+      res,
       C.ite
         (C.and_int arg (C.int 1 ~dbg) dbg)
         ~dbg ~then_:(C.int 0 ~dbg) ~then_dbg:dbg
         ~else_:(C.eq (C.get_tag arg dbg) (C.int Obj.double_tag ~dbg) ~dbg)
         ~else_dbg:dbg )
   | Is_flat_float_array ->
-    None, Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg)
-  | End_region -> None, C.return_unit dbg (Cmm.Cop (Cendregion, [arg], dbg))
+    ( None,
+      res,
+      Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg) )
+  | End_region ->
+    None, res, C.return_unit dbg (Cmm.Cop (Cendregion, [arg], dbg))
 
 let binary_primitive env dbg f x y =
   match (f : Flambda_primitive.binary_primitive) with
@@ -526,32 +592,32 @@ let arg_list env l =
 
 (* CR Gbury: check the order in which the primitive arguments are given to
    [Env.inline_variable]. *)
-let prim env dbg p =
+let prim env res dbg p =
   match (p : Flambda_primitive.t) with
   | Nullary prim ->
-    let extra, res = nullary_primitive env dbg prim in
-    res, extra, env, Ece.pure
+    let extra, expr = nullary_primitive env dbg prim in
+    expr, extra, env, res, Ece.pure
   | Unary (f, x) ->
     let x, env, eff = simple env x in
-    let extra, res = unary_primitive env dbg f x in
-    res, extra, env, eff
+    let extra, res, expr = unary_primitive env res dbg f x in
+    expr, extra, env, res, eff
   | Binary (f, x, y) ->
     let x, env, effx = simple env x in
     let y, env, effy = simple env y in
     let effs = Ece.join effx effy in
-    let res = binary_primitive env dbg f x y in
-    res, None, env, effs
+    let expr = binary_primitive env dbg f x y in
+    expr, None, env, res, effs
   | Ternary (f, x, y, z) ->
     let x, env, effx = simple env x in
     let y, env, effy = simple env y in
     let z, env, effz = simple env z in
     let effs = Ece.join (Ece.join effx effy) effz in
-    let res = ternary_primitive env dbg f x y z in
-    res, None, env, effs
+    let expr = ternary_primitive env dbg f x y z in
+    expr, None, env, res, effs
   | Variadic (f, l) ->
     let args, env, effs = arg_list env l in
-    let res = variadic_primitive env dbg f args in
-    res, None, env, effs
+    let expr = variadic_primitive env dbg f args in
+    expr, None, env, res, effs
 
 (* Kinds and types *)
 
@@ -716,7 +782,7 @@ let rec expr env res e =
   | Apply e' -> apply_expr env res e'
   | Apply_cont e' -> apply_cont env res e'
   | Switch e' -> switch env res e'
-  | Invalid e' -> invalid env res e'
+  | Invalid { message } -> invalid env res ~message
 
 and let_expr env res t =
   Let.pattern_match' t
@@ -806,7 +872,7 @@ and let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s =
 
 and let_expr_prim body env res v ~num_normal_occurrences_of_bound_vars p dbg =
   let v = Bound_var.var v in
-  let cmm_expr, extra, env, effs = prim env dbg p in
+  let cmm_expr, extra, env, res, effs = prim env res dbg p in
   let effs = Ece.join effs (Flambda_primitive.effects_and_coeffects p) in
   let env =
     let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
@@ -1339,7 +1405,8 @@ and make_switch ~tag_discriminant env res e arms =
        [d]. *)
     let max_d, _ = Targetint_31_63.Map.max_binding arms in
     let m = prepare_discriminant ~tag:tag_discriminant max_d in
-    let cases = Array.make (n + 1) C.unreachable in
+    let unreachable, res = invalid env res ~message:"unreachable switch case" in
+    let cases = Array.make (n + 1) unreachable in
     let index = Array.make (m + 1) n in
     let _, res =
       Targetint_31_63.Map.fold
@@ -1353,8 +1420,6 @@ and make_switch ~tag_discriminant env res e arms =
         arms (0, res)
     in
     wrap (C.transl_switch_clambda Debuginfo.none e index cases), res
-
-and invalid _env res _e = C.unreachable, res
 
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)

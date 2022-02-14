@@ -905,7 +905,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~call_kind Debuginfo.none ~inlined ~inlining_state ~probe_name:None
     in
     Flambda.Expr.create_apply apply
-  | Invalid invalid -> Flambda.Expr.create_invalid ~semantics:invalid ()
+  | Invalid { message } -> Flambda.Expr.create_invalid (Message message)
 
 let bind_all_code_ids env (unit : Fexpr.flambda_unit) =
   let rec go env (e : Fexpr.expr) =
