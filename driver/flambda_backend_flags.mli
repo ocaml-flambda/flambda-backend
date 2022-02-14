@@ -29,7 +29,6 @@ module Flambda2 : sig
     val backend_cse_at_toplevel : bool
     val cse_depth : int
     val join_depth : int
-    val treat_invalid_code_as_unreachable : bool
     val function_result_types : function_result_types
 
     val unicode : bool
@@ -43,7 +42,6 @@ module Flambda2 : sig
   val backend_cse_at_toplevel : bool ref
   val cse_depth : int ref
   val join_depth : int ref
-  val treat_invalid_code_as_unreachable : bool ref
 
   val unicode : bool ref
 

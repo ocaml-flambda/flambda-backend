@@ -40,8 +40,6 @@ val opaque : unit -> bool
 
 val float_const_prop : unit -> bool
 
-val treat_invalid_code_as_unreachable : unit -> bool
-
 val optimize_for_speed : unit -> bool
 
 val inlining_report : unit -> bool

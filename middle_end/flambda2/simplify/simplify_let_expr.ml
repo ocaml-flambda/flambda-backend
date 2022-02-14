@@ -183,7 +183,7 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
 let record_new_defining_expression_binding_for_data_flow dacc data_flow
     (binding : Simplify_named_result.binding_to_place) =
   match binding.simplified_defining_expr with
-  | Invalid _ -> data_flow
+  | Invalid -> data_flow
   | Reachable { free_names; named; cost_metrics = _ }
   | Reachable_try_reify { free_names; named; cost_metrics = _ } ->
     let can_be_removed =
@@ -228,8 +228,9 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
      defining expression and the [body]. *)
   let dacc, prior_lifted_constants = DA.get_and_clear_lifted_constants dacc in
   (* Simplify the defining expression. *)
+  let defining_expr = L.defining_expr let_expr in
   let simplify_named_result, removed_operations =
-    Simplify_named.simplify_named dacc bound_pattern (L.defining_expr let_expr)
+    Simplify_named.simplify_named dacc bound_pattern defining_expr
       ~simplify_toplevel
   in
   (* We don't need to simplify the body of the [Let] if the defining expression
@@ -238,7 +239,9 @@ let simplify_let0 ~simplify_expr ~simplify_toplevel dacc let_expr ~down_to_up
   then
     down_to_up original_dacc ~rebuild:(fun uacc ~after_rebuild ->
         let uacc = UA.notify_removed ~operation:removed_operations uacc in
-        EB.rebuild_invalid uacc ~after_rebuild)
+        EB.rebuild_invalid uacc
+          (Defining_expr_of_let (bound_pattern, defining_expr))
+          ~after_rebuild)
   else
     let dacc = Simplify_named_result.dacc simplify_named_result in
     (* First accumulate variable, symbol and code ID usage information. *)

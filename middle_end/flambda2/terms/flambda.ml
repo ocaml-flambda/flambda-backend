@@ -67,7 +67,7 @@ and expr_descr =
   | Apply of Apply.t
   | Apply_cont of Apply_cont.t
   | Switch of Switch.t
-  | Invalid of Invalid_term_semantics.t
+  | Invalid of { message : string }
 
 and let_expr_t0 =
   { num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t;
@@ -571,11 +571,11 @@ and print ppf (t : expr) =
       Apply.print apply
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
-  | Invalid semantics ->
-    fprintf ppf "@[@<0>%sInvalid %a@<0>%s@]"
-      (Flambda_colours.expr_keyword ())
-      Invalid_term_semantics.print semantics
+  | Invalid { message } ->
+    fprintf ppf "@[(@<0>%sinvalid@<0>%s@ @[<hov 1>%s@])@]"
+      (Flambda_colours.invalid_keyword ())
       (Flambda_colours.normal ())
+      message
 
 and print_continuation_handler (recursive : Recursive.t) ppf k
     ({ cont_handler_abst = _; is_exn_handler } as t) occurrences ~first =
@@ -1571,6 +1571,51 @@ module Named = struct
   let must_be_static_consts = named_must_be_static_consts
 end
 
+module Invalid = struct
+  type t =
+    | Body_of_unreachable_continuation of Continuation.t
+    | Apply_cont_of_unreachable_continuation of Continuation.t
+    | Defining_expr_of_let of Bound_pattern.t * Named.t
+    | Closure_type_was_invalid of Apply_expr.t
+    | Zero_switch_arms
+    | Code_not_rebuilt
+    | To_cmm_dummy_body
+    | Application_never_returns of Apply.t
+    | Over_application_never_returns of Apply.t
+    | Message of string
+
+  let to_string t =
+    match t with
+    | Body_of_unreachable_continuation cont ->
+      Format.asprintf "(Body_of_unreachable_continuation@ %a)"
+        Continuation.print cont
+    | Apply_cont_of_unreachable_continuation cont ->
+      Format.asprintf "(Apply_cont_of_unreachable_continuation@ %a)"
+        Continuation.print cont
+    | Defining_expr_of_let (bound_pattern, defining_expr) ->
+      Format.asprintf
+        "@[<hov 1>(Defining_expr_of_let@ @[<hov 1>(bound_pattern@ %a)@]@ \
+         @[<hov 1>(defining_expr@ %a)@])@]"
+        Bound_pattern.print bound_pattern Named.print defining_expr
+    | Closure_type_was_invalid apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Zero_switch_arms -> "Zero_switch_arms"
+    | Code_not_rebuilt -> "Code_not_rebuilt"
+    | To_cmm_dummy_body -> "To_cmm_dummy_body"
+    | Application_never_returns apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Application_never_returns@ @[<hov 1>(apply_expr@ %a)@])@]"
+        Apply_expr.print apply_expr
+    | Over_application_never_returns apply_expr ->
+      Format.asprintf
+        "@[<hov 1>(Over_application_never_returns@ @[<hov 1>(apply_expr@ \
+         %a)@])@]"
+        Apply_expr.print apply_expr
+    | Message message -> message
+end
+
 module Expr = struct
   type t = expr
 
@@ -1596,16 +1641,8 @@ module Expr = struct
 
   let create_switch switch = create (Switch switch)
 
-  let create_invalid ?semantics () =
-    let semantics : Invalid_term_semantics.t =
-      match semantics with
-      | Some semantics -> semantics
-      | None ->
-        if Flambda_features.treat_invalid_code_as_unreachable ()
-        then Treat_as_unreachable
-        else Halt_and_catch_fire
-    in
-    create (Invalid semantics)
+  let create_invalid reason =
+    create (Invalid { message = Invalid.to_string reason })
 
   let bind_parameters_to_args_no_simplification ~params ~args ~body =
     if List.compare_lengths params args <> 0

@@ -28,7 +28,10 @@ val have_simplified_to_single_term :
   t
 
 val have_lifted_set_of_closures :
-  Downwards_acc.t -> Symbol.t Bound_var.Map.t -> t
+  Downwards_acc.t ->
+  Symbol.t Bound_var.Map.t ->
+  original_defining_expr:Flambda.Named.t ->
+  t
 
 type descr = private
   | Zero_terms
@@ -37,7 +40,10 @@ type descr = private
         simplified_defining_expr : Simplified_named.t;
         original_defining_expr : Flambda.Named.t
       }
-  | Multiple_bindings_to_symbols of Symbol.t Bound_var.Map.t
+  | Multiple_bindings_to_symbols of
+      { bound_vars_to_symbols : Symbol.t Bound_var.Map.t;
+        original_defining_expr : Flambda.Named.t
+      }
 
 val descr : t -> descr
 
@@ -46,7 +52,7 @@ val dacc : t -> Downwards_acc.t
 type binding_to_place =
   { let_bound : Bound_pattern.t;
     simplified_defining_expr : Simplified_named.t;
-    original_defining_expr : Flambda.Named.t option
+    original_defining_expr : Flambda.Named.t
   }
 
 val bindings_to_place_in_any_order : t -> binding_to_place list

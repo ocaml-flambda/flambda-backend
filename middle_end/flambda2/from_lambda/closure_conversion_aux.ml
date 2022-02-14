@@ -599,11 +599,11 @@ module Expr_with_acc = struct
     let acc = Acc.add_simple_to_free_names acc (Switch_expr.scrutinee switch) in
     acc, Expr.create_switch switch
 
-  let create_invalid acc ?semantics () =
+  let create_invalid acc reason =
     let acc =
       Acc.increment_metrics (Code_size.invalid |> Cost_metrics.from_size) acc
     in
-    acc, Expr.create_invalid ?semantics ()
+    acc, Expr.create_invalid reason
 end
 
 module Apply_cont_with_acc = struct

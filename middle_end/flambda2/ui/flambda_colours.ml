@@ -69,6 +69,8 @@ let code_id () = fg_256 169
 
 let expr_keyword () = fg_256 51
 
+let invalid_keyword () = fg_256 255 ^ bg_256 160
+
 let static_keyword () = fg_256 255 ^ bg_256 240
 
 let static_part () = fg_256 255 ^ bg_256 237

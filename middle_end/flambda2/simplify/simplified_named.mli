@@ -39,7 +39,7 @@ type t = private
         cost_metrics : Cost_metrics.t;
         free_names : Name_occurrences.t
       }
-  | Invalid of Invalid_term_semantics.t
+  | Invalid
 
 (** It is an error to pass [Set_of_closures] or [Static_consts] to this
     function. (Sets of closures are disallowed because computation of their free

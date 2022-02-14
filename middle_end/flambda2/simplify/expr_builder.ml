@@ -288,12 +288,14 @@ let make_new_let_bindings uacc
            Simplify_named_result.binding_to_place)
        ->
       match (simplified_defining_expr : Simplified_named.t) with
-      | Invalid _ ->
+      | Invalid ->
         let uacc =
           UA.with_name_occurrences uacc ~name_occurrences:Name_occurrences.empty
           |> UA.notify_added ~code_size:Code_size.invalid
         in
-        RE.create_invalid (), uacc
+        ( RE.create_invalid
+            (Defining_expr_of_let (let_bound, original_defining_expr)),
+          uacc )
       | Reachable
           { named = defining_expr;
             free_names = free_names_of_defining_expr;
@@ -323,16 +325,12 @@ let make_new_let_bindings uacc
           | Nothing_deleted_at_runtime -> uacc
           | Defining_expr_deleted_at_compile_time
           | Defining_expr_deleted_at_runtime -> begin
-            match (original_defining_expr : Named.t option) with
-            | Some (Prim (prim, _dbg)) ->
+            match (original_defining_expr : Named.t) with
+            | Prim (prim, _dbg) ->
               UA.notify_removed ~operation:(Removed_operations.prim prim) uacc
-            | Some (Set_of_closures _) ->
+            | Set_of_closures _ ->
               UA.notify_removed ~operation:Removed_operations.alloc uacc
-            | Some (Simple _)
-            | Some (Static_consts _)
-            | Some (Rec_info _)
-            | None ->
-              uacc
+            | Simple _ | Static_consts _ | Rec_info _ -> uacc
           end
         in
         expr, uacc)
@@ -366,7 +364,7 @@ let create_raw_let_symbol uacc bound_symbols static_consts ~body =
             ~cost_metrics_of_defining_expr:Cost_metrics.zero)
   in
   if Are_rebuilding_terms.do_not_rebuild_terms (UA.are_rebuilding_terms uacc)
-  then RE.term_not_rebuilt (), uacc
+  then RE.term_not_rebuilt, uacc
   else
     let defining_expr = Rebuilt_static_const.Group.to_named static_consts in
     let uacc =
@@ -560,7 +558,9 @@ let place_lifted_constants uacc ~lifted_constants_from_defining_expr
 
 let create_switch uacc ~scrutinee ~arms =
   if Targetint_31_63.Map.cardinal arms < 1
-  then RE.create_invalid (), UA.notify_added ~code_size:Code_size.invalid uacc
+  then
+    ( RE.create_invalid Zero_switch_arms,
+      UA.notify_added ~code_size:Code_size.invalid uacc )
   else
     let change_to_apply_cont action =
       let uacc =
@@ -588,8 +588,8 @@ let create_switch uacc ~scrutinee ~arms =
         in
         RE.create_switch (UA.are_rebuilding_terms uacc) switch, uacc)
 
-let rebuild_invalid uacc ~after_rebuild =
-  after_rebuild (RE.create_invalid ()) uacc
+let rebuild_invalid uacc reason ~after_rebuild =
+  after_rebuild (RE.create_invalid reason) uacc
 
 type rewrite_use_ctx =
   | Apply_cont

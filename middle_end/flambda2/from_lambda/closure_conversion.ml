@@ -402,7 +402,8 @@ module Inlining = struct
                   ( Expr.create_apply_cont apply_cont,
                     Apply_cont.free_names apply_cont )
                 | Never_returns ->
-                  Expr.create_invalid (), Name_occurrences.empty
+                  ( Expr.create_invalid (Application_never_returns apply),
+                    Name_occurrences.empty )
               in
               let handler acc =
                 let let_expr =
@@ -859,15 +860,17 @@ let close_let acc env id user_visible defining_expr
         end
         | _ -> Some body_env
       in
+      let var = VB.create var Name_mode.normal in
+      let bound_pattern = Bound_pattern.singleton var in
       match body_env with
       | Some body_env ->
         let acc, body = body acc body_env in
-        let var = VB.create var Name_mode.normal in
-        Let_with_acc.create acc
-          (Bound_pattern.singleton var)
-          defining_expr ~body
+        Let_with_acc.create acc bound_pattern defining_expr ~body
         |> Expr_with_acc.create_let
-      | None -> acc, Expr.create_invalid ~semantics:Treat_as_unreachable ())
+      | None ->
+        ( acc,
+          Expr.create_invalid
+            (Defining_expr_of_let (bound_pattern, defining_expr)) ))
   in
   close_named acc env ~let_bound_var:var defining_expr cont
 
@@ -1059,7 +1062,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
           (acc, Targetint_31_63.Map.of_list arms)
     in
     if Targetint_31_63.Map.is_empty arms
-    then Expr_with_acc.create_invalid acc ()
+    then Expr_with_acc.create_invalid acc Zero_switch_arms
     else
       let scrutinee = Simple.var untagged_scrutinee in
       let acc, body =

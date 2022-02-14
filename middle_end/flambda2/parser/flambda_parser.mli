@@ -75,6 +75,7 @@ type token =
   | KWD_SET_OF_CLOSURES
   | KWD_RERAISE
   | KWD_REGULAR
+  | KWD_REGION
   | KWD_REC_INFO
   | KWD_REC
   | KWD_PUSH
@@ -106,7 +107,6 @@ type token =
   | KWD_FLOAT_BLOCK
   | KWD_FLOAT_ARRAY
   | KWD_FLOAT
-  | KWD_FABRICATED
   | KWD_EXN
   | KWD_ERROR
   | KWD_END

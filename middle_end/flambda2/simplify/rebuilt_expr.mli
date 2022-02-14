@@ -38,7 +38,7 @@ val to_apply_cont : t -> Apply_cont.t option
 
 val is_unreachable : t -> Are_rebuilding_terms.t -> bool
 
-val term_not_rebuilt : unit -> t
+val term_not_rebuilt : t
 
 (** This should only be used by [Expr_builder] to make sure occurrences of
     closure IDs and closure variables are recorded. *)
@@ -113,7 +113,7 @@ val create_recursive_let_cont :
 
 val create_switch : Are_rebuilding_terms.t -> Switch_expr.t -> t
 
-val create_invalid : unit -> t
+val create_invalid : Invalid.t -> t
 
 val bind_no_simplification :
   Are_rebuilding_terms.t ->

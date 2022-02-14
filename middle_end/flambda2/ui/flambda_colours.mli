@@ -54,6 +54,8 @@ val code_id : unit -> string
 
 val expr_keyword : unit -> string
 
+val invalid_keyword : unit -> string
+
 val static_keyword : unit -> string
 
 val static_part : unit -> string

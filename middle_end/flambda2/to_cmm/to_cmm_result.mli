@@ -43,6 +43,9 @@ val add_gc_roots : t -> Symbol.t list -> t
 (** Add a function translation. *)
 val add_function : t -> Cmm.fundecl -> t
 
+(** Add already-translated Cmm data items. *)
+val add_data_items : t -> Cmm.data_item list -> t
+
 (** Record the symbol as having been defined. This is used to keep track of
     whether the symbol for the current unit has been defined. *)
 val check_for_module_symbol : t -> Symbol.t -> t

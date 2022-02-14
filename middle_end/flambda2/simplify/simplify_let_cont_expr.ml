@@ -216,7 +216,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
           in
           { Simplify_named_result.let_bound;
             simplified_defining_expr;
-            original_defining_expr = Some named
+            original_defining_expr = named
           })
         new_phantom_params
     in
@@ -363,7 +363,7 @@ let simplify_non_recursive_let_cont_handler ~simplify_expr ~denv_before_body
     let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
     let rebuild uacc ~after_rebuild =
       (* The code will never be used, so we can swap it out for [Invalid]. *)
-      let handler = RE.create_invalid () in
+      let handler = RE.create_invalid (Body_of_unreachable_continuation cont) in
       let cont_handler =
         RE.Continuation_handler.create
           (UA.are_rebuilding_terms uacc)

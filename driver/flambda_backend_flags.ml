@@ -28,7 +28,6 @@ module Flambda2 = struct
     let backend_cse_at_toplevel = false
     let cse_depth = 2
     let join_depth = 5
-    let treat_invalid_code_as_unreachable = false
     let function_result_types = Never
     let unicode = true
   end
@@ -40,8 +39,6 @@ module Flambda2 = struct
   let backend_cse_at_toplevel = ref Default.backend_cse_at_toplevel
   let cse_depth = ref Default.cse_depth
   let join_depth = ref Default.join_depth
-  let treat_invalid_code_as_unreachable =
-    ref Default.treat_invalid_code_as_unreachable
   let unicode = ref Default.unicode
   let function_result_types = ref Default.function_result_types
 
