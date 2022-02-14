@@ -603,7 +603,8 @@ let dissect_letrec ~bindings ~body =
     Lstaticcatch
       ( Lregion (Lambda.rename bound_ids_freshening substituted),
         (cont, List.map (fun (bound_id, _) -> bound_id, Pgenval) bindings),
-        real_body, Pgenval )
+        real_body,
+        Pgenval )
 
 type dissected =
   | Dissected of Lambda.lambda

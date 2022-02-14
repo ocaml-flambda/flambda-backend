@@ -1028,15 +1028,14 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       ~body:(fun acc ccenv ->
         let_cont_nonrecursive_with_extra_params acc env ccenv
           ~is_exn_handler:false
-          ~params:[result_var, Not_user_visible, Pgenval]
+          ~params:[result_var, Not_user_visible, kind]
           ~body:(fun acc env ccenv after_continuation ->
             let_cont_nonrecursive_with_extra_params acc env ccenv
-              ~is_exn_handler:true
-              ~params:[id, User_visible, kind]
+              ~is_exn_handler:true ~params:[id, User_visible, Pgenval]
               ~body:(fun acc env ccenv handler_continuation ->
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false
-                  ~params:[body_result, Not_user_visible, Pgenval]
+                  ~params:[body_result, Not_user_visible, kind]
                   ~body:(fun acc env ccenv poptrap_continuation ->
                     let_cont_nonrecursive_with_extra_params acc env ccenv
                       ~is_exn_handler:false ~params:[]
@@ -1384,7 +1383,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         in
         CC.close_let acc ccenv new_id User_visible (Simple new_value) ~body)
       k_exn
-  | Ltrywith (body, id, handler, _kind) ->
+  | Ltrywith (body, id, handler, kind) ->
     let body_result = Ident.create_local "body_result" in
     let region = Ident.create_local "try_region" in
     CC.close_let acc ccenv region Not_user_visible Begin_region
@@ -1395,7 +1394,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           ~body:(fun acc env ccenv handler_continuation ->
             let_cont_nonrecursive_with_extra_params acc env ccenv
               ~is_exn_handler:false
-              ~params:[body_result, Not_user_visible, Pgenval]
+              ~params:[body_result, Not_user_visible, kind]
               ~body:(fun acc env ccenv poptrap_continuation ->
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false ~params:[]
