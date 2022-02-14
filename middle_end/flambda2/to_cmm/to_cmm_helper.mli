@@ -45,9 +45,6 @@ val define_symbol : global:bool -> string -> Cmm.data_item list
 
 (** {2 Cmm values} *)
 
-(** An invalid/dummy cmm expression that can be used for unreachable code. *)
-val unreachable : Cmm.expression
-
 (** The void (i.e. empty tuple) cmm value. Not to be confused with [() : unit]. *)
 val void : Cmm.expression
 
