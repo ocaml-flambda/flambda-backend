@@ -16,6 +16,9 @@ let numbers =
     ; 0xf0f0f0f0l
     ; 0l
     ; -1l
+    ; 0xf0fedcbal
+    ; 0x0fedfcbal
+    ; 0x7fedfcbal
     ; Stdlib.Int32.max_int
     ; Stdlib.Int32.min_int
     ]
