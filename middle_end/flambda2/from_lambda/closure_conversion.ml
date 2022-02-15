@@ -1321,6 +1321,8 @@ let close_one_function acc ~external_env ~by_closure_id decl
         else
           Function_decl_inlining_decision_type.Function_body_too_large
             (Code_size.of_int inline_threshold)
+    else if stub
+    then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
   in
   let code =
