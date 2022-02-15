@@ -95,6 +95,20 @@ let intcomp = function
 let floatcomp c =
     Printf.sprintf " %sf " (Printcmm.float_comparison c)
 
+let is_unary_op = function
+  | Iclz _
+  | Ictz _
+  | Ipopcnt -> true
+  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
+  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+  | Icomp _
+  | Icheckbound
+    -> false
+
+let is_unary_floatop = function
+  | Inegf | Iabsf -> true
+  | Iaddf | Isubf | Imulf | Idivf | Icompf _ -> false
+
 let intop = function
   | Iadd -> " + "
   | Isub -> " - "
@@ -164,7 +178,7 @@ let operation op arg ppf res =
   | Ialloc { bytes = n; mode = Alloc_local } ->
     fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
-    if Mach.integer_operation_arity op = 1 then begin
+    if is_unary_op op then begin
       assert (Array.length arg = 1);
       fprintf ppf "%s%a" (intop op) operand arg.(0)
     end else begin
@@ -172,7 +186,7 @@ let operation op arg ppf res =
       fprintf ppf "%a%s%a" operand arg.(0) (intop op) operand arg.(1)
     end
   | Ifloatop(op) ->
-     if Mach.float_operation_arity op = 1 then
+     if is_unary_floatop op then
        begin
         assert (Array.length arg = 1);
         fprintf ppf "%s%a" (floatop op) operand arg.(0)
