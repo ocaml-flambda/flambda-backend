@@ -459,6 +459,8 @@ let with_cse t cse = { t with cse }
 let set_do_not_rebuild_terms_and_disable_inlining t =
   { t with do_not_rebuild_terms = true; can_inline = false }
 
+let disable_inlining t = { t with can_inline = false }
+
 let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
 
 let are_rebuilding_terms t =

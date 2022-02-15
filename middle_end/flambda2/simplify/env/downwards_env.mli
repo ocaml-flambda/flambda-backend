@@ -183,6 +183,8 @@ val with_cse : t -> Common_subexpression_elimination.t -> t
 
 val set_do_not_rebuild_terms_and_disable_inlining : t -> t
 
+val disable_inlining : t -> t
+
 val set_rebuild_terms : t -> t
 
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
