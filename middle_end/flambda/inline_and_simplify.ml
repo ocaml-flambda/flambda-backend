@@ -1216,13 +1216,13 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
     simplify_free_variables env args ~f:(fun _env args _args_approxs ->
       let r = R.use_static_exception r i in
       Static_raise (i, args), ret r A.value_bottom)
-  | Static_catch (i, vars, body, handler) ->
+  | Static_catch (i, vars, body, handler, kind) ->
     begin
       match body with
       | Let { var; defining_expr = def; body; _ }
           when not (Flambda_utils.might_raise_static_exn def i) ->
         simplify env r
-          (Flambda.create_let var def (Static_catch (i, vars, body, handler)))
+          (Flambda.create_let var def (Static_catch (i, vars, body, handler, kind)))
       | _ ->
         let i, sb = Freshening.add_static_exception (E.freshening env) i in
         let env = E.set_freshening env sb in
@@ -1254,18 +1254,18 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
             let env = E.inside_branch env in
             let handler, r = simplify env r handler in
             let r = R.exit_scope_catch r i in
-            Static_catch (i, vars, body, handler),
+            Static_catch (i, vars, body, handler, kind),
               R.meet_approx r env approx
         end
     end
-  | Try_with (body, id, handler) ->
+  | Try_with (body, id, handler, kind) ->
     let body, r = simplify env r body in
     let id, sb = Freshening.add_variable (E.freshening env) id in
     let env = E.add (E.set_freshening env sb) id (A.value_unknown Other) in
     let env = E.inside_branch env in
     let handler, r = simplify env r handler in
-    Try_with (body, id, handler), ret r (A.value_unknown Other)
-  | If_then_else (arg, ifso, ifnot) ->
+    Try_with (body, id, handler, kind), ret r (A.value_unknown Other)
+  | If_then_else (arg, ifso, ifnot, kind) ->
     (* When arg is the constant false or true (or something considered
        as true), we can drop the if and replace it by a sequence.
        if arg is not effectful we can also drop it. *)
@@ -1283,7 +1283,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
         let ifso, r = simplify env r ifso in
         let ifso_approx = R.approx r in
         let ifnot, r = simplify env r ifnot in
-        If_then_else (arg, ifso, ifnot),
+        If_then_else (arg, ifso, ifnot, kind),
           R.meet_approx r env ifso_approx
       end)
   | While (cond, body) ->
@@ -1393,7 +1393,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
           let sw = { sw with failaction; consts; blocks; } in
           Switch (arg, sw), r
       end)
-  | String_switch (arg, sw, def) ->
+  | String_switch (arg, sw, def, kind) ->
     simplify_free_variable env arg ~f:(fun env arg arg_approx ->
       match A.check_approx_for_string arg_approx with
       | None ->
@@ -1416,7 +1416,7 @@ and simplify env r (tree : Flambda.t) : Flambda.t * R.t =
             Some def,
               R.meet_approx r env approx
         in
-        String_switch (arg, sw, def), ret r (A.value_unknown Other)
+        String_switch (arg, sw, def, kind), ret r (A.value_unknown Other)
       | Some arg_string ->
         let branch =
           match List.find (fun (str, _) -> String.equal str arg_string) sw with

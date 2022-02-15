@@ -479,7 +479,7 @@ method effects_of exp =
   | Cphantom_let (_var, _defining_expr, body) -> self#effects_of body
   | Csequence (e1, e2) ->
     EC.join (self#effects_of e1) (self#effects_of e2)
-  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+  | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _kind) ->
     EC.join (self#effects_of cond)
       (EC.join (self#effects_of ifso) (self#effects_of ifnot))
   | Cop (op, args, _) ->
@@ -889,7 +889,7 @@ method emit_expr (env:environment) exp =
         None -> None
       | Some _ -> self#emit_expr env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> None
@@ -901,7 +901,7 @@ method emit_expr (env:environment) exp =
                       rarg [||];
           r
       end
-  | Cswitch(esel, index, ecases, _dbg) ->
+  | Cswitch(esel, index, ecases, _dbg, _kind) ->
       begin match self#emit_expr env' esel with
         None -> None
       | Some rsel ->
@@ -914,9 +914,9 @@ method emit_expr (env:environment) exp =
                       rsel [||];
           r
       end
-  | Ccatch(_, [], e1) ->
+  | Ccatch(_, [], e1, _) ->
       self#emit_expr env e1
-  | Ccatch(rec_flag, handlers, body) ->
+  | Ccatch(rec_flag, handlers, body, _) ->
       let handlers =
         List.map (fun (nfail, ids, e2, dbg) ->
             let rs =
@@ -1033,7 +1033,7 @@ method emit_expr (env:environment) exp =
               end
           end
       end
-  | Ctrywith(e1, kind, v, e2, _dbg) ->
+  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
       let reg = self#regs_for typ_int in
@@ -1362,7 +1362,7 @@ method emit_tail (env:environment) exp =
         None -> ()
       | Some _ -> self#emit_tail env e2
       end
-  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg) ->
+  | Cifthenelse(econd, _ifso_dbg, eif, _ifnot_dbg, eelse, _dbg, _kind) ->
       let (cond, earg) = self#select_condition econd in
       begin match self#emit_expr env' earg with
         None -> ()
@@ -1372,7 +1372,7 @@ method emit_tail (env:environment) exp =
                                          self#emit_tail_sequence env eelse))
                       rarg [||]
       end
-  | Cswitch(esel, index, ecases, _dbg) ->
+  | Cswitch(esel, index, ecases, _dbg, _kind) ->
       begin match self#emit_expr env' esel with
         None -> ()
       | Some rsel ->
@@ -1382,9 +1382,9 @@ method emit_tail (env:environment) exp =
           in
           self#insert env (Iswitch (index, cases)) rsel [||]
       end
-  | Ccatch(_, [], e1) ->
+  | Ccatch(_, [], e1, _) ->
       self#emit_tail env e1
-  | Ccatch(rec_flag, handlers, e1) ->
+  | Ccatch(rec_flag, handlers, e1, _) ->
       let handlers =
         List.map (fun (nfail, ids, e2, dbg) ->
             let rs =
@@ -1439,7 +1439,7 @@ method emit_tail (env:environment) exp =
       (* The final trap stack doesn't matter, as it's not reachable. *)
       self#insert env (Icatch(rec_flag, env.trap_stack, new_handlers, s_body))
         [||] [||]
-  | Ctrywith(e1, kind, v, e2, _dbg) ->
+  | Ctrywith(e1, kind, v, e2, _dbg, _value_kind) ->
       (* This region is used only to clean up local allocations in the
          exceptional path. It need not be ended in the non-exception case. *)
       let reg = self#regs_for typ_int in

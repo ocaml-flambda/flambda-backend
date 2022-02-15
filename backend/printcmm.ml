@@ -278,7 +278,7 @@ let rec expr ppf = function
       fprintf ppf ")@]")
   | Csequence(e1, e2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" sequence e1 sequence e2
-  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg) ->
+  | Cifthenelse(e1, e2_dbg, e2, e3_dbg, e3, dbg, _kind) ->
       with_location_mapping ~label:"Cifthenelse-e1" ~dbg ppf (fun () ->
       fprintf ppf "@[<2>(if@ %a@ " expr e1;
       with_location_mapping ~label:"Cifthenelse-e2" ~dbg:e2_dbg ppf (fun () ->
@@ -286,7 +286,7 @@ let rec expr ppf = function
       with_location_mapping ~label:"Cifthenelse-e3" ~dbg:e3_dbg ppf (fun () ->
       fprintf ppf "%a" expr e3);
       fprintf ppf ")@]")
-  | Cswitch(e1, index, cases, dbg) ->
+  | Cswitch(e1, index, cases, dbg, _kind) ->
       with_location_mapping ~label:"Cswitch" ~dbg ppf (fun () ->
       let print_case i ppf =
         for j = 0 to Array.length index - 1 do
@@ -297,7 +297,7 @@ let rec expr ppf = function
         fprintf ppf "@ @[<2>%t@ %a@]" (print_case i) sequence (fst cases.(i))
        done in
       fprintf ppf "@[<v 0>@[<2>(switch@ %a@ @]%t)@]" expr e1 print_cases)
-  | Ccatch(flag, handlers, e1) ->
+  | Ccatch(flag, handlers, e1, _kind) ->
       let print_handler ppf (i, ids, e2, dbg) =
         with_location_mapping ~label:"Ccatch-handler" ~dbg ppf (fun () ->
         fprintf ppf "(%d%a)@ %a"
@@ -322,7 +322,7 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(exit%a %a" trap_action_list traps exit_label i;
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       fprintf ppf ")@]"
-  | Ctrywith(e1, kind, id, e2, dbg) ->
+  | Ctrywith(e1, kind, id, e2, dbg, _value_kind) ->
       fprintf ppf "@[<2>(try%a@ %a@;<1 -2>with@ %a@ "
             trywith_kind kind sequence e1 VP.print id;
       with_location_mapping ~label:"Ctrywith" ~dbg ppf (fun () ->

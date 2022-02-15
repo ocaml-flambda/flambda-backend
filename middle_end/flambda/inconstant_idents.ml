@@ -247,12 +247,12 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
        bound variables as in NC also *)
     | Assign _ ->
       mark_curr curr
-    | Try_with (f1,id,f2) ->
+    | Try_with (f1,id,f2, _kind) ->
       mark_curr [Var id];
       mark_curr curr;
       mark_loop ~toplevel [] f1;
       mark_loop ~toplevel [] f2
-    | Static_catch (_,ids,f1,f2) ->
+    | Static_catch (_,ids,f1,f2, _) ->
       List.iter (fun id -> mark_curr [Var id]) ids;
       mark_curr curr;
       mark_loop ~toplevel [] f1;
@@ -269,7 +269,7 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       mark_curr curr;
       mark_loop ~toplevel [] f1;
       mark_loop ~toplevel:false [] body
-    | If_then_else (f1,f2,f3) ->
+    | If_then_else (f1,f2,f3, _kind) ->
       mark_curr curr;
       mark_curr [Var f1];
       mark_loop ~toplevel [] f2;
@@ -287,7 +287,7 @@ module Inconstants (P:Param) (Backend:Backend_intf.S) = struct
       List.iter (fun (_,l) -> mark_loop ~toplevel [] l) sw.consts;
       List.iter (fun (_,l) -> mark_loop ~toplevel [] l) sw.blocks;
       Option.iter (fun l -> mark_loop ~toplevel [] l) sw.failaction
-    | String_switch (arg,sw,def) ->
+    | String_switch (arg,sw,def, _kind) ->
       mark_curr curr;
       mark_var arg curr;
       List.iter (fun (_,l) -> mark_loop ~toplevel [] l) sw;

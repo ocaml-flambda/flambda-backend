@@ -201,6 +201,12 @@ and operation =
   | Copaque
   | Cbeginregion | Cendregion
 
+type value_kind =
+  | Vval of Lambda.value_kind (* Valid OCaml values *)
+  | Vint (* Untagged integers and off-heap pointers *)
+  | Vaddr (* Derived pointers *)
+  | Vfloat (* Unboxed floating-point numbers *)
+
 type expression =
     Cconst_int of int * Debuginfo.t
   | Cconst_natint of nativeint * Debuginfo.t
@@ -217,17 +223,17 @@ type expression =
   | Cop of operation * expression list * Debuginfo.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
-      * Debuginfo.t * expression * Debuginfo.t
+      * Debuginfo.t * expression * Debuginfo.t * value_kind
   | Cswitch of expression * int array * (expression * Debuginfo.t) array
-      * Debuginfo.t
+      * Debuginfo.t * value_kind
   | Ccatch of
       rec_flag
         * (label * (Backend_var.With_provenance.t * machtype) list
           * expression * Debuginfo.t) list
-        * expression
+        * expression * value_kind
   | Cexit of exit_label * expression list * trap_action list
   | Ctrywith of expression * trywith_kind * Backend_var.With_provenance.t
-      * expression * Debuginfo.t
+      * expression * Debuginfo.t * value_kind
   | Cregion of expression
   | Ctail of expression
 
@@ -261,8 +267,8 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let ccatch (i, ids, e1, e2, dbg) =
-  Ccatch(Nonrecursive, [i, ids, e2, dbg], e1)
+let ccatch (i, ids, e1, e2, dbg, kind) =
+  Ccatch(Nonrecursive, [i, ids, e2, dbg], e1, kind)
 
 let reset () =
   label_counter := init_label
@@ -271,21 +277,21 @@ let iter_shallow_tail f = function
   | Clet(_, _, body) | Cphantom_let (_, _, body) | Clet_mut(_, _, _, body) ->
       f body;
       true
-  | Cifthenelse(_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+  | Cifthenelse(_cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _value_kind) ->
       f ifso;
       f ifnot;
       true
   | Csequence(_e1, e2) ->
       f e2;
       true
-  | Cswitch(_e, _tbl, el, _dbg') ->
+  | Cswitch(_e, _tbl, el, _dbg', _value_kind) ->
       Array.iter (fun (e, _dbg) -> f e) el;
       true
-  | Ccatch(_rec_flag, handlers, body) ->
+  | Ccatch(_rec_flag, handlers, body, _value_kind) ->
       List.iter (fun (_, _, h, _dbg) -> f h) handlers;
       f body;
       true
-  | Ctrywith(e1, _kind, _id, e2, _dbg) ->
+  | Ctrywith(e1, _kind, _id, e2, _dbg, _value_kind) ->
       f e1;
       f e2;
       true
@@ -307,30 +313,34 @@ let iter_shallow_tail f = function
   | Cop _ ->
       false
 
-let map_shallow_tail f = function
+let map_shallow_tail ?kind f = function
   | Clet(id, exp, body) ->
       Clet(id, exp, f body)
   | Clet_mut(id, kind, exp, body) ->
       Clet_mut(id, kind, exp, f body)
   | Cphantom_let(id, exp, body) ->
       Cphantom_let (id, exp, f body)
-  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
+  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, kind_before) ->
       Cifthenelse
         (
           cond,
           ifso_dbg, f ifso,
           ifnot_dbg, f ifnot,
-          dbg
+          dbg,
+          Option.value kind ~default:kind_before
         )
   | Csequence(e1, e2) ->
       Csequence(e1, f e2)
-  | Cswitch(e, tbl, el, dbg') ->
-      Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg')
-  | Ccatch(rec_flag, handlers, body) ->
+  | Cswitch(e, tbl, el, dbg', kind_before) ->
+      Cswitch(e, tbl, Array.map (fun (e, dbg) -> f e, dbg) el, dbg',
+              Option.value kind ~default:kind_before)
+  | Ccatch(rec_flag, handlers, body, kind_before) ->
       let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
-      Ccatch(rec_flag, List.map map_h handlers, f body)
-  | Ctrywith(e1, kind, id, e2, dbg) ->
-      Ctrywith(f e1, kind, id, f e2, dbg)
+      Ccatch(rec_flag, List.map map_h handlers, f body,
+             Option.value kind ~default:kind_before)
+  | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
+      Ctrywith(f e1, kind', id, f e2, dbg,
+              Option.value kind ~default:kind_before)
   | Cregion e ->
       Cregion(f e)
   | Ctail e ->
@@ -346,7 +356,7 @@ let map_shallow_tail f = function
   | Ctuple _
   | Cop _ as cmm -> cmm
 
-let map_tail f =
+let map_tail ?kind f =
   let rec loop = function
     | Cconst_int _
     | Cconst_natint _
@@ -357,7 +367,7 @@ let map_tail f =
     | Ctuple _
     | Cop _ as c ->
         f c
-    | cmm -> map_shallow_tail loop cmm
+    | cmm -> map_shallow_tail ?kind loop cmm
   in
   loop
 
@@ -376,16 +386,16 @@ let iter_shallow f = function
       List.iter f el
   | Csequence (e1, e2) ->
       f e1; f e2
-  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg) ->
+  | Cifthenelse(cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _value_kind) ->
       f cond; f ifso; f ifnot
-  | Cswitch (_e, _ia, ea, _dbg) ->
+  | Cswitch (_e, _ia, ea, _dbg, _value_kind) ->
       Array.iter (fun (e, _) -> f e) ea
-  | Ccatch (_rf, hl, body) ->
+  | Ccatch (_rf, hl, body, _value_kind) ->
       let iter_h (_n, _ids, handler, _dbg) = f handler in
       List.iter iter_h hl; f body
   | Cexit (_n, el, _traps) ->
       List.iter f el
-  | Ctrywith (e1, _kind, _id, e2, _dbg) ->
+  | Ctrywith (e1, _kind, _id, e2, _dbg, _value_kind) ->
       f e1; f e2
   | Cregion e ->
       f e
@@ -413,17 +423,17 @@ let map_shallow f = function
       Cop (op, List.map f el, dbg)
   | Csequence (e1, e2) ->
       Csequence (f e1, f e2)
-  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg) ->
-      Cifthenelse(f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg)
-  | Cswitch (e, ia, ea, dbg) ->
-      Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg)
-  | Ccatch (rf, hl, body) ->
+  | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, kind) ->
+      Cifthenelse(f cond, ifso_dbg, f ifso, ifnot_dbg, f ifnot, dbg, kind)
+  | Cswitch (e, ia, ea, dbg, kind) ->
+      Cswitch (e, ia, Array.map (fun (e, dbg) -> f e, dbg) ea, dbg, kind)
+  | Ccatch (rf, hl, body, kind) ->
       let map_h (n, ids, handler, dbg) = (n, ids, f handler, dbg) in
-      Ccatch (rf, List.map map_h hl, f body)
+      Ccatch (rf, List.map map_h hl, f body, kind)
   | Cexit (n, el, traps) ->
       Cexit (n, List.map f el, traps)
-  | Ctrywith (e1, kind, id, e2, dbg) ->
-      Ctrywith (f e1, kind, id, f e2, dbg)
+  | Ctrywith (e1, kind, id, e2, dbg, value_kind) ->
+      Ctrywith (f e1, kind, id, f e2, dbg, value_kind)
   | Cregion e ->
       Cregion (f e)
   | Ctail e ->

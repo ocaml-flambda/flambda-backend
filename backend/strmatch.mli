@@ -18,7 +18,7 @@
 module type I = sig
   val string_block_length : Cmm.expression -> Cmm.expression
   val transl_switch :
-      Debuginfo.t -> Cmm.expression -> int -> int ->
+      Debuginfo.t -> Cmm.value_kind -> Cmm.expression -> int -> int ->
         (int * Cmm.expression) list -> Cmm.expression ->
           Cmm.expression
 end
@@ -26,7 +26,8 @@ end
 module Make(_:I) : sig
   (* Compile stringswitch (arg,cases,d)
      Note: cases should not contain string duplicates *)
-  val compile : Debuginfo.t -> Cmm.expression (* arg *)
+  val compile : Debuginfo.t -> Cmm.value_kind
+    -> Cmm.expression (* arg *)
     -> Cmm.expression option (* d *) ->
     (string * Cmm.expression) list (* cases *)-> Cmm.expression
 end

@@ -337,51 +337,83 @@ let join_unboxed_number_kind ~strict k1 k2 =
       k
   | _, _ -> No_unboxing
 
-let is_unboxed_number_cmm ~strict cmm =
-  let r = ref No_result in
-  let notify k =
-    r := join_unboxed_number_kind ~strict !r k
-  in
-  let rec aux = function
+let is_strict = function
+  | Pfloatval | Pboxedintval _ -> false
+  | Pintval | Pgenval | Pblock _ | Parrayval _ -> true
+
+let rec is_unboxed_number_cmm = function
     | Cop(Calloc mode, [Cconst_natint (hdr, _); _], dbg)
       when Nativeint.equal hdr float_header ->
-        notify (Boxed (Boxed_float (mode,dbg), false))
+      Boxed (Boxed_float (mode, dbg), false)
     | Cop(Calloc mode, [Cconst_natint (hdr, _); Cconst_symbol (ops, _); _], dbg) ->
-        if Nativeint.equal hdr boxedintnat_header
-        && String.equal ops caml_nativeint_ops
-        then
-          notify (Boxed (Boxed_integer (Pnativeint, mode, dbg), false))
-        else
-        if Nativeint.equal hdr boxedint32_header
-        && String.equal ops caml_int32_ops
-        then
-          notify (Boxed (Boxed_integer (Pint32, mode, dbg), false))
-        else
-        if Nativeint.equal hdr boxedint64_header
-        && String.equal ops caml_int64_ops
-        then
-          notify (Boxed (Boxed_integer (Pint64, mode, dbg), false))
-        else
-          notify No_unboxing
+      if Nativeint.equal hdr boxedintnat_header
+      && String.equal ops caml_nativeint_ops
+      then
+        Boxed (Boxed_integer (Pnativeint, mode, dbg), false)
+      else
+      if Nativeint.equal hdr boxedint32_header
+      && String.equal ops caml_int32_ops
+      then
+        Boxed (Boxed_integer (Pint32, mode, dbg), false)
+      else
+      if Nativeint.equal hdr boxedint64_header
+      && String.equal ops caml_int64_ops
+      then
+        Boxed (Boxed_integer (Pint64, mode, dbg), false)
+      else
+        No_unboxing
     | Cconst_symbol (s, _) ->
-        begin match Cmmgen_state.structured_constant_of_sym s with
+      begin match Cmmgen_state.structured_constant_of_sym s with
         | Some (Uconst_float _) ->
-            notify (Boxed (Boxed_float (Alloc_heap, Debuginfo.none), true))
+          Boxed (Boxed_float (Alloc_heap, Debuginfo.none), true)
         | Some (Uconst_nativeint _) ->
-            notify (Boxed (Boxed_integer (Pnativeint, Alloc_heap, Debuginfo.none), true))
+          Boxed (Boxed_integer (Pnativeint, Alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int32 _) ->
-            notify (Boxed (Boxed_integer (Pint32, Alloc_heap, Debuginfo.none), true))
+          Boxed (Boxed_integer (Pint32, Alloc_heap, Debuginfo.none), true)
         | Some (Uconst_int64 _) ->
-            notify (Boxed (Boxed_integer (Pint64, Alloc_heap, Debuginfo.none), true))
+          Boxed (Boxed_integer (Pint64, Alloc_heap, Debuginfo.none), true)
         | _ ->
-            notify No_unboxing
-        end
-    | l ->
-        if not (Cmm.iter_shallow_tail aux l) then
-          notify No_unboxing
-  in
-  aux cmm;
-  !r
+          No_unboxing
+      end
+    | Cexit _ | Cop (Craise _, _, _) -> No_result
+    | Csequence (_, a) | Cregion a | Ctail a
+    | Clet (_, _, a) | Cphantom_let (_, _, a) | Clet_mut (_, _, _, a) ->
+      is_unboxed_number_cmm a
+    | Cconst_int _
+    | Cconst_natint _
+    | Cconst_float _
+    | Cvar _
+    | Cassign _
+    | Ctuple _
+    | Cop _ -> No_unboxing
+    | Cifthenelse (_, _, _, _, _, _, Vval (Pintval | Pblock _))
+    | Cswitch (_, _,  _, _, Vval (Pintval | Pblock _))
+    | Ctrywith (_, _, _, _, _, Vval (Pintval | Pblock _))
+    | Ccatch (_, _, _, Vval (Pintval | Pblock _)) ->
+      No_unboxing
+    | Cifthenelse (_, _, a, _, b, _, Vval kind) ->
+      join_unboxed_number_kind ~strict:(is_strict kind)
+        (is_unboxed_number_cmm a)
+        (is_unboxed_number_cmm b)
+    | Cswitch (_, _,  cases, _, Vval kind) ->
+      let cases = Array.map (fun (x, _) -> is_unboxed_number_cmm x) cases in
+      let strict = is_strict kind in
+      Array.fold_left (join_unboxed_number_kind ~strict) No_result cases
+    | Ctrywith (a, _, _, b, _, Vval kind) ->
+      join_unboxed_number_kind ~strict:(is_strict kind)
+        (is_unboxed_number_cmm a)
+        (is_unboxed_number_cmm b)
+    | Ccatch (_, handlers, body, Vval kind) ->
+      let strict = is_strict kind in
+      List.fold_left
+        (join_unboxed_number_kind ~strict)
+        (is_unboxed_number_cmm body)
+        (List.map (fun (_, _, e, _) -> is_unboxed_number_cmm e) handlers)
+    | Cifthenelse (_, _, _, _, _, _, _)
+    | Cswitch (_, _,  _, _, _)
+    | Ctrywith (_, _, _, _, _, _)
+    | Ccatch (_, _, _, _) ->
+      No_unboxing
 
 (* Translate an expression *)
 
@@ -611,7 +643,7 @@ let rec transl env e =
       end
 
   (* Control structures *)
-  | Uswitch(arg, s, dbg) ->
+  | Uswitch(arg, s, dbg, kind) ->
       (* As in the bytecode interpreter, only matching against constants
          can be checked *)
       if Array.length s.us_index_blocks = 0 then
@@ -619,49 +651,51 @@ let rec transl env e =
           (untag_int (transl env arg) dbg)
           s.us_index_consts
           (Array.map (fun expr -> transl env expr, dbg) s.us_actions_consts)
-          dbg
+          dbg (Vval kind)
       else if Array.length s.us_index_consts = 0 then
         bind "switch" (transl env arg) (fun arg ->
-          transl_switch dbg env (get_tag arg dbg)
+          transl_switch dbg (Vval kind) env (get_tag arg dbg)
             s.us_index_blocks s.us_actions_blocks)
       else
         bind "switch" (transl env arg) (fun arg ->
           Cifthenelse(
           Cop(Cand, [arg; Cconst_int (1, dbg)], dbg),
           dbg,
-          transl_switch dbg env
+          transl_switch dbg (Vval kind) env
             (untag_int arg dbg) s.us_index_consts s.us_actions_consts,
           dbg,
-          transl_switch dbg env
+          transl_switch dbg (Vval kind) env
             (get_tag arg dbg) s.us_index_blocks s.us_actions_blocks,
-          dbg))
-  | Ustringswitch(arg,sw,d) ->
+          dbg, Vval kind))
+  | Ustringswitch(arg,sw,d, kind) ->
       let dbg = Debuginfo.none in
       bind "switch" (transl env arg)
         (fun arg ->
-          strmatch_compile dbg arg (Option.map (transl env) d)
+          strmatch_compile dbg (Vval kind) arg (Option.map (transl env) d)
             (List.map (fun (s,act) -> s,transl env act) sw))
   | Ustaticfail (nfail, args) ->
       let cargs = List.map (transl env) args in
       notify_catch nfail env cargs;
       let traps = mk_traps env nfail in
       Cexit (Lbl nfail, cargs, traps)
-  | Ucatch(nfail, [], body, handler) ->
+  | Ucatch(nfail, [], body, handler, kind) ->
       let dbg = Debuginfo.none in
       let env_body = enter_catch_body env nfail in
-      make_catch nfail (transl env_body body) (transl env handler) dbg
-  | Ucatch(nfail, ids, body, handler) ->
+      make_catch (Vval kind) nfail
+        (transl env_body body)
+        (transl env handler) dbg
+  | Ucatch(nfail, ids, body, handler, kind) ->
       let dbg = Debuginfo.none in
-      transl_catch env nfail ids body handler dbg
-  | Utrywith(body, exn, handler) ->
+      transl_catch (Vval kind) env nfail ids body handler dbg
+  | Utrywith(body, exn, handler, kind) ->
       let dbg = Debuginfo.none in
       let new_body = transl (incr_depth env) body in
-      Ctrywith(new_body, Regular, exn, transl env handler, dbg)
-  | Uifthenelse(cond, ifso, ifnot) ->
+      Ctrywith(new_body, Regular, exn, transl env handler, dbg, Vval kind)
+  | Uifthenelse(cond, ifso, ifnot, kind) ->
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
       let dbg = Debuginfo.none in
-      transl_if env Unknown dbg cond
+      transl_if env (Vval kind) Unknown dbg cond
         ifso_dbg (transl env ifso) ifnot_dbg (transl env ifnot)
   | Usequence(exp1, exp2) ->
       Csequence(remove_unit(transl env exp1), transl env exp2)
@@ -671,12 +705,13 @@ let rec transl env e =
       return_unit dbg
         (ccatch
            (raise_num, [],
-            create_loop(transl_if env Unknown dbg cond
+            create_loop(transl_if env (Vval Pgenval) Unknown dbg cond
                     dbg (remove_unit(transl env body))
-                    dbg (Cexit (Lbl raise_num,[],[])))
+                    dbg (Cexit (Lbl raise_num,[],[]))
+                    )
               dbg,
             Ctuple [],
-            dbg))
+            dbg, Vval Pgenval))
   | Ufor(id, low, high, dir, body) ->
       let dbg = Debuginfo.none in
       let tst = match dir with Upto -> Cgt   | Downto -> Clt in
@@ -707,11 +742,11 @@ let rec transl env e =
                                   dbg),
                                 dbg, Cexit (Lbl raise_num,[],[]),
                                 dbg, Ctuple [],
-                                dbg)))))
+                                dbg, Vint (* unit *))))))
                       dbg,
-                   dbg),
+                   dbg, Vint (* unit*)),
                  Ctuple [],
-                 dbg))))
+                 dbg, Vint (* unit *)))))
   | Uassign(id, exp) ->
       let dbg = Debuginfo.none in
       let cexp = transl env exp in
@@ -729,20 +764,16 @@ let rec transl env e =
   | Utail e ->
       Ctail (transl env e)
 
-and transl_catch env nfail ids body handler dbg =
+and transl_catch (kind : Cmm.value_kind) env nfail ids body handler dbg =
   let ids = List.map (fun (id, kind) -> (id, kind, ref No_result)) ids in
   (* Translate the body, and while doing so, collect the "unboxing type" for
      each argument.  *)
   let report args =
     List.iter2
       (fun (_id, kind, u) c ->
-         let strict =
-           match kind with
-           | Pfloatval | Pboxedintval _ -> false
-           | Pintval | Pgenval | Pblock _ | Parrayval _ -> true
-         in
+         let strict = is_strict kind in
          u := join_unboxed_number_kind ~strict !u
-             (is_unboxed_number_cmm ~strict c)
+             (is_unboxed_number_cmm c)
       )
       ids args
   in
@@ -766,7 +797,7 @@ and transl_catch env nfail ids body handler dbg =
   in
   if env == new_env then
     (* No unboxing *)
-    ccatch (nfail, ids, body, transl env handler, dbg)
+    ccatch (nfail, ids, body, transl env handler, dbg, kind)
   else
     (* allocate new "nfail" to catch errors more easily *)
     let new_nfail = next_raise_count () in
@@ -780,7 +811,7 @@ and transl_catch env nfail ids body handler dbg =
       in
       aux body
     in
-    ccatch (new_nfail, ids, body, transl new_env handler, dbg)
+    ccatch (new_nfail, ids, body, transl new_env handler, dbg, kind)
 
 and transl_make_array dbg env kind mode args =
   match kind with
@@ -887,7 +918,7 @@ and transl_prim_1 env p arg dbg =
       arraylength kind (transl env arg) dbg
   (* Boolean operations *)
   | Pnot ->
-      transl_if env Then_false_else_true
+      transl_if env Vint Then_false_else_true
         dbg arg
         dbg (Cconst_int (1, dbg))
         dbg (Cconst_int (3, dbg))
@@ -946,7 +977,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
   (* Boolean operations *)
   | Psequand ->
       let dbg' = Debuginfo.none in
-      transl_sequand env Then_true_else_false
+      transl_sequand env Vint Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -956,7 +987,7 @@ and transl_prim_2 env p arg1 arg2 dbg =
            Cifthenelse(test_bool dbg (Cvar id), transl env arg2, Cvar id)) *)
   | Psequor ->
       let dbg' = Debuginfo.none in
-      transl_sequor env Then_true_else_false
+      transl_sequor env Vint Then_true_else_false
         dbg arg1
         dbg' arg2
         dbg (Cconst_int (3, dbg))
@@ -1187,7 +1218,7 @@ and transl_unbox_sized size dbg env exp =
   | Thirty_two -> transl_unbox_int dbg env Pint32 exp
   | Sixty_four -> transl_unbox_int dbg env Pint64 exp
 
-and transl_let env str kind id exp body =
+and transl_let env str (kind : Lambda.value_kind) id exp body =
   let dbg = Debuginfo.none in
   let cexp = transl env exp in
   let unboxing =
@@ -1204,20 +1235,8 @@ and transl_let env str kind id exp body =
         Boxed (Boxed_float (Alloc_heap, dbg), false)
     | Mutable, Pboxedintval bi ->
         Boxed (Boxed_integer (bi, Alloc_heap, dbg), false)
-    | _, (Pfloatval | Pboxedintval _) ->
-        (* It would be safe to always unbox in this case, but
-           we do it only if this indeed allows us to get rid of
-           some allocations in the bound expression. *)
-        is_unboxed_number_cmm ~strict:false cexp
-    | _, (Pgenval | Pblock _ | Parrayval _) ->
-        (* Here we don't know statically that the bound expression
-           evaluates to an unboxable number type.  We need to be stricter
-           and ensure that all possible branches in the expression
-           return a boxed value (of the same kind).  Indeed, with GADTs,
-           different branches could return different types. *)
-        is_unboxed_number_cmm ~strict:true cexp
-    | _, Pintval ->
-        No_unboxing
+    | _ ->
+        is_unboxed_number_cmm cexp
   in
   match unboxing with
   | No_unboxing | Boxed (_, true) | No_result ->
@@ -1239,94 +1258,96 @@ and transl_let env str kind id exp body =
       | Mutable, bn -> Clet_mut (v, typ_of_boxed_number bn, cexp, body)
       end
 
-and make_catch ncatch body handler dbg = match body with
-| Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
-| _ ->  ccatch (ncatch, [], body, handler, dbg)
+and make_catch (kind : Cmm.value_kind) ncatch body handler dbg =
+  match body with
+  | Cexit (Lbl nexit,[],[]) when nexit=ncatch -> handler
+  | _ ->  ccatch (ncatch, [], body, handler, dbg, kind)
 
 and is_shareable_cont exp =
   match exp with
   | Cexit (_,[],[]) -> true
   | _ -> false
 
-and make_shareable_cont dbg mk exp =
+and make_shareable_cont (kind : Cmm.value_kind) dbg mk exp =
   if is_shareable_cont exp then mk exp
   else begin
     let nfail = next_raise_count () in
     make_catch
+      kind
       nfail
       (mk (Cexit (Lbl nfail,[],[])))
       exp
       dbg
   end
 
-and transl_if env (approx : then_else)
+and transl_if env (kind : Cmm.value_kind) (approx : then_else)
       (dbg : Debuginfo.t) cond
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
   match cond with
   | Uconst (Uconst_int 0) -> else_
   | Uconst (Uconst_int 1) -> then_
-  | Uifthenelse (arg1, arg2, Uconst (Uconst_int 0)) ->
+  | Uifthenelse (arg1, arg2, Uconst (Uconst_int 0), _) ->
       (* CR mshinwell: These Debuginfos will flow through from Clambda *)
       let inner_dbg = Debuginfo.none in
       let ifso_dbg = Debuginfo.none in
-      transl_sequand env approx
+      transl_sequand env kind approx
         inner_dbg arg1
         ifso_dbg arg2
         then_dbg then_
         else_dbg else_
   | Uprim (Psequand, [arg1; arg2], inner_dbg) ->
-      transl_sequand env approx
+      transl_sequand env kind approx
         inner_dbg arg1
         inner_dbg arg2
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (arg1, Uconst (Uconst_int 1), arg2) ->
+  | Uifthenelse (arg1, Uconst (Uconst_int 1), arg2, _) ->
       let inner_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
-      transl_sequor env approx
+      transl_sequor env kind approx
         inner_dbg arg1
         ifnot_dbg arg2
         then_dbg then_
         else_dbg else_
   | Uprim (Psequor, [arg1; arg2], inner_dbg) ->
-      transl_sequor env approx
+      transl_sequor env kind approx
         inner_dbg arg1
         inner_dbg arg2
         then_dbg then_
         else_dbg else_
   | Uprim (Pnot, [arg], _dbg) ->
-      transl_if env (invert_then_else approx)
+      transl_if env kind (invert_then_else approx)
         dbg arg
         else_dbg else_
         then_dbg then_
-  | Uifthenelse (Uconst (Uconst_int 1), ifso, _) ->
+  | Uifthenelse (Uconst (Uconst_int 1), ifso, _, _) ->
       let ifso_dbg = Debuginfo.none in
-      transl_if env approx
+      transl_if env kind approx
         ifso_dbg ifso
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (Uconst (Uconst_int 0), _, ifnot) ->
+  | Uifthenelse (Uconst (Uconst_int 0), _, ifnot, _) ->
       let ifnot_dbg = Debuginfo.none in
-      transl_if env approx
+      transl_if env kind approx
         ifnot_dbg ifnot
         then_dbg then_
         else_dbg else_
-  | Uifthenelse (cond, ifso, ifnot) ->
+  | Uifthenelse (cond, ifso, ifnot, _) ->
       let inner_dbg = Debuginfo.none in
       let ifso_dbg = Debuginfo.none in
       let ifnot_dbg = Debuginfo.none in
-      make_shareable_cont then_dbg
+      make_shareable_cont kind then_dbg
         (fun shareable_then ->
-           make_shareable_cont else_dbg
+           make_shareable_cont kind else_dbg
              (fun shareable_else ->
                 mk_if_then_else
-                  inner_dbg (test_bool inner_dbg (transl env cond))
-                  ifso_dbg (transl_if env approx
+                  inner_dbg kind (test_bool inner_dbg (transl env cond))
+                  ifso_dbg (transl_if env kind approx
                     ifso_dbg ifso
                     then_dbg shareable_then
                     else_dbg shareable_else)
-                  ifnot_dbg (transl_if env approx
+                  ifnot_dbg (transl_if env kind approx
                     ifnot_dbg ifnot
                     then_dbg shareable_then
                     else_dbg shareable_else))
@@ -1340,50 +1361,50 @@ and transl_if env (approx : then_else)
           mk_not dbg (transl env cond)
       | Unknown ->
           mk_if_then_else
-            dbg (test_bool dbg (transl env cond))
+            dbg kind (test_bool dbg (transl env cond))
             then_dbg then_
             else_dbg else_
     end
 
-and transl_sequand env (approx : then_else)
+and transl_sequand env (kind : Cmm.value_kind) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
-  make_shareable_cont else_dbg
+  make_shareable_cont kind else_dbg
     (fun shareable_else ->
-       transl_if env Unknown
+       transl_if env kind Unknown
          arg1_dbg arg1
-         arg2_dbg (transl_if env approx
+         arg2_dbg (transl_if env kind approx
            arg2_dbg arg2
            then_dbg then_
            else_dbg shareable_else)
          else_dbg shareable_else)
     else_
 
-and transl_sequor env (approx : then_else)
+and transl_sequor env (kind : Cmm.value_kind) (approx : then_else)
       (arg1_dbg : Debuginfo.t) arg1
       (arg2_dbg : Debuginfo.t) arg2
       (then_dbg : Debuginfo.t) then_
       (else_dbg : Debuginfo.t) else_ =
-  make_shareable_cont then_dbg
+  make_shareable_cont kind then_dbg
     (fun shareable_then ->
-       transl_if env Unknown
+       transl_if env kind Unknown
          arg1_dbg arg1
          then_dbg shareable_then
-         arg2_dbg (transl_if env approx
+         arg2_dbg (transl_if env kind approx
            arg2_dbg arg2
            then_dbg shareable_then
            else_dbg else_))
     then_
 
 (* This assumes that [arg] can be safely discarded if it is not used. *)
-and transl_switch dbg env arg index cases = match Array.length cases with
+and transl_switch dbg (kind : Cmm.value_kind) env arg index cases = match Array.length cases with
 | 0 -> fatal_error "Cmmgen.transl_switch"
 | 1 -> transl env cases.(0)
 | _ ->
     let cases = Array.map (transl env) cases in
-    transl_switch_clambda dbg arg index cases
+    transl_switch_clambda dbg kind arg index cases
 
 and transl_letrec env bindings cont =
   let dbg = Debuginfo.none in

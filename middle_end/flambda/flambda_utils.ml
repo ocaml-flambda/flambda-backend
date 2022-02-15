@@ -118,26 +118,30 @@ let rec same (l1 : Flambda.t) (l2 : Flambda.t) =
   | Switch (a1, s1), Switch (a2, s2) ->
     Variable.equal a1 a2 && sameswitch s1 s2
   | Switch _, _ | _, Switch _ -> false
-  | String_switch (a1, s1, d1), String_switch (a2, s2, d2) ->
+  | String_switch (a1, s1, d1, k1), String_switch (a2, s2, d2, k2) ->
     Variable.equal a1 a2
       && Misc.Stdlib.List.equal
         (fun (s1, e1) (s2, e2) -> String.equal s1 s2 && same e1 e2) s1 s2
       && Option.equal same d1 d2
+      && Lambda.equal_value_kind k1 k2
   | String_switch _, _ | _, String_switch _ -> false
   | Static_raise (e1, a1), Static_raise (e2, a2) ->
     Static_exception.equal e1 e2 && Misc.Stdlib.List.equal Variable.equal a1 a2
   | Static_raise _, _ | _, Static_raise _ -> false
-  | Static_catch (s1, v1, a1, b1), Static_catch (s2, v2, a2, b2) ->
+  | Static_catch (s1, v1, a1, b1, k1), Static_catch (s2, v2, a2, b2, k2) ->
     Static_exception.equal s1 s2
       && Misc.Stdlib.List.equal Variable.equal v1 v2
       && same a1 a2
       && same b1 b2
+      && Lambda.equal_value_kind k1 k2
   | Static_catch _, _ | _, Static_catch _ -> false
-  | Try_with (a1, v1, b1), Try_with (a2, v2, b2) ->
+  | Try_with (a1, v1, b1, k1), Try_with (a2, v2, b2, k2) ->
     same a1 a2 && Variable.equal v1 v2 && same b1 b2
+    && Lambda.equal_value_kind k1 k2
   | Try_with _, _ | _, Try_with _ -> false
-  | If_then_else (a1, b1, c1), If_then_else (a2, b2, c2) ->
+  | If_then_else (a1, b1, c1, k1), If_then_else (a2, b2, c2, k2) ->
     Variable.equal a1 a2 && same b1 b2 && same c1 c2
+    && Lambda.equal_value_kind k1 k2
   | If_then_else _, _ | _, If_then_else _ -> false
   | While (a1, b1), While (a2, b2) ->
     same a1 a2 && same b1 b2
@@ -239,6 +243,7 @@ and sameswitch (fs1 : Flambda.switch) (fs2 : Flambda.switch) =
     && Misc.Stdlib.List.equal samecase fs1.consts fs2.consts
     && Misc.Stdlib.List.equal samecase fs1.blocks fs2.blocks
     && Option.equal same fs1.failaction fs2.failaction
+    && Lambda.equal_value_kind fs1.kind fs2.kind
 
 let can_be_merged = same
 
@@ -263,15 +268,15 @@ let toplevel_substitution sb tree =
       let args = List.map sb args in
       Apply { func; args; kind; dbg; reg_close; mode;
               inlined; specialise; probe; }
-    | If_then_else (cond, e1, e2) ->
+    | If_then_else (cond, e1, e2, kind) ->
       let cond = sb cond in
-      If_then_else (cond, e1, e2)
+      If_then_else (cond, e1, e2, kind)
     | Switch (cond, sw) ->
       let cond = sb cond in
       Switch (cond, sw)
-    | String_switch (cond, branches, def) ->
+    | String_switch (cond, branches, def, kind) ->
       let cond = sb cond in
-      String_switch (cond, branches, def)
+      String_switch (cond, branches, def, kind)
     | Send { kind; meth; obj; args; dbg; reg_close; mode } ->
       let meth = sb meth in
       let obj = sb obj in
@@ -673,10 +678,10 @@ let substitute_read_symbol_field_for_variables
             bind to_substitute fresh expr)
           bindings expr
       end
-    | If_then_else (cond, ifso, ifnot)
+    | If_then_else (cond, ifso, ifnot, kind)
         when Variable.Map.mem cond substitution ->
       let fresh = Variable.rename cond in
-      bind cond fresh (If_then_else (fresh, ifso, ifnot))
+      bind cond fresh (If_then_else (fresh, ifso, ifnot, kind))
     | If_then_else _ ->
       expr
     | Switch (cond, sw) when Variable.Map.mem cond substitution ->
@@ -684,9 +689,9 @@ let substitute_read_symbol_field_for_variables
       bind cond fresh (Switch (fresh, sw))
     | Switch _ ->
       expr
-    | String_switch (cond, sw, def) when Variable.Map.mem cond substitution ->
+    | String_switch (cond, sw, def, kind) when Variable.Map.mem cond substitution ->
       let fresh = Variable.rename cond in
-      bind cond fresh (String_switch (fresh, sw, def))
+      bind cond fresh (String_switch (fresh, sw, def, kind))
     | String_switch _ ->
       expr
     | Assign { being_assigned; new_value }

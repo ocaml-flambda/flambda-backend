@@ -23,6 +23,8 @@ val find_label: string -> int
 
 val debuginfo: ?loc:Location.t -> unit -> Debuginfo.t
 
+val value_kind : unit -> Cmm.value_kind
+
 type error =
     Unbound of string
 

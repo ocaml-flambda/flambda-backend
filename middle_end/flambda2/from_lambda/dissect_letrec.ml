@@ -481,12 +481,12 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
     in
     { letrec with effects = Lsequence (lam, letrec.effects); consts }
   | Lapply _
-  | Lswitch (_, _, _)
-  | Lstringswitch (_, _, _, _)
+  | Lswitch (_, _, _, _)
+  | Lstringswitch (_, _, _, _, _)
   | Lstaticraise (_, _)
-  | Lstaticcatch (_, _, _)
-  | Ltrywith (_, _, _)
-  | Lifthenelse (_, _, _)
+  | Lstaticcatch (_, _, _, _)
+  | Ltrywith (_, _, _, _)
+  | Lifthenelse (_, _, _, _)
   | Lsend _ | Lvar _
   | Lprim (_, _, _) ->
     (* This cannot be recursive, otherwise it should have been caught by the
@@ -496,10 +496,10 @@ let rec prepare_letrec (recursive_set : Ident.Set.t)
        inspected (appearances in guarded positions in other cases are OK) *)
     let no_recurse =
       match lam with
-      | Lstaticcatch (_, _, _) | Ltrywith (_, _, _) -> None
-      | Lswitch (lam1, _, _)
-      | Lstringswitch (lam1, _, _, _)
-      | Lifthenelse (lam1, _, _) ->
+      | Lstaticcatch (_, _, _, _) | Ltrywith (_, _, _, _) -> None
+      | Lswitch (lam1, _, _, _)
+      | Lstringswitch (lam1, _, _, _, _)
+      | Lifthenelse (lam1, _, _, _) ->
         Some lam1
       | Lapply _ | Lstaticraise _ | Lsend _ | Lvar _ | Lprim _ -> Some lam
       | _ -> assert false
@@ -603,7 +603,8 @@ let dissect_letrec ~bindings ~body =
     Lstaticcatch
       ( Lregion (Lambda.rename bound_ids_freshening substituted),
         (cont, List.map (fun (bound_id, _) -> bound_id, Pgenval) bindings),
-        real_body )
+        real_body,
+        Pgenval )
 
 type dissected =
   | Dissected of Lambda.lambda

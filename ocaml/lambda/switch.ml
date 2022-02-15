@@ -117,6 +117,7 @@ sig
   val gtint : primitive
   type act
   type loc
+  type value_kind
 
   val bind : act -> (act -> act) -> act
   val make_const : int -> act
@@ -124,9 +125,9 @@ sig
   val make_prim : primitive -> act list -> act
   val make_isout : act -> act -> act
   val make_isin : act -> act -> act
-  val make_if : act -> act -> act -> act
-  val make_switch : loc -> act -> int array -> act array -> act
-  val make_catch : act -> int * (act -> act)
+  val make_if : value_kind -> act -> act -> act -> act
+  val make_switch : loc -> value_kind -> act -> int array -> act array -> act
+  val make_catch : value_kind -> act -> int * (act -> act)
   val make_exit : int -> act
 end
 
@@ -551,60 +552,60 @@ let rec pkey chan  = function
     end ;
     !r, !rc
 
-  let make_if_test test arg i ifso ifnot =
-    Arg.make_if
+  let make_if_test kind test arg i ifso ifnot =
+    Arg.make_if kind
       (Arg.make_prim test [arg ; Arg.make_const i])
       ifso ifnot
 
-  let make_if_lt arg i  ifso ifnot = match i with
+  let make_if_lt kind arg i  ifso ifnot = match i with
     | 1 ->
-        make_if_test Arg.leint arg 0 ifso ifnot
+        make_if_test kind Arg.leint arg 0 ifso ifnot
     | _ ->
-        make_if_test Arg.ltint arg i ifso ifnot
+        make_if_test kind Arg.ltint arg i ifso ifnot
 
-  and make_if_ge arg i  ifso ifnot = match i with
+  and make_if_ge kind arg i  ifso ifnot = match i with
     | 1 ->
-        make_if_test Arg.gtint arg 0 ifso ifnot
+        make_if_test kind Arg.gtint arg 0 ifso ifnot
     | _ ->
-        make_if_test Arg.geint arg i ifso ifnot
+        make_if_test kind Arg.geint arg i ifso ifnot
 
-  and make_if_eq  arg i ifso ifnot =
-    make_if_test Arg.eqint arg i ifso ifnot
+  and make_if_eq kind arg i ifso ifnot =
+    make_if_test kind Arg.eqint arg i ifso ifnot
 
-  and make_if_ne  arg i ifso ifnot =
-    make_if_test Arg.neint arg i ifso ifnot
+  and make_if_ne kind arg i ifso ifnot =
+    make_if_test kind Arg.neint arg i ifso ifnot
 
-  let do_make_if_out h arg ifso ifno =
-    Arg.make_if (Arg.make_isout h arg) ifso ifno
+  let do_make_if_out kind h arg ifso ifno =
+    Arg.make_if kind (Arg.make_isout h arg) ifso ifno
 
-  let make_if_out ctx l d mk_ifso mk_ifno = match l with
+  let make_if_out kind ctx l d mk_ifso mk_ifno = match l with
     | 0 ->
-        do_make_if_out
+        do_make_if_out kind
           (Arg.make_const d) ctx.arg (mk_ifso ctx) (mk_ifno ctx)
     | _ ->
         Arg.bind
           (Arg.make_offset ctx.arg (-l))
           (fun arg ->
              let ctx = {off= (-l+ctx.off) ; arg=arg} in
-             do_make_if_out
+             do_make_if_out kind
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-  let do_make_if_in h arg ifso ifno =
-    Arg.make_if (Arg.make_isin h arg) ifso ifno
+  let do_make_if_in kind h arg ifso ifno =
+    Arg.make_if kind (Arg.make_isin h arg) ifso ifno
 
-  let make_if_in ctx l d mk_ifso mk_ifno = match l with
+  let make_if_in kind ctx l d mk_ifso mk_ifno = match l with
     | 0 ->
-        do_make_if_in
+        do_make_if_in kind
           (Arg.make_const d) ctx.arg (mk_ifso ctx) (mk_ifno ctx)
     | _ ->
         Arg.bind
           (Arg.make_offset ctx.arg (-l))
           (fun arg ->
              let ctx = {off= (-l+ctx.off) ; arg=arg} in
-             do_make_if_in
+             do_make_if_in kind
                (Arg.make_const d) arg (mk_ifso ctx) (mk_ifno ctx))
 
-  let rec c_test ctx ({cases=cases ; actions=actions} as s) =
+  let rec c_test kind ctx ({cases=cases ; actions=actions} as s) =
     let lcases = Array.length cases in
     assert(lcases > 0) ;
     if lcases = 1 then
@@ -629,31 +630,35 @@ let rec pkey chan  = function
           if low=high then begin
             if less_tests coutside cinside then
               make_if_eq
+                kind
                 ctx.arg
                 (low+ctx.off)
-                (c_test ctx {s with cases=inside})
-                (c_test ctx {s with cases=outside})
+                (c_test kind ctx {s with cases=inside})
+                (c_test kind ctx {s with cases=outside})
             else
               make_if_ne
+                kind
                 ctx.arg
                 (low+ctx.off)
-                (c_test ctx {s with cases=outside})
-                (c_test ctx {s with cases=inside})
+                (c_test kind ctx {s with cases=outside})
+                (c_test kind ctx {s with cases=inside})
           end else begin
             if less_tests coutside cinside then
               make_if_in
+                kind
                 ctx
                 (low+ctx.off)
                 (high-low)
-                (fun ctx -> c_test ctx {s with cases=inside})
-                (fun ctx -> c_test ctx {s with cases=outside})
+                (fun ctx -> c_test kind ctx {s with cases=inside})
+                (fun ctx -> c_test kind ctx {s with cases=outside})
             else
               make_if_out
+                kind
                 ctx
                 (low+ctx.off)
                 (high-low)
-                (fun ctx -> c_test ctx {s with cases=outside})
-                (fun ctx -> c_test ctx {s with cases=inside})
+                (fun ctx -> c_test kind ctx {s with cases=outside})
+                (fun ctx -> c_test kind ctx {s with cases=inside})
           end
       | Sep i ->
           let lim,left,right = coupe cases i in
@@ -665,20 +670,24 @@ let rec pkey chan  = function
           if i=1 && (lim+ctx.off)=1 && get_low cases 0+ctx.off=0 then
             if lcases = 2 && get_high cases 1+ctx.off = 1 then
               Arg.make_if
+                kind
                 ctx.arg
-                (c_test ctx right) (c_test ctx left)
+                (c_test kind ctx right) (c_test kind ctx left)
             else
               make_if_ne
+                kind
                 ctx.arg 0
-                (c_test ctx right) (c_test ctx left)
+                (c_test kind ctx right) (c_test kind ctx left)
           else if less_tests cright cleft then
             make_if_lt
+              kind
               ctx.arg (lim+ctx.off)
-              (c_test ctx left) (c_test ctx right)
+              (c_test kind ctx left) (c_test kind ctx right)
           else
             make_if_ge
+              kind
               ctx.arg (lim+ctx.off)
-              (c_test ctx right) (c_test ctx left)
+              (c_test kind ctx right) (c_test kind ctx left)
 
     end
 
@@ -749,7 +758,7 @@ let rec pkey chan  = function
     min_clusters.(len-1),k
 
   (* Assume j > i *)
-  let make_switch loc {cases=cases ; actions=actions} i j =
+  let make_switch loc kind {cases=cases ; actions=actions} i j =
     let ll,_,_ = cases.(i)
     and _,hh,_ = cases.(j) in
     let tbl = Array.make (hh-ll+1) 0
@@ -778,14 +787,14 @@ let rec pkey chan  = function
       t ;
     (fun ctx ->
        match -ll-ctx.off with
-       | 0 -> Arg.make_switch loc ctx.arg tbl acts
+       | 0 -> Arg.make_switch loc kind ctx.arg tbl acts
        | _ ->
            Arg.bind
              (Arg.make_offset ctx.arg (-ll-ctx.off))
-             (fun arg -> Arg.make_switch loc arg tbl acts))
+             (fun arg -> Arg.make_switch loc kind arg tbl acts))
 
 
-  let make_clusters loc ({cases=cases ; actions=actions} as s) n_clusters k =
+  let make_clusters loc kind ({cases=cases ; actions=actions} as s) n_clusters k =
     let len = Array.length cases in
     let r = Array.make n_clusters (0,0,0)
     and t = Hashtbl.create 17
@@ -818,7 +827,7 @@ let rec pkey chan  = function
         else (* assert i < j *)
           let l,_,_ = cases.(i)
           and _,h,_ = cases.(j) in
-          r.(ir) <- (l,h,add_index (make_switch loc s i j))
+          r.(ir) <- (l,h,add_index (make_switch loc kind s i j))
       end ;
       if i > 0 then zyva (i-1) (ir-1) in
 
@@ -829,7 +838,7 @@ let rec pkey chan  = function
   ;;
 
 
-  let do_zyva loc (low,high) arg cases actions =
+  let do_zyva loc kind (low,high) arg cases actions =
     let old_ok = !ok_inter in
     ok_inter := (abs low <= inter_limit && abs high <= inter_limit) ;
     if !ok_inter <> old_ok then Hashtbl.clear t ;
@@ -842,33 +851,33 @@ let rec pkey chan  = function
   prerr_endline "" ;
 *)
     let n_clusters,k = comp_clusters s in
-    let clusters = make_clusters loc s n_clusters k in
-    c_test {arg=arg ; off=0} clusters
+    let clusters = make_clusters loc kind s n_clusters k in
+    c_test kind {arg=arg ; off=0} clusters
 
-  let abstract_shared actions =
+  let abstract_shared kind actions =
     let handlers = ref (fun x -> x) in
     let actions =
       Array.map
         (fun act -> match  act with
            | Single act -> act
            | Shared act ->
-               let i,h = Arg.make_catch act in
+               let i,h = Arg.make_catch kind act in
                let oh = !handlers in
                handlers := (fun act -> h (oh act)) ;
                Arg.make_exit i)
         actions in
     !handlers,actions
 
-  let zyva loc lh arg cases actions =
+  let zyva loc kind lh arg cases actions =
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
-    let hs,actions = abstract_shared actions in
-    hs (do_zyva loc lh arg cases actions)
+    let hs,actions = abstract_shared kind actions in
+    hs (do_zyva loc kind lh arg cases actions)
 
-  and test_sequence arg cases actions =
+  and test_sequence kind arg cases actions =
     assert (Array.length cases > 0) ;
     let actions = actions.act_get_shared () in
-    let hs,actions = abstract_shared actions in
+    let hs,actions = abstract_shared kind actions in
     let old_ok = !ok_inter in
     ok_inter := false ;
     if !ok_inter <> old_ok then Hashtbl.clear t ;
@@ -880,7 +889,7 @@ let rec pkey chan  = function
   pcases stderr cases ;
   prerr_endline "" ;
 *)
-    hs (c_test {arg=arg ; off=0} s)
+    hs (c_test kind {arg=arg ; off=0} s)
   ;;
 
 end
