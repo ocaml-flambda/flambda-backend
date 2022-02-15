@@ -12,16 +12,17 @@ let read buf ~pos = unsafe_get32 buf pos |> bswap32 |> Stdlib.Int32.to_int
 let write buf ~pos n = unsafe_set32 buf pos (n |> Stdlib.Int32.of_int |> bswap32)
 
 let numbers =
-    [ 0x11223344l |> Stdlib.Int32.to_int
-    ; 0xf0f0f0f0l |> Stdlib.Int32.to_int
-    ; 0l |> Stdlib.Int32.to_int
-    ; -1l |> Stdlib.Int32.to_int
-    ; Stdlib.Int32.max_int |> Stdlib.Int32.to_int
-    ; Stdlib.Int32.min_int |> Stdlib.Int32.to_int
+    [ 0x11223344l
+    ; 0xf0f0f0f0l
+    ; 0l
+    ; -1l
+    ; Stdlib.Int32.max_int
+    ; Stdlib.Int32.min_int
     ]
   ;;
 
 let test n =
+  let n = Stdlib.Int32.to_int n in
   write buf ~pos:0 n;
   let n' = read buf ~pos:0 in
   assert (Int.equal n n')
