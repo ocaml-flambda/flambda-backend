@@ -341,8 +341,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_constant cst ->
       Lconst(Const_base cst)
   | Texp_let(rec_flag, pat_expr_list, body) ->
+      let body_kind = Typeopt.value_kind body.exp_env body.exp_type in
       transl_let ~scopes rec_flag pat_expr_list
-        (event_before ~scopes body (transl_exp ~scopes body))
+        body_kind (event_before ~scopes body (transl_exp ~scopes body))
   | Texp_function { arg_label = _; param; cases; partial; region } ->
       let scopes =
         if in_new_scope then scopes
@@ -408,9 +409,11 @@ and transl_exp0 ~in_new_scope ~scopes e =
       transl_match ~scopes e arg pat_expr_list partial
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
+      let k = Typeopt.value_kind e.exp_env e.exp_type in
       Ltrywith(transl_exp ~scopes body, id,
-               Matching.for_trywith ~scopes e.exp_loc (Lvar id)
-                 (transl_cases_try ~scopes pat_expr_list))
+               Matching.for_trywith ~scopes k e.exp_loc (Lvar id)
+                 (transl_cases_try ~scopes pat_expr_list),
+               Typeopt.value_kind e.exp_env e.exp_type)
   | Texp_tuple el ->
       let ll, shape = transl_list_with_shape ~scopes el in
       begin try
@@ -564,11 +567,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
       Lifthenelse(transl_exp ~scopes cond,
                   event_before ~scopes ifso (transl_exp ~scopes ifso),
-                  event_before ~scopes ifnot (transl_exp ~scopes ifnot))
+                  event_before ~scopes ifnot (transl_exp ~scopes ifnot),
+                  Typeopt.value_kind e.exp_env e.exp_type)
   | Texp_ifthenelse(cond, ifso, None) ->
       Lifthenelse(transl_exp ~scopes cond,
                   event_before ~scopes ifso (transl_exp ~scopes ifso),
-                  lambda_unit)
+                  lambda_unit,
+                  Pintval (* unit *))
   | Texp_sequence(expr1, expr2) ->
       Lsequence(transl_exp ~scopes expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes expr2))
@@ -685,7 +690,9 @@ and transl_exp0 ~in_new_scope ~scopes e =
       else begin
         Lifthenelse
           (transl_exp ~scopes cond,
-           lambda_unit, assert_failed ~scopes e)
+           lambda_unit, 
+           assert_failed ~scopes e,
+           Pintval (* unit *))
       end
   | Texp_lazy e ->
       (* when e needs no computation (constants, identifiers, ...), we
@@ -851,12 +858,13 @@ and transl_list_with_shape ~scopes expr_list =
   List.split (List.map transl_with_shape expr_list)
 
 and transl_guard ~scopes guard rhs =
+  let kind = Typeopt.value_kind rhs.exp_env rhs.exp_type in
   let expr = event_before ~scopes rhs (transl_exp ~scopes rhs) in
   match guard with
   | None -> expr
   | Some cond ->
       event_before ~scopes cond
-        (Lifthenelse(transl_exp ~scopes cond, expr, staticfail))
+        (Lifthenelse(transl_exp ~scopes cond, expr, staticfail, kind))
 
 and transl_case ~scopes {c_lhs; c_guard; c_rhs} =
   c_lhs, transl_guard ~scopes c_guard c_rhs
@@ -1030,7 +1038,7 @@ and transl_curried_function
              Curried {nlocal = nlocal + 1}
         in
         ((fnkind, (param, kind) :: params, return, region),
-         Matching.for_function ~scopes loc None (Lvar param)
+         Matching.for_function ~scopes return_kind loc None (Lvar param)
            [pat, body] partial)
       else begin
         begin match partial with
@@ -1087,7 +1095,7 @@ and transl_tupled_function
         in
         let params = List.map fst tparams in
         ((Tupled, tparams, return, region),
-         Matching.for_tupled_function ~scopes loc params
+         Matching.for_tupled_function ~scopes loc return params
            (transl_tupled_cases ~scopes pats_expr_list) partial)
     with Matching.Cannot_flatten ->
       transl_function0 ~scopes loc ~mode ~region
@@ -1116,7 +1124,7 @@ and transl_function0
           (value_kind pat.pat_env pat.pat_type) other_cases
     in
     let body =
-      Matching.for_function ~scopes loc repr (Lvar param)
+      Matching.for_function ~scopes return loc repr (Lvar param)
         (transl_cases ~scopes cases) partial
     in
     let region = region || not (may_allocate_in_region body) in
@@ -1169,7 +1177,7 @@ and transl_bound_exp ~scopes ~in_structure pat expr =
   bindings and body of let constructs.
 *)
 and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
-               rec_flag pat_expr_list =
+               rec_flag pat_expr_list body_kind =
   match rec_flag with
     Nonrecursive ->
       let rec transl = function
@@ -1181,7 +1189,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
           let lam = if add_regions then maybe_region lam else lam in
           let mk_body = transl rem in
           fun body ->
-            Matching.for_let ~scopes pat.pat_loc lam pat (mk_body body)
+            Matching.for_let ~scopes pat.pat_loc lam pat body_kind (mk_body body)
       in
       transl pat_expr_list
   | Recursive ->
@@ -1320,6 +1328,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   end
 
 and transl_match ~scopes e arg pat_expr_list partial =
+  let kind = Typeopt.value_kind e.exp_env e.exp_type in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
         ({ c_lhs; c_guard; c_rhs } as case) =
     if c_rhs.exp_desc = Texp_unreachable then acc else
@@ -1372,16 +1381,18 @@ and transl_match ~scopes e arg pat_expr_list partial =
     let static_exception_id = next_raise_count () in
     Lstaticcatch
       (Ltrywith (Lstaticraise (static_exception_id, body), id,
-                 Matching.for_trywith ~scopes e.exp_loc (Lvar id) exn_cases),
+                 Matching.for_trywith ~scopes kind e.exp_loc (Lvar id) exn_cases,
+                 kind),
        (static_exception_id, val_ids),
-       handler)
+       handler,
+      kind)
   in
   let classic =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple argl}, [] ->
       assert (static_handlers = []);
       let mode = transl_value_mode arg.exp_mode in
-      Matching.for_multiple_match ~scopes e.exp_loc
+      Matching.for_multiple_match ~scopes kind e.exp_loc
         (transl_list ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple argl}, _ :: _ ->
         let val_ids =
@@ -1395,21 +1406,21 @@ and transl_match ~scopes e arg pat_expr_list partial =
         let lvars = List.map (fun (id, _) -> Lvar id) val_ids in
         let mode = transl_value_mode arg.exp_mode in
         static_catch (transl_list ~scopes argl) val_ids
-          (Matching.for_multiple_match ~scopes e.exp_loc
+          (Matching.for_multiple_match ~scopes kind e.exp_loc
              lvars mode val_cases partial)
     | arg, [] ->
       assert (static_handlers = []);
-      Matching.for_function ~scopes e.exp_loc
+      Matching.for_function ~scopes kind e.exp_loc
         None (transl_exp ~scopes arg) val_cases partial
     | arg, _ :: _ ->
         let val_id = Typecore.name_pattern "val" (List.map fst val_cases) in
         let k = Typeopt.value_kind arg.exp_env arg.exp_type in
         static_catch [transl_exp ~scopes arg] [val_id, k]
-          (Matching.for_function ~scopes e.exp_loc
+          (Matching.for_function ~scopes kind e.exp_loc
              None (Lvar val_id) val_cases partial)
   in
   List.fold_left (fun body (static_exception_id, val_ids, handler) ->
-    Lstaticcatch (body, (static_exception_id, val_ids), handler)
+    Lstaticcatch (body, (static_exception_id, val_ids), handler, kind)
   ) classic static_handlers
 
 and transl_letop ~scopes loc env let_ ands param case partial =
