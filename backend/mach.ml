@@ -378,22 +378,3 @@ let equal_operand left right =
     Array.for_all2 Reg.same_loc left_reg right_reg
   | (Iimm _ | Iimmf _ | Ireg _ | Imem _),_ -> false
 
-let integer_operation_arity = function
-  | Icomp _
-  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
-  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> 2
-  | Iclz _ | Ictz _ | Ipopcnt
-  | Icheckbound -> 2
-
-let float_operation_arity = function
-  | Inegf | Iabsf -> 1
-  | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _ -> 2
-
-let test_arity = function
-  | Itruetest
-  | Ifalsetest
-  | Ioddtest
-  | Ieventest -> 1
-  | Iinttest _
-  | Ifloattest _ -> 2

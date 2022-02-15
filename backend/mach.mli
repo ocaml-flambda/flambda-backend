@@ -151,11 +151,6 @@ val operation_can_raise : operation -> bool
 val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
 val equal_trap_stack : trap_stack -> trap_stack -> bool
 
-val test_arity : test -> int
-val integer_operation_arity : integer_operation -> int
-val float_operation_arity : float_operation -> int
-
-
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 val equal_integer_operation : integer_operation -> integer_operation -> bool
 val equal_float_operation : float_operation -> float_operation -> bool
