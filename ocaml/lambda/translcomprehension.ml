@@ -19,6 +19,12 @@ let gen_binding {let_kind; value_kind; var; init} body =
 let gen_bindings bindings body =
   List.fold_right gen_binding bindings body
 
+let valuekind_of_arraykind = function
+  | Pgenarray -> Pgenval
+  | Paddrarray | Pintarray -> Pintval
+  | Pfloatarray -> Pfloatval
+
+
 (* Translate a clause into some initialising bindings, a variable
    that will be bound to the number of iterations in the clause by
    those bindings, and lambda code that performs the iterations. *)
@@ -41,7 +47,9 @@ let transl_arr_clause ~transl_exp ~scopes ~loc clause body =
           Lfor(index, (int 0), Lprim(Psubint, [Lvar(len_var); int 1], loc) , Upto,
             Matching.for_let ~scopes pat.pat_loc
               (Lprim(Parrayrefu(in_kind),
-                     [Lvar(in_var); Lvar(index)], loc)) pat body)
+                     [Lvar(in_var); Lvar(index)], loc)) pat
+              (valuekind_of_arraykind in_kind)
+              body)
         in
         [in_binding; len_binding], for_
     | From_to(id, _, e2, e3, dir) ->
@@ -79,7 +87,7 @@ let iterate_arr_block ~transl_exp ~loc ~scopes
     match guard with
     | None -> body
     | Some guard ->
-      Lifthenelse(transl_exp ~scopes guard, body, lambda_unit)
+      Lifthenelse(transl_exp ~scopes guard, body, lambda_unit, Pintval)
   in
   let body, length_opt, bindings =
     List.fold_left
@@ -124,7 +132,7 @@ let blit_array_prim ~loc src src_pos dst dst_pos len =
 let make_array ~loc ~kind ~size ~array =
   match kind with
   | Pgenarray ->
-      (* This array can be Immutable since it is empty and will later be 
+      (* This array can be Immutable since it is empty and will later be
          replaced when an example value (to create the array) is known.
          That is also why the biding is a Variable. *)
       let init = Lprim(Pmakearray(Pgenarray, Immutable, Alloc_heap), [], loc) in
@@ -149,7 +157,7 @@ let init_array_elem ~loc ~kind ~size ~array ~index ~value =
       let make_array =
         Lassign(array, make_array_prim ~loc size (Lvar value))
       in
-      Lifthenelse(is_first_iteration, make_array, set_elem)
+      Lifthenelse(is_first_iteration, make_array, set_elem, Pintval)
   | Pintarray | Paddrarray | Pfloatarray -> set_elem
 
 (* Generate code to blit elements into an "uninitialised" array *)
@@ -173,8 +181,8 @@ let init_array_elems ~loc ~kind ~size ~array ~index ~src ~len =
       in
       Lsequence(
         Lifthenelse(is_first_iteration,
-          Lifthenelse(is_not_empty, make_array, lambda_unit),
-          lambda_unit),
+          Lifthenelse(is_not_empty, make_array, lambda_unit, Pintval),
+          lambda_unit, Pintval),
         blit)
   | Pintarray | Paddrarray | Pfloatarray -> blit
 
@@ -225,7 +233,7 @@ let transl_arr_block ~transl_exp ~loc ~scopes
         Lstaticcatch(body,
           (raise_count, [(elem_var, Pgenval); (elem_len_var, Pintval)]),
           Lsequence(init_elem, Lsequence(set_len,
-             increment_counter ~loc counter_var (int 2))))
+             increment_counter ~loc counter_var (int 2))), Pintval)
   in
   let bindings, loops =
     iterate_arr_block ~transl_exp ~loc ~scopes block length_var set_result
@@ -279,7 +287,7 @@ let transl_single_arr_block ~transl_exp ~loc ~scopes
       let len_var = Ident.create_local "len" in
       Lstaticcatch(body,
           (raise_count, [(array_var, Pgenval); (len_var, Pintval)]),
-          sub_array ~loc (Lvar array_var) (int 0) (Lvar len_var))
+          sub_array ~loc (Lvar array_var) (int 0) (Lvar len_var), Pintval)
 
 type intermediate_array_shape =
   | Array_of_elements
@@ -365,7 +373,7 @@ let concat_arrays ~loc arr kind shape global_count_var =
              (gen_binding counter_binding
                 ((Lsequence
                     (loop shape array_var (Some len_var),
-                     Lvar res_var)))))
+                     Lvar res_var)))), Pgenval)
 
 let transl_arr_comprehension ~transl_exp ~loc ~scopes
       ~array_kind exp blocks =
@@ -433,7 +441,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
       let args = [Lvar(in_var); Lvar(new_acc)] in
       let func = in_comp_prim () in
       let body =
-        Matching.for_let ~scopes pat.pat_loc (Lvar(pat_id)) pat body
+        Matching.for_let ~scopes pat.pat_loc (Lvar(pat_id)) pat pval body
       in
       let mats = (in_var, transl_exp ~scopes in_)::mats in
       pat_id , pval, args, func, body, mats
@@ -462,6 +470,7 @@ let transl_list_comp type_comp body acc_var mats ~transl_exp ~scopes ~loc =
 
 let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
   let acc_var = Ident.create_local "acc" in
+  let value_kind = Typeopt.value_kind body.exp_env body.exp_type in
   let bdy =
     Lprim(
       Pmakeblock(0, Immutable, None, Alloc_heap),
@@ -473,7 +482,7 @@ let transl_list_comprehension ~transl_exp ~loc ~scopes body blocks =
         match block.guard with
         | None -> body
         | Some guard ->
-          Lifthenelse((transl_exp ~scopes  guard), body, Lvar(acc_var))
+          Lifthenelse((transl_exp ~scopes  guard), body, Lvar(acc_var), value_kind)
       in
       let body, acc_var, materialize =
         List.fold_left

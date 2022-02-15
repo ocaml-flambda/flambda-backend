@@ -1419,7 +1419,14 @@ and make_switch ~tag_discriminant env res e arms =
           i + 1, res)
         arms (0, res)
     in
-    wrap (C.transl_switch_clambda Debuginfo.none e index cases), res
+    (* CR-someday poechsel: Put a more precise value kind here *)
+    (* The cases of the switch must have a value kind (i.e. they cannot be
+       unboxed). This is because each case will either end in a `Cexit` or end
+       by "calling" the return continuation, in which case it will just return
+       the argument to that continuation. Currently functions cannot return
+       unboxed values, so that argument must have a value kind. *)
+    ( wrap (C.transl_switch_clambda Debuginfo.none (Vval Pgenval) e index cases),
+      res )
 
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)

@@ -651,7 +651,7 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(%a%a)@]" primitive prim lams largs
-  | Lswitch(larg, sw, _loc) ->
+  | Lswitch(larg, sw, _loc, _kind) ->
       let switch ppf sw =
         let spc = ref false in
         List.iter
@@ -674,7 +674,7 @@ let rec lam ppf = function
        "@[<1>(%s %a@ @[<v 0>%a@])@]"
        (match sw.sw_failaction with None -> "switch*" | _ -> "switch")
        lam larg switch sw
-  | Lstringswitch(arg, cases, default, _) ->
+  | Lstringswitch(arg, cases, default, _, _kind) ->
       let switch ppf cases =
         let spc = ref false in
         List.iter
@@ -694,7 +694,7 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       fprintf ppf "@[<2>(exit@ %d%a)@]" i lams ls;
-  | Lstaticcatch(lbody, (i, vars), lhandler) ->
+  | Lstaticcatch(lbody, (i, vars), lhandler, _kind) ->
       fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%d%a)@ %a)@]"
         lam lbody i
         (fun ppf vars ->
@@ -704,10 +704,10 @@ let rec lam ppf = function
         )
         vars
         lam lhandler
-  | Ltrywith(lbody, param, lhandler) ->
+  | Ltrywith(lbody, param, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Ident.print param lam lhandler
-  | Lifthenelse(lcond, lif, lelse) ->
+  | Lifthenelse(lcond, lif, lelse, _kind) ->
       fprintf ppf "@[<2>(if@ %a@ %a@ %a)@]" lam lcond lam lif lam lelse
   | Lsequence(l1, l2) ->
       fprintf ppf "@[<2>(seq@ %a@ %a)@]" lam l1 sequence l2

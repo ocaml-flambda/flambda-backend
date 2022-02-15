@@ -69,12 +69,13 @@ type t =
   | Apply of apply
   | Send of send
   | Assign of assign
-  | If_then_else of Variable.t * t * t
+  | If_then_else of Variable.t * t * t * Lambda.value_kind
   | Switch of Variable.t * switch
   | String_switch of Variable.t * (string * t) list * t option
+                     * Lambda.value_kind
   | Static_raise of Static_exception.t * Variable.t list
-  | Static_catch of Static_exception.t * Variable.t list * t * t
-  | Try_with of t * Variable.t * t
+  | Static_catch of Static_exception.t * Variable.t list * t * t * Lambda.value_kind
+  | Try_with of t * Variable.t * t * Lambda.value_kind
   | While of t * t
   | For of for_loop
   | Region of t
@@ -145,6 +146,7 @@ and switch = {
   numblocks : Numbers.Int.Set.t;
   blocks : (int * t) list;
   failaction : t option;
+  kind:  Lambda.value_kind;
 }
 
 and for_loop = {
@@ -300,7 +302,7 @@ let rec lam ppf (flam : t) =
         (Int.Set.cardinal sw.numconsts)
         (Int.Set.cardinal sw.numblocks)
         Variable.print larg switch sw
-  | String_switch(arg, cases, default) ->
+  | String_switch(arg, cases, default, _kind) ->
       let switch ppf cases =
         let spc = ref false in
         List.iter
@@ -320,7 +322,7 @@ let rec lam ppf (flam : t) =
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" Variable.print l) largs in
       fprintf ppf "@[<2>(exit@ %a%a)@]" Static_exception.print i lams ls;
-  | Static_catch(i, vars, lbody, lhandler) ->
+  | Static_catch(i, vars, lbody, lhandler, _kind) ->
       fprintf ppf "@[<2>(catch@ %a@;<1 -1>with (%a%a)@ %a)@]"
         lam lbody Static_exception.print i
         (fun ppf vars -> match vars with
@@ -331,10 +333,10 @@ let rec lam ppf (flam : t) =
                  vars)
         vars
         lam lhandler
-  | Try_with(lbody, param, lhandler) ->
+  | Try_with(lbody, param, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Variable.print param lam lhandler
-  | If_then_else(lcond, lif, lelse) ->
+  | If_then_else(lcond, lif, lelse, _kind) ->
       fprintf ppf "@[<2>(if@ %a@ then begin@ %a@ end else begin@ %a@ end)@]"
         Variable.print lcond
         lam lif lam lelse
@@ -589,21 +591,21 @@ let rec variables_usage ?ignore_uses_as_callee ?ignore_uses_as_argument
         List.iter (fun (_, e) -> aux e) switch.consts;
         List.iter (fun (_, e) -> aux e) switch.blocks;
         Option.iter aux switch.failaction
-      | String_switch (scrutinee, cases, failaction) ->
+      | String_switch (scrutinee, cases, failaction, _kind) ->
         free_variable scrutinee;
         List.iter (fun (_, e) -> aux e) cases;
         Option.iter aux failaction
       | Static_raise (_, es) ->
         List.iter free_variable es
-      | Static_catch (_, vars, e1, e2) ->
+      | Static_catch (_, vars, e1, e2, _) ->
         List.iter bound_variable vars;
         aux e1;
         aux e2
-      | Try_with (e1, var, e2) ->
+      | Try_with (e1, var, e2, _kind) ->
         aux e1;
         bound_variable var;
         aux e2
-      | If_then_else (var, e1, e2) ->
+      | If_then_else (var, e1, e2, _kind) ->
         free_variable var;
         aux e1;
         aux e2
@@ -808,18 +810,18 @@ let iter_general ~toplevel f f_named maybe_named =
       | Let_rec (defs, body) ->
         List.iter (fun (_,l) -> aux_named l) defs;
         aux body
-      | Try_with (f1,_,f2)
+      | Try_with (f1,_,f2, _)
       | While (f1,f2)
-      | Static_catch (_,_,f1,f2) ->
+      | Static_catch (_,_,f1,f2, _) ->
         aux f1; aux f2
       | For { body; _ } -> aux body
-      | If_then_else (_, f1, f2) ->
+      | If_then_else (_, f1, f2, _) ->
         aux f1; aux f2
       | Switch (_, sw) ->
         List.iter (fun (_,l) -> aux l) sw.consts;
         List.iter (fun (_,l) -> aux l) sw.blocks;
         Option.iter aux sw.failaction
-      | String_switch (_, sw, def) ->
+      | String_switch (_, sw, def, _) ->
         List.iter (fun (_,l) -> aux l) sw;
         Option.iter aux def
       | Region body ->

@@ -798,7 +798,7 @@ let rec comp_expr env exp sz cont =
       comp_args env args sz (Kgetfloatfield n :: cont)
   | Lprim(p, args, _) ->
       comp_args env args sz (comp_primitive p args :: cont)
-  | Lstaticcatch (body, (i, vars) , handler) ->
+  | Lstaticcatch (body, (i, vars) , handler, _) ->
       let vars = List.map fst vars in
       let nvars = List.length vars in
       let branch1, cont1 = make_branch cont in
@@ -841,7 +841,7 @@ let rec comp_expr env exp sz cont =
           comp_expr env arg sz cont
       | _ -> comp_exit_args env args sz size cont
       end
-  | Ltrywith(body, id, handler) ->
+  | Ltrywith(body, id, handler, _kind) ->
       let (branch1, cont1) = make_branch cont in
       let lbl_handler = new_label() in
       let body_cont =
@@ -853,7 +853,7 @@ let rec comp_expr env exp sz cont =
       let l = comp_expr env body (sz+4) body_cont in
       try_blocks := List.tl !try_blocks;
       Kpushtrap lbl_handler :: l
-  | Lifthenelse(cond, ifso, ifnot) ->
+  | Lifthenelse(cond, ifso, ifnot, _kind) ->
       comp_binary_test env cond ifso ifnot sz cont
   | Lsequence(exp1, exp2) ->
       comp_expr env exp1 sz (comp_expr env exp2 sz cont)
@@ -877,7 +877,7 @@ let rec comp_expr env exp sz cont =
              (Kacc 1 :: Kpush :: Koffsetint offset :: Kassign 2 ::
               Kacc 1 :: Kintcomp Cne :: Kbranchif lbl_loop ::
               Klabel lbl_exit :: add_const_unit (add_pop 2 cont))))
-  | Lswitch(arg, sw, _loc) ->
+  | Lswitch(arg, sw, _loc, _kind) ->
       let (branch, cont1) = make_branch cont in
       let c = ref (discard_dead_code cont1) in
 
@@ -923,8 +923,8 @@ let rec comp_expr env exp sz cont =
         lbl_consts.(i) <- lbls.(act_consts.(i))
       done;
       comp_expr env arg sz (Kswitch(lbl_consts, lbl_blocks) :: !c)
-  | Lstringswitch (arg,sw,d,loc) ->
-      comp_expr env (Matching.expand_stringswitch loc arg sw d) sz cont
+  | Lstringswitch (arg,sw,d,loc, kind) ->
+      comp_expr env (Matching.expand_stringswitch loc kind arg sw d) sz cont
   | Lassign(id, expr) ->
       begin try
         let pos = Ident.find_same id env.ce_stack in
