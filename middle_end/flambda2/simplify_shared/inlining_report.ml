@@ -436,7 +436,7 @@ module Inlining_tree = struct
 
   let empty = Map.empty
 
-  let insert_or_update_scope ~scope_type ~name ~cont t =
+  let insert_or_update_scope ~scope_type ~name ~rebuild t =
     let key = Debuginfo.none, Key.Scope (scope_type, name) in
     let m =
       if not (Map.mem key t)
@@ -444,16 +444,16 @@ module Inlining_tree = struct
       else
         match Map.find key t with Scope m -> m | Construct _ -> assert false
     in
-    Map.add key (Scope (cont m)) t
+    Map.add key (Scope (rebuild m)) t
 
   let insert_or_update_generic ?decision_with_context ~compilation_unit ~path
-      ~key ~(cont : item Map.t -> item Map.t) t =
+      ~key ~(rebuild : t -> t) t =
     Map.update key
       (function
         | None ->
           Some
             (Construct
-               { tree = cont Map.empty;
+               { tree = rebuild Map.empty;
                  decisions = Option.to_list decision_with_context;
                  uid = Uid.create ~compilation_unit path
                })
@@ -463,7 +463,7 @@ module Inlining_tree = struct
             | Some decision -> decision :: t.decisions
             | None -> t.decisions
           in
-          Some (Construct { tree = cont t.tree; decisions; uid = t.uid })
+          Some (Construct { tree = rebuild t.tree; decisions; uid = t.uid })
         | Some (Scope _) ->
           Misc.fatal_errorf
             "A key of type call or fundecl should be associated with an item \
@@ -471,41 +471,56 @@ module Inlining_tree = struct
       t
 
   let insert_or_update_call ?decision_with_context ~dbg ~callee
-      ~(cont : item Map.t -> item Map.t) t =
+      ~(rebuild : t -> t) t =
     let key = dbg, Key.Call callee in
     insert_or_update_generic ?decision_with_context ~key
       ~compilation_unit:(Inlining_history.Absolute.compilation_unit callee)
       ~path:(Inlining_history.Absolute.path callee)
-      ~cont t
+      ~rebuild t
 
   let insert_or_update_fundecl ?decision_with_context ~compilation_unit ~dbg
-      ~name ~path ~(cont : item Map.t -> item Map.t) t =
+      ~name ~path ~(rebuild : t -> t) t =
     let key = dbg, Key.Fundecl name in
     insert_or_update_generic ?decision_with_context ~compilation_unit ~path ~key
-      ~cont t
+      ~rebuild t
 
   (* Insert a decision into an inlining tree [t].
 
      Only decisions rooted in [compilation_unit] are kept. *)
   let insert ~compilation_unit t (decision : raw_decision) =
-    let rec aux ~cont path =
+    (* Paths are stored as a linked list, meaning that the innermost atoms of
+       the paths are also the one at the start of it. For example, the path:
+       Empty -> fundecl(foo) -> apply(bar) -> inlined -> apply(baz) Is
+       represented as Apply(baz, Inlined(Apply(bar, Fundecl(foo, Empty))))
+
+       As such path can only traversed from top to bottom. However, [insert]
+       will insert a decision in a inlining tree rooted in [t] and inside an
+       inlining [tree] nodes are traversed from bottom to tree.
+
+       To avoid having to manually reverse the path each call to
+       [insert_inner_mode] constructs a [rebuild] function that will replay the
+       traversal in reversed order and build the inlining tree [t] where nodes
+       corresponding to [decision] are present. *)
+    let rec insert_inner_node ~rebuild path =
       match (path : Inlining_history.Absolute.path) with
-      | Empty -> cont t
+      | Empty -> rebuild t
       | Unknown { prev } ->
-        aux prev ~cont:(fun m ->
-            insert_or_update_scope ~scope_type:Unknown ~name:"" ~cont m)
+        insert_inner_node prev ~rebuild:(fun m ->
+            insert_or_update_scope ~scope_type:Unknown ~name:"" ~rebuild m)
       | Module { name; prev } ->
-        aux prev ~cont:(fun m ->
-            insert_or_update_scope ~scope_type:Module ~name ~cont m)
+        insert_inner_node prev ~rebuild:(fun m ->
+            insert_or_update_scope ~scope_type:Module ~name ~rebuild m)
       | Class { name; prev } ->
-        aux prev ~cont:(fun m ->
-            insert_or_update_scope ~scope_type:Class ~name ~cont m)
+        insert_inner_node prev ~rebuild:(fun m ->
+            insert_or_update_scope ~scope_type:Class ~name ~rebuild m)
       | Function { dbg; name; prev } ->
-        aux prev ~cont:(fun m ->
-            insert_or_update_fundecl ~path ~dbg ~name ~compilation_unit ~cont m)
+        insert_inner_node prev ~rebuild:(fun m ->
+            insert_or_update_fundecl ~path ~dbg ~name ~compilation_unit ~rebuild
+              m)
       | Call { dbg; callee; prev } ->
-        aux prev ~cont:(fun m -> insert_or_update_call ~dbg ~callee ~cont m)
-      | Inline { prev } -> aux prev ~cont
+        insert_inner_node prev ~rebuild:(fun m ->
+            insert_or_update_call ~dbg ~callee ~rebuild m)
+      | Inline { prev } -> insert_inner_node prev ~rebuild
     in
 
     let { path; dbg; decision_with_context } = decision in
@@ -516,17 +531,17 @@ module Inlining_tree = struct
       match path with
       | Unknown _ -> t
       | Call { callee; prev; _ } ->
-        aux
-          ~cont:(fun m ->
+        insert_inner_node
+          ~rebuild:(fun m ->
             insert_or_update_call ?decision_with_context ~dbg ~callee
-              ~cont:(fun x -> x)
+              ~rebuild:(fun x -> x)
               m)
           prev
       | Function { name; prev; _ } ->
-        aux
-          ~cont:
+        insert_inner_node
+          ~rebuild:
             (insert_or_update_fundecl ?decision_with_context ~dbg
-               ~compilation_unit ~path ~name ~cont:(fun x -> x))
+               ~compilation_unit ~path ~name ~rebuild:(fun x -> x))
           prev
       | Module _ | Class _ | Inline _ | Empty ->
         Misc.fatal_errorf
