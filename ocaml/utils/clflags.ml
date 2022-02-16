@@ -383,9 +383,6 @@ module Extension = struct
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
 
-  let disable_all_extensions = ref false             (* -disable-all-extensions *)
-  let disable_all () = disable_all_extensions := true
-
   let to_string = function
     | Comprehensions -> "comprehensions"
     | Local -> "local"
@@ -395,7 +392,23 @@ module Extension = struct
     | "local" -> Local
     | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
+  let disable_all_extensions = ref false             (* -disable-all-extensions *)
+
+  let disable_all () =
+    disable_all_extensions := true;
+    match !extensions with
+    | [] -> ()
+    | ls ->
+      Misc.fatal_errorf
+        "Extensions %s are incompatible with compiler flag -disable-all-extensions"
+        (String.concat "," (List.map to_string ls))
+
   let enable extn =
+    if !disable_all_extensions then
+      Misc.fatal_errorf
+        "Cannot enable extension %s: \
+         incompatible with compiler flag -disable-all-extensions"
+        extn;
     let t = of_string (String.lowercase_ascii extn) in
     if not (List.exists (equal t) !extensions) then
       extensions := t :: !extensions
