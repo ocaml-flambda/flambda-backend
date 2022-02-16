@@ -297,6 +297,7 @@ struct caml__roots_block {
 */
 
 #define CAMLparam0() \
+  int caml__missing_CAMLreturn = 0; \
   struct caml__roots_block *caml__frame = Caml_state_field(local_roots)
 
 #define CAMLparam1(x) \
@@ -456,7 +457,10 @@ struct caml__roots_block {
   CAMLxparamN (x, (size))
 
 
-#define CAMLdrop Caml_state_field(local_roots) = caml__frame
+#define CAMLdrop do { \
+  (void)caml__missing_CAMLreturn; \
+  Caml_state_field(local_roots) = caml__frame; \
+} while (0)
 
 #define CAMLreturn0 do{ \
   CAMLdrop; \
@@ -471,7 +475,7 @@ struct caml__roots_block {
 
 #define CAMLreturn(result) CAMLreturnT(value, result)
 
-#define CAMLnoreturn ((void) caml__frame)
+#define CAMLnoreturn ((void) caml__missing_CAMLreturn, (void) caml__frame)
 
 
 /* convenience macro */
