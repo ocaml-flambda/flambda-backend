@@ -179,6 +179,9 @@ let operation d = function
   | Clsl -> "<<"
   | Clsr -> ">>u"
   | Casr -> ">>s"
+  | Cbswap { bitwidth = Sixteen } -> "bswap_16"
+  | Cbswap { bitwidth = Thirtytwo } -> "bswap_32"
+  | Cbswap { bitwidth = Sixtyfour } -> "bswap_64"
   | Cclz { arg_is_non_zero; } -> Printf.sprintf "clz %B" arg_is_non_zero
   | Cctz { arg_is_non_zero; } -> Printf.sprintf "ctz %B" arg_is_non_zero
   | Cpopcnt -> "popcnt"
