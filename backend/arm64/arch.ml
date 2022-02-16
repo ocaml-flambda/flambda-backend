@@ -41,6 +41,8 @@ type addressing_mode =
 type cmm_label = int
   (* Do not introduce a dependency to Cmm *)
 
+type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
+
 type specific_operation =
   | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
   | Ifar_intop_checkbound
@@ -56,7 +58,7 @@ type specific_operation =
   | Imulsubf      (* floating-point multiply and subtract *)
   | Inegmulsubf   (* floating-point negate, multiply and subtract *)
   | Isqrtf        (* floating-point square root *)
-  | Ibswap of int (* endianness conversion *)
+  | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Imove32       (* 32-bit integer move *)
 
 and arith_operation =
@@ -101,6 +103,11 @@ let print_addressing printreg addr ppf arg =
       fprintf ppf "\"%s\"" s
   | Ibased(s, n) ->
       fprintf ppf "\"%s\" + %i" s n
+
+let int_of_bswap_bitwidth = function
+  | Sixteen -> 16
+  | Thirtytwo -> 32
+  | Sixtyfour -> 64
 
 let print_specific_operation printreg op ppf arg =
   match op with
@@ -163,7 +170,8 @@ let print_specific_operation printreg op ppf arg =
   | Isqrtf ->
       fprintf ppf "sqrtf %a"
         printreg arg.(0)
-  | Ibswap n ->
+  | Ibswap { bitwidth } ->
+      let n = int_of_bswap_bitwidth bitwidth in
       fprintf ppf "bswap%i %a" n
         printreg arg.(0)
   | Imove32 ->
@@ -212,7 +220,8 @@ let equal_specific_operation left right =
   | Imulsubf, Imulsubf -> true
   | Inegmulsubf, Inegmulsubf -> true
   | Isqrtf, Isqrtf -> true
-  | Ibswap left_int, Ibswap right_int -> Int.equal left_int right_int
+  | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
+    Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
   | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
     | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _

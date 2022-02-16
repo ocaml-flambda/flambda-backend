@@ -73,6 +73,8 @@ type prefetch_info = {
   addr: addressing_mode;
 }
 
+type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
+
 type rounding_mode = Half_to_even | Down | Up | Towards_zero | Current
 
 type specific_operation =
@@ -82,7 +84,7 @@ type specific_operation =
   | Ioffset_loc of int * addressing_mode (* Add a constant to a location *)
   | Ifloatarithmem of float_operation * addressing_mode
                                        (* Float arith operation with memory *)
-  | Ibswap of int                      (* endianness conversion *)
+  | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Isqrtf                             (* Float square root *)
   | Ifloatsqrtf of addressing_mode     (* Float square root from memory *)
   | Ifloat_iround                      (* Rounds a [float] to an [int64]
@@ -156,6 +158,11 @@ let string_of_rounding_mode = function
   | Towards_zero -> "truncate"
   | Current -> "current"
 
+let int_of_bswap_bitwidth = function
+  | Sixteen -> 16
+  | Thirtytwo -> 32
+  | Sixtyfour -> 64
+
 let print_addressing printreg addr ppf arg =
   match addr with
   | Ibased(s, 0) ->
@@ -204,8 +211,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "%a %s float64[%a]" printreg arg.(0) (op_name op)
                    (print_addressing printreg addr)
                    (Array.sub arg 1 (Array.length arg - 1))
-  | Ibswap i ->
-      fprintf ppf "bswap_%i %a" i printreg arg.(0)
+  | Ibswap { bitwidth } ->
+    fprintf ppf "bswap_%i %a" (int_of_bswap_bitwidth bitwidth) printreg arg.(0)
   | Isextend32 ->
       fprintf ppf "sextend32 %a" printreg arg.(0)
   | Izextend32 ->
@@ -296,8 +303,8 @@ let equal_specific_operation left right =
     Int.equal x y && equal_addressing_mode x' y'
   | Ifloatarithmem (x, x'), Ifloatarithmem (y, y') ->
     equal_float_operation x y && equal_addressing_mode x' y'
-  | Ibswap left, Ibswap right ->
-    Int.equal left right
+  | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
+    Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Isqrtf, Isqrtf ->
     true
   | Ifloatsqrtf left, Ifloatsqrtf right ->
