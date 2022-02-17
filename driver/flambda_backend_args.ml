@@ -683,17 +683,6 @@ module Extra_params = struct
       Compenv.int_setter ppf name option v; true
     in
     match name with
-    (* override existing params *)
-    | "Oclassic" ->
-      if Compenv.check_bool ppf "Oclassic" v then
-        Flambda_backend_flags.set_oclassic (); true
-    | "O2" ->
-      if Compenv.check_bool ppf "O2" v then
-        Flambda_backend_flags.set_o2 (); true
-    | "O3" ->
-      if Compenv.check_bool ppf "O3" v then
-        Flambda_backend_flags.set_o3 (); true
-    (* define new params *)
     | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
     | "use-cpp-mangling" -> set Flambda_backend_flags.use_cpp_mangling
     | "heap-reduction-threshold" -> set_int Flambda_backend_flags.heap_reduction_threshold
@@ -806,8 +795,7 @@ struct
      If the same string input can be recognized by two options,
      the flambda-backend implementation will take precedence,
      but this should be avoided. To override an option from Main_args,
-     redefine it in the implementation of this functor's argument.
-     See the approach below for _o3 in Default. *)
+     redefine it in the implementation of this functor's argument. *)
   let list = list2 @ list
 end
 
@@ -821,15 +809,9 @@ module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
     include Flambda_backend_options_impl
-    let _o2 () = Flambda_backend_flags.set_o2 ()
-    let _o3 () = Flambda_backend_flags.set_o3 ()
-    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
     include Flambda_backend_options_impl
-    let _o2 () = Flambda_backend_flags.set_o2 ()
-    let _o3 () = Flambda_backend_flags.set_o3 ()
-    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
 end

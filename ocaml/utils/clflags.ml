@@ -502,23 +502,42 @@ end
 let is_flambda2 () =
   Config.flambda2 && !native_code
 
-let set_oclassic () =
-  classic_inlining := true;
-  default_simplify_rounds := 1;
-  use_inlining_arguments_set classic_arguments;
-  unbox_free_vars_of_closures := false;
-  unbox_specialised_args := false
+module Opt_flag_handler = struct
+  type t = {
+    set_oclassic : unit -> unit;
+    set_o2 : unit -> unit;
+    set_o3 : unit -> unit;
+  }
 
-let set_o2 () =
-  default_simplify_rounds := 2;
-  use_inlining_arguments_set o2_arguments;
-  use_inlining_arguments_set ~round:0 o1_arguments
+  let default =
+    let set_oclassic () =
+      classic_inlining := true;
+      default_simplify_rounds := 1;
+      use_inlining_arguments_set classic_arguments;
+      unbox_free_vars_of_closures := false;
+      unbox_specialised_args := false
+    in
+    let set_o2 () =
+      default_simplify_rounds := 2;
+      use_inlining_arguments_set o2_arguments;
+      use_inlining_arguments_set ~round:0 o1_arguments
+    in
+    let set_o3 () =
+      default_simplify_rounds := 3;
+      use_inlining_arguments_set o3_arguments;
+      use_inlining_arguments_set ~round:1 o2_arguments;
+      use_inlining_arguments_set ~round:0 o1_arguments
+    in
+    { set_oclassic; set_o2; set_o3 }
 
-let set_o3 () =
-  default_simplify_rounds := 3;
-  use_inlining_arguments_set o3_arguments;
-  use_inlining_arguments_set ~round:1 o2_arguments;
-  use_inlining_arguments_set ~round:0 o1_arguments
+  let current = ref default
+
+  let set t = current := t
+end
+
+let set_oclassic () = (!Opt_flag_handler.current).set_oclassic ()
+let set_o2 () = (!Opt_flag_handler.current).set_o2 ()
+let set_o3 () = (!Opt_flag_handler.current).set_o3 ()
 
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct

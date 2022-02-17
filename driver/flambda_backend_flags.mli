@@ -127,7 +127,4 @@ module Flambda2 : sig
   end
 end
 
-
-val set_oclassic : unit -> unit
-val set_o2 : unit -> unit
-val set_o3 : unit -> unit
+val opt_flag_handler : Clflags.Opt_flag_handler.t

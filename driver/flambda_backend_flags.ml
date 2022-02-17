@@ -218,27 +218,34 @@ module Flambda2 = struct
     function_result_types := Functors_only
 end
 
-let set_oclassic () =
-  if Clflags.is_flambda2 () then begin
-    Flambda2.Inlining.use_inlining_arguments_set
-      Flambda2.Inlining.oclassic_arguments;
-    Flambda2.oclassic_flags ()
-  end else begin
-    Clflags.set_oclassic ();
-  end
+let opt_flag_handler : Clflags.Opt_flag_handler.t =
+  let default = Clflags.Opt_flag_handler.default in
 
-let set_o2 () =
-  if Clflags.is_flambda2 () then begin
-    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
-    Flambda2.o2_flags ()
-  end else begin
-    Clflags.set_o2 ();
-  end
+  let set_oclassic () =
+    if Clflags.is_flambda2 () then begin
+      Flambda2.Inlining.use_inlining_arguments_set
+        Flambda2.Inlining.oclassic_arguments;
+      Flambda2.oclassic_flags ()
+    end else begin
+      default.set_oclassic ();
+    end
+  in
 
-let set_o3 () =
-  if Clflags.is_flambda2 () then begin
-    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
-    Flambda2.o3_flags ()
-  end else begin
-    Clflags.set_o3 ();
-  end
+  let set_o2 () =
+    if Clflags.is_flambda2 () then begin
+      Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
+      Flambda2.o2_flags ()
+    end else begin
+      default.set_o2 ();
+    end
+  in
+
+  let set_o3 () =
+    if Clflags.is_flambda2 () then begin
+      Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
+      Flambda2.o3_flags ()
+    end else begin
+      default.set_o3 ();
+    end
+  in
+  { set_oclassic; set_o2; set_o3 }
