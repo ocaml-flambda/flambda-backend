@@ -247,8 +247,19 @@ let prepare_cmx_from_approx ~approxs ~exported_offsets ~used_closure_vars
   if Flambda_features.opaque ()
   then None
   else
+    (* CR keryan : for now all content of loaded .cmx are reexported. We may
+       want to remove unreachable code as does [prepare_cmx_file_contents] at
+       some point *)
     let final_typing_env =
       TE.Serializable.create_from_closure_conversion_approx approxs
+    in
+    let free_names_of_all_code = EC.free_names all_code in
+    let exported_offsets =
+      exported_offsets
+      |> Closure_offsets.reexport_closure_ids
+           (Name_occurrences.closure_ids free_names_of_all_code)
+      |> Closure_offsets.reexport_closure_vars
+           (Name_occurrences.closure_vars free_names_of_all_code)
     in
     Some
       (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
