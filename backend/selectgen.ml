@@ -591,7 +591,7 @@ let select_operands_private :
   let select op args =
     let n = List.length args in
     let f i arg =
-      if i < n then
+      if i + 1 < n then
         ([arg], Operands.reg i)
       else
         (* Only the last operand is immediate or memory *)
