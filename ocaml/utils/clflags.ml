@@ -399,16 +399,16 @@ module Extension = struct
     match !extensions with
     | [] -> ()
     | ls ->
-      Misc.fatal_errorf
+      raise (Arg.Bad(Printf.sprintf
         "Extensions %s are incompatible with compiler flag -disable-all-extensions"
-        (String.concat "," (List.map to_string ls))
+        (String.concat "," (List.map to_string ls))))
 
   let enable extn =
     if !disable_all_extensions then
-      Misc.fatal_errorf
+      raise (Arg.Bad(Printf.sprintf
         "Cannot enable extension %s: \
          incompatible with compiler flag -disable-all-extensions"
-        extn;
+        extn));
     let t = of_string (String.lowercase_ascii extn) in
     if not (List.exists (equal t) !extensions) then
       extensions := t :: !extensions
