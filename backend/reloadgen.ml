@@ -47,10 +47,6 @@ let insert_moves_operands src dst next =
         when Option.equal Cmm.equal_memory_chunk c c' &&
              Arch.equal_addressing_mode a a' ->
         insert_moves rv rv' (insmoves (i+1))
-      (* | (Imem _ | Iimm _ | Iimmf _), Ireg r when not (Reg.is_stack r) ->
-       *   insert_move src.(i) r (insmoves (i+1))
-       * | Ireg r, Imem _ when not (Reg.is_stack r) ->
-       *   insert_move src.(i) dst.(i) (insmoves (i+1)) *)
       | (Ireg _ | Imem _ | Iimm _ | Iimmf _),_  ->
         Misc.fatal_errorf "Reloadgen.insert_moves_operands: mismatch %d" i ()
     end
