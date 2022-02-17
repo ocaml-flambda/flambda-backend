@@ -48,7 +48,6 @@ module Operands : sig
   val in_registers : unit -> t
   val emit : t -> Reg.t array -> Mach.operand array
 
-  (* val is_immediate : t -> index:int -> bool *)
 end
 
 module Effect : sig
