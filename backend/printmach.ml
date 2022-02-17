@@ -148,7 +148,7 @@ let test tst ppf arg =
   | Ieventest -> fprintf ppf "%a & 1 == 0" operand arg.(0)
   | Ioddtest -> fprintf ppf "%a & 1 == 1" operand arg.(0)
 
-let operation op arg ppf res =
+let operation ppf op arg res =
   if Array.length res > 0 then fprintf ppf "%a := " regs res;
   match op with
   | Imove -> operands ppf arg
@@ -232,7 +232,7 @@ let rec instr ppf i =
   begin match i.desc with
   | Iend -> ()
   | Iop op ->
-      operation op i.arg ppf i.res
+      operation ppf op i.arg i.res
   | Ireturn traps ->
       fprintf ppf "return%a %a" Printcmm.trap_action_list traps operands i.arg
   | Iifthenelse(tst, ifso, ifnot) ->
