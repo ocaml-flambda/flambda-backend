@@ -221,17 +221,31 @@ method is_immediate_test_float cmp f =
 
 method! memory_operands_supported op chunk =
   match op, chunk with
-  | Ifloatop (Iaddf | Isubf | Imulf |Idivf), Double -> true
-  | Ispecific Isqrtf, Double -> true
-  | Iintop _, (Word_int | Word_val) -> true
-  | Iintop _, _ ->
-    (* The value loaded from memory needs to be extended before use in Iintop  *)
+  | Iintop ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod
+           | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+           | Iclz _ | Ictz _ | Ipopcnt
+           | Icomp _ | Icheckbound),
+        (Word_int | Word_val) -> true
+  | Iintop ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod
+           | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
+           | Iclz _ | Ictz _ | Ipopcnt
+           | Icomp _ | Icheckbound),
+        _ ->
+  (* The value loaded from memory needs to be extended before use in Iintop  *)
     false
+  | Ifloatop (Iaddf | Isubf | Imulf |Idivf), Double -> true
   | Ifloatop (Icompf _ ), Double -> true
   | Ifloatop (Inegf | Iabsf), _ -> false
   | Ifloatofint, (Word_int | Word_val) -> true
   | Iintoffloat, Double -> true
-  | (Ifloatop _ | Ispecific _ | Ifloatofint | Iintoffloat), _ -> false
+  | (Ifloatofint | Iintoffloat), _ -> false
+  | Ispecific Isqrtf, Double -> true
+  | Ispecific (Ilea | Ioffset_loc | Ibswap _ | Isqrtf
+              | Ifloat_iround | Ifloat_round _
+              | Ifloat_min  | Ifloat_max | Isextend32 | Izextend32
+              | Irdtsc | Irdpmc | Icrc32q | Ipause | Iprefetch _),
+     _ -> false
+  | Ifloatop (Icompf _ | Iaddf | Isubf | Imulf | Idivf), _ -> false
   | (Ibeginregion|Iendregion), _ -> false
   | ((Imove | Ispill | Ireload | Icall_ind | Itailcall_ind | Iopaque
      | Iconst_int _ | Iconst_float _ | Iconst_symbol _ | Icall_imm _
