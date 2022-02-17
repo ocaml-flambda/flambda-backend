@@ -75,6 +75,44 @@ module Env : sig
 
   val get_mutable_variable : t -> Ident.t -> Ident.t
 
+  (** About regions In this pass, we have to transform [Lregion] expressions
+      from lamdba to primitives that mark the opening and closure of stack
+      regions. We need to ensure regions are always closed as to not leak out of
+      their scope and never closed twice.
+
+      Several nested regions can be closed with one primitive as [End_region id]
+      will close [id] and every other region opened in its scope. As such, the
+      transformation doesn't need to generate strict couples of [Begin_region]
+      and [End_region] in every case. We may jump out of scope of several region
+      at once, in particular with exception raises from [Lstaticraise]. Another
+      case requiring attention is function call in tail position for which we
+      may need to close region before the jump.
+
+      This implementation works as follow: We only need one [Begin_region] per
+      region, but potentially as much [End_region]s as there are leaves in the
+      subsequent term. The general case for region closure is handled by a
+      intermediary continuation (closure continuation) between the body of the
+      region and the actual continuation after the region (direct continuation).
+      When reaching a leaf that jumps outside the scope of opened regions and
+      doesn't need special treatment, we call the closure continuation for the
+      uppermost region to close. This is ensured correct by the generation of
+      terms that follows the structure of the code: every expression have a
+      single end point, the direct continuation, hence jumping out of region
+      scope (precisely, the outermost relevant region) will be through this
+      direct continuation. In cases that do not have this structural property
+      (i.e. exceptions control flow), or where we need to close regions early to
+      avoir leaking memory (tail calls), the closure continuation is ignored and
+      [End_region] are inserted directly, with respect to region scope of the
+      catch handler for exception raise, and before a tail call that return to
+      the direct continuation.
+
+      Closure continuations are created along corresponding [Begin_region]s in
+      [Lregion] cases of [cps_non_tail] and [cps_tails]. The decision as to when
+      calling a closure continuation or closing early is done in
+      [restore_continuation_context] and [wrap_return_continuation]. Exceptions
+      cases are handled by [compile_staticfail] and [Ltrywith] cases of the main
+      transformation functions. *)
+
   val entering_region :
     t ->
     Ident.t ->
