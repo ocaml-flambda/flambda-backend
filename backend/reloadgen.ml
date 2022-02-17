@@ -19,8 +19,6 @@ open Misc
 open Reg
 open Mach
 
-let operands rv = Array.map (fun r -> Ireg r) rv
-
 let insert_move src dst next =
   if src.loc = dst.loc
   then next
