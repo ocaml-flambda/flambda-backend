@@ -91,7 +91,7 @@ method private one_mem_or_stack operands =
     | Iimmf _  (* float immediate is implemented as a memory load *)
     | Imem _ ->
       (* CR gyorsh: this is different, previously we would always
-         force operands.(1), but not that it can be mem, we have to force
+         force operands.(1), but now that it can be mem, we have to force
          operands.(0) which is already forced to be the same as res.(0). *)
       [| Ireg (self#makereg r); operands.(1) |]
   else
