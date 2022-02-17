@@ -209,7 +209,7 @@ let floatop op =
   | Isubf -> " subf "
   | Imulf -> " mulf "
   | Idivf -> " divf "
-  | Icompf cmp -> Printf.sprintf "compf %sf" (Printcmm.float_comparison cmp)
+  | Icompf cmp -> Printf.sprintf " %sf " (Printcmm.float_comparison cmp)
 
 let dump_op ppf = function
   | Move -> Format.fprintf ppf "mov"
@@ -271,9 +271,9 @@ let dump_terminator ppf ?(sep = "\n") ti =
   | Truth_test { ifso; ifnot } ->
     fprintf ppf "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
   | Float_test { lt; eq; gt; uo } ->
-    fprintf ppf "if < goto %d%s" lt sep;
-    fprintf ppf "if = goto %d%s" eq sep;
-    fprintf ppf "if > goto %d%s" gt sep;
+    fprintf ppf "if <f goto %d%s" lt sep;
+    fprintf ppf "if =f goto %d%s" eq sep;
+    fprintf ppf "if >f goto %d%s" gt sep;
     fprintf ppf "if uo goto %d%s" uo sep
   | Int_test { lt; eq; gt; is_signed } ->
     let signed = if is_signed then " s" else " u" in
