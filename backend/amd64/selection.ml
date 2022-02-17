@@ -264,7 +264,7 @@ method! memory_operands_supported_condition (op : Mach.test) chunk =
     | Thirtytwo_unsigned | Thirtytwo_signed) -> false
   | (Iinttest (Isigned _ | Iunsigned _)
     | Ioddtest | Ieventest | Itruetest | Ifalsetest),_ ->
-    Misc.fatal_errorf "memory_operands_condition inttest with chunk=%s"
+    Misc.fatal_errorf "memory_operands_supported_condition inttest with chunk=%s"
       (Printcmm.chunk chunk) ()
   | (Ifloattest cmp, Double) -> true
   | Ifloattest cmp, _ ->
