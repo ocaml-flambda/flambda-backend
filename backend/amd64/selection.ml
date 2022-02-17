@@ -268,7 +268,7 @@ method! memory_operands_supported_condition (op : Mach.test) chunk =
       (Printcmm.chunk chunk) ()
   | (Ifloattest cmp, Double) -> true
   | Ifloattest cmp, _ ->
-    Misc.fatal_errorf "memory_operands_condition floattest with chunk=%s"
+    Misc.fatal_errorf "memory_operands_supported_condition floattest with chunk=%s"
       (Printcmm.chunk chunk) ()
 
 method! is_simple_expr e =
