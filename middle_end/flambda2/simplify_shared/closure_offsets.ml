@@ -574,22 +574,19 @@ module Greedy = struct
       let () = add_unallocated_slot_to_set s set in
       create_env_var_slots set state r
 
-  let create_slots_for_set ~is_phantom state all_code set_id =
-    if is_phantom
-    then state
-    else
-      let set = make_set set_id in
-      let state = add_set_to_state state set in
-      (* Fill closure slots *)
-      let function_decls = Set_of_closures.function_decls set_id in
-      let closure_map = Function_declarations.funs function_decls in
-      let closures = Closure_id.Map.bindings closure_map in
-      let state = create_closure_slots set state all_code closures in
-      (* Fill env var slots *)
-      let env_map = Set_of_closures.closure_elements set_id in
-      let env_vars = List.map fst (Var_within_closure.Map.bindings env_map) in
-      let state = create_env_var_slots set state env_vars in
-      state
+  let create_slots_for_set state all_code set_id =
+    let set = make_set set_id in
+    let state = add_set_to_state state set in
+    (* Fill closure slots *)
+    let function_decls = Set_of_closures.function_decls set_id in
+    let closure_map = Function_declarations.funs function_decls in
+    let closures = Closure_id.Map.bindings closure_map in
+    let state = create_closure_slots set state all_code closures in
+    (* Fill env var slots *)
+    let env_map = Set_of_closures.closure_elements set_id in
+    let env_vars = List.map fst (Var_within_closure.Map.bindings env_map) in
+    let state = create_env_var_slots set state env_vars in
+    state
 
   (* Folding functions. To avoid pathological cases in allocating slots to
      offsets, folding on slots is done by consuming the first unallocated slot
@@ -817,21 +814,28 @@ module Greedy = struct
     used_closure_vars, offsets
 end
 
-type t = Greedy.state
+type t = Set_of_closures.t list
 
-let print = Greedy.print
+let print fmt l =
+  Format.fprintf fmt "@[<hv>%a@]" (Format.pp_print_list Set_of_closures.print) l
 
-let create () = Greedy.create_initial_state ()
+let create () = []
 
-let add_set_of_closures state ~is_phantom ~all_code set_of_closures =
-  Greedy.create_slots_for_set ~is_phantom state all_code set_of_closures
+let add_set_of_closures l ~is_phantom ~all_code:_ set_of_closures =
+  if is_phantom then l else set_of_closures :: l
 
-let finalize_offsets ~used_names state =
+let finalize_offsets ~all_code ~used_names l =
+  let state = ref (Greedy.create_initial_state ()) in
   Misc.try_finally
-    (fun () -> Greedy.finalize ~used_names state)
+    (fun () ->
+      List.iter
+        (fun set_of_closures ->
+          state := Greedy.create_slots_for_set !state all_code set_of_closures)
+        l;
+      Greedy.finalize ~used_names !state)
     ~always:(fun () ->
       if Flambda_features.dump_closure_offsets ()
-      then Format.eprintf "%a@." Greedy.print state)
+      then Format.eprintf "%a@." Greedy.print !state)
 
 let closure_name id =
   let compunit = Closure_id.get_compilation_unit id in

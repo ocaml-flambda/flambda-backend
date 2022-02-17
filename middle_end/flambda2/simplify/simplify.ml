@@ -136,7 +136,9 @@ let run ~symbol_for_global ~get_global_info ~round unit =
             closure_ids_in_types
           }
       in
-      match Closure_offsets.finalize_offsets closure_offsets ~used_names with
+      match
+        Closure_offsets.finalize_offsets closure_offsets ~all_code ~used_names
+      with
       | Known used_closure_vars, offsets -> used_closure_vars, offsets
       | Unknown, _ ->
         (* could be an assert false *)

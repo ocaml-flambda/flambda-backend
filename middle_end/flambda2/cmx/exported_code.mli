@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t
+type t = Code_or_metadata.t Code_id.Map.t
 
 include Contains_ids.S with type t := t
 

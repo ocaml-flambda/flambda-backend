@@ -1676,7 +1676,8 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
            by Closure offsets (once we give it a non-unknown used_names, as per
            the above CR). *)
         let _used_closure_vars, offsets =
-          Closure_offsets.finalize_offsets offsets ~used_names:Unknown
+          Closure_offsets.finalize_offsets offsets ~all_code:(Acc.code acc)
+            ~used_names:Unknown
         in
         offsets)
   in
