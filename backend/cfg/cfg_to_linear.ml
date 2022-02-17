@@ -250,8 +250,8 @@ let linearize_terminator cfg (terminator : Cfg.terminator Cfg.instruction)
         let cond_successor_labels = Label.Set.remove last successor_labels in
         let imm1 =
           match terminator.arg.(1) with
-          | Iimm n when Targetint.equal n Targetint.one -> true
-          | Iimm _ | Iimmf _ | Ireg _ | Imem _ -> false
+          | Iimm n -> Targetint.equal n Targetint.one
+          | Iimmf _ | Ireg _ | Imem _ -> false
         in
         (* Lcondbranch3 is emitted as an unsigned comparison, see ocaml PR
            #8677 *)
