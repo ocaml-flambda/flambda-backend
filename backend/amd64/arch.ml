@@ -247,7 +247,11 @@ let float_compare_and_need_swap cond =
   | CFnge -> NLEf, true
 
 (* CR gyorsh: This referring to Lambda is horrible,
-   but CMM creates a dependency cycle.  *)
+      but Cmm creates a dependency cycle.  *)
+(* CR gyorsh: Can [float_test_need_swap] and [float_compare_and_need_swap]
+   be unified? [float_test_need_swap c] is the same as
+   [not (snd (float_compare_and_need_swap c))], except
+   for CFeq and CFneq where the order of the arguments is irrelevant. *)
 let float_test_need_swap : Lambda.float_comparison -> bool = function
   | CFlt | CFnlt | CFle  | CFnle -> true
   | CFeq | CFneq | CFgt | CFngt | CFge | CFnge -> false
