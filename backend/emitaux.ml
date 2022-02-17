@@ -380,7 +380,7 @@ let reduce_heap_size ~reset =
   let _minor, _promoted, major_words = Gc.counters () in
   (* Uses [major_words] because it doesn't require a heap traversal to compute and 
      for this workload a majority of major words are live at this point. *)
-  if major_words > 500_000_000.0 /. 8.0 then begin
+  if major_words > float !Flambda_backend_flags.heap_reduction_threshold then begin
     Profile.record_call "compact" (fun () ->
       reset ();
       Gc.compact ())

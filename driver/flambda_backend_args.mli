@@ -26,6 +26,8 @@ module type Flambda_backend_options = sig
 
   val use_cpp_mangling : unit -> unit
 
+  val heap_reduction_threshold : int -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit

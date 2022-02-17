@@ -18,6 +18,8 @@ let dump_cfg = ref false                (* -dcfg *)
 
 let use_cpp_mangling = ref false        (* -use-cpp-mangling *)
 
+let heap_reduction_threshold = ref (500_000_000 / 8) (* -heap-reduction-threshold *)
+
 type function_result_types = Never | Functors_only | All_functions
 
 module Flambda2 = struct

@@ -19,6 +19,8 @@ val dump_cfg : bool ref
 
 val use_cpp_mangling : bool ref
 
+val heap_reduction_threshold : int ref
+
 type function_result_types = Never | Functors_only | All_functions
 
 module Flambda2 : sig

@@ -30,6 +30,10 @@ let mk_dcfg f =
 let mk_use_cpp_mangling f =
   "-gcpp-mangling", Arg.Unit f, " Use C++ mangling for function symbols"
 
+let mk_heap_reduction_threshold f =
+  "-heap-reduction-threshold", Arg.Int f, " Threshold (in major words) to trigger a heap reduction before code emission"
+;;
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -379,6 +383,8 @@ module type Flambda_backend_options = sig
 
   val use_cpp_mangling : unit -> unit
 
+  val heap_reduction_threshold : int -> unit
+
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
   val flambda2_result_types_functors_only : unit -> unit
@@ -440,6 +446,8 @@ struct
     mk_dcfg F.dcfg;
 
     mk_use_cpp_mangling F.use_cpp_mangling;
+
+    mk_heap_reduction_threshold F.heap_reduction_threshold;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -530,6 +538,9 @@ module Flambda_backend_options_impl = struct
   let dcfg = set Flambda_backend_flags.dump_cfg
 
   let use_cpp_mangling = set Flambda_backend_flags.use_cpp_mangling
+
+  let heap_reduction_threshold x =
+    Flambda_backend_flags.heap_reduction_threshold := x
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -682,6 +693,7 @@ module Extra_params = struct
     (* define new params *)
     | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
     | "use-cpp-mangling" -> set Flambda_backend_flags.use_cpp_mangling
+    | "heap-reduction-threshold" -> set_int Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
