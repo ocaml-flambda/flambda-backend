@@ -915,7 +915,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
     Llet(Strict, Pgenval, cached,
          mkappl (oo_prim "lookup_tables",
-                [Lvar tables; Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+                [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, Alloc_heap),
                                     inh_keys, Loc_unknown)]),
          lam)
   and lset cached i lam =
