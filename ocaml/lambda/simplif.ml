@@ -818,6 +818,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
 type slot =
   {
     func: lfunction;
+    function_scope: lambda;
     mutable scope: lambda option;
   }
 
@@ -836,6 +837,7 @@ let simplify_local_functions lam =
      is in tail position. *)
   let current_scope = ref lam in
   let current_region_scope = ref lam in
+  let current_function_scope = ref lam in
   let check_static lf =
     if lf.attr.local = Always_local then
       Location.prerr_warning (to_location lf.loc)
@@ -854,7 +856,9 @@ let simplify_local_functions lam =
   in
   let rec tail = function
     | Llet (_str, _kind, id, Lfunction lf, cont) when enabled lf.attr ->
-        let r = {func = lf; scope = None} in
+        let r =
+          {func = lf; function_scope = !current_function_scope; scope = None}
+        in
         Hashtbl.add slots id r;
         tail cont;
         begin match Hashtbl.find_opt slots id with
@@ -874,7 +878,10 @@ let simplify_local_functions lam =
         | _ ->
             check_static lf;
             (* note: if scope = None, the function is unused *)
-            non_tail lf.body
+            let old_function_scope = !current_function_scope in
+            current_function_scope := lf.body;
+            non_tail lf.body;
+            current_function_scope := old_function_scope
         end
     | Lapply {ap_func = Lvar id; ap_args; ap_region_close; _} ->
         let curr_scope =
@@ -890,6 +897,10 @@ let simplify_local_functions lam =
         | Some {scope = Some scope; _} when scope != curr_scope ->
             (* Different "tail scope" *)
             Hashtbl.remove slots id
+        | Some {function_scope = fscope; _}
+          when fscope != !current_function_scope ->
+            (* Different function *)
+            Hashtbl.remove slots id
         | Some ({scope = None; _} as slot) ->
             (* First use of the function: remember the current tail scope *)
             slot.scope <- Some curr_scope
@@ -901,7 +912,10 @@ let simplify_local_functions lam =
         Hashtbl.remove slots id
     | Lfunction lf as lam ->
         check_static lf;
-        Lambda.shallow_iter ~tail ~non_tail lam
+        let old_function_scope = !current_function_scope in
+        current_function_scope := lf.body;
+        Lambda.shallow_iter ~tail ~non_tail lam;
+        current_function_scope := old_function_scope
     | Lregion lam -> region lam
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
