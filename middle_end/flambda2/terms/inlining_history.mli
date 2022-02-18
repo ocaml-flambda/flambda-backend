@@ -100,9 +100,9 @@ module Relative : sig
 
   val empty : t
 
-  (* [concat a b] concatenates two relative history. In the resulting history
-     [a] happens before [b].*)
-  val concat : t -> t -> t
+  (* [concat ~earlier ~later] concatenates two relative history. In the
+     resulting history [earlier] happens before [later].*)
+  val concat : earlier:t -> later:t -> t
 
   val compare : t -> t -> int
 

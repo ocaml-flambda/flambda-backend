@@ -65,7 +65,17 @@ module Absolute = struct
       (Compilation_unit.string_for_printing compilation_unit)
       print_path t
 
-  let rec compare_path (a : path) (b : path) =
+  let tag_path (path : path) =
+    match path with
+    | Empty -> 0
+    | Unknown _ -> 1
+    | Function _ -> 2
+    | Module _ -> 3
+    | Class _ -> 4
+    | Call _ -> 5
+    | Inline _ -> 6
+
+  let[@ocaml.warning "-4"] rec compare_path (a : path) (b : path) =
     match a, b with
     | Empty, Empty -> 0
     | Unknown p1, Unknown p2 -> compare_path p1.prev p2.prev
@@ -90,22 +100,7 @@ module Absolute = struct
         let c = compare c1.callee c2.callee in
         if c <> 0 then c else compare_path c1.prev c2.prev
     | Inline p1, Inline p2 -> compare_path p1.prev p2.prev
-    | Empty, (Unknown _ | Function _ | Module _ | Class _ | Call _ | Inline _)
-      ->
-      -1
-    | Unknown _, (Function _ | Module _ | Class _ | Call _ | Inline _) -> -1
-    | Function _, (Module _ | Class _ | Call _ | Inline _) -> -1
-    | Module _, (Class _ | Call _ | Inline _) -> -1
-    | Class _, (Call _ | Inline _) -> -1
-    | Call _, Inline _ -> -1
-    | (Unknown _ | Function _ | Module _ | Class _ | Call _ | Inline _), Empty
-      ->
-      1
-    | (Function _ | Module _ | Class _ | Call _ | Inline _), Unknown _ -> 1
-    | (Module _ | Class _ | Call _ | Inline _), Function _ -> 1
-    | (Class _ | Call _ | Inline _), Module _ -> 1
-    | (Call _ | Inline _), Class _ -> 1
-    | Inline _, Call _ -> 1
+    | p1, p2 -> Int.compare (tag_path p1) (tag_path p2)
 
   and compare (compilation_unit1, t1) (compilation_unit2, t2) =
     let c = Compilation_unit.compare compilation_unit1 compilation_unit2 in
@@ -146,16 +141,18 @@ module Relative = struct
 
   let compare = Absolute.compare_path
 
-  let rec concat (a : t) (b : t) : t =
-    match b with
-    | Absolute.Empty -> a
-    | Unknown { prev } -> Unknown { prev = concat a prev }
-    | Class { name; prev } -> Class { name; prev = concat a prev }
-    | Module { name; prev } -> Module { name; prev = concat a prev }
+  let rec concat ~(earlier : t) ~(later : t) : t =
+    match later with
+    | Absolute.Empty -> earlier
+    | Unknown { prev } -> Unknown { prev = concat ~earlier ~later:prev }
+    | Class { name; prev } -> Class { name; prev = concat ~earlier ~later:prev }
+    | Module { name; prev } ->
+      Module { name; prev = concat ~earlier ~later:prev }
     | Function { name; prev; dbg } ->
-      Function { name; prev = concat a prev; dbg }
-    | Call { callee; prev; dbg } -> Call { callee; prev = concat a prev; dbg }
-    | Inline { prev } -> Inline { prev = concat a prev }
+      Function { name; prev = concat ~earlier ~later:prev; dbg }
+    | Call { callee; prev; dbg } ->
+      Call { callee; prev = concat ~earlier ~later:prev; dbg }
+    | Inline { prev } -> Inline { prev = concat ~earlier ~later:prev }
 
   let fundecl ~dbg ~name prev = Absolute.Function { name; prev; dbg }
 
@@ -195,7 +192,9 @@ module Tracker = struct
   let relative { relative; _ } = relative
 
   let fundecl ~dbg ~function_relative_history ~name t =
-    let relative' = Relative.concat t.relative function_relative_history in
+    let relative' =
+      Relative.concat ~earlier:t.relative ~later:function_relative_history
+    in
     let relative = Relative.fundecl ~dbg ~name relative' in
     let absolute = extend_absolute t.absolute relative in
     absolute, relative'

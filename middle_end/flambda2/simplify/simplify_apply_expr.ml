@@ -904,8 +904,8 @@ let simplify_apply_shared dacc apply =
       ~probe_name:(Apply.probe_name apply)
       ~relative_history:
         (Inlining_history.Relative.concat
-           (DE.relative_history (DA.denv dacc))
-           (Apply.relative_history apply))
+           ~earlier:(DE.relative_history (DA.denv dacc))
+           ~later:(Apply.relative_history apply))
   in
   dacc, callee_ty, apply, arg_types
 
