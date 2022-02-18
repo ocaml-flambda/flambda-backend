@@ -46,7 +46,7 @@ let equal_let_creation_results r1 r2 =
     false
 
 let add_set_of_closures_offsets ~is_phantom named uacc =
-  let aux uacc set_of_closures =
+  let add_set uacc set_of_closures =
     match UA.closure_offsets uacc with
     | Unknown -> uacc
     | Known closure_offsets ->
@@ -58,16 +58,34 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
       in
       UA.with_closure_offsets uacc (Known closure_offsets)
   in
+  let add_offsets_from_code uacc code =
+    match UA.closure_offsets uacc with
+    | Unknown -> uacc
+    | Known closure_offsets ->
+      let dacc = UA.creation_dacc uacc in
+      let code_id = Code.code_id code in
+      let from_function =
+        try Code_id.Map.find code_id (DA.closure_offsets dacc)
+        with Not_found ->
+          Misc.fatal_errorf "Missing offsets for code ID %a" Code_id.print
+            code_id
+      in
+      let closure_offsets =
+        Closure_offsets.add_offsets_from_function closure_offsets ~from_function
+      in
+      UA.with_closure_offsets uacc (Known closure_offsets)
+  in
   match (named : Named.t) with
-  | Set_of_closures s -> aux uacc s
+  | Set_of_closures s -> add_set uacc s
   | Rec_info _ | Simple _ | Prim _ -> uacc
   | Static_consts group ->
     Static_const_group.to_list group
     |> List.fold_left
          (fun acc static_const_or_code ->
            match (static_const_or_code : Static_const_or_code.t) with
-           | Static_const (Set_of_closures s) -> aux acc s
-           | Code _ | Deleted_code
+           | Static_const (Set_of_closures s) -> add_set acc s
+           | Code code -> add_offsets_from_code acc code
+           | Deleted_code
            | Static_const
                ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
                | Boxed_nativeint _ | Immutable_float_block _

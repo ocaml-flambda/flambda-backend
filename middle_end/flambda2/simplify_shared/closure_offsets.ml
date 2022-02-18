@@ -825,6 +825,8 @@ let create () = []
 let add_set_of_closures l ~is_phantom ~all_code:_ set_of_closures =
   if is_phantom then l else set_of_closures :: l
 
+let add_offsets_from_function l1 ~from_function:l2 = l2 @ l1
+
 let finalize_offsets ~all_code ~used_names l =
   let state = ref (Greedy.create_initial_state ()) in
   Misc.try_finally

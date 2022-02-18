@@ -83,9 +83,7 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let denv = DE.increment_continuation_scope denv in
   (* CR gbury: only compute closure offsets if this is the last round. (same
      remark for the cmx contents) *)
-  let dacc =
-    DA.create denv Continuation_uses_env.empty ~compute_closure_offsets:true
-  in
+  let dacc = DA.create denv Continuation_uses_env.empty in
   let body, uacc =
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
       ~return_arity:[K.With_subkind.any_value] ~exn_continuation
