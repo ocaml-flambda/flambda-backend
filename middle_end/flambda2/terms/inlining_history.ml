@@ -1,13 +1,13 @@
 (**************************************************************************)
+
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
 (*   Copyright 2021--2021 Jane Street Group LLC                           *)
 (*                                                                        *)
-(* All rights reserved. This compilation_unit is distributed under the terms
-   of *)
-(* the GNU Lesser General Public License version 2.1, with the *)
-(* special exception on linking described in the compilation_unit LICENSE. *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
 

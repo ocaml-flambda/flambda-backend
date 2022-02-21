@@ -257,6 +257,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     ~result_arity ~result_types ~recursive ~down_to_up ~coming_from_indirect
     ~(closure_alloc_mode : Alloc_mode.t Or_unknown.t) ~num_trailing_local_params
     =
+  (* Partial-applications are converted in full applications. Let's assume that
+     [foo] takes 6 arguments. Then [foo a b c] gets transformed into: let
+     foo_partial x y z = foo a b c x y z in foo_partial
+
+     The call to [foo] as an empty relative history as it was defined right
+     after [foo_partial]. The definition of [foo_partial] will inherit the
+     relative history of the original code. *)
   (* For simplicity, we disallow [@inline] attributes on partial applications.
      The user may always write an explicit wrapper instead with such an
      attribute. *)
@@ -403,14 +410,6 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       let args =
         List.map arg applied_args @ List.map BP.simple remaining_params
       in
-
-      (* Under-applications are converted in full applications. Let's assume
-         that [foo] takes 6 arguments. Then [foo a b c] gets transformed into:
-         let foo_partial x y z = foo a b c x y z in foo_partial
-
-         The call to [foo] as an empty relative history as it was defined right
-         after [foo_partial]. The definition of [foo_partial] will inherit the
-         relative history of the original code. *)
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
