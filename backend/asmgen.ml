@@ -288,7 +288,10 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
          if may_reduce_heap then
            Emitaux.reduce_heap_size ~reset:(fun () ->
             reset ();
-            Typemod.reset ();
+            (* note: we need to preserve the persistent env, because it is
+               used to populate fields of the record written as the cmx file
+               afterwards. *)
+            Typemod.reset ~preserve_persistent_env:true;
             Emitaux.reset ();
             Reg.reset ());
          let assemble_result =
