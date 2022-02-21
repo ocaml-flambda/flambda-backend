@@ -528,6 +528,9 @@ fmt:
 	  $$(find backend/asm_targets \
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i tools/merge_archives.ml
+	ocamlformat -i \
+	  $$(find backend/debug/dwarf \
+	    \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
