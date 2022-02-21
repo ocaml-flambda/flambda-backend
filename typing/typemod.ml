@@ -2987,7 +2987,7 @@ let () =
         None
     )
 
-let reset () =
-  Env.reset_cache ();
-  Envaux.reset_cache ();
+let reset ~preserve_persistent_env =
+  Env.reset_cache ~preserve_persistent_env;
+  Envaux.reset_cache ~preserve_persistent_env;
   Typetexp.reset_type_variables ()

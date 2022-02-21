@@ -24,9 +24,9 @@ exception Error of error
 let env_cache =
   (Hashtbl.create 59 : ((Env.summary * Subst.t), Env.t) Hashtbl.t)
 
-let reset_cache () =
+let reset_cache ~preserve_persistent_env =
   Hashtbl.clear env_cache;
-  Env.reset_cache()
+  Env.reset_cache ~preserve_persistent_env
 
 let rec env_from_summary sum subst =
   try

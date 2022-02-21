@@ -858,9 +858,10 @@ let reset_declaration_caches () =
   Types.Uid.Tbl.clear !used_constructors;
   ()
 
-let reset_cache () =
+let reset_cache ~preserve_persistent_env =
   Current_unit_name.set "";
-  Persistent_env.clear !persistent_env;
+  if not preserve_persistent_env then
+    Persistent_env.clear !persistent_env;
   reset_declaration_caches ();
   ()
 
