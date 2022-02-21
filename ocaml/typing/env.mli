@@ -362,7 +362,7 @@ val add_lock : Types.value_mode -> t -> t
 val add_region_lock : t -> t
 
 (* Initialize the cache of in-core module interfaces. *)
-val reset_cache: unit -> unit
+val reset_cache: preserve_persistent_env:bool -> unit
 
 (* To be called before each toplevel phrase. *)
 val reset_cache_toplevel: unit -> unit

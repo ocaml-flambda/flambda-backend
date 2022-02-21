@@ -139,4 +139,4 @@ val report_error: Env.t -> formatter -> error -> unit
 
 (** Clear several bits of global state that may retain large amounts of memory
     after typechecking is finished. *)
-val reset : unit -> unit
+val reset : preserve_persistent_env:bool -> unit
