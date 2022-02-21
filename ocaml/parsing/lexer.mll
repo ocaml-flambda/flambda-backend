@@ -240,7 +240,10 @@ let uchar_for_uchar_escape lexbuf =
       illegal_escape lexbuf
         (Printf.sprintf "%X is not a Unicode scalar value" cp)
 
-let is_keyword name = Hashtbl.mem keyword_table name
+let is_keyword name =
+  match lookup_keyword name with
+  | LIDENT _ -> false
+  | _ -> true
 
 let check_label_name lexbuf name =
   if is_keyword name then error lexbuf (Keyword_as_label name)
