@@ -530,6 +530,9 @@ fmt:
 	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i middle_end/mangling.ml
 	ocamlformat -i middle_end/mangling.mli
+	ocamlformat -i \
+	  $$(find backend/asm_targets \
+	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i tools/merge_archives.ml
 	ocamlformat -i \
 	  $$(find backend/debug/dwarf \
