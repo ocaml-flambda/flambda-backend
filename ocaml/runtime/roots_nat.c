@@ -439,6 +439,16 @@ static int visit(scanning_action maj, scanning_action min,
   if (!Is_block(v))
     return 0;
 
+  if (Is_young(v)) {
+    if (min != NULL) min(v, p);
+    return 0;
+  }
+
+  if (!Is_in_value_area(v))
+    return 0;
+
+  /* Either major or local, distinguish by header color */
+
   hd = Hd_val(vblock);
   /* Compaction can create things that look like Infix_tag,
      but have color Caml_gray (cf. eptr in compact.c).
@@ -450,11 +460,6 @@ static int visit(scanning_action maj, scanning_action min,
 
   if (Color_hd(hd) == Caml_black)
     return 0;
-
-  if (Is_young(vblock)) {
-    if (min != NULL) min(v, p);
-    return 0;
-  }
 
   if (Color_hd(hd) == Local_unmarked) {
     Hd_val(vblock) = With_color_hd(hd, Local_marked);
