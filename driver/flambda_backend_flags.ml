@@ -18,7 +18,8 @@ let dump_cfg = ref false                (* -dcfg *)
 
 let use_cpp_mangling = ref false        (* -use-cpp-mangling *)
 
-let heap_reduction_threshold = ref (500_000_000 / 8) (* -heap-reduction-threshold *)
+let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
+let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 
 type function_result_types = Never | Functors_only | All_functions
 

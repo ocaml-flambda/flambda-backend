@@ -31,7 +31,10 @@ let mk_use_cpp_mangling f =
   "-gcpp-mangling", Arg.Unit f, " Use C++ mangling for function symbols"
 
 let mk_heap_reduction_threshold f =
-  "-heap-reduction-threshold", Arg.Int f, " Threshold (in major words) to trigger a heap reduction before code emission"
+  "-heap-reduction-threshold",
+  Arg.Int f,
+  Printf.sprintf " Threshold (in major words, defaulting to %d) to trigger a heap reduction before code emission"
+    Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
 module Flambda2 = Flambda_backend_flags.Flambda2
