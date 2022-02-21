@@ -16,11 +16,15 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** Flag indicating whether terms are being rebuilt during simplification. This
-    is not just [bool] to enforce that the setting in [DE] is used everywhere. *)
+type t = bool
 
-type t = Downwards_env.are_rebuilding_terms
+let of_bool t = t
 
-val do_not_rebuild_terms : t -> bool
+let to_bool t = t
 
-val print : Format.formatter -> t -> unit
+let do_not_rebuild_terms t = not (to_bool t)
+
+let [@ocamlformat "disable"] print ppf t =
+  Format.fprintf ppf "%b" (to_bool t)
+
+let are_rebuilding t = t

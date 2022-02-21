@@ -58,18 +58,22 @@ let inlining_decision = Code0.inlining_decision
 
 let contains_no_escaping_local_allocs = Code0.contains_no_escaping_local_allocs
 
+let absolute_history = Code0.absolute_history
+
+let relative_history = Code0.relative_history
+
 let create code_id ~params_and_body ~free_names_of_params_and_body
     ~newer_version_of ~params_arity ~num_trailing_local_params ~result_arity
     ~result_types ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor
     ~recursive ~cost_metrics ~inlining_arguments ~dbg ~is_tupled
-    ~is_my_closure_used ~inlining_decision =
+    ~is_my_closure_used ~inlining_decision ~absolute_history ~relative_history =
   Code0.create
     ~print_function_params_and_body:Flambda.Function_params_and_body.print
     code_id ~params_and_body ~free_names_of_params_and_body ~newer_version_of
     ~params_arity ~num_trailing_local_params ~result_arity ~result_types
     ~contains_no_escaping_local_allocs ~stub ~inline ~is_a_functor ~recursive
     ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision
+    ~inlining_decision ~absolute_history ~relative_history
 
 let with_code_id = Code0.with_code_id
 

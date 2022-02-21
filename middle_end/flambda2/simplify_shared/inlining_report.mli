@@ -14,39 +14,35 @@
 
 (** Report inlining decisions *)
 
-type at_call_site =
-  | Known_function of
-      { code_id : Code_id.exported;  (** code id of the callee *)
-        decision : Call_site_inlining_decision_type.t
-      }  (** Function call where the function's type is known *)
-  | Unknown_function  (** Function call where the function's type is unknown. *)
-
-(** There are three decisions made for each function declaration: on after
-    conversion in CPS and closure, one before simplifying the body, and one
-    after (this is useful for e.g. recursive functions). *)
-type fundecl_pass =
+type pass =
   | After_closure_conversion
-  | Before_simplify of { dbg_including_inlining_stack : Debuginfo.t }
+  | Before_simplify
   | After_simplify
-(**)
 
-type at_function_declaration =
-  { pass : fundecl_pass;
-    code_id : Code_id.exported;  (** code id of the function being declared *)
-    decision : Function_decl_inlining_decision_type.t
-  }
+val record_decision_at_call_site_for_known_function :
+  tracker:Inlining_history.Tracker.t ->
+  unrolling_depth:int option ->
+  apply:Apply_expr.t ->
+  pass:pass ->
+  callee:Inlining_history.Absolute.t ->
+  are_rebuilding_terms:Are_rebuilding_terms.t ->
+  Call_site_inlining_decision_type.t ->
+  unit
 
-(** This defines the various kinds of decisions related to inlining that will be
-    reported, together with some additional information to better identify to
-    what the decision refers to. *)
+val record_decision_at_call_site_for_unknown_function :
+  tracker:Inlining_history.Tracker.t ->
+  apply:Apply_expr.t ->
+  pass:pass ->
+  unit ->
+  unit
 
-type decision =
-  | At_call_site of at_call_site
-  | At_function_declaration of at_function_declaration
-(**)
-
-(** Record a decision. *)
-val record_decision : dbg:Debuginfo.t -> decision -> unit
+val record_decision_at_function_definition :
+  absolute_history:Inlining_history.Absolute.t ->
+  code_metadata:Code_metadata.t ->
+  pass:pass ->
+  are_rebuilding_terms:Are_rebuilding_terms.t ->
+  Function_decl_inlining_decision_type.t ->
+  unit
 
 (** Output the report for all recorded decisions up to that point, and
     clean/forget all decisions.
