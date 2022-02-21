@@ -196,33 +196,14 @@ module Backward (D : Backward_domain) (T : Backward_transfer with type domain = 
       ~init:(T.terminator value ~exn block.terminator) ~f:(fun instr value ->
         T.basic value ~exn instr)
 
-  let is_exit_block : Cfg.basic_block -> bool =
-   fun block ->
-    match block.terminator.desc with
-    | Never -> assert false
-    | Always _ -> false
-    | Parity_test _ -> false
-    | Truth_test _ -> false
-    | Float_test _ -> false
-    | Int_test _ -> false
-    | Switch _ -> false
-    | Return -> true
-    | Raise _ -> block.trap_depth = 1
-    | Tailcall _ -> true
-    | Call_no_return _ -> true
-
   let create : Cfg.t -> init:domain -> map * WorkSet.t ref =
    fun cfg ~init ->
     let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
     let value = init in
-    Cfg.iter_blocks cfg ~f:(fun label block ->
-        if is_exit_block block || true
-           (* CR xclerc for xclerc: remove `|| true` *)
-        then begin
-          Label.Tbl.replace map label value;
-          set := WorkSet.add { WorkSetElement.label; value } !set
-        end);
+    Cfg.iter_blocks cfg ~f:(fun label _block ->
+        Label.Tbl.replace map label value;
+        set := WorkSet.add { WorkSetElement.label; value } !set);
     map, set
 
   let remove_and_return :
