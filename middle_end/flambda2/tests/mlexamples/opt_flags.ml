@@ -1,3 +1,5 @@
+[@@@flambda_o3]
+
 (* Differentiates between optimisation levels. Requires inspecting -dcmm to
    verify.
 
@@ -8,6 +10,15 @@
 (* - With no flags at all, x is constant. *)
 (* - With -O2, x and y are constant. *)
 (* - With -O3, all three are constant. *)
+
+(* Except in -Oclassic, which doesn't statically allocate [M] at all, the -dcmm
+   output should have a block with just a few integers near the top; they'll
+   either be the computed constant in tagged form or 1 if the value isn't
+   constant at that level. In particular, they should be: *)
+
+(* - (no flags): 85 1 1
+ * - -O2: 85 199 1
+ * - -O3: 85 199 3403 *)
 
 module M : sig
   val x : int

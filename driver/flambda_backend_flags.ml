@@ -200,13 +200,30 @@ module Flambda2 = struct
     let o3_arguments = o2_arguments
   end
 
+  let clear_o_flags () =
+    (* Reset anything set by -O2, -O3, or -Oclassic to the default
+       values so that later -O options (or OCAMLPARAM or attributes)
+       cleanly override earlier ones *)
+    classic_mode := Default.classic_mode;
+    cse_depth := Default.cse_depth;
+    join_points := Default.join_points;
+    unbox_along_intra_function_control_flow :=
+      Default.unbox_along_intra_function_control_flow;
+    Expert.fallback_inlining_heuristic :=
+      Expert.Default.fallback_inlining_heuristic;
+    (* This default is copied from [Clflags]: *)
+    Clflags.use_linscan := false;
+    function_result_types := Default.function_result_types
+
   let oclassic_flags () =
+    clear_o_flags ();
     classic_mode := true;
     Expert.fallback_inlining_heuristic := true;
     backend_cse_at_toplevel := false;
     Clflags.use_linscan := true
 
   let o2_flags () =
+    clear_o_flags ();
     cse_depth := 2;
     join_points := true;
     unbox_along_intra_function_control_flow := true;
