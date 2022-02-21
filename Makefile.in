@@ -531,6 +531,9 @@ fmt:
 	ocamlformat -i middle_end/mangling.ml
 	ocamlformat -i middle_end/mangling.mli
 	ocamlformat -i tools/merge_archives.ml
+	ocamlformat -i \
+	  $$(find backend/debug/dwarf \
+	    \( -name "*.ml" -or -name "*.mli" \))
 
 .PHONY: check-fmt
 check-fmt:
