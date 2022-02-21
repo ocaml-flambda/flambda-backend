@@ -1641,6 +1641,7 @@ let rec project_variables_out ~to_project ~expand t =
       TD.project_variables_out ~free_names_head:free_names_head_of_kind_value
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_value ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Value ty'
@@ -1660,6 +1661,7 @@ let rec project_variables_out ~to_project ~expand t =
         ~free_names_head:free_names_head_of_kind_naked_immediate ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_immediate ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Naked_immediate ty'
@@ -1678,6 +1680,7 @@ let rec project_variables_out ~to_project ~expand t =
         ~free_names_head:free_names_head_of_kind_naked_float ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_float ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Naked_float ty'
@@ -1696,6 +1699,7 @@ let rec project_variables_out ~to_project ~expand t =
         ~free_names_head:free_names_head_of_kind_naked_int32 ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_int32 ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Naked_int32 ty'
@@ -1714,6 +1718,7 @@ let rec project_variables_out ~to_project ~expand t =
         ~free_names_head:free_names_head_of_kind_naked_int64 ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_int64 ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Naked_int64 ty'
@@ -1733,6 +1738,7 @@ let rec project_variables_out ~to_project ~expand t =
         ~free_names_head:free_names_head_of_kind_naked_nativeint ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_nativeint ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Naked_nativeint ty'
@@ -1750,6 +1756,7 @@ let rec project_variables_out ~to_project ~expand t =
       TD.project_variables_out ~free_names_head:free_names_head_of_kind_rec_info
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_rec_info ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Rec_info ty'
@@ -1767,6 +1774,7 @@ let rec project_variables_out ~to_project ~expand t =
       TD.project_variables_out ~free_names_head:free_names_head_of_kind_region
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_region ~to_project ~expand)
+        ~project_coercion:(project_coercion ~to_project ~expand)
         ty
     in
     if ty == ty' then t else Region ty'
@@ -1830,13 +1838,51 @@ and project_head_of_kind_naked_int64 ~to_project:_ ~expand:_ head = head
 
 and project_head_of_kind_naked_nativeint ~to_project:_ ~expand:_ head = head
 
-and project_head_of_kind_rec_info ~to_project ~expand:_ head =
+and project_head_of_kind_rec_info ~to_project ~expand head =
   match (head : head_of_kind_rec_info) with
   | Const _ | Succ _ | Unroll_to _ -> head
-  | Var var ->
+  | Var var -> (
     if not (Variable.Set.mem var to_project)
     then head
-    else Misc.fatal_error "Project of depth variables is not implemented"
+    else
+      match expand var with
+      | Rec_info r -> begin
+        match TD.descr r with
+        | Ok (No_alias r) -> r
+        | Ok (Equals simple) ->
+          Simple.pattern_match' simple
+            ~var:(fun var ~coercion ->
+              if Coercion.is_id coercion
+              then Rec_info_expr.var var
+              else
+                Misc.fatal_errorf "Unexpected coercion %a on depth variable %a"
+                  Coercion.print coercion Variable.print var)
+            ~symbol:(fun sym ~coercion:_ ->
+              Misc.fatal_errorf "Depth variable %a was expanded to symbol %a"
+                Variable.print var Symbol.print sym)
+            ~const:(fun const ->
+              Misc.fatal_errorf "Depth variable %a was expanded to constant %a"
+                Variable.print var Reg_width_const.print const)
+        | Unknown | Bottom ->
+          Misc.fatal_errorf
+            "Depth variable %a was expanded to Unknown or Bottom" Variable.print
+            var
+      end
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_int32 _
+        | Naked_int64 _ | Naked_nativeint _ | Region _ ) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Rec_info], got type %a"
+          Variable.print var print ty)
+
+and project_coercion ~to_project ~expand (coercion : Coercion.t) =
+  match coercion with
+  | Id -> coercion
+  | Change_depth { from; to_ } ->
+    let from' = project_head_of_kind_rec_info ~to_project ~expand from in
+    let to_' = project_head_of_kind_rec_info ~to_project ~expand to_ in
+    if from == from' && to_ = to_'
+    then coercion
+    else Coercion.change_depth ~from:from' ~to_:to_'
 
 and project_head_of_kind_region ~to_project:_ ~expand:_ () = ()
 

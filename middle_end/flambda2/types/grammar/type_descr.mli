@@ -83,6 +83,7 @@ val project_variables_out :
   to_project:Variable.Set.t ->
   expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
   project_head:('head -> 'head) ->
+  project_coercion:(Coercion.t -> Coercion.t) ->
   'head t ->
   'head t
 
