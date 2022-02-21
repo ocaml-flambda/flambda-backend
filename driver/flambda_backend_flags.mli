@@ -17,6 +17,9 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 
+val default_heap_reduction_threshold : int
+val heap_reduction_threshold : int ref
+
 type function_result_types = Never | Functors_only | All_functions
 
 module Flambda2 : sig
