@@ -95,7 +95,7 @@ module T : sig
     to_project:Variable.Set.t ->
     expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
     project_head:('head -> 'head) ->
-    project_coercion:(Coercion.t -> Coercion.t) ->
+    project_coercion:(Coercion.t -> Coercion.t Or_unknown.t) ->
     'head t ->
     'head t
 end = struct
@@ -150,7 +150,7 @@ end = struct
       | Expanded of 'descr
 
     let project_variables_out ~to_project ~expand ~project_head
-        ~project_coercion t =
+        ~(project_coercion : Coercion.t -> Coercion.t Or_unknown.t) ~unknown t =
       match t with
       | No_alias head ->
         let head' = project_head head in
@@ -160,16 +160,22 @@ end = struct
           ~const:(fun _ -> Not_expanded t)
           ~symbol:(fun _ ~coercion ->
             let coercion' = project_coercion coercion in
-            if coercion == coercion'
-            then Not_expanded t
-            else Not_expanded (Equals (Simple.with_coercion simple coercion')))
+            match coercion' with
+            | Known coercion' ->
+              if coercion == coercion'
+              then Not_expanded t
+              else Not_expanded (Equals (Simple.with_coercion simple coercion'))
+            | Unknown -> Expanded unknown)
           ~var:(fun var ~coercion ->
             let coercion' = project_coercion coercion in
-            if Variable.Set.mem var to_project
-            then Expanded (expand var ~coercion:coercion')
-            else if coercion == coercion'
-            then Not_expanded t
-            else Not_expanded (Equals (Simple.with_coercion simple coercion')))
+            match coercion' with
+            | Known coercion' ->
+              if Variable.Set.mem var to_project
+              then Expanded (expand var ~coercion:coercion')
+              else if coercion == coercion'
+              then Not_expanded t
+              else Not_expanded (Equals (Simple.with_coercion simple coercion'))
+            | Unknown -> Expanded unknown)
   end
 
   module WCFN = With_cached_free_names
@@ -261,7 +267,7 @@ end = struct
       in
       match
         Descr.project_variables_out ~to_project ~expand ~project_head
-          ~project_coercion descr
+          ~project_coercion ~unknown:Or_unknown_or_bottom.Unknown descr
       with
       | Not_expanded descr' -> if descr == descr' then t else Ok descr'
       | Expanded t' -> t')
