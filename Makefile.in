@@ -524,6 +524,9 @@ fmt:
 	ocamlformat -i \
 	  $$(find backend/cfg \
 	    \( -name "*.ml" -or -name "*.mli" \))
+	ocamlformat -i \
+	  $$(find backend/asm_targets \
+	    \( -name "*.ml" -or -name "*.mli" \))
 	ocamlformat -i tools/merge_archives.ml
 
 .PHONY: check-fmt
