@@ -878,10 +878,7 @@ let simplify_local_functions lam =
         | _ ->
             check_static lf;
             (* note: if scope = None, the function is unused *)
-            let old_function_scope = !current_function_scope in
-            current_function_scope := lf.body;
-            non_tail lf.body;
-            current_function_scope := old_function_scope
+            function_definition lf
         end
     | Lapply {ap_func = Lvar id; ap_args; ap_region_close; _} ->
         let curr_scope =
@@ -910,12 +907,9 @@ let simplify_local_functions lam =
         List.iter non_tail ap_args
     | Lvar id ->
         Hashtbl.remove slots id
-    | Lfunction lf as lam ->
+    | Lfunction lf ->
         check_static lf;
-        let old_function_scope = !current_function_scope in
-        current_function_scope := lf.body;
-        Lambda.shallow_iter ~tail ~non_tail lam;
-        current_function_scope := old_function_scope
+        function_definition lf
     | Lregion lam -> region lam
     | lam ->
         Lambda.shallow_iter ~tail ~non_tail lam
@@ -928,6 +922,11 @@ let simplify_local_functions lam =
     tail lam;
     current_scope := !current_region_scope;
     current_region_scope := old_tail_scope
+  and function_definition lf =
+    let old_function_scope = !current_function_scope in
+    current_function_scope := lf.body;
+    non_tail lf.body;
+    current_function_scope := old_function_scope
   and with_scope ~scope lam =
     let old_scope = !current_scope in
     let old_tail_scope = !current_region_scope in
