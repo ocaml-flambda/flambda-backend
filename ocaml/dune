@@ -49,7 +49,7 @@
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
    profile terminfo ccomp warnings consistbl strongly_connected_components
    targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store
+   local_store target_systems
 
    ;; PARSING
    location longident docstrings syntaxerr ast_helper camlinternalMenhirLib
@@ -290,6 +290,7 @@
     (consistbl.mli as compiler-libs/consistbl.mli)
     (strongly_connected_components.mli as compiler-libs/strongly_connected_components.mli)
     (targetint.mli as compiler-libs/targetint.mli)
+    (target_systems.mli as compiler-libs/target_systems.mli)
     (load_path.mli as compiler-libs/load_path.mli)
     (int_replace_polymorphic_compare.mli as compiler-libs/int_replace_polymorphic_compare.mli)
     (location.mli as compiler-libs/location.mli)
@@ -714,6 +715,10 @@
     (.ocamlcommon.objs/byte/targetint.cmo as compiler-libs/targetint.cmo)
     (.ocamlcommon.objs/byte/targetint.cmt as compiler-libs/targetint.cmt)
     (.ocamlcommon.objs/byte/targetint.cmti as compiler-libs/targetint.cmti)
+    (.ocamlcommon.objs/byte/target_systems.cmi as compiler-libs/target_systems.cmi)
+    (.ocamlcommon.objs/byte/target_systems.cmo as compiler-libs/target_systems.cmo)
+    (.ocamlcommon.objs/byte/target_systems.cmt as compiler-libs/target_systems.cmt)
+    (.ocamlcommon.objs/byte/target_systems.cmti as compiler-libs/target_systems.cmti)
     (.ocamlcommon.objs/byte/tast_iterator.cmi as compiler-libs/tast_iterator.cmi)
     (.ocamlcommon.objs/byte/tast_iterator.cmo as compiler-libs/tast_iterator.cmo)
     (.ocamlcommon.objs/byte/tast_iterator.cmt as compiler-libs/tast_iterator.cmt)
@@ -893,6 +898,7 @@
     (.ocamlcommon.objs/native/symtable.cmx as compiler-libs/symtable.cmx)
     (.ocamlcommon.objs/native/syntaxerr.cmx as compiler-libs/syntaxerr.cmx)
     (.ocamlcommon.objs/native/targetint.cmx as compiler-libs/targetint.cmx)
+    (.ocamlcommon.objs/native/target_systems.cmx as compiler-libs/target_systems.cmx)
     (.ocamlcommon.objs/native/tast_iterator.cmx as compiler-libs/tast_iterator.cmx)
     (.ocamlcommon.objs/native/tast_mapper.cmx as compiler-libs/tast_mapper.cmx)
     (.ocamlcommon.objs/native/terminfo.cmx as compiler-libs/terminfo.cmx)

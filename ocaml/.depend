@@ -130,13 +130,25 @@ utils/strongly_connected_components.cmx : \
     utils/strongly_connected_components.cmi
 utils/strongly_connected_components.cmi : \
     utils/identifiable.cmi
+utils/target_systems.cmo : \
+    utils/misc.cmi \
+    utils/config.cmi \
+    utils/target_systems.cmi
+utils/target_systems.cmx : \
+    utils/misc.cmx \
+    utils/config.cmx \
+    utils/target_systems.cmi
+utils/target_systems.cmi :
 utils/targetint.cmo : \
+    utils/numbers.cmi \
     utils/misc.cmi \
     utils/targetint.cmi
 utils/targetint.cmx : \
+    utils/numbers.cmx \
     utils/misc.cmx \
     utils/targetint.cmi
-utils/targetint.cmi :
+utils/targetint.cmi : \
+    utils/numbers.cmi
 utils/terminfo.cmo : \
     utils/terminfo.cmi
 utils/terminfo.cmx : \
@@ -1553,6 +1565,7 @@ typing/typemod.cmo : \
     utils/load_path.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
+    typing/envaux.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
     utils/config.cmi \
@@ -1585,6 +1598,7 @@ typing/typemod.cmx : \
     utils/load_path.cmx \
     typing/includemod.cmx \
     typing/ident.cmx \
+    typing/envaux.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
     utils/config.cmx \
