@@ -1,6 +1,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module type Domain = sig
+(* CR-soon xclerc for xclerc: try and unify Forward_domain/Backward_domain,
+   Forward_transfer/Backward_transfer, and Forward_S/Backward_S. *)
+
+module type Forward_domain = sig
   type t
 
   val top : t
@@ -14,7 +17,7 @@ module type Domain = sig
   val to_string : t -> string
 end
 
-module type Transfer = sig
+module type Forward_transfer = sig
   type domain
 
   type t =
@@ -27,7 +30,7 @@ module type Transfer = sig
   val terminator : domain -> Cfg.terminator Cfg.instruction -> t
 end
 
-module type S = sig
+module type Forward_S = sig
   type domain
 
   type map = domain Label.Tbl.t
@@ -46,11 +49,10 @@ module type S = sig
     Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
-module Forward (D : Domain) (_ : Transfer with type domain = D.t) :
-  S with type domain = D.t
+module Forward (D : Forward_domain) (_ : Forward_transfer with type domain = D.t) :
+  Forward_S with type domain = D.t
 
-(* CR xclerc for xclerc: unify with `Domain` or rename. *)
-module type DomainXXX = sig
+module type Backward_domain = sig
   type t
 
   val bot : t
@@ -64,8 +66,7 @@ module type DomainXXX = sig
   val to_string : t -> string
 end
 
-(* CR xclerc for xclerc: unify with `Transfer` or rename. *)
-module type TransferXXX = sig
+module type Backward_transfer = sig
   type domain
 
   val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
@@ -76,8 +77,7 @@ module type TransferXXX = sig
   val exception_ : domain -> domain
 end
 
-(* CR xclerc for xclerc: unify with `S` or rename. *)
-module type SXXX = sig
+module type Backward_S = sig
   type domain
 
   type map = domain Label.Tbl.t
@@ -86,5 +86,5 @@ module type SXXX = sig
     Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
 end
 
-module Backward (D : DomainXXX) (_ : TransferXXX with type domain = D.t) :
-  SXXX with type domain = D.t
+module Backward (D : Backward_domain) (_ : Backward_transfer with type domain = D.t) :
+  Backward_S with type domain = D.t
