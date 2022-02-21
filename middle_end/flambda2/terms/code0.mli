@@ -59,6 +59,12 @@ val inlining_decision :
 
 val contains_no_escaping_local_allocs : _ t -> bool
 
+val absolute_history :
+  'function_params_and_body t -> Inlining_history.Absolute.t
+
+val relative_history :
+  'function_params_and_body t -> Inlining_history.Relative.t
+
 val create :
   print_function_params_and_body:
     (Format.formatter -> 'function_params_and_body -> unit) ->
@@ -81,6 +87,8 @@ val create :
   is_tupled:bool ->
   is_my_closure_used:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
+  absolute_history:Inlining_history.Absolute.t ->
+  relative_history:Inlining_history.Relative.t ->
   'function_params_and_body t
 
 val with_code_id :

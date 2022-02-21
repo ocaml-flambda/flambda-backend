@@ -436,8 +436,9 @@ and subst_apply env apply =
   let dbg = Apply_expr.dbg apply in
   let inlined = Apply_expr.inlined apply in
   let inlining_state = Apply_expr.inlining_state apply in
+  let relative_history = Apply_expr.relative_history apply in
   Apply_expr.create ~callee ~continuation exn_continuation ~args ~call_kind dbg
-    ~inlined ~inlining_state ~probe_name:None
+    ~inlined ~inlining_state ~probe_name:None ~relative_history
   |> Expr.create_apply
 
 and subst_apply_cont env apply_cont =
@@ -1004,6 +1005,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
             ~probe_name:None
+            ~relative_history:(Apply_expr.relative_history apply1)
           |> Expr.create_apply
       }
 
