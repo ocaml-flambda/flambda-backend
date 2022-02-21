@@ -400,7 +400,8 @@ module Extension = struct
     | [] -> ()
     | ls ->
       raise (Arg.Bad(Printf.sprintf
-        "Extensions %s are incompatible with compiler flag -disable-all-extensions"
+        "Compiler flag -disable-all-extensions is incompatible with \
+         the enabled extensions: %s"
         (String.concat "," (List.map to_string ls))))
 
   let enable extn =
