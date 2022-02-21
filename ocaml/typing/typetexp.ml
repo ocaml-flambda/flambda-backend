@@ -47,6 +47,7 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
+  | Local_not_enabled
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -156,20 +157,21 @@ let transl_type_param env styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_param env styp)
 
+let get_alloc_mode styp =
+  if Builtin_attributes.has_local styp.ptyp_attributes then begin
+    if not (Clflags.Extension.is_enabled Local) then
+      raise (Error(styp.ptyp_loc, Env.empty, Local_not_enabled));
+    Alloc_mode.Local
+  end else
+    Alloc_mode.Global
+
 let rec extract_params styp =
   let final styp =
-    let ret_mode =
-      if Builtin_attributes.has_local styp.ptyp_attributes then Alloc_mode.Local
-      else Alloc_mode.Global
-    in
-    [], styp, ret_mode
+    [], styp, get_alloc_mode styp
   in
   match styp.ptyp_desc with
   | Ptyp_arrow (l, a, r) ->
-      let arg_mode =
-        if Builtin_attributes.has_local a.ptyp_attributes then Alloc_mode.Local
-        else Alloc_mode.Global
-      in
+      let arg_mode = get_alloc_mode a in
       let params, ret, ret_mode =
         if Builtin_attributes.has_curry r.ptyp_attributes then final r
         else extract_params r
@@ -841,6 +843,9 @@ let report_error env ppf = function
   | Not_an_object ty ->
       fprintf ppf "@[The type %a@ is not an object type@]"
         Printtyp.type_expr ty
+  | Local_not_enabled ->
+      fprintf ppf "@[The local extension is disabled@ \
+                     To enable it, pass the '-extension local' flag@]"
 
 let () =
   Location.register_error_of_exn
