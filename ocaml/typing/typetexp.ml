@@ -243,7 +243,7 @@ and transl_type_aux env policy mode styp =
             newty
               (Tarrow((l,arg_mode,ret_mode), arg_ty, ret_cty.ctyp_type, Cok))
           in
-          ctyp (Ttyp_arrow (l, arg_cty, arg_cty)) ty
+          ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
         | [] -> transl_type env policy ret_mode ret
       in
       loop mode args
