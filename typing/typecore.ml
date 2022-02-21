@@ -461,9 +461,17 @@ let extract_label_names env ty =
   with Not_found ->
     assert false
 
-let has_local_attr_pat ppat = Builtin_attributes.has_local ppat.ppat_attributes
+let has_local_attr loc attrs =
+  let present = Builtin_attributes.has_local attrs in
+  if present && not (Clflags.Extension.is_enabled Local) then
+    raise(Typetexp.Error(loc, Env.empty, Local_not_enabled));
+  present
 
-let has_local_attr_exp pexp = Builtin_attributes.has_local pexp.pexp_attributes
+let has_local_attr_pat ppat =
+  has_local_attr ppat.ppat_loc ppat.ppat_attributes
+
+let has_local_attr_exp pexp =
+  has_local_attr pexp.pexp_loc pexp.pexp_attributes
 
 (* Typing of patterns *)
 
@@ -3452,6 +3460,8 @@ and type_expect_
   | Pexp_apply
       ({ pexp_desc = Pexp_extension({txt = "extension.local"}, PStr []) },
        [Nolabel, sbody]) ->
+      if not (Clflags.Extension.is_enabled Local) then
+        raise (Typetexp.Error (loc, Env.empty, Local_not_enabled));
       submode ~loc ~env Value_mode.local expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode_local sbody
