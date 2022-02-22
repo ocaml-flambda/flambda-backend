@@ -130,7 +130,7 @@ module Forward (D : Forward_domain) (T : Forward_transfer with type domain = D.t
       update ~normal:true ~exn:false normal;
       update ~normal:false ~exn:true exceptional
     done;
-    if !iteration < max_iteration then Result.Ok res else Result.Error res
+    if WorkSet.is_empty !work_set then Result.Ok res else Result.Error res
 end
 
 module type Backward_domain = sig
@@ -297,5 +297,5 @@ module Backward (D : Backward_domain) (T : Backward_transfer with type domain = 
             end)
           (Cfg.predecessor_labels block)
     done;
-    if !iteration < max_iteration then Result.Ok res else Result.Error res
+    if WorkSet.is_empty !work_set then Result.Ok res else Result.Error res
 end
