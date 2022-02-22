@@ -97,7 +97,7 @@ module Transfer = struct
       Reg.set_of_array instr.arg
     | Call_no_return _ ->
       instr.live <- Reg.Set.empty;
-      Reg.Set.union exn (Reg.set_of_array instr.arg)
+      Reg.add_set_array exn instr.arg
 
   let exception_ : domain -> domain =
    fun value -> Reg.Set.remove Proc.loc_exn_bucket value
