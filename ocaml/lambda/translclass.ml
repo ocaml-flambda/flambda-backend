@@ -52,17 +52,20 @@ let lapply ap =
       Lapply ap
 
 let mkappl (func, args) =
-  Lapply {
-    ap_loc=Loc_unknown;
-    ap_func=func;
-    ap_args=args;
-    ap_region_close=Rc_normal;
-    ap_mode=Alloc_heap;
-    ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inlined;
-    ap_specialised=Default_specialise;
-    ap_probe=None;
-  };;
+  Lprim
+    (Popaque,
+     [Lapply {
+         ap_loc=Loc_unknown;
+         ap_func=func;
+         ap_args=args;
+         ap_region_close=Rc_normal;
+         ap_mode=Alloc_heap;
+         ap_tailcall=Default_tailcall;
+         ap_inlined=Default_inlined;
+         ap_specialised=Default_specialise;
+         ap_probe=None;
+       }],
+     Loc_unknown);;
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
@@ -264,9 +267,11 @@ let output_methods tbl methods lam =
   | [lab; code] ->
       lsequence (mkappl(oo_prim "set_method", [Lvar tbl; lab; code])) lam
   | _ ->
+      let methods =
+        Lprim(Pmakeblock(0,Immutable,None,Alloc_heap), methods, Loc_unknown)
+      in
       lsequence (mkappl(oo_prim "set_methods",
-                        [Lvar tbl; Lprim(Pmakeblock(0,Immutable,None,Alloc_heap),
-                                         methods, Loc_unknown)]))
+                        [Lvar tbl; Lprim (Popaque, [methods], Loc_unknown)]))
         lam
 
 let rec ignore_cstrs cl =
@@ -910,7 +915,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
     Llet(Strict, Pgenval, cached,
          mkappl (oo_prim "lookup_tables",
-                [Lvar tables; Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+                [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, Alloc_heap),
                                     inh_keys, Loc_unknown)]),
          lam)
   and lset cached i lam =

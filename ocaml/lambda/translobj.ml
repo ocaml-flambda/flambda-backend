@@ -91,7 +91,11 @@ let transl_label_init_general f =
   let expr, size = f () in
   let expr =
     Hashtbl.fold
-      (fun c id expr -> Llet(Alias, Pgenval, id, Lconst c, expr))
+      (fun c id expr ->
+         let const =
+           Lprim (Popaque, [Lconst c], Debuginfo.Scoped_location.Loc_unknown)
+         in
+         Llet(Alias, Pgenval, id, const, expr))
       consts expr
   in
   (*let expr =
@@ -177,10 +181,13 @@ let oo_wrap env req f x =
          let lambda =
            List.fold_left
              (fun lambda id ->
+                let cl =
+                  Lprim(Pmakeblock(0, Mutable, None, Alloc_heap),
+                        [lambda_unit; lambda_unit; lambda_unit],
+                        Loc_unknown)
+                in
                 Llet(StrictOpt, Pgenval, id,
-                     Lprim(Pmakeblock(0, Mutable, None, Alloc_heap),
-                           [lambda_unit; lambda_unit; lambda_unit],
-                           Loc_unknown),
+                     Lprim (Popaque, [cl], Loc_unknown),
                      lambda))
              lambda !classes
          in
