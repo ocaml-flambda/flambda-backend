@@ -11,7 +11,6 @@ module Domain = struct
 
   let less_equal = Reg.Set.subset
 
-  (* CR xclerc for xclerc: already defined elsewhere? *)
   let with_formatter ~f x =
     let buff = Buffer.create 64 in
     let fmt = Format.formatter_of_buffer buff in
@@ -32,14 +31,22 @@ module Transfer = struct
    fun value ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
-      let across = Reg.diff_set_array value instr.res in
-      let across =
-        if Cfg.can_raise_basic instr.desc && instr.trap_depth > 1
-        then Reg.Set.union across exn
-        else across
-      in
-      instr.live <- across;
-      Reg.add_set_array across instr.arg
+      if Cfg.is_pure_basic instr.desc
+      && Reg.disjoint_set_array value instr.res
+      && not (Proc.regs_are_volatile instr.arg)
+      && not (Proc.regs_are_volatile instr.res) then begin
+        instr.live <- value;
+        value
+      end else begin
+        let across = Reg.diff_set_array value instr.res in
+        let across =
+          if Cfg.can_raise_basic instr.desc && instr.trap_depth > 1
+          then Reg.Set.union across exn
+          else across
+        in
+        instr.live <- across;
+        Reg.add_set_array across instr.arg
+      end
     | Reloadretaddr ->
       instr.live <- Reg.Set.empty;
       Reg.diff_set_array value Proc.destroyed_at_reloadretaddr

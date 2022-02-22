@@ -58,6 +58,8 @@ module type Backward_domain = sig
   val bot : t
 
   val compare : t -> t -> int
+  (* note: `compare` is an order that can be passed to e.g. `Map.Make` or
+     `Set.Make`; it does not need to be compatible with `less_than`. *)
 
   val join : t -> t -> t
 
