@@ -29,8 +29,21 @@ type 'a or_default = Set of 'a | Default
 val opt_level : opt_level or_default ref
 
 module Flambda2 : sig
+  module Default : sig
+    val classic_mode : bool
+    val join_points : bool
+    val unbox_along_intra_function_control_flow : bool
+    val backend_cse_at_toplevel : bool
+    val cse_depth : int
+    val join_depth : int
+    val function_result_types : function_result_types
+
+    val unicode : bool
+  end
+
   (* CR-someday lmaurer: We could eliminate most of the per-flag boilerplate using GADTs
      and heterogeneous maps. Whether that's an improvement is a fair question. *)
+
   type flags = {
     classic_mode : bool;
     join_points : bool;
@@ -43,7 +56,6 @@ module Flambda2 : sig
     unicode : bool;
   }
 
-  val default : flags
   val default_for_opt_level : opt_level or_default -> flags
 
   val function_result_types : function_result_types or_default ref
@@ -66,6 +78,16 @@ module Flambda2 : sig
   end
 
   module Expert : sig
+    module Default : sig
+      val code_id_and_symbol_scoping_checks : bool
+      val fallback_inlining_heuristic : bool
+      val inline_effects_in_cmm : bool
+      val phantom_lets : bool
+      val max_block_size_for_projections : int option
+      val max_unboxing_depth : int
+      val can_inline_recursive_functions : bool
+    end
+
     type flags = {
       code_id_and_symbol_scoping_checks : bool;
       fallback_inlining_heuristic : bool;
@@ -76,7 +98,6 @@ module Flambda2 : sig
       can_inline_recursive_functions : bool;
     }
 
-    val default : flags
     val default_for_opt_level : opt_level or_default -> flags
 
     val code_id_and_symbol_scoping_checks : bool or_default ref

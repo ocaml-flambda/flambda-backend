@@ -44,7 +44,7 @@ let mk_flambda2_result_types_functors_only f =
   Printf.sprintf " Infer result types for functors (but no other\n\
       \     functions)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.default.function_result_types with
+      match Flambda2.Default.function_result_types with
       | Functors_only -> true
       | Never | All_functions -> false))
 ;;
@@ -54,7 +54,7 @@ let mk_flambda2_result_types_all_functions f =
   Printf.sprintf " Infer result types for all functions\n\
       \     (including functors)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.default.function_result_types with
+      match Flambda2.Default.function_result_types with
       | All_functions -> true
       | Never | Functors_only -> false))
 ;;
@@ -64,7 +64,7 @@ let mk_no_flambda2_result_types f =
   Printf.sprintf " Do not infer result types for functions (or\n\
       \     functors)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.default.function_result_types with
+      match Flambda2.Default.function_result_types with
       | Never -> true
       | Functors_only | All_functions -> false))
 ;;
@@ -74,21 +74,21 @@ let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information from all incoming edges to a join\n\
       \     point%s (Flambda 2 only)"
-    (format_default Flambda2.default.join_points)
+    (format_default Flambda2.Default.join_points)
 ;;
 
 let mk_no_flambda2_join_points f =
   "-no-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information to a join point only if there are\n\
       \     zero or one incoming edge(s)%s (Flambda 2 only)"
-    (format_not_default Flambda2.default.join_points)
+    (format_not_default Flambda2.Default.join_points)
 ;;
 
 let mk_flambda2_unbox_along_intra_function_control_flow f =
   "-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
   Printf.sprintf " Pass values within\n\
       \     a function as unboxed where possible%s (Flambda 2 only)"
-    (format_default Flambda2.default.unbox_along_intra_function_control_flow)
+    (format_default Flambda2.Default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_no_flambda2_unbox_along_intra_function_control_flow f =
@@ -96,35 +96,35 @@ let mk_no_flambda2_unbox_along_intra_function_control_flow f =
   Printf.sprintf " Pass values within\n\
       \     a function in their normal representation%s (Flambda 2 only)"
     (format_not_default
-      Flambda2.default.unbox_along_intra_function_control_flow)
+      Flambda2.Default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_flambda2_backend_cse_at_toplevel f =
   "-flambda2-backend-cse-at-toplevel", Arg.Unit f,
   Printf.sprintf " Apply the backend CSE pass to module\n\
       \     initializers%s (Flambda 2 only)"
-    (format_default Flambda2.default.backend_cse_at_toplevel)
+    (format_default Flambda2.Default.backend_cse_at_toplevel)
 ;;
 
 let mk_no_flambda2_backend_cse_at_toplevel f =
   "-no-flambda2-backend-cse-at-toplevel", Arg.Unit f,
   Printf.sprintf " Do not apply the backend CSE pass to\n\
       \     module initializers%s (Flambda 2 only)"
-    (format_not_default Flambda2.default.backend_cse_at_toplevel)
+    (format_not_default Flambda2.Default.backend_cse_at_toplevel)
 ;;
 
 let mk_flambda2_cse_depth f =
   "-flambda2-cse-depth", Arg.Int f,
   Printf.sprintf " Depth threshold for eager tracking of CSE equations\n\
       \     (default %d) (Flambda 2 only)"
-    Flambda2.default.cse_depth
+    Flambda2.Default.cse_depth
 ;;
 
 let mk_flambda2_join_depth f =
   "-flambda2-join-depth", Arg.Int f,
   Printf.sprintf " Depth threshold for alias expansion in join\n\
       \     (default %d) (Flambda 2 only)"
-    Flambda2.default.join_depth
+    Flambda2.Default.join_depth
 ;;
 
 let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
@@ -132,7 +132,7 @@ let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
   Printf.sprintf " Perform checks on static\n\
       \     scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
-    (format_default Flambda2.Expert.default.code_id_and_symbol_scoping_checks)
+    (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
 ;;
 
 let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
@@ -141,49 +141,49 @@ let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
       \     on static scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_not_default
-      Flambda2.Expert.default.code_id_and_symbol_scoping_checks)
+      Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
 ;;
 
 let mk_flambda2_expert_fallback_inlining_heuristic f =
   "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Prevent inlining of functions\n\
       \     whose bodies contain closures%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.default.fallback_inlining_heuristic)
+    (format_default Flambda2.Expert.Default.fallback_inlining_heuristic)
 ;;
 
 let mk_no_flambda2_expert_fallback_inlining_heuristic f =
   "-no-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Allow inlining of functions\n\
       \     whose bodies contain closures%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.default.fallback_inlining_heuristic)
+    (format_not_default Flambda2.Expert.Default.fallback_inlining_heuristic)
 ;;
 
 let mk_flambda2_expert_inline_effects_in_cmm f =
   "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
   Printf.sprintf " Allow inlining of effectful\n\
       \     expressions in the produced Cmm code%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.default.inline_effects_in_cmm)
+    (format_default Flambda2.Expert.Default.inline_effects_in_cmm)
 ;;
 
 let mk_no_flambda2_expert_inline_effects_in_cmm f =
   "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
   Printf.sprintf " Prevent inlining of effectful\n\
       \     expressions in the produced Cmm code%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.default.inline_effects_in_cmm)
+    (format_not_default Flambda2.Expert.Default.inline_effects_in_cmm)
 ;;
 
 let mk_flambda2_expert_phantom_lets f =
   "-flambda2-expert-phantom-lets", Arg.Unit f,
   Printf.sprintf " Generate phantom lets when -g\n\
       \     is specified%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.default.phantom_lets)
+    (format_default Flambda2.Expert.Default.phantom_lets)
 ;;
 
 let mk_no_flambda2_expert_phantom_lets f =
   "-no-flambda2-expert-phantom-lets", Arg.Unit f,
   Printf.sprintf " Do not generate phantom lets even when -g\n\
       \     is specified%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.default.phantom_lets)
+    (format_not_default Flambda2.Expert.Default.phantom_lets)
 ;;
 
 let mk_flambda2_expert_max_block_size_for_projections f =
@@ -191,7 +191,7 @@ let mk_flambda2_expert_max_block_size_for_projections f =
   Printf.sprintf " Do not simplify projections\n\
       \     from blocks if the block size exceeds this value (default %s)\n\
       \     (Flambda 2 only)"
-    (match Flambda2.Expert.default.max_block_size_for_projections with
+    (match Flambda2.Expert.Default.max_block_size_for_projections with
      | None -> "not set"
      | Some max -> string_of_int max)
 ;;
@@ -200,14 +200,14 @@ let mk_flambda2_expert_max_unboxing_depth f =
   "-flambda2-expert-max-unboxing-depth", Arg.Int f,
   Printf.sprintf " Do not unbox (nested) values deeper\n\
       \     than this many levels (default %d) (Flambda 2 only)"
-    Flambda2.Expert.default.max_unboxing_depth
+    Flambda2.Expert.Default.max_unboxing_depth
 ;;
 
 let mk_flambda2_expert_can_inline_recursive_functions f =
   "-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
   Printf.sprintf " Consider inlining\n\
      \      recursive functions (default %s) (Flambda 2 only)"
-    (format_default Flambda2.Expert.default.can_inline_recursive_functions)
+    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
 let mk_no_flambda2_expert_can_inline_recursive_functions f =
@@ -215,7 +215,7 @@ let mk_no_flambda2_expert_can_inline_recursive_functions f =
   Printf.sprintf " Only inline recursive\n\
       \     functions if forced to so do by an attribute\n\
       \     (default %s) (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.default.can_inline_recursive_functions)
+    (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
 let mk_flambda2_debug_permute_every_name f =

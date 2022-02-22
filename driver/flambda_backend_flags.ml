@@ -35,6 +35,17 @@ let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
   | Set O3 -> o3
 
 module Flambda2 = struct
+  module Default = struct
+    let classic_mode = false
+    let join_points = false
+    let unbox_along_intra_function_control_flow = true
+    let backend_cse_at_toplevel = false
+    let cse_depth = 2
+    let join_depth = 5
+    let function_result_types = Never
+    let unicode = true
+  end
+
   type flags = {
     classic_mode : bool;
     join_points : bool;
@@ -48,14 +59,14 @@ module Flambda2 = struct
   }
 
   let default = {
-    classic_mode = false;
-    join_points = false;
-    unbox_along_intra_function_control_flow = true;
-    backend_cse_at_toplevel = false;
-    cse_depth = 2;
-    join_depth = 5;
-    function_result_types = Never;
-    unicode = true;
+    classic_mode = Default.classic_mode;
+    join_points = Default.join_points;
+    unbox_along_intra_function_control_flow = Default.unbox_along_intra_function_control_flow;
+    backend_cse_at_toplevel = Default.backend_cse_at_toplevel;
+    cse_depth = Default.cse_depth;
+    join_depth = Default.join_depth;
+    function_result_types = Default.function_result_types;
+    unicode = Default.unicode;
   }
 
   let oclassic = {
@@ -96,6 +107,16 @@ module Flambda2 = struct
   end
 
   module Expert = struct
+    module Default = struct
+      let code_id_and_symbol_scoping_checks = false
+      let fallback_inlining_heuristic = false
+      let inline_effects_in_cmm = false
+      let phantom_lets = false
+      let max_block_size_for_projections = None
+      let max_unboxing_depth = 3
+      let can_inline_recursive_functions = false
+    end
+
     type flags = {
       code_id_and_symbol_scoping_checks : bool;
       fallback_inlining_heuristic : bool;
@@ -107,13 +128,13 @@ module Flambda2 = struct
     }
 
     let default = {
-      code_id_and_symbol_scoping_checks = false;
-      fallback_inlining_heuristic = false;
-      inline_effects_in_cmm = false;
-      phantom_lets = false;
-      max_block_size_for_projections = None;
-      max_unboxing_depth = 3;
-      can_inline_recursive_functions = false;
+      code_id_and_symbol_scoping_checks = Default.code_id_and_symbol_scoping_checks;
+      fallback_inlining_heuristic = Default.fallback_inlining_heuristic;
+      inline_effects_in_cmm = Default.inline_effects_in_cmm;
+      phantom_lets = Default.phantom_lets;
+      max_block_size_for_projections = Default.max_block_size_for_projections;
+      max_unboxing_depth = Default.max_unboxing_depth;
+      can_inline_recursive_functions = Default.can_inline_recursive_functions;
     }
 
     let oclassic = {
@@ -261,34 +282,30 @@ module Flambda2 = struct
   end
 end
 
+let set_oclassic () =
+  if Clflags.is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set
+      Flambda2.Inlining.oclassic_arguments;
+    opt_level := Set Oclassic
+  end else begin
+    Clflags.Opt_flag_handler.default.set_oclassic ();
+  end
+
+let set_o2 () =
+  if Clflags.is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
+    opt_level := Set O2
+  end else begin
+    Clflags.Opt_flag_handler.default.set_o2 ();
+  end
+
+let set_o3 () =
+  if Clflags.is_flambda2 () then begin
+    Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
+    opt_level := Set O3
+  end else begin
+    Clflags.Opt_flag_handler.default.set_o3 ();
+  end
+
 let opt_flag_handler : Clflags.Opt_flag_handler.t =
-  let default = Clflags.Opt_flag_handler.default in
-
-  let set_oclassic () =
-    if Clflags.is_flambda2 () then begin
-      Flambda2.Inlining.use_inlining_arguments_set
-        Flambda2.Inlining.oclassic_arguments;
-      opt_level := Set Oclassic
-    end else begin
-      default.set_oclassic ();
-    end
-  in
-
-  let set_o2 () =
-    if Clflags.is_flambda2 () then begin
-      Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
-      opt_level := Set O2
-    end else begin
-      default.set_o2 ();
-    end
-  in
-
-  let set_o3 () =
-    if Clflags.is_flambda2 () then begin
-      Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
-      opt_level := Set O3
-    end else begin
-      default.set_o3 ();
-    end
-  in
   { set_oclassic; set_o2; set_o3 }

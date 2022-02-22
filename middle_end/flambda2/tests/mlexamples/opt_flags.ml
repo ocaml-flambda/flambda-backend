@@ -1,5 +1,3 @@
-[@@@flambda_o3]
-
 (* Differentiates between optimisation levels. Requires inspecting -dcmm to
    verify.
 
