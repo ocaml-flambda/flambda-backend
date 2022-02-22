@@ -349,8 +349,77 @@ let is_pure_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
+let is_pure_specific : Arch.specific_operation -> bool = function
+  | Ilea _ -> true
+  | Istore_int _ -> false
+  | Ioffset_loc _ -> false
+  | Ifloatarithmem _ -> false
+  | Ibswap _ -> false
+  | Isqrtf -> false
+  | Ifloatsqrtf _ -> false
+  | Ifloat_iround -> true
+  | Ifloat_round _ -> true
+  | Ifloat_min -> true
+  | Ifloat_max -> true
+  | Isextend32 -> true
+  | Izextend32 -> true
+  | Irdtsc -> false
+  | Irdpmc -> false
+  | Icrc32q -> false
+  | Ipause -> false
+  | Iprefetch _ -> false
+
+let is_pure_operation : operation -> bool = function
+  | Move -> true
+  | Spill -> true
+  | Reload -> true
+  | Const_int _ -> true
+  | Const_float _ -> true
+  | Const_symbol _ -> true
+  | Stackoffset _ -> false
+  | Load _ -> true
+  | Store _ -> false
+  | Intop _ -> true
+  | Intop_imm _ -> true
+  | Negf -> true
+  | Absf -> true
+  | Addf -> true
+  | Subf -> true
+  | Mulf -> true
+  | Divf -> true
+  | Compf _ -> true
+  | Floatofint -> true
+  | Intoffloat -> true
+  | Probe _ -> false
+  | Probe_is_enabled _ -> true
+  | Opaque -> false
+  | Begin_region -> false
+  | End_region -> false
+  | Specific s -> is_pure_specific s
+  | Name_for_debugger _ -> true
+
+let is_pure_basic : basic -> bool = function
+  | Op op -> is_pure_operation op
+  | Call _ -> false
+  | Reloadretaddr -> true
+  | Pushtrap _ -> true
+  | Poptrap -> true
+  | Prologue -> true
+
 let print_basic oc i =
   Format.kasprintf (Printf.fprintf oc "%s") "%a" dump_basic i
 
 let print_terminator oc ?sep ti =
   Format.kasprintf (Printf.fprintf oc "%s") "%a" (dump_terminator ?sep) ti
+
+let is_noop_move instr =
+  match instr.desc with
+  | Op (Move | Spill | Reload) -> Reg.same_loc instr.arg.(0) instr.res.(0)
+  | Op
+      ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
+      | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
+      | Divf | Compf _ | Floatofint | Intoffloat | Probe _ | Opaque
+      | Probe_is_enabled _ | Specific _ | Name_for_debugger _ | Begin_region
+      | End_region )
+  | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+    false

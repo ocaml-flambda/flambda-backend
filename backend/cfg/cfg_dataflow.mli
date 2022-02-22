@@ -1,6 +1,9 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module type Domain = sig
+(* CR-soon xclerc for xclerc: try and unify Forward_domain/Backward_domain,
+   Forward_transfer/Backward_transfer, and Forward_S/Backward_S. *)
+
+module type Forward_domain = sig
   type t
 
   val top : t
@@ -14,7 +17,7 @@ module type Domain = sig
   val to_string : t -> string
 end
 
-module type Transfer = sig
+module type Forward_transfer = sig
   type domain
 
   type t =
@@ -27,7 +30,7 @@ module type Transfer = sig
   val terminator : domain -> Cfg.terminator Cfg.instruction -> t
 end
 
-module type S = sig
+module type Forward_S = sig
   type domain
 
   type map = domain Label.Tbl.t
@@ -46,5 +49,44 @@ module type S = sig
     Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
-module Forward (D : Domain) (_ : Transfer with type domain = D.t) :
-  S with type domain = D.t
+module Forward (D : Forward_domain) (_ : Forward_transfer with type domain = D.t) :
+  Forward_S with type domain = D.t
+
+module type Backward_domain = sig
+  type t
+
+  val bot : t
+
+  val compare : t -> t -> int
+  (* note: `compare` is an order that can be passed to e.g. `Map.Make` or
+     `Set.Make`; it does not need to be compatible with `less_than`. *)
+
+  val join : t -> t -> t
+
+  val less_equal : t -> t -> bool
+
+  val to_string : t -> string
+end
+
+module type Backward_transfer = sig
+  type domain
+
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+
+  val terminator :
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+
+  val exception_ : domain -> domain
+end
+
+module type Backward_S = sig
+  type domain
+
+  type map = domain Label.Tbl.t
+
+  val run :
+    Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+end
+
+module Backward (D : Backward_domain) (_ : Backward_transfer with type domain = D.t) :
+  Backward_S with type domain = D.t
