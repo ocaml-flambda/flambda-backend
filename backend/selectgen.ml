@@ -899,7 +899,7 @@ method select_operands op args =
 
 (* Instruction selection for conditionals *)
 
-method private swap_operands_condition: Mach.test -> Mach.test option = function
+method swap_operands_condition: Mach.test -> Mach.test option = function
   | Iinttest cmp -> Some (Iinttest (swap_intcomp cmp))
   | Ifloattest cmp -> Some (Ifloattest (swap_float_comparison cmp))
   | Ioddtest | Ieventest | Itruetest | Ifalsetest -> None

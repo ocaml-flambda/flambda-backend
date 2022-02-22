@@ -119,6 +119,8 @@ class virtual selector_generic : object
        for swapped arguments. Otherwise, returns [None],
        in particualr  if the operation is not binary
        or not commutative.*)
+  method swap_operands_condition: Mach.test -> Mach.test option
+    (*  Similar to [swap_operands]. *)
   method select_operands :
     Mach.operation ->
     Cmm.expression list ->

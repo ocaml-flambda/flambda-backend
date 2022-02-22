@@ -223,6 +223,10 @@ method swap_operands = function
   | Ifloatop (Icompf cmp) when snd (Arch.float_compare_and_need_swap cmp) -> None
   | op -> super#swap_operands op
 
+method! swap_operands_condition = function
+  | Ifloattest cmp when Arch.float_test_need_swap cmp -> None
+  | op -> super#swap_operands_condition op
+
 method! memory_operands_supported op chunk =
   match op, chunk with
   | Iintop ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod
