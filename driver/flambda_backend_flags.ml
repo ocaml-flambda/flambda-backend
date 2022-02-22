@@ -22,28 +22,70 @@ let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 
 type function_result_types = Never | Functors_only | All_functions
+type opt_level = Oclassic | O2 | O3
+type 'a or_default = Set of 'a | Default
+
+let opt_level = ref Default
+
+let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =
+  match opt_level with
+  | Default -> default
+  | Set Oclassic -> oclassic
+  | Set O2 -> o2
+  | Set O3 -> o3
 
 module Flambda2 = struct
-  module Default = struct
-    let classic_mode = false
-    let join_points = false
-    let unbox_along_intra_function_control_flow = true
-    let backend_cse_at_toplevel = false
-    let cse_depth = 2
-    let join_depth = 5
-    let function_result_types = Never
-    let unicode = true
-  end
+  type flags = {
+    classic_mode : bool;
+    join_points : bool;
+    unbox_along_intra_function_control_flow : bool;
+    backend_cse_at_toplevel : bool;
+    cse_depth : int;
+    join_depth : int;
+    function_result_types : function_result_types;
 
-  let classic_mode = ref Default.classic_mode
-  let join_points = ref Default.join_points
-  let unbox_along_intra_function_control_flow =
-    ref Default.unbox_along_intra_function_control_flow
-  let backend_cse_at_toplevel = ref Default.backend_cse_at_toplevel
-  let cse_depth = ref Default.cse_depth
-  let join_depth = ref Default.join_depth
-  let unicode = ref Default.unicode
-  let function_result_types = ref Default.function_result_types
+    unicode : bool;
+  }
+
+  let default = {
+    classic_mode = false;
+    join_points = false;
+    unbox_along_intra_function_control_flow = true;
+    backend_cse_at_toplevel = false;
+    cse_depth = 2;
+    join_depth = 5;
+    function_result_types = Never;
+    unicode = true;
+  }
+
+  let oclassic = {
+    default with
+    classic_mode = true;
+    backend_cse_at_toplevel = false;
+  }
+
+  let o2 = {
+    default with
+    cse_depth = 2;
+    join_points = true;
+    unbox_along_intra_function_control_flow = true;
+  }
+
+  let o3 = {
+    o2 with
+    function_result_types = Functors_only
+  }
+
+  let default_for_opt_level opt_level = flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3
+
+  let classic_mode = ref Default
+  let join_points = ref Default
+  let unbox_along_intra_function_control_flow = ref Default
+  let backend_cse_at_toplevel = ref Default
+  let cse_depth = ref Default
+  let join_depth = ref Default
+  let unicode = ref Default
+  let function_result_types = ref Default
 
   module Dump = struct
     let rawfexpr = ref false
@@ -54,26 +96,44 @@ module Flambda2 = struct
   end
 
   module Expert = struct
-    module Default = struct
-      let code_id_and_symbol_scoping_checks = false
-      let fallback_inlining_heuristic = false
-      let inline_effects_in_cmm = false
-      let phantom_lets = false
-      let max_block_size_for_projections = None
-      let max_unboxing_depth = 3
-      let can_inline_recursive_functions = false
-    end
+    type flags = {
+      code_id_and_symbol_scoping_checks : bool;
+      fallback_inlining_heuristic : bool;
+      inline_effects_in_cmm : bool;
+      phantom_lets : bool;
+      max_block_size_for_projections : int option;
+      max_unboxing_depth : int;
+      can_inline_recursive_functions : bool;
+    }
 
-    let code_id_and_symbol_scoping_checks =
-      ref Default.code_id_and_symbol_scoping_checks
-    let fallback_inlining_heuristic = ref Default.fallback_inlining_heuristic
-    let inline_effects_in_cmm = ref Default.inline_effects_in_cmm
-    let phantom_lets = ref Default.phantom_lets
-    let max_block_size_for_projections =
-      ref Default.max_block_size_for_projections
-    let max_unboxing_depth = ref Default.max_unboxing_depth
-    let can_inline_recursive_functions =
-      ref Default.can_inline_recursive_functions
+    let default = {
+      code_id_and_symbol_scoping_checks = false;
+      fallback_inlining_heuristic = false;
+      inline_effects_in_cmm = false;
+      phantom_lets = false;
+      max_block_size_for_projections = None;
+      max_unboxing_depth = 3;
+      can_inline_recursive_functions = false;
+    }
+
+    let oclassic = {
+      default with
+      fallback_inlining_heuristic = true;
+    }
+
+    let o2 = default
+    let o3 = default
+
+    let default_for_opt_level opt_level =
+      flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3
+
+    let code_id_and_symbol_scoping_checks = ref Default
+    let fallback_inlining_heuristic = ref Default
+    let inline_effects_in_cmm = ref Default
+    let phantom_lets = ref Default
+    let max_block_size_for_projections = ref Default
+    let max_unboxing_depth = ref Default
+    let can_inline_recursive_functions = ref Default
   end
 
   module Debug = struct
@@ -199,40 +259,6 @@ module Flambda2 = struct
 
     let o3_arguments = o2_arguments
   end
-
-  let clear_o_flags () =
-    (* Reset anything set by -O2, -O3, or -Oclassic to the default
-       values so that later -O options (or OCAMLPARAM or attributes)
-       cleanly override earlier ones *)
-    classic_mode := Default.classic_mode;
-    cse_depth := Default.cse_depth;
-    join_points := Default.join_points;
-    unbox_along_intra_function_control_flow :=
-      Default.unbox_along_intra_function_control_flow;
-    Expert.fallback_inlining_heuristic :=
-      Expert.Default.fallback_inlining_heuristic;
-    (* This default is copied from [Clflags]: *)
-    Clflags.use_linscan := false;
-    function_result_types := Default.function_result_types
-
-  let oclassic_flags () =
-    clear_o_flags ();
-    classic_mode := true;
-    Expert.fallback_inlining_heuristic := true;
-    backend_cse_at_toplevel := false;
-    Clflags.use_linscan := true
-
-  let o2_flags () =
-    clear_o_flags ();
-    cse_depth := 2;
-    join_points := true;
-    unbox_along_intra_function_control_flow := true;
-    Expert.fallback_inlining_heuristic := false;
-    backend_cse_at_toplevel := false
-
-  let o3_flags () =
-    o2_flags ();
-    function_result_types := Functors_only
 end
 
 let opt_flag_handler : Clflags.Opt_flag_handler.t =
@@ -242,7 +268,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
     if Clflags.is_flambda2 () then begin
       Flambda2.Inlining.use_inlining_arguments_set
         Flambda2.Inlining.oclassic_arguments;
-      Flambda2.oclassic_flags ()
+      opt_level := Set Oclassic
     end else begin
       default.set_oclassic ();
     end
@@ -251,7 +277,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
   let set_o2 () =
     if Clflags.is_flambda2 () then begin
       Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o2_arguments;
-      Flambda2.o2_flags ()
+      opt_level := Set O2
     end else begin
       default.set_o2 ();
     end
@@ -260,7 +286,7 @@ let opt_flag_handler : Clflags.Opt_flag_handler.t =
   let set_o3 () =
     if Clflags.is_flambda2 () then begin
       Flambda2.Inlining.use_inlining_arguments_set Flambda2.Inlining.o3_arguments;
-      Flambda2.o3_flags ()
+      opt_level := Set O3
     end else begin
       default.set_o3 ();
     end

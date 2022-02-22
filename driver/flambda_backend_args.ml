@@ -44,7 +44,7 @@ let mk_flambda2_result_types_functors_only f =
   Printf.sprintf " Infer result types for functors (but no other\n\
       \     functions)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.Default.function_result_types with
+      match Flambda2.default.function_result_types with
       | Functors_only -> true
       | Never | All_functions -> false))
 ;;
@@ -54,7 +54,7 @@ let mk_flambda2_result_types_all_functions f =
   Printf.sprintf " Infer result types for all functions\n\
       \     (including functors)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.Default.function_result_types with
+      match Flambda2.default.function_result_types with
       | All_functions -> true
       | Never | Functors_only -> false))
 ;;
@@ -64,7 +64,7 @@ let mk_no_flambda2_result_types f =
   Printf.sprintf " Do not infer result types for functions (or\n\
       \     functors)%s (Flambda 2 only)"
     (format_default (
-      match Flambda2.Default.function_result_types with
+      match Flambda2.default.function_result_types with
       | Never -> true
       | Functors_only | All_functions -> false))
 ;;
@@ -74,21 +74,21 @@ let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information from all incoming edges to a join\n\
       \     point%s (Flambda 2 only)"
-    (format_default Flambda2.Default.join_points)
+    (format_default Flambda2.default.join_points)
 ;;
 
 let mk_no_flambda2_join_points f =
   "-no-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information to a join point only if there are\n\
       \     zero or one incoming edge(s)%s (Flambda 2 only)"
-    (format_not_default Flambda2.Default.join_points)
+    (format_not_default Flambda2.default.join_points)
 ;;
 
 let mk_flambda2_unbox_along_intra_function_control_flow f =
   "-flambda2-unbox-along-intra-function-control-flow", Arg.Unit f,
   Printf.sprintf " Pass values within\n\
       \     a function as unboxed where possible%s (Flambda 2 only)"
-    (format_default Flambda2.Default.unbox_along_intra_function_control_flow)
+    (format_default Flambda2.default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_no_flambda2_unbox_along_intra_function_control_flow f =
@@ -96,35 +96,35 @@ let mk_no_flambda2_unbox_along_intra_function_control_flow f =
   Printf.sprintf " Pass values within\n\
       \     a function in their normal representation%s (Flambda 2 only)"
     (format_not_default
-      Flambda2.Default.unbox_along_intra_function_control_flow)
+      Flambda2.default.unbox_along_intra_function_control_flow)
 ;;
 
 let mk_flambda2_backend_cse_at_toplevel f =
   "-flambda2-backend-cse-at-toplevel", Arg.Unit f,
   Printf.sprintf " Apply the backend CSE pass to module\n\
       \     initializers%s (Flambda 2 only)"
-    (format_default Flambda2.Default.backend_cse_at_toplevel)
+    (format_default Flambda2.default.backend_cse_at_toplevel)
 ;;
 
 let mk_no_flambda2_backend_cse_at_toplevel f =
   "-no-flambda2-backend-cse-at-toplevel", Arg.Unit f,
   Printf.sprintf " Do not apply the backend CSE pass to\n\
       \     module initializers%s (Flambda 2 only)"
-    (format_not_default Flambda2.Default.backend_cse_at_toplevel)
+    (format_not_default Flambda2.default.backend_cse_at_toplevel)
 ;;
 
 let mk_flambda2_cse_depth f =
   "-flambda2-cse-depth", Arg.Int f,
   Printf.sprintf " Depth threshold for eager tracking of CSE equations\n\
       \     (default %d) (Flambda 2 only)"
-    Flambda2.Default.cse_depth
+    Flambda2.default.cse_depth
 ;;
 
 let mk_flambda2_join_depth f =
   "-flambda2-join-depth", Arg.Int f,
   Printf.sprintf " Depth threshold for alias expansion in join\n\
       \     (default %d) (Flambda 2 only)"
-    Flambda2.Default.join_depth
+    Flambda2.default.join_depth
 ;;
 
 let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
@@ -132,7 +132,7 @@ let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
   Printf.sprintf " Perform checks on static\n\
       \     scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+    (format_default Flambda2.Expert.default.code_id_and_symbol_scoping_checks)
 ;;
 
 let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
@@ -141,49 +141,49 @@ let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
       \     on static scopes of code IDs and symbols during To_cmm%s\n\
       \     (Flambda 2 only)"
     (format_not_default
-      Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
+      Flambda2.Expert.default.code_id_and_symbol_scoping_checks)
 ;;
 
 let mk_flambda2_expert_fallback_inlining_heuristic f =
   "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Prevent inlining of functions\n\
       \     whose bodies contain closures%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+    (format_default Flambda2.Expert.default.fallback_inlining_heuristic)
 ;;
 
 let mk_no_flambda2_expert_fallback_inlining_heuristic f =
   "-no-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Allow inlining of functions\n\
       \     whose bodies contain closures%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.Default.fallback_inlining_heuristic)
+    (format_not_default Flambda2.Expert.default.fallback_inlining_heuristic)
 ;;
 
 let mk_flambda2_expert_inline_effects_in_cmm f =
   "-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
   Printf.sprintf " Allow inlining of effectful\n\
       \     expressions in the produced Cmm code%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.inline_effects_in_cmm)
+    (format_default Flambda2.Expert.default.inline_effects_in_cmm)
 ;;
 
 let mk_no_flambda2_expert_inline_effects_in_cmm f =
   "-no-flambda2-expert-inline-effects-in-cmm", Arg.Unit f,
   Printf.sprintf " Prevent inlining of effectful\n\
       \     expressions in the produced Cmm code%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.Default.inline_effects_in_cmm)
+    (format_not_default Flambda2.Expert.default.inline_effects_in_cmm)
 ;;
 
 let mk_flambda2_expert_phantom_lets f =
   "-flambda2-expert-phantom-lets", Arg.Unit f,
   Printf.sprintf " Generate phantom lets when -g\n\
       \     is specified%s (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.phantom_lets)
+    (format_default Flambda2.Expert.default.phantom_lets)
 ;;
 
 let mk_no_flambda2_expert_phantom_lets f =
   "-no-flambda2-expert-phantom-lets", Arg.Unit f,
   Printf.sprintf " Do not generate phantom lets even when -g\n\
       \     is specified%s (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.Default.phantom_lets)
+    (format_not_default Flambda2.Expert.default.phantom_lets)
 ;;
 
 let mk_flambda2_expert_max_block_size_for_projections f =
@@ -191,7 +191,7 @@ let mk_flambda2_expert_max_block_size_for_projections f =
   Printf.sprintf " Do not simplify projections\n\
       \     from blocks if the block size exceeds this value (default %s)\n\
       \     (Flambda 2 only)"
-    (match Flambda2.Expert.Default.max_block_size_for_projections with
+    (match Flambda2.Expert.default.max_block_size_for_projections with
      | None -> "not set"
      | Some max -> string_of_int max)
 ;;
@@ -200,14 +200,14 @@ let mk_flambda2_expert_max_unboxing_depth f =
   "-flambda2-expert-max-unboxing-depth", Arg.Int f,
   Printf.sprintf " Do not unbox (nested) values deeper\n\
       \     than this many levels (default %d) (Flambda 2 only)"
-    Flambda2.Expert.Default.max_unboxing_depth
+    Flambda2.Expert.default.max_unboxing_depth
 ;;
 
 let mk_flambda2_expert_can_inline_recursive_functions f =
   "-flambda2-expert-can-inline-recursive-functions", Arg.Unit f,
   Printf.sprintf " Consider inlining\n\
      \      recursive functions (default %s) (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.can_inline_recursive_functions)
+    (format_default Flambda2.Expert.default.can_inline_recursive_functions)
 ;;
 
 let mk_no_flambda2_expert_can_inline_recursive_functions f =
@@ -215,7 +215,7 @@ let mk_no_flambda2_expert_can_inline_recursive_functions f =
   Printf.sprintf " Only inline recursive\n\
       \     functions if forced to so do by an attribute\n\
       \     (default %s) (Flambda 2 only)"
-    (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
+    (format_not_default Flambda2.Expert.default.can_inline_recursive_functions)
 ;;
 
 let mk_flambda2_debug_permute_every_name f =
@@ -533,14 +533,17 @@ struct
 end
 
 module Flambda_backend_options_impl = struct
-  let set r () = r := true
-  let clear r () = r := false
+  let set r () = r := Flambda_backend_flags.Set true
+  let clear r () = r := Flambda_backend_flags.Set false
 
-  let ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
-  let no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
-  let dcfg = set Flambda_backend_flags.dump_cfg
+  let set' r () = r := true
+  let clear' r () = r := false
 
-  let use_cpp_mangling = set Flambda_backend_flags.use_cpp_mangling
+  let ocamlcfg = set' Flambda_backend_flags.use_ocamlcfg
+  let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
+  let dcfg = set' Flambda_backend_flags.dump_cfg
+
+  let use_cpp_mangling = set' Flambda_backend_flags.use_cpp_mangling
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -548,11 +551,11 @@ module Flambda_backend_options_impl = struct
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
   let flambda2_result_types_functors_only () =
-    Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Functors_only
   let flambda2_result_types_all_functions () =
-    Flambda2.function_result_types := Flambda_backend_flags.All_functions
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
   let no_flambda2_result_types () =
-    Flambda2.function_result_types := Flambda_backend_flags.Never
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -561,8 +564,8 @@ module Flambda_backend_options_impl = struct
     set Flambda2.backend_cse_at_toplevel
   let no_flambda2_backend_cse_at_toplevel =
     clear Flambda2.backend_cse_at_toplevel
-  let flambda2_cse_depth n = Flambda2.cse_depth := n
-  let flambda2_join_depth n = Flambda2.join_depth := n
+  let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
+  let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
   let flambda2_expert_code_id_and_symbol_scoping_checks =
     set Flambda2.Expert.code_id_and_symbol_scoping_checks
   let no_flambda2_expert_code_id_and_symbol_scoping_checks =
@@ -580,21 +583,21 @@ module Flambda_backend_options_impl = struct
   let no_flambda2_expert_phantom_lets =
     clear Flambda2.Expert.phantom_lets
   let flambda2_expert_max_block_size_for_projections size =
-    Flambda2.Expert.max_block_size_for_projections := Some size
+    Flambda2.Expert.max_block_size_for_projections := Flambda_backend_flags.Set (Some size)
   let flambda2_expert_max_unboxing_depth depth =
-    Flambda2.Expert.max_unboxing_depth := depth
+    Flambda2.Expert.max_unboxing_depth := Flambda_backend_flags.Set depth
   let flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := true
+    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := false
+    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
   let flambda2_debug_permute_every_name =
-    set Flambda2.Debug.permute_every_name
+    set' Flambda2.Debug.permute_every_name
   let no_flambda2_debug_permute_every_name =
-    clear Flambda2.Debug.permute_every_name
+    clear' Flambda2.Debug.permute_every_name
   let flambda2_debug_concrete_types_only_on_canonicals =
-    set Flambda2.Debug.concrete_types_only_on_canonicals
+    set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
-    clear Flambda2.Debug.concrete_types_only_on_canonicals
+    clear' Flambda2.Debug.concrete_types_only_on_canonicals
 
   let flambda2_inline_max_depth spec =
     Clflags.Int_arg_helper.parse spec
@@ -655,52 +658,66 @@ module Flambda_backend_options_impl = struct
       Flambda2.Inlining.threshold
 
   let flambda2_speculative_inlining_only_if_arguments_useful =
-    set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+    set' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
   let no_flambda2_speculative_inlining_only_if_arguments_useful =
-    clear Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+    clear' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
-  let flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
+  let flambda2_inlining_report_bin = set' Flambda2.Inlining.report_bin
 
   let flambda2_unicode = set Flambda2.unicode
 
-  let drawfexpr = set Flambda2.Dump.rawfexpr
-  let dfexpr = set Flambda2.Dump.fexpr
-  let dflexpect = set Flambda2.Dump.flexpect
-  let dclosure_offsets = set Flambda2.Dump.closure_offsets
-  let dfreshen = set Flambda2.Dump.freshen
+  let drawfexpr = set' Flambda2.Dump.rawfexpr
+  let dfexpr = set' Flambda2.Dump.fexpr
+  let dflexpect = set' Flambda2.Dump.flexpect
+  let dclosure_offsets = set' Flambda2.Dump.closure_offsets
+  let dfreshen = set' Flambda2.Dump.freshen
 end
 
 module Extra_params = struct
   let read_param ppf _position name v =
     let set option =
-      Compenv.setter ppf (fun b -> b) name [ option ] v; true
+      let b = Compenv.check_bool ppf name v in
+      option := Flambda_backend_flags.Set b;
+      true
     in
     let _clear option =
-      Compenv.setter ppf (fun b -> not b) name [ option ] v; true
+      let b = Compenv.check_bool ppf name v in
+      option := Flambda_backend_flags.Set (not b);
+      false
     in
     let set_int option =
+      begin match Compenv.check_int ppf name v with
+      | Some i -> option := Flambda_backend_flags.Set i
+      | None -> ()
+      end;
+      true
+    in
+    let set' option =
+      Compenv.setter ppf (fun b -> b) name [ option ] v; true
+    in
+    let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
     match name with
-    | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
-    | "use-cpp-mangling" -> set Flambda_backend_flags.use_cpp_mangling
-    | "heap-reduction-threshold" -> set_int Flambda_backend_flags.heap_reduction_threshold
+    | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
+    | "use-cpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
+    | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
       | "never" ->
-        Flambda2.function_result_types := Flambda_backend_flags.Never
+        Flambda2.function_result_types := Flambda_backend_flags.(Set Never)
       | "functors-only" ->
-        Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+        Flambda2.function_result_types := Flambda_backend_flags.(Set Functors_only)
       | "all-functions" ->
-        Flambda2.function_result_types := Flambda_backend_flags.All_functions
+        Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions)
       | _ ->
         Misc.fatal_error "Syntax: flambda2-result-types=\
           never|functors-only|all-functions");
       true
     | "flambda2-result-types-all-functions" ->
-      Flambda2.function_result_types := Flambda_backend_flags.All_functions;
+      Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions);
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
@@ -763,17 +780,17 @@ module Extra_params = struct
          "Bad syntax in OCAMLPARAM for 'flambda2-inline-threshold'"
          Flambda2.Inlining.threshold; true
     | "flambda2-speculative-inlining-only-if-arguments-useful" ->
-       set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+       set' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
     | "flambda2-inlining-report-bin" ->
-       set Flambda2.Inlining.report_bin
+       set' Flambda2.Inlining.report_bin
     | "flambda2-expert-code-id-and-symbol-scoping-checks" ->
        set Flambda2.Expert.code_id_and_symbol_scoping_checks
     | "flambda2-expert-fallback-inlining-heuristic" ->
        set Flambda2.Expert.fallback_inlining_heuristic
     | "flambda2-debug-permute-every-name" ->
-       set Flambda2.Debug.permute_every_name
+       set' Flambda2.Debug.permute_every_name
     | "flambda2-debug-concrete-types-only-on-canonicals" ->
-       set Flambda2.Debug.concrete_types_only_on_canonicals
+       set' Flambda2.Debug.concrete_types_only_on_canonicals
     | _ -> false
 end
 

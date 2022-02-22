@@ -23,30 +23,39 @@ val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 
 type function_result_types = Never | Functors_only | All_functions
+type opt_level = Oclassic | O2 | O3
+type 'a or_default = Set of 'a | Default
+
+val opt_level : opt_level or_default ref
 
 module Flambda2 : sig
-  module Default : sig
-    val classic_mode : bool
-    val join_points : bool
-    val unbox_along_intra_function_control_flow : bool
-    val backend_cse_at_toplevel : bool
-    val cse_depth : int
-    val join_depth : int
-    val function_result_types : function_result_types
+  (* CR-someday lmaurer: We could eliminate most of the per-flag boilerplate using GADTs
+     and heterogeneous maps. Whether that's an improvement is a fair question. *)
+  type flags = {
+    classic_mode : bool;
+    join_points : bool;
+    unbox_along_intra_function_control_flow : bool;
+    backend_cse_at_toplevel : bool;
+    cse_depth : int;
+    join_depth : int;
+    function_result_types : function_result_types;
 
-    val unicode : bool
-  end
+    unicode : bool;
+  }
 
-  val function_result_types : function_result_types ref
+  val default : flags
+  val default_for_opt_level : opt_level or_default -> flags
 
-  val classic_mode : bool ref
-  val join_points : bool ref
-  val unbox_along_intra_function_control_flow : bool ref
-  val backend_cse_at_toplevel : bool ref
-  val cse_depth : int ref
-  val join_depth : int ref
+  val function_result_types : function_result_types or_default ref
 
-  val unicode : bool ref
+  val classic_mode : bool or_default ref
+  val join_points : bool or_default ref
+  val unbox_along_intra_function_control_flow : bool or_default ref
+  val backend_cse_at_toplevel : bool or_default ref
+  val cse_depth : int or_default ref
+  val join_depth : int or_default ref
+
+  val unicode : bool or_default ref
 
   module Dump : sig
     val rawfexpr : bool ref
@@ -57,23 +66,26 @@ module Flambda2 : sig
   end
 
   module Expert : sig
-    module Default : sig
-      val code_id_and_symbol_scoping_checks : bool
-      val fallback_inlining_heuristic : bool
-      val inline_effects_in_cmm : bool
-      val phantom_lets : bool
-      val max_block_size_for_projections : int option
-      val max_unboxing_depth : int
-      val can_inline_recursive_functions : bool
-    end
+    type flags = {
+      code_id_and_symbol_scoping_checks : bool;
+      fallback_inlining_heuristic : bool;
+      inline_effects_in_cmm : bool;
+      phantom_lets : bool;
+      max_block_size_for_projections : int option;
+      max_unboxing_depth : int;
+      can_inline_recursive_functions : bool;
+    }
 
-    val code_id_and_symbol_scoping_checks : bool ref
-    val fallback_inlining_heuristic : bool ref
-    val inline_effects_in_cmm : bool ref
-    val phantom_lets : bool ref
-    val max_block_size_for_projections : int option ref
-    val max_unboxing_depth : int ref
-    val can_inline_recursive_functions : bool ref
+    val default : flags
+    val default_for_opt_level : opt_level or_default -> flags
+
+    val code_id_and_symbol_scoping_checks : bool or_default ref
+    val fallback_inlining_heuristic : bool or_default ref
+    val inline_effects_in_cmm : bool or_default ref
+    val phantom_lets : bool or_default ref
+    val max_block_size_for_projections : int option or_default ref
+    val max_unboxing_depth : int or_default ref
+    val can_inline_recursive_functions : bool or_default ref
   end
 
   module Debug : sig
