@@ -32,12 +32,14 @@ module Transfer = struct
     match instr.desc with
     | Op _ | Call _ ->
       if Cfg.is_pure_basic instr.desc
-      && Reg.disjoint_set_array value instr.res
-      && not (Proc.regs_are_volatile instr.arg)
-      && not (Proc.regs_are_volatile instr.res) then begin
+         && Reg.disjoint_set_array value instr.res
+         && (not (Proc.regs_are_volatile instr.arg))
+         && not (Proc.regs_are_volatile instr.res)
+      then begin
         instr.live <- value;
         value
-      end else begin
+      end
+      else
         let across = Reg.diff_set_array value instr.res in
         let across =
           if Cfg.can_raise_basic instr.desc && instr.trap_depth > 1
@@ -46,7 +48,6 @@ module Transfer = struct
         in
         instr.live <- across;
         Reg.add_set_array across instr.arg
-      end
     | Reloadretaddr ->
       instr.live <- Reg.Set.empty;
       Reg.diff_set_array value Proc.destroyed_at_reloadretaddr

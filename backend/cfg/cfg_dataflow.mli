@@ -49,7 +49,9 @@ module type Forward_S = sig
     Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
-module Forward (D : Forward_domain) (_ : Forward_transfer with type domain = D.t) :
+module Forward
+    (D : Forward_domain)
+    (_ : Forward_transfer with type domain = D.t) :
   Forward_S with type domain = D.t
 
 module type Backward_domain = sig
@@ -88,5 +90,7 @@ module type Backward_S = sig
     Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
 end
 
-module Backward (D : Backward_domain) (_ : Backward_transfer with type domain = D.t) :
+module Backward
+    (D : Backward_domain)
+    (_ : Backward_transfer with type domain = D.t) :
   Backward_S with type domain = D.t

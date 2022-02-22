@@ -38,7 +38,9 @@ module type Forward_S = sig
     Cfg.t -> ?max_iteration:int -> ?init:domain -> unit -> (map, map) Result.t
 end
 
-module Forward (D : Forward_domain) (T : Forward_transfer with type domain = D.t) :
+module Forward
+    (D : Forward_domain)
+    (T : Forward_transfer with type domain = D.t) :
   Forward_S with type domain = D.t = struct
   type domain = D.t
 
@@ -167,7 +169,9 @@ module type Backward_S = sig
     Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
 end
 
-module Backward (D : Backward_domain) (T : Backward_transfer with type domain = D.t) :
+module Backward
+    (D : Backward_domain)
+    (T : Backward_transfer with type domain = D.t) :
   Backward_S with type domain = D.t = struct
   (* CR xclerc for xclerc: see what can be shared with `Forward`. *)
 
