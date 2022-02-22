@@ -173,6 +173,8 @@ let ocamlcfg_verbose =
 let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_layout.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
+      (* We use `canary` to ensure the liveness is appropriately set by
+         `Cfg_liveness.Liveness.run`. *)
       let canary = Reg.create Cmm.Val in
       canary.Reg.raw_name <- Reg.Raw_name.create_from_var (Ident.create_local "canary");
       let canary_singleton = Reg.Set.singleton canary in
@@ -225,7 +227,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   Eliminate_fallthrough_blocks.run expected;
   Merge_straightline_blocks.run expected;
   Eliminate_dead_code.run_dead_block expected;
-  Simplify_terminator.run (Cfg_with_layout.cfg expected); (* CR xclerc for xclerc: should it be removed? *)
+  Simplify_terminator.run (Cfg_with_layout.cfg expected);
   let result = recompute_liveness_on_cfg result in
   Cfg_equivalence.check_cfg_with_layout f expected result;
   if ocamlcfg_verbose then begin
