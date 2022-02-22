@@ -497,7 +497,8 @@ module Greedy = struct
           if Compilation_unit.is_current (Closure_id.get_compilation_unit c)
           then
             let code_metadata =
-              Code_id.Map.find code_id all_code |> Code.code_metadata
+              Code_id.Map.find code_id all_code
+              |> Code_or_metadata.code_metadata
             in
             let module CM = Code_metadata in
             let is_tupled = CM.is_tupled code_metadata in
