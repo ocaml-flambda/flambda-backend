@@ -349,26 +349,6 @@ let is_pure_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
-let is_pure_specific : Arch.specific_operation -> bool = function
-  | Ilea _ -> true
-  | Istore_int _ -> false
-  | Ioffset_loc _ -> false
-  | Ifloatarithmem _ -> false
-  | Ibswap _ -> false
-  | Isqrtf -> false
-  | Ifloatsqrtf _ -> false
-  | Ifloat_iround -> true
-  | Ifloat_round _ -> true
-  | Ifloat_min -> true
-  | Ifloat_max -> true
-  | Isextend32 -> true
-  | Izextend32 -> true
-  | Irdtsc -> false
-  | Irdpmc -> false
-  | Icrc32q -> false
-  | Ipause -> false
-  | Iprefetch _ -> false
-
 let is_pure_operation : operation -> bool = function
   | Move -> true
   | Spill -> true
@@ -395,7 +375,7 @@ let is_pure_operation : operation -> bool = function
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s -> is_pure_specific s
+  | Specific s -> Arch.is_pure_specific s
   | Name_for_debugger _ -> true
 
 let is_pure_basic : basic -> bool = function
