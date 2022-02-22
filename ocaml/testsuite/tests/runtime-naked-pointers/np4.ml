@@ -11,3 +11,4 @@ open Np
    in naked pointers mode only *)
 
 let x = do_gc [ make_raw_pointer 0n; make_raw_pointer 42n ]
+let y = do_gc (make_raw_pointer 42n)
