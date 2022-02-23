@@ -488,11 +488,15 @@ let enter_inlined_apply ~called_code ~apply t =
     |> Inlining_arguments.meet (Code.inlining_arguments called_code)
     |> Inlining_arguments.meet (Apply.inlining_arguments apply)
   in
+  let inlining_state =
+    Inlining_state.with_arguments arguments
+      (if Code.stub called_code
+      then t.inlining_state
+      else Inlining_state.increment_depth t.inlining_state)
+  in
   { t with
     inlined_debuginfo = Apply.dbg apply;
-    inlining_state =
-      t.inlining_state |> Inlining_state.increment_depth
-      |> Inlining_state.with_arguments arguments;
+    inlining_state;
     inlining_history_tracker =
       Inlining_history.Tracker.enter_inlined_apply
         ~callee:(Code.absolute_history called_code)
