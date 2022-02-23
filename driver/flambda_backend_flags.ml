@@ -80,6 +80,7 @@ module Flambda2 = struct
     cse_depth = 2;
     join_points = true;
     unbox_along_intra_function_control_flow = true;
+    backend_cse_at_toplevel = false;
   }
 
   let o3 = {
@@ -142,7 +143,11 @@ module Flambda2 = struct
       fallback_inlining_heuristic = true;
     }
 
-    let o2 = default
+    let o2 = {
+      default with
+      fallback_inlining_heuristic = false;
+    }
+
     let o3 = default
 
     let default_for_opt_level opt_level =
