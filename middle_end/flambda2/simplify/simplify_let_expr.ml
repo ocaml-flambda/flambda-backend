@@ -163,17 +163,16 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
   in
   let being_defined =
     let bound_symbols = Lifted_constant.bound_symbols lifted_constant in
+    (* Note: We're not registering code IDs in the set, because we can actually
+       make the code bindings deleted individually. In particular, code IDs that
+       are only used in the newer_version_of field of another binding will be
+       deleted as expected. *)
     let symbols = Bound_symbols.being_defined bound_symbols in
-    let code_ids = Bound_symbols.code_being_defined bound_symbols in
     Name_occurrences.empty
     |> Symbol.Set.fold
          (fun symbol acc ->
            Name_occurrences.add_symbol acc symbol Name_mode.normal)
          symbols
-    |> Code_id.Set.fold
-         (fun code_id acc ->
-           Name_occurrences.add_code_id acc code_id Name_mode.normal)
-         code_ids
   in
   ListLabels.fold_left
     (LC.definitions lifted_constant)
