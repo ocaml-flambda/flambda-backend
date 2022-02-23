@@ -3,7 +3,7 @@
 (library
   (name dwarf_low)
   (wrapped true)
-  (flags (:standard -principal -nostdlib))
+  (flags (:standard -principal))
   (ocamlopt_flags (:standard -O3))
-  (libraries stdlib asm_targets)
+  (libraries asm_targets)
 )

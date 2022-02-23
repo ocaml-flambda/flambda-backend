@@ -12,3 +12,7 @@
 (package
   (name ocaml)
 )
+
+(package
+  (name ocaml_runtime_stdlib)
+)

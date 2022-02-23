@@ -1,0 +1,3 @@
+install_prefix = @prefix@
+dune = @dune@
+middle_end = @middle_end@

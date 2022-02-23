@@ -63,7 +63,7 @@
  ; We should change the code so this "-open" can be removed.
  ; Likewise fix occurrences of warning 9.
  (flags
-  (:standard -principal -nostdlib -w -9))
+  (:standard -principal -w -9))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (modules_without_implementation
@@ -255,7 +255,6 @@
   )
  (libraries
   ocamlcommon
-  stdlib
   flambda_backend_common
   flambda2_identifiers
   flambda2_cmx
@@ -267,8 +266,7 @@
  (modes byte native)
  ; same flags as for ocamlcommon library
  (flags
-  (-nostdlib
-   -strict-sequence
+  (-strict-sequence
    -principal
    -absname
    -w
@@ -284,25 +282,13 @@
    ))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries stdlib ocamlcommon dwarf_flags asm_targets)
+ (libraries ocamlcommon dwarf_flags asm_targets)
  (modules flambda_backend_args flambda_backend_flags))
 
 (executable
  (name flambda_backend_main)
  (modes byte)
- (flags
-  (:standard
-   -principal
-   -nostdlib
-   -cclib
-   "-I ocaml/runtime"
-   -cclib
-   "-L ocaml/runtime"
-   -cclib
-   -lcamlrun))
- (link_deps
-  (file ocaml/stdlib/camlheader)
-  (file ocaml/runtime/libcamlrun.a))
+ (flags (:standard -principal))
  (libraries
   flambda_backend_driver
   memtrace
@@ -310,8 +296,7 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon
-  stdlib)
+  ocamlcommon)
  (modules flambda_backend_main))
 
 (rule
@@ -323,7 +308,7 @@
  (name flambda_backend_main_native)
  (modes native)
  (flags
-  (:standard -principal -nostdlib))
+  (:standard -principal))
  (libraries
   flambda_backend_driver
   memtrace
@@ -331,10 +316,28 @@
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon
-  stdlib
-  runtime_native)
+  ocamlcommon)
  (modules flambda_backend_main_native))
+
+(rule
+ (targets boot_ocamlopt.ml)
+ (action
+  (copy driver/boot_ocamlopt.ml %{targets})))
+
+; CR sdolan: Could be faster if it was closure-only?
+(executable
+ (name boot_ocamlopt)
+ (modes native)
+ (flags
+  (:standard -principal))
+ (libraries
+   flambda_backend_driver
+   flambda2
+   flambda2_ui
+   flambda2_to_cmm
+   ocamloptcomp
+   ocamlcommon)
+ (modules boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules
 ; must be kept in sync with each other and in a topological order.
@@ -441,7 +444,6 @@
 (install
  (files
   (flambda_backend_main.bc as ocamlopt.byte)
-  (flambda_backend_main_native.exe as ocamlopt)
   (flambda_backend_main_native.exe as ocamlopt.opt))
  (section bin)
  (package ocaml))

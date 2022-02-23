@@ -6,7 +6,6 @@
  (flags
   (:standard
    -principal
-   -nostdlib
    -open
    Flambda2_lattices
    -open
@@ -29,7 +28,6 @@
   (:standard -O3))
  (modules flambda2)
  (libraries
-  stdlib
   ocamlcommon
   ocamlbytecomp
   ocamloptcomp

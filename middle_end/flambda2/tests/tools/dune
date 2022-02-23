@@ -1,7 +1,7 @@
 (executables
   (names flexpect fldiff parseflambda)
   (modes native)
-  (flags (:standard -principal -nostdlib))
+  (flags (:standard -principal))
   (libraries
-   stdlib runtime_native ocamlcommon ocamloptcomp
+   ocamlcommon ocamloptcomp
    flambda2 flambda2_compare flambda2_parser flambda2_terms flambda2_cmx))
