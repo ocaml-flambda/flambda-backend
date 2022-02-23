@@ -44,7 +44,7 @@ let derived_system () : derived_system =
   | IA32, _, "bsd_elf" -> Generic_BSD
   | IA32, _, "beos" -> BeOS
   | IA32, _, "cygwin" -> Cygwin
-  | (X86_64 | IA32), _, "macosx" -> MacOS_like
+  | (X86_64 | IA32 | AArch64), _, "macosx" -> MacOS_like
   | IA32, _, "gnu" -> GNU
   | IA32, _, "mingw" -> MinGW_32
   | IA32, _, "win32" -> Win32
@@ -63,7 +63,7 @@ let derived_system () : derived_system =
   | X86_64, _, "freebsd" -> FreeBSD
   | X86_64, _, "netbsd" -> NetBSD
   | X86_64, _, "openbsd" -> OpenBSD
-  | X86_64, _, "darwin" -> MacOS_like
+  | (X86_64 | IA32 | AArch64) , _, "darwin" -> MacOS_like
   | X86_64, _, "mingw" -> MinGW_64
   | AArch64, _, "linux" -> Linux
   | X86_64, _, "cygwin" -> Cygwin
