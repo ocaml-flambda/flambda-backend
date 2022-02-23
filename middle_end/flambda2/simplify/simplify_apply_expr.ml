@@ -254,7 +254,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
     ~callee's_code_id ~callee's_code_metadata ~callee's_closure_id ~param_arity
-    ~result_arity ~result_types ~recursive ~down_to_up ~coming_from_indirect
+    ~result_arity ~recursive ~down_to_up ~coming_from_indirect
     ~(closure_alloc_mode : Alloc_mode.t Or_unknown.t) ~num_trailing_local_params
     =
   (* Partial-applications are converted in full applications. Let's assume that
@@ -468,6 +468,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
            ~function_relative_history:Inlining_history.Relative.empty ~dbg ~name
     in
     let code_id = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
+    (* We could create better result types by combining the types for the first
+       arguments with the result types from the called function. However given
+       that stubs are supposed to be inlined, and the inner full application
+       will come with the expected result types, it's not going to be
+       particularly useful. *)
+    let result_types =
+      Result_types.create_unknown ~params:remaining_params ~result_arity
+    in
     let code : Static_const_or_code.t =
       let code =
         Code.create code_id ~params_and_body
@@ -670,8 +678,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       then
         simplify_direct_partial_application ~simplify_expr dacc apply
           ~callee's_code_id ~callee's_code_metadata ~callee's_closure_id
-          ~param_arity:params_arity ~result_arity ~result_types ~recursive
-          ~down_to_up ~coming_from_indirect ~closure_alloc_mode
+          ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
+          ~coming_from_indirect ~closure_alloc_mode
           ~num_trailing_local_params:
             (Code_metadata.num_trailing_local_params callee's_code_metadata)
       else
