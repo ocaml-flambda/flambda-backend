@@ -147,7 +147,7 @@ module Uint32 = struct
   let of_nonnegative_int32_exn i =
     if Int32.compare i 0l < 0
     then
-      Misc.fatal_errorf "Uint32.of_nonnegative_int64_exn: %ld is out of range" i
+      Misc.fatal_errorf "Uint32.of_nonnegative_int32_exn: %ld is out of range" i
     else Int64.of_int32 i
 
   let to_int64 t = t
@@ -174,7 +174,7 @@ module Uint64 = struct
   let of_nonnegative_int32_exn i =
     if Int32.compare i 0l < 0
     then
-      Misc.fatal_errorf "Uint64.of_nonnegative_int64_exn: %ld is out of range" i
+      Misc.fatal_errorf "Uint64.of_nonnegative_int32_exn: %ld is out of range" i
     else Int64.of_int32 i
 
   let of_nonnegative_int64_exn i =
