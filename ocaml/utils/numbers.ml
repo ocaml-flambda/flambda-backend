@@ -188,7 +188,9 @@ module Uint64 = struct
   include Identifiable.Make (struct
     type nonrec t = t
 
-    let compare t1 t2 = Stdlib.compare t1 t2
+    let compare t1 t2 =
+      (* Only a consistent order is needed here *)
+      Int64.compare t1 t2
 
     let equal t1 t2 = compare t1 t2 = 0
 
