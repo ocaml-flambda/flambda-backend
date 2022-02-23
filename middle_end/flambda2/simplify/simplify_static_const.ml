@@ -228,6 +228,31 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
      the bindings is respected. This step also adds code into the environment.
      We can do that here because we're not simplifying the code (which may
      contain recursive references to symbols and/or code IDs being defined). *)
+  (* CR vlaviron: All code bindings in the input term (including stubs generated
+     during simplification) are never going to be simplified directly. Instead,
+     when a closure that binds them is encountered, a specialised version of the
+     code is created, simplified, and bound to a new code ID. But as a
+     consequence, we never traverse the code and in particular we do not compute
+     closure offset constraints for the body. In the common case, a code ID is
+     only used in a single set of closures and all occurrences of the old code
+     ID will be replaced by the new code ID computed while simplifying the
+     closure. The old code binding will then be deleted, and will not cause
+     problems.
+
+     However, there are some hypothetical cases where the old code ID could end
+     up in the result term. The most likely case is if a code ID appears in more
+     than one set of closures, then it will get two distinct specialised
+     versions, and the code age relation will keep the old code ID in case a
+     join needs to be performed between the specialised versions. Another
+     potential case is if a direct application of this code ID exists somewhere,
+     and for some reason the type of the closure is either not available or does
+     not have a more precise code ID.
+
+     I suspect we will eventually need to deal with this in a more principled
+     way (maybe by making offset constraints part of the required fields to
+     create code, similar to the free names), but for now we're relying on the
+     fact that Closure_conversion never produces such examples, and Simplify
+     only has a single round. *)
   let bound_symbols', static_consts', dacc =
     Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:([], [], dacc)
