@@ -146,11 +146,10 @@ let output_flexpect ~ml_filename ~raw_flambda:old_unit new_unit =
 let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     ~module_block_size_in_words ~module_initializer ~keep_symbol_tables =
   (* Make sure -linscan is enabled in classic mode. Doing this here to be sure
-     it happens exactly when -Oclassic is in effect, which we don't know at
-     CLI processing time because there may be an [@@@flambda_oclassic] or
+     it happens exactly when -Oclassic is in effect, which we don't know at CLI
+     processing time because there may be an [@@@flambda_oclassic] or
      [@@@flambda_o3] attribute. *)
-  if Flambda_features.classic_mode () then
-    Clflags.use_linscan := true;
+  if Flambda_features.classic_mode () then Clflags.use_linscan := true;
   Misc.Color.setup (Flambda_features.colour ());
   (* When the float array optimisation is enabled, the length of an array needs
      to be computed differently according to the array kind, in the case where
