@@ -16,26 +16,49 @@
 
 let flambda2_is_enabled () = Clflags.is_flambda2 ()
 
-let classic_mode () = !Flambda_backend_flags.Flambda2.classic_mode
+let with_default (r : 'a Flambda_backend_flags.or_default)
+    ~(f : Flambda_backend_flags.Flambda2.flags -> 'a) =
+  match r with
+  | Set a -> a
+  | Default ->
+    f
+      (Flambda_backend_flags.Flambda2.default_for_opt_level
+         !Flambda_backend_flags.opt_level)
 
-let join_points () = !Flambda_backend_flags.Flambda2.join_points
+let classic_mode () =
+  !Flambda_backend_flags.Flambda2.classic_mode
+  |> with_default ~f:(fun d -> d.classic_mode)
+
+let join_points () =
+  !Flambda_backend_flags.Flambda2.join_points
+  |> with_default ~f:(fun d -> d.join_points)
 
 let unbox_along_intra_function_control_flow () =
   !Flambda_backend_flags.Flambda2.unbox_along_intra_function_control_flow
+  |> with_default ~f:(fun d -> d.unbox_along_intra_function_control_flow)
 
 let backend_cse_at_toplevel () =
   !Flambda_backend_flags.Flambda2.backend_cse_at_toplevel
+  |> with_default ~f:(fun d -> d.backend_cse_at_toplevel)
 
-let cse_depth () = !Flambda_backend_flags.Flambda2.cse_depth
+let cse_depth () =
+  !Flambda_backend_flags.Flambda2.cse_depth
+  |> with_default ~f:(fun d -> d.cse_depth)
 
-let join_depth () = !Flambda_backend_flags.Flambda2.join_depth
+let join_depth () =
+  !Flambda_backend_flags.Flambda2.join_depth
+  |> with_default ~f:(fun d -> d.join_depth)
 
 let safe_string () = Config.safe_string
 
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =
-  match !Flambda_backend_flags.Flambda2.function_result_types with
+  let when_ =
+    !Flambda_backend_flags.Flambda2.function_result_types
+    |> with_default ~f:(fun d -> d.function_result_types)
+  in
+  match when_ with
   | Never -> false
   | Functors_only -> is_a_functor
   | All_functions -> true
@@ -54,7 +77,9 @@ let inlining_report_bin () = !Flambda_backend_flags.Flambda2.Inlining.report_bin
 
 let colour () = !Clflags.color
 
-let unicode () = !Flambda_backend_flags.Flambda2.unicode
+let unicode () =
+  !Flambda_backend_flags.Flambda2.unicode
+  |> with_default ~f:(fun d -> d.unicode)
 
 let check_invariants () = !Clflags.flambda_invariant_checks
 
@@ -152,23 +177,40 @@ module Debug = struct
 end
 
 module Expert = struct
+  let with_default (r : 'a Flambda_backend_flags.or_default)
+      ~(f : Flambda_backend_flags.Flambda2.Expert.flags -> 'a) =
+    match r with
+    | Set a -> a
+    | Default ->
+      f
+        (Flambda_backend_flags.Flambda2.Expert.default_for_opt_level
+           !Flambda_backend_flags.opt_level)
+
   let code_id_and_symbol_scoping_checks () =
     !Flambda_backend_flags.Flambda2.Expert.code_id_and_symbol_scoping_checks
+    |> with_default ~f:(fun d -> d.code_id_and_symbol_scoping_checks)
 
   let fallback_inlining_heuristic () =
     !Flambda_backend_flags.Flambda2.Expert.fallback_inlining_heuristic
+    |> with_default ~f:(fun d -> d.fallback_inlining_heuristic)
 
   let inline_effects_in_cmm () =
     !Flambda_backend_flags.Flambda2.Expert.inline_effects_in_cmm
+    |> with_default ~f:(fun d -> d.inline_effects_in_cmm)
 
   let max_block_size_for_projections () =
     !Flambda_backend_flags.Flambda2.Expert.max_block_size_for_projections
+    |> with_default ~f:(fun d -> d.max_block_size_for_projections)
 
-  let phantom_lets () = !Flambda_backend_flags.Flambda2.Expert.phantom_lets
+  let phantom_lets () =
+    !Flambda_backend_flags.Flambda2.Expert.phantom_lets
+    |> with_default ~f:(fun d -> d.phantom_lets)
 
   let max_unboxing_depth () =
     !Flambda_backend_flags.Flambda2.Expert.max_unboxing_depth
+    |> with_default ~f:(fun d -> d.max_unboxing_depth)
 
   let can_inline_recursive_functions () =
     !Flambda_backend_flags.Flambda2.Expert.can_inline_recursive_functions
+    |> with_default ~f:(fun d -> d.can_inline_recursive_functions)
 end

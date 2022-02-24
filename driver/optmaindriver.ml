@@ -66,6 +66,7 @@ let main argv ppf ~flambda2 =
       ["-depend", Arg.Unit Makedepend.main_from_option,
        "<options> Compute dependencies \
         (use 'ocamlopt -depend -help' for details)"];
+    Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
     Clflags.parse_arguments argv Compenv.anonymous usage;
     Compmisc.read_clflags_from_env ();
     if !Clflags.plugin then

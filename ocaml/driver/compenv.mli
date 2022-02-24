@@ -54,6 +54,7 @@ val setter :
     Format.formatter -> (bool -> 'a) -> string -> 'a ref list -> string -> unit
 val int_setter : Format.formatter -> string -> int ref -> string -> unit
 val check_bool : Format.formatter -> string -> string -> bool
+val check_int : Format.formatter -> string -> string -> int option
 
 (* [is_unit_name name] returns true only if [name] can be used as a
    correct module name *)
