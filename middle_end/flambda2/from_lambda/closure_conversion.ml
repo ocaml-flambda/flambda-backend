@@ -1670,6 +1670,9 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
         |> Expr_with_acc.create_let)
       (acc, body) (Acc.declared_symbols acc)
   in
+  let get_code_metadata code_id =
+    Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
+  in
   let exported_offsets =
     Or_unknown.map (Acc.closure_offsets acc) ~f:(fun offsets ->
         (* CR gbury: would it be possible to use the free_names from the acc to
@@ -1678,7 +1681,8 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
            by Closure offsets (once we give it a non-unknown used_names, as per
            the above CR). *)
         let _used_closure_vars, offsets =
-          Closure_offsets.finalize_offsets offsets ~used_names:Unknown
+          Closure_offsets.finalize_offsets offsets ~get_code_metadata
+            ~used_names:Unknown
         in
         offsets)
   in

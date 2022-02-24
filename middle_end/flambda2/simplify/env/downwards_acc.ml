@@ -30,7 +30,7 @@ type t =
     data_flow : Data_flow.t;
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
-    closure_offsets : Closure_offsets.t Or_unknown.t
+    closure_offsets : Closure_offsets.t Code_id.Map.t
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -56,17 +56,12 @@ let [@ocamlformat "disable"] print ppf
     Data_flow.print data_flow
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
-    (Or_unknown.print Closure_offsets.print) closure_offsets
+    (Code_id.Map.print Closure_offsets.print) closure_offsets
 
-let create denv continuation_uses_env ~compute_closure_offsets =
-  let closure_offsets : _ Or_unknown.t =
-    if compute_closure_offsets
-    then Known (Closure_offsets.create ())
-    else Unknown
-  in
+let create denv continuation_uses_env =
   { denv;
     continuation_uses_env;
-    closure_offsets;
+    closure_offsets = Code_id.Map.empty;
     shareable_constants = Static_const.Map.empty;
     used_closure_vars = Name_occurrences.empty;
     lifted_constants = LCS.empty;
