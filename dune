@@ -343,6 +343,7 @@
   (run
    %{dep:tools/merge_dot_a_files.sh}
    %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.a}
    %{dep:flambda_backend_common.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
@@ -370,6 +371,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
@@ -397,6 +399,7 @@
   (run
    %{dep:tools/merge_archives.exe}
    %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
@@ -428,6 +431,7 @@
 
 (install
  (files
+  (backend/debug/dwarf/dwarf_flags/dwarf_flags.cma as compiler-libs/dwarf_flags.cma)
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
@@ -1356,7 +1360,19 @@
    compiler-libs/location_tracker_formatter.cmti)
   (.ocamloptcomp.objs/native/location_tracker_formatter.cmx
    as
-   compiler-libs/location_tracker_formatter.cmx)))
+   compiler-libs/location_tracker_formatter.cmx)
+  (backend/debug/dwarf/dwarf_flags/dwarf_flags.mli 
+   as compiler-libs/dwarf_flags.mli)
+  (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/native/dwarf_flags.cmx
+   as compiler-libs/dwarf_flags.cmx)
+  (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/byte/dwarf_flags.cmi
+   as compiler-libs/dwarf_flags.cmi)
+  (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/byte/dwarf_flags.cmo
+   as compiler-libs/dwarf_flags.cmo)
+  (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/byte/dwarf_flags.cmt
+   as compiler-libs/dwarf_flags.cmt)
+  (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/byte/dwarf_flags.cmti
+   as compiler-libs/dwarf_flags.cmti)))
 
 (install
  (section lib)
