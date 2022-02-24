@@ -45,7 +45,7 @@ let build_graph fundecl =
       if i <> j then begin
         let p = if i < j then (i, j) else (j, i) in
         if not (IntPairSet.mem mat p) then begin
-          IntPairSet.add mat p ();
+          IntPairSet.replace mat p ();
           if ri.loc = Unknown then begin
             ri.interf <- rj :: ri.interf;
             if not rj.spill then ri.degree <- ri.degree + 1
