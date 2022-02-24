@@ -224,20 +224,20 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
       ~deleted_code:(fun dacc _ -> dacc)
       ~block_like:(fun dacc _ _ -> dacc)
   in
+  let all_code = Static_const_group.pieces_of_code static_consts in
   (* Next we simplify all the constants that are not closures. The ordering of
      the bindings is respected. This step also adds code into the environment.
      We can do that here because we're not simplifying the code (which may
      contain recursive references to symbols and/or code IDs being defined). *)
-  (* CR vlaviron: All code bindings in the input term (including stubs generated
-     during simplification) are never going to be simplified directly. Instead,
-     when a closure that binds them is encountered, a specialised version of the
-     code is created, simplified, and bound to a new code ID. But as a
-     consequence, we never traverse the code and in particular we do not compute
-     closure offset constraints for the body. In the common case, a code ID is
-     only used in a single set of closures and all occurrences of the old code
-     ID will be replaced by the new code ID computed while simplifying the
-     closure. The old code binding will then be deleted, and will not cause
-     problems.
+  (* CR vlaviron: With the exception of stubs, code bindings in the input term
+     are never going to be simplified directly. Instead, when a closure that
+     binds them is encountered, a specialised version of the code is created,
+     simplified, and bound to a new code ID. But as a consequence, we never
+     traverse the code and in particular we do not compute closure offset
+     constraints for the body. In the common case, a code ID is only used in a
+     single set of closures and all occurrences of the old code ID will be
+     replaced by the new code ID computed while simplifying the closure. The old
+     code binding will then be deleted, and will not cause problems.
 
      However, there are some hypothetical cases where the old code ID could end
      up in the result term. The most likely case is if a code ID appears in more
@@ -257,10 +257,34 @@ let simplify_static_consts dacc (bound_symbols : Bound_symbols.t) static_consts
     Static_const_group.match_against_bound_symbols static_consts bound_symbols
       ~init:([], [], dacc)
       ~code:(fun (bound_symbols, static_consts, dacc) code_id code ->
+        let code, static_const, dacc =
+          if Code.stub code
+          then
+            let dacc, prior_lifted_constants =
+              DA.get_and_clear_lifted_constants dacc
+            in
+            let static_const, dacc_after_function =
+              Simplify_set_of_closures.simplify_stub_function dacc code
+                ~all_code ~simplify_toplevel
+            in
+            let dacc_after_function =
+              DA.add_to_lifted_constant_accumulator dacc_after_function
+                prior_lifted_constants
+            in
+            match Rebuilt_static_const.to_const static_const with
+            | None ->
+              (* Not rebuilding terms: return the original code *)
+              code, Rebuilt_static_const.create_code' code, dacc
+            | Some static_const_or_code -> begin
+              match Static_const_or_code.to_code static_const_or_code with
+              | None -> assert false
+              | Some code -> code, static_const, dacc_after_function
+            end
+          else code, Rebuilt_static_const.create_code' code, dacc
+        in
         let dacc =
           DA.map_denv dacc ~f:(fun denv -> DE.define_code denv ~code_id ~code)
         in
-        let static_const = Rebuilt_static_const.create_code' code in
         ( Bound_symbols.Pattern.code code_id :: bound_symbols,
           static_const :: static_consts,
           dacc ))
