@@ -7,6 +7,7 @@ type architecture =
   | AArch64
   | POWER
   | Z
+  | Riscv
 
 let architecture () : architecture =
   match Config.architecture with
@@ -16,6 +17,7 @@ let architecture () : architecture =
   | "arm64" -> AArch64
   | "power" -> POWER
   | "s390x" -> Z
+  | "riscv" -> Riscv
   | arch -> Misc.fatal_errorf "Unknown architecture `%s'" arch
 
 type derived_system =
@@ -37,37 +39,49 @@ type derived_system =
   | Unknown
 
 let derived_system () : derived_system =
+  (* Derived from [configure.ac] *)
   match architecture (), Config.model, Config.system with
-  | IA32, _, "linux_aout" -> Linux
   | IA32, _, "linux_elf" -> Linux
-  | IA32, _, "bsd_aout" -> Generic_BSD
   | IA32, _, "bsd_elf" -> Generic_BSD
   | IA32, _, "beos" -> BeOS
   | IA32, _, "cygwin" -> Cygwin
-  | (X86_64 | IA32 | AArch64), _, "macosx" -> MacOS_like
   | IA32, _, "gnu" -> GNU
   | IA32, _, "mingw" -> MinGW_32
   | IA32, _, "win32" -> Win32
+  | X86_64, _, "win64" -> Win64
   | POWER, "ppc64le", "elf" -> Linux
   | POWER, "ppc64", "elf" -> Linux
   | POWER, "ppc", "elf" -> Linux
-  | POWER, "ppc", "netbsd" -> NetBSD
-  | POWER, "ppc", "bsd_elf" -> OpenBSD
-  | Z, _, "elf" -> Linux
+  | Z, "z10", "elf" -> Linux
+  | ARM, "armv6", "linux_eabihf" -> Linux
+  | ARM, "armv7", "linux_eabihf" -> Linux
+  | ARM, "armv8", "linux_eabihf" -> Linux
+  | ARM, "armv8", "linux_eabi" -> Linux
+  | ARM, "armv7", "linux_eabi" -> Linux
+  | ARM, "armv6t2", "linux_eabi" -> Linux
+  | ARM, "armv6", "linux_eabi" -> Linux
+  | ARM, "armv6", "freebsd" -> FreeBSD
+  | ARM, "armv6", "netbsd" -> NetBSD
+  | ARM, "armv7", "netbsd" -> NetBSD
+  | ARM, "armv5te", "linux_eabi" -> Linux
+  | ARM, "armv5", "linux_eabi" -> Linux
   | ARM, _, "linux_eabihf" -> Linux
   | ARM, _, "linux_eabi" -> Linux
   | ARM, _, "bsd" -> OpenBSD
   | X86_64, _, "linux" -> Linux
   | X86_64, _, "gnu" -> GNU
   | X86_64, _, "dragonfly" -> Dragonfly
+  | X86_64, _, "solaris" -> Solaris
   | X86_64, _, "freebsd" -> FreeBSD
   | X86_64, _, "netbsd" -> NetBSD
   | X86_64, _, "openbsd" -> OpenBSD
-  | (X86_64 | IA32 | AArch64) , _, "darwin" -> MacOS_like
-  | X86_64, _, "mingw" -> MinGW_64
+  | AArch64, _, "macosx" -> MacOS_like
+  | X86_64, _, "macosx" -> MacOS_like
+  | X86_64, _, "mingw64" -> MinGW_64
   | AArch64, _, "linux" -> Linux
+  | AArch64, _, "freebsd" -> FreeBSD
   | X86_64, _, "cygwin" -> Cygwin
-  | X86_64, _, "win64" -> Win64
+  | Riscv, "riscv64", "linux" -> Linux
   | _, _, "unknown" -> Unknown
   | _, _, _ ->
     Misc.fatal_errorf

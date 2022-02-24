@@ -5,6 +5,7 @@ type architecture =
   | AArch64
   | POWER
   | Z
+  | Riscv
 
 val architecture : unit -> architecture
 
