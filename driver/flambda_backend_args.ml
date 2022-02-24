@@ -530,25 +530,28 @@ struct
 end
 
 module Flambda_backend_options_impl = struct
-  let set r () = r := true
-  let clear r () = r := false
+  let set r () = r := Flambda_backend_flags.Set true
+  let clear r () = r := Flambda_backend_flags.Set false
 
-  let ocamlcfg = set Flambda_backend_flags.use_ocamlcfg
-  let no_ocamlcfg = clear Flambda_backend_flags.use_ocamlcfg
-  let dcfg = set Flambda_backend_flags.dump_cfg
+  let set' r () = r := true
+  let clear' r () = r := false
+
+  let ocamlcfg = set' Flambda_backend_flags.use_ocamlcfg
+  let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
+  let dcfg = set' Flambda_backend_flags.dump_cfg
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
-  let use_cpp_mangling = set Flambda_backend_flags.use_cpp_mangling
+  let use_cpp_mangling = set' Flambda_backend_flags.use_cpp_mangling
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
   let flambda2_result_types_functors_only () =
-    Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Functors_only
   let flambda2_result_types_all_functions () =
-    Flambda2.function_result_types := Flambda_backend_flags.All_functions
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
   let no_flambda2_result_types () =
-    Flambda2.function_result_types := Flambda_backend_flags.Never
+    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -557,8 +560,8 @@ module Flambda_backend_options_impl = struct
     set Flambda2.backend_cse_at_toplevel
   let no_flambda2_backend_cse_at_toplevel =
     clear Flambda2.backend_cse_at_toplevel
-  let flambda2_cse_depth n = Flambda2.cse_depth := n
-  let flambda2_join_depth n = Flambda2.join_depth := n
+  let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
+  let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
   let flambda2_expert_code_id_and_symbol_scoping_checks =
     set Flambda2.Expert.code_id_and_symbol_scoping_checks
   let no_flambda2_expert_code_id_and_symbol_scoping_checks =
@@ -576,21 +579,21 @@ module Flambda_backend_options_impl = struct
   let no_flambda2_expert_phantom_lets =
     clear Flambda2.Expert.phantom_lets
   let flambda2_expert_max_block_size_for_projections size =
-    Flambda2.Expert.max_block_size_for_projections := Some size
+    Flambda2.Expert.max_block_size_for_projections := Flambda_backend_flags.Set (Some size)
   let flambda2_expert_max_unboxing_depth depth =
-    Flambda2.Expert.max_unboxing_depth := depth
+    Flambda2.Expert.max_unboxing_depth := Flambda_backend_flags.Set depth
   let flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := true
+    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := false
+    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
   let flambda2_debug_permute_every_name =
-    set Flambda2.Debug.permute_every_name
+    set' Flambda2.Debug.permute_every_name
   let no_flambda2_debug_permute_every_name =
-    clear Flambda2.Debug.permute_every_name
+    clear' Flambda2.Debug.permute_every_name
   let flambda2_debug_concrete_types_only_on_canonicals =
-    set Flambda2.Debug.concrete_types_only_on_canonicals
+    set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
-    clear Flambda2.Debug.concrete_types_only_on_canonicals
+    clear' Flambda2.Debug.concrete_types_only_on_canonicals
 
   let flambda2_inline_max_depth spec =
     Clflags.Int_arg_helper.parse spec
@@ -651,63 +654,66 @@ module Flambda_backend_options_impl = struct
       Flambda2.Inlining.threshold
 
   let flambda2_speculative_inlining_only_if_arguments_useful =
-    set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+    set' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
   let no_flambda2_speculative_inlining_only_if_arguments_useful =
-    clear Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+    clear' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
 
-  let flambda2_inlining_report_bin = set Flambda2.Inlining.report_bin
+  let flambda2_inlining_report_bin = set' Flambda2.Inlining.report_bin
 
   let flambda2_unicode = set Flambda2.unicode
 
-  let drawfexpr = set Flambda2.Dump.rawfexpr
-  let dfexpr = set Flambda2.Dump.fexpr
-  let dflexpect = set Flambda2.Dump.flexpect
-  let dclosure_offsets = set Flambda2.Dump.closure_offsets
-  let dfreshen = set Flambda2.Dump.freshen
+  let drawfexpr = set' Flambda2.Dump.rawfexpr
+  let dfexpr = set' Flambda2.Dump.fexpr
+  let dflexpect = set' Flambda2.Dump.flexpect
+  let dclosure_offsets = set' Flambda2.Dump.closure_offsets
+  let dfreshen = set' Flambda2.Dump.freshen
 end
 
 module Extra_params = struct
   let read_param ppf _position name v =
     let set option =
-      Compenv.setter ppf (fun b -> b) name [ option ] v; true
+      let b = Compenv.check_bool ppf name v in
+      option := Flambda_backend_flags.Set b;
+      true
     in
     let _clear option =
-      Compenv.setter ppf (fun b -> not b) name [ option ] v; true
+      let b = Compenv.check_bool ppf name v in
+      option := Flambda_backend_flags.Set (not b);
+      false
     in
     let set_int option =
+      begin match Compenv.check_int ppf name v with
+      | Some i -> option := Flambda_backend_flags.Set i
+      | None -> ()
+      end;
+      true
+    in
+    let set' option =
+      Compenv.setter ppf (fun b -> b) name [ option ] v; true
+    in
+    let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
     match name with
-    (* override existing params *)
-    | "Oclassic" ->
-      if Compenv.check_bool ppf "Oclassic" v then
-        Flambda_backend_flags.set_oclassic (); true
-    | "O2" ->
-      if Compenv.check_bool ppf "O2" v then
-        Flambda_backend_flags.set_o2 (); true
-    | "O3" ->
-      if Compenv.check_bool ppf "O3" v then
-        Flambda_backend_flags.set_o3 (); true
-    (* define new params *)
-    | "ocamlcfg" -> set Flambda_backend_flags.use_ocamlcfg
-    | "heap-reduction-threshold" -> set_int Flambda_backend_flags.heap_reduction_threshold
-    | "use-cpp-mangling" -> set Flambda_backend_flags.use_cpp_mangling
+    | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
+    | "use-cpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
+    | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
       | "never" ->
-        Flambda2.function_result_types := Flambda_backend_flags.Never
+        Flambda2.function_result_types := Flambda_backend_flags.(Set Never)
       | "functors-only" ->
-        Flambda2.function_result_types := Flambda_backend_flags.Functors_only
+        Flambda2.function_result_types := Flambda_backend_flags.(Set Functors_only)
       | "all-functions" ->
-        Flambda2.function_result_types := Flambda_backend_flags.All_functions
+        Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions)
       | _ ->
         Misc.fatal_error "Syntax: flambda2-result-types=\
           never|functors-only|all-functions");
       true
     | "flambda2-result-types-all-functions" ->
-      Flambda2.function_result_types := Flambda_backend_flags.All_functions;
+      Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions);
       true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
@@ -770,17 +776,17 @@ module Extra_params = struct
          "Bad syntax in OCAMLPARAM for 'flambda2-inline-threshold'"
          Flambda2.Inlining.threshold; true
     | "flambda2-speculative-inlining-only-if-arguments-useful" ->
-       set Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
+       set' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
     | "flambda2-inlining-report-bin" ->
-       set Flambda2.Inlining.report_bin
+       set' Flambda2.Inlining.report_bin
     | "flambda2-expert-code-id-and-symbol-scoping-checks" ->
        set Flambda2.Expert.code_id_and_symbol_scoping_checks
     | "flambda2-expert-fallback-inlining-heuristic" ->
        set Flambda2.Expert.fallback_inlining_heuristic
     | "flambda2-debug-permute-every-name" ->
-       set Flambda2.Debug.permute_every_name
+       set' Flambda2.Debug.permute_every_name
     | "flambda2-debug-concrete-types-only-on-canonicals" ->
-       set Flambda2.Debug.concrete_types_only_on_canonicals
+       set' Flambda2.Debug.concrete_types_only_on_canonicals
     | _ -> false
 end
 
@@ -802,8 +808,7 @@ struct
      If the same string input can be recognized by two options,
      the flambda-backend implementation will take precedence,
      but this should be avoided. To override an option from Main_args,
-     redefine it in the implementation of this functor's argument.
-     See the approach below for _o3 in Default. *)
+     redefine it in the implementation of this functor's argument. *)
   let list = list2 @ list
 end
 
@@ -817,15 +822,9 @@ module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
     include Flambda_backend_options_impl
-    let _o2 () = Flambda_backend_flags.set_o2 ()
-    let _o3 () = Flambda_backend_flags.set_o3 ()
-    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
     include Flambda_backend_options_impl
-    let _o2 () = Flambda_backend_flags.set_o2 ()
-    let _o3 () = Flambda_backend_flags.set_o3 ()
-    let _classic_inlining () = Flambda_backend_flags.set_oclassic ()
   end
 end

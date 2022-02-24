@@ -102,6 +102,7 @@ let () =
 
 let main () =
   Clflags.native_code := true;
+  Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
   let list = ref Options.list in
   begin
     try
