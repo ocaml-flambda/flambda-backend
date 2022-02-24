@@ -83,9 +83,7 @@ let run ~symbol_for_global ~get_global_info ~round unit =
   let denv = DE.increment_continuation_scope denv in
   (* CR gbury: only compute closure offsets if this is the last round. (same
      remark for the cmx contents) *)
-  let dacc =
-    DA.create denv Continuation_uses_env.empty ~compute_closure_offsets:true
-  in
+  let dacc = DA.create denv Continuation_uses_env.empty in
   let body, uacc =
     Simplify_expr.simplify_toplevel dacc (FU.body unit) ~return_continuation
       ~return_arity:[K.With_subkind.any_value] ~exn_continuation
@@ -136,7 +134,14 @@ let run ~symbol_for_global ~get_global_info ~round unit =
             closure_ids_in_types
           }
       in
-      match Closure_offsets.finalize_offsets closure_offsets ~used_names with
+      let get_code_metadata code_id =
+        Exported_code.find_exn all_code code_id
+        |> Code_or_metadata.code_metadata
+      in
+      match
+        Closure_offsets.finalize_offsets closure_offsets ~get_code_metadata
+          ~used_names
+      with
       | Known used_closure_vars, offsets -> used_closure_vars, offsets
       | Unknown, _ ->
         (* could be an assert false *)

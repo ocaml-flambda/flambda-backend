@@ -47,10 +47,14 @@ val add_set_of_closures :
   Set_of_closures.t ->
   t
 
+(** Aggregate sets of closures from two contexts *)
+val add_offsets_from_function : t -> from_function:t -> t
+
 (** Compute offsets for all closure_ids and env_vars that occur in the current
     compilation unit, taking into account the constraints introduced by the
     sharing of closure_id/env_var across multiple sets of closures. *)
 val finalize_offsets :
+  get_code_metadata:(Code_id.t -> Code_metadata.t) ->
   used_names:used_names Or_unknown.t ->
   t ->
   Var_within_closure.Set.t Or_unknown.t * Exported_offsets.t

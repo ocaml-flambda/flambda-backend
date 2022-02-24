@@ -81,7 +81,9 @@ let create ~required_names ~reachable_code_ids ~compute_closure_offsets uenv
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let closure_offsets : _ Or_unknown.t =
-    if compute_closure_offsets then DA.closure_offsets dacc else Unknown
+    if compute_closure_offsets
+    then Known (Closure_offsets.create ())
+    else Unknown
   in
   { uenv;
     creation_dacc = dacc;
