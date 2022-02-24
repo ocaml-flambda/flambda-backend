@@ -26,7 +26,6 @@ module RE = Rebuilt_expr
 module UA = Upwards_acc
 module UE = Upwards_env
 module DA = Downwards_acc
-module DE = Downwards_env
 module VB = Bound_var
 
 type let_creation_result =
@@ -50,11 +49,9 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
     match UA.closure_offsets uacc with
     | Unknown -> uacc
     | Known closure_offsets ->
-      let dacc = UA.creation_dacc uacc in
-      let all_code = DE.all_code (DA.denv dacc) in
       let closure_offsets =
         Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
-          ~all_code set_of_closures
+          set_of_closures
       in
       UA.with_closure_offsets uacc (Known closure_offsets)
   in

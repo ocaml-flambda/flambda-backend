@@ -1532,6 +1532,53 @@ let close_let_rec acc env ~function_declarations
     named ~body
   |> Expr_with_acc.create_let
 
+module SCC = Strongly_connected_components_flambda2.Make (Code_id)
+
+let bind_code all_code acc body =
+  let graph =
+    Code_id.Map.map
+      (fun code ->
+        Code_id.Set.filter
+          (fun sym ->
+            Code_id.in_compilation_unit sym
+              (Compilation_unit.get_current_exn ()))
+          (Name_occurrences.code_ids (Code.free_names code)))
+      all_code
+  in
+  let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
+  Array.fold_left
+    (fun (acc, body) (component : SCC.component) ->
+      let code_ids =
+        match component with
+        | No_loop code_id -> [code_id]
+        | Has_loop code_ids -> code_ids
+      in
+      let bound_symbols, static_consts =
+        List.fold_left
+          (fun (bound_symbols, static_consts) code_id ->
+            let bound_symbols =
+              Bound_symbols.Pattern.code code_id :: bound_symbols
+            in
+            let code =
+              try Code_id.Map.find code_id all_code
+              with Not_found ->
+                Misc.fatal_errorf "Unbound code ID %a" Code_id.print code_id
+            in
+            let static_consts =
+              Static_const_or_code.create_code code :: static_consts
+            in
+            bound_symbols, static_consts)
+          ([], []) code_ids
+      in
+      let defining_expr =
+        Static_const_group.create static_consts |> Named.create_static_consts
+      in
+      Let_with_acc.create acc
+        (Bound_pattern.symbols (Bound_symbols.create bound_symbols))
+        defining_expr ~body
+      |> Expr_with_acc.create_let)
+    (acc, body) components
+
 let close_program ~symbol_for_global ~big_endian ~module_ident
     ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
   let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
@@ -1622,22 +1669,7 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
       ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
       ~is_exn_handler:false
   in
-  let acc, body =
-    Code_id.Map.fold
-      (fun code_id code (acc, body) ->
-        let bound_symbols =
-          Bound_symbols.singleton (Bound_symbols.Pattern.code code_id)
-        in
-        let static_const = Static_const_or_code.create_code code in
-        let defining_expr =
-          Static_const_group.create [static_const] |> Named.create_static_consts
-        in
-        Let_with_acc.create acc
-          (Bound_pattern.symbols bound_symbols)
-          defining_expr ~body
-        |> Expr_with_acc.create_let)
-      (Acc.code acc) (acc, body)
-  in
+  let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
      lifted constants not in the scope of any other [Let_symbol] binding get put
      into the term and not dropped. Adding this extra binding, which will

@@ -40,12 +40,10 @@ val print : Format.formatter -> t -> unit
 val create : unit -> t
 
 (** Add a set of closure to the set of constraints. *)
-val add_set_of_closures :
-  t ->
-  is_phantom:bool ->
-  all_code:Code.t Code_id.Map.t ->
-  Set_of_closures.t ->
-  t
+val add_set_of_closures : t -> is_phantom:bool -> Set_of_closures.t -> t
+
+(** Aggregate sets of closures from two contexts *)
+val add_offsets_from_function : t -> from_function:t -> t
 
 (** Aggregate sets of closures from two contexts *)
 val add_offsets_from_function : t -> from_function:t -> t

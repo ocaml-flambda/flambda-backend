@@ -431,7 +431,7 @@ module Acc = struct
     | Known closure_offsets ->
       let closure_offsets =
         Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
-          ~all_code:t.code set_of_closures
+          set_of_closures
       in
       { t with closure_offsets = Known closure_offsets }
 
