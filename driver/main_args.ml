@@ -219,7 +219,7 @@ let mk_inline_max_unroll f =
 let mk_classic_inlining f =
   "-Oclassic", Arg.Unit f, " Make inlining decisions at function definition \
      time rather than at the call site (replicates previous behaviour of the \
-     compiler)"
+     compiler).  Implies -linscan (and causes -nolinscan to be ignored)."
 ;;
 
 let mk_inline_cost arg descr default f =
