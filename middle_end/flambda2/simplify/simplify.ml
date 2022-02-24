@@ -134,8 +134,13 @@ let run ~symbol_for_global ~get_global_info ~round unit =
             closure_ids_in_types
           }
       in
+      let get_code_metadata code_id =
+        Exported_code.find_exn all_code code_id
+        |> Code_or_metadata.code_metadata
+      in
       match
-        Closure_offsets.finalize_offsets closure_offsets ~all_code ~used_names
+        Closure_offsets.finalize_offsets closure_offsets ~get_code_metadata
+          ~used_names
       with
       | Known used_closure_vars, offsets -> used_closure_vars, offsets
       | Unknown, _ ->

@@ -54,7 +54,7 @@ val add_offsets_from_function : t -> from_function:t -> t
     compilation unit, taking into account the constraints introduced by the
     sharing of closure_id/env_var across multiple sets of closures. *)
 val finalize_offsets :
-  all_code:Code_or_metadata.t Code_id.Map.t ->
+  get_code_metadata:(Code_id.t -> Code_metadata.t) ->
   used_names:used_names Or_unknown.t ->
   t ->
   Var_within_closure.Set.t Or_unknown.t * Exported_offsets.t

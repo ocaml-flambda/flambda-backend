@@ -487,7 +487,7 @@ module Greedy = struct
 
   (* Create slots (and create the cross-referencing). *)
 
-  let rec create_closure_slots set state all_code = function
+  let rec create_closure_slots set state get_code_metadata = function
     | [] -> state
     | (c, code_id) :: r ->
       let s, state =
@@ -496,10 +496,7 @@ module Greedy = struct
         | None -> (
           if Compilation_unit.is_current (Closure_id.get_compilation_unit c)
           then
-            let code_metadata =
-              Code_id.Map.find code_id all_code
-              |> Code_or_metadata.code_metadata
-            in
+            let code_metadata = get_code_metadata code_id in
             let module CM = Code_metadata in
             let is_tupled = CM.is_tupled code_metadata in
             let params_arity = CM.params_arity code_metadata in
@@ -536,7 +533,7 @@ module Greedy = struct
               s, add_closure_slot (use_closure_info state c info) c s)
       in
       let () = add_unallocated_slot_to_set s set in
-      create_closure_slots set state all_code r
+      create_closure_slots set state get_code_metadata r
 
   let rec create_env_var_slots set state = function
     | [] -> state
@@ -575,14 +572,14 @@ module Greedy = struct
       let () = add_unallocated_slot_to_set s set in
       create_env_var_slots set state r
 
-  let create_slots_for_set state all_code set_id =
+  let create_slots_for_set state get_code_metadata set_id =
     let set = make_set set_id in
     let state = add_set_to_state state set in
     (* Fill closure slots *)
     let function_decls = Set_of_closures.function_decls set_id in
     let closure_map = Function_declarations.funs function_decls in
     let closures = Closure_id.Map.bindings closure_map in
-    let state = create_closure_slots set state all_code closures in
+    let state = create_closure_slots set state get_code_metadata closures in
     (* Fill env var slots *)
     let env_map = Set_of_closures.closure_elements set_id in
     let env_vars = List.map fst (Var_within_closure.Map.bindings env_map) in
@@ -829,13 +826,15 @@ let add_offsets_from_function l1 ~from_function:l2 =
   (* Order is irrelevant *)
   List.rev_append l2 l1
 
-let finalize_offsets ~all_code ~used_names l =
+let finalize_offsets ~get_code_metadata ~used_names l =
   let state = ref (Greedy.create_initial_state ()) in
   Misc.try_finally
     (fun () ->
       List.iter
         (fun set_of_closures ->
-          state := Greedy.create_slots_for_set !state all_code set_of_closures)
+          state
+            := Greedy.create_slots_for_set !state get_code_metadata
+                 set_of_closures)
         l;
       Greedy.finalize ~used_names !state)
     ~always:(fun () ->
