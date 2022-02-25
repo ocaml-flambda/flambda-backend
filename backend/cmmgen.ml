@@ -1296,9 +1296,9 @@ and transl_if env (kind : Cmm.value_kind) (approx : then_else)
         ifso_dbg arg2
         then_dbg then_
         else_dbg else_
-  | Ulet(str, kind, id, exp, cond) ->
-      transl_let env str kind id exp (fun env ->
-        transl_if env approx dbg cond then_dbg then_ else_dbg else_)
+  | Ulet(str, let_kind, id, exp, cond) ->
+      transl_let env str let_kind id exp (fun env ->
+        transl_if env kind approx dbg cond then_dbg then_ else_dbg else_)
   | Uprim (Psequand, [arg1; arg2], inner_dbg) ->
       transl_sequand env kind approx
         inner_dbg arg1
