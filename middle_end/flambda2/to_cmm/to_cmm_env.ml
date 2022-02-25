@@ -35,7 +35,9 @@ type cont =
    track of some extra semantics that are useful to implement some optimization
    in the translation to cmm. *)
 
-type extra_info = Untag of Cmm.expression
+type extra_info =
+  | Untag of Cmm.expression
+  | Box
 
 (* Delayed let-bindings. Let bindings are delayed in stages in order to allow
    for potential reordering and inlining of variables that are bound and used
@@ -135,7 +137,10 @@ type t =
        handlers *)
     pures : binding Variable.Map.t;
     (* pure bindings that can be inlined across stages. *)
-    stages : stage list (* archived stages, in reverse chronological order. *)
+    stages : stage list;
+    (* archived stages, in reverse chronological order. *)
+    inlined_box_vars : Variable.Set.t
+        (* Variables bound to boxes that we're inlining *)
   }
 
 let mk offsets functions_info k_return ~exn_continuation:k_exn =
@@ -152,7 +157,8 @@ let mk offsets functions_info k_return ~exn_continuation:k_exn =
     exn_conts_extra_args = Continuation.Map.empty;
     names_in_scope = Code_id_or_symbol.Set.empty;
     deleted = Code_id.Set.empty;
-    used_code_ids = Code_id.Set.empty
+    used_code_ids = Code_id.Set.empty;
+    inlined_box_vars = Variable.Set.empty
   }
 
 let enter_function_def env k_return k_exn =
@@ -172,7 +178,8 @@ let enter_function_def env k_return k_exn =
     vars = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
     conts = Continuation.Map.empty;
-    exn_conts_extra_args = Continuation.Map.empty
+    exn_conts_extra_args = Continuation.Map.empty;
+    inlined_box_vars = Variable.Set.empty
   }
 
 let return_cont env = env.k_return
@@ -377,6 +384,12 @@ let mk_binding ?extra env inline effs var cmm_expr =
 
 let bind_pure env var b = { env with pures = Variable.Map.add var b env.pures }
 
+let bind_inlined_box env var b =
+  (* Bind it as pure, but keep track of it so that we can flush when
+     necessary *)
+  let env = bind_pure env var b in
+  { env with inlined_box_vars = Variable.Set.add var env.inlined_box_vars }
+
 let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
 
 let bind_coeff env var b =
@@ -388,16 +401,25 @@ let bind_coeff env var b =
     let m = Variable.Map.singleton var b in
     { env with stages = Coeff m :: r }
 
+let inlined_boxes_enabled () =
+  match Sys.getenv "INLINE_BOXES" with
+  | _ -> true
+  | exception _ -> false
+
 let bind_variable env var ?extra effs inline cmm_expr =
   let env, b = mk_binding ?extra env inline effs var cmm_expr in
-  match classify effs with
-  | Pure -> bind_pure env var b
-  | Effect -> bind_eff env var b
-  | Coeffect -> bind_coeff env var b
+  match extra with
+  | Some Box when inline && inlined_boxes_enabled () -> bind_inlined_box env var b
+  | _ -> (
+    match classify effs with
+    | Pure -> bind_pure env var b
+    | Effect -> bind_eff env var b
+    | Coeffect -> bind_coeff env var b)
 
 (* Variable lookup (for potential inlining) *)
 
-let inline_res env b = b.cmm_expr, env, b.effs
+let inline_res env b =
+  b.cmm_expr, env, b.effs
 
 let inline_not env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
