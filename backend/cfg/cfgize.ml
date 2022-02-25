@@ -643,22 +643,22 @@ module Trap_depth_and_exn = struct
         false
       end
     in
-    block.trap_depth <- succ (List.length stack);
-    let stack, exceptional_successor, body =
-      ListLabels.fold_left block.body ~init:(stack, None, [])
-        ~f:(fun (stack, exceptional_successor, body) instr ->
-            let (stack, exceptional_successor), instr =
-              process_basic exceptional_successor stack instr
-            in
-            stack, exceptional_successor, instr :: body)
-    in
-    block.body <- List.rev body;
-    let (stack, exceptional_successor), terminator =
-      process_terminator exceptional_successor stack block.terminator
-    in
-    block.terminator <- terminator;
     if was_invalid
     then begin
+      block.trap_depth <- succ (List.length stack);
+      let stack, exceptional_successor, body =
+        ListLabels.fold_left block.body ~init:(stack, None, [])
+          ~f:(fun (stack, exceptional_successor, body) instr ->
+              let (stack, exceptional_successor), instr =
+                process_basic exceptional_successor stack instr
+              in
+              stack, exceptional_successor, instr :: body)
+      in
+      block.body <- List.rev body;
+      let (stack, exceptional_successor), terminator =
+        process_terminator exceptional_successor stack block.terminator
+      in
+      block.terminator <- terminator;
       (* non-exceptional successors *)
       Label.Set.iter
         (fun successor_label -> update_block cfg successor_label stack)

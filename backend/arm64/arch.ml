@@ -242,6 +242,6 @@ let is_pure_specific : specific_operation -> bool = function
   | Inegmuladdf -> true
   | Imulsubf -> true
   | Inegmulsubf -> true
-  | Isqrtf -> false
-  | Ibswap _ -> false
+  | Isqrtf -> true
+  | Ibswap _ -> true
   | Imove32 -> true

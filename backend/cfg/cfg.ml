@@ -351,7 +351,7 @@ let is_pure_terminator desc =
 
 let is_pure_operation : operation -> bool = function
   | Move -> true
-  | Spill -> true
+  | Spill -> false
   | Reload -> true
   | Const_int _ -> true
   | Const_float _ -> true
