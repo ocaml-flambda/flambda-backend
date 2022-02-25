@@ -130,6 +130,15 @@ utils/strongly_connected_components.cmx : \
     utils/strongly_connected_components.cmi
 utils/strongly_connected_components.cmi : \
     utils/identifiable.cmi
+utils/target_system.cmo : \
+    utils/misc.cmi \
+    utils/config.cmi \
+    utils/target_system.cmi
+utils/target_system.cmx : \
+    utils/misc.cmx \
+    utils/config.cmx \
+    utils/target_system.cmi
+utils/target_system.cmi :
 utils/targetint.cmo : \
     utils/misc.cmi \
     utils/targetint.cmi
