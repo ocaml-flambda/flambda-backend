@@ -593,8 +593,7 @@ module Inlining_tree = struct
       (fun (dbg, key) (v : item) ->
         match key, v with
         | Scope (Unknown, _), _ ->
-          print_title ~depth ~label:"Unknown" ~f:Format.pp_print_text ppf "";
-          print ~compilation_unit ppf ~depth:(depth + 1) t
+          print_title ~depth ~label:"Unknown" ~f:Format.pp_print_text ppf ""
         | Scope (Module, name), Scope t ->
           print_title ~depth ~label:"Module" ~f:Format.pp_print_text ppf name;
           print ~compilation_unit ppf ~depth:(depth + 1) t
