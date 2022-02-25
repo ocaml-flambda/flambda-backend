@@ -35,6 +35,8 @@ type integer_operation =
 
 type float_comparison = Cmm.float_comparison
 
+type mutable_flag = Immutable | Mutable
+
 type test =
     Itruetest
   | Ifalsetest
@@ -59,7 +61,7 @@ type operation =
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
                   alloc : bool; returns : bool; }
   | Istackoffset of int
-  | Iload of Cmm.memory_chunk * Arch.addressing_mode * Asttypes.mutable_flag
+  | Iload of Cmm.memory_chunk * Arch.addressing_mode * mutable_flag
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
                 mode : Lambda.alloc_mode }

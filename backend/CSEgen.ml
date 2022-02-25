@@ -25,7 +25,7 @@ type valnum = int
 type op_class =
   | Op_pure           (* pure arithmetic, produce one or several result *)
   | Op_checkbound     (* checkbound-style: no result, can raise an exn *)
-  | Op_load of Asttypes.mutable_flag (* memory load *)
+  | Op_load of Mach.mutable_flag (* memory load *)
   | Op_store of bool  (* memory store, false = init, true = assign *)
   | Op_other   (* anything else that does not allocate nor store in memory *)
 

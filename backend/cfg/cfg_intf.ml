@@ -62,7 +62,7 @@ module S = struct
     | Const_float of int64
     | Const_symbol of string
     | Stackoffset of int
-    | Load of Cmm.memory_chunk * Arch.addressing_mode
+    | Load of Cmm.memory_chunk * Arch.addressing_mode * Mach.mutable_flag
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
     | Intop of Mach.integer_operation
     | Intop_imm of Mach.integer_operation * int

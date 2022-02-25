@@ -155,7 +155,7 @@ method! reload_operation op arg res =
                | Ibswap _| Ifloatsqrtf _)
   | Imove|Ispill|Ireload|Inegf|Iabsf|Iconst_float _|Icall_ind|Icall_imm _
   | Icompf _
-  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _)
+  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload (_, _, _)
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Iopaque
   | Ibeginregion | Iendregion

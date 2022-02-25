@@ -156,6 +156,10 @@ let env_close_regions env rs =
   in
   aux None env.regions rs
 
+let select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag = function
+  | Immutable -> Immutable
+  | Mutable -> Mutable
+
 (* Infer the type of the result of an operation *)
 
 let oper_result_type = function
@@ -579,7 +583,7 @@ method select_operation op args _dbg =
     Iextcall { func; alloc; ty_res = ty; ty_args; returns }, args
   | (Cload (chunk, mut), [arg]) ->
       let (addr, eloc) = self#select_addressing chunk arg in
-      (Iload(chunk, addr, mut), [eloc])
+      (Iload(chunk, addr, select_mutable_flag mut), [eloc])
   | (Cstore (chunk, init), [arg1; arg2]) ->
       let (addr, eloc) = self#select_addressing chunk arg1 in
       let is_assign =

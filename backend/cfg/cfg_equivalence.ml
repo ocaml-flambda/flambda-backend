@@ -208,8 +208,10 @@ let check_operation : location -> Cfg.operation -> Cfg.operation -> unit =
     ()
   | Stackoffset expected, Stackoffset result when Int.equal expected result ->
     ()
-  | Load (expected_mem, expected_arch_mode), Load (result_mem, result_arch_mode)
+  | ( Load (expected_mem, expected_arch_mode, expected_mut),
+      Load (result_mem, result_arch_mode, result_mut) )
     when Cmm.equal_memory_chunk expected_mem result_mem
+         && expected_mut = result_mut
          && Arch.equal_addressing_mode expected_arch_mode result_arch_mode ->
     ()
   | ( Store (expected_mem, expected_arch_mode, expected_bool),
