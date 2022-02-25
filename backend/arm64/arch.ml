@@ -227,10 +227,11 @@ let equal_specific_operation left right =
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
+  | Isignext left, Isignext right -> Int.equal left right
   | (Ifar_alloc _  | Ifar_intop_checkbound | Ifar_intop_imm_checkbound _
     | Ishiftarith _ | Ishiftcheckbound _ | Ifar_shiftcheckbound _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
-    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32), _ -> false
+    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _), _ -> false
 
 (* Recognition of logical immediate arguments *)
 
