@@ -158,3 +158,7 @@ val is_pure_terminator : terminator -> bool
 val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
+
+val set_trap_depth : 'a instruction -> int -> 'a instruction
+
+val set_live : 'a instruction -> Reg.Set.t -> 'a instruction

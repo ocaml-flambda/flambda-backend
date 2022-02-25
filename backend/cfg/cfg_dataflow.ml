@@ -152,10 +152,10 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain * Cfg.basic Cfg.instruction
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain * Cfg.terminator Cfg.instruction
 
   val exception_ : domain -> domain
 end
@@ -195,10 +195,16 @@ module Backward
   module WorkSet = Set.Make (WorkSetElement)
 
   let transfer_block : domain -> exn:domain -> Cfg.basic_block -> domain =
-   fun value ~exn block ->
-    ListLabels.fold_right block.body
-      ~init:(T.terminator value ~exn block.terminator) ~f:(fun instr value ->
-        T.basic value ~exn instr)
+    fun value ~exn block ->
+    let value, terminator = T.terminator value ~exn block.terminator in
+    block.terminator <- terminator;
+    let value, body =
+      ListLabels.fold_right block.body ~init:(value, []) ~f:(fun instr (value, body) ->
+          let value, instr = T.basic value ~exn instr in
+          value, instr :: body)
+    in
+    block.body <- body;
+    value
 
   let create : Cfg.t -> init:domain -> map * WorkSet.t ref =
    fun cfg ~init ->

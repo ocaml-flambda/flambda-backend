@@ -27,7 +27,7 @@ end
 module Transfer = struct
   type domain = Domain.t
 
-  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
+  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain * Cfg.basic Cfg.instruction =
    fun value ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
@@ -36,8 +36,7 @@ module Transfer = struct
          && (not (Proc.regs_are_volatile instr.arg))
          && not (Proc.regs_are_volatile instr.res)
       then begin
-        instr.live <- value;
-        value
+        value, Cfg.set_live instr value
       end
       else
         let across = Reg.diff_set_array value instr.res in
@@ -46,59 +45,43 @@ module Transfer = struct
           then Reg.Set.union across exn
           else across
         in
-        instr.live <- across;
-        Reg.add_set_array across instr.arg
+        Reg.add_set_array across instr.arg, Cfg.set_live instr across
     | Reloadretaddr ->
-      instr.live <- Reg.Set.empty;
-      Reg.diff_set_array value Proc.destroyed_at_reloadretaddr
+      Reg.diff_set_array value Proc.destroyed_at_reloadretaddr, Cfg.set_live instr Reg.Set.empty
     | Pushtrap _ ->
-      instr.live <- Reg.Set.empty;
-      value
+      value, Cfg.set_live instr Reg.Set.empty
     | Poptrap ->
-      instr.live <- Reg.Set.empty;
-      value
+      value, Cfg.set_live instr Reg.Set.empty
     | Prologue ->
-      instr.live <- Reg.Set.empty;
-      value
+      value, Cfg.set_live instr Reg.Set.empty
 
   let terminator :
-      domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain =
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain * Cfg.terminator Cfg.instruction =
    fun value ~exn instr ->
     match instr.desc with
     | Never -> assert false
     | Always _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Parity_test _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Truth_test _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Float_test _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Int_test _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Switch _ ->
-      instr.live <- value;
-      Reg.add_set_array value instr.arg
+      Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Return ->
-      instr.live <- Reg.Set.empty;
-      Reg.set_of_array instr.arg
+      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Tailcall (Self _) ->
-      instr.live <- Reg.Set.empty;
-      Reg.set_of_array instr.arg
+      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Raise _ ->
-      instr.live <- exn;
-      Reg.add_set_array exn instr.arg
+      Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
     | Tailcall (Func _) ->
-      instr.live <- Reg.Set.empty;
-      Reg.set_of_array instr.arg
+      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Call_no_return _ ->
-      instr.live <- Reg.Set.empty;
-      Reg.add_set_array exn instr.arg
+      Reg.add_set_array exn instr.arg, Cfg.set_live instr Reg.Set.empty
 
   let exception_ : domain -> domain =
    fun value -> Reg.Set.remove Proc.loc_exn_bucket value

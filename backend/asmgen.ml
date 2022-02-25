@@ -178,8 +178,8 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
       let canary = Reg.create Cmm.Val in
       canary.Reg.raw_name <- Reg.Raw_name.create_from_var (Ident.create_local "canary");
       let canary_singleton = Reg.Set.singleton canary in
-      ListLabels.iter block.body ~f:(fun instr -> instr.Cfg.live <- canary_singleton);
-      block.terminator.Cfg.live <- canary_singleton);
+      block.body <- ListLabels.map block.body ~f:(fun instr -> Cfg.set_live instr canary_singleton);
+      block.terminator <- Cfg.set_live block.terminator canary_singleton);
   begin match Cfg_liveness.Liveness.run cfg ~init:Reg.Set.empty () with
     | Result.Ok (_ : Cfg_liveness.Liveness.map) -> ()
     | Result.Error (_ : Cfg_liveness.Liveness.map) ->

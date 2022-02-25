@@ -591,43 +591,46 @@ module Trap_depth_and_exn = struct
       handler_option ->
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
-      handler_stack * handler_option =
-   fun exceptional_successor stack term ->
-    term.trap_depth <- succ (List.length stack);
+      (handler_stack * handler_option) * Cfg.terminator Cfg.instruction =
+    fun exceptional_successor stack term ->
+    let term = Cfg.set_trap_depth term (succ (List.length stack)) in
     match term.desc with
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
       record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_terminator term.desc)
+        ~can_raise:(Cfg.can_raise_terminator term.desc),
+      term
     | Tailcall (Self _) ->
       if List.length stack <> 0
       then
         Misc.fatal_error
           "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
            tailcall"
-      else stack, exceptional_successor
+      else (stack, exceptional_successor), term
 
   let process_basic :
       handler_option ->
       handler_stack ->
       Cfg.basic Cfg.instruction ->
-      handler_stack * handler_option =
-   fun exceptional_successor stack instr ->
-    instr.trap_depth <- succ (List.length stack);
+      (handler_stack * handler_option) * Cfg.basic Cfg.instruction =
+    fun exceptional_successor stack instr ->
+    let instr = Cfg.set_trap_depth instr (succ (List.length stack)) in
     match instr.desc with
-    | Pushtrap { lbl_handler } -> lbl_handler :: stack, exceptional_successor
+    | Pushtrap { lbl_handler } ->
+      (lbl_handler :: stack, exceptional_successor), instr
     | Poptrap -> begin
       match stack with
       | [] ->
         Misc.fatal_error
           "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
-      | _ :: stack -> stack, exceptional_successor
+      | _ :: stack -> (stack, exceptional_successor), instr
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
       record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_basic instr.desc)
+        ~can_raise:(Cfg.can_raise_basic instr.desc),
+      instr
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
    fun cfg label stack ->
@@ -641,14 +644,19 @@ module Trap_depth_and_exn = struct
       end
     in
     block.trap_depth <- succ (List.length stack);
-    let stack, exceptional_successor =
-      ListLabels.fold_left block.body ~init:(stack, None)
-        ~f:(fun (stack, exceptional_successor) instr ->
-          process_basic exceptional_successor stack instr)
+    let stack, exceptional_successor, body =
+      ListLabels.fold_left block.body ~init:(stack, None, [])
+        ~f:(fun (stack, exceptional_successor, body) instr ->
+            let (stack, exceptional_successor), instr =
+              process_basic exceptional_successor stack instr
+            in
+            stack, exceptional_successor, instr :: body)
     in
-    let stack, exceptional_successor =
+    block.body <- List.rev body;
+    let (stack, exceptional_successor), terminator =
       process_terminator exceptional_successor stack block.terminator
     in
+    block.terminator <- terminator;
     if was_invalid
     then begin
       (* non-exceptional successors *)
