@@ -324,7 +324,7 @@ let can_raise_operation : operation -> bool = function
   | Intoffloat -> false
   | Probe _ -> true
   | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
-  | Specific _ -> false (* CR xclerc for xclerc: double check *)
+  | Specific op -> Arch.operation_can_raise op
   | Opaque -> false
   | Name_for_debugger _ -> false
   | Begin_region -> false
