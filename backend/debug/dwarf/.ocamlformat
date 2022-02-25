@@ -1,0 +1,14 @@
+# Please make a pull request to change this file.
+# Keep this file in sync with other .ocamlformat files in this repo.
+assignment-operator=begin-line
+cases-exp-indent=2
+doc-comments=before
+dock-collection-brackets=false
+exp-grouping=preserve
+if-then-else=keyword-first
+parens-tuple=multi-line-only
+space-around-lists=false
+space-around-variants=false
+type-decl=sparse
+wrap-comments=true
+version=0.19.0
