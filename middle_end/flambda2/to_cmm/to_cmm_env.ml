@@ -367,6 +367,16 @@ let classify effs =
      effectful expressions such as function calls. *)
   | No_effects, No_coeffects -> Pure
 
+let is_inlinable_box effs ~extra =
+  (* [effs] is the effects and coeffects of some primitive operation, arising
+     either from the primitive itself or its arguments. If this is a boxing
+     operation (as indicated by [extra]), then we want to inline the box, but
+     this involves moving the arguments, so they must be pure (or at most
+     generative). *)
+  match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
+  | (Only_generative_effects _, No_coeffects), Some Box -> true
+  | _, _ -> false
+
 let mk_binding ?extra env inline effs var cmm_expr =
   let order = next_order () in
   let cmm_var = gen_variable var in
@@ -401,25 +411,18 @@ let bind_coeff env var b =
     let m = Variable.Map.singleton var b in
     { env with stages = Coeff m :: r }
 
-let inlined_boxes_enabled () =
-  match Sys.getenv "INLINE_BOXES" with
-  | _ -> true
-  | exception _ -> false
-
 let bind_variable env var ?extra effs inline cmm_expr =
   let env, b = mk_binding ?extra env inline effs var cmm_expr in
-  match extra with
-  | Some Box when inline && inlined_boxes_enabled () -> bind_inlined_box env var b
-  | _ -> (
+  if inline && is_inlinable_box effs ~extra
+  then bind_inlined_box env var b
+  else
     match classify effs with
     | Pure -> bind_pure env var b
     | Effect -> bind_eff env var b
-    | Coeffect -> bind_coeff env var b)
-
+    | Coeffect -> bind_coeff env var b
 (* Variable lookup (for potential inlining) *)
 
-let inline_res env b =
-  b.cmm_expr, env, b.effs
+let inline_res env b = b.cmm_expr, env, b.effs
 
 let inline_not env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
