@@ -490,7 +490,7 @@ let order_add b acc = M.add b.order b acc
 let order_add_map m acc =
   Variable.Map.fold (fun _ b acc -> order_add b acc) m acc
 
-let flush_delayed_lets ?(entering_loop = false) env =
+let flush_delayed_lets ?(entering_loop = false) ?(before_call = false) env =
   (* generate a wrapper function to introduce the delayed let-bindings. *)
   let wrap_aux pures stages e =
     let order_map = order_add_map pures M.empty in
@@ -505,15 +505,25 @@ let flush_delayed_lets ?(entering_loop = false) env =
       (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
       order_map e
   in
-  (* Unless entering a loop, only pure bindings that are not to be inlined are
-     flushed now. The remainder are preserved, ensuring that the corresponding
-     expressions are sunk down as far as possible. *)
+  (* Normally, only those pure bindings that are not to be inlined are flushed
+     now. The remainder are preserved, ensuring that the corresponding
+     expressions are sunk down as far as possible. The exceptions are: (a) when
+     entering a loop, all bindings are flushed; and (b) before a function call,
+     all inlined boxes are flushed (see comment on [classify] about
+     allocations). *)
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
      loops. *)
   let pures_to_keep, pures_to_flush =
     if entering_loop
     then Variable.Map.empty, env.pures
-    else Variable.Map.partition (fun _ binding -> binding.inline) env.pures
+    else
+      let keep_pure var binding =
+        let flush_inlined_box =
+          before_call && Variable.Set.mem var env.inlined_box_vars
+        in
+        binding.inline && not flush_inlined_box
+      in
+      Variable.Map.partition keep_pure env.pures
   in
   let wrap e = wrap_aux pures_to_flush env.stages e in
   wrap, { env with stages = []; pures = pures_to_keep }

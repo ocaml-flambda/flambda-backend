@@ -127,7 +127,10 @@ val inline_variable :
 (** Wrap the given cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
-  ?entering_loop:bool -> t -> (Cmm.expression -> Cmm.expression) * t
+  ?entering_loop:bool ->
+  ?before_call:bool ->
+  t ->
+  (Cmm.expression -> Cmm.expression) * t
 
 (** Fetch the extra info for a flambda variable (if any). *)
 val extra_info : t -> Variable.t -> extra_info option
