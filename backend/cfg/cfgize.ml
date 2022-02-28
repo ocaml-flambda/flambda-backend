@@ -592,16 +592,16 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.terminator Cfg.instruction ->
       (handler_stack * handler_option) * Cfg.terminator Cfg.instruction =
-    fun exceptional_successor stack term ->
+   fun exceptional_successor stack term ->
     let term = Cfg.set_trap_depth term (succ (List.length stack)) in
     match term.desc with
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
-      record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_terminator term.desc),
-      term
+      ( record_handler stack exceptional_successor
+          ~can_raise:(Cfg.can_raise_terminator term.desc),
+        term )
     | Tailcall (Self _) ->
       if List.length stack <> 0
       then
@@ -615,7 +615,7 @@ module Trap_depth_and_exn = struct
       handler_stack ->
       Cfg.basic Cfg.instruction ->
       (handler_stack * handler_option) * Cfg.basic Cfg.instruction =
-    fun exceptional_successor stack instr ->
+   fun exceptional_successor stack instr ->
     let instr = Cfg.set_trap_depth instr (succ (List.length stack)) in
     match instr.desc with
     | Pushtrap { lbl_handler } ->
@@ -628,9 +628,9 @@ module Trap_depth_and_exn = struct
       | _ :: stack -> (stack, exceptional_successor), instr
     end
     | Op _ | Call _ | Reloadretaddr | Prologue ->
-      record_handler stack exceptional_successor
-        ~can_raise:(Cfg.can_raise_basic instr.desc),
-      instr
+      ( record_handler stack exceptional_successor
+          ~can_raise:(Cfg.can_raise_basic instr.desc),
+        instr )
 
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
    fun cfg label stack ->
@@ -649,10 +649,10 @@ module Trap_depth_and_exn = struct
       let stack, exceptional_successor, body =
         ListLabels.fold_left block.body ~init:(stack, None, [])
           ~f:(fun (stack, exceptional_successor, body) instr ->
-              let (stack, exceptional_successor), instr =
-                process_basic exceptional_successor stack instr
-              in
-              stack, exceptional_successor, instr :: body)
+            let (stack, exceptional_successor), instr =
+              process_basic exceptional_successor stack instr
+            in
+            stack, exceptional_successor, instr :: body)
       in
       block.body <- List.rev body;
       let (stack, exceptional_successor), terminator =

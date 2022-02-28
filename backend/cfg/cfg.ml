@@ -405,13 +405,7 @@ let is_noop_move instr =
     false
 
 let set_trap_depth (instr : _ instruction) trap_depth =
-  if instr.trap_depth = trap_depth then
-    instr
-  else
-    { instr with trap_depth; }
+  if instr.trap_depth = trap_depth then instr else { instr with trap_depth }
 
 let set_live (instr : _ instruction) live =
-  if Reg.Set.equal instr.live live then
-    instr
-  else
-    { instr with live; }
+  if Reg.Set.equal instr.live live then instr else { instr with live }

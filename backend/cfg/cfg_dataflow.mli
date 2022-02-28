@@ -73,10 +73,17 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain * Cfg.basic Cfg.instruction
+  val basic :
+    domain ->
+    exn:domain ->
+    Cfg.basic Cfg.instruction ->
+    domain * Cfg.basic Cfg.instruction
 
   val terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain * Cfg.terminator Cfg.instruction
+    domain ->
+    exn:domain ->
+    Cfg.terminator Cfg.instruction ->
+    domain * Cfg.terminator Cfg.instruction
 
   val exception_ : domain -> domain
 end

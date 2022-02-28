@@ -27,7 +27,11 @@ end
 module Transfer = struct
   type domain = Domain.t
 
-  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain * Cfg.basic Cfg.instruction =
+  let basic :
+      domain ->
+      exn:domain ->
+      Cfg.basic Cfg.instruction ->
+      domain * Cfg.basic Cfg.instruction =
    fun value ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
@@ -35,9 +39,7 @@ module Transfer = struct
          && Reg.disjoint_set_array value instr.res
          && (not (Proc.regs_are_volatile instr.arg))
          && not (Proc.regs_are_volatile instr.res)
-      then begin
-        value, Cfg.set_live instr value
-      end
+      then value, Cfg.set_live instr value
       else
         let across = Reg.diff_set_array value instr.res in
         let across =
@@ -47,37 +49,33 @@ module Transfer = struct
         in
         Reg.add_set_array across instr.arg, Cfg.set_live instr across
     | Reloadretaddr ->
-      Reg.diff_set_array value Proc.destroyed_at_reloadretaddr, Cfg.set_live instr Reg.Set.empty
-    | Pushtrap _ ->
-      value, Cfg.set_live instr Reg.Set.empty
-    | Poptrap ->
-      value, Cfg.set_live instr Reg.Set.empty
-    | Prologue ->
-      value, Cfg.set_live instr Reg.Set.empty
+      ( Reg.diff_set_array value Proc.destroyed_at_reloadretaddr,
+        Cfg.set_live instr Reg.Set.empty )
+    | Pushtrap _ -> value, Cfg.set_live instr Reg.Set.empty
+    | Poptrap -> value, Cfg.set_live instr Reg.Set.empty
+    | Prologue -> value, Cfg.set_live instr Reg.Set.empty
 
   let terminator :
-    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain * Cfg.terminator Cfg.instruction =
+      domain ->
+      exn:domain ->
+      Cfg.terminator Cfg.instruction ->
+      domain * Cfg.terminator Cfg.instruction =
    fun value ~exn instr ->
     match instr.desc with
     | Never -> assert false
-    | Always _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
+    | Always _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Parity_test _ ->
       Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Truth_test _ ->
       Reg.add_set_array value instr.arg, Cfg.set_live instr value
     | Float_test _ ->
       Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Int_test _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Switch _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Return ->
-      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
+    | Int_test _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
+    | Switch _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
+    | Return -> Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Tailcall (Self _) ->
       Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
-    | Raise _ ->
-      Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
+    | Raise _ -> Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
     | Tailcall (Func _) ->
       Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Call_no_return _ ->
