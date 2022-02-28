@@ -72,15 +72,14 @@ type t =
 
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inlined; inlining_state; probe_name; relative_history } =
+      dbg; inlined; inlining_state; probe_name; relative_history=_ } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
-      @[<hov 1>(probe_name@ %a)@]@ \
-      @[<hov 1>(relative_history@ %a)@]\
+      @[<hov 1>(probe_name@ %a)@]\
       )@]"
     Simple.print callee
     Result_continuation.print continuation
@@ -97,7 +96,6 @@ let [@ocamlformat "disable"] print ppf
       | None -> Format.pp_print_string ppf "()"
       | Some probe_name -> Format.pp_print_string ppf probe_name)
     probe_name
-    Inlining_history.Relative.print relative_history
 
 let invariant
     ({ callee;

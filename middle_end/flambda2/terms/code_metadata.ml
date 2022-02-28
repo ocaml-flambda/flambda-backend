@@ -147,7 +147,8 @@ let [@ocamlformat "disable"] print ppf
         params_arity; num_trailing_local_params; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
-        dbg; is_tupled; is_my_closure_used; inlining_decision; absolute_history; relative_history} =
+        dbg; is_tupled; is_my_closure_used; inlining_decision;
+        absolute_history=_; relative_history=_} =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
@@ -165,9 +166,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      @[<hov 1>(inlining_decision@ %a)@]@ \
-      @[<hov 1>(absolute_history@ %a)@]@ \
-      @[<hov 1>(relative_history@ %a)@]\
+      @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide ()
     else Flambda_colours.normal ())
@@ -222,8 +221,6 @@ let [@ocamlformat "disable"] print ppf
     (Flambda_colours.normal ())
     is_my_closure_used
     Function_decl_inlining_decision_type.print inlining_decision
-    Inlining_history.Absolute.print absolute_history
-    Inlining_history.Relative.print relative_history
 
 let free_names
     { code_id = _;
