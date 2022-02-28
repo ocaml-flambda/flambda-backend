@@ -137,10 +137,8 @@ type t =
        handlers *)
     pures : binding Variable.Map.t;
     (* pure bindings that can be inlined across stages. *)
-    stages : stage list;
+    stages : stage list
     (* archived stages, in reverse chronological order. *)
-    inlined_box_vars : Variable.Set.t
-        (* Variables bound to boxes that we're inlining *)
   }
 
 let mk offsets functions_info k_return ~exn_continuation:k_exn =
@@ -157,8 +155,7 @@ let mk offsets functions_info k_return ~exn_continuation:k_exn =
     exn_conts_extra_args = Continuation.Map.empty;
     names_in_scope = Code_id_or_symbol.Set.empty;
     deleted = Code_id.Set.empty;
-    used_code_ids = Code_id.Set.empty;
-    inlined_box_vars = Variable.Set.empty
+    used_code_ids = Code_id.Set.empty
   }
 
 let enter_function_def env k_return k_exn =
@@ -178,8 +175,7 @@ let enter_function_def env k_return k_exn =
     vars = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
     conts = Continuation.Map.empty;
-    exn_conts_extra_args = Continuation.Map.empty;
-    inlined_box_vars = Variable.Set.empty
+    exn_conts_extra_args = Continuation.Map.empty
   }
 
 let return_cont env = env.k_return
@@ -395,10 +391,9 @@ let mk_binding ?extra env inline effs var cmm_expr =
 let bind_pure env var b = { env with pures = Variable.Map.add var b env.pures }
 
 let bind_inlined_box env var b =
-  (* Bind it as pure, but keep track of it so that we can flush when
-     necessary *)
-  let env = bind_pure env var b in
-  { env with inlined_box_vars = Variable.Set.add var env.inlined_box_vars }
+  (* CR lmaurer: This violates the rule about moving allocations past function
+     calls. We should either fix it (not clear how) or be rid of that rule. *)
+  bind_pure env var b
 
 let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
 
@@ -490,7 +485,7 @@ let order_add b acc = M.add b.order b acc
 let order_add_map m acc =
   Variable.Map.fold (fun _ b acc -> order_add b acc) m acc
 
-let flush_delayed_lets ?(entering_loop = false) ?(before_call = false) env =
+let flush_delayed_lets ?(entering_loop = false) env =
   (* generate a wrapper function to introduce the delayed let-bindings. *)
   let wrap_aux pures stages e =
     let order_map = order_add_map pures M.empty in
@@ -505,25 +500,15 @@ let flush_delayed_lets ?(entering_loop = false) ?(before_call = false) env =
       (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
       order_map e
   in
-  (* Normally, only those pure bindings that are not to be inlined are flushed
-     now. The remainder are preserved, ensuring that the corresponding
-     expressions are sunk down as far as possible. The exceptions are: (a) when
-     entering a loop, all bindings are flushed; and (b) before a function call,
-     all inlined boxes are flushed (see comment on [classify] about
-     allocations). *)
+  (* Unless entering a loop, only pure bindings that are not to be inlined are
+     flushed now. The remainder are preserved, ensuring that the corresponding
+     expressions are sunk down as far as possible. *)
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
      loops. *)
   let pures_to_keep, pures_to_flush =
     if entering_loop
     then Variable.Map.empty, env.pures
-    else
-      let keep_pure var binding =
-        let flush_inlined_box =
-          before_call && Variable.Set.mem var env.inlined_box_vars
-        in
-        binding.inline && not flush_inlined_box
-      in
-      Variable.Map.partition keep_pure env.pures
+    else Variable.Map.partition (fun _ binding -> binding.inline) env.pures
   in
   let wrap e = wrap_aux pures_to_flush env.stages e in
   wrap, { env with stages = []; pures = pures_to_keep }

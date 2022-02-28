@@ -1143,25 +1143,24 @@ and wrap_call_exn env e call k_exn =
 and wrap_cont env res effs call e =
   match Apply_expr.continuation e with
   | Never_returns ->
-    let wrap, _ = Env.flush_delayed_lets ~before_call:true env in
+    let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
   | Return k when Continuation.equal (Env.return_cont env) k ->
-    let wrap, _ = Env.flush_delayed_lets ~before_call:true env in
+    let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
   | Return k -> begin
     match Env.get_k env k with
     | Jump { types = []; cont } ->
-      let wrap, _ = Env.flush_delayed_lets ~before_call:true env in
+      let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.sequence call (C.cexit cont [] [])), res
     | Jump { types = [_]; cont } ->
-      let wrap, _ = Env.flush_delayed_lets ~before_call:true env in
+      let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.cexit cont [call] []), res
     | Inline
         { handler_params = [];
           handler_body = body;
           handler_params_occurrences = _
         } ->
-      let wrap, env = Env.flush_delayed_lets ~before_call:true env in
       let var = Variable.create "*apply_res*" in
       let num_normal_occurrences_of_bound_vars =
         Variable.Map.singleton var Num_occurrences.Zero
@@ -1169,22 +1168,19 @@ and wrap_cont env res effs call e =
       let env =
         let_expr_bind env var ~num_normal_occurrences_of_bound_vars call effs
       in
-      let cmm, res = expr env res body in
-      wrap cmm, res
+      expr env res body
     | Inline
         { handler_params = [param];
           handler_body = body;
           handler_params_occurrences
         } ->
-      let wrap, env = Env.flush_delayed_lets ~before_call:true env in
       let var = Bound_parameter.var param in
       let env =
         let_expr_bind env var
           ~num_normal_occurrences_of_bound_vars:handler_params_occurrences call
           effs
       in
-      let cmm, res = expr env res body in
-      wrap cmm, res
+      expr env res body
     | Jump _ | Inline _ ->
       (* TODO: add support using unboxed tuples *)
       Misc.fatal_errorf
