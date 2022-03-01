@@ -40,11 +40,13 @@ type dwarf_section =
   | Debug_str
   | Debug_line
 
+(* Right now [Asm_section] is only meant to represent dwarf sections.
+   This type is kept as-is to make it obvious. *)
 type t = DWARF of dwarf_section
 
 val to_string : t -> string
 
-type flags_for_section = private
+type section_details = private
   { names : string list;
     flags : string option;
     args : string list
@@ -55,7 +57,7 @@ val dwarf_sections_in_order : unit -> t list
 (** The necessary information for a section directive. [first_occurrence] should
     be [true] iff the corresponding directive will be the first such in the
     relevant assembly file for the given section. *)
-val flags : t -> first_occurrence:bool -> flags_for_section
+val details : t -> first_occurrence:bool -> section_details
 
 val print : Format.formatter -> t -> unit
 

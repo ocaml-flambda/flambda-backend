@@ -40,7 +40,7 @@ type dwarf_section =
 
 type t = DWARF of dwarf_section
 
-type flags_for_section =
+type section_details =
   { names : string list;
     flags : string option;
     args : string list
@@ -61,7 +61,7 @@ let dwarf_sections_in_order () =
   in
   sections @ dwarf_version_dependent_sections
 
-let flags t ~first_occurrence =
+let details t ~first_occurrence =
   let names, flags, args =
     match t, Target_system.derived_system () with
     | DWARF dwarf, MacOS_like ->
@@ -100,7 +100,7 @@ let flags t ~first_occurrence =
   { names; flags; args }
 
 let to_string t =
-  let { names; flags = _; args = _ } = flags t ~first_occurrence:true in
+  let { names; flags = _; args = _ } = details t ~first_occurrence:true in
   String.concat " " names
 
 let print ppf t =

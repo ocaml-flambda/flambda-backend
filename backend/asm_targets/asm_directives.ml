@@ -125,8 +125,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       ()
     | _ ->
       current_section_ref := Some section;
-      let ({ names; flags; args } : Asm_section.flags_for_section) =
-        Asm_section.flags section ~first_occurrence
+      let ({ names; flags; args } : Asm_section.section_details) =
+        Asm_section.details section ~first_occurrence
       in
       if not first_occurrence then new_line ();
       D.section names flags args;
