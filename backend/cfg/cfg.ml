@@ -394,7 +394,10 @@ let print_terminator oc ?sep ti =
 
 let is_noop_move instr =
   match instr.desc with
-  | Op (Move | Spill | Reload) -> Reg.same_loc instr.arg.(0) instr.res.(0)
+  | Op (Move | Spill | Reload) -> (
+    match instr.arg.(0).loc with
+    | Unknown -> false
+    | Reg _ | Stack _ -> Reg.same_loc instr.arg.(0) instr.res.(0))
   | Op
       ( Const_int _ | Const_float _ | Const_symbol _ | Stackoffset _ | Load _
       | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf | Mulf
