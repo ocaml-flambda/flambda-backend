@@ -70,15 +70,21 @@ type t =
     relative_history : Inlining_history.Relative.t
   }
 
+let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
+  if !Flambda_backend_flags.dump_inlining_paths then
+    Format.fprintf ppf "@[<hov 1>(relative_history@ %a)@]@ "
+      Inlining_history.Relative.print relative_history
+
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; call_kind;
-      dbg; inlined; inlining_state; probe_name; relative_history=_ } =
+      dbg; inlined; inlining_state; probe_name; relative_history } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}@ (%a))@]@ \
       @[<hov 1>(call_kind@ %a)@]@ \
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>(inline@ %a)@]@ \
       @[<hov 1>(inlining_state@ %a)@]@ \
+      %a
       @[<hov 1>(probe_name@ %a)@]\
       )@]"
     Simple.print callee
@@ -91,6 +97,7 @@ let [@ocamlformat "disable"] print ppf
     (Flambda_colours.normal ())
     Inlined_attribute.print inlined
     Inlining_state.print inlining_state
+    print_inlining_paths relative_history
     (fun ppf probe_name ->
       match probe_name with
       | None -> Format.pp_print_string ppf "()"
