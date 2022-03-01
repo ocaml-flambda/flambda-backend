@@ -137,8 +137,7 @@ type t =
        handlers *)
     pures : binding Variable.Map.t;
     (* pure bindings that can be inlined across stages. *)
-    stages : stage list
-    (* archived stages, in reverse chronological order. *)
+    stages : stage list (* archived stages, in reverse chronological order. *)
   }
 
 let mk offsets functions_info k_return ~exn_continuation:k_exn =
