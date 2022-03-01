@@ -1248,16 +1248,12 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
   let set_of_closures_pattern =
     Bound_static.Pattern.set_of_closures closure_symbols
   in
-  let bound_static = [set_of_closures_pattern] |> Bound_static.create in
   let set_of_closures_static_const =
     Rebuilt_static_const.create_set_of_closures
       (DA.are_rebuilding_terms dacc)
       set_of_closures
   in
-  let static_consts =
-    [set_of_closures_static_const] |> Rebuilt_static_const.Group.create
-  in
-  bound_static, static_consts, dacc
+  set_of_closures_pattern, set_of_closures_static_const, dacc
 
 module List = struct
   include List
@@ -1298,20 +1294,14 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
     (fun (patterns_acc, static_consts_acc, dacc)
          (closure_symbols, set_of_closures) closure_bound_names_inside
          (value_slots, value_slot_types) ->
-      let patterns, static_consts, dacc =
+      let pattern, static_const, dacc =
         if Set_of_closures.is_empty set_of_closures
         then
-          let bound_static =
-            Bound_static.create
-              [Bound_static.Pattern.set_of_closures closure_symbols]
-          in
-          let static_consts =
-            Rebuilt_static_const.Group.create
-              [ Rebuilt_static_const.create_set_of_closures
-                  (DA.are_rebuilding_terms dacc)
-                  set_of_closures ]
-          in
-          bound_static, static_consts, dacc
+          ( Bound_static.Pattern.set_of_closures closure_symbols,
+            Rebuilt_static_const.create_set_of_closures
+              (DA.are_rebuilding_terms dacc)
+              set_of_closures,
+            dacc )
         else
           simplify_lifted_set_of_closures0 context ~closure_symbols
             ~closure_bound_names_inside ~value_slots ~value_slot_types
@@ -1320,9 +1310,11 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
       (* The order doesn't matter here -- see comment in [Simplify_static_const]
          where this function is called from. *)
       let static_const_group =
-        Rebuilt_static_const.Group.concat static_consts static_consts_acc
+        Rebuilt_static_const.Group.add static_const static_consts_acc
       in
-      Bound_static.concat patterns patterns_acc, static_const_group, dacc)
+      ( Bound_static.concat (Bound_static.singleton pattern) patterns_acc,
+        static_const_group,
+        dacc ))
     (Bound_static.empty, Rebuilt_static_const.Group.empty, dacc)
     all_sets_of_closures_and_symbols
     closure_bound_names_inside_functions_all_sets value_slots_and_types_all_sets
