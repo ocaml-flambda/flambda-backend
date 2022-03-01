@@ -16,7 +16,7 @@ open Printf
 let serve_connection s =
   let buf = Bytes.make 1024 '>' in
   let n = Unix.read s buf 2 (Bytes.length buf - 2) in
-  Thread.delay 1.0;
+  Thread.delay 0.1;
   ignore (Unix.write s buf 0 (n + 2));
   Unix.close s
 
@@ -45,5 +45,5 @@ let _ =
   Unix.listen sock 5;
   ignore (Thread.create server sock);
   ignore (Thread.create client (addr, "Client #1\n"));
-  Thread.delay 0.5;
+  Thread.delay 0.05;
   client (addr, "Client #2\n")

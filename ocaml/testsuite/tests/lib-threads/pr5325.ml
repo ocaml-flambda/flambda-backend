@@ -45,12 +45,12 @@ let _ =
   let addr = Unix.getsockname serv in
   Unix.listen serv 5;
   let tserv = Thread.create server serv in
-  Thread.delay 0.5;
+  Thread.delay 0.05;
   let client =
     Unix.socket (Unix.domain_of_sockaddr addr) Unix.SOCK_STREAM 0 in
   Unix.connect client addr;
   let rd = Thread.create reader client in
-  Thread.delay 0.5;
+  Thread.delay 0.05;
   writer client "Client data\n";
   Thread.join rd;
   Thread.join tserv

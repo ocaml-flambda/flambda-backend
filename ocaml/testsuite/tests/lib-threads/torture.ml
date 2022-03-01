@@ -48,7 +48,7 @@ let _ =
   let (out2, in2) = Unix.pipe() in
   let t4 = Thread.create writer_thread (in2, 16) in
   let t5 = Thread.create reader_thread (out2, 16) in
-  Thread.delay 3.0;
+  Thread.delay 0.3;
   finished := true;
   List.iter Thread.join [t1; t2; t3; t4; t5];
   print_string "passed\n"
