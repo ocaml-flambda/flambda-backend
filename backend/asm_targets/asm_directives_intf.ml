@@ -225,7 +225,6 @@ module type S = sig
     ?comment:string ->
     Asm_section.dwarf_section ->
     Asm_label.t ->
-    width:Machine_width.t ->
     unit
 
   (** Emit an offset into a DWARF section given a symbol identifying the place
@@ -236,6 +235,5 @@ module type S = sig
     ?comment:string ->
     Asm_section.dwarf_section ->
     Asm_symbol.t ->
-    width:Machine_width.t ->
     unit
 end

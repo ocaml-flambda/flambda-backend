@@ -214,11 +214,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
        check_symbol_for_definition_in_current_section symbol; *)
     let symbol = Asm_symbol.encode symbol in
-    let data_type =
-      match Machine_width.of_int_exn Sys.word_size with
-      | Thirty_two -> D.DWORD
-      | Sixty_four -> D.QWORD
-    in
+    let data_type = D.QWORD in
     D.label ~data_type symbol;
     match Target_system.assembler (), Target_system.is_windows () with
     | GAS_like, false -> D.type_ symbol "STT_OBJECT"
@@ -226,10 +222,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let global sym = D.global (Asm_symbol.encode sym)
 
-  let const_machine_width const =
-    match Machine_width.of_int_exn Sys.word_size with
-    | Thirty_two -> D.long const
-    | Sixty_four -> D.qword const
+  let const_machine_width const = D.qword const
 
   let symbol =
     with_comment (fun sym ->
@@ -284,7 +277,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
          Symbol sym (* not really a symbol, but OK. *) *)
       Misc.fatal_error "not implemented"
 
-  let offset_into_dwarf_section_label ?comment section upper ~width =
+  let offset_into_dwarf_section_label ?comment section upper =
     let upper_section = Asm_label.section upper in
     let expected_section : Asm_section.t = DWARF section in
     if not (Asm_section.equal upper_section expected_section)
@@ -313,10 +306,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
              (D.const_label (Asm_label.encode lower)))
       else D.const_label (Asm_label.encode upper)
     in
-    match (width : Machine_width.t) with
-    | Thirty_two -> D.long expr
-    | Sixty_four -> D.qword expr
+    D.qword expr
 
-  let offset_into_dwarf_section_symbol ?comment:_ _section _symbol ~width:_ =
+  let offset_into_dwarf_section_symbol ?comment:_ _section _symbol =
     A.emit_line "offset_into_dwarf_section_symbol"
 end
