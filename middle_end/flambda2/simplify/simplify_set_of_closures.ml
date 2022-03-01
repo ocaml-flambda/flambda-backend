@@ -1245,24 +1245,17 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
       ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let dacc = introduce_code dacc code in
-  let code_patterns =
-    Code_id.Lmap.keys code |> List.map Bound_static.Pattern.code
-  in
   let set_of_closures_pattern =
     Bound_static.Pattern.set_of_closures closure_symbols
   in
-  let bound_static =
-    set_of_closures_pattern :: code_patterns |> Bound_static.create
-  in
-  let code_static_consts = Code_id.Lmap.data code in
+  let bound_static = [set_of_closures_pattern] |> Bound_static.create in
   let set_of_closures_static_const =
     Rebuilt_static_const.create_set_of_closures
       (DA.are_rebuilding_terms dacc)
       set_of_closures
   in
   let static_consts =
-    set_of_closures_static_const :: code_static_consts
-    |> Rebuilt_static_const.Group.create
+    [set_of_closures_static_const] |> Rebuilt_static_const.Group.create
   in
   bound_static, static_consts, dacc
 
