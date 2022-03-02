@@ -37,6 +37,9 @@ let mk_heap_reduction_threshold f =
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
 
+let mk_dump_inlining_paths f =
+  "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
+
 module Flambda2 = Flambda_backend_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
@@ -382,6 +385,7 @@ let mk_dfreshen f =
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
+  val dump_inlining_paths : unit -> unit
   val dcfg : unit -> unit
 
   val use_cpp_mangling : unit -> unit
@@ -444,6 +448,7 @@ end
 module Make_flambda_backend_options (F : Flambda_backend_options) =
 struct
   let list2 = [
+    mk_dump_inlining_paths F.dump_inlining_paths;
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
@@ -542,6 +547,8 @@ module Flambda_backend_options_impl = struct
   let ocamlcfg = set' Flambda_backend_flags.use_ocamlcfg
   let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
   let dcfg = set' Flambda_backend_flags.dump_cfg
+
+  let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
   let use_cpp_mangling = set' Flambda_backend_flags.use_cpp_mangling
 
@@ -701,6 +708,7 @@ module Extra_params = struct
     in
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
+    | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "use-cpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points

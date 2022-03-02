@@ -142,12 +142,22 @@ module Option = struct
     | Some contents -> Format.fprintf ppf "%a" print_contents contents
 end
 
+let [@ocamlformat "disable"] print_inlining_paths ppf
+                                (relative_history, absolute_history) =
+  if !Flambda_backend_flags.dump_inlining_paths then
+    Format.fprintf ppf
+      "@[<hov 1>(relative_history@ %a)@]@ \
+       @[<hov 1>(absolute_history@ %a)@]@ "
+      Inlining_history.Relative.print relative_history
+      Inlining_history.Absolute.print absolute_history
+
 let [@ocamlformat "disable"] print ppf
       { code_id = _; newer_version_of; stub; inline; is_a_functor;
         params_arity; num_trailing_local_params; result_arity;
         result_types; contains_no_escaping_local_allocs;
         recursive; cost_metrics; inlining_arguments;
-        dbg; is_tupled; is_my_closure_used; inlining_decision; absolute_history; relative_history} =
+        dbg; is_tupled; is_my_closure_used; inlining_decision;
+        absolute_history; relative_history} =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>@<0>%s(newer_version_of@ %a)@<0>%s@]@ \
@@ -165,9 +175,8 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>@<0>%s(dbg@ %a)@<0>%s@]@ \
       @[<hov 1>@<0>%s(is_tupled@ %b)@<0>%s@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      @[<hov 1>(inlining_decision@ %a)@]@ \
-      @[<hov 1>(absolute_history@ %a)@]@ \
-      @[<hov 1>(relative_history@ %a)@]\
+      %a
+      @[<hov 1>(inlining_decision@ %a)@]\
       )@]"
     (if Option.is_none newer_version_of then Flambda_colours.elide ()
     else Flambda_colours.normal ())
@@ -221,9 +230,8 @@ let [@ocamlformat "disable"] print ppf
     is_tupled
     (Flambda_colours.normal ())
     is_my_closure_used
+    print_inlining_paths (relative_history, absolute_history)
     Function_decl_inlining_decision_type.print inlining_decision
-    Inlining_history.Absolute.print absolute_history
-    Inlining_history.Relative.print relative_history
 
 let free_names
     { code_id = _;
