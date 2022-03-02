@@ -4,4 +4,4 @@
   (flags (:standard -principal -nostdlib))
   (libraries
    stdlib runtime_native ocamlcommon ocamloptcomp
-   flambda2 flambda2_compare flambda2_parser flambda2_terms))
+   flambda2 flambda2_compare flambda2_parser flambda2_terms flambda2_cmx))

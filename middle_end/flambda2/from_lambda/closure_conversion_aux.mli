@@ -81,18 +81,30 @@ module IR : sig
   val print_named : Format.formatter -> named -> unit
 end
 
+module Inlining : sig
+  type inlinable_result =
+    | Not_inlinable
+    | Inlinable of Code.t
+
+  val threshold : unit -> int
+
+  val definition_inlining_decision :
+    Inline_attribute.t ->
+    Cost_metrics.t ->
+    Function_decl_inlining_decision_type.t
+end
+
 (** Used to remember which [Variable.t] values correspond to which [Ident.t]
     values during closure conversion, and similarly for static exception
     identifiers. *)
 module Env : sig
-  type value_approximation =
-    | Value_unknown
-    | Closure_approximation of Code_id.t * Code.t option
-    | Block_approximation of value_approximation array * Alloc_mode.t
-
   type t
 
-  val create : symbol_for_global:(Ident.t -> Symbol.t) -> big_endian:bool -> t
+  val create :
+    symbol_for_global:(Ident.t -> Symbol.t) ->
+    big_endian:bool ->
+    cmx_loader:Flambda_cmx.loader ->
+    t
 
   val clear_local_bindings : t -> t
 
@@ -127,16 +139,16 @@ module Env : sig
 
   val find_simple_to_substitute_exn : t -> Ident.t -> Simple.t
 
-  val add_value_approximation : t -> Name.t -> value_approximation -> t
+  val add_value_approximation : t -> Name.t -> Code.t Value_approximation.t -> t
 
   val add_closure_approximation : t -> Name.t -> Code_id.t * Code.t option -> t
 
   val add_block_approximation :
-    t -> Name.t -> value_approximation array -> Alloc_mode.t -> t
+    t -> Name.t -> Code.t Value_approximation.t array -> Alloc_mode.t -> t
 
   val add_approximation_alias : t -> Name.t -> Name.t -> t
 
-  val find_value_approximation : t -> Simple.t -> value_approximation
+  val find_value_approximation : t -> Simple.t -> Code.t Value_approximation.t
 
   val current_depth : t -> Variable.t option
 
@@ -165,7 +177,7 @@ module Acc : sig
 
   val create :
     symbol_for_global:(Ident.t -> Symbol.t) ->
-    closure_offsets:Closure_offsets.t Or_unknown.t ->
+    closure_offsets:Closure_offsets.t ->
     t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
@@ -194,7 +206,7 @@ module Acc : sig
   val remove_continuation_from_free_names : Continuation.t -> t -> t
 
   val continuation_known_arguments :
-    cont:Continuation.t -> t -> Env.value_approximation list option
+    cont:Continuation.t -> t -> Code.t Value_approximation.t list option
 
   val with_free_names : Name_occurrences.t -> t -> t
 
@@ -218,7 +230,7 @@ module Acc : sig
 
   val symbol_for_global : t -> Ident.t -> Symbol.t
 
-  val closure_offsets : t -> Closure_offsets.t Or_unknown.t
+  val closure_offsets : t -> Closure_offsets.t
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
@@ -325,7 +337,7 @@ module Apply_cont_with_acc : sig
   val create :
     Acc.t ->
     ?trap_action:Trap_action.t ->
-    ?args_approx:Env.value_approximation list ->
+    ?args_approx:Code.t Value_approximation.t list ->
     Continuation.t ->
     args:Simple.t list ->
     dbg:Debuginfo.t ->
