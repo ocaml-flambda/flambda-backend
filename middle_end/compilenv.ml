@@ -124,7 +124,9 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_checks = Checks.create ();
-    ui_export_info = default_ui_export_info }
+    ui_export_info = default_ui_export_info;
+    ui_section_toc = [||];
+    ui_sections_length = 0 }
 
 let reset compilation_unit =
   CU.Name.Tbl.clear global_infos_table;
@@ -143,7 +145,9 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  CU.Name.Tbl.clear export_infos_table
+  CU.Name.Tbl.clear export_infos_table;
+  Cmx_sections.close_all ();
+  Compilation_unit.set_current compilation_unit
 
 let current_unit_infos () =
   current_unit
@@ -157,8 +161,12 @@ let read_unit_info filename =
       raise(Error(Not_a_unit_info filename))
     end;
     let ui = (input_value ic : unit_infos) in
+    let first_section_offset = pos_in ic in
+    Cmx_sections.add_unit ui ic ~first_section_offset;
+    seek_in ic (first_section_offset + ui.ui_sections_length);
     let crc = Digest.input ic in
-    close_in ic;
+    if Array.length ui.ui_section_toc = 0 then
+      close_in ic;
     (ui, crc)
   with End_of_file | Failure _ ->
     close_in ic;

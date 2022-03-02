@@ -63,7 +63,12 @@ type unit_infos =
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: export_info;
     mutable ui_checks: checks;
-    mutable ui_force_link: bool }         (* Always linked *)
+    mutable ui_force_link: bool;          (* Always linked *)
+    mutable ui_section_toc: int array;    (* Byte offsets of sections in .cmx
+                                             relative to byte immediately after
+                                             this record *)
+    mutable ui_sections_length: int;      (* Byte length of all sections *)
+  }
 
 (* Each .a library has a matching .cmxa file that provides the following
    infos on the library: *)
