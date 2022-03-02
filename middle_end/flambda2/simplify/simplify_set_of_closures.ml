@@ -412,9 +412,9 @@ end
 
 module C = Context_for_multiple_sets_of_closures
 
-let dacc_inside_function context ~used_value_slots ~shareable_constants
-    ~slot_offsets ~params ~my_closure ~my_depth function_slot_opt
-    ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history =
+let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
+    function_slot_opt ~closure_bound_names_inside_function ~inlining_arguments
+    ~absolute_history =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
         let denv = DE.add_parameters_with_unknown_types denv params in
@@ -453,25 +453,60 @@ let dacc_inside_function context ~used_value_slots ~shareable_constants
           let my_depth = Bound_var.create my_depth Name_mode.normal in
           DE.add_variable denv my_depth (T.unknown K.rec_info)
         in
+        let denv =
+          LCS.add_to_denv ~maybe_already_defined:() denv
+            (DA.get_lifted_constants outer_dacc)
+        in
         denv)
   in
+  let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
+  let used_value_slots = DA.used_value_slots outer_dacc in
+  let shareable_constants = DA.shareable_constants outer_dacc in
+  let slot_offsets = DA.slot_offsets outer_dacc in
   dacc
-  |> DA.with_shareable_constants ~shareable_constants
+  |> DA.with_code_ids_to_remember ~code_ids_to_remember
   |> DA.with_used_value_slots ~used_value_slots
+  |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
+
+let extract_accumulators_from_function outer_dacc ~dacc_after_body
+    ~uacc_after_upwards_traversal =
+  let lifted_consts_this_function =
+    (* Subtle point: [uacc_after_upwards_traversal] must be used to retrieve all
+       of the lifted constants generated during the simplification of the
+       function, not [dacc_after_body]. The reason for this is that sometimes
+       the constants in [DA] are cleared (but remembered) and reinstated
+       afterwards, for example at a [Let_cont]. It follows that if the turning
+       point where the downwards traversal turns into an upwards traversal is in
+       such a context, not all of the constants may currently be present in
+       [DA]. *)
+    UA.lifted_constants uacc_after_upwards_traversal
+  in
+  let code_ids_to_remember = DA.code_ids_to_remember dacc_after_body in
+  let used_value_slots = UA.used_value_slots uacc_after_upwards_traversal in
+  let shareable_constants =
+    UA.shareable_constants uacc_after_upwards_traversal
+  in
+  let slot_offsets = DA.slot_offsets dacc_after_body in
+  let outer_dacc =
+    DA.add_to_lifted_constant_accumulator ~also_add_to_env:() outer_dacc
+      lifted_consts_this_function
+  in
+  ( outer_dacc
+    |> DA.with_code_ids_to_remember ~code_ids_to_remember
+    |> DA.with_used_value_slots ~used_value_slots
+    |> DA.with_shareable_constants ~shareable_constants
+    |> DA.with_slot_offsets ~slot_offsets,
+    lifted_consts_this_function )
 
 type simplify_function_result =
   { code_id : Code_id.t;
     code : Rebuilt_static_const.t option;
-    dacc_after_body : DA.t option;
-    uacc_after_upwards_traversal : UA.t option;
-    lifted_consts_this_function : LCS.t
+    outer_dacc : DA.t
   }
 
-let simplify_function0 context ~used_value_slots ~shareable_constants
-    ~slot_offsets function_slot_opt code_id code
-    ~closure_bound_names_inside_function code_age_relation
-    ~lifted_consts_prev_functions =
+let simplify_function0 context ~outer_dacc function_slot_opt code_id code
+    ~closure_bound_names_inside_function =
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
   let inlining_arguments_from_denv =
     denv_prior_to_sets |> DE.inlining_arguments
@@ -524,10 +559,9 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
            ~free_names_of_body:_
          ->
         let dacc =
-          dacc_inside_function context ~used_value_slots ~shareable_constants
-            ~slot_offsets ~params ~my_closure ~my_depth function_slot_opt
-            ~closure_bound_names_inside_function ~inlining_arguments
-            ~absolute_history
+          dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_depth
+            function_slot_opt ~closure_bound_names_inside_function
+            ~inlining_arguments ~absolute_history
         in
         if not (DA.no_lifted_constants dacc)
         then
@@ -537,19 +571,8 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
           DA.map_denv dacc ~f:(fun denv ->
               denv
               |> DE.enter_closure code_id ~return_continuation ~exn_continuation
-              |> DE.map_typing_env ~f:(fun typing_env ->
-                     let code_age_relation =
-                       T.Code_age_relation.union
-                         (TE.code_age_relation typing_env)
-                         code_age_relation
-                     in
-                     TE.with_code_age_relation typing_env code_age_relation)
               |> fun denv ->
-              DE.add_parameters_with_unknown_types denv return_cont_params
-              |> fun denv ->
-              (* Lifted constants from previous functions in the set get put
-                 into the environment for subsequent functions. *)
-              LCS.add_to_denv denv lifted_consts_prev_functions)
+              DE.add_parameters_with_unknown_types denv return_cont_params)
         in
         assert (not (DE.at_unit_toplevel (DA.denv dacc)));
         match
@@ -632,6 +655,10 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
             Variable.print my_closure Expr.print body DA.print dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
   in
+  let outer_dacc, lifted_consts_this_function =
+    extract_accumulators_from_function outer_dacc ~dacc_after_body
+      ~uacc_after_upwards_traversal
+  in
   let cost_metrics = UA.cost_metrics uacc_after_upwards_traversal in
   let old_code_id = code_id in
   let code_id, newer_version_of =
@@ -652,17 +679,6 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
       ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc_after_body)
       decision;
     decision
-  in
-  let lifted_consts_this_function =
-    (* Subtle point: [uacc_after_upwards_traversal] must be used to retrieve all
-       of the lifted constants generated during the simplification of the
-       function, not [dacc_after_body]. The reason for this is that sometimes
-       the constants in [DA] are cleared (but remembered) and reinstated
-       afterwards, for example at a [Let_cont]. It follows that if the turning
-       point where the downwards traversal turns into an upwards traversal is in
-       such a context, not all of the constants may currently be present in
-       [DA]. *)
-    UA.lifted_constants uacc_after_upwards_traversal
   in
   let is_a_functor = Code.is_a_functor code in
   let result_types =
@@ -686,14 +702,11 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
             return_cont_params
         in
         let join =
-          let consts_lifted_during_body =
-            LCS.union lifted_consts_prev_functions lifted_consts_this_function
-          in
           Join_points.compute_handler_env
             ~unknown_if_defined_at_or_later_than:
               (DE.get_continuation_scope env_at_fork_plus_params)
             uses ~params:return_cont_params ~env_at_fork_plus_params
-            ~consts_lifted_during_body
+            ~consts_lifted_during_body:lifted_consts_this_function
             ~code_age_relation_after_body:code_age_relation_after_function
         in
         match join with
@@ -720,6 +733,15 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
           in
           Result_types.create ~params ~results:return_cont_params env_extension)
   in
+  let outer_dacc =
+    match UA.slot_offsets uacc_after_upwards_traversal with
+    | Unknown -> outer_dacc
+    | Known offsets ->
+      let slot_offsets =
+        Code_id.Map.add code_id offsets (DA.slot_offsets outer_dacc)
+      in
+      DA.with_slot_offsets outer_dacc ~slot_offsets
+  in
   let code =
     Rebuilt_static_const.create_code
       (DA.are_rebuilding_terms dacc_after_body)
@@ -736,31 +758,18 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
       ~is_my_closure_used:(Code.is_my_closure_used code)
       ~inlining_decision ~absolute_history ~relative_history
   in
-  { code_id;
-    code = Some code;
-    dacc_after_body = Some dacc_after_body;
-    uacc_after_upwards_traversal = Some uacc_after_upwards_traversal;
-    lifted_consts_this_function
-  }
+  { code_id; code = Some code; outer_dacc }
 
-let simplify_function context ~used_value_slots ~shareable_constants
-    ~slot_offsets function_slot code_id ~closure_bound_names_inside_function
-    code_age_relation ~lifted_consts_prev_functions =
+let simplify_function context ~outer_dacc function_slot code_id
+    ~closure_bound_names_inside_function =
   match DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id with
   | Code_present code when not (Code.stub code) ->
-    simplify_function0 context ~used_value_slots ~shareable_constants
-      ~slot_offsets (Some function_slot) code_id code
-      ~closure_bound_names_inside_function code_age_relation
-      ~lifted_consts_prev_functions
+    simplify_function0 context ~outer_dacc (Some function_slot) code_id code
+      ~closure_bound_names_inside_function
   | Code_present _ | Metadata_only _ ->
     (* No new code ID is created in this case: there is no function body to be
        simplified and all other code metadata will remain the same. *)
-    { code_id;
-      code = None;
-      dacc_after_body = None;
-      uacc_after_upwards_traversal = None;
-      lifted_consts_this_function = LCS.empty
-    }
+    { code_id; code = None; outer_dacc }
 
 type simplify_set_of_closures0_result =
   { set_of_closures : Flambda.Set_of_closures.t;
@@ -768,8 +777,9 @@ type simplify_set_of_closures0_result =
     dacc : Downwards_acc.t
   }
 
-let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
-    ~closure_bound_names_inside ~value_slots ~value_slot_types =
+let simplify_set_of_closures0 outer_dacc context set_of_closures
+    ~closure_bound_names ~closure_bound_names_inside ~value_slots
+    ~value_slot_types =
   let dacc = C.dacc_prior_to_sets context in
   let function_decls = Set_of_closures.function_decls set_of_closures in
   let all_function_decls_in_set =
@@ -779,36 +789,13 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
   then
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
-  let ( all_function_decls_in_set,
-        code,
-        fun_types,
-        code_age_relation,
-        used_value_slots,
-        shareable_constants,
-        slot_offsets,
-        lifted_consts,
-        code_ids_to_remember ) =
+  let all_function_decls_in_set, code, fun_types, outer_dacc =
     Function_slot.Lmap.fold
       (fun function_slot old_code_id
-           ( result_function_decls_in_set,
-             code,
-             fun_types,
-             code_age_relation,
-             used_value_slots,
-             shareable_constants,
-             slot_offsets,
-             lifted_consts_prev_functions,
-             code_ids_to_remember ) ->
-        let { code_id;
-              code = new_code;
-              dacc_after_body;
-              uacc_after_upwards_traversal;
-              lifted_consts_this_function
-            } =
-          simplify_function context ~used_value_slots ~shareable_constants
-            ~slot_offsets function_slot old_code_id
+           (result_function_decls_in_set, code, fun_types, outer_dacc) ->
+        let { code_id; code = new_code; outer_dacc } =
+          simplify_function context ~outer_dacc function_slot old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
-            code_age_relation ~lifted_consts_prev_functions
         in
         let function_type =
           let rec_info =
@@ -826,74 +813,10 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           | None -> code
           | Some new_code -> (code_id, new_code) :: code
         in
-        let fun_types =
-          Function_slot.Map.add function_slot function_type fun_types
-        in
-        let lifted_consts_prev_functions =
-          LCS.union lifted_consts_this_function lifted_consts_prev_functions
-        in
-        let code_age_relation =
-          match dacc_after_body with
-          | None -> code_age_relation
-          | Some dacc_after_body ->
-            TE.code_age_relation (DA.typing_env dacc_after_body)
-        in
-        let code_ids_to_remember =
-          match dacc_after_body with
-          | None -> code_ids_to_remember
-          | Some dacc_after_body ->
-            Code_id.Set.union code_ids_to_remember
-              (DA.code_ids_to_remember dacc_after_body)
-        in
-        let used_value_slots =
-          match uacc_after_upwards_traversal with
-          | None -> used_value_slots
-          | Some uacc_after_upwards_traversal ->
-            UA.used_value_slots uacc_after_upwards_traversal
-        in
-        let shareable_constants =
-          match uacc_after_upwards_traversal with
-          | None -> shareable_constants
-          | Some uacc_after_upwards_traversal ->
-            UA.shareable_constants uacc_after_upwards_traversal
-        in
-        let slot_offsets =
-          match uacc_after_upwards_traversal with
-          | None -> slot_offsets
-          | Some uacc_after_upwards_traversal -> (
-            let slot_offsets =
-              DA.slot_offsets (UA.creation_dacc uacc_after_upwards_traversal)
-            in
-            match UA.slot_offsets uacc_after_upwards_traversal with
-            | Unknown -> slot_offsets
-            | Known offsets -> Code_id.Map.add code_id offsets slot_offsets)
-        in
-        ( result_function_decls_in_set,
-          code,
-          fun_types,
-          code_age_relation,
-          used_value_slots,
-          shareable_constants,
-          slot_offsets,
-          lifted_consts_prev_functions,
-          code_ids_to_remember ))
+        let fun_types = Function_slot.Map.add function_slot function_type fun_types in
+        result_function_decls_in_set, code, fun_types, outer_dacc)
       all_function_decls_in_set
-      ( [],
-        [],
-        Function_slot.Map.empty,
-        TE.code_age_relation (DA.typing_env dacc),
-        DA.used_value_slots dacc,
-        DA.shareable_constants dacc,
-        DA.slot_offsets dacc,
-        LCS.empty,
-        DA.code_ids_to_remember dacc )
-  in
-  let dacc =
-    DA.add_to_lifted_constant_accumulator dacc lifted_consts
-    |> DA.with_used_value_slots ~used_value_slots
-    |> DA.with_shareable_constants ~shareable_constants
-    |> DA.with_slot_offsets ~slot_offsets
-    |> DA.with_code_ids_to_remember ~code_ids_to_remember
+      ([], [], Function_slot.Map.empty, outer_dacc)
   in
   let code_ids_to_remember_this_set =
     List.fold_left
@@ -901,7 +824,9 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         Code_id.Set.add code_id code_ids)
       Code_id.Set.empty all_function_decls_in_set
   in
-  let dacc = DA.add_code_ids_to_remember dacc code_ids_to_remember_this_set in
+  let dacc =
+    DA.add_code_ids_to_remember outer_dacc code_ids_to_remember_this_set
+  in
   let all_function_decls_in_set =
     Function_slot.Lmap.of_list (List.rev all_function_decls_in_set)
   in
@@ -933,14 +858,10 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
         denv
-        |> DE.map_typing_env ~f:(fun typing_env ->
-               TE.with_code_age_relation typing_env code_age_relation)
         |> Function_slot.Map.fold
              (fun _function_slot bound_name denv ->
                DE.define_name_if_undefined denv bound_name K.value)
              closure_bound_names
-        |> fun denv ->
-        LCS.add_to_denv denv lifted_consts
         |> Name.Map.fold
              (fun bound_name closure_type denv ->
                DE.add_equation_on_name denv bound_name closure_type)
@@ -1012,7 +933,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
+    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
       ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let closure_symbols_set =
@@ -1079,7 +1000,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
+    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
       ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let dacc = introduce_code dacc code in
@@ -1234,14 +1155,15 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
     simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       set_of_closures ~value_slots ~value_slot_types
 
-let simplify_lifted_set_of_closures0 context ~closure_symbols
-    ~closure_bound_names_inside ~value_slots ~value_slot_types set_of_closures =
+let simplify_lifted_set_of_closures0 dacc context ~closure_symbols
+    ~closure_bound_names_inside ~value_slots ~value_slot_types
+    set_of_closures =
   let closure_bound_names =
     Function_slot.Lmap.map Bound_name.create_symbol closure_symbols
     |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
   let { set_of_closures; code; dacc } =
-    simplify_set_of_closures0 context set_of_closures ~closure_bound_names
+    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
       ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let dacc = introduce_code dacc code in
@@ -1303,7 +1225,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
               set_of_closures,
             dacc )
         else
-          simplify_lifted_set_of_closures0 context ~closure_symbols
+          simplify_lifted_set_of_closures0 dacc context ~closure_symbols
             ~closure_bound_names_inside ~value_slots ~value_slot_types
             set_of_closures
       in
@@ -1321,65 +1243,13 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
 
 let simplify_stub_function dacc code ~all_code ~simplify_toplevel =
   let context = C.create_for_stub dacc ~all_code ~simplify_toplevel in
-  let used_value_slots = DA.used_value_slots dacc in
-  let shareable_constants = DA.shareable_constants dacc in
-  let slot_offsets = DA.slot_offsets dacc in
   let closure_bound_names_inside_function =
     (* Unused, the type of the value slot is going to be unknown *)
     Function_slot.Map.empty
   in
-  let code_age_relation = DA.code_age_relation dacc in
-  let lifted_consts_prev_functions = LCS.empty in
-  let { code_id;
-        code;
-        dacc_after_body;
-        uacc_after_upwards_traversal;
-        lifted_consts_this_function
-      } =
-    simplify_function0 context ~used_value_slots ~shareable_constants
-      ~slot_offsets None (Code.code_id code) code
-      ~closure_bound_names_inside_function code_age_relation
-      ~lifted_consts_prev_functions
+  let { code_id = _; code; outer_dacc } =
+    simplify_function0 context ~outer_dacc:dacc None (Code.code_id code) code
+      ~closure_bound_names_inside_function
   in
   let code = match code with None -> assert false | Some code -> code in
-  let code_age_relation =
-    match dacc_after_body with
-    | None -> code_age_relation
-    | Some dacc_after_body ->
-      TE.code_age_relation (DA.typing_env dacc_after_body)
-  in
-  let used_value_slots =
-    match uacc_after_upwards_traversal with
-    | None -> used_value_slots
-    | Some uacc_after_upwards_traversal ->
-      UA.used_value_slots uacc_after_upwards_traversal
-  in
-  let shareable_constants =
-    match uacc_after_upwards_traversal with
-    | None -> shareable_constants
-    | Some uacc_after_upwards_traversal ->
-      UA.shareable_constants uacc_after_upwards_traversal
-  in
-  let slot_offsets =
-    match uacc_after_upwards_traversal with
-    | None -> slot_offsets
-    | Some uacc_after_upwards_traversal -> (
-      let slot_offsets =
-        DA.slot_offsets (UA.creation_dacc uacc_after_upwards_traversal)
-      in
-      match UA.slot_offsets uacc_after_upwards_traversal with
-      | Unknown -> slot_offsets
-      | Known offsets -> Code_id.Map.add code_id offsets slot_offsets)
-  in
-  let dacc =
-    DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
-      lifted_consts_this_function
-    |> DA.with_used_value_slots ~used_value_slots
-    |> DA.with_shareable_constants ~shareable_constants
-    |> DA.with_slot_offsets ~slot_offsets
-    |> DA.map_denv
-         ~f:
-           (DE.map_typing_env ~f:(fun typing_env ->
-                TE.with_code_age_relation typing_env code_age_relation))
-  in
-  code, dacc
+  code, outer_dacc
