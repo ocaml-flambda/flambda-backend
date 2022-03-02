@@ -24,6 +24,8 @@ type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
+let dump_inlining_paths = ref false
+
 let opt_level = ref Default
 
 let flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3 =

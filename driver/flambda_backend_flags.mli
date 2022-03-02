@@ -25,6 +25,8 @@ type function_result_types = Never | Functors_only | All_functions
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
+val dump_inlining_paths : bool ref
+
 val opt_level : opt_level or_default ref
 
 module Flambda2 : sig
