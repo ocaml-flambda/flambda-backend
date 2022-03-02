@@ -33,39 +33,40 @@ type addressing_expr =
 let rec select_addr exp =
   match exp with
     Cconst_symbol (s, _) when not !Clflags.dlcode ->
-      (Asymbol s, 0)
+      (Asymbol s, 0n)
   | Cop((Caddi | Caddv | Cadda), [arg; Cconst_int (m, _)], _) ->
-      let (a, n) = select_addr arg in (a, n + m)
+      let (a, n) = select_addr arg in (a, Nativeint.(add n (of_int m)))
   | Cop(Csubi, [arg; Cconst_int (m, _)], _) ->
-      let (a, n) = select_addr arg in (a, n - m)
+      let (a, n) = select_addr arg in (a, Nativeint.(sub  n (of_int m)))
   | Cop((Caddi | Caddv | Cadda), [Cconst_int (m, _); arg], _) ->
-      let (a, n) = select_addr arg in (a, n + m)
+      let (a, n) = select_addr arg in (a, Nativeint.(add n (of_int m)))
   | Cop(Clsl, [arg; Cconst_int((1|2|3 as shift), _)], _) ->
       begin match select_addr arg with
-        (Alinear e, n) -> (Ascale(e, 1 lsl shift), n lsl shift)
+        (Alinear e, n) -> (Ascale(e, 1 lsl shift),
+                           Nativeint.shift_left n shift)
       | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
-        -> (Alinear exp, 0)
+        -> (Alinear exp, 0n)
       end
   | Cop(Cmuli, [arg; Cconst_int((2|4|8 as mult), _)], _) ->
       begin match select_addr arg with
-        (Alinear e, n) -> (Ascale(e, mult), n * mult)
+        (Alinear e, n) -> (Ascale(e, mult), Nativeint.(mul n (of_int mult)))
       | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
-        -> (Alinear exp, 0)
+        -> (Alinear exp, 0n)
       end
   | Cop(Cmuli, [Cconst_int((2|4|8 as mult), _); arg], _) ->
       begin match select_addr arg with
-        (Alinear e, n) -> (Ascale(e, mult), n * mult)
+        (Alinear e, n) -> (Ascale(e, mult), Nativeint.(mul n (of_int mult)))
       | ((Asymbol _ | Aadd (_, _) | Ascale (_,_) | Ascaledadd (_, _, _)), _)
-        -> (Alinear exp, 0)
+        -> (Alinear exp, 0n)
       end
   | Cop((Caddi | Caddv | Cadda), [arg1; arg2], _) ->
       begin match (select_addr arg1, select_addr arg2) with
           ((Alinear e1, n1), (Alinear e2, n2)) ->
-              (Aadd(e1, e2), n1 + n2)
+              (Aadd(e1, e2), Nativeint.add n1 n2)
         | ((Alinear e1, n1), (Ascale(e2, scale), n2)) ->
-              (Ascaledadd(e1, e2, scale), n1 + n2)
+              (Ascaledadd(e1, e2, scale), Nativeint.add n1 n2)
         | ((Ascale(e1, scale), n1), (Alinear e2, n2)) ->
-              (Ascaledadd(e2, e1, scale), n1 + n2)
+              (Ascaledadd(e2, e1, scale), Nativeint.add n1 n2)
         | (_, (Ascale(e2, scale), n2)) ->
               (Ascaledadd(arg1, e2, scale), n2)
         | ((Ascale(e1, scale), n1), _) ->
@@ -75,10 +76,10 @@ let rec select_addr exp =
         | (((Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _),
            ((Asymbol _ | Alinear _ | Aadd (_, _) | Ascaledadd (_, _, _)), _))
           ->
-              (Aadd(arg1, arg2), 0)
+              (Aadd(arg1, arg2), 0n)
       end
   | arg ->
-      (Alinear arg, 0)
+    (Alinear arg, 0n)
 
 (* Special constraints on operand and result registers *)
 
@@ -221,9 +222,11 @@ method! effects_of e =
 method select_addressing _chunk exp =
   let (a, d) = select_addr exp in
   (* PR#4625: displacement must be a signed 32-bit immediate *)
-  if not (is_immediate d)
+  if not (is_immediate_natint d)
   then (Iindexed 0, exp)
-  else match a with
+  else
+    let d = Nativeint.to_int d in
+    match a with
     | Asymbol s ->
         (Ibased(s, d), Ctuple [])
     | Alinear e ->
