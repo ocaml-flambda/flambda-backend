@@ -79,7 +79,7 @@ module Transfer = struct
     | Tailcall (Func _) ->
       Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
     | Call_no_return _ ->
-      Reg.add_set_array exn instr.arg, Cfg.set_live instr Reg.Set.empty
+      Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
 
   let exception_ : domain -> domain =
    fun value -> Reg.Set.remove Proc.loc_exn_bucket value
