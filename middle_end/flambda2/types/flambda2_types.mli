@@ -223,6 +223,9 @@ module Typing_env : sig
 
     val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
 
+    val create_from_closure_conversion_approx :
+      'a Value_approximation.t Symbol.Map.t -> t
+
     val print : Format.formatter -> t -> unit
 
     val to_typing_env :
@@ -753,3 +756,9 @@ val reify :
 
 val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
+
+val extract_symbol_approx :
+  Typing_env.t ->
+  Symbol.t ->
+  (Code_id.t -> 'code option) ->
+  'code Value_approximation.t

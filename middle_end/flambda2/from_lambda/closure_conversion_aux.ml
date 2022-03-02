@@ -94,12 +94,39 @@ module IR = struct
         args
 end
 
-module Env = struct
-  type value_approximation =
-    | Value_unknown
-    | Closure_approximation of Code_id.t * Code.t option
-    | Block_approximation of value_approximation array * Alloc_mode.t
+module Inlining = struct
+  type inlinable_result =
+    | Not_inlinable
+    | Inlinable of Code.t
 
+  let threshold () =
+    let inline_threshold =
+      Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
+    in
+    let magic_scale_constant = 8. in
+    int_of_float (inline_threshold *. magic_scale_constant)
+
+  let definition_inlining_decision inline cost_metrics =
+    let inline_threshold = threshold () in
+    let code_size = Cost_metrics.size cost_metrics in
+    match (inline : Inline_attribute.t) with
+    | Never_inline ->
+      Function_decl_inlining_decision_type.Never_inline_attribute
+    | Always_inline | Available_inline ->
+      Function_decl_inlining_decision_type.Attribute_inline
+    | _ ->
+      if Code_size.to_int code_size <= inline_threshold
+      then
+        Function_decl_inlining_decision_type.Small_function
+          { size = code_size;
+            small_function_size = Code_size.of_int inline_threshold
+          }
+      else
+        Function_decl_inlining_decision_type.Function_body_too_large
+          (Code_size.of_int inline_threshold)
+end
+
+module Env = struct
   type t =
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
@@ -107,7 +134,9 @@ module Env = struct
       current_unit_id : Ident.t;
       current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
-      value_approximations : value_approximation Name.Map.t;
+      value_approximations : Code.t Value_approximation.t Name.Map.t;
+      approximation_for_external_symbol :
+        Symbol.t -> Code.t Value_approximation.t;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
       inlining_history_tracker : Inlining_history.Tracker.t
@@ -121,7 +150,32 @@ module Env = struct
 
   let current_depth t = t.current_depth
 
-  let create ~symbol_for_global ~big_endian =
+  let approximation_loader loader =
+    let externals = ref Symbol.Map.empty in
+    fun symbol ->
+      match Symbol.Map.find symbol !externals with
+      | approx -> approx
+      | exception Not_found ->
+        let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        let rec filter_inlinable approx =
+          match (approx : Code.t Value_approximation.t) with
+          | Value_unknown | Closure_approximation (_, None) -> approx
+          | Block_approximation (approxs, alloc_mode) ->
+            let approxs = Array.map filter_inlinable approxs in
+            Value_approximation.Block_approximation (approxs, alloc_mode)
+          | Closure_approximation (code_id, Some code) -> (
+            match
+              Inlining.definition_inlining_decision (Code.inline code)
+                (Code.cost_metrics code)
+            with
+            | Attribute_inline | Small_function _ -> approx
+            | _ -> Value_approximation.Closure_approximation (code_id, None))
+        in
+        let approx = filter_inlinable approx in
+        externals := Symbol.Map.add symbol approx !externals;
+        approx
+
+  let create ~symbol_for_global ~big_endian ~cmx_loader =
     let compilation_unit = Compilation_unit.get_current_exn () in
     { variables = Ident.Map.empty;
       globals = Numeric_types.Int.Map.empty;
@@ -129,6 +183,10 @@ module Env = struct
       current_unit_id = Compilation_unit.get_persistent_ident compilation_unit;
       current_depth = None;
       value_approximations = Name.Map.empty;
+      approximation_for_external_symbol =
+        (if Flambda_features.classic_mode ()
+        then approximation_loader cmx_loader
+        else fun _symbol -> Value_approximation.Value_unknown);
       symbol_for_global;
       big_endian;
       path_to_root = Debuginfo.Scoped_location.Loc_unknown;
@@ -143,6 +201,7 @@ module Env = struct
         symbol_for_global;
         current_depth;
         value_approximations;
+        approximation_for_external_symbol;
         big_endian;
         path_to_root;
         inlining_history_tracker
@@ -158,6 +217,7 @@ module Env = struct
       current_unit_id;
       current_depth;
       value_approximations;
+      approximation_for_external_symbol;
       symbol_for_global;
       big_endian;
       path_to_root;
@@ -241,7 +301,7 @@ module Env = struct
     Ident.Map.find id t.simples_to_substitute
 
   let add_value_approximation t name approx =
-    if approx = Value_unknown
+    if Value_approximation.is_unknown approx
     then t
     else
       { t with
@@ -252,17 +312,20 @@ module Env = struct
     add_value_approximation t name (Closure_approximation (code_id, approx))
 
   let add_block_approximation t name approxs alloc_mode =
-    if Array.for_all (( = ) Value_unknown) approxs
+    if Array.for_all Value_approximation.is_unknown approxs
     then t
     else
       add_value_approximation t name (Block_approximation (approxs, alloc_mode))
 
   let find_value_approximation t simple =
     Simple.pattern_match simple
-      ~const:(fun _ -> Value_unknown)
+      ~const:(fun _ -> Value_approximation.Value_unknown)
       ~name:(fun name ~coercion:_ ->
         try Name.Map.find name t.value_approximations
-        with Not_found -> Value_unknown)
+        with Not_found ->
+          Name.pattern_match name
+            ~var:(fun _ -> Value_approximation.Value_unknown)
+            ~symbol:t.approximation_for_external_symbol)
 
   let add_approximation_alias t name alias =
     match find_value_approximation t (Simple.name name) with
@@ -288,7 +351,7 @@ end
 
 module Acc = struct
   type continuation_application =
-    | Trackable_arguments of Env.value_approximation list
+    | Trackable_arguments of Code.t Value_approximation.t list
     | Untrackable
 
   type t =
@@ -300,7 +363,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
-      closure_offsets : Closure_offsets.t Or_unknown.t;
+      closure_offsets : Closure_offsets.t;
       regions_closed_early : Ident.Set.t
     }
 
@@ -394,9 +457,11 @@ module Acc = struct
 
   let remove_continuation_from_free_names cont t =
     { t with
-      free_names = Name_occurrences.remove_continuation t.free_names cont;
-      continuation_applications =
-        Continuation.Map.remove cont t.continuation_applications
+      free_names =
+        Name_occurrences.remove_continuation t.free_names cont
+        (* We don't remove the continuation from [t.continuation_applications]
+           here because we need this information of the module block to escape
+           its scope to build the .cmx in [Closure_conversion.close_program]. *)
     }
 
   let remove_code_id_from_free_names code_id t =
@@ -426,14 +491,11 @@ module Acc = struct
   let symbol_for_global t = t.symbol_for_global
 
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
-    match t.closure_offsets with
-    | Unknown -> t
-    | Known closure_offsets ->
-      let closure_offsets =
-        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
-          set_of_closures
-      in
-      { t with closure_offsets = Known closure_offsets }
+    let closure_offsets =
+      Closure_offsets.add_set_of_closures t.closure_offsets ~is_phantom
+        set_of_closures
+    in
+    { t with closure_offsets }
 
   let add_region_closed_early t region =
     { t with
@@ -695,22 +757,19 @@ end
 module Let_cont_with_acc = struct
   let create_non_recursive acc cont handler ~body ~free_names_of_body
       ~cost_metrics_of_handler =
-    match Name_occurrences.count_continuation free_names_of_body cont with
-    | Zero when not (Continuation_handler.is_exn_handler handler) -> acc, body
-    | _ ->
-      let acc =
-        Acc.increment_metrics
-          (Cost_metrics.increase_due_to_let_cont_non_recursive
-             ~cost_metrics_of_handler)
-          acc
-      in
-      let expr =
-        (* This function only uses continuations of [free_names_of_body] *)
-        Let_cont.create_non_recursive cont handler ~body
-          ~free_names_of_body:(Known free_names_of_body)
-      in
-      let acc = Acc.remove_continuation_from_free_names cont acc in
-      acc, expr
+    let acc =
+      Acc.increment_metrics
+        (Cost_metrics.increase_due_to_let_cont_non_recursive
+           ~cost_metrics_of_handler)
+        acc
+    in
+    let expr =
+      (* This function only uses continuations of [free_names_of_body] *)
+      Let_cont.create_non_recursive cont handler ~body
+        ~free_names_of_body:(Known free_names_of_body)
+    in
+    let acc = Acc.remove_continuation_from_free_names cont acc in
+    acc, expr
 
   let create_recursive acc handlers ~body ~cost_metrics_of_handlers =
     let acc =
@@ -760,17 +819,22 @@ module Let_cont_with_acc = struct
     let free_names_of_body, acc, body =
       Acc.eval_branch_free_names acc ~f:body
     in
+    let body_acc = acc in
     let cost_metrics_of_handler, handler_free_names, acc, handler =
       Acc.measure_cost_metrics acc ~f:(fun acc ->
           let acc, handler = handler acc in
           Continuation_handler_with_acc.create acc handler_params ~handler
             ~is_exn_handler)
     in
-    (* [create_non_recursive] assumes [acc] contains free names of the body *)
-    let acc, expr =
-      create_non_recursive
-        (Acc.with_free_names free_names_of_body acc)
-        cont handler ~body ~free_names_of_body ~cost_metrics_of_handler
-    in
-    Acc.add_free_names handler_free_names acc, expr
+    match Name_occurrences.count_continuation free_names_of_body cont with
+    | Zero when not (Continuation_handler.is_exn_handler handler) ->
+      Acc.with_free_names free_names_of_body body_acc, body
+    | _ ->
+      (* [create_non_recursive] assumes [acc] contains free names of the body *)
+      let acc, expr =
+        create_non_recursive
+          (Acc.with_free_names free_names_of_body acc)
+          cont handler ~body ~free_names_of_body ~cost_metrics_of_handler
+      in
+      Acc.add_free_names handler_free_names acc, expr
 end

@@ -170,16 +170,7 @@ let find_simples acc env ids =
   List.fold_left_map (fun acc id -> find_simple acc env id) acc ids
 
 module Inlining = struct
-  type inlinable_result =
-    | Not_inlinable
-    | Inlinable of Code.t
-
-  let threshold () =
-    let inline_threshold =
-      Clflags.Float_arg_helper.get ~key:0 !Clflags.inline_threshold
-    in
-    let magic_scale_constant = 8. in
-    int_of_float (inline_threshold *. magic_scale_constant)
+  include Closure_conversion_aux.Inlining
 
   (* CR keryan: we need to emit warnings *)
   let inlinable env apply =
@@ -844,7 +835,7 @@ let close_let acc env id user_visible defining_expr
                 Named.print defining_expr
             else None
           | Block_approximation (approx, _alloc_mode) ->
-            let approx : Env.value_approximation =
+            let approx =
               Simple.pattern_match field
                 ~const:(fun const ->
                   match Reg_width_things.Const.descr const with
@@ -857,8 +848,8 @@ let close_let acc env id user_visible defining_expr
                          approximation of length %d."
                         i (Array.length approx);
                     approx.(i)
-                  | _ -> Env.Value_unknown)
-                ~name:(fun _ ~coercion:_ -> Env.Value_unknown)
+                  | _ -> Value_approximation.Value_unknown)
+                ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
             in
             Some (Env.add_value_approximation body_env (Name.var var) approx)
         end
@@ -1301,26 +1292,9 @@ let close_one_function acc ~external_env ~by_closure_id decl
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
-  let code_size = Cost_metrics.size cost_metrics in
-  let inline_threshold = Inlining.threshold () in
   let inlining_decision =
     if Flambda_features.classic_mode ()
-    then
-      match inline with
-      | Never_inline ->
-        Function_decl_inlining_decision_type.Never_inline_attribute
-      | Always_inline | Available_inline ->
-        Function_decl_inlining_decision_type.Attribute_inline
-      | _ ->
-        if Code_size.to_int code_size <= inline_threshold
-        then
-          Function_decl_inlining_decision_type.Small_function
-            { size = code_size;
-              small_function_size = Code_size.of_int inline_threshold
-            }
-        else
-          Function_decl_inlining_decision_type.Function_body_too_large
-            (Code_size.of_int inline_threshold)
+    then Inlining.definition_inlining_decision inline cost_metrics
     else if stub
     then Function_decl_inlining_decision_type.Stub
     else Function_decl_inlining_decision_type.Not_yet_decided
@@ -1579,21 +1553,17 @@ let bind_code all_code acc body =
       |> Expr_with_acc.create_let)
     (acc, body) components
 
-let close_program ~symbol_for_global ~big_endian ~module_ident
+let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     ~module_block_size_in_words ~program ~prog_return_cont ~exn_continuation =
   let symbol_for_global ident = symbol_for_global ?comp_unit:None ident in
-  let env = Env.create ~symbol_for_global ~big_endian in
+  let env = Env.create ~symbol_for_global ~big_endian ~cmx_loader in
   let module_symbol =
     symbol_for_global (Ident.create_persistent (Ident.name module_ident))
   in
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let closure_offsets : _ Or_unknown.t =
-    if Flambda_features.classic_mode ()
-    then Known (Closure_offsets.create ())
-    else Unknown
-  in
+  let closure_offsets = Closure_offsets.create () in
   let acc = Acc.create ~symbol_for_global ~closure_offsets in
   let load_fields_body acc =
     let field_vars =
@@ -1669,6 +1639,11 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
       ~handler_params:load_fields_handler_param ~handler:load_fields_body ~body
       ~is_exn_handler:false
   in
+  let module_block_approximation =
+    match Acc.continuation_known_arguments ~cont:prog_return_cont acc with
+    | Some [approx] -> approx
+    | _ -> Value_approximation.Value_unknown
+  in
   let acc, body = bind_code (Acc.code acc) acc body in
   (* We must make sure there is always an outer [Let_symbol] binding so that
      lifted constants not in the scope of any other [Let_symbol] binding get put
@@ -1684,6 +1659,15 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
           "first_const"
       in
       acc
+  in
+  let symbols_approximations =
+    List.fold_left
+      (fun sa (symbol, _) ->
+        (* CR Keryan: for now only constants are lifted. It will need refinement
+           with the lifting of closed functions *)
+        Symbol.Map.add symbol Value_approximation.Value_unknown sa)
+      (Symbol.Map.singleton module_symbol module_block_approximation)
+      (Acc.declared_symbols acc)
   in
   let acc, body =
     List.fold_left
@@ -1705,22 +1689,39 @@ let close_program ~symbol_for_global ~big_endian ~module_ident
   let get_code_metadata code_id =
     Code_id.Map.find code_id (Acc.code acc) |> Code.code_metadata
   in
-  let exported_offsets =
-    Or_unknown.map (Acc.closure_offsets acc) ~f:(fun offsets ->
-        (* CR gbury: would it be possible to use the free_names from the acc to
-           compute the used closure vars ? *)
-        (* CR gbury: in classic mode, make use of the used_closure_vars returned
-           by Closure offsets (once we give it a non-unknown used_names, as per
-           the above CR). *)
-        let _used_closure_vars, offsets =
-          Closure_offsets.finalize_offsets offsets ~get_code_metadata
-            ~used_names:Unknown
-        in
-        offsets)
+  let all_code =
+    Exported_code.add_code (Acc.code acc)
+      ~keep_code:(fun _ -> true)
+      (Exported_code.mark_as_imported
+         (Flambda_cmx.get_imported_code cmx_loader ()))
+  in
+  let used_closure_vars, exported_offsets =
+    let used_names =
+      let free_names = Acc.free_names acc in
+      Or_unknown.Known
+        Closure_offsets.
+          { closure_ids_normal = Name_occurrences.closure_ids free_names;
+            closure_ids_in_types = Closure_id.Set.empty;
+            closure_vars_normal = Name_occurrences.closure_vars free_names;
+            closure_vars_in_types = Var_within_closure.Set.empty
+          }
+    in
+    Closure_offsets.finalize_offsets (Acc.closure_offsets acc)
+      ~get_code_metadata ~used_names
+  in
+  let used_closure_vars =
+    match used_closure_vars with
+    | Known used_closure_vars -> used_closure_vars
+    | Unknown ->
+      Misc.fatal_error
+        "Closure_conversion needs to know its used closure variables."
+  in
+  let cmx =
+    Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
+      ~exported_offsets ~used_closure_vars all_code
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_closure_vars:Unknown,
-    Exported_code.add_code
-      ~keep_code:(fun _ -> false)
-      (Acc.code acc) Exported_code.empty,
+      ~module_symbol ~used_closure_vars:(Known used_closure_vars),
+    all_code,
+    cmx,
     exported_offsets )

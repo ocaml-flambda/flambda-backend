@@ -1202,6 +1202,9 @@ module Serializable : sig
 
   val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
+  val create_from_closure_conversion_approx :
+    'a Value_approximation.t Symbol.Map.t -> t
+
   val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
 
   val print : Format.formatter -> t -> unit
@@ -1255,6 +1258,53 @@ end = struct
       code_age_relation;
       just_after_level;
       next_binding_time = env.next_binding_time
+    }
+
+  let create_from_closure_conversion_approx
+      (symbols : _ Value_approximation.t Symbol.Map.t) =
+    (* By using Cached_level.add_or_replace_binding below, we ensure that all
+       symbols have an equation (that may be Unknown). *)
+    let defined_symbols_without_equations = [] in
+    let code_age_relation = Code_age_relation.empty in
+    let next_binding_time = Binding_time.earliest_var in
+    let rec type_from_approx approx =
+      match (approx : _ Value_approximation.t) with
+      | Value_unknown -> MTC.unknown Flambda_kind.value
+      | Block_approximation (fields, alloc_mode) ->
+        let fields = List.map type_from_approx (Array.to_list fields) in
+        MTC.immutable_block ~is_unique:false Tag.zero
+          ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
+      | Closure_approximation (code_id, _code_opt) ->
+        let closure_id =
+          Closure_id.wrap
+            (Compilation_unit.get_current_exn ())
+            (Variable.create (Code_id.name code_id))
+        in
+        let fun_decl =
+          TG.Function_type.create code_id
+            ~rec_info:(MTC.unknown Flambda_kind.rec_info)
+        in
+        let all_function_decls_in_set =
+          Closure_id.Map.singleton closure_id (Or_unknown_or_bottom.Ok fun_decl)
+        in
+        let all_closures_in_set =
+          Closure_id.Map.singleton closure_id (MTC.unknown Flambda_kind.value)
+        in
+        let all_closure_vars_in_set = Var_within_closure.Map.empty in
+        MTC.exactly_this_closure closure_id ~all_function_decls_in_set
+          ~all_closures_in_set ~all_closure_vars_in_set Or_unknown.Unknown
+    in
+    let just_after_level =
+      Symbol.Map.fold
+        (fun sym approx cached ->
+          Cached_level.add_or_replace_binding cached (Name.symbol sym)
+            (type_from_approx approx) Binding_time.symbols Name_mode.normal)
+        symbols Cached_level.empty
+    in
+    { defined_symbols_without_equations;
+      code_age_relation;
+      just_after_level;
+      next_binding_time
     }
 
   let free_closure_ids_and_closure_vars t =
