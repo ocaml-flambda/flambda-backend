@@ -1,0 +1,21 @@
+(* TEST
+files = "main.c"
+arguments = "-DINT_INT -DFUN=foo main.c"
+flags = "-dsel"
+* arch_amd64
+** asmgen
+*** run
+**** check-program-output
+*)
+
+
+(function "foo" (n: int)
+   (+
+     (<<
+       (+   (* <-- this plus was dropped due to incorrect hanlding of overflow,
+                    see flambda-backend PR#570 *)
+         (and (xor n (>>u n 33))
+           -1)
+         -4611686018427387904)
+       1)
+     1))
