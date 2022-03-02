@@ -109,6 +109,7 @@ let all_defined_symbols t =
       LC.all_defined_symbols const |> Symbol.Set.union symbols)
 
 let add_to_denv ?maybe_already_defined denv lifted =
+  let initial_denv = denv in
   let maybe_already_defined =
     match maybe_already_defined with None -> false | Some () -> true
   in
@@ -128,7 +129,7 @@ let add_to_denv ?maybe_already_defined denv lifted =
         let types_of_symbols = LC.types_of_symbols lifted_constant in
         Symbol.Map.fold
           (fun sym (denv_at_definition, typ) typing_env ->
-            if maybe_already_defined && DE.mem_symbol denv sym
+            if maybe_already_defined && DE.mem_symbol initial_denv sym
             then typing_env
             else
               let sym = Name.symbol sym in
