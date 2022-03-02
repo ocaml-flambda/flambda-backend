@@ -1262,9 +1262,9 @@ end = struct
 
   let create_from_closure_conversion_approx
       (symbols : _ Value_approximation.t Symbol.Map.t) =
-    let defined_symbols_without_equations =
-      Symbol.Map.keys symbols |> Symbol.Set.elements
-    in
+    (* By using Cached_level.add_or_replace_binding below, we ensure that all
+       symbols have an equation (that may be Unknown). *)
+    let defined_symbols_without_equations = [] in
     let code_age_relation = Code_age_relation.empty in
     let next_binding_time = Binding_time.earliest_var in
     let rec type_from_approx approx =
