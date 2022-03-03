@@ -189,7 +189,16 @@ let operation_is_pure = function
   | Iprobe _ -> false
   | Iprobe_is_enabled _-> true
   | Ispecific sop -> Arch.operation_is_pure sop
-  | _ -> true
+  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
+  | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
+  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf _
+  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Iload (_, _) | Iname_for_debugger _
+    -> true
+
 
 let operation_can_raise op =
   match op with
@@ -198,7 +207,18 @@ let operation_can_raise op =
   | Iprobe _
   | Ialloc _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
-  | _ -> false
+  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
+  | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
+          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
+  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
+  | Icompf _
+  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
+  | Istackoffset _ | Istore _  | Iload (_, _) | Iname_for_debugger _
+  | Itailcall_imm _ | Itailcall_ind
+  | Iopaque | Ibeginregion | Iendregion
+  | Iprobe_is_enabled _
+    -> false
 
 let free_conts_for_handlers fundecl =
   let module S = Numbers.Int.Set in

@@ -330,4 +330,14 @@ let operation_can_raise = function
   | Ifar_intop_imm_checkbound _
   | Ishiftcheckbound _
   | Ifar_shiftcheckbound _ -> true
-  | _ -> false
+  | Imuladd
+  | Imulsub
+  | Inegmulf
+  | Imuladdf
+  | Inegmuladdf
+  | Imulsubf
+  | Inegmulsubf
+  | Isqrtf
+  | Imove32
+  | Ishiftarith (_, _)
+  | Ibswap _ -> false
