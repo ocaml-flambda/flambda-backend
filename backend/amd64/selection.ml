@@ -66,12 +66,10 @@ let rec select_addr exp =
           ((Alinear e1, n1), (Alinear e2, n2))
           when Misc.no_overflow_add n1 n2 ->
               (Aadd(e1, e2), n1 + n2)
-        | ((Alinear e1, n1), (Ascale(e2, scale), n2))
+        | (((Alinear e1, n1), (Ascale(e2, scale), n2)) |
+           ((Ascale(e2, scale), n1), (Alinear e1, n2)))
           when Misc.no_overflow_add n1 n2 ->
               (Ascaledadd(e1, e2, scale), n1 + n2)
-        | ((Ascale(e1, scale), n1), (Alinear e2, n2))
-          when Misc.no_overflow_add n1 n2 ->
-              (Ascaledadd(e2, e1, scale), n1 + n2)
         | (_, (Ascale(e2, scale), n2)) ->
               (Ascaledadd(arg1, e2, scale), n2)
         | ((Ascale(e1, scale), n1), _) ->
@@ -83,8 +81,7 @@ let rec select_addr exp =
           ->
               (Aadd(arg1, arg2), 0)
       end
-  | arg ->
-    (Alinear arg, 0)
+  | _ -> default
 
 (* Special constraints on operand and result registers *)
 
@@ -229,8 +226,7 @@ method select_addressing _chunk exp =
   (* PR#4625: displacement must be a signed 32-bit immediate *)
   if not (is_immediate d)
   then (Iindexed 0, exp)
-  else
-    match a with
+  else match a with
     | Asymbol s ->
         (Ibased(s, d), Ctuple [])
     | Alinear e ->
