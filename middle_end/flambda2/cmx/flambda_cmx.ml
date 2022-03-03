@@ -119,7 +119,7 @@ let get_imported_names loader () = loader.imported_names
 
 let get_imported_code loader () = loader.imported_code
 
-let compute_reachable_names_and_code ~module_symbol typing_env code =
+let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
   let rec fixpoint names_to_add names_already_added =
     if Name_occurrences.is_empty names_to_add
     then names_already_added
@@ -160,9 +160,8 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
              this unit. *)
           names_to_add
         else
-          match TE.Pre_serializable.find_or_missing typing_env name with
-          | Some ty ->
-            let ty_names = T.free_names ty in
+          match free_names_of_name name with
+          | Some ty_names ->
             let names_to_consider =
               Name_occurrences
               .with_only_names_and_code_ids_promoting_newer_version_of ty_names
@@ -191,78 +190,90 @@ let compute_reachable_names_and_code ~module_symbol typing_env code =
   in
   fixpoint init_names Name_occurrences.empty
 
+let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
+    ~used_closure_vars ~canonicalise ~exported_offsets all_code =
+  let reachable_names =
+    compute_reachable_names_and_code ~module_symbol ~free_names_of_name all_code
+  in
+  let all_code =
+    (* CR mshinwell: do we need to remove unused closure ID bindings from the
+       result types too? *)
+    all_code
+    |> EC.remove_unused_closure_vars_from_result_types_and_shortcut_aliases
+         ~used_closure_vars ~canonicalise
+    |> EC.remove_unreachable ~reachable_names
+  in
+  let final_typing_env = create_typing_env reachable_names in
+  (* We need to re-export offsets for everything reachable from the cmx file;
+     closure_vars/ids can be reachable from the typing env, and the exported
+     code.
+
+     In the case of the exported code, we already have offsets for all
+     closure_ids/vars reachable from the code of the current compilation unit,
+     but since we also re-export code from other compilation units, we need to
+     take those into account. *)
+  (* CR gbury: it might be more efficient to not compute the free names for all
+     exported code, but fold over the exported code to avoid allocating some
+     free_names *)
+  let free_names_of_all_code = EC.free_names all_code in
+  let closure_elts_used_in_typing_env =
+    TE.Serializable.free_closure_ids_and_closure_vars final_typing_env
+  in
+  let exported_offsets =
+    exported_offsets
+    |> Closure_offsets.reexport_closure_ids
+         (Name_occurrences.closure_ids free_names_of_all_code)
+    |> Closure_offsets.reexport_closure_vars
+         (Name_occurrences.closure_vars free_names_of_all_code)
+    |> Closure_offsets.reexport_closure_ids
+         (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
+    |> Closure_offsets.reexport_closure_vars
+         (Name_occurrences.closure_vars closure_elts_used_in_typing_env)
+  in
+  Some
+    (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
+       ~used_closure_vars)
+
 let prepare_cmx_file_contents ~final_typing_env ~module_symbol
     ~used_closure_vars ~exported_offsets all_code =
   match final_typing_env with
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->
-    let final_typing_env, canonicalise =
+    let typing_env, canonicalise =
       TE.Pre_serializable.create final_typing_env ~used_closure_vars
     in
-    let reachable_names =
-      compute_reachable_names_and_code ~module_symbol final_typing_env all_code
+    let create_typing_env reachable_names =
+      TE.Serializable.create typing_env ~reachable_names
     in
-    let all_code =
-      (* CR mshinwell: do we need to remove unused closure ID bindings from the
-         result types too? *)
-      all_code
-      |> EC.remove_unused_closure_vars_from_result_types_and_shortcut_aliases
-           ~used_closure_vars ~canonicalise
-      |> EC.remove_unreachable ~reachable_names
+    let free_names_of_name name =
+      Option.map T.free_names
+        (TE.Pre_serializable.find_or_missing typing_env name)
     in
-    let final_typing_env =
-      TE.Serializable.create final_typing_env ~reachable_names
-    in
-    (* We need to re-export offsets for everything reachable from the cmx file;
-       closure_vars/ids can be reachable from the typing env, and the exported
-       code.
+    prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
+      ~used_closure_vars ~canonicalise ~exported_offsets all_code
 
-       In the case of the exported code, we already have offsets for all
-       closure_ids/vars reachable from the code of the current compilation unit,
-       but since we also re-export code from other compilation units, we need to
-       take those into account. *)
-    (* CR gbury: it might be more efficient to not compute the free names for
-       all exported code, but fold over the exported code to avoid allocating
-       some free_names *)
-    let free_names_of_all_code = EC.free_names all_code in
-    let closure_elts_used_in_typing_env =
-      TE.Serializable.free_closure_ids_and_closure_vars final_typing_env
-    in
-    let exported_offsets =
-      exported_offsets
-      |> Closure_offsets.reexport_closure_ids
-           (Name_occurrences.closure_ids free_names_of_all_code)
-      |> Closure_offsets.reexport_closure_vars
-           (Name_occurrences.closure_vars free_names_of_all_code)
-      |> Closure_offsets.reexport_closure_ids
-           (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
-      |> Closure_offsets.reexport_closure_vars
-           (Name_occurrences.closure_vars closure_elts_used_in_typing_env)
-    in
-    Some
-      (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
-         ~used_closure_vars)
-
-let prepare_cmx_from_approx ~approxs ~exported_offsets ~used_closure_vars
-    all_code =
+let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
+    ~used_closure_vars all_code =
   if Flambda_features.opaque ()
   then None
   else
-    (* CR keryan : for now all content of loaded .cmx are reexported. We may
-       want to remove unreachable code as does [prepare_cmx_file_contents] at
-       some point *)
-    let final_typing_env =
+    let typing_env =
       TE.Serializable.create_from_closure_conversion_approx approxs
     in
-    let free_names_of_all_code = EC.free_names all_code in
-    let exported_offsets =
-      exported_offsets
-      |> Closure_offsets.reexport_closure_ids
-           (Name_occurrences.closure_ids free_names_of_all_code)
-      |> Closure_offsets.reexport_closure_vars
-           (Name_occurrences.closure_vars free_names_of_all_code)
+    let create_typing_env _ = typing_env in
+    let free_names_of_name name =
+      match Name.must_be_symbol_opt name with
+      | None -> None
+      | Some symbol -> (
+        match Symbol.Map.find_opt symbol approxs with
+        | None -> None
+        | Some approx ->
+          Some
+            (Value_approximation.free_names
+               ~code_free_names:Code_or_metadata.free_names approx))
     in
-    Some
-      (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
-         ~used_closure_vars)
+    prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
+      ~used_closure_vars
+      ~canonicalise:(fun id -> id)
+      ~exported_offsets all_code

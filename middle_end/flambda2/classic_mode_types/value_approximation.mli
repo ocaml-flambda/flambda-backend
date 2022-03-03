@@ -24,3 +24,6 @@ type 'code t =
   | Block_approximation of 'code t array * Alloc_mode.t
 
 val is_unknown : 'a t -> bool
+
+val free_names :
+  code_free_names:('code -> Name_occurrences.t) -> 'code t -> Name_occurrences.t
