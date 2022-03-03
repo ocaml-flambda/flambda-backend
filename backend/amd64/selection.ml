@@ -67,7 +67,7 @@ let rec select_addr exp =
           when Misc.no_overflow_add n1 n2 ->
               (Aadd(e1, e2), n1 + n2)
         | (((Alinear e1, n1), (Ascale(e2, scale), n2)) |
-           ((Ascale(e2, scale), n1), (Alinear e1, n2)))
+           ((Ascale(e2, scale), n2), (Alinear e1, n1)))
           when Misc.no_overflow_add n1 n2 ->
               (Ascaledadd(e1, e2, scale), n1 + n2)
         | (_, (Ascale(e2, scale), n2)) ->
