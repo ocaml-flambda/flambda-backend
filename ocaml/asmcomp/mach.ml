@@ -165,7 +165,8 @@ let operation_is_pure = function
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
   | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
   | Ibeginregion | Iendregion -> false
-  | Iprobe _ | Iprobe_is_enabled _-> false
+  | Iprobe _ -> false
+  | Iprobe_is_enabled _-> true
   | Ispecific sop -> Arch.operation_is_pure sop
   | _ -> true
 
