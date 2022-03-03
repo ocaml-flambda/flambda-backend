@@ -262,6 +262,9 @@ install_upstream: build_upstream
 # Most of the installation tree is correctly set up by dune, but we need to
 # copy it to the final destination, and rearrange a few things to match
 # upstream.
+# Until dune is fixed to allow more flexible installation stanzas, we use
+# find to capture all of the Flambda 2 .cm{i,t,ti} files.  (The .cmx files are
+# bundled into ocamloptcomp.cmxa; see the root "dune" file.)
 .PHONY: install
 install: stage2
 	mkdir -p $(prefix)
@@ -277,6 +280,9 @@ install: stage2
 	rm -f $(prefix)/lib/ocaml/META
 	rm -f $(prefix)/lib/ocaml/dune-package
 	rm -f $(prefix)/lib/ocaml/compiler-libs/*.cmo
+	find _build2/default \( -name "flambda2*.cmi" \
+	  -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
+	  -exec cp -f {} $(prefix)/lib/ocaml/compiler-libs \;
 	cp $(stage2_prefix)/lib/ocaml/compiler-libs/topstart.cmo \
 	  $(prefix)/lib/ocaml/compiler-libs/
 	rm -rf $(prefix)/lib/flambda_backend
