@@ -1,5 +1,4 @@
 (* TEST
-
 * arch_amd64
 *)
 
