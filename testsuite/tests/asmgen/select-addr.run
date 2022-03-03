@@ -1,7 +1,0 @@
-#!/bin/sh
-
-exec > "${output}" 2>&1
-
-# Unstable check, will break if the second plus is convereted to an LEA
-# or even change of output format and unrelated optimizations
-grep " + " "${compiler_output}" | wc -l
