@@ -168,11 +168,13 @@ module Flambda2 = struct
     module Default = struct
       let permute_every_name = false
       let concrete_types_only_on_canonicals = false
+      let keep_invalid_handlers = true
     end
 
     let permute_every_name = ref Default.permute_every_name
     let concrete_types_only_on_canonicals =
       ref Default.concrete_types_only_on_canonicals
+    let keep_invalid_handlers = ref Default.keep_invalid_handlers
   end
 
   module I = Clflags.Int_arg_helper

@@ -252,6 +252,20 @@ let mk_no_flambda2_debug_concrete_types_only_on_canonicals f =
       Flambda2.Debug.Default.concrete_types_only_on_canonicals)
 ;;
 
+let mk_flambda2_debug_keep_invalid_handlers f =
+  "-flambda2-debug-keep-invalid-handlers", Arg.Unit f,
+  Printf.sprintf " Keep branches simplified\n\
+      \     to Invalid%s (Flambda 2 only)"
+    (format_default Flambda2.Debug.Default.keep_invalid_handlers)
+;;
+
+let mk_no_flambda2_debug_keep_invalid_handlers f =
+  "-no-flambda2-debug-keep-invalid-handlers", Arg.Unit f,
+  Printf.sprintf " Delete branches simplified\n\
+      \     to Invalid%s (Flambda 2 only)"
+    (format_not_default Flambda2.Debug.Default.keep_invalid_handlers)
+;;
+
 let mk_flambda2_inline_max_depth f =
   "-flambda2-inline-max-depth", Arg.String f,
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
@@ -419,6 +433,8 @@ module type Flambda_backend_options = sig
   val no_flambda2_debug_permute_every_name : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val flambda2_debug_keep_invalid_handlers : unit -> unit
+  val no_flambda2_debug_keep_invalid_handlers : unit -> unit
 
   val flambda2_inline_max_depth : string -> unit
   val flambda2_inline_max_rec_depth : string -> unit
@@ -506,6 +522,10 @@ struct
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
       F.no_flambda2_debug_concrete_types_only_on_canonicals;
+    mk_flambda2_debug_keep_invalid_handlers
+      F.flambda2_debug_keep_invalid_handlers;
+    mk_no_flambda2_debug_keep_invalid_handlers
+      F.no_flambda2_debug_keep_invalid_handlers;
 
     mk_flambda2_inline_max_depth F.flambda2_inline_max_depth;
     mk_flambda2_inline_max_rec_depth F.flambda2_inline_max_rec_depth;
@@ -605,6 +625,10 @@ module Flambda_backend_options_impl = struct
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
     clear' Flambda2.Debug.concrete_types_only_on_canonicals
+  let flambda2_debug_keep_invalid_handlers =
+    set' Flambda2.Debug.keep_invalid_handlers
+  let no_flambda2_debug_keep_invalid_handlers =
+    clear' Flambda2.Debug.keep_invalid_handlers
 
   let flambda2_inline_max_depth spec =
     Clflags.Int_arg_helper.parse spec
@@ -799,6 +823,8 @@ module Extra_params = struct
        set' Flambda2.Debug.permute_every_name
     | "flambda2-debug-concrete-types-only-on-canonicals" ->
        set' Flambda2.Debug.concrete_types_only_on_canonicals
+    | "flambda2-debug-keep-invalid-handlers" ->
+       set' Flambda2.Debug.keep_invalid_handlers
     | _ -> false
 end
 

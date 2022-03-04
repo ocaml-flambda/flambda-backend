@@ -115,10 +115,12 @@ module Flambda2 : sig
     module Default : sig
       val permute_every_name : bool
       val concrete_types_only_on_canonicals : bool
+      val keep_invalid_handlers : bool
     end
 
     val permute_every_name : bool ref
     val concrete_types_only_on_canonicals : bool ref
+    val keep_invalid_handlers : bool ref
   end
 
   module Inlining : sig
