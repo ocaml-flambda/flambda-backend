@@ -55,6 +55,8 @@ module type Flambda_backend_options = sig
   val no_flambda2_debug_permute_every_name : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
+  val flambda2_debug_keep_invalid_handlers : unit -> unit
+  val no_flambda2_debug_keep_invalid_handlers : unit -> unit
 
   val flambda2_inline_max_depth : string -> unit
   val flambda2_inline_max_rec_depth : string -> unit

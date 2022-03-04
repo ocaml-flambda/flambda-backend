@@ -40,8 +40,7 @@ let is_unreachable t are_rebuilding =
   else
     match Expr.descr t with
     | Invalid _ ->
-      (* CR mshinwell: Change this to [true]. *)
-      false
+      if Flambda_features.Debug.keep_invalid_handlers () then false else true
     | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ -> false
 
 let [@ocamlformat "disable"] print are_rebuilding ppf t =
