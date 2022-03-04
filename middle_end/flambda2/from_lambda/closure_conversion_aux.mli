@@ -141,8 +141,6 @@ module Env : sig
 
   val add_value_approximation : t -> Name.t -> Code.t Value_approximation.t -> t
 
-  val add_closure_approximation : t -> Name.t -> Code_id.t * Code.t option -> t
-
   val add_block_approximation :
     t -> Name.t -> Code.t Value_approximation.t array -> Alloc_mode.t -> t
 
@@ -182,7 +180,7 @@ module Acc : sig
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
-  val declared_static_sets_of_closures :
+  val lifted_sets_of_closures :
     t ->
     ((Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
     * Flambda.Set_of_closures.t)
@@ -200,7 +198,7 @@ module Acc : sig
 
   val add_declared_symbol : symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
-  val add_declared_set_of_closures :
+  val add_lifted_set_of_closures :
     symbols:(Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t ->
     set_of_closures:Flambda.Set_of_closures.t ->
     t ->

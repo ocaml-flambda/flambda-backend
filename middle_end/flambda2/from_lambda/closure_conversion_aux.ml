@@ -308,9 +308,6 @@ module Env = struct
         value_approximations = Name.Map.add name approx t.value_approximations
       }
 
-  let add_closure_approximation t name (code_id, approx) =
-    add_value_approximation t name (Closure_approximation (code_id, approx))
-
   let add_block_approximation t name approxs alloc_mode =
     if Array.for_all Value_approximation.is_unknown approxs
     then t
@@ -356,7 +353,7 @@ module Acc = struct
 
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
-      declared_static_sets_of_closures :
+      lifted_sets_of_closures :
         ((Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
         * Flambda.Set_of_closures.t)
         list;
@@ -384,7 +381,7 @@ module Acc = struct
 
   let create ~symbol_for_global ~closure_offsets =
     { declared_symbols = [];
-      declared_static_sets_of_closures = [];
+      lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
       code = Code_id.Map.empty;
       free_names = Name_occurrences.empty;
@@ -398,7 +395,7 @@ module Acc = struct
 
   let declared_symbols t = t.declared_symbols
 
-  let declared_static_sets_of_closures t = t.declared_static_sets_of_closures
+  let lifted_sets_of_closures t = t.lifted_sets_of_closures
 
   let shareable_constants t = t.shareable_constants
 
@@ -412,10 +409,10 @@ module Acc = struct
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
     { t with declared_symbols }
 
-  let add_declared_set_of_closures ~symbols ~set_of_closures t =
+  let add_lifted_set_of_closures ~symbols ~set_of_closures t =
     { t with
-      declared_static_sets_of_closures =
-        (symbols, set_of_closures) :: t.declared_static_sets_of_closures
+      lifted_sets_of_closures =
+        (symbols, set_of_closures) :: t.lifted_sets_of_closures
     }
 
   let add_shareable_constant ~symbol ~constant t =

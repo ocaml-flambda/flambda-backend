@@ -1474,7 +1474,7 @@ let close_functions acc external_env function_declarations =
             Closure_id.Map.find closure_id approximations ))
         funs
     in
-    let acc = Acc.add_declared_set_of_closures ~symbols ~set_of_closures acc in
+    let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
     acc, Lifted symbols
   else acc, Dynamic (set_of_closures, approximations)
 
@@ -1488,13 +1488,13 @@ let close_let_rec acc env ~function_declarations
         env)
       function_declarations env
   in
-  let closure_vars, ident_map =
+  let closure_vars_map, ident_map =
     List.fold_left
-      (fun (closure_vars, ident_map) decl ->
+      (fun (closure_vars_map, ident_map) decl ->
         let ident = Function_decl.let_rec_ident decl in
         let closure_var = VB.create (Env.find_var env ident) Name_mode.normal in
         let closure_id = Function_decl.closure_id decl in
-        ( Closure_id.Map.add closure_id closure_var closure_vars,
+        ( Closure_id.Map.add closure_id closure_var closure_vars_map,
           Closure_id.Map.add closure_id ident ident_map ))
       (Closure_id.Map.empty, Closure_id.Map.empty)
       function_declarations
@@ -1546,16 +1546,16 @@ let close_let_rec acc env ~function_declarations
         (Closure_id.Map.keys
            (Function_declarations.funs
               (Set_of_closures.function_decls set_of_closures)))
-        (Closure_id.Map.keys closure_vars)
+        (Closure_id.Map.keys closure_vars_map)
     in
     let closure_vars_map =
       Closure_id.Set.fold
-        (fun closure_id closure_vars ->
+        (fun closure_id closure_vars_map ->
           let closure_var =
             VB.create (Variable.create "generated") Name_mode.normal
           in
-          Closure_id.Map.add closure_id closure_var closure_vars)
-        generated_closures closure_vars
+          Closure_id.Map.add closure_id closure_var closure_vars_map)
+        generated_closures closure_vars_map
     in
     let closure_vars =
       List.map
@@ -1764,7 +1764,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   in
   let acc, body =
     bind_code_and_sets_of_closures (Acc.code acc)
-      (Acc.declared_static_sets_of_closures acc)
+      (Acc.lifted_sets_of_closures acc)
       acc body
   in
   (* We must make sure there is always an outer [Let_symbol] binding so that
@@ -1796,7 +1796,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
           (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
           closure_map sa)
       symbol_approxs
-      (Acc.declared_static_sets_of_closures acc)
+      (Acc.lifted_sets_of_closures acc)
   in
   let acc, body =
     List.fold_left
