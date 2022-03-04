@@ -369,7 +369,7 @@ let is_inlinable_box effs ~extra =
      this involves moving the arguments, so they must be pure (or at most
      generative). *)
   match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
-  | (Only_generative_effects _, No_coeffects), Some Box -> true
+  | ((No_effects | Only_generative_effects _), No_coeffects), Some Box -> true
   | _, _ -> false
 
 let mk_binding ?extra env inline effs var cmm_expr =
