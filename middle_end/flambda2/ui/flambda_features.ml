@@ -174,6 +174,9 @@ module Debug = struct
 
   let concrete_types_only_on_canonicals () =
     !Flambda_backend_flags.Flambda2.Debug.concrete_types_only_on_canonicals
+
+  let keep_invalid_handlers () =
+    !Flambda_backend_flags.Flambda2.Debug.keep_invalid_handlers
 end
 
 module Expert = struct
