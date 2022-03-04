@@ -263,15 +263,13 @@ let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
     in
     let create_typing_env _ = typing_env in
     let free_names_of_name name =
-      match Name.must_be_symbol_opt name with
+      let symbol = Name.must_be_symbol name in
+      match Symbol.Map.find_opt symbol approxs with
       | None -> None
-      | Some symbol -> (
-        match Symbol.Map.find_opt symbol approxs with
-        | None -> None
-        | Some approx ->
-          Some
-            (Value_approximation.free_names
-               ~code_free_names:Code_or_metadata.free_names approx))
+      | Some approx ->
+        Some
+          (Value_approximation.free_names
+             ~code_free_names:Code_or_metadata.free_names approx)
     in
     prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
       ~used_closure_vars
