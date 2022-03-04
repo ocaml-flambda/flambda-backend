@@ -33,6 +33,10 @@ module LC = Lambda_conversions
 module P = Flambda_primitive
 module VB = Bound_var
 
+type close_functions_result =
+  | Lifted of (Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
+  | Dynamic of Set_of_closures.t * Code.t Value_approximation.t Closure_id.Map.t
+
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
 let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
@@ -40,6 +44,15 @@ let use_of_symbol_as_simple acc symbol = acc, Simple.symbol symbol
 let symbol_for_ident acc env id =
   let symbol = Env.symbol_for_global env id in
   use_of_symbol_as_simple acc symbol
+
+let declare_symbol_for_closure_ident env ident closure_id : Env.t * Symbol.t =
+  let symbol =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create (Closure_id.to_string closure_id))
+  in
+  let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
+  env, symbol
 
 let register_const0 acc constant name =
   match Static_const.Map.find constant (Acc.shareable_constants acc) with
@@ -1072,7 +1085,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
         untag ~body
       |> Expr_with_acc.create_let
 
-let close_one_function acc ~external_env ~by_closure_id decl
+let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
     ~var_within_closures_from_idents ~closure_ids_from_idents
     function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
@@ -1117,33 +1130,44 @@ let close_one_function acc ~external_env ~by_closure_id decl
       ~from:(Rec_info_expr.var my_depth)
       ~to_:(Rec_info_expr.var next_depth)
   in
+  if has_lifted_closure
+     && not (Variable.Map.is_empty var_within_closures_to_bind)
+  then
+    Misc.fatal_errorf
+      "Variables found in closure when trying to lift %a in \
+       [Closure_conversion]."
+      Ident.print our_let_rec_ident;
   (* CR mshinwell: Remove "project_closure" names *)
   let project_closure_to_bind, simples_for_project_closure =
-    List.fold_left
-      (fun (to_bind, simples_for_idents) function_decl ->
-        let let_rec_ident = Function_decl.let_rec_ident function_decl in
-        let to_bind, var =
-          if Ident.same our_let_rec_ident let_rec_ident && is_curried
-          then
-            (* When the function being compiled is tupled, my_closure points to
-               the curried version but let_rec_ident is called with tuple
-               arguments, so the correct closure to bind is the one in the
-               closure_ids_from_idents map. *)
-            to_bind, my_closure
-            (* my_closure is already bound *)
-          else
-            let variable =
-              Variable.create_with_same_name_as_ident let_rec_ident
-            in
-            let closure_id =
-              Ident.Map.find let_rec_ident closure_ids_from_idents
-            in
-            Variable.Map.add variable closure_id to_bind, variable
-        in
-        let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
-        to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
-      (Variable.Map.empty, Ident.Map.empty)
-      (Function_decls.to_list function_declarations)
+    if has_lifted_closure
+    then (* No projection needed *)
+      Variable.Map.empty, Ident.Map.empty
+    else
+      List.fold_left
+        (fun (to_bind, simples_for_idents) function_decl ->
+          let let_rec_ident = Function_decl.let_rec_ident function_decl in
+          let to_bind, var =
+            if Ident.same our_let_rec_ident let_rec_ident && is_curried
+            then
+              (* When the function being compiled is tupled, my_closure points
+                 to the curried version but let_rec_ident is called with tuple
+                 arguments, so the correct closure to bind is the one in the
+                 closure_ids_from_idents map. *)
+              to_bind, my_closure
+              (* my_closure is already bound *)
+            else
+              let variable =
+                Variable.create_with_same_name_as_ident let_rec_ident
+              in
+              let closure_id =
+                Ident.Map.find let_rec_ident closure_ids_from_idents
+              in
+              Variable.Map.add variable closure_id to_bind, variable
+          in
+          let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
+          to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
+        (Variable.Map.empty, Ident.Map.empty)
+        (Function_decls.to_list function_declarations)
   in
   let closure_env_without_parameters =
     let empty_env = Env.clear_local_bindings external_env in
@@ -1365,6 +1389,10 @@ let close_functions acc external_env function_declarations =
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
+  let can_be_lifted =
+    Ident.Map.is_empty var_within_closures_from_idents
+    && Flambda_features.classic_mode ()
+  in
   let func_decl_list = Function_decls.to_list function_declarations in
   let closure_ids_from_idents =
     List.fold_left
@@ -1374,12 +1402,26 @@ let close_functions acc external_env function_declarations =
         Ident.Map.add id closure_id map)
       Ident.Map.empty func_decl_list
   in
+  let external_env, symbol_map =
+    if can_be_lifted
+    then
+      Ident.Map.fold
+        (fun ident closure_id (env, symbol_map) ->
+          let env, symbol =
+            declare_symbol_for_closure_ident env ident closure_id
+          in
+          env, Closure_id.Map.add closure_id symbol symbol_map)
+        closure_ids_from_idents
+        (external_env, Closure_id.Map.empty)
+    else external_env, Closure_id.Map.empty
+  in
   let acc, approximations =
     List.fold_left
       (fun (acc, by_closure_id) function_decl ->
         let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
               close_one_function acc ~external_env ~by_closure_id function_decl
+                ~has_lifted_closure:can_be_lifted
                 ~var_within_closures_from_idents ~closure_ids_from_idents
                 function_declarations)
         in
@@ -1390,14 +1432,19 @@ let close_functions acc external_env function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   (* CR lmaurer: funs has arbitrary order (ultimately coming from
      function_declarations) *)
-  let funs, approximations =
-    let funs, approxs =
+  let funs =
+    let funs =
       Closure_id.Map.fold
-        (fun cid (code_id, desc) (funs, approxs) ->
-          (cid, code_id) :: funs, (code_id, desc) :: approxs)
-        approximations ([], [])
+        (fun cid (code_id, _) funs -> (cid, code_id) :: funs)
+        approximations []
     in
-    Closure_id.Lmap.of_list (List.rev funs), List.rev approxs
+    Closure_id.Lmap.of_list (List.rev funs)
+  in
+  let approximations =
+    Closure_id.Map.map
+      (fun (code_id, code) ->
+        Value_approximation.Closure_approximation (code_id, code))
+      approximations
   in
   let function_decls = Function_declarations.create funs in
   let closure_elements =
@@ -1418,7 +1465,18 @@ let close_functions acc external_env function_declarations =
   let acc =
     Acc.add_set_of_closures_offsets ~is_phantom:false acc set_of_closures
   in
-  acc, set_of_closures, approximations
+  if can_be_lifted
+  then
+    let symbols =
+      Closure_id.Lmap.mapi
+        (fun closure_id _ ->
+          ( Closure_id.Map.find closure_id symbol_map,
+            Closure_id.Map.find closure_id approximations ))
+        funs
+    in
+    let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
+    acc, Lifted symbols
+  else acc, Dynamic (set_of_closures, approximations)
 
 let close_let_rec acc env ~function_declarations
     ~(body : Acc.t -> Env.t -> Acc.t * Expr_with_acc.t) =
@@ -1430,17 +1488,16 @@ let close_let_rec acc env ~function_declarations
         env)
       function_declarations env
   in
-  let closure_vars =
+  let closure_vars_map, ident_map =
     List.fold_left
-      (fun closure_vars decl ->
-        let closure_var =
-          VB.create
-            (Env.find_var env (Function_decl.let_rec_ident decl))
-            Name_mode.normal
-        in
+      (fun (closure_vars_map, ident_map) decl ->
+        let ident = Function_decl.let_rec_ident decl in
+        let closure_var = VB.create (Env.find_var env ident) Name_mode.normal in
         let closure_id = Function_decl.closure_id decl in
-        Closure_id.Map.add closure_id closure_var closure_vars)
-      Closure_id.Map.empty function_declarations
+        ( Closure_id.Map.add closure_id closure_var closure_vars_map,
+          Closure_id.Map.add closure_id ident ident_map ))
+      (Closure_id.Map.empty, Closure_id.Map.empty)
+      function_declarations
   in
   let alloc_mode =
     (* The closure allocation mode must be the same for all closures in the set
@@ -1465,84 +1522,145 @@ let close_let_rec acc env ~function_declarations
     | None ->
       Misc.fatal_error "let-rec group of [lfunction] declarations is empty"
   in
-  let acc, set_of_closures, approximations =
+  let acc, closed_functions =
     close_functions acc env
       (Function_decls.create function_declarations alloc_mode)
   in
-  (* CR mshinwell: We should maybe have something more elegant here *)
-  let generated_closures =
-    Closure_id.Set.diff
-      (Closure_id.Map.keys
-         (Function_declarations.funs
-            (Set_of_closures.function_decls set_of_closures)))
-      (Closure_id.Map.keys closure_vars)
-  in
-  let closure_vars =
-    Closure_id.Set.fold
-      (fun closure_id closure_vars ->
-        let closure_var =
-          VB.create (Variable.create "generated") Name_mode.normal
-        in
-        Closure_id.Map.add closure_id closure_var closure_vars)
-      generated_closures closure_vars
-  in
-  let closure_vars =
-    List.map
-      (fun (closure_id, _) -> Closure_id.Map.find closure_id closure_vars)
-      (Function_declarations.funs_in_order
-         (Set_of_closures.function_decls set_of_closures)
-      |> Closure_id.Lmap.bindings)
-  in
-  let env =
-    List.fold_left2
-      (fun env var approx ->
-        Env.add_closure_approximation env (Name.var (VB.var var)) approx)
-      env closure_vars approximations
-  in
-  let acc, body = body acc env in
-  let named = Named.create_set_of_closures set_of_closures in
-  Let_with_acc.create acc
-    (Bound_pattern.set_of_closures ~closure_vars)
-    named ~body
-  |> Expr_with_acc.create_let
+  match closed_functions with
+  | Lifted symbols ->
+    let env =
+      Closure_id.Lmap.fold
+        (fun closure_id (symbol, approx) env ->
+          let ident = Closure_id.Map.find closure_id ident_map in
+          let env =
+            Env.add_simple_to_substitute env ident (Simple.symbol symbol)
+          in
+          Env.add_value_approximation env (Name.symbol symbol) approx)
+        symbols env
+    in
+    body acc env
+  | Dynamic (set_of_closures, approximations) ->
+    (* CR mshinwell: We should maybe have something more elegant here *)
+    let generated_closures =
+      Closure_id.Set.diff
+        (Closure_id.Map.keys
+           (Function_declarations.funs
+              (Set_of_closures.function_decls set_of_closures)))
+        (Closure_id.Map.keys closure_vars_map)
+    in
+    let closure_vars_map =
+      Closure_id.Set.fold
+        (fun closure_id closure_vars_map ->
+          let closure_var =
+            VB.create (Variable.create "generated") Name_mode.normal
+          in
+          Closure_id.Map.add closure_id closure_var closure_vars_map)
+        generated_closures closure_vars_map
+    in
+    let closure_vars =
+      List.map
+        (fun (closure_id, _) -> Closure_id.Map.find closure_id closure_vars_map)
+        (Function_declarations.funs_in_order
+           (Set_of_closures.function_decls set_of_closures)
+        |> Closure_id.Lmap.bindings)
+    in
+    let env =
+      Closure_id.Map.fold
+        (fun closure_id var env ->
+          let approx = Closure_id.Map.find closure_id approximations in
+          Env.add_value_approximation env (Name.var (VB.var var)) approx)
+        closure_vars_map env
+    in
+    let acc, body = body acc env in
+    let named = Named.create_set_of_closures set_of_closures in
+    Let_with_acc.create acc
+      (Bound_pattern.set_of_closures ~closure_vars)
+      named ~body
+    |> Expr_with_acc.create_let
 
-module SCC = Strongly_connected_components_flambda2.Make (Code_id)
+module CIS = Code_id_or_symbol
+module GroupMap = Numbers.Int.Map
+module SCC = Strongly_connected_components_flambda2.Make (Numbers.Int)
 
-let bind_code all_code acc body =
-  let graph =
-    Code_id.Map.map
-      (fun code ->
-        Code_id.Set.filter
-          (fun sym ->
-            Code_id.in_compilation_unit sym
-              (Compilation_unit.get_current_exn ()))
-          (Name_occurrences.code_ids (Code.free_names code)))
+let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
+  let fresh_group_id =
+    let i = ref 0 in
+    fun () ->
+      let n = !i in
+      incr i;
+      n
+  in
+  let group_to_bound_consts, symbol_to_groups =
+    Code_id.Map.fold
+      (fun code_id code (g2c, s2g) ->
+        let id = fresh_group_id () in
+        let bound = Bound_symbols.Pattern.code code_id in
+        let const = Static_const_or_code.create_code code in
+        ( GroupMap.add id (bound, const) g2c,
+          CIS.Map.add (CIS.create_code_id code_id) id s2g ))
       all_code
+      (GroupMap.empty, CIS.Map.empty)
+  in
+  let group_to_bound_consts, symbol_to_groups =
+    List.fold_left
+      (fun (g2c, s2g) (symbols, set_of_closures) ->
+        let id = fresh_group_id () in
+        let symbols = Closure_id.Lmap.map fst symbols in
+        let bound = Bound_symbols.Pattern.set_of_closures symbols in
+        let const =
+          Static_const_or_code.create_static_const
+            (Set_of_closures set_of_closures)
+        in
+        ( GroupMap.add id (bound, const) g2c,
+          Closure_id.Lmap.fold
+            (fun _closure_id symbol s2g ->
+              CIS.Map.add (CIS.create_symbol symbol) id s2g)
+            symbols s2g ))
+      (group_to_bound_consts, symbol_to_groups)
+      sets_of_closures
+  in
+  let graph =
+    GroupMap.map
+      (fun (_bound, const) ->
+        let free_names = Static_const_or_code.free_names const in
+        let deps =
+          Code_id.Set.fold
+            (fun code_id deps ->
+              match
+                CIS.Map.find (CIS.create_code_id code_id) symbol_to_groups
+              with
+              | exception Not_found -> deps
+              | id -> Numbers.Int.Set.add id deps)
+            (Name_occurrences.code_ids free_names)
+            Numbers.Int.Set.empty
+        in
+        Symbol.Set.fold
+          (fun symbol deps ->
+            match CIS.Map.find (CIS.create_symbol symbol) symbol_to_groups with
+            | exception Not_found -> deps
+            | id -> Numbers.Int.Set.add id deps)
+          (Name_occurrences.symbols free_names)
+          deps)
+      group_to_bound_consts
   in
   let components = SCC.connected_components_sorted_from_roots_to_leaf graph in
   Array.fold_left
     (fun (acc, body) (component : SCC.component) ->
-      let code_ids =
+      let group_ids =
         match component with
-        | No_loop code_id -> [code_id]
-        | Has_loop code_ids -> code_ids
+        | No_loop group_id -> [group_id]
+        | Has_loop group_ids -> group_ids
       in
       let bound_symbols, static_consts =
         List.fold_left
-          (fun (bound_symbols, static_consts) code_id ->
-            let bound_symbols =
-              Bound_symbols.Pattern.code code_id :: bound_symbols
-            in
-            let code =
-              try Code_id.Map.find code_id all_code
+          (fun (bound_symbols, static_consts) group_id ->
+            let bound_symbol, static_const =
+              try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
-                Misc.fatal_errorf "Unbound code ID %a" Code_id.print code_id
+                Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            let static_consts =
-              Static_const_or_code.create_code code :: static_consts
-            in
-            bound_symbols, static_consts)
-          ([], []) code_ids
+            bound_symbol :: bound_symbols, static_const :: static_consts)
+          ([], []) group_ids
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
@@ -1644,7 +1762,11 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     | Some [approx] -> approx
     | _ -> Value_approximation.Value_unknown
   in
-  let acc, body = bind_code (Acc.code acc) acc body in
+  let acc, body =
+    bind_code_and_sets_of_closures (Acc.code acc)
+      (Acc.lifted_sets_of_closures acc)
+      acc body
+  in
   (* We must make sure there is always an outer [Let_symbol] binding so that
      lifted constants not in the scope of any other [Let_symbol] binding get put
      into the term and not dropped. Adding this extra binding, which will
@@ -1661,13 +1783,20 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       acc
   in
   let symbols_approximations =
+    let symbol_approxs =
+      List.fold_left
+        (fun sa (symbol, _) ->
+          Symbol.Map.add symbol Value_approximation.Value_unknown sa)
+        (Symbol.Map.singleton module_symbol module_block_approximation)
+        (Acc.declared_symbols acc)
+    in
     List.fold_left
-      (fun sa (symbol, _) ->
-        (* CR Keryan: for now only constants are lifted. It will need refinement
-           with the lifting of closed functions *)
-        Symbol.Map.add symbol Value_approximation.Value_unknown sa)
-      (Symbol.Map.singleton module_symbol module_block_approximation)
-      (Acc.declared_symbols acc)
+      (fun sa (closure_map, _) ->
+        Closure_id.Lmap.fold
+          (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
+          closure_map sa)
+      symbol_approxs
+      (Acc.lifted_sets_of_closures acc)
   in
   let acc, body =
     List.fold_left
