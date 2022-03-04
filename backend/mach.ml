@@ -196,7 +196,7 @@ let operation_is_pure = function
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Iload (_, _) | Iname_for_debugger _
+  | Iload (_, _, _) | Iname_for_debugger _
     -> true
 
 
@@ -214,7 +214,7 @@ let operation_can_raise op =
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Istackoffset _ | Istore _  | Iload (_, _) | Iname_for_debugger _
+  | Istackoffset _ | Istore _  | Iload (_, _, _) | Iname_for_debugger _
   | Itailcall_imm _ | Itailcall_ind
   | Iopaque | Ibeginregion | Iendregion
   | Iprobe_is_enabled _

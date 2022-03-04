@@ -375,7 +375,7 @@ let is_pure_operation : operation -> bool = function
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s -> Arch.is_pure_specific s
+  | Specific s -> Arch.operation_is_pure s
   | Name_for_debugger _ -> true
 
 let is_pure_basic : basic -> bool = function
