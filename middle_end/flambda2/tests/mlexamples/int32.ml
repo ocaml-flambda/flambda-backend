@@ -200,7 +200,7 @@ module Stdlib = struct
      "caml_int64_float_of_bits" "caml_int64_float_of_bits_unboxed" [@@unboxed]
      [@@noalloc] let infinity = float_of_bits 0x7F_F0_00_00_00_00_00_00L let
      neg_infinity = float_of_bits 0xFF_F0_00_00_00_00_00_00L let nan =
-     float_of_bits 0x7F_F0_00_00_00_00_00_01L let max_float = float_of_bits
+     float_of_bits 0x7F_F8_00_00_00_00_00_01L let max_float = float_of_bits
      0x7F_EF_FF_FF_FF_FF_FF_FFL let min_float = float_of_bits
      0x00_10_00_00_00_00_00_00L let epsilon_float = float_of_bits
      0x3C_B0_00_00_00_00_00_00L
