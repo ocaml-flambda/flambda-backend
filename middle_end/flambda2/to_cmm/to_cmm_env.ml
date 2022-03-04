@@ -35,7 +35,9 @@ type cont =
    track of some extra semantics that are useful to implement some optimization
    in the translation to cmm. *)
 
-type extra_info = Untag of Cmm.expression
+type extra_info =
+  | Untag of Cmm.expression
+  | Box
 
 (* Delayed let-bindings. Let bindings are delayed in stages in order to allow
    for potential reordering and inlining of variables that are bound and used
@@ -360,6 +362,16 @@ let classify effs =
      effectful expressions such as function calls. *)
   | No_effects, No_coeffects -> Pure
 
+let is_inlinable_box effs ~extra =
+  (* [effs] is the effects and coeffects of some primitive operation, arising
+     either from the primitive itself or its arguments. If this is a boxing
+     operation (as indicated by [extra]), then we want to inline the box, but
+     this involves moving the arguments, so they must be pure (or at most
+     generative). *)
+  match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
+  | ((No_effects | Only_generative_effects _), No_coeffects), Some Box -> true
+  | _, _ -> false
+
 let mk_binding ?extra env inline effs var cmm_expr =
   let order = next_order () in
   let cmm_var = gen_variable var in
@@ -377,6 +389,12 @@ let mk_binding ?extra env inline effs var cmm_expr =
 
 let bind_pure env var b = { env with pures = Variable.Map.add var b env.pures }
 
+let bind_inlined_box env var b =
+  (* CR lmaurer: This violates our rule about not moving allocations past
+     function calls. We should either fix it (not clear how) or be rid of that
+     rule. *)
+  bind_pure env var b
+
 let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
 
 let bind_coeff env var b =
@@ -390,11 +408,13 @@ let bind_coeff env var b =
 
 let bind_variable env var ?extra effs inline cmm_expr =
   let env, b = mk_binding ?extra env inline effs var cmm_expr in
-  match classify effs with
-  | Pure -> bind_pure env var b
-  | Effect -> bind_eff env var b
-  | Coeffect -> bind_coeff env var b
-
+  if inline && is_inlinable_box effs ~extra
+  then bind_inlined_box env var b
+  else
+    match classify effs with
+    | Pure -> bind_pure env var b
+    | Effect -> bind_eff env var b
+    | Coeffect -> bind_coeff env var b
 (* Variable lookup (for potential inlining) *)
 
 let inline_res env b = b.cmm_expr, env, b.effs

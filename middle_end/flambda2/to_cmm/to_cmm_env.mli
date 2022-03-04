@@ -89,6 +89,7 @@ type extra_info =
   | Untag of Cmm.expression
       (** The variable is bound to the result of untagging the cmm expression.
           This allows to have access to the cmm expression before untagging. *)
+  | Box  (** The variable is bound to a number being boxed. *)
 
 (** Create (and bind) a cmm variable for the given flambda variable, and return
     the new environment, and the created variable. Will fail (i.e. assertion
