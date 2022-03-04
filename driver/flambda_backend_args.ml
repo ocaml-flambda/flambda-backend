@@ -733,7 +733,7 @@ module Extra_params = struct
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
-    | "use-cpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
+    | "gcpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
