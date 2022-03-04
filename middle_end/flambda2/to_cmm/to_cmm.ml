@@ -485,7 +485,7 @@ let unary_primitive env res dbg f arg =
     in
     extra, res, C.unbox_number ~dbg kind arg
   | Box_number (kind, alloc_mode) ->
-    None, res, C.box_number ~dbg kind alloc_mode arg
+    Some Env.Box, res, C.box_number ~dbg kind alloc_mode arg
   | Select_closure { move_from = c1; move_to = c2 } -> begin
     match Env.closure_offset env c1, Env.closure_offset env c2 with
     | Id_slot { offset = c1_offset; _ }, Id_slot { offset = c2_offset; _ } ->
@@ -1330,7 +1330,7 @@ and switch env res s =
     match Targetint_31_63.Map.cardinal arms with
     | 2 -> begin
       match match_var_with_extra_info env scrutinee with
-      | None -> e, false
+      | None | Some Box -> e, false
       | Some (Untag e') ->
         let size_e = cmm_arith_size e in
         let size_e' = cmm_arith_size e' in
