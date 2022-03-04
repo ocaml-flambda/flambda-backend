@@ -390,8 +390,9 @@ let mk_binding ?extra env inline effs var cmm_expr =
 let bind_pure env var b = { env with pures = Variable.Map.add var b env.pures }
 
 let bind_inlined_box env var b =
-  (* CR lmaurer: This violates the rule about moving allocations past function
-     calls. We should either fix it (not clear how) or be rid of that rule. *)
+  (* CR lmaurer: This violates our rule about not moving allocations past
+     function calls. We should either fix it (not clear how) or be rid of that
+     rule. *)
   bind_pure env var b
 
 let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
