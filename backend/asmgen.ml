@@ -307,6 +307,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
 let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
   emit_begin_assembly ();
   make_cmm ()
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ~ppf_dump))
   ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
@@ -325,8 +326,7 @@ let end_gen_implementation0 ?toplevel ~ppf_dump make_cmm =
 
 let end_gen_implementation ?toplevel ~ppf_dump clambda =
   end_gen_implementation0 ?toplevel ~ppf_dump (fun () ->
-    Profile.record "cmm" Cmmgen.compunit clambda
-    |> Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm)
+    Profile.record "cmm" Cmmgen.compunit clambda)
 
 type middle_end =
      backend:(module Backend_intf.S)
@@ -346,7 +346,7 @@ let compile_implementation ?toplevel ~backend ~filename ~prefixname ~middle_end
   compile_unit ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
     ~obj_filename:(prefixname ^ ext_obj)
-    ~may_reduce_heap:(Option.is_none toplevel) 
+    ~may_reduce_heap:(Option.is_none toplevel)
     (fun () ->
       Ident.Set.iter Compilenv.require_global program.required_globals;
       let clambda_with_constants =
