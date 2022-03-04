@@ -334,3 +334,23 @@ let equal_specific_operation left right =
     | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Ipause
     | Icrc32q | Iprefetch _), _ ->
     false
+
+let is_pure_specific : specific_operation -> bool = function
+  | Ilea _ -> true
+  | Istore_int _ -> false
+  | Ioffset_loc _ -> false
+  | Ifloatarithmem _ -> false
+  | Ibswap _ -> true
+  | Isqrtf -> true
+  | Ifloatsqrtf _ -> false
+  | Ifloat_iround -> true
+  | Ifloat_round _ -> true
+  | Ifloat_min -> true
+  | Ifloat_max -> true
+  | Isextend32 -> true
+  | Izextend32 -> true
+  | Irdtsc -> false
+  | Irdpmc -> false
+  | Icrc32q -> true
+  | Ipause -> false
+  | Iprefetch _ -> false
