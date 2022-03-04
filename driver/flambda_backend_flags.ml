@@ -286,7 +286,7 @@ module Flambda2 = struct
       threshold = Some 100.;
     }
 
-    let o3_arguments = o2_arguments
+    let o3_arguments = { o2_arguments with max_depth = Some 6 }
   end
 end
 
