@@ -462,10 +462,10 @@ let extract_label_names env ty =
     assert false
 
 let has_local_attr loc attrs =
-  let present = Builtin_attributes.has_local attrs in
-  if present && not (Clflags.Extension.is_enabled Local) then
-    raise(Typetexp.Error(loc, Env.empty, Local_not_enabled));
-  present
+  match Builtin_attributes.has_local attrs with
+  | Ok l -> l
+  | Error () ->
+     raise(Typetexp.Error(loc, Env.empty, Local_not_enabled))
 
 let has_local_attr_pat ppat =
   has_local_attr ppat.ppat_loc ppat.ppat_attributes
