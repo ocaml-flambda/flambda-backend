@@ -837,22 +837,16 @@ let close_exact_or_unknown_apply acc env
       ( acc,
         match (callee_approx : Env.value_approximation option) with
         | Some (Closure_approximation (code_id, closure_id, code_or_meta)) ->
-          let param_arity, return_arity, is_tupled, _closure_used =
+          let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
-            Code_metadata.(
-              ( params_arity meta,
-                result_arity meta,
-                is_tupled meta,
-                is_my_closure_used meta ))
+            Code_metadata.(result_arity meta, is_tupled meta)
           in
           if is_tupled
           then
-            let param_arity =
-              Flambda_arity.With_subkinds.create
-                [Flambda_kind.With_subkind.block Tag.zero param_arity]
-            in
-            Call_kind.indirect_function_call_known_arity ~param_arity
-              ~return_arity mode
+            (* CR keryan : We could do better here since we know the arity, but
+               we would have to untuple the arguments and we lack information
+               for now *)
+            Call_kind.indirect_function_call_unknown_arity mode
           else
             Call_kind.direct_function_call code_id closure_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
