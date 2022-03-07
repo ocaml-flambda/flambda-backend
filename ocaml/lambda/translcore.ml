@@ -28,6 +28,7 @@ open Debuginfo.Scoped_location
 type error =
     Free_super_var
   | Unreachable_reached
+  | Local_allocs_not_enabled
 
 exception Error of Location.t * error
 
@@ -94,14 +95,20 @@ let extract_float = function
     Const_base(Const_float f) -> f
   | _ -> fatal_error "Translcore.extract_float"
 
-let transl_alloc_mode alloc_mode : Lambda.alloc_mode =
+let transl_alloc_mode loc alloc_mode : Lambda.alloc_mode =
   match Btype.Alloc_mode.constrain_lower alloc_mode with
   | Global -> Alloc_heap
-  | Local -> Alloc_local
+  | Local ->
+     if not (Clflags.Extension.is_enabled Local) then
+       raise (Error (loc, Local_allocs_not_enabled));
+     Alloc_local
 
-let transl_value_mode mode =
+let transl_value_mode loc mode =
   let alloc_mode = Btype.Value_mode.regional_to_global_alloc mode in
-  transl_alloc_mode alloc_mode
+  transl_alloc_mode loc alloc_mode
+
+let transl_exp_mode e = transl_value_mode e.exp_loc e.exp_mode
+let transl_pat_mode p = transl_value_mode p.pat_loc p.pat_mode
 
 let transl_apply_position position =
   match position with
@@ -289,7 +296,7 @@ let rec iter_exn_names f pat =
 let transl_ident loc env ty path desc kind =
   match desc.val_kind, kind with
   | Val_prim p, Id_prim pmode ->
-      let poly_mode = transl_alloc_mode pmode in
+      let poly_mode = transl_alloc_mode (to_location loc) pmode in
       Translprim.transl_primitive loc p env ty ~poly_mode (Some path)
   | Val_anc _, Id_value ->
       raise(Error(to_location loc, Free_super_var))
@@ -297,7 +304,7 @@ let transl_ident loc env ty path desc kind =
       transl_value_path loc env path
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
-let can_apply_primitive p pmode pos args =
+let can_apply_primitive loc p pmode pos args =
   let is_omitted = function
     | Arg _ -> false
     | Omitted _ -> true
@@ -310,7 +317,7 @@ let can_apply_primitive p pmode pos args =
     else if pos = Typedtree.Nontail then true
     else begin
       let return_mode = Ctype.prim_mode pmode p.prim_native_repr_res in
-      (transl_alloc_mode return_mode = Alloc_heap)
+      (transl_alloc_mode loc return_mode = Alloc_heap)
     end
   end
 
@@ -353,7 +360,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim pmode);
                 exp_type = prim_type } as funct, oargs, pos)
-    when can_apply_primitive p pmode pos oargs ->
+    when can_apply_primitive e.exp_loc p pmode pos oargs ->
       let argl, extra_args = cut p.prim_arity oargs in
       let arg_exps =
          List.map (function _, Arg x -> x | _ -> assert false) argl
@@ -364,7 +371,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
       in
-      let prim_mode = transl_alloc_mode pmode in
+      let prim_mode = transl_alloc_mode e.exp_loc pmode in
       let lam =
         Translprim.transl_primitive_application
           (of_location ~scopes e.exp_loc) p e.exp_env prim_type prim_mode
@@ -383,7 +390,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         in
         let e = { e with exp_desc = Texp_apply(funct, oargs, pos) } in
         let position = transl_apply_position pos in
-        let mode = transl_value_mode e.exp_mode in
+        let mode = transl_exp_mode e in
         event_after ~scopes e
           (transl_apply ~scopes ~tailcall ~inlined ~specialised ~position ~mode
              lam extra_args (of_location ~scopes e.exp_loc))
@@ -400,7 +407,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       in
       let e = { e with exp_desc = Texp_apply(funct, oargs, position) } in
       let position = transl_apply_position position in
-      let mode = transl_value_mode e.exp_mode in
+      let mode = transl_exp_mode e in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised
            ~position ~mode (transl_exp ~scopes funct)
@@ -420,7 +427,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
         Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_value_mode e.exp_mode),
+                         transl_exp_mode e),
               ll,
               (of_location ~scopes e.exp_loc))
       end
@@ -439,7 +446,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
             Lconst(Const_block(n, List.map extract_constant ll))
           with Not_constant ->
             Lprim(Pmakeblock(n, Immutable, Some shape,
-                             transl_value_mode e.exp_mode),
+                             transl_exp_mode e),
                   ll,
                   of_location ~scopes e.exp_loc)
           end
@@ -449,7 +456,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
           if is_const then lam
           else
             Lprim(Pmakeblock(0, Immutable, Some (Pgenval :: shape),
-                             transl_value_mode e.exp_mode),
+                             transl_exp_mode e),
                   lam :: ll, of_location ~scopes e.exp_loc)
       end
   | Texp_extension_constructor (_, path) ->
@@ -465,13 +472,13 @@ and transl_exp0 ~in_new_scope ~scopes e =
                                    extract_constant lam]))
           with Not_constant ->
             Lprim(Pmakeblock(0, Immutable, None,
-                             transl_value_mode e.exp_mode),
+                             transl_exp_mode e),
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression} ->
       transl_record ~scopes e.exp_loc e.exp_env
-        (transl_value_mode e.exp_mode)
+        (transl_exp_mode e)
         fields representation extended_expression
   | Texp_field(arg, _, lbl) ->
       let targ = transl_exp ~scopes arg in
@@ -486,7 +493,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
                  of_location ~scopes e.exp_loc)
         | Record_unboxed _ -> targ
         | Record_float ->
-          let mode = transl_value_mode e.exp_mode in
+          let mode = transl_exp_mode e in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_extension _ ->
@@ -515,7 +522,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
   | Texp_array expr_list ->
       let kind = array_kind e in
       let ll = transl_list ~scopes expr_list in
-      let mode = transl_value_mode e.exp_mode in
+      let mode = transl_exp_mode e in
       begin try
         (* For native code the decision as to which compilation strategy to
            use is made later.  This enables the Flambda passes to lift certain
@@ -599,7 +606,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       let obj = transl_exp ~scopes expr in
       let loc = of_location ~scopes e.exp_loc in
       let pos = transl_apply_position pos in
-      let mode = transl_value_mode e.exp_mode in
+      let mode = transl_exp_mode e in
       let lam =
         match met with
           Tmeth_val id -> Lsend (Self, Lvar id, obj, [], pos, mode, loc)
@@ -698,7 +705,7 @@ and transl_exp0 ~in_new_scope ~scopes e =
       (* when e needs no computation (constants, identifiers, ...), we
          optimize the translation just as Lazy.lazy_from_val would
          do *)
-      assert (transl_value_mode e.exp_mode = Alloc_heap);
+      assert (transl_exp_mode e = Alloc_heap);
       begin match Typeopt.classify_lazy_argument e with
       | `Constant_or_function ->
         (* A constant expr (of type <> float if [Config.flat_float_array] is
@@ -962,9 +969,10 @@ and transl_apply ~scopes
         let id_arg = Ident.create_local "param" in
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
-          let mode = transl_alloc_mode mode_closure in
-          let arg_mode = transl_alloc_mode mode_arg in
-          let ret_mode = transl_alloc_mode mode_ret in
+          let sloc = to_location loc in
+          let mode = transl_alloc_mode sloc mode_closure in
+          let arg_mode = transl_alloc_mode sloc mode_arg in
+          let ret_mode = transl_alloc_mode sloc mode_ret in
           let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
           let nlocal =
             match join_mode mode (join_mode arg_mode ret_mode) with
@@ -1010,8 +1018,8 @@ and transl_curried_function
                      partial = partial'; region = region' };
                exp_env; exp_type; exp_loc; exp_mode}}]
       when arity < max_arity ->
-      let arg_mode = transl_value_mode pat.pat_mode in
-      let curry_mode = transl_value_mode exp_mode in
+      let arg_mode = transl_pat_mode pat in
+      let curry_mode = transl_value_mode exp_loc exp_mode in
       (* Lfunctions must have local returns after the first local arg/ret *)
       if not (sub_mode mode curry_mode && sub_mode arg_mode curry_mode) then
         (* Cannot curry here *)
@@ -1060,11 +1068,11 @@ and transl_tupled_function
       ~scopes ~arity ~mode ~region loc return
       repr partial (param:Ident.t) cases =
   match cases with
-  | {c_lhs={pat_desc = Tpat_tuple pl; pat_mode }} :: _
+  | {c_lhs={pat_desc = Tpat_tuple pl; pat_loc; pat_mode }} :: _
     when !Clflags.native_code
       && arity = 1
       && mode = Alloc_heap
-      && transl_value_mode pat_mode = Alloc_heap
+      && transl_value_mode pat_loc pat_mode = Alloc_heap
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
         let size = List.length pl in
@@ -1115,10 +1123,10 @@ and transl_function0
       | {c_lhs=pat} :: other_cases ->
         (* All the patterns might not share the same types. We must take the
            union of the patterns types *)
-        let arg_mode = transl_value_mode pat.pat_mode in
+        let arg_mode = transl_pat_mode pat in
         arg_mode,
         List.fold_left (fun k {c_lhs=pat} ->
-          assert (transl_value_mode pat.pat_mode = arg_mode);
+          assert (transl_pat_mode pat = arg_mode);
           Typeopt.value_kind_union k
             (value_kind pat.pat_env pat.pat_type))
           (value_kind pat.pat_env pat.pat_type) other_cases
@@ -1137,7 +1145,7 @@ and transl_function0
     ((Curried {nlocal}, [param, kind], return, region), body)
 
 and transl_function ~scopes e param cases partial region =
-  let mode = transl_value_mode e.exp_mode in
+  let mode = transl_exp_mode e in
   let ((kind, params, return, region), body) =
     event_function ~scopes e
       (function repr ->
@@ -1206,7 +1214,7 @@ and transl_let ~scopes ?(add_regions=false) ?(in_structure=false)
           Translattribute.add_function_attributes lam vb_loc vb_attributes
         in
         let lam = if add_regions then maybe_region lam else lam in
-        begin match transl_value_mode expr.exp_mode, lam with
+        begin match transl_exp_mode expr, lam with
         | Alloc_heap, _ -> ()
         | Alloc_local, Lfunction _ -> ()
         | _ -> Misc.fatal_error "transl_let: local recursive non-function"
@@ -1391,7 +1399,7 @@ and transl_match ~scopes e arg pat_expr_list partial =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple argl}, [] ->
       assert (static_handlers = []);
-      let mode = transl_value_mode arg.exp_mode in
+      let mode = transl_exp_mode arg in
       Matching.for_multiple_match ~scopes kind e.exp_loc
         (transl_list ~scopes argl) mode val_cases partial
     | {exp_desc = Texp_tuple argl}, _ :: _ ->
@@ -1404,7 +1412,7 @@ and transl_match ~scopes e arg pat_expr_list partial =
             argl
         in
         let lvars = List.map (fun (id, _) -> Lvar id) val_ids in
-        let mode = transl_value_mode arg.exp_mode in
+        let mode = transl_exp_mode arg in
         static_catch (transl_list ~scopes argl) val_ids
           (Matching.for_multiple_match ~scopes kind e.exp_loc
              lvars mode val_cases partial)
@@ -1508,6 +1516,8 @@ let report_error ppf = function
         "Ancestor names can only be used to select inherited methods"
   | Unreachable_reached ->
       fprintf ppf "Unreachable expression was reached"
+  | Local_allocs_not_enabled ->
+      fprintf ppf "Local allocation required but '-extension local' not enabled"
 
 let () =
   Location.register_error_of_exn

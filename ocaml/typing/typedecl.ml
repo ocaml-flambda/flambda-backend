@@ -200,16 +200,6 @@ let make_params env params =
   in
     List.map make_param params
 
-let has_global_attr attributes =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "ocaml.global")
-    attributes
-
-let has_nonlocal_attr attributes =
-  List.exists
-    (fun attr -> String.equal attr.attr_name.txt "ocaml.nonlocal")
-    attributes
-
 let transl_labels env closed lbls =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
@@ -240,9 +230,9 @@ let transl_labels env closed lbls =
            match ld.ld_mutable with
            | Mutable -> Types.Global
            | Immutable ->
-               if has_global_attr ld.ld_attributes then
+               if Builtin_attributes.has_global ld.ld_attributes then
                  Types.Global
-               else if has_nonlocal_attr ld.ld_attributes then
+               else if Builtin_attributes.has_nonlocal ld.ld_attributes then
                  Types.Nonlocal
                else
                  Types.Unrestricted
