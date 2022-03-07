@@ -1074,6 +1074,13 @@ module Alloc_mode = struct
 
   let newvar () = Amodevar (fresh ())
 
+  let newvar_below = function
+    | Amode Global -> Amode Global
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v
+
   let check_const = function
     | Amode m -> Some m
     | Amodevar v ->

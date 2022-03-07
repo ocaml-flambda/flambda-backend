@@ -290,6 +290,8 @@ module Alloc_mode : sig
 
   val newvar : unit -> t
 
+  val newvar_below : t -> t
+
   val check_const : t -> const option
 
   val print : Format.formatter -> t -> unit
