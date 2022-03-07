@@ -52,17 +52,20 @@ let lapply ap =
       Lapply ap
 
 let mkappl (func, args) =
-  Lapply {
-    ap_loc=Loc_unknown;
-    ap_func=func;
-    ap_args=args;
-    ap_region_close=Rc_normal;
-    ap_mode=Alloc_heap;
-    ap_tailcall=Default_tailcall;
-    ap_inlined=Default_inlined;
-    ap_specialised=Default_specialise;
-    ap_probe=None;
-  };;
+  Lprim
+    (Popaque,
+     [Lapply {
+         ap_loc=Loc_unknown;
+         ap_func=func;
+         ap_args=args;
+         ap_region_close=Rc_normal;
+         ap_mode=Alloc_heap;
+         ap_tailcall=Default_tailcall;
+         ap_inlined=Default_inlined;
+         ap_specialised=Default_specialise;
+         ap_probe=None;
+       }],
+     Loc_unknown);;
 
 let lsequence l1 l2 =
   if l2 = lambda_unit then l1 else Lsequence(l1, l2)
@@ -190,7 +193,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                     return = Pgenval;
                     attr = default_function_attribute;
                     loc = of_location ~scopes pat.pat_loc;
-                    body = Matching.for_function ~scopes pat.pat_loc
+                    body = Matching.for_function ~scopes Pgenval pat.pat_loc
                              None (Lvar param) [pat, rem] partial;
                     mode = Alloc_heap;
                     region = true }
@@ -211,7 +214,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
         build_object_init ~scopes cl_table obj (vals @ params)
           inh_init obj_init cl
       in
-      (inh_init, Translcore.transl_let ~scopes rec_flag defs obj_init)
+      (inh_init, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
   | Tcl_open (_, cl)
   | Tcl_constraint (cl, _, _, _, _) ->
       build_object_init ~scopes cl_table obj params inh_init obj_init cl
@@ -264,9 +267,11 @@ let output_methods tbl methods lam =
   | [lab; code] ->
       lsequence (mkappl(oo_prim "set_method", [Lvar tbl; lab; code])) lam
   | _ ->
+      let methods =
+        Lprim(Pmakeblock(0,Immutable,None,Alloc_heap), methods, Loc_unknown)
+      in
       lsequence (mkappl(oo_prim "set_methods",
-                        [Lvar tbl; Lprim(Pmakeblock(0,Immutable,None,Alloc_heap),
-                                         methods, Loc_unknown)]))
+                        [Lvar tbl; Lprim (Popaque, [methods], Loc_unknown)]))
         lam
 
 let rec ignore_cstrs cl =
@@ -418,7 +423,7 @@ let rec build_class_lets ~scopes cl =
     Tcl_let (rec_flag, defs, _vals, cl') ->
       let env, wrap = build_class_lets ~scopes cl' in
       (env, fun x ->
-          Translcore.transl_let ~scopes rec_flag defs (wrap x))
+          Translcore.transl_let ~scopes rec_flag defs Pgenval (wrap x))
   | _ ->
       (cl.cl_env, fun x -> x)
 
@@ -458,7 +463,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                    return = Pgenval;
                    attr = default_function_attribute;
                    loc = of_location ~scopes pat.pat_loc;
-                   body = Matching.for_function ~scopes pat.pat_loc
+                   body = Matching.for_function ~scopes Pgenval pat.pat_loc
                             None (Lvar param) [pat, rem] partial;
                    mode = Alloc_heap;
                    region = true }
@@ -476,7 +481,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs obj_init)
+      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
   | Tcl_structure _ -> raise Exit
   | Tcl_constraint (cl', _, _, _, _) ->
       let path, path_lam, obj_init =
@@ -497,7 +502,7 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) obj_init cl vf =
       let path, path_lam, obj_init =
         transl_class_rebind_0 ~scopes self obj_init cl vf
       in
-      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs obj_init)
+      (path, path_lam, Translcore.transl_let ~scopes rec_flag defs Pgenval obj_init)
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
@@ -688,9 +693,9 @@ let free_methods l =
         fv := Ident.Set.remove id !fv
     | Lletrec(decl, _body) ->
         List.iter (fun (id, _exp) -> fv := Ident.Set.remove id !fv) decl
-    | Lstaticcatch(_e1, (_,vars), _e2) ->
+    | Lstaticcatch(_e1, (_,vars), _e2, _kind) ->
         List.iter (fun (id, _) -> fv := Ident.Set.remove id !fv) vars
-    | Ltrywith(_e1, exn, _e2) ->
+    | Ltrywith(_e1, exn, _e2, _k) ->
         fv := Ident.Set.remove exn !fv
     | Lfor(v, _e1, _e2, _dir, _e3) ->
         fv := Ident.Set.remove v !fv
@@ -910,7 +915,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
     if inh_keys = [] then Llet(Alias, Pgenval, cached, Lvar tables, lam) else
     Llet(Strict, Pgenval, cached,
          mkappl (oo_prim "lookup_tables",
-                [Lvar tables; Lprim(Pmakeblock(0, Immutable, None, Alloc_heap),
+                [Lvar tables; Lprim(Pmakearray(Paddrarray, Immutable, Alloc_heap),
                                     inh_keys, Loc_unknown)]),
          lam)
   and lset cached i lam =
@@ -950,7 +955,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          so that the program's behaviour does not change between runs *)
       lupdate_cache
     else
-      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache) in
+      Lifthenelse(lfield cached 0, lambda_unit, lupdate_cache, Pgenval) in
   llets (
   lcache (
   Lsequence(lcheck_cache,

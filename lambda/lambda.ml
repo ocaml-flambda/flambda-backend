@@ -343,13 +343,13 @@ type lambda =
   | Llet of let_kind * value_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
-  | Lswitch of lambda * lambda_switch * scoped_location
+  | Lswitch of lambda * lambda_switch * scoped_location * value_kind
   | Lstringswitch of
-      lambda * (string * lambda) list * lambda option * scoped_location
+      lambda * (string * lambda) list * lambda option * scoped_location * value_kind
   | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda
-  | Ltrywith of lambda * Ident.t * lambda
-  | Lifthenelse of lambda * lambda * lambda
+  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
+  | Ltrywith of lambda * Ident.t * lambda * value_kind
+  | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
   | Lwhile of lambda * lambda
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda
@@ -492,22 +492,22 @@ let make_key e =
         Llet (str,k,y,ex,tr_rec (Ident.add x (Lvar y) env) e)
     | Lprim (p,es,_) ->
         Lprim (p,tr_recs env es, Loc_unknown)
-    | Lswitch (e,sw,loc) ->
-        Lswitch (tr_rec env e,tr_sw env sw,loc)
-    | Lstringswitch (e,sw,d,_) ->
+    | Lswitch (e,sw,loc,kind) ->
+        Lswitch (tr_rec env e,tr_sw env sw,loc,kind)
+    | Lstringswitch (e,sw,d,_,kind) ->
         Lstringswitch
           (tr_rec env e,
            List.map (fun (s,e) -> s,tr_rec env e) sw,
            tr_opt env d,
-          Loc_unknown)
+          Loc_unknown,kind)
     | Lstaticraise (i,es) ->
         Lstaticraise (i,tr_recs env es)
-    | Lstaticcatch (e1,xs,e2) ->
-        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2)
-    | Ltrywith (e1,x,e2) ->
-        Ltrywith (tr_rec env e1,x,tr_rec env e2)
-    | Lifthenelse (cond,ifso,ifnot) ->
-        Lifthenelse (tr_rec env cond,tr_rec env ifso,tr_rec env ifnot)
+    | Lstaticcatch (e1,xs,e2, kind) ->
+        Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, kind)
+    | Ltrywith (e1,x,e2,kind) ->
+        Ltrywith (tr_rec env e1,x,tr_rec env e2,kind)
+    | Lifthenelse (cond,ifso,ifnot,kind) ->
+        Lifthenelse (tr_rec env cond,tr_rec env ifso,tr_rec env ifnot,kind)
     | Lsequence (e1,e2) ->
         Lsequence (tr_rec env e1,tr_rec env e2)
     | Lassign (x,e) ->
@@ -583,22 +583,22 @@ let shallow_iter ~tail ~non_tail:f = function
       tail l2
   | Lprim(_p, args, _loc) ->
       List.iter f args
-  | Lswitch(arg, sw,_) ->
+  | Lswitch(arg, sw,_,_) ->
       f arg;
       List.iter (fun (_key, case) -> tail case) sw.sw_consts;
       List.iter (fun (_key, case) -> tail case) sw.sw_blocks;
       iter_opt tail sw.sw_failaction
-  | Lstringswitch (arg,cases,default,_) ->
+  | Lstringswitch (arg,cases,default,_,_) ->
       f arg ;
       List.iter (fun (_,act) -> tail act) cases ;
       iter_opt tail default
   | Lstaticraise (_,args) ->
       List.iter f args
-  | Lstaticcatch(e1, _, e2) ->
+  | Lstaticcatch(e1, _, e2, _kind) ->
       tail e1; tail e2
-  | Ltrywith(e1, _, e2) ->
+  | Ltrywith(e1, _, e2,_) ->
       f e1; tail e2
-  | Lifthenelse(e1, e2, e3) ->
+  | Lifthenelse(e1, e2, e3,_) ->
       f e1; tail e2; tail e3
   | Lsequence(e1, e2) ->
       f e1; tail e2
@@ -637,7 +637,7 @@ let rec free_variables = function
       Ident.Set.diff set (Ident.Set.of_list (List.map fst decl))
   | Lprim(_p, args, _loc) ->
       free_variables_list Ident.Set.empty args
-  | Lswitch(arg, sw,_) ->
+  | Lswitch(arg, sw,_,_) ->
       let set =
         free_variables_list
           (free_variables_list (free_variables arg)
@@ -648,7 +648,7 @@ let rec free_variables = function
       | None -> set
       | Some failaction -> Ident.Set.union set (free_variables failaction)
       end
-  | Lstringswitch (arg,cases,default,_) ->
+  | Lstringswitch (arg,cases,default,_,_) ->
       let set =
         free_variables_list (free_variables arg)
           (List.map snd cases)
@@ -659,19 +659,19 @@ let rec free_variables = function
       end
   | Lstaticraise (_,args) ->
       free_variables_list Ident.Set.empty args
-  | Lstaticcatch(body, (_, params), handler) ->
+  | Lstaticcatch(body, (_, params), handler, _kind) ->
       Ident.Set.union
         (Ident.Set.diff
            (free_variables handler)
            (Ident.Set.of_list (List.map fst params)))
         (free_variables body)
-  | Ltrywith(body, param, handler) ->
+  | Ltrywith(body, param, handler, _) ->
       Ident.Set.union
         (Ident.Set.remove
            param
            (free_variables handler))
         (free_variables body)
-  | Lifthenelse(e1, e2, e3) ->
+  | Lifthenelse(e1, e2, e3, _) ->
       Ident.Set.union
         (Ident.Set.union (free_variables e1) (free_variables e2))
         (free_variables e3)
@@ -711,14 +711,14 @@ let next_raise_count () =
 let staticfail = Lstaticraise (0,[])
 
 let rec is_guarded = function
-  | Lifthenelse(_cond, _body, Lstaticraise (0,[])) -> true
+  | Lifthenelse(_cond, _body, Lstaticraise (0,[]),_) -> true
   | Llet(_str, _k, _id, _lam, body) -> is_guarded body
   | Levent(lam, _ev) -> is_guarded lam
   | _ -> false
 
 let rec patch_guarded patch = function
-  | Lifthenelse (cond, body, Lstaticraise (0,[])) ->
-      Lifthenelse (cond, body, patch)
+  | Lifthenelse (cond, body, Lstaticraise (0,[]), kind) ->
+      Lifthenelse (cond, body, patch, kind)
   | Llet(str, k, id, lam, body) ->
       Llet (str, k, id, lam, patch_guarded patch body)
   | Levent(lam, ev) ->
@@ -819,28 +819,28 @@ let subst update_env ?(freshen_bound_variables = false) s input_lam =
         let decl, l' = bind_many decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
     | Lprim(p, args, loc) -> Lprim(p, subst_list s l args, loc)
-    | Lswitch(arg, sw, loc) ->
+    | Lswitch(arg, sw, loc,kind) ->
         Lswitch(subst s l arg,
                 {sw with sw_consts = List.map (subst_case s l) sw.sw_consts;
                         sw_blocks = List.map (subst_case s l) sw.sw_blocks;
                         sw_failaction = subst_opt s l sw.sw_failaction; },
-                loc)
-    | Lstringswitch (arg,cases,default,loc) ->
+                loc,kind)
+    | Lstringswitch (arg,cases,default,loc,kind) ->
         Lstringswitch
           (subst s l arg,
            List.map (subst_strcase s l) cases,
            subst_opt s l default,
-           loc)
+           loc,kind)
     | Lstaticraise (i,args) ->  Lstaticraise (i, subst_list s l args)
-    | Lstaticcatch(body, (id, params), handler) ->
+    | Lstaticcatch(body, (id, params), handler, kind) ->
         let params, l' = bind_many params l in
         Lstaticcatch(subst s l body, (id, params),
-                     subst s l' handler)
-    | Ltrywith(body, exn, handler) ->
+                     subst s l' handler, kind)
+    | Ltrywith(body, exn, handler,kind) ->
         let exn, l' = bind exn l in
-        Ltrywith(subst s l body, exn, subst s l' handler)
-    | Lifthenelse(e1, e2, e3) ->
-        Lifthenelse(subst s l e1, subst s l e2, subst s l e3)
+        Ltrywith(subst s l body, exn, subst s l' handler,kind)
+    | Lifthenelse(e1, e2, e3,kind) ->
+        Lifthenelse(subst s l e1, subst s l e2, subst s l e3,kind)
     | Lsequence(e1, e2) -> Lsequence(subst s l e1, subst s l e2)
     | Lwhile(e1, e2) -> Lwhile(subst s l e1, subst s l e2)
     | Lfor(v, lo, hi, dir, body) ->
@@ -939,7 +939,7 @@ let shallow_map ~tail ~non_tail:f = function
       Lprim(p, [f l1; tail l2], loc)
   | Lprim (p, el, loc) ->
       Lprim (p, List.map f el, loc)
-  | Lswitch (e, sw, loc) ->
+  | Lswitch (e, sw, loc,kind) ->
       Lswitch (f e,
                { sw_numconsts = sw.sw_numconsts;
                  sw_consts = List.map (fun (n, e) -> (n, tail e)) sw.sw_consts;
@@ -947,21 +947,21 @@ let shallow_map ~tail ~non_tail:f = function
                  sw_blocks = List.map (fun (n, e) -> (n, tail e)) sw.sw_blocks;
                  sw_failaction = Option.map tail sw.sw_failaction;
                },
-               loc)
-  | Lstringswitch (e, sw, default, loc) ->
+               loc,kind)
+  | Lstringswitch (e, sw, default, loc,kind) ->
       Lstringswitch (
         f e,
         List.map (fun (s, e) -> (s, tail e)) sw,
         Option.map tail default,
-        loc)
+        loc, kind)
   | Lstaticraise (i, args) ->
       Lstaticraise (i, List.map f args)
-  | Lstaticcatch (body, id, handler) ->
-      Lstaticcatch (tail body, id, tail handler)
-  | Ltrywith (e1, v, e2) ->
-      Ltrywith (f e1, v, tail e2)
-  | Lifthenelse (e1, e2, e3) ->
-      Lifthenelse (f e1, tail e2, tail e3)
+  | Lstaticcatch (body, id, handler, kind) ->
+      Lstaticcatch (tail body, id, tail handler, kind)
+  | Ltrywith (e1, v, e2, kind) ->
+      Ltrywith (f e1, v, tail e2, kind)
+  | Lifthenelse (e1, e2, e3, kind) ->
+      Lifthenelse (f e1, tail e2, tail e3, kind)
   | Lsequence (e1, e2) ->
       Lsequence (f e1, tail e2)
   | Lwhile (e1, e2) ->

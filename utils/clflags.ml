@@ -383,9 +383,6 @@ module Extension = struct
   let extensions = ref ([] : t list)   (* -extension *)
   let equal (a : t) (b : t) = (a = b)
 
-  let disable_all_extensions = ref false             (* -disable-all-extensions *)
-  let disable_all () = disable_all_extensions := true
-
   let to_string = function
     | Comprehensions -> "comprehensions"
     | Local -> "local"
@@ -395,7 +392,24 @@ module Extension = struct
     | "local" -> Local
     | extn -> raise (Arg.Bad(Printf.sprintf "Extension %s is not known" extn))
 
+  let disable_all_extensions = ref false             (* -disable-all-extensions *)
+
+  let disable_all () =
+    disable_all_extensions := true;
+    match !extensions with
+    | [] -> ()
+    | ls ->
+      raise (Arg.Bad(Printf.sprintf
+        "Compiler flag -disable-all-extensions is incompatible with \
+         the enabled extensions: %s"
+        (String.concat "," (List.map to_string ls))))
+
   let enable extn =
+    if !disable_all_extensions then
+      raise (Arg.Bad(Printf.sprintf
+        "Cannot enable extension %s: \
+         incompatible with compiler flag -disable-all-extensions"
+        extn));
     let t = of_string (String.lowercase_ascii extn) in
     if not (List.exists (equal t) !extensions) then
       extensions := t :: !extensions
@@ -488,23 +502,42 @@ end
 let is_flambda2 () =
   Config.flambda2 && !native_code
 
-let set_oclassic () =
-  classic_inlining := true;
-  default_simplify_rounds := 1;
-  use_inlining_arguments_set classic_arguments;
-  unbox_free_vars_of_closures := false;
-  unbox_specialised_args := false
+module Opt_flag_handler = struct
+  type t = {
+    set_oclassic : unit -> unit;
+    set_o2 : unit -> unit;
+    set_o3 : unit -> unit;
+  }
 
-let set_o2 () =
-  default_simplify_rounds := 2;
-  use_inlining_arguments_set o2_arguments;
-  use_inlining_arguments_set ~round:0 o1_arguments
+  let default =
+    let set_oclassic () =
+      classic_inlining := true;
+      default_simplify_rounds := 1;
+      use_inlining_arguments_set classic_arguments;
+      unbox_free_vars_of_closures := false;
+      unbox_specialised_args := false
+    in
+    let set_o2 () =
+      default_simplify_rounds := 2;
+      use_inlining_arguments_set o2_arguments;
+      use_inlining_arguments_set ~round:0 o1_arguments
+    in
+    let set_o3 () =
+      default_simplify_rounds := 3;
+      use_inlining_arguments_set o3_arguments;
+      use_inlining_arguments_set ~round:1 o2_arguments;
+      use_inlining_arguments_set ~round:0 o1_arguments
+    in
+    { set_oclassic; set_o2; set_o3 }
 
-let set_o3 () =
-  default_simplify_rounds := 3;
-  use_inlining_arguments_set o3_arguments;
-  use_inlining_arguments_set ~round:1 o2_arguments;
-  use_inlining_arguments_set ~round:0 o1_arguments
+  let current = ref default
+
+  let set t = current := t
+end
+
+let set_oclassic () = (!Opt_flag_handler.current).set_oclassic ()
+let set_o2 () = (!Opt_flag_handler.current).set_o2 ()
+let set_o3 () = (!Opt_flag_handler.current).set_o3 ()
 
 (* This is used by the -stop-after option. *)
 module Compiler_pass = struct

@@ -1,3 +1,15 @@
+
+OCaml 4.14, maintenance version
+-------------------------------
+
+### Code generation and optimizations:
+
+- #10595: Tail calls with up to 64 arguments are guaranteed to be compiled
+  as tail calls.  To this end, memory locations in the domain state
+  are used for passing arguments that do not fit in registers.
+  (Xavier Leroy, review by Vincent Laviron)
+
+
 OCaml 4.12, maintenance version
 -------------------------------
 

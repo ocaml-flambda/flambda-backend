@@ -193,6 +193,14 @@ let check_bool ppf name s =
       "bad value %s for %s" s name;
     false
 
+let check_int ppf name s =
+  match int_of_string s with
+  | i -> Some i
+  | exception _ ->
+      Printf.ksprintf (print_error ppf)
+        "bad value %s for %s" s name;
+      None
+
 let decode_compiler_pass ppf v ~name ~filter =
   let module P = Clflags.Compiler_pass in
   let passes = P.available_pass_names ~filter ~native:!native_code in

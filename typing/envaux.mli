@@ -22,7 +22,7 @@ val env_from_summary : Env.summary -> Subst.t -> Env.t
 
 (* Empty the environment caches. To be called when load_path changes. *)
 
-val reset_cache: unit -> unit
+val reset_cache: preserve_persistent_env:bool -> unit
 
 val env_of_only_summary : Env.t -> Env.t
 
