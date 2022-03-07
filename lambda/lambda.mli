@@ -311,17 +311,17 @@ type lambda =
   | Llet of let_kind * value_kind * Ident.t * lambda * lambda
   | Lletrec of (Ident.t * lambda) list * lambda
   | Lprim of primitive * lambda list * scoped_location
-  | Lswitch of lambda * lambda_switch * scoped_location
+  | Lswitch of lambda * lambda_switch * scoped_location * value_kind
 (* switch on strings, clauses are sorted by string order,
    strings are pairwise distinct *)
   | Lstringswitch of
-      lambda * (string * lambda) list * lambda option * scoped_location
+      lambda * (string * lambda) list * lambda option * scoped_location * value_kind
   | Lstaticraise of int * lambda list
-  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda
-  | Ltrywith of lambda * Ident.t * lambda
+  | Lstaticcatch of lambda * (int * (Ident.t * value_kind) list) * lambda * value_kind
+  | Ltrywith of lambda * Ident.t * lambda * value_kind
 (* Lifthenelse (e, t, f) evaluates t if e evaluates to 0, and
    evaluates f if e evaluates to any other value *)
-  | Lifthenelse of lambda * lambda * lambda
+  | Lifthenelse of lambda * lambda * lambda * value_kind
   | Lsequence of lambda * lambda
   | Lwhile of lambda * lambda
   | Lfor of Ident.t * lambda * lambda * direction_flag * lambda

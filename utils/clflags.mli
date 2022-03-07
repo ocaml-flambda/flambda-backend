@@ -229,6 +229,18 @@ val unboxed_types : bool ref
 val insn_sched : bool ref
 val insn_sched_default : bool
 
+module Opt_flag_handler : sig
+  type t = {
+    set_oclassic : unit -> unit;
+    set_o2 : unit -> unit;
+    set_o3 : unit -> unit;
+  }
+
+  val default : t
+
+  val set : t -> unit
+end
+
 val set_oclassic : unit -> unit
 val set_o2 : unit -> unit
 val set_o3 : unit -> unit
