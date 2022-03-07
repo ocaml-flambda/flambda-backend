@@ -924,7 +924,7 @@ module Alloc_mode = struct
   let submode_vv ~log a b =
     (* Printf.printf "  %a <= %a\n" pp_v a pp_v b; *)
     if le_const a.upper b.lower then ()
-    else if List.memq a b.vlower then ()
+    else if a == b || List.memq a b.vlower then ()
     else begin
       submode_vc ~log a b.upper;
       set_vlower ~log b (a :: b.vlower);
@@ -969,7 +969,11 @@ module Alloc_mode = struct
   let next_id = ref (-1)
   let fresh () =
     incr next_id;
-    { upper = Local; lower = Global; vlower = []; mvid = !next_id }
+    { upper = Local;
+      lower = Global;
+      vlower = [];
+      mvid = !next_id;
+      mark = false }
 
   let rec all_equal v = function
     | [] -> true
@@ -1005,21 +1009,61 @@ module Alloc_mode = struct
        submode_exn (Amode v.upper) (Amodevar v);
        v.upper
 
+  exception Became_constant
   let compress_vlower v =
+    let nmarked = ref 0 in
+    let mark v' =
+      assert (not v'.mark);
+      v'.mark <- true;
+      incr nmarked
+    in
+    let unmark v' =
+      assert v'.mark;
+      v'.mark <- false;
+      decr nmarked
+    in
+    let new_lower = ref v.lower in
+    let new_vlower = ref v.vlower in
     (* Ensure that each transitive lower bound of v
        is a direct lower bound of v *)
     let rec trans v' =
-      if le_const v'.upper v.lower then ()
-      else if List.memq v' v.vlower then ()
+      if le_const v'.upper !new_lower then ()
+      else if v'.mark then ()
       else begin
-        v.vlower <- v' :: v.vlower;
+        mark v';
+        new_vlower := v' :: !new_vlower;
         trans_low v'
       end
     and trans_low v' =
-      submode_exn (Amode v'.lower) (Amodevar v);
+      assert (v != v');
+      if not (le_const v'.lower v.upper) then
+        Misc.fatal_error "compress_vlower: invalid bounds";
+      if not (le_const v'.lower !new_lower) then begin
+        new_lower := join_const !new_lower v'.lower;
+        if !new_lower = v.upper then
+          (* v is now a constant, no need to keep computing bounds *)
+          raise Became_constant
+      end;
       List.iter trans v'.vlower
     in
-    List.iter trans_low v.vlower
+    mark v;
+    List.iter mark v.vlower;
+    let became_constant =
+      match List.iter trans_low v.vlower with
+      | () -> false
+      | exception Became_constant -> true
+    in
+    List.iter unmark !new_vlower;
+    unmark v;
+    assert (!nmarked = 0);
+    if became_constant then new_vlower := [];
+    if !new_lower != v.lower || !new_vlower != v.vlower then begin
+      let log_head = ref Unchanged in
+      let log = ref log_head in
+      set_lower ~log v !new_lower;
+      set_vlower ~log v !new_vlower;
+      log_changes !log_head !log;
+    end
 
   let constrain_lower = function
     | Amode m -> m
@@ -1029,6 +1073,13 @@ module Alloc_mode = struct
         v.lower
 
   let newvar () = Amodevar (fresh ())
+
+  let newvar_below = function
+    | Amode Global -> Amode Global
+    | m ->
+       let v = newvar () in
+       submode_exn v m;
+       v
 
   let check_const = function
     | Amode m -> Some m

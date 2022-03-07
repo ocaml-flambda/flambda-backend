@@ -112,7 +112,7 @@ let protect_longident ppf print_longident longprefix txt =
 
 let is_curry_attr attr =
   match attr.attr_name.txt with
-  | "ocaml.curry" -> true
+  | "extension.curry" -> true
   | _ -> false
 
 let filter_curry_attrs attrs =
@@ -124,7 +124,7 @@ let has_non_curry_attr attrs =
 let check_local_attr attrs =
   match
     List.partition (fun attr ->
-        attr.attr_name.txt = "ocaml.local") attrs
+        attr.attr_name.txt = "extension.local") attrs
   with
   | [], _ -> attrs, false
   | _::_, rest -> rest, true
@@ -1271,7 +1271,7 @@ and payload ctxt f = function
       pp f " when "; expression ctxt f e
 
 and pp_print_pexp_function ctxt sep f x =
-  (* do not print [@ocaml.local] on expressions *)
+  (* do not print [@extension.local] on expressions *)
   let attrs, _ = check_local_attr x.pexp_attributes in
   let x = { x with pexp_attributes = attrs } in
   if x.pexp_attributes <> [] then pp f "%s@;%a" sep (expression ctxt) x
@@ -1552,14 +1552,14 @@ and record_declaration ctxt f lbls =
   in
   let field_flag f pld =
     pp f "%a" mutable_flag pld.pld_mutable;
-    if has_attr pld "ocaml.nonlocal" then pp f "nonlocal_ ";
-    if has_attr pld "ocaml.global" then pp f "global_ "
+    if has_attr pld "extension.nonlocal" then pp f "nonlocal_ ";
+    if has_attr pld "extension.global" then pp f "global_ "
   in
   let type_record_field f pld =
     let pld_attributes =
       List.filter (fun attr ->
         match attr.attr_name.txt with
-        | "ocaml.nonlocal" | "ocaml.global" -> false
+        | "extension.nonlocal" | "extension.global" -> false
         | _ -> true) pld.pld_attributes
     in
     pp f "@[<2>%a%s:@;%a@;%a@]"

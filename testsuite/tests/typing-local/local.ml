@@ -1671,6 +1671,35 @@ Error: Signature mismatch:
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
 |}]
+module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
+module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
+  Opt32
+[%%expect{|
+module Opt32 :
+  sig
+    external add :
+      (int32 [@local_opt]) -> (int32 [@local_opt]) -> (int32 [@local_opt])
+      = "%int32_add"
+  end
+Line 3, characters 2-7:
+3 |   Opt32
+      ^^^^^
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           external add :
+             (int32 [@local_opt]) ->
+             (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
+         end
+       is not included in
+         sig val add : local_ int32 -> local_ int32 -> int32 end
+       Values do not match:
+         external add :
+           (int32 [@local_opt]) ->
+           (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
+       is not included in
+         val add : local_ int32 -> local_ int32 -> int32
+|}]
 (* Return modes *)
 let zx : int ref -> (int -> unit) = (:=)
 let zz : local_ (int ref) -> int -> unit = (:=)
