@@ -358,9 +358,9 @@ let allocations : Alloc_mode.t list ref = Local_store.s_ref []
 let reset_allocations () = allocations := []
 
 let register_allocation_mode alloc_mode =
-  match Alloc_mode.check_const alloc_mode with
-  | Some _ -> ()
-  | None -> allocations := alloc_mode :: !allocations
+  match alloc_mode with
+  | Amode _const -> ()
+  | Amodevar _ -> allocations := alloc_mode :: !allocations
 
 let register_allocation (expected_mode : expected_mode) =
   register_allocation_mode
