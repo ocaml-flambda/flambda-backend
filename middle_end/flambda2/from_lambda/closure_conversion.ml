@@ -1522,7 +1522,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
         specialise = Default_specialise;
         local = Default_local;
         is_a_functor = false;
-        stub = true
+        stub = false
       }
   in
   let free_idents_of_body =
