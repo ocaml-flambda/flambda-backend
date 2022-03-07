@@ -49,6 +49,7 @@ and alloc_mode_var = {
   mutable upper: alloc_mode_const;
   mutable lower: alloc_mode_const;
   mutable vlower: alloc_mode_var list;
+  mutable mark: bool;
   mvid: int;
 }
 

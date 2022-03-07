@@ -194,19 +194,18 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res =
 
 open Outcometree
 
+let add_attribute_list ty attrs =
+  List.fold_left (fun ty attr -> Otyp_attribute(ty, attr)) ty attrs
+
 let rec add_native_repr_attributes ty attrs =
   match ty, attrs with
-  | Otyp_arrow (label, am, a, rm, r), attr_opt :: rest ->
+  | Otyp_arrow (label, am, a, rm, r), attr_l :: rest ->
     let r = add_native_repr_attributes r rest in
-    let a =
-      match attr_opt with
-      | None -> a
-      | Some attr -> Otyp_attribute (a, attr)
-    in
+    let a = add_attribute_list a attr_l in
     Otyp_arrow (label, am, a, rm, r)
-  | _, [Some attr] -> Otyp_attribute (ty, attr)
+  | _, [attr_l] -> add_attribute_list ty attr_l
   | _ ->
-    assert (List.for_all (fun x -> x = None) attrs);
+    assert (List.for_all (fun x -> x = []) attrs);
     ty
 
 let oattr_unboxed = { oattr_name = "unboxed" }
@@ -216,6 +215,7 @@ let oattr_builtin = { oattr_name = "builtin" }
 let oattr_no_effects = { oattr_name = "no_effects" }
 let oattr_only_generative_effects = { oattr_name = "only_generative_effects" }
 let oattr_no_coeffects = { oattr_name = "no_coeffects" }
+let oattr_local_opt = { oattr_name = "local_opt" }
 
 let print p osig_val_decl =
   let prims =
@@ -248,15 +248,20 @@ let print p osig_val_decl =
     else
       attrs
   in
-  let attr_of_native_repr = function
-    | _, Same_as_ocaml_repr -> None
-    | _, Unboxed_float
-    | _, Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
-    | _, Untagged_int -> if all_untagged then None else Some oattr_untagged
+  let attrs_of_mode_and_repr (m, repr) =
+    (match m with
+     | Prim_local | Prim_global -> []
+     | Prim_poly -> [oattr_local_opt])
+    @
+    (match repr with
+     | Same_as_ocaml_repr -> []
+     | Unboxed_float
+     | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
+     | Untagged_int -> if all_untagged then [] else [oattr_untagged])
   in
   let type_attrs =
-    List.map attr_of_native_repr p.prim_native_repr_args @
-    [attr_of_native_repr p.prim_native_repr_res]
+    List.map attrs_of_mode_and_repr p.prim_native_repr_args @
+    [attrs_of_mode_and_repr p.prim_native_repr_res]
   in
   { osig_val_decl with
     oval_prims = prims;

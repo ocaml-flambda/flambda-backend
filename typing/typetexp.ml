@@ -158,12 +158,11 @@ let transl_type_param env styp =
     (fun () -> transl_type_param env styp)
 
 let get_alloc_mode styp =
-  if Builtin_attributes.has_local styp.ptyp_attributes then begin
-    if not (Clflags.Extension.is_enabled Local) then
-      raise (Error(styp.ptyp_loc, Env.empty, Local_not_enabled));
-    Alloc_mode.Local
-  end else
-    Alloc_mode.Global
+  match Builtin_attributes.has_local styp.ptyp_attributes with
+  | Ok true -> Alloc_mode.Local
+  | Ok false -> Alloc_mode.Global
+  | Error () ->
+     raise (Error(styp.ptyp_loc, Env.empty, Local_not_enabled))
 
 let rec extract_params styp =
   let final styp =
