@@ -152,28 +152,30 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic :
-    domain ->
-    exn:domain ->
-    Cfg.basic Cfg.instruction ->
-    domain * Cfg.basic Cfg.instruction
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
 
   val terminator :
-    domain ->
-    exn:domain ->
-    Cfg.terminator Cfg.instruction ->
-    domain * Cfg.terminator Cfg.instruction
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
 
   val exception_ : domain -> domain
 end
 
+module Instr = Numbers.Int
+
 module type Backward_S = sig
   type domain
 
-  type map = domain Label.Tbl.t
+  type _ map =
+    | Block : domain Label.Tbl.t map
+    | Instr : domain Instr.Tbl.t map
 
   val run :
-    Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+    Cfg.t ->
+    ?max_iteration:int ->
+    init:domain ->
+    map:'a map ->
+    unit ->
+    ('a, 'a) Result.t
 end
 
 module Backward
@@ -184,7 +186,9 @@ module Backward
 
   type domain = D.t
 
-  type map = domain Label.Tbl.t
+  type _ map =
+    | Block : domain Label.Tbl.t map
+    | Instr : domain Instr.Tbl.t map
 
   module WorkSetElement = struct
     type t =
@@ -201,28 +205,42 @@ module Backward
 
   module WorkSet = Set.Make (WorkSetElement)
 
-  let transfer_block : domain -> exn:domain -> Cfg.basic_block -> domain =
-   fun value ~exn block ->
-    let value, terminator = T.terminator value ~exn block.terminator in
-    block.terminator <- terminator;
-    let value, body =
-      ListLabels.fold_right block.body ~init:(value, [])
-        ~f:(fun instr (value, body) ->
-          let value, instr = T.basic value ~exn instr in
-          value, instr :: body)
+  let transfer_block :
+      domain Instr.Tbl.t option ->
+      domain ->
+      exn:domain ->
+      Cfg.basic_block ->
+      domain =
+   fun tbl value ~exn block ->
+    let replace (instr : _ Cfg.instruction) value =
+      match tbl with
+      | None -> value
+      | Some tbl ->
+        Instr.Tbl.replace tbl instr.id value;
+        value
     in
-    block.body <- body;
+    let value =
+      replace block.terminator (T.terminator value ~exn block.terminator)
+    in
+    let value =
+      ListLabels.fold_right block.body ~init:value ~f:(fun instr value ->
+          replace instr (T.basic value ~exn instr))
+    in
     value
 
-  let create : Cfg.t -> init:domain -> map * WorkSet.t ref =
+  let create :
+      Cfg.t ->
+      init:domain ->
+      domain Label.Tbl.t * domain Instr.Tbl.t * WorkSet.t ref =
    fun cfg ~init ->
-    let map = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+    let map_block = Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
+    let map_instr = Instr.Tbl.create (Label.Tbl.length cfg.Cfg.blocks) in
     let set = ref WorkSet.empty in
     let value = init in
     Cfg.iter_blocks cfg ~f:(fun label _block ->
-        Label.Tbl.replace map label value;
+        Label.Tbl.replace map_block label value;
         set := WorkSet.add { WorkSetElement.label; value } !set);
-    map, set
+    map_block, map_instr, set
 
   let remove_and_return :
       Cfg.t -> WorkSet.t ref -> WorkSetElement.t * Cfg.basic_block =
@@ -232,14 +250,22 @@ module Backward
     element, Cfg.get_block_exn cfg element.label
 
   let run :
-      Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
-      =
-   fun cfg ?(max_iteration = max_int) ~init () ->
-    let res, work_set = create cfg ~init in
+      type a.
+      Cfg.t ->
+      ?max_iteration:int ->
+      init:domain ->
+      map:a map ->
+      unit ->
+      (a, a) Result.t =
+   fun cfg ?(max_iteration = max_int) ~init ~map () ->
+    let res_block, res_instr, work_set = create cfg ~init in
     let iteration = ref 0 in
     (* note: `handler_map` contains the value at the *start* of the block. *)
     let handler_map : D.t Label.Tbl.t =
       Label.Tbl.create (Label.Tbl.length cfg.Cfg.blocks)
+    in
+    let instr_map : D.t Instr.Tbl.t option =
+      match map with Block -> None | Instr -> Some res_instr
     in
     while (not (WorkSet.is_empty !work_set)) && !iteration < max_iteration do
       incr iteration;
@@ -252,7 +278,7 @@ module Backward
         |> Option.join
         |> Option.value ~default:D.bot
       in
-      let value = transfer_block element.value ~exn block in
+      let value = transfer_block instr_map element.value ~exn block in
       if block.is_trap_handler
       then begin
         let old_value =
@@ -268,7 +294,7 @@ module Backward
             (fun predecessor_label ->
               let current_value =
                 Option.value
-                  (Label.Tbl.find_opt res predecessor_label)
+                  (Label.Tbl.find_opt res_block predecessor_label)
                   ~default:D.bot
               in
               work_set
@@ -285,13 +311,13 @@ module Backward
           (fun predecessor_label ->
             let old_value =
               Option.value
-                (Label.Tbl.find_opt res predecessor_label)
+                (Label.Tbl.find_opt res_block predecessor_label)
                 ~default:D.bot
             in
             let new_value = D.join old_value value in
             if not (D.less_equal new_value old_value)
             then begin
-              Label.Tbl.replace res predecessor_label new_value;
+              Label.Tbl.replace res_block predecessor_label new_value;
               let already_in_workset = ref false in
               work_set
                 := WorkSet.filter
@@ -315,5 +341,8 @@ module Backward
             end)
           (Cfg.predecessor_labels block)
     done;
-    if WorkSet.is_empty !work_set then Result.Ok res else Result.Error res
+    let return x =
+      if WorkSet.is_empty !work_set then Result.Ok x else Result.Error x
+    in
+    match map with Block -> return res_block | Instr -> return res_instr
 end

@@ -174,15 +174,31 @@ let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_l
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
       (* We use `canary` to ensure the liveness is appropriately set by
-         `Cfg_liveness.Liveness.run`. *)
+         `Cfg_liveness.Liveness.run`.
+         CR xclerc for xclerc: since we now unconditionally set the liveness
+         below, this "canary" pass can be removed. *)
       let canary = Reg.create Cmm.Val in
       canary.Reg.raw_name <- Reg.Raw_name.create_from_var (Ident.create_local "canary");
       let canary_singleton = Reg.Set.singleton canary in
       block.body <- ListLabels.map block.body ~f:(fun instr -> Cfg.set_live instr canary_singleton);
       block.terminator <- Cfg.set_live block.terminator canary_singleton);
-  begin match Cfg_liveness.Liveness.run cfg ~init:Reg.Set.empty () with
-    | Result.Ok (_ : Cfg_liveness.Liveness.map) -> ()
-    | Result.Error (_ : Cfg_liveness.Liveness.map) ->
+  let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
+  begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
+    | Result.Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
+      let with_liveness (instr : _ Cfg.instruction) =
+        match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
+        | None ->
+          Misc.fatal_errorf "Missing liveness information for instruction %d in function %s@."
+            instr.id
+            cfg.Cfg.fun_name
+        | Some { Cfg_liveness.before = _; across } ->
+          Cfg.set_live instr across
+      in
+      Cfg.iter_blocks cfg ~f:(fun _label block ->
+          block.body <- ListLabels.map block.body ~f:with_liveness;
+          block.terminator <- with_liveness block.terminator;
+        );
+    | Result.Error _ ->
       Misc.fatal_errorf "Unable to compute liveness from CFG for function %s@."
         cfg.Cfg.fun_name;
   end;
