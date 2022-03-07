@@ -99,8 +99,8 @@ struct
       { before = Reg.add_set_array exn.before instr.arg; across = exn.before }
 
   let exception_ : domain -> domain =
-   fun { before; across } ->
-    { before = Reg.Set.remove Proc.loc_exn_bucket before; across }
+   fun { before; across = _ } ->
+    { before = Reg.Set.remove Proc.loc_exn_bucket before; across = Reg.Set.empty }
 end
 
 module Liveness = Cfg_dataflow.Backward (Domain) (Transfer)
