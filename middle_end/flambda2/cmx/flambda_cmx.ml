@@ -258,10 +258,14 @@ let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
   if Flambda_features.opaque ()
   then None
   else
-    let typing_env =
+    let create_typing_env reachable_names =
+      let approxs =
+        Symbol.Map.filter
+          (fun sym _ -> Name_occurrences.mem_symbol reachable_names sym)
+          approxs
+      in
       TE.Serializable.create_from_closure_conversion_approx approxs
     in
-    let create_typing_env _ = typing_env in
     let free_names_of_name name =
       let symbol = Name.must_be_symbol name in
       match Symbol.Map.find_opt symbol approxs with
