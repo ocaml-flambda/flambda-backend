@@ -1482,6 +1482,172 @@ let close_let_rec acc env ~function_declarations
       named ~body
     |> Expr_with_acc.create_let
 
+let wrap_partial_application acc env apply_continuation (apply : IR.apply)
+    approx args missing_args ~arity ~num_trailing_local_params
+    ~contains_no_escaping_local_allocs =
+  (* In case of partial application, creates a wrapping function from scratch to
+     allow inlining and lifting *)
+  let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
+  let closure_id =
+    Closure_id.wrap
+      (Compilation_unit.get_current_exn ())
+      (Variable.create_with_same_name_as_ident wrapper_id)
+  in
+  let args_arity = List.length args in
+  let params =
+    List.mapi
+      (fun n _ ->
+        ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
+          Lambda.Pgenval ))
+      missing_args
+  in
+  let return_continuation = Continuation.create ~sort:Return () in
+  let exn_continuation =
+    IR.{ exn_handler = Continuation.create (); extra_args = [] }
+  in
+  let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
+  let fbody acc env =
+    close_exact_or_unknown_apply acc env
+      { apply with
+        kind = Function;
+        args = all_args;
+        continuation = return_continuation;
+        exn_continuation
+      }
+      (Some approx)
+  in
+  let attr =
+    Lambda.
+      { inline = Default_inline;
+        specialise = Default_specialise;
+        local = Default_local;
+        is_a_functor = false;
+        stub = true
+      }
+  in
+  let free_idents_of_body =
+    List.fold_left
+      (fun ids -> function IR.Var id -> Ident.Set.add id ids | _ -> ids)
+      (Ident.Set.singleton apply.func)
+      all_args
+  in
+  let closure_alloc_mode, num_trailing_local_params =
+    let num_leading_heap_params =
+      List.length arity - num_trailing_local_params
+    in
+    if args_arity <= num_leading_heap_params
+    then Lambda.Alloc_heap, num_trailing_local_params
+    else
+      let num_supplied_local_args = args_arity - num_leading_heap_params in
+      Lambda.Alloc_local, num_trailing_local_params - num_supplied_local_args
+  in
+  let function_declarations =
+    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~closure_id
+        ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
+        ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
+        ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body ~stub:true
+        ~closure_alloc_mode ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs Recursive.Non_recursive ]
+  in
+  let body acc env =
+    let arg = find_simple_from_id env wrapper_id in
+    let acc, apply_cont =
+      Apply_cont_with_acc.create acc
+        ~args_approx:[Env.find_value_approximation env arg]
+        apply_continuation ~args:[arg] ~dbg:Debuginfo.none
+    in
+    Expr_with_acc.create_apply_cont acc apply_cont
+  in
+  close_let_rec acc env ~function_declarations ~body
+
+let wrap_over_application acc env full_call (apply : IR.apply) over_args
+    ~contains_no_escaping_local_allocs ~result_arity =
+  let wrapper_cont = Continuation.create () in
+  let returned_func = Variable.create "func" in
+  (* See comments in [Simplify_common.split_direct_over_application] about this
+     code for handling local allocations. *)
+  let apply_alloc_mode = LC.alloc_mode apply.mode in
+  let apply_return_continuation =
+    Apply.Result_continuation.Return apply.continuation
+  in
+  let acc, args = find_simples acc env over_args in
+  let apply_dbg = Debuginfo.from_location apply.loc in
+  let needs_region =
+    match apply_alloc_mode, contains_no_escaping_local_allocs with
+    | Heap, false ->
+      Some (Variable.create "over_app_region", Continuation.create ())
+    | Heap, true | Local, _ -> None
+  in
+  let perform_over_application acc =
+    let acc, apply_exn_continuation =
+      close_exn_continuation acc env apply.exn_continuation
+    in
+    let inlined = LC.inlined_attribute apply.inlined in
+    (* Keeping the attributes is useless in classic mode but matches the
+       behaviour of simplify, and this split is done either way *)
+    let probe_name =
+      match apply.probe with None -> None | Some { name } -> Some name
+    in
+    let alloc_mode : Alloc_mode.t =
+      if contains_no_escaping_local_allocs then Heap else Local
+    in
+    let call_kind = Call_kind.indirect_function_call_unknown_arity alloc_mode in
+    let continuation =
+      match needs_region with
+      | None -> apply_return_continuation
+      | Some (_, cont) -> Apply.Result_continuation.Return cont
+    in
+    let over_application =
+      Apply.create ~callee:(Simple.var returned_func) ~continuation
+        apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
+        ~inlining_state:(Inlining_state.default ~round:0)
+        ~probe_name ~relative_history:(Env.relative_history env)
+    in
+    match needs_region with
+    | None -> Expr_with_acc.create_apply acc over_application
+    | Some (region, after_over_application) ->
+      let over_application_results =
+        List.mapi
+          (fun i kind ->
+            BP.create (Variable.create ("result" ^ string_of_int i)) kind)
+          result_arity
+      in
+      let handler acc =
+        let acc, call_return_continuation =
+          let acc, apply_cont_expr =
+            Apply_cont_with_acc.create acc apply.continuation
+              ~args:(List.map BP.simple over_application_results)
+              ~dbg:apply_dbg
+          in
+          acc, Expr.create_apply_cont apply_cont_expr
+        in
+        Let_with_acc.create acc
+          (Bound_pattern.singleton
+             (Bound_var.create (Variable.create "unit") Name_mode.normal))
+          (Named.create_prim (Unary (End_region, Simple.var region)) apply_dbg)
+          ~body:call_return_continuation
+        |> Expr_with_acc.create_let
+      in
+      Let_cont_with_acc.build_non_recursive acc after_over_application
+        ~handler_params:over_application_results ~handler
+        ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
+        ~is_exn_handler:false
+  in
+  let body = full_call wrapper_cont in
+  let acc, both_applications =
+    Let_cont_with_acc.build_non_recursive acc wrapper_cont
+      ~handler_params:[BP.create returned_func K.With_subkind.any_value]
+      ~handler:perform_over_application ~body ~is_exn_handler:false
+  in
+  match needs_region with
+  | None -> acc, both_applications
+  | Some (region, _) ->
+    Let_with_acc.create acc
+      (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
+      (Named.create_prim (Nullary Begin_region) apply_dbg)
+      ~body:both_applications
+    |> Expr_with_acc.create_let
+
 let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
   let approx = Env.find_value_approximation env callee in
@@ -1543,180 +1709,16 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         close_exact_or_unknown_apply acc env
           { apply with args; continuation = apply_continuation }
           (Some approx)
-      | _ ->
-        (* In case of partial application, creates a wrapping function from
-           scratch to allow inlining and lifting *)
-        let wrapper_id =
-          Ident.create_local ("partial_" ^ Ident.name apply.func)
-        in
-        let closure_id =
-          Closure_id.wrap
-            (Compilation_unit.get_current_exn ())
-            (Variable.create_with_same_name_as_ident wrapper_id)
-        in
-        let args_arity = List.length args in
-        let params =
-          List.mapi
-            (fun n _ ->
-              ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
-                Lambda.Pgenval ))
-            missing_args
-        in
-        let return_continuation = Continuation.create ~sort:Return () in
-        let exn_continuation =
-          IR.{ exn_handler = Continuation.create (); extra_args = [] }
-        in
-        let all_args = args @ List.map (fun (a, _) -> IR.Var a) params in
-        let fbody acc env =
-          close_exact_or_unknown_apply acc env
-            { apply with
-              kind = Function;
-              args = all_args;
-              continuation = return_continuation;
-              exn_continuation
-            }
-            (Some approx)
-        in
-        let attr =
-          Lambda.
-            { inline = Default_inline;
-              specialise = Default_specialise;
-              local = Default_local;
-              is_a_functor = false;
-              stub = true
-            }
-        in
-        let free_idents_of_body =
-          List.fold_left
-            (fun ids -> function IR.Var id -> Ident.Set.add id ids | _ -> ids)
-            (Ident.Set.singleton apply.func)
-            all_args
-        in
-        let closure_alloc_mode, num_trailing_local_params =
-          let num_leading_heap_params =
-            List.length arity - num_trailing_local_params
-          in
-          if args_arity <= num_leading_heap_params
-          then Lambda.Alloc_heap, num_trailing_local_params
-          else
-            let num_supplied_local_args =
-              args_arity - num_leading_heap_params
-            in
-            ( Lambda.Alloc_local,
-              num_trailing_local_params - num_supplied_local_args )
-        in
-        let function_declarations =
-          [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~closure_id
-              ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
-              ~params ~return:Lambda.Pgenval ~return_continuation
-              ~exn_continuation ~body:fbody ~attr ~loc:apply.loc
-              ~free_idents_of_body ~stub:true ~closure_alloc_mode
-              ~num_trailing_local_params ~contains_no_escaping_local_allocs
-              Recursive.Non_recursive ]
-        in
-        let body acc env =
-          let arg = find_simple_from_id env wrapper_id in
-          let acc, apply_cont =
-            Apply_cont_with_acc.create acc
-              ~args_approx:[Env.find_value_approximation env arg]
-              apply_continuation ~args:[arg] ~dbg:Debuginfo.none
-          in
-          Expr_with_acc.create_apply_cont acc apply_cont
-        in
-        close_let_rec acc env ~function_declarations ~body
+      | _ :: _ ->
+        wrap_partial_application acc env apply_continuation apply approx args
+          missing_args ~arity ~num_trailing_local_params
+          ~contains_no_escaping_local_allocs
     in
     match remaining_args with
     | [] -> exact_call apply.continuation acc
-    | args -> (
-      let wrapper_cont = Continuation.create () in
-      let returned_func = Variable.create "func" in
-      (* See comments in [Simplify_common.split_direct_over_application] about
-         this code for handling local allocations. *)
-      let apply_alloc_mode = LC.alloc_mode apply.mode in
-      let apply_return_continuation =
-        Apply.Result_continuation.Return apply.continuation
-      in
-      let acc, args = find_simples acc env args in
-      let apply_dbg = Debuginfo.from_location apply.loc in
-      let needs_region =
-        match apply_alloc_mode, contains_no_escaping_local_allocs with
-        | Heap, false ->
-          Some (Variable.create "over_app_region", Continuation.create ())
-        | Heap, true | Local, _ -> None
-      in
-      let perform_over_application acc =
-        let acc, apply_exn_continuation =
-          close_exn_continuation acc env apply.exn_continuation
-        in
-        let inlined = LC.inlined_attribute apply.inlined in
-        (* Keeping the attributes is useless in classic mode but matches the
-           behaviour of simplify, and this split is done either way *)
-        let probe_name =
-          match apply.probe with None -> None | Some { name } -> Some name
-        in
-        let alloc_mode : Alloc_mode.t =
-          if contains_no_escaping_local_allocs then Heap else Local
-        in
-        let call_kind =
-          Call_kind.indirect_function_call_unknown_arity alloc_mode
-        in
-        let continuation =
-          match needs_region with
-          | None -> apply_return_continuation
-          | Some (_, cont) -> Apply.Result_continuation.Return cont
-        in
-        let over_application =
-          Apply.create ~callee:(Simple.var returned_func) ~continuation
-            apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
-            ~inlining_state:(Inlining_state.default ~round:0)
-            ~probe_name ~relative_history:(Env.relative_history env)
-        in
-        match needs_region with
-        | None -> Expr_with_acc.create_apply acc over_application
-        | Some (region, after_over_application) ->
-          let over_application_results =
-            List.mapi
-              (fun i kind ->
-                BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-              result_arity
-          in
-          let handler acc =
-            let acc, call_return_continuation =
-              let acc, apply_cont_expr =
-                Apply_cont_with_acc.create acc apply.continuation
-                  ~args:(List.map BP.simple over_application_results)
-                  ~dbg:apply_dbg
-              in
-              acc, Expr.create_apply_cont apply_cont_expr
-            in
-            Let_with_acc.create acc
-              (Bound_pattern.singleton
-                 (Bound_var.create (Variable.create "unit") Name_mode.normal))
-              (Named.create_prim
-                 (Unary (End_region, Simple.var region))
-                 apply_dbg)
-              ~body:call_return_continuation
-            |> Expr_with_acc.create_let
-          in
-          Let_cont_with_acc.build_non_recursive acc after_over_application
-            ~handler_params:over_application_results ~handler
-            ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
-            ~is_exn_handler:false
-      in
-      let body = exact_call wrapper_cont in
-      let acc, both_applications =
-        Let_cont_with_acc.build_non_recursive acc wrapper_cont
-          ~handler_params:[BP.create returned_func K.With_subkind.any_value]
-          ~handler:perform_over_application ~body ~is_exn_handler:false
-      in
-      match needs_region with
-      | None -> acc, both_applications
-      | Some (region, _) ->
-        Let_with_acc.create acc
-          (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
-          (Named.create_prim (Nullary Begin_region) apply_dbg)
-          ~body:both_applications
-        |> Expr_with_acc.create_let))
+    | args ->
+      wrap_over_application acc env exact_call apply args
+        ~contains_no_escaping_local_allocs ~result_arity)
 
 module CIS = Code_id_or_symbol
 module GroupMap = Numbers.Int.Map
