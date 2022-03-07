@@ -291,18 +291,14 @@ and print_out_type_1 mode ppf =
   | ty ->
     match mode with
     | Oam_local ->
-        pp_print_string ppf "local_";
-        pp_print_space ppf ();
-        print_out_type_2 mode ppf ty
+        print_out_type_local mode ppf ty
     | Oam_unknown -> print_out_type_2 mode ppf ty
     | Oam_global -> print_out_type_2 mode ppf ty
 
 and print_out_arg am ppf ty =
   match am with
   | Oam_local ->
-      pp_print_string ppf "local_";
-      pp_print_space ppf ();
-      print_out_type_2 am ppf ty
+      print_out_type_local am ppf ty
   | Oam_global -> print_out_type_2 am ppf ty
   | Oam_unknown -> print_out_type_2 am ppf ty
 
@@ -313,10 +309,17 @@ and print_out_ret mode rm ppf ty =
   | Oam_unknown, _
   | _, Oam_unknown -> print_out_type_1 rm ppf ty
   | _, Oam_local ->
-      pp_print_string ppf "local_";
-      pp_print_space ppf ();
-      print_out_type_2 rm ppf ty
+      print_out_type_local rm ppf ty
   | _, Oam_global -> print_out_type_2 rm ppf ty
+
+and print_out_type_local m ppf ty =
+  if Clflags.Extension.is_enabled Local then begin
+    pp_print_string ppf "local_";
+    pp_print_space ppf ();
+    print_out_type_2 m ppf ty
+  end else begin
+    print_out_type ppf (Otyp_attribute (ty, {oattr_name="ocaml.local"}))
+  end
 
 and print_out_type_2 mode ppf =
   function

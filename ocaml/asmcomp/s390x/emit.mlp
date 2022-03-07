@@ -105,7 +105,7 @@ let emit_stack r =
   | Stack (Domainstate n) ->
       let ofs = n + Domainstate.(idx_of_field Domain_extra_params) * 8 in
       `{emit_int ofs}(%r10)`
-    Stack s ->
+  | Stack s ->
       let ofs = slot_offset s (register_class r) in
       `{emit_int ofs}(%r15)`
   | _ -> fatal_error "Emit.emit_stack"
