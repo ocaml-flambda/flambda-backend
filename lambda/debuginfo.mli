@@ -14,7 +14,19 @@
 (**************************************************************************)
 
 module Scoped_location : sig
-  type scopes
+  type scope_item = private
+    | Sc_anonymous_function
+    | Sc_value_definition
+    | Sc_module_definition
+    | Sc_class_definition
+    | Sc_method_definition
+    | Sc_partial_or_eta_wrapper
+    | Sc_lazy
+
+  type scopes = private
+    | Empty
+    | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes}
+
   val string_of_scopes : scopes -> string
 
   val empty_scopes : scopes

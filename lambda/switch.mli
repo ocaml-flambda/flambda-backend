@@ -78,6 +78,8 @@ module type S =
     type act
     (* type of source locations *)
     type loc
+    (* type of value kind *)
+    type value_kind
 
     (* Various constructors, for making a binder,
         adding one integer, etc. *)
@@ -87,13 +89,13 @@ module type S =
     val make_prim : primitive -> act list -> act
     val make_isout : act -> act -> act
     val make_isin : act -> act -> act
-    val make_if : act -> act -> act -> act
+    val make_if : value_kind -> act -> act -> act -> act
    (* construct an actual switch :
       make_switch arg cases acts
       NB:  cases is in the value form *)
-    val make_switch : loc -> act -> int array -> act array -> act
+    val make_switch : loc -> value_kind -> act -> int array -> act array -> act
    (* Build last minute sharing of action stuff *)
-   val make_catch : act -> int * (act -> act)
+   val make_catch : value_kind -> act -> int * (act -> act)
    val make_exit : int -> act
 
   end
@@ -115,6 +117,7 @@ module Make :
 (* Standard entry point, sharing is tracked *)
       val zyva :
           Arg.loc ->
+          Arg.value_kind ->
           (int * int) ->
            Arg.act ->
            (int * int * int) array ->
@@ -123,6 +126,7 @@ module Make :
 
 (* Output test sequence, sharing tracked *)
      val test_sequence :
+           Arg.value_kind ->
            Arg.act ->
            (int * int * int) array ->
            (Arg.act, _) t_store ->

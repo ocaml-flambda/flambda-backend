@@ -64,6 +64,7 @@ type error =
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
   | Not_an_object of type_expr
+  | Local_not_enabled
 
 exception Error of Location.t * Env.t * error
 

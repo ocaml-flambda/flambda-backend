@@ -192,10 +192,9 @@ let obj = ref (object
     incr glob;
     fun x -> Gc.minor (); string_of_int x ^ s
   end)
+let check s =
+  globstr := s; assert (s = "5!")
 let () =
-  let check s =
-    globstr := s; assert (s = "5!")
-  in
   check (local_fn_ret () "!" 5);
   check_empty "static overapply";
   check (!unknown_fn () "!" 5);

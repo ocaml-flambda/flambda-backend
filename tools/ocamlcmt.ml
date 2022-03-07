@@ -173,7 +173,7 @@ let main () =
           | Some "-" -> None
           | Some _ as x -> x
         in
-        Envaux.reset_cache ();
+        Envaux.reset_cache ~preserve_persistent_env:false;
         List.iter Load_path.add_dir cmt.cmt_loadpath;
         Cmt2annot.gen_annot target_filename
           ~sourcefile:cmt.cmt_sourcefile
