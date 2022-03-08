@@ -1,15 +1,29 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Domain = struct
-  type t = Reg.Set.t
+type domain =
+  { before : Reg.Set.t;
+    across : Reg.Set.t
+  }
 
-  let bot = Reg.Set.empty
+module Domain : Cfg_dataflow.Backward_domain with type t = domain = struct
+  type t = domain =
+    { before : Reg.Set.t;
+      across : Reg.Set.t
+    }
 
-  let compare = Reg.Set.compare
+  let bot = { before = Reg.Set.empty; across = Reg.Set.empty }
 
-  let join = Reg.Set.union
+  let compare { before = left_before; across = _ }
+      { before = right_before; across = _ } =
+    Reg.Set.compare left_before right_before
 
-  let less_equal = Reg.Set.subset
+  let join { before = left_before; across = _ }
+      { before = right_before; across = _ } =
+    { before = Reg.Set.union left_before right_before; across = Reg.Set.empty }
+
+  let less_equal { before = left_before; across = _ }
+      { before = right_before; across = _ } =
+    Reg.Set.subset left_before right_before
 
   let with_formatter ~f x =
     let buff = Buffer.create 64 in
@@ -18,71 +32,77 @@ module Domain = struct
     Format.pp_print_flush fmt ();
     Buffer.contents buff
 
-  let to_string regset =
+  let to_string { before = regset; across = _ } =
     regset |> Reg.Set.elements
     |> ListLabels.map ~f:(with_formatter ~f:Printmach.reg)
     |> StringLabels.concat ~sep:", "
 end
 
-module Transfer = struct
-  type domain = Domain.t
+module Transfer : Cfg_dataflow.Backward_transfer with type domain = domain =
+struct
+  type nonrec domain = domain =
+    { before : Reg.Set.t;
+      across : Reg.Set.t
+    }
 
-  let basic :
-      domain ->
-      exn:domain ->
-      Cfg.basic Cfg.instruction ->
-      domain * Cfg.basic Cfg.instruction =
-   fun value ~exn instr ->
+  let basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain =
+   fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Op _ | Call _ ->
       if Cfg.is_pure_basic instr.desc
-         && Reg.disjoint_set_array value instr.res
+         && Reg.disjoint_set_array before instr.res
          && (not (Proc.regs_are_volatile instr.arg))
          && not (Proc.regs_are_volatile instr.res)
-      then value, Cfg.set_live instr value
+      then { before; across = before }
       else
-        let across = Reg.diff_set_array value instr.res in
+        let across = Reg.diff_set_array before instr.res in
         let across =
           if Cfg.can_raise_basic instr.desc && instr.trap_depth > 1
-          then Reg.Set.union across exn
+          then Reg.Set.union across exn.before
           else across
         in
-        Reg.add_set_array across instr.arg, Cfg.set_live instr across
+        let before = Reg.add_set_array across instr.arg in
+        { before; across }
     | Reloadretaddr ->
-      ( Reg.diff_set_array value Proc.destroyed_at_reloadretaddr,
-        Cfg.set_live instr Reg.Set.empty )
-    | Pushtrap _ -> value, Cfg.set_live instr Reg.Set.empty
-    | Poptrap -> value, Cfg.set_live instr Reg.Set.empty
-    | Prologue -> value, Cfg.set_live instr Reg.Set.empty
+      { before = Reg.diff_set_array before Proc.destroyed_at_reloadretaddr;
+        across = Reg.Set.empty
+      }
+    | Pushtrap _ -> { before; across = Reg.Set.empty }
+    | Poptrap -> { before; across = Reg.Set.empty }
+    | Prologue -> { before; across = Reg.Set.empty }
 
   let terminator :
-      domain ->
-      exn:domain ->
-      Cfg.terminator Cfg.instruction ->
-      domain * Cfg.terminator Cfg.instruction =
-   fun value ~exn instr ->
+      domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain =
+   fun { before; across = _ } ~exn instr ->
     match instr.desc with
     | Never -> assert false
-    | Always _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
+    | Always _ ->
+      { before = Reg.add_set_array before instr.arg; across = before }
     | Parity_test _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
+      { before = Reg.add_set_array before instr.arg; across = before }
     | Truth_test _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
+      { before = Reg.add_set_array before instr.arg; across = before }
     | Float_test _ ->
-      Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Int_test _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Switch _ -> Reg.add_set_array value instr.arg, Cfg.set_live instr value
-    | Return -> Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
+      { before = Reg.add_set_array before instr.arg; across = before }
+    | Int_test _ ->
+      { before = Reg.add_set_array before instr.arg; across = before }
+    | Switch _ ->
+      { before = Reg.add_set_array before instr.arg; across = before }
+    | Return -> { before = Reg.set_of_array instr.arg; across = Reg.Set.empty }
     | Tailcall (Self _) ->
-      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
-    | Raise _ -> Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
+      { before = Reg.set_of_array instr.arg; across = Reg.Set.empty }
+    | Raise _ ->
+      { before = Reg.add_set_array exn.before instr.arg; across = exn.before }
     | Tailcall (Func _) ->
-      Reg.set_of_array instr.arg, Cfg.set_live instr Reg.Set.empty
+      { before = Reg.set_of_array instr.arg; across = Reg.Set.empty }
     | Call_no_return _ ->
-      Reg.add_set_array exn instr.arg, Cfg.set_live instr exn
+      { before = Reg.add_set_array exn.before instr.arg; across = exn.before }
 
   let exception_ : domain -> domain =
-   fun value -> Reg.Set.remove Proc.loc_exn_bucket value
+   fun { before; across = _ } ->
+    { before = Reg.Set.remove Proc.loc_exn_bucket before;
+      across = Reg.Set.empty
+    }
 end
 
 module Liveness = Cfg_dataflow.Backward (Domain) (Transfer)

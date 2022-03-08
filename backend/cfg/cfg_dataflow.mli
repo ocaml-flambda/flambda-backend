@@ -73,28 +73,30 @@ end
 module type Backward_transfer = sig
   type domain
 
-  val basic :
-    domain ->
-    exn:domain ->
-    Cfg.basic Cfg.instruction ->
-    domain * Cfg.basic Cfg.instruction
+  val basic : domain -> exn:domain -> Cfg.basic Cfg.instruction -> domain
 
   val terminator :
-    domain ->
-    exn:domain ->
-    Cfg.terminator Cfg.instruction ->
-    domain * Cfg.terminator Cfg.instruction
+    domain -> exn:domain -> Cfg.terminator Cfg.instruction -> domain
 
   val exception_ : domain -> domain
 end
 
+module Instr : Identifiable.S with type t = int
+
 module type Backward_S = sig
   type domain
 
-  type map = domain Label.Tbl.t
+  type _ map =
+    | Block : domain Label.Tbl.t map
+    | Instr : domain Instr.Tbl.t map
 
   val run :
-    Cfg.t -> ?max_iteration:int -> init:domain -> unit -> (map, map) Result.t
+    Cfg.t ->
+    ?max_iteration:int ->
+    init:domain ->
+    map:'a map ->
+    unit ->
+    ('a, 'a) Result.t
 end
 
 module Backward
