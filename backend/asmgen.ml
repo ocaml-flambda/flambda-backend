@@ -172,16 +172,6 @@ let ocamlcfg_verbose =
 
 let recompute_liveness_on_cfg (cfg_with_layout : Cfg_with_layout.t) : Cfg_with_layout.t =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  Cfg.iter_blocks cfg ~f:(fun _label block ->
-      (* We use `canary` to ensure the liveness is appropriately set by
-         `Cfg_liveness.Liveness.run`.
-         CR xclerc for xclerc: since we now unconditionally set the liveness
-         below, this "canary" pass can be removed. *)
-      let canary = Reg.create Cmm.Val in
-      canary.Reg.raw_name <- Reg.Raw_name.create_from_var (Ident.create_local "canary");
-      let canary_singleton = Reg.Set.singleton canary in
-      block.body <- ListLabels.map block.body ~f:(fun instr -> Cfg.set_live instr canary_singleton);
-      block.terminator <- Cfg.set_live block.terminator canary_singleton);
   let init = { Cfg_liveness.before = Reg.Set.empty; across = Reg.Set.empty; } in
   begin match Cfg_liveness.Liveness.run cfg ~init ~map:Cfg_liveness.Liveness.Instr () with
     | Result.Ok (liveness : Cfg_liveness.Liveness.domain Cfg_dataflow.Instr.Tbl.t) ->
