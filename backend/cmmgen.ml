@@ -1576,8 +1576,9 @@ let compunit (ulam, preallocated_blocks, constants) =
                          if Config.flambda then [
                            Reduce_code_size;
                            No_CSE;
+                           Use_linscan_regalloc;
                          ]
-                         else [ Reduce_code_size ];
+                         else [ Reduce_code_size; Use_linscan_regalloc ];
                        fun_dbg  = Debuginfo.none }] in
   let c2 = transl_clambda_constants constants c1 in
   let c3 = transl_all_functions c2 in

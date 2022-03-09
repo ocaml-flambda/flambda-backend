@@ -1656,8 +1656,8 @@ let unit ~offsets ~make_symbol unit ~all_code =
         let fun_name = Compilenv.make_symbol (Some "entry") in
         let fun_codegen =
           if Flambda_features.backend_cse_at_toplevel ()
-          then [Cmm.Reduce_code_size]
-          else [Cmm.Reduce_code_size; Cmm.No_CSE]
+          then [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc]
+          else [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc; Cmm.No_CSE]
         in
         C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
       in
