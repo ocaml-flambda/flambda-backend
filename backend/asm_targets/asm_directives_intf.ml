@@ -113,13 +113,13 @@ module type S = sig
   (** Emit an 8-bit unsigned integer. There is no padding. *)
   val uint8 : ?comment:string -> Numbers.Uint8.t -> unit
 
-  (** Emit an 16-bit unsigned integer. There is no padding. *)
+  (** Emit a 16-bit unsigned integer. There is no padding. *)
   val uint16 : ?comment:string -> Numbers.Uint16.t -> unit
 
-  (** Emit an 32-bit unsigned integer. There is no padding. *)
+  (** Emit a 32-bit unsigned integer. There is no padding. *)
   val uint32 : ?comment:string -> Numbers.Uint32.t -> unit
 
-  (** Emit an 64-bit unsigned integer. There is no padding. *)
+  (** Emit a 64-bit unsigned integer. There is no padding. *)
   val uint64 : ?comment:string -> Numbers.Uint64.t -> unit
 
   (* CR-soon mshinwell: Target addresses should not be signed *)
@@ -142,8 +142,9 @@ module type S = sig
   (** Cache a string for later emission. The returned label may be used to
       obtain the address of the string in the section. This function does not
       emit anything. (See [emit_cached_strings], below.) If a string is supplied
-      to this function that is already in the cache then the previously-assigned
-      label is returned, not a new one. *)
+      to this function that is already in the cache (associated with the same
+      section and comment) then the previously-assigned label is returned, not a
+      new one. *)
   val cache_string : ?comment:string -> Asm_section.t -> string -> Asm_label.t
 
   (** Emit the sequence of: label definition: <string><null terminator> pairs as
@@ -171,7 +172,7 @@ module type S = sig
 
   (** Define a label at the current position in the current section. The
       treatment for MASM when emitting into non-text sections is as for
-      [define_symbol], above. *)
+      [define_data_symbol], above. *)
   val define_label : Asm_label.t -> unit
 
   (** Emit a machine-width reference to the given label. *)

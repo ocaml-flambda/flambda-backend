@@ -30,7 +30,8 @@
     prefix (such as "L", ".L", etc).
 
     Label's numeric or textual names are unique within the assembly stream for a
-    single compilation unit, even across sections.
+    single compilation unit, even across sections. [Asm_label] keeps track of 
+    the section a label belongs to, and doesn't check uniqueness.  
 
     Note: Labels are not symbols in the usual sense---they are a construct in
     the assembler's metalanguage and not accessible in the object
@@ -69,5 +70,5 @@ include Identifiable.S with type t := t
     the given section within a given compilation unit's assembly file. *)
 val for_section : Asm_section.t -> t
 
-(** Like [label], but for DWARF sections only. *)
+(** Like [for_section], but for DWARF sections only. *)
 val for_dwarf_section : Asm_section.dwarf_section -> t

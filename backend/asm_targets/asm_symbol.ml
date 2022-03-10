@@ -44,16 +44,18 @@ include Identifiable.Make (Thing)
 let create name = name
 
 let escape name =
-  let spec = ref false in
+  let escaped_nb = ref 0 in
   for i = 0 to String.length name - 1 do
     match String.unsafe_get name i with
     | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> ()
-    | _ -> spec := true
+    | _ -> incr escaped_nb
   done;
-  if not !spec
+  if !escaped_nb = 0
   then name
   else
-    let b = Buffer.create (String.length name + 10) in
+    (* Each escaped character is replaced by 3 characters (a $, and 2 for its
+       hexadecimal representation)*)
+    let b = Buffer.create (String.length name + 2 * !escaped_nb) in
     String.iter
       (function
         | ('A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_') as c ->
@@ -65,14 +67,14 @@ let escape name =
 let symbol_prefix () =
   (* CR mshinwell: needs checking *)
   match Target_system.architecture () with
-  | IA32 | X86_64 -> begin
+  | IA32 | X86_64 | AArch64 -> begin
     match Target_system.derived_system () with
     | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
     | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
       "" (* checked ok. *)
     | MacOS_like -> "_" (* checked ok. *)
   end
-  | ARM | AArch64 | POWER | Z | Riscv -> ""
+  | ARM | POWER | Z | Riscv -> ""
 
 let to_escaped_string ?suffix ~symbol_prefix t =
   let suffix = match suffix with None -> "" | Some suffix -> suffix in

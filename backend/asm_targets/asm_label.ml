@@ -57,14 +57,14 @@ let create_string section label = { section; label = String label }
 
 let label_prefix =
   match Target_system.architecture () with
-  | IA32 | X86_64 -> begin
+  | IA32 | X86_64 | ARM -> begin
     match Target_system.derived_system () with
     | Linux | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD | OpenBSD
     | Generic_BSD | Solaris | Dragonfly | GNU | BeOS | Unknown ->
       ".L"
     | MacOS_like | Win32 | Win64 -> "L"
   end
-  | ARM | AArch64 | POWER | Z | Riscv -> ".L"
+  | AArch64 | POWER | Z | Riscv -> ".L"
 
 let encode (t : t) =
   match t.label with
