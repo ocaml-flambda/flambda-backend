@@ -70,7 +70,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let sections_seen = ref []
 
-  let current_section_ref = ref None
+  let current_dwarf_section_ref = ref None
 
   let cached_strings = ref Cached_string.Map.empty
 
@@ -81,13 +81,18 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     | MASM | GAS_like -> false
     | MacOS -> true
 
-  let if_not_masm f =
+  let is_gas () =
     match Target_system.assembler () with
-    | MASM -> ()
-    | GAS_like | MacOS -> f ()
+    | MASM | MacOS -> false
+    | GAS_like -> true
+
+  let is_masm () =
+    match Target_system.assembler () with
+    | MASM -> true
+    | GAS_like | MacOS -> false
 
   let loc ~file_num ~line ~col =
-    if_not_masm (fun () -> D.loc ~file_num ~line ~col ())
+    if not (is_masm ()) then D.loc ~file_num ~line ~col ()
 
   let new_line () = D.new_line ()
 
@@ -97,7 +102,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
   let define_label label =
     let lbl_section = Asm_label.section label in
     let this_section =
-      match !current_section_ref with
+      match !current_dwarf_section_ref with
       | None -> not_initialized ()
       | Some this_section -> this_section
     in
@@ -108,6 +113,10 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         Asm_label.print label Asm_section.print lbl_section Asm_section.print
         this_section;
     (* CR-someday bkhajwal: Be aware of MASM label type annotation *)
+    (* CR poechsel: This assumes that all no [D.text] or [D.section] were
+    emitted since the last call to [switch_to_section].
+    If we emit dwarf separately from other assembly everything will be fine,
+    otherwise this might break. *)
     D.label (Asm_label.encode label)
 
   let switch_to_section section =
@@ -119,12 +128,12 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         true
       end
     in
-    match !current_section_ref with
+    match !current_dwarf_section_ref with
     | Some section' when Asm_section.equal section section' ->
       assert (not first_occurrence);
       ()
     | _ ->
-      current_section_ref := Some section;
+      current_dwarf_section_ref := Some section;
       let ({ names; flags; args } : Asm_section.section_details) =
         Asm_section.details section ~first_occurrence
       in
@@ -136,11 +145,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     cached_strings := Cached_string.Map.empty;
     sections_seen := [];
     temp_var_counter := 0;
-    (* Forward label references are illegal in GAS *)
+    current_dwarf_section_ref := None;
+    (* Forward label references are illegal in GAS.
+       To avoid it, emit the beginning of all dwarf sections in advance. *)
     begin
-      match Target_system.assembler () with
-      | MASM | MacOS -> ()
-      | GAS_like ->
+      if is_gas () then
         List.iter switch_to_section (Asm_section.dwarf_sections_in_order ())
     end;
     (* Stop dsymutil complaining about empty __debug_line sections (produces
