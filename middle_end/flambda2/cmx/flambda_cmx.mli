@@ -34,7 +34,8 @@ val get_imported_code : loader -> unit -> Exported_code.t
 val load_cmx_file_contents :
   loader -> Compilation_unit.t -> Flambda2_types.Typing_env.t option
 
-val load_symbol_approx : loader -> Symbol.t -> Code.t Value_approximation.t
+val load_symbol_approx :
+  loader -> Symbol.t -> Code_or_metadata.t Value_approximation.t
 
 val prepare_cmx_file_contents :
   final_typing_env:Flambda2_types.Typing_env.t option ->
@@ -45,7 +46,7 @@ val prepare_cmx_file_contents :
   Flambda_cmx_format.t option
 
 val prepare_cmx_from_approx :
-  approxs:Code.t Value_approximation.t Symbol.Map.t ->
+  approxs:Code_or_metadata.t Value_approximation.t Symbol.Map.t ->
   exported_offsets:Exported_offsets.t ->
   used_closure_vars:Var_within_closure.Set.t ->
   Exported_code.t ->
