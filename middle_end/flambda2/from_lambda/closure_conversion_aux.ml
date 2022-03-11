@@ -60,10 +60,8 @@ module IR = struct
       continuation : Continuation.t;
       exn_continuation : exn_continuation;
       loc : Lambda.scoped_location;
-      tailcall : Lambda.tailcall_attribute;
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
-      specialised : Lambda.specialise_attribute;
       probe : Lambda.probe;
       mode : Lambda.alloc_mode
     }
@@ -127,6 +125,8 @@ module Inlining = struct
 end
 
 module Env = struct
+  type value_approximation = Code_or_metadata.t Value_approximation.t
+
   type t =
     { variables : Variable.t Ident.Map.t;
       globals : Symbol.t Numeric_types.Int.Map.t;
@@ -134,9 +134,8 @@ module Env = struct
       current_unit_id : Ident.t;
       current_depth : Variable.t option;
       symbol_for_global : Ident.t -> Symbol.t;
-      value_approximations : Code.t Value_approximation.t Name.Map.t;
-      approximation_for_external_symbol :
-        Symbol.t -> Code.t Value_approximation.t;
+      value_approximations : value_approximation Name.Map.t;
+      approximation_for_external_symbol : Symbol.t -> value_approximation;
       big_endian : bool;
       path_to_root : Debuginfo.Scoped_location.t;
       inlining_history_tracker : Inlining_history.Tracker.t
@@ -158,18 +157,23 @@ module Env = struct
       | exception Not_found ->
         let approx = Flambda_cmx.load_symbol_approx loader symbol in
         let rec filter_inlinable approx =
-          match (approx : Code.t Value_approximation.t) with
-          | Value_unknown | Closure_approximation (_, None) -> approx
+          match (approx : value_approximation) with
+          | Value_unknown | Closure_approximation (_, _, Metadata_only _) ->
+            approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation (code_id, Some code) -> (
+          | Closure_approximation (code_id, closure_id, Code_present code) -> (
             match
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
             with
             | Attribute_inline | Small_function _ -> approx
-            | _ -> Value_approximation.Closure_approximation (code_id, None))
+            | _ ->
+              Value_approximation.Closure_approximation
+                ( code_id,
+                  closure_id,
+                  Code_or_metadata.(remember_only_metadata (create code)) ))
         in
         let approx = filter_inlinable approx in
         externals := Symbol.Map.add symbol approx !externals;
@@ -348,13 +352,13 @@ end
 
 module Acc = struct
   type continuation_application =
-    | Trackable_arguments of Code.t Value_approximation.t list
+    | Trackable_arguments of Env.value_approximation list
     | Untrackable
 
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
-        ((Symbol.t * Code.t Value_approximation.t) Closure_id.Lmap.t
+        ((Symbol.t * Env.value_approximation) Closure_id.Lmap.t
         * Flambda.Set_of_closures.t)
         list;
       shareable_constants : Symbol.t Static_const.Map.t;
