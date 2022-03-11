@@ -974,8 +974,8 @@ module StoreExp = Switch.Store (struct
   type key = lambda
 
   let compare_key = Stdlib.compare
-
   let make_key = Lambda.make_key
+  let join_actions_to_be_shared = Lambda.join_actions_to_be_shared ~printer:Printlambda.lambda
 end)
 
 let make_exit i = Lstaticraise (i, [])
@@ -1027,7 +1027,9 @@ let same_actions = function
       | key0_opt ->
           let same_act (_, act) = make_key act = key0_opt in
           if List.for_all same_act rem then
-            Some act0
+            Some (List.fold_left (fun result (_, act) ->
+                Lambda.join_actions_to_be_shared ~printer:Printlambda.lambda result act)
+              act0 rem)
           else
             None
     )
@@ -1036,7 +1038,11 @@ let safe_before ((p, ps), act_p) l =
   (* Test for swapping two clauses *)
   let same_actions act1 act2 =
     match (make_key act1, make_key act2) with
-    | Some key1, Some key2 -> key1 = key2
+    | Some key1, Some key2 ->
+        (* [make_key] erases the field read semantics from [Pfield].
+           However if [act1] and [act2] are both [Pfield] then it's fine to
+           swap them no matter what the field read semantics. *)
+        key1 = key2
     | None, _
     | _, None ->
         false

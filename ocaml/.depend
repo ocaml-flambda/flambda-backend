@@ -3461,10 +3461,13 @@ lambda/simplif.cmi : \
     lambda/lambda.cmi \
     typing/ident.cmi
 lambda/switch.cmo : \
+    utils/numbers.cmi \
     lambda/switch.cmi
 lambda/switch.cmx : \
+    utils/numbers.cmx \
     lambda/switch.cmi
-lambda/switch.cmi :
+lambda/switch.cmi : \
+    utils/numbers.cmi
 lambda/translattribute.cmo : \
     utils/warnings.cmi \
     typing/typedtree.cmi \

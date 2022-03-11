@@ -43,6 +43,7 @@ module type Stored = sig
   type t
   type key
   val compare_key : key -> key -> int
+  val join_actions_to_be_shared : t -> t -> t
   val make_key : t -> key option
 end
 

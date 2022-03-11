@@ -393,8 +393,15 @@ type program =
        [getfield 0; ...; getfield (main_module_block_size - 1)])
 *)
 
-(* Sharing key *)
+(* Sharing key
+   Beware: even if two keys compare equal (using [Stdlib.compare]), it is
+   necessary to call [join_actions_to_be_shared] to get the correct term
+   for sharing.
+*)
 val make_key: lambda -> lambda option
+val join_actions_to_be_shared :
+  printer:(Format.formatter -> lambda -> unit) ->
+  lambda -> lambda -> lambda
 
 val const_unit: structured_constant
 val const_int : int -> structured_constant

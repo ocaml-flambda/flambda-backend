@@ -46,6 +46,12 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+let join_field_read_semantics sem1 sem2 =
+  match sem1, sem2 with
+  | Reads_agree, Reads_agree -> Reads_agree
+  | Reads_vary, Reads_vary -> Reads_vary
+  | Reads_agree, Reads_vary | Reads_vary, Reads_agree -> Reads_vary
+
 type alloc_mode =
   | Alloc_heap
   | Alloc_local
@@ -491,6 +497,14 @@ let make_key e =
         let y = make_key x in
         Llet (str,k,y,ex,tr_rec (Ident.add x (Lvar y) env) e)
     | Lprim (p,es,_) ->
+        let p =
+          (* The field read semantics is ignored when making the key but
+             joined when constructing a shared action (see below). *)
+          match p with
+          | Pfield (index, _sem) ->
+            Pfield (index, Reads_agree (* arbitrary *) )
+          | _ -> p
+        in
         Lprim (p,tr_recs env es, Loc_unknown)
     | Lswitch (e,sw,loc,kind) ->
         Lswitch (tr_rec env e,tr_sw env sw,loc,kind)
@@ -538,6 +552,41 @@ let make_key e =
   try
     Some (tr_rec Ident.empty e)
   with Not_simple -> None
+
+let join_actions_to_be_shared ~printer:_ lam1 lam2 =
+  (* [printer] is left here for future debugging purposes. *)
+  match lam1, lam2 with
+  (* Since the keys for these actions must have compared equal then the
+     structure of [lam1] and [lam2] must be the same. *)
+  | Llet (let_kind, kind, bound, defining_expr,
+      Lprim (Pfield (index, sem1), args, scoped_loc1)),
+    Llet (_let_kind, _kind, _bound, _defining_expr,
+      Lprim (Pfield (_, sem2), _, scoped_loc2)) ->
+    (* This is specifically to catch cases like:
+        type t =
+          | A of { x : int; }
+          | B of { mutable x : int; }
+          | C of { x : int; }
+
+        let get t =
+          match t with
+          | A r -> r.x
+          | B r -> r.x
+          | C r -> r.x
+    *)
+    let sem = join_field_read_semantics sem1 sem2 in
+    let scoped_loc =
+      let dbg1 = Debuginfo.from_location scoped_loc1 in
+      let dbg2 = Debuginfo.from_location scoped_loc2 in
+      if Debuginfo.is_none dbg1 then scoped_loc2
+      else if Debuginfo.is_none dbg2 then scoped_loc1
+      else if Debuginfo.compare dbg1 dbg2 < 0 then scoped_loc1 else scoped_loc2
+    in
+    Llet (let_kind, kind, bound, defining_expr,
+      Lprim (Pfield (index, sem), args, scoped_loc))
+  | _, _ ->
+    (* Either of the terms will do, since their keys compared equal. *)
+    lam1
 
 (***************)
 

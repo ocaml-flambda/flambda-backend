@@ -30,6 +30,8 @@ module Storer =
       type t = lambda
       type key = lambda
       let make_key =  Lambda.make_key
+      let join_actions_to_be_shared =
+        Lambda.join_actions_to_be_shared ~printer:Printlambda.lambda
       let compare_key = Stdlib.compare
     end)
 
