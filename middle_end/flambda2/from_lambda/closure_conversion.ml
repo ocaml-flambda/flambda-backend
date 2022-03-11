@@ -1985,7 +1985,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   in
   let all_code =
     Exported_code.add_code (Acc.code acc)
-      ~keep_code:(fun _ -> true)
+      ~keep_code:(fun _ -> false)
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
