@@ -1692,7 +1692,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         num_trailing_local_params,
         contains_no_escaping_local_allocs,
         result_arity ) -> (
-    let splited_args =
+    let split_args =
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -1725,7 +1725,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
       in
       split apply.args arity
     in
-    match splited_args with
+    match split_args with
     | Exact args ->
       close_exact_or_unknown_apply acc env
         { apply with args; continuation = apply.continuation }
