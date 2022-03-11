@@ -1495,6 +1495,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let args_arity = List.length args in
   let params =
+    (* CR keryan: We should use the arity to produce better kinds *)
     List.mapi
       (fun n _ ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
@@ -1542,6 +1543,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       Lambda.Alloc_local, num_trailing_local_params - num_supplied_local_args
   in
   let function_declarations =
+    (* CR keryan: Same as above, better kind for return type *)
     [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~closure_id
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
@@ -1648,6 +1650,11 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       ~body:both_applications
     |> Expr_with_acc.create_let
 
+type call_args_split =
+  | Exact of IR.simple list
+  | Partial_app of IR.simple list * Flambda_arity.With_subkinds.t
+  | Over_app of IR.simple list * IR.simple list
+
 let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
   let callee = find_simple_from_id env apply.func in
   let approx = Env.find_value_approximation env callee in
@@ -1685,14 +1692,29 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         num_trailing_local_params,
         contains_no_escaping_local_allocs,
         result_arity ) -> (
-    let args, missing_args, remaining_args =
-      let rec split args arity =
-        match args, arity with
-        | _, [] -> [], [], args
-        | [], _ -> [], arity, []
-        | arg :: args, _ :: arity ->
-          let args, missing, remains = split args arity in
-          arg :: args, missing, remains
+    let splited_args =
+      let split args arity =
+        let rec cut n l =
+          if n <= 0
+          then [], l
+          else
+            match l with
+            | [] -> [], []
+            | h :: t ->
+              let before, after = cut (n - 1) t in
+              h :: before, after
+        in
+        let args_l = List.length args in
+        let arity_l = List.length arity in
+        if args_l = arity_l
+        then Exact args
+        else if args_l < arity_l
+        then
+          let _, missing_args = cut args_l arity in
+          Partial_app (args, missing_args)
+        else
+          let args, remaining_args = cut arity_l args in
+          Over_app (args, remaining_args)
       in
       let arity =
         if is_tupled
@@ -1703,21 +1725,22 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
       in
       split apply.args arity
     in
-    let exact_call apply_continuation acc =
-      match missing_args with
-      | [] ->
+    match splited_args with
+    | Exact args ->
+      close_exact_or_unknown_apply acc env
+        { apply with args; continuation = apply.continuation }
+        (Some approx)
+    | Partial_app (args, missing_args) ->
+      wrap_partial_application acc env apply.continuation apply approx args
+        missing_args ~arity ~num_trailing_local_params
+        ~contains_no_escaping_local_allocs
+    | Over_app (args, remaining_args) ->
+      let full_args_call apply_continuation acc =
         close_exact_or_unknown_apply acc env
           { apply with args; continuation = apply_continuation }
           (Some approx)
-      | _ :: _ ->
-        wrap_partial_application acc env apply_continuation apply approx args
-          missing_args ~arity ~num_trailing_local_params
-          ~contains_no_escaping_local_allocs
-    in
-    match remaining_args with
-    | [] -> exact_call apply.continuation acc
-    | args ->
-      wrap_over_application acc env exact_call apply args
+      in
+      wrap_over_application acc env full_args_call apply remaining_args
         ~contains_no_escaping_local_allocs ~result_arity)
 
 module CIS = Code_id_or_symbol
