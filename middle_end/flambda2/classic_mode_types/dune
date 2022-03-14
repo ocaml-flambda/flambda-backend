@@ -10,6 +10,8 @@
    -open
    Flambda2_identifiers
    -open
+   Flambda2_nominal
+   -open
    Flambda2_term_basics))
  (ocamlopt_flags
   (:standard -O3))
@@ -17,4 +19,5 @@
   stdlib
   ocamlcommon
   flambda2_identifiers
+  flambda2_nominal
   flambda2_term_basics))

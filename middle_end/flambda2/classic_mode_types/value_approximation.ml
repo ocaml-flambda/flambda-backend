@@ -26,3 +26,17 @@ type 'code t =
 let is_unknown = function
   | Value_unknown -> true
   | Closure_approximation _ | Block_approximation _ -> false
+
+let rec free_names ~code_free_names approx =
+  match approx with
+  | Value_unknown -> Name_occurrences.empty
+  | Block_approximation (approxs, _) ->
+    Array.fold_left
+      (fun names approx ->
+        Name_occurrences.union names (free_names ~code_free_names approx))
+      Name_occurrences.empty approxs
+  | Closure_approximation (code_id, closure_id, code) ->
+    Name_occurrences.add_code_id
+      (Name_occurrences.add_closure_id (code_free_names code) closure_id
+         Name_mode.normal)
+      code_id Name_mode.normal
