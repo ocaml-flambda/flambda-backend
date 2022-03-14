@@ -731,7 +731,7 @@ module Let_with_acc = struct
     in
     let has_no_effects =
       match (named : Named.t) with
-      | Prim (prim, _) -> Flambda_primitive.no_effects_or_coeffects prim
+      | Prim (prim, _) -> Flambda_primitive.at_most_generative_effects prim
       | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> true
     in
     if is_unused_singleton && has_no_effects
