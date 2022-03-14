@@ -1985,7 +1985,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   in
   let all_code =
     Exported_code.add_code (Acc.code acc)
-      ~keep_code:(fun _ -> true)
+      ~keep_code:(fun _ -> false)
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
@@ -1994,10 +1994,13 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       let free_names = Acc.free_names acc in
       Or_unknown.Known
         Closure_offsets.
-          { closure_ids_normal = Name_occurrences.closure_ids free_names;
-            closure_ids_in_types = Closure_id.Set.empty;
-            closure_vars_normal = Name_occurrences.closure_vars free_names;
-            closure_vars_in_types = Var_within_closure.Set.empty
+          { closure_ids_normal = Name_occurrences.closure_ids_normal free_names;
+            closure_ids_in_types =
+              Name_occurrences.closure_ids_in_types free_names;
+            closure_vars_normal =
+              Name_occurrences.closure_vars_normal free_names;
+            closure_vars_in_types =
+              Name_occurrences.closure_vars_in_types free_names
           }
     in
     Closure_offsets.finalize_offsets (Acc.closure_offsets acc)
@@ -2012,7 +2015,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   in
   let cmx =
     Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
-      ~exported_offsets ~used_closure_vars all_code
+      ~module_symbol ~exported_offsets ~used_closure_vars all_code
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
       ~module_symbol ~used_closure_vars:(Known used_closure_vars),
