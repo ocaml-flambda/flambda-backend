@@ -299,6 +299,7 @@ module Inlining = struct
     let apply_return_continuation = Apply.continuation apply in
     let apply_exn_continuation = Apply.exn_continuation apply in
     let params_and_body = Code.params_and_body code in
+    let cost_metrics = Code.cost_metrics code in
     Function_params_and_body.pattern_match params_and_body
       ~f:(fun
            ~return_continuation
@@ -323,6 +324,7 @@ module Inlining = struct
             ~apply_depth
         in
         let acc = Acc.with_free_names Name_occurrences.empty acc in
+        let acc = Acc.increment_metrics cost_metrics acc in
         match Exn_continuation.extra_args apply_exn_continuation with
         | [] ->
           make_inlined_body acc
