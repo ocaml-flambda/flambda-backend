@@ -199,7 +199,7 @@ module Inlining = struct
       Inlining_report.record_decision_at_call_site_for_unknown_function ~tracker
         ~apply ~pass:After_closure_conversion ();
       Not_inlinable
-    | Some (Block_approximation _) -> assert false
+    | Some (Value_symbol _) | Some (Block_approximation _) -> assert false
     | Some (Closure_approximation (_code_id, _, Metadata_only _)) ->
       Inlining_report.record_decision_at_call_site_for_known_function ~tracker
         ~apply ~pass:After_closure_conversion ~unrolling_depth:None
@@ -254,8 +254,7 @@ module Inlining = struct
         (fun (acc, body) param arg ->
           Let_with_acc.create acc
             (Bound_pattern.singleton (VB.create param Name_mode.normal))
-            (Named.create_simple arg) ~body
-          |> Expr_with_acc.create_let)
+            (Named.create_simple arg) ~body)
         (acc, body) params args
     in
     let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
@@ -263,7 +262,6 @@ module Inlining = struct
         (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
         (Named.create_rec_info rec_info)
         ~body
-      |> Expr_with_acc.create_let
     in
     let apply_renaming (acc, body) perm =
       let acc =
@@ -301,6 +299,7 @@ module Inlining = struct
     let apply_return_continuation = Apply.continuation apply in
     let apply_exn_continuation = Apply.exn_continuation apply in
     let params_and_body = Code.params_and_body code in
+    let cost_metrics = Code.cost_metrics code in
     Function_params_and_body.pattern_match params_and_body
       ~f:(fun
            ~return_continuation
@@ -325,6 +324,7 @@ module Inlining = struct
             ~apply_depth
         in
         let acc = Acc.with_free_names Name_occurrences.empty acc in
+        let acc = Acc.increment_metrics cost_metrics acc in
         match Exn_continuation.extra_args apply_exn_continuation with
         | [] ->
           make_inlined_body acc
@@ -429,7 +429,6 @@ let close_c_call acc env ~let_bound_var
             Let_with_acc.create acc bindable
               (Named.create_prim prim dbg)
               ~body:return_result_expr
-            |> Expr_with_acc.create_let
           | [] | _ :: _ ->
             Misc.fatal_errorf "Expected one arg for %s" prim_native_name
         end
@@ -470,8 +469,7 @@ let close_c_call acc env ~let_bound_var
             let named = Named.create_prim (Unary (named, arg)) dbg in
             Let_with_acc.create acc
               (Bound_pattern.singleton unboxed_arg')
-              named ~body
-            |> Expr_with_acc.create_let)
+              named ~body)
       call args prim_native_repr_args []
   in
   let wrap_c_call acc ~handler_param ~code_after_call c_call =
@@ -500,7 +498,6 @@ let close_c_call acc env ~let_bound_var
       Let_with_acc.create acc
         (Bound_pattern.singleton let_bound_var')
         named ~body
-      |> Expr_with_acc.create_let
     in
     body, handler_param
   in
@@ -713,7 +710,12 @@ let close_let acc env id user_visible defining_expr
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
           let approxs =
-            List.map (Env.find_value_approximation body_env) fields
+            List.map
+              (fun field ->
+                match Simple.must_be_symbol field with
+                | None -> Env.find_value_approximation body_env field
+                | Some (sym, _) -> Value_approximation.Value_symbol sym)
+              fields
             |> Array.of_list
           in
           Some
@@ -722,18 +724,21 @@ let close_let acc env id user_visible defining_expr
         | Prim (Binary (Block_load _, block, field), _) -> begin
           match Env.find_value_approximation body_env block with
           | Value_unknown -> Some body_env
-          | Closure_approximation _ ->
+          | Closure_approximation _ | Value_symbol _ ->
+            (* Here we assume [block] has already been substituted as a known
+               symbol if it exists, and rely on the invariant that the
+               approximation of a symbol is never a symbol. *)
             if Flambda_features.check_invariants ()
             then
               (* CR keryan: This is hidden behind invariants check because it
                  can appear on correct code using Lazy or GADT. It might warrant
                  a proper warning at some point. *)
               Misc.fatal_errorf
-                "Closure approximation found when block approximation was \
+                "Unexpected approximation found when block approximation was \
                  expected in [Closure_conversion]: %a"
                 Named.print defining_expr
             else None
-          | Block_approximation (approx, _alloc_mode) ->
+          | Block_approximation (approx, _alloc_mode) -> (
             let approx =
               Simple.pattern_match field
                 ~const:(fun const ->
@@ -750,7 +755,14 @@ let close_let acc env id user_visible defining_expr
                   | _ -> Value_approximation.Value_unknown)
                 ~name:(fun _ ~coercion:_ -> Value_approximation.Value_unknown)
             in
-            Some (Env.add_value_approximation body_env (Name.var var) approx)
+            match approx with
+            | Value_symbol sym ->
+              (* In spirit, this is the same as the simple case but more
+                 cumbersome to detect, we have to remove the now useless
+                 let-binding later. *)
+              Some (Env.add_simple_to_substitute env id (Simple.symbol sym))
+            | _ ->
+              Some (Env.add_value_approximation body_env (Name.var var) approx))
         end
         | _ -> Some body_env
       in
@@ -760,7 +772,6 @@ let close_let acc env id user_visible defining_expr
       | Some body_env ->
         let acc, body = body acc body_env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
-        |> Expr_with_acc.create_let
       | None ->
         ( acc,
           Expr.create_invalid
@@ -943,12 +954,10 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
       Let_with_acc.create acc
         (Bound_pattern.singleton comparison_result')
         compare ~body:switch
-      |> Expr_with_acc.create_let
     in
     Let_with_acc.create acc
       (Bound_pattern.singleton untagged_scrutinee')
       untag ~body
-    |> Expr_with_acc.create_let
   | _, _ ->
     let acc, arms =
       match sw.failaction with
@@ -984,7 +993,6 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
-      |> Expr_with_acc.create_let
 
 let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
     ~var_within_closures_from_idents ~closure_ids_from_idents
@@ -1148,8 +1156,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
         let named =
           Named.create_prim (Unary (move, my_closure')) Debuginfo.none
         in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
-        |> Expr_with_acc.create_let)
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
       project_closure_to_bind (acc, body)
   in
   let acc, body =
@@ -1164,8 +1171,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
                  my_closure' ))
             Debuginfo.none
         in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
-        |> Expr_with_acc.create_let)
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
       var_within_closures_to_bind (acc, body)
   in
   let next_depth_expr = Rec_info_expr.succ (Rec_info_expr.var my_depth) in
@@ -1174,7 +1180,6 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   in
   let acc, body =
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
-    |> Expr_with_acc.create_let
   in
   let cost_metrics = Acc.cost_metrics acc in
   let acc, exn_continuation =
@@ -1480,7 +1485,6 @@ let close_let_rec acc env ~function_declarations
     Let_with_acc.create acc
       (Bound_pattern.set_of_closures ~closure_vars)
       named ~body
-    |> Expr_with_acc.create_let
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     approx args missing_args ~arity ~num_trailing_local_params
@@ -1628,7 +1632,6 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
              (Bound_var.create (Variable.create "unit") Name_mode.normal))
           (Named.create_prim (Unary (End_region, Simple.var region)) apply_dbg)
           ~body:call_return_continuation
-        |> Expr_with_acc.create_let
       in
       Let_cont_with_acc.build_non_recursive acc after_over_application
         ~handler_params:over_application_results ~handler
@@ -1648,7 +1651,6 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
       (Named.create_prim (Nullary Begin_region) apply_dbg)
       ~body:both_applications
-    |> Expr_with_acc.create_let
 
 type call_args_split =
   | Exact of IR.simple list
@@ -1832,8 +1834,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       in
       Let_with_acc.create acc
         (Bound_pattern.symbols (Bound_symbols.create bound_symbols))
-        defining_expr ~body
-      |> Expr_with_acc.create_let)
+        defining_expr ~body)
     (acc, body) components
 
 let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
@@ -1883,7 +1884,6 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       Let_with_acc.create acc
         (Bound_pattern.symbols bound_symbols)
         named ~body:return
-      |> Expr_with_acc.create_let
     in
     let block_access : P.Block_access_kind.t =
       Values
@@ -1904,8 +1904,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
                  Simple.const (Reg_width_const.tagged_immediate pos) ))
             Debuginfo.none
         in
-        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body
-        |> Expr_with_acc.create_let)
+        Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
@@ -1976,8 +1975,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
         in
         Let_with_acc.create acc
           (Bound_pattern.symbols bound_symbols)
-          defining_expr ~body
-        |> Expr_with_acc.create_let)
+          defining_expr ~body)
       (acc, body) (Acc.declared_symbols acc)
   in
   let get_code_metadata code_id =

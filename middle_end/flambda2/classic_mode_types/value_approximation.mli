@@ -20,6 +20,7 @@
 
 type 'code t =
   | Value_unknown
+  | Value_symbol of Symbol.t
   | Closure_approximation of Code_id.t * Closure_id.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 

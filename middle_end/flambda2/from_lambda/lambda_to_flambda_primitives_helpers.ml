@@ -114,7 +114,6 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
     Let_with_acc.create acc
       (Bound_pattern.singleton bound_var)
       defining_expr ~body:apply_cont
-    |> Expr_with_acc.create_let
 
 let expression_for_failure acc env exn_cont ~register_const_string primitive dbg
     (failure : failure) =
@@ -319,7 +318,6 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       Let_with_acc.create acc
         (Bound_pattern.singleton cond_result_pat)
         cond ~body:switch
-      |> Expr_with_acc.create_let
     in
     let join_handler_expr acc =
       cont acc (Named.create_simple (Simple.var result_var))
@@ -335,7 +333,6 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       Let_with_acc.create acc
         (Bound_pattern.singleton ifso_result_pat)
         ifso ~body
-      |> Expr_with_acc.create_let
     in
     let ifnot_handler_expr acc =
       bind_rec acc env exn_cont ~register_const_string ifnot dbg
@@ -348,7 +345,6 @@ let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
       Let_with_acc.create acc
         (Bound_pattern.singleton ifnot_result_pat)
         ifnot ~body
-      |> Expr_with_acc.create_let
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifnot_cont ~handler_params:[]
@@ -375,6 +371,5 @@ and bind_rec_primitive acc env exn_cont ~register_const_string
     let cont acc (named : Named.t) =
       let acc, body = cont acc (Simple.var var) in
       Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
-      |> Expr_with_acc.create_let
     in
     bind_rec acc env exn_cont ~register_const_string p dbg cont
