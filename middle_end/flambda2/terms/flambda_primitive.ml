@@ -1472,14 +1472,14 @@ let free_names t =
   match t with
   | Nullary _ -> Name_occurrences.empty
   | Unary (Select_closure { move_from; move_to }, x0) ->
-    Name_occurrences.add_closure_id
-      (Name_occurrences.add_closure_id (Simple.free_names x0) move_to
-         Name_mode.normal)
+    Name_occurrences.add_closure_id_in_projection
+      (Name_occurrences.add_closure_id_in_projection (Simple.free_names x0)
+         move_to Name_mode.normal)
       move_from Name_mode.normal
   | Unary (Project_var { var = clos_var; project_from }, x0) ->
-    Name_occurrences.add_closure_id
-      (Name_occurrences.add_closure_var (Simple.free_names x0) clos_var
-         Name_mode.normal)
+    Name_occurrences.add_closure_id_in_projection
+      (Name_occurrences.add_closure_var_in_projection (Simple.free_names x0)
+         clos_var Name_mode.normal)
       project_from Name_mode.normal
   | Unary (_prim, x0) -> Simple.free_names x0
   | Binary (_prim, x0, x1) ->

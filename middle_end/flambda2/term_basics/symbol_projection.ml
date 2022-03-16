@@ -97,8 +97,9 @@ let free_names { symbol; projection } =
   match projection with
   | Block_load _ -> free_names
   | Project_var { project_from; var } ->
-    Name_occurrences.add_closure_id
-      (Name_occurrences.add_closure_var free_names var Name_mode.normal)
+    Name_occurrences.add_closure_id_in_projection
+      (Name_occurrences.add_closure_var_in_projection free_names var
+         Name_mode.normal)
       project_from Name_mode.normal
 
 let all_ids_for_export { symbol; projection = _ } =

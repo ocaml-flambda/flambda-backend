@@ -71,16 +71,16 @@ let run ~cmx_loader ~round unit =
   in
   let name_occurrences = UA.name_occurrences uacc in
   let closure_ids_normal =
-    Name_occurrences.closure_ids_normal name_occurrences
+    Name_occurrences.closure_ids_in_normal_projections name_occurrences
   in
   let closure_vars_normal =
-    Name_occurrences.closure_vars_normal name_occurrences
+    Name_occurrences.closure_vars_in_normal_projections name_occurrences
   in
   let closure_ids_in_types =
-    Name_occurrences.closure_ids_in_types name_occurrences
+    Name_occurrences.all_closure_ids name_occurrences
   in
   let closure_vars_in_types =
-    Name_occurrences.closure_vars_in_types name_occurrences
+    Name_occurrences.all_closure_vars name_occurrences
   in
   let used_closure_vars, exported_offsets =
     match UA.closure_offsets uacc with

@@ -222,13 +222,13 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
   let exported_offsets =
     exported_offsets
     |> Closure_offsets.reexport_closure_ids
-         (Name_occurrences.closure_ids free_names_of_all_code)
+         (Name_occurrences.all_closure_ids free_names_of_all_code)
     |> Closure_offsets.reexport_closure_vars
-         (Name_occurrences.closure_vars free_names_of_all_code)
+         (Name_occurrences.all_closure_vars free_names_of_all_code)
     |> Closure_offsets.reexport_closure_ids
-         (Name_occurrences.closure_ids closure_elts_used_in_typing_env)
+         (Name_occurrences.all_closure_ids closure_elts_used_in_typing_env)
     |> Closure_offsets.reexport_closure_vars
-         (Name_occurrences.closure_vars closure_elts_used_in_typing_env)
+         (Name_occurrences.all_closure_vars closure_elts_used_in_typing_env)
   in
   Some
     (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets

@@ -161,7 +161,7 @@ let free_names t =
       { function_call = Direct { code_id; closure_id; return_arity = _ };
         alloc_mode = _
       } ->
-    Name_occurrences.add_closure_id
+    Name_occurrences.add_closure_id_in_projection
       (Name_occurrences.add_code_id Name_occurrences.empty code_id
          Name_mode.normal)
       closure_id Name_mode.normal

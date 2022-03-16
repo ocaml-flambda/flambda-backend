@@ -1994,13 +1994,12 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       let free_names = Acc.free_names acc in
       Or_unknown.Known
         Closure_offsets.
-          { closure_ids_normal = Name_occurrences.closure_ids_normal free_names;
-            closure_ids_in_types =
-              Name_occurrences.closure_ids_in_types free_names;
+          { closure_ids_normal =
+              Name_occurrences.closure_ids_in_normal_projections free_names;
+            closure_ids_in_types = Name_occurrences.all_closure_ids free_names;
             closure_vars_normal =
-              Name_occurrences.closure_vars_normal free_names;
-            closure_vars_in_types =
-              Name_occurrences.closure_vars_in_types free_names
+              Name_occurrences.closure_vars_in_normal_projections free_names;
+            closure_vars_in_types = Name_occurrences.all_closure_vars free_names
           }
     in
     Closure_offsets.finalize_offsets (Acc.closure_offsets acc)

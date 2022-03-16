@@ -64,9 +64,21 @@ val add_symbol : t -> Symbol.t -> Name_mode.t -> t
 
 val add_name : t -> Name.t -> Name_mode.t -> t
 
-val add_closure_id : t -> Closure_id.t -> Name_mode.t -> t
+val add_closure_id_in_projection : t -> Closure_id.t -> Name_mode.t -> t
 
-val add_closure_var : t -> Var_within_closure.t -> Name_mode.t -> t
+val add_closure_var_in_projection :
+  t -> Var_within_closure.t -> Name_mode.t -> t
+
+val add_closure_id_in_declaration : t -> Closure_id.t -> Name_mode.t -> t
+
+val add_closure_var_in_declaration :
+  t -> Var_within_closure.t -> Name_mode.t -> t
+
+(** Closure_variables and closure IDs in types count as both projection and
+    declaration *)
+val add_closure_id_in_types : t -> Closure_id.t -> t
+
+val add_closure_var_in_types : t -> Var_within_closure.t -> t
 
 val singleton_code_id : Code_id.t -> Name_mode.t -> t
 
@@ -88,7 +100,7 @@ val create_variables' : Name_mode.t -> Variable.Set.t -> t
 
 val create_names : Name.Set.t -> Name_mode.t -> t
 
-val create_closure_vars : Var_within_closure.Set.t -> t
+(* val create_closure_vars : Var_within_closure.Set.t -> t *)
 
 (** [diff t1 t2] removes from [t1] all those names that occur in [t2].
 
@@ -120,17 +132,13 @@ val continuations_with_traps : t -> Continuation.Set.t
 
 val continuations_including_in_trap_actions : t -> Continuation.Set.t
 
-val closure_ids : t -> Closure_id.Set.t
+val closure_ids_in_normal_projections : t -> Closure_id.Set.t
 
-val closure_ids_normal : t -> Closure_id.Set.t
+val all_closure_ids : t -> Closure_id.Set.t
 
-val closure_ids_in_types : t -> Closure_id.Set.t
+val closure_vars_in_normal_projections : t -> Var_within_closure.Set.t
 
-val closure_vars : t -> Var_within_closure.Set.t
-
-val closure_vars_normal : t -> Var_within_closure.Set.t
-
-val closure_vars_in_types : t -> Var_within_closure.Set.t
+val all_closure_vars : t -> Var_within_closure.Set.t
 
 val symbols : t -> Symbol.Set.t
 
@@ -140,15 +148,11 @@ val newer_version_of_code_ids : t -> Code_id.Set.t
 
 val only_newer_version_of_code_ids : t -> Code_id.Set.t
 
-val restrict_to_closure_vars : t -> t
-
 val restrict_to_closure_vars_and_closure_ids : t -> t
 
 val code_ids_and_newer_version_of_code_ids : t -> Code_id.Set.t
 
 val without_code_ids : t -> t
-
-val without_closure_vars : t -> t
 
 val with_only_variables : t -> t
 
@@ -175,7 +179,7 @@ val mem_code_id : t -> Code_id.t -> bool
 
 val mem_newer_version_of_code_id : t -> Code_id.t -> bool
 
-val mem_closure_var : t -> Var_within_closure.t -> bool
+val mem_closure_var_in_projections : t -> Var_within_closure.t -> bool
 
 val closure_var_is_used_or_imported : t -> Var_within_closure.t -> bool
 
@@ -185,7 +189,7 @@ val remove_code_id_or_symbol : t -> Code_id_or_symbol.t -> t
 
 val remove_continuation : t -> Continuation.t -> t
 
-val remove_one_occurrence_of_closure_var :
+val remove_one_occurrence_of_closure_var_in_projections :
   t -> Var_within_closure.t -> Name_mode.t -> t
 
 val greatest_name_mode_var : t -> Variable.t -> Name_mode.Or_absent.t
