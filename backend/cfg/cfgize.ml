@@ -762,7 +762,7 @@ let fundecl :
      integer test. This simplification should happen *after* the one about
      straightline blocks because merging blocks creates more opportunities for
      terminator simplification. *)
-  Merge_straightline_blocks.run cfg_with_layout;
+  if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
   Eliminate_dead_code.run_dead_block cfg_with_layout;
   if simplify_terminators then Simplify_terminator.run cfg;
   cfg_with_layout
