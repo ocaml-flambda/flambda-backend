@@ -20,16 +20,18 @@
 
 type 'code t =
   | Value_unknown
+  | Value_symbol of Symbol.t
   | Closure_approximation of Code_id.t * Closure_id.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 
 let is_unknown = function
   | Value_unknown -> true
-  | Closure_approximation _ | Block_approximation _ -> false
+  | Value_symbol _ | Closure_approximation _ | Block_approximation _ -> false
 
 let rec free_names ~code_free_names approx =
   match approx with
   | Value_unknown -> Name_occurrences.empty
+  | Value_symbol sym -> Name_occurrences.singleton_symbol sym Name_mode.normal
   | Block_approximation (approxs, _) ->
     Array.fold_left
       (fun names approx ->

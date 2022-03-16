@@ -156,9 +156,20 @@ module Env = struct
       | approx -> approx
       | exception Not_found ->
         let approx = Flambda_cmx.load_symbol_approx loader symbol in
+        (if Flambda_features.check_invariants ()
+        then
+          match approx with
+          | Value_symbol sym ->
+            Misc.fatal_errorf
+              "Closure_conversion: approximation loader returned a Symbol \
+               approximation (%a) for symbol %a"
+              Symbol.print sym Symbol.print symbol
+          | Value_unknown | Closure_approximation _ | Block_approximation _ ->
+            ());
         let rec filter_inlinable approx =
           match (approx : value_approximation) with
-          | Value_unknown | Closure_approximation (_, _, Metadata_only _) ->
+          | Value_unknown | Value_symbol _
+          | Closure_approximation (_, _, Metadata_only _) ->
             approx
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
@@ -683,13 +694,6 @@ module Expr_with_acc = struct
     let acc = Acc.add_free_names (Apply_expr.free_names apply) acc in
     acc, Expr.create_apply apply
 
-  let create_let (acc, let_expr) =
-    (* The signature for create_let is a bit different. It is mainly used to
-       materialize expressions coming from Let_cont_with_acc where the cost
-       metrics were already computed. The signature is such that results from
-       Let_cont_with_acc can be directly piped through [create_let].*)
-    acc, Expr.create_let let_expr
-
   let create_switch acc switch =
     let acc =
       Acc.increment_metrics
@@ -719,39 +723,53 @@ end
 
 module Let_with_acc = struct
   let create acc let_bound named ~body =
-    let cost_metrics_of_defining_expr =
+    let is_unused_singleton =
+      match Bound_pattern.must_be_singleton_opt let_bound with
+      | Some var ->
+        not (Name_occurrences.mem_var (Acc.free_names acc) (Bound_var.var var))
+      | None -> false
+    in
+    let has_no_effects =
       match (named : Named.t) with
-      | Prim (prim, _) -> Code_size.prim prim |> Cost_metrics.from_size
-      | Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
-      | Static_consts _consts -> Cost_metrics.zero
-      | Set_of_closures set_of_closures ->
-        let code_mapping = Acc.code acc in
-        Cost_metrics.set_of_closures
-          ~find_code_characteristics:(fun code_id ->
-            let code = Code_id.Map.find code_id code_mapping in
-            { cost_metrics = Code.cost_metrics code;
-              params_arity = List.length (Code.params_arity code)
-            })
-          set_of_closures
-      | Rec_info _ -> Cost_metrics.zero
+      | Prim (prim, _) -> Flambda_primitive.at_most_generative_effects prim
+      | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> true
     in
-    let acc =
-      Acc.increment_metrics
-        (Cost_metrics.increase_due_to_let_expr ~is_phantom:false
-           ~cost_metrics_of_defining_expr)
-        acc
-    in
-    let free_names_of_body = Or_unknown.Known (Acc.free_names acc) in
-    let acc =
-      Bound_pattern.fold_all_bound_names let_bound ~init:acc
-        ~var:(fun acc var ->
-          Acc.remove_var_from_free_names (Bound_var.var var) acc)
-        ~symbol:(fun acc s -> Acc.remove_symbol_from_free_names s acc)
-        ~code_id:(fun acc cid -> Acc.remove_code_id_from_free_names cid acc)
-    in
-    let expr = Let.create let_bound named ~body ~free_names_of_body in
-    let acc = Acc.add_free_names (Named.free_names named) acc in
-    acc, expr
+    if is_unused_singleton && has_no_effects
+    then acc, body
+    else
+      let cost_metrics_of_defining_expr =
+        match (named : Named.t) with
+        | Prim (prim, _) -> Code_size.prim prim |> Cost_metrics.from_size
+        | Simple simple -> Code_size.simple simple |> Cost_metrics.from_size
+        | Static_consts _consts -> Cost_metrics.zero
+        | Set_of_closures set_of_closures ->
+          let code_mapping = Acc.code acc in
+          Cost_metrics.set_of_closures
+            ~find_code_characteristics:(fun code_id ->
+              let code = Code_id.Map.find code_id code_mapping in
+              { cost_metrics = Code.cost_metrics code;
+                params_arity = List.length (Code.params_arity code)
+              })
+            set_of_closures
+        | Rec_info _ -> Cost_metrics.zero
+      in
+      let acc =
+        Acc.increment_metrics
+          (Cost_metrics.increase_due_to_let_expr ~is_phantom:false
+             ~cost_metrics_of_defining_expr)
+          acc
+      in
+      let free_names_of_body = Or_unknown.Known (Acc.free_names acc) in
+      let acc =
+        Bound_pattern.fold_all_bound_names let_bound ~init:acc
+          ~var:(fun acc var ->
+            Acc.remove_var_from_free_names (Bound_var.var var) acc)
+          ~symbol:(fun acc s -> Acc.remove_symbol_from_free_names s acc)
+          ~code_id:(fun acc cid -> Acc.remove_code_id_from_free_names cid acc)
+      in
+      let let_expr = Let.create let_bound named ~body ~free_names_of_body in
+      let acc = Acc.add_free_names (Named.free_names named) acc in
+      acc, Expr.create_let let_expr
 end
 
 module Continuation_handler_with_acc = struct
