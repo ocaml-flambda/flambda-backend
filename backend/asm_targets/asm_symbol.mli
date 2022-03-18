@@ -24,10 +24,13 @@
  *                                                                                *
  **********************************************************************************)
 
+(* Returns true if the argument is a character that should be escaped *)
+val should_be_escaped : char -> bool
+
 include Identifiable.S
 
 val create : string -> t
 
-(* If [without_prefix] is provided [encode] will prefix the symbol using the 
-(architecture-dependent) prefix for symbols *)
+(* If [without_prefix] is not provided [encode] will prefix the symbol using the
+   (architecture-dependent) prefix for symbols, for example "_" on "macOS". *)
 val encode : ?without_prefix:unit -> t -> string

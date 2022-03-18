@@ -190,20 +190,20 @@ module type S = sig
   val between_symbols_in_current_unit :
     upper:Asm_symbol.t -> lower:Asm_symbol.t -> unit
 
-  (** Like [between_symbols], but for two labels, emitting a 16-bit-wide
-      reference. The behaviour upon overflow is unspecified. The labels must be
-      in the same section. *)
+  (** Like [between_symbols_in_current_unit], but for two labels, emitting a
+      16-bit-wide reference. The behaviour upon overflow is unspecified. The
+      labels must be in the same section. *)
   val between_labels_16_bit :
     ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
 
-  (** Like [between_symbols], but for two labels, emitting a 32-bit-wide
-      reference. The behaviour upon overflow is unspecified. The labels must be
-      in the same section. *)
+  (** Like [between_symbols_in_current_unit], but for two labels, emitting a
+      32-bit-wide reference. The behaviour upon overflow is unspecified. The
+      labels must be in the same section. *)
   val between_labels_32_bit :
     ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
 
-  (** Like [between_symbols], but for two labels, emitting a 64-bit-wide
-      reference. The labels must be in the same section. *)
+  (** Like [between_symbols_in_current_unit], but for two labels, emitting a
+      64-bit-wide reference. The labels must be in the same section. *)
   val between_labels_64_bit :
     ?comment:string -> upper:Asm_label.t -> lower:Asm_label.t -> unit -> unit
 

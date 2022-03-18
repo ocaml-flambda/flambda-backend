@@ -51,9 +51,20 @@ include Identifiable.Make (struct
   let output _ _ = Misc.fatal_error "Not yet implemented"
 end)
 
-let create_int section label = { section; label = Int label }
+let create_int section label =
+  assert(label >= 0);
+  { section; label = Int label }
 
-let create_string section label = { section; label = String label }
+let contains_escapable_char label =
+  let found_escapable_char = ref false in
+  String.iter (fun c ->
+    if Asm_symbol.should_be_escaped c then found_escapable_char := true)
+    label;
+  !found_escapable_char
+
+let create_string section label =
+  assert (not (contains_escapable_char label));
+  { section; label = String label }
 
 let label_prefix =
   match Target_system.architecture () with
@@ -73,17 +84,18 @@ let encode (t : t) =
 
 let section t = t.section
 
-let new_label_ref = ref None
+let new_label_ref = ref (fun _section ->
+  Misc.fatal_error "[Asm_label.initialize] has not been called")
 
-let not_initialized () =
-  Misc.fatal_error "[Asm_label.initialize] has not been called"
+let initialize ~new_label =
+  new_label_ref := fun section -> create_int section (new_label ())
+let create (section : Asm_section.t) = !new_label_ref section
 
-let initialize ~new_label = new_label_ref := Some new_label
-
-let create section =
-  match !new_label_ref with
-  | None -> not_initialized ()
-  | Some new_label -> create_int section (new_label ())
+(* CR-someday poechsel: With a function such as
+  `index : Asm_section.dwarf_section -> int`, we
+  could maintain an association array and get rid of
+  all these variables plus the pattern matching in
+  for_dwarf_section. *)
 
 let debug_info_label = lazy (create (DWARF Debug_info))
 

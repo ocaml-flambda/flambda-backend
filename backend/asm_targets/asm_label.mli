@@ -46,7 +46,7 @@ type t
     to [initialize], below). *)
 val create : Asm_section.t -> t
 
-(** Create an integer-valued label. *)
+(** Create an integer-valued label. The int must be positive. *)
 val create_int : Asm_section.t -> int -> t
 
 (** Create a textual label. The supplied name must not require escaping. *)
@@ -58,7 +58,8 @@ val create_string : Asm_section.t -> string -> t
 val encode : t -> string
 
 (** To be called by the emitter at the very start of code generation.
-    [new_label] should always be [Cmm.new_label]. *)
+    [new_label] should always be [Cmm.new_label].
+    Needed to avoid a circular dependency. *)
 val initialize : new_label:(unit -> int) -> unit
 
 (** Which section a label is in. *)

@@ -3,7 +3,6 @@
 (library
   (name asm_targets)
   (wrapped true)
-  (flags (:standard -principal -nostdlib))
-  (ocamlopt_flags (:standard -O3))
-  (libraries stdlib ocamlcommon dwarf_flags)
+  (flags (:standard -principal))
+  (libraries ocamlcommon dwarf_flags)
 )

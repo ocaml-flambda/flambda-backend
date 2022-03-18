@@ -194,9 +194,16 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let sleb128 = with_comment (D.const_int64 >> D.sleb128)
 
-  let string = with_comment (fun str -> D.bytes str)
+  let assert_string_has_no_null_bytes s =
+    assert (not (String.contains s '\x00'))
+
+  let string =
+    with_comment (fun str ->
+      assert_string_has_no_null_bytes str;
+      D.bytes str)
 
   let cache_string ?comment section str =
+    assert_string_has_no_null_bytes str;
     let cached : Cached_string.t = { section; str; comment } in
     match Cached_string.Map.find cached !cached_strings with
     | label -> label
@@ -206,6 +213,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       label
 
   let emit_cached_strings () =
+    let old_dwarf_section = !current_dwarf_section_ref in
     Cached_string.Map.iter
       (fun { section; str; comment } label_name ->
         switch_to_section section;
@@ -213,7 +221,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         string ?comment str;
         int8 Int8.zero)
       !cached_strings;
-    cached_strings := Cached_string.Map.empty
+    cached_strings := Cached_string.Map.empty;
+    current_dwarf_section_ref := old_dwarf_section
 
   let comment str = D.comment str
 
@@ -238,9 +247,12 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         let lab = D.const_label (Asm_symbol.encode sym) in
         const_machine_width lab)
 
-  let label ?comment:_ _lab = A.emit_line "label"
+  let label ?comment:_ _lab =
+    (* CR poechsel: use the arguments *)
+    A.emit_line "label"
 
   let symbol_plus_offset _sym ~offset_in_bytes:_ =
+    (* CR poechsel: use the arguments *)
     A.emit_line "symbol_plus_offset"
 
   let between_symbols_in_current_unit ~upper ~lower =
@@ -253,16 +265,20 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     const_machine_width (D.const_sub upper lower)
 
   let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
+    (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_16_bit"
 
   let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () =
+    (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_32_bit"
 
   let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
+    (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
   let between_symbol_in_current_unit_and_label_offset ?comment:_ ~upper:_
       ~lower:_ ~offset_upper:_ () =
+      (* CR poechsel: use the arguments *)
     A.emit_line "between_symbol_in_current_unit_and_label_offset"
 
   let new_temp_var () =
@@ -318,5 +334,6 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     D.qword expr
 
   let offset_into_dwarf_section_symbol ?comment:_ _section _symbol =
+    (* CR poechsel: use the arguments *)
     A.emit_line "offset_into_dwarf_section_symbol"
 end
