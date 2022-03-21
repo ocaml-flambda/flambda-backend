@@ -87,9 +87,9 @@ let print_list_of_simple_or_prim ppf simple_or_prim_list =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space print_simple_or_prim)
     simple_or_prim_list
 
-let caml_ml_array_bound_error =
-  let name = Linkage_name.create "caml_ml_array_bound_error" in
-  Symbol.create (Compilation_unit.external_symbols ()) name
+(* let caml_ml_array_bound_error =
+ *   let name = Linkage_name.create "caml_ml_array_bound_error" in
+ *   Symbol.create (Compilation_unit.external_symbols ()) name *)
 
 let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
   let exn_handler = Exn_continuation.exn_handler exn_cont in
@@ -102,7 +102,7 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
         (fun (simple, _kind) -> simple)
         (Exn_continuation.extra_args exn_cont)
     in
-    [exn_bucket] @ extra_args
+    exn_bucket :: extra_args
   in
   let acc, apply_cont =
     Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
