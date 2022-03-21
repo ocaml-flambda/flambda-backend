@@ -141,9 +141,9 @@ let all_ids_for_export { k; args; trap_action; dbg = _ } =
        k)
     args
 
-let update_continuation t continuation = { t with k = continuation }
+let with_continuation t continuation = { t with k = continuation }
 
-let update_continuation_and_args t cont ~args =
+let with_continuation_and_args t cont ~args =
   if Continuation.equal t.k cont && args == t.args
   then t
   else { t with k = cont; args }

@@ -79,7 +79,7 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
        inlined continuation -- before it is wrapped in any [Let]-expressions
        needed as a result of the rewrite. *)
     let rewrite_use_result =
-      let apply_cont = AC.update_continuation_and_args apply_cont cont ~args in
+      let apply_cont = AC.with_continuation_and_args apply_cont cont ~args in
       let apply_cont =
         Simplify_common.clear_demoted_trap_action_and_patch_unused_exn_bucket
           uacc apply_cont
