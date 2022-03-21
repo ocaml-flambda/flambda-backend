@@ -156,13 +156,6 @@ let no_args t = match args t with [] -> true | _ :: _ -> false
 
 let is_goto t = no_args t && Option.is_none (trap_action t)
 
-let is_goto_to t k = Continuation.equal (continuation t) k && is_goto t
-
-let to_goto t =
-  if no_args t && Option.is_none (trap_action t)
-  then Some (continuation t)
-  else None
-
 let is_raise t =
   match t.trap_action with
   | Some (Pop { exn_handler; _ }) -> Continuation.equal t.k exn_handler

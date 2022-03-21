@@ -56,10 +56,6 @@ val is_raise : t -> bool
 
 val is_goto : t -> bool
 
-val is_goto_to : t -> Continuation.t -> bool
-
-val to_goto : t -> Continuation.t option
-
 val clear_trap_action : t -> t
 
 val to_one_arg_without_trap_action : t -> Simple.t option
