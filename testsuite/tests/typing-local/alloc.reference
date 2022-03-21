@@ -31,3 +31,4 @@
   bigstringbint: OK
        verylong: OK
        manylong: OK
+    optionalarg: OK

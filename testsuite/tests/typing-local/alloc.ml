@@ -395,6 +395,14 @@ let makeverylong n =
   ignore_local (local_array 100_000 n);
   ()
 
+let fun_with_optional_arg ?(local_ foo = 5) () =
+  let _ = foo + 5 in
+  ()
+
+let optionalarg ((f : ?foo:local_ int -> unit -> unit), n) =
+  let () = f ~foo:n () in
+  ()
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -446,7 +454,8 @@ let () =
   run "stringbint" readstringbint ();
   run "bigstringbint" readbigstringbint ();
   run "verylong" makeverylong 42;
-  run "manylong" makemanylong 100
+  run "manylong" makemanylong 100;
+  run "optionalarg" optionalarg (fun_with_optional_arg, 10)
 
 
 (* In debug mode, Gc.minor () checks for minor heap->local pointers *)

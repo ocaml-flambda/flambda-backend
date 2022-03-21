@@ -362,9 +362,12 @@ let register_allocation_mode alloc_mode =
   | Amode _const -> ()
   | Amodevar _ -> allocations := alloc_mode :: !allocations
 
-let register_allocation (expected_mode : expected_mode) =
+let register_allocation_value_mode mode =
   register_allocation_mode
-    (Value_mode.regional_to_global_alloc expected_mode.mode)
+    (Value_mode.regional_to_global_alloc mode)
+
+let register_allocation (expected_mode : expected_mode) =
+  register_allocation_value_mode expected_mode.mode
 
 let optimise_allocations () =
   if Clflags.Extension.is_enabled Local then begin
@@ -433,6 +436,7 @@ let option_none env ty mode loc =
   mkexp (Texp_construct(mknoloc lid, cnone, [])) ty mode loc env
 
 let option_some env texp mode =
+  register_allocation_value_mode mode;
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
   mkexp ( Texp_construct(mknoloc lid , csome, [texp]) )
