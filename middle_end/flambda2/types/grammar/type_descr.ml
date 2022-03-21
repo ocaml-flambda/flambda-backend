@@ -127,7 +127,7 @@ end = struct
       match t with
       | No_alias head -> free_names_head head
       | Equals simple ->
-        Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
+        Name_occurrences.downgrade_occurrences_at_strictly_greater_name_mode
           (Simple.free_names simple) Name_mode.in_types
 
     let remove_unused_closure_vars_and_shortcut_aliases

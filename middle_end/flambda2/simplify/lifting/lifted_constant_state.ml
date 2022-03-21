@@ -193,7 +193,7 @@ let build_dep_graph t =
               (CIS.set_of_code_id_set free_code_ids)
           in
           let being_defined =
-            D.bound_symbols definition |> Bound_symbols.everything_being_defined
+            D.bound_static definition |> Bound_static.everything_being_defined
           in
           CIS.Set.fold
             (fun being_defined (dep_graph, code_id_or_symbol_to_const) ->
@@ -238,9 +238,9 @@ let sort0 t =
                         once, in the case of sets of closures, which may bind
                         more than one symbol. We must avoid duplicates in the
                         resulting [LC.t]. *)
-                     let bound_symbols = LC.bound_symbols lifted_constant in
+                     let bound_static = LC.bound_static lifted_constant in
                      CIS.Set.union
-                       (Bound_symbols.everything_being_defined bound_symbols)
+                       (Bound_static.everything_being_defined bound_static)
                        already_seen
                    in
                    already_seen, lifted_constant :: definitions)

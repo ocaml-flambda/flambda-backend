@@ -41,7 +41,21 @@ let make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
   let my_closure =
     Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
   in
-  let bind_params = Expr.bind_parameters_to_args_no_simplification in
+  let bind_params ~params ~args ~body =
+    if List.compare_lengths params args <> 0
+    then
+      Misc.fatal_errorf "Mismatching parameters and arguments: %a and %a"
+        Bound_parameters.print
+        (Bound_parameters.create params)
+        Simple.List.print args;
+    ListLabels.fold_left2 (List.rev params) (List.rev args) ~init:body
+      ~f:(fun expr param arg ->
+        let var = Bound_var.create (BP.var param) Name_mode.normal in
+        Let.create
+          (Bound_pattern.singleton var)
+          (Named.create_simple arg) ~body:expr ~free_names_of_body:Unknown
+        |> Expr.create_let)
+  in
   let bind_depth ~my_depth ~rec_info ~body =
     let bound = Bound_pattern.singleton (VB.create my_depth Name_mode.normal) in
     Let.create bound
@@ -106,8 +120,10 @@ let inline dacc ~apply ~unroll_to function_decl =
          ~free_names_of_body:_
        ->
       let make_inlined_body () =
-        make_inlined_body ~callee ~unroll_to ~params ~args ~my_closure ~my_depth
-          ~rec_info ~body ~exn_continuation ~return_continuation
+        make_inlined_body ~callee ~unroll_to
+          ~params:(Bound_parameters.to_list params)
+          ~args ~my_closure ~my_depth ~rec_info ~body ~exn_continuation
+          ~return_continuation
       in
       let expr =
         match Exn_continuation.extra_args apply_exn_continuation with

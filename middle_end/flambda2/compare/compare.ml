@@ -323,17 +323,17 @@ and subst_static_consts env (g : Static_const_group.t) =
 
 and subst_bound_pattern env (blb : Bound_pattern.t) =
   match blb with
-  | Symbols { bound_symbols } ->
-    let bound_symbols = subst_bound_symbols env bound_symbols in
-    Bound_pattern.symbols bound_symbols
+  | Static bound_static ->
+    let bound_static = subst_bound_static env bound_static in
+    Bound_pattern.static bound_static
   | _ -> blb
 
-and subst_bound_symbols env bound_symbols =
-  List.map (subst_pattern env) (bound_symbols |> Bound_symbols.to_list)
-  |> Bound_symbols.create
+and subst_bound_static env bound_static =
+  List.map (subst_pattern env) (bound_static |> Bound_static.to_list)
+  |> Bound_static.create
 
-and subst_pattern env (pattern : Bound_symbols.Pattern.t) :
-    Bound_symbols.Pattern.t =
+and subst_pattern env (pattern : Bound_static.Pattern.t) :
+    Bound_static.Pattern.t =
   match pattern with
   | Set_of_closures closure_symbols ->
     (* The symbols are in binding position, so we don't need to substitute, but
@@ -345,9 +345,9 @@ and subst_pattern env (pattern : Bound_symbols.Pattern.t) :
              closure_id, symbol)
       |> Closure_id.Lmap.of_list
     in
-    Bound_symbols.Pattern.set_of_closures closure_symbols
-  | Block_like symbol -> Bound_symbols.Pattern.block_like symbol
-  | Code code_id -> Bound_symbols.Pattern.code code_id
+    Bound_static.Pattern.set_of_closures closure_symbols
+  | Block_like symbol -> Bound_static.Pattern.block_like symbol
+  | Code code_id -> Bound_static.Pattern.code code_id
 
 and subst_static_const env (static_const : Static_const_or_code.t) :
     Static_const_or_code.t =
@@ -815,9 +815,8 @@ let named_exprs env named1 named2 : Named.t Comparison.t =
 
 (* Compares the two patterns for compatibility *and* adds the
  * correspondences to the environment. *)
-let patterns env (pattern1 : Bound_symbols.Pattern.t)
-    (pattern2 : Bound_symbols.Pattern.t) : Bound_symbols.Pattern.t Comparison.t
-    =
+let patterns env (pattern1 : Bound_static.Pattern.t)
+    (pattern2 : Bound_static.Pattern.t) : Bound_static.Pattern.t Comparison.t =
   match pattern1, pattern2 with
   | Code code_id1, Code code_id2 ->
     Env.add_code_id env code_id1 code_id2;
@@ -844,18 +843,17 @@ let patterns env (pattern1 : Bound_symbols.Pattern.t)
       (closure_symbols1 |> Closure_id.Lmap.bindings)
       (closure_symbols2 |> Closure_id.Lmap.bindings)
     |> Comparison.map ~f:(fun bindings ->
-           Bound_symbols.Pattern.set_of_closures
+           Bound_static.Pattern.set_of_closures
              (bindings |> Closure_id.Lmap.of_list))
   | _, _ -> Different { approximant = subst_pattern env pattern1 }
 
 (* Compares the two sets of bound symbols for compatibility *and* adds the
  * correspondences to the environment. *)
-let bound_symbols env bound_symbols1 bound_symbols2 :
-    Bound_symbols.t Comparison.t =
+let bound_static env bound_static1 bound_static2 : Bound_static.t Comparison.t =
   lists ~f:patterns ~subst:subst_pattern ~subst_snd:false env
-    (bound_symbols1 |> Bound_symbols.to_list)
-    (bound_symbols2 |> Bound_symbols.to_list)
-  |> Comparison.map ~f:Bound_symbols.create
+    (bound_static1 |> Bound_static.to_list)
+    (bound_static2 |> Bound_static.to_list)
+  |> Comparison.map ~f:Bound_static.create
 
 let fields env (field1 : Field_of_static_block.t)
     (field2 : Field_of_static_block.t) : Field_of_static_block.t Comparison.t =
@@ -1081,28 +1079,24 @@ and let_exprs env let_expr1 let_expr2 : Expr.t Comparison.t =
           |> Expr.create_let
         in
         Different { approximant })
-    ~static:(fun ~bound_symbols1 ~bound_symbols2 ~body1 ~body2 ->
+    ~static:(fun ~bound_static1 ~bound_static2 ~body1 ~body2 ->
       match named1, named2 with
       | Static_consts static_consts1, Static_consts static_consts2 ->
         let_symbol_exprs env
-          (bound_symbols1, static_consts1, body1)
-          (bound_symbols2, static_consts2, body2)
+          (bound_static1, static_consts1, body1)
+          (bound_static2, static_consts2, body2)
       | _, _ -> Misc.fatal_error "Static LHS has dynamic RHS")
   |> function
   | Ok comp -> comp
   | Error _ ->
     Comparison.Different { approximant = subst_let_expr env let_expr1 }
 
-and let_symbol_exprs env
-    ((bound_symbols1 : Bound_pattern.symbols), static_consts1, body1)
-    ((bound_symbols2 : Bound_pattern.symbols), static_consts2, body2) :
-    Expr.t Comparison.t =
+and let_symbol_exprs env (bound_static1, static_consts1, body1)
+    (bound_static2, static_consts2, body2) : Expr.t Comparison.t =
   let ok = ref true in
-  let bound_symbols1 = bound_symbols1.bound_symbols in
-  let bound_symbols2 = bound_symbols2.bound_symbols in
-  let bound_symbols1' : Bound_symbols.t =
-    bound_symbols env bound_symbols1 bound_symbols2
-    |> Comparison.chain ~ok ~if_equivalent:bound_symbols2
+  let bound_static1' : Bound_static.t =
+    bound_static env bound_static1 bound_static2
+    |> Comparison.chain ~ok ~if_equivalent:bound_static2
   in
   let static_consts_comp : Static_const_group.t Comparison.t =
     lists ~f:static_consts ~subst:subst_static_const ~subst_snd:false env
@@ -1121,7 +1115,7 @@ and let_symbol_exprs env
   else
     let approximant =
       Let.create
-        (Bound_pattern.symbols bound_symbols1')
+        (Bound_pattern.static bound_static1')
         (Named.create_static_consts static_consts1')
         ~body:body1' ~free_names_of_body:Unknown
       |> Expr.create_let

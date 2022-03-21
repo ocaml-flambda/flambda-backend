@@ -59,6 +59,7 @@ end
 
 let make_decisions ~continuation_is_recursive ~arg_types_by_use_id denv params
     params_types : DE.t * Decisions.t =
+  let params = Bound_parameters.to_list params in
   let empty = Apply_cont_rewrite_id.Set.empty in
   let _, denv, rev_decisions, seen =
     List.fold_left3

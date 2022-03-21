@@ -20,7 +20,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module EPA = Continuation_extra_params_and_args
-module BP = Bound_parameter
 module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id
 module T = Flambda2_types
@@ -58,5 +57,5 @@ val join :
   get_typing_env:('a -> TE.t) ->
   get_rewrite_id:('a -> RI.t) ->
   get_cse:('a -> t) ->
-  params:BP.t list ->
+  params:Bound_parameters.t ->
   Join_result.t option

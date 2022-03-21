@@ -14,7 +14,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
+
+(** Variables with name modes, as occur on the left-hand sides of
+    [Let]-expressions (see [Bound_pattern]). *)
 
 type t
 
@@ -25,9 +28,5 @@ val var : t -> Variable.t
 val name_mode : t -> Name_mode.t
 
 val with_name_mode : t -> Name_mode.t -> t
-
-include Container_types.S with type t := t
-
-include Contains_names.S with type t := t
 
 include Bindable.S with type t := t

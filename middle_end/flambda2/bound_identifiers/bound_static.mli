@@ -14,7 +14,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
+
+(** The left-hand sides of [Let]-expressions that bind statically-allocated
+    constants and pieces of code. Used via [Bound_pattern] in the term
+    language. *)
 
 module Pattern : sig
   type t = private
@@ -35,28 +39,25 @@ type t
 
 val empty : t
 
+(** Within a single value of type [t], symbols and code IDs bound by the
+    individual [Pattern]s are bound recursively, across all of the [Pattern]s.
+    However [Block_like] bindings are not bound recursively and are ordered in
+    the usual manner. (See [Simplify_static_const].) *)
 val create : Pattern.t list -> t
 
 val singleton : Pattern.t -> t
 
 val to_list : t -> Pattern.t list
 
-val being_defined : t -> Symbol.Set.t
-
-val code_being_defined : t -> Code_id.Set.t
-
 val binds_code : t -> bool
 
 val binds_symbols : t -> bool
 
-val non_closure_symbols_being_defined : t -> Symbol.Set.t
+val symbols_being_defined : t -> Symbol.Set.t
 
-val closure_symbols_being_defined : t -> Symbol.Set.t
+val code_being_defined : t -> Code_id.Set.t
 
 val everything_being_defined : t -> Code_id_or_symbol.Set.t
-
-val for_all_everything_being_defined :
-  t -> f:(Code_id_or_symbol.t -> bool) -> bool
 
 val concat : t -> t -> t
 

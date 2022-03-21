@@ -18,7 +18,7 @@
 
 type t =
   | Linearly_used_and_inlinable of
-      { params : Bound_parameter.t list;
+      { params : Bound_parameters.t;
         handler : Rebuilt_expr.t;
         free_names_of_handler : Name_occurrences.t;
         cost_metrics_of_handler : Cost_metrics.t
@@ -39,7 +39,7 @@ let [@ocamlformat "disable"] print are_rebuilding_terms ppf t =
         @[<hov 1>(free_names_of_handler@ %a)@]@ \
         @[<hov 1>(cost_metrics_of_handler@ %a)@]\
         )@]"
-      Bound_parameter.List.print params
+      Bound_parameters.print params
       (Rebuilt_expr.print are_rebuilding_terms) handler
       Name_occurrences.print free_names_of_handler
       Cost_metrics.print cost_metrics_of_handler
@@ -73,7 +73,7 @@ let arity t =
         free_names_of_handler = _;
         cost_metrics_of_handler = _
       } ->
-    Bound_parameter.List.arity_with_subkinds params
+    Bound_parameters.arity_with_subkinds params
   | Non_inlinable_zero_arity _ -> []
   | Non_inlinable_non_zero_arity { arity }
   | Toplevel_or_function_return_or_exn_continuation { arity }

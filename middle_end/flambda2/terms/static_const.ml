@@ -329,7 +329,7 @@ let must_be_set_of_closures t =
   | Immutable_string _ | Mutable_string _ ->
     Misc.fatal_errorf "Not a set of closures:@ %a" print t
 
-let match_against_bound_symbols_pattern t (pat : Bound_symbols.Pattern.t)
+let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
     ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback =
   match t, pat with
   | Set_of_closures set_of_closures, Set_of_closures closure_symbols ->
@@ -345,17 +345,17 @@ let match_against_bound_symbols_pattern t (pat : Bound_symbols.Pattern.t)
     if not closure_ids_match
     then
       Misc.fatal_errorf "Mismatch on declared closure IDs:@ %a@ =@ %a"
-        Bound_symbols.Pattern.print pat print t;
+        Bound_static.Pattern.print pat print t;
     set_of_closures_callback ~closure_symbols set_of_closures
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Empty_array | Immutable_string _ | Mutable_string _ ),
       Block_like symbol ) ->
     block_like_callback symbol t
-  | Set_of_closures _, (Code _ | Block_like _)
+  | Set_of_closures _, (Block_like _ | Code _)
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
       | Boxed_nativeint _ | Immutable_float_block _ | Immutable_float_array _
       | Empty_array | Immutable_string _ | Mutable_string _ ),
-      (Code _ | Set_of_closures _) ) ->
+      (Set_of_closures _ | Code _) ) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
-      Bound_symbols.Pattern.print pat print t
+      Bound_static.Pattern.print pat print t

@@ -22,7 +22,7 @@
 val cut_and_n_way_join :
   Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   unknown_if_defined_at_or_later_than:Scope.t ->
   extra_lifted_consts_in_use_envs:Symbol.Set.t ->
   extra_allowed_names:Name_occurrences.t ->

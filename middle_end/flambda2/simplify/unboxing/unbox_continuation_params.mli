@@ -29,7 +29,7 @@ val make_decisions :
   arg_types_by_use_id:
     Continuation_env_and_param_types.arg_at_use Apply_cont_rewrite_id.Map.t list ->
   DE.t ->
-  BP.t list ->
+  Bound_parameters.t ->
   T.t list ->
   DE.t * Decisions.t
 

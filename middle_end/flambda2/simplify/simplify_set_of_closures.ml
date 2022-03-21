@@ -123,7 +123,9 @@ end = struct
         let var = Variable.create "clos_var" in
         let env_inside_function =
           let var = Bound_var.create var NM.in_types in
-          TE.add_definition env_inside_function (Bound_name.var var) K.value
+          TE.add_definition env_inside_function
+            (Bound_name.create_var var)
+            K.value
         in
         let type_prior_to_sets =
           (* See comment below about [degraded_closure_vars]. *)
@@ -167,7 +169,7 @@ end = struct
         (fun closure_bound_names_inside ->
           Closure_id.Map.map
             (fun name ->
-              T.alias_type_of K.value (Simple.name (Bound_name.to_name name)))
+              T.alias_type_of K.value (Simple.name (Bound_name.name name)))
             closure_bound_names_inside)
         closure_bound_names_all_sets_inside
     in
@@ -502,6 +504,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
       result_arity
+    |> Bound_parameters.create
   in
   let ( params,
         params_and_body,
@@ -586,7 +589,8 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
             Name_occurrences.remove_var free_names_of_code my_depth
           in
           let free_names_of_code =
-            Name_occurrences.diff free_names_of_code (BP.List.free_names params)
+            Name_occurrences.diff free_names_of_code
+              (Bound_parameters.free_names params)
           in
           let free_names_of_code =
             Name_occurrences.diff free_names_of_code
@@ -603,7 +607,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
                %a@ \n\
                Simplified version:@ fun %a %a %a ->@ \n\
               \  %a" Name_occurrences.print free_names_of_code Code_id.print
-              code_id BP.List.print params Variable.print my_closure
+              code_id Bound_parameters.print params Variable.print my_closure
               Variable.print my_depth
               (RE.print (UA.are_rebuilding_terms uacc))
               body;
@@ -623,7 +627,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
             (Flambda_colours.error ())
             (Flambda_colours.normal ())
             (Format.pp_print_option Closure_id.print)
-            closure_id_opt Bound_parameter.List.print params Continuation.print
+            closure_id_opt Bound_parameters.print params Continuation.print
             return_continuation Continuation.print exn_continuation
             Variable.print my_closure Expr.print body DA.print dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
@@ -696,7 +700,8 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
         | No_uses -> assert false (* should have been caught above *)
         | Uses { handler_env; _ } ->
           let params_and_results =
-            BP.List.var_set (params @ return_cont_params)
+            Bound_parameters.var_set
+              (Bound_parameters.append params return_cont_params)
           in
           let typing_env = DE.typing_env handler_env in
           let results_and_types =
@@ -707,7 +712,7 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
                     (Some (K.With_subkind.kind (BP.kind result)))
                 in
                 BP.name result, ty)
-              return_cont_params
+              (Bound_parameters.to_list return_cont_params)
           in
           let env_extension =
             T.make_suitable_for_environment typing_env
@@ -919,8 +924,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
               ~all_closure_vars_in_set:closure_element_types
               (Known (Set_of_closures.alloc_mode set_of_closures))
           in
-          Bound_name.Map.add bound_name closure_type closure_types)
-      fun_types Bound_name.Map.empty
+          Name.Map.add (Bound_name.name bound_name) closure_type closure_types)
+      fun_types Name.Map.empty
   in
   let dacc =
     DA.map_denv dacc ~f:(fun denv ->
@@ -933,9 +938,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
              closure_bound_names
         |> fun denv ->
         LCS.add_to_denv denv lifted_consts
-        |> Bound_name.Map.fold
+        |> Name.Map.fold
              (fun bound_name closure_type denv ->
-               let bound_name = Bound_name.to_name bound_name in
                DE.add_equation_on_name denv bound_name closure_type)
              closure_types_by_bound_name)
   in
@@ -970,7 +974,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     Closure_id.Lmap.bindings closure_symbols |> Closure_id.Map.of_list
   in
   let closure_bound_names =
-    Closure_id.Map.map Bound_name.symbol closure_symbols_map
+    Closure_id.Map.map Bound_name.create_symbol closure_symbols_map
   in
   let closure_element_types =
     Var_within_closure.Map.map
@@ -1048,10 +1052,10 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
             let typ = T.alias_type_of K.value simple in
             DE.add_variable denv bound_var typ
           in
-          let bindings = Bound_var.Map.add bound_var closure_symbol bindings in
+          let bindings = (bound_var, closure_symbol) :: bindings in
           denv, bindings)
       closure_bound_vars
-      (DA.denv dacc, Bound_var.Map.empty)
+      (DA.denv dacc, [])
   in
   Simplify_named_result.have_lifted_set_of_closures (DA.with_denv dacc denv)
     bindings
@@ -1061,7 +1065,7 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     set_of_closures ~closure_elements ~closure_element_types ~simplify_toplevel
     =
   let closure_bound_names =
-    Closure_id.Map.map Bound_name.var closure_bound_vars
+    Closure_id.Map.map Bound_name.create_var closure_bound_vars
   in
   let context =
     C.create ~dacc_prior_to_sets:dacc ~simplify_toplevel
@@ -1235,7 +1239,7 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
     ~closure_bound_names_inside ~closure_elements ~closure_element_types
     set_of_closures =
   let closure_bound_names =
-    Closure_id.Lmap.map Bound_name.symbol closure_symbols
+    Closure_id.Lmap.map Bound_name.create_symbol closure_symbols
     |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
   in
   let { set_of_closures; code; dacc } =
@@ -1244,13 +1248,13 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
   in
   let dacc = introduce_code dacc code in
   let code_patterns =
-    Code_id.Lmap.keys code |> List.map Bound_symbols.Pattern.code
+    Code_id.Lmap.keys code |> List.map Bound_static.Pattern.code
   in
   let set_of_closures_pattern =
-    Bound_symbols.Pattern.set_of_closures closure_symbols
+    Bound_static.Pattern.set_of_closures closure_symbols
   in
-  let bound_symbols =
-    set_of_closures_pattern :: code_patterns |> Bound_symbols.create
+  let bound_static =
+    set_of_closures_pattern :: code_patterns |> Bound_static.create
   in
   let code_static_consts = Code_id.Lmap.data code in
   let set_of_closures_static_const =
@@ -1262,7 +1266,7 @@ let simplify_lifted_set_of_closures0 context ~closure_symbols
     set_of_closures_static_const :: code_static_consts
     |> Rebuilt_static_const.Group.create
   in
-  bound_symbols, static_consts, dacc
+  bound_static, static_consts, dacc
 
 module List = struct
   include List
@@ -1308,9 +1312,9 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
       let patterns, static_consts, dacc =
         if Set_of_closures.is_empty set_of_closures
         then
-          let bound_symbols =
-            Bound_symbols.create
-              [Bound_symbols.Pattern.set_of_closures closure_symbols]
+          let bound_static =
+            Bound_static.create
+              [Bound_static.Pattern.set_of_closures closure_symbols]
           in
           let static_consts =
             Rebuilt_static_const.Group.create
@@ -1318,7 +1322,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
                   (DA.are_rebuilding_terms dacc)
                   set_of_closures ]
           in
-          bound_symbols, static_consts, dacc
+          bound_static, static_consts, dacc
         else
           simplify_lifted_set_of_closures0 context ~closure_symbols
             ~closure_bound_names_inside ~closure_elements ~closure_element_types
@@ -1329,8 +1333,8 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
       let static_const_group =
         Rebuilt_static_const.Group.concat static_consts static_consts_acc
       in
-      Bound_symbols.concat patterns patterns_acc, static_const_group, dacc)
-    (Bound_symbols.empty, Rebuilt_static_const.Group.empty, dacc)
+      Bound_static.concat patterns patterns_acc, static_const_group, dacc)
+    (Bound_static.empty, Rebuilt_static_const.Group.empty, dacc)
     all_sets_of_closures_and_symbols
     closure_bound_names_inside_functions_all_sets
     closure_elements_and_types_all_sets

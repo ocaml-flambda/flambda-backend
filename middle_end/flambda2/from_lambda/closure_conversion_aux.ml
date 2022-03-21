@@ -795,7 +795,8 @@ module Continuation_handler_with_acc = struct
       List.fold_left
         (fun acc param ->
           Acc.remove_var_from_free_names (Bound_parameter.var param) acc)
-        acc parameters
+        acc
+        (Bound_parameters.to_list parameters)
     in
     ( acc,
       Continuation_handler.create parameters ~handler ~free_names_of_handler

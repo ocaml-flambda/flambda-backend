@@ -62,7 +62,7 @@ module Definition : sig
     Rebuilt_static_const.t ->
     t
 
-  val bound_symbols : t -> Bound_symbols.t
+  val bound_static : t -> Bound_static.t
 
   val free_names : t -> Name_occurrences.t
 
@@ -96,7 +96,7 @@ val create_definition : Definition.t -> t
 
 val definitions : t -> Definition.t list
 
-val bound_symbols : t -> Bound_symbols.t
+val bound_static : t -> Bound_static.t
 
 val defining_exprs : t -> Rebuilt_static_const.Group.t
 

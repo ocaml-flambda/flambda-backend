@@ -62,7 +62,7 @@ val wrap_inlined_body_for_exn_support :
   let_cont_create:
     ('acc ->
     Continuation.t ->
-    handler_params:Bound_parameter.List.t ->
+    handler_params:Bound_parameters.t ->
     handler:('acc -> 'expr_with_acc) ->
     body:('acc -> 'expr_with_acc) ->
     is_exn_handler:bool ->

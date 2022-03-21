@@ -143,10 +143,10 @@ module Iter = struct
       f_s ~closure_symbols:None ~is_phantom s
     | Static_consts consts -> (
       match bound_pattern with
-      | Symbols { bound_symbols; _ } ->
-        static_consts f_c f_s bound_symbols consts
+      | Static bound_static -> static_consts f_c f_s bound_static consts
       | Singleton _ | Set_of_closures _ ->
-        Misc.fatal_errorf "[Static_const] can only be bound to [Symbols]:@ %a"
+        Misc.fatal_errorf
+          "[Static_const] can only be bound to a [Static] pattern:@ %a"
           Let.print let_expr)
 
   and let_expr f_c f_s t =
@@ -188,8 +188,8 @@ module Iter = struct
 
   and switch _ _ _ = ()
 
-  and static_consts f_c f_s bound_symbols static_consts =
-    Static_const_group.match_against_bound_symbols static_consts bound_symbols
+  and static_consts f_c f_s bound_static static_consts =
+    Static_const_group.match_against_bound_static static_consts bound_static
       ~init:()
       ~code:(fun () code_id (code : Code.t) ->
         f_c ~id:code_id (Some code);

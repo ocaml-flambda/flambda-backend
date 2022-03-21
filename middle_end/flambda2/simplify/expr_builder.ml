@@ -17,7 +17,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda.Import
-module BLB = Bound_pattern
 module BP = Bound_parameter
 module LC = Lifted_constant
 module LCS = Lifted_constant_state
@@ -91,7 +90,7 @@ let add_set_of_closures_offsets ~is_phantom named uacc =
              acc)
          uacc
 
-let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
+let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
     ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr =
   (* The name occurrences component of [uacc] is expected to be in the state
      described in the comment at the top of [Simplify_let.rebuild_let]. *)
@@ -105,7 +104,8 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
         Name_occurrences.greatest_name_mode_var free_names_of_body
           (VB.var bound_var)
       | Set_of_closures _ ->
-        BLB.fold_all_bound_vars bound_vars ~init:Name_mode.Or_absent.absent
+        Bound_pattern.fold_all_bound_vars bound_vars
+          ~init:Name_mode.Or_absent.absent
           ~f:(fun (greatest_name_mode : Name_mode.Or_absent.t) bound_var ->
             let name_mode =
               Name_occurrences.greatest_name_mode_var free_names_of_body
@@ -116,12 +116,12 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
             | Absent, Present _ -> greatest_name_mode
             | Present _, Absent -> name_mode
             | Present name_mode, Present greatest_name_mode ->
-              Name_mode.max_in_terms name_mode greatest_name_mode
+              Name_mode.join_in_terms name_mode greatest_name_mode
               |> Name_mode.Or_absent.present)
-      | Symbols _ -> assert false
+      | Static _ -> assert false
       (* see below *)
     in
-    let declared_name_mode = BLB.name_mode bound_vars in
+    let declared_name_mode = Bound_pattern.name_mode bound_vars in
     begin
       match
         Name_mode.Or_absent.compare_partial_order greatest_name_mode
@@ -136,9 +136,9 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
             "[Let]-binding declares variable(s) %a (mode %a) to be bound to@ \
              %a,@ but there exist occurrences for such variable(s) at a higher \
              mode@ (>= %a)@ in the body (free names %a):@ %a"
-            BLB.print bound_vars Name_mode.print declared_name_mode Named.print
-            defining_expr Name_mode.Or_absent.print greatest_name_mode
-            Name_occurrences.print free_names_of_body
+            Bound_pattern.print bound_vars Name_mode.print declared_name_mode
+            Named.print defining_expr Name_mode.Or_absent.print
+            greatest_name_mode Name_occurrences.print free_names_of_body
             (RE.print (UA.are_rebuilding_terms uacc))
             body
     end;
@@ -149,7 +149,7 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
         Misc.fatal_errorf
           "Cannot [Let]-bind non-normal variable(s) to a [Named] that has more \
            than generative effects:@ %a@ =@ %a"
-          BLB.print bound_vars Named.print defining_expr;
+          Bound_pattern.print bound_vars Named.print defining_expr;
       bound_vars, Some Name_mode.normal, Nothing_deleted_at_runtime
     end
     else
@@ -161,7 +161,7 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
       let has_uses = Name_mode.Or_absent.is_present greatest_name_mode in
       let can_phantomise =
         (not is_depth)
-        && BLB.exists_all_bound_vars bound_vars ~f:(fun bound_var ->
+        && Bound_pattern.exists_all_bound_vars bound_vars ~f:(fun bound_var ->
                Variable.user_visible (VB.var bound_var))
       in
       let will_delete_binding =
@@ -180,7 +180,7 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
           | Present name_mode -> name_mode
         in
         assert (Name_mode.can_be_in_terms name_mode);
-        let bound_vars = BLB.with_name_mode bound_vars name_mode in
+        let bound_vars = Bound_pattern.with_name_mode bound_vars name_mode in
         if Name_mode.is_normal name_mode
         then bound_vars, Some name_mode, Nothing_deleted_at_runtime
         else
@@ -208,12 +208,12 @@ let create_let uacc (bound_vars : BLB.t) (defining_expr : Named.t)
       if not is_phantom
       then free_names_of_defining_expr
       else
-        Name_occurrences.downgrade_occurrences_at_strictly_greater_kind
+        Name_occurrences.downgrade_occurrences_at_strictly_greater_name_mode
           free_names_of_defining_expr name_mode
     in
     let free_names_of_let =
       let without_bound_vars =
-        BLB.fold_all_bound_vars bound_vars ~init:free_names_of_body
+        Bound_pattern.fold_all_bound_vars bound_vars ~init:free_names_of_body
           ~f:(fun free_names bound_var ->
             Name_occurrences.remove_var free_names (VB.var bound_var))
       in
@@ -242,8 +242,10 @@ let create_coerced_singleton_let uacc var defining_expr
     ~cost_metrics_of_defining_expr =
   if Coercion.is_id coercion_from_defining_expr_to_var
   then
-    create_let uacc (BLB.singleton var) defining_expr
-      ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr
+    create_let uacc
+      (Bound_pattern.singleton var)
+      defining_expr ~free_names_of_defining_expr ~body
+      ~cost_metrics_of_defining_expr
   else
     match (defining_expr : Named.t) with
     | Simple simple ->
@@ -251,8 +253,10 @@ let create_coerced_singleton_let uacc var defining_expr
         Simple.apply_coercion_exn simple coercion_from_defining_expr_to_var
         |> Named.create_simple
       in
-      create_let uacc (BLB.singleton var) defining_expr
-        ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr
+      create_let uacc
+        (Bound_pattern.singleton var)
+        defining_expr ~free_names_of_defining_expr ~body
+        ~cost_metrics_of_defining_expr
     | Prim _ | Set_of_closures _ | Static_consts _ | Rec_info _ -> (
       let uncoerced_var =
         let name = "uncoerced_" ^ Variable.raw_name (VB.var var) in
@@ -269,13 +273,17 @@ let create_coerced_singleton_let uacc var defining_expr
         let cost_metrics_of_defining_expr =
           Code_size.simple defining_simple |> Cost_metrics.from_size
         in
-        create_let uacc (BLB.singleton var) defining_expr
-          ~free_names_of_defining_expr ~body ~cost_metrics_of_defining_expr
+        create_let uacc
+          (Bound_pattern.singleton var)
+          defining_expr ~free_names_of_defining_expr ~body
+          ~cost_metrics_of_defining_expr
       in
       let generate_outer_binding name_mode =
         (* Generate [let uncoerced_var = <defining_expr>] *)
         let ((_body, _uacc, outer_result) as outer) =
-          let bound = BLB.singleton (VB.create uncoerced_var name_mode) in
+          let bound =
+            Bound_pattern.singleton (VB.create uncoerced_var name_mode)
+          in
           create_let uacc bound defining_expr ~free_names_of_defining_expr ~body
             ~cost_metrics_of_defining_expr
         in
@@ -327,7 +335,7 @@ let make_new_let_bindings uacc
           | Singleton _ | Set_of_closures _ ->
             create_let uacc let_bound defining_expr ~free_names_of_defining_expr
               ~body:expr ~cost_metrics_of_defining_expr
-          | Symbols _ ->
+          | Static _ ->
             (* Since [Simplified_named] doesn't permit the [Static_consts] case,
                this must be a malformed binding. *)
             Misc.fatal_errorf
@@ -350,10 +358,10 @@ let make_new_let_bindings uacc
         in
         expr, uacc)
 
-let create_raw_let_symbol uacc bound_symbols static_consts ~body =
+let create_raw_let_symbol uacc bound_static static_consts ~body =
   (* Upon entry to this function, [UA.name_occurrences uacc] must precisely
      indicate the free names of [body]. *)
-  let bindable = Bound_pattern.symbols bound_symbols in
+  let bindable = Bound_pattern.static bound_static in
   let free_names_of_static_consts =
     Rebuilt_static_const.Group.free_names static_consts
   in
@@ -366,7 +374,7 @@ let create_raw_let_symbol uacc bound_symbols static_consts ~body =
     Code_id_or_symbol.Set.fold
       (fun code_id_or_sym free_names ->
         Name_occurrences.remove_code_id_or_symbol free_names code_id_or_sym)
-      (Bound_symbols.everything_being_defined bound_symbols)
+      (Bound_static.everything_being_defined bound_static)
       name_occurrences
   in
   let uacc =
@@ -390,11 +398,11 @@ let create_raw_let_symbol uacc bound_symbols static_consts ~body =
         bindable defining_expr ~body ~free_names_of_body,
       uacc )
 
-let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
+let create_let_symbol0 uacc (bound_static : Bound_static.t)
     (static_consts : Rebuilt_static_const.Group.t) ~body =
   (* Upon entry to this function, [UA.name_occurrences uacc] must precisely
      indicate the free names of [body]. *)
-  let will_bind_code = Bound_symbols.binds_code bound_symbols in
+  let will_bind_code = Bound_static.binds_code bound_static in
   (* Turn pieces of code that are only referenced in [newer_version_of] fields
      into [Deleted_code]. *)
   let code_ids_to_make_deleted =
@@ -402,7 +410,7 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
     then Code_id.Set.empty
     else
       let all_code_ids_bound_names =
-        Bound_symbols.code_being_defined bound_symbols
+        Bound_static.code_being_defined bound_static
       in
       Code_id.Set.fold
         (fun bound_code_id result ->
@@ -426,7 +434,7 @@ let create_let_symbol0 uacc (bound_symbols : Bound_symbols.t)
             ~if_code_id_is_member_of:code_ids_to_make_deleted)
   in
   let expr, uacc =
-    create_raw_let_symbol uacc bound_symbols static_consts ~body
+    create_raw_let_symbol uacc bound_static static_consts ~body
   in
   let uacc =
     if not will_bind_code
@@ -454,14 +462,14 @@ let remove_unused_closure_vars uacc static_const =
         (Set_of_closures.function_decls set_of_closures))
 
 let create_let_symbols uacc lifted_constant ~body =
-  let bound_symbols = LC.bound_symbols lifted_constant in
+  let bound_static = LC.bound_static lifted_constant in
   let symbol_projections = LC.symbol_projections lifted_constant in
   let static_consts =
     Rebuilt_static_const.Group.map
       (LC.defining_exprs lifted_constant)
       ~f:(remove_unused_closure_vars uacc)
   in
-  let expr, uacc = create_let_symbol0 uacc bound_symbols static_consts ~body in
+  let expr, uacc = create_let_symbol0 uacc bound_static static_consts ~body in
   Variable.Map.fold
     (fun var proj (expr, uacc) ->
       let rec apply_projection proj coercion_from_proj_to_var =
@@ -621,13 +629,14 @@ let no_rewrite apply_cont = Apply_cont apply_cont
 
 let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
   let args = Apply_cont.args apply_cont in
-  let original_params = Apply_cont_rewrite.original_params rewrite in
+  let original_params' = Apply_cont_rewrite.original_params rewrite in
+  let original_params = Bound_parameters.to_list original_params' in
   if List.compare_lengths args original_params <> 0
   then
     Misc.fatal_errorf
       "Arguments to this [Apply_cont]@ (%a)@ do not match@ [original_params] \
        (%a):@ %a"
-      Apply_cont.print apply_cont BP.List.print original_params
+      Apply_cont.print apply_cont Bound_parameters.print original_params'
       Simple.List.print args;
   let original_params_with_args = List.combine original_params args in
   let args =
@@ -709,15 +718,18 @@ let rewrite_use uacc rewrite ~ctx id apply_cont : rewrite_use_result =
 (* CR-someday mshinwell: The code of this function could maybe be improved. *)
 let rewrite_exn_continuation rewrite id exn_cont =
   let exn_cont_arity = Exn_continuation.arity exn_cont in
-  let original_params = Apply_cont_rewrite.original_params rewrite in
-  let original_params_arity = BP.List.arity_with_subkinds original_params in
+  let original_params' = Apply_cont_rewrite.original_params rewrite in
+  let original_params = Bound_parameters.to_list original_params' in
+  let original_params_arity =
+    Bound_parameters.arity_with_subkinds original_params'
+  in
   if not
        (Flambda_arity.With_subkinds.equal exn_cont_arity original_params_arity)
   then
     Misc.fatal_errorf
       "Arity of exception continuation %a does not match@ [original_params] \
        (%a)"
-      Exn_continuation.print exn_cont BP.List.print original_params;
+      Exn_continuation.print exn_cont Bound_parameters.print original_params';
   assert (List.length exn_cont_arity >= 1);
   let pre_existing_extra_params_with_args =
     List.combine (List.tl original_params)
@@ -746,7 +758,9 @@ let rewrite_exn_continuation rewrite id exn_cont =
               Misc.fatal_error "[New_let_binding] not expected here"))
         (Apply_cont_rewrite.extra_args rewrite id)
     in
-    let used_extra_params = Apply_cont_rewrite.used_extra_params rewrite in
+    let used_extra_params =
+      Apply_cont_rewrite.used_extra_params rewrite |> Bound_parameters.to_list
+    in
     assert (List.compare_lengths used_extra_params extra_args_list = 0);
     List.map2
       (fun param (arg : Continuation_extra_params_and_args.Extra_arg.t) ->
@@ -810,7 +824,8 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
           ~is_exn_handler:false
       in
       let free_names =
-        ListLabels.fold_left params ~init:free_names ~f:(fun free_names param ->
+        ListLabels.fold_left (Bound_parameters.to_list params) ~init:free_names
+          ~f:(fun free_names param ->
             Name_occurrences.remove_var free_names (Bound_parameter.var param))
       in
       New_wrapper (new_cont, new_handler, free_names, cost_metrics)
@@ -822,6 +837,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
       let params = List.map (fun _kind -> Variable.create "param") arity in
       let params = List.map2 BP.create params arity in
       let args = List.map BP.simple params in
+      let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in
       let ctx = Apply_expr args in
       match rewrite_use uacc rewrite use_id ~ctx apply_cont with
@@ -852,7 +868,7 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
                 Cost_metrics.from_size (Code_size.apply_cont apply_cont),
                 Apply_cont.free_names apply_cont ))
         in
-        new_wrapper [] expr ~free_names ~cost_metrics))
+        new_wrapper Bound_parameters.empty expr ~free_names ~cost_metrics))
 
 type add_wrapper_for_switch_arm_result =
   | Apply_cont of Apply_cont.t

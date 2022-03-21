@@ -19,20 +19,20 @@
 open! Simplify_import
 
 let keep_lifted_constant_only_if_used uacc acc lifted_constant =
-  let bound = LC.bound_symbols lifted_constant in
+  let bound = LC.bound_static lifted_constant in
   let code_ids_live =
     match UA.reachable_code_ids uacc with
-    | Unknown -> Bound_symbols.binds_code bound
+    | Unknown -> Bound_static.binds_code bound
     | Known { live_code_ids = _; ancestors_of_live_code_ids } ->
       not
         (Code_id.Set.intersection_is_empty
-           (Bound_symbols.code_being_defined bound)
+           (Bound_static.code_being_defined bound)
            ancestors_of_live_code_ids)
   in
   let symbols_live =
     not
       (Name.Set.intersection_is_empty
-         (Name.set_of_symbol_set (Bound_symbols.being_defined bound))
+         (Name.set_of_symbol_set (Bound_static.symbols_being_defined bound))
          (UA.required_names uacc))
   in
   if symbols_live || code_ids_live then LCS.add acc lifted_constant else acc
@@ -162,12 +162,12 @@ let record_lifted_constant_for_data_flow data_flow lifted_constant =
       data_flow
   in
   let being_defined =
-    let bound_symbols = Lifted_constant.bound_symbols lifted_constant in
+    let bound_static = Lifted_constant.bound_static lifted_constant in
     (* Note: We're not registering code IDs in the set, because we can actually
        make the code bindings deleted individually. In particular, code IDs that
        are only used in the newer_version_of field of another binding will be
        deleted as expected. *)
-    let symbols = Bound_symbols.being_defined bound_symbols in
+    let symbols = Bound_static.symbols_being_defined bound_static in
     Name_occurrences.empty
     |> Symbol.Set.fold
          (fun symbol acc ->

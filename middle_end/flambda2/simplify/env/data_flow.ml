@@ -680,7 +680,9 @@ module Dependency_graph = struct
                        analysis to eliminate the extra_let binding if it is
                        unneeded. *)
                     t)
-                t extra_params_and_args.extra_params extra_args)
+                t
+                (Bound_parameters.to_list extra_params_and_args.extra_params)
+                extra_args)
             extra_params_and_args.extra_args t)
         extra t
     in

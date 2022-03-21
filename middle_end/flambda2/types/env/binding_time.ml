@@ -50,12 +50,9 @@ let succ (t : t) =
 module With_name_mode = struct
   type t = int
 
-  let[@inline always] create binding_time name_mode =
+  let[@inline always] create binding_time (name_mode : Name_mode.t) =
     let name_mode =
-      match Name_mode.descr name_mode with
-      | Normal -> 0
-      | In_types -> 1
-      | Phantom -> 2
+      match name_mode with Normal -> 0 | In_types -> 1 | Phantom -> 2
     in
     (binding_time lsl 2) lor name_mode
 

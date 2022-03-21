@@ -36,6 +36,8 @@ val create :
   unit ->
   t
 
+val singleton_variable : Variable.t -> t
+
 val singleton_code_id : Code_id.t -> t
 
 val singleton_continuation : Continuation.t -> t

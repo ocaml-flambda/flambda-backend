@@ -17,7 +17,6 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module K = Flambda_kind
-module BP = Bound_parameter
 module Apply = Apply_expr
 module Apply_cont = Apply_cont_expr
 module Switch = Switch_expr
@@ -495,40 +494,40 @@ let rec named_must_be_static_consts (named : named) =
     Misc.fatal_errorf "Must be [Static_consts], but is not: %a" print_named
       named
 
-and match_against_bound_symbols_pattern_static_const_or_code :
+and match_against_bound_static_pattern_static_const_or_code :
       'a.
       static_const_or_code ->
-      Bound_symbols.Pattern.t ->
+      Bound_static.Pattern.t ->
       code:(Code_id.t -> function_params_and_body Code0.t -> 'a) ->
       deleted_code:(Code_id.t -> 'a) ->
       set_of_closures:
         (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
       block_like:(Symbol.t -> Static_const.t -> 'a) ->
       'a =
- fun static_const_or_code (pat : Bound_symbols.Pattern.t) ~code:code_callback
+ fun static_const_or_code (pat : Bound_static.Pattern.t) ~code:code_callback
      ~deleted_code:deleted_code_callback ~set_of_closures ~block_like ->
   match static_const_or_code, pat with
   | Code code, Code code_id ->
     if not (Code_id.equal (Code0.code_id code) code_id)
     then
       Misc.fatal_errorf "Mismatch on declared code IDs:@ %a@ =@ %a"
-        Bound_symbols.Pattern.print pat print_static_const_or_code
+        Bound_static.Pattern.print pat print_static_const_or_code
         static_const_or_code;
     code_callback code_id code
   | Deleted_code, Code code_id -> deleted_code_callback code_id
   | Static_const const, (Set_of_closures _ | Block_like _) ->
-    Static_const.match_against_bound_symbols_pattern const pat ~set_of_closures
+    Static_const.match_against_bound_static_pattern const pat ~set_of_closures
       ~block_like
   | Static_const _, Code _
   | (Code _ | Deleted_code), (Set_of_closures _ | Block_like _) ->
     Misc.fatal_errorf "Mismatch on variety of [Static_const]:@ %a@ =@ %a"
-      Bound_symbols.Pattern.print pat print_static_const_or_code
+      Bound_static.Pattern.print pat print_static_const_or_code
       static_const_or_code
 
-and match_against_bound_symbols_static_const_group :
+and match_against_bound_static__static_const_group :
       'a.
       static_const_group ->
-      Bound_symbols.t ->
+      Bound_static.t ->
       init:'a ->
       code:('a -> Code_id.t -> function_params_and_body Code0.t -> 'a) ->
       deleted_code:('a -> Code_id.t -> 'a) ->
@@ -539,20 +538,20 @@ and match_against_bound_symbols_static_const_group :
         'a) ->
       block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
       'a =
- fun t bound_symbols ~init ~code:code_callback
+ fun t bound_static ~init ~code:code_callback
      ~deleted_code:deleted_code_callback
      ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback ->
-  let bound_symbol_pats = Bound_symbols.to_list bound_symbols in
-  if List.compare_lengths t bound_symbol_pats <> 0
+  let bound_static_pats = Bound_static.to_list bound_static in
+  if List.compare_lengths t bound_static_pats <> 0
   then
     Misc.fatal_errorf
-      "Mismatch between length of [Bound_symbols.t] and [Static_const.t \
-       list]:@ %a@ =@ %a"
-      Bound_symbols.print bound_symbols print_static_const_group t;
-  ListLabels.fold_left2 t bound_symbol_pats ~init
-    ~f:(fun acc static_const bound_symbols_pat ->
-      match_against_bound_symbols_pattern_static_const_or_code static_const
-        bound_symbols_pat
+      "Mismatch between length of [Bound_static.t] and [Static_const.t list]:@ \
+       %a@ =@ %a"
+      Bound_static.print bound_static print_static_const_group t;
+  ListLabels.fold_left2 t bound_static_pats ~init
+    ~f:(fun acc static_const bound_static_pat ->
+      match_against_bound_static_pattern_static_const_or_code static_const
+        bound_static_pat
         ~code:(fun code_id code -> code_callback acc code_id code)
         ~deleted_code:(fun code_id -> deleted_code_callback acc code_id)
         ~set_of_closures:(fun ~closure_symbols set_of_closures ->
@@ -595,8 +594,8 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
       (Flambda_colours.continuation_annotation ())
       (if is_exn_handler then "[eh]" else "")
       (Flambda_colours.normal ());
-    if List.length params > 0
-    then fprintf ppf " %a" Bound_parameter.List.print params;
+    if not (Bound_parameters.is_empty params)
+    then fprintf ppf " %a" Bound_parameters.print params;
     fprintf ppf "@<0>%s #%a:@<0>%s@]@ @[<hov 0>%a@]" (Flambda_colours.elide ())
       (Or_unknown.print Num_occurrences.print)
       occurrences
@@ -615,12 +614,12 @@ and print_continuation_handler (recursive : Recursive.t) ppf k
           let apply_renaming = apply_renaming_continuation_handler_t0
         end) in
     let<> params, { handler; _ } = t.cont_handler_abst in
-    print (Bound_parameters.to_list params) ~handler
+    print params ~handler
   else
     let params, { handler; num_normal_occurrences_of_params = _ } =
       Name_abstraction.peek_for_printing t.cont_handler_abst
     in
-    print (Bound_parameters.to_list params) ~handler
+    print params ~handler
 
 and print_function_params_and_body ppf t =
   let print ~return_continuation ~exn_continuation params ~body ~my_closure
@@ -635,7 +634,7 @@ and print_function_params_and_body ppf t =
       (Flambda_colours.lambda ())
       (Flambda_colours.normal ())
       Continuation.print return_continuation Continuation.print exn_continuation
-      Bound_parameter.List.print params Bound_parameter.print my_closure
+      Bound_parameters.print params Bound_parameter.print my_closure
       (Flambda_colours.depth_variable ())
       Variable.print my_depth (Flambda_colours.elide ())
       (Flambda_colours.normal ())
@@ -747,8 +746,8 @@ and print_let_cont_expr ppf t =
 
 (* CR mshinwell: Remove [second_or_later_binding_within_one_set] if it doesn't
    become used soon. *)
-and flatten_for_printing0 bound_symbols defining_exprs =
-  match_against_bound_symbols_static_const_group defining_exprs bound_symbols
+and flatten_for_printing0 bound_static defining_exprs =
+  match_against_bound_static__static_const_group defining_exprs bound_static
     ~init:([], false)
     ~code:(fun (flattened_acc, second_or_later_rec_binding) code_id code ->
       let flattened =
@@ -793,9 +792,9 @@ and flatten_for_printing0 bound_symbols defining_exprs =
 and flatten_for_printing t =
   let print (bound_pattern : Bound_pattern.t) ~body =
     match bound_pattern with
-    | Symbols { bound_symbols } ->
+    | Static bound_static ->
       let flattened, _ =
-        flatten_for_printing0 bound_symbols
+        flatten_for_printing0 bound_static
           (named_must_be_static_consts t.defining_expr)
       in
       Some (flattened, body)
@@ -885,7 +884,7 @@ and flatten_let_symbol t : _ * expr =
 
 (* CR mshinwell: Merge the "let symbol" and "normal let" cases to use the same
    flattened type? *)
-and print_let_symbol ppf t =
+and print_let_static ppf t =
   let rec print_more flattened =
     match flattened with
     | [] -> ()
@@ -935,7 +934,7 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
             (Flambda_colours.normal ())
             print_named defining_expr;
           let_body body
-        | Symbols _ -> expr
+        | Static _ -> expr
       in
       if Flambda_features.freshen_when_printing ()
       then
@@ -950,7 +949,7 @@ and print_let_expr ppf ({ let_abst = _; defining_expr } as t) : unit =
   in
   let print (bound_pattern : Bound_pattern.t) ~body =
     match bound_pattern with
-    | Symbols _ -> print_let_symbol ppf t
+    | Static _ -> print_let_static ppf t
     | Singleton _ | Set_of_closures _ ->
       fprintf ppf "@[<v 0>@[<v 0>@[<hov 1>@<0>%s%a@<0>%s =@<0>%s@ %a@]"
         (let_bound_var_colour bound_pattern defining_expr)
@@ -1022,13 +1021,13 @@ module Continuation_handler = struct
 
   let create params ~handler ~(free_names_of_handler : _ Or_unknown.t)
       ~is_exn_handler =
-    BP.List.check_no_duplicates params;
+    Bound_parameters.check_no_duplicates params;
     let num_normal_occurrences_of_params =
       match free_names_of_handler with
       | Unknown -> Variable.Map.empty
       | Known free_names_of_handler ->
-        ListLabels.fold_left params ~init:Variable.Map.empty
-          ~f:(fun num_occurrences param ->
+        ListLabels.fold_left (Bound_parameters.to_list params)
+          ~init:Variable.Map.empty ~f:(fun num_occurrences param ->
             let var = Bound_parameter.var param in
             let num =
               Name_occurrences.count_variable_normal_mode free_names_of_handler
@@ -1037,20 +1036,18 @@ module Continuation_handler = struct
             Variable.Map.add var num num_occurrences)
     in
     let t0 : T0.t = { num_normal_occurrences_of_params; handler } in
-    let cont_handler_abst = A.create (Bound_parameters.create params) t0 in
+    let cont_handler_abst = A.create params t0 in
     { cont_handler_abst; is_exn_handler }
 
   let pattern_match t ~f =
     let open A in
     let<> params, { handler; _ } = t.cont_handler_abst in
-    f (Bound_parameters.to_list params) ~handler
+    f params ~handler
 
   let pattern_match' t ~f =
     A.pattern_match t.cont_handler_abst
       ~f:(fun params { handler; num_normal_occurrences_of_params } ->
-        f
-          (Bound_parameters.to_list params)
-          ~num_normal_occurrences_of_params ~handler)
+        f params ~num_normal_occurrences_of_params ~handler)
 
   module Pattern_match_pair_error = struct
     type t = Parameter_lists_have_different_lengths
@@ -1063,15 +1060,14 @@ module Continuation_handler = struct
   let pattern_match_pair t1 t2 ~f =
     pattern_match t1 ~f:(fun params1 ~handler:_ ->
         pattern_match t2 ~f:(fun params2 ~handler:_ ->
-            if List.compare_lengths params1 params2 = 0
+            if Bound_parameters.same_number params1 params2
             then
               A.pattern_match_pair t1.cont_handler_abst t2.cont_handler_abst
                 ~f:(fun
                      params
                      ({ handler = handler1; _ } : T0.t)
                      ({ handler = handler2; _ } : T0.t)
-                   ->
-                  Ok (f (Bound_parameters.to_list params) ~handler1 ~handler2))
+                   -> Ok (f params ~handler1 ~handler2))
             else
               Error
                 Pattern_match_pair_error.Parameter_lists_have_different_lengths))
@@ -1109,7 +1105,7 @@ module Function_params_and_body = struct
 
   let create ~return_continuation ~exn_continuation params ~body
       ~free_names_of_body ~my_closure ~my_depth =
-    BP.List.check_no_duplicates params;
+    Bound_parameters.check_no_duplicates params;
     let is_my_closure_used =
       Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
           Name_occurrences.mem_var free_names_of_body my_closure)
@@ -1209,26 +1205,19 @@ module Let_expr = struct
             match bound_pattern1, bound_pattern2 with
             | Bound_pattern.Singleton _, Bound_pattern.Singleton _ ->
               dynamic_case ()
-            | ( Set_of_closures { closure_vars = vars1; _ },
-                Set_of_closures { closure_vars = vars2; _ } ) ->
+            | Set_of_closures vars1, Set_of_closures vars2 ->
               if List.compare_lengths vars1 vars2 = 0
               then dynamic_case ()
               else Error Pattern_match_pair_error.Mismatched_let_bindings
-            | Symbols bound_symbols1, Symbols bound_symbols2 ->
-              let patterns1 =
-                bound_symbols1.bound_symbols |> Bound_symbols.to_list
-              in
-              let patterns2 =
-                bound_symbols2.bound_symbols |> Bound_symbols.to_list
-              in
+            | Static bound_static1, Static bound_static2 ->
+              let patterns1 = bound_static1 |> Bound_static.to_list in
+              let patterns2 = bound_static2 |> Bound_static.to_list in
               if List.compare_lengths patterns1 patterns2 = 0
               then
-                let ans =
-                  static ~bound_symbols1 ~bound_symbols2 ~body1 ~body2
-                in
+                let ans = static ~bound_static1 ~bound_static2 ~body1 ~body2 in
                 Ok ans
               else Error Pattern_match_pair_error.Mismatched_let_bindings
-            | (Singleton _ | Set_of_closures _ | Symbols _), _ ->
+            | (Singleton _ | Set_of_closures _ | Static _), _ ->
               Error Pattern_match_pair_error.Mismatched_let_bindings))
 
   let print = print_let_expr
@@ -1251,12 +1240,12 @@ module Let_expr = struct
           "Cannot bind a non-[Set_of_closures] to a [Set_of_closures]:@ %a =@ \
            %a"
           Bound_pattern.print bound_pattern print_named defining_expr
-      | Static_consts _, Symbols _ -> ()
+      | Static_consts _, Static _ -> ()
       | Static_consts _, Singleton _ ->
         Misc.fatal_errorf
           "Cannot bind a [Static_const] to a [Singleton]:@ %a =@ %a"
           Bound_pattern.print bound_pattern print_named defining_expr
-      | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Symbols _ ->
+      | (Simple _ | Prim _ | Set_of_closures _ | Rec_info _), Static _ ->
         Misc.fatal_errorf
           "Cannot bind a non-[Static_const] to [Symbols]:@ %a =@ %a"
           Bound_pattern.print bound_pattern print_named defining_expr
@@ -1455,8 +1444,8 @@ module Static_const_group = struct
 
   let all_ids_for_export = all_ids_for_export_static_const_group
 
-  let match_against_bound_symbols =
-    match_against_bound_symbols_static_const_group
+  let match_against_bound_static =
+    match_against_bound_static__static_const_group
 
   let pieces_of_code t =
     List.filter_map Static_const_or_code.to_code' t |> Code_id.Map.of_list
@@ -1643,19 +1632,6 @@ module Expr = struct
 
   let create_invalid reason =
     create (Invalid { message = Invalid.to_string reason })
-
-  let bind_parameters_to_args_no_simplification ~params ~args ~body =
-    if List.compare_lengths params args <> 0
-    then
-      Misc.fatal_errorf "Mismatching parameters and arguments: %a and %a"
-        BP.List.print params Simple.List.print args;
-    ListLabels.fold_left2 (List.rev params) (List.rev args) ~init:body
-      ~f:(fun expr param arg ->
-        let var = Bound_var.create (BP.var param) Name_mode.normal in
-        Let_expr.create
-          (Bound_pattern.singleton var)
-          (Named.create_simple arg) ~body:expr ~free_names_of_body:Unknown
-        |> create_let)
 end
 
 module Let_cont_expr = struct

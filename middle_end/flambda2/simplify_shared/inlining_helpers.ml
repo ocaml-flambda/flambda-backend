@@ -87,23 +87,28 @@ let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
           ~apply_return_continuation:new_apply_return_continuation
       in
       let kinded_params =
-        List.map (fun k -> Variable.create "wrapper_return", k) result_arity
+        List.map
+          (fun k -> Bound_parameter.create (Variable.create "wrapper_return") k)
+          result_arity
       in
       let trap_action =
         Trap_action.Pop { exn_handler = wrapper; raise_kind = None }
       in
-      let args = List.map (fun (v, _) -> Simple.var v) kinded_params in
+      let args =
+        List.map (fun param -> Bound_parameter.simple param) kinded_params
+      in
       let handler acc =
         apply_cont_create acc ~trap_action apply_return_continuation ~args
           ~dbg:Debuginfo.none
       in
       let_cont_create acc pop_wrapper_cont
-        ~handler_params:(Bound_parameter.List.create kinded_params)
+        ~handler_params:(Bound_parameters.create kinded_params)
         ~handler ~body ~is_exn_handler:false
   in
   let param = Variable.create "exn" in
   let wrapper_handler_params =
     [Bound_parameter.create param Flambda_kind.With_subkind.any_value]
+    |> Bound_parameters.create
   in
   let exn_handler = Exn_continuation.exn_handler apply_exn_continuation in
   let trap_action = Trap_action.Pop { exn_handler; raise_kind = None } in
@@ -124,7 +129,7 @@ let wrap_inlined_body_for_exn_support acc ~extra_args ~apply_exn_continuation
       apply_cont_create acc ~trap_action push_wrapper_cont ~args:[]
         ~dbg:Debuginfo.none
     in
-    let_cont_create acc push_wrapper_cont ~handler_params:[]
+    let_cont_create acc push_wrapper_cont ~handler_params:Bound_parameters.empty
       ~handler:push_wrapper_handler ~body ~is_exn_handler:false
   in
   let_cont_create acc wrapper ~handler_params:wrapper_handler_params
