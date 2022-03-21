@@ -159,11 +159,9 @@ let expression_for_failure acc env exn_cont ~register_const_string primitive dbg
     (* CR mshinwell: Share this text with elsewhere. *)
     let acc, error_text = register_const_string acc "index out of bounds" in
     let invalid_argument =
-    (* [Predef.invalid_argument] is not exposed; the following avoids a
-       change to the frontend. *)
-      let matches ident =
-        String.equal (Ident.name ident) "Invalid_argument"
-      in
+      (* [Predef.invalid_argument] is not exposed; the following avoids a change
+         to the frontend. *)
+      let matches ident = String.equal (Ident.name ident) "Invalid_argument" in
       let invalid_argument =
         match List.find matches Predef.all_predef_exns with
         | exception Not_found ->
