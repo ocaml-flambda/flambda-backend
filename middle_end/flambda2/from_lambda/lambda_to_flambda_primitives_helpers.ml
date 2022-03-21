@@ -135,61 +135,61 @@ let expression_for_failure acc env exn_cont ~register_const_string primitive dbg
       (Simple.symbol division_by_zero)
       None
   | Index_out_of_bounds ->
-    if true
-    then
-      let call =
-        let callee = Simple.symbol caml_ml_array_bound_error in
-        let continuation = Apply.Result_continuation.Never_returns in
-        let args = [] in
-        let call_kind =
-          Call_kind.c_call ~alloc:false ~param_arity:[] ~return_arity:[]
-            ~is_c_builtin:false
-        in
-        (* These inlining fields should not be used for C calls since they can't
-           really be inlined anyway. *)
-        let inlined = Inlined_attribute.Never_inlined in
-        let inlining_state = Inlining_state.default ~round:0 in
-        Apply.create ~callee ~continuation exn_cont ~args ~call_kind dbg
-          ~inlined ~inlining_state ~probe_name:None
-          ~relative_history:(Env.relative_history env)
+    (* Old code for out of bounds, delegating the raising of the exn
+     *  to the adequate C function.
+     * let call =
+     *   let callee = Simple.symbol caml_ml_array_bound_error in
+     *   let continuation = Apply.Result_continuation.Never_returns in
+     *   let args = [] in
+     *   let call_kind =
+     *     Call_kind.c_call ~alloc:true ~param_arity:[] ~return_arity:[]
+     *       ~is_c_builtin:false
+     *   in
+     *   (* These inlining fields should not be used for C calls since they can't
+     *      really be inlined anyway. *)
+     *   let inlined = Inlined_attribute.Never_inlined in
+     *   let inlining_state = Inlining_state.default ~round:0 in
+     *   Apply.create ~callee ~continuation exn_cont ~args ~call_kind dbg
+     *     ~inlined ~inlining_state ~probe_name:None
+     *     ~relative_history:(Env.relative_history env)
+     * in
+     * Expr_with_acc.create_apply acc call
+     *)
+    let exn_bucket = Variable.create "exn_bucket" in
+    (* CR mshinwell: Share this text with elsewhere. *)
+    let acc, error_text = register_const_string acc "index out of bounds" in
+    let invalid_argument =
+    (* [Predef.invalid_argument] is not exposed; the following avoids a
+       change to the frontend. *)
+      let matches ident =
+        String.equal (Ident.name ident) "Invalid_argument"
       in
-      Expr_with_acc.create_apply acc call
-    else
-      let exn_bucket = Variable.create "exn_bucket" in
-      (* CR mshinwell: Share this text with elsewhere. *)
-      let acc, error_text = register_const_string acc "index out of bounds" in
       let invalid_argument =
-        (* [Predef.invalid_argument] is not exposed; the following avoids a
-           change to the frontend. *)
-        let matches ident =
-          String.equal (Ident.name ident) "Invalid_argument"
-        in
-        let invalid_argument =
-          match List.find matches Predef.all_predef_exns with
-          | exception Not_found ->
-            Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
-          | ident -> ident
-        in
-        (Acc.symbol_for_global acc) invalid_argument
+        match List.find matches Predef.all_predef_exns with
+        | exception Not_found ->
+          Misc.fatal_error "Cannot find Invalid_argument exception in Predef"
+        | ident -> ident
       in
-      let contents_of_exn_bucket =
-        [Simple.symbol invalid_argument; Simple.symbol error_text]
-      in
-      let named =
-        Named.create_prim
-          (Variadic
-             ( Make_block
-                 ( Values (Tag.Scannable.zero, [Any_value; Any_value]),
-                   Immutable,
-                   Heap ),
-               contents_of_exn_bucket ))
-          dbg
-      in
-      let extra_let_binding =
-        Bound_var.create exn_bucket Name_mode.normal, named
-      in
-      raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
-        (Some extra_let_binding)
+      (Acc.symbol_for_global acc) invalid_argument
+    in
+    let contents_of_exn_bucket =
+      [Simple.symbol invalid_argument; Simple.symbol error_text]
+    in
+    let named =
+      Named.create_prim
+        (Variadic
+           ( Make_block
+               ( Values (Tag.Scannable.zero, [Any_value; Any_value]),
+                 Immutable,
+                 Heap ),
+             contents_of_exn_bucket ))
+        dbg
+    in
+    let extra_let_binding =
+      Bound_var.create exn_bucket Name_mode.normal, named
+    in
+    raise_exn_for_failure acc ~dbg exn_cont (Simple.var exn_bucket)
+      (Some extra_let_binding)
 
 let rec bind_rec acc env exn_cont ~register_const_string (prim : expr_primitive)
     (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Acc.t * Expr_with_acc.t) :
