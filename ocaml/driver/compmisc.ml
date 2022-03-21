@@ -21,7 +21,8 @@ let auto_include find_in_dir fn =
     Load_path.auto_include_otherlibs alert find_in_dir fn
 
 (* Initialize the search path.
-   [dir] is always searched first (default: the current directory),
+   [dir] (default: the current directory)
+   is always searched first  unless -nocwd is specified,
    then the directories specified with the -I option (in command-line order),
    then the standard library directory (unless the -nostdlib option is given).
  *)
