@@ -619,25 +619,6 @@ let prim env res dbg p =
     let expr = variadic_primitive env dbg f args in
     expr, None, env, res, effs
 
-let effects_and_coeffects_of_prim p =
-  let effs = Flambda_primitive.effects_and_coeffects p in
-  match (p : Flambda_primitive.t) with
-  (* Float operations are not really pure since they actually access the
-     globally mutable rounding mode, which can be changed (but only from C
-     code). The Flambda_features.float_const_prop tracks whether we are allowed
-     to make optimizations assuming a non-changing rounding mode (i.e.
-     'float_const_prop () = true' means that the rounding should not be changed
-     by user code, and thus float optimizations are allowed). Therefore, when
-     'float_const_prop () = false', we add coeffects to float operations so that
-     they cannot be moved through an effectful operation. (e.g. a call to a c
-     stub that changes the rounding mode). *)
-  | Unary (Float_arith _, _) | Binary ((Float_arith _ | Float_comp _), _, _) ->
-    if Flambda_features.float_const_prop ()
-    then effs
-    else Ece.join effs Ece.read (* *)
-  (* Other operations *)
-  | Nullary _ | Unary _ | Binary _ | Ternary _ | Variadic _ -> effs
-
 (* Kinds and types *)
 
 let check_arity arity args = List.compare_lengths arity args = 0
@@ -892,7 +873,7 @@ and let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s =
 and let_expr_prim body env res v ~num_normal_occurrences_of_bound_vars p dbg =
   let v = Bound_var.var v in
   let cmm_expr, extra, env, res, effs = prim env res dbg p in
-  let effs = Ece.join effs (effects_and_coeffects_of_prim p) in
+  let effs = Ece.join effs (Flambda_primitive.effects_and_coeffects p) in
   let env =
     let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
       effs
