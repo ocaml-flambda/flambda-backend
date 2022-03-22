@@ -65,7 +65,10 @@ let unary_int_prim_size kind op =
       (op : Flambda_primitive.unary_int_arith_op) )
   with
   | Tagged_immediate, Neg -> 1
-  | Tagged_immediate, Swap_byte_endianness -> 2 + nonalloc_extcall_size + 1
+  | Tagged_immediate, Swap_byte_endianness ->
+    (* CR pchambart: size depends a lot of the architecture. If the backend
+       handles it, this is a single arith op. *)
+    2 + nonalloc_extcall_size + 1
   | Naked_immediate, Neg -> 1
   | Naked_immediate, Swap_byte_endianness -> nonalloc_extcall_size + 1
   | Naked_int64, Neg when arch32 -> nonalloc_extcall_size + 1
@@ -390,6 +393,7 @@ let prim (prim : Flambda_primitive.t) =
   | Variadic (p, args) -> variadic_prim_size p args
 
 let simple simple =
+  (* CR pchambart: some large const on ARM might be considered larger *)
   Simple.pattern_match simple ~const:(fun _ -> 1) ~name:(fun _ ~coercion:_ -> 0)
 
 let static_consts _ = 0
