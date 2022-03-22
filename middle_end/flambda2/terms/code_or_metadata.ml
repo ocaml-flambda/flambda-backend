@@ -62,11 +62,11 @@ let free_names t =
 let apply_renaming t renaming =
   match t with
   | Code_present code ->
-    let code = Code.apply_renaming code renaming in
-    Code_present code
+    let code' = Code.apply_renaming code renaming in
+    if code == code' then t else Code_present code'
   | Metadata_only code_metadata ->
-    let code_metadata = Code_metadata.apply_renaming code_metadata renaming in
-    Metadata_only code_metadata
+    let code_metadata' = Code_metadata.apply_renaming code_metadata renaming in
+    if code_metadata == code_metadata' then t else Metadata_only code_metadata'
 
 let all_ids_for_export t =
   match t with
