@@ -537,7 +537,7 @@ type unary_int_arith_op =
 let print_unary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
   match o with
-  | Neg -> fprintf ppf "~"
+  | Neg -> fprintf ppf "~-"
   | Swap_byte_endianness -> fprintf ppf "bswap"
 
 type unary_float_arith_op =
@@ -546,7 +546,7 @@ type unary_float_arith_op =
 
 let print_unary_float_arith_op ppf o =
   let fprintf = Format.fprintf in
-  match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~"
+  match o with Abs -> fprintf ppf "abs" | Neg -> fprintf ppf "~-"
 
 type arg_kinds =
   | Variadic of K.t list
