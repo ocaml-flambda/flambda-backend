@@ -87,12 +87,12 @@ let free_names { exn_handler; extra_args } =
     (Name_occurrences.singleton_continuation exn_handler)
     (Simple.List.free_names extra_args)
 
-let apply_renaming ({ exn_handler; extra_args } as t) perm =
-  let exn_handler' = Renaming.apply_continuation perm exn_handler in
+let apply_renaming ({ exn_handler; extra_args } as t) renaming =
+  let exn_handler' = Renaming.apply_continuation renaming exn_handler in
   let extra_args' =
     List.map
       (fun ((simple, kind) as extra_arg) ->
-        let simple' = Simple.apply_renaming simple perm in
+        let simple' = Simple.apply_renaming simple renaming in
         if simple == simple' then extra_arg else simple', kind)
       extra_args
   in
