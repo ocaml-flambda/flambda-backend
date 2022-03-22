@@ -318,3 +318,4 @@ let is_pure_specific : specific_operation -> bool = function
   | Isqrtf -> true
   | Ibswap _ -> true
   | Imove32 -> true
+  | Isignext _ -> true
