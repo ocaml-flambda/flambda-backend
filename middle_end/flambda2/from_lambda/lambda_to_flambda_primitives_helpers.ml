@@ -115,8 +115,8 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
       (Bound_pattern.singleton bound_var)
       defining_expr ~body:apply_cont
 
-let expression_for_failure acc _env exn_cont ~register_const_string primitive dbg
-    (failure : failure) =
+let expression_for_failure acc _env exn_cont ~register_const_string primitive
+    dbg (failure : failure) =
   let exn_cont =
     match exn_cont with
     | Some exn_cont -> exn_cont
