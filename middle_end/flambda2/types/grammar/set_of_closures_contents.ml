@@ -78,7 +78,7 @@ let apply_renaming { closures; closure_vars } renaming =
 let free_names { closures = _; closure_vars } =
   Var_within_closure.Set.fold
     (fun closure_var free_names ->
-      Name_occurrences.add_closure_var free_names closure_var Name_mode.normal)
+      Name_occurrences.add_closure_var_in_types free_names closure_var)
     closure_vars Name_occurrences.empty
 
 let remove_unused_closure_vars { closures; closure_vars } ~used_closure_vars =

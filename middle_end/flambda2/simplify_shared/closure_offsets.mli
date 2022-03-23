@@ -21,16 +21,16 @@ type t
 
 (** The type of names that are used (and pertinent for offset computing) *)
 type used_names =
-  { closure_ids_normal : Closure_id.Set.t;
+  { closure_ids_in_normal_projections : Closure_id.Set.t;
         (** Closure ids that appear in projections with normal name mode *)
-    closure_ids_in_types : Closure_id.Set.t;
-        (** Closure ids that appear in types (and thus can be eventually used in
-            normal name mode later) *)
-    closure_vars_normal : Var_within_closure.Set.t;
+    all_closure_ids : Closure_id.Set.t;
+        (** All closure ids, both in projections and declarations, irrespective
+            of name mode *)
+    closure_vars_in_normal_projections : Var_within_closure.Set.t;
         (** Closure vars that appear in projections with normal name mode *)
-    closure_vars_in_types : Var_within_closure.Set.t
-        (** Closure vars that appear in types (and thus can be eventually used
-            in normal name mode later) *)
+    all_closure_vars : Var_within_closure.Set.t
+        (** All closure vars, both in projections and declarations, irrespective
+            of name mode *)
   }
 
 (** Printing function. *)

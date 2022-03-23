@@ -18,10 +18,10 @@ open! Flambda.Import
 module EO = Exported_offsets
 
 type used_names =
-  { closure_ids_normal : Closure_id.Set.t;
-    closure_ids_in_types : Closure_id.Set.t;
-    closure_vars_normal : Var_within_closure.Set.t;
-    closure_vars_in_types : Var_within_closure.Set.t
+  { closure_ids_in_normal_projections : Closure_id.Set.t;
+    all_closure_ids : Closure_id.Set.t;
+    closure_vars_in_normal_projections : Var_within_closure.Set.t;
+    all_closure_vars : Var_within_closure.Set.t
   }
 
 let[@inline] closure_var_is_used ~used_closure_vars v =
@@ -749,16 +749,16 @@ module Greedy = struct
   let imported_and_used_offsets ~used_names state =
     match (used_names : _ Or_unknown.t) with
     | Known
-        { closure_ids_normal;
-          closure_ids_in_types;
-          closure_vars_normal;
-          closure_vars_in_types
+        { closure_ids_in_normal_projections;
+          all_closure_ids;
+          closure_vars_in_normal_projections;
+          all_closure_vars
         } ->
       state.used_offsets
-      |> reexport_closure_ids closure_ids_normal
-      |> reexport_closure_ids closure_ids_in_types
-      |> reexport_closure_vars closure_vars_normal
-      |> reexport_closure_vars closure_vars_in_types
+      |> reexport_closure_ids closure_ids_in_normal_projections
+      |> reexport_closure_ids all_closure_ids
+      |> reexport_closure_vars closure_vars_in_normal_projections
+      |> reexport_closure_vars all_closure_vars
     | Unknown -> EO.imported_offsets ()
 
   (* We only want to keep closure vars that appear in the creation of a set of
@@ -769,7 +769,11 @@ module Greedy = struct
   let alive_closure_elts state offsets used_names =
     match (used_names : used_names Or_unknown.t) with
     | Unknown -> Or_unknown.Unknown, offsets
-    | Known { closure_vars_normal; closure_ids_normal; _ } ->
+    | Known
+        { closure_vars_in_normal_projections;
+          closure_ids_in_normal_projections;
+          _
+        } ->
       let offsets =
         Closure_id.Set.fold
           (fun closure_id acc ->
@@ -780,7 +784,7 @@ module Greedy = struct
               | Some _ -> acc
               | None -> EO.add_closure_offset acc closure_id Dead_id
             else acc)
-          closure_ids_normal offsets
+          closure_ids_in_normal_projections offsets
       in
       let offsets = ref offsets in
       let used_closure_vars =
@@ -796,7 +800,7 @@ module Greedy = struct
                 offsets := EO.add_env_var_offset !offsets closure_var Dead_var;
                 false)
             else true)
-          closure_vars_normal
+          closure_vars_in_normal_projections
       in
       Or_unknown.Known used_closure_vars, !offsets
 
