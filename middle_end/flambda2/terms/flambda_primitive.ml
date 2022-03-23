@@ -669,7 +669,9 @@ let unary_primitive_eligible_for_cse p ~arg =
   | Int_as_pointer -> true
   | Opaque_identity -> false
   | Int_arith _ -> true
-  | Float_arith _ -> Flambda_features.float_const_prop ()
+  | Float_arith _ ->
+    (* See comment in effects_and_coeffects *)
+    Flambda_features.float_const_prop ()
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float -> true
   | Unbox_number _ -> false
   | Box_number (_, Local) ->
@@ -908,9 +910,22 @@ let effects_and_coeffects_of_unary_primitive p =
   | Int_as_pointer -> Effects.No_effects, Coeffects.No_coeffects
   | Opaque_identity -> Effects.Arbitrary_effects, Coeffects.Has_coeffects
   | Int_arith (_, (Neg | Swap_byte_endianness))
-  | Num_conv _ | Boolean_not | Reinterpret_int64_as_float
-  | Float_arith (Abs | Neg) ->
+  | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
     Effects.No_effects, Coeffects.No_coeffects
+  | Float_arith (Abs | Neg) ->
+    (* Float operations are not really pure since they actually access the
+       globally mutable rounding mode, which can be changed (but only from C
+       code). The Flambda_features.float_const_prop tracks whether we are
+       allowed to make optimizations assuming a non-changing rounding mode (i.e.
+       'float_const_prop () = true' means that the rounding should not be
+       changed by user code, and thus float optimizations are allowed).
+       Therefore, when 'float_const_prop () = false', we add coeffects to float
+       operations so that they cannot be moved through an effectful operation.
+       (e.g. a call to a c stub that changes the rounding mode). See also the
+       comment in binary_primitive_eligible_for_cse. *)
+    if Flambda_features.float_const_prop ()
+    then Effects.No_effects, Coeffects.No_coeffects
+    else Effects.No_effects, Coeffects.Has_coeffects
   (* Since Obj.truncate has been deprecated, array_length should have no
      observable effect *)
   | Array_length -> Effects.No_effects, Coeffects.No_coeffects
@@ -1027,7 +1042,8 @@ let binary_primitive_eligible_for_cse p =
        what the situation is with regard to 80-bit precision floating-point
        support on Intel processors (and indeed whether we make use of that). As
        such, we don't CSE these comparisons unless we would also CSE
-       floating-point arithmetic operations. *)
+       floating-point arithmetic operations. See also the comment in
+       effects_and_coeffects of unary primitives. *)
     Flambda_features.float_const_prop ()
 
 let compare_binary_primitive p1 p2 =
@@ -1169,8 +1185,15 @@ let effects_and_coeffects_of_binary_primitive p =
   | Int_shift _ -> Effects.No_effects, Coeffects.No_coeffects
   | Int_comp _ -> Effects.No_effects, Coeffects.No_coeffects
   | Float_arith (Add | Sub | Mul | Div) ->
-    Effects.No_effects, Coeffects.No_coeffects
-  | Float_comp _ -> Effects.No_effects, Coeffects.No_coeffects
+    (* See comments for Unary Float_arith *)
+    if Flambda_features.float_const_prop ()
+    then Effects.No_effects, Coeffects.No_coeffects
+    else Effects.No_effects, Coeffects.Has_coeffects
+  | Float_comp _ ->
+    (* See comments for Unary Float_arith *)
+    if Flambda_features.float_const_prop ()
+    then Effects.No_effects, Coeffects.No_coeffects
+    else Effects.No_effects, Coeffects.Has_coeffects
 
 let binary_classify_for_printing p =
   match p with
