@@ -39,10 +39,16 @@ type t
 
 val empty : t
 
-(** Within a single value of type [t], symbols and code IDs bound by the
-    individual [Pattern]s are bound recursively, across all of the [Pattern]s.
-    However [Block_like] bindings are not bound recursively and are ordered in
-    the usual manner. (See [Simplify_static_const].) *)
+(* CR vlaviron: I believe that the property we want is that all recursive cycles
+   go through at least a code ID. So we could check that we're not creating
+   bound patterns with more than one element, unless one of these elements is a
+   Code pattern. I'm not completely sure that we can enforce this invariant on
+   the result of From_lambda without going through the code for the classic mode
+   though. *)
+
+(** All recursive cycles between the names bound by the provided pattern(s) must
+    go through at least one code ID. (So for example the declaration of just a
+    block that points to itself is forbidden.) *)
 val create : Pattern.t list -> t
 
 val singleton : Pattern.t -> t
