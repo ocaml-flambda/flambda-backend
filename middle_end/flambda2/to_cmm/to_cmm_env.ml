@@ -94,7 +94,7 @@ type stage =
 type t =
   { (* Global information. Those are computed once and valid for a whole unit.*)
     offsets : Exported_offsets.t;
-    (* Offsets for closure_ids and var_within_closures. *)
+    (* Offsets for function_slots and value_slots. *)
     functions_info : Exported_code.t;
     (* Information about known functions *)
     (* Semi-global information.
@@ -306,27 +306,27 @@ let get_exn_extra_args env k =
 
 (* Offsets *)
 
-let closure_offset env closure =
-  match Exported_offsets.closure_offset env.offsets closure with
+let function_slot_offset env function_slot =
+  match Exported_offsets.function_slot_offset env.offsets function_slot with
   | Some res -> res
   | None ->
-    Misc.fatal_errorf "Missing offset for closure id %a" Closure_id.print
-      closure
+    Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
+      function_slot
 
-let env_var_offset env env_var =
-  match Exported_offsets.env_var_offset env.offsets env_var with
+let value_slot_offset env value_slot =
+  match Exported_offsets.value_slot_offset env.offsets value_slot with
   | Some res -> res
   | None ->
-    Misc.fatal_errorf "Missing offset for closure var %a"
-      Var_within_closure.print env_var
+    Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
+      value_slot
 
 let layout env set_of_closures =
   let fun_decls = Set_of_closures.function_decls set_of_closures in
   let decls = Function_declarations.funs_in_order fun_decls in
-  let elts = Set_of_closures.closure_elements set_of_closures in
-  let closures = List.map fst (Closure_id.Lmap.bindings decls) in
-  let env_vars = List.map fst (Var_within_closure.Map.bindings elts) in
-  Closure_offsets.layout env.offsets closures env_vars
+  let elts = Set_of_closures.value_slots set_of_closures in
+  let closures = List.map fst (Function_slot.Lmap.bindings decls) in
+  let value_slots = List.map fst (Value_slot.Map.bindings elts) in
+  Slot_offsets.layout env.offsets closures value_slots
 
 (* Printing
 

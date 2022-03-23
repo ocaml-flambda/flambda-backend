@@ -18,7 +18,7 @@
 
 open! Simplify_import
 
-(* CR-someday mshinwell: Unused closure variables should be deleted prior to
+(* CR-someday mshinwell: Unused value slots should be deleted prior to
    simplification of sets of closures, taking the used-var-in-closures set from
    the previous round. *)
 
@@ -42,8 +42,8 @@ module Context_for_multiple_sets_of_closures : sig
     dacc_prior_to_sets:DA.t ->
     simplify_toplevel:Simplify_common.simplify_toplevel ->
     all_sets_of_closures:Set_of_closures.t list ->
-    closure_bound_names_all_sets:Bound_name.t Closure_id.Map.t list ->
-    closure_element_types_all_sets:T.t Var_within_closure.Map.t list ->
+    closure_bound_names_all_sets:Bound_name.t Function_slot.Map.t list ->
+    value_slot_types_all_sets:T.t Value_slot.Map.t list ->
     t
 
   val create_for_stub :
@@ -61,10 +61,10 @@ module Context_for_multiple_sets_of_closures : sig
   val old_to_new_code_ids_all_sets : t -> Code_id.t Code_id.Map.t
 
   val closure_bound_names_inside_functions_all_sets :
-    t -> Bound_name.t Closure_id.Map.t list
+    t -> Bound_name.t Function_slot.Map.t list
 
   val closure_bound_names_inside_functions_exactly_one_set :
-    t -> Bound_name.t Closure_id.Map.t
+    t -> Bound_name.t Function_slot.Map.t
 
   val simplify_toplevel : t -> Simplify_common.simplify_toplevel
 
@@ -75,7 +75,7 @@ end = struct
       simplify_toplevel : Simplify_common.simplify_toplevel;
       dacc_inside_functions : DA.t;
       closure_bound_names_inside_functions_all_sets :
-        Bound_name.t Closure_id.Map.t list;
+        Bound_name.t Function_slot.Map.t list;
       old_to_new_code_ids_all_sets : Code_id.t Code_id.Map.t;
       previously_free_depth_variables : Variable.Set.t
     }
@@ -115,9 +115,9 @@ end = struct
 
   let previously_free_depth_variables t = t.previously_free_depth_variables
 
-  let compute_closure_element_types_inside_function ~env_prior_to_sets
-      ~env_inside_function ~closure_element_types ~degraded_closure_vars =
-    Var_within_closure.Map.fold
+  let compute_value_slot_types_inside_function ~env_prior_to_sets
+      ~env_inside_function ~value_slot_types ~degraded_value_slots =
+    Value_slot.Map.fold
       (fun clos_var type_prior_to_sets
            (env_inside_function, types_inside_function) ->
         let var = Variable.create "clos_var" in
@@ -128,8 +128,8 @@ end = struct
             K.value
         in
         let type_prior_to_sets =
-          (* See comment below about [degraded_closure_vars]. *)
-          if Var_within_closure.Set.mem clos_var degraded_closure_vars
+          (* See comment below about [degraded_value_slots]. *)
+          if Value_slot.Set.mem clos_var degraded_value_slots
           then T.any_value
           else type_prior_to_sets
         in
@@ -143,17 +143,16 @@ end = struct
             env_extension
         in
         let types_inside_function =
-          Var_within_closure.Map.add clos_var
+          Value_slot.Map.add clos_var
             (T.alias_type_of K.value (Simple.var var))
             types_inside_function
         in
         env_inside_function, types_inside_function)
-      closure_element_types
-      (env_inside_function, Var_within_closure.Map.empty)
+      value_slot_types
+      (env_inside_function, Value_slot.Map.empty)
 
   let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
-      ~closure_bound_names_all_sets
-      ~closure_element_types_inside_functions_all_sets
+      ~closure_bound_names_all_sets ~value_slot_types_inside_functions_all_sets
       ~old_to_new_code_ids_all_sets =
     let closure_bound_names_all_sets_inside =
       (* When not lifting (i.e. the bound names are variables), we used to
@@ -167,7 +166,7 @@ end = struct
     let closure_types_via_aliases_all_sets =
       List.map
         (fun closure_bound_names_inside ->
-          Closure_id.Map.map
+          Function_slot.Map.map
             (fun name ->
               T.alias_type_of K.value (Simple.name (Bound_name.name name)))
             closure_bound_names_inside)
@@ -177,11 +176,11 @@ end = struct
     let closure_types_inside_functions =
       List.map2
         (fun set_of_closures
-             (closure_types_via_aliases, closure_element_types_inside_function) ->
+             (closure_types_via_aliases, value_slot_types_inside_function) ->
           let function_decls = Set_of_closures.function_decls set_of_closures in
           let all_function_decls_in_set =
-            Closure_id.Map.mapi
-              (fun closure_id old_code_id ->
+            Function_slot.Map.mapi
+              (fun function_slot old_code_id ->
                 let code_or_metadata = DE.find_code_exn denv old_code_id in
                 let new_code_id =
                   match code_or_metadata with
@@ -203,7 +202,7 @@ end = struct
                        ~dbg:(Code_metadata.dbg code_metadata)
                        ~function_relative_history:
                          (Code_metadata.relative_history code_metadata)
-                       ~name:(Closure_id.name closure_id)
+                       ~name:(Function_slot.name function_slot)
                 in
                 Inlining_report.record_decision_at_function_definition
                   ~absolute_history ~code_metadata ~pass:Before_simplify
@@ -212,16 +211,16 @@ end = struct
                 function_decl_type old_code_id ~new_code_id rec_info)
               (Function_declarations.funs function_decls)
           in
-          Closure_id.Map.mapi
-            (fun closure_id _function_decl ->
-              T.exactly_this_closure closure_id ~all_function_decls_in_set
+          Function_slot.Map.mapi
+            (fun function_slot _function_decl ->
+              T.exactly_this_closure function_slot ~all_function_decls_in_set
                 ~all_closures_in_set:closure_types_via_aliases
-                ~all_closure_vars_in_set:closure_element_types_inside_function
+                ~all_value_slots_in_set:value_slot_types_inside_function
                 (Known (Set_of_closures.alloc_mode set_of_closures)))
             all_function_decls_in_set)
         all_sets_of_closures
         (List.combine closure_types_via_aliases_all_sets
-           closure_element_types_inside_functions_all_sets)
+           value_slot_types_inside_functions_all_sets)
     in
     closure_bound_names_all_sets_inside, closure_types_inside_functions
 
@@ -231,8 +230,8 @@ end = struct
     let denv_inside_functions =
       List.fold_left
         (fun denv closure_bound_names_inside ->
-          Closure_id.Map.fold
-            (fun _closure_id bound_name denv ->
+          Function_slot.Map.fold
+            (fun _function_slot bound_name denv ->
               let name = Bound_name.name bound_name in
               let irrelevant = not (Bound_name.is_symbol bound_name) in
               let bound_name =
@@ -246,18 +245,18 @@ end = struct
     List.fold_left2
       (fun denv closure_bound_names_inside_functions_one_set
            closure_types_inside_functions_one_set ->
-        Closure_id.Map.fold
-          (fun closure_id closure_type denv ->
+        Function_slot.Map.fold
+          (fun function_slot closure_type denv ->
             match
-              Closure_id.Map.find closure_id
+              Function_slot.Map.find function_slot
                 closure_bound_names_inside_functions_one_set
             with
             | exception Not_found ->
               Misc.fatal_errorf
-                "No closure name for closure ID %a.@ \
+                "No closure name for function slot %a.@ \
                  closure_bound_names_inside_functions_one_set = %a."
-                Closure_id.print closure_id
-                (Closure_id.Map.print Bound_name.print)
+                Function_slot.print function_slot
+                (Function_slot.Map.print Bound_name.print)
                 closure_bound_names_inside_functions_one_set
             | bound_name ->
               DE.add_equation_on_name denv
@@ -271,7 +270,7 @@ end = struct
     List.fold_left
       (fun old_to_new_code_ids_all_sets set_of_closures ->
         let function_decls = Set_of_closures.function_decls set_of_closures in
-        Closure_id.Map.fold
+        Function_slot.Map.fold
           (fun _ old_code_id old_to_new_code_ids ->
             match DE.find_code_exn denv old_code_id with
             | Code_present code when not (Code.stub code) ->
@@ -299,7 +298,7 @@ end = struct
       old_to_new_code_ids_all_sets denv
 
   let create ~dacc_prior_to_sets ~simplify_toplevel ~all_sets_of_closures
-      ~closure_bound_names_all_sets ~closure_element_types_all_sets =
+      ~closure_bound_names_all_sets ~value_slot_types_all_sets =
     let denv = DA.denv dacc_prior_to_sets in
     let denv_inside_functions =
       denv |> DE.enter_set_of_closures |> DE.increment_continuation_scope_twice
@@ -308,17 +307,17 @@ end = struct
          not knowing it prohibits us from inlining it. *)
       |> DE.set_rebuild_terms
     in
-    (* We collect a set of "degraded closure variables" whose types involve
-       imported variables from missing .cmx files. Since we don't know the kind
-       of these variables, we can't run the code below that checks if they might
-       need binding as "never inline" depth variables. Instead we will treat the
-       whole closure variable as having [Unknown] type. *)
-    let degraded_closure_vars = ref Var_within_closure.Set.empty in
+    (* We collect a set of "degraded value slots" whose types involve imported
+       variables from missing .cmx files. Since we don't know the kind of these
+       variables, we can't run the code below that checks if they might need
+       binding as "never inline" depth variables. Instead we will treat the
+       whole value slot as having [Unknown] type. *)
+    let degraded_value_slots = ref Value_slot.Set.empty in
     let free_depth_variables =
       List.concat_map
-        (fun closure_element_types ->
-          Var_within_closure.Map.mapi
-            (fun closure_var ty ->
+        (fun value_slot_types ->
+          Value_slot.Map.mapi
+            (fun value_slot ty ->
               let vars = TE.free_names_transitive (DE.typing_env denv) ty in
               Name_occurrences.fold_variables vars ~init:Variable.Set.empty
                 ~f:(fun free_depth_variables var ->
@@ -329,17 +328,16 @@ end = struct
                   in
                   match ty_opt with
                   | None ->
-                    degraded_closure_vars
-                      := Var_within_closure.Set.add closure_var
-                           !degraded_closure_vars;
+                    degraded_value_slots
+                      := Value_slot.Set.add value_slot !degraded_value_slots;
                     free_depth_variables
                   | Some ty -> (
                     match T.kind ty with
                     | Rec_info -> Variable.Set.add var free_depth_variables
                     | Value | Naked_number _ | Region -> free_depth_variables)))
-            closure_element_types
-          |> Var_within_closure.Map.data)
-        closure_element_types_all_sets
+            value_slot_types
+          |> Value_slot.Map.data)
+        value_slot_types_all_sets
       |> Variable.Set.union_list
     in
     (* Pretend that any depth variables appearing free in the closure elements
@@ -365,26 +363,24 @@ end = struct
             (T.this_rec_info Rec_info_expr.do_not_inline))
         free_depth_variables denv_inside_functions
     in
-    let ( env_inside_functions,
-          closure_element_types_all_sets_inside_functions_rev ) =
+    let env_inside_functions, value_slot_types_all_sets_inside_functions_rev =
       List.fold_left
         (fun ( env_inside_functions,
-               closure_element_types_all_sets_inside_functions_rev )
-             closure_element_types ->
-          let env_inside_functions, closure_element_types_inside_function =
-            compute_closure_element_types_inside_function
+               value_slot_types_all_sets_inside_functions_rev ) value_slot_types ->
+          let env_inside_functions, value_slot_types_inside_function =
+            compute_value_slot_types_inside_function
               ~env_prior_to_sets:(DE.typing_env denv)
-              ~env_inside_function:env_inside_functions ~closure_element_types
-              ~degraded_closure_vars:!degraded_closure_vars
+              ~env_inside_function:env_inside_functions ~value_slot_types
+              ~degraded_value_slots:!degraded_value_slots
           in
           ( env_inside_functions,
-            closure_element_types_inside_function
-            :: closure_element_types_all_sets_inside_functions_rev ))
+            value_slot_types_inside_function
+            :: value_slot_types_all_sets_inside_functions_rev ))
         (DE.typing_env denv_inside_functions, [])
-        closure_element_types_all_sets
+        value_slot_types_all_sets
     in
-    let closure_element_types_inside_functions_all_sets =
-      List.rev closure_element_types_all_sets_inside_functions_rev
+    let value_slot_types_inside_functions_all_sets =
+      List.rev value_slot_types_all_sets_inside_functions_rev
     in
     let old_to_new_code_ids_all_sets =
       compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures
@@ -393,7 +389,7 @@ end = struct
           closure_types_inside_functions_all_sets ) =
       compute_closure_types_inside_functions ~denv ~all_sets_of_closures
         ~closure_bound_names_all_sets
-        ~closure_element_types_inside_functions_all_sets
+        ~value_slot_types_inside_functions_all_sets
         ~old_to_new_code_ids_all_sets
     in
     let dacc_inside_functions =
@@ -416,8 +412,8 @@ end
 
 module C = Context_for_multiple_sets_of_closures
 
-let dacc_inside_function context ~used_closure_vars ~shareable_constants
-    ~closure_offsets ~params ~my_closure ~my_depth closure_id_opt
+let dacc_inside_function context ~used_value_slots ~shareable_constants
+    ~slot_offsets ~params ~my_closure ~my_depth function_slot_opt
     ~closure_bound_names_inside_function ~inlining_arguments ~absolute_history =
   let dacc =
     DA.map_denv (C.dacc_inside_functions context) ~f:(fun denv ->
@@ -429,21 +425,22 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants
             denv
         in
         let denv =
-          match closure_id_opt with
+          match function_slot_opt with
           | None ->
             DE.add_variable denv
               (Bound_var.create my_closure NM.normal)
               (T.unknown K.value)
-          | Some closure_id -> begin
+          | Some function_slot -> begin
             match
-              Closure_id.Map.find closure_id closure_bound_names_inside_function
+              Function_slot.Map.find function_slot
+                closure_bound_names_inside_function
             with
             | exception Not_found ->
               Misc.fatal_errorf
-                "No closure name for closure ID %a.@ \
+                "No closure name for function slot %a.@ \
                  closure_bound_names_inside_function = %a."
-                Closure_id.print closure_id
-                (Closure_id.Map.print Bound_name.print)
+                Function_slot.print function_slot
+                (Function_slot.Map.print Bound_name.print)
                 closure_bound_names_inside_function
             | name ->
               let name = Bound_name.name name in
@@ -460,8 +457,8 @@ let dacc_inside_function context ~used_closure_vars ~shareable_constants
   in
   dacc
   |> DA.with_shareable_constants ~shareable_constants
-  |> DA.with_used_closure_vars ~used_closure_vars
-  |> DA.with_closure_offsets ~closure_offsets
+  |> DA.with_used_value_slots ~used_value_slots
+  |> DA.with_slot_offsets ~slot_offsets
 
 type simplify_function_result =
   { code_id : Code_id.t;
@@ -471,8 +468,8 @@ type simplify_function_result =
     lifted_consts_this_function : LCS.t
   }
 
-let simplify_function0 context ~used_closure_vars ~shareable_constants
-    ~closure_offsets closure_id_opt code_id code
+let simplify_function0 context ~used_value_slots ~shareable_constants
+    ~slot_offsets function_slot_opt code_id code
     ~closure_bound_names_inside_function code_age_relation
     ~lifted_consts_prev_functions =
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
@@ -524,8 +521,8 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
            ~free_names_of_body:_
          ->
         let dacc =
-          dacc_inside_function context ~used_closure_vars ~shareable_constants
-            ~closure_offsets ~params ~my_closure ~my_depth closure_id_opt
+          dacc_inside_function context ~used_value_slots ~shareable_constants
+            ~slot_offsets ~params ~my_closure ~my_depth function_slot_opt
             ~closure_bound_names_inside_function ~inlining_arguments
             ~absolute_history
         in
@@ -621,13 +618,13 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
           let bt = Printexc.get_raw_backtrace () in
           Format.eprintf
             "\n\
-             %sContext is:%s simplifying function with closure ID %a,@ params \
-             %a,@ return continuation %a,@ exn continuation %a,@ my_closure \
-             %a,@ body:@ %a@ with downwards accumulator:@ %a\n"
+             %sContext is:%s simplifying function with function slot %a,@ \
+             params %a,@ return continuation %a,@ exn continuation %a,@ \
+             my_closure %a,@ body:@ %a@ with downwards accumulator:@ %a\n"
             (Flambda_colours.error ())
             (Flambda_colours.normal ())
-            (Format.pp_print_option Closure_id.print)
-            closure_id_opt Bound_parameters.print params Continuation.print
+            (Format.pp_print_option Function_slot.print)
+            function_slot_opt Bound_parameters.print params Continuation.print
             return_continuation Continuation.print exn_continuation
             Variable.print my_closure Expr.print body DA.print dacc;
           Printexc.raise_with_backtrace Misc.Fatal_error bt)
@@ -743,13 +740,13 @@ let simplify_function0 context ~used_closure_vars ~shareable_constants
     lifted_consts_this_function
   }
 
-let simplify_function context ~used_closure_vars ~shareable_constants
-    ~closure_offsets closure_id code_id ~closure_bound_names_inside_function
+let simplify_function context ~used_value_slots ~shareable_constants
+    ~slot_offsets function_slot code_id ~closure_bound_names_inside_function
     code_age_relation ~lifted_consts_prev_functions =
   match DE.find_code_exn (DA.denv (C.dacc_prior_to_sets context)) code_id with
   | Code_present code when not (Code.stub code) ->
-    simplify_function0 context ~used_closure_vars ~shareable_constants
-      ~closure_offsets (Some closure_id) code_id code
+    simplify_function0 context ~used_value_slots ~shareable_constants
+      ~slot_offsets (Some function_slot) code_id code
       ~closure_bound_names_inside_function code_age_relation
       ~lifted_consts_prev_functions
   | Code_present _ | Metadata_only _ ->
@@ -769,7 +766,7 @@ type simplify_set_of_closures0_result =
   }
 
 let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
-    ~closure_bound_names_inside ~closure_elements ~closure_element_types =
+    ~closure_bound_names_inside ~value_slots ~value_slot_types =
   let dacc = C.dacc_prior_to_sets context in
   let function_decls = Set_of_closures.function_decls set_of_closures in
   let all_function_decls_in_set =
@@ -783,20 +780,20 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         code,
         fun_types,
         code_age_relation,
-        used_closure_vars,
+        used_value_slots,
         shareable_constants,
-        closure_offsets,
+        slot_offsets,
         lifted_consts,
         code_ids_to_remember ) =
-    Closure_id.Lmap.fold
-      (fun closure_id old_code_id
+    Function_slot.Lmap.fold
+      (fun function_slot old_code_id
            ( result_function_decls_in_set,
              code,
              fun_types,
              code_age_relation,
-             used_closure_vars,
+             used_value_slots,
              shareable_constants,
-             closure_offsets,
+             slot_offsets,
              lifted_consts_prev_functions,
              code_ids_to_remember ) ->
         let { code_id;
@@ -805,8 +802,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
               uacc_after_upwards_traversal;
               lifted_consts_this_function
             } =
-          simplify_function context ~used_closure_vars ~shareable_constants
-            ~closure_offsets closure_id old_code_id
+          simplify_function context ~used_value_slots ~shareable_constants
+            ~slot_offsets function_slot old_code_id
             ~closure_bound_names_inside_function:closure_bound_names_inside
             code_age_relation ~lifted_consts_prev_functions
         in
@@ -819,14 +816,16 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           function_decl_type code_id rec_info
         in
         let result_function_decls_in_set =
-          (closure_id, code_id) :: result_function_decls_in_set
+          (function_slot, code_id) :: result_function_decls_in_set
         in
         let code =
           match new_code with
           | None -> code
           | Some new_code -> (code_id, new_code) :: code
         in
-        let fun_types = Closure_id.Map.add closure_id function_type fun_types in
+        let fun_types =
+          Function_slot.Map.add function_slot function_type fun_types
+        in
         let lifted_consts_prev_functions =
           LCS.union lifted_consts_this_function lifted_consts_prev_functions
         in
@@ -843,11 +842,11 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
             Code_id.Set.union code_ids_to_remember
               (DA.code_ids_to_remember dacc_after_body)
         in
-        let used_closure_vars =
+        let used_value_slots =
           match uacc_after_upwards_traversal with
-          | None -> used_closure_vars
+          | None -> used_value_slots
           | Some uacc_after_upwards_traversal ->
-            UA.used_closure_vars uacc_after_upwards_traversal
+            UA.used_value_slots uacc_after_upwards_traversal
         in
         let shareable_constants =
           match uacc_after_upwards_traversal with
@@ -855,73 +854,74 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
           | Some uacc_after_upwards_traversal ->
             UA.shareable_constants uacc_after_upwards_traversal
         in
-        let closure_offsets =
+        let slot_offsets =
           match uacc_after_upwards_traversal with
-          | None -> closure_offsets
+          | None -> slot_offsets
           | Some uacc_after_upwards_traversal -> (
-            let closure_offsets =
-              DA.closure_offsets (UA.creation_dacc uacc_after_upwards_traversal)
+            let slot_offsets =
+              DA.slot_offsets (UA.creation_dacc uacc_after_upwards_traversal)
             in
-            match UA.closure_offsets uacc_after_upwards_traversal with
-            | Unknown -> closure_offsets
-            | Known offsets -> Code_id.Map.add code_id offsets closure_offsets)
+            match UA.slot_offsets uacc_after_upwards_traversal with
+            | Unknown -> slot_offsets
+            | Known offsets -> Code_id.Map.add code_id offsets slot_offsets)
         in
         ( result_function_decls_in_set,
           code,
           fun_types,
           code_age_relation,
-          used_closure_vars,
+          used_value_slots,
           shareable_constants,
-          closure_offsets,
+          slot_offsets,
           lifted_consts_prev_functions,
           code_ids_to_remember ))
       all_function_decls_in_set
       ( [],
         [],
-        Closure_id.Map.empty,
+        Function_slot.Map.empty,
         TE.code_age_relation (DA.typing_env dacc),
-        DA.used_closure_vars dacc,
+        DA.used_value_slots dacc,
         DA.shareable_constants dacc,
-        DA.closure_offsets dacc,
+        DA.slot_offsets dacc,
         LCS.empty,
         DA.code_ids_to_remember dacc )
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator dacc lifted_consts
-    |> DA.with_used_closure_vars ~used_closure_vars
+    |> DA.with_used_value_slots ~used_value_slots
     |> DA.with_shareable_constants ~shareable_constants
-    |> DA.with_closure_offsets ~closure_offsets
+    |> DA.with_slot_offsets ~slot_offsets
     |> DA.with_code_ids_to_remember ~code_ids_to_remember
   in
   let code_ids_to_remember_this_set =
     List.fold_left
-      (fun code_ids (_closure_id, code_id) -> Code_id.Set.add code_id code_ids)
+      (fun code_ids (_function_slot, code_id) ->
+        Code_id.Set.add code_id code_ids)
       Code_id.Set.empty all_function_decls_in_set
   in
   let dacc = DA.add_code_ids_to_remember dacc code_ids_to_remember_this_set in
   let all_function_decls_in_set =
-    Closure_id.Lmap.of_list (List.rev all_function_decls_in_set)
+    Function_slot.Lmap.of_list (List.rev all_function_decls_in_set)
   in
   let code = Code_id.Lmap.of_list (List.rev code) in
   let closure_types_by_bound_name =
     let closure_types_via_aliases =
-      Closure_id.Map.map
+      Function_slot.Map.map
         (fun name ->
           T.alias_type_of K.value (Simple.name (Bound_name.name name)))
         closure_bound_names
     in
-    Closure_id.Map.fold
-      (fun closure_id _function_decl_type closure_types ->
-        match Closure_id.Map.find closure_id closure_bound_names with
+    Function_slot.Map.fold
+      (fun function_slot _function_decl_type closure_types ->
+        match Function_slot.Map.find function_slot closure_bound_names with
         | exception Not_found ->
-          Misc.fatal_errorf "No bound variable for closure ID %a"
-            Closure_id.print closure_id
+          Misc.fatal_errorf "No bound variable for function slot %a"
+            Function_slot.print function_slot
         | bound_name ->
           let closure_type =
-            T.exactly_this_closure closure_id
+            T.exactly_this_closure function_slot
               ~all_function_decls_in_set:fun_types
               ~all_closures_in_set:closure_types_via_aliases
-              ~all_closure_vars_in_set:closure_element_types
+              ~all_value_slots_in_set:value_slot_types
               (Known (Set_of_closures.alloc_mode set_of_closures))
           in
           Name.Map.add (Bound_name.name bound_name) closure_type closure_types)
@@ -932,8 +932,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         denv
         |> DE.map_typing_env ~f:(fun typing_env ->
                TE.with_code_age_relation typing_env code_age_relation)
-        |> Closure_id.Map.fold
-             (fun _closure_id bound_name denv ->
+        |> Function_slot.Map.fold
+             (fun _function_slot bound_name denv ->
                DE.define_name_if_undefined denv bound_name K.value)
              closure_bound_names
         |> fun denv ->
@@ -945,7 +945,7 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
   in
   let set_of_closures =
     Function_declarations.create all_function_decls_in_set
-    |> Set_of_closures.create ~closure_elements
+    |> Set_of_closures.create ~value_slots
          (Set_of_closures.alloc_mode set_of_closures)
   in
   { set_of_closures; code; dacc }
@@ -957,75 +957,75 @@ let introduce_code dacc code =
   |> DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
 
 let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
-    ~closure_bound_vars set_of_closures ~closure_elements ~symbol_projections
+    ~closure_bound_vars set_of_closures ~value_slots ~symbol_projections
     ~simplify_toplevel =
   let function_decls = Set_of_closures.function_decls set_of_closures in
   let closure_symbols =
-    Closure_id.Lmap.mapi
-      (fun closure_id _func_decl ->
+    Function_slot.Lmap.mapi
+      (fun function_slot _func_decl ->
         let name =
-          closure_id |> Closure_id.rename |> Closure_id.to_string
+          function_slot |> Function_slot.rename |> Function_slot.to_string
           |> Linkage_name.create
         in
         Symbol.create (Compilation_unit.get_current_exn ()) name)
       (Function_declarations.funs_in_order function_decls)
   in
   let closure_symbols_map =
-    Closure_id.Lmap.bindings closure_symbols |> Closure_id.Map.of_list
+    Function_slot.Lmap.bindings closure_symbols |> Function_slot.Map.of_list
   in
   let closure_bound_names =
-    Closure_id.Map.map Bound_name.create_symbol closure_symbols_map
+    Function_slot.Map.map Bound_name.create_symbol closure_symbols_map
   in
-  let closure_element_types =
-    Var_within_closure.Map.map
-      (fun closure_element ->
-        Simple.pattern_match closure_element
-          ~const:(fun _ -> T.alias_type_of K.value closure_element)
+  let value_slot_types =
+    Value_slot.Map.map
+      (fun value_slot ->
+        Simple.pattern_match value_slot
+          ~const:(fun _ -> T.alias_type_of K.value value_slot)
           ~name:(fun name ~coercion ->
             Name.pattern_match name
               ~var:(fun var ->
                 match Variable.Map.find var closure_bound_vars_inverse with
                 | exception Not_found ->
                   assert (DE.mem_variable (DA.denv dacc) var);
-                  T.alias_type_of K.value closure_element
-                | closure_id ->
+                  T.alias_type_of K.value value_slot
+                | function_slot ->
                   let closure_symbol =
-                    Closure_id.Map.find closure_id closure_symbols_map
+                    Function_slot.Map.find function_slot closure_symbols_map
                   in
                   let simple =
                     Simple.with_coercion (Simple.symbol closure_symbol) coercion
                   in
                   T.alias_type_of K.value simple)
-              ~symbol:(fun _sym -> T.alias_type_of K.value closure_element)))
-      closure_elements
+              ~symbol:(fun _sym -> T.alias_type_of K.value value_slot)))
+      value_slots
   in
   let context =
     C.create ~dacc_prior_to_sets:dacc ~simplify_toplevel
       ~all_sets_of_closures:[set_of_closures]
       ~closure_bound_names_all_sets:[closure_bound_names]
-      ~closure_element_types_all_sets:[closure_element_types]
+      ~value_slot_types_all_sets:[value_slot_types]
   in
   let closure_bound_names_inside =
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
     simplify_set_of_closures0 context set_of_closures ~closure_bound_names
-      ~closure_bound_names_inside ~closure_elements ~closure_element_types
+      ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let closure_symbols_set =
-    Symbol.Set.of_list (Closure_id.Lmap.data closure_symbols)
+    Symbol.Set.of_list (Function_slot.Lmap.data closure_symbols)
   in
   assert (
     Symbol.Set.cardinal closure_symbols_set
-    = Closure_id.Map.cardinal closure_symbols_map);
+    = Function_slot.Map.cardinal closure_symbols_map);
   let denv = DA.denv dacc in
   let closure_symbols_with_types =
-    Closure_id.Map.map
+    Function_slot.Map.map
       (fun symbol ->
         let typ = DE.find_symbol denv symbol in
         symbol, typ)
       closure_symbols_map
-    |> Closure_id.Map.to_seq |> Closure_id.Lmap.of_seq
+    |> Function_slot.Map.to_seq |> Function_slot.Lmap.of_seq
   in
   let dacc = introduce_code dacc code in
   let set_of_closures_lifted_constant =
@@ -1040,12 +1040,12 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
       (LCS.singleton set_of_closures_lifted_constant)
   in
   let denv, bindings =
-    Closure_id.Map.fold
-      (fun closure_id bound_var (denv, bindings) ->
-        match Closure_id.Map.find closure_id closure_symbols_map with
+    Function_slot.Map.fold
+      (fun function_slot bound_var (denv, bindings) ->
+        match Function_slot.Map.find function_slot closure_symbols_map with
         | exception Not_found ->
-          Misc.fatal_errorf "No closure symbol for closure ID %a"
-            Closure_id.print closure_id
+          Misc.fatal_errorf "No closure symbol for function slot %a"
+            Function_slot.print function_slot
         | closure_symbol ->
           let denv =
             let simple = Simple.symbol closure_symbol in
@@ -1062,23 +1062,22 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
     ~original_defining_expr:(Named.create_set_of_closures set_of_closures)
 
 let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
-    set_of_closures ~closure_elements ~closure_element_types ~simplify_toplevel
-    =
+    set_of_closures ~value_slots ~value_slot_types ~simplify_toplevel =
   let closure_bound_names =
-    Closure_id.Map.map Bound_name.create_var closure_bound_vars
+    Function_slot.Map.map Bound_name.create_var closure_bound_vars
   in
   let context =
     C.create ~dacc_prior_to_sets:dacc ~simplify_toplevel
       ~all_sets_of_closures:[set_of_closures]
       ~closure_bound_names_all_sets:[closure_bound_names]
-      ~closure_element_types_all_sets:[closure_element_types]
+      ~value_slot_types_all_sets:[value_slot_types]
   in
   let closure_bound_names_inside =
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; code; dacc } =
     simplify_set_of_closures0 context set_of_closures ~closure_bound_names
-      ~closure_bound_names_inside ~closure_elements ~closure_element_types
+      ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let dacc = introduce_code dacc code in
   let defining_expr =
@@ -1103,12 +1102,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
 
 type lifting_decision_result =
   { can_lift : bool;
-    closure_elements : Simple.t Var_within_closure.Map.t;
-    closure_element_types : T.t Var_within_closure.Map.t;
+    value_slots : Simple.t Value_slot.Map.t;
+    value_slot_types : T.t Value_slot.Map.t;
     symbol_projections : Symbol_projection.t Variable.Map.t
   }
 
-let type_closure_elements_and_make_lifting_decision_for_one_set dacc
+let type_value_slots_and_make_lifting_decision_for_one_set dacc
     ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures =
   (* By computing the types of the closure elements, attempt to show that the
      set of closures can be lifted, and hence statically allocated. Note that
@@ -1117,10 +1116,10 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
      elements cannot be deleted without a global analysis, as an inlined
      function's body may reference them out of scope of the closure
      declaration. *)
-  let closure_elements, closure_element_types, symbol_projections =
-    Var_within_closure.Map.fold
-      (fun closure_var env_entry
-           (closure_elements, closure_element_types, symbol_projections) ->
+  let value_slots, value_slot_types, symbol_projections =
+    Value_slot.Map.fold
+      (fun value_slot env_entry
+           (value_slots, value_slot_types, symbol_projections) ->
         let env_entry, ty, symbol_projections =
           let ty =
             S.simplify_simple dacc env_entry
@@ -1142,17 +1141,13 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
           in
           simple, ty, symbol_projections
         in
-        let closure_elements =
-          Var_within_closure.Map.add closure_var env_entry closure_elements
+        let value_slots = Value_slot.Map.add value_slot env_entry value_slots in
+        let value_slot_types =
+          Value_slot.Map.add value_slot ty value_slot_types
         in
-        let closure_element_types =
-          Var_within_closure.Map.add closure_var ty closure_element_types
-        in
-        closure_elements, closure_element_types, symbol_projections)
-      (Set_of_closures.closure_elements set_of_closures)
-      ( Var_within_closure.Map.empty,
-        Var_within_closure.Map.empty,
-        Variable.Map.empty )
+        value_slots, value_slot_types, symbol_projections)
+      (Set_of_closures.value_slots set_of_closures)
+      (Value_slot.Map.empty, Value_slot.Map.empty, Variable.Map.empty)
   in
   let can_lift_coercion coercion =
     Name_occurrences.no_variables (Coercion.free_names coercion)
@@ -1164,7 +1159,7 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
      not allow them). *)
   let can_lift =
     Name_mode.is_normal name_mode_of_bound_vars
-    && Var_within_closure.Map.for_all
+    && Value_slot.Map.for_all
          (fun _ simple ->
            can_lift_coercion (Simple.coercion simple)
            && Simple.pattern_match' simple
@@ -1195,13 +1190,13 @@ let type_closure_elements_and_make_lifting_decision_for_one_set dacc
                            the binding to the projection from the relevant
                            symbol can always be rematerialised. *)
                         || Variable.Map.mem var symbol_projections)))
-         closure_elements
+         value_slots
   in
-  { can_lift; closure_elements; closure_element_types; symbol_projections }
+  { can_lift; value_slots; value_slot_types; symbol_projections }
 
-let type_closure_elements_for_previously_lifted_set dacc
-    ~name_mode_of_bound_vars set_of_closures =
-  type_closure_elements_and_make_lifting_decision_for_one_set dacc
+let type_value_slots_for_previously_lifted_set dacc ~name_mode_of_bound_vars
+    set_of_closures =
+  type_value_slots_and_make_lifting_decision_for_one_set dacc
     ~name_mode_of_bound_vars ~closure_bound_vars_inverse:Variable.Map.empty
     set_of_closures
 
@@ -1213,38 +1208,36 @@ let simplify_non_lifted_set_of_closures dacc (bound_vars : Bound_pattern.t)
   let name_mode_of_bound_vars = Bound_pattern.name_mode bound_vars in
   let closure_bound_vars, closure_bound_vars_inverse =
     List.fold_left2
-      (fun (closure_bound_vars, closure_bound_vars_inverse) closure_id var ->
-        ( Closure_id.Map.add closure_id var closure_bound_vars,
-          Variable.Map.add (Bound_var.var var) closure_id
+      (fun (closure_bound_vars, closure_bound_vars_inverse) function_slot var ->
+        ( Function_slot.Map.add function_slot var closure_bound_vars,
+          Variable.Map.add (Bound_var.var var) function_slot
             closure_bound_vars_inverse ))
-      (Closure_id.Map.empty, Variable.Map.empty)
+      (Function_slot.Map.empty, Variable.Map.empty)
       (Set_of_closures.function_decls set_of_closures
-      |> Function_declarations.funs_in_order |> Closure_id.Lmap.keys)
+      |> Function_declarations.funs_in_order |> Function_slot.Lmap.keys)
       closure_bound_vars
   in
-  let { can_lift; closure_elements; closure_element_types; symbol_projections }
-      =
-    type_closure_elements_and_make_lifting_decision_for_one_set dacc
+  let { can_lift; value_slots; value_slot_types; symbol_projections } =
+    type_value_slots_and_make_lifting_decision_for_one_set dacc
       ~name_mode_of_bound_vars ~closure_bound_vars_inverse set_of_closures
   in
   if can_lift
   then
     simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
-      ~closure_bound_vars set_of_closures ~closure_elements ~symbol_projections
+      ~closure_bound_vars set_of_closures ~value_slots ~symbol_projections
   else
     simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
-      set_of_closures ~closure_elements ~closure_element_types
+      set_of_closures ~value_slots ~value_slot_types
 
 let simplify_lifted_set_of_closures0 context ~closure_symbols
-    ~closure_bound_names_inside ~closure_elements ~closure_element_types
-    set_of_closures =
+    ~closure_bound_names_inside ~value_slots ~value_slot_types set_of_closures =
   let closure_bound_names =
-    Closure_id.Lmap.map Bound_name.create_symbol closure_symbols
-    |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
+    Function_slot.Lmap.map Bound_name.create_symbol closure_symbols
+    |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
   let { set_of_closures; code; dacc } =
     simplify_set_of_closures0 context set_of_closures ~closure_bound_names
-      ~closure_bound_names_inside ~closure_elements ~closure_element_types
+      ~closure_bound_names_inside ~value_slots ~value_slot_types
   in
   let dacc = introduce_code dacc code in
   let code_patterns =
@@ -1281,26 +1274,24 @@ end
 let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
     ~closure_bound_names_all_sets ~simplify_toplevel =
   let all_sets_of_closures = List.map snd all_sets_of_closures_and_symbols in
-  let closure_elements_and_types_all_sets =
+  let value_slots_and_types_all_sets =
     List.map
       (fun set_of_closures ->
         let { can_lift = _;
-              closure_elements;
-              closure_element_types;
+              value_slots;
+              value_slot_types;
               symbol_projections = _
             } =
-          type_closure_elements_for_previously_lifted_set dacc
+          type_value_slots_for_previously_lifted_set dacc
             ~name_mode_of_bound_vars:Name_mode.normal set_of_closures
         in
-        closure_elements, closure_element_types)
+        value_slots, value_slot_types)
       all_sets_of_closures
   in
-  let closure_element_types_all_sets =
-    List.map snd closure_elements_and_types_all_sets
-  in
+  let value_slot_types_all_sets = List.map snd value_slots_and_types_all_sets in
   let context =
     C.create ~dacc_prior_to_sets:dacc ~simplify_toplevel ~all_sets_of_closures
-      ~closure_bound_names_all_sets ~closure_element_types_all_sets
+      ~closure_bound_names_all_sets ~value_slot_types_all_sets
   in
   let closure_bound_names_inside_functions_all_sets =
     C.closure_bound_names_inside_functions_all_sets context
@@ -1308,7 +1299,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
   List.fold_left3
     (fun (patterns_acc, static_consts_acc, dacc)
          (closure_symbols, set_of_closures) closure_bound_names_inside
-         (closure_elements, closure_element_types) ->
+         (value_slots, value_slot_types) ->
       let patterns, static_consts, dacc =
         if Set_of_closures.is_empty set_of_closures
         then
@@ -1325,7 +1316,7 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
           bound_static, static_consts, dacc
         else
           simplify_lifted_set_of_closures0 context ~closure_symbols
-            ~closure_bound_names_inside ~closure_elements ~closure_element_types
+            ~closure_bound_names_inside ~value_slots ~value_slot_types
             set_of_closures
       in
       (* The order doesn't matter here -- see comment in [Simplify_static_const]
@@ -1336,17 +1327,16 @@ let simplify_lifted_sets_of_closures dacc ~all_sets_of_closures_and_symbols
       Bound_static.concat patterns patterns_acc, static_const_group, dacc)
     (Bound_static.empty, Rebuilt_static_const.Group.empty, dacc)
     all_sets_of_closures_and_symbols
-    closure_bound_names_inside_functions_all_sets
-    closure_elements_and_types_all_sets
+    closure_bound_names_inside_functions_all_sets value_slots_and_types_all_sets
 
 let simplify_stub_function dacc code ~all_code ~simplify_toplevel =
   let context = C.create_for_stub dacc ~all_code ~simplify_toplevel in
-  let used_closure_vars = DA.used_closure_vars dacc in
+  let used_value_slots = DA.used_value_slots dacc in
   let shareable_constants = DA.shareable_constants dacc in
-  let closure_offsets = DA.closure_offsets dacc in
+  let slot_offsets = DA.slot_offsets dacc in
   let closure_bound_names_inside_function =
-    (* Unused, the type of the closure variable is going to be unknown *)
-    Closure_id.Map.empty
+    (* Unused, the type of the value slot is going to be unknown *)
+    Function_slot.Map.empty
   in
   let code_age_relation = DA.code_age_relation dacc in
   let lifted_consts_prev_functions = LCS.empty in
@@ -1356,8 +1346,8 @@ let simplify_stub_function dacc code ~all_code ~simplify_toplevel =
         uacc_after_upwards_traversal;
         lifted_consts_this_function
       } =
-    simplify_function0 context ~used_closure_vars ~shareable_constants
-      ~closure_offsets None (Code.code_id code) code
+    simplify_function0 context ~used_value_slots ~shareable_constants
+      ~slot_offsets None (Code.code_id code) code
       ~closure_bound_names_inside_function code_age_relation
       ~lifted_consts_prev_functions
   in
@@ -1368,11 +1358,11 @@ let simplify_stub_function dacc code ~all_code ~simplify_toplevel =
     | Some dacc_after_body ->
       TE.code_age_relation (DA.typing_env dacc_after_body)
   in
-  let used_closure_vars =
+  let used_value_slots =
     match uacc_after_upwards_traversal with
-    | None -> used_closure_vars
+    | None -> used_value_slots
     | Some uacc_after_upwards_traversal ->
-      UA.used_closure_vars uacc_after_upwards_traversal
+      UA.used_value_slots uacc_after_upwards_traversal
   in
   let shareable_constants =
     match uacc_after_upwards_traversal with
@@ -1380,23 +1370,23 @@ let simplify_stub_function dacc code ~all_code ~simplify_toplevel =
     | Some uacc_after_upwards_traversal ->
       UA.shareable_constants uacc_after_upwards_traversal
   in
-  let closure_offsets =
+  let slot_offsets =
     match uacc_after_upwards_traversal with
-    | None -> closure_offsets
+    | None -> slot_offsets
     | Some uacc_after_upwards_traversal -> (
-      let closure_offsets =
-        DA.closure_offsets (UA.creation_dacc uacc_after_upwards_traversal)
+      let slot_offsets =
+        DA.slot_offsets (UA.creation_dacc uacc_after_upwards_traversal)
       in
-      match UA.closure_offsets uacc_after_upwards_traversal with
-      | Unknown -> closure_offsets
-      | Known offsets -> Code_id.Map.add code_id offsets closure_offsets)
+      match UA.slot_offsets uacc_after_upwards_traversal with
+      | Unknown -> slot_offsets
+      | Known offsets -> Code_id.Map.add code_id offsets slot_offsets)
   in
   let dacc =
     DA.add_to_lifted_constant_accumulator ~also_add_to_env:() dacc
       lifted_consts_this_function
-    |> DA.with_used_closure_vars ~used_closure_vars
+    |> DA.with_used_value_slots ~used_value_slots
     |> DA.with_shareable_constants ~shareable_constants
-    |> DA.with_closure_offsets ~closure_offsets
+    |> DA.with_slot_offsets ~slot_offsets
     |> DA.map_denv
          ~f:
            (DE.map_typing_env ~f:(fun typing_env ->

@@ -79,14 +79,14 @@ module T : sig
     'head t ->
     Name_occurrences.t
 
-  val remove_unused_closure_vars_and_shortcut_aliases :
-    remove_unused_closure_vars_and_shortcut_aliases_head:
+  val remove_unused_value_slots_and_shortcut_aliases :
+    remove_unused_value_slots_and_shortcut_aliases_head:
       ('head ->
-      used_closure_vars:Var_within_closure.Set.t ->
+      used_value_slots:Value_slot.Set.t ->
       canonicalise:(Simple.t -> Simple.t) ->
       'head) ->
     'head t ->
-    used_closure_vars:Var_within_closure.Set.t ->
+    used_value_slots:Value_slot.Set.t ->
     canonicalise:(Simple.t -> Simple.t) ->
     'head t
 
@@ -130,14 +130,14 @@ end = struct
         Name_occurrences.downgrade_occurrences_at_strictly_greater_name_mode
           (Simple.free_names simple) Name_mode.in_types
 
-    let remove_unused_closure_vars_and_shortcut_aliases
-        ~remove_unused_closure_vars_and_shortcut_aliases_head t
-        ~used_closure_vars ~canonicalise =
+    let remove_unused_value_slots_and_shortcut_aliases
+        ~remove_unused_value_slots_and_shortcut_aliases_head t ~used_value_slots
+        ~canonicalise =
       match t with
       | No_alias head ->
         let head' =
-          remove_unused_closure_vars_and_shortcut_aliases_head head
-            ~used_closure_vars ~canonicalise
+          remove_unused_value_slots_and_shortcut_aliases_head head
+            ~used_value_slots ~canonicalise
         in
         if head == head' then t else No_alias head'
       | Equals alias ->
@@ -225,19 +225,19 @@ end = struct
           (WCFN.free_names_no_cache ~free_names_descr:free_names_head)
         descr
 
-  let remove_unused_closure_vars_and_shortcut_aliases
-      ~remove_unused_closure_vars_and_shortcut_aliases_head (t : _ t)
-      ~used_closure_vars ~canonicalise : _ t =
+  let remove_unused_value_slots_and_shortcut_aliases
+      ~remove_unused_value_slots_and_shortcut_aliases_head (t : _ t)
+      ~used_value_slots ~canonicalise : _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok descr ->
       let descr' =
-        Descr.remove_unused_closure_vars_and_shortcut_aliases
-          ~remove_unused_closure_vars_and_shortcut_aliases_head:
-            (WCFN.remove_unused_closure_vars_and_shortcut_aliases
-               ~remove_unused_closure_vars_and_shortcut_aliases_descr:
-                 remove_unused_closure_vars_and_shortcut_aliases_head)
-          descr ~used_closure_vars ~canonicalise
+        Descr.remove_unused_value_slots_and_shortcut_aliases
+          ~remove_unused_value_slots_and_shortcut_aliases_head:
+            (WCFN.remove_unused_value_slots_and_shortcut_aliases
+               ~remove_unused_value_slots_and_shortcut_aliases_descr:
+                 remove_unused_value_slots_and_shortcut_aliases_head)
+          descr ~used_value_slots ~canonicalise
       in
       if descr == descr' then t else Ok descr'
 

@@ -67,14 +67,14 @@ val free_names :
 val free_names_no_cache :
   free_names_head:('head -> Name_occurrences.t) -> 'head t -> Name_occurrences.t
 
-val remove_unused_closure_vars_and_shortcut_aliases :
-  remove_unused_closure_vars_and_shortcut_aliases_head:
+val remove_unused_value_slots_and_shortcut_aliases :
+  remove_unused_value_slots_and_shortcut_aliases_head:
     ('head ->
-    used_closure_vars:Var_within_closure.Set.t ->
+    used_value_slots:Value_slot.Set.t ->
     canonicalise:(Simple.t -> Simple.t) ->
     'head) ->
   'head t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
   'head t
 

@@ -265,8 +265,8 @@ exn_continuation_id:
 let_symbol(body):
   | KWD_LET;
     bindings = separated_nonempty_list(KWD_AND, symbol_binding);
-    closure_elements = with_closure_elements_opt;
-    KWD_IN; body = body; { { bindings; closure_elements; body } }
+    value_slots = with_value_slots_opt;
+    KWD_IN; body = body; { { bindings; value_slots; body } }
 ;
 
 symbol_binding:
@@ -319,7 +319,7 @@ static_closure_binding:
 static_set_of_closures:
   | KWD_SET_OF_CLOSURES;
     bindings = separated_nonempty_list(KWD_AND, static_closure_binding);
-    elements = with_closure_elements_opt;
+    elements = with_value_slots_opt;
     KWD_END
     { { bindings; elements } }
 
@@ -342,12 +342,12 @@ unop:
     RPAREN
     { Num_conv { src; dst } }
   | PRIM_OPAQUE { Opaque_identity }
-  | PRIM_PROJECT_VAR; project_from = closure_id; DOT; var = var_within_closure
-    { Project_var { project_from; var } }
+  | PRIM_PROJECT_VAR; project_from = function_slot; DOT; value_slot = value_slot
+    { Project_value_slot { project_from; value_slot } }
   | PRIM_SELECT_CLOSURE; LPAREN;
-      move_from = closure_id; MINUSGREATER; move_to = closure_id;
+      move_from = function_slot; MINUSGREATER; move_to = function_slot;
     RPAREN
-    { Select_closure { move_from; move_to } }
+    { Project_function_slot { move_from; move_to } }
   | PRIM_STRING_LENGTH { String_length String }
   | PRIM_TAG_IMM { Box_number Untagged_immediate }
   | PRIM_UNBOX_FLOAT { Unbox_number Naked_float }
@@ -618,11 +618,11 @@ let_(body):
 
     lmaurer: Let_symbol_expr.t still allows code and closure definitions to be
     mutually recursive, though, so we need some syntax that bundles them
-    together. Also, several closures can share the same closure elements.
+    together. Also, several sets of closures can share the same value slots.
  *)
-    closure_elements = with_closure_elements_opt;
+    value_slots = with_value_slots_opt;
     KWD_IN body = body;
-    { ({ bindings; closure_elements; body } : let_) }
+    { ({ bindings; value_slots; body } : let_) }
 ;
 
 let_binding:
@@ -630,7 +630,7 @@ let_binding:
     { { var; defining_expr } }
 ;
 
-with_closure_elements_opt:
+with_value_slots_opt:
   | { None }
   | KWD_WITH LBRACE;
       elements = separated_list(SEMICOLON, closure_element);
@@ -639,13 +639,13 @@ with_closure_elements_opt:
 ;
 
 closure_element:
-  | var = var_within_closure; EQUAL; value = simple; { { var; value; } }
+  | var = value_slot; EQUAL; value = simple; { { var; value; } }
 ;
 
 fun_decl:
   | KWD_CLOSURE; code_id = code_id;
-    closure_id = closure_id_opt;
-    { { code_id; closure_id; } }
+    function_slot = function_slot_opt;
+    { { code_id; function_slot; } }
 ;
 
 apply_expr:
@@ -669,8 +669,8 @@ apply_expr:
 
 call_kind:
   | { Function Indirect }
-  | KWD_DIRECT; LPAREN; code_id = code_id; closure_id = closure_id_opt; RPAREN
-    { Function (Direct { code_id; closure_id }) }
+  | KWD_DIRECT; LPAREN; code_id = code_id; function_slot = function_slot_opt; RPAREN
+    { Function (Direct { code_id; function_slot }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
     { C_call { alloc = not noalloc } }
 ;
@@ -866,13 +866,13 @@ code_id:
 code_size:
   | i = plain_int { i }
 
-closure_id:
+function_slot:
   | v = variable { v }
 ;
 
-closure_id_opt :
+function_slot_opt :
   | { None }
-  | AT; cid = closure_id { Some cid }
+  | AT; cid = function_slot { Some cid }
 ;
 
 symbol:
@@ -897,7 +897,7 @@ special_continuation:
   | KWD_ERROR { Error }
 ;
 
-var_within_closure:
+value_slot:
   | e = IDENT { make_located e ($startpos, $endpos) }
 ;
 

@@ -215,7 +215,7 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
     Static_const_group.match_against_bound_static static_consts bound_static
       ~init:dacc
       ~set_of_closures:(fun dacc ~closure_symbols _ ->
-        Closure_id.Lmap.fold
+        Function_slot.Lmap.fold
           (fun _ closure_symbol dacc ->
             DA.with_denv dacc
               (DE.define_symbol (DA.denv dacc) closure_symbol K.value))
@@ -314,12 +314,12 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
         (fun (closure_bound_names_all_sets, sets_of_closures) ~closure_symbols
              set_of_closures ->
         let closure_bound_names =
-          Closure_id.Lmap.fold
-            (fun closure_id symbol closure_bound_names_all_sets ->
-              Closure_id.Map.add closure_id
+          Function_slot.Lmap.fold
+            (fun function_slot symbol closure_bound_names_all_sets ->
+              Function_slot.Map.add function_slot
                 (Bound_name.create_symbol symbol)
                 closure_bound_names_all_sets)
-            closure_symbols Closure_id.Map.empty
+            closure_symbols Function_slot.Map.empty
         in
         ( closure_bound_names :: closure_bound_names_all_sets,
           (closure_symbols, set_of_closures) :: sets_of_closures ))

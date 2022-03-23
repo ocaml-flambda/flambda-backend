@@ -58,8 +58,8 @@ type unboxing_decision =
         fields_by_tag : field_decision list Tag.Scannable.Map.t
       }
   | Closure_single_entry of
-      { closure_id : Closure_id.t;
-        vars_within_closure : field_decision Var_within_closure.Map.t
+      { function_slot : Function_slot.t;
+        vars_within_closure : field_decision Value_slot.Map.t
       }
   | Number of Flambda_kind.Naked_number_kind.t * Extra_param_and_args.t
 
@@ -114,12 +114,12 @@ let rec print_decision ppf = function
       Extra_param_and_args.print tag print_const_ctor_num const_ctors
       (Tag.Scannable.Map.print print_fields_decisions)
       fields_by_tag
-  | Unbox (Closure_single_entry { closure_id; vars_within_closure }) ->
+  | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     Format.fprintf ppf
-      "@[<hov 1>(closure_single_entry@ @[<hov>(closure_id@ %a)@]@ @[<hv \
-       2>(var_within_closures@ %a)@])@]"
-      Closure_id.print closure_id
-      (Var_within_closure.Map.print print_field_decision)
+      "@[<hov 1>(closure_single_entry@ @[<hov>(function_slot@ %a)@]@ @[<hv \
+       2>(value_slots@ %a)@])@]"
+      Function_slot.print function_slot
+      (Value_slot.Map.print print_field_decision)
       vars_within_closure
   | Unbox (Number (kind, epa)) ->
     Format.fprintf ppf

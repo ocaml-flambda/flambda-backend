@@ -46,7 +46,7 @@ type elt =
     apply_result_conts : Continuation.Set.t;
     bindings : Name_occurrences.t Name.Map.t;
     code_ids : Name_occurrences.t Code_id.Map.t;
-    closure_envs : Name_occurrences.t Name.Map.t Var_within_closure.Map.t;
+    closure_envs : Name_occurrences.t Name.Map.t Value_slot.Map.t;
     apply_cont_args :
       Name_occurrences.t Numeric_types.Int.Map.t Continuation.Map.t
   }
@@ -87,7 +87,7 @@ let print_elt ppf
     bindings
     (Code_id.Map.print Name_occurrences.print)
     code_ids
-    (Var_within_closure.Map.print (Name.Map.print Name_occurrences.print))
+    (Value_slot.Map.print (Name.Map.print Name_occurrences.print))
     closure_envs
     (Continuation.Map.print
        (Numeric_types.Int.Map.print Name_occurrences.print))
@@ -145,7 +145,7 @@ let enter_continuation continuation params t =
       params;
       bindings = Name.Map.empty;
       code_ids = Code_id.Map.empty;
-      closure_envs = Var_within_closure.Map.empty;
+      closure_envs = Value_slot.Map.empty;
       used_in_handler = Name_occurrences.empty;
       apply_cont_args = Continuation.Map.empty;
       apply_result_conts = Continuation.Set.empty
@@ -235,10 +235,10 @@ let record_code_id_binding code_id name_occurrences t =
       in
       { elt with code_ids })
 
-let record_closure_element_binding src closure_var dst t =
+let record_closure_element_binding src value_slot dst t =
   update_top_of_stack ~t ~f:(fun elt ->
       let closure_envs =
-        Var_within_closure.Map.update closure_var
+        Value_slot.Map.update value_slot
           (function
             | None -> Some (Name.Map.singleton src dst)
             | Some map ->
@@ -529,7 +529,7 @@ module Dependency_graph = struct
     { t with unconditionally_used; code_id_unconditionally_used }
 
   let add_continuation_info map ~return_continuation ~exn_continuation
-      ~used_closure_vars _
+      ~used_value_slots _
       { apply_cont_args;
         apply_result_conts;
         used_in_handler;
@@ -542,16 +542,16 @@ module Dependency_graph = struct
     (* Add the vars used in the handler *)
     let t = add_name_occurrences used_in_handler t in
     (* Add the dependencies created by closures vars in envs *)
-    let is_closure_var_used =
-      match (used_closure_vars : _ Or_unknown.t) with
+    let is_value_slot_used =
+      match (used_value_slots : _ Or_unknown.t) with
       | Unknown -> fun _ -> true
-      | Known used_closure_vars ->
-        Name_occurrences.closure_var_is_used_or_imported used_closure_vars
+      | Known used_value_slots ->
+        Name_occurrences.value_slot_is_used_or_imported used_value_slots
     in
     let t =
-      Var_within_closure.Map.fold
-        (fun closure_var map t ->
-          if not (is_closure_var_used closure_var)
+      Value_slot.Map.fold
+        (fun value_slot map t ->
+          if not (is_value_slot_used value_slot)
           then t
           else
             Name.Map.fold
@@ -634,13 +634,13 @@ module Dependency_graph = struct
       apply_cont_args t
 
   let create ~return_continuation ~exn_continuation ~code_age_relation
-      ~used_closure_vars map extra =
+      ~used_value_slots map extra =
     (* Build the dependencies using the regular params and args of
        continuations, and the let-bindings in continuations handlers. *)
     let t =
       Continuation.Map.fold
         (add_continuation_info map ~return_continuation ~exn_continuation
-           ~used_closure_vars)
+           ~used_value_slots)
         map (empty code_age_relation)
     in
     (* Take into account the extra params and args. *)
@@ -711,12 +711,12 @@ end
 (* ******** *)
 
 let analyze ~return_continuation ~exn_continuation ~code_age_relation
-    ~used_closure_vars { stack; map; extra } =
+    ~used_value_slots { stack; map; extra } =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       assert (stack = []);
       let deps =
         Dependency_graph.create map extra ~return_continuation ~exn_continuation
-          ~code_age_relation ~used_closure_vars
+          ~code_age_relation ~used_value_slots
       in
       (* Format.eprintf "/// graph@\n%a@\n@." Dependency_graph._print deps; *)
       let result = Dependency_graph.required_names deps in

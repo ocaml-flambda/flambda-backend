@@ -333,18 +333,20 @@ let match_against_bound_static_pattern t (pat : Bound_static.Pattern.t)
     ~set_of_closures:set_of_closures_callback ~block_like:block_like_callback =
   match t, pat with
   | Set_of_closures set_of_closures, Set_of_closures closure_symbols ->
-    let closure_ids =
+    let function_slots =
       Set_of_closures.function_decls set_of_closures
-      |> Function_declarations.funs_in_order |> Closure_id.Lmap.keys
+      |> Function_declarations.funs_in_order |> Function_slot.Lmap.keys
     in
-    let closure_ids' = Closure_id.Lmap.keys closure_symbols in
-    let closure_ids_match =
+    let function_slots' = Function_slot.Lmap.keys closure_symbols in
+    let function_slots_match =
       (* Note that we check the order here. *)
-      Misc.Stdlib.List.compare Closure_id.compare closure_ids closure_ids' = 0
+      Misc.Stdlib.List.compare Function_slot.compare function_slots
+        function_slots'
+      = 0
     in
-    if not closure_ids_match
+    if not function_slots_match
     then
-      Misc.fatal_errorf "Mismatch on declared closure IDs:@ %a@ =@ %a"
+      Misc.fatal_errorf "Mismatch on declared function slots:@ %a@ =@ %a"
         Bound_static.Pattern.print pat print t;
     set_of_closures_callback ~closure_symbols set_of_closures
   | ( ( Block _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _

@@ -205,12 +205,12 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
   | Unbox (Unique_tag_and_size { tag; fields }) ->
     compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
       arg_being_unboxed tag fields
-  | Unbox (Closure_single_entry { closure_id; vars_within_closure }) ->
+  | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     if are_there_unknown_use_sites pass
     then prevent_current_unboxing ()
     else
       compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
-        arg_being_unboxed closure_id vars_within_closure
+        arg_being_unboxed function_slot vars_within_closure
   | Unbox
       (Variant { tag; const_ctors = const_ctors_from_decision; fields_by_tag })
     -> (
@@ -299,11 +299,11 @@ and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
   Unbox (Unique_tag_and_size { tag; fields })
 
 and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
-    arg_being_unboxed closure_id vars_within_closure : U.decision =
+    arg_being_unboxed function_slot vars_within_closure : U.decision =
   let vars_within_closure =
-    Var_within_closure.Map.mapi
+    Value_slot.Map.mapi
       (fun var ({ epa; decision } : U.field_decision) : U.field_decision ->
-        let unboxer = Unboxers.Closure_field.unboxer closure_id var in
+        let unboxer = Unboxers.Closure_field.unboxer function_slot var in
         let new_extra_arg, new_arg_being_unboxed =
           unbox_arg unboxer ~typing_env_at_use arg_being_unboxed
         in
@@ -317,7 +317,7 @@ and compute_extra_args_for_closure ~pass rewrite_id ~typing_env_at_use
         { epa; decision })
       vars_within_closure
   in
-  Unbox (Closure_single_entry { closure_id; vars_within_closure })
+  Unbox (Closure_single_entry { function_slot; vars_within_closure })
 
 and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
     arg_being_unboxed ~tag_from_decision ~const_ctors_from_decision
@@ -435,8 +435,8 @@ let add_extra_params_and_args extra_params_and_args decision =
           in
           aux extra_params_and_args decision)
         extra_params_and_args fields
-    | Unbox (Closure_single_entry { closure_id = _; vars_within_closure }) ->
-      Var_within_closure.Map.fold
+    | Unbox (Closure_single_entry { function_slot = _; vars_within_closure }) ->
+      Value_slot.Map.fold
         (fun _ ({ epa; decision } : U.field_decision) extra_params_and_args ->
           let extra_param = BP.create epa.param K.With_subkind.any_value in
           let extra_params_and_args =

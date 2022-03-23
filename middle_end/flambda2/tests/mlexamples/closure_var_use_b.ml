@@ -9,11 +9,11 @@ let _ =
   (* Here the join should give us a type for [g] that is a known closure, with
      its code ID being the common ancestor between the two branches, i.e. the
      original code ID from [A] for the anonymous function. The new code IDs
-     created in each branch do not need the [x] closure variable, as it is a
-     known constant in both cases, but the ancestor still needs it.
+     created in each branch do not need the [x] value slot, as it is a known
+     constant in both cases, but the ancestor still needs it.
 
-     This test will fail if we remove the closure variable [x] from the closure
+     This test will fail if we remove the value slot [x] from the closure
      allocations in the branches. (Note that inlining [g] would introduce a
      projection in this compilation unit, which would obviously ensure that we
-     don't remove the closure variable). *)
+     don't remove the value slot). *)
   (g [@inlined never]) 2

@@ -174,15 +174,13 @@ module Acc : sig
   type t
 
   val create :
-    symbol_for_global:(Ident.t -> Symbol.t) ->
-    closure_offsets:Closure_offsets.t ->
-    t
+    symbol_for_global:(Ident.t -> Symbol.t) -> slot_offsets:Slot_offsets.t -> t
 
   val declared_symbols : t -> (Symbol.t * Static_const.t) list
 
   val lifted_sets_of_closures :
     t ->
-    ((Symbol.t * Env.value_approximation) Closure_id.Lmap.t
+    ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
     * Flambda.Set_of_closures.t)
     list
 
@@ -199,7 +197,7 @@ module Acc : sig
   val add_declared_symbol : symbol:Symbol.t -> constant:Static_const.t -> t -> t
 
   val add_lifted_set_of_closures :
-    symbols:(Symbol.t * Env.value_approximation) Closure_id.Lmap.t ->
+    symbols:(Symbol.t * Env.value_approximation) Function_slot.Lmap.t ->
     set_of_closures:Flambda.Set_of_closures.t ->
     t ->
     t
@@ -240,7 +238,7 @@ module Acc : sig
 
   val symbol_for_global : t -> Ident.t -> Symbol.t
 
-  val closure_offsets : t -> Closure_offsets.t
+  val slot_offsets : t -> Slot_offsets.t
 
   val add_set_of_closures_offsets :
     is_phantom:bool -> t -> Set_of_closures.t -> t
@@ -259,7 +257,7 @@ module Function_decls : sig
 
     val create :
       let_rec_ident:Ident.t option ->
-      closure_id:Closure_id.t ->
+      function_slot:Function_slot.t ->
       kind:Lambda.function_kind ->
       params:(Ident.t * Lambda.value_kind) list ->
       return:Lambda.value_kind ->
@@ -278,7 +276,7 @@ module Function_decls : sig
 
     val let_rec_ident : t -> Ident.t
 
-    val closure_id : t -> Closure_id.t
+    val function_slot : t -> Function_slot.t
 
     val kind : t -> Lambda.function_kind
 

@@ -65,7 +65,7 @@ val record_code_id_binding : Code_id.t -> Name_occurrences.t -> t -> t
 
 (** Add a closure elemnt binding from the current handler. *)
 val record_closure_element_binding :
-  Name.t -> Var_within_closure.t -> Name_occurrences.t -> t -> t
+  Name.t -> Value_slot.t -> Name_occurrences.t -> t -> t
 
 (** Add name occurrences used in the body of the current continuation's handler,
     *excluding* uses in apply_cont expressions, which are tracked separately. *)
@@ -109,6 +109,6 @@ val analyze :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   code_age_relation:Code_age_relation.t ->
-  used_closure_vars:Name_occurrences.t Or_unknown.t ->
+  used_value_slots:Name_occurrences.t Or_unknown.t ->
   t ->
   result

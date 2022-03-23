@@ -17,119 +17,119 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { closures : Closure_id.Set.t;
-    closure_vars : Var_within_closure.Set.t
+  { closures : Function_slot.Set.t;
+    value_slots : Value_slot.Set.t
   }
 
 include Container_types.Make (struct
   type nonrec t = t
 
-  let [@ocamlformat "disable"] print ppf { closures; closure_vars; } =
+  let [@ocamlformat "disable"] print ppf { closures; value_slots; } =
     Format.fprintf ppf "@[<hov 1>(\
           @[<hov 1>(closures@ %a)@]@ \
-          @[<hov 1>(closure_vars@ %a)@]\
+          @[<hov 1>(value_slots@ %a)@]\
           )@]"
-      Closure_id.Set.print closures
-      Var_within_closure.Set.print closure_vars
+      Function_slot.Set.print closures
+      Value_slot.Set.print value_slots
 
-  let compare { closures = closures1; closure_vars = closure_vars1 }
-      { closures = closures2; closure_vars = closure_vars2 } =
-    let c = Closure_id.Set.compare closures1 closures2 in
-    if c <> 0
-    then c
-    else Var_within_closure.Set.compare closure_vars1 closure_vars2
+  let compare { closures = closures1; value_slots = value_slots1 }
+      { closures = closures2; value_slots = value_slots2 } =
+    let c = Function_slot.Set.compare closures1 closures2 in
+    if c <> 0 then c else Value_slot.Set.compare value_slots1 value_slots2
 
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash _ = Misc.fatal_error "Not yet implemented"
 end)
 
-let create closures closure_vars = { closures; closure_vars }
+let create closures value_slots = { closures; value_slots }
 
 let closures t = t.closures
 
-let closure_vars t = t.closure_vars
+let value_slots t = t.value_slots
 
-let subset { closures = closures1; closure_vars = closure_vars1 }
-    { closures = closures2; closure_vars = closure_vars2 } =
-  Closure_id.Set.subset closures1 closures2
-  && Var_within_closure.Set.subset closure_vars1 closure_vars2
+let subset { closures = closures1; value_slots = value_slots1 }
+    { closures = closures2; value_slots = value_slots2 } =
+  Function_slot.Set.subset closures1 closures2
+  && Value_slot.Set.subset value_slots1 value_slots2
 
-let union { closures = closures1; closure_vars = closure_vars1 }
-    { closures = closures2; closure_vars = closure_vars2 } =
-  let closures = Closure_id.Set.union closures1 closures2 in
-  let closure_vars = Var_within_closure.Set.union closure_vars1 closure_vars2 in
-  { closures; closure_vars }
+let union { closures = closures1; value_slots = value_slots1 }
+    { closures = closures2; value_slots = value_slots2 } =
+  let closures = Function_slot.Set.union closures1 closures2 in
+  let value_slots = Value_slot.Set.union value_slots1 value_slots2 in
+  { closures; value_slots }
 
-let inter { closures = closures1; closure_vars = closure_vars1 }
-    { closures = closures2; closure_vars = closure_vars2 } =
-  let closures = Closure_id.Set.inter closures1 closures2 in
-  let closure_vars = Var_within_closure.Set.inter closure_vars1 closure_vars2 in
-  { closures; closure_vars }
+let inter { closures = closures1; value_slots = value_slots1 }
+    { closures = closures2; value_slots = value_slots2 } =
+  let closures = Function_slot.Set.inter closures1 closures2 in
+  let value_slots = Value_slot.Set.inter value_slots1 value_slots2 in
+  { closures; value_slots }
 
-let apply_renaming { closures; closure_vars } renaming =
-  let closure_vars =
-    Var_within_closure.Set.filter
-      (fun var -> Renaming.closure_var_is_used renaming var)
-      closure_vars
+let apply_renaming { closures; value_slots } renaming =
+  let value_slots =
+    Value_slot.Set.filter
+      (fun var -> Renaming.value_slot_is_used renaming var)
+      value_slots
   in
-  { closures; closure_vars }
+  { closures; value_slots }
 
-let free_names { closures = _; closure_vars } =
-  Var_within_closure.Set.fold
-    (fun closure_var free_names ->
-      Name_occurrences.add_closure_var_in_types free_names closure_var)
-    closure_vars Name_occurrences.empty
+let free_names { closures = _; value_slots } =
+  Value_slot.Set.fold
+    (fun value_slot free_names ->
+      Name_occurrences.add_value_slot_in_types free_names value_slot)
+    value_slots Name_occurrences.empty
 
-let remove_unused_closure_vars { closures; closure_vars } ~used_closure_vars =
-  (* CR mshinwell: Consider adding [Used_closure_vars.t] *)
-  let closure_vars =
-    Var_within_closure.Set.filter
+let remove_unused_value_slots { closures; value_slots } ~used_value_slots =
+  (* CR mshinwell: Consider adding [Used_value_slots.t] *)
+  let value_slots =
+    Value_slot.Set.filter
       (fun var ->
         (not
-           (Var_within_closure.in_compilation_unit var
+           (Value_slot.in_compilation_unit var
               (Compilation_unit.get_current_exn ())))
-        || Var_within_closure.Set.mem var used_closure_vars)
-      closure_vars
+        || Value_slot.Set.mem var used_value_slots)
+      value_slots
   in
-  { closures; closure_vars }
+  { closures; value_slots }
 
-module With_closure_id = struct
-  type nonrec t = Closure_id.t * t
+module With_function_slot = struct
+  type nonrec t = Function_slot.t * t
 
   include Container_types.Make (struct
     type nonrec t = t
 
-    let [@ocamlformat "disable"] print ppf (closure_id, contents) =
+    let [@ocamlformat "disable"] print ppf (function_slot, contents) =
       Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
-        Closure_id.print closure_id
+        Function_slot.print function_slot
         print contents
 
     let hash _ = Misc.fatal_error "Not yet implemented"
 
-    let compare (closure_id1, contents1) (closure_id2, contents2) =
-      let c = Closure_id.compare closure_id1 closure_id2 in
+    let compare (function_slot1, contents1) (function_slot2, contents2) =
+      let c = Function_slot.compare function_slot1 function_slot2 in
       if c <> 0 then c else compare contents1 contents2
 
     let equal t1 t2 = compare t1 t2 = 0
   end)
 end
 
-module With_closure_id_or_unknown = struct
-  type nonrec t = Closure_id.t Or_unknown.t * t
+module With_function_slot_or_unknown = struct
+  type nonrec t = Function_slot.t Or_unknown.t * t
 
   include Container_types.Make (struct
     type nonrec t = t
 
-    let [@ocamlformat "disable"] print ppf (closure_id_or_unknown, contents) =
+    let [@ocamlformat "disable"] print ppf (function_slot_or_unknown, contents) =
       Format.fprintf ppf "@[<hov 1>(%a@ %a)@]"
-        (Or_unknown.print Closure_id.print) closure_id_or_unknown
+        (Or_unknown.print Function_slot.print) function_slot_or_unknown
         print contents
 
     let hash _ = Misc.fatal_error "Not yet implemented"
 
-    let compare (closure_id1, contents1) (closure_id2, contents2) =
-      let c = Or_unknown.compare Closure_id.compare closure_id1 closure_id2 in
+    let compare (function_slot1, contents1) (function_slot2, contents2) =
+      let c =
+        Or_unknown.compare Function_slot.compare function_slot1 function_slot2
+      in
       if c <> 0 then c else compare contents1 contents2
 
     let equal t1 t2 = compare t1 t2 = 0

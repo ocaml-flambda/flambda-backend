@@ -16,14 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Var_within_closure.Set.t
+type t = Function_slot.Set.t
 
-let empty = Var_within_closure.Set.empty
+include Container_types.S with type t := t
 
-include Container_types.Make (struct
-  include Var_within_closure.Set
+include Contains_names.S with type t := t
 
-  let hash = Hashtbl.hash
-end)
-
-let subset t1 t2 = Var_within_closure.Set.subset t1 t2
+val subset : t -> t -> bool

@@ -178,7 +178,7 @@ let build_dep_graph t =
                  closure symbols (in the current set) to all of the others (in
                  the current set). *)
               ListLabels.fold_left
-                (Closure_id.Lmap.data closure_symbols_with_types)
+                (Function_slot.Lmap.data closure_symbols_with_types)
                 ~init:free_names ~f:(fun free_names (symbol, _) ->
                   Name_occurrences.add_symbol free_names symbol Name_mode.normal)
           in

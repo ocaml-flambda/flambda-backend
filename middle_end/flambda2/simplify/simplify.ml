@@ -70,25 +70,27 @@ let run ~cmx_loader ~round unit =
       (Exported_code.mark_as_imported (get_imported_code ()))
   in
   let name_occurrences = UA.name_occurrences uacc in
-  let closure_ids_in_normal_projections =
-    Name_occurrences.closure_ids_in_normal_projections name_occurrences
+  let function_slots_in_normal_projections =
+    Name_occurrences.function_slots_in_normal_projections name_occurrences
   in
-  let closure_vars_in_normal_projections =
-    Name_occurrences.closure_vars_in_normal_projections name_occurrences
+  let value_slots_in_normal_projections =
+    Name_occurrences.value_slots_in_normal_projections name_occurrences
   in
-  let all_closure_ids = Name_occurrences.all_closure_ids name_occurrences in
-  let all_closure_vars = Name_occurrences.all_closure_vars name_occurrences in
-  let used_closure_vars, exported_offsets =
-    match UA.closure_offsets uacc with
+  let all_function_slots =
+    Name_occurrences.all_function_slots name_occurrences
+  in
+  let all_value_slots = Name_occurrences.all_value_slots name_occurrences in
+  let used_value_slots, exported_offsets =
+    match UA.slot_offsets uacc with
     | Unknown ->
-      Misc.fatal_error "Closure offsets must be computed and cannot be unknown"
-    | Known closure_offsets -> (
-      let used_names : Closure_offsets.used_names Or_unknown.t =
+      Misc.fatal_error "Slot offsets must be computed and cannot be unknown"
+    | Known slot_offsets -> (
+      let used_slots : Slot_offsets.used_slots Or_unknown.t =
         Known
-          { closure_ids_in_normal_projections;
-            all_closure_ids;
-            closure_vars_in_normal_projections;
-            all_closure_vars
+          { function_slots_in_normal_projections;
+            all_function_slots;
+            value_slots_in_normal_projections;
+            all_value_slots
           }
       in
       let get_code_metadata code_id =
@@ -96,22 +98,22 @@ let run ~cmx_loader ~round unit =
         |> Code_or_metadata.code_metadata
       in
       match
-        Closure_offsets.finalize_offsets closure_offsets ~get_code_metadata
-          ~used_names
+        Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata
+          ~used_slots
       with
-      | Known used_closure_vars, offsets -> used_closure_vars, offsets
+      | Known used_value_slots, offsets -> used_value_slots, offsets
       | Unknown, _ ->
         (* could be an assert false *)
         Misc.fatal_error
-          "Closure offsets should not have returned Unknown when given a known \
+          "Slot_offsets should not have returned Unknown when given a Known \
            used_names.")
   in
   let cmx =
     Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
-      ~used_closure_vars ~exported_offsets all_code
+      ~used_value_slots ~exported_offsets all_code
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~module_symbol ~body
-      ~used_closure_vars:(Known used_closure_vars)
+      ~used_value_slots:(Known used_value_slots)
   in
   { cmx; unit; all_code; exported_offsets }

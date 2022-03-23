@@ -93,11 +93,11 @@ let ident ppf s =
 
 let variable ppf { txt = s; loc = _ } = ident ppf s
 
-let var_within_closure ppf { txt = s; loc = _ } = ident ppf s
+let value_slot ppf { txt = s; loc = _ } = ident ppf s
 
 let code_id ppf ({ txt = s; loc = _ } : code_id) = ident ppf s
 
-let closure_id ppf ({ txt = s; loc = _ } : closure_id) = ident ppf s
+let function_slot ppf ({ txt = s; loc = _ } : function_slot) = ident ppf s
 
 let continuation_id ppf ({ txt = s; loc = _ } : continuation_id) = ident ppf s
 
@@ -432,12 +432,12 @@ let unop ppf u =
     Format.fprintf ppf "@[<2>%%num_conv@ (%a@ -> %a)@]" convertible_type src
       convertible_type dst
   | Opaque_identity -> str "%Opaque"
-  | Project_var { project_from; var } ->
-    Format.fprintf ppf "@[<2>%%project_var@ %a.%a@]" closure_id project_from
-      var_within_closure var
-  | Select_closure { move_from; move_to } ->
-    Format.fprintf ppf "@[<2>%%select_closure@ (%a@ -> %a)@]" closure_id
-      move_from closure_id move_to
+  | Project_value_slot { project_from; value_slot = value_slot' } ->
+    Format.fprintf ppf "@[<2>%%project_var@ %a.%a@]" function_slot project_from
+      value_slot value_slot'
+  | Project_function_slot { move_from; move_to } ->
+    Format.fprintf ppf "@[<2>%%select_closure@ (%a@ -> %a)@]" function_slot
+      move_from function_slot move_to
   | String_length Bytes -> str "%bytes_length"
   | String_length String -> str "%string_length"
   | Unbox_number bk -> box_or_unbox "unbox" "untag" bk
@@ -491,23 +491,22 @@ let apply_cont ppf (ac : Fexpr.apply_cont) =
 
 let switch_case ppf (v, c) = Format.fprintf ppf "@;| %i -> %a" v apply_cont c
 
-let closure_elements ppf = function
+let value_slots ppf = function
   | None -> ()
   | Some ces ->
     Format.fprintf ppf "@ @[<hv2>with {";
     pp_list ~sep:";"
-      (fun ppf ({ var; value } : closure_element) ->
-        Format.fprintf ppf "@ @[<hv2>%a =@ %a@]" var_within_closure var simple
-          value)
+      (fun ppf ({ var; value } : one_value_slot) ->
+        Format.fprintf ppf "@ @[<hv2>%a =@ %a@]" value_slot var simple value)
       ppf ces;
     Format.fprintf ppf "@;<1 -2>}@]"
 
 let fun_decl ppf (decl : fun_decl) =
-  let pp_at_closure_id ppf cid =
-    pp_option ~space:Before (pp_like "@@%a" closure_id) ppf cid
+  let pp_at_function_slot ppf cid =
+    pp_option ~space:Before (pp_like "@@%a" function_slot) ppf cid
   in
   Format.fprintf ppf "@[<2>closure@ %a%a@]" code_id decl.code_id
-    pp_at_closure_id decl.closure_id
+    pp_at_function_slot decl.function_slot
 
 let named ppf = function
   | (Simple s : named) -> simple ppf s
@@ -522,9 +521,9 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 let call_kind ~space ppf ck =
   match ck with
   | Function Indirect -> ()
-  | Function (Direct { code_id = c; closure_id = cl }) ->
+  | Function (Direct { code_id = c; function_slot = cl }) ->
     pp_spaced ~space ppf "@[direct(%a%a)@]" code_id c
-      (pp_option ~space:Before (pp_like "@@%a" closure_id))
+      (pp_option ~space:Before (pp_like "@@%a" function_slot))
       cl
   | C_call { alloc } ->
     let noalloc_kwd = if alloc then None else Some "noalloc" in
@@ -638,7 +637,7 @@ let rec expr scope ppf = function
       args result_continuation ret exn_continuation ek
 
 and let_expr scope ppf : let_ -> unit = function
-  | { bindings = first :: rest; body; closure_elements = ces } ->
+  | { bindings = first :: rest; body; value_slots = ces } ->
     Format.fprintf ppf "@[<v>@[<hv>@[<hv2>let %a =@ %a@]" variable first.var
       named first.defining_expr;
     List.iter
@@ -646,14 +645,13 @@ and let_expr scope ppf : let_ -> unit = function
         Format.fprintf ppf "@ @[<hv2>and %a =@ %a@]" variable var named
           defining_expr)
       rest;
-    Format.fprintf ppf "%a@ in@]@ %a@]" closure_elements ces (expr scope) body
+    Format.fprintf ppf "%a@ in@]@ %a@]" value_slots ces (expr scope) body
   | _ -> failwith "empty let?"
 
 and let_symbol_expr scope ppf = function
-  | { bindings; closure_elements; body } ->
+  | { bindings; value_slots; body } ->
     Format.fprintf ppf "@[<v>@[<hv>@[<hv2>let %a@]@ in@]@ %a@]" symbol_bindings
-      (bindings, closure_elements)
-      (expr scope) body
+      (bindings, value_slots) (expr scope) body
 
 and andk ppf l =
   let cont { name; params; sort; handler } =
@@ -673,7 +671,7 @@ and symbol_bindings ppf (bindings, elements) =
       Format.fprintf ppf "%a%a" pp_and () symbol_binding b;
       first := false)
     bindings;
-  closure_elements ppf elements
+  value_slots ppf elements
 
 and symbol_binding ppf (sb : symbol_binding) =
   match sb with

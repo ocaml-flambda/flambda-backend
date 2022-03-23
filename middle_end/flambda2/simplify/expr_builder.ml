@@ -45,31 +45,31 @@ let equal_let_creation_results r1 r2 =
 
 let add_set_of_closures_offsets ~is_phantom named uacc =
   let add_set uacc set_of_closures =
-    match UA.closure_offsets uacc with
+    match UA.slot_offsets uacc with
     | Unknown -> uacc
-    | Known closure_offsets ->
-      let closure_offsets =
-        Closure_offsets.add_set_of_closures closure_offsets ~is_phantom
+    | Known slot_offsets ->
+      let slot_offsets =
+        Slot_offsets.add_set_of_closures slot_offsets ~is_phantom
           set_of_closures
       in
-      UA.with_closure_offsets uacc (Known closure_offsets)
+      UA.with_slot_offsets uacc (Known slot_offsets)
   in
   let add_offsets_from_code uacc code =
-    match UA.closure_offsets uacc with
+    match UA.slot_offsets uacc with
     | Unknown -> uacc
-    | Known closure_offsets ->
+    | Known slot_offsets ->
       let dacc = UA.creation_dacc uacc in
       let code_id = Code.code_id code in
       let from_function =
-        try Code_id.Map.find code_id (DA.closure_offsets dacc)
+        try Code_id.Map.find code_id (DA.slot_offsets dacc)
         with Not_found ->
           Misc.fatal_errorf "Missing offsets for code ID %a" Code_id.print
             code_id
       in
-      let closure_offsets =
-        Closure_offsets.add_offsets_from_function closure_offsets ~from_function
+      let slot_offsets =
+        Slot_offsets.add_offsets_from_function slot_offsets ~from_function
       in
-      UA.with_closure_offsets uacc (Known closure_offsets)
+      UA.with_slot_offsets uacc (Known slot_offsets)
   in
   match (named : Named.t) with
   | Set_of_closures s -> add_set uacc s
@@ -445,19 +445,18 @@ let create_let_symbol0 uacc (bound_static : Bound_static.t)
   in
   expr, uacc
 
-let remove_unused_closure_vars uacc static_const =
+let remove_unused_value_slots uacc static_const =
   Rebuilt_static_const.map_set_of_closures static_const
     ~f:(fun set_of_closures ->
-      let name_occurrences = UA.used_closure_vars uacc in
-      let closure_vars = Set_of_closures.closure_elements set_of_closures in
-      let closure_elements =
-        Var_within_closure.Map.filter
-          (fun closure_var _ ->
-            Name_occurrences.closure_var_is_used_or_imported name_occurrences
-              closure_var)
-          closure_vars
+      let name_occurrences = UA.used_value_slots uacc in
+      let value_slots =
+        Value_slot.Map.filter
+          (fun value_slot _ ->
+            Name_occurrences.value_slot_is_used_or_imported name_occurrences
+              value_slot)
+          (Set_of_closures.value_slots set_of_closures)
       in
-      Set_of_closures.create ~closure_elements
+      Set_of_closures.create ~value_slots
         (Set_of_closures.alloc_mode set_of_closures)
         (Set_of_closures.function_decls set_of_closures))
 
@@ -467,7 +466,7 @@ let create_let_symbols uacc lifted_constant ~body =
   let static_consts =
     Rebuilt_static_const.Group.map
       (LC.defining_exprs lifted_constant)
-      ~f:(remove_unused_closure_vars uacc)
+      ~f:(remove_unused_value_slots uacc)
   in
   let expr, uacc = create_let_symbol0 uacc bound_static static_consts ~body in
   Variable.Map.fold
@@ -533,8 +532,8 @@ let create_let_symbols uacc lifted_constant ~body =
                   }
               in
               Binary (Block_load (block_access_kind, Immutable), symbol, index)
-            | Project_var { project_from; var } ->
-              Unary (Project_var { project_from; var }, symbol)
+            | Project_value_slot { project_from; value_slot } ->
+              Unary (Project_value_slot { project_from; value_slot }, symbol)
           in
           ( Named.create_prim prim Debuginfo.none,
             coercion_from_proj_to_var,

@@ -16,8 +16,8 @@
 
 include Container_types.S
 
-val create : Closure_id.t -> t
+val create : Function_slot.t -> t
 
 val get_compilation_unit : t -> Compilation_unit.t
 
-val rename : (Closure_id.t -> Closure_id.t) -> t -> t
+val rename : (Function_slot.t -> Function_slot.t) -> t -> t

@@ -21,7 +21,7 @@
 type 'code t =
   | Value_unknown
   | Value_symbol of Symbol.t
-  | Closure_approximation of Code_id.t * Closure_id.t * 'code
+  | Closure_approximation of Code_id.t * Function_slot.t * 'code
   | Block_approximation of 'code t array * Alloc_mode.t
 
 let is_unknown = function
@@ -37,8 +37,8 @@ let rec free_names ~code_free_names approx =
       (fun names approx ->
         Name_occurrences.union names (free_names ~code_free_names approx))
       Name_occurrences.empty approxs
-  | Closure_approximation (code_id, closure_id, code) ->
+  | Closure_approximation (code_id, function_slot, code) ->
     Name_occurrences.add_code_id
-      (Name_occurrences.add_closure_id_in_types (code_free_names code)
-         closure_id)
+      (Name_occurrences.add_function_slot_in_types (code_free_names code)
+         function_slot)
       code_id Name_mode.normal

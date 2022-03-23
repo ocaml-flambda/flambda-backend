@@ -23,16 +23,16 @@ type t =
     exn_continuation : Continuation.t;
     body : Flambda.Expr.t;
     module_symbol : Symbol.t;
-    used_closure_vars : Var_within_closure.Set.t Or_unknown.t
+    used_value_slots : Value_slot.Set.t Or_unknown.t
   }
 
 let create ~return_continuation ~exn_continuation ~body ~module_symbol
-    ~used_closure_vars =
+    ~used_value_slots =
   { return_continuation;
     exn_continuation;
     body;
     module_symbol;
-    used_closure_vars
+    used_value_slots
   }
 
 let return_continuation t = t.return_continuation
@@ -43,23 +43,23 @@ let body t = t.body
 
 let module_symbol t = t.module_symbol
 
-let used_closure_vars t = t.used_closure_vars
+let used_value_slots t = t.used_value_slots
 
 let [@ocamlformat "disable"] print ppf
       { return_continuation; exn_continuation; body; module_symbol;
-        used_closure_vars;
+        used_value_slots;
       } =
   Format.fprintf ppf "@[<hov 1>(\
         @[<hov 1>(module_symbol@ %a)@]@ \
         @[<hov 1>(return_continuation@ %a)@]@ \
         @[<hov 1>(exn_continuation@ %a)@]@ \
-        @[<hov 1>(used_closure_vars@ %a)@]@ \
+        @[<hov 1>(used_value_slots@ %a)@]@ \
         @[<hov 1>%a@]\
       )@]"
     Symbol.print module_symbol
     Continuation.print return_continuation
     Continuation.print exn_continuation
-    (Or_unknown.print Var_within_closure.Set.print) used_closure_vars
+    (Or_unknown.print Value_slot.Set.print) used_value_slots
     Flambda.Expr.print body
 
 let apply_renaming
@@ -67,7 +67,7 @@ let apply_renaming
       exn_continuation;
       body;
       module_symbol;
-      used_closure_vars
+      used_value_slots
     } perm =
   let body = Expr.apply_renaming body perm in
   let module_symbol = Renaming.apply_symbol perm module_symbol in
@@ -76,7 +76,7 @@ let apply_renaming
   in
   let exn_continuation = Renaming.apply_continuation perm exn_continuation in
   create ~return_continuation ~exn_continuation ~body ~module_symbol
-    ~used_closure_vars
+    ~used_value_slots
 
 let permute_everything t =
   (* Only symbols (and code_ids) from the current compilation unit, and that are

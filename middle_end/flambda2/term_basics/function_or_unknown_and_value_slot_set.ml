@@ -16,13 +16,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(* CR mshinwell: This module is unpleasant. We should arrange things so that
-   [Var_within_closure.Set.Map] exists. (This should be easier now that things
-   brought in using "include" can be shadowed.) *)
-type t = Var_within_closure.Set.t
+module Function_slot_or_unknown = Or_unknown.Lift (Function_slot)
 
-val empty : t
+type t = Function_slot_or_unknown.t * Value_slot.Set.t
 
-val subset : t -> t -> bool
-
-include Container_types.S with type t := t
+include Container_types.Make_pair (Function_slot_or_unknown) (Value_slot_set)

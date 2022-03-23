@@ -46,7 +46,7 @@ end
 
 module DM = Map.Make (D)
 
-(* Closure ids (globally scoped, so updates are in-place) *)
+(* Function slots (globally scoped, so updates are in-place) *)
 module U = struct
   type t = string
 
@@ -76,8 +76,8 @@ type env =
     variables : Variable.t VM.t;
     symbols : Symbol.t SM.t;
     code_ids : Code_id.t DM.t;
-    closure_ids : Closure_id.t UT.t;
-    vars_within_closures : Var_within_closure.t WT.t
+    function_slots : Function_slot.t UT.t;
+    vars_within_closures : Value_slot.t WT.t
   }
 
 let init_env () =
@@ -95,7 +95,7 @@ let init_env () =
     variables = VM.empty;
     symbols = SM.empty;
     code_ids = DM.empty;
-    closure_ids = UT.create 10;
+    function_slots = UT.create 10;
     vars_within_closures = WT.create 10
   }
 
@@ -107,7 +107,7 @@ let enter_code env =
     error_continuation = env.error_continuation;
     symbols = env.symbols;
     code_ids = env.code_ids;
-    closure_ids = env.closure_ids;
+    function_slots = env.function_slots;
     vars_within_closures = env.vars_within_closures
   }
 
@@ -132,27 +132,27 @@ let fresh_code_id env { Fexpr.txt = name; loc = _ } =
   let c = Code_id.create ~name (Compilation_unit.get_current_exn ()) in
   c, { env with code_ids = DM.add name c env.code_ids }
 
-let fresh_closure_id env { Fexpr.txt = name; loc = _ } =
+let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let v = Variable.create name in
-  let c = Closure_id.wrap (Compilation_unit.get_current_exn ()) v in
-  UT.add env.closure_ids name c;
+  let c = Function_slot.wrap (Compilation_unit.get_current_exn ()) v in
+  UT.add env.function_slots name c;
   c
 
-let fresh_or_existing_closure_id env ({ Fexpr.txt = name; loc = _ } as id) =
-  match UT.find_opt env.closure_ids name with
-  | None -> fresh_closure_id env id
-  | Some closure_id -> closure_id
+let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
+  match UT.find_opt env.function_slots name with
+  | None -> fresh_function_slot env id
+  | Some function_slot -> function_slot
 
-let fresh_var_within_closure env { Fexpr.txt = name; loc = _ } =
+let fresh_value_slot env { Fexpr.txt = name; loc = _ } =
   let v = Variable.create name in
-  let c = Var_within_closure.wrap (Compilation_unit.get_current_exn ()) v in
+  let c = Value_slot.wrap (Compilation_unit.get_current_exn ()) v in
   WT.add env.vars_within_closures name c;
   c
 
-let fresh_or_existing_var_within_closure env ({ Fexpr.txt = name; _ } as id) =
+let fresh_or_existing_value_slot env ({ Fexpr.txt = name; _ } as id) =
   match WT.find_opt env.vars_within_closures name with
-  | None -> fresh_var_within_closure env id
-  | Some var_within_closure -> var_within_closure
+  | None -> fresh_value_slot env id
+  | Some value_slot -> value_slot
 
 let print_scoped_location ppf loc =
   match (loc : Lambda.scoped_location) with
@@ -362,14 +362,14 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Is_int -> Is_int
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity -> Opaque_identity
-  | Project_var { project_from; var } ->
-    let var = fresh_or_existing_var_within_closure env var in
-    let project_from = fresh_or_existing_closure_id env project_from in
-    Project_var { project_from; var }
-  | Select_closure { move_from; move_to } ->
-    let move_from = fresh_or_existing_closure_id env move_from in
-    let move_to = fresh_or_existing_closure_id env move_to in
-    Select_closure { move_from; move_to }
+  | Project_value_slot { project_from; value_slot } ->
+    let value_slot = fresh_or_existing_value_slot env value_slot in
+    let project_from = fresh_or_existing_function_slot env project_from in
+    Project_value_slot { project_from; value_slot }
+  | Project_function_slot { move_from; move_to } ->
+    let move_from = fresh_or_existing_function_slot env move_from in
+    let move_to = fresh_or_existing_function_slot env move_to in
+    Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
 
 let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
@@ -454,29 +454,29 @@ let defining_expr env (named : Fexpr.named) : Flambda.Named.t =
     Flambda.Named.create_rec_info ri
   | _ -> assert false
 
-let set_of_closures env fun_decls closure_elements =
+let set_of_closures env fun_decls value_slots =
   let fun_decls : Function_declarations.t =
     let translate_fun_decl (fun_decl : Fexpr.fun_decl) :
-        Closure_id.t * Code_id.t =
+        Function_slot.t * Code_id.t =
       let code_id = find_code_id env fun_decl.code_id in
-      let closure_id =
-        (* By default, pun the code id as the closure id *)
-        fun_decl.closure_id |> Option.value ~default:fun_decl.code_id
+      let function_slot =
+        (* By default, pun the code id as the function slot *)
+        fun_decl.function_slot |> Option.value ~default:fun_decl.code_id
       in
-      let closure_id = fresh_or_existing_closure_id env closure_id in
-      closure_id, code_id
+      let function_slot = fresh_or_existing_function_slot env function_slot in
+      function_slot, code_id
     in
     List.map translate_fun_decl fun_decls
-    |> Closure_id.Lmap.of_list |> Function_declarations.create
+    |> Function_slot.Lmap.of_list |> Function_declarations.create
   in
-  let closure_elements = Option.value closure_elements ~default:[] in
-  let closure_elements : Simple.t Var_within_closure.Map.t =
-    let convert ({ var; value } : Fexpr.closure_element) =
-      fresh_or_existing_var_within_closure env var, simple env value
+  let value_slots = Option.value value_slots ~default:[] in
+  let value_slots : Simple.t Value_slot.Map.t =
+    let convert ({ var; value } : Fexpr.one_value_slot) =
+      fresh_or_existing_value_slot env var, simple env value
     in
-    List.map convert closure_elements |> Var_within_closure.Map.of_list
+    List.map convert value_slots |> Value_slot.Map.of_list
   in
-  Set_of_closures.create ~closure_elements Heap fun_decls
+  Set_of_closures.create ~value_slots Heap fun_decls
 
 let apply_cont env ({ cont; args; trap_action } : Fexpr.apply_cont) =
   let trap_action : Trap_action.t option =
@@ -514,7 +514,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
   | Let { bindings = []; _ } -> assert false (* should not be possible *)
   | Let
       { bindings = { defining_expr = Closure _; _ } :: _ as bindings;
-        closure_elements;
+        value_slots;
         body
       } ->
     let binding_to_var_and_closure_binding : Fexpr.let_binding -> _ = function
@@ -526,7 +526,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let vars_and_closure_bindings =
       List.map binding_to_var_and_closure_binding bindings
     in
-    let closure_vars, env =
+    let bound_vars, env =
       let convert_binding env (var, _) : Bound_var.t * env =
         let var, env = fresh_var env var in
         let var = Bound_var.create var Name_mode.normal in
@@ -534,10 +534,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       in
       map_accum_left convert_binding env vars_and_closure_bindings
     in
-    let bound = Bound_pattern.set_of_closures closure_vars in
+    let bound = Bound_pattern.set_of_closures bound_vars in
     let named =
       let closure_bindings = List.map snd vars_and_closure_bindings in
-      set_of_closures env closure_bindings closure_elements
+      set_of_closures env closure_bindings value_slots
       |> Flambda.Named.create_set_of_closures
     in
     let body = expr env body in
@@ -546,11 +546,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
   | Let { bindings = _ :: _ :: _; _ } ->
     Misc.fatal_errorf
       "Multiple let bindings only allowed when defining closures"
-  | Let { closure_elements = Some _; _ } ->
+  | Let { value_slots = Some _; _ } ->
     Misc.fatal_errorf "'with' clause only allowed when defining closures"
-  | Let
-      { bindings = [{ var; defining_expr = d }]; body; closure_elements = None }
-    ->
+  | Let { bindings = [{ var; defining_expr = d }]; body; value_slots = None } ->
     let named = defining_expr env d in
     let id, env = fresh_var env var in
     let body = expr env body in
@@ -609,7 +607,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     Flambda.Expr.create_switch
       (Flambda.Switch.create ~scrutinee:(simple env scrutinee) ~arms)
-  | Let_symbol { bindings; closure_elements; body } ->
+  | Let_symbol { bindings; value_slots; body } ->
     (* Desugar the abbreviated form for a single set of closures *)
     let found_explicit_set = ref false in
     let closures_in_implicit_set =
@@ -624,14 +622,14 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         bindings
     in
     let bindings =
-      match closures_in_implicit_set, closure_elements with
+      match closures_in_implicit_set, value_slots with
       | _ :: _, _ when !found_explicit_set ->
         Misc.fatal_error "Cannot mix implicit and explicit sets of closures"
       | [], Some _ -> Misc.fatal_error "Found closure elements but no closures"
       | [], None -> bindings
       | _, _ ->
         let implicit_set : Fexpr.static_set_of_closures =
-          { bindings = closures_in_implicit_set; elements = closure_elements }
+          { bindings = closures_in_implicit_set; elements = value_slots }
         in
         (* Will replace the first closure found with the set and the rest with
          * nothing *)
@@ -666,18 +664,22 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           Bound_static.Pattern.block_like symbol, env
         | Set_of_closures soc ->
           let closure_binding env
-              ({ symbol; fun_decl = { closure_id; code_id; _ } } :
+              ({ symbol; fun_decl = { function_slot; code_id; _ } } :
                 Fexpr.static_closure_binding) =
             let symbol, env = declare_symbol env symbol in
-            let closure_id = closure_id |> Option.value ~default:code_id in
-            let closure_id = fresh_or_existing_closure_id env closure_id in
-            (closure_id, symbol), env
+            let function_slot =
+              function_slot |> Option.value ~default:code_id
+            in
+            let function_slot =
+              fresh_or_existing_function_slot env function_slot
+            in
+            (function_slot, symbol), env
           in
           let closure_symbols, env =
             map_accum_left closure_binding env soc.bindings
           in
           ( Bound_static.Pattern.set_of_closures
-              (closure_symbols |> Closure_id.Lmap.of_list),
+              (closure_symbols |> Function_slot.Lmap.of_list),
             env )
         | Closure _ -> assert false
         (* should have been filtered out above *)
@@ -848,16 +850,16 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let continuation = find_result_cont env continuation in
     let call_kind =
       match call_kind with
-      | Function (Direct { code_id; closure_id }) ->
-        let closure_id = closure_id |> Option.value ~default:code_id in
+      | Function (Direct { code_id; function_slot }) ->
+        let function_slot = function_slot |> Option.value ~default:code_id in
         let code_id = find_code_id env code_id in
-        let closure_id = fresh_or_existing_closure_id env closure_id in
+        let function_slot = fresh_or_existing_function_slot env function_slot in
         let return_arity =
           match arities with
           | None -> [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id closure_id ~return_arity Heap
+        Call_kind.direct_function_call code_id function_slot ~return_arity Heap
       | Function Indirect -> begin
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->
@@ -939,4 +941,4 @@ let conv ~symbol_for_global ~module_ident (fexpr : Fexpr.flambda_unit) :
   let env = bind_all_code_ids env fexpr in
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation ~body
-    ~module_symbol ~used_closure_vars:Unknown
+    ~module_symbol ~used_value_slots:Unknown

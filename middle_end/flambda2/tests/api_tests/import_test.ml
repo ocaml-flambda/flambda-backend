@@ -14,7 +14,7 @@ let test () =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables
       ~simples:Simple.Map.empty ~consts:Reg_width_things.Const.Map.empty
       ~code_ids:Code_id.Map.empty ~continuations:Continuation.Map.empty
-      ~used_closure_vars:Var_within_closure.Set.empty
+      ~used_value_slots:Value_slot.Set.empty
   in
   (* Now create the simples. simple0 is the raw variable, simple1 has some rec
      info with depth 1, and simple2 has rec info with depth 2. *)
@@ -31,7 +31,7 @@ let test () =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables ~simples
       ~consts:Reg_width_things.Const.Map.empty ~code_ids:Code_id.Map.empty
       ~continuations:Continuation.Map.empty
-      ~used_closure_vars:Var_within_closure.Set.empty
+      ~used_value_slots:Value_slot.Set.empty
   in
   (* Now the bad case, if importing simples was also importing the underlying
      variable (as it used to do) *)
@@ -41,7 +41,7 @@ let test () =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables
       ~simples:simples_bad ~consts:Reg_width_things.Const.Map.empty
       ~code_ids:Code_id.Map.empty ~continuations:Continuation.Map.empty
-      ~used_closure_vars:Var_within_closure.Set.empty
+      ~used_value_slots:Value_slot.Set.empty
   in
   let check renaming msg =
     let simple0' = Renaming.apply_simple renaming simple0 in

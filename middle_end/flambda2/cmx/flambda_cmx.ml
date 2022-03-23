@@ -193,57 +193,57 @@ let compute_reachable_names_and_code ~module_symbol ~free_names_of_name code =
   fixpoint init_names Name_occurrences.empty
 
 let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
-    ~used_closure_vars ~canonicalise ~exported_offsets all_code =
+    ~used_value_slots ~canonicalise ~exported_offsets all_code =
   let reachable_names =
     compute_reachable_names_and_code ~module_symbol ~free_names_of_name all_code
   in
   let all_code =
-    (* CR mshinwell: do we need to remove unused closure ID bindings from the
+    (* CR mshinwell: do we need to remove unused function slot bindings from the
        result types too? *)
     all_code
-    |> EC.remove_unused_closure_vars_from_result_types_and_shortcut_aliases
-         ~used_closure_vars ~canonicalise
+    |> EC.remove_unused_value_slots_from_result_types_and_shortcut_aliases
+         ~used_value_slots ~canonicalise
     |> EC.remove_unreachable ~reachable_names
   in
   let final_typing_env = create_typing_env reachable_names in
   (* We need to re-export offsets for everything reachable from the cmx file;
-     closure_vars/ids can be reachable from the typing env, and the exported
+     value_slots/ids can be reachable from the typing env, and the exported
      code.
 
      In the case of the exported code, we already have offsets for all
-     closure_ids/vars reachable from the code of the current compilation unit,
-     but since we also re-export code from other compilation units, we need to
-     take those into account. *)
+     function_slots/vars reachable from the code of the current compilation
+     unit, but since we also re-export code from other compilation units, we
+     need to take those into account. *)
   (* CR gbury: it might be more efficient to not compute the free names for all
      exported code, but fold over the exported code to avoid allocating some
      free_names *)
   let free_names_of_all_code = EC.free_names all_code in
   let closure_elts_used_in_typing_env =
-    TE.Serializable.free_closure_ids_and_closure_vars final_typing_env
+    TE.Serializable.free_function_slots_and_value_slots final_typing_env
   in
   let exported_offsets =
     exported_offsets
-    |> Closure_offsets.reexport_closure_ids
-         (Name_occurrences.all_closure_ids free_names_of_all_code)
-    |> Closure_offsets.reexport_closure_vars
-         (Name_occurrences.all_closure_vars free_names_of_all_code)
-    |> Closure_offsets.reexport_closure_ids
-         (Name_occurrences.all_closure_ids closure_elts_used_in_typing_env)
-    |> Closure_offsets.reexport_closure_vars
-         (Name_occurrences.all_closure_vars closure_elts_used_in_typing_env)
+    |> Slot_offsets.reexport_function_slots
+         (Name_occurrences.all_function_slots free_names_of_all_code)
+    |> Slot_offsets.reexport_value_slots
+         (Name_occurrences.all_value_slots free_names_of_all_code)
+    |> Slot_offsets.reexport_function_slots
+         (Name_occurrences.all_function_slots closure_elts_used_in_typing_env)
+    |> Slot_offsets.reexport_value_slots
+         (Name_occurrences.all_value_slots closure_elts_used_in_typing_env)
   in
   Some
     (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets
-       ~used_closure_vars)
+       ~used_value_slots)
 
-let prepare_cmx_file_contents ~final_typing_env ~module_symbol
-    ~used_closure_vars ~exported_offsets all_code =
+let prepare_cmx_file_contents ~final_typing_env ~module_symbol ~used_value_slots
+    ~exported_offsets all_code =
   match final_typing_env with
   | None -> None
   | Some _ when Flambda_features.opaque () -> None
   | Some final_typing_env ->
     let typing_env, canonicalise =
-      TE.Pre_serializable.create final_typing_env ~used_closure_vars
+      TE.Pre_serializable.create final_typing_env ~used_value_slots
     in
     let create_typing_env reachable_names =
       TE.Serializable.create typing_env ~reachable_names
@@ -253,10 +253,10 @@ let prepare_cmx_file_contents ~final_typing_env ~module_symbol
         (TE.Pre_serializable.find_or_missing typing_env name)
     in
     prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
-      ~used_closure_vars ~canonicalise ~exported_offsets all_code
+      ~used_value_slots ~canonicalise ~exported_offsets all_code
 
 let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
-    ~used_closure_vars all_code =
+    ~used_value_slots all_code =
   if Flambda_features.opaque ()
   then None
   else
@@ -278,6 +278,6 @@ let prepare_cmx_from_approx ~approxs ~module_symbol ~exported_offsets
              ~code_free_names:Code_or_metadata.free_names approx)
     in
     prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
-      ~used_closure_vars
+      ~used_value_slots
       ~canonicalise:(fun id -> id)
       ~exported_offsets all_code

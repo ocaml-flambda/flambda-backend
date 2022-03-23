@@ -192,16 +192,17 @@ val get_k : t -> Continuation.t -> cont
     if the continuation is not bound. *)
 val get_jump_id : t -> Continuation.t -> int
 
-(** {2 Sets of closures and offsets} *)
+(** {2 Sets of closures and slot offsets} *)
 
-(** Wrapper around {!Closure_offsets.closure_offset}. *)
-val closure_offset : t -> Closure_id.t -> Exported_offsets.closure_info
+(** Wrapper around {!Slot_offsets.function_slot_offset}. *)
+val function_slot_offset :
+  t -> Function_slot.t -> Exported_offsets.function_slot_info
 
-(** Wrapper around {!Closure_offsets.env_var_offset}. *)
-val env_var_offset : t -> Var_within_closure.t -> Exported_offsets.env_var_info
+(** Wrapper around {!Slot_offsets.value_slot_offset}. *)
+val value_slot_offset : t -> Value_slot.t -> Exported_offsets.value_slot_info
 
-(** Wrapper around {!Closure_offsets.layout}. *)
-val layout : t -> Set_of_closures.t -> Closure_offsets.layout
+(** Wrapper around {!Slot_offsets.layout}. *)
+val layout : t -> Set_of_closures.t -> Slot_offsets.layout
 
 (** Add the given names to the current scope *)
 val add_to_scope : t -> Code_id_or_symbol.Set.t -> t

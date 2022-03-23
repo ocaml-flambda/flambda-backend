@@ -57,13 +57,12 @@ representation might end up the same.
 multiple distinct valid pointers (unlike the other blocks, which always
 define a single valid pointer). So a closure block contains a number of
 functions, and a number of environment entries. The functions are indexed by
-a closure identifier (or closure_id), a unique name generated during
+_function slots_, unique names generated during
 compilation of OCaml functions. The actual contents of the function are only
 important for inlining, so we'll assume here that it's roughly a pointer to
 some piece of code, without any more details. The environment entries are
-indexed by a closure variable. Closure variables are not regular variables but
-identifiers generated during compilation of functions. Each entry in the
-environment contains a single value of kind Value.
+indexed by _value slots_, unique names again generated during compilation
+of functions. Each entry in the environment contains a single value of kind Value.
 - Unknown blocks. This regroups all the values that are allowed in OCaml that
 our model doesn't track, such as abstract or custom values, objects, or mutable
 strings.
@@ -133,7 +132,7 @@ code fragments is Top (in practice we never need the meet operation here).
 We have several kinds of product domains, the main difference being how the
 elements are indexed. For regular blocks, we use finite products indexed by
 integers between 0 and a given size (excluding the size). For closures, we
-use closure_ids and closure variables as indices.
+use function slots and value slots as indices.
 All of these domains use the standard component-wise operations.
 Some other domains will sometimes need to combine two elements of product
 domains with different indices; in this case we will assume that the other
@@ -180,11 +179,11 @@ The second feature will be described in a bit more details in the sections
 about extensions and the meet algorithm for the toplevel domain.
 
 In the case of closures, the set of indices is a pair containing on one side
-the closure ID of the corresponding function, and on the other side the set
-of closure elements (closure IDs and closure variables) present in the
+the function slot of the corresponding function, and on the other side the set
+of closure elements (function slots and value slots) present in the
 associated closure. The elements associated to such an index are products
-indexed by the set of closure elements (in this product, closure IDs are
-associated to a function pointer abstraction, and closure variables to regular
+indexed by the set of closure elements (in this product, function slots are
+associated to a function pointer abstraction, and value slots to regular
 value abstractions).
 Disjunctions are less useful here, but in a few cases this could transform a
 call to an unknown function (indirect call) into a switch that dispatches to

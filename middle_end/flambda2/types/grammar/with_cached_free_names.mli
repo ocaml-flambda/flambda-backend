@@ -50,14 +50,14 @@ val free_names_no_cache :
   'descr t ->
   Name_occurrences.t
 
-val remove_unused_closure_vars_and_shortcut_aliases :
-  remove_unused_closure_vars_and_shortcut_aliases_descr:
+val remove_unused_value_slots_and_shortcut_aliases :
+  remove_unused_value_slots_and_shortcut_aliases_descr:
     ('descr ->
-    used_closure_vars:Var_within_closure.Set.t ->
+    used_value_slots:Value_slot.Set.t ->
     canonicalise:(Simple.t -> Simple.t) ->
     'descr) ->
   'descr t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
   'descr t
 

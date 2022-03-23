@@ -346,13 +346,14 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let<* n, env_extension = meet env n1 n2 in
     let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode, env_extension
-  | ( Closures { by_closure_id = by_closure_id1; alloc_mode = alloc_mode1 },
-      Closures { by_closure_id = by_closure_id2; alloc_mode = alloc_mode2 } ) ->
+  | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
+      Closures
+        { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
     let<* alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
-    let<+ by_closure_id, env_extension =
-      meet_row_like_for_closures env by_closure_id1 by_closure_id2
+    let<+ by_function_slot, env_extension =
+      meet_row_like_for_closures env by_function_slot1 by_function_slot2
     in
-    ( TG.Head_of_kind_value.create_closures by_closure_id alloc_mode,
+    ( TG.Head_of_kind_value.create_closures by_function_slot alloc_mode,
       env_extension )
   | String strs1, String strs2 ->
     let strs = String_info.Set.inter strs1 strs2 in
@@ -681,9 +682,10 @@ and meet_row_like_for_closures env
       ~equal_index:Set_of_closures_contents.equal
       ~subset_index:Set_of_closures_contents.subset
       ~union_index:Set_of_closures_contents.union
-      ~is_empty_map_known:Closure_id.Map.is_empty
-      ~get_singleton_map_known:Closure_id.Map.get_singleton
-      ~merge_map_known:Closure_id.Map.merge env ~known1 ~known2 ~other1 ~other2
+      ~is_empty_map_known:Function_slot.Map.is_empty
+      ~get_singleton_map_known:Function_slot.Map.get_singleton
+      ~merge_map_known:Function_slot.Map.merge env ~known1 ~known2 ~other1
+      ~other2
   in
   ( TG.Row_like_for_closures.create_raw ~known_closures ~other_closures,
     env_extension )
@@ -691,19 +693,19 @@ and meet_row_like_for_closures env
 and meet_closures_entry (env : Meet_env.t)
     ({ function_types = function_types1;
        closure_types = closure_types1;
-       closure_var_types = closure_var_types1
+       value_slot_types = value_slot_types1
      } :
       TG.Closures_entry.t)
     ({ function_types = function_types2;
        closure_types = closure_types2;
-       closure_var_types = closure_var_types2
+       value_slot_types = value_slot_types2
      } :
       TG.Closures_entry.t) : (TG.Closures_entry.t * TEE.t) Or_bottom.t =
   let any_bottom = ref false in
   let env_extensions = ref TEE.empty in
   let function_types =
-    Closure_id.Map.merge
-      (fun _closure_id func_type1 func_type2 ->
+    Function_slot.Map.merge
+      (fun _function_slot func_type1 func_type2 ->
         match func_type1, func_type2 with
         | None, None -> None
         | Some func_type, None | None, Some func_type -> Some func_type
@@ -725,14 +727,13 @@ and meet_closures_entry (env : Meet_env.t)
   then Bottom
   else
     let<* closure_types, env_extension1 =
-      meet_product_closure_id_indexed env closure_types1 closure_types2
+      meet_product_function_slot_indexed env closure_types1 closure_types2
     in
-    let<* closure_var_types, env_extension2 =
-      meet_product_var_within_closure_indexed env closure_var_types1
-        closure_var_types2
+    let<* value_slot_types, env_extension2 =
+      meet_product_value_slot_indexed env value_slot_types1 value_slot_types2
     in
     let closures_entry =
-      TG.Closures_entry.create ~function_types ~closure_types ~closure_var_types
+      TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types
     in
     let<* env_extension =
       meet_env_extension env !env_extensions env_extension1
@@ -774,30 +775,29 @@ and meet_generic_product :
   in
   if !any_bottom then Bottom else Ok (components_by_index, !env_extension)
 
-and meet_product_closure_id_indexed env
-    ({ closure_id_components_by_index = components_by_index1 } :
-      TG.Product.Closure_id_indexed.t)
-    ({ closure_id_components_by_index = components_by_index2 } :
-      TG.Product.Closure_id_indexed.t) :
-    (TG.Product.Closure_id_indexed.t * TEE.t) Or_bottom.t =
+and meet_product_function_slot_indexed env
+    ({ function_slot_components_by_index = components_by_index1 } :
+      TG.Product.Function_slot_indexed.t)
+    ({ function_slot_components_by_index = components_by_index2 } :
+      TG.Product.Function_slot_indexed.t) :
+    (TG.Product.Function_slot_indexed.t * TEE.t) Or_bottom.t =
   let<+ components_by_index, env_extension =
     meet_generic_product env ~components_by_index1 ~components_by_index2
-      ~union:Closure_id.Map.union
+      ~union:Function_slot.Map.union
   in
-  TG.Product.Closure_id_indexed.create components_by_index, env_extension
+  TG.Product.Function_slot_indexed.create components_by_index, env_extension
 
-and meet_product_var_within_closure_indexed env
-    ({ var_within_closure_components_by_index = components_by_index1 } :
-      TG.Product.Var_within_closure_indexed.t)
-    ({ var_within_closure_components_by_index = components_by_index2 } :
-      TG.Product.Var_within_closure_indexed.t) :
-    (TG.Product.Var_within_closure_indexed.t * TEE.t) Or_bottom.t =
+and meet_product_value_slot_indexed env
+    ({ value_slot_components_by_index = components_by_index1 } :
+      TG.Product.Value_slot_indexed.t)
+    ({ value_slot_components_by_index = components_by_index2 } :
+      TG.Product.Value_slot_indexed.t) :
+    (TG.Product.Value_slot_indexed.t * TEE.t) Or_bottom.t =
   let<+ components_by_index, env_extension =
     meet_generic_product env ~components_by_index1 ~components_by_index2
-      ~union:Var_within_closure.Map.union
+      ~union:Value_slot.Map.union
   in
-  ( TG.Product.Var_within_closure_indexed.create components_by_index,
-    env_extension )
+  TG.Product.Value_slot_indexed.create components_by_index, env_extension
 
 and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
     (prod2 : TG.Product.Int_indexed.t) : _ Or_bottom.t =
@@ -1094,13 +1094,14 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
     TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode
-  | ( Closures { by_closure_id = by_closure_id1; alloc_mode = alloc_mode1 },
-      Closures { by_closure_id = by_closure_id2; alloc_mode = alloc_mode2 } ) ->
-    let by_closure_id =
-      join_row_like_for_closures env by_closure_id1 by_closure_id2
+  | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
+      Closures
+        { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
+    let by_function_slot =
+      join_row_like_for_closures env by_function_slot1 by_function_slot2
     in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value.create_closures by_closure_id alloc_mode)
+    Known (TG.Head_of_kind_value.create_closures by_function_slot alloc_mode)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
     Known (TG.Head_of_kind_value.create_string strs)
@@ -1351,24 +1352,25 @@ and join_row_like_for_closures env
       ~maps_to_field_kind:(fun _ -> K.value)
       ~equal_index:Set_of_closures_contents.equal
       ~inter_index:Set_of_closures_contents.inter
-      ~merge_map_known:Closure_id.Map.merge env ~known1 ~known2 ~other1 ~other2
+      ~merge_map_known:Function_slot.Map.merge env ~known1 ~known2 ~other1
+      ~other2
   in
   TG.Row_like_for_closures.create_raw ~known_closures ~other_closures
 
 and join_closures_entry env
     ({ function_types = function_types1;
        closure_types = closure_types1;
-       closure_var_types = closure_var_types1
+       value_slot_types = value_slot_types1
      } :
       TG.Closures_entry.t)
     ({ function_types = function_types2;
        closure_types = closure_types2;
-       closure_var_types = closure_var_types2
+       value_slot_types = value_slot_types2
      } :
       TG.Closures_entry.t) : TG.Closures_entry.t =
   let function_types =
-    Closure_id.Map.merge
-      (fun _closure_id func_type1 func_type2 ->
+    Function_slot.Map.merge
+      (fun _function_slot func_type1 func_type2 ->
         match func_type1, func_type2 with
         | None, None
         (* CR mshinwell: Are these next two cases right? Don't we need to do the
@@ -1381,13 +1383,12 @@ and join_closures_entry env
       function_types1 function_types2
   in
   let closure_types =
-    join_closure_id_indexed_product env closure_types1 closure_types2
+    join_function_slot_indexed_product env closure_types1 closure_types2
   in
-  let closure_var_types =
-    join_var_within_closure_indexed_product env closure_var_types1
-      closure_var_types2
+  let value_slot_types =
+    join_value_slot_indexed_product env value_slot_types1 value_slot_types2
   in
-  TG.Closures_entry.create ~function_types ~closure_types ~closure_var_types
+  TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types
 
 and join_generic_product :
       'key 'key_map.
@@ -1410,29 +1411,27 @@ and join_generic_product :
       end)
     components_by_index1 components_by_index2
 
-and join_closure_id_indexed_product env
-    ({ closure_id_components_by_index = components_by_index1 } :
-      TG.Product.Closure_id_indexed.t)
-    ({ closure_id_components_by_index = components_by_index2 } :
-      TG.Product.Closure_id_indexed.t) : TG.Product.Closure_id_indexed.t =
-  let closure_id_components_by_index =
+and join_function_slot_indexed_product env
+    ({ function_slot_components_by_index = components_by_index1 } :
+      TG.Product.Function_slot_indexed.t)
+    ({ function_slot_components_by_index = components_by_index2 } :
+      TG.Product.Function_slot_indexed.t) : TG.Product.Function_slot_indexed.t =
+  let function_slot_components_by_index =
     join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Closure_id.Map.merge
+      ~merge:Function_slot.Map.merge
   in
-  TG.Product.Closure_id_indexed.create closure_id_components_by_index
+  TG.Product.Function_slot_indexed.create function_slot_components_by_index
 
-and join_var_within_closure_indexed_product env
-    ({ var_within_closure_components_by_index = components_by_index1 } :
-      TG.Product.Var_within_closure_indexed.t)
-    ({ var_within_closure_components_by_index = components_by_index2 } :
-      TG.Product.Var_within_closure_indexed.t) :
-    TG.Product.Var_within_closure_indexed.t =
-  let var_within_closure_components_by_index =
+and join_value_slot_indexed_product env
+    ({ value_slot_components_by_index = components_by_index1 } :
+      TG.Product.Value_slot_indexed.t)
+    ({ value_slot_components_by_index = components_by_index2 } :
+      TG.Product.Value_slot_indexed.t) : TG.Product.Value_slot_indexed.t =
+  let value_slot_components_by_index =
     join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Var_within_closure.Map.merge
+      ~merge:Value_slot.Map.merge
   in
-  TG.Product.Var_within_closure_indexed.create
-    var_within_closure_components_by_index
+  TG.Product.Value_slot_indexed.create value_slot_components_by_index
 
 and join_int_indexed_product env
     ({ fields = fields1; kind = kind1 } : TG.Product.Int_indexed.t)

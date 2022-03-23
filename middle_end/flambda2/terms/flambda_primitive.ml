@@ -634,13 +634,13 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
-  | Select_closure of
-      { move_from : Closure_id.t;
-        move_to : Closure_id.t
+  | Project_function_slot of
+      { move_from : Function_slot.t;
+        move_to : Function_slot.t
       }
-  | Project_var of
-      { project_from : Closure_id.t;
-        var : Var_within_closure.t
+  | Project_value_slot of
+      { project_from : Function_slot.t;
+        value_slot : Value_slot.t
       }
   | Is_boxed_float
   | Is_flat_float_array
@@ -683,7 +683,7 @@ let unary_primitive_eligible_for_cse p ~arg =
        deduplicated -- so there's no point in adding CSE variables to hold
        them. *)
     Simple.is_var arg
-  | Select_closure _ | Project_var _ -> false
+  | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
   | End_region -> false
 
@@ -706,8 +706,8 @@ let compare_unary_primitive p1 p2 =
     | Reinterpret_int64_as_float -> 13
     | Unbox_number _ -> 14
     | Box_number _ -> 15
-    | Select_closure _ -> 16
-    | Project_var _ -> 17
+    | Project_function_slot _ -> 16
+    | Project_value_slot _ -> 17
     | Is_boxed_float -> 18
     | Is_flat_float_array -> 19
     | End_region -> 20
@@ -768,22 +768,22 @@ let compare_unary_primitive p1 p2 =
   | Box_number (kind1, alloc_mode1), Box_number (kind2, alloc_mode2) ->
     let c = K.Boxable_number.compare kind1 kind2 in
     if c <> 0 then c else Alloc_mode.compare alloc_mode1 alloc_mode2
-  | ( Select_closure { move_from = move_from1; move_to = move_to1 },
-      Select_closure { move_from = move_from2; move_to = move_to2 } ) ->
-    let c = Closure_id.compare move_from1 move_from2 in
-    if c <> 0 then c else Closure_id.compare move_to1 move_to2
-  | ( Project_var { project_from = closure_id1; var = var_within_closure1 },
-      Project_var { project_from = closure_id2; var = var_within_closure2 } ) ->
-    let c = Closure_id.compare closure_id1 closure_id2 in
-    if c <> 0
-    then c
-    else Var_within_closure.compare var_within_closure1 var_within_closure2
+  | ( Project_function_slot { move_from = move_from1; move_to = move_to1 },
+      Project_function_slot { move_from = move_from2; move_to = move_to2 } ) ->
+    let c = Function_slot.compare move_from1 move_from2 in
+    if c <> 0 then c else Function_slot.compare move_to1 move_to2
+  | ( Project_value_slot
+        { project_from = function_slot1; value_slot = value_slot1 },
+      Project_value_slot
+        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+    let c = Function_slot.compare function_slot1 function_slot2 in
+    if c <> 0 then c else Value_slot.compare value_slot1 value_slot2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int | Get_tag
       | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
-      | Select_closure _ | Project_var _ | Is_boxed_float | Is_flat_float_array
-      | End_region ),
+      | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
+      | Is_flat_float_array | End_region ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -824,13 +824,13 @@ let print_unary_primitive ppf p =
     fprintf ppf "Box_%a" K.Boxable_number.print_lowercase_short k
   | Box_number (k, Local) ->
     fprintf ppf "Box_%a[local]" K.Boxable_number.print_lowercase_short k
-  | Select_closure { move_from; move_to } ->
-    Format.fprintf ppf "@[(Select_closure@ (%a \u{2192} %a@<0>%s))@]"
-      Closure_id.print move_from Closure_id.print move_to
+  | Project_function_slot { move_from; move_to } ->
+    Format.fprintf ppf "@[(Project_function_slot@ (%a \u{2192} %a@<0>%s))@]"
+      Function_slot.print move_from Function_slot.print move_to
       (Flambda_colours.prim_destructive ())
-  | Project_var { project_from; var = var_within_closure } ->
-    Format.fprintf ppf "@[(Project_var@ (%a@ %a@<0>%s))@]" Closure_id.print
-      project_from Var_within_closure.print var_within_closure
+  | Project_value_slot { project_from; value_slot } ->
+    Format.fprintf ppf "@[(Project_value_slot@ (%a@ %a@<0>%s))@]"
+      Function_slot.print project_from Value_slot.print value_slot
       (Flambda_colours.prim_destructive ())
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
@@ -852,7 +852,8 @@ let arg_kind_of_unary_primitive p =
   | Array_length | Bigarray_length _ -> K.value
   | Unbox_number _ -> K.value
   | Box_number (kind, _) -> K.Boxable_number.to_kind kind
-  | Select_closure _ | Project_var _ | Is_boxed_float | Is_flat_float_array ->
+  | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
+  | Is_flat_float_array ->
     K.value
   | End_region -> K.region
 
@@ -874,7 +875,8 @@ let result_kind_of_unary_primitive p : result_kind =
   | Array_length -> Singleton K.value
   | Bigarray_length _ -> Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.to_kind kind)
-  | Box_number _ | Select_closure _ | Project_var _ -> Singleton K.value
+  | Box_number _ | Project_function_slot _ | Project_value_slot _ ->
+    Singleton K.value
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | End_region -> Singleton K.value
 
@@ -945,7 +947,7 @@ let effects_and_coeffects_of_unary_primitive p =
       | Local -> Coeffects.Has_coeffects
     in
     Effects.Only_generative_effects Immutable, coeffects
-  | Select_closure _ | Project_var _ ->
+  | Project_function_slot _ | Project_value_slot _ ->
     Effects.No_effects, Coeffects.No_coeffects
   | Is_boxed_float | Is_flat_float_array ->
     (* Tags on heap blocks are immutable. *)
@@ -963,7 +965,7 @@ let unary_classify_for_printing p =
     Neither
   | Array_length | Bigarray_length _ | Unbox_number _ -> Destructive
   | Box_number _ -> Constructive
-  | Select_closure _ | Project_var _ -> Destructive
+  | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region -> Neither
 
@@ -1494,15 +1496,15 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary _ -> Name_occurrences.empty
-  | Unary (Select_closure { move_from; move_to }, x0) ->
-    Name_occurrences.add_closure_id_in_projection
-      (Name_occurrences.add_closure_id_in_projection (Simple.free_names x0)
+  | Unary (Project_function_slot { move_from; move_to }, x0) ->
+    Name_occurrences.add_function_slot_in_projection
+      (Name_occurrences.add_function_slot_in_projection (Simple.free_names x0)
          move_to Name_mode.normal)
       move_from Name_mode.normal
-  | Unary (Project_var { var = clos_var; project_from }, x0) ->
-    Name_occurrences.add_closure_id_in_projection
-      (Name_occurrences.add_closure_var_in_projection (Simple.free_names x0)
-         clos_var Name_mode.normal)
+  | Unary (Project_value_slot { value_slot; project_from }, x0) ->
+    Name_occurrences.add_function_slot_in_projection
+      (Name_occurrences.add_value_slot_in_projection (Simple.free_names x0)
+         value_slot Name_mode.normal)
       project_from Name_mode.normal
   | Unary (_prim, x0) -> Simple.free_names x0
   | Binary (_prim, x0, x1) ->

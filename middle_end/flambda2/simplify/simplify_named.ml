@@ -46,7 +46,7 @@ let create_lifted_constant (dacc, lifted_constants)
     dacc, lifted_constant :: lifted_constants
   | Set_of_closures closure_symbols ->
     let closure_symbols_with_types =
-      Closure_id.Lmap.map
+      Function_slot.Lmap.map
         (fun symbol ->
           let typ =
             TE.find (DA.typing_env dacc) (Name.symbol symbol) (Some K.value)

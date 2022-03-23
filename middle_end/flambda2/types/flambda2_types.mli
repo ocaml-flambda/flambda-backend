@@ -31,9 +31,9 @@ val apply_renaming : t -> Renaming.t -> t
 
 include Contains_ids.S with type t := t
 
-val remove_unused_closure_vars_and_shortcut_aliases :
+val remove_unused_value_slots_and_shortcut_aliases :
   t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
   t
 
@@ -206,11 +206,11 @@ module Typing_env : sig
        environment are canonical. But some types, like function return types,
        live outside the typing environment. To ensure that they can be exported
        safely, they must go through
-       [remove_unused_closure_vars_and_shortcut_aliases] too, with the
+       [remove_unused_value_slots_and_shortcut_aliases] too, with the
        [canonicalise] argument set to the function returned here. *)
     val create :
       typing_env ->
-      used_closure_vars:Var_within_closure.Set.t ->
+      used_value_slots:Value_slot.Set.t ->
       t * (Simple.t -> Simple.t)
 
     val find_or_missing : t -> Name.t -> flambda_type option
@@ -221,7 +221,7 @@ module Typing_env : sig
 
     val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
-    val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+    val free_function_slots_and_value_slots : t -> Name_occurrences.t
 
     val create_from_closure_conversion_approx :
       'a Value_approximation.t Symbol.Map.t -> t
@@ -283,7 +283,7 @@ end
 module Closures_entry : sig
   type t
 
-  val closure_var_types : t -> flambda_type Var_within_closure.Map.t
+  val value_slot_types : t -> flambda_type Value_slot.Map.t
 end
 
 val free_names : t -> Name_occurrences.t
@@ -473,27 +473,25 @@ val this_immutable_string : string -> t
 val mutable_string : size:int -> t
 
 val exactly_this_closure :
-  Closure_id.t ->
+  Function_slot.t ->
   all_function_decls_in_set:
-    Function_type.t Or_unknown_or_bottom.t Closure_id.Map.t ->
-  all_closures_in_set:t Closure_id.Map.t ->
-  all_closure_vars_in_set:flambda_type Var_within_closure.Map.t ->
+    Function_type.t Or_unknown_or_bottom.t Function_slot.Map.t ->
+  all_closures_in_set:t Function_slot.Map.t ->
+  all_value_slots_in_set:flambda_type Value_slot.Map.t ->
   Alloc_mode.t Or_unknown.t ->
   flambda_type
 
 val at_least_the_closures_with_ids :
-  this_closure:Closure_id.t -> Simple.t Closure_id.Map.t -> flambda_type
+  this_closure:Function_slot.t -> Simple.t Function_slot.Map.t -> flambda_type
 
-val closure_with_at_least_this_closure_var :
-  this_closure:Closure_id.t ->
-  Var_within_closure.t ->
+val closure_with_at_least_this_value_slot :
+  this_closure:Function_slot.t ->
+  Value_slot.t ->
   closure_element_var:Variable.t ->
   flambda_type
 
-val closure_with_at_least_these_closure_vars :
-  this_closure:Closure_id.t ->
-  Variable.t Var_within_closure.Map.t ->
-  flambda_type
+val closure_with_at_least_these_value_slots :
+  this_closure:Function_slot.t -> Variable.t Value_slot.Map.t -> flambda_type
 
 val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->
@@ -631,11 +629,11 @@ val prove_is_array_with_element_kind :
 
 (** Prove that the given type, of kind [Value], is a closures type describing
     exactly one set of closures. The function declaration type corresponding to
-    such closure is returned together with its closure ID, if it is known. *)
+    such closure is returned together with its function slot, if it is known. *)
 val prove_single_closures_entry :
   Typing_env.t ->
   t ->
-  (Closure_id.t
+  (Function_slot.t
   * Alloc_mode.t Or_unknown.t
   * Closures_entry.t
   * Function_type.t)
@@ -644,7 +642,7 @@ val prove_single_closures_entry :
 val prove_single_closures_entry' :
   Typing_env.t ->
   t ->
-  (Closure_id.t
+  (Function_slot.t
   * Alloc_mode.t Or_unknown.t
   * Closures_entry.t
   * Function_type.t)
@@ -699,14 +697,14 @@ val prove_project_var_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
-  Var_within_closure.t ->
+  Value_slot.t ->
   Simple.t proof
 
 val prove_select_closure_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
-  Closure_id.t ->
+  Function_slot.t ->
   Simple.t proof
 
 val prove_rec_info : Typing_env.t -> t -> Rec_info_expr.t proof
@@ -736,9 +734,9 @@ type to_lift =
 type reification_result = private
   | Lift of to_lift (* CR mshinwell: rename? *)
   | Lift_set_of_closures of
-      { closure_id : Closure_id.t;
-        function_types : Function_type.t Closure_id.Map.t;
-        closure_vars : Simple.t Var_within_closure.Map.t
+      { function_slot : Function_slot.t;
+        function_types : Function_type.t Function_slot.Map.t;
+        value_slots : Simple.t Value_slot.Map.t
       }
   | Simple of Simple.t
   | Cannot_reify

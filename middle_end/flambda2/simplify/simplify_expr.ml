@@ -58,21 +58,21 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
         in
         let data_flow = DA.data_flow dacc in
         let closure_info = DE.closure_info (DA.denv dacc) in
-        (* The code_age_relation and used closure_vars are only correct at
+        (* The code_age_relation and used value_slots are only correct at
            toplevel, and they are only necessary to compute the live code ids,
            which are only used when simplifying at the toplevel. So if we are in
            a closure, we use empty/dummy values for the code_age_relation and
-           used_closure_vars, and in return we do not use the reachable_code_id
+           used_value_slots, and in return we do not use the reachable_code_id
            part of the data_flow analysis. *)
-        let code_age_relation, used_closure_vars =
+        let code_age_relation, used_value_slots =
           match Closure_info.in_or_out_of_closure closure_info with
           | In_a_closure -> Code_age_relation.empty, Or_unknown.Unknown
           | Not_in_a_closure ->
             ( DA.code_age_relation dacc,
-              Or_unknown.Known (DA.used_closure_vars dacc) )
+              Or_unknown.Known (DA.used_value_slots dacc) )
         in
         let ({ required_names; reachable_code_ids } : Data_flow.result) =
-          Data_flow.analyze data_flow ~code_age_relation ~used_closure_vars
+          Data_flow.analyze data_flow ~code_age_relation ~used_value_slots
             ~return_continuation ~exn_continuation
         in
         (* The code_id part of the data_flow analysis is correct only at
@@ -95,7 +95,7 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids
-            ~compute_closure_offsets:true uenv dacc
+            ~compute_slot_offsets:true uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

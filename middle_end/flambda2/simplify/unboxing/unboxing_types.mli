@@ -49,8 +49,8 @@ type unboxing_decision =
         fields_by_tag : field_decision list Tag.Scannable.Map.t
       }
   | Closure_single_entry of
-      { closure_id : Closure_id.t;
-        vars_within_closure : field_decision Var_within_closure.Map.t
+      { function_slot : Function_slot.t;
+        vars_within_closure : field_decision Value_slot.Map.t
       }
   (* By "single entry" we mean that the corresponding set of closures only
      contains a single closure. *)

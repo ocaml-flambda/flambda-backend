@@ -388,7 +388,7 @@ let mk_dflexpect f =
     \     whose basename matches that of the input .ml file (Flambda 2 only)"
 ;;
 
-let mk_dclosure_offsets f =
+let mk_dslot_offsets f =
   "-dclosure-offsets", Arg.Unit f, " Dump closure offsets (Flambda 2 only)"
 ;;
 
@@ -457,7 +457,7 @@ module type Flambda_backend_options = sig
   val drawfexpr : unit -> unit
   val dfexpr : unit -> unit
   val dflexpect : unit -> unit
-  val dclosure_offsets : unit -> unit
+  val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
 end
 
@@ -552,7 +552,7 @@ struct
     mk_drawfexpr F.drawfexpr;
     mk_dfexpr F.dfexpr;
     mk_dflexpect F.dflexpect;
-    mk_dclosure_offsets F.dclosure_offsets;
+    mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
   ]
 end
@@ -701,7 +701,7 @@ module Flambda_backend_options_impl = struct
   let drawfexpr = set' Flambda2.Dump.rawfexpr
   let dfexpr = set' Flambda2.Dump.fexpr
   let dflexpect = set' Flambda2.Dump.flexpect
-  let dclosure_offsets = set' Flambda2.Dump.closure_offsets
+  let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
 end
 

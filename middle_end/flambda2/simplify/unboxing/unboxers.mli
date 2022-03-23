@@ -61,8 +61,7 @@ module Field : sig
 end
 
 module Closure_field : sig
-  val unboxing_prim :
-    Closure_id.t -> closure:Simple.t -> Var_within_closure.t -> P.t
+  val unboxing_prim : Function_slot.t -> closure:Simple.t -> Value_slot.t -> P.t
 
-  val unboxer : Closure_id.t -> Var_within_closure.t -> unboxer
+  val unboxer : Function_slot.t -> Value_slot.t -> unboxer
 end

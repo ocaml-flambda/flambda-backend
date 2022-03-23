@@ -56,6 +56,6 @@ val match_against_bound_static_pattern :
   t ->
   Bound_static.Pattern.t ->
   set_of_closures:
-    (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
+    (closure_symbols:Symbol.t Function_slot.Lmap.t -> Set_of_closures.t -> 'a) ->
   block_like:(Symbol.t -> t -> 'a) ->
   'a

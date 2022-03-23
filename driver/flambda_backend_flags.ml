@@ -105,7 +105,7 @@ module Flambda2 = struct
     let rawfexpr = ref false
     let fexpr = ref false
     let flexpect = ref false
-    let closure_offsets = ref false
+    let slot_offsets = ref false
     let freshen = ref false
   end
 

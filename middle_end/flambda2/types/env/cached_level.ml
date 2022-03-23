@@ -155,28 +155,28 @@ let canonicalise t simple =
         (Aliases.get_canonical_ignoring_name_mode t.aliases name)
         coercion)
 
-let remove_unused_closure_vars_and_shortcut_aliases
-    ({ names_to_types; aliases; symbol_projections } as t) ~used_closure_vars =
+let remove_unused_value_slots_and_shortcut_aliases
+    ({ names_to_types; aliases; symbol_projections } as t) ~used_value_slots =
   let canonicalise = canonicalise t in
   let names_to_types =
     Name.Map.map_sharing
       (fun ((ty, binding_time_and_mode) as info) ->
         let ty' =
-          Type_grammar.remove_unused_closure_vars_and_shortcut_aliases ty
-            ~used_closure_vars ~canonicalise
+          Type_grammar.remove_unused_value_slots_and_shortcut_aliases ty
+            ~used_value_slots ~canonicalise
         in
         if ty == ty' then info else ty', binding_time_and_mode)
       names_to_types
   in
   { names_to_types; aliases; symbol_projections }
 
-let free_closure_ids_and_closure_vars
+let free_function_slots_and_value_slots
     { names_to_types; aliases = _; symbol_projections } =
   let from_projections =
     Variable.Map.fold
       (fun _var proj free_names ->
         Name_occurrences.union free_names
-          (Name_occurrences.restrict_to_closure_vars_and_closure_ids
+          (Name_occurrences.restrict_to_value_slots_and_function_slots
              (Symbol_projection.free_names proj)))
       symbol_projections Name_occurrences.empty
   in
@@ -184,6 +184,6 @@ let free_closure_ids_and_closure_vars
     (fun _name (ty, _binding_time) free_names ->
       let free_names_of_ty = Type_grammar.free_names ty in
       Name_occurrences.union free_names
-        (Name_occurrences.restrict_to_closure_vars_and_closure_ids
+        (Name_occurrences.restrict_to_value_slots_and_function_slots
            free_names_of_ty))
     names_to_types from_projections
