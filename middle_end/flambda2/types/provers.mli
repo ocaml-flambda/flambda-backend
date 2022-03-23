@@ -14,140 +14,138 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a proof = private
-  | Proved of 'a
-  | Unknown
-  | Invalid
+(** A [proof_of_operation] gives us the result of a particular operation. The
+    corresponding functions provide efficient alternatives to the generic meet
+    function, with similar semantics. *)
+type 'a proof_of_operation = private
+  | Known_result of 'a  (** Result has been succesfully computed *)
+  | Unknown  (** Exact result could not be computed or is Top *)
+  | Invalid  (** Result is Bottom *)
 
-type 'a proof_allowing_kind_mismatch = private
+(** A [proof_of_property] tells us whether the input type matches a given
+    property. The extra type parameter can hold additional information, for
+    instance [prove_is_boxed_number] can return which kind of boxed number. *)
+type 'a proof_of_property = private
   | Proved of 'a
   | Unknown
-  | Invalid
   | Wrong_kind
 
-type var_or_symbol_or_tagged_immediate = private
-  | Var of Variable.t
-  | Symbol of Symbol.t
-  | Tagged_immediate of Targetint_31_63.t
-
-val prove_equals_to_var_or_symbol_or_tagged_immediate :
-  Typing_env.t ->
-  Type_grammar.t ->
-  (var_or_symbol_or_tagged_immediate * Coercion.t) proof
+(** If this returns a simple, it is bound with mode Normal *)
+val prove_equals_to_simple_of_kind_value :
+  Typing_env.t -> Type_grammar.t -> Simple.t proof_of_property
 
 (* CR mshinwell: Should remove "_equals_" from these names *)
 val prove_equals_tagged_immediates :
-  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t proof
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t proof_of_property
 
-val prove_naked_immediates :
-  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t proof
+val check_equals_tagged_immediates :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t proof_of_operation
 
-val prove_equals_single_tagged_immediate :
-  Typing_env.t -> Type_grammar.t -> Targetint_31_63.t proof
+val check_naked_immediates :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.Set.t proof_of_operation
 
-val prove_naked_floats :
+val check_equals_single_tagged_immediate :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.t proof_of_operation
+
+val check_naked_floats :
   Typing_env.t ->
   Type_grammar.t ->
-  Numeric_types.Float_by_bit_pattern.Set.t proof
+  Numeric_types.Float_by_bit_pattern.Set.t proof_of_operation
 
-val prove_naked_int32s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t proof
+val check_naked_int32s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t proof_of_operation
 
-val prove_naked_int64s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int64.Set.t proof
+val check_naked_int64s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int64.Set.t proof_of_operation
 
-val prove_naked_nativeints :
-  Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t proof
+val check_naked_nativeints :
+  Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t proof_of_operation
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
     non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
   }
 
+val check_variant_like :
+  Typing_env.t -> Type_grammar.t -> variant_like_proof proof_of_operation
+
 val prove_variant_like :
-  Typing_env.t ->
-  Type_grammar.t ->
-  variant_like_proof proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> variant_like_proof proof_of_property
 
-(** If [ty] is known to represent a boxed number or a tagged integer,
-    [prove_is_a_boxed_number env ty] is [Proved kind]. [kind] is the kind of the
-    unboxed number.
-
-    If [ty] is known to represent something of kind value that is not a number
-    [prove_is_a_boxed_number env ty] is [Invalid].
-
-    Otherwise it is [Unknown] or [Wrong_kind] when [ty] is not of kind value. *)
 type boxed_or_tagged_number = private
   | Boxed of Flambda_kind.Boxable_number.t
   | Tagged_immediate
 
 val prove_is_a_boxed_or_tagged_number :
-  Typing_env.t ->
-  Type_grammar.t ->
-  boxed_or_tagged_number proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> boxed_or_tagged_number proof_of_property
 
 val prove_is_a_tagged_immediate :
-  Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_float :
-  Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_int32 :
-  Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_int64 :
-  Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_a_boxed_nativeint :
-  Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> unit proof_of_property
 
 val prove_is_or_is_not_a_boxed_float :
-  Typing_env.t -> Type_grammar.t -> bool proof_allowing_kind_mismatch
+  Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
-val prove_boxed_floats :
+val check_boxed_floats :
   Typing_env.t ->
   Type_grammar.t ->
-  Numeric_types.Float_by_bit_pattern.Set.t proof
+  Numeric_types.Float_by_bit_pattern.Set.t proof_of_operation
 
-val prove_boxed_int32s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t proof
+val check_boxed_int32s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t proof_of_operation
 
-val prove_boxed_int64s :
-  Typing_env.t -> Type_grammar.t -> Numeric_types.Int64.Set.t proof
+val check_boxed_int64s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int64.Set.t proof_of_operation
 
-val prove_boxed_nativeints :
-  Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t proof
-
-val prove_tags_must_be_a_block :
-  Typing_env.t -> Type_grammar.t -> Tag.Set.t proof
+val check_boxed_nativeints :
+  Typing_env.t -> Type_grammar.t -> Targetint_32_64.Set.t proof_of_operation
 
 val prove_unique_tag_and_size :
   Typing_env.t ->
   Type_grammar.t ->
-  (Tag.t * Targetint_31_63.t) proof_allowing_kind_mismatch
+  (Tag.t * Targetint_31_63.t) proof_of_property
+
+val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
+
+val prove_get_tag :
+  Typing_env.t -> Type_grammar.t -> Tag.Set.t proof_of_property
 
 val prove_unique_fully_constructed_immutable_heap_block :
-  Typing_env.t -> Type_grammar.t -> (Tag_and_size.t * Simple.t list) proof
-
-val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof
+  Typing_env.t ->
+  Type_grammar.t ->
+  (Tag_and_size.t * Simple.t list) proof_of_property
 
 type array_kind_compatibility =
   | Exact
   | Compatible
   | Incompatible
 
-(** This function deems non-[Array] types of kind [Value] to be [Invalid]. *)
-val prove_is_array_with_element_kind :
+val check_is_array_with_element_kind :
   Typing_env.t ->
   Type_grammar.t ->
   element_kind:Flambda_kind.With_subkind.t ->
-  array_kind_compatibility proof
+  array_kind_compatibility proof_of_operation
 
-(* CR mshinwell: Fix comment and/or function name *)
+val check_single_closures_entry :
+  Typing_env.t ->
+  Type_grammar.t ->
+  (Function_slot.t
+  * Alloc_mode.t Or_unknown.t
+  * Type_grammar.Closures_entry.t
+  * Type_grammar.Function_type.t)
+  proof_of_operation
 
-(** Prove that the given type, of kind [Value], is a closures type describing
-    exactly one set of closures. The function declaration type corresponding to
-    such closure is returned together with its function slot, if it is known. *)
 val prove_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
@@ -155,80 +153,81 @@ val prove_single_closures_entry :
   * Alloc_mode.t Or_unknown.t
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
-  proof
+  proof_of_property
 
-val prove_single_closures_entry' :
+val check_strings :
+  Typing_env.t -> Type_grammar.t -> String_info.Set.t proof_of_operation
+
+val prove_tagging_of_simple :
   Typing_env.t ->
+  min_name_mode:Name_mode.t ->
   Type_grammar.t ->
-  (Function_slot.t
-  * Alloc_mode.t Or_unknown.t
-  * Type_grammar.Closures_entry.t
-  * Type_grammar.Function_type.t)
-  proof_allowing_kind_mismatch
+  Simple.t proof_of_property
 
-val prove_strings : Typing_env.t -> Type_grammar.t -> String_info.Set.t proof
+val check_tagging_of_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t proof_of_operation
 
-(** Attempt to show that the provided type describes the tagged version of a
-    unique naked immediate [Simple].
+val check_boxed_float_containing_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t proof_of_operation
 
-    This function will return [Unknown] if values of the provided type might
-    sometimes, but not always, be a tagged immediate (for example if it is a
-    variant type involving blocks). *)
-val prove_is_always_tagging_of_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
+val check_boxed_int32_containing_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t proof_of_operation
 
-(** Attempt to show that the provided type _can_ describe, but might not always
-    describe, the tagged version of a unique naked immediate [Simple]. It is
-    guaranteed that if a [Simple] is returned, the type does not describe any
-    other tagged immediate. *)
-val prove_could_be_tagging_of_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
+val check_boxed_int64_containing_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t proof_of_operation
 
-val prove_boxed_float_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
+val check_boxed_nativeint_containing_simple :
+  Typing_env.t ->
+  min_name_mode:Name_mode.t ->
+  Type_grammar.t ->
+  Simple.t proof_of_operation
 
-val prove_boxed_int32_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
-
-val prove_boxed_int64_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
-
-val prove_boxed_nativeint_containing_simple :
-  Typing_env.t -> min_name_mode:Name_mode.t -> Type_grammar.t -> Simple.t proof
-
-val prove_block_field_simple :
+val check_block_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   Targetint_31_63.t ->
-  Simple.t proof
+  Simple.t proof_of_operation
 
-val prove_variant_field_simple :
+val check_variant_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   Tag.t ->
   Targetint_31_63.t ->
-  Simple.t proof
+  Simple.t proof_of_operation
 
-val prove_project_value_slot_simple :
+val check_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   Value_slot.t ->
-  Simple.t proof
+  Simple.t proof_of_operation
 
-val prove_project_function_slot_simple :
+val check_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   Function_slot.t ->
-  Simple.t proof
+  Simple.t proof_of_operation
 
-val prove_rec_info : Typing_env.t -> Type_grammar.t -> Rec_info_expr.t proof
+val check_rec_info :
+  Typing_env.t -> Type_grammar.t -> Rec_info_expr.t proof_of_operation
 
 val prove_alloc_mode_of_boxed_number :
-  Typing_env.t -> Type_grammar.t -> Alloc_mode.t Or_unknown.t
+  Typing_env.t -> Type_grammar.t -> Alloc_mode.t proof_of_property
 
 val never_holds_locally_allocated_values :
-  Typing_env.t -> Variable.t -> Flambda_kind.t -> bool
+  Typing_env.t -> Variable.t -> Flambda_kind.t -> unit proof_of_property

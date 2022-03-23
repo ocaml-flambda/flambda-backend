@@ -826,8 +826,8 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   (* CR-someday mshinwell: Should this be using [meet_shape], like for
      primitives? *)
   let denv = DA.denv dacc in
-  match T.prove_single_closures_entry (DE.typing_env denv) callee_ty with
-  | Proved
+  match T.check_single_closures_entry (DE.typing_env denv) callee_ty with
+  | Known_result
       ( callee's_function_slot,
         closure_alloc_mode,
         _closures_entry,

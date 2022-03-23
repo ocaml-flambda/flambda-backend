@@ -17,16 +17,11 @@
 (** Transformation of types into structures that can be used immediately to
     build terms. *)
 
-type var_or_symbol_or_tagged_immediate = private
-  | Var of Variable.t
-  | Symbol of Symbol.t
-  | Tagged_immediate of Targetint_31_63.t
-
 type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
-        fields : var_or_symbol_or_tagged_immediate list
+        fields : Simple.t list
       }
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t
   | Boxed_int32 of Numeric_types.Int32.t
@@ -36,11 +31,6 @@ type to_lift = private
 
 type reification_result = private
   | Lift of to_lift
-  | Lift_set_of_closures of
-      { function_slot : Function_slot.t;
-        function_types : Type_grammar.Function_type.t Function_slot.Map.t;
-        value_slots : Simple.t Value_slot.Map.t
-      }
   | Simple of Simple.t
   | Cannot_reify
   | Invalid

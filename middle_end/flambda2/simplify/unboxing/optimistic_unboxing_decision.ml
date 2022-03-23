@@ -44,7 +44,7 @@ let make_optimistic_number_decision tenv param_type
   | Proved () ->
     let naked_number = Extra_param_and_args.create ~name:decider.param_name in
     Some (Unbox (Number (decider.kind, naked_number)))
-  | Wrong_kind | Invalid | Unknown -> None
+  | Wrong_kind | Unknown -> None
 
 let decide tenv param_type deciders : U.decision option =
   List.find_map (make_optimistic_number_decision tenv param_type) deciders
@@ -84,7 +84,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               tag size
           in
           Unbox (Unique_tag_and_size { tag; fields })
-        | Proved _ | Wrong_kind | Invalid | Unknown -> (
+        | Proved _ | Wrong_kind | Unknown -> (
           match T.prove_variant_like tenv param_type with
           | Proved { const_ctors; non_const_ctors_with_sizes }
             when unbox_variants ->
@@ -103,8 +103,8 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
                 non_const_ctors_with_sizes
             in
             Unbox (Variant { tag; const_ctors; fields_by_tag })
-          | Proved _ | Wrong_kind | Invalid | Unknown -> (
-            match T.prove_single_closures_entry' tenv param_type with
+          | Proved _ | Wrong_kind | Unknown -> (
+            match T.prove_single_closures_entry tenv param_type with
             | Proved (function_slot, _, closures_entry, _fun_decl)
               when unbox_closures ->
               let vars_within_closure =
@@ -112,7 +112,7 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
               in
               Unbox
                 (Closure_single_entry { function_slot; vars_within_closure })
-            | Proved _ | Wrong_kind | Invalid | Unknown ->
+            | Proved _ | Wrong_kind | Unknown ->
               Do_not_unbox Incomplete_parameter_type)))
 
 and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
