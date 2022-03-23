@@ -216,14 +216,13 @@ module Code_id : sig
 
   val is_imported : t -> bool
 
+  val linkage_name : t -> Linkage_name.t
+
   val name : t -> string
 
   (* The [rename] function, in addition to changing the stamp of the code ID,
      changes the compilation unit to the current one. *)
   val rename : t -> t
-
-  (** [Code_id]s uniquely determine function symbols. *)
-  val code_symbol : t -> Symbol.t
 
   val invert_map : t Map.t -> t Map.t
 
