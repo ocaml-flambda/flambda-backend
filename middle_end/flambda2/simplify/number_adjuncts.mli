@@ -68,7 +68,7 @@ module type Number_kind_common = sig
   val unboxed_prover :
     Flambda2_types.Typing_env.t ->
     Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof
+    Num.Set.t Flambda2_types.proof_of_operation
 
   val this_unboxed : Num.t -> Flambda2_types.t
 
@@ -121,7 +121,7 @@ module type Boxable = sig
   val boxed_prover :
     Flambda2_types.Typing_env.t ->
     Flambda2_types.t ->
-    Num.Set.t Flambda2_types.proof
+    Num.Set.t Flambda2_types.proof_of_operation
 
   val this_boxed : Num.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 

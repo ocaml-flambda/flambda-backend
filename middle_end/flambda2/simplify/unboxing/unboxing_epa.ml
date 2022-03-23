@@ -58,7 +58,8 @@ let unbox_arg (unboxer : Unboxers.unboxer) ~typing_env_at_use arg_being_unboxed
       unboxer.prove_simple typing_env_at_use arg_type
         ~min_name_mode:Name_mode.normal
     with
-    | Proved simple -> EPA.Extra_arg.Already_in_scope simple, Available simple
+    | Known_result simple ->
+      EPA.Extra_arg.Already_in_scope simple, Available simple
     | Invalid ->
       let extra_arg =
         EPA.Extra_arg.Already_in_scope (Simple.const unboxer.invalid_const)
@@ -111,10 +112,10 @@ let extra_arg_for_ctor ~typing_env_at_use = function
         (Simple.untagged_const_int (Targetint_31_63.Imm.of_int 0))
     | Some arg_type -> (
       match
-        T.prove_could_be_tagging_of_simple typing_env_at_use
+        T.check_tagging_of_simple typing_env_at_use
           ~min_name_mode:Name_mode.normal arg_type
       with
-      | Proved simple -> EPA.Extra_arg.Already_in_scope simple
+      | Known_result simple -> EPA.Extra_arg.Already_in_scope simple
       | Unknown -> prevent_current_unboxing ()
       | Invalid ->
         (* [Invalid] this means that we are in an impossible-to-reach case, and
@@ -230,11 +231,10 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       match type_of_arg_being_unboxed arg_being_unboxed with
       | None -> invalid ()
       | Some arg_type -> (
-        match T.prove_variant_like typing_env_at_use arg_type with
-        | Wrong_kind -> Misc.fatal_errorf "Kind error while unboxing a variant"
+        match T.check_variant_like typing_env_at_use arg_type with
         | Unknown -> prevent_current_unboxing ()
         | Invalid -> invalid ()
-        | Proved { const_ctors; non_const_ctors_with_sizes } ->
+        | Known_result { const_ctors; non_const_ctors_with_sizes } ->
           compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
             arg_being_unboxed ~tag_from_decision:tag ~const_ctors_from_decision
             ~fields_by_tag_from_decision:fields_by_tag

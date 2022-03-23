@@ -342,25 +342,25 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   match array_kind with
   | Naked_floats -> (
     match
-      T.prove_is_array_with_element_kind typing_env array_ty
+      T.check_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.naked_float
     with
-    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    | Known_result (Exact | Compatible) | Unknown -> Ok array_kind
+    | Known_result Incompatible | Invalid -> Bottom)
   | Immediates -> (
     match
-      T.prove_is_array_with_element_kind typing_env array_ty
+      T.check_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.tagged_immediate
     with
-    | Proved (Exact | Compatible) | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    | Known_result (Exact | Compatible) | Unknown -> Ok array_kind
+    | Known_result Incompatible | Invalid -> Bottom)
   | Values -> (
     match
-      T.prove_is_array_with_element_kind typing_env array_ty
+      T.check_is_array_with_element_kind typing_env array_ty
         ~element_kind:K.With_subkind.tagged_immediate
     with
-    | Proved Exact ->
+    | Known_result Exact ->
       (* Specialise the array operation to [Immediates]. *)
       Ok P.Array_kind.Immediates
-    | Proved Compatible | Unknown -> Ok array_kind
-    | Proved Incompatible | Invalid -> Bottom)
+    | Known_result Compatible | Unknown -> Ok array_kind
+    | Known_result Incompatible | Invalid -> Bottom)

@@ -23,16 +23,21 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : Rebuilt_static_const.t
   match to_lift with
   | Immutable_block { tag; is_unique; fields } ->
     let fields =
-      ListLabels.map fields
-        ~f:(fun
-             (field : T.var_or_symbol_or_tagged_immediate)
-             :
-             Field_of_static_block.t
-           ->
-          match field with
-          | Var var -> Dynamically_computed (var, dbg)
-          | Symbol sym -> Symbol sym
-          | Tagged_immediate imm -> Tagged_immediate imm)
+      ListLabels.map fields ~f:(fun field ->
+          let module F = Field_of_static_block in
+          Simple.pattern_match' field
+            ~var:(fun var ~coercion ->
+              assert (Coercion.is_id coercion);
+              F.Dynamically_computed (var, dbg))
+            ~symbol:(fun sym ~coercion ->
+              assert (Coercion.is_id coercion);
+              F.Symbol sym)
+            ~const:(fun const ->
+              match Reg_width_const.descr const with
+              | Tagged_immediate imm -> F.Tagged_immediate imm
+              | Naked_immediate _ | Naked_float _ | Naked_int32 _
+              | Naked_int64 _ | Naked_nativeint _ ->
+                assert false))
     in
     let mut : Mutability.t =
       if is_unique then Immutable_unique else Immutable
@@ -170,9 +175,7 @@ let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
             (Named.create_simple simple)
             ~try_reify:false,
           dacc )
-    | Lift_set_of_closures _ (* already dealt with in [Simplify_named] *)
-    | Cannot_reify ->
-      term, dacc
+    | Cannot_reify -> term, dacc
     | Invalid ->
       let ty = T.bottom_like ty in
       let denv = DE.add_equation_on_variable denv bound_to ty in

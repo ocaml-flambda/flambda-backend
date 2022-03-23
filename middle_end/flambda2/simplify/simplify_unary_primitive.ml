@@ -58,14 +58,14 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
      closure_ty DA.print dacc; *)
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_project_function_slot_simple typing_env ~min_name_mode closure_ty
+    T.check_project_function_slot_simple typing_env ~min_name_mode closure_ty
       move_to
   with
   | Invalid ->
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.invalid (), dacc
-  | Proved simple ->
+  | Known_result simple ->
     let reachable =
       Simplified_named.reachable (Named.create_simple simple) ~try_reify:true
     in
@@ -91,14 +91,14 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_project_value_slot_simple typing_env ~min_name_mode closure_ty
+    T.check_project_value_slot_simple typing_env ~min_name_mode closure_ty
       value_slot
   with
   | Invalid ->
     let ty = T.bottom K.value in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.invalid (), dacc
-  | Proved simple ->
+  | Known_result simple ->
     (* Owing to the semantics of [Simplify_set_of_closures] when computing the
        types of value slots -- in particular because it allows depth variables
        to exist in such types that are not in scope in the body of the function
@@ -174,8 +174,8 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
        certain and it is [Heap]. (As per [Flambda_primitive] we don't currently
        CSE local allocations.) *)
     match alloc_mode with
-    | Unknown | Known Local -> dacc
-    | Known Heap ->
+    | Unknown | Proved Local | Wrong_kind -> dacc
+    | Proved Heap ->
       let boxing_prim : P.t =
         Unary
           ( Box_number (boxable_number_kind, Heap),
@@ -260,8 +260,8 @@ let simplify_array_length dacc ~original_term ~arg:_ ~arg_ty:array_ty
 let simplify_string_length dacc ~original_term ~arg:_ ~arg_ty:str_ty ~result_var
     =
   let typing_env = DA.typing_env dacc in
-  match T.prove_strings typing_env str_ty with
-  | Proved str_infos -> (
+  match T.check_strings typing_env str_ty with
+  | Known_result str_infos -> (
     if String_info.Set.is_empty str_infos
     then
       let ty = T.bottom K.naked_immediate in
@@ -319,7 +319,7 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
         Simplified_named.reachable named ~try_reify:false, dacc
     in
     match proof with
-    | Proved ints -> (
+    | Known_result ints -> (
       assert (not (I.Num.Set.is_empty ints));
       match op with
       | Neg ->
@@ -360,7 +360,7 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
       let proof = N.unboxed_prover typing_env arg_ty in
       let module Num = N.Num in
       match proof with
-      | Proved is -> (
+      | Known_result is -> (
         assert (Num.Set.cardinal is > 0);
         match dst with
         | Tagged_immediate -> (
@@ -486,7 +486,7 @@ module Simplify_int_conv_naked_nativeint =
 let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
-  let proof = T.prove_equals_tagged_immediates typing_env arg_ty in
+  let proof = T.check_equals_tagged_immediates typing_env arg_ty in
   let[@inline always] result_unknown () =
     let ty = T.unknown K.value in
     let dacc = DA.add_variable dacc result_var ty in
@@ -498,7 +498,7 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     Simplified_named.invalid (), dacc
   in
   match proof with
-  | Proved imms -> (
+  | Known_result imms -> (
     let imms_ok =
       Targetint_31_63.Set.for_all
         (fun imm ->
@@ -538,9 +538,9 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
 let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
     ~result_var =
   let typing_env = DE.typing_env (DA.denv dacc) in
-  let proof = T.prove_naked_int64s typing_env arg_ty in
+  let proof = T.check_naked_int64s typing_env arg_ty in
   match proof with
-  | Proved int64s -> (
+  | Known_result int64s -> (
     let floats =
       Int64.Set.fold
         (fun int64 floats -> Float.Set.add (Float.of_bits int64) floats)
@@ -567,7 +567,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
   let module F = Numeric_types.Float_by_bit_pattern in
   let denv = DA.denv dacc in
   let typing_env = DE.typing_env denv in
-  let proof = T.prove_naked_floats typing_env arg_ty in
+  let proof = T.check_naked_floats typing_env arg_ty in
   let[@inline always] result_unknown () =
     let ty = T.unknown K.naked_float in
     let dacc = DA.add_variable dacc result_var ty in
@@ -579,7 +579,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
     Simplified_named.invalid (), dacc
   in
   match proof with
-  | Proved fs when DE.float_const_prop denv -> (
+  | Known_result fs when DE.float_const_prop denv -> (
     assert (not (Float.Set.is_empty fs));
     let possible_results =
       match op with
@@ -595,7 +595,7 @@ let simplify_float_arith_op (op : P.unary_float_arith_op) dacc ~original_term
         Named.create_simple (Simple.const (Reg_width_const.naked_float f))
       in
       Simplified_named.reachable named ~try_reify:false, dacc)
-  | Proved _ | Unknown -> result_unknown ()
+  | Known_result _ | Unknown -> result_unknown ()
   | Invalid -> result_invalid ()
 
 let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
@@ -614,7 +614,7 @@ let simplify_is_boxed_float dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc
-  | Invalid | Wrong_kind ->
+  | Wrong_kind ->
     let ty = T.bottom K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.invalid (), dacc
@@ -623,10 +623,10 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
     =
   assert (Flambda_features.flat_float_array ());
   match
-    T.prove_is_array_with_element_kind (DA.typing_env dacc) arg_ty
+    T.check_is_array_with_element_kind (DA.typing_env dacc) arg_ty
       ~element_kind:K.With_subkind.naked_float
   with
-  | Proved ((Exact | Incompatible) as compat) ->
+  | Known_result ((Exact | Incompatible) as compat) ->
     let is_flat_float_array =
       match compat with
       | Exact -> true
@@ -641,7 +641,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
            (Simple.const (Reg_width_const.naked_immediate imm)))
         ~try_reify:false,
       dacc )
-  | Proved Compatible | Unknown ->
+  | Known_result Compatible | Unknown ->
     let ty = T.unknown K.naked_immediate in
     let dacc = DA.add_variable dacc result_var ty in
     Simplified_named.reachable original_term ~try_reify:false, dacc

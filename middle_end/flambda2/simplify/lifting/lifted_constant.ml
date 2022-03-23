@@ -292,14 +292,14 @@ let apply_projection t proj =
     let proof =
       match Symbol_projection.projection proj with
       | Block_load { index } ->
-        T.prove_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
+        T.check_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
           (Targetint_31_63.int index)
       | Project_value_slot { project_from = _; value_slot } ->
-        T.prove_project_value_slot_simple typing_env
+        T.check_project_value_slot_simple typing_env
           ~min_name_mode:Name_mode.normal ty value_slot
     in
     match proof with
-    | Proved simple -> Some simple
+    | Known_result simple -> Some simple
     | Unknown ->
       (* [Simplify_named], which calls this function, requires [Some] to be
          returned iff the projection is from a symbol defined in the same

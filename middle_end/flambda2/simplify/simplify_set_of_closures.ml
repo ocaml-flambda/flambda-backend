@@ -1110,9 +1110,13 @@ let type_value_slots_and_make_lifting_decision_for_one_set dacc
                   (* the closure bound vars will be replaced by symbols upon
                      lifting *)
                   || (match Set_of_closures.alloc_mode set_of_closures with
-                     | Local ->
-                       T.never_holds_locally_allocated_values
-                         (DA.typing_env dacc) var K.value
+                     | Local -> (
+                       match
+                         T.never_holds_locally_allocated_values
+                           (DA.typing_env dacc) var K.value
+                       with
+                       | Proved () -> true
+                       | Unknown | Wrong_kind -> false)
                      | Heap -> true)
                      && (DE.is_defined_at_toplevel (DA.denv dacc) var
                         (* If [var] is known to be a symbol projection, it

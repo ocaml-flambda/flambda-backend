@@ -47,9 +47,9 @@ module type Binary_arith_like_sig = sig
 
   val term : Result.t -> Named.t
 
-  val prover_lhs : T.Typing_env.t -> T.t -> Lhs.Set.t T.proof
+  val prover_lhs : T.Typing_env.t -> T.t -> Lhs.Set.t T.proof_of_operation
 
-  val prover_rhs : T.Typing_env.t -> T.t -> Rhs.Set.t T.proof
+  val prover_rhs : T.Typing_env.t -> T.t -> Rhs.Set.t T.proof_of_operation
 
   type op
 
@@ -215,7 +215,7 @@ end = struct
       | None -> result_unknown ()
     in
     match proof1, proof2 with
-    | Proved nums1, Proved nums2 when N.ok_to_evaluate denv ->
+    | Known_result nums1, Known_result nums2 when N.ok_to_evaluate denv ->
       assert (not (N.Lhs.Set.is_empty nums1));
       assert (not (N.Rhs.Set.is_empty nums2));
       if N.Lhs.Set.cardinal nums1 > max_num_possible_results
@@ -232,17 +232,18 @@ end = struct
             all_pairs PR.Set.empty
         in
         check_possible_results ~possible_results
-    | Proved nums1, Unknown when N.ok_to_evaluate denv ->
+    | Known_result nums1, Unknown when N.ok_to_evaluate denv ->
       assert (not (N.Lhs.Set.is_empty nums1));
       only_one_side_known
         (fun i -> N.op_rhs_unknown op ~lhs:i)
         nums1 ~folder:N.Lhs.Set.fold ~other_side:arg2
-    | Unknown, Proved nums2 when N.ok_to_evaluate denv ->
+    | Unknown, Known_result nums2 when N.ok_to_evaluate denv ->
       assert (not (N.Rhs.Set.is_empty nums2));
       only_one_side_known
         (fun i -> N.op_lhs_unknown op ~rhs:i)
         nums2 ~folder:N.Rhs.Set.fold ~other_side:arg1
-    | (Proved _ | Unknown), (Proved _ | Unknown) -> result_unknown ()
+    | (Known_result _ | Unknown), (Known_result _ | Unknown) ->
+      result_unknown ()
     | Invalid, _ | _, Invalid -> result_invalid ()
 end
 [@@inline always]
@@ -419,7 +420,7 @@ end = struct
 
   let prover_lhs = I.unboxed_prover
 
-  let prover_rhs = T.prove_naked_immediates
+  let prover_rhs = T.check_naked_immediates
 
   let unknown _ =
     match arg_kind with
@@ -689,9 +690,9 @@ end = struct
 
   let ok_to_evaluate denv = DE.float_const_prop denv
 
-  let prover_lhs = T.prove_naked_floats
+  let prover_lhs = T.check_naked_floats
 
-  let prover_rhs = T.prove_naked_floats
+  let prover_rhs = T.check_naked_floats
 
   let unknown _ = T.any_naked_float
 
@@ -783,9 +784,9 @@ end = struct
 
   let ok_to_evaluate denv = DE.float_const_prop denv
 
-  let prover_lhs = T.prove_naked_floats
+  let prover_lhs = T.check_naked_floats
 
-  let prover_rhs = T.prove_naked_floats
+  let prover_rhs = T.check_naked_floats
 
   let unknown (op : op) =
     match op with
@@ -1000,10 +1001,10 @@ let[@inline always] simplify_immutable_block_load0
     Simplified_named.reachable named ~try_reify:false, dacc
   in
   let typing_env = DA.typing_env dacc in
-  match T.prove_equals_single_tagged_immediate typing_env index_ty with
+  match T.check_equals_single_tagged_immediate typing_env index_ty with
   | Invalid -> invalid ()
   | Unknown -> unchanged ()
-  | Proved index -> (
+  | Known_result index -> (
     let skip_simplification =
       let size =
         match access_kind with
@@ -1019,10 +1020,10 @@ let[@inline always] simplify_immutable_block_load0
           not (Targetint_31_63.Imm.( <= ) size max_size))
     in
     match
-      T.prove_block_field_simple typing_env ~min_name_mode block_ty index
+      T.check_block_field_simple typing_env ~min_name_mode block_ty index
     with
     | Invalid -> invalid ()
-    | Proved simple -> exactly simple
+    | Known_result simple -> exactly simple
     | Unknown when skip_simplification -> unchanged ()
     | Unknown ->
       let n =
@@ -1114,10 +1115,10 @@ let simplify_phys_equal (op : P.equality_comparison) (kind : K.t) dacc
           Simplified_named.reachable original_term ~try_reify:false, dacc))
     | Naked_number Naked_immediate -> (
       let typing_env = DA.typing_env dacc in
-      let proof1 = T.prove_naked_immediates typing_env arg1_ty in
-      let proof2 = T.prove_naked_immediates typing_env arg2_ty in
+      let proof1 = T.check_naked_immediates typing_env arg1_ty in
+      let proof2 = T.check_naked_immediates typing_env arg2_ty in
       match proof1, proof2 with
-      | Proved _, Proved _ ->
+      | Known_result _, Known_result _ ->
         Binary_int_eq_comp_naked_immediate.simplify op dacc ~original_term dbg
           ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
       | _, _ ->

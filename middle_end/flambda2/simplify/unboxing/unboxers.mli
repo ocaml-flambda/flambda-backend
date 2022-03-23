@@ -21,14 +21,15 @@ open! Simplify_import
 type number_decider =
   { param_name : string;
     kind : K.Naked_number_kind.t;
-    prove_is_a_boxed_number : TE.t -> T.t -> unit T.proof_allowing_kind_mismatch
+    prove_is_a_boxed_number : TE.t -> T.t -> unit T.proof_of_property
   }
 
 type unboxer =
   { var_name : string;
     invalid_const : Const.t;
     unboxing_prim : Simple.t -> P.t;
-    prove_simple : TE.t -> min_name_mode:Name_mode.t -> T.t -> Simple.t T.proof
+    prove_simple :
+      TE.t -> min_name_mode:Name_mode.t -> T.t -> Simple.t T.proof_of_operation
   }
 
 module type Number_S = sig
