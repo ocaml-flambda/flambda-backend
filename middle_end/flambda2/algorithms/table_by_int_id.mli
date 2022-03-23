@@ -23,12 +23,6 @@ module Id : sig
 
   val flags : t -> int
 
-  val without_flags : t -> int
-
-  (** [with_flags] sets all bits of the flags word according to the specified
-      value. *)
-  val with_flags : t -> int -> t
-
   val compare : t -> t -> int
 
   val equal : t -> t -> bool
