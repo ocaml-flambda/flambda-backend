@@ -386,8 +386,7 @@ let is_pure_basic : basic -> bool = function
   | Poptrap -> true
   | Prologue -> true
 
-let print_basic ppf i =
-  Format.fprintf ppf "%a" dump_basic i
+let print_basic ppf i = Format.fprintf ppf "%a" dump_basic i
 
 let print_terminator ?sep ppf ti =
   Format.fprintf ppf "%a" (dump_terminator ?sep) ti
