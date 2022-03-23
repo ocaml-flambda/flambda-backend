@@ -70,18 +70,14 @@ let run ~cmx_loader ~round unit =
       (Exported_code.mark_as_imported (get_imported_code ()))
   in
   let name_occurrences = UA.name_occurrences uacc in
-  let closure_ids_normal =
+  let closure_ids_in_normal_projections =
     Name_occurrences.closure_ids_in_normal_projections name_occurrences
   in
-  let closure_vars_normal =
+  let closure_vars_in_normal_projections =
     Name_occurrences.closure_vars_in_normal_projections name_occurrences
   in
-  let closure_ids_in_types =
-    Name_occurrences.all_closure_ids name_occurrences
-  in
-  let closure_vars_in_types =
-    Name_occurrences.all_closure_vars name_occurrences
-  in
+  let all_closure_ids = Name_occurrences.all_closure_ids name_occurrences in
+  let all_closure_vars = Name_occurrences.all_closure_vars name_occurrences in
   let used_closure_vars, exported_offsets =
     match UA.closure_offsets uacc with
     | Unknown ->
@@ -89,10 +85,10 @@ let run ~cmx_loader ~round unit =
     | Known closure_offsets -> (
       let used_names : Closure_offsets.used_names Or_unknown.t =
         Known
-          { closure_vars_normal;
-            closure_ids_normal;
-            closure_vars_in_types;
-            closure_ids_in_types
+          { closure_ids_in_normal_projections;
+            all_closure_ids;
+            closure_vars_in_normal_projections;
+            all_closure_vars
           }
       in
       let get_code_metadata code_id =
