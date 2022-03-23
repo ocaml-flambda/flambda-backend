@@ -480,6 +480,12 @@ module Acc = struct
           t.continuation_applications
     }
 
+  let mark_continuation_as_untrackable cont t =
+    { t with
+      continuation_applications =
+        Continuation.Map.add cont Untrackable t.continuation_applications
+    }
+
   let remove_continuation_from_free_names cont t =
     { t with
       free_names =
@@ -692,6 +698,16 @@ module Expr_with_acc = struct
         acc
     in
     let acc = Acc.add_free_names (Apply_expr.free_names apply) acc in
+    let acc =
+      match Apply_expr.continuation apply with
+      | Never_returns -> acc
+      | Return cont -> Acc.mark_continuation_as_untrackable cont acc
+    in
+    let acc =
+      Acc.mark_continuation_as_untrackable
+        (Exn_continuation.exn_handler (Apply_expr.exn_continuation apply))
+        acc
+    in
     acc, Expr.create_apply apply
 
   let create_switch acc switch =
