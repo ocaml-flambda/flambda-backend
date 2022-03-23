@@ -203,8 +203,7 @@ and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
     let code_id = Closure_id.Map.find c decls in
     let symb = Closure_id.Map.find c symbs in
     let external_name = symbol symb in
-    let code_symbol = Code_id.code_symbol code_id in
-    let code_name = Linkage_name.to_string (Symbol.linkage_name code_symbol) in
+    let code_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
     let acc = List.rev (C.define_symbol ~global:true external_name) @ acc in
     let arity, closure_code_pointers =
       Env.get_func_decl_params_arity env code_id
@@ -235,8 +234,7 @@ let update_env_for_code env (code : Code.t) =
       (Code_id_or_symbol.create_code_id code_id)
 
 let add_function env r ~params_and_body code_id p ~fun_dbg =
-  let fun_symbol = Code_id.code_symbol code_id in
-  let fun_name = Linkage_name.to_string (Symbol.linkage_name fun_symbol) in
+  let fun_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
   let fundecl, r = params_and_body env r fun_name p ~fun_dbg in
   R.add_function r fundecl
 
