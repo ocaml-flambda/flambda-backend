@@ -33,6 +33,8 @@ module Id = struct
   let mask_selecting_bottom_bits = lnot mask_selecting_top_bits
 
   let flags t = t land mask_selecting_bottom_bits
+
+  let next t = t + (1 lsl flags_size_in_bits)
 end
 
 module Make (E : sig
@@ -78,20 +80,17 @@ struct
       else
         try
           let starting_id = id in
-          let id = ref (starting_id + 1) in
+          let id = ref (Id.next starting_id) in
           (* If there is a collision, we search for another slot, but take care
              not to alter the flags bits. *)
           while !id <> starting_id do
-            (* CR mshinwell: performance could be improved *)
-            while Id.flags !id <> E.flags do
-              incr id
-            done;
+            assert (Id.flags !id = E.flags);
             match HT.find t !id with
             | exception Not_found -> raise (Can_add !id)
             | existing_elt ->
               if E.equal elt existing_elt
               then raise (Already_added !id)
-              else incr id
+              else id := Id.next !id
           done;
           Misc.fatal_errorf "No hash values left for@ %a" E.print elt
         with
