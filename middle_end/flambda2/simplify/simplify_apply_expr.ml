@@ -435,7 +435,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               Cost_metrics.from_size (Code_size.prim prim)
             in
             let free_names =
-              Name_occurrences.add_closure_var free_names closure_var NM.normal
+              Name_occurrences.add_closure_var_in_projection free_names
+                closure_var NM.normal
             in
             let expr =
               Let.create

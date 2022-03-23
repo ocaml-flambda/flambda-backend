@@ -113,15 +113,17 @@ let [@ocamlformat "disable"] print ppf
       (Var_within_closure.Map.print Simple.print) closure_elements
 
 let free_names { function_decls; closure_elements; alloc_mode = _ } =
-  (* We are here interested in the the uses of closure_id and
-     var_within_closure, so we do not count the closure_ids and
-     var_within_closures that are bound by a set of closures. Indeed, the
-     free_names will be used later to filter out unused env_vars from sets of
-     closures (in the offset computation and in to_cmm), so if they are added to
-     the free_names here, they can never be simplified away. *)
+  let free_names_of_closure_elements =
+    Var_within_closure.Map.fold
+      (fun closure_var simple free_names ->
+        Name_occurrences.union free_names
+          (Name_occurrences.add_closure_var_in_declaration
+             (Simple.free_names simple) closure_var Name_mode.normal))
+      closure_elements Name_occurrences.empty
+  in
   Name_occurrences.union_list
     [ Function_declarations.free_names function_decls;
-      Simple.List.free_names (Var_within_closure.Map.data closure_elements) ]
+      free_names_of_closure_elements ]
 
 let apply_renaming ({ function_decls; closure_elements; alloc_mode } as t)
     renaming =

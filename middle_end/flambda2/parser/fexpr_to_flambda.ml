@@ -785,20 +785,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
               params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
           in
-          (* CR lmaurer: Add
-           * [Name_occurrences.with_only_names_and_closure_vars] *)
-          let _names_and_closure_vars names =
-            Name_occurrences.(
-              union
-                (restrict_to_closure_vars names)
-                (with_only_names_and_code_ids_promoting_newer_version_of names
-                |> without_code_ids))
-          in
           let free_names =
             (* CR mshinwell: This needs fixing XXX *)
             Name_occurrences.empty
-            (* Flambda.Function_params_and_body.free_names params_and_body |>
-               names_and_closure_vars *)
           in
           ( params,
             params_and_body,

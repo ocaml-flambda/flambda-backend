@@ -284,9 +284,9 @@ and free_names_closures_entry ~follow_closure_vars
     Closure_id.Map.fold
       (fun closure_id function_decl free_names ->
         Name_occurrences.union free_names
-          (Name_occurrences.add_closure_id
+          (Name_occurrences.add_closure_id_in_types
              (free_names_function_type ~follow_closure_vars function_decl)
-             closure_id Name_mode.normal))
+             closure_id))
       function_types Name_occurrences.empty
   in
   let closure_elements_free_names =
@@ -313,11 +313,11 @@ and free_names_var_within_closure_indexed_product ~follow_closure_vars
     { var_within_closure_components_by_index } =
   Var_within_closure.Map.fold
     (fun closure_var t free_names_acc ->
-      Name_occurrences.add_closure_var
+      Name_occurrences.add_closure_var_in_types
         (Name_occurrences.union
            (free_names0 ~follow_closure_vars t)
            free_names_acc)
-        closure_var Name_mode.normal)
+        closure_var)
     var_within_closure_components_by_index Name_occurrences.empty
 
 and free_names_int_indexed_product ~follow_closure_vars { fields; kind = _ } =

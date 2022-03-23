@@ -39,6 +39,6 @@ let rec free_names ~code_free_names approx =
       Name_occurrences.empty approxs
   | Closure_approximation (code_id, closure_id, code) ->
     Name_occurrences.add_code_id
-      (Name_occurrences.add_closure_id (code_free_names code) closure_id
-         Name_mode.normal)
+      (Name_occurrences.add_closure_id_in_types (code_free_names code)
+         closure_id)
       code_id Name_mode.normal

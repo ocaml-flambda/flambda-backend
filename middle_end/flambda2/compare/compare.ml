@@ -364,18 +364,9 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
 and subst_code env (code : Code.t) : Code.t =
   let params_and_body = Code.params_and_body code in
   let params_and_body = subst_params_and_body env params_and_body in
-  let _names_and_closure_vars names =
-    Name_occurrences.(
-      union
-        (restrict_to_closure_vars names)
-        (with_only_names_and_code_ids_promoting_newer_version_of names
-        |> without_code_ids))
-  in
   let free_names_of_params_and_body =
     (* CR mshinwell: This needs fixing XXX *)
     Name_occurrences.empty
-    (* Flambda.Function_params_and_body.free_names params_and_body |>
-       names_and_closure_vars *)
   in
   let newer_version_of =
     Option.map (subst_code_id env) (Code.newer_version_of code)

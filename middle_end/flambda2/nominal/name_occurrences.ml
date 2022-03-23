@@ -631,8 +631,10 @@ type t =
     continuations : For_continuations.t;
     continuations_with_traps : For_continuations.t;
     continuations_in_trap_actions : For_continuations.t;
-    closure_ids : For_closure_ids.t;
-    closure_vars : For_closure_vars.t;
+    closure_ids_in_projections : For_closure_ids.t;
+    closure_vars_in_projections : For_closure_vars.t;
+    closure_ids_in_declarations : For_closure_ids.t;
+    closure_vars_in_declarations : For_closure_vars.t;
     code_ids : For_code_ids.t;
     newer_version_of_code_ids : For_code_ids.t
         (* [newer_version_of_code_ids] tracks those code IDs that occur in
@@ -645,15 +647,24 @@ let empty =
     continuations = For_continuations.empty;
     continuations_with_traps = For_continuations.empty;
     continuations_in_trap_actions = For_continuations.empty;
-    closure_ids = For_closure_ids.empty;
-    closure_vars = For_closure_vars.empty;
+    closure_ids_in_projections = For_closure_ids.empty;
+    closure_vars_in_projections = For_closure_vars.empty;
+    closure_ids_in_declarations = For_closure_ids.empty;
+    closure_vars_in_declarations = For_closure_vars.empty;
     code_ids = For_code_ids.empty;
     newer_version_of_code_ids = For_code_ids.empty
   }
 
 let [@ocamlformat "disable"] print ppf
-      ({ names; continuations; continuations_with_traps;
-         continuations_in_trap_actions; closure_ids; closure_vars; code_ids;
+      ({ names;
+         continuations;
+         continuations_with_traps;
+         continuations_in_trap_actions;
+         closure_ids_in_projections;
+         closure_vars_in_projections;
+         closure_ids_in_declarations;
+         closure_vars_in_declarations;
+         code_ids;
          newer_version_of_code_ids } as t) =
   if t = empty then
     Format.fprintf ppf "no_occurrences"
@@ -663,8 +674,10 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(continuations %a)@]@ \
       @[<hov 1>(continuations_with_traps %a)@]@ \
       @[<hov 1>(continuations_in_trap_actions %a)@]@ \
-      @[<hov 1>(closure_ids %a)@]@ \
-      @[<hov 1>(closure_vars %a)@]@ \
+      @[<hov 1>(closure_ids_in_projections %a)@]@ \
+      @[<hov 1>(closure_vars_in_projections %a)@]@ \
+      @[<hov 1>(closure_ids_in_declarations %a)@]@ \
+      @[<hov 1>(closure_vars_in_declarations %a)@]@ \
       @[<hov 1>(code_ids %a)@] \
       @[<hov 1>(newer_version_of_code_ids %a)@]@ \
       @]"
@@ -672,8 +685,10 @@ let [@ocamlformat "disable"] print ppf
     For_continuations.print continuations
     For_continuations.print continuations_with_traps
     For_continuations.print continuations_in_trap_actions
-    For_closure_ids.print closure_ids
-    For_closure_vars.print closure_vars
+    For_closure_ids.print closure_ids_in_projections
+    For_closure_vars.print closure_vars_in_projections
+    For_closure_ids.print closure_ids_in_declarations
+    For_closure_vars.print closure_vars_in_declarations
     For_code_ids.print code_ids
     For_code_ids.print newer_version_of_code_ids
 
@@ -721,11 +736,45 @@ let add_symbol t sym kind =
 
 let add_name t name kind = { t with names = For_names.add t.names name kind }
 
-let add_closure_id t clos_id kind =
-  { t with closure_ids = For_closure_ids.add t.closure_ids clos_id kind }
+let add_closure_id_in_projection t clos_id kind =
+  { t with
+    closure_ids_in_projections =
+      For_closure_ids.add t.closure_ids_in_projections clos_id kind
+  }
 
-let add_closure_var t clos_var kind =
-  { t with closure_vars = For_closure_vars.add t.closure_vars clos_var kind }
+let add_closure_var_in_projection t clos_var kind =
+  { t with
+    closure_vars_in_projections =
+      For_closure_vars.add t.closure_vars_in_projections clos_var kind
+  }
+
+let add_closure_id_in_declaration t clos_id kind =
+  { t with
+    closure_ids_in_declarations =
+      For_closure_ids.add t.closure_ids_in_declarations clos_id kind
+  }
+
+let add_closure_var_in_declaration t clos_var kind =
+  { t with
+    closure_vars_in_declarations =
+      For_closure_vars.add t.closure_vars_in_declarations clos_var kind
+  }
+
+let add_closure_id_in_types t clos_id =
+  { t with
+    closure_ids_in_declarations =
+      For_closure_ids.add t.closure_ids_in_declarations clos_id Kind.in_types;
+    closure_ids_in_projections =
+      For_closure_ids.add t.closure_ids_in_projections clos_id Kind.in_types
+  }
+
+let add_closure_var_in_types t clos_var =
+  { t with
+    closure_vars_in_declarations =
+      For_closure_vars.add t.closure_vars_in_declarations clos_var Kind.in_types;
+    closure_vars_in_projections =
+      For_closure_vars.add t.closure_vars_in_projections clos_var Kind.in_types
+  }
 
 let add_code_id t id kind =
   { t with code_ids = For_code_ids.add t.code_ids id kind }
@@ -762,23 +811,16 @@ let create_names names kind =
   in
   { empty with names }
 
-let create_closure_vars clos_vars =
-  let closure_vars =
-    Var_within_closure.Set.fold
-      (fun clos_var closure_vars ->
-        For_closure_vars.add closure_vars clos_var Name_mode.normal)
-      clos_vars For_closure_vars.empty
-  in
-  { empty with closure_vars }
-
 let binary_conjunction ~for_names ~for_continuations ~for_closure_ids
     ~for_closure_vars ~for_code_ids
     { names = names1;
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
-      closure_ids = closure_ids1;
-      closure_vars = closure_vars1;
+      closure_ids_in_projections = closure_ids_in_projections1;
+      closure_vars_in_projections = closure_vars_in_projections1;
+      closure_ids_in_declarations = closure_ids_in_declarations1;
+      closure_vars_in_declarations = closure_vars_in_declarations1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
@@ -786,8 +828,10 @@ let binary_conjunction ~for_names ~for_continuations ~for_closure_ids
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
-      closure_ids = closure_ids2;
-      closure_vars = closure_vars2;
+      closure_ids_in_projections = closure_ids_in_projections2;
+      closure_vars_in_projections = closure_vars_in_projections2;
+      closure_ids_in_declarations = closure_ids_in_declarations2;
+      closure_vars_in_declarations = closure_vars_in_declarations2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
     } =
@@ -796,8 +840,11 @@ let binary_conjunction ~for_names ~for_continuations ~for_closure_ids
   && for_continuations continuations_with_traps1 continuations_with_traps2
   && for_continuations continuations_in_trap_actions1
        continuations_in_trap_actions2
-  && for_closure_ids closure_ids1 closure_ids2
-  && for_closure_vars closure_vars1 closure_vars2
+  && for_closure_ids closure_ids_in_projections1 closure_ids_in_projections2
+  && for_closure_vars closure_vars_in_projections1 closure_vars_in_projections2
+  && for_closure_ids closure_ids_in_declarations1 closure_ids_in_declarations2
+  && for_closure_vars closure_vars_in_declarations1
+       closure_vars_in_declarations2
   && for_code_ids code_ids1 code_ids2
   && for_code_ids newer_version_of_code_ids1 newer_version_of_code_ids2
 
@@ -807,8 +854,10 @@ let binary_disjunction ~for_names ~for_continuations ~for_closure_ids
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
-      closure_ids = closure_ids1;
-      closure_vars = closure_vars1;
+      closure_ids_in_projections = closure_ids_in_projections1;
+      closure_vars_in_projections = closure_vars_in_projections1;
+      closure_ids_in_declarations = closure_ids_in_declarations1;
+      closure_vars_in_declarations = closure_vars_in_declarations1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
@@ -816,8 +865,10 @@ let binary_disjunction ~for_names ~for_continuations ~for_closure_ids
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
-      closure_ids = closure_ids2;
-      closure_vars = closure_vars2;
+      closure_ids_in_projections = closure_ids_in_projections2;
+      closure_vars_in_projections = closure_vars_in_projections2;
+      closure_ids_in_declarations = closure_ids_in_declarations2;
+      closure_vars_in_declarations = closure_vars_in_declarations2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
     } =
@@ -826,8 +877,11 @@ let binary_disjunction ~for_names ~for_continuations ~for_closure_ids
   || for_continuations continuations_with_traps1 continuations_with_traps2
   || for_continuations continuations_in_trap_actions1
        continuations_in_trap_actions2
-  || for_closure_ids closure_ids1 closure_ids2
-  || for_closure_vars closure_vars1 closure_vars2
+  || for_closure_ids closure_ids_in_projections1 closure_ids_in_projections2
+  || for_closure_vars closure_vars_in_projections1 closure_vars_in_projections2
+  || for_closure_ids closure_ids_in_declarations1 closure_ids_in_declarations2
+  || for_closure_vars closure_vars_in_declarations1
+       closure_vars_in_declarations2
   || for_code_ids code_ids1 code_ids2
   || for_code_ids newer_version_of_code_ids1 newer_version_of_code_ids2
 
@@ -837,8 +891,10 @@ let binary_op ~for_names ~for_continuations ~for_closure_ids ~for_closure_vars
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
-      closure_ids = closure_ids1;
-      closure_vars = closure_vars1;
+      closure_ids_in_projections = closure_ids_in_projections1;
+      closure_vars_in_projections = closure_vars_in_projections1;
+      closure_ids_in_declarations = closure_ids_in_declarations1;
+      closure_vars_in_declarations = closure_vars_in_declarations1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
@@ -846,8 +902,10 @@ let binary_op ~for_names ~for_continuations ~for_closure_ids ~for_closure_vars
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
-      closure_ids = closure_ids2;
-      closure_vars = closure_vars2;
+      closure_ids_in_projections = closure_ids_in_projections2;
+      closure_vars_in_projections = closure_vars_in_projections2;
+      closure_ids_in_declarations = closure_ids_in_declarations2;
+      closure_vars_in_declarations = closure_vars_in_declarations2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
     } =
@@ -860,8 +918,18 @@ let binary_op ~for_names ~for_continuations ~for_closure_ids ~for_closure_vars
     for_continuations continuations_in_trap_actions1
       continuations_in_trap_actions2
   in
-  let closure_ids = for_closure_ids closure_ids1 closure_ids2 in
-  let closure_vars = for_closure_vars closure_vars1 closure_vars2 in
+  let closure_ids_in_projections =
+    for_closure_ids closure_ids_in_projections1 closure_ids_in_projections2
+  in
+  let closure_vars_in_projections =
+    for_closure_vars closure_vars_in_projections1 closure_vars_in_projections2
+  in
+  let closure_ids_in_declarations =
+    for_closure_ids closure_ids_in_declarations1 closure_ids_in_declarations2
+  in
+  let closure_vars_in_declarations =
+    for_closure_vars closure_vars_in_declarations1 closure_vars_in_declarations2
+  in
   let code_ids = for_code_ids code_ids1 code_ids2 in
   let newer_version_of_code_ids =
     for_code_ids newer_version_of_code_ids1 newer_version_of_code_ids2
@@ -870,8 +938,10 @@ let binary_op ~for_names ~for_continuations ~for_closure_ids ~for_closure_vars
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
-    closure_ids;
-    closure_vars;
+    closure_ids_in_projections;
+    closure_vars_in_projections;
+    closure_ids_in_declarations;
+    closure_vars_in_declarations;
     code_ids;
     newer_version_of_code_ids
   }
@@ -881,8 +951,10 @@ let diff
       continuations = continuations1;
       continuations_with_traps = continuations_with_traps1;
       continuations_in_trap_actions = continuations_in_trap_actions1;
-      closure_ids = closure_ids1;
-      closure_vars = closure_vars1;
+      closure_ids_in_projections = closure_ids_in_projections1;
+      closure_vars_in_projections = closure_vars_in_projections1;
+      closure_ids_in_declarations = closure_ids_in_declarations1;
+      closure_vars_in_declarations = closure_vars_in_declarations1;
       code_ids = code_ids1;
       newer_version_of_code_ids = newer_version_of_code_ids1
     }
@@ -890,8 +962,10 @@ let diff
       continuations = continuations2;
       continuations_with_traps = continuations_with_traps2;
       continuations_in_trap_actions = continuations_in_trap_actions2;
-      closure_ids = closure_ids2;
-      closure_vars = closure_vars2;
+      closure_ids_in_projections = closure_ids_in_projections2;
+      closure_vars_in_projections = closure_vars_in_projections2;
+      closure_ids_in_declarations = closure_ids_in_declarations2;
+      closure_vars_in_declarations = closure_vars_in_declarations2;
       code_ids = code_ids2;
       newer_version_of_code_ids = newer_version_of_code_ids2
     } =
@@ -904,8 +978,21 @@ let diff
     For_continuations.diff continuations_in_trap_actions1
       continuations_in_trap_actions2
   in
-  let closure_ids = For_closure_ids.diff closure_ids1 closure_ids2 in
-  let closure_vars = For_closure_vars.diff closure_vars1 closure_vars2 in
+  let closure_ids_in_projections =
+    For_closure_ids.diff closure_ids_in_projections1 closure_ids_in_projections2
+  in
+  let closure_vars_in_projections =
+    For_closure_vars.diff closure_vars_in_projections1
+      closure_vars_in_projections2
+  in
+  let closure_ids_in_declarations =
+    For_closure_ids.diff closure_ids_in_declarations1
+      closure_ids_in_declarations2
+  in
+  let closure_vars_in_declarations =
+    For_closure_vars.diff closure_vars_in_declarations1
+      closure_vars_in_declarations2
+  in
   let code_ids = For_code_ids.diff code_ids1 code_ids2 in
   let newer_version_of_code_ids =
     For_code_ids.diff newer_version_of_code_ids1
@@ -916,8 +1003,10 @@ let diff
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
-    closure_ids;
-    closure_vars;
+    closure_ids_in_projections;
+    closure_vars_in_projections;
+    closure_ids_in_declarations;
+    closure_vars_in_declarations;
     code_ids;
     newer_version_of_code_ids
   }
@@ -947,20 +1036,16 @@ let no_continuations
       continuations;
       continuations_with_traps = _;
       continuations_in_trap_actions;
-      closure_ids = _;
-      closure_vars = _;
+      closure_ids_in_projections = _;
+      closure_vars_in_projections = _;
+      closure_ids_in_declarations = _;
+      closure_vars_in_declarations = _;
       code_ids = _;
       newer_version_of_code_ids = _
     } =
   (* Note: continuations_with_traps is included in continuations *)
   For_continuations.is_empty continuations
   && For_continuations.is_empty continuations_in_trap_actions
-
-(* let has_only_symbols_and_code_ids ({ names = _; continuations;
-   continuations_in_trap_actions; closure_vars; code_ids = _;
-   newer_version_of_code_ids = _; } as t) = no_variables t &&
-   For_continuations.is_empty continuations && For_continuations.is_empty
-   continuations_in_trap_actions && For_closure_vars.is_empty closure_vars *)
 
 let subset_domain t1 t2 =
   binary_conjunction ~for_names:For_names.subset_domain
@@ -979,37 +1064,29 @@ let inter_domain_is_non_empty t1 t2 =
 let rec union_list ts =
   match ts with [] -> empty | t :: ts -> union t (union_list ts)
 
-let closure_ids t = For_closure_ids.keys t.closure_ids
-
-let closure_ids_normal t =
-  For_closure_ids.fold_with_mode t.closure_ids ~init:Closure_id.Set.empty
-    ~f:(fun acc closure_id name_mode ->
+let closure_ids_in_normal_projections t =
+  For_closure_ids.fold_with_mode t.closure_ids_in_projections
+    ~init:Closure_id.Set.empty ~f:(fun acc closure_id name_mode ->
       if Name_mode.is_normal name_mode
       then Closure_id.Set.add closure_id acc
       else acc)
 
-let closure_ids_in_types t =
-  For_closure_ids.fold_with_mode t.closure_ids ~init:Closure_id.Set.empty
-    ~f:(fun acc closure_id name_mode ->
-      if Name_mode.is_in_types name_mode
-      then Closure_id.Set.add closure_id acc
-      else acc)
+let all_closure_ids t =
+  Closure_id.Set.union
+    (For_closure_ids.keys t.closure_ids_in_projections)
+    (For_closure_ids.keys t.closure_ids_in_declarations)
 
-let closure_vars t = For_closure_vars.keys t.closure_vars
-
-let closure_vars_normal t =
-  For_closure_vars.fold_with_mode t.closure_vars
+let closure_vars_in_normal_projections t =
+  For_closure_vars.fold_with_mode t.closure_vars_in_projections
     ~init:Var_within_closure.Set.empty ~f:(fun acc closure_var name_mode ->
       if Name_mode.is_normal name_mode
       then Var_within_closure.Set.add closure_var acc
       else acc)
 
-let closure_vars_in_types t =
-  For_closure_vars.fold_with_mode t.closure_vars
-    ~init:Var_within_closure.Set.empty ~f:(fun acc closure_var name_mode ->
-      if Name_mode.is_in_types name_mode
-      then Var_within_closure.Set.add closure_var acc
-      else acc)
+let all_closure_vars t =
+  Var_within_closure.Set.union
+    (For_closure_vars.keys t.closure_vars_in_projections)
+    (For_closure_vars.keys t.closure_vars_in_declarations)
 
 let symbols t = For_names.keys t.names |> Name.set_to_symbol_set
 
@@ -1044,12 +1121,12 @@ let mem_code_id t code_id = For_code_ids.mem t.code_ids code_id
 let mem_newer_version_of_code_id t code_id =
   For_code_ids.mem t.newer_version_of_code_ids code_id
 
-let mem_closure_var t closure_var =
-  For_closure_vars.mem t.closure_vars closure_var
+let mem_closure_var_in_projections t closure_var =
+  For_closure_vars.mem t.closure_vars_in_projections closure_var
 
 let closure_var_is_used_or_imported t closure_var =
   Var_within_closure.is_imported closure_var
-  || For_closure_vars.mem t.closure_vars closure_var
+  || For_closure_vars.mem t.closure_vars_in_projections closure_var
 
 let remove_var t var =
   if For_names.is_empty t.names
@@ -1099,15 +1176,16 @@ let remove_continuation t k =
       continuations_in_trap_actions
     }
 
-let remove_one_occurrence_of_closure_var t closure_var name_mode =
-  if For_closure_vars.is_empty t.closure_vars
+let remove_one_occurrence_of_closure_var_in_projections t closure_var name_mode
+    =
+  if For_closure_vars.is_empty t.closure_vars_in_projections
   then t
   else
-    let closure_vars =
-      For_closure_vars.remove_one_occurrence t.closure_vars closure_var
-        name_mode
+    let closure_vars_in_projections =
+      For_closure_vars.remove_one_occurrence t.closure_vars_in_projections
+        closure_var name_mode
     in
-    { t with closure_vars }
+    { t with closure_vars_in_projections }
 
 let greatest_name_mode_var t var =
   For_names.greatest_name_mode t.names (Name.var var)
@@ -1117,8 +1195,10 @@ let downgrade_occurrences_at_strictly_greater_kind
       continuations;
       continuations_with_traps;
       continuations_in_trap_actions;
-      closure_ids;
-      closure_vars;
+      closure_ids_in_projections;
+      closure_vars_in_projections;
+      closure_ids_in_declarations;
+      closure_vars_in_declarations;
       code_ids;
       newer_version_of_code_ids
     } max_kind =
@@ -1138,13 +1218,21 @@ let downgrade_occurrences_at_strictly_greater_kind
     For_continuations.downgrade_occurrences_at_strictly_greater_kind
       continuations_in_trap_actions max_kind
   in
-  let closure_ids =
-    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind closure_ids
-      max_kind
+  let closure_ids_in_projections =
+    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind
+      closure_ids_in_projections max_kind
   in
-  let closure_vars =
-    For_closure_vars.downgrade_occurrences_at_strictly_greater_kind closure_vars
-      max_kind
+  let closure_vars_in_projections =
+    For_closure_vars.downgrade_occurrences_at_strictly_greater_kind
+      closure_vars_in_projections max_kind
+  in
+  let closure_ids_in_declarations =
+    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind
+      closure_ids_in_declarations max_kind
+  in
+  let closure_vars_in_declarations =
+    For_closure_vars.downgrade_occurrences_at_strictly_greater_kind
+      closure_vars_in_declarations max_kind
   in
   let code_ids =
     For_code_ids.downgrade_occurrences_at_strictly_greater_kind code_ids
@@ -1158,8 +1246,10 @@ let downgrade_occurrences_at_strictly_greater_kind
     continuations;
     continuations_with_traps;
     continuations_in_trap_actions;
-    closure_ids;
-    closure_vars;
+    closure_ids_in_projections;
+    closure_vars_in_projections;
+    closure_ids_in_declarations;
+    closure_vars_in_declarations;
     code_ids;
     newer_version_of_code_ids
   }
@@ -1178,20 +1268,27 @@ let without_names_or_continuations
       continuations = _;
       continuations_with_traps = _;
       continuations_in_trap_actions = _;
-      closure_ids;
-      closure_vars;
+      closure_ids_in_projections;
+      closure_vars_in_projections;
+      closure_ids_in_declarations;
+      closure_vars_in_declarations;
       code_ids;
       newer_version_of_code_ids
     } =
-  { empty with closure_ids; closure_vars; code_ids; newer_version_of_code_ids }
+  { empty with
+    closure_ids_in_projections;
+    closure_vars_in_projections;
+    closure_ids_in_declarations;
+    closure_vars_in_declarations;
+    code_ids;
+    newer_version_of_code_ids
+  }
 
 let without_code_ids t =
   { t with
     code_ids = For_code_ids.empty;
     newer_version_of_code_ids = For_code_ids.empty
   }
-
-let without_closure_vars t = { t with closure_vars = For_closure_vars.empty }
 
 let fold_names t ~init ~f = For_names.fold t.names ~init ~f
 
@@ -1215,8 +1312,10 @@ let apply_renaming
        continuations;
        continuations_with_traps;
        continuations_in_trap_actions;
-       closure_ids;
-       closure_vars;
+       closure_ids_in_projections;
+       closure_vars_in_projections;
+       closure_ids_in_declarations;
+       closure_vars_in_declarations;
        code_ids;
        newer_version_of_code_ids
      } as t) renaming =
@@ -1233,8 +1332,18 @@ let apply_renaming
     let continuations_in_trap_actions =
       For_continuations.apply_renaming continuations_in_trap_actions renaming
     in
-    let closure_ids = For_closure_ids.apply_renaming closure_ids renaming in
-    let closure_vars = For_closure_vars.apply_renaming closure_vars renaming in
+    let closure_ids_in_projections =
+      For_closure_ids.apply_renaming closure_ids_in_projections renaming
+    in
+    let closure_vars_in_projections =
+      For_closure_vars.apply_renaming closure_vars_in_projections renaming
+    in
+    let closure_ids_in_declarations =
+      For_closure_ids.apply_renaming closure_ids_in_declarations renaming
+    in
+    let closure_vars_in_declarations =
+      For_closure_vars.apply_renaming closure_vars_in_declarations renaming
+    in
     let code_ids = For_code_ids.apply_renaming code_ids renaming in
     let newer_version_of_code_ids =
       For_code_ids.apply_renaming newer_version_of_code_ids renaming
@@ -1243,8 +1352,10 @@ let apply_renaming
       continuations;
       continuations_with_traps;
       continuations_in_trap_actions;
-      closure_ids;
-      closure_vars;
+      closure_ids_in_projections;
+      closure_vars_in_projections;
+      closure_ids_in_declarations;
+      closure_vars_in_declarations;
       code_ids;
       newer_version_of_code_ids
     }
@@ -1254,8 +1365,10 @@ let affected_by_renaming
       continuations;
       continuations_with_traps = _;
       continuations_in_trap_actions;
-      closure_ids = _;
-      closure_vars = _;
+      closure_ids_in_projections = _;
+      closure_vars_in_projections = _;
+      closure_ids_in_declarations = _;
+      closure_vars_in_declarations = _;
       code_ids;
       newer_version_of_code_ids
     } renaming =
@@ -1266,26 +1379,21 @@ let affected_by_renaming
   || For_code_ids.affected_by_renaming code_ids renaming
   || For_code_ids.affected_by_renaming newer_version_of_code_ids renaming
 
-let restrict_to_closure_vars
-    { names = _;
-      continuations = _;
-      continuations_with_traps = _;
-      continuations_in_trap_actions = _;
-      closure_ids = _;
-      closure_vars;
-      code_ids = _;
-      newer_version_of_code_ids = _
-    } =
-  { empty with closure_vars }
-
 let restrict_to_closure_vars_and_closure_ids
     { names = _;
       continuations = _;
       continuations_with_traps = _;
       continuations_in_trap_actions = _;
-      closure_ids;
-      closure_vars;
+      closure_ids_in_projections;
+      closure_vars_in_projections;
+      closure_ids_in_declarations;
+      closure_vars_in_declarations;
       code_ids = _;
       newer_version_of_code_ids = _
     } =
-  { empty with closure_ids; closure_vars }
+  { empty with
+    closure_ids_in_projections;
+    closure_vars_in_projections;
+    closure_ids_in_declarations;
+    closure_vars_in_declarations
+  }
