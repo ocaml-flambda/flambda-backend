@@ -92,15 +92,15 @@ let free_names = function
   | Push { exn_handler } | Pop { exn_handler; raise_kind = _ } ->
     Name_occurrences.singleton_continuation_in_trap_action exn_handler
 
-let apply_renaming t perm =
+let apply_renaming t renaming =
   match t with
   | Push { exn_handler } ->
-    let exn_handler' = Renaming.apply_continuation perm exn_handler in
+    let exn_handler' = Renaming.apply_continuation renaming exn_handler in
     if exn_handler == exn_handler'
     then t
     else Push { exn_handler = exn_handler' }
   | Pop { exn_handler; raise_kind } ->
-    let exn_handler' = Renaming.apply_continuation perm exn_handler in
+    let exn_handler' = Renaming.apply_continuation renaming exn_handler in
     if exn_handler == exn_handler'
     then t
     else Pop { exn_handler = exn_handler'; raise_kind }
