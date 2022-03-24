@@ -127,9 +127,9 @@ val dump_terminator :
 val dump_basic : Format.formatter -> basic instruction -> unit
 
 val print_terminator :
-  out_channel -> ?sep:string -> terminator instruction -> unit
+  ?sep:string -> Format.formatter -> terminator instruction -> unit
 
-val print_basic : out_channel -> basic instruction -> unit
+val print_basic : Format.formatter -> basic instruction -> unit
 
 (* CR-someday gyorsh: Current version of cfg is a half-way house in terms of its
    exception handling. It has a lot of redundancy and the result of the

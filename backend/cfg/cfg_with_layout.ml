@@ -88,11 +88,9 @@ let dump ppf t ~msg =
   in
   List.iter print_block t.layout
 
-let print t oc msg = Printf.fprintf oc "%s" (Format.asprintf "%a" (dump ~msg) t)
-
-let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
-    ?annotate_succ oc =
-  Printf.fprintf oc "strict digraph \"%s\" {\n" t.cfg.fun_name;
+let print_dot ?(show_instr = true) ?(show_exn = true) ?annotate_block
+    ?annotate_succ ppf t =
+  Format.fprintf ppf "strict digraph \"%s\" {\n" t.cfg.fun_name;
   let annotate_block label =
     match annotate_block with
     | None -> ""
@@ -106,7 +104,7 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
   let print_block_dot label (block : Cfg.basic_block) index =
     let name l = Printf.sprintf "\".L%d\"" l in
     let show_index = Option.value index ~default:(-1) in
-    Printf.fprintf oc "\n%s [shape=box label=\".L%d:I%d:S%d%s%s" (name label)
+    Format.fprintf ppf "\n%s [shape=box label=\".L%d:I%d:S%d%s%s" (name label)
       label show_index (List.length block.body)
       (if block.is_trap_handler then ":eh" else "")
       (annotate_block label);
@@ -115,32 +113,32 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
       (* CR-someday gyorsh: Printing instruction using Printlinear doesn't work
          because of special characters like { } that need to be escaped. Should
          use sexp to print or implement a special printer. *)
-      Printf.fprintf oc "\npreds:";
-      Label.Set.iter (Printf.fprintf oc " %d") block.predecessors;
-      Printf.fprintf oc "\\l";
+      Format.fprintf ppf "\npreds:";
+      Label.Set.iter (Format.fprintf ppf " %d") block.predecessors;
+      Format.fprintf ppf "\\l";
       List.iter
         (fun i ->
-          Cfg.print_basic oc i;
-          Printf.fprintf oc "\\l")
+          Cfg.print_basic ppf i;
+          Format.fprintf ppf "\\l")
         block.body;
-      Cfg.print_terminator oc ~sep:"\\l" block.terminator;
-      Printf.fprintf oc "\\l");
-    Printf.fprintf oc "\"]\n";
+      Cfg.print_terminator ppf ~sep:"\\l" block.terminator;
+      Format.fprintf ppf "\\l");
+    Format.fprintf ppf "\"]\n";
     Label.Set.iter
       (fun l ->
-        Printf.fprintf oc "%s->%s[%s]\n" (name label) (name l)
+        Format.fprintf ppf "%s->%s[%s]\n" (name label) (name l)
           (annotate_succ label l))
       (Cfg.successor_labels ~normal:true ~exn:false block);
     if show_exn
     then (
       Label.Set.iter
         (fun l ->
-          Printf.fprintf oc "%s->%s [style=dashed %s]\n" (name label) (name l)
+          Format.fprintf ppf "%s->%s [style=dashed %s]\n" (name label) (name l)
             (annotate_succ label l))
         (Cfg.successor_labels ~normal:false ~exn:true block);
       if Cfg.can_raise_interproc block
       then
-        Printf.fprintf oc "%s->%s [style=dashed]\n" (name label) "placeholder")
+        Format.fprintf ppf "%s->%s [style=dashed]\n" (name label) "placeholder")
   in
   (* print all the blocks, even if they don't appear in the layout *)
   List.iteri
@@ -156,7 +154,7 @@ let print_dot t ?(show_instr = true) ?(show_exn = true) ?annotate_block
         | None -> print_block_dot label block None
         | _ -> ())
       t.cfg.blocks;
-  Printf.fprintf oc "}\n"
+  Format.fprintf ppf "}\n"
 
 let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
   let filename =
@@ -171,6 +169,7 @@ let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
   let oc = open_out filename in
   Misc.try_finally
     (fun () ->
-      print_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ oc)
+      let ppf = Format.formatter_of_out_channel oc in
+      print_dot ?show_instr ?show_exn ?annotate_block ?annotate_succ ppf t)
     ~always:(fun () -> close_out oc)
     ~exceptionally:(fun _exn -> Misc.remove_file filename)

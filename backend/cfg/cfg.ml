@@ -386,11 +386,10 @@ let is_pure_basic : basic -> bool = function
   | Poptrap -> true
   | Prologue -> true
 
-let print_basic oc i =
-  Format.kasprintf (Printf.fprintf oc "%s") "%a" dump_basic i
+let print_basic ppf i = Format.fprintf ppf "%a" dump_basic i
 
-let print_terminator oc ?sep ti =
-  Format.kasprintf (Printf.fprintf oc "%s") "%a" (dump_terminator ?sep) ti
+let print_terminator ?sep ppf ti =
+  Format.fprintf ppf "%a" (dump_terminator ?sep) ti
 
 let is_noop_move instr =
   match instr.desc with
