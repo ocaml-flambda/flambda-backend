@@ -338,12 +338,9 @@ let array_access_validity_condition array index =
         Prim (Unary (Array_length, array)) ) ]
 
 let check_array_access ~dbg ~array ~index primitive : H.expr_primitive =
-  Checked
-    { primitive;
-      validity_conditions = array_access_validity_condition array index;
-      failure = Index_out_of_bounds;
-      dbg
-    }
+  checked_access ~primitive
+    ~conditions:(array_access_validity_condition array index)
+    ~dbg
 
 let array_load_unsafe ~array ~index (array_kind : P.Array_kind.t) :
     H.expr_primitive =
