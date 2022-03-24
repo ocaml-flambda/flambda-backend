@@ -58,7 +58,14 @@ val save_as_dot :
   string ->
   unit
 
-val print : t -> out_channel -> string -> unit
+val print_dot :
+  ?show_instr:bool ->
+  ?show_exn:bool ->
+  ?annotate_block:(Label.t -> string) ->
+  ?annotate_succ:(Label.t -> Label.t -> string) ->
+  Format.formatter ->
+  t ->
+  unit
 
 val dump : Format.formatter -> t -> msg:string -> unit
 
