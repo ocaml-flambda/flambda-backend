@@ -32,5 +32,5 @@ include Identifiable.S
 val create : string -> t
 
 (* If [without_prefix] is not provided [encode] will prefix the symbol using the
-   (architecture-dependent) prefix for symbols, for example "_" on "macOS". *)
+   (architecture-dependent) prefix for symbols, for example "_" on macOS. *)
 val encode : ?without_prefix:unit -> t -> string

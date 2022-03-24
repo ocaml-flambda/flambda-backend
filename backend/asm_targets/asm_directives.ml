@@ -113,7 +113,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         Asm_label.print label Asm_section.print lbl_section Asm_section.print
         this_section;
     (* CR-someday bkhajwal: Be aware of MASM label type annotation *)
-    (* CR poechsel: This assumes that all no [D.text] or [D.section] were
+    (* CR poechsel: This assumes that no [D.text] or [D.section] were
     emitted since the last call to [switch_to_section].
     If we emit dwarf separately from other assembly everything will be fine,
     otherwise this might break. *)
@@ -222,7 +222,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         int8 Int8.zero)
       !cached_strings;
     cached_strings := Cached_string.Map.empty;
-    current_dwarf_section_ref := old_dwarf_section
+    Option.iter switch_to_section old_dwarf_section
 
   let comment str = D.comment str
 
