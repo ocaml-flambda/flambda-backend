@@ -634,7 +634,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
     in
     k acc (Some (Named.create_simple (Simple.symbol sym)))
   | prim, args ->
-    Lambda_to_flambda_primitives.convert_and_bind acc env exn_continuation
+    Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
       ~big_endian:(Env.big_endian env)
       ~register_const_string:(fun acc -> register_const_string acc)
       prim ~args dbg k
@@ -669,7 +669,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
         ( Box_number (Untagged_immediate, Heap),
           Prim (Unary (Get_tag, Simple named)) )
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -677,7 +677,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Nullary Begin_region
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
@@ -686,7 +686,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Unary (End_region, Simple named)
     in
-    Lambda_to_flambda_primitives_helpers.bind_rec acc env None
+    Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
       prim Debuginfo.none
       (fun acc named -> k acc (Some named))
