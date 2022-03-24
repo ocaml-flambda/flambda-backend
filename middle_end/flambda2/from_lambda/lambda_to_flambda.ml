@@ -815,12 +815,10 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
-    if Env.is_mutable env id
-    then
-      name_then_cps_non_tail acc env ccenv "mutable_read"
-        (IR.Simple (Var (Env.get_mutable_variable env id)))
-        k k_exn
-    else k acc env ccenv id
+    let return_id =
+      if Env.is_mutable env id then Env.get_mutable_variable env id else id
+    in
+    k acc env ccenv return_id
   | Lconst const ->
     name_then_cps_non_tail acc env ccenv "const" (IR.Simple (Const const)) k
       k_exn
