@@ -833,37 +833,13 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         ap_specialised = _;
         ap_probe
       } ->
-    cps_non_tail_list acc env ccenv ap_args
-      (fun acc env ccenv args ->
-        cps_non_tail acc env ccenv ap_func
-          (fun acc env ccenv func ->
-            let result_var = Ident.create_local "apply_result" in
-            let_cont_nonrecursive_with_extra_params acc env ccenv
-              ~is_exn_handler:false
-              ~params:[result_var, IR.Not_user_visible, Pgenval]
-              ~body:(fun acc env ccenv continuation ->
-                let exn_continuation : IR.exn_continuation =
-                  { exn_handler = k_exn;
-                    extra_args = extra_args_for_exn_continuation env k_exn
-                  }
-                in
-                let apply : IR.apply =
-                  { kind = Function;
-                    func;
-                    continuation;
-                    exn_continuation;
-                    args;
-                    loc = ap_loc;
-                    region_close = ap_region_close;
-                    inlined = ap_inlined;
-                    probe = ap_probe;
-                    mode = ap_mode
-                  }
-                in
-                wrap_return_continuation acc env ccenv apply)
-              ~handler:(fun acc env ccenv -> k acc env ccenv result_var))
-          k_exn)
-      k_exn
+    let result_var = Ident.create_local "apply_result" in
+    let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
+      ~params:[result_var, IR.Not_user_visible, Pgenval]
+      ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
+      ~body:(fun acc env ccenv continuation ->
+        cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
+          ap_loc ap_inlined ap_probe continuation k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let func =
@@ -1173,6 +1149,35 @@ and cps_non_tail_simple acc env ccenv (lam : L.lambda)
       (fun acc env ccenv id -> k acc env ccenv (IR.Var id))
       k_exn
 
+and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
+    ap_inlined ap_probe (k : Continuation.t) (k_exn : Continuation.t) :
+    Expr_with_acc.t =
+  cps_non_tail_list acc env ccenv ap_args
+    (fun acc env ccenv args ->
+      cps_non_tail acc env ccenv ap_func
+        (fun acc env ccenv func ->
+          let exn_continuation : IR.exn_continuation =
+            { exn_handler = k_exn;
+              extra_args = extra_args_for_exn_continuation env k_exn
+            }
+          in
+          let apply : IR.apply =
+            { kind = Function;
+              func;
+              continuation = k;
+              exn_continuation;
+              args;
+              loc = ap_loc;
+              region_close = ap_region_close;
+              inlined = ap_inlined;
+              probe = ap_probe;
+              mode = ap_mode
+            }
+          in
+          wrap_return_continuation acc env ccenv apply)
+        k_exn)
+    k_exn
+
 and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
@@ -1196,31 +1201,8 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         ap_specialised = _;
         ap_probe
       } ->
-    cps_non_tail_list acc env ccenv ap_args
-      (fun acc env ccenv args ->
-        cps_non_tail acc env ccenv ap_func
-          (fun acc env ccenv func ->
-            let exn_continuation : IR.exn_continuation =
-              { exn_handler = k_exn;
-                extra_args = extra_args_for_exn_continuation env k_exn
-              }
-            in
-            let apply : IR.apply =
-              { kind = Function;
-                func;
-                continuation = k;
-                exn_continuation;
-                args;
-                loc = ap_loc;
-                region_close = ap_region_close;
-                inlined = ap_inlined;
-                probe = ap_probe;
-                mode = ap_mode
-              }
-            in
-            wrap_return_continuation acc env ccenv apply)
-          k_exn)
-      k_exn
+    cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
+      ap_inlined ap_probe k k_exn
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
