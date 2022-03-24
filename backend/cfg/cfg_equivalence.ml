@@ -579,8 +579,9 @@ let save_cfg_as_dot : Cfg_with_layout.t -> string -> unit =
     ~annotate_succ:(Printf.sprintf "%d->%d") msg
 
 let check_cfg_with_layout :
-    Mach.fundecl -> Cfg_with_layout.t -> Cfg_with_layout.t -> unit =
- fun f expected result ->
+      ?mach:Mach.fundecl -> ?linear:Linear.fundecl ->
+      Cfg_with_layout.t -> Cfg_with_layout.t -> unit =
+ fun ?mach ?linear expected result ->
   try
     let state = State.make () in
     check_cfg state (Cfg_with_layout.cfg expected) (Cfg_with_layout.cfg result);
@@ -595,7 +596,8 @@ let check_cfg_with_layout :
   with Different { location; message } ->
     save_cfg_as_dot expected "expected";
     save_cfg_as_dot result "result";
-    Format.eprintf "%a\n%!" Printmach.fundecl f;
+    Option.iter (fun f -> Format.eprintf "%a\n%!" Printmach.fundecl f) mach;
+    Option.iter (fun f -> Format.eprintf "%a\n%!" Printlinear.fundecl f) linear;
     Misc.fatal_errorf "Cfg_equivalence: error in %s\n  %s: %s\n"
       (Cfg.fun_name (Cfg_with_layout.cfg expected))
       location message
