@@ -1179,8 +1179,8 @@ and apply_coercion_closures_entry row_tag
        closures in the same set have the same depth.
 
        CR lmaurer: Check that this is consistent with the simplifier's behavior.
-       In particular, [project_function_slot] should return a closure at the same depth
-       as the original closure.
+       In particular, [project_function_slot] should return a closure at the
+       same depth as the original closure.
 
        Exhaustingly, this is _entirely orthogonal_ to the issue with closures
        having row-like types. *)

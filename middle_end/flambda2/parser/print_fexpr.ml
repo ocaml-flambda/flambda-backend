@@ -433,11 +433,11 @@ let unop ppf u =
       convertible_type dst
   | Opaque_identity -> str "%Opaque"
   | Project_value_slot { project_from; value_slot = value_slot' } ->
-    Format.fprintf ppf "@[<2>%%project_value_slot@ %a.%a@]" function_slot project_from
-      value_slot value_slot'
+    Format.fprintf ppf "@[<2>%%project_value_slot@ %a.%a@]" function_slot
+      project_from value_slot value_slot'
   | Project_function_slot { move_from; move_to } ->
-    Format.fprintf ppf "@[<2>%%project_function_slot@ (%a@ -> %a)@]" function_slot
-      move_from function_slot move_to
+    Format.fprintf ppf "@[<2>%%project_function_slot@ (%a@ -> %a)@]"
+      function_slot move_from function_slot move_to
   | String_length Bytes -> str "%bytes_length"
   | String_length String -> str "%string_length"
   | Unbox_number bk -> box_or_unbox "unbox" "untag" bk
