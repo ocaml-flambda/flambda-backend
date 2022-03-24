@@ -46,7 +46,7 @@ module Extra_arg = struct
 end
 
 type t =
-  { extra_params : Bound_parameter.t list;
+  { extra_params : Bound_parameters.t;
     extra_args : Extra_arg.t list Apply_cont_rewrite_id.Map.t
   }
 
@@ -55,17 +55,20 @@ let [@ocamlformat "disable"] print ppf { extra_params; extra_args; } =
       @[<hov 1>(extra_params@ %a)@]@ \
       @[<hov 1>(extra_args@ %a)@]\
       )@]"
-    Bound_parameter.List.print extra_params
+    Bound_parameters.print extra_params
     (Apply_cont_rewrite_id.Map.print Extra_arg.List.print) extra_args
 
-let empty = { extra_params = []; extra_args = Apply_cont_rewrite_id.Map.empty }
+let empty =
+  { extra_params = Bound_parameters.empty;
+    extra_args = Apply_cont_rewrite_id.Map.empty
+  }
 
 let is_empty t =
-  match t.extra_params with
-  | [] ->
+  if Bound_parameters.is_empty t.extra_params
+  then (
     assert (Apply_cont_rewrite_id.Map.is_empty t.extra_args);
-    true
-  | _ :: _ -> false
+    true)
+  else false
 
 let add t ~extra_param ~extra_args =
   let extra_args =
@@ -85,7 +88,9 @@ let add t ~extra_param ~extra_args =
             Some (extra_args :: already_extra_args))
         t.extra_args extra_args
   in
-  { extra_params = extra_param :: t.extra_params; extra_args }
+  { extra_params = Bound_parameters.cons extra_param t.extra_params;
+    extra_args
+  }
 
 let concat t1 t2 =
   if is_empty t2
@@ -105,6 +110,8 @@ let concat t1 t2 =
             Some (extra_args1 @ extra_args2))
         t1.extra_args t2.extra_args
     in
-    { extra_params = t1.extra_params @ t2.extra_params; extra_args }
+    { extra_params = Bound_parameters.append t1.extra_params t2.extra_params;
+      extra_args
+    }
 
 let extra_params t = t.extra_params

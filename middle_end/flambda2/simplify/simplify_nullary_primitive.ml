@@ -22,7 +22,7 @@ let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
   match prim with
   | Optimised_out result_kind ->
     begin
-      match Name_mode.descr (Bound_var.name_mode result_var) with
+      match Bound_var.name_mode result_var with
       | Phantom -> ()
       | Normal | In_types ->
         Misc.fatal_errorf

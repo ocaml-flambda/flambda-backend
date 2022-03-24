@@ -18,8 +18,9 @@
 
 open! Simplify_import
 
-let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
-    ~free_names_of_handler ~cost_metrics_of_handler =
+let inline_linearly_used_continuation uacc ~create_apply_cont ~params:params'
+    ~handler ~free_names_of_handler ~cost_metrics_of_handler =
+  let params = Bound_parameters.to_list params' in
   (* CR-someday mshinwell: With -g, we can end up with continuations that are
      just a sequence of phantom lets then "goto". These would normally be
      treated as aliases, but of course aren't in this scenario, unless the
@@ -37,7 +38,8 @@ let inline_linearly_used_continuation uacc ~create_apply_cont ~params ~handler
       Misc.fatal_errorf
         "Parameter list@ [%a]@ does not match argument list@ [%a]@ when \
          inlining at [Apply_cont]:@ %a@ Handler to inline:@ %a"
-        BP.List.print params Simple.List.print args Apply_cont.print apply_cont
+        Bound_parameters.print params' Simple.List.print args Apply_cont.print
+        apply_cont
         (RE.print (UA.are_rebuilding_terms uacc))
         handler;
     let bindings_outermost_first =

@@ -47,7 +47,8 @@ let join_types ~env_at_fork envs_with_levels =
                   else
                     let kind = TEL.find_kind level var in
                     TE.add_definition base_env
-                      (Bound_name.var (Bound_var.create var Name_mode.in_types))
+                      (Bound_name.create_var
+                         (Bound_var.create var Name_mode.in_types))
                       kind)
                 vars base_env)
             (TEL.variables_by_binding_time level)
@@ -322,6 +323,7 @@ let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params
         t, use_id, use_kind, level)
       ts_and_use_ids
   in
+  let params = Bound_parameters.to_list params in
   let level =
     n_way_join ~env_at_fork:definition_typing_env after_cuts ~params
       ~extra_lifted_consts_in_use_envs ~extra_allowed_names

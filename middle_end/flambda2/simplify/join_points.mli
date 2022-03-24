@@ -25,6 +25,6 @@ val compute_handler_env :
   Continuation_uses.t ->
   env_at_fork_plus_params:Downwards_env.t ->
   consts_lifted_during_body:Lifted_constant_state.t ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   code_age_relation_after_body:Code_age_relation.t ->
   Continuation_env_and_param_types.t

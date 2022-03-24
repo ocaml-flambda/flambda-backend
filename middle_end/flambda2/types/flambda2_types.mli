@@ -127,7 +127,7 @@ module Typing_env : sig
 
   val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
-  val add_definitions_of_params : t -> params:Bound_parameter.t list -> t
+  val add_definitions_of_params : t -> params:Bound_parameters.t -> t
 
   val add_symbol_definition : t -> Symbol.t -> t
 
@@ -140,7 +140,7 @@ module Typing_env : sig
   val add_equation : t -> Name.t -> flambda_type -> t
 
   val add_equations_on_params :
-    t -> params:Bound_parameter.t list -> param_types:flambda_type list -> t
+    t -> params:Bound_parameters.t -> param_types:flambda_type list -> t
 
   val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
@@ -150,7 +150,7 @@ module Typing_env : sig
 
   val find_or_missing : t -> Name.t -> flambda_type option
 
-  val find_params : t -> Bound_parameter.t list -> flambda_type list
+  val find_params : t -> Bound_parameters.t -> flambda_type list
 
   val add_env_extension : t -> Typing_env_extension.t -> t
 
@@ -264,7 +264,7 @@ val join :
 val cut_and_n_way_join :
   Typing_env.t ->
   (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   unknown_if_defined_at_or_later_than:Scope.t ->
   extra_lifted_consts_in_use_envs:Symbol.Set.t ->
   extra_allowed_names:Name_occurrences.t ->

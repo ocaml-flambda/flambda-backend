@@ -199,7 +199,7 @@ let enter_set_of_closures
 
 let define_variable t var kind =
   let typing_env =
-    let var = Bound_name.var var in
+    let var = Bound_name.create_var var in
     TE.add_definition t.typing_env var kind
   in
   let variables_defined_at_toplevel =
@@ -227,7 +227,7 @@ let add_name t name ty =
 
 let add_variable0 t var ty ~at_unit_toplevel =
   let typing_env =
-    let var' = Bound_name.var var in
+    let var' = Bound_name.create_var var in
     TE.add_equation
       (TE.add_definition t.typing_env var' (T.kind ty))
       (Name.var (Bound_var.var var))
@@ -298,7 +298,7 @@ let define_name t name kind =
   { t with typing_env; variables_defined_at_toplevel }
 
 let define_name_if_undefined t name kind =
-  if TE.mem t.typing_env (Bound_name.to_name name)
+  if TE.mem t.typing_env (Bound_name.name name)
   then t
   else define_name t name kind
 
@@ -311,15 +311,18 @@ let define_parameters t ~params =
     (fun t param ->
       let var = Bound_var.create (BP.var param) Name_mode.normal in
       define_variable t var (K.With_subkind.kind (BP.kind param)))
-    t params
+    t
+    (Bound_parameters.to_list params)
 
 let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
     ~param_types =
+  let params' = params in
+  let params = Bound_parameters.to_list params in
   if List.compare_lengths params param_types <> 0
   then
     Misc.fatal_errorf
       "Mismatch between number of [params] and [param_types]:@ (%a)@ and@ %a"
-      Bound_parameter.List.print params
+      Bound_parameters.print params'
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       param_types;
   let at_unit_toplevel =
@@ -333,7 +336,7 @@ let add_parameters ?(name_mode = Name_mode.normal) ?at_unit_toplevel t params
 
 let add_parameters_with_unknown_types' ?name_mode ?at_unit_toplevel t params =
   let param_types =
-    ListLabels.map params ~f:(fun param ->
+    ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
         T.unknown_with_subkind (BP.kind param))
   in
   add_parameters ?name_mode ?at_unit_toplevel t params ~param_types, param_types
@@ -343,14 +346,15 @@ let add_parameters_with_unknown_types ?name_mode ?at_unit_toplevel t params =
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
-    Variable.Set.union t.variables_defined_at_toplevel (BP.List.var_set params)
+    Variable.Set.union t.variables_defined_at_toplevel
+      (Bound_parameters.var_set params)
   in
   { t with variables_defined_at_toplevel }
 
 let define_variable_and_extend_typing_environment t var kind env_extension =
   (* This is a combined operation to reduce allocation. *)
   let typing_env =
-    let var' = Bound_name.var var in
+    let var' = Bound_name.create_var var in
     TE.add_definition t.typing_env var' kind
   in
   let variables_defined_at_toplevel =
@@ -364,7 +368,7 @@ let define_variable_and_extend_typing_environment t var kind env_extension =
 let add_variable_and_extend_typing_environment t var ty env_extension =
   (* This is a combined operation to reduce allocation. *)
   let typing_env =
-    let var' = Bound_name.var var in
+    let var' = Bound_name.create_var var in
     TE.add_equation
       (TE.add_definition t.typing_env var' (T.kind ty))
       (Name.var (Bound_var.var var))

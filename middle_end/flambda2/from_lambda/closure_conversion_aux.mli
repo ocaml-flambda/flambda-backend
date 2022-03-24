@@ -367,7 +367,7 @@ module Let_cont_with_acc : sig
   val build_recursive :
     Acc.t ->
     handlers:
-      ((Acc.t -> Acc.t * Expr_with_acc.t) * Bound_parameter.t list * bool)
+      ((Acc.t -> Acc.t * Expr_with_acc.t) * Bound_parameters.t * bool)
       Continuation.Map.t ->
     body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     Acc.t * Expr_with_acc.t
@@ -375,7 +375,7 @@ module Let_cont_with_acc : sig
   val build_non_recursive :
     Acc.t ->
     Continuation.t ->
-    handler_params:Bound_parameter.t list ->
+    handler_params:Bound_parameters.t ->
     handler:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     body:(Acc.t -> Acc.t * Expr_with_acc.t) ->
     is_exn_handler:bool ->

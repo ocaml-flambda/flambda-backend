@@ -57,7 +57,7 @@ module Pattern = struct
     | Block_like symbol ->
       Name_occurrences.singleton_symbol symbol Name_mode.normal
 
-  let being_defined t =
+  let symbols_being_defined t =
     match t with
     | Code _ -> Symbol.Set.empty
     | Set_of_closures closure_symbols ->
@@ -74,12 +74,6 @@ module Pattern = struct
 
   let binds_symbols t =
     match t with Code _ -> false | Set_of_closures _ | Block_like _ -> true
-
-  let closure_symbols_being_defined t =
-    match t with
-    | Code _ | Block_like _ -> Symbol.Set.empty
-    | Set_of_closures closure_symbols ->
-      closure_symbols |> Closure_id.Lmap.data |> Symbol.Set.of_list
 
   let everything_being_defined t =
     match t with
@@ -98,15 +92,6 @@ module Pattern = struct
       closure_symbols |> Closure_id.Lmap.data
       |> List.map Code_id_or_symbol.create_symbol
     | Block_like symbol -> [Code_id_or_symbol.create_symbol symbol]
-
-  let for_all_everything_being_defined t ~f =
-    match t with
-    | Code code_id -> f (Code_id_or_symbol.create_code_id code_id)
-    | Set_of_closures closure_symbols ->
-      Closure_id.Lmap.for_all_with_fixed_arg
-        (fun _closure_id symbol f -> f (Code_id_or_symbol.create_symbol symbol))
-        closure_symbols f
-    | Block_like symbol -> f (Code_id_or_symbol.create_symbol symbol)
 
   let all_ids_for_export t =
     match t with
@@ -161,13 +146,8 @@ let [@ocamlformat "disable"] print ppf t =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Pattern.print) t
 
-let being_defined t = List.map Pattern.being_defined t |> Symbol.Set.union_list
-
-let closure_symbols_being_defined t =
-  List.map Pattern.closure_symbols_being_defined t |> Symbol.Set.union_list
-
-let non_closure_symbols_being_defined t =
-  Symbol.Set.diff (being_defined t) (closure_symbols_being_defined t)
+let symbols_being_defined t =
+  List.map Pattern.symbols_being_defined t |> Symbol.Set.union_list
 
 let code_being_defined t =
   List.fold_left
@@ -182,20 +162,6 @@ let binds_symbols t = List.exists Pattern.binds_symbols t
 let everything_being_defined t =
   List.map Pattern.everything_being_defined t
   |> Code_id_or_symbol.Set.union_list
-
-module List = struct
-  include List
-
-  let rec for_all_with_fixed_arg f t fixed_arg =
-    match t with
-    | [] -> true
-    | x :: t -> f x fixed_arg && for_all_with_fixed_arg f t fixed_arg
-end
-
-let for_all_everything_being_defined t ~f =
-  List.for_all_with_fixed_arg
-    (fun pattern f -> Pattern.for_all_everything_being_defined pattern ~f)
-    t f
 
 let apply_renaming t perm =
   List.map (fun pattern -> Pattern.apply_renaming pattern perm) t

@@ -25,9 +25,9 @@ type used =
   | Unused
 
 type t =
-  { original_params : BP.t list;
+  { original_params : Bound_parameters.t;
     used_params : BP.Set.t;
-    used_extra_params : BP.t list;
+    used_extra_params : Bound_parameters.t;
     extra_args : (EA.t * used) list Id.Map.t
   }
 
@@ -50,41 +50,43 @@ let [@ocamlformat "disable"] print ppf { original_params; used_params; used_extr
       @[<hov 1>(used_extra_params@ (%a))@]@ \
       @[<hov 1>(extra_args@ %a)@]\
       )@]"
-    BP.List.print original_params
+  Bound_parameters.print original_params
     BP.Set.print used_params
-    BP.List.print used_extra_params
+    Bound_parameters.print used_extra_params
     (Id.Map.print print_ea_used) extra_args
 
 let does_nothing t =
-  List.length t.original_params = BP.Set.cardinal t.used_params
+  Bound_parameters.cardinal t.original_params = BP.Set.cardinal t.used_params
   && Id.Map.is_empty t.extra_args
 
 let create ~original_params ~used_params ~extra_params ~extra_args
     ~used_extra_params =
-  BP.List.check_no_duplicates original_params;
-  BP.List.check_no_duplicates extra_params;
-  if List.length original_params < BP.Set.cardinal used_params
+  Bound_parameters.check_no_duplicates original_params;
+  Bound_parameters.check_no_duplicates extra_params;
+  if Bound_parameters.cardinal original_params < BP.Set.cardinal used_params
   then
     Misc.fatal_errorf
       "Must have at least as many [original_params] (%a)@ as [used_params] (%a)"
-      BP.List.print original_params BP.Set.print used_params;
-  if List.length extra_params < BP.Set.cardinal used_extra_params
+      Bound_parameters.print original_params BP.Set.print used_params;
+  if Bound_parameters.cardinal extra_params < BP.Set.cardinal used_extra_params
   then
     Misc.fatal_errorf
       "Must have at least as many [extra_params] (%a)@ as [used_extra_params] \
        (%a)"
-      BP.List.print extra_params BP.Set.print used_extra_params;
+      Bound_parameters.print extra_params BP.Set.print used_extra_params;
   let extra_args =
     Id.Map.map
       (fun extra_args ->
-        if List.compare_lengths extra_params extra_args <> 0
+        if Bound_parameters.cardinal extra_params <> List.length extra_args
         then
           Misc.fatal_errorf
             "Lengths of [extra_params] (%a)@ and all [extra_args] (e.g. %a) \
              should be equal"
-            BP.List.print extra_params
+            Bound_parameters.print extra_params
             Continuation_extra_params_and_args.Extra_arg.List.print extra_args;
-        let extra_params_and_args = List.combine extra_params extra_args in
+        let extra_params_and_args =
+          List.combine (Bound_parameters.to_list extra_params) extra_args
+        in
         List.map
           (fun (extra_param, extra_arg) ->
             ( extra_arg,
@@ -99,7 +101,7 @@ let create ~original_params ~used_params ~extra_params ~extra_args
     else extra_args
   in
   let used_extra_params =
-    List.filter
+    Bound_parameters.filter
       (fun extra_param -> BP.Set.mem extra_param used_extra_params)
       extra_params
   in
@@ -114,7 +116,7 @@ let used_extra_params t = t.used_extra_params
 let extra_args t id =
   match Id.Map.find id t.extra_args with
   | exception Not_found ->
-    if List.length (used_extra_params t) <> 0
+    if not (Bound_parameters.is_empty t.used_extra_params)
     then
       Misc.fatal_errorf
         "This [Apply_cont_rewrite] does not have any@ extra arguments for use \
@@ -123,4 +125,5 @@ let extra_args t id =
     []
   | extra_args -> extra_args
 
-let original_params_arity t = BP.List.arity_with_subkinds t.original_params
+let original_params_arity t =
+  Bound_parameters.arity_with_subkinds (original_params t)

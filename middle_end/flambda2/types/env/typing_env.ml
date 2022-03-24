@@ -454,7 +454,7 @@ let find_params t params =
       let name = Bound_parameter.name param in
       let kind = Flambda_kind.With_subkind.kind (Bound_parameter.kind param) in
       find t name (Some kind))
-    params
+    (Bound_parameters.to_list params)
 
 let binding_time_and_mode t name ~assume_not_from_missing_cmx_file =
   if (not assume_not_from_missing_cmx_file)
@@ -907,15 +907,16 @@ let add_definitions_of_params t ~params =
       in
       add_definition t name
         (Flambda_kind.With_subkind.kind (Bound_parameter.kind param)))
-    t params
+    t
+    (Bound_parameters.to_list params)
 
 let check_params_and_types ~params ~param_types =
   if Flambda_features.check_invariants ()
-     && List.compare_lengths params param_types <> 0
+     && List.compare_lengths (Bound_parameters.to_list params) param_types <> 0
   then
     Misc.fatal_errorf
       "Mismatch between number of [params] and [param_types]:@ (%a)@ and@ %a"
-      Bound_parameter.List.print params
+      Bound_parameters.print params
       (Format.pp_print_list ~pp_sep:Format.pp_print_space TG.print)
       param_types
 
@@ -924,7 +925,9 @@ let add_equations_on_params t ~params ~param_types ~meet_type =
   List.fold_left2
     (fun t param param_type ->
       add_equation t (Bound_parameter.name param) param_type ~meet_type)
-    t params param_types
+    t
+    (Bound_parameters.to_list params)
+    param_types
 
 let add_to_code_age_relation t ~new_code_id ~old_code_id =
   let code_age_relation =

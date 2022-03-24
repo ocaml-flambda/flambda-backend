@@ -14,33 +14,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-(** A [Name] equipped with extra information that arises from the name occurring
-    in binding position. *)
+(** A [Name] equipped with the extra information required to have it in binding
+    position. *)
 
 type t
 
 val create : Name.t -> Name_mode.t -> t
 
+val create_var : Bound_var.t -> t
+
+val create_symbol : Symbol.t -> t
+
 val name : t -> Name.t
 
 val name_mode : t -> Name_mode.t
 
-val var : Bound_var.t -> t
-
-val symbol : Symbol.t -> t
-
-val must_be_symbol : t -> Symbol.t
-
-(* CR mshinwell: Ensure naming consistent with Bound_var. Make constructors and
-   destructors clear. *)
-val to_var : t -> Bound_var.t option
-
-val to_name : t -> Name.t
-
-val rename : t -> t
-
 val is_symbol : t -> bool
 
-include Container_types.S with type t := t
+val print : Format.formatter -> t -> unit

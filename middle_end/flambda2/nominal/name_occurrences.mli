@@ -116,7 +116,7 @@ val union : t -> t -> t
 val union_list : t list -> t
 
 (** [subset_domain t1 t2] is the usual "set subset" test on the names occurring
-    in [t1] and [t2]. The numbers of occurrences and the kinds of those
+    in [t1] and [t2]. The numbers of occurrences and the name_modes of those
     occurrences are ignored. *)
 val subset_domain : t -> t -> bool
 
@@ -194,7 +194,7 @@ val remove_one_occurrence_of_closure_var_in_projections :
 
 val greatest_name_mode_var : t -> Variable.t -> Name_mode.Or_absent.t
 
-val downgrade_occurrences_at_strictly_greater_kind : t -> Name_mode.t -> t
+val downgrade_occurrences_at_strictly_greater_name_mode : t -> Name_mode.t -> t
 
 val filter_names : t -> f:(Name.t -> bool) -> t
 

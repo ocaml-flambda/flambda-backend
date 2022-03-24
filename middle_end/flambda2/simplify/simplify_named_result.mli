@@ -29,7 +29,7 @@ val have_simplified_to_single_term :
 
 val have_lifted_set_of_closures :
   Downwards_acc.t ->
-  Symbol.t Bound_var.Map.t ->
+  (Bound_var.t * Symbol.t) list ->
   original_defining_expr:Flambda.Named.t ->
   t
 
@@ -41,7 +41,7 @@ type descr = private
         original_defining_expr : Flambda.Named.t
       }
   | Multiple_bindings_to_symbols of
-      { bound_vars_to_symbols : Symbol.t Bound_var.Map.t;
+      { bound_vars_to_symbols : (Bound_var.t * Symbol.t) list;
         original_defining_expr : Flambda.Named.t
       }
 

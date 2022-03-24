@@ -87,14 +87,15 @@ let join ?unknown_if_defined_at_or_later_than denv typing_env params
   in
   denv, extra_params_and_args
 
-let meet_equations_on_params typing_env ~params ~param_types =
+let meet_equations_on_params typing_env ~params:params' ~param_types =
+  let params = Bound_parameters.to_list params' in
   if Flambda_features.check_invariants ()
      && List.compare_lengths params param_types <> 0
   then
     Misc.fatal_errorf
       "Mismatch between number of continuation parameters and arguments at a \
        use site:@ (%a)@ and@ %a"
-      Bound_parameter.List.print params
+      Bound_parameters.print params'
       (Format.pp_print_list ~pp_sep:Format.pp_print_space T.print)
       param_types;
   List.fold_left2
@@ -120,7 +121,7 @@ let compute_handler_env ?unknown_if_defined_at_or_later_than uses
     (* If there is information available from the subkinds of the parameters, we
        will need to meet the existing parameter types (e.g. "unknown boxed
        float") with the argument types at each use. *)
-    List.exists
+    Bound_parameters.exists
       (fun param ->
         BP.kind param |> Flambda_kind.With_subkind.has_useful_subkind_info)
       params

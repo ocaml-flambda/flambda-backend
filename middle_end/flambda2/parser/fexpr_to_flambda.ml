@@ -534,7 +534,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       in
       map_accum_left convert_binding env vars_and_closure_bindings
     in
-    let bound = Bound_pattern.set_of_closures ~closure_vars in
+    let bound = Bound_pattern.set_of_closures closure_vars in
     let named =
       let closure_bindings = List.map snd vars_and_closure_bindings in
       set_of_closures env closure_bindings closure_elements
@@ -584,8 +584,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let handler = expr handler_env handler in
     let handler =
-      Flambda.Continuation_handler.create params ~handler
-        ~free_names_of_handler:Unknown ~is_exn_handler
+      Flambda.Continuation_handler.create
+        (Bound_parameters.create params)
+        ~handler ~free_names_of_handler:Unknown ~is_exn_handler
     in
     match recursive with
     | Nonrecursive ->
@@ -648,21 +649,21 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             | _ -> Some binding)
           bindings
     in
-    let bound_symbols, env =
+    let bound_static, env =
       let process_binding env (b : Fexpr.symbol_binding) :
-          Bound_symbols.Pattern.t * env =
+          Bound_static.Pattern.t * env =
         match b with
         | Code { id; _ } ->
           (* All code ids were bound at the beginning; see
              [bind_all_code_ids] *)
           let code_id = find_code_id env id in
-          Bound_symbols.Pattern.code code_id, env
+          Bound_static.Pattern.code code_id, env
         | Deleted_code id ->
           let code_id = find_code_id env id in
-          Bound_symbols.Pattern.code code_id, env
+          Bound_static.Pattern.code code_id, env
         | Data { symbol; _ } ->
           let symbol, env = declare_symbol env symbol in
-          Bound_symbols.Pattern.block_like symbol, env
+          Bound_static.Pattern.block_like symbol, env
         | Set_of_closures soc ->
           let closure_binding env
               ({ symbol; fun_decl = { closure_id; code_id; _ } } :
@@ -675,7 +676,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let closure_symbols, env =
             map_accum_left closure_binding env soc.bindings
           in
-          ( Bound_symbols.Pattern.set_of_closures
+          ( Bound_static.Pattern.set_of_closures
               (closure_symbols |> Closure_id.Lmap.of_list),
             env )
         | Closure _ -> assert false
@@ -683,7 +684,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       in
       map_accum_left process_binding env bindings
     in
-    let bound_symbols = bound_symbols |> Bound_symbols.create in
+    let bound_static = bound_static |> Bound_static.create in
     let static_const env (b : Fexpr.symbol_binding) :
         Flambda.Static_const_or_code.t =
       let static_const const =
@@ -783,7 +784,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let params_and_body =
             Flambda.Function_params_and_body.create ~return_continuation
               ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-              params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
+              (Bound_parameters.create params)
+              ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
           in
           let free_names =
             (* CR mshinwell: This needs fixing XXX *)
@@ -807,7 +809,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           Code.create code_id ~params_and_body ~free_names_of_params_and_body
             ~newer_version_of ~params_arity ~num_trailing_local_params:0
             ~result_arity
-            ~result_types:(Result_types.create_unknown ~params ~result_arity)
+            ~result_types:
+              (Result_types.create_unknown
+                 ~params:(Bound_parameters.create params)
+                 ~result_arity)
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
             ~is_a_functor:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
@@ -826,7 +831,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let body = expr env body in
     Flambda.Let.create
-      (Bound_pattern.symbols bound_symbols)
+      (Bound_pattern.static bound_static)
       (Flambda.Named.create_static_consts static_consts)
       ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let

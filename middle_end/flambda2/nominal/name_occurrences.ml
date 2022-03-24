@@ -16,11 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-[@@@ocaml.warning "-55"]
-
-(* CR mshinwell: Remove this alias *)
-module Kind = Name_mode
-
 module For_one_variety_of_names (N : sig
   include Container_types.S
 
@@ -36,9 +31,9 @@ end) : sig
 
   val is_empty : t -> bool
 
-  val singleton : N.t -> Kind.t -> t
+  val singleton : N.t -> Name_mode.t -> t
 
-  val add : t -> N.t -> Kind.t -> t
+  val add : t -> N.t -> Name_mode.t -> t
 
   val apply_renaming : t -> Renaming.t -> t
 
@@ -58,19 +53,20 @@ end) : sig
 
   val remove : t -> N.t -> t
 
-  val remove_one_occurrence : t -> N.t -> Kind.t -> t
+  val remove_one_occurrence : t -> N.t -> Name_mode.t -> t
 
   val count : t -> N.t -> Num_occurrences.t
 
   val count_normal : t -> N.t -> Num_occurrences.t
 
-  val greatest_name_mode : t -> N.t -> Kind.Or_absent.t
+  val greatest_name_mode : t -> N.t -> Name_mode.Or_absent.t
 
-  val downgrade_occurrences_at_strictly_greater_kind : t -> Kind.t -> t
+  val downgrade_occurrences_at_strictly_greater_name_mode :
+    t -> Name_mode.t -> t
 
   val fold : t -> init:'a -> f:('a -> N.t -> 'a) -> 'a
 
-  val fold_with_mode : t -> init:'a -> f:('a -> N.t -> Kind.t -> 'a) -> 'a
+  val fold_with_mode : t -> init:'a -> f:('a -> N.t -> Name_mode.t -> 'a) -> 'a
 
   val for_all : t -> f:(N.t -> bool) -> bool
 
@@ -83,24 +79,25 @@ end = struct
 
     val equal : t -> t -> bool
 
-    val one_occurrence : Kind.t -> t
+    val one_occurrence : Name_mode.t -> t
 
-    val add : t -> Kind.t -> t
+    val add : t -> Name_mode.t -> t
 
     type remove_one_occurrence_result = private
       | No_more_occurrences
-      | One_remaining_occurrence of Kind.t
+      | One_remaining_occurrence of Name_mode.t
       | Multiple_remaining_occurrences of t
 
-    val remove_one_occurrence : t -> Kind.t -> remove_one_occurrence_result
+    val remove_one_occurrence : t -> Name_mode.t -> remove_one_occurrence_result
 
     val num_occurrences : t -> int
 
     val num_occurrences_normal : t -> int
 
-    val downgrade_occurrences_at_strictly_greater_kind : t -> Kind.t -> t
+    val downgrade_occurrences_at_strictly_greater_name_mode :
+      t -> Name_mode.t -> t
 
-    val max_kind_opt : t -> Kind.t option
+    val max_name_mode_opt : t -> Name_mode.t option
 
     val union : t -> t -> t
   end = struct
@@ -137,16 +134,16 @@ end = struct
     let without_phantom_occurrences num = num land lnot (0xfffff lsl 40)
 
     let to_map t =
-      Kind.Map.empty
-      |> Kind.Map.add Kind.normal (num_occurrences_normal t)
-      |> Kind.Map.add Kind.in_types (num_occurrences_in_types t)
-      |> Kind.Map.add Kind.phantom (num_occurrences_phantom t)
+      Name_mode.Map.empty
+      |> Name_mode.Map.add Name_mode.normal (num_occurrences_normal t)
+      |> Name_mode.Map.add Name_mode.in_types (num_occurrences_in_types t)
+      |> Name_mode.Map.add Name_mode.phantom (num_occurrences_phantom t)
 
     let [@ocamlformat "disable"] print ppf t =
       Format.fprintf ppf "@[<hov 1>(\
-          @[<hov 1>(by_kind %a)@]\
+          @[<hov 1>(by_name_mode %a)@]\
           )@]"
-        (Kind.Map.print Format.pp_print_int) (to_map t)
+        (Name_mode.Map.print Format.pp_print_int) (to_map t)
 
     let equal t1 t2 = t1 == t2
 
@@ -154,14 +151,14 @@ end = struct
       num_occurrences_normal t + num_occurrences_in_types t
       + num_occurrences_phantom t
 
-    let one_occurrence kind =
-      match Kind.descr kind with
+    let one_occurrence (name_mode : Name_mode.t) =
+      match name_mode with
       | Normal -> encode_normal_occurrences 1
       | In_types -> encode_in_types_occurrences 1
       | Phantom -> encode_phantom_occurrences 1
 
-    let add t kind =
-      match Kind.descr kind with
+    let add t (name_mode : Name_mode.t) =
+      match name_mode with
       | Normal ->
         encode_normal_occurrences (1 + num_occurrences_normal t)
         lor without_normal_occurrences t
@@ -174,12 +171,12 @@ end = struct
 
     type remove_one_occurrence_result =
       | No_more_occurrences
-      | One_remaining_occurrence of Kind.t
+      | One_remaining_occurrence of Name_mode.t
       | Multiple_remaining_occurrences of t
 
-    let remove_one_occurrence t kind =
+    let remove_one_occurrence t (name_mode : Name_mode.t) =
       let t =
-        match Kind.descr kind with
+        match name_mode with
         | Normal ->
           let num_occurrences =
             let num = num_occurrences_normal t in
@@ -206,18 +203,19 @@ end = struct
       | 0 -> No_more_occurrences
       | 1 ->
         if num_occurrences_normal t = 1
-        then One_remaining_occurrence Kind.normal
+        then One_remaining_occurrence Name_mode.normal
         else if num_occurrences_phantom t = 1
-        then One_remaining_occurrence Kind.phantom
+        then One_remaining_occurrence Name_mode.phantom
         else if num_occurrences_in_types t = 1
-        then One_remaining_occurrence Kind.in_types
+        then One_remaining_occurrence Name_mode.in_types
         else assert false
       | _ -> Multiple_remaining_occurrences t
 
     (* CR mshinwell: Add -strict-sequence to the build *)
 
-    let downgrade_occurrences_at_strictly_greater_kind t max_kind =
-      match Kind.descr max_kind with
+    let downgrade_occurrences_at_strictly_greater_name_mode t
+        (max_name_mode : Name_mode.t) =
+      match max_name_mode with
       | Normal -> t
       | In_types ->
         encode_in_types_occurrences
@@ -227,17 +225,17 @@ end = struct
           (num_occurrences_phantom t + num_occurrences_normal t)
 
     (* CR mshinwell: this is relying on implementation of Name_mode *)
-    let max_kind_opt t =
+    let max_name_mode_opt t =
       let num_normal = num_occurrences_normal t in
       if num_normal > 0
-      then Some Kind.normal
+      then Some Name_mode.normal
       else
         let num_in_types = num_occurrences_in_types t in
         if num_in_types > 0
-        then Some Kind.in_types
+        then Some Name_mode.in_types
         else
           let num_phantom = num_occurrences_phantom t in
-          if num_phantom > 0 then Some Kind.phantom else None
+          if num_phantom > 0 then Some Name_mode.phantom else None
 
     let union t1 t2 =
       encode_normal_occurrences
@@ -251,14 +249,14 @@ end = struct
   (* CR mshinwell: This type is a pain, see if it's really worth it *)
   type t =
     | Empty
-    | One of N.t * Kind.t
+    | One of N.t * Name_mode.t
     | Potentially_many of For_one_name.t N.Map.t
 
   let map t =
     match t with
     | Empty -> N.Map.empty
-    | One (name, kind) ->
-      let for_one_name = For_one_name.one_occurrence kind in
+    | One (name, name_mode) ->
+      let for_one_name = For_one_name.one_occurrence name_mode in
       N.Map.singleton name for_one_name
     | Potentially_many map -> map
 
@@ -268,18 +266,18 @@ end = struct
   let equal t1 t2 =
     match t1, t2 with
     | Empty, Empty -> true
-    | One (n1, kind1), One (n2, kind2) ->
-      N.equal n1 n2 && Kind.equal kind1 kind2
+    | One (n1, name_mode1), One (n2, name_mode2) ->
+      N.equal n1 n2 && Name_mode.equal name_mode1 name_mode2
     | Potentially_many map1, Potentially_many map2 ->
       N.Map.equal For_one_name.equal map1 map2
     | Empty, Potentially_many map | Potentially_many map, Empty ->
       N.Map.is_empty map
-    | One (n1, kind1), Potentially_many map
-    | Potentially_many map, One (n1, kind1) -> begin
+    | One (n1, name_mode1), Potentially_many map
+    | Potentially_many map, One (n1, name_mode1) -> begin
       match N.Map.get_singleton map with
       | None -> false
       | Some (n2, for_one_name2) ->
-        let for_one_name1 = For_one_name.one_occurrence kind1 in
+        let for_one_name1 = For_one_name.one_occurrence name_mode1 in
         N.equal n1 n2 && For_one_name.equal for_one_name1 for_one_name2
     end
     | (Empty | One _), _ -> false
@@ -292,31 +290,32 @@ end = struct
     | One _ -> false
     | Potentially_many map -> N.Map.is_empty map
 
-  let singleton name kind = One (name, kind)
+  let singleton name name_mode = One (name, name_mode)
 
-  let add t name kind =
+  let add t name name_mode =
     match t with
-    | Empty -> singleton name kind
-    | One (name', kind') ->
+    | Empty -> singleton name name_mode
+    | One (name', name_mode') ->
       if N.equal name name'
       then
         let for_one_name =
-          For_one_name.add (For_one_name.one_occurrence kind') kind
+          For_one_name.add (For_one_name.one_occurrence name_mode') name_mode
         in
         Potentially_many (N.Map.singleton name for_one_name)
       else
         let map =
           N.Map.empty
-          |> N.Map.add name (For_one_name.one_occurrence kind)
-          |> N.Map.add name' (For_one_name.one_occurrence kind')
+          |> N.Map.add name (For_one_name.one_occurrence name_mode)
+          |> N.Map.add name' (For_one_name.one_occurrence name_mode')
         in
         Potentially_many map
     | Potentially_many map ->
       let map =
         N.Map.update name
           (function
-            | None -> Some (For_one_name.one_occurrence kind)
-            | Some for_one_name -> Some (For_one_name.add for_one_name kind))
+            | None -> Some (For_one_name.one_occurrence name_mode)
+            | Some for_one_name ->
+              Some (For_one_name.add for_one_name name_mode))
           map
       in
       Potentially_many map
@@ -324,9 +323,9 @@ end = struct
   let apply_renaming t perm =
     match t with
     | Empty -> Empty
-    | One (name, kind) ->
+    | One (name, name_mode) ->
       let name' = N.apply_renaming name perm in
-      if name == name' then t else One (name', kind)
+      if name == name' then t else One (name', name_mode)
     | Potentially_many map ->
       let map =
         N.Map.fold
@@ -340,10 +339,10 @@ end = struct
   let affected_by_renaming t perm =
     match t with
     | Empty -> false
-    | One (name, _kind) -> not (N.equal name (N.apply_renaming name perm))
+    | One (name, _name_mode) -> not (N.equal name (N.apply_renaming name perm))
     | Potentially_many map ->
       N.Map.exists
-        (fun name _kind -> not (N.equal name (N.apply_renaming name perm)))
+        (fun name _name_mode -> not (N.equal name (N.apply_renaming name perm)))
         map
 
   let diff t1 t2 =
@@ -367,26 +366,29 @@ end = struct
     | Empty, Empty -> Empty
     | Empty, (One _ | Potentially_many _) -> t2
     | (One _ | Potentially_many _), Empty -> t1
-    | One (name1, kind1), One (name2, kind2) ->
+    | One (name1, name_mode1), One (name2, name_mode2) ->
       let map =
         if N.equal name1 name2
         then
           N.Map.empty
           |> N.Map.add name1
-               (For_one_name.add (For_one_name.one_occurrence kind1) kind2)
+               (For_one_name.add
+                  (For_one_name.one_occurrence name_mode1)
+                  name_mode2)
         else
           N.Map.empty
-          |> N.Map.add name1 (For_one_name.one_occurrence kind1)
-          |> N.Map.add name2 (For_one_name.one_occurrence kind2)
+          |> N.Map.add name1 (For_one_name.one_occurrence name_mode1)
+          |> N.Map.add name2 (For_one_name.one_occurrence name_mode2)
       in
       Potentially_many map
-    | One (name, kind), Potentially_many map
-    | Potentially_many map, One (name, kind) ->
+    | One (name, name_mode), Potentially_many map
+    | Potentially_many map, One (name, name_mode) ->
       let map =
         N.Map.update name
           (function
-            | None -> Some (For_one_name.one_occurrence kind)
-            | Some for_one_name -> Some (For_one_name.add for_one_name kind))
+            | None -> Some (For_one_name.one_occurrence name_mode)
+            | Some for_one_name ->
+              Some (For_one_name.add for_one_name name_mode))
           map
       in
       Potentially_many map
@@ -446,18 +448,20 @@ end = struct
       let map = N.Map.remove name map in
       if N.Map.is_empty map then Empty else Potentially_many map
 
-  let remove_one_occurrence t name kind =
+  let remove_one_occurrence t name name_mode =
     match t with
     | Empty -> Empty
-    | One (name', kind') ->
-      if N.equal name name' && Kind.equal kind kind' then Empty else t
+    | One (name', name_mode') ->
+      if N.equal name name' && Name_mode.equal name_mode name_mode'
+      then Empty
+      else t
     | Potentially_many map -> (
       match N.Map.find name map with
       | exception Not_found -> Empty
       | for_one_name -> (
-        match For_one_name.remove_one_occurrence for_one_name kind with
+        match For_one_name.remove_one_occurrence for_one_name name_mode with
         | No_more_occurrences -> Empty
-        | One_remaining_occurrence kind -> One (name, kind)
+        | One_remaining_occurrence name_mode -> One (name, name_mode)
         | Multiple_remaining_occurrences for_one_name ->
           let map = N.Map.add name for_one_name map in
           Potentially_many map))
@@ -497,51 +501,52 @@ end = struct
         then One
         else More_than_one)
 
-  let greatest_name_mode t name : Kind.Or_absent.t =
+  let greatest_name_mode t name : Name_mode.Or_absent.t =
     match t with
-    | Empty -> Kind.Or_absent.absent
-    | One (name', kind) ->
+    | Empty -> Name_mode.Or_absent.absent
+    | One (name', name_mode) ->
       if N.equal name name'
-      then Kind.Or_absent.present kind
-      else Kind.Or_absent.absent
+      then Name_mode.Or_absent.present name_mode
+      else Name_mode.Or_absent.absent
     | Potentially_many map -> (
       match N.Map.find name map with
-      | exception Not_found -> Kind.Or_absent.absent
+      | exception Not_found -> Name_mode.Or_absent.absent
       | for_one_name -> (
-        match For_one_name.max_kind_opt for_one_name with
-        | None -> Kind.Or_absent.absent
-        | Some kind -> Kind.Or_absent.present kind))
+        match For_one_name.max_name_mode_opt for_one_name with
+        | None -> Name_mode.Or_absent.absent
+        | Some name_mode -> Name_mode.Or_absent.present name_mode))
 
   let fold t ~init ~f =
     match t with
     | Empty -> init
-    | One (name, _kind) -> f init name
+    | One (name, _name_mode) -> f init name
     | Potentially_many map ->
-      N.Map.fold (fun name _kind acc -> f acc name) map init
+      N.Map.fold (fun name _name_mode acc -> f acc name) map init
 
   let fold_with_mode t ~init ~f =
     match t with
     | Empty -> init
-    | One (name, kind) -> f init name kind
+    | One (name, name_mode) -> f init name name_mode
     | Potentially_many map ->
       N.Map.fold
-        (fun name kind acc ->
-          match For_one_name.max_kind_opt kind with
+        (fun name name_mode acc ->
+          match For_one_name.max_name_mode_opt name_mode with
           | Some name_mode -> f acc name name_mode
           | None -> acc)
         map init
 
-  let downgrade_occurrences_at_strictly_greater_kind t max_kind =
+  let downgrade_occurrences_at_strictly_greater_name_mode t
+      (max_name_mode : Name_mode.t) =
     (* CR-someday mshinwell: This can be condensed when the compiler removes the
-       closure allocation if [max_kind] is captured. *)
-    match Kind.descr max_kind with
+       closure allocation if [max_name_mode] is captured. *)
+    match max_name_mode with
     | Normal -> t
     | Phantom -> begin
       match t with
       | Empty -> Empty
-      | One (name, kind) -> begin
-        match Kind.descr kind with
-        | Normal | Phantom -> One (name, Kind.phantom)
+      | One (name, name_mode) -> begin
+        match name_mode with
+        | Normal | Phantom -> One (name, Name_mode.phantom)
         | In_types ->
           Misc.fatal_errorf "Cannot downgrade [In_types] to [Phantom]:@ %a"
             print t
@@ -550,8 +555,8 @@ end = struct
         let map =
           N.Map.map_sharing
             (fun for_one_name ->
-              For_one_name.downgrade_occurrences_at_strictly_greater_kind
-                for_one_name Kind.phantom)
+              For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
+                for_one_name Name_mode.phantom)
             map
         in
         Potentially_many map
@@ -559,9 +564,9 @@ end = struct
     | In_types -> begin
       match t with
       | Empty -> Empty
-      | One (name, kind) -> begin
-        match Kind.descr kind with
-        | Normal | In_types -> One (name, Kind.in_types)
+      | One (name, name_mode) -> begin
+        match name_mode with
+        | Normal | In_types -> One (name, Name_mode.in_types)
         | Phantom ->
           Misc.fatal_errorf "Cannot downgrade [Phantom] to [In_types]:@ %a"
             print t
@@ -570,8 +575,8 @@ end = struct
         let map =
           N.Map.map_sharing
             (fun for_one_name ->
-              For_one_name.downgrade_occurrences_at_strictly_greater_kind
-                for_one_name Kind.in_types)
+              For_one_name.downgrade_occurrences_at_strictly_greater_name_mode
+                for_one_name Name_mode.in_types)
             map
         in
         Potentially_many map
@@ -693,18 +698,23 @@ let [@ocamlformat "disable"] print ppf
     For_code_ids.print newer_version_of_code_ids
 
 let singleton_continuation cont =
-  { empty with continuations = For_continuations.singleton cont Kind.normal }
+  { empty with
+    continuations = For_continuations.singleton cont Name_mode.normal
+  }
 
 let singleton_continuation_in_trap_action cont =
   { empty with
-    continuations_in_trap_actions = For_continuations.singleton cont Kind.normal
+    continuations_in_trap_actions =
+      For_continuations.singleton cont Name_mode.normal
   }
 
 let add_continuation t cont ~has_traps =
-  let continuations = For_continuations.add t.continuations cont Kind.normal in
+  let continuations =
+    For_continuations.add t.continuations cont Name_mode.normal
+  in
   let continuations_with_traps =
     if has_traps
-    then For_continuations.add t.continuations_with_traps cont Kind.normal
+    then For_continuations.add t.continuations_with_traps cont Name_mode.normal
     else t.continuations_with_traps
   in
   { t with continuations; continuations_with_traps }
@@ -712,7 +722,8 @@ let add_continuation t cont ~has_traps =
 let add_continuation_in_trap_action t cont =
   { t with
     continuations_in_trap_actions =
-      For_continuations.add t.continuations_in_trap_actions cont Kind.normal
+      For_continuations.add t.continuations_in_trap_actions cont
+        Name_mode.normal
   }
 
 let count_continuation t cont = For_continuations.count t.continuations cont
@@ -725,88 +736,93 @@ let count_variable t var = For_names.count t.names (Name.var var)
 let count_variable_normal_mode t var =
   For_names.count_normal t.names (Name.var var)
 
-let singleton_variable var kind =
-  { empty with names = For_names.singleton (Name.var var) kind }
+let singleton_variable var name_mode =
+  { empty with names = For_names.singleton (Name.var var) name_mode }
 
-let add_variable t var kind =
-  { t with names = For_names.add t.names (Name.var var) kind }
+let add_variable t var name_mode =
+  { t with names = For_names.add t.names (Name.var var) name_mode }
 
-let add_symbol t sym kind =
-  { t with names = For_names.add t.names (Name.symbol sym) kind }
+let add_symbol t sym name_mode =
+  { t with names = For_names.add t.names (Name.symbol sym) name_mode }
 
-let add_name t name kind = { t with names = For_names.add t.names name kind }
+let add_name t name name_mode =
+  { t with names = For_names.add t.names name name_mode }
 
-let add_closure_id_in_projection t clos_id kind =
+let add_closure_id_in_projection t clos_id name_mode =
   { t with
     closure_ids_in_projections =
-      For_closure_ids.add t.closure_ids_in_projections clos_id kind
+      For_closure_ids.add t.closure_ids_in_projections clos_id name_mode
   }
 
-let add_closure_var_in_projection t clos_var kind =
+let add_closure_var_in_projection t clos_var name_mode =
   { t with
     closure_vars_in_projections =
-      For_closure_vars.add t.closure_vars_in_projections clos_var kind
+      For_closure_vars.add t.closure_vars_in_projections clos_var name_mode
   }
 
-let add_closure_id_in_declaration t clos_id kind =
+let add_closure_id_in_declaration t clos_id name_mode =
   { t with
     closure_ids_in_declarations =
-      For_closure_ids.add t.closure_ids_in_declarations clos_id kind
+      For_closure_ids.add t.closure_ids_in_declarations clos_id name_mode
   }
 
-let add_closure_var_in_declaration t clos_var kind =
+let add_closure_var_in_declaration t clos_var name_mode =
   { t with
     closure_vars_in_declarations =
-      For_closure_vars.add t.closure_vars_in_declarations clos_var kind
+      For_closure_vars.add t.closure_vars_in_declarations clos_var name_mode
   }
 
 let add_closure_id_in_types t clos_id =
   { t with
     closure_ids_in_declarations =
-      For_closure_ids.add t.closure_ids_in_declarations clos_id Kind.in_types;
+      For_closure_ids.add t.closure_ids_in_declarations clos_id
+        Name_mode.in_types;
     closure_ids_in_projections =
-      For_closure_ids.add t.closure_ids_in_projections clos_id Kind.in_types
+      For_closure_ids.add t.closure_ids_in_projections clos_id
+        Name_mode.in_types
   }
 
 let add_closure_var_in_types t clos_var =
   { t with
     closure_vars_in_declarations =
-      For_closure_vars.add t.closure_vars_in_declarations clos_var Kind.in_types;
+      For_closure_vars.add t.closure_vars_in_declarations clos_var
+        Name_mode.in_types;
     closure_vars_in_projections =
-      For_closure_vars.add t.closure_vars_in_projections clos_var Kind.in_types
+      For_closure_vars.add t.closure_vars_in_projections clos_var
+        Name_mode.in_types
   }
 
-let add_code_id t id kind =
-  { t with code_ids = For_code_ids.add t.code_ids id kind }
+let add_code_id t id name_mode =
+  { t with code_ids = For_code_ids.add t.code_ids id name_mode }
 
-let singleton_code_id id kind = add_code_id empty id kind
+let singleton_code_id id name_mode = add_code_id empty id name_mode
 
-let add_newer_version_of_code_id t id kind =
+let add_newer_version_of_code_id t id name_mode =
   { t with
     newer_version_of_code_ids =
-      For_code_ids.add t.newer_version_of_code_ids id kind
+      For_code_ids.add t.newer_version_of_code_ids id name_mode
   }
 
-let singleton_symbol sym kind =
-  { empty with names = For_names.singleton (Name.symbol sym) kind }
+let singleton_symbol sym name_mode =
+  { empty with names = For_names.singleton (Name.symbol sym) name_mode }
 
-let singleton_name name kind =
-  { empty with names = For_names.singleton name kind }
+let singleton_name name name_mode =
+  { empty with names = For_names.singleton name name_mode }
 
-let create_variables vars kind =
+let create_variables vars name_mode =
   let names =
     Variable.Set.fold
-      (fun var names -> For_names.add names (Name.var var) kind)
+      (fun var names -> For_names.add names (Name.var var) name_mode)
       vars For_names.empty
   in
   { empty with names }
 
 let create_variables' name_mode vars = create_variables vars name_mode
 
-let create_names names kind =
+let create_names names name_mode =
   let names =
     Name.Set.fold
-      (fun name names -> For_names.add names name kind)
+      (fun name names -> For_names.add names name name_mode)
       names For_names.empty
   in
   { empty with names }
@@ -1190,7 +1206,7 @@ let remove_one_occurrence_of_closure_var_in_projections t closure_var name_mode
 let greatest_name_mode_var t var =
   For_names.greatest_name_mode t.names (Name.var var)
 
-let downgrade_occurrences_at_strictly_greater_kind
+let downgrade_occurrences_at_strictly_greater_name_mode
     { names;
       continuations;
       continuations_with_traps;
@@ -1201,46 +1217,47 @@ let downgrade_occurrences_at_strictly_greater_kind
       closure_vars_in_declarations;
       code_ids;
       newer_version_of_code_ids
-    } max_kind =
+    } max_name_mode =
   (* CR mshinwell: Don't reallocate the record if nothing changed *)
   let names =
-    For_names.downgrade_occurrences_at_strictly_greater_kind names max_kind
+    For_names.downgrade_occurrences_at_strictly_greater_name_mode names
+      max_name_mode
   in
   let continuations =
-    For_continuations.downgrade_occurrences_at_strictly_greater_kind
-      continuations max_kind
+    For_continuations.downgrade_occurrences_at_strictly_greater_name_mode
+      continuations max_name_mode
   in
   let continuations_with_traps =
-    For_continuations.downgrade_occurrences_at_strictly_greater_kind
-      continuations_with_traps max_kind
+    For_continuations.downgrade_occurrences_at_strictly_greater_name_mode
+      continuations_with_traps max_name_mode
   in
   let continuations_in_trap_actions =
-    For_continuations.downgrade_occurrences_at_strictly_greater_kind
-      continuations_in_trap_actions max_kind
+    For_continuations.downgrade_occurrences_at_strictly_greater_name_mode
+      continuations_in_trap_actions max_name_mode
   in
   let closure_ids_in_projections =
-    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind
-      closure_ids_in_projections max_kind
+    For_closure_ids.downgrade_occurrences_at_strictly_greater_name_mode
+      closure_ids_in_projections max_name_mode
   in
   let closure_vars_in_projections =
-    For_closure_vars.downgrade_occurrences_at_strictly_greater_kind
-      closure_vars_in_projections max_kind
+    For_closure_vars.downgrade_occurrences_at_strictly_greater_name_mode
+      closure_vars_in_projections max_name_mode
   in
   let closure_ids_in_declarations =
-    For_closure_ids.downgrade_occurrences_at_strictly_greater_kind
-      closure_ids_in_declarations max_kind
+    For_closure_ids.downgrade_occurrences_at_strictly_greater_name_mode
+      closure_ids_in_declarations max_name_mode
   in
   let closure_vars_in_declarations =
-    For_closure_vars.downgrade_occurrences_at_strictly_greater_kind
-      closure_vars_in_declarations max_kind
+    For_closure_vars.downgrade_occurrences_at_strictly_greater_name_mode
+      closure_vars_in_declarations max_name_mode
   in
   let code_ids =
-    For_code_ids.downgrade_occurrences_at_strictly_greater_kind code_ids
-      max_kind
+    For_code_ids.downgrade_occurrences_at_strictly_greater_name_mode code_ids
+      max_name_mode
   in
   let newer_version_of_code_ids =
-    For_code_ids.downgrade_occurrences_at_strictly_greater_kind
-      newer_version_of_code_ids max_kind
+    For_code_ids.downgrade_occurrences_at_strictly_greater_name_mode
+      newer_version_of_code_ids max_name_mode
   in
   { names;
     continuations;

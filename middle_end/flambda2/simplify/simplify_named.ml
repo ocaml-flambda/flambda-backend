@@ -19,7 +19,7 @@
 open! Simplify_import
 
 let create_lifted_constant (dacc, lifted_constants)
-    (pat : Bound_symbols.Pattern.t) static_const =
+    (pat : Bound_static.Pattern.t) static_const =
   match pat with
   | Block_like symbol ->
     let typ =
@@ -126,19 +126,17 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
     Simplify_set_of_closures.simplify_non_lifted_set_of_closures dacc
       bound_pattern set_of_closures ~simplify_toplevel
   | Static_consts static_consts ->
-    let { Bound_pattern.bound_symbols } =
-      Bound_pattern.must_be_symbols bound_pattern
-    in
-    let binds_symbols = Bound_symbols.binds_symbols bound_symbols in
+    let bound_static = Bound_pattern.must_be_static bound_pattern in
+    let binds_symbols = Bound_static.binds_symbols bound_static in
     if binds_symbols && not (DE.at_unit_toplevel (DA.denv dacc))
     then
       Misc.fatal_errorf
         "[Let] binding symbols is only allowed at the toplevel of compilation \
          units (not even at the toplevel of function bodies):@ %a@ =@ %a"
         Bound_pattern.print bound_pattern Named.print named;
-    let bound_symbols, static_consts, dacc =
+    let bound_static, static_consts, dacc =
       try
-        Simplify_static_const.simplify_static_consts dacc bound_symbols
+        Simplify_static_const.simplify_static_consts dacc bound_static
           static_consts ~simplify_toplevel
       with Misc.Fatal_error ->
         let bt = Printexc.get_raw_backtrace () in
@@ -148,12 +146,12 @@ let simplify_named0 dacc (bound_pattern : Bound_pattern.t) (named : Named.t)
            downwards accumulator:@ %a\n"
           (Flambda_colours.error ())
           (Flambda_colours.normal ())
-          Bound_symbols.print bound_symbols DA.print dacc;
+          Bound_static.print bound_static DA.print dacc;
         Printexc.raise_with_backtrace Misc.Fatal_error bt
     in
     let dacc, lifted_constants =
       ListLabels.fold_left2
-        (Bound_symbols.to_list bound_symbols)
+        (Bound_static.to_list bound_static)
         (Rebuilt_static_const.Group.to_list static_consts)
         ~init:(dacc, []) ~f:create_lifted_constant
     in

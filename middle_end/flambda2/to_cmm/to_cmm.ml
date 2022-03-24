@@ -673,11 +673,14 @@ let wrap_extcall_result (l : Flambda_kind.t list) =
 
 (* Function calls and continuations *)
 
-let var_list env l =
-  let flambda_vars = List.map Bound_parameter.var l in
+let param_list env l =
+  let flambda_vars = Bound_parameters.vars l in
   let env, cmm_vars = Env.create_variables env flambda_vars in
   let vars =
-    List.map2 (fun v v' -> v, machtype_of_kinded_parameter v') cmm_vars l
+    List.map2
+      (fun v v' -> v, machtype_of_kinded_parameter v')
+      cmm_vars
+      (Bound_parameters.to_list l)
   in
   env, vars
 
@@ -756,7 +759,7 @@ let decide_inline_let effs
 
 (* Helpers for translating functions *)
 
-let function_args vars my_closure ~(is_my_closure_used : _ Or_unknown.t) =
+let function_params params my_closure ~(is_my_closure_used : _ Or_unknown.t) =
   let is_my_closure_used =
     match is_my_closure_used with
     | Unknown -> true
@@ -764,11 +767,11 @@ let function_args vars my_closure ~(is_my_closure_used : _ Or_unknown.t) =
   in
   if is_my_closure_used
   then
-    let last_arg =
+    let my_closure_param =
       Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
     in
-    vars @ [last_arg]
-  else vars
+    Bound_parameters.append params (Bound_parameters.create [my_closure_param])
+  else params
 
 let function_flags () =
   if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
@@ -788,10 +791,10 @@ and let_expr env res t =
   Let.pattern_match' t
     ~f:(fun bound_pattern ~num_normal_occurrences_of_bound_vars ~body ->
       let mode = Bound_pattern.name_mode bound_pattern in
-      match Name_mode.descr mode with
+      match mode with
       | In_types ->
         Misc.fatal_errorf
-          "Binding in terms a variable of mode In_types is forbidden"
+          "Binding a variable of mode In_types in terms is forbidden"
       | Phantom -> expr env res body
       | Normal -> (
         let e = Let.defining_expr t in
@@ -802,11 +805,11 @@ and let_expr env res t =
         | Singleton v, Prim (p, dbg) ->
           let_expr_prim body env res v ~num_normal_occurrences_of_bound_vars p
             dbg
-        | Set_of_closures { closure_vars; _ }, Set_of_closures soc ->
-          let_set_of_closures env res body closure_vars
+        | Set_of_closures bound_vars, Set_of_closures soc ->
+          let_set_of_closures env res body bound_vars
             ~num_normal_occurrences_of_bound_vars soc
-        | Symbols { bound_symbols }, Static_consts consts ->
-          let_symbol env res bound_symbols consts body
+        | Static bound_static, Static_consts consts ->
+          let_static env res bound_static consts body
         | Singleton _, Rec_info _ ->
           (* Erase *)
           expr env res body
@@ -820,19 +823,19 @@ and let_expr env res t =
           ->
           Misc.fatal_errorf "Set_of_closures binding a non-Set_of_closures:@ %a"
             Let.print t
-        | Symbols _, (Simple _ | Prim _ | Set_of_closures _ | Rec_info _) ->
+        | Static _, (Simple _ | Prim _ | Set_of_closures _ | Rec_info _) ->
           Misc.fatal_errorf "Symbols binding a non-Static const:@ %a" Let.print
             t))
 
-and let_symbol env res bound_symbols consts body =
+and let_static env res bound_static consts body =
   let env =
     (* All bound symbols are allowed to appear in each other's definition, so
        they're added to the environment first *)
     (* CR mshinwell: This isn't quite right now, but can be fixed later *)
-    Env.add_to_scope env (Bound_symbols.everything_being_defined bound_symbols)
+    Env.add_to_scope env (Bound_static.everything_being_defined bound_static)
   in
   let env, res, update_opt =
-    To_cmm_static.static_consts env res ~params_and_body bound_symbols consts
+    To_cmm_static.static_consts env res ~params_and_body bound_static consts
   in
   match update_opt with
   | None ->
@@ -1000,13 +1003,13 @@ and continuation_handler_split h =
       params, num_normal_occurrences_of_params, handler)
 
 and continuation_arg_tys h =
-  let args, _, _ = continuation_handler_split h in
-  List.map machtype_of_kinded_parameter args
+  let params, _, _ = continuation_handler_split h in
+  List.map machtype_of_kinded_parameter (Bound_parameters.to_list params)
 
 and continuation_handler env res h =
   let args, _, handler = continuation_handler_split h in
-  let arity = Bound_parameter.List.arity args in
-  let env, vars = var_list env args in
+  let arity = Bound_parameters.arity args in
+  let env, vars = param_list env args in
   let e, res = expr env res handler in
   vars, arity, e, res
 
@@ -1149,6 +1152,14 @@ and wrap_cont env res effs call e =
     let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
   | Return k -> begin
+    let[@inline always] unsupported () =
+      (* TODO: add support using unboxed tuples *)
+      Misc.fatal_errorf
+        "Continuation %a should not handle multiple return values in@\n%a@\n%s"
+        Continuation.print k Apply_expr.print e
+        "Multi-arguments continuation across function calls are not yet \
+         supported"
+    in
     match Env.get_k env k with
     | Jump { types = []; cont } ->
       let wrap, _ = Env.flush_delayed_lets env in
@@ -1156,38 +1167,29 @@ and wrap_cont env res effs call e =
     | Jump { types = [_]; cont } ->
       let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.cexit cont [call] []), res
-    | Inline
-        { handler_params = [];
-          handler_body = body;
-          handler_params_occurrences = _
-        } ->
-      let var = Variable.create "*apply_res*" in
-      let num_normal_occurrences_of_bound_vars =
-        Variable.Map.singleton var Num_occurrences.Zero
-      in
-      let env =
-        let_expr_bind env var ~num_normal_occurrences_of_bound_vars call effs
-      in
-      expr env res body
-    | Inline
-        { handler_params = [param];
-          handler_body = body;
-          handler_params_occurrences
-        } ->
-      let var = Bound_parameter.var param in
-      let env =
-        let_expr_bind env var
-          ~num_normal_occurrences_of_bound_vars:handler_params_occurrences call
-          effs
-      in
-      expr env res body
-    | Jump _ | Inline _ ->
-      (* TODO: add support using unboxed tuples *)
-      Misc.fatal_errorf
-        "Continuation %a should not handle multiple return values in@\n%a@\n%s"
-        Continuation.print k Apply_expr.print e
-        "Multi-arguments continuation across function calls are not yet \
-         supported"
+    | Inline { handler_params; handler_body = body; handler_params_occurrences }
+      -> (
+      let handler_params = Bound_parameters.to_list handler_params in
+      match handler_params with
+      | [] ->
+        let var = Variable.create "*apply_res*" in
+        let num_normal_occurrences_of_bound_vars =
+          Variable.Map.singleton var Num_occurrences.Zero
+        in
+        let env =
+          let_expr_bind env var ~num_normal_occurrences_of_bound_vars call effs
+        in
+        expr env res body
+      | [param] ->
+        let var = Bound_parameter.var param in
+        let env =
+          let_expr_bind env var
+            ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
+            call effs
+        in
+        expr env res body
+      | _ :: _ -> unsupported ())
+    | Jump _ -> unsupported ()
   end
 
 and apply_cont env res e =
@@ -1268,6 +1270,7 @@ and apply_cont_regular env res e k args =
    environment enables that translation to be tail-rec. *)
 and apply_cont_inline env res e k args handler_body handler_params
     ~handler_params_occurrences =
+  let handler_params = Bound_parameters.to_list handler_params in
   if List.compare_lengths args handler_params = 0
   then
     let env, res =
@@ -1584,7 +1587,7 @@ and params_and_body env res fun_name p ~fun_dbg =
     ~f:(fun
          ~return_continuation:k
          ~exn_continuation:k_exn
-         vars
+         params
          ~body
          ~my_closure
          ~is_my_closure_used
@@ -1592,12 +1595,12 @@ and params_and_body env res fun_name p ~fun_dbg =
          ~free_names_of_body:_
        ->
       try
-        let args = function_args vars my_closure ~is_my_closure_used in
+        let params = function_params params my_closure ~is_my_closure_used in
         (* Init the env and create a jump id for the ret closure in case a trap
            action is attached to one of tis call *)
         let env = Env.enter_function_def env k k_exn in
         (* translate the arg list and body *)
-        let env, fun_args = var_list env args in
+        let env, fun_args = param_list env params in
         let fun_body, res = expr env res body in
         let fun_flags = function_flags () in
         C.fundecl fun_name fun_args fun_body fun_flags fun_dbg, res
@@ -1635,9 +1638,10 @@ let unit ~offsets ~make_symbol unit ~all_code =
       let _env, return_cont_params =
         (* Note: the environment would be used if we needed to compile the
            handler, but since it's constant we don't need it *)
-        var_list env
-          [ Bound_parameter.create (Variable.create "*ret*")
-              Flambda_kind.With_subkind.any_value ]
+        param_list env
+          (Bound_parameters.create
+             [ Bound_parameter.create (Variable.create "*ret*")
+                 Flambda_kind.With_subkind.any_value ])
       in
       let return_cont, env =
         Env.add_jump_cont env

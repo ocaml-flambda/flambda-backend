@@ -18,16 +18,38 @@
 
 type t
 
-include Contains_names.S with type t := t
-
-include Contains_ids.S with type t := t
-
-val print : Format.formatter -> t -> unit
+val empty : t
 
 val create : Bound_parameter.t list -> t
 
+val cons : Bound_parameter.t -> t -> t
+
+val append : t -> t -> t
+
 val to_list : t -> Bound_parameter.t list
 
-val rename : t -> t
+val is_empty : t -> bool
 
-val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
+val same_number : t -> t -> bool
+
+val arity : t -> Flambda_arity.t
+
+val arity_with_subkinds : t -> Flambda_arity.With_subkinds.t
+
+val check_no_duplicates : t -> unit
+
+val cardinal : t -> int
+
+val simples : t -> Reg_width_things.Simple.t list
+
+val to_set : t -> Bound_parameter.Set.t
+
+val vars : t -> Variable.t list
+
+val var_set : t -> Variable.Set.t
+
+val filter : (Bound_parameter.t -> bool) -> t -> t
+
+val exists : (Bound_parameter.t -> bool) -> t -> bool
+
+include Bindable.S with type t := t

@@ -225,7 +225,8 @@ let split_direct_over_application apply ~param_arity ~result_arity
           Name_mode.normal
       in
       let handler =
-        Continuation_handler.create over_application_results
+        Continuation_handler.create
+          (Bound_parameters.create over_application_results)
           ~handler:handler_expr
           ~free_names_of_handler:(Known handler_expr_free_names)
           ~is_exn_handler:false
@@ -237,7 +238,9 @@ let split_direct_over_application apply ~param_arity ~result_arity
   let after_full_application = Continuation.create () in
   let after_full_application_handler =
     let func_param = BP.create func_var K.With_subkind.any_value in
-    Continuation_handler.create [func_param] ~handler:perform_over_application
+    Continuation_handler.create
+      (Bound_parameters.create [func_param])
+      ~handler:perform_over_application
       ~free_names_of_handler:(Known perform_over_application_free_names)
       ~is_exn_handler:false
   in
