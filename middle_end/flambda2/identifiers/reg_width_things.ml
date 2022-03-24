@@ -801,10 +801,6 @@ module Code_id = struct
 
   let is_imported t = not (Compilation_unit.is_current (get_compilation_unit t))
 
-  let code_symbol t =
-    let data = find_data t in
-    Symbol.unsafe_create data.compilation_unit data.linkage_name
-
   module T0 = struct
     let compare = Id.compare
 

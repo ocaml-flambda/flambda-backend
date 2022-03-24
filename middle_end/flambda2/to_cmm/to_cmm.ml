@@ -1066,7 +1066,7 @@ and apply_call env e =
         args @ [f], env
       else args, env
     in
-    let f_code = symbol (Code_id.code_symbol code_id) in
+    let f_code = Linkage_name.to_string (Code_id.linkage_name code_id) in
     match Apply_expr.probe_name e with
     | None -> C.direct_call ~dbg ty (C.symbol f_code) args, env, effs
     | Some name ->
@@ -1554,8 +1554,7 @@ and fill_slot decls startenv elts env acc offset slot =
        difference in practice. mshinwell: this can now be got from
        Code_metadata. *)
     let dbg = Debuginfo.none in
-    let code_symbol = Code_id.code_symbol code_id in
-    let code_name = Linkage_name.to_string (Symbol.linkage_name code_symbol) in
+    let code_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
     let arity, closure_code_pointers =
       Env.get_func_decl_params_arity env code_id
     in
