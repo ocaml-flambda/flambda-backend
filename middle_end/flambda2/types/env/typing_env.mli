@@ -94,7 +94,7 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
     for the given name. *)
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
 
-val add_definitions_of_params : t -> params:Bound_parameter.t list -> t
+val add_definitions_of_params : t -> params:Bound_parameters.t -> t
 
 val add_symbol_definition : t -> Symbol.t -> t
 
@@ -106,7 +106,7 @@ val find_symbol_projection : t -> Variable.t -> Symbol_projection.t option
 
 val add_equations_on_params :
   t ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   param_types:Type_grammar.t list ->
   meet_type:meet_type ->
   t
@@ -118,7 +118,7 @@ val find : t -> Name.t -> Flambda_kind.t option -> Type_grammar.t
 
 val find_or_missing : t -> Name.t -> Type_grammar.t option
 
-val find_params : t -> Bound_parameter.t list -> Type_grammar.t list
+val find_params : t -> Bound_parameters.t -> Type_grammar.t list
 
 val variable_is_from_missing_cmx_file : t -> Name.t -> bool
 

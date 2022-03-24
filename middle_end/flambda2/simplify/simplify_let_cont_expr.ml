@@ -30,7 +30,8 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
      around the continuation's handler will do that anyway. *)
   if is_single_inlinable_use
   then
-    { extra_params_used_as_normal = extra_params_and_args.extra_params;
+    { extra_params_used_as_normal =
+        Bound_parameters.to_list extra_params_and_args.extra_params;
       extra_params_not_used_as_normal = []
     }
   else
@@ -68,7 +69,9 @@ let compute_used_extra_params uacc (extra_params_and_args : EPA.t)
         used
     in
     let extra_params_used_as_normal, extra_params_not_used_as_normal =
-      ListLabels.partition extra_params_and_args.extra_params ~f:used_or_not
+      ListLabels.partition
+        (Bound_parameters.to_list extra_params_and_args.extra_params)
+        ~f:used_or_not
     in
     { extra_params_used_as_normal; extra_params_not_used_as_normal }
 
@@ -79,6 +82,7 @@ type used_params =
 
 let compute_used_params uacc params ~is_exn_handler ~is_single_inlinable_use
     ~free_names ~handler =
+  let params = Bound_parameters.to_list params in
   if is_single_inlinable_use
   then { params_used_as_normal = params; params_not_used_as_normal = [] }
   else
@@ -126,11 +130,13 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
     (recursive : Recursive.t) ~params ~(extra_params_and_args : EPA.t)
     ~is_single_inlinable_use ~is_exn_handler handler uacc ~after_rebuild =
   let handler, uacc =
-    let params = params @ extra_params_and_args.extra_params in
+    let params =
+      Bound_parameters.append params extra_params_and_args.extra_params
+    in
     (* We might need to place lifted constants now, as they could depend on
        continuation parameters. As such we must also compute the unused
        parameters after placing any constants! *)
-    if (not at_unit_toplevel) || List.compare_length_with params 0 = 0
+    if (not at_unit_toplevel) || Bound_parameters.is_empty params
     then handler, uacc
     else
       EB.place_lifted_constants uacc
@@ -156,15 +162,23 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
       | Some rewrite ->
         let used_params_set = Apply_cont_rewrite.used_params rewrite in
         let used_params, unused_params =
-          List.partition (fun param -> BP.Set.mem param used_params_set) params
+          List.partition
+            (fun param -> BP.Set.mem param used_params_set)
+            (Bound_parameters.to_list params)
         in
-        let used_extra_params = Apply_cont_rewrite.used_extra_params rewrite in
+        let used_extra_params =
+          Apply_cont_rewrite.used_extra_params rewrite
+          |> Bound_parameters.to_list
+        in
         let new_phantom_params =
           List.filter
             (fun param -> Name_occurrences.mem_var free_names (BP.var param))
             unused_params
+          |> Bound_parameters.create
         in
-        uacc, used_params @ used_extra_params, new_phantom_params
+        ( uacc,
+          Bound_parameters.create (used_params @ used_extra_params),
+          new_phantom_params )
     end
     | Non_recursive ->
       (* If the continuation is going to be inlined out, we don't need to spend
@@ -198,8 +212,9 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
             UE.add_apply_cont_rewrite uenv cont rewrite)
       in
       ( uacc,
-        params_used_as_normal @ extra_params_used_as_normal,
-        new_phantom_params )
+        Bound_parameters.create
+          (params_used_as_normal @ extra_params_used_as_normal),
+        Bound_parameters.create new_phantom_params )
   in
   let handler, uacc =
     let bindings_outermost_first =
@@ -218,7 +233,7 @@ let rebuild_one_continuation_handler cont ~at_unit_toplevel
             simplified_defining_expr;
             original_defining_expr = named
           })
-        new_phantom_params
+        (Bound_parameters.to_list new_phantom_params)
     in
     EB.make_new_let_bindings uacc ~body:handler ~bindings_outermost_first
   in
@@ -296,7 +311,7 @@ let rebuild_non_recursive_let_cont_handler cont
               | Some _ -> Unknown
               | None ->
                 let args = Apply_cont.args apply_cont in
-                let params = List.map BP.simple params in
+                let params = Bound_parameters.simples params in
                 if Misc.Stdlib.List.compare Simple.compare args params = 0
                 then Alias_for (Apply_cont.continuation apply_cont)
                 else Unknown
@@ -308,10 +323,10 @@ let rebuild_non_recursive_let_cont_handler cont
         in
         match behaviour with
         | Unreachable ->
-          let arity = BP.List.arity_with_subkinds params in
+          let arity = Bound_parameters.arity_with_subkinds params in
           UE.add_unreachable_continuation uenv cont scope arity
         | Alias_for alias_for ->
-          let arity = BP.List.arity_with_subkinds params in
+          let arity = Bound_parameters.arity_with_subkinds params in
           UE.add_continuation_alias uenv cont arity ~alias_for
         | Unknown ->
           UE.add_non_inlinable_continuation uenv cont scope ~params
@@ -322,7 +337,8 @@ let rebuild_non_recursive_let_cont_handler cont
   let uacc =
     let name_occurrences =
       ListLabels.fold_left
-        (params @ EPA.extra_params extra_params_and_args)
+        (Bound_parameters.to_list params
+        @ Bound_parameters.to_list (EPA.extra_params extra_params_and_args))
         ~init:(UA.name_occurrences uacc)
         ~f:(fun name_occurrences param ->
           BP.var param |> Name_occurrences.remove_var name_occurrences)
@@ -653,7 +669,7 @@ let after_downwards_traversal_of_non_recursive_let_cont_body ~simplify_expr
     dacc_after_body ~rebuild:rebuild_body =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
+      ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
   (* Before the upwards traversal of the body, we do the downwards traversal of
      the handler. *)
@@ -749,8 +765,8 @@ let after_one_recursive_let_cont_handler_rebuilt cont ~original_cont_scope
      longer in scope. *)
   let uacc =
     let name_occurrences =
-      ListLabels.fold_left params ~init:(UA.name_occurrences uacc)
-        ~f:(fun name_occurrences param ->
+      ListLabels.fold_left (Bound_parameters.to_list params)
+        ~init:(UA.name_occurrences uacc) ~f:(fun name_occurrences param ->
           BP.var param |> Name_occurrences.remove_var name_occurrences)
     in
     UA.with_name_occurrences uacc ~name_occurrences
@@ -763,15 +779,17 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
     ~after_rebuild =
   let required_names = UA.required_names uacc in
   let used_params_list =
-    ListLabels.filter params ~f:(fun param ->
-        Name.Set.mem (Name.var (BP.var param)) required_names)
+    Bound_parameters.filter
+      (fun param -> Name.Set.mem (Name.var (BP.var param)) required_names)
+      params
   in
-  let used_params = BP.Set.of_list used_params_list in
+  let used_params = Bound_parameters.to_set used_params_list in
   let used_extra_params_list =
-    ListLabels.filter extra_params_and_args.extra_params ~f:(fun param ->
-        Name.Set.mem (Name.var (BP.var param)) required_names)
+    Bound_parameters.filter
+      (fun param -> Name.Set.mem (Name.var (BP.var param)) required_names)
+      extra_params_and_args.extra_params
   in
-  let used_extra_params = BP.Set.of_list used_extra_params_list in
+  let used_extra_params = Bound_parameters.to_set used_extra_params_list in
   let rewrite =
     Apply_cont_rewrite.create ~original_params:params ~used_params
       ~extra_params:extra_params_and_args.extra_params
@@ -783,7 +801,9 @@ let prepare_to_rebuild_one_recursive_let_cont_handler cont params
   in
   let uacc =
     UA.map_uenv uacc ~f:(fun uenv ->
-        let params = used_params_list @ used_extra_params_list in
+        let params =
+          Bound_parameters.append used_params_list used_extra_params_list
+        in
         UE.add_non_inlinable_continuation uenv cont original_cont_scope ~params
           ~handler:Unknown)
   in
@@ -803,7 +823,8 @@ let after_downwards_traversal_of_one_recursive_let_cont_handler cont
     (* CR gbury: in this case, the continuation is neither recursive, nor
        reachable, and it could be removed. *)
     | None ->
-      ListLabels.map params ~f:(fun _ -> Apply_cont_rewrite_id.Map.empty)
+      ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
+          Apply_cont_rewrite_id.Map.empty)
     | Some continuation_uses ->
       Continuation_uses.get_arg_types_by_use_id continuation_uses
   in
@@ -829,7 +850,7 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     ~original_cont_scope ~down_to_up =
   let dacc_after_body =
     DA.map_data_flow dacc_after_body
-      ~f:(Data_flow.enter_continuation cont (Bound_parameter.List.vars params))
+      ~f:(Data_flow.enter_continuation cont (Bound_parameters.vars params))
   in
   let denv, _arg_types =
     (* XXX These don't have the same scope level as the non-recursive case *)
@@ -854,13 +875,14 @@ let simplify_recursive_let_cont_handlers ~simplify_expr ~denv_before_body
     (* CR gbury: if this happens, we should rather remove the continuation,
        since it is not reachable. *)
     | None ->
-      ListLabels.map params ~f:(fun _ -> Apply_cont_rewrite_id.Map.empty)
+      ListLabels.map (Bound_parameters.to_list params) ~f:(fun _ ->
+          Apply_cont_rewrite_id.Map.empty)
     | Some continuation_uses ->
       Continuation_uses.get_arg_types_by_use_id continuation_uses
   in
   (* Compute unboxing decisions *)
   let param_types =
-    ListLabels.map params ~f:(fun param ->
+    ListLabels.map (Bound_parameters.to_list params) ~f:(fun param ->
         Flambda2_types.unknown_with_subkind (BP.kind param))
   in
   let denv, unboxing_decisions =

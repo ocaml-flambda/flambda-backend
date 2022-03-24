@@ -28,7 +28,7 @@ val add_non_inlinable_continuation :
   t ->
   Continuation.t ->
   Scope.t ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   handler:Rebuilt_expr.t Or_unknown.t ->
   t
 
@@ -46,7 +46,7 @@ val add_linearly_used_inlinable_continuation :
   t ->
   Continuation.t ->
   Scope.t ->
-  params:Bound_parameter.t list ->
+  params:Bound_parameters.t ->
   handler:Rebuilt_expr.t ->
   free_names_of_handler:Name_occurrences.t ->
   cost_metrics_of_handler:Cost_metrics.t ->

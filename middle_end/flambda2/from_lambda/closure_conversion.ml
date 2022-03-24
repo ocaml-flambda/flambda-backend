@@ -242,7 +242,6 @@ module Inlining = struct
   let make_inlined_body acc ~callee ~params ~args ~my_closure ~my_depth ~body
       ~free_names_of_body ~exn_continuation ~return_continuation
       ~apply_exn_continuation ~apply_return_continuation ~apply_depth =
-    let params = List.map BP.var params in
     let rec_info =
       match apply_depth with
       | None -> Rec_info_expr.initial
@@ -319,9 +318,10 @@ module Inlining = struct
           | Known free_names -> free_names
         in
         let make_inlined_body =
-          make_inlined_body ~callee ~params ~args ~my_closure ~my_depth ~body
-            ~free_names_of_body ~exn_continuation ~return_continuation
-            ~apply_depth
+          make_inlined_body ~callee
+            ~params:(Bound_parameters.vars params)
+            ~args ~my_closure ~my_depth ~body ~free_names_of_body
+            ~exn_continuation ~return_continuation ~apply_depth
         in
         let acc = Acc.with_free_names Name_occurrences.empty acc in
         let acc = Acc.increment_metrics cost_metrics acc in
@@ -474,7 +474,9 @@ let close_c_call acc env ~let_bound_var
   in
   let wrap_c_call acc ~handler_param ~code_after_call c_call =
     let return_kind = Flambda_kind.With_subkind.create return_kind Anything in
-    let params = [BP.create handler_param return_kind] in
+    let params =
+      [BP.create handler_param return_kind] |> Bound_parameters.create
+    in
     Let_cont_with_acc.build_non_recursive acc return_continuation
       ~handler_params:params ~handler:code_after_call ~body:c_call
       ~is_exn_handler:false
@@ -803,6 +805,7 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
     List.map2
       (fun param (_, _, kind) -> BP.create param (LC.value_kind kind))
       params params_with_kinds
+    |> Bound_parameters.create
   in
   let handler acc =
     let handler_env =
@@ -1122,6 +1125,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   in
   let params =
     List.map (fun (var, kind) -> BP.create var (LC.value_kind kind)) param_vars
+    |> Bound_parameters.create
   in
   let acc = Acc.with_seen_a_function acc false in
   let acc, body =
@@ -1211,14 +1215,15 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   let acc =
     List.fold_left
       (fun acc param -> Acc.remove_var_from_free_names (BP.var param) acc)
-      acc params
+      acc
+      (Bound_parameters.to_list params)
     |> Acc.remove_var_from_free_names my_closure
     |> Acc.remove_var_from_free_names my_depth
     |> Acc.remove_continuation_from_free_names return_continuation
     |> Acc.remove_continuation_from_free_names
          (Exn_continuation.exn_handler exn_continuation)
   in
-  let params_arity = BP.List.arity_with_subkinds params in
+  let params_arity = Bound_parameters.arity_with_subkinds params in
   let is_tupled =
     match Function_decl.kind decl with Curried _ -> false | Tupled -> true
   in
@@ -1483,7 +1488,7 @@ let close_let_rec acc env ~function_declarations
     let acc, body = body acc env in
     let named = Named.create_set_of_closures set_of_closures in
     Let_with_acc.create acc
-      (Bound_pattern.set_of_closures ~closure_vars)
+      (Bound_pattern.set_of_closures closure_vars)
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
@@ -1634,14 +1639,17 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
           ~body:call_return_continuation
       in
       Let_cont_with_acc.build_non_recursive acc after_over_application
-        ~handler_params:over_application_results ~handler
+        ~handler_params:(Bound_parameters.create over_application_results)
+        ~handler
         ~body:(fun acc -> Expr_with_acc.create_apply acc over_application)
         ~is_exn_handler:false
   in
   let body = full_call wrapper_cont in
   let acc, both_applications =
     Let_cont_with_acc.build_non_recursive acc wrapper_cont
-      ~handler_params:[BP.create returned_func K.With_subkind.any_value]
+      ~handler_params:
+        ([BP.create returned_func K.With_subkind.any_value]
+        |> Bound_parameters.create)
       ~handler:perform_over_application ~body ~is_exn_handler:false
   in
   match needs_region with
@@ -1761,7 +1769,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     Code_id.Map.fold
       (fun code_id code (g2c, s2g) ->
         let id = fresh_group_id () in
-        let bound = Bound_symbols.Pattern.code code_id in
+        let bound = Bound_static.Pattern.code code_id in
         let const = Static_const_or_code.create_code code in
         ( GroupMap.add id (bound, const) g2c,
           CIS.Map.add (CIS.create_code_id code_id) id s2g ))
@@ -1773,7 +1781,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
       (fun (g2c, s2g) (symbols, set_of_closures) ->
         let id = fresh_group_id () in
         let symbols = Closure_id.Lmap.map fst symbols in
-        let bound = Bound_symbols.Pattern.set_of_closures symbols in
+        let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
             (Set_of_closures set_of_closures)
@@ -1818,22 +1826,22 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
         | No_loop group_id -> [group_id]
         | Has_loop group_ids -> group_ids
       in
-      let bound_symbols, static_consts =
+      let bound_static, static_consts =
         List.fold_left
-          (fun (bound_symbols, static_consts) group_id ->
+          (fun (bound_static, static_consts) group_id ->
             let bound_symbol, static_const =
               try GroupMap.find group_id group_to_bound_consts
               with Not_found ->
                 Misc.fatal_errorf "Unbound static consts group ID %d" group_id
             in
-            bound_symbol :: bound_symbols, static_const :: static_consts)
+            bound_symbol :: bound_static, static_const :: static_consts)
           ([], []) group_ids
       in
       let defining_expr =
         Static_const_group.create static_consts |> Named.create_static_consts
       in
       Let_with_acc.create acc
-        (Bound_pattern.symbols (Bound_symbols.create bound_symbols))
+        (Bound_pattern.static (Bound_static.create bound_static))
         defining_expr ~body)
     (acc, body) components
 
@@ -1873,8 +1881,8 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
           ~dbg:Debuginfo.none
       in
       let acc, return = Expr_with_acc.create_apply_cont acc apply_cont in
-      let bound_symbols =
-        Bound_symbols.singleton (Bound_symbols.Pattern.block_like module_symbol)
+      let bound_static =
+        Bound_static.singleton (Bound_static.Pattern.block_like module_symbol)
       in
       let named =
         Named.create_static_consts
@@ -1882,7 +1890,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
              [Static_const_or_code.create_static_const static_const])
       in
       Let_with_acc.create acc
-        (Bound_pattern.symbols bound_symbols)
+        (Bound_pattern.static bound_static)
         named ~body:return
     in
     let block_access : P.Block_access_kind.t =
@@ -1909,6 +1917,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   in
   let load_fields_handler_param =
     [BP.create module_block_var K.With_subkind.any_value]
+    |> Bound_parameters.create
   in
   let acc, body =
     (* This binds the return continuation that is free (or, at least, not bound)
@@ -1965,8 +1974,8 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let acc, body =
     List.fold_left
       (fun (acc, body) (symbol, static_const) ->
-        let bound_symbols =
-          Bound_symbols.singleton (Bound_symbols.Pattern.block_like symbol)
+        let bound_static =
+          Bound_static.singleton (Bound_static.Pattern.block_like symbol)
         in
         let defining_expr =
           Static_const_group.create
@@ -1974,7 +1983,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
           |> Named.create_static_consts
         in
         Let_with_acc.create acc
-          (Bound_pattern.symbols bound_symbols)
+          (Bound_pattern.static bound_static)
           defining_expr ~body)
       (acc, body) (Acc.declared_symbols acc)
   in

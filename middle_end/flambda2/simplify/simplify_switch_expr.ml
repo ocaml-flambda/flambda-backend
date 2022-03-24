@@ -49,7 +49,7 @@ let rebuild_arm uacc arm (action, use_id, arity)
               params;
               cost_metrics_of_handler = _
             } ->
-          assert (List.length params = 0);
+          assert (Bound_parameters.is_empty params);
           check_handler ~handler ~action
         | Non_inlinable_zero_arity { handler = Known handler } ->
           check_handler ~handler ~action

@@ -35,21 +35,15 @@ module Make_matching_and_renaming0
 struct
   let[@inline always] pattern_match (bindable, term) ~f =
     let fresh_bindable = Bindable.rename bindable in
-    let perm =
-      Bindable.name_permutation bindable ~guaranteed_fresh:fresh_bindable
-    in
+    let perm = Bindable.renaming bindable ~guaranteed_fresh:fresh_bindable in
     let fresh_term = Term.apply_renaming term perm in
     f fresh_bindable fresh_term
 
   let[@inline always] pattern_match_pair (bindable0, term0) (bindable1, term1)
       ~f =
     let fresh_bindable = Bindable.rename bindable0 in
-    let perm0 =
-      Bindable.name_permutation bindable0 ~guaranteed_fresh:fresh_bindable
-    in
-    let perm1 =
-      Bindable.name_permutation bindable1 ~guaranteed_fresh:fresh_bindable
-    in
+    let perm0 = Bindable.renaming bindable0 ~guaranteed_fresh:fresh_bindable in
+    let perm1 = Bindable.renaming bindable1 ~guaranteed_fresh:fresh_bindable in
     let fresh_term0 = Term.apply_renaming term0 perm0 in
     let fresh_term1 = Term.apply_renaming term1 perm1 in
     f fresh_bindable fresh_term0 fresh_term1

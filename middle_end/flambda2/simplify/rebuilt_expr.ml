@@ -90,7 +90,7 @@ module Continuation_handler = struct
   type t = Continuation_handler.t
 
   let dummy =
-    Continuation_handler.create [] ~handler:term_not_rebuilt
+    Continuation_handler.create Bound_parameters.empty ~handler:term_not_rebuilt
       ~free_names_of_handler:Unknown ~is_exn_handler:false
 
   let create are_rebuilding params ~handler ~free_names_of_handler

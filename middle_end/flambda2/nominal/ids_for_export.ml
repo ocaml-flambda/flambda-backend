@@ -41,6 +41,8 @@ let create ?(symbols = Symbol.Set.empty) ?(variables = Variable.Set.empty)
     =
   { symbols; variables; simples; consts; code_ids; continuations }
 
+let singleton_variable var = create ~variables:(Variable.Set.singleton var) ()
+
 let singleton_code_id code_id =
   create ~code_ids:(Code_id.Set.singleton code_id) ()
 

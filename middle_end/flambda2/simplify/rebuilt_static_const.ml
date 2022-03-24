@@ -310,7 +310,7 @@ module Group = struct
     lazy
       (Function_params_and_body.create
          ~return_continuation:(Continuation.create ())
-         ~exn_continuation:(Continuation.create ()) []
+         ~exn_continuation:(Continuation.create ()) Bound_parameters.empty
          ~body:(Expr.create_invalid Code_not_rebuilt)
          ~free_names_of_body:Unknown
          ~my_closure:(Variable.create "my_closure")

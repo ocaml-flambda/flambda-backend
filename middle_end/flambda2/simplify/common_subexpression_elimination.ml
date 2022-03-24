@@ -110,7 +110,7 @@ end
 
 let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
     (extra_bindings : EPA.t) extra_equations =
-  let params = BP.List.name_set params in
+  let params = List.map params ~f:Bound_parameter.name |> Name.Set.of_list in
   let is_param simple =
     Simple.pattern_match simple
       ~name:(fun name ~coercion:_ -> Name.Set.mem name params)
@@ -142,7 +142,10 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                 find_name simple params args
             end
           in
-          fun arg -> find_name arg extra_bindings.extra_params extra_args
+          fun arg ->
+            find_name arg
+              (Bound_parameters.to_list extra_bindings.extra_params)
+              extra_args
       in
       EP.Map.fold
         (fun prim bound_to eligible ->
@@ -279,6 +282,7 @@ end
 
 let join0 ~typing_env_at_fork ~cse_at_fork ~cse_at_each_use ~params
     ~scope_at_fork =
+  let params = Bound_parameters.to_list params in
   (* CSE equations have a left-hand side specifying a primitive and a right-hand
      side specifying a [Simple]. The left-hand side is matched against portions
      of terms. As such, the [Simple]s therein must have name mode [Normal],

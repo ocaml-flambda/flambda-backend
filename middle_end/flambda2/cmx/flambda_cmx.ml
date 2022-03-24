@@ -90,7 +90,9 @@ let predefined_exception_typing_env ~symbol_for_global loader =
   let typing_env =
     Symbol.Set.fold
       (fun sym typing_env ->
-        TE.add_definition typing_env (Bound_name.symbol sym) Flambda_kind.value)
+        TE.add_definition typing_env
+          (Bound_name.create_symbol sym)
+          Flambda_kind.value)
       (all_predefined_exception_symbols ~symbol_for_global)
       (TE.create ~resolver ~get_imported_names)
   in

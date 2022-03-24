@@ -183,14 +183,14 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       | Return apply_return_continuation ->
         Result_types.pattern_match result_types
           ~f:(fun ~params ~results env_extension ->
-            if List.compare_lengths params_arity params <> 0
+            if List.length params_arity <> Bound_parameters.cardinal params
             then
               Misc.fatal_errorf
                 "Params arity %a does not match up with params in the result \
                  types structure:@ %a@ for application:@ %a"
                 Flambda_arity.With_subkinds.print params_arity
                 Result_types.print result_types Apply.print apply;
-            if List.compare_lengths result_arity results <> 0
+            if List.length result_arity <> Bound_parameters.cardinal results
             then
               Misc.fatal_errorf
                 "Result arity %a does not match up with the result types \
@@ -202,6 +202,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
               DE.add_parameters_with_unknown_types ~name_mode:Name_mode.in_types
                 denv params
             in
+            let params = Bound_parameters.to_list params in
+            let results = Bound_parameters.to_list results in
             let denv =
               let args = Apply.args apply in
               assert (List.compare_lengths params args = 0);
@@ -348,6 +350,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           let param = Variable.create "param" in
           Bound_parameter.create param kind)
         remaining_param_arity
+      |> Bound_parameters.create
     in
     let call_kind =
       Call_kind.direct_function_call callee's_code_id callee's_closure_id
@@ -408,7 +411,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       in
       let callee = arg applied_callee in
       let args =
-        List.map arg applied_args @ List.map BP.simple remaining_params
+        List.map arg applied_args @ Bound_parameters.simples remaining_params
       in
       let full_application =
         Apply.create ~callee ~continuation:(Return return_continuation)
@@ -481,7 +484,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       let code =
         Code.create code_id ~params_and_body
           ~free_names_of_params_and_body:free_names ~newer_version_of:None
-          ~params_arity:(BP.List.arity_with_subkinds remaining_params)
+          ~params_arity:(Bound_parameters.arity_with_subkinds remaining_params)
           ~num_trailing_local_params ~result_arity ~result_types
           ~contains_no_escaping_local_allocs ~stub:true ~inline:Default_inline
           ~is_a_functor:false ~recursive ~cost_metrics:cost_metrics_of_body
@@ -518,8 +521,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let expr =
     let wrapper_var = VB.create wrapper_var Name_mode.normal in
-    let closure_vars = [wrapper_var] in
-    let bound = Bound_pattern.set_of_closures ~closure_vars in
+    let bound_vars = [wrapper_var] in
+    let bound = Bound_pattern.set_of_closures bound_vars in
     let body =
       Let.create bound
         (Named.create_set_of_closures wrapper_taking_remaining_args)
@@ -527,14 +530,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         ~free_names_of_body:Unknown
       |> Expr.create_let
     in
-    let bound_symbols =
-      Bound_symbols.singleton (Bound_symbols.Pattern.code code_id)
+    let bound_static =
+      Bound_static.singleton (Bound_static.Pattern.code code_id)
     in
     let static_consts = Static_const_group.create [code] in
     (* Since we are only generating a "let code" binding and not a "let symbol",
        it doesn't matter if we are not at toplevel. *)
     Let.create
-      (Bound_pattern.symbols bound_symbols)
+      (Bound_pattern.static bound_static)
       (Named.create_static_consts static_consts)
       ~body ~free_names_of_body:Unknown
     |> Expr.create_let

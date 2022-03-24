@@ -16,16 +16,12 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+(** One or more [Continuation]s, in an ordered list, equipped with operations
+    that mean such list can be used in binding position within a
+    [Name_abstraction] value. *)
+
 type t
-
-include Contains_names.S with type t := t
-
-include Contains_ids.S with type t := t
-
-val print : Format.formatter -> t -> unit
 
 val create : Continuation.t list -> t
 
-val rename : t -> t
-
-val name_permutation : t -> guaranteed_fresh:t -> Renaming.t
+include Bindable.S with type t := t

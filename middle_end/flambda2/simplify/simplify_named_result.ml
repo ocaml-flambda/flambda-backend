@@ -22,7 +22,7 @@ type descr =
         original_defining_expr : Flambda.Named.t
       }
   | Multiple_bindings_to_symbols of
-      { bound_vars_to_symbols : Symbol.t Bound_var.Map.t;
+      { bound_vars_to_symbols : (Bound_var.t * Symbol.t) list;
         original_defining_expr : Flambda.Named.t
       }
 
@@ -75,8 +75,8 @@ let bindings_to_place_in_any_order t =
     [{ let_bound; simplified_defining_expr; original_defining_expr }]
   | Multiple_bindings_to_symbols
       { bound_vars_to_symbols; original_defining_expr } ->
-    Bound_var.Map.fold
-      (fun bound_var symbol bindings ->
+    ListLabels.fold_left bound_vars_to_symbols ~init:[]
+      ~f:(fun bindings (bound_var, symbol) ->
         let let_bound = Bound_pattern.singleton bound_var in
         let simplified_defining_expr =
           Simple.symbol symbol |> Flambda.Named.create_simple
@@ -84,7 +84,6 @@ let bindings_to_place_in_any_order t =
         in
         { let_bound; simplified_defining_expr; original_defining_expr }
         :: bindings)
-      bound_vars_to_symbols []
 
 let is_invalid t =
   match t.descr with

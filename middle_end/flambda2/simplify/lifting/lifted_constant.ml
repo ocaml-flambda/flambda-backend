@@ -115,15 +115,15 @@ module Definition = struct
     | Code _ -> None
     | Set_of_closures { denv; _ } | Block_like { denv; _ } -> Some denv
 
-  let bound_symbols_pattern t =
-    let module P = Bound_symbols.Pattern in
+  let bound_static_pattern t =
+    let module P = Bound_static.Pattern in
     match t.descr with
     | Code code_id -> P.code code_id
     | Set_of_closures { closure_symbols_with_types; _ } ->
       P.set_of_closures (Closure_id.Lmap.map fst closure_symbols_with_types)
     | Block_like { symbol; _ } -> P.block_like symbol
 
-  let bound_symbols t = Bound_symbols.create [bound_symbols_pattern t]
+  let bound_static t = Bound_static.create [bound_static_pattern t]
 
   let types_of_symbols t =
     match t.descr with
@@ -139,7 +139,7 @@ end
 
 type t =
   { definitions : Definition.t list;
-    bound_symbols : Bound_symbols.t;
+    bound_static : Bound_static.t;
     defining_exprs : Rebuilt_static_const.Group.t;
     symbol_projections : Symbol_projection.t Variable.Map.t;
     is_fully_static : bool
@@ -155,15 +155,15 @@ let free_names_of_defining_exprs t =
 let is_fully_static t = t.is_fully_static
 
 let [@ocamlformat "disable"] print ppf
-      { definitions; bound_symbols = _; defining_exprs = _;
+      { definitions; bound_static = _; defining_exprs = _;
         is_fully_static = _; symbol_projections = _; } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Definition.print)
     definitions
 
-let compute_bound_symbols definitions =
-  ListLabels.map definitions ~f:Definition.bound_symbols_pattern
-  |> Bound_symbols.create
+let compute_bound_static definitions =
+  ListLabels.map definitions ~f:Definition.bound_static_pattern
+  |> Bound_static.create
 
 let compute_defining_exprs definitions =
   ListLabels.map definitions ~f:Definition.defining_expr
@@ -179,7 +179,7 @@ let create_block_like symbol ~symbol_projections defining_expr denv ty =
   in
   let definitions = [definition] in
   { definitions;
-    bound_symbols = compute_bound_symbols definitions;
+    bound_static = compute_bound_static definitions;
     defining_exprs = compute_defining_exprs definitions;
     is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
     symbol_projections = Definition.symbol_projections definition
@@ -197,7 +197,7 @@ let create_set_of_closures denv ~closure_symbols_with_types ~symbol_projections
   in
   let definitions = [definition] in
   { definitions;
-    bound_symbols = compute_bound_symbols definitions;
+    bound_static = compute_bound_static definitions;
     defining_exprs = compute_defining_exprs definitions;
     is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
     symbol_projections = Definition.symbol_projections definition
@@ -211,7 +211,7 @@ let create_code code_id defining_expr =
   let definition = Definition.code code_id defining_expr in
   let definitions = [definition] in
   { definitions;
-    bound_symbols = compute_bound_symbols definitions;
+    bound_static = compute_bound_static definitions;
     defining_exprs = compute_defining_exprs definitions;
     is_fully_static = Rebuilt_static_const.is_fully_static defining_expr;
     symbol_projections = Definition.symbol_projections definition
@@ -220,7 +220,7 @@ let create_code code_id defining_expr =
 let create_definition definition =
   let definitions = [definition] in
   { definitions;
-    bound_symbols = compute_bound_symbols definitions;
+    bound_static = compute_bound_static definitions;
     defining_exprs = compute_defining_exprs definitions;
     is_fully_static =
       Rebuilt_static_const.is_fully_static (Definition.defining_expr definition);
@@ -231,11 +231,10 @@ let concat ts =
   let definitions =
     List.fold_left (fun definitions t -> t.definitions @ definitions) [] ts
   in
-  let bound_symbols =
+  let bound_static =
     List.fold_left
-      (fun bound_symbols t ->
-        Bound_symbols.concat t.bound_symbols bound_symbols)
-      Bound_symbols.empty ts
+      (fun bound_static t -> Bound_static.concat t.bound_static bound_static)
+      Bound_static.empty ts
   in
   let defining_exprs =
     List.fold_left
@@ -256,7 +255,7 @@ let concat ts =
       Variable.Map.empty ts
   in
   { definitions;
-    bound_symbols;
+    bound_static;
     defining_exprs;
     is_fully_static;
     symbol_projections
@@ -266,8 +265,8 @@ let defining_exprs t =
   Rebuilt_static_const.Group.create
     (List.map Definition.defining_expr t.definitions)
 
-let bound_symbols t =
-  Bound_symbols.create (List.map Definition.bound_symbols_pattern t.definitions)
+let bound_static t =
+  Bound_static.create (List.map Definition.bound_static_pattern t.definitions)
 
 let types_of_symbols t =
   ListLabels.fold_left t.definitions ~init:Symbol.Map.empty

@@ -16,12 +16,10 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module BP = Bound_parameter
-
 type t =
   { return_continuation : Continuation.t;
     exn_continuation : Continuation.t;
-    params : BP.t list;
+    params : Bound_parameters.t;
     my_closure : Variable.t;
     my_depth : Variable.t
   }
@@ -36,16 +34,16 @@ let[@ocamlformat "disable"] print ppf
       @[<hov 1>(my_depth@ %a)@])@]"
     Continuation.print return_continuation
     Continuation.print exn_continuation
-    BP.List.print params
+    Bound_parameters.print params
     Variable.print my_closure
     Variable.print my_depth
 
 let create ~return_continuation ~exn_continuation ~params ~my_closure ~my_depth
     =
-  BP.List.check_no_duplicates params;
+  Bound_parameters.check_no_duplicates params;
   (if Flambda_features.check_invariants ()
   then
-    let params_set = BP.List.var_set params in
+    let params_set = Bound_parameters.var_set params in
     if Variable.equal my_closure my_depth
        || Variable.Set.mem my_closure params_set
        || Variable.Set.mem my_depth params_set
@@ -77,7 +75,7 @@ let free_names
       ~has_traps:true
   in
   let free_names =
-    Name_occurrences.union free_names (BP.List.free_names params)
+    Name_occurrences.union free_names (Bound_parameters.free_names params)
   in
   let free_names =
     Name_occurrences.add_variable free_names my_closure Name_mode.normal
@@ -93,7 +91,7 @@ let apply_renaming
   let exn_continuation =
     Renaming.apply_continuation renaming exn_continuation
   in
-  let params = BP.List.apply_renaming params renaming in
+  let params = Bound_parameters.apply_renaming params renaming in
   let my_closure = Renaming.apply_variable renaming my_closure in
   let my_depth = Renaming.apply_variable renaming my_depth in
   { return_continuation; exn_continuation; params; my_closure; my_depth }
@@ -104,7 +102,9 @@ let all_ids_for_export
     Ids_for_export.add_continuation Ids_for_export.empty return_continuation
   in
   let ids = Ids_for_export.add_continuation ids exn_continuation in
-  let ids = Ids_for_export.union ids (BP.List.all_ids_for_export params) in
+  let ids =
+    Ids_for_export.union ids (Bound_parameters.all_ids_for_export params)
+  in
   let ids = Ids_for_export.add_variable ids my_closure in
   Ids_for_export.add_variable ids my_depth
 
@@ -112,25 +112,25 @@ let rename
     { return_continuation; exn_continuation; params; my_closure; my_depth } =
   { return_continuation = Continuation.rename return_continuation;
     exn_continuation = Continuation.rename exn_continuation;
-    params = BP.List.rename params;
+    params = Bound_parameters.rename params;
     my_closure = Variable.rename my_closure;
     my_depth = Variable.rename my_depth
   }
 
-let name_permutation
-    ({ return_continuation = return_continuation1;
-       exn_continuation = exn_continuation1;
-       params = params1;
-       my_closure = my_closure1;
-       my_depth = my_depth1
-     } as t1)
+let renaming
+    { return_continuation = return_continuation1;
+      exn_continuation = exn_continuation1;
+      params = params1;
+      my_closure = my_closure1;
+      my_depth = my_depth1
+    }
     ~guaranteed_fresh:
-      ({ return_continuation = return_continuation2;
-         exn_continuation = exn_continuation2;
-         params = params2;
-         my_closure = my_closure2;
-         my_depth = my_depth2
-       } as t2) =
+      { return_continuation = return_continuation2;
+        exn_continuation = exn_continuation2;
+        params = params2;
+        my_closure = my_closure2;
+        my_depth = my_depth2
+      } =
   let renaming =
     Renaming.add_fresh_continuation Renaming.empty return_continuation1
       ~guaranteed_fresh:return_continuation2
@@ -140,15 +140,9 @@ let name_permutation
       ~guaranteed_fresh:exn_continuation2
   in
   let renaming =
-    try
-      List.fold_left2
-        (fun renaming param1 param2 ->
-          Renaming.add_variable renaming (BP.var param1) (BP.var param2))
-        renaming params1 params2
-    with Invalid_argument _ ->
-      assert (List.compare_lengths params1 params2 <> 0);
-      Misc.fatal_errorf "Parameter lists are of differing lengths:@ %a@ and@ %a"
-        print t1 print t2
+    Renaming.compose
+      ~second:(Bound_parameters.renaming params1 ~guaranteed_fresh:params2)
+      ~first:renaming
   in
   let renaming =
     Renaming.add_fresh_variable renaming my_closure1

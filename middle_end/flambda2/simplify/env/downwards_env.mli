@@ -101,13 +101,13 @@ val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
-val define_parameters : t -> params:Bound_parameter.t list -> t
+val define_parameters : t -> params:Bound_parameters.t -> t
 
 val add_parameters :
   ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
-  Bound_parameter.t list ->
+  Bound_parameters.t ->
   param_types:Flambda2_types.t list ->
   t
 
@@ -115,17 +115,17 @@ val add_parameters_with_unknown_types :
   ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
-  Bound_parameter.t list ->
+  Bound_parameters.t ->
   t
 
 val add_parameters_with_unknown_types' :
   ?name_mode:Name_mode.t ->
   ?at_unit_toplevel:bool ->
   t ->
-  Bound_parameter.t list ->
+  Bound_parameters.t ->
   t * Flambda2_types.t list
 
-val mark_parameters_as_toplevel : t -> Bound_parameter.t list -> t
+val mark_parameters_as_toplevel : t -> Bound_parameters.t -> t
 
 val define_variable_and_extend_typing_environment :
   t ->
