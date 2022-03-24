@@ -264,14 +264,14 @@ let subst_func_decls env decls =
 
 let subst_set_of_closures env set =
   let decls = subst_func_decls env (Set_of_closures.function_decls set) in
-  let closure_elements =
+  let value_slots =
     Set_of_closures.value_slots set
     |> Value_slot.Map.bindings
     |> List.map (fun (var, simple) ->
            subst_value_slot env var, subst_simple env simple)
     |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Heap ~closure_elements decls
+  Set_of_closures.create Heap ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
