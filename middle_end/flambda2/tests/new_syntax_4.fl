@@ -7,11 +7,11 @@ let code rec even (i) clo -> k * e =
     k1 = cont k (0)
   where
     k2 = (
-      let f = %project_var even.f clo in
+      let f = %project_value_slot even.f clo in
       apply f (i) -> k3 * e
       where
         k3 (x) = (
-          let odd = %select_closure (even -> odd) clo in
+          let odd = %project_function_slot (even -> odd) clo in
           let i' = i - 1 in
           apply odd (i') -> k4 * e
           where
@@ -29,11 +29,11 @@ and code rec odd (i) clo -> k * e =
     k1 = cont k (0)
   where
     k2 = (
-      let g = %project_var odd.g clo in
+      let g = %project_value_slot odd.g clo in
       apply g (i) -> k3 * e
       where
         k3 (x) = (
-          let even = %select_closure (odd -> even) clo in
+          let even = %project_function_slot (odd -> even) clo in
           let i' = i - 1 in
           apply even (i') -> k4 * e
           where

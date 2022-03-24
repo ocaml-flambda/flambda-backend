@@ -488,7 +488,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
           else
             match TG.get_alias_exn ty with
             | exception Not_found ->
-              TG.project_variables_out ~to_project ~expand ty
+              TG.project_value_slotiables_out ~to_project ~expand ty
             | simple ->
               Simple.pattern_match' simple
                 ~const:(fun _ -> ty)
@@ -498,7 +498,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
                   then TG.apply_coercion (expand var) coercion
                   else ty)
         in
-        TG.project_variables_out ~to_project ~expand ty
+        TG.project_value_slotiables_out ~to_project ~expand ty
       in
       let equations =
         ListLabels.fold_left unavailable_vars_renamed ~init:[]

@@ -90,7 +90,7 @@ module T : sig
     canonicalise:(Simple.t -> Simple.t) ->
     'head t
 
-  val project_variables_out :
+  val project_value_slotiables_out :
     free_names_head:('head -> Name_occurrences.t) ->
     to_project:Variable.Set.t ->
     expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
@@ -148,7 +148,7 @@ end = struct
       | Not_expanded of 'head t
       | Expanded of 'descr
 
-    let project_variables_out ~to_project ~expand ~project_head t =
+    let project_value_slotiables_out ~to_project ~expand ~project_head t =
       match t with
       | No_alias head ->
         let head' = project_head head in
@@ -241,17 +241,17 @@ end = struct
       in
       if descr == descr' then t else Ok descr'
 
-  let project_variables_out ~free_names_head ~to_project ~expand ~project_head
+  let project_value_slotiables_out ~free_names_head ~to_project ~expand ~project_head
       (t : _ t) : _ t =
     match t with
     | Unknown | Bottom -> t
     | Ok descr -> (
       let project_head wdr =
-        WCFN.project_variables_out ~free_names_descr:free_names_head ~to_project
+        WCFN.project_value_slotiables_out ~free_names_descr:free_names_head ~to_project
           ~project_descr:project_head wdr
       in
       match
-        Descr.project_variables_out ~to_project ~expand ~project_head descr
+        Descr.project_value_slotiables_out ~to_project ~expand ~project_head descr
       with
       | Not_expanded descr' -> if descr == descr' then t else Ok descr'
       | Expanded t' -> t')

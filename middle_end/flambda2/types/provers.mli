@@ -209,14 +209,14 @@ val prove_variant_field_simple :
   Targetint_31_63.t ->
   Simple.t proof
 
-val prove_project_var_simple :
+val prove_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
   Value_slot.t ->
   Simple.t proof
 
-val prove_select_closure_simple :
+val prove_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->

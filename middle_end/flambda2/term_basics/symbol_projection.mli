@@ -24,7 +24,7 @@ module Projection : sig
 
   val block_load : index:Targetint_31_63.Imm.t -> t
 
-  val project_var : Function_slot.t -> Value_slot.t -> t
+  val project_value_slot : Function_slot.t -> Value_slot.t -> t
 end
 
 type t

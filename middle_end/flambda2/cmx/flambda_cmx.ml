@@ -218,7 +218,7 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
      exported code, but fold over the exported code to avoid allocating some
      free_names *)
   let free_names_of_all_code = EC.free_names all_code in
-  let closure_elts_used_in_typing_env =
+  let slots_used_in_typing_env =
     TE.Serializable.free_function_slots_and_value_slots final_typing_env
   in
   let exported_offsets =
@@ -228,9 +228,9 @@ let prepare_cmx ~module_symbol create_typing_env ~free_names_of_name
     |> Slot_offsets.reexport_value_slots
          (Name_occurrences.all_value_slots free_names_of_all_code)
     |> Slot_offsets.reexport_function_slots
-         (Name_occurrences.all_function_slots closure_elts_used_in_typing_env)
+         (Name_occurrences.all_function_slots slots_used_in_typing_env)
     |> Slot_offsets.reexport_value_slots
-         (Name_occurrences.all_value_slots closure_elts_used_in_typing_env)
+         (Name_occurrences.all_value_slots slots_used_in_typing_env)
   in
   Some
     (Flambda_cmx_format.create ~final_typing_env ~all_code ~exported_offsets

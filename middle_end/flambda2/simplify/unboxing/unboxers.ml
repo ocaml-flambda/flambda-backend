@@ -153,6 +153,6 @@ module Closure_field = struct
         (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =
         (fun tenv ~min_name_mode t ->
-          T.prove_project_var_simple tenv ~min_name_mode t value_slot)
+          T.prove_project_value_slot_simple tenv ~min_name_mode t value_slot)
     }
 end

@@ -63,9 +63,8 @@ val record_symbol_binding : Symbol.t -> Name_occurrences.t -> t -> t
 (** Add a code id binding from the current handler. *)
 val record_code_id_binding : Code_id.t -> Name_occurrences.t -> t -> t
 
-(** Add a closure elemnt binding from the current handler. *)
-val record_closure_element_binding :
-  Name.t -> Value_slot.t -> Name_occurrences.t -> t -> t
+(** Add a value slot from the current handler. *)
+val record_value_slot : Name.t -> Value_slot.t -> Name_occurrences.t -> t -> t
 
 (** Add name occurrences used in the body of the current continuation's handler,
     *excluding* uses in apply_cont expressions, which are tracked separately. *)

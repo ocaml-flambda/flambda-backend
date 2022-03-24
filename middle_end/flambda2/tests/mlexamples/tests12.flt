@@ -13,7 +13,7 @@ let code size(23) `anon-fn[tests12.ml:15,2--70]_1` (param : imm tagged)
                     my_closure my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let map_foo =
-    %project_var `anon-fn[tests12.ml:15,2--70]`.map_foo_0 my_closure
+    %project_value_slot `anon-fn[tests12.ml:15,2--70]`.map_foo_0 my_closure
   in
   let `anon-fn[tests12.ml:15,52--67]` =
     closure `anon-fn[tests12.ml:15,52--67]_2`
@@ -40,7 +40,7 @@ in
 let code rec size(74) map_foo_4 (f, seq, param : imm tagged) my_closure
                         my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
-  let bar = %project_var map_foo.bar_1 my_closure in
+  let bar = %project_value_slot map_foo.bar_1 my_closure in
   apply seq (0) -> k2 * k1
     where k2 (`*match*`) =
       ((let prim = %is_int `*match*` in
@@ -129,7 +129,7 @@ let code size(7) newer_version_of(`anon-fn[tests12.ml:15,2--70]_1`) `anon-fn[tes
                                                                     my_depth
                                                                     -> k * k1 =
   let map_foo =
-    %project_var `anon-fn[tests12.ml:15,2--70]`.map_foo_0 my_closure
+    %project_value_slot `anon-fn[tests12.ml:15,2--70]`.map_foo_0 my_closure
   in
   apply inline(never)
     map_foo

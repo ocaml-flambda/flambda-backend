@@ -191,8 +191,8 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_OPAQUE [@symbol "%Opaque"]
 %token PRIM_PHYS_EQ [@symbol "%phys_eq"]
 %token PRIM_PHYS_NE [@symbol "%phys_ne"]
-%token PRIM_PROJECT_VAR [@symbol "%project_var"]
-%token PRIM_SELECT_CLOSURE [@symbol "%select_closure"]
+%token PRIM_PROJECT_VALUE_SLOT [@symbol "%project_value_slot"]
+%token PRIM_PROJECT_FUNCTION_SLOT [@symbol "%project_function_slot"]
 %token PRIM_STRING_LENGTH [@symbol "%string_length"]
 %token PRIM_TAG_IMM [@symbol "%tag_imm"]
 %token PRIM_UNBOX_FLOAT [@symbol "%unbox_float"]
@@ -342,9 +342,9 @@ unop:
     RPAREN
     { Num_conv { src; dst } }
   | PRIM_OPAQUE { Opaque_identity }
-  | PRIM_PROJECT_VAR; project_from = function_slot; DOT; value_slot = value_slot
+  | PRIM_PROJECT_VALUE_SLOT; project_from = function_slot; DOT; value_slot = value_slot_for_projection
     { Project_value_slot { project_from; value_slot } }
-  | PRIM_SELECT_CLOSURE; LPAREN;
+  | PRIM_PROJECT_FUNCTION_SLOT; LPAREN;
       move_from = function_slot; MINUSGREATER; move_to = function_slot;
     RPAREN
     { Project_function_slot { move_from; move_to } }
@@ -633,13 +633,13 @@ let_binding:
 with_value_slots_opt:
   | { None }
   | KWD_WITH LBRACE;
-      elements = separated_list(SEMICOLON, closure_element);
+      elements = separated_list(SEMICOLON, value_slot);
     RBRACE;
     { Some elements }
 ;
 
-closure_element:
-  | var = value_slot; EQUAL; value = simple; { { var; value; } }
+value_slot:
+  | var = value_slot_for_projection; EQUAL; value = simple; { { var; value; } }
 ;
 
 fun_decl:
@@ -897,7 +897,7 @@ special_continuation:
   | KWD_ERROR { Error }
 ;
 
-value_slot:
+value_slot_for_projection:
   | e = IDENT { make_located e ($startpos, $endpos) }
 ;
 

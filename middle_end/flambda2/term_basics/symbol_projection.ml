@@ -24,7 +24,7 @@ module Projection = struct
 
   let block_load ~index = Block_load { index }
 
-  let project_var project_from value_slot =
+  let project_value_slot project_from value_slot =
     Project_value_slot { project_from; value_slot }
 
   let hash t =

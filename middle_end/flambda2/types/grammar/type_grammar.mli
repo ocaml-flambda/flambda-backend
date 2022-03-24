@@ -145,7 +145,7 @@ val remove_unused_value_slots_and_shortcut_aliases :
   canonicalise:(Simple.t -> Simple.t) ->
   t
 
-val project_variables_out :
+val project_value_slotiables_out :
   to_project:Variable.Set.t -> expand:(Variable.t -> t) -> t -> t
 
 val kind : t -> Flambda_kind.t

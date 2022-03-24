@@ -142,7 +142,7 @@ val closure_with_at_least_these_value_slots :
 val closure_with_at_least_this_value_slot :
   this_closure:Function_slot.t ->
   Value_slot.t ->
-  closure_element_var:Reg_width_things.Variable.t ->
+  value_slot_var:Reg_width_things.Variable.t ->
   Type_grammar.t
 
 val type_for_const : Reg_width_const.t -> Type_grammar.t

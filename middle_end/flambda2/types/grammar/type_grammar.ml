@@ -289,7 +289,7 @@ and free_names_closures_entry ~follow_value_slots
              function_slot))
       function_types Name_occurrences.empty
   in
-  let closure_elements_free_names =
+  let slots_free_names =
     if follow_value_slots
     then
       Name_occurrences.union
@@ -300,7 +300,7 @@ and free_names_closures_entry ~follow_value_slots
     else
       free_names_function_slot_indexed_product ~follow_value_slots closure_types
   in
-  Name_occurrences.union function_types_free_names closure_elements_free_names
+  Name_occurrences.union function_types_free_names slots_free_names
 
 and free_names_function_slot_indexed_product ~follow_value_slots
     { function_slot_components_by_index } =
@@ -1179,7 +1179,7 @@ and apply_coercion_closures_entry row_tag
        closures in the same set have the same depth.
 
        CR lmaurer: Check that this is consistent with the simplifier's behavior.
-       In particular, [select_closure] should return a closure at the same depth
+       In particular, [project_function_slot] should return a closure at the same depth
        as the original closure.
 
        Exhaustingly, this is _entirely orthogonal_ to the issue with closures
@@ -1628,7 +1628,7 @@ and remove_unused_value_slots_and_shortcut_aliases_env_extension
   in
   if !changed then { equations = equations' } else env_extension
 
-let rec project_variables_out ~to_project ~expand t =
+let rec project_value_slotiables_out ~to_project ~expand t =
   match t with
   | Value ty ->
     let expand_with_coercion var ~coercion =
@@ -1641,7 +1641,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out ~free_names_head:free_names_head_of_kind_value
+      TD.project_value_slotiables_out ~free_names_head:free_names_head_of_kind_value
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_value ~to_project ~expand)
         ty
@@ -1659,7 +1659,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
+      TD.project_value_slotiables_out
         ~free_names_head:free_names_head_of_kind_naked_immediate ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_immediate ~to_project ~expand)
@@ -1677,7 +1677,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
+      TD.project_value_slotiables_out
         ~free_names_head:free_names_head_of_kind_naked_float ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_float ~to_project ~expand)
@@ -1695,7 +1695,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
+      TD.project_value_slotiables_out
         ~free_names_head:free_names_head_of_kind_naked_int32 ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_int32 ~to_project ~expand)
@@ -1713,7 +1713,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
+      TD.project_value_slotiables_out
         ~free_names_head:free_names_head_of_kind_naked_int64 ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_int64 ~to_project ~expand)
@@ -1732,7 +1732,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out
+      TD.project_value_slotiables_out
         ~free_names_head:free_names_head_of_kind_naked_nativeint ~to_project
         ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_naked_nativeint ~to_project ~expand)
@@ -1750,7 +1750,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out ~free_names_head:free_names_head_of_kind_rec_info
+      TD.project_value_slotiables_out ~free_names_head:free_names_head_of_kind_rec_info
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_rec_info ~to_project ~expand)
         ty
@@ -1767,7 +1767,7 @@ let rec project_variables_out ~to_project ~expand t =
           Variable.print var print ty
     in
     let ty' =
-      TD.project_variables_out ~free_names_head:free_names_head_of_kind_region
+      TD.project_value_slotiables_out ~free_names_head:free_names_head_of_kind_region
         ~to_project ~expand:expand_with_coercion
         ~project_head:(project_head_of_kind_region ~to_project ~expand)
         ty
@@ -1779,7 +1779,7 @@ and project_head_of_kind_value ~to_project ~expand head =
   | Variant { blocks; immediates; is_unique; alloc_mode } ->
     let immediates' =
       let>+$ immediates = immediates in
-      project_variables_out ~to_project ~expand immediates
+      project_value_slotiables_out ~to_project ~expand immediates
     in
     let blocks' =
       let>+$ blocks = blocks in
@@ -1792,16 +1792,16 @@ and project_head_of_kind_value ~to_project ~expand head =
         { is_unique; blocks = blocks'; immediates = immediates'; alloc_mode }
   | Mutable_block _ -> head
   | Boxed_float (ty, alloc_mode) ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Boxed_float (ty', alloc_mode)
   | Boxed_int32 (ty, alloc_mode) ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Boxed_int32 (ty', alloc_mode)
   | Boxed_int64 (ty, alloc_mode) ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Boxed_int64 (ty', alloc_mode)
   | Boxed_nativeint (ty, alloc_mode) ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Boxed_nativeint (ty', alloc_mode)
   | Closures { by_function_slot; alloc_mode } ->
     let by_function_slot' =
@@ -1812,17 +1812,17 @@ and project_head_of_kind_value ~to_project ~expand head =
     else Closures { by_function_slot = by_function_slot'; alloc_mode }
   | String _ -> head
   | Array { element_kind; length } ->
-    let length' = project_variables_out ~to_project ~expand length in
+    let length' = project_value_slotiables_out ~to_project ~expand length in
     if length == length' then head else Array { element_kind; length = length' }
 
 and project_head_of_kind_naked_immediate ~to_project ~expand head =
   match head with
   | Naked_immediates _ -> head
   | Is_int ty ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Is_int ty'
   | Get_tag ty ->
-    let ty' = project_variables_out ~to_project ~expand ty in
+    let ty' = project_value_slotiables_out ~to_project ~expand ty in
     if ty == ty' then head else Get_tag ty'
 
 and project_head_of_kind_naked_float ~to_project:_ ~expand:_ head = head
@@ -1934,7 +1934,7 @@ and project_function_slot_indexed_product ~to_project ~expand
     ({ function_slot_components_by_index } as product) =
   let function_slot_components_by_index' =
     Function_slot.Map.map_sharing
-      (project_variables_out ~to_project ~expand)
+      (project_value_slotiables_out ~to_project ~expand)
       function_slot_components_by_index
   in
   if function_slot_components_by_index == function_slot_components_by_index'
@@ -1946,7 +1946,7 @@ and project_value_slot_indexed_product ~to_project ~expand
     ({ value_slot_components_by_index } as product) =
   let value_slot_components_by_index' =
     Value_slot.Map.map_sharing
-      (project_variables_out ~to_project ~expand)
+      (project_value_slotiables_out ~to_project ~expand)
       value_slot_components_by_index
   in
   if value_slot_components_by_index == value_slot_components_by_index'
@@ -1959,7 +1959,7 @@ and project_int_indexed_product ~to_project ~expand
   let fields' = Array.copy fields in
   for i = 0 to Array.length fields - 1 do
     let field = fields.(i) in
-    let field' = project_variables_out ~to_project ~expand field in
+    let field' = project_value_slotiables_out ~to_project ~expand field in
     if field != field'
     then begin
       changed := true;
@@ -1970,7 +1970,7 @@ and project_int_indexed_product ~to_project ~expand
 
 and project_function_type ~to_project ~expand
     ({ code_id; rec_info } as function_type) =
-  let rec_info' = project_variables_out ~to_project ~expand rec_info in
+  let rec_info' = project_value_slotiables_out ~to_project ~expand rec_info in
   if rec_info == rec_info'
   then function_type
   else { code_id; rec_info = rec_info' }
@@ -1981,7 +1981,7 @@ and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
     Name.Map.fold
       (fun name ty acc ->
         let keep_equation () =
-          let ty' = project_variables_out ~to_project ~expand ty in
+          let ty' = project_value_slotiables_out ~to_project ~expand ty in
           if ty != ty' then changed := true;
           Name.Map.add name ty' acc
         in

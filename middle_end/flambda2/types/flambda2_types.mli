@@ -487,7 +487,7 @@ val at_least_the_closures_with_ids :
 val closure_with_at_least_this_value_slot :
   this_closure:Function_slot.t ->
   Value_slot.t ->
-  closure_element_var:Variable.t ->
+  value_slot_var:Variable.t ->
   flambda_type
 
 val closure_with_at_least_these_value_slots :
@@ -693,14 +693,14 @@ val prove_variant_field_simple :
   Targetint_31_63.t ->
   Simple.t proof
 
-val prove_project_var_simple :
+val prove_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->
   Value_slot.t ->
   Simple.t proof
 
-val prove_select_closure_simple :
+val prove_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   t ->

@@ -836,7 +836,7 @@ let prove_variant_field_simple env ~min_name_mode t variant_tag field_index =
   in
   (prove_block_field_simple_aux [@inlined]) env ~min_name_mode t get
 
-let prove_select_closure_simple env ~min_name_mode t function_slot :
+let prove_project_function_slot_simple env ~min_name_mode t function_slot :
     Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
@@ -863,7 +863,7 @@ let prove_select_closure_simple env ~min_name_mode t function_slot :
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind ()
 
-let prove_project_var_simple env ~min_name_mode t env_var : Simple.t proof =
+let prove_project_value_slot_simple env ~min_name_mode t env_var : Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in

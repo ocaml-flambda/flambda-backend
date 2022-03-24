@@ -51,14 +51,15 @@ module Int64 = Numeric_types.Int64
  *  The type of the symbol appears to be the same as already known in [dacc].
  *)
 
-let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
+let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   (* Format.eprintf "Project_function_slot %a -> %a, closure type:@ %a@ dacc:@
      %a\n%!" Function_slot.print move_from Function_slot.print move_to T.print
      closure_ty DA.print dacc; *)
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_select_closure_simple typing_env ~min_name_mode closure_ty move_to
+    T.prove_project_function_slot_simple typing_env ~min_name_mode closure_ty
+      move_to
   with
   | Invalid ->
     let ty = T.bottom K.value in
@@ -84,12 +85,12 @@ let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
       ~shape:(T.at_least_the_closures_with_ids ~this_closure:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_var function_slot closure_element ~min_name_mode dacc
+let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_project_var_simple typing_env ~min_name_mode closure_ty
-      closure_element
+    T.prove_project_value_slot_simple typing_env ~min_name_mode closure_ty
+      value_slot
   with
   | Invalid ->
     let ty = T.bottom K.value in
@@ -122,7 +123,7 @@ let simplify_project_var function_slot closure_element ~min_name_mode dacc
         ~deconstructing:closure_ty
         ~shape:
           (T.closure_with_at_least_this_value_slot ~this_closure:function_slot
-             closure_element ~closure_element_var:(Bound_var.var result_var))
+             value_slot ~value_slot_var:(Bound_var.var result_var))
         ~result_var ~result_kind:K.value
     in
     let dacc =
@@ -134,14 +135,14 @@ let simplify_project_var function_slot closure_element ~min_name_mode dacc
         ~symbol:(fun symbol_projected_from ~coercion:_ ->
           let proj =
             SP.create symbol_projected_from
-              (SP.Projection.project_var function_slot closure_element)
+              (SP.Projection.project_value_slot function_slot value_slot)
           in
           let var = Bound_var.var result_var in
           DA.map_denv dacc ~f:(fun denv ->
               DE.add_symbol_projection denv var proj))
         ~var:(fun _ ~coercion:_ -> dacc)
     in
-    reachable, DA.add_use_of_value_slot dacc closure_element
+    reachable, DA.add_use_of_value_slot dacc value_slot
 
 let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     ~original_term ~arg ~arg_ty:boxed_number_ty ~result_var =
@@ -627,9 +628,9 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
   let simplifier =
     match prim with
     | Project_value_slot { project_from; value_slot } ->
-      simplify_project_var project_from value_slot ~min_name_mode
+      simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->
-      simplify_select_closure ~move_from ~move_to ~min_name_mode
+      simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
       simplify_unbox_number boxable_number_kind
     | Box_number (boxable_number_kind, alloc_mode) ->

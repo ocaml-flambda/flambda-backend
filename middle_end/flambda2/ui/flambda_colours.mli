@@ -46,7 +46,7 @@ val symbol : unit -> string
 
 val variable : unit -> string
 
-val closure_element : unit -> string
+val function_slot : unit -> string
 
 val value_slot : unit -> string
 

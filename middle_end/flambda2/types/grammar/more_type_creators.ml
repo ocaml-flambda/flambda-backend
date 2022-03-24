@@ -263,9 +263,9 @@ let closure_with_at_least_these_value_slots ~this_closure value_slots =
   TG.create_closures Unknown by_function_slot
 
 let closure_with_at_least_this_value_slot ~this_closure value_slot
-    ~closure_element_var =
+    ~value_slot_var =
   closure_with_at_least_these_value_slots ~this_closure
-    (Value_slot.Map.singleton value_slot closure_element_var)
+    (Value_slot.Map.singleton value_slot value_slot_var)
 
 let type_for_const const =
   match RWC.descr const with

@@ -85,7 +85,7 @@ let message s =
     "Expected a named expression.\n\
      Examples of named expressions:\n\
     \  42\n\
-    \  project_var var1 my_closure\n\
+    \  project_value_slot var1 my_closure\n\
     \  Block 2 (var1 Symbol2 42)\n"
   | 178 ->
     "Expected a closure environment delimited by {}.\n\
@@ -149,7 +149,7 @@ let message s =
     \    and symbol Ident = function slotent\n\
     \  end and segment\n\
     \    code forty_two (arg1) my_closure <var1> -> k : val =\n\
-    \      let ans = project_var var1 my_closure in cont k (ans)\n\
+    \      let ans = project_value_slot var1 my_closure in cont k (ans)\n\
     \    and symbol Forty_two = closure forty_two\n\
     \    with { var1 = 42 }\n\
     \  end in ...\n"
@@ -170,7 +170,7 @@ let message s =
     \    and symbol ident_clo = function slotent\n\
     \  end and segment\n\
     \    code forty_two (arg1) my_closure <var1> -> k : val =\n\
-    \      let ans = project_var var1 my_closure in cont k (ans)\n\
+    \      let ans = project_value_slot var1 my_closure in cont k (ans)\n\
     \    and symbol g_clo = closure g\n\
     \    with { var1 = 42 }\n\
     \  end in ...\n"

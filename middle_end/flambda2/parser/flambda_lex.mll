@@ -124,8 +124,8 @@ let prim_table =
     "Opaque", PRIM_OPAQUE;
     "phys_eq", PRIM_PHYS_EQ;
     "phys_ne", PRIM_PHYS_NE;
-    "project_var", PRIM_PROJECT_VAR;
-    "select_closure", PRIM_SELECT_CLOSURE;
+    "project_value_slot", PRIM_PROJECT_VALUE_SLOT;
+    "project_function_slot", PRIM_PROJECT_FUNCTION_SLOT;
     "string_length", PRIM_STRING_LENGTH;
     "Tag_imm", PRIM_TAG_IMM;
     "unbox_float", PRIM_UNBOX_FLOAT;
