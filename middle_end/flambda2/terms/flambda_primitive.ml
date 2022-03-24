@@ -656,6 +656,8 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
+  | Untag_immediate
+  | Tag_immediate
   | Project_function_slot of
       { move_from : Function_slot.t;
         move_to : Function_slot.t
@@ -695,15 +697,15 @@ let unary_primitive_eligible_for_cse p ~arg =
     (* See comment in effects_and_coeffects *)
     Flambda_features.float_const_prop ()
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float -> true
-  | Unbox_number _ -> false
+  | Unbox_number _ | Untag_immediate -> false
   | Box_number (_, Local) ->
     (* For the moment we don't CSE any local allocations. *)
     (* CR mshinwell: relax this in the future? *)
     false
-  | Box_number _ ->
-    (* Boxing of constants will yield values that can be lifted and if needs be
-       deduplicated -- so there's no point in adding CSE variables to hold
-       them. *)
+  | Box_number _ | Tag_immediate ->
+    (* Boxing or tagging of constants will yield values that can be lifted and
+       if needs be deduplicated -- so there's no point in adding CSE variables
+       to hold them. *)
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
@@ -728,11 +730,13 @@ let compare_unary_primitive p1 p2 =
     | Reinterpret_int64_as_float -> 13
     | Unbox_number _ -> 14
     | Box_number _ -> 15
-    | Project_function_slot _ -> 16
-    | Project_value_slot _ -> 17
-    | Is_boxed_float -> 18
-    | Is_flat_float_array -> 19
-    | End_region -> 20
+    | Untag_immediate -> 16
+    | Tag_immediate -> 17
+    | Project_function_slot _ -> 18
+    | Project_value_slot _ -> 19
+    | Is_boxed_float -> 20
+    | Is_flat_float_array -> 21
+    | End_region -> 22
   in
   match p1, p2 with
   | ( Duplicate_array
@@ -790,6 +794,8 @@ let compare_unary_primitive p1 p2 =
   | Box_number (kind1, alloc_mode1), Box_number (kind2, alloc_mode2) ->
     let c = K.Boxable_number.compare kind1 kind2 in
     if c <> 0 then c else Alloc_mode.compare alloc_mode1 alloc_mode2
+  | Untag_immediate, Untag_immediate -> 0
+  | Tag_immediate, Tag_immediate -> 0
   | ( Project_function_slot { move_from = move_from1; move_to = move_to1 },
       Project_function_slot { move_from = move_from2; move_to = move_to2 } ) ->
     let c = Function_slot.compare move_from1 move_from2 in
@@ -804,8 +810,9 @@ let compare_unary_primitive p1 p2 =
       | String_length _ | Int_as_pointer | Opaque_identity | Int_arith _
       | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
       | Array_length | Bigarray_length _ | Unbox_number _ | Box_number _
-      | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
-      | Is_flat_float_array | End_region ),
+      | Untag_immediate | Tag_immediate | Project_function_slot _
+      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
+        ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -838,10 +845,10 @@ let print_unary_primitive ppf p =
   | Array_length -> fprintf ppf "Array_length"
   | Bigarray_length { dimension } ->
     fprintf ppf "Bigarray_length %a" print_num_dimensions dimension
-  | Unbox_number Untagged_immediate -> fprintf ppf "Untag_imm"
+  | Untag_immediate -> fprintf ppf "Untag_imm"
   | Unbox_number k ->
     fprintf ppf "Unbox_%a" K.Boxable_number.print_lowercase_short k
-  | Box_number (Untagged_immediate, _) -> fprintf ppf "Tag_imm"
+  | Tag_immediate -> fprintf ppf "Tag_imm"
   | Box_number (k, Heap) ->
     fprintf ppf "Box_%a" K.Boxable_number.print_lowercase_short k
   | Box_number (k, Local) ->
@@ -872,8 +879,9 @@ let arg_kind_of_unary_primitive p =
   | Reinterpret_int64_as_float -> K.naked_int64
   | Float_arith _ -> K.naked_float
   | Array_length | Bigarray_length _ -> K.value
-  | Unbox_number _ -> K.value
-  | Box_number (kind, _) -> K.Boxable_number.to_kind kind
+  | Unbox_number _ | Untag_immediate -> K.value
+  | Box_number (kind, _) -> K.Boxable_number.unboxed_kind kind
+  | Tag_immediate -> K.naked_immediate
   | Project_function_slot _ | Project_value_slot _ | Is_boxed_float
   | Is_flat_float_array ->
     K.value
@@ -896,8 +904,10 @@ let result_kind_of_unary_primitive p : result_kind =
   | Float_arith _ -> Singleton K.naked_float
   | Array_length -> Singleton K.value
   | Bigarray_length _ -> Singleton K.naked_immediate
-  | Unbox_number kind -> Singleton (K.Boxable_number.to_kind kind)
-  | Box_number _ | Project_function_slot _ | Project_value_slot _ ->
+  | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
+  | Untag_immediate -> Singleton K.naked_immediate
+  | Box_number _ | Tag_immediate | Project_function_slot _
+  | Project_value_slot _ ->
     Singleton K.value
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | End_region -> Singleton K.value
@@ -959,9 +969,9 @@ let effects_and_coeffects_of_unary_primitive p =
        [reading_from_a_block] (i.e. this has the same behaviour as a regular
        Block_load). *)
     reading_from_a_block Mutable
-  | Unbox_number _ -> Effects.No_effects, Coeffects.No_coeffects
-  | Box_number (Untagged_immediate, _) ->
+  | Unbox_number _ | Untag_immediate ->
     Effects.No_effects, Coeffects.No_coeffects
+  | Tag_immediate -> Effects.No_effects, Coeffects.No_coeffects
   | Box_number (_, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
@@ -985,8 +995,9 @@ let unary_classify_for_printing p =
   | Is_int | Int_as_pointer | Opaque_identity | Int_arith _ | Num_conv _
   | Boolean_not | Reinterpret_int64_as_float | Float_arith _ ->
     Neither
-  | Array_length | Bigarray_length _ | Unbox_number _ -> Destructive
-  | Box_number _ -> Constructive
+  | Array_length | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
+    Destructive
+  | Box_number _ | Tag_immediate -> Constructive
   | Project_function_slot _ | Project_value_slot _ -> Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region -> Neither

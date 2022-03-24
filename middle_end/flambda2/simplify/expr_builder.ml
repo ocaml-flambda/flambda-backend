@@ -729,7 +729,7 @@ let rewrite_exn_continuation rewrite id exn_cont =
       "Arity of exception continuation %a does not match@ [original_params] \
        (%a)"
       Exn_continuation.print exn_cont Bound_parameters.print original_params';
-  assert (List.length exn_cont_arity >= 1);
+  assert (Flambda_arity.With_subkinds.cardinal exn_cont_arity >= 1);
   let pre_existing_extra_params_with_args =
     List.combine (List.tl original_params)
       (Exn_continuation.extra_args exn_cont)
@@ -833,8 +833,14 @@ let add_wrapper_for_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id
     | Continuation cont -> (
       (* In this case, any generated [Apply_cont] will sit inside a wrapper that
          binds [kinded_params]. *)
-      let params = List.map (fun _kind -> Variable.create "param") arity in
-      let params = List.map2 BP.create params arity in
+      let params =
+        List.map
+          (fun _kind -> Variable.create "param")
+          (Flambda_arity.With_subkinds.to_list arity)
+      in
+      let params =
+        List.map2 BP.create params (Flambda_arity.With_subkinds.to_list arity)
+      in
       let args = List.map BP.simple params in
       let params = Bound_parameters.create params in
       let apply_cont = Apply_cont.create cont ~args ~dbg:Debuginfo.none in

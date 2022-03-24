@@ -358,6 +358,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Array_length -> Array_length
   | Box_number bk -> Box_number (bk, Heap)
   | Unbox_number bk -> Unbox_number bk
+  | Tag_immediate -> Tag_immediate
+  | Untag_immediate -> Untag_immediate
   | Get_tag -> Get_tag
   | Is_int -> Is_int
   | Num_conv { src; dst } -> Num_conv { src; dst }
@@ -747,10 +749,13 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               (fun ({ kind; _ } : Fexpr.kinded_parameter) ->
                 value_kind_with_subkind_opt kind)
               params_and_body.params
+            |> Flambda_arity.With_subkinds.create
         in
         let result_arity =
           match ret_arity with
-          | None -> [Flambda_kind.With_subkind.any_value]
+          | None ->
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.any_value]
           | Some ar -> arity ar
         in
         let ( params,
@@ -775,7 +780,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
-              ~arity:(List.length result_arity)
+              ~arity:(Flambda_arity.With_subkinds.cardinal result_arity)
           in
           let exn_continuation, env = fresh_exn_cont env exn_cont in
           assert (
@@ -856,7 +861,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         let function_slot = fresh_or_existing_function_slot env function_slot in
         let return_arity =
           match arities with
-          | None -> [Flambda_kind.With_subkind.any_value]
+          | None ->
+            Flambda_arity.With_subkinds.create
+              [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
         Call_kind.direct_function_call code_id function_slot ~return_arity Heap

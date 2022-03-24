@@ -134,7 +134,7 @@ let create_trivial ~params ~result_arity create_type =
         Bound_parameter.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      result_arity
+      (Flambda_arity.With_subkinds.to_list result_arity)
   in
   let env_extension =
     List.fold_left

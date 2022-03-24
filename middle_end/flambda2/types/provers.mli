@@ -79,10 +79,14 @@ val prove_variant_like :
     [prove_is_a_boxed_number env ty] is [Invalid].
 
     Otherwise it is [Unknown] or [Wrong_kind] when [ty] is not of kind value. *)
-val prove_is_a_boxed_number :
+type boxed_or_tagged_number = private
+  | Boxed of Flambda_kind.Boxable_number.t
+  | Tagged_immediate
+
+val prove_is_a_boxed_or_tagged_number :
   Typing_env.t ->
   Type_grammar.t ->
-  Flambda_kind.Boxable_number.t proof_allowing_kind_mismatch
+  boxed_or_tagged_number proof_allowing_kind_mismatch
 
 val prove_is_a_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> unit proof_allowing_kind_mismatch

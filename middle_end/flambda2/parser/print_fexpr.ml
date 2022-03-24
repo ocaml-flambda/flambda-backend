@@ -414,18 +414,17 @@ let binop ppf binop a b =
 
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
-  let box_or_unbox verb_not_imm verb_imm (bk : box_kind) =
+  let box_or_unbox verb_not_imm (bk : box_kind) =
     let print verb obj = Format.fprintf ppf "%%%s_%s" verb obj in
     match bk with
     | Naked_float -> print verb_not_imm "float"
     | Naked_int32 -> print verb_not_imm "int32"
     | Naked_int64 -> print verb_not_imm "int64"
     | Naked_nativeint -> print verb_not_imm "nativeint"
-    | Untagged_immediate -> print verb_imm "imm"
   in
   match u with
   | Array_length -> str "%array_length"
-  | Box_number bk -> box_or_unbox "Box" "Tag" bk
+  | Box_number bk -> box_or_unbox "Box" bk
   | Get_tag -> str "%get_tag"
   | Is_int -> str "%is_int"
   | Num_conv { src; dst } ->
@@ -440,7 +439,9 @@ let unop ppf u =
       function_slot move_from function_slot move_to
   | String_length Bytes -> str "%bytes_length"
   | String_length String -> str "%string_length"
-  | Unbox_number bk -> box_or_unbox "unbox" "untag" bk
+  | Unbox_number bk -> box_or_unbox "unbox" bk
+  | Untag_immediate -> str "%untag_imm"
+  | Tag_immediate -> str "%tag_imm"
 
 let ternop ppf t a1 a2 a3 =
   match t with

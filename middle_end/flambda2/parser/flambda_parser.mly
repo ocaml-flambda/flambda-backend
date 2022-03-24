@@ -349,12 +349,12 @@ unop:
     RPAREN
     { Project_function_slot { move_from; move_to } }
   | PRIM_STRING_LENGTH { String_length String }
-  | PRIM_TAG_IMM { Box_number Untagged_immediate }
+  | PRIM_TAG_IMM { Tag_immediate }
   | PRIM_UNBOX_FLOAT { Unbox_number Naked_float }
   | PRIM_UNBOX_INT32 { Unbox_number Naked_int32 }
   | PRIM_UNBOX_INT64 { Unbox_number Naked_int64 }
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }
-  | PRIM_UNTAG_IMM { Unbox_number Untagged_immediate }
+  | PRIM_UNTAG_IMM { Untag_immediate }
 
 infix_binop:
   | o = binary_int_arith_op { Int_arith o }

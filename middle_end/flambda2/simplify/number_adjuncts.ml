@@ -129,8 +129,6 @@ module type Boxable = sig
   val these_boxed : Num.Set.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
 
   val box : Flambda2_types.t -> Alloc_mode.t Or_unknown.t -> Flambda2_types.t
-
-  type naked_number_kind
 end
 
 module type Boxable_number_kind = sig
@@ -355,8 +353,6 @@ module For_floats : Boxable_number_kind = struct
 
   let term_unboxed f =
     Named.create_simple (Simple.const (Reg_width_const.naked_float f))
-
-  type naked_number_kind = K.naked_float
 end
 
 module For_int32s : Boxable_int_number_kind = struct
@@ -426,8 +422,6 @@ module For_int32s : Boxable_int_number_kind = struct
 
   let term_unboxed i =
     Named.create_simple (Simple.const (Reg_width_const.naked_int32 i))
-
-  type naked_number_kind = K.naked_int32
 end
 
 module For_int64s : Boxable_int_number_kind = struct
@@ -497,8 +491,6 @@ module For_int64s : Boxable_int_number_kind = struct
 
   let term_unboxed i =
     Named.create_simple (Simple.const (Reg_width_const.naked_int64 i))
-
-  type naked_number_kind = K.naked_int64
 end
 
 module For_nativeints : Boxable_int_number_kind = struct
@@ -564,6 +556,4 @@ module For_nativeints : Boxable_int_number_kind = struct
 
   let term_unboxed i =
     Named.create_simple (Simple.const (Reg_width_const.naked_nativeint i))
-
-  type naked_number_kind = K.naked_nativeint
 end

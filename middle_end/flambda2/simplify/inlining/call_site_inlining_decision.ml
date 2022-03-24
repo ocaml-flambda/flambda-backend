@@ -101,7 +101,8 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
             (UE.create (DA.are_rebuilding_terms dacc))
             (Exn_continuation.exn_handler exn_continuation)
             scope
-            [Flambda_kind.With_subkind.any_value]
+            (Flambda_arity.With_subkinds.create
+               [Flambda_kind.With_subkind.any_value])
         in
         let uenv =
           match Apply.continuation apply with

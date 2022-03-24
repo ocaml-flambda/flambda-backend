@@ -500,7 +500,7 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
         BP.create
           (Variable.create ("result" ^ string_of_int i))
           kind_with_subkind)
-      result_arity
+      (Flambda_arity.With_subkinds.to_list result_arity)
     |> Bound_parameters.create
   in
   let ( params,
@@ -1089,7 +1089,9 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
       in
       Cost_metrics.
         { cost_metrics = Code_metadata.cost_metrics code_metadata;
-          params_arity = List.length (Code_metadata.params_arity code_metadata)
+          params_arity =
+            Flambda_arity.With_subkinds.cardinal
+              (Code_metadata.params_arity code_metadata)
         }
     in
     Simplified_named.reachable_with_known_free_names ~find_code_characteristics

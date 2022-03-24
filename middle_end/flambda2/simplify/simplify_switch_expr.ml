@@ -165,9 +165,7 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
     let body = make_body ~tagged_scrutinee:(Simple.var bound_to) in
     let bound_to = Bound_var.create bound_to NM.normal in
     let defining_expr =
-      Named.create_prim
-        (Unary (Box_number (Untagged_immediate, Heap), scrutinee))
-        Debuginfo.none
+      Named.create_prim (Unary (Tag_immediate, scrutinee)) Debuginfo.none
     in
     let let_expr =
       Let.create
@@ -326,10 +324,7 @@ let check_cse_environment dacc ~scrutinee =
      We solve this by always looking for a tagged version of the scrutinee in
      the CSE environment and registering it as a required variable like the
      scrutinee. If it is not available, no problem can occur. *)
-  match
-    find_cse_simple dacc
-      (Unary (Box_number (Untagged_immediate, Heap), scrutinee))
-  with
+  match find_cse_simple dacc (Unary (Tag_immediate, scrutinee)) with
   | None -> dacc
   | Some tagged_scrutinee -> (
     let dacc =
@@ -375,7 +370,11 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
                (Apply_cont.continuation action)
                (List.map Simple.free_names args))
       in
-      let arms = Targetint_31_63.Map.add arm (action, rewrite_id, []) arms in
+      let arms =
+        Targetint_31_63.Map.add arm
+          (action, rewrite_id, Flambda_arity.nullary)
+          arms
+      in
       arms, dacc
     | _ :: _ ->
       let { S.simples = args; simple_tys = arg_types } =
@@ -385,7 +384,7 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
         DA.record_continuation_use dacc (AC.continuation action) use_kind
           ~env_at_use ~arg_types
       in
-      let arity = List.map T.kind arg_types in
+      let arity = List.map T.kind arg_types |> Flambda_arity.create in
       let action = Apply_cont.update_args action ~args in
       let dacc =
         DA.map_data_flow dacc

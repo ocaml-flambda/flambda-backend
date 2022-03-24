@@ -284,6 +284,8 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
+  | Untag_immediate
+  | Tag_immediate
   | Project_function_slot of
       { move_from : Function_slot.t;
         move_to : Function_slot.t

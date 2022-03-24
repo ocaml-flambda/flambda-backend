@@ -311,7 +311,8 @@ let prove_naked_immediates env t : Targetint_31_63.Set.t proof =
     | Proved tags ->
       let is =
         Tag.Set.fold
-          (fun tag is -> Targetint_31_63.Set.add (Tag.to_target_imm tag) is)
+          (fun tag is ->
+            Targetint_31_63.Set.add (Tag.to_targetint_31_63 tag) is)
           tags Targetint_31_63.Set.empty
       in
       Proved is
@@ -466,8 +467,12 @@ let prove_variant_like env t : variant_like_proof proof_allowing_kind_mismatch =
   | Rec_info _ -> Wrong_kind
   | Region _ -> Wrong_kind
 
-let prove_is_a_boxed_number env t :
-    Flambda_kind.Boxable_number.t proof_allowing_kind_mismatch =
+type boxed_or_tagged_number =
+  | Boxed of Flambda_kind.Boxable_number.t
+  | Tagged_immediate
+
+let prove_is_a_boxed_or_tagged_number env t :
+    boxed_or_tagged_number proof_allowing_kind_mismatch =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value (Ok (Variant { blocks; immediates; is_unique = _; alloc_mode = _ }))
@@ -477,25 +482,25 @@ let prove_is_a_boxed_number env t :
     | Unknown, Known imms -> if is_bottom env imms then Invalid else Unknown
     | Known blocks, Unknown ->
       if TG.Row_like_for_blocks.is_bottom blocks
-      then Proved Untagged_immediate
+      then Proved Tagged_immediate
       else Unknown
     | Known blocks, Known imms ->
       if is_bottom env imms
       then Invalid
       else if TG.Row_like_for_blocks.is_bottom blocks
-      then Proved Untagged_immediate
+      then Proved Tagged_immediate
       else Unknown
   end
-  | Value (Ok (Boxed_float _)) -> Proved Naked_float
-  | Value (Ok (Boxed_int32 _)) -> Proved Naked_int32
-  | Value (Ok (Boxed_int64 _)) -> Proved Naked_int64
-  | Value (Ok (Boxed_nativeint _)) -> Proved Naked_nativeint
+  | Value (Ok (Boxed_float _)) -> Proved (Boxed Naked_float)
+  | Value (Ok (Boxed_int32 _)) -> Proved (Boxed Naked_int32)
+  | Value (Ok (Boxed_int64 _)) -> Proved (Boxed Naked_int64)
+  | Value (Ok (Boxed_nativeint _)) -> Proved (Boxed Naked_nativeint)
   | Value _ -> Invalid
   | _ -> Wrong_kind
 
 let prove_is_a_tagged_immediate env t : _ proof_allowing_kind_mismatch =
-  match prove_is_a_boxed_number env t with
-  | Proved Untagged_immediate -> Proved ()
+  match prove_is_a_boxed_or_tagged_number env t with
+  | Proved Tagged_immediate -> Proved ()
   | Proved _ -> Unknown
   | Invalid -> Invalid
   | Wrong_kind -> Wrong_kind

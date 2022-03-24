@@ -131,15 +131,14 @@ let invariant
           print t
   end;
   match continuation with
-  | Never_returns -> begin
-    match Call_kind.return_arity call_kind with
-    | [] -> ()
-    | a ->
+  | Never_returns ->
+    let return_arity = Call_kind.return_arity call_kind in
+    if not (Flambda_arity.With_subkinds.is_nullary return_arity)
+    then
       Misc.fatal_errorf
-        "This [Apply] never returns and so expects an empty arity, but has a \
-         call kind arity of %a:@ %a"
-        Flambda_arity.With_subkinds.print a print t
-  end
+        "This [Apply] never returns and so should have a nullary return arity, \
+         but instead has a return arity of %a:@ %a"
+        Flambda_arity.With_subkinds.print return_arity print t
   | Return _ -> ()
 
 let create ~callee ~continuation exn_continuation ~args ~call_kind dbg ~inlined

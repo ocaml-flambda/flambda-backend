@@ -167,10 +167,10 @@ let bigarray_dim_bound b dimension =
   H.Prim (Unary (Bigarray_length { dimension }, b))
 
 let tag_int (arg : H.expr_primitive) : H.expr_primitive =
-  Unary (Box_number (Untagged_immediate, Heap), Prim arg)
+  Unary (Tag_immediate, Prim arg)
 
 let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
-  Prim (Unary (Unbox_number Untagged_immediate, arg))
+  Prim (Unary (Untag_immediate, arg))
 
 let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) : H.expr_primitive
     =
@@ -382,29 +382,42 @@ let bytes_like_set_safe ~dbg ~size_int ~access_size kind bytes index new_value =
       bytes index
 
 (* Bigarray accesses *)
-let bigarray_box_raw_value_read kind alloc_mode =
+let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
   let error what =
     Misc.fatal_errorf "Don't know how to box %s after reading it in a bigarray"
       what
   in
   match P.element_kind_of_bigarray_kind kind with
   | Value -> Fun.id
-  | Naked_number k ->
-    let bi = K.Boxable_number.of_naked_number_kind k in
-    fun arg -> H.Unary (Box_number (bi, alloc_mode), Prim arg)
+  | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
+  | Naked_number Naked_float ->
+    fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
+  | Naked_number Naked_int32 ->
+    fun arg -> H.Unary (Box_number (Naked_int32, alloc_mode), Prim arg)
+  | Naked_number Naked_int64 ->
+    fun arg -> H.Unary (Box_number (Naked_int64, alloc_mode), Prim arg)
+  | Naked_number Naked_nativeint ->
+    fun arg -> H.Unary (Box_number (Naked_nativeint, alloc_mode), Prim arg)
   | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
-let bigarray_unbox_value_to_store kind =
+let bigarray_unbox_or_untag_value_to_store kind =
   let error what =
     Misc.fatal_errorf "Don't know how to unbox %s to store it in a bigarray"
       what
   in
   match P.element_kind_of_bigarray_kind kind with
   | Value -> Fun.id
-  | Naked_number k ->
-    let bi = K.Boxable_number.of_naked_number_kind k in
-    fun arg -> H.Prim (Unary (Unbox_number bi, arg))
+  | Naked_number Naked_immediate ->
+    fun arg -> H.Prim (Unary (Untag_immediate, arg))
+  | Naked_number Naked_float ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_float, arg))
+  | Naked_number Naked_int32 ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_int32, arg))
+  | Naked_number Naked_int64 ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_int64, arg))
+  | Naked_number Naked_nativeint ->
+    fun arg -> H.Prim (Unary (Unbox_number Naked_nativeint, arg))
   | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
@@ -431,7 +444,7 @@ let bigarray_indexing layout b args =
           (Binary
              ( Int_arith (I.Tagged_immediate, Mul),
                rem,
-               Prim (Unary (Box_number (Untagged_immediate, Heap), bound)) ))
+               Prim (Unary (Tag_immediate, bound)) ))
       in
       let offset =
         H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, idx))
@@ -988,7 +1001,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
           b, indexes
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
-      let box = bigarray_box_raw_value_read kind Heap in
+      let box = bigarray_box_or_tag_raw_value_to_read kind Heap in
       box (bigarray_load ~dbg ~unsafe kind layout b indexes)
     | None, _ ->
       Misc.fatal_errorf
@@ -1013,7 +1026,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
           b, indexes, value
         | [] -> Misc.fatal_errorf "Pbigarrayset is missing its arguments"
       in
-      let unbox = bigarray_unbox_value_to_store kind in
+      let unbox = bigarray_unbox_or_untag_value_to_store kind in
       bigarray_set ~dbg ~unsafe kind layout b indexes (unbox value)
     | None, _ ->
       Misc.fatal_errorf

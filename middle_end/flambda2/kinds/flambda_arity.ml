@@ -14,9 +14,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 type t = Flambda_kind.t list
+
+type arity = t
 
 let nullary = []
 
@@ -24,23 +26,25 @@ let create t = t
 
 let length t = List.length t
 
+let to_list t = t
+
 include Container_types.Make (struct
   type nonrec t = t
 
-  let compare t1 t2 = Misc.Stdlib.List.compare Flambda_kind.compare t1 t2
+  let compare t1 t2 = List.compare Flambda_kind.compare t1 t2
 
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     match t with
     | [] -> Format.pp_print_string ppf "Nullary"
     | _ ->
       Format.fprintf ppf "@[%a@]"
         (Format.pp_print_list
-          ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
-          Flambda_kind.print)
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
+           Flambda_kind.print)
         t
 end)
 
@@ -54,30 +58,29 @@ let is_singleton_value t =
   | _ -> false
 
 module With_subkinds = struct
-  type arity = t
-
   type t = Flambda_kind.With_subkind.t list
 
   let create t = t
 
+  let to_list t = t
+
   include Container_types.Make (struct
     type nonrec t = t
 
-    let compare t1 t2 =
-      Misc.Stdlib.List.compare Flambda_kind.With_subkind.compare t1 t2
+    let compare t1 t2 = List.compare Flambda_kind.With_subkind.compare t1 t2
 
     let equal t1 t2 = compare t1 t2 = 0
 
     let hash = Hashtbl.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       match t with
       | [] -> Format.pp_print_string ppf "Nullary"
       | _ ->
         Format.fprintf ppf "@[%a@]"
           (Format.pp_print_list
-            ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
-            Flambda_kind.With_subkind.print)
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf " @<1>\u{2a2f} ")
+             Flambda_kind.With_subkind.print)
           t
   end)
 
@@ -89,6 +92,12 @@ module With_subkinds = struct
              Flambda_kind.value ->
       true
     | _ -> false
+
+  let cardinal t = List.length t
+
+  let nullary = []
+
+  let is_nullary t = match t with [] -> true | _ :: _ -> false
 
   let to_arity t = List.map Flambda_kind.With_subkind.kind t
 

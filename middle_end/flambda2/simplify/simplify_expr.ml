@@ -91,7 +91,8 @@ and simplify_toplevel dacc expr ~return_continuation ~return_arity
         in
         let uenv =
           UE.add_function_return_or_exn_continuation uenv exn_continuation
-            exn_cont_scope [K.With_subkind.any_value]
+            exn_cont_scope
+            (Flambda_arity.With_subkinds.create [K.With_subkind.any_value])
         in
         let uacc =
           UA.create ~required_names ~reachable_code_ids
