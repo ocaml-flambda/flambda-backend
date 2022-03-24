@@ -1,6 +1,6 @@
 external op : 'a -> 'a = "%opaque"
 
-module A = Closure_var_use_a
+module A = Value_slot_use_a
 
 let _ =
   let g =
