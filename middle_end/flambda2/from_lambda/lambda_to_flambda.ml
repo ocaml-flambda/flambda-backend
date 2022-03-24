@@ -20,8 +20,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module L = Lambda
-module LC = Lambda_conversions
 module CC = Closure_conversion
+module P = Flambda_primitive
 module IR = Closure_conversion.IR
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
@@ -524,7 +524,9 @@ let transform_primitive env (prim : L.primitive) args loc =
   | Pfloatcomp CFnge, args ->
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> begin
-    match LC.convert_bigarray_kind kind, LC.convert_bigarray_layout layout with
+    match
+      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+    with
     | Some _, Some _ -> Primitive (prim, args, loc)
     | None, None | None, Some _ | Some _, None ->
       if 1 <= num_dimensions && num_dimensions <= 3
@@ -540,7 +542,9 @@ let transform_primitive env (prim : L.primitive) args loc =
            (see translprim)."
   end
   | Pbigarrayset (_unsafe, num_dimensions, kind, layout), args -> begin
-    match LC.convert_bigarray_kind kind, LC.convert_bigarray_layout layout with
+    match
+      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+    with
     | Some _, Some _ -> Primitive (prim, args, loc)
     | None, None | None, Some _ | Some _, None ->
       if 1 <= num_dimensions && num_dimensions <= 3

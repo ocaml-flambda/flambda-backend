@@ -448,6 +448,22 @@ let print_bigarray_kind ppf k =
   | Complex32 -> fprintf ppf "Complex32"
   | Complex64 -> fprintf ppf "Complex64"
 
+let bigarray_kind_from_lambda (kind : Lambda.bigarray_kind) =
+  match kind with
+  | Pbigarray_unknown -> None
+  | Pbigarray_float32 -> Some Float32
+  | Pbigarray_float64 -> Some Float64
+  | Pbigarray_sint8 -> Some Sint8
+  | Pbigarray_uint8 -> Some Uint8
+  | Pbigarray_sint16 -> Some Sint16
+  | Pbigarray_uint16 -> Some Uint16
+  | Pbigarray_int32 -> Some Int32
+  | Pbigarray_int64 -> Some Int64
+  | Pbigarray_caml_int -> Some Int_width_int
+  | Pbigarray_native_int -> Some Targetint_width_int
+  | Pbigarray_complex32 -> Some Complex32
+  | Pbigarray_complex64 -> Some Complex64
+
 type bigarray_layout =
   | C
   | Fortran
@@ -455,6 +471,12 @@ type bigarray_layout =
 let print_bigarray_layout ppf l =
   let fprintf = Format.fprintf in
   match l with C -> fprintf ppf "C" | Fortran -> fprintf ppf "Fortran"
+
+let bigarray_layout_from_lambda (layout : Lambda.bigarray_layout) =
+  match layout with
+  | Pbigarray_unknown_layout -> None
+  | Pbigarray_c_layout -> Some C
+  | Pbigarray_fortran_layout -> Some Fortran
 
 let reading_from_a_bigarray kind =
   match (kind : bigarray_kind) with

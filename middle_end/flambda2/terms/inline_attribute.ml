@@ -53,3 +53,11 @@ let is_default t =
 let number_of_unrolls = function
   | Unroll n -> n
   | Always_inline | Available_inline | Never_inline | Default_inline -> 0
+
+let from_lambda (attr : Lambda.inline_attribute) =
+  match attr with
+  | Always_inline -> Always_inline
+  | Never_inline -> Never_inline
+  | Available_inline -> Available_inline
+  | Unroll i -> Unroll i
+  | Default_inline -> Default_inline

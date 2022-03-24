@@ -29,7 +29,6 @@ module Let_with_acc = Closure_conversion_aux.Let_with_acc
 module Function_decls = Closure_conversion_aux.Function_decls
 module Function_decl = Function_decls.Function_decl
 module K = Flambda_kind
-module LC = Lambda_conversions
 module P = Flambda_primitive
 module VB = Bound_var
 
@@ -379,10 +378,20 @@ let close_c_call acc env ~let_bound_var
       Apply_cont_expr.continuation apply_cont, false
     | _ -> Continuation.create (), true
   in
-  let param_arity =
-    List.map LC.kind_of_primitive_native_repr prim_native_repr_args
+  let kind_of_primitive_native_repr
+      ((_, repr) : Primitive.mode * Primitive.native_repr) =
+    match repr with
+    | Same_as_ocaml_repr -> K.value
+    | Unboxed_float -> K.naked_float
+    | Unboxed_integer Pnativeint -> K.naked_nativeint
+    | Unboxed_integer Pint32 -> K.naked_int32
+    | Unboxed_integer Pint64 -> K.naked_int64
+    | Untagged_int -> K.naked_immediate
   in
-  let return_kind = LC.kind_of_primitive_native_repr prim_native_repr_res in
+  let param_arity =
+    List.map kind_of_primitive_native_repr prim_native_repr_args
+  in
+  let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
   let return_arity = [return_kind] in
   let call_kind =
     Call_kind.c_call ~alloc:prim_alloc ~param_arity ~return_arity
@@ -528,7 +537,7 @@ let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
     List.fold_left_map
       (fun acc (simple, kind) ->
         let acc, simple = find_simple acc env simple in
-        acc, (simple, LC.value_kind kind))
+        acc, (simple, K.With_subkind.from_lambda kind))
       acc exn_continuation.extra_args
   in
   ( acc,
@@ -585,7 +594,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       in
       args @ extra_args
     in
-    let raise_kind = Some (LC.raise_kind raise_kind) in
+    let raise_kind = Some (Trap_action.raise_kind_from_lambda raise_kind) in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
@@ -804,7 +813,8 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
   in
   let handler_params =
     List.map2
-      (fun param (_, _, kind) -> BP.create param (LC.value_kind kind))
+      (fun param (_, _, kind) ->
+        BP.create param (K.With_subkind.from_lambda kind))
       params params_with_kinds
     |> Bound_parameters.create
   in
@@ -845,7 +855,7 @@ let close_exact_or_unknown_apply acc env
      } :
       IR.apply) callee_approx : Acc.t * Expr_with_acc.t =
   let callee = find_simple_from_id env func in
-  let mode = LC.alloc_mode mode in
+  let mode = Alloc_mode.from_lambda mode in
   let acc, call_kind =
     match kind with
     | Function -> (
@@ -870,13 +880,15 @@ let close_exact_or_unknown_apply acc env
         (* See [close_apply] *) ))
     | Method { kind; obj } ->
       let acc, obj = find_simple acc env obj in
-      acc, Call_kind.method_call (LC.method_kind kind) ~obj mode
+      ( acc,
+        Call_kind.method_call (Call_kind.method_kind_from_lambda kind) ~obj mode
+      )
   in
   let acc, apply_exn_continuation =
     close_exn_continuation acc env exn_continuation
   in
   let acc, args = find_simples acc env args in
-  let inlined_call = LC.inlined_attribute inlined in
+  let inlined_call = Inlined_attribute.from_lambda inlined in
   let probe_name =
     match probe with None -> None | Some { name } -> Some name
   in
@@ -1126,7 +1138,9 @@ let close_one_function acc ~external_env ~by_function_slot decl
     List.map (fun (id, kind) -> Env.find_var closure_env id, kind) params
   in
   let params =
-    List.map (fun (var, kind) -> BP.create var (LC.value_kind kind)) param_vars
+    List.map
+      (fun (var, kind) -> BP.create var (K.With_subkind.from_lambda kind))
+      param_vars
     |> Bound_parameters.create
   in
   let acc = Acc.with_seen_a_function acc false in
@@ -1205,7 +1219,7 @@ let close_one_function acc ~external_env ~by_function_slot decl
     if contains_subfunctions
        && Flambda_features.Expert.fallback_inlining_heuristic ()
     then Never_inline
-    else LC.inline_attribute (Function_decl.inline decl)
+    else Inline_attribute.from_lambda (Function_decl.inline decl)
   in
   let params_and_body =
     Function_params_and_body.create ~return_continuation
@@ -1239,9 +1253,10 @@ let close_one_function acc ~external_env ~by_function_slot decl
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:[LC.value_kind return]
+      ~result_arity:[K.With_subkind.from_lambda return]
       ~result_types:
-        (Result_types.create_unknown ~params ~result_arity:[LC.value_kind return])
+        (Result_types.create_unknown ~params
+           ~result_arity:[K.With_subkind.from_lambda return])
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -1374,7 +1389,7 @@ let close_functions acc external_env function_declarations =
   in
   let set_of_closures =
     Set_of_closures.create ~value_slots
-      (LC.alloc_mode (Function_decls.alloc_mode function_declarations))
+      (Alloc_mode.from_lambda (Function_decls.alloc_mode function_declarations))
       function_decls
   in
   let acc =
@@ -1580,7 +1595,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
   let returned_func = Variable.create "func" in
   (* See comments in [Simplify_common.split_direct_over_application] about this
      code for handling local allocations. *)
-  let apply_alloc_mode = LC.alloc_mode apply.mode in
+  let apply_alloc_mode = Alloc_mode.from_lambda apply.mode in
   let apply_return_continuation =
     Apply.Result_continuation.Return apply.continuation
   in
@@ -1596,7 +1611,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
     let acc, apply_exn_continuation =
       close_exn_continuation acc env apply.exn_continuation
     in
-    let inlined = LC.inlined_attribute apply.inlined in
+    let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the attributes is useless in classic mode but matches the
        behaviour of simplify, and this split is done either way *)
     let probe_name =

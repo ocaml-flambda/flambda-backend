@@ -29,6 +29,8 @@ type raise_kind =
   | Reraise
   | No_trace
 
+val raise_kind_from_lambda : Lambda.raise_kind -> raise_kind
+
 type t =
   | Push of { exn_handler : Continuation.t }
   | Pop of

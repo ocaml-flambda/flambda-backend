@@ -499,3 +499,8 @@ val equal_binary_primitive : binary_primitive -> binary_primitive -> bool
 val equal_ternary_primitive : ternary_primitive -> ternary_primitive -> bool
 
 val equal_variadic_primitive : variadic_primitive -> variadic_primitive -> bool
+
+val bigarray_kind_from_lambda : Lambda.bigarray_kind -> bigarray_kind option
+
+val bigarray_layout_from_lambda :
+  Lambda.bigarray_layout -> bigarray_layout option

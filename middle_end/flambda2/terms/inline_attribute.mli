@@ -32,3 +32,5 @@ val equal : t -> t -> bool
 val is_default : t -> bool
 
 val number_of_unrolls : t -> int
+
+val from_lambda : Lambda.inline_attribute -> t
