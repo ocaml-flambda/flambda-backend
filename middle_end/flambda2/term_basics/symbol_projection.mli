@@ -17,14 +17,14 @@
 module Projection : sig
   type t = private
     | Block_load of { index : Targetint_31_63.Imm.t }
-    | Project_var of
-        { project_from : Closure_id.t;
-          var : Var_within_closure.t
+    | Project_value_slot of
+        { project_from : Function_slot.t;
+          value_slot : Value_slot.t
         }
 
   val block_load : index:Targetint_31_63.Imm.t -> t
 
-  val project_var : Closure_id.t -> Var_within_closure.t -> t
+  val project_value_slot : Function_slot.t -> Value_slot.t -> t
 end
 
 type t

@@ -80,7 +80,7 @@ module type Flambda_backend_options = sig
   val drawfexpr : unit -> unit
   val dfexpr : unit -> unit
   val dflexpect : unit -> unit
-  val dclosure_offsets : unit -> unit
+  val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
 end
 

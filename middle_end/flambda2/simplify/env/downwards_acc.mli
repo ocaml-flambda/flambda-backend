@@ -81,11 +81,11 @@ val with_shareable_constants :
 
 val shareable_constants : t -> Symbol.t Static_const.Map.t
 
-val add_use_of_closure_var : t -> Var_within_closure.t -> t
+val add_use_of_value_slot : t -> Value_slot.t -> t
 
-val used_closure_vars : t -> Name_occurrences.t
+val used_value_slots : t -> Name_occurrences.t
 
-val with_used_closure_vars : t -> used_closure_vars:Name_occurrences.t -> t
+val with_used_value_slots : t -> used_value_slots:Name_occurrences.t -> t
 
 val add_code_ids_to_remember : t -> Code_id.Set.t -> t
 
@@ -99,7 +99,6 @@ val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val do_not_rebuild_terms : t -> bool
 
-val closure_offsets : t -> Closure_offsets.t Code_id.Map.t
+val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
 
-val with_closure_offsets :
-  t -> closure_offsets:Closure_offsets.t Code_id.Map.t -> t
+val with_slot_offsets : t -> slot_offsets:Slot_offsets.t Code_id.Map.t -> t

@@ -62,7 +62,7 @@ val dump_fexpr : unit -> bool
 
 val dump_flexpect : unit -> bool
 
-val dump_closure_offsets : unit -> bool
+val dump_slot_offsets : unit -> bool
 
 val freshen_when_printing : unit -> bool
 

@@ -22,7 +22,7 @@
     value directly but very common to fold over the list to produce an
     environment that is a true Map. They also preserve the order of the
     elements, which is necessary for performing comparisons up to renaming of
-    closure ids and code ids.
+    function slots and code ids.
 
     Several operations on Map are provided here for consistency, but they do not
     necessarily provide the same checks that a Map would and in most cases the

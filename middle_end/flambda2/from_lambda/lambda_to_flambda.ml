@@ -1594,8 +1594,8 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
   in
-  let closure_id =
-    Closure_id.wrap
+  let function_slot =
+    Function_slot.wrap
       (Compilation_unit.get_current_exn ())
       (Variable.create_with_same_name_as_ident fid)
   in
@@ -1603,7 +1603,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
     let ccenv = CCenv.use_path_to_root ccenv loc in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
-  Function_decl.create ~let_rec_ident:(Some fid) ~closure_id ~kind ~params
+  Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
     ~return ~return_continuation:body_cont ~exn_continuation ~body ~attr ~loc
     ~free_idents_of_body ~stub recursive ~closure_alloc_mode:mode
     ~num_trailing_local_params ~contains_no_escaping_local_allocs:region

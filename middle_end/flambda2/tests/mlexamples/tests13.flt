@@ -2,7 +2,7 @@ let $camlTests13__first_const74 = Block 0 () in
 let code rec size(82) map_foo_4 (f, seq, param : imm tagged) my_closure
                         my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
-  let bar = %project_var map_foo.bar_2 my_closure in
+  let bar = %project_value_slot map_foo.bar_2 my_closure in
   apply seq (0) -> k2 * k1
     where k2 (`*match*`) =
       ((let prim = %is_int `*match*` in
@@ -75,9 +75,9 @@ let code size(27) `anon-fn[tests13.ml:16,2--118]_1` (param : imm tagged)
                     my_closure my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let map_foo =
-    %project_var `anon-fn[tests13.ml:16,2--118]`.map_foo_1 my_closure
+    %project_value_slot `anon-fn[tests13.ml:16,2--118]`.map_foo_1 my_closure
   in
-  let i = %project_var `anon-fn[tests13.ml:16,2--118]`.i_0 my_closure in
+  let i = %project_value_slot `anon-fn[tests13.ml:16,2--118]`.i_0 my_closure in
   let j = i + 3 in
   (let ignore = %Opaque j in
    cont k2 (0))
@@ -146,9 +146,9 @@ let code size(10) newer_version_of(`anon-fn[tests13.ml:16,2--118]_1`)
   `anon-fn[tests13.ml:16,2--118]_1_1` (param : imm tagged) my_closure
     my_depth -> k * k1 =
   let map_foo =
-    %project_var `anon-fn[tests13.ml:16,2--118]`.map_foo_1 my_closure
+    %project_value_slot `anon-fn[tests13.ml:16,2--118]`.map_foo_1 my_closure
   in
-  let i = %project_var `anon-fn[tests13.ml:16,2--118]`.i_0 my_closure in
+  let i = %project_value_slot `anon-fn[tests13.ml:16,2--118]`.i_0 my_closure in
   let j = i + 3 in
   let ignore = %Opaque j in
   apply inline(never)

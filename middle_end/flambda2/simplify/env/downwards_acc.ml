@@ -25,45 +25,45 @@ type t =
   { denv : DE.t;
     continuation_uses_env : CUE.t;
     shareable_constants : Symbol.t Static_const.Map.t;
-    used_closure_vars : Name_occurrences.t;
+    used_value_slots : Name_occurrences.t;
     lifted_constants : LCS.t;
     data_flow : Data_flow.t;
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
-    closure_offsets : Closure_offsets.t Code_id.Map.t
+    slot_offsets : Slot_offsets.t Code_id.Map.t
   }
 
 let [@ocamlformat "disable"] print ppf
-      { denv; continuation_uses_env; shareable_constants; used_closure_vars;
+      { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; data_flow; demoted_exn_handlers; code_ids_to_remember;
-        closure_offsets } =
+        slot_offsets } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
       @[<hov 1>(shareable_constants@ %a)@]@ \
-      @[<hov 1>(used_closure_vars@ %a)@]@ \
+      @[<hov 1>(used_value_slots@ %a)@]@ \
       @[<hov 1>(lifted_constant_state@ %a)@]@ \
       @[<hov 1>(data_flow@ %a)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
-      @[<hov 1>(closure_offsets@ %a)@]\
+      @[<hov 1>(slot_offsets@ %a)@]\
       )@]"
     DE.print denv
     CUE.print continuation_uses_env
     (Static_const.Map.print Symbol.print) shareable_constants
-    Name_occurrences.print used_closure_vars
+    Name_occurrences.print used_value_slots
     LCS.print lifted_constants
     Data_flow.print data_flow
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
-    (Code_id.Map.print Closure_offsets.print) closure_offsets
+    (Code_id.Map.print Slot_offsets.print) slot_offsets
 
 let create denv continuation_uses_env =
   { denv;
     continuation_uses_env;
-    closure_offsets = Code_id.Map.empty;
+    slot_offsets = Code_id.Map.empty;
     shareable_constants = Static_const.Map.empty;
-    used_closure_vars = Name_occurrences.empty;
+    used_value_slots = Name_occurrences.empty;
     lifted_constants = LCS.empty;
     data_flow = Data_flow.empty;
     demoted_exn_handlers = Continuation.Set.empty;
@@ -156,19 +156,19 @@ let with_shareable_constants t ~shareable_constants =
 
 let shareable_constants t = t.shareable_constants
 
-let add_use_of_closure_var t closure_var =
+let add_use_of_value_slot t value_slot =
   { t with
-    used_closure_vars =
-      Name_occurrences.add_closure_var_in_projection t.used_closure_vars
-        closure_var Name_mode.normal
+    used_value_slots =
+      Name_occurrences.add_value_slot_in_projection t.used_value_slots
+        value_slot Name_mode.normal
   }
 
-let used_closure_vars t = t.used_closure_vars
+let used_value_slots t = t.used_value_slots
 
 let all_continuations_used t =
   CUE.all_continuations_used t.continuation_uses_env
 
-let with_used_closure_vars t ~used_closure_vars = { t with used_closure_vars }
+let with_used_value_slots t ~used_value_slots = { t with used_value_slots }
 
 let add_code_ids_to_remember t code_ids =
   if DE.at_unit_toplevel t.denv
@@ -198,6 +198,6 @@ let demote_exn_handler t cont =
 
 let demoted_exn_handlers t = t.demoted_exn_handlers
 
-let closure_offsets t = t.closure_offsets
+let slot_offsets t = t.slot_offsets
 
-let with_closure_offsets t ~closure_offsets = { t with closure_offsets }
+let with_slot_offsets t ~slot_offsets = { t with slot_offsets }

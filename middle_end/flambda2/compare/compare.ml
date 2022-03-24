@@ -8,8 +8,8 @@ open Flambda
  * written by the simplifier.  Since the human can't anticipate the names of
  * things that get generated inside the simplifier, our notion of equivalence
  * has to account not only for bound names of variables and continuations but
- * also for symbols, code ids, closure ids, and closure variables.  Of these,
- * closure ids and closure variables are particularly tricky since they have no
+ * also for symbols, code ids, function slots, and value slots.  Of these,
+ * function slots and value slots are particularly tricky since they have no
  * binding occurrences, so we need unification to figure out which ones
  * correspond.
  *
@@ -41,7 +41,7 @@ open Flambda
  *
  * Threaded throughout this pseudocode is an environment that gets updated
  * either by binding constructs (for symbols and code ids) or, for identifier
- * classes with no binding constructs (closure ids and closure vars), by
+ * classes with no binding constructs (function slots and value slots), by
  * unification as a side effect.  This is why step 1(b)(i) compares terms even
  * though we know we're returning [Different]---we need to do unification on
  * those sub-terms.
@@ -153,28 +153,28 @@ let log_comp c f e1 e2 =
     log_rel f e1 rel e2
 
 module Env = struct
-  (* We rely on unification for closure ids and closure vars, so for those,
+  (* We rely on unification for function slots and value slots, so for those,
    * we need to keep a map both ways so that we know whether a given (say)
-   * closure id in the right-hand term has already been mapped to something
+   * function slot in the right-hand term has already been mapped to something
    * different.  In contrast, we expect to have already seen a symbol or code
    * id at its binding site, so if it's not in the map we know straight away
    * something's wrong. *)
   type t =
     { symbols : Symbol.t Symbol.Tbl.t;
       code_ids : Code_id.t Code_id.Tbl.t;
-      closure_ids : Closure_id.t Closure_id.Tbl.t;
-      closure_ids_rev : Closure_id.t Closure_id.Tbl.t;
-      closure_vars : Var_within_closure.t Var_within_closure.Tbl.t;
-      closure_vars_rev : Var_within_closure.t Var_within_closure.Tbl.t
+      function_slots : Function_slot.t Function_slot.Tbl.t;
+      function_slots_rev : Function_slot.t Function_slot.Tbl.t;
+      value_slots : Value_slot.t Value_slot.Tbl.t;
+      value_slots_rev : Value_slot.t Value_slot.Tbl.t
     }
 
   let create () =
     { symbols = Symbol.Tbl.create 10;
       code_ids = Code_id.Tbl.create 10;
-      closure_ids = Closure_id.Tbl.create 10;
-      closure_ids_rev = Closure_id.Tbl.create 10;
-      closure_vars = Var_within_closure.Tbl.create 10;
-      closure_vars_rev = Var_within_closure.Tbl.create 10
+      function_slots = Function_slot.Tbl.create 10;
+      function_slots_rev = Function_slot.Tbl.create 10;
+      value_slots = Value_slot.Tbl.create 10;
+      value_slots_rev = Value_slot.Tbl.create 10
     }
 
   let add_symbol t symbol1 symbol2 = Symbol.Tbl.add t.symbols symbol1 symbol2
@@ -182,33 +182,34 @@ module Env = struct
   let add_code_id t code_id1 code_id2 =
     Code_id.Tbl.add t.code_ids code_id1 code_id2
 
-  let add_closure_id t closure_id1 closure_id2 =
-    Closure_id.Tbl.add t.closure_ids closure_id1 closure_id2;
-    Closure_id.Tbl.add t.closure_ids_rev closure_id2 closure_id1
+  let add_function_slot t function_slot1 function_slot2 =
+    Function_slot.Tbl.add t.function_slots function_slot1 function_slot2;
+    Function_slot.Tbl.add t.function_slots_rev function_slot2 function_slot1
 
-  let add_closure_var t closure_var1 closure_var2 =
-    Var_within_closure.Tbl.add t.closure_vars closure_var1 closure_var2;
-    Var_within_closure.Tbl.add t.closure_vars_rev closure_var2 closure_var1
+  let add_value_slot t value_slot1 value_slot2 =
+    Value_slot.Tbl.add t.value_slots value_slot1 value_slot2;
+    Value_slot.Tbl.add t.value_slots_rev value_slot2 value_slot1
 
   let find_symbol t sym = Symbol.Tbl.find_opt t.symbols sym
 
   let find_code_id t code_id = Code_id.Tbl.find_opt t.code_ids code_id
 
-  let find_closure_id t closure_id =
-    Closure_id.Tbl.find_opt t.closure_ids closure_id
+  let find_function_slot t function_slot =
+    Function_slot.Tbl.find_opt t.function_slots function_slot
 
-  let find_closure_id_rev t closure_id =
-    Closure_id.Tbl.find_opt t.closure_ids_rev closure_id
+  let find_function_slot_rev t function_slot =
+    Function_slot.Tbl.find_opt t.function_slots_rev function_slot
 
-  let find_closure_var t closure_var =
-    Var_within_closure.Tbl.find_opt t.closure_vars closure_var
+  let find_value_slot t value_slot =
+    Value_slot.Tbl.find_opt t.value_slots value_slot
 
-  let find_closure_var_rev t closure_var =
-    Var_within_closure.Tbl.find_opt t.closure_vars_rev closure_var
+  let find_value_slot_rev t value_slot =
+    Value_slot.Tbl.find_opt t.value_slots_rev value_slot
 end
 
-let subst_closure_id (env : Env.t) closure_id =
-  Env.find_closure_id env closure_id |> Option.value ~default:closure_id
+let subst_function_slot (env : Env.t) function_slot =
+  Env.find_function_slot env function_slot
+  |> Option.value ~default:function_slot
 
 let subst_code_id (env : Env.t) code_id =
   Env.find_code_id env code_id |> Option.value ~default:code_id
@@ -216,8 +217,8 @@ let subst_code_id (env : Env.t) code_id =
 let subst_symbol (env : Env.t) symbol =
   Env.find_symbol env symbol |> Option.value ~default:symbol
 
-let subst_closure_var (env : Env.t) var =
-  Env.find_closure_var env var |> Option.value ~default:var
+let subst_value_slot (env : Env.t) var =
+  Env.find_value_slot env var |> Option.value ~default:var
 
 let subst_name env n =
   Name.pattern_match n
@@ -234,14 +235,14 @@ let subst_simple env s =
 let subst_unary_primitive env (p : Flambda_primitive.unary_primitive) :
     Flambda_primitive.unary_primitive =
   match p with
-  | Select_closure { move_from; move_to } ->
-    let move_from = subst_closure_id env move_from in
-    let move_to = subst_closure_id env move_to in
-    Select_closure { move_from; move_to }
-  | Project_var { project_from; var } ->
-    let project_from = subst_closure_id env project_from in
-    let var = subst_closure_var env var in
-    Project_var { project_from; var }
+  | Project_function_slot { move_from; move_to } ->
+    let move_from = subst_function_slot env move_from in
+    let move_to = subst_function_slot env move_to in
+    Project_function_slot { move_from; move_to }
+  | Project_value_slot { project_from; value_slot } ->
+    let project_from = subst_function_slot env project_from in
+    let value_slot = subst_value_slot env value_slot in
+    Project_value_slot { project_from; value_slot }
   | _ -> p
 
 let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
@@ -254,23 +255,23 @@ let subst_func_decl env code_id = subst_code_id env code_id
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
-  |> Closure_id.Lmap.bindings
-  |> List.map (fun (closure_id, func_decl) ->
-         let closure_id = subst_closure_id env closure_id in
+  |> Function_slot.Lmap.bindings
+  |> List.map (fun (function_slot, func_decl) ->
+         let function_slot = subst_function_slot env function_slot in
          let func_decl = subst_func_decl env func_decl in
-         closure_id, func_decl)
-  |> Closure_id.Lmap.of_list |> Function_declarations.create
+         function_slot, func_decl)
+  |> Function_slot.Lmap.of_list |> Function_declarations.create
 
 let subst_set_of_closures env set =
   let decls = subst_func_decls env (Set_of_closures.function_decls set) in
-  let closure_elements =
-    Set_of_closures.closure_elements set
-    |> Var_within_closure.Map.bindings
+  let value_slots =
+    Set_of_closures.value_slots set
+    |> Value_slot.Map.bindings
     |> List.map (fun (var, simple) ->
-           subst_closure_var env var, subst_simple env simple)
-    |> Var_within_closure.Map.of_list
+           subst_value_slot env var, subst_simple env simple)
+    |> Value_slot.Map.of_list
   in
-  Set_of_closures.create Heap ~closure_elements decls
+  Set_of_closures.create Heap ~value_slots decls
 
 let subst_rec_info_expr _env ri =
   (* Only depth variables can occur in [Rec_info_expr], and we only mess with
@@ -284,11 +285,11 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function { function_call = Direct { code_id; closure_id; return_arity }; _ }
-    ->
+  | Function
+      { function_call = Direct { code_id; function_slot; return_arity }; _ } ->
     let code_id = subst_code_id env code_id in
-    let closure_id = subst_closure_id env closure_id in
-    Call_kind.direct_function_call code_id closure_id ~return_arity Heap
+    let function_slot = subst_function_slot env function_slot in
+    Call_kind.direct_function_call code_id function_slot ~return_arity Heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -337,13 +338,13 @@ and subst_pattern env (pattern : Bound_static.Pattern.t) :
   match pattern with
   | Set_of_closures closure_symbols ->
     (* The symbols are in binding position, so we don't need to substitute, but
-       we still need to substitute the closure ids *)
+       we still need to substitute the function slots *)
     let closure_symbols =
-      Closure_id.Lmap.bindings closure_symbols
-      |> List.map (fun (closure_id, symbol) ->
-             let closure_id = subst_closure_id env closure_id in
-             closure_id, symbol)
-      |> Closure_id.Lmap.of_list
+      Function_slot.Lmap.bindings closure_symbols
+      |> List.map (fun (function_slot, symbol) ->
+             let function_slot = subst_function_slot env function_slot in
+             function_slot, symbol)
+      |> Function_slot.Lmap.of_list
     in
     Bound_static.Pattern.set_of_closures closure_symbols
   | Block_like symbol -> Bound_static.Pattern.block_like symbol
@@ -471,7 +472,7 @@ end
  * step 1(b)(ii) in the note at the top of the file), it will use the
  * (presumably faster) subst2 function instead. This is *only* safe if
  * unification is unnecessary because the second components cannot contain any
- * closure ids or closure variables. *)
+ * function slots or value slots. *)
 let pairs ~(f1 : 'a Comparator.t) ~(f2 : 'b Comparator.t)
     ?(subst2 : (Env.t -> 'b -> 'b) option) : ('a * 'b) Comparator.t =
  fun env (a1, b1) (a2, b2) ->
@@ -538,31 +539,31 @@ let code_ids env code_id1 code_id2 : Code_id.t Comparison.t =
   then Equivalent
   else Different { approximant = code_id1 }
 
-let closure_ids env closure_id1 closure_id2 : Closure_id.t Comparison.t =
-  match Env.find_closure_id env closure_id1 with
-  | Some closure_id ->
-    if Closure_id.equal closure_id closure_id2
+let function_slots env function_slot1 function_slot2 :
+    Function_slot.t Comparison.t =
+  match Env.find_function_slot env function_slot1 with
+  | Some function_slot ->
+    if Function_slot.equal function_slot function_slot2
     then Equivalent
-    else Different { approximant = closure_id }
+    else Different { approximant = function_slot }
   | None -> (
-    match Env.find_closure_id_rev env closure_id2 with
-    | Some _ -> Different { approximant = closure_id1 }
+    match Env.find_function_slot_rev env function_slot2 with
+    | Some _ -> Different { approximant = function_slot1 }
     | None ->
-      Env.add_closure_id env closure_id1 closure_id2;
+      Env.add_function_slot env function_slot1 function_slot2;
       Equivalent)
 
-let closure_vars env closure_var1 closure_var2 :
-    Var_within_closure.t Comparison.t =
-  match Env.find_closure_var env closure_var1 with
-  | Some closure_var ->
-    if Var_within_closure.equal closure_var closure_var2
+let value_slots env value_slot1 value_slot2 : Value_slot.t Comparison.t =
+  match Env.find_value_slot env value_slot1 with
+  | Some value_slot ->
+    if Value_slot.equal value_slot value_slot2
     then Equivalent
-    else Different { approximant = closure_var }
+    else Different { approximant = value_slot }
   | None -> (
-    match Env.find_closure_var_rev env closure_var2 with
-    | Some _ -> Different { approximant = closure_var1 }
+    match Env.find_value_slot_rev env value_slot2 with
+    | Some _ -> Different { approximant = value_slot1 }
     | None ->
-      Env.add_closure_var env closure_var1 closure_var2;
+      Env.add_value_slot env value_slot1 value_slot2;
       Equivalent)
 
 let names env name1 name2 : Name.t Comparison.t =
@@ -615,20 +616,23 @@ let unary_prim_ops env (prim_op1 : Flambda_primitive.unary_primitive)
     (prim_op2 : Flambda_primitive.unary_primitive) :
     Flambda_primitive.unary_primitive Comparison.t =
   match prim_op1, prim_op2 with
-  | ( Select_closure { move_from = move_from1; move_to = move_to1 },
-      Select_closure { move_from = move_from2; move_to = move_to2 } ) ->
-    pairs ~f1:closure_ids ~f2:closure_ids env (move_from1, move_to1)
+  | ( Project_function_slot { move_from = move_from1; move_to = move_to1 },
+      Project_function_slot { move_from = move_from2; move_to = move_to2 } ) ->
+    pairs ~f1:function_slots ~f2:function_slots env (move_from1, move_to1)
       (move_from2, move_to2)
     |> Comparison.map ~f:(fun (move_from1', move_to1') ->
-           Flambda_primitive.Select_closure
+           Flambda_primitive.Project_function_slot
              { move_from = move_from1'; move_to = move_to1' })
-  | ( Project_var { project_from = closure_id1; var = var1 },
-      Project_var { project_from = closure_id2; var = var2 } ) ->
-    pairs ~f1:closure_ids ~f2:closure_vars env (closure_id1, var1)
-      (closure_id2, var2)
-    |> Comparison.map ~f:(fun (closure_id1', var1') ->
-           Flambda_primitive.Project_var
-             { project_from = closure_id1'; var = var1' })
+  | ( Project_value_slot
+        { project_from = function_slot1; value_slot = value_slot1 },
+      Project_value_slot
+        { project_from = function_slot2; value_slot = value_slot2 } ) ->
+    pairs ~f1:function_slots ~f2:value_slots env
+      (function_slot1, value_slot1)
+      (function_slot2, value_slot2)
+    |> Comparison.map ~f:(fun (function_slot1', value_slot1') ->
+           Flambda_primitive.Project_value_slot
+             { project_from = function_slot1'; value_slot = value_slot1' })
   | _, _ ->
     if Flambda_primitive.equal_unary_primitive prim_op1 prim_op2
     then Equivalent
@@ -721,38 +725,38 @@ let iter2_merged l1 l2 ~compare ~f =
   go l1 l2
 
 let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
-  (* Need to do unification on closure vars and closure ids, we we're going to
-   * invert both maps, figuring the closure vars with the same value should be
-   * the same.  There is a risk that two closure vars will be mapped to the
+  (* Need to do unification on value slots and function slots, we we're going to
+   * invert both maps, figuring the value slots with the same value should be
+   * the same.  There is a risk that two value slots will be mapped to the
    * same value, but that should be rare.  Later, we'll do something
-   * similar (and less worrisome) with closure ids. *)
-  let closure_vars_by_value set =
-    Var_within_closure.Map.bindings (Set_of_closures.closure_elements set)
+   * similar (and less worrisome) with function slots. *)
+  let value_slots_by_value set =
+    Value_slot.Map.bindings (Set_of_closures.value_slots set)
     |> List.map (fun (var, value) -> subst_simple env value, var)
   in
   (* We want to process the whole map to find new correspondences between
-   * closure vars, so we need to remember whether we've found any mismatches *)
+   * value slots, so we need to remember whether we've found any mismatches *)
   let ok = ref true in
   let () =
     let compare (value1, _var1) (value2, _var2) =
       Simple.compare value1 value2
     in
-    iter2_merged (closure_vars_by_value set1) (closure_vars_by_value set2)
+    iter2_merged (value_slots_by_value set1) (value_slots_by_value set2)
       ~compare ~f:(fun elt1 elt2 ->
         match elt1, elt2 with
         | None, None -> ()
         | Some _, None | None, Some _ -> ok := false
         | Some (_value1, var1), Some (_value2, var2) -> begin
-          match closure_vars env var1 var2 with
+          match value_slots env var1 var2 with
           | Equivalent -> ()
           | Different { approximant = _ } -> ok := false
         end)
   in
-  let closure_ids_and_fun_decls_by_code_id set =
+  let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
-    Closure_id.Map.bindings map
-    |> List.map (fun (closure_id, code_id) ->
-           subst_code_id env code_id, (closure_id, code_id))
+    Function_slot.Map.bindings map
+    |> List.map (fun (function_slot, code_id) ->
+           subst_code_id env code_id, (function_slot, code_id))
     |> Code_id.Map.of_list
   in
   (* Using merge here as a map version of [List.iter2]; always returning None
@@ -764,10 +768,10 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
           match value1, value2 with
           | None, None -> ()
           | Some _, None | None, Some _ -> ok := false
-          | Some (closure_id1, fun_decl1), Some (closure_id2, fun_decl2) ->
+          | Some (function_slot1, fun_decl1), Some (function_slot2, fun_decl2)
+            -> begin
             begin
-            begin
-              match closure_ids env closure_id1 closure_id2 with
+              match function_slots env function_slot1 function_slot2 with
               | Equivalent -> ()
               | Different _ -> ok := false
             end;
@@ -777,8 +781,8 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
           end
         end;
         None)
-      (closure_ids_and_fun_decls_by_code_id set1)
-      (closure_ids_and_fun_decls_by_code_id set2)
+      (function_slots_and_fun_decls_by_code_id set1)
+      (function_slots_and_fun_decls_by_code_id set2)
   in
   if !ok
   then Equivalent
@@ -827,24 +831,24 @@ let patterns env (pattern1 : Bound_static.Pattern.t)
   | Set_of_closures closure_symbols1, Set_of_closures closure_symbols2 ->
     (* The symbol in a closure binding is in binding position, so we don't
      * need them to match but we do need to record them *)
-    let closure_bindings env (closure_id1, symbol1) (closure_id2, symbol2) :
-        (Closure_id.t * Symbol.t) Comparison.t =
+    let closure_bindings env (function_slot1, symbol1) (function_slot2, symbol2)
+        : (Function_slot.t * Symbol.t) Comparison.t =
       Env.add_symbol env symbol1 symbol2;
-      closure_ids env closure_id1 closure_id2
-      |> Comparison.map ~f:(fun closure_id1' -> closure_id1', symbol2)
+      function_slots env function_slot1 function_slot2
+      |> Comparison.map ~f:(fun function_slot1' -> function_slot1', symbol2)
     in
-    let subst_closure_binding env (closure_id, symbol) =
-      subst_closure_id env closure_id, symbol
+    let subst_closure_binding env (function_slot, symbol) =
+      subst_function_slot env function_slot, symbol
     in
     let closure_binding_lists =
       lists ~f:closure_bindings ~subst:subst_closure_binding ~subst_snd:false
     in
     closure_binding_lists env
-      (closure_symbols1 |> Closure_id.Lmap.bindings)
-      (closure_symbols2 |> Closure_id.Lmap.bindings)
+      (closure_symbols1 |> Function_slot.Lmap.bindings)
+      (closure_symbols2 |> Function_slot.Lmap.bindings)
     |> Comparison.map ~f:(fun bindings ->
            Bound_static.Pattern.set_of_closures
-             (bindings |> Closure_id.Lmap.of_list))
+             (bindings |> Function_slot.Lmap.of_list))
   | _, _ -> Different { approximant = subst_pattern env pattern1 }
 
 (* Compares the two sets of bound symbols for compatibility *and* adds the
@@ -887,7 +891,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { function_call =
             Direct
               { code_id = code_id1;
-                closure_id = closure_id1;
+                function_slot = function_slot1;
                 return_arity = return_arity1
               };
           _
@@ -896,19 +900,20 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
         { function_call =
             Direct
               { code_id = code_id2;
-                closure_id = closure_id2;
+                function_slot = function_slot2;
                 return_arity = return_arity2
               };
           _
         } ) ->
-    triples ~f1:code_ids ~f2:closure_ids
+    triples ~f1:code_ids ~f2:function_slots
       ~f3:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
       ~subst3:(fun _ arity -> arity)
       env
-      (code_id1, closure_id1, return_arity1)
-      (code_id2, closure_id2, return_arity2)
-    |> Comparison.map ~f:(fun (code_id, closure_id, return_arity) ->
-           Call_kind.direct_function_call code_id closure_id ~return_arity Heap)
+      (code_id1, function_slot1, return_arity1)
+      (code_id2, function_slot2, return_arity2)
+    |> Comparison.map ~f:(fun (code_id, function_slot, return_arity) ->
+           Call_kind.direct_function_call code_id function_slot ~return_arity
+             Heap)
   | ( Function
         { function_call =
             Indirect_known_arity
@@ -1284,4 +1289,4 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_closure_vars:Unknown)
+           ~used_value_slots:Unknown)

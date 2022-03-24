@@ -426,9 +426,9 @@ module Function_params_and_body : sig
       [Flambda_static]).
 
       From the body of the function, accesses to variables within the closure
-      need to go via a [Project_var] (from [my_closure]); accesses to any other
-      simultaneously-defined functions need to go likewise via a
-      [Select_closure]. *)
+      need to go via a [Project_value_slot] (from [my_closure]); accesses to any
+      other simultaneously-defined functions need to go likewise via a
+      [Project_function_slot]. *)
   type t = function_params_and_body
 
   include Expr_std.S_no_free_names with type t := t
@@ -551,7 +551,7 @@ module Static_const_group : sig
     deleted_code:('a -> Code_id.t -> 'a) ->
     set_of_closures:
       ('a ->
-      closure_symbols:Symbol.t Closure_id.Lmap.t ->
+      closure_symbols:Symbol.t Function_slot.Lmap.t ->
       Set_of_closures.t ->
       'a) ->
     block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->

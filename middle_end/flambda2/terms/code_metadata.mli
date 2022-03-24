@@ -88,7 +88,7 @@ val with_cost_metrics : Cost_metrics.t -> t -> t
 
 val print : Format.formatter -> t -> unit
 
-(** [free_names] does not return occurrences of closure vars inside the
+(** [free_names] does not return occurrences of value slots inside the
     [result_types]. *)
 include Contains_names.S with type t := t
 

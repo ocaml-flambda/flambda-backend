@@ -61,18 +61,17 @@ let ( + ) a b =
 (*
  * A set of closures introduces implicitly an alloc whose size (as in OCaml 4.11)
  * is:
- *   total number of closure variables + sum of s(arity) for each closure
+ *   total number of value slots + sum of s(arity) for each closure
  * where s(a) = if a = 1 then 2 else 3
  *)
 let set_of_closures ~find_code_characteristics set_of_closures =
   let func_decls = Set_of_closures.function_decls set_of_closures in
   let funs = Function_declarations.funs func_decls in
   let num_clos_vars =
-    Set_of_closures.closure_elements set_of_closures
-    |> Var_within_closure.Map.cardinal
+    Set_of_closures.value_slots set_of_closures |> Value_slot.Map.cardinal
   in
   let cost_metrics, num_words =
-    Closure_id.Map.fold
+    Function_slot.Map.fold
       (fun _ code_id (metrics, num_words) ->
         let { cost_metrics; params_arity } =
           find_code_characteristics code_id

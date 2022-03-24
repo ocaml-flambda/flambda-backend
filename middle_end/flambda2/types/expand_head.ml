@@ -418,7 +418,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
           Name_occurrences.empty root_types,
         List.fold_left
           (free_variables_transitive
-             ~free_names_of_type:TG.free_names_except_through_closure_vars env)
+             ~free_names_of_type:TG.free_names_except_through_value_slots env)
           Name_occurrences.empty root_types )
     with
     | exception Missing_cmx_file ->
@@ -427,7 +427,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
         (fun result (bind_to, ty) ->
           TEEV.add_or_replace_equation result bind_to (MTC.unknown_like ty))
         TEEV.empty bind_to_and_types
-    | free_vars, free_vars_except_through_closure_vars ->
+    | free_vars, free_vars_except_through_value_slots ->
       (* Determine which variables will be unavailable and thus need fresh ones
          assigning to them. *)
       let ( unavailable_vars_renamed,
@@ -448,7 +448,7 @@ let make_suitable_for_environment env (to_erase : to_erase) bind_to_and_types =
              ->
             if erase var
             then
-              if Name_occurrences.mem_var free_vars_except_through_closure_vars
+              if Name_occurrences.mem_var free_vars_except_through_value_slots
                    var
               then
                 match Name_occurrences.count_variable free_vars var with

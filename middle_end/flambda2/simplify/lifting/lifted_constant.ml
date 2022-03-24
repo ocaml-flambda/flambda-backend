@@ -25,7 +25,7 @@ module Definition = struct
     | Set_of_closures of
         { denv : Downwards_env.t;
           closure_symbols_with_types :
-            (Symbol.t * Flambda2_types.t) Closure_id.Lmap.t;
+            (Symbol.t * Flambda2_types.t) Function_slot.Lmap.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
     | Block_like of
@@ -44,7 +44,7 @@ module Definition = struct
     match t.descr with
     | Code _ -> false
     | Set_of_closures { closure_symbols_with_types; _ } ->
-      Closure_id.Lmap.exists
+      Function_slot.Lmap.exists
         (fun _ (sym', _) -> Symbol.equal sym sym')
         closure_symbols_with_types
     | Block_like { symbol; _ } -> Symbol.equal sym symbol
@@ -70,7 +70,7 @@ module Definition = struct
     | Code code_id -> Code_id.print ppf code_id
     | Set_of_closures { closure_symbols_with_types; _ } ->
       let symbols =
-        Closure_id.Lmap.data closure_symbols_with_types |> List.map fst
+        Function_slot.Lmap.data closure_symbols_with_types |> List.map fst
       in
       Format.fprintf ppf "@[<hov 1>(%a)@]"
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Symbol.print)
@@ -120,7 +120,7 @@ module Definition = struct
     match t.descr with
     | Code code_id -> P.code code_id
     | Set_of_closures { closure_symbols_with_types; _ } ->
-      P.set_of_closures (Closure_id.Lmap.map fst closure_symbols_with_types)
+      P.set_of_closures (Function_slot.Lmap.map fst closure_symbols_with_types)
     | Block_like { symbol; _ } -> P.block_like symbol
 
   let bound_static t = Bound_static.create [bound_static_pattern t]
@@ -129,8 +129,8 @@ module Definition = struct
     match t.descr with
     | Code _ -> Symbol.Map.empty
     | Set_of_closures { denv; closure_symbols_with_types; _ } ->
-      Closure_id.Lmap.fold
-        (fun _closure_id (symbol, ty) types_of_symbols ->
+      Function_slot.Lmap.fold
+        (fun _function_slot (symbol, ty) types_of_symbols ->
           Symbol.Map.add symbol (denv, ty) types_of_symbols)
         closure_symbols_with_types Symbol.Map.empty
     | Block_like { symbol; denv; ty; _ } ->
@@ -294,9 +294,9 @@ let apply_projection t proj =
       | Block_load { index } ->
         T.prove_block_field_simple typing_env ~min_name_mode:Name_mode.normal ty
           (Targetint_31_63.int index)
-      | Project_var { project_from = _; var } ->
-        T.prove_project_var_simple typing_env ~min_name_mode:Name_mode.normal ty
-          var
+      | Project_value_slot { project_from = _; value_slot } ->
+        T.prove_project_value_slot_simple typing_env ~min_name_mode:Name_mode.normal ty
+          value_slot
     in
     match proof with
     | Proved simple -> Some simple

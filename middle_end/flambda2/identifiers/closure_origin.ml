@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-4-9-30-40-41-42"]
 
-include Closure_id
+include Function_slot
 
 let create t = t
 

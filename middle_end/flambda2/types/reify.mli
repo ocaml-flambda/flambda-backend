@@ -41,9 +41,9 @@ type to_lift =
 type reification_result = private
   | Lift of to_lift (* CR mshinwell: rename? *)
   | Lift_set_of_closures of
-      { closure_id : Closure_id.t;
-        function_types : Type_grammar.Function_type.t Closure_id.Map.t;
-        closure_vars : Simple.t Var_within_closure.Map.t
+      { function_slot : Function_slot.t;
+        function_types : Type_grammar.Function_type.t Function_slot.Map.t;
+        value_slots : Simple.t Value_slot.Map.t
       }
   | Simple of Simple.t
   | Cannot_reify

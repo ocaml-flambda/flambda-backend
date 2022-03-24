@@ -81,18 +81,18 @@ let extract_symbol_approx env symbol find_code =
         | Array _ | String _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
         | Boxed_nativeint _ | Mutable_block _ ->
           Value_unknown
-        | Closures { by_closure_id; alloc_mode = _ } -> (
-          match Row_like_for_closures.get_singleton by_closure_id with
+        | Closures { by_function_slot; alloc_mode = _ } -> (
+          match Row_like_for_closures.get_singleton by_function_slot with
           | None -> Value_unknown
-          | Some ((closure_id, _contents), closures_entry) -> begin
+          | Some ((function_slot, _contents), closures_entry) -> begin
             match
-              Closures_entry.find_function_type closures_entry closure_id
+              Closures_entry.find_function_type closures_entry function_slot
             with
             | Bottom | Unknown -> Value_unknown
             | Ok function_type ->
               let code_id = Function_type.code_id function_type in
               let code_or_meta = find_code code_id in
-              Closure_approximation (code_id, closure_id, code_or_meta)
+              Closure_approximation (code_id, function_slot, code_or_meta)
           end)
         | Variant
             { immediates = Unknown; blocks = _; is_unique = _; alloc_mode = _ }

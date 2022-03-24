@@ -22,7 +22,7 @@
 
 type t
 
-val create : Closure_id.Set.t -> Var_within_closure.Set.t -> t
+val create : Function_slot.Set.t -> Value_slot.Set.t -> t
 
 include Container_types.S with type t := t
 
@@ -32,23 +32,22 @@ val inter : t -> t -> t
 
 val union : t -> t -> t
 
-val closures : t -> Closure_id.Set.t
+val closures : t -> Function_slot.Set.t
 
-val closure_vars : t -> Var_within_closure.Set.t
+val value_slots : t -> Value_slot.Set.t
 
 include Contains_names.S with type t := t
 
-val remove_unused_closure_vars :
-  t -> used_closure_vars:Var_within_closure.Set.t -> t
+val remove_unused_value_slots : t -> used_value_slots:Value_slot.Set.t -> t
 
-module With_closure_id : sig
-  type nonrec t = Closure_id.t * t
+module With_function_slot : sig
+  type nonrec t = Function_slot.t * t
 
   include Container_types.S with type t := t
 end
 
-module With_closure_id_or_unknown : sig
-  type nonrec t = Closure_id.t Or_unknown.t * t
+module With_function_slot_or_unknown : sig
+  type nonrec t = Function_slot.t Or_unknown.t * t
 
   include Container_types.S with type t := t
 end

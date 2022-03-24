@@ -174,7 +174,8 @@ module Env = struct
           | Block_approximation (approxs, alloc_mode) ->
             let approxs = Array.map filter_inlinable approxs in
             Value_approximation.Block_approximation (approxs, alloc_mode)
-          | Closure_approximation (code_id, closure_id, Code_present code) -> (
+          | Closure_approximation (code_id, function_slot, Code_present code)
+            -> (
             match
               Inlining.definition_inlining_decision (Code.inline code)
                 (Code.cost_metrics code)
@@ -183,7 +184,7 @@ module Env = struct
             | _ ->
               Value_approximation.Closure_approximation
                 ( code_id,
-                  closure_id,
+                  function_slot,
                   Code_or_metadata.(remember_only_metadata (create code)) ))
         in
         let approx = filter_inlinable approx in
@@ -369,7 +370,7 @@ module Acc = struct
   type t =
     { declared_symbols : (Symbol.t * Static_const.t) list;
       lifted_sets_of_closures :
-        ((Symbol.t * Env.value_approximation) Closure_id.Lmap.t
+        ((Symbol.t * Env.value_approximation) Function_slot.Lmap.t
         * Flambda.Set_of_closures.t)
         list;
       shareable_constants : Symbol.t Static_const.Map.t;
@@ -379,7 +380,7 @@ module Acc = struct
       cost_metrics : Cost_metrics.t;
       seen_a_function : bool;
       symbol_for_global : Ident.t -> Symbol.t;
-      closure_offsets : Closure_offsets.t;
+      slot_offsets : Slot_offsets.t;
       regions_closed_early : Ident.Set.t
     }
 
@@ -394,7 +395,7 @@ module Acc = struct
 
   let with_seen_a_function t seen_a_function = { t with seen_a_function }
 
-  let create ~symbol_for_global ~closure_offsets =
+  let create ~symbol_for_global ~slot_offsets =
     { declared_symbols = [];
       lifted_sets_of_closures = [];
       shareable_constants = Static_const.Map.empty;
@@ -404,7 +405,7 @@ module Acc = struct
       cost_metrics = Cost_metrics.zero;
       seen_a_function = false;
       symbol_for_global;
-      closure_offsets;
+      slot_offsets;
       regions_closed_early = Ident.Set.empty
     }
 
@@ -418,7 +419,7 @@ module Acc = struct
 
   let free_names t = t.free_names
 
-  let closure_offsets t = t.closure_offsets
+  let slot_offsets t = t.slot_offsets
 
   let add_declared_symbol ~symbol ~constant t =
     let declared_symbols = (symbol, constant) :: t.declared_symbols in
@@ -522,11 +523,11 @@ module Acc = struct
   let symbol_for_global t = t.symbol_for_global
 
   let add_set_of_closures_offsets ~is_phantom t set_of_closures =
-    let closure_offsets =
-      Closure_offsets.add_set_of_closures t.closure_offsets ~is_phantom
+    let slot_offsets =
+      Slot_offsets.add_set_of_closures t.slot_offsets ~is_phantom
         set_of_closures
     in
-    { t with closure_offsets }
+    { t with slot_offsets }
 
   let add_region_closed_early t region =
     { t with
@@ -540,7 +541,7 @@ module Function_decls = struct
   module Function_decl = struct
     type t =
       { let_rec_ident : Ident.t;
-        closure_id : Closure_id.t;
+        function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : (Ident.t * Lambda.value_kind) list;
         return : Lambda.value_kind;
@@ -557,7 +558,7 @@ module Function_decls = struct
         contains_no_escaping_local_allocs : bool
       }
 
-    let create ~let_rec_ident ~closure_id ~kind ~params ~return
+    let create ~let_rec_ident ~function_slot ~kind ~params ~return
         ~return_continuation ~exn_continuation ~body ~attr ~loc
         ~free_idents_of_body ~stub recursive ~closure_alloc_mode
         ~num_trailing_local_params ~contains_no_escaping_local_allocs =
@@ -567,7 +568,7 @@ module Function_decls = struct
         | Some let_rec_ident -> let_rec_ident
       in
       { let_rec_ident;
-        closure_id;
+        function_slot;
         kind;
         params;
         return;
@@ -586,7 +587,7 @@ module Function_decls = struct
 
     let let_rec_ident t = t.let_rec_ident
 
-    let closure_id t = t.closure_id
+    let function_slot t = t.function_slot
 
     let kind t = t.kind
 
@@ -635,14 +636,14 @@ module Function_decls = struct
   let free_idents_by_function function_decls =
     List.fold_right
       (fun decl map ->
-        Closure_id.Map.add
-          (Function_decl.closure_id decl)
+        Function_slot.Map.add
+          (Function_decl.function_slot decl)
           (Function_decl.free_idents decl)
           map)
-      function_decls Closure_id.Map.empty
+      function_decls Function_slot.Map.empty
 
   let all_free_idents function_decls =
-    Closure_id.Map.fold
+    Function_slot.Map.fold
       (fun _ -> Ident.Set.union)
       (free_idents_by_function function_decls)
       Ident.Set.empty

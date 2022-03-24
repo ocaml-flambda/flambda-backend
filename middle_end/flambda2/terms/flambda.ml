@@ -473,7 +473,7 @@ and all_ids_for_export_static_const_group t =
 type flattened_for_printing_descr =
   | Flat_code of Code_id.t * function_params_and_body Code0.t
   | Flat_deleted_code of Code_id.t
-  | Flat_set_of_closures of Symbol.t Closure_id.Lmap.t * Set_of_closures.t
+  | Flat_set_of_closures of Symbol.t Function_slot.Lmap.t * Set_of_closures.t
   | Flat_block_like of Symbol.t * Static_const.t
 
 type flattened_for_printing =
@@ -501,7 +501,9 @@ and match_against_bound_static_pattern_static_const_or_code :
       code:(Code_id.t -> function_params_and_body Code0.t -> 'a) ->
       deleted_code:(Code_id.t -> 'a) ->
       set_of_closures:
-        (closure_symbols:Symbol.t Closure_id.Lmap.t -> Set_of_closures.t -> 'a) ->
+        (closure_symbols:Symbol.t Function_slot.Lmap.t ->
+        Set_of_closures.t ->
+        'a) ->
       block_like:(Symbol.t -> Static_const.t -> 'a) ->
       'a =
  fun static_const_or_code (pat : Bound_static.Pattern.t) ~code:code_callback
@@ -533,7 +535,7 @@ and match_against_bound_static__static_const_group :
       deleted_code:('a -> Code_id.t -> 'a) ->
       set_of_closures:
         ('a ->
-        closure_symbols:Symbol.t Closure_id.Lmap.t ->
+        closure_symbols:Symbol.t Function_slot.Lmap.t ->
         Set_of_closures.t ->
         'a) ->
       block_like:('a -> Symbol.t -> Static_const.t -> 'a) ->
@@ -818,10 +820,10 @@ and flatten_for_printing t =
     in
     print bound_pattern ~body
 
-and print_closure_binding ppf (closure_id, sym) =
+and print_closure_binding ppf (function_slot, sym) =
   Format.fprintf ppf "@[%a @<0>%s\u{21a4}@<0>%s@ %a@]" Symbol.print sym
-    (Flambda_colours.elide ()) (Flambda_colours.elide ()) Closure_id.print
-    closure_id
+    (Flambda_colours.elide ()) (Flambda_colours.elide ()) Function_slot.print
+    function_slot
 
 and print_flattened_descr_lhs ppf descr =
   match descr with
@@ -834,7 +836,7 @@ and print_flattened_descr_lhs ppf descr =
            Format.fprintf ppf "@<0>%s,@ @<0>%s" (Flambda_colours.elide ())
              (Flambda_colours.normal ()))
          print_closure_binding)
-      (Closure_id.Lmap.bindings closure_symbols)
+      (Function_slot.Lmap.bindings closure_symbols)
   | Flat_block_like (symbol, _) -> Symbol.print ppf symbol
 
 and print_flattened_descr_rhs ppf descr =

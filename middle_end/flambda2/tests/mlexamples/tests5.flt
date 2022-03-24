@@ -2,7 +2,7 @@ let $camlTests5__first_const27 = Block 0 () in
 let code rec size(24) f_0 (x : imm tagged) my_closure my_depth -> k * k1
                         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
-  let g = %select_closure (f -> g) my_closure in
+  let g = %project_function_slot (f -> g) my_closure in
   let prim = x < 4 in
   let Pintcomp = %Tag_imm prim in
   (let untagged = %untag_imm Pintcomp in
@@ -16,7 +16,7 @@ in
 let code rec size(24) g_1 (y : imm tagged) my_closure my_depth -> k * k1
                         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
-  let f = %select_closure (g -> f) my_closure in
+  let f = %project_function_slot (g -> f) my_closure in
   let prim = y > 3 in
   let Pintcomp = %Tag_imm prim in
   (let untagged = %untag_imm Pintcomp in

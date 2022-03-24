@@ -924,7 +924,8 @@ module Binary_int_eq_comp_int64 =
 module Binary_int_eq_comp_nativeint =
   Binary_arith_like (Int_ops_for_binary_eq_comp_nativeint)
 
-(* General notes about symbol projections (also applicable to [Project_var]):
+(* General notes about symbol projections (also applicable to
+   [Project_value_slot]):
 
    Projections from symbols bound to variables are important to remember, since
    if such a variable occurs in a set of closures environment or other value

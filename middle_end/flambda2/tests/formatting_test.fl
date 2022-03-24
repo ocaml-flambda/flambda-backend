@@ -9,13 +9,13 @@ let code rec eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven (i) clo
   where
     k2 = (
       let f =
-        %project_var
+        %project_value_slot
           eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeven.f clo 
       in
       apply f (i) -> k3 * e
       where
         k3 (x) = (
-          let odd = %select_closure (even -> odd) clo in
+          let odd = %project_function_slot (even -> odd) clo in
           let i' = i - 1 in
           apply odd (i') -> k4 * e
           where
@@ -35,14 +35,14 @@ and code rec odd (i) cloooooooooooooooooooooooooooooooooooooooooooooooooooo
   where
     k2 = (
       let g =
-        %project_var odd.g
+        %project_value_slot odd.g
           cloooooooooooooooooooooooooooooooooooooooooooooooooooo
       in
       apply g (i) -> k3 * e
       where
         k3 (x) = (
           let even =
-            %select_closure (odd -> even)
+            %project_function_slot (odd -> even)
               cloooooooooooooooooooooooooooooooooooooooooooooooooooo
           in
           let i' = i - 1 in

@@ -73,10 +73,10 @@ module One_level = struct
         Cached_level.clean_for_export t.just_after_level ~reachable_names
     }
 
-  let remove_unused_closure_vars_and_shortcut_aliases t ~used_closure_vars =
+  let remove_unused_value_slots_and_shortcut_aliases t ~used_value_slots =
     let just_after_level =
-      Cached_level.remove_unused_closure_vars_and_shortcut_aliases
-        t.just_after_level ~used_closure_vars
+      Cached_level.remove_unused_value_slots_and_shortcut_aliases
+        t.just_after_level ~used_value_slots
     in
     { t with just_after_level }
 
@@ -1183,17 +1183,17 @@ module Pre_serializable : sig
 
   val create :
     typing_env ->
-    used_closure_vars:Var_within_closure.Set.t ->
+    used_value_slots:Value_slot.Set.t ->
     t * (Simple.t -> Simple.t)
 
   val find_or_missing : t -> Name.t -> Type_grammar.t option
 end = struct
   type t = typing_env
 
-  let create (t : typing_env) ~used_closure_vars =
+  let create (t : typing_env) ~used_value_slots =
     let current_level =
-      One_level.remove_unused_closure_vars_and_shortcut_aliases t.current_level
-        ~used_closure_vars
+      One_level.remove_unused_value_slots_and_shortcut_aliases t.current_level
+        ~used_value_slots
     in
     { t with current_level }, One_level.canonicalise current_level
 
@@ -1208,7 +1208,7 @@ module Serializable : sig
   val create_from_closure_conversion_approx :
     'a Value_approximation.t Symbol.Map.t -> t
 
-  val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+  val free_function_slots_and_value_slots : t -> Name_occurrences.t
 
   val print : Format.formatter -> t -> unit
 
@@ -1279,20 +1279,22 @@ end = struct
         let fields = List.map type_from_approx (Array.to_list fields) in
         MTC.immutable_block ~is_unique:false Tag.zero
           ~field_kind:Flambda_kind.value ~fields (Or_unknown.Known alloc_mode)
-      | Closure_approximation (code_id, closure_id, _code_opt) ->
+      | Closure_approximation (code_id, function_slot, _code_opt) ->
         let fun_decl =
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
         in
-        let all_function_decls_in_set =
-          Closure_id.Map.singleton closure_id (Or_unknown_or_bottom.Ok fun_decl)
+        let all_function_slots_in_set =
+          Function_slot.Map.singleton function_slot
+            (Or_unknown_or_bottom.Ok fun_decl)
         in
-        let all_closures_in_set =
-          Closure_id.Map.singleton closure_id (MTC.unknown Flambda_kind.value)
+        let all_closure_types_in_set =
+          Function_slot.Map.singleton function_slot
+            (MTC.unknown Flambda_kind.value)
         in
-        let all_closure_vars_in_set = Var_within_closure.Map.empty in
-        MTC.exactly_this_closure closure_id ~all_function_decls_in_set
-          ~all_closures_in_set ~all_closure_vars_in_set Or_unknown.Unknown
+        let all_value_slots_in_set = Value_slot.Map.empty in
+        MTC.exactly_this_closure function_slot ~all_function_slots_in_set
+          ~all_closure_types_in_set ~all_value_slots_in_set Or_unknown.Unknown
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1307,8 +1309,8 @@ end = struct
       next_binding_time
     }
 
-  let free_closure_ids_and_closure_vars t =
-    Cached_level.free_closure_ids_and_closure_vars t.just_after_level
+  let free_function_slots_and_value_slots t =
+    Cached_level.free_function_slots_and_value_slots t.just_after_level
 
   let [@ocamlformat "disable"] print ppf
       { defined_symbols_without_equations; code_age_relation; just_after_level;

@@ -155,10 +155,9 @@ module Env : sig
 
   val find_continuation_exn : t -> Continuation.t -> Fexpr.continuation
 
-  val translate_closure_id : t -> Closure_id.t -> Fexpr.closure_id
+  val translate_function_slot : t -> Function_slot.t -> Fexpr.function_slot
 
-  val translate_var_within_closure :
-    t -> Var_within_closure.t -> Fexpr.var_within_closure
+  val translate_value_slot : t -> Value_slot.t -> Fexpr.value_slot
 end = struct
   module Variable_name_map = Name_map (struct
     include Variable
@@ -204,28 +203,28 @@ end = struct
     let mk_fexpr_id name = name |> nowhere
   end)
 
-  module Closure_id_name_map = Global_name_map (struct
-    include Closure_id
+  module Function_slot_name_map = Global_name_map (struct
+    include Function_slot
 
-    type fexpr_id = Fexpr.closure_id
+    type fexpr_id = Fexpr.function_slot
 
-    let desc = "closure id"
+    let desc = "function slot"
 
-    let name v = Closure_id.name v
+    let name v = Function_slot.name v
 
     let add_tag = default_add_tag
 
     let mk_fexpr_id name = name |> nowhere
   end)
 
-  module Var_within_closure_name_map = Global_name_map (struct
-    include Var_within_closure
+  module Value_slot_name_map = Global_name_map (struct
+    include Value_slot
 
-    type fexpr_id = Fexpr.var_within_closure
+    type fexpr_id = Fexpr.value_slot
 
     let desc = "var within closure"
 
-    let name v = Variable.raw_name (v |> Var_within_closure.unwrap)
+    let name v = Variable.raw_name (v |> Value_slot.unwrap)
 
     let add_tag = default_add_tag
 
@@ -253,8 +252,8 @@ end = struct
     { variables : Variable_name_map.t;
       symbols : Symbol_name_map.t;
       code_ids : Code_id_name_map.t;
-      closure_ids : Closure_id_name_map.t;
-      vars_within_closures : Var_within_closure_name_map.t;
+      function_slots : Function_slot_name_map.t;
+      vars_within_closures : Value_slot_name_map.t;
       continuations : Continuation_name_map.t
     }
 
@@ -262,8 +261,8 @@ end = struct
     { variables = Variable_name_map.empty;
       symbols = Symbol_name_map.empty;
       code_ids = Code_id_name_map.empty;
-      closure_ids = Closure_id_name_map.create ();
-      vars_within_closures = Var_within_closure_name_map.create ();
+      function_slots = Function_slot_name_map.create ();
+      vars_within_closures = Value_slot_name_map.create ();
       continuations = Continuation_name_map.empty
     }
 
@@ -327,10 +326,11 @@ end = struct
   let find_continuation_exn t c =
     Continuation_name_map.find_exn t.continuations c
 
-  let translate_closure_id t c = Closure_id_name_map.translate t.closure_ids c
+  let translate_function_slot t c =
+    Function_slot_name_map.translate t.function_slots c
 
-  let translate_var_within_closure t v =
-    Var_within_closure_name_map.translate t.vars_within_closures v
+  let translate_value_slot t v =
+    Value_slot_name_map.translate t.vars_within_closures v
 end
 
 let name env n =
@@ -471,14 +471,14 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
-  | Project_var { project_from; var } ->
-    let project_from = Env.translate_closure_id env project_from in
-    let var = Env.translate_var_within_closure env var in
-    Project_var { project_from; var }
-  | Select_closure { move_from; move_to } ->
-    let move_from = Env.translate_closure_id env move_from in
-    let move_to = Env.translate_closure_id env move_to in
-    Select_closure { move_from; move_to }
+  | Project_value_slot { project_from; value_slot } ->
+    let project_from = Env.translate_function_slot env project_from in
+    let value_slot = Env.translate_value_slot env value_slot in
+    Project_value_slot { project_from; value_slot }
+  | Project_function_slot { move_from; move_to } ->
+    let move_from = Env.translate_function_slot env move_from in
+    let move_to = Env.translate_function_slot env move_to in
+    Project_function_slot { move_from; move_to }
   | String_length string_or_bytes -> String_length string_or_bytes
   | Int_as_pointer | Boolean_not | Duplicate_block _ | Duplicate_array _
   | Bigarray_length _ | Int_arith _ | Float_arith _ | Reinterpret_int64_as_float
@@ -555,32 +555,34 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
     Ternary (ternop op, simple env arg1, simple env arg2, simple env arg3)
   | Variadic (op, args) -> Variadic (varop op, List.map (simple env) args)
 
-let closure_elements env map =
+let value_slots env map =
   List.map
     (fun (var, value) ->
-      let var = Env.translate_var_within_closure env var in
+      let var = Env.translate_value_slot env var in
       let value = simple env value in
       { Fexpr.var; value })
-    (map |> Var_within_closure.Map.bindings)
+    (map |> Value_slot.Map.bindings)
 
-let function_declaration env code_id closure_id : Fexpr.fun_decl =
+let function_declaration env code_id function_slot : Fexpr.fun_decl =
   let code_id = Env.find_code_id_exn env code_id in
-  let closure_id = Env.translate_closure_id env closure_id in
-  (* Omit the closure id when possible *)
-  let closure_id =
-    if String.equal code_id.txt closure_id.txt then None else Some closure_id
+  let function_slot = Env.translate_function_slot env function_slot in
+  (* Omit the function slot when possible *)
+  let function_slot =
+    if String.equal code_id.txt function_slot.txt
+    then None
+    else Some function_slot
   in
-  { code_id; closure_id }
+  { code_id; function_slot }
 
 let set_of_closures env sc =
   let fun_decls =
     List.map
-      (fun (closure_id, fun_decl) ->
-        function_declaration env fun_decl closure_id)
+      (fun (function_slot, fun_decl) ->
+        function_declaration env fun_decl function_slot)
       (Set_of_closures.function_decls sc
-      |> Function_declarations.funs_in_order |> Closure_id.Lmap.bindings)
+      |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
   in
-  let elts = closure_elements env (Set_of_closures.closure_elements sc) in
+  let elts = value_slots env (Set_of_closures.value_slots sc) in
   let elts = match elts with [] -> None | _ -> Some elts in
   fun_decls, elts
 
@@ -637,8 +639,8 @@ and let_expr env le =
       let defining_expr = Flambda.Let_expr.defining_expr le in
       match bound with
       | Singleton var -> dynamic_let_expr env [var] defining_expr body
-      | Set_of_closures closure_vars ->
-        dynamic_let_expr env closure_vars defining_expr body
+      | Set_of_closures value_slots ->
+        dynamic_let_expr env value_slots defining_expr body
       | Static bound_static ->
         static_let_expr env bound_static defining_expr body)
 
@@ -646,16 +648,16 @@ and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body :
     Fexpr.expr =
   let vars, body_env = map_accum_left Env.bind_bound_var env vars in
   let body = expr body_env body in
-  let defining_exprs, closure_elements =
+  let defining_exprs, value_slots =
     match defining_expr with
     | Simple s -> ([Simple (simple env s)] : Fexpr.named list), None
     | Prim (p, _dbg) -> ([Prim (prim env p)] : Fexpr.named list), None
     | Set_of_closures sc ->
-      let fun_decls, closure_elements = set_of_closures env sc in
+      let fun_decls, value_slots = set_of_closures env sc in
       let defining_exprs =
         List.map (fun decl : Fexpr.named -> Fexpr.Closure decl) fun_decls
       in
-      defining_exprs, closure_elements
+      defining_exprs, value_slots
     | Rec_info ri -> ([Rec_info (rec_info env ri)] : Fexpr.named list), None
     | Static_consts _ -> assert false
   in
@@ -666,7 +668,7 @@ and dynamic_let_expr env vars (defining_expr : Flambda.Named.t) body :
       (fun var defining_expr -> { Fexpr.var; defining_expr })
       vars defining_exprs
   in
-  Let { bindings; closure_elements; body }
+  Let { bindings; value_slots; body }
 
 and static_let_expr env bound_static defining_expr body : Fexpr.expr =
   let static_consts =
@@ -683,8 +685,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
         let _, env = Env.bind_symbol env symbol in
         env
       | Set_of_closures closure_symbols ->
-        Closure_id.Lmap.fold
-          (fun _closure_id symbol env ->
+        Function_slot.Lmap.fold
+          (fun _function_slot symbol env ->
             let _, env = Env.bind_symbol env symbol in
             env)
           closure_symbols env
@@ -703,20 +705,23 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
     | Set_of_closures closure_symbols, Static_const const ->
       let set = Static_const.must_be_set_of_closures const in
       let fun_decls, elements = set_of_closures env set in
-      let symbols_by_closure_id =
-        closure_symbols |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
+      let symbols_by_function_slot =
+        closure_symbols |> Function_slot.Lmap.bindings
+        |> Function_slot.Map.of_list
       in
-      let closure_ids =
+      let function_slots =
         Set_of_closures.function_decls set
-        |> Function_declarations.funs_in_order |> Closure_id.Lmap.keys
+        |> Function_declarations.funs_in_order |> Function_slot.Lmap.keys
       in
       let bindings =
         List.map2
-          (fun fun_decl closure_id : Fexpr.static_closure_binding ->
-            let symbol = Closure_id.Map.find closure_id symbols_by_closure_id in
+          (fun fun_decl function_slot : Fexpr.static_closure_binding ->
+            let symbol =
+              Function_slot.Map.find function_slot symbols_by_function_slot
+            in
             let symbol = Env.find_symbol_exn env symbol in
             { symbol; fun_decl })
-          fun_decls closure_ids
+          fun_decls function_slots
       in
       Set_of_closures { bindings; elements }
     | Code code_id, Code code ->
@@ -800,8 +805,8 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
     loop None bindings
   in
   match only_set_of_closures with
-  | None -> Let_symbol { bindings; closure_elements = None; body }
-  | Some { bindings = _; elements = closure_elements } ->
+  | None -> Let_symbol { bindings; value_slots = None; body }
+  | Some { bindings = _; elements = value_slots } ->
     let bindings =
       List.concat_map
         (fun (binding : Fexpr.symbol_binding) ->
@@ -811,7 +816,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
           | Data _ | Code _ | Deleted_code _ | Closure _ -> [binding])
         bindings
     in
-    Let_symbol { bindings; closure_elements; body }
+    Let_symbol { bindings; value_slots; body }
 
 and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
   match lc with
@@ -897,17 +902,17 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
     | Function
-        { function_call = Direct { code_id; closure_id; return_arity = _ };
+        { function_call = Direct { code_id; function_slot; return_arity = _ };
           alloc_mode = _
         } ->
       let code_id = Env.find_code_id_exn env code_id in
-      let closure_id = Env.translate_closure_id env closure_id in
-      let closure_id =
-        if String.equal code_id.txt closure_id.txt
+      let function_slot = Env.translate_function_slot env function_slot in
+      let function_slot =
+        if String.equal code_id.txt function_slot.txt
         then None
-        else Some closure_id
+        else Some function_slot
       in
-      Function (Direct { code_id; closure_id })
+      Function (Direct { code_id; function_slot })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity _;
           alloc_mode = _

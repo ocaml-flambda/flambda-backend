@@ -40,7 +40,7 @@ module Self = Container_types.Make (struct
   let hash t = t.name_stamp lxor Compilation_unit.hash t.compilation_unit
 
   let [@ocamlformat "disable"] print ppf t =
-    Format.fprintf ppf "@<0>%s" (Flambda_colours.closure_element ());
+    Format.fprintf ppf "@<0>%s" (Flambda_colours.function_slot ());
     if Compilation_unit.equal t.compilation_unit
         (Compilation_unit.get_current_exn ())
     then begin

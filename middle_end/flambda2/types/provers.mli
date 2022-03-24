@@ -145,11 +145,11 @@ val prove_is_array_with_element_kind :
 
 (** Prove that the given type, of kind [Value], is a closures type describing
     exactly one set of closures. The function declaration type corresponding to
-    such closure is returned together with its closure ID, if it is known. *)
+    such closure is returned together with its function slot, if it is known. *)
 val prove_single_closures_entry :
   Typing_env.t ->
   Type_grammar.t ->
-  (Closure_id.t
+  (Function_slot.t
   * Alloc_mode.t Or_unknown.t
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
@@ -158,7 +158,7 @@ val prove_single_closures_entry :
 val prove_single_closures_entry' :
   Typing_env.t ->
   Type_grammar.t ->
-  (Closure_id.t
+  (Function_slot.t
   * Alloc_mode.t Or_unknown.t
   * Type_grammar.Closures_entry.t
   * Type_grammar.Function_type.t)
@@ -209,18 +209,18 @@ val prove_variant_field_simple :
   Targetint_31_63.t ->
   Simple.t proof
 
-val prove_project_var_simple :
+val prove_project_value_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
-  Var_within_closure.t ->
+  Value_slot.t ->
   Simple.t proof
 
-val prove_select_closure_simple :
+val prove_project_function_slot_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
   Type_grammar.t ->
-  Closure_id.t ->
+  Function_slot.t ->
   Simple.t proof
 
 val prove_rec_info : Typing_env.t -> Type_grammar.t -> Rec_info_expr.t proof

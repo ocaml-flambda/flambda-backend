@@ -59,14 +59,14 @@ let find t code_id =
   match Code_id.Map.find code_id t with
   | exception Not_found ->
     (* In some cases a code ID is created, the corresponding closure stored into
-       another closure, but the corresponding closure variable ends up never
+       another closure, but the variable bound to the closure ends up never
        being used and so the initial code ID and closure are removed, but the
-       type of the second closure still mentions its closure variable and its
-       contents (eventually pointing to the code ID). Ideally the type should be
-       patched to remove the unused closure variable before computing
-       reachability, but for now this is done during import instead so we can
-       end up with missing code IDs during the reachability computation, and
-       have to assume that it fits the above case.
+       type of the second closure still describes the first closure and
+       eventually points to its code ID. Ideally the type should be patched to
+       remove such references before computing reachability, but for now this is
+       done during import instead so we can end up with missing code IDs during
+       the reachability computation, and have to assume that it fits the above
+       case.
 
        The other situation where this returns [None] is when we are looking
        during the export reachability computation for a piece of deleted code.
@@ -81,13 +81,13 @@ let remove_unreachable ~reachable_names t =
       Name_occurrences.mem_code_id reachable_names code_id)
     t
 
-let remove_unused_closure_vars_from_result_types_and_shortcut_aliases
-    ~used_closure_vars ~canonicalise t =
+let remove_unused_value_slots_from_result_types_and_shortcut_aliases
+    ~used_value_slots ~canonicalise t =
   Code_id.Map.map
     (fun code_or_metadata ->
       Code_or_metadata.map_result_types code_or_metadata ~f:(fun result_ty ->
-          Flambda2_types.remove_unused_closure_vars_and_shortcut_aliases
-            result_ty ~used_closure_vars ~canonicalise))
+          Flambda2_types.remove_unused_value_slots_and_shortcut_aliases
+            result_ty ~used_value_slots ~canonicalise))
     t
 
 let all_ids_for_export t =

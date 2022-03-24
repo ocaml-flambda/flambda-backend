@@ -284,18 +284,20 @@ type unary_primitive =
   | Reinterpret_int64_as_float
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.t
-  | Select_closure of
-      { move_from : Closure_id.t;
-        move_to : Closure_id.t
+  | Project_function_slot of
+      { move_from : Function_slot.t;
+        move_to : Function_slot.t
       }
-      (** Given the pointer to one closure in some particular set of closures,
-          return the pointer to another closure in the same set. *)
-  | Project_var of
-      { project_from : Closure_id.t;
-        var : Var_within_closure.t
+      (** Project a function slot from a set of closures, which is actually
+          achieved by providing a known function slot [move_from] and the
+          desired function slot [move_to], which must be within the same set of
+          closures. *)
+  | Project_value_slot of
+      { project_from : Function_slot.t;
+        value_slot : Value_slot.t
       }
-      (** Read a value from the environment of a closure. Also specifies the id
-          of the closure pointed at in the set of closures given as argument. *)
+      (** Project a value slot from a set of closures -- in other words, read an
+          entry from the closure environment (the captured variables). *)
   | Is_boxed_float
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array

@@ -51,9 +51,9 @@ val apply_renaming : t -> Renaming.t -> t
 
 val merge : t -> t -> t
 
-val remove_unused_closure_vars_and_shortcut_aliases :
-  t -> used_closure_vars:Var_within_closure.Set.t -> t
+val remove_unused_value_slots_and_shortcut_aliases :
+  t -> used_value_slots:Value_slot.Set.t -> t
 
 val canonicalise : t -> Simple.t -> Simple.t
 
-val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+val free_function_slots_and_value_slots : t -> Name_occurrences.t

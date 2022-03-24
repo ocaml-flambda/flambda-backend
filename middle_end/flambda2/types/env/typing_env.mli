@@ -179,7 +179,7 @@ module Pre_serializable : sig
 
   val create :
     typing_env ->
-    used_closure_vars:Var_within_closure.Set.t ->
+    used_value_slots:Value_slot.Set.t ->
     t * (Simple.t -> Simple.t)
 
   val find_or_missing : t -> Name.t -> Type_grammar.t option
@@ -190,7 +190,7 @@ module Serializable : sig
 
   val create : Pre_serializable.t -> reachable_names:Name_occurrences.t -> t
 
-  val free_closure_ids_and_closure_vars : t -> Name_occurrences.t
+  val free_function_slots_and_value_slots : t -> Name_occurrences.t
 
   val create_from_closure_conversion_approx :
     'a Value_approximation.t Symbol.Map.t -> t

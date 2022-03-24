@@ -23,12 +23,12 @@
 module Pattern : sig
   type t = private
     | Code of Code_id.t
-    | Set_of_closures of Symbol.t Closure_id.Lmap.t
+    | Set_of_closures of Symbol.t Function_slot.Lmap.t
     | Block_like of Symbol.t
 
   val code : Code_id.t -> t
 
-  val set_of_closures : Symbol.t Closure_id.Lmap.t -> t
+  val set_of_closures : Symbol.t Function_slot.Lmap.t -> t
 
   val block_like : Symbol.t -> t
 

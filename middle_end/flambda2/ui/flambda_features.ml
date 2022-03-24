@@ -93,8 +93,7 @@ let dump_fexpr () = !Flambda_backend_flags.Flambda2.Dump.fexpr
 
 let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 
-let dump_closure_offsets () =
-  !Flambda_backend_flags.Flambda2.Dump.closure_offsets
+let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 

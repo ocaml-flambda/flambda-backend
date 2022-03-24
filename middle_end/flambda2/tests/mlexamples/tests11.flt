@@ -3,7 +3,7 @@ let code size(23) `anon-fn[tests11.ml:14,2--70]_1` (param : imm tagged)
                     my_closure my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let map_foo =
-    %project_var `anon-fn[tests11.ml:14,2--70]`.map_foo_0 my_closure
+    %project_value_slot `anon-fn[tests11.ml:14,2--70]`.map_foo_0 my_closure
   in
   let `anon-fn[tests11.ml:14,52--67]` =
     closure `anon-fn[tests11.ml:14,52--67]_2`

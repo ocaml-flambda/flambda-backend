@@ -20,9 +20,9 @@ open! Flambda.Import
 
 val static_set_of_closures :
   To_cmm_env.t ->
-  Symbol.t Closure_id.Map.t ->
+  Symbol.t Function_slot.Map.t ->
   Set_of_closures.t ->
-  Closure_offsets.layout ->
+  Slot_offsets.layout ->
   Cmm.expression option ->
   To_cmm_env.t * Cmm.data_item list * Cmm.expression option
 

@@ -17,16 +17,17 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { funs : Code_id.t Closure_id.Map.t;
-    in_order : Code_id.t Closure_id.Lmap.t
+  { funs : Code_id.t Function_slot.Map.t;
+    in_order : Code_id.t Function_slot.Lmap.t
   }
 
-let empty = { funs = Closure_id.Map.empty; in_order = Closure_id.Lmap.empty }
+let empty =
+  { funs = Function_slot.Map.empty; in_order = Function_slot.Lmap.empty }
 
-let is_empty { funs; _ } = Closure_id.Map.is_empty funs
+let is_empty { funs; _ } = Function_slot.Map.is_empty funs
 
 let create in_order =
-  { funs = Closure_id.Map.of_list (Closure_id.Lmap.bindings in_order);
+  { funs = Function_slot.Map.of_list (Function_slot.Lmap.bindings in_order);
     in_order
   }
 
@@ -34,18 +35,19 @@ let funs t = t.funs
 
 let funs_in_order t = t.in_order
 
-let find ({ funs; _ } : t) closure_id = Closure_id.Map.find closure_id funs
+let find ({ funs; _ } : t) function_slot =
+  Function_slot.Map.find function_slot funs
 
 let [@ocamlformat "disable"] print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
-    (Closure_id.Lmap.print Code_id.print)
+    (Function_slot.Lmap.print Code_id.print)
     in_order
 
 let free_names { funs; _ } =
-  Closure_id.Map.fold
-    (fun closure_id code_id syms ->
+  Function_slot.Map.fold
+    (fun function_slot code_id syms ->
       Name_occurrences.add_code_id
-        (Name_occurrences.add_closure_id_in_declaration syms closure_id
+        (Name_occurrences.add_function_slot_in_declaration syms function_slot
            Name_mode.normal)
         code_id Name_mode.normal)
     funs Name_occurrences.empty
@@ -55,23 +57,24 @@ let free_names { funs; _ } =
    no need to apply_renaming the func_decls in the {funs} field. *)
 let apply_renaming ({ in_order; _ } as t) perm =
   let in_order' =
-    Closure_id.Lmap.map_sharing
+    Function_slot.Lmap.map_sharing
       (fun code_id -> Renaming.apply_code_id perm code_id)
       in_order
   in
   if in_order == in_order' then t else create in_order'
 
 let all_ids_for_export { funs; _ } =
-  Closure_id.Map.fold
-    (fun _closure_id code_id ids -> Ids_for_export.add_code_id ids code_id)
+  Function_slot.Map.fold
+    (fun _function_slot code_id ids -> Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
 let compare { funs = funs1; _ } { funs = funs2; _ } =
-  Closure_id.Map.compare Code_id.compare funs1 funs2
+  Function_slot.Map.compare Code_id.compare funs1 funs2
 
 let filter t ~f =
-  let funs = Closure_id.Map.filter f t.funs in
-  let in_order = Closure_id.Lmap.filter f t.in_order in
+  let funs = Function_slot.Map.filter f t.funs in
+  let in_order = Function_slot.Lmap.filter f t.in_order in
   { funs; in_order }
 
-let binds_closure_id t closure_id = Closure_id.Map.mem closure_id t.funs
+let binds_function_slot t function_slot =
+  Function_slot.Map.mem function_slot t.funs
