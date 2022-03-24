@@ -1403,13 +1403,13 @@ let close_let_rec acc env ~function_declarations
         env)
       function_declarations env
   in
-  let value_slots_map, ident_map =
+  let fun_vars_map, ident_map =
     List.fold_left
-      (fun (value_slots_map, ident_map) decl ->
+      (fun (fun_vars_map, ident_map) decl ->
         let ident = Function_decl.let_rec_ident decl in
-        let value_slot = VB.create (Env.find_var env ident) Name_mode.normal in
+        let fun_var = VB.create (Env.find_var env ident) Name_mode.normal in
         let function_slot = Function_decl.function_slot decl in
-        ( Function_slot.Map.add function_slot value_slot value_slots_map,
+        ( Function_slot.Map.add function_slot fun_var fun_vars_map,
           Function_slot.Map.add function_slot ident ident_map ))
       (Function_slot.Map.empty, Function_slot.Map.empty)
       function_declarations
@@ -1462,21 +1462,21 @@ let close_let_rec acc env ~function_declarations
         (Function_slot.Map.keys
            (Function_declarations.funs
               (Set_of_closures.function_decls set_of_closures)))
-        (Function_slot.Map.keys value_slots_map)
+        (Function_slot.Map.keys fun_vars_map)
     in
-    let value_slots_map =
+    let fun_vars_map =
       Function_slot.Set.fold
-        (fun function_slot value_slots_map ->
+        (fun function_slot fun_vars_map ->
           let value_slot =
             VB.create (Variable.create "generated") Name_mode.normal
           in
-          Function_slot.Map.add function_slot value_slot value_slots_map)
-        generated_closures value_slots_map
+          Function_slot.Map.add function_slot value_slot fun_vars_map)
+        generated_closures fun_vars_map
     in
     let value_slots =
       List.map
         (fun (function_slot, _) ->
-          Function_slot.Map.find function_slot value_slots_map)
+          Function_slot.Map.find function_slot fun_vars_map)
         (Function_declarations.funs_in_order
            (Set_of_closures.function_decls set_of_closures)
         |> Function_slot.Lmap.bindings)
@@ -1486,7 +1486,7 @@ let close_let_rec acc env ~function_declarations
         (fun function_slot var env ->
           let approx = Function_slot.Map.find function_slot approximations in
           Env.add_value_approximation env (Name.var (VB.var var)) approx)
-        value_slots_map env
+        fun_vars_map env
     in
     let acc, body = body acc env in
     let named = Named.create_set_of_closures set_of_closures in
