@@ -115,8 +115,8 @@ let raise_exn_for_failure acc ~dbg exn_cont exn_bucket extra_let_binding =
       (Bound_pattern.singleton bound_var)
       defining_expr ~body:apply_cont
 
-let expression_for_failure acc exn_cont ~register_const_string primitive
-    dbg (failure : failure) =
+let expression_for_failure acc exn_cont ~register_const_string primitive dbg
+    (failure : failure) =
   let exn_cont =
     match exn_cont with
     | Some exn_cont -> exn_cont
@@ -250,8 +250,8 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
     in
     let failure_cont = Continuation.create () in
     let failure_handler_expr acc =
-      expression_for_failure acc exn_cont ~register_const_string primitive
-        dbg failure
+      expression_for_failure acc exn_cont ~register_const_string primitive dbg
+        failure
     in
     let check_validity_conditions =
       let prim_apply_cont acc =
@@ -321,8 +321,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       cont acc (Named.create_simple (Simple.var result_var))
     in
     let ifso_handler_expr acc =
-      bind_rec acc exn_cont ~register_const_string ifso dbg
-      @@ fun acc ifso ->
+      bind_rec acc exn_cont ~register_const_string ifso dbg @@ fun acc ifso ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
           ~args:[Simple.var ifso_result] ~dbg
@@ -333,8 +332,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
         ifso ~body
     in
     let ifnot_handler_expr acc =
-      bind_rec acc exn_cont ~register_const_string ifnot dbg
-      @@ fun acc ifnot ->
+      bind_rec acc exn_cont ~register_const_string ifnot dbg @@ fun acc ifnot ->
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
           ~args:[Simple.var ifnot_result] ~dbg
