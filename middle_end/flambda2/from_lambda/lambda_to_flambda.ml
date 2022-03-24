@@ -1590,20 +1590,20 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       | [(fun_id, L.Lfunction def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~free_idents:(Ident.Map.find fun_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
             def
         in
         bindings @ [fundef]
       | [(fun_id, L.Lfunction def); (inner_id, L.Lfunction inner_def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
-            ~free_idents:(Ident.Map.find fun_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
             def
         in
         let inner_fundef =
           cps_function env ~fid:inner_id ~stub:true
             ~recursive:(recursive inner_id)
-            ~free_idents:(Ident.Map.find inner_id free_idents)
+            ~precomputed_free_idents:(Ident.Map.find inner_id free_idents)
             inner_def
         in
         bindings @ [fundef; inner_fundef]
@@ -1611,7 +1611,8 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       (* checked above *))
     [] bindings_with_wrappers
 
-and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
+and cps_function env ~fid ~stub ~(recursive : Recursive.t)
+    ?precomputed_free_idents
     ({ kind; params; return; body; attr; loc; mode; region } : L.lfunction) :
     Function_decl.t =
   let num_trailing_local_params =
@@ -1620,7 +1621,7 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
   let body_cont = Continuation.create ~sort:Return () in
   let body_exn_cont = Continuation.create () in
   let free_idents_of_body =
-    match free_idents with
+    match precomputed_free_idents with
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
