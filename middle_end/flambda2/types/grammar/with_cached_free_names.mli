@@ -61,7 +61,7 @@ val remove_unused_value_slots_and_shortcut_aliases :
   canonicalise:(Simple.t -> Simple.t) ->
   'descr t
 
-val project_value_slotiables_out :
+val project_variables_out :
   free_names_descr:('descr -> Name_occurrences.t) ->
   to_project:Variable.Set.t ->
   project_descr:('descr -> 'descr) ->

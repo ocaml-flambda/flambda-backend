@@ -78,7 +78,7 @@ val remove_unused_value_slots_and_shortcut_aliases :
   canonicalise:(Simple.t -> Simple.t) ->
   'head t
 
-val project_value_slotiables_out :
+val project_variables_out :
   free_names_head:('head -> Name_occurrences.t) ->
   to_project:Variable.Set.t ->
   expand:(Variable.t -> coercion:Coercion.t -> 'head t) ->
