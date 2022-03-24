@@ -863,7 +863,8 @@ let prove_project_function_slot_simple env ~min_name_mode t function_slot :
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind ()
 
-let prove_project_value_slot_simple env ~min_name_mode t env_var : Simple.t proof =
+let prove_project_value_slot_simple env ~min_name_mode t env_var :
+    Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
