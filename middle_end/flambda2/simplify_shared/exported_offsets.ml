@@ -16,10 +16,10 @@
 
 (** Offsets for function and value slots inside sets of closures. They're
     computed for elements defined in the current compilation unit by
-    [function_slot_offsets], and read from cmx files for external symbols.
-    Because an external cmx can reference elements from another cmx that the
-    current compilation cannot see, all offsets that occur in the current
-    compilation unit should be re-exported. *)
+    [Slot_offsets], and read from cmx files for external symbols. Because an
+    external cmx can reference elements from another cmx that the current
+    compilation cannot see, all offsets that occur in the current compilation
+    unit should be re-exported. *)
 
 type function_slot_info =
   | Dead_function_slot
