@@ -34,8 +34,8 @@ module P = Flambda_primitive
 module VB = Bound_var
 
 type close_functions_result =
-  | Lifted of (Symbol.t * Env.value_approximation) Closure_id.Lmap.t
-  | Dynamic of Set_of_closures.t * Env.value_approximation Closure_id.Map.t
+  | Lifted of (Symbol.t * Env.value_approximation) Function_slot.Lmap.t
+  | Dynamic of Set_of_closures.t * Env.value_approximation Function_slot.Map.t
 
 (* Do not use [Simple.symbol], use this function instead, to ensure that we
    correctly compute the free names of [Code]. *)
@@ -45,11 +45,12 @@ let symbol_for_ident acc env id =
   let symbol = Env.symbol_for_global env id in
   use_of_symbol_as_simple acc symbol
 
-let declare_symbol_for_closure_ident env ident closure_id : Env.t * Symbol.t =
+let declare_symbol_for_function_slot env ident function_slot : Env.t * Symbol.t
+    =
   let symbol =
     Symbol.create
       (Compilation_unit.get_current_exn ())
-      (Linkage_name.create (Closure_id.to_string closure_id))
+      (Linkage_name.create (Function_slot.to_string function_slot))
   in
   let env = Env.add_simple_to_substitute env ident (Simple.symbol symbol) in
   env, symbol
@@ -850,7 +851,7 @@ let close_exact_or_unknown_apply acc env
     | Function -> (
       ( acc,
         match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation (code_id, closure_id, code_or_meta)) ->
+        | Some (Closure_approximation (code_id, function_slot, code_or_meta)) ->
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -862,7 +863,8 @@ let close_exact_or_unknown_apply acc env
                for now *)
             Call_kind.indirect_function_call_unknown_arity mode
           else
-            Call_kind.direct_function_call code_id closure_id ~return_arity mode
+            Call_kind.direct_function_call code_id function_slot ~return_arity
+              mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
         | _ -> assert false
         (* See [close_apply] *) ))
@@ -997,8 +999,8 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
         (Bound_pattern.singleton untagged_scrutinee')
         untag ~body
 
-let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
-    ~var_within_closures_from_idents ~closure_ids_from_idents
+let close_one_function acc ~external_env ~by_function_slot decl
+    ~has_lifted_closure ~value_slots_from_idents ~function_slots_from_idents
     function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   let body = Function_decl.body decl in
@@ -1009,14 +1011,15 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   let return_continuation = Function_decl.return_continuation decl in
   let recursive = Function_decl.recursive decl in
   let my_closure = Variable.create "my_closure" in
-  let closure_id = Function_decl.closure_id decl in
-  let my_closure_id = closure_id in
+  let function_slot = Function_decl.function_slot decl in
   let my_depth = Variable.create "my_depth" in
   let next_depth = Variable.create "next_depth" in
   let our_let_rec_ident = Function_decl.let_rec_ident decl in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let code_id =
-    Code_id.create ~name:(Closure_id.to_string closure_id) compilation_unit
+    Code_id.create
+      ~name:(Function_slot.to_string function_slot)
+      compilation_unit
   in
   let is_curried =
     match Function_decl.kind decl with Curried _ -> true | Tupled -> false
@@ -1024,17 +1027,17 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   (* The free variables are: - The parameters: direct substitution by
      [Variable]s - The function being defined: accessible through [my_closure] -
      Other functions in the set being defined: accessible from [my_closure] then
-     a [Select_closure] - Other free variables: accessible using [Project_var]
-     from [my_closure]. Note that free variables corresponding to predefined
-     exception identifiers have been filtered out by [close_functions],
-     above. *)
-  let var_within_closures_to_bind, var_within_closures_for_idents =
+     a [Project_function_slot] - Other free variables: accessible using
+     [Project_value_slot] from [my_closure]. Note that free variables
+     corresponding to predefined exception identifiers have been filtered out by
+     [close_functions], above. *)
+  let value_slots_to_bind, value_slots_for_idents =
     Ident.Map.fold
-      (fun id var_within_closures_for_idents (to_bind, var_for_ident) ->
+      (fun id value_slots_for_idents (to_bind, var_for_ident) ->
         let var = Variable.create_with_same_name_as_ident id in
-        ( Variable.Map.add var var_within_closures_for_idents to_bind,
+        ( Variable.Map.add var value_slots_for_idents to_bind,
           Ident.Map.add id var var_for_ident ))
-      var_within_closures_from_idents
+      value_slots_from_idents
       (Variable.Map.empty, Ident.Map.empty)
   in
   let coerce_to_deeper =
@@ -1042,8 +1045,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
       ~from:(Rec_info_expr.var my_depth)
       ~to_:(Rec_info_expr.var next_depth)
   in
-  if has_lifted_closure
-     && not (Variable.Map.is_empty var_within_closures_to_bind)
+  if has_lifted_closure && not (Variable.Map.is_empty value_slots_to_bind)
   then
     Misc.fatal_errorf
       "Variables found in closure when trying to lift %a in \
@@ -1064,17 +1066,17 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
               (* When the function being compiled is tupled, my_closure points
                  to the curried version but let_rec_ident is called with tuple
                  arguments, so the correct closure to bind is the one in the
-                 closure_ids_from_idents map. *)
+                 function_slots_from_idents map. *)
               to_bind, my_closure
               (* my_closure is already bound *)
             else
               let variable =
                 Variable.create_with_same_name_as_ident let_rec_ident
               in
-              let closure_id =
-                Ident.Map.find let_rec_ident closure_ids_from_idents
+              let function_slot =
+                Ident.Map.find let_rec_ident function_slots_from_idents
               in
-              Variable.Map.add variable closure_id to_bind, variable
+              Variable.Map.add variable function_slot to_bind, variable
           in
           let simple = Simple.with_coercion (Simple.var var) coerce_to_deeper in
           to_bind, Ident.Map.add let_rec_ident simple simples_for_idents)
@@ -1092,7 +1094,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
             ~name:(fun name ~coercion:_ ->
               Env.add_approximation_alias (Env.add_var env id var) name
                 (Name.var var)))
-        var_within_closures_for_idents empty_env
+        value_slots_for_idents empty_env
     in
     Env.add_simple_to_substitute_map env_with_vars simples_for_project_closure
   in
@@ -1108,7 +1110,7 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
     let tracker = Env.inlining_history_tracker closure_env_without_history in
     let absolute, relative =
       Inlining_history.Tracker.fundecl_of_scoped_location
-        ~name:(Closure_id.name closure_id)
+        ~name:(Function_slot.name function_slot)
         ~path_to_root:(Env.path_to_root closure_env)
         loc tracker
     in
@@ -1135,26 +1137,26 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
       Format.eprintf
         "\n\
          %sContext is:%s closure converting function@ with [our_let_rec_ident] \
-         %a (closure ID %a)"
+         %a (function slot %a)"
         (* @ \ *)
         (* and body:@ %a *)
         (Flambda_colours.error ())
         (Flambda_colours.normal ())
-        Ident.print our_let_rec_ident Closure_id.print closure_id;
+        Ident.print our_let_rec_ident Function_slot.print function_slot;
       (* print body *)
       Printexc.raise_with_backtrace Misc.Fatal_error bt
   in
   let contains_subfunctions = Acc.seen_a_function acc in
   let my_closure' = Simple.var my_closure in
   let acc, body =
-    (* CR mshinwell: These Select_closure operations should maybe be inserted at
-       the point of use rather than at the top of the function. We should also
-       check the behaviour of the backend w.r.t. CSE of projections from
-       closures. *)
+    (* CR mshinwell: These Project_function_slot operations should maybe be
+       inserted at the point of use rather than at the top of the function. We
+       should also check the behaviour of the backend w.r.t. CSE of projections
+       from closures. *)
     Variable.Map.fold
-      (fun var closure_id (acc, body) ->
+      (fun var move_to (acc, body) ->
         let move : Flambda_primitive.unary_primitive =
-          Select_closure { move_from = my_closure_id; move_to = closure_id }
+          Project_function_slot { move_from = function_slot; move_to }
         in
         let var = VB.create var Name_mode.normal in
         let named =
@@ -1165,18 +1167,17 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   in
   let acc, body =
     Variable.Map.fold
-      (fun var var_within_closure (acc, body) ->
+      (fun var value_slot (acc, body) ->
         let var = VB.create var Name_mode.normal in
         let named =
           Named.create_prim
             (Unary
-               ( Project_var
-                   { project_from = my_closure_id; var = var_within_closure },
+               ( Project_value_slot { project_from = function_slot; value_slot },
                  my_closure' ))
             Debuginfo.none
         in
         Let_with_acc.create acc (Bound_pattern.singleton var) named ~body)
-      var_within_closures_to_bind (acc, body)
+      value_slots_to_bind (acc, body)
   in
   let next_depth_expr = Rec_info_expr.succ (Rec_info_expr.var my_depth) in
   let bound =
@@ -1270,11 +1271,11 @@ let close_one_function acc ~external_env ~by_closure_id decl ~has_lifted_closure
   in
   let acc = Acc.add_code ~code_id ~code acc in
   let acc = Acc.with_seen_a_function acc true in
-  acc, Closure_id.Map.add my_closure_id (code_id, approx) by_closure_id
+  acc, Function_slot.Map.add function_slot (code_id, approx) by_function_slot
 
 let close_functions acc external_env function_declarations =
   let compilation_unit = Compilation_unit.get_current_exn () in
-  let var_within_closures_from_idents =
+  let value_slots_from_idents =
     Ident.Set.fold
       (fun id map ->
         (* Filter out predefined exception identifiers and simple substitutions.
@@ -1299,48 +1300,48 @@ let close_functions acc external_env function_declarations =
             | None -> Variable.create_with_same_name_as_ident id
             | Some var -> Variable.rename var
           in
-          Ident.Map.add id (Var_within_closure.wrap compilation_unit var) map)
+          Ident.Map.add id (Value_slot.wrap compilation_unit var) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
   let can_be_lifted =
-    Ident.Map.is_empty var_within_closures_from_idents
+    Ident.Map.is_empty value_slots_from_idents
     && Flambda_features.classic_mode ()
   in
   let func_decl_list = Function_decls.to_list function_declarations in
-  let closure_ids_from_idents =
+  let function_slots_from_idents =
     List.fold_left
       (fun map decl ->
         let id = Function_decl.let_rec_ident decl in
-        let closure_id = Function_decl.closure_id decl in
-        Ident.Map.add id closure_id map)
+        let function_slot = Function_decl.function_slot decl in
+        Ident.Map.add id function_slot map)
       Ident.Map.empty func_decl_list
   in
   let external_env, symbol_map =
     if can_be_lifted
     then
       Ident.Map.fold
-        (fun ident closure_id (env, symbol_map) ->
+        (fun ident function_slot (env, symbol_map) ->
           let env, symbol =
-            declare_symbol_for_closure_ident env ident closure_id
+            declare_symbol_for_function_slot env ident function_slot
           in
-          env, Closure_id.Map.add closure_id symbol symbol_map)
-        closure_ids_from_idents
-        (external_env, Closure_id.Map.empty)
-    else external_env, Closure_id.Map.empty
+          env, Function_slot.Map.add function_slot symbol symbol_map)
+        function_slots_from_idents
+        (external_env, Function_slot.Map.empty)
+    else external_env, Function_slot.Map.empty
   in
   let acc, approximations =
     List.fold_left
-      (fun (acc, by_closure_id) function_decl ->
+      (fun (acc, by_function_slot) function_decl ->
         let _, _, acc, expr =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
-              close_one_function acc ~external_env ~by_closure_id function_decl
-                ~has_lifted_closure:can_be_lifted
-                ~var_within_closures_from_idents ~closure_ids_from_idents
+              close_one_function acc ~external_env ~by_function_slot
+                function_decl ~has_lifted_closure:can_be_lifted
+                ~value_slots_from_idents ~function_slots_from_idents
                 function_declarations)
         in
         acc, expr)
-      (acc, Closure_id.Map.empty)
+      (acc, Function_slot.Map.empty)
       func_decl_list
   in
   let acc = Acc.with_free_names Name_occurrences.empty acc in
@@ -1348,31 +1349,31 @@ let close_functions acc external_env function_declarations =
      function_declarations) *)
   let funs =
     let funs =
-      Closure_id.Map.fold
+      Function_slot.Map.fold
         (fun cid (code_id, _) funs -> (cid, code_id) :: funs)
         approximations []
     in
-    Closure_id.Lmap.of_list (List.rev funs)
+    Function_slot.Lmap.of_list (List.rev funs)
   in
   let approximations =
-    Closure_id.Map.mapi
-      (fun closure_id (code_id, code) ->
-        Value_approximation.Closure_approximation (code_id, closure_id, code))
+    Function_slot.Map.mapi
+      (fun function_slot (code_id, code) ->
+        Value_approximation.Closure_approximation (code_id, function_slot, code))
       approximations
   in
   let function_decls = Function_declarations.create funs in
-  let closure_elements =
+  let value_slots =
     Ident.Map.fold
-      (fun id var_within_closure map ->
+      (fun id value_slot map ->
         let external_simple = find_simple_from_id external_env id in
         (* We're sure [external_simple] is a variable since
-           [var_within_closure_from_idents] has already filtered constants and
-           symbols out. *)
-        Var_within_closure.Map.add var_within_closure external_simple map)
-      var_within_closures_from_idents Var_within_closure.Map.empty
+           [value_slot_from_idents] has already filtered constants and symbols
+           out. *)
+        Value_slot.Map.add value_slot external_simple map)
+      value_slots_from_idents Value_slot.Map.empty
   in
   let set_of_closures =
-    Set_of_closures.create ~closure_elements
+    Set_of_closures.create ~value_slots
       (LC.alloc_mode (Function_decls.alloc_mode function_declarations))
       function_decls
   in
@@ -1382,10 +1383,10 @@ let close_functions acc external_env function_declarations =
   if can_be_lifted
   then
     let symbols =
-      Closure_id.Lmap.mapi
-        (fun closure_id _ ->
-          ( Closure_id.Map.find closure_id symbol_map,
-            Closure_id.Map.find closure_id approximations ))
+      Function_slot.Lmap.mapi
+        (fun function_slot _ ->
+          ( Function_slot.Map.find function_slot symbol_map,
+            Function_slot.Map.find function_slot approximations ))
         funs
     in
     let acc = Acc.add_lifted_set_of_closures ~symbols ~set_of_closures acc in
@@ -1402,15 +1403,15 @@ let close_let_rec acc env ~function_declarations
         env)
       function_declarations env
   in
-  let closure_vars_map, ident_map =
+  let fun_vars_map, ident_map =
     List.fold_left
-      (fun (closure_vars_map, ident_map) decl ->
+      (fun (fun_vars_map, ident_map) decl ->
         let ident = Function_decl.let_rec_ident decl in
-        let closure_var = VB.create (Env.find_var env ident) Name_mode.normal in
-        let closure_id = Function_decl.closure_id decl in
-        ( Closure_id.Map.add closure_id closure_var closure_vars_map,
-          Closure_id.Map.add closure_id ident ident_map ))
-      (Closure_id.Map.empty, Closure_id.Map.empty)
+        let fun_var = VB.create (Env.find_var env ident) Name_mode.normal in
+        let function_slot = Function_decl.function_slot decl in
+        ( Function_slot.Map.add function_slot fun_var fun_vars_map,
+          Function_slot.Map.add function_slot ident ident_map ))
+      (Function_slot.Map.empty, Function_slot.Map.empty)
       function_declarations
   in
   let alloc_mode =
@@ -1426,8 +1427,9 @@ let close_let_rec acc env ~function_declarations
           Misc.fatal_errorf
             "let-rec group of [lfunction] declarations have inconsistent alloc \
              modes:@ %a"
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space Closure_id.print)
-            (List.map Function_decl.closure_id function_declarations))
+            (Format.pp_print_list ~pp_sep:Format.pp_print_space
+               Function_slot.print)
+            (List.map Function_decl.function_slot function_declarations))
       None function_declarations
   in
   let alloc_mode =
@@ -1443,9 +1445,9 @@ let close_let_rec acc env ~function_declarations
   match closed_functions with
   | Lifted symbols ->
     let env =
-      Closure_id.Lmap.fold
-        (fun closure_id (symbol, approx) env ->
-          let ident = Closure_id.Map.find closure_id ident_map in
+      Function_slot.Lmap.fold
+        (fun function_slot (symbol, approx) env ->
+          let ident = Function_slot.Map.find function_slot ident_map in
           let env =
             Env.add_simple_to_substitute env ident (Simple.symbol symbol)
           in
@@ -1456,39 +1458,40 @@ let close_let_rec acc env ~function_declarations
   | Dynamic (set_of_closures, approximations) ->
     (* CR mshinwell: We should maybe have something more elegant here *)
     let generated_closures =
-      Closure_id.Set.diff
-        (Closure_id.Map.keys
+      Function_slot.Set.diff
+        (Function_slot.Map.keys
            (Function_declarations.funs
               (Set_of_closures.function_decls set_of_closures)))
-        (Closure_id.Map.keys closure_vars_map)
+        (Function_slot.Map.keys fun_vars_map)
     in
-    let closure_vars_map =
-      Closure_id.Set.fold
-        (fun closure_id closure_vars_map ->
-          let closure_var =
+    let fun_vars_map =
+      Function_slot.Set.fold
+        (fun function_slot fun_vars_map ->
+          let fun_var =
             VB.create (Variable.create "generated") Name_mode.normal
           in
-          Closure_id.Map.add closure_id closure_var closure_vars_map)
-        generated_closures closure_vars_map
+          Function_slot.Map.add function_slot fun_var fun_vars_map)
+        generated_closures fun_vars_map
     in
-    let closure_vars =
+    let bound_vars =
       List.map
-        (fun (closure_id, _) -> Closure_id.Map.find closure_id closure_vars_map)
+        (fun (function_slot, _) ->
+          Function_slot.Map.find function_slot fun_vars_map)
         (Function_declarations.funs_in_order
            (Set_of_closures.function_decls set_of_closures)
-        |> Closure_id.Lmap.bindings)
+        |> Function_slot.Lmap.bindings)
     in
     let env =
-      Closure_id.Map.fold
-        (fun closure_id var env ->
-          let approx = Closure_id.Map.find closure_id approximations in
-          Env.add_value_approximation env (Name.var (VB.var var)) approx)
-        closure_vars_map env
+      Function_slot.Map.fold
+        (fun function_slot fun_var env ->
+          let approx = Function_slot.Map.find function_slot approximations in
+          Env.add_value_approximation env (Name.var (VB.var fun_var)) approx)
+        fun_vars_map env
     in
     let acc, body = body acc env in
     let named = Named.create_set_of_closures set_of_closures in
     Let_with_acc.create acc
-      (Bound_pattern.set_of_closures closure_vars)
+      (Bound_pattern.set_of_closures bound_vars)
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
@@ -1497,8 +1500,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
   let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
-  let closure_id =
-    Closure_id.wrap
+  let function_slot =
+    Function_slot.wrap
       (Compilation_unit.get_current_exn ())
       (Variable.create_with_same_name_as_ident wrapper_id)
   in
@@ -1553,7 +1556,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let function_declarations =
     (* CR keryan: Same as above, better kind for return type *)
-    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~closure_id
+    [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
         ~kind:(Lambda.Curried { nlocal = num_trailing_local_params })
         ~params ~return:Lambda.Pgenval ~return_continuation ~exn_continuation
         ~body:fbody ~attr ~loc:apply.loc ~free_idents_of_body ~stub:true
@@ -1780,15 +1783,15 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
     List.fold_left
       (fun (g2c, s2g) (symbols, set_of_closures) ->
         let id = fresh_group_id () in
-        let symbols = Closure_id.Lmap.map fst symbols in
+        let symbols = Function_slot.Lmap.map fst symbols in
         let bound = Bound_static.Pattern.set_of_closures symbols in
         let const =
           Static_const_or_code.create_static_const
             (Set_of_closures set_of_closures)
         in
         ( GroupMap.add id (bound, const) g2c,
-          Closure_id.Lmap.fold
-            (fun _closure_id symbol s2g ->
+          Function_slot.Lmap.fold
+            (fun _function_slot symbol s2g ->
               CIS.Map.add (CIS.create_symbol symbol) id s2g)
             symbols s2g ))
       (group_to_bound_consts, symbol_to_groups)
@@ -1855,8 +1858,8 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
   let module_block_tag = Tag.Scannable.zero in
   let module_block_var = Variable.create "module_block" in
   let return_cont = Continuation.create ~sort:Toplevel_return () in
-  let closure_offsets = Closure_offsets.create () in
-  let acc = Acc.create ~symbol_for_global ~closure_offsets in
+  let slot_offsets = Slot_offsets.create () in
+  let acc = Acc.create ~symbol_for_global ~slot_offsets in
   let load_fields_body acc =
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
@@ -1965,7 +1968,7 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
     in
     List.fold_left
       (fun sa (closure_map, _) ->
-        Closure_id.Lmap.fold
+        Function_slot.Lmap.fold
           (fun _ (symbol, approx) sa -> Symbol.Map.add symbol approx sa)
           closure_map sa)
       symbol_approxs
@@ -1996,35 +1999,34 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       (Exported_code.mark_as_imported
          (Flambda_cmx.get_imported_code cmx_loader ()))
   in
-  let used_closure_vars, exported_offsets =
-    let used_names =
+  let used_value_slots, exported_offsets =
+    let used_slots =
       let free_names = Acc.free_names acc in
       Or_unknown.Known
-        Closure_offsets.
-          { closure_ids_in_normal_projections =
-              Name_occurrences.closure_ids_in_normal_projections free_names;
-            all_closure_ids = Name_occurrences.all_closure_ids free_names;
-            closure_vars_in_normal_projections =
-              Name_occurrences.closure_vars_in_normal_projections free_names;
-            all_closure_vars = Name_occurrences.all_closure_vars free_names
+        Slot_offsets.
+          { function_slots_in_normal_projections =
+              Name_occurrences.function_slots_in_normal_projections free_names;
+            all_function_slots = Name_occurrences.all_function_slots free_names;
+            value_slots_in_normal_projections =
+              Name_occurrences.value_slots_in_normal_projections free_names;
+            all_value_slots = Name_occurrences.all_value_slots free_names
           }
     in
-    Closure_offsets.finalize_offsets (Acc.closure_offsets acc)
-      ~get_code_metadata ~used_names
+    Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
+      ~used_slots
   in
-  let used_closure_vars =
-    match used_closure_vars with
-    | Known used_closure_vars -> used_closure_vars
+  let used_value_slots =
+    match used_value_slots with
+    | Known used_value_slots -> used_value_slots
     | Unknown ->
-      Misc.fatal_error
-        "Closure_conversion needs to know its used closure variables."
+      Misc.fatal_error "Closure_conversion needs to know its used value slots."
   in
   let cmx =
     Flambda_cmx.prepare_cmx_from_approx ~approxs:symbols_approximations
-      ~module_symbol ~exported_offsets ~used_closure_vars all_code
+      ~module_symbol ~exported_offsets ~used_value_slots all_code
   in
   ( Flambda_unit.create ~return_continuation:return_cont ~exn_continuation ~body
-      ~module_symbol ~used_closure_vars:(Known used_closure_vars),
+      ~module_symbol ~used_value_slots:(Known used_value_slots),
     all_code,
     cmx,
     exported_offsets )

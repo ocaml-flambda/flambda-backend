@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2018--2019 OCamlPro SAS                                    *)
+(*   Copyright 2018--2019 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,24 +14,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** An identifier, unique across the whole program, that identifies a particular
-    variable within a particular closure. Only [Project_var], and not [Var],
-    nodes are tagged with these identifiers. *)
+type t = Value_slot.Set.t
 
-include Container_types.S
+let empty = Value_slot.Set.empty
 
-val wrap : Compilation_unit.t -> Variable.t -> t
+include Container_types.Make (struct
+  include Value_slot.Set
 
-val unwrap : t -> Variable.t
+  let hash = Hashtbl.hash
+end)
 
-val in_compilation_unit : t -> Compilation_unit.t -> bool
-
-val is_imported : t -> bool
-
-val get_compilation_unit : t -> Compilation_unit.t
-
-val to_string : t -> string
-
-val rename : t -> t
+let subset t1 t2 = Value_slot.Set.subset t1 t2

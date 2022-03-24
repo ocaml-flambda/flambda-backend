@@ -255,8 +255,8 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
    when there are zero args. *)
 
 let simplify_direct_partial_application ~simplify_expr dacc apply
-    ~callee's_code_id ~callee's_code_metadata ~callee's_closure_id ~param_arity
-    ~result_arity ~recursive ~down_to_up ~coming_from_indirect
+    ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
+    ~param_arity ~result_arity ~recursive ~down_to_up ~coming_from_indirect
     ~(closure_alloc_mode : Alloc_mode.t Or_unknown.t) ~num_trailing_local_params
     =
   (* Partial-applications are converted in full applications. Let's assume that
@@ -311,8 +311,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
-  let wrapper_closure_id =
-    Closure_id.wrap compilation_unit (Variable.create "partial_app_closure")
+  let wrapper_function_slot =
+    Function_slot.wrap compilation_unit (Variable.create "partial_app_closure")
   in
   let new_closure_alloc_mode, num_trailing_local_params =
     (* If the closure has a local suffix, and we've supplied enough args to hit
@@ -353,7 +353,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       |> Bound_parameters.create
     in
     let call_kind =
-      Call_kind.direct_function_call callee's_code_id callee's_closure_id
+      Call_kind.direct_function_call callee's_code_id callee's_function_slot
         ~return_arity:result_arity apply_alloc_mode
     in
     let open struct
@@ -375,11 +375,11 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               (* name to bind to projected variable *)
               value : Simple.t;
               (* value to store in closure *)
-              closure_var : Var_within_closure.t
+              value_slot : Value_slot.t
             }
     end in
-    let mk_closure_var () =
-      Var_within_closure.wrap compilation_unit (Variable.create "arg")
+    let mk_value_slot () =
+      Value_slot.wrap compilation_unit (Variable.create "arg")
     in
     let applied_value value =
       Simple.pattern_match' value
@@ -389,9 +389,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           then Symbol symbol
           else
             let var = Variable.create "symbol" in
-            In_closure { var; value; closure_var = mk_closure_var () })
+            In_closure { var; value; value_slot = mk_value_slot () })
         ~var:(fun var ~coercion:_ ->
-          In_closure { var; value; closure_var = mk_closure_var () })
+          In_closure { var; value; value_slot = mk_value_slot () })
     in
     let applied_callee = applied_value (Apply.callee apply) in
     let applied_args = List.map applied_value applied_args in
@@ -426,20 +426,20 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         (fun (expr, cost_metrics, free_names) applied_value ->
           match applied_value with
           | Const _ | Symbol _ -> expr, cost_metrics, free_names
-          | In_closure { var; closure_var; value = _ } ->
+          | In_closure { var; value_slot; value = _ } ->
             let arg = VB.create var Name_mode.normal in
             let prim =
               P.Unary
-                ( Project_var
-                    { project_from = wrapper_closure_id; var = closure_var },
+                ( Project_value_slot
+                    { project_from = wrapper_function_slot; value_slot },
                   Simple.var my_closure )
             in
             let cost_metrics_of_defining_expr =
               Cost_metrics.from_size (Code_size.prim prim)
             in
             let free_names =
-              Name_occurrences.add_closure_var_in_projection free_names
-                closure_var NM.normal
+              Name_occurrences.add_value_slot_in_projection free_names
+                value_slot NM.normal
             in
             let expr =
               Let.create
@@ -465,7 +465,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
         remaining_params ~body ~my_closure ~my_depth ~free_names_of_body:Unknown
     in
-    let name = Closure_id.to_string callee's_closure_id ^ "_partial" in
+    let name = Function_slot.to_string callee's_function_slot ^ "_partial" in
     let absolute_history, relative_history =
       DE.inlining_history_tracker (DA.denv dacc)
       |> Inlining_history.Tracker.fundecl
@@ -498,20 +498,18 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
     in
     let function_decls =
       Function_declarations.create
-        (Closure_id.Lmap.singleton wrapper_closure_id code_id)
+        (Function_slot.Lmap.singleton wrapper_function_slot code_id)
     in
-    let closure_elements =
+    let value_slots =
       List.filter_map
         (fun value ->
           match value with
           | Const _ | Symbol _ -> None
-          | In_closure { closure_var; value; var = _ } ->
-            Some (closure_var, value))
+          | In_closure { value_slot; value; var = _ } -> Some (value_slot, value))
         applied_values
-      |> Var_within_closure.Map.of_list
+      |> Value_slot.Map.of_list
     in
-    ( Set_of_closures.create ~closure_elements new_closure_alloc_mode
-        function_decls,
+    ( Set_of_closures.create ~value_slots new_closure_alloc_mode function_decls,
       dacc,
       code_id,
       code )
@@ -592,7 +590,7 @@ let simplify_direct_over_application ~simplify_expr dacc apply ~param_arity
 
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-    ~callee's_closure_id ~result_arity ~result_types ~recursive ~arg_types:_
+    ~callee's_function_slot ~result_arity ~result_types ~recursive ~arg_types:_
     ~must_be_detupled ~closure_alloc_mode ~apply_alloc_mode function_decl
     ~down_to_up =
   begin
@@ -634,7 +632,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild)
   | Ok callee's_code_id ->
     let call_kind =
-      Call_kind.direct_function_call callee's_code_id callee's_closure_id
+      Call_kind.direct_function_call callee's_code_id callee's_function_slot
         ~return_arity:result_arity apply_alloc_mode
     in
     let apply = Apply.with_call_kind apply call_kind in
@@ -681,7 +679,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > 0 && provided_num_args < num_params
       then
         simplify_direct_partial_application ~simplify_expr dacc apply
-          ~callee's_code_id ~callee's_code_metadata ~callee's_closure_id
+          ~callee's_code_id ~callee's_code_metadata ~callee's_function_slot
           ~param_arity:params_arity ~result_arity ~recursive ~down_to_up
           ~coming_from_indirect ~closure_alloc_mode
           ~num_trailing_local_params:
@@ -842,8 +840,10 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
   let denv = DA.denv dacc in
   match T.prove_single_closures_entry (DE.typing_env denv) callee_ty with
   | Proved
-      (callee's_closure_id, closure_alloc_mode, _closures_entry, func_decl_type)
-    ->
+      ( callee's_function_slot,
+        closure_alloc_mode,
+        _closures_entry,
+        func_decl_type ) ->
     let module (* CR mshinwell: We should check that the [set_of_closures] in
                   the [closures_entry] structure in the type does indeed contain
                   the closure in question. *)
@@ -852,14 +852,14 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     in
     let callee's_code_id_from_call_kind =
       match call with
-      | Direct { code_id; closure_id; _ } ->
-        if not (Closure_id.equal closure_id callee's_closure_id)
+      | Direct { code_id; function_slot; _ } ->
+        if not (Function_slot.equal function_slot callee's_function_slot)
         then
           Misc.fatal_errorf
-            "Closure ID %a in application doesn't match closure ID %a \
+            "Function slot %a in application doesn't match function slot %a \
              discovered via typing.@ Application:@ %a"
-            Closure_id.print closure_id Closure_id.print callee's_closure_id
-            Apply.print apply;
+            Function_slot.print function_slot Function_slot.print
+            callee's_function_slot Apply.print apply;
         Some code_id
       | Indirect_unknown_arity | Indirect_known_arity _ -> None
     in
@@ -875,7 +875,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     in
     simplify_direct_function_call ~simplify_expr dacc apply
       ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
-      ~callee's_closure_id ~arg_types
+      ~callee's_function_slot ~arg_types
       ~result_arity:(Code_metadata.result_arity callee's_code_metadata)
       ~result_types:(Code_metadata.result_types callee's_code_metadata)
       ~recursive:(Code_metadata.recursive callee's_code_metadata)

@@ -7,7 +7,7 @@ let w : int32 = 15l in
 let d : int64 = 16L in
 let code twice0 deleted : val -> val in
 let code twice_lam (x) clo -> k * e =
-  let f = %project_var twice_lam.f clo in
+  let f = %project_value_slot twice_lam.f clo in
   let w : int64 = d in
   apply f (x) -> k1 * e
   where

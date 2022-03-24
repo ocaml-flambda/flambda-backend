@@ -85,7 +85,7 @@ let message s =
     "Expected a named expression.\n\
      Examples of named expressions:\n\
     \  42\n\
-    \  project_var var1 my_closure\n\
+    \  project_value_slot var1 my_closure\n\
     \  Block 2 (var1 Symbol2 42)\n"
   | 178 ->
     "Expected a closure environment delimited by {}.\n\
@@ -146,10 +146,10 @@ let message s =
      Example of a let code expression with explicit segments:\n\
     \  let segment\n\
     \    code ident (arg) my_closure -> k = cont k arg\n\
-    \    and symbol Ident = closure ident\n\
+    \    and symbol Ident = function slotent\n\
     \  end and segment\n\
     \    code forty_two (arg1) my_closure <var1> -> k : val =\n\
-    \      let ans = project_var var1 my_closure in cont k (ans)\n\
+    \      let ans = project_value_slot var1 my_closure in cont k (ans)\n\
     \    and symbol Forty_two = closure forty_two\n\
     \    with { var1 = 42 }\n\
     \  end in ...\n"
@@ -167,10 +167,10 @@ let message s =
      Example of a let code expression with explicit segments:\n\
     \  let segment\n\
     \    code ident (arg) my_closure -> k = cont k arg\n\
-    \    and symbol ident_clo = closure ident\n\
+    \    and symbol ident_clo = function slotent\n\
     \  end and segment\n\
     \    code forty_two (arg1) my_closure <var1> -> k : val =\n\
-    \      let ans = project_var var1 my_closure in cont k (ans)\n\
+    \      let ans = project_value_slot var1 my_closure in cont k (ans)\n\
     \    and symbol g_clo = closure g\n\
     \    with { var1 = 42 }\n\
     \  end in ...\n"
@@ -195,10 +195,11 @@ let message s =
     \  code rec f my_closure -> k : () = cont k ()\n"
   | 87 -> "Expected a code id.\n"
   | 88 ->
-    "Expected a closure id declaration or a newer_version_of declaration or an\n\
+    "Expected a function slot declaration or a newer_version_of declaration or \
+     an\n\
      argument list or an identifier for a closure argument.\n\
-     Example of a closure id declaration:\n\
-    \  @ closure_id\n\
+     Example of a function slot declaration:\n\
+    \  @ function_slot\n\
      Example of a newer_version_of declaration:\n\
     \  newer_version_of code_id\n\
      Examples of argument lists:\n\
@@ -287,14 +288,15 @@ let message s =
     \  <>\n\
     \  <var1 (var2 : val)>\n"
   | 89 ->
-    "Expected a closure id.\n\
-     Example of a code definition specifying a closure id:\n\
-    \  code f @closure_id my_closure -> k * e = cont k arg1\n"
+    "Expected a function slot.\n\
+     Example of a code definition specifying a function slot:\n\
+    \  code f @function_slot my_closure -> k * e = cont k arg1\n"
   | 92 ->
     "Expected a new_version_of declaration, an argument list, or a closure \
      argument.\n\
      Examples of code definitions:\n\
-    \  code f2 @closure_id newer_version_of f1 arg1 arg2 my_closure <var1 var2>\n\
+    \  code f2 @function_slot newer_version_of f1 arg1 arg2 my_closure <var1 \
+     var2>\n\
     \    -> k * e : val * val = cont k (arg1 arg2)\n\
     \  code f2 my_closure -> k * e = cont k (arg1)\n"
   | 124 ->

@@ -190,83 +190,83 @@ let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
             (Open Unknown)))
     Unknown
 
-let exactly_this_closure closure_id ~all_function_decls_in_set:function_types
-    ~all_closures_in_set:closure_types
-    ~all_closure_vars_in_set:closure_var_types alloc_mode =
-  let closure_types = TG.Product.Closure_id_indexed.create closure_types in
+let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
+    ~all_closure_types_in_set:closure_types
+    ~all_value_slots_in_set:value_slot_types alloc_mode =
+  let closure_types = TG.Product.Function_slot_indexed.create closure_types in
   let closures_entry =
-    let closure_var_types =
-      TG.Product.Var_within_closure_indexed.create closure_var_types
+    let value_slot_types =
+      TG.Product.Value_slot_indexed.create value_slot_types
     in
-    TG.Closures_entry.create ~function_types ~closure_types ~closure_var_types
+    TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types
   in
-  let by_closure_id =
+  let by_function_slot =
     let set_of_closures_contents =
       Set_of_closures_contents.create
-        (Closure_id.Map.keys function_types)
-        (Var_within_closure.Map.keys closure_var_types)
+        (Function_slot.Map.keys function_types)
+        (Value_slot.Map.keys value_slot_types)
     in
-    TG.Row_like_for_closures.create_exactly closure_id set_of_closures_contents
-      closures_entry
+    TG.Row_like_for_closures.create_exactly function_slot
+      set_of_closures_contents closures_entry
   in
-  TG.create_closures alloc_mode by_closure_id
+  TG.create_closures alloc_mode by_function_slot
 
-let at_least_the_closures_with_ids ~this_closure closure_ids_and_bindings =
-  let closure_id_components_by_index =
-    Closure_id.Map.map
+let closure_with_at_least_these_function_slots ~this_function_slot
+    function_slots_and_bindings =
+  let function_slot_components_by_index =
+    Function_slot.Map.map
       (fun bound_to -> TG.alias_type_of K.value bound_to)
-      closure_ids_and_bindings
+      function_slots_and_bindings
   in
   let function_types =
-    Closure_id.Map.map
+    Function_slot.Map.map
       (fun _ -> Or_unknown_or_bottom.Unknown)
-      closure_ids_and_bindings
+      function_slots_and_bindings
   in
   let closure_types =
-    TG.Product.Closure_id_indexed.create closure_id_components_by_index
+    TG.Product.Function_slot_indexed.create function_slot_components_by_index
   in
   let closures_entry =
     TG.Closures_entry.create ~function_types ~closure_types
-      ~closure_var_types:TG.Product.Var_within_closure_indexed.top
+      ~value_slot_types:TG.Product.Value_slot_indexed.top
   in
-  let by_closure_id =
+  let by_function_slot =
     let set_of_closures_contents =
       Set_of_closures_contents.create
-        (Closure_id.Map.keys closure_id_components_by_index)
-        Var_within_closure.Set.empty
+        (Function_slot.Map.keys function_slot_components_by_index)
+        Value_slot.Set.empty
     in
-    TG.Row_like_for_closures.create_at_least this_closure
+    TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Unknown by_closure_id
+  TG.create_closures Unknown by_function_slot
 
-let closure_with_at_least_these_closure_vars ~this_closure closure_vars =
-  let closure_var_types =
+let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
+  let value_slot_types =
     let type_of_var v = TG.alias_type_of K.value (Simple.var v) in
-    let var_within_closure_components_by_index =
-      Var_within_closure.Map.map type_of_var closure_vars
+    let value_slot_components_by_index =
+      Value_slot.Map.map type_of_var value_slots
     in
-    TG.Product.Var_within_closure_indexed.create
-      var_within_closure_components_by_index
+    TG.Product.Value_slot_indexed.create value_slot_components_by_index
   in
   let closures_entry =
-    TG.Closures_entry.create ~function_types:Closure_id.Map.empty
-      ~closure_types:TG.Product.Closure_id_indexed.top ~closure_var_types
+    TG.Closures_entry.create ~function_types:Function_slot.Map.empty
+      ~closure_types:TG.Product.Function_slot_indexed.top ~value_slot_types
   in
-  let by_closure_id =
+  let by_function_slot =
     let set_of_closures_contents =
-      Set_of_closures_contents.create Closure_id.Set.empty
-        (Var_within_closure.Map.keys closure_vars)
+      Set_of_closures_contents.create Function_slot.Set.empty
+        (Value_slot.Map.keys value_slots)
     in
-    TG.Row_like_for_closures.create_at_least this_closure
+    TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
-  TG.create_closures Unknown by_closure_id
+  TG.create_closures Unknown by_function_slot
 
-let closure_with_at_least_this_closure_var ~this_closure closure_var
-    ~closure_element_var =
-  closure_with_at_least_these_closure_vars ~this_closure
-    (Var_within_closure.Map.singleton closure_var closure_element_var)
+let closure_with_at_least_this_value_slot ~this_function_slot value_slot
+    ~value_slot_var =
+  closure_with_at_least_these_value_slots ~this_function_slot
+    (Value_slot.Map.singleton value_slot value_slot_var)
 
 let type_for_const const =
   match RWC.descr const with

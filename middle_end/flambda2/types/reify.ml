@@ -42,9 +42,9 @@ type to_lift =
 type reification_result =
   | Lift of to_lift
   | Lift_set_of_closures of
-      { closure_id : Closure_id.t;
-        function_types : TG.Function_type.t Closure_id.Map.t;
-        closure_vars : Simple.t Var_within_closure.Map.t
+      { function_slot : Function_slot.t;
+        function_types : TG.Function_type.t Function_slot.Map.t;
+        value_slots : Simple.t Value_slot.Map.t
       }
   | Simple of Simple.t
   | Cannot_reify
@@ -184,43 +184,44 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
         | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
           try_canonical_simple ())
     | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
-    | Value (Ok (Closures { by_closure_id; alloc_mode })) -> begin
+    | Value (Ok (Closures { by_function_slot; alloc_mode })) -> begin
       (* CR mshinwell: Here and above, move to separate function. *)
-      match TG.Row_like_for_closures.get_singleton by_closure_id with
+      match TG.Row_like_for_closures.get_singleton by_function_slot with
       | None -> try_canonical_simple ()
-      | Some ((closure_id, contents), closures_entry) ->
+      | Some ((function_slot, contents), closures_entry) ->
         (* CR mshinwell: What about if there were multiple entries in the
-           row-like structure for the same closure ID? This is ruled out by
+           row-like structure for the same function slot? This is ruled out by
            [get_singleton] at the moment. We should probably choose the best
            entry from the [Row_like] structure. *)
-        let closure_ids = Set_of_closures_contents.closures contents in
+        let function_slots = Set_of_closures_contents.closures contents in
         (* CR mshinwell: Should probably check
-           [Set_of_closures_contents.closure_vars contents]? *)
-        if not (Closure_id.Set.mem closure_id closure_ids)
+           [Set_of_closures_contents.value_slots contents]? *)
+        if not (Function_slot.Set.mem function_slot function_slots)
         then
           Misc.fatal_errorf
-            "Closure ID %a expected in set-of-closures-contents in closure \
+            "Function slot %a expected in set-of-closures-contents in closure \
              type@ %a"
-            Closure_id.print closure_id TG.print t;
-        let function_types_with_closure_vars =
-          Closure_id.Set.fold
-            (fun closure_id function_types_with_closure_vars ->
+            Function_slot.print function_slot TG.print t;
+        let function_types_with_value_slots =
+          Function_slot.Set.fold
+            (fun function_slot function_types_with_value_slots ->
               match
-                TG.Closures_entry.find_function_type closures_entry closure_id
+                TG.Closures_entry.find_function_type closures_entry
+                  function_slot
               with
-              | Bottom | Unknown -> function_types_with_closure_vars
+              | Bottom | Unknown -> function_types_with_value_slots
               | Ok function_type ->
                 (* CR mshinwell: We're ignoring [coercion] *)
-                let closure_var_types =
-                  TG.Closures_entry.closure_var_types closures_entry
+                let value_slot_types =
+                  TG.Closures_entry.value_slot_types closures_entry
                 in
-                let closure_var_simples =
-                  Var_within_closure.Map.filter_map
-                    (fun _closure_var closure_var_type ->
+                let value_slot_simples =
+                  Value_slot.Map.filter_map
+                    (fun _value_slot value_slot_type ->
                       match
                         Provers
                         .prove_equals_to_var_or_symbol_or_tagged_immediate env
-                          closure_var_type
+                          value_slot_type
                       with
                       | Proved (Var var, coercion) ->
                         if var_allowed alloc_mode var
@@ -236,52 +237,49 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
                                 (Reg_width_const.tagged_immediate imm))
                              coercion)
                       | Unknown | Invalid -> None)
-                    closure_var_types
+                    value_slot_types
                 in
-                if Var_within_closure.Map.cardinal closure_var_types
-                   <> Var_within_closure.Map.cardinal closure_var_simples
-                then function_types_with_closure_vars
+                if Value_slot.Map.cardinal value_slot_types
+                   <> Value_slot.Map.cardinal value_slot_simples
+                then function_types_with_value_slots
                 else
-                  Closure_id.Map.add closure_id
-                    (function_type, closure_var_simples)
-                    function_types_with_closure_vars)
-            closure_ids Closure_id.Map.empty
+                  Function_slot.Map.add function_slot
+                    (function_type, value_slot_simples)
+                    function_types_with_value_slots)
+            function_slots Function_slot.Map.empty
         in
-        if Closure_id.Set.cardinal closure_ids
-           <> Closure_id.Map.cardinal function_types_with_closure_vars
+        if Function_slot.Set.cardinal function_slots
+           <> Function_slot.Map.cardinal function_types_with_value_slots
         then try_canonical_simple ()
         else
           let function_types =
-            Closure_id.Map.map
+            Function_slot.Map.map
               (fun (function_decl, _) -> function_decl)
-              function_types_with_closure_vars
+              function_types_with_value_slots
           in
-          let closure_vars =
-            Closure_id.Map.fold
-              (fun _closure_id (_function_decl, closure_var_simples)
-                   all_closure_vars ->
-                Var_within_closure.Map.fold
-                  (fun closure_var simple all_closure_vars ->
+          let value_slots =
+            Function_slot.Map.fold
+              (fun _function_slot (_function_decl, value_slot_simples)
+                   all_value_slots ->
+                Value_slot.Map.fold
+                  (fun value_slot simple all_value_slots ->
                     begin
-                      match
-                        Var_within_closure.Map.find closure_var all_closure_vars
-                      with
+                      match Value_slot.Map.find value_slot all_value_slots with
                       | exception Not_found -> ()
                       | existing_simple ->
                         if not (Simple.equal simple existing_simple)
                         then
                           Misc.fatal_errorf
-                            "Disagreement on %a and %a (closure var %a)@ \
-                             whilst reifying set-of-closures from:@ %a"
+                            "Disagreement on %a and %a (value slot %a)@ whilst \
+                             reifying set-of-closures from:@ %a"
                             Simple.print simple Simple.print existing_simple
-                            Var_within_closure.print closure_var TG.print t
+                            Value_slot.print value_slot TG.print t
                     end;
-                    Var_within_closure.Map.add closure_var simple
-                      all_closure_vars)
-                  closure_var_simples all_closure_vars)
-              function_types_with_closure_vars Var_within_closure.Map.empty
+                    Value_slot.Map.add value_slot simple all_value_slots)
+                  value_slot_simples all_value_slots)
+              function_types_with_value_slots Value_slot.Map.empty
           in
-          Lift_set_of_closures { closure_id; function_types; closure_vars }
+          Lift_set_of_closures { function_slot; function_types; value_slots }
     end
     | Naked_immediate (Ok (Naked_immediates imms)) -> (
       match Targetint_31_63.Set.get_singleton imms with

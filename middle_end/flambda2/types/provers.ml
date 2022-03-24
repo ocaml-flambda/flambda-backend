@@ -97,22 +97,22 @@ let prove_equals_to_var_or_symbol_or_tagged_immediate env t :
 
 let prove_single_closures_entry' env t : _ proof_allowing_kind_mismatch =
   match expand_head env t with
-  | Value (Ok (Closures { by_closure_id; alloc_mode })) -> (
-    match TG.Row_like_for_closures.get_singleton by_closure_id with
+  | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
+    match TG.Row_like_for_closures.get_singleton by_function_slot with
     | None -> Unknown
-    | Some ((closure_id, set_of_closures_contents), closures_entry) -> (
-      let closure_ids =
+    | Some ((function_slot, set_of_closures_contents), closures_entry) -> (
+      let function_slots =
         Set_of_closures_contents.closures set_of_closures_contents
       in
-      assert (Closure_id.Set.mem closure_id closure_ids);
+      assert (Function_slot.Set.mem function_slot function_slots);
       let function_type =
-        TG.Closures_entry.find_function_type closures_entry closure_id
+        TG.Closures_entry.find_function_type closures_entry function_slot
       in
       match function_type with
       | Bottom -> Invalid
       | Unknown -> Unknown
       | Ok function_type ->
-        Proved (closure_id, alloc_mode, closures_entry, function_type)))
+        Proved (function_slot, alloc_mode, closures_entry, function_type)))
   | Value (Ok _) -> Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -836,14 +836,16 @@ let prove_variant_field_simple env ~min_name_mode t variant_tag field_index =
   in
   (prove_block_field_simple_aux [@inlined]) env ~min_name_mode t get
 
-let prove_select_closure_simple env ~min_name_mode t closure_id : Simple.t proof
-    =
+let prove_project_function_slot_simple env ~min_name_mode t function_slot :
+    Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Closures { by_closure_id; alloc_mode = _ })) -> (
-    match TG.Row_like_for_closures.get_closure by_closure_id closure_id with
+  | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
+    match
+      TG.Row_like_for_closures.get_closure by_function_slot function_slot
+    with
     | Unknown -> Unknown
     | Known ty -> begin
       match TG.get_alias_exn ty with
@@ -861,13 +863,13 @@ let prove_select_closure_simple env ~min_name_mode t closure_id : Simple.t proof
   | Naked_nativeint _ | Rec_info _ | Region _ ->
     wrong_kind ()
 
-let prove_project_var_simple env ~min_name_mode t env_var : Simple.t proof =
+let prove_project_value_slot_simple env ~min_name_mode t env_var : Simple.t proof =
   let wrong_kind () =
     Misc.fatal_errorf "Kind error: expected [Value]:@ %a" TG.print t
   in
   match expand_head env t with
-  | Value (Ok (Closures { by_closure_id; alloc_mode = _ })) -> (
-    match TG.Row_like_for_closures.get_env_var by_closure_id env_var with
+  | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
+    match TG.Row_like_for_closures.get_env_var by_function_slot env_var with
     | Unknown -> Unknown
     | Known ty -> begin
       match TG.get_alias_exn ty with

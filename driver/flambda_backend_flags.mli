@@ -75,7 +75,7 @@ module Flambda2 : sig
     val rawfexpr : bool ref
     val fexpr : bool ref
     val flexpect : bool ref
-    val closure_offsets : bool ref
+    val slot_offsets : bool ref
     val freshen : bool ref
   end
 

@@ -61,9 +61,9 @@ let symbol () = fg_256 98
 
 let variable () = fg_256 111
 
-let closure_element () = fg_256 31
+let function_slot () = fg_256 31
 
-let closure_var () = fg_256 43
+let value_slot () = fg_256 43
 
 let code_id () = fg_256 169
 

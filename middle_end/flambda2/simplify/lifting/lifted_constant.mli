@@ -27,7 +27,7 @@ module Definition : sig
     | Set_of_closures of
         { denv : Downwards_env.t;
           closure_symbols_with_types :
-            (Symbol.t * Flambda2_types.t) Closure_id.Lmap.t;
+            (Symbol.t * Flambda2_types.t) Function_slot.Lmap.t;
           symbol_projections : Symbol_projection.t Variable.Map.t
         }
     | Block_like of
@@ -49,7 +49,8 @@ module Definition : sig
 
   val set_of_closures :
     Downwards_env.t ->
-    closure_symbols_with_types:(Symbol.t * Flambda2_types.t) Closure_id.Lmap.t ->
+    closure_symbols_with_types:
+      (Symbol.t * Flambda2_types.t) Function_slot.Lmap.t ->
     symbol_projections:Symbol_projection.t Variable.Map.t ->
     Rebuilt_static_const.t ->
     t
@@ -85,7 +86,7 @@ val create_block_like :
 
 val create_set_of_closures :
   Downwards_env.t ->
-  closure_symbols_with_types:(Symbol.t * Flambda2_types.t) Closure_id.Lmap.t ->
+  closure_symbols_with_types:(Symbol.t * Flambda2_types.t) Function_slot.Lmap.t ->
   symbol_projections:Symbol_projection.t Variable.Map.t ->
   Rebuilt_static_const.t ->
   t

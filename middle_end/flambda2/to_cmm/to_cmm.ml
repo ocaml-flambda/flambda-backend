@@ -131,7 +131,7 @@ let invalid _env res ~message =
   in
   call_expr, res
 
-let dead_closure_elts_msg dbg closure_ids closure_vars =
+let dead_slots_msg dbg function_slots value_slots =
   let aux s pp fmt = function
     | [] -> ()
     | _ :: _ as l ->
@@ -140,10 +140,10 @@ let dead_closure_elts_msg dbg closure_ids closure_vars =
   in
   Format.asprintf "@[<hv>[%a]@ Unreachable code because of@ %a%a@]"
     Debuginfo.print_compact dbg
-    (aux "dead closure ids" Closure_id.print)
-    closure_ids
-    (aux "dead closure vars" Var_within_closure.print)
-    closure_vars
+    (aux "dead function slots" Function_slot.print)
+    function_slots
+    (aux "dead value slots" Value_slot.print)
+    value_slots
 
 (* 'Simple' expression *)
 
@@ -486,43 +486,47 @@ let unary_primitive env res dbg f arg =
     extra, res, C.unbox_number ~dbg kind arg
   | Box_number (kind, alloc_mode) ->
     Some Env.Box, res, C.box_number ~dbg kind alloc_mode arg
-  | Select_closure { move_from = c1; move_to = c2 } -> begin
-    match Env.closure_offset env c1, Env.closure_offset env c2 with
-    | Id_slot { offset = c1_offset; _ }, Id_slot { offset = c2_offset; _ } ->
+  | Project_function_slot { move_from = c1; move_to = c2 } -> begin
+    match Env.function_slot_offset env c1, Env.function_slot_offset env c2 with
+    | ( Live_function_slot { offset = c1_offset; _ },
+        Live_function_slot { offset = c2_offset; _ } ) ->
       let diff = c2_offset - c1_offset in
       None, res, C.infix_field_address ~dbg arg diff
     (* one of the ids has been marked as dead, the code should be
        unreachable. *)
-    | Dead_id, Id_slot _ ->
-      let message = dead_closure_elts_msg dbg [c1] [] in
+    | Dead_function_slot, Live_function_slot _ ->
+      let message = dead_slots_msg dbg [c1] [] in
       let expr, res = invalid env res ~message in
       None, res, expr
-    | Id_slot _, Dead_id ->
-      let message = dead_closure_elts_msg dbg [c2] [] in
+    | Live_function_slot _, Dead_function_slot ->
+      let message = dead_slots_msg dbg [c2] [] in
       let expr, res = invalid env res ~message in
       None, res, expr
-    | Dead_id, Dead_id ->
-      let message = dead_closure_elts_msg dbg [c1; c2] [] in
+    | Dead_function_slot, Dead_function_slot ->
+      let message = dead_slots_msg dbg [c1; c2] [] in
       let expr, res = invalid env res ~message in
       None, res, expr
   end
-  | Project_var { project_from; var } -> begin
-    match Env.env_var_offset env var, Env.closure_offset env project_from with
+  | Project_value_slot { project_from; value_slot } -> begin
+    match
+      ( Env.value_slot_offset env value_slot,
+        Env.function_slot_offset env project_from )
+    with
     (* Normal case: we have offsets for everything *)
-    | Var_slot { offset }, Id_slot { offset = base; _ } ->
+    | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->
       None, res, C.get_field_gen Asttypes.Immutable arg (offset - base) dbg
-    (* the closure var and/or id has been explicitly removed, the code is
-       unreachable *)
-    | Dead_var, Id_slot _ ->
-      let message = dead_closure_elts_msg dbg [] [var] in
+    (* the value slot and/or function slot has been explicitly removed, the code
+       is unreachable *)
+    | Dead_value_slot, Live_function_slot _ ->
+      let message = dead_slots_msg dbg [] [value_slot] in
       let expr, res = invalid env res ~message in
       None, res, expr
-    | Var_slot _, Dead_id ->
-      let message = dead_closure_elts_msg dbg [project_from] [] in
+    | Live_value_slot _, Dead_function_slot ->
+      let message = dead_slots_msg dbg [project_from] [] in
       let expr, res = invalid env res ~message in
       None, res, expr
-    | Dead_var, Dead_id ->
-      let message = dead_closure_elts_msg dbg [project_from] [var] in
+    | Dead_value_slot, Dead_function_slot ->
+      let message = dead_slots_msg dbg [project_from] [value_slot] in
       let expr, res = invalid env res ~message in
       None, res, expr
   end
@@ -845,13 +849,13 @@ and let_static env res bound_static consts body =
     let body, res = expr env res body in
     wrap (C.sequence update body), res
 
-and let_set_of_closures env res body closure_vars
+and let_set_of_closures env res body value_slots
     ~num_normal_occurrences_of_bound_vars s =
   let layout = Env.layout env s in
   if layout.empty_env
-  then let_static_set_of_closures env res body closure_vars s layout
+  then let_static_set_of_closures env res body value_slots s layout
   else
-    let_dynamic_set_of_closures env res body closure_vars
+    let_dynamic_set_of_closures env res body value_slots
       ~num_normal_occurrences_of_bound_vars s layout
       ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
 
@@ -1043,7 +1047,7 @@ and apply_call env e =
   (* Effects from arguments are ignored since a function call will always be
      given arbitrary effects and coeffects. *)
   | Function
-      { function_call = Direct { code_id; closure_id = _; return_arity };
+      { function_call = Direct { code_id; function_slot = _; return_arity };
         alloc_mode = _
       } -> (
     let env =
@@ -1433,12 +1437,12 @@ and make_switch ~tag_discriminant env res e arms =
 
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)
-and let_static_set_of_closures env res body closure_vars s layout =
+and let_static_set_of_closures env res body value_slots s layout =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let cids =
     Function_declarations.funs_in_order (Set_of_closures.function_decls s)
-    |> Closure_id.Lmap.keys
+    |> Function_slot.Lmap.keys
   in
   let closure_symbols =
     List.map2
@@ -1448,8 +1452,8 @@ and let_static_set_of_closures env res body closure_vars s layout =
            variable *)
         let name = Variable.unique_name (Variable.rename v) in
         cid, Symbol.create comp_unit (Linkage_name.create name))
-      cids closure_vars
-    |> Closure_id.Map.of_list
+      cids value_slots
+    |> Function_slot.Map.of_list
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
@@ -1465,29 +1469,29 @@ and let_static_set_of_closures env res body closure_vars s layout =
   end;
   (* update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
-  (* Bind the variables to the symbols for closure ids. CR gbury: inline the
+  (* Bind the variables to the symbols for function slots. CR gbury: inline the
      variables (require to extend to_cmm_enc to inline pure variables more than
      once). *)
   let env =
     List.fold_left2
       (fun acc cid v ->
         let v = Bound_var.var v in
-        let sym = symbol (Closure_id.Map.find cid closure_symbols) in
+        let sym = symbol (Function_slot.Map.find cid closure_symbols) in
         let sym_cmm = C.symbol sym in
         Env.bind_variable acc v Ece.pure false sym_cmm)
-      env cids closure_vars
+      env cids value_slots
   in
   (* go on in the body *)
   expr env res body
 
 (* Sets of closures with a non-empty environment are allocated *)
-and let_dynamic_set_of_closures env res body closure_vars s
-    (layout : Closure_offsets.layout) ~num_normal_occurrences_of_bound_vars
+and let_dynamic_set_of_closures env res body value_slots s
+    (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) =
   (* unwrap the set of closures a bit *)
   let fun_decls = Set_of_closures.function_decls s in
   let decls = Function_declarations.funs_in_order fun_decls in
-  let elts = Set_of_closures.closure_elements s in
+  let elts = Set_of_closures.value_slots s in
   (* Allocating the closure has at least generative effects. It is also deemed
      to have coeffects if it is a local closure allocation. *)
   let effs =
@@ -1496,7 +1500,9 @@ and let_dynamic_set_of_closures env res body closure_vars s
       | Heap -> Coeffects.No_coeffects
       | Local -> Coeffects.Has_coeffects )
   in
-  let decl_map = decls |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list in
+  let decl_map =
+    decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
+  in
   let l, env, effs =
     fill_layout decl_map layout.startenv elts env effs [] 0 layout.slots
   in
@@ -1508,7 +1514,7 @@ and let_dynamic_set_of_closures env res body closure_vars s
      compiled set of closures. *)
   let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
   assert (Env.classify peff = Env.Pure);
-  (* Add env bindings for all the closure variables. *)
+  (* Add env bindings for all the value slots. *)
   let env =
     List.fold_left2
       (fun acc cid v ->
@@ -1518,18 +1524,18 @@ and let_dynamic_set_of_closures env res body closure_vars s
           let v = Bound_var.var v in
           let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
       env
-      (Closure_id.Lmap.keys decls)
-      closure_vars
+      (Function_slot.Lmap.keys decls)
+      value_slots
   in
   (* The set of closures, as well as the individual closures variables are
      correctly set in the env, go on translating the body. *)
   expr env res body
 
 and get_closure_by_offset env set_cmm cid =
-  match Env.closure_offset env cid with
-  | Id_slot { offset; _ } ->
+  match Env.function_slot_offset env cid with
+  | Live_function_slot { offset; _ } ->
     Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
-  | Dead_id -> None
+  | Dead_function_slot -> None
 
 and fill_layout decls startenv elts env effs acc i = function
   | [] -> List.rev acc, env, effs
@@ -1540,15 +1546,15 @@ and fill_layout decls startenv elts env effs acc i = function
     fill_layout decls startenv elts env effs acc offset r
 
 and fill_slot decls startenv elts env acc offset slot =
-  match (slot : Closure_offsets.layout_slot) with
+  match (slot : Slot_offsets.layout_slot) with
   | Infix_header ->
     let field = C.alloc_infix_header (offset + 1) Debuginfo.none in
     field :: acc, offset + 1, env, Ece.pure
-  | Env_var v ->
-    let field, env, eff = simple env (Var_within_closure.Map.find v elts) in
+  | Value_slot v ->
+    let field, env, eff = simple env (Value_slot.Map.find v elts) in
     field :: acc, offset + 1, env, eff
-  | Closure (c : Closure_id.t) -> (
-    let code_id = Closure_id.Map.find c decls in
+  | Function_slot (c : Function_slot.t) -> (
+    let code_id = Function_slot.Map.find c decls in
     (* CR-someday mshinwell: We should probably use the code's [dbg], but it
        would be tricky to get hold of, and this is very unlikely to make any
        difference in practice. mshinwell: this can now be got from

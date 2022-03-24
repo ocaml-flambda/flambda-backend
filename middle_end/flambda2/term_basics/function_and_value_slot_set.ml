@@ -16,6 +16,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Closure_id.t * Var_within_closure.Set.t
+type t = Function_slot.t * Value_slot.Set.t
 
-include Container_types.Make_pair (Closure_id) (Var_within_closure_set)
+include Container_types.Make_pair (Function_slot) (Value_slot_set)

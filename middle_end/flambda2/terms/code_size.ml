@@ -338,8 +338,8 @@ let unary_prim_size prim =
   | Reinterpret_int64_as_float -> 0
   | Unbox_number k -> unbox_number k
   | Box_number (k, _alloc_mode) -> box_number k
-  | Select_closure _ -> 1 (* caddv *)
-  | Project_var _ -> 1 (* load *)
+  | Project_function_slot _ -> 1 (* caddv *)
+  | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
   | End_region -> 1

@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2018--2019 OCamlPro SAS                                    *)
-(*   Copyright 2018--2019 Jane Street Group LLC                           *)
+(*   Copyright 2013--2017 OCamlPro SAS                                    *)
+(*   Copyright 2014--2017 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,18 +14,31 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-type t = Closure_id.Set.t
+(** A label, unique across the whole program, that identifies a function within
+    a set of closures. In essence these function slots describe the semantics of
+    a particular piece of code when it is executed in the context of a
+    particular closure.
 
-include Container_types.Make (struct
-  include Closure_id.Set
+    Function slots are assigned integer offsets inside [Closure_tag] blocks,
+    where the relevant information (code pointers, arity, etc.) will be stored
+    at runtime, by the [Slot_offsets] module. *)
 
-  let hash = Hashtbl.hash
-end)
+include Container_types.S
 
-let free_names _t = Name_occurrences.empty
+module Lmap : Lmap.S with type key = t
 
-let apply_renaming t _perm = t
+val wrap : Compilation_unit.t -> Variable.t -> t
 
-let subset t1 t2 = Closure_id.Set.subset t1 t2
+val unwrap : t -> Variable.t
+
+val in_compilation_unit : t -> Compilation_unit.t -> bool
+
+val get_compilation_unit : t -> Compilation_unit.t
+
+val to_string : t -> string
+
+val name : t -> string
+
+val rename : t -> t

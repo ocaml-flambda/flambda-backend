@@ -37,7 +37,7 @@ val create_import_map :
   consts:Reg_width_things.Const.t Reg_width_things.Const.Map.t ->
   code_ids:Code_id.t Code_id.Map.t ->
   continuations:Continuation.t Continuation.Map.t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   original_compilation_unit:Compilation_unit.t ->
   t
 
@@ -86,4 +86,4 @@ val apply_const : t -> Reg_width_things.Const.t -> Reg_width_things.Const.t
 val apply_simple : t -> Reg_width_things.Simple.t -> Reg_width_things.Simple.t
 
 (* CR mshinwell: See CR in the implementation about this function. *)
-val closure_var_is_used : t -> Var_within_closure.t -> bool
+val value_slot_is_used : t -> Value_slot.t -> bool

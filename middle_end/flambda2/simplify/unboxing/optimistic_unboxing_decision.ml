@@ -107,12 +107,13 @@ let rec make_optimistic_decision ~depth tenv ~param_type : U.decision =
             Unbox (Variant { tag; const_ctors; fields_by_tag })
           | Proved _ | Wrong_kind | Invalid | Unknown -> begin
             match T.prove_single_closures_entry' tenv param_type with
-            | Proved (closure_id, _, closures_entry, _fun_decl)
+            | Proved (function_slot, _, closures_entry, _fun_decl)
               when unbox_closures ->
               let vars_within_closure =
                 make_optimistic_vars_within_closure ~depth tenv closures_entry
               in
-              Unbox (Closure_single_entry { closure_id; vars_within_closure })
+              Unbox
+                (Closure_single_entry { function_slot; vars_within_closure })
             | Proved _ | Wrong_kind | Invalid | Unknown ->
               Do_not_unbox Incomplete_parameter_type
           end))
@@ -170,12 +171,11 @@ and make_optimistic_fields ~add_tag_to_name ~depth tenv param_type (tag : Tag.t)
   fields
 
 and make_optimistic_vars_within_closure ~depth tenv closures_entry =
-  let map = T.Closures_entry.closure_var_types closures_entry in
-  Var_within_closure.Map.mapi
-    (fun var_within_closure var_type : U.field_decision ->
+  let map = T.Closures_entry.value_slot_types closures_entry in
+  Value_slot.Map.mapi
+    (fun value_slot var_type : U.field_decision ->
       let epa =
-        Extra_param_and_args.create
-          ~name:(Var_within_closure.to_string var_within_closure)
+        Extra_param_and_args.create ~name:(Value_slot.to_string value_slot)
       in
       let decision =
         make_optimistic_decision ~depth:(depth + 1) tenv ~param_type:var_type

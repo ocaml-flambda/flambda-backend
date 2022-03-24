@@ -54,7 +54,7 @@ and head_of_kind_value = private
   | Boxed_int64 of t * Alloc_mode.t Or_unknown.t
   | Boxed_nativeint of t * Alloc_mode.t Or_unknown.t
   | Closures of
-      { by_closure_id : row_like_for_closures;
+      { by_function_slot : row_like_for_closures;
         alloc_mode : Alloc_mode.t Or_unknown.t
       }
   | String of String_info.Set.t
@@ -98,22 +98,22 @@ and row_like_for_blocks = private
 and row_like_for_closures = private
   { known_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case
-      Closure_id.Map.t;
+      Function_slot.Map.t;
     other_closures :
       (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t
   }
 
 and closures_entry = private
-  { function_types : function_type Or_unknown_or_bottom.t Closure_id.Map.t;
-    closure_types : closure_id_indexed_product;
-    closure_var_types : var_within_closure_indexed_product
+  { function_types : function_type Or_unknown_or_bottom.t Function_slot.Map.t;
+    closure_types : function_slot_indexed_product;
+    value_slot_types : value_slot_indexed_product
   }
 
-and closure_id_indexed_product = private
-  { closure_id_components_by_index : t Closure_id.Map.t }
+and function_slot_indexed_product = private
+  { function_slot_components_by_index : t Function_slot.Map.t }
 
-and var_within_closure_indexed_product = private
-  { var_within_closure_components_by_index : t Var_within_closure.Map.t }
+and value_slot_indexed_product = private
+  { value_slot_components_by_index : t Value_slot.Map.t }
 
 and int_indexed_product = private
   { fields : t array;
@@ -131,17 +131,17 @@ type flambda_type = t
 
 val print : Format.formatter -> t -> unit
 
-(** [free_names] returns *all* closure variables occurring in the given type
+(** [free_names] returns *all* value slots occurring in the given type
     regardless of where in the type such variables occur. *)
 include Contains_names.S with type t := t
 
-val free_names_except_through_closure_vars : t -> Name_occurrences.t
+val free_names_except_through_value_slots : t -> Name_occurrences.t
 
 include Contains_ids.S with type t := t
 
-val remove_unused_closure_vars_and_shortcut_aliases :
+val remove_unused_value_slots_and_shortcut_aliases :
   t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   canonicalise:(Simple.t -> Simple.t) ->
   t
 
@@ -264,12 +264,12 @@ val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t -> length:t -> t
 
 module Product : sig
-  module Closure_id_indexed : sig
-    type t = closure_id_indexed_product
+  module Function_slot_indexed : sig
+    type t = function_slot_indexed_product
 
     val top : t
 
-    val create : flambda_type Closure_id.Map.t -> t
+    val create : flambda_type Function_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.Imm.t
 
@@ -277,12 +277,12 @@ module Product : sig
     val components : t -> flambda_type list
   end
 
-  module Var_within_closure_indexed : sig
-    type t = var_within_closure_indexed_product
+  module Value_slot_indexed : sig
+    type t = value_slot_indexed_product
 
     val top : t
 
-    val create : flambda_type Var_within_closure.Map.t -> t
+    val create : flambda_type Value_slot.Map.t -> t
 
     val width : t -> Targetint_31_63.Imm.t
 
@@ -320,15 +320,15 @@ module Closures_entry : sig
   type t = closures_entry
 
   val create :
-    function_types:Function_type.t Or_unknown_or_bottom.t Closure_id.Map.t ->
-    closure_types:Product.Closure_id_indexed.t ->
-    closure_var_types:Product.Var_within_closure_indexed.t ->
+    function_types:Function_type.t Or_unknown_or_bottom.t Function_slot.Map.t ->
+    closure_types:Product.Function_slot_indexed.t ->
+    value_slot_types:Product.Value_slot_indexed.t ->
     t
 
   val find_function_type :
-    t -> Closure_id.t -> Function_type.t Or_unknown_or_bottom.t
+    t -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
 
-  val closure_var_types : t -> flambda_type Var_within_closure.Map.t
+  val value_slot_types : t -> flambda_type Value_slot.Map.t
 end
 
 module Row_like_index : sig
@@ -427,28 +427,29 @@ module Row_like_for_closures : sig
   type t = row_like_for_closures
 
   val create_exactly :
-    Closure_id.t -> Set_of_closures_contents.t -> Closures_entry.t -> t
+    Function_slot.t -> Set_of_closures_contents.t -> Closures_entry.t -> t
 
   val create_at_least :
-    Closure_id.t -> Set_of_closures_contents.t -> Closures_entry.t -> t
+    Function_slot.t -> Set_of_closures_contents.t -> Closures_entry.t -> t
 
   val create_raw :
     known_closures:
       (Set_of_closures_contents.t, closures_entry) row_like_case
-      Closure_id.Map.t ->
+      Function_slot.Map.t ->
     other_closures:
       (Set_of_closures_contents.t, closures_entry) row_like_case Or_bottom.t ->
     t
 
   val get_singleton :
-    t -> ((Closure_id.t * Set_of_closures_contents.t) * Closures_entry.t) option
+    t ->
+    ((Function_slot.t * Set_of_closures_contents.t) * Closures_entry.t) option
 
   (** Same as For_blocks.get_field: attempt to find the type associated to the
       given environment variable without an expensive meet. *)
-  val get_env_var : t -> Var_within_closure.t -> flambda_type Or_unknown.t
+  val get_env_var : t -> Value_slot.t -> flambda_type Or_unknown.t
 
   (** Similar to [get_env_var] but for closures within the set. *)
-  val get_closure : t -> Closure_id.t -> flambda_type Or_unknown.t
+  val get_closure : t -> Function_slot.t -> flambda_type Or_unknown.t
 end
 
 module Env_extension : sig

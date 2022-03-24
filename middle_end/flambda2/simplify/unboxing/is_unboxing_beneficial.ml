@@ -46,10 +46,10 @@ let rec filter_non_beneficial_decisions decision : U.decision =
     if is_unboxing_beneficial
     then Unbox (Unique_tag_and_size { tag; fields })
     else Do_not_unbox Not_beneficial
-  | Unbox (Closure_single_entry { closure_id; vars_within_closure }) ->
+  | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     let is_unboxing_beneficial = ref false in
     let vars_within_closure =
-      Var_within_closure.Map.map
+      Value_slot.Map.map
         (fun ({ epa; decision } : U.field_decision) : U.field_decision ->
           is_unboxing_beneficial
             := !is_unboxing_beneficial || is_unboxing_beneficial_for_epa epa;
@@ -58,7 +58,7 @@ let rec filter_non_beneficial_decisions decision : U.decision =
         vars_within_closure
     in
     if !is_unboxing_beneficial
-    then Unbox (Closure_single_entry { closure_id; vars_within_closure })
+    then Unbox (Closure_single_entry { function_slot; vars_within_closure })
     else Do_not_unbox Not_beneficial
   | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->
     let is_unboxing_beneficial = ref false in

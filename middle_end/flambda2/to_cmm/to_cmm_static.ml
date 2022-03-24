@@ -143,12 +143,12 @@ let get_whole_closure_symbol =
       r := Some s;
       s
 
-let rec static_set_of_closures env symbs set (layout : Closure_offsets.layout)
+let rec static_set_of_closures env symbs set (layout : Slot_offsets.layout)
     prev_update =
   let clos_symb = ref None in
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
-  let elts = Set_of_closures.closure_elements set in
+  let elts = Set_of_closures.value_slots set in
   let env, l, updates, length =
     fill_static_layout clos_symb symbs decls layout.startenv elts env []
       prev_update 0 layout.slots
@@ -180,14 +180,12 @@ and fill_static_layout s symbs decls startenv elts env acc updates i = function
     fill_static_layout s symbs decls startenv elts env acc updates offset r
 
 and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
-  match (slot : Closure_offsets.layout_slot) with
+  match (slot : Slot_offsets.layout_slot) with
   | Infix_header ->
     let field = C.cint (C.infix_header (offset + 1)) in
     env, field :: acc, offset + 1, updates
-  | Env_var v ->
-    let env, contents =
-      simple_static env (Var_within_closure.Map.find v elts)
-    in
+  | Value_slot v ->
+    let env, contents = simple_static env (Value_slot.Map.find v elts) in
     let env, fields, updates =
       match contents with
       | `Data fields -> env, fields, updates
@@ -199,9 +197,9 @@ and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
         env, [C.cint 1n], updates
     in
     env, List.rev fields @ acc, offset + 1, updates
-  | Closure c -> (
-    let code_id = Closure_id.Map.find c decls in
-    let symb = Closure_id.Map.find c symbs in
+  | Function_slot c -> (
+    let code_id = Function_slot.Map.find c decls in
+    let symb = Function_slot.Map.find c symbs in
     let external_name = symbol symb in
     let code_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
     let acc = List.rev (C.define_symbol ~global:true external_name) @ acc in
@@ -247,7 +245,8 @@ let preallocate_set_of_closures (r, updates, env) ~closure_symbols
     set_of_closures =
   let env, data, updates =
     let closure_symbols =
-      closure_symbols |> Closure_id.Lmap.bindings |> Closure_id.Map.of_list
+      closure_symbols |> Function_slot.Lmap.bindings
+      |> Function_slot.Map.of_list
     in
     let layout = Env.layout env set_of_closures in
     static_set_of_closures env closure_symbols set_of_closures layout updates

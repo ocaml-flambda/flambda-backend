@@ -25,14 +25,14 @@ module Int64 = Numeric_types.Int64
 (* CR mshinwell: [meet] operations should not return types that are already
  * known about.  The majority of problems like this have been fixed.
  * However it looks like there may be another hanging around somewhere.
- * In flambdatest/mlexamples/tuple_stub.ml, the [Select_closure] yields the
+ * In flambdatest/mlexamples/tuple_stub.ml, the [Project_function_slot] yields the
  * following env extension:
  *
  *  ((equations
  * (Tuple_stub.camlTuple_stub__thd3_2 :
  *   (Val
  *    ((known_tags
- *      {(thd3/0 => (Known ((closures { thd3/0 thd3/1 }) (closure_vars { }))),
+ *      {(thd3/0 => (Known ((closures { thd3/0 thd3/1 }) (value_slots { }))),
  *        ((function_decls
  *          {(thd3/0
  *            (Ok (Inlinable (code_id thd3_0_tuple_stub/2) (param_arity 𝕍)
@@ -44,21 +44,22 @@ module Int64 = Numeric_types.Int64
  *                 (inline Default_inline) (is_a_functor false) (recursive Non_recursive)
  *                 (coercion ((depth 1) (unroll_to None))))))})
  *         (closure_types ((components_by_index {(thd3/0 (Val (= Tuple_stub.camlTuple_stub__thd3_2))) (thd3/1 (Val (= Tuple_stub.camlTuple_stub__thd3_3)))})))
- *         (closure_var_types ((components_by_index {})))))}) (other_tags Bottom)))
+ *         (value_slot_types ((components_by_index {})))))}) (other_tags Bottom)))
  *  unboxed_version/48 : (Val (= Tuple_stub.camlTuple_stub__thd3_3)))))
  *
  *  All that should be present here is the equation on [unboxed_version].
  *  The type of the symbol appears to be the same as already known in [dacc].
  *)
 
-let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
+let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
-  (* Format.eprintf "Select_closure %a -> %a, closure type:@ %a@ dacc:@ %a\n%!"
-     Closure_id.print move_from Closure_id.print move_to T.print closure_ty
-     DA.print dacc; *)
+  (* Format.eprintf "Project_function_slot %a -> %a, closure type:@ %a@ dacc:@
+     %a\n%!" Function_slot.print move_from Function_slot.print move_to T.print
+     closure_ty DA.print dacc; *)
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_select_closure_simple typing_env ~min_name_mode closure_ty move_to
+    T.prove_project_function_slot_simple typing_env ~min_name_mode closure_ty
+      move_to
   with
   | Invalid ->
     let ty = T.bottom K.value in
@@ -75,21 +76,23 @@ let simplify_select_closure ~move_from ~move_to ~min_name_mode dacc
   | Unknown ->
     let result = Simple.var (Bound_var.var result_var) in
     let closures =
-      Closure_id.Map.empty
-      |> Closure_id.Map.add move_from closure
-      |> Closure_id.Map.add move_to result
+      Function_slot.Map.empty
+      |> Function_slot.Map.add move_from closure
+      |> Function_slot.Map.add move_to result
     in
     Simplify_common.simplify_projection dacc ~original_term
       ~deconstructing:closure_ty
-      ~shape:(T.at_least_the_closures_with_ids ~this_closure:move_from closures)
+      ~shape:
+        (T.closure_with_at_least_these_function_slots
+           ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
-let simplify_project_var closure_id closure_element ~min_name_mode dacc
+let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
     ~original_term ~arg:closure ~arg_ty:closure_ty ~result_var =
   let typing_env = DA.typing_env dacc in
   match
-    T.prove_project_var_simple typing_env ~min_name_mode closure_ty
-      closure_element
+    T.prove_project_value_slot_simple typing_env ~min_name_mode closure_ty
+      value_slot
   with
   | Invalid ->
     let ty = T.bottom K.value in
@@ -97,11 +100,11 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
     Simplified_named.invalid (), dacc
   | Proved simple ->
     (* Owing to the semantics of [Simplify_set_of_closures] when computing the
-       types of closure variables -- in particular because it allows depth
-       variables to exist in such types that are not in scope in the body of the
-       function -- we need to ensure that any [Simple] retrieved here from the
-       closure environment is simplified. This will ensure that if it is not in
-       scope, any associated coercion will be erased appropriately. *)
+       types of value slots -- in particular because it allows depth variables
+       to exist in such types that are not in scope in the body of the function
+       -- we need to ensure that any [Simple] retrieved here from the closure
+       environment is simplified. This will ensure that if it is not in scope,
+       any associated coercion will be erased appropriately. *)
     let simple =
       if Coercion.is_id (Simple.coercion simple)
       then simple
@@ -121,8 +124,9 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
       Simplify_common.simplify_projection dacc ~original_term
         ~deconstructing:closure_ty
         ~shape:
-          (T.closure_with_at_least_this_closure_var ~this_closure:closure_id
-             closure_element ~closure_element_var:(Bound_var.var result_var))
+          (T.closure_with_at_least_this_value_slot
+             ~this_function_slot:function_slot value_slot
+             ~value_slot_var:(Bound_var.var result_var))
         ~result_var ~result_kind:K.value
     in
     let dacc =
@@ -134,14 +138,14 @@ let simplify_project_var closure_id closure_element ~min_name_mode dacc
         ~symbol:(fun symbol_projected_from ~coercion:_ ->
           let proj =
             SP.create symbol_projected_from
-              (SP.Projection.project_var closure_id closure_element)
+              (SP.Projection.project_value_slot function_slot value_slot)
           in
           let var = Bound_var.var result_var in
           DA.map_denv dacc ~f:(fun denv ->
               DE.add_symbol_projection denv var proj))
         ~var:(fun _ ~coercion:_ -> dacc)
     in
-    reachable, DA.add_use_of_closure_var dacc closure_element
+    reachable, DA.add_use_of_value_slot dacc value_slot
 
 let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     ~original_term ~arg ~arg_ty:boxed_number_ty ~result_var =
@@ -626,10 +630,10 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Project_var { project_from; var } ->
-      simplify_project_var project_from var ~min_name_mode
-    | Select_closure { move_from; move_to } ->
-      simplify_select_closure ~move_from ~move_to ~min_name_mode
+    | Project_value_slot { project_from; value_slot } ->
+      simplify_project_value_slot project_from value_slot ~min_name_mode
+    | Project_function_slot { move_from; move_to } ->
+      simplify_project_function_slot ~move_from ~move_to ~min_name_mode
     | Unbox_number boxable_number_kind ->
       simplify_unbox_number boxable_number_kind
     | Box_number (boxable_number_kind, alloc_mode) ->

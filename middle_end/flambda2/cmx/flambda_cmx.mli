@@ -40,7 +40,7 @@ val load_symbol_approx :
 val prepare_cmx_file_contents :
   final_typing_env:Flambda2_types.Typing_env.t option ->
   module_symbol:Symbol.t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   exported_offsets:Exported_offsets.t ->
   Exported_code.t ->
   Flambda_cmx_format.t option
@@ -49,6 +49,6 @@ val prepare_cmx_from_approx :
   approxs:Code_or_metadata.t Value_approximation.t Symbol.Map.t ->
   module_symbol:Symbol.t ->
   exported_offsets:Exported_offsets.t ->
-  used_closure_vars:Var_within_closure.Set.t ->
+  used_value_slots:Value_slot.Set.t ->
   Exported_code.t ->
   Flambda_cmx_format.t option

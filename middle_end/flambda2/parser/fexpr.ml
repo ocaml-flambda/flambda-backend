@@ -13,9 +13,9 @@ type continuation_id = string located
 
 type code_id = string located
 
-type closure_id = string located
+type function_slot = string located
 
-type var_within_closure = string located
+type value_slot = string located
 
 type compilation_unit =
   { ident : string;
@@ -260,13 +260,13 @@ type unop =
         dst : standard_int_or_float
       }
   | Opaque_identity
-  | Project_var of
-      { project_from : closure_id;
-        var : var_within_closure
+  | Project_value_slot of
+      { project_from : function_slot;
+        value_slot : value_slot
       }
-  | Select_closure of
-      { move_from : closure_id;
-        move_to : closure_id
+  | Project_function_slot of
+      { move_from : function_slot;
+        move_to : function_slot
       }
   | String_length of string_or_bytes
   | Unbox_number of box_kind
@@ -330,7 +330,7 @@ type arity = kind_with_subkind list
 type function_call =
   | Direct of
       { code_id : code_id;
-        closure_id : closure_id option
+        function_slot : function_slot option
       }
   | Indirect
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
@@ -398,16 +398,16 @@ type expr =
       }
   | Invalid of { message : string }
 
-and closure_elements = closure_element list
+and value_slots = one_value_slot list
 
-and closure_element =
-  { var : var_within_closure;
+and one_value_slot =
+  { var : value_slot;
     value : simple
   }
 
 and let_ =
   { bindings : let_binding list;
-    closure_elements : closure_elements option;
+    value_slots : value_slots option;
     body : expr
   }
 
@@ -424,7 +424,7 @@ and named =
 
 and fun_decl =
   { code_id : code_id;
-    closure_id : closure_id option (* defaults to same name as code id *)
+    function_slot : function_slot option (* defaults to same name as code id *)
   }
 
 and let_cont =
@@ -443,7 +443,7 @@ and continuation_binding =
 and let_symbol =
   { bindings : symbol_binding list;
     (* Only used if there's no [Set_of_closures] in the list *)
-    closure_elements : closure_elements option;
+    value_slots : value_slots option;
     body : expr
   }
 
@@ -456,7 +456,7 @@ and symbol_binding =
 
 and static_set_of_closures =
   { bindings : static_closure_binding list;
-    elements : closure_elements option
+    elements : value_slots option
   }
 
 and code =

@@ -57,7 +57,7 @@ let rebuild_let simplify_named_result removed_operations
     LCS.sort lifted_constants_from_defining_expr
   in
   (* At this point, the free names in [uacc] are the free names of [body], plus
-     all used closure vars seen in the whole compilation unit. *)
+     all used value slots seen in the whole compilation unit. *)
   let no_constants_from_defining_expr =
     LCS.is_empty lifted_constants_from_defining_expr
   in
@@ -102,17 +102,16 @@ let rebuild_let simplify_named_result removed_operations
     in
     after_rebuild body uacc
 
-let record_one_closure_element_binding_for_data_flow symbol closure_var simple
-    data_flow =
-  DF.record_closure_element_binding (Name.symbol symbol) closure_var
+let record_one_value_slot_for_data_flow symbol value_slot simple data_flow =
+  DF.record_value_slot (Name.symbol symbol) value_slot
     (Simple.free_names simple) data_flow
 
-let record_one_closure_binding_for_data_flow ~free_names ~closure_elements _
+let record_one_function_slot_for_data_flow ~free_names ~value_slots _
     (symbol, _) data_flow =
   let data_flow = DF.record_symbol_binding symbol free_names data_flow in
-  Var_within_closure.Map.fold
-    (record_one_closure_element_binding_for_data_flow symbol)
-    closure_elements data_flow
+  Value_slot.Map.fold
+    (record_one_value_slot_for_data_flow symbol)
+    value_slots data_flow
 
 let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
     definition =
@@ -137,15 +136,15 @@ let record_lifted_constant_definition_for_data_flow ~being_defined data_flow
           (Function_declarations.free_names
              (Set_of_closures.function_decls set_of_closures))
       in
-      let closure_elements = Set_of_closures.closure_elements set_of_closures in
-      Closure_id.Lmap.fold
-        (record_one_closure_binding_for_data_flow ~free_names ~closure_elements)
+      let value_slots = Set_of_closures.value_slots set_of_closures in
+      Function_slot.Lmap.fold
+        (record_one_function_slot_for_data_flow ~free_names ~value_slots)
         closure_symbols_with_types data_flow
     | None | Some (Code _ | Deleted_code) ->
       let free_names =
         Name_occurrences.union being_defined (D.free_names definition)
       in
-      Closure_id.Lmap.fold
+      Function_slot.Lmap.fold
         (fun _ (symbol, _) data_flow ->
           DF.record_symbol_binding symbol free_names data_flow)
         closure_symbols_with_types data_flow)

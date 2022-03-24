@@ -29,7 +29,7 @@ module Function_call = struct
   type t =
     | Direct of
         { code_id : Code_id.t;
-          closure_id : Closure_id.t;
+          function_slot : Function_slot.t;
           return_arity : Flambda_arity.With_subkinds.t
         }
     | Indirect_unknown_arity
@@ -40,14 +40,14 @@ module Function_call = struct
 
   let [@ocamlformat "disable"] print ppf call =
     match call with
-    | Direct { code_id; closure_id; return_arity; } ->
+    | Direct { code_id; function_slot; return_arity; } ->
       fprintf ppf "@[<hov 1>(Direct@ \
           @[<hov 1>(code_id@ %a)@]@ \
-          @[<hov 1>(closure_id@ %a)@]@ \
+          @[<hov 1>(function_slot@ %a)@]@ \
           @[<hov 1>(return_arity@ %a)@]\
           )@]"
         Code_id.print code_id
-        Closure_id.print closure_id
+        Function_slot.print function_slot
         Flambda_arity.With_subkinds.print return_arity
     | Indirect_unknown_arity ->
       fprintf ppf "Indirect_unknown_arity"
@@ -119,10 +119,12 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_arity.print param_arity
       Flambda_arity.print return_arity
 
-let direct_function_call code_id closure_id ~return_arity alloc_mode =
+let direct_function_call code_id function_slot ~return_arity alloc_mode =
   check_arity return_arity;
   Function
-    { function_call = Direct { code_id; closure_id; return_arity }; alloc_mode }
+    { function_call = Direct { code_id; function_slot; return_arity };
+      alloc_mode
+    }
 
 let indirect_function_call_unknown_arity alloc_mode =
   Function { function_call = Indirect_unknown_arity; alloc_mode }
@@ -158,13 +160,13 @@ let return_arity t =
 let free_names t =
   match t with
   | Function
-      { function_call = Direct { code_id; closure_id; return_arity = _ };
+      { function_call = Direct { code_id; function_slot; return_arity = _ };
         alloc_mode = _
       } ->
-    Name_occurrences.add_closure_id_in_projection
+    Name_occurrences.add_function_slot_in_projection
       (Name_occurrences.add_code_id Name_occurrences.empty code_id
          Name_mode.normal)
-      closure_id Name_mode.normal
+      function_slot Name_mode.normal
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
   | Function
       { function_call =
@@ -182,7 +184,7 @@ let free_names t =
 let apply_renaming t perm =
   match t with
   | Function
-      { function_call = Direct { code_id; closure_id; return_arity };
+      { function_call = Direct { code_id; function_slot; return_arity };
         alloc_mode
       } ->
     let code_id' = Renaming.apply_code_id perm code_id in
@@ -191,7 +193,7 @@ let apply_renaming t perm =
     else
       Function
         { function_call =
-            Direct { code_id = code_id'; closure_id; return_arity };
+            Direct { code_id = code_id'; function_slot; return_arity };
           alloc_mode
         }
   | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
@@ -209,7 +211,7 @@ let apply_renaming t perm =
 let all_ids_for_export t =
   match t with
   | Function
-      { function_call = Direct { code_id; closure_id = _; return_arity = _ };
+      { function_call = Direct { code_id; function_slot = _; return_arity = _ };
         alloc_mode = _
       } ->
     Ids_for_export.add_code_id Ids_for_export.empty code_id

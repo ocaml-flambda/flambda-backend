@@ -16,9 +16,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Closure_id_or_unknown = Or_unknown.Lift (Closure_id)
+module Function_slot_or_unknown : module type of struct
+  include Or_unknown.Lift (Function_slot)
+end
 
-type t = Closure_id_or_unknown.t * Var_within_closure.Set.t
+type t = Function_slot_or_unknown.t * Value_slot_set.t
 
-include
-  Container_types.Make_pair (Closure_id_or_unknown) (Var_within_closure_set)
+include Container_types.S with type t := t

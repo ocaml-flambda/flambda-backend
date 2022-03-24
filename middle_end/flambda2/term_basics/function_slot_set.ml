@@ -16,6 +16,16 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type t = Closure_id.t * Var_within_closure_set.t
+type t = Function_slot.Set.t
 
-include Container_types.S with type t := t
+include Container_types.Make (struct
+  include Function_slot.Set
+
+  let hash = Hashtbl.hash
+end)
+
+let free_names _t = Name_occurrences.empty
+
+let apply_renaming t _perm = t
+
+let subset t1 t2 = Function_slot.Set.subset t1 t2

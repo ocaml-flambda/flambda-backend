@@ -27,7 +27,7 @@ flambda_unit: KWD_APPLY SYMBOL MINUSGREATER IDENT KWD_WITH
 ##
 
 Expected * followed by an exception continuation.
-Example of an application: 
+Example of an application:
   apply f (arg1 arg2) -> cont * exn_cont
 
 flambda_unit: KWD_APPLY SYMBOL MINUSGREATER KWD_WITH
@@ -127,7 +127,7 @@ flambda_unit: KWD_CONT IDENT KWD_VAL
 ## KWD_CONT continuation
 ##
 
-Expected an argument list in parentheses, or end of file, or one of: with } in 
+Expected an argument list in parentheses, or end of file, or one of: with } in
 Examples of continuation calls:
   cont k
   cont k ()
@@ -159,7 +159,7 @@ flambda_unit: KWD_LET KWD_CODE IDENT AT IDENT KWD_WITH
 
 Expected a new_version_of declaration, an argument list, or a closure argument.
 Examples of code definitions:
-  code f2 @closure_id newer_version_of f1 arg1 arg2 my_closure <var1 var2>
+  code f2 @function_slot newer_version_of f1 arg1 arg2 my_closure <var1 var2>
     -> k * e : val * val = cont k (arg1 arg2)
   code f2 my_closure -> k * e = cont k (arg1)
 
@@ -167,15 +167,15 @@ flambda_unit: KWD_LET KWD_CODE IDENT AT KWD_WITH
 ##
 ## Ends in an error in state: 112.
 ##
-## option(__anonymous_0) -> AT . closure_id [ KWD_NEWER_VERSION_OF LPAREN IDENT ]
+## option(__anonymous_0) -> AT . function_slot [ KWD_NEWER_VERSION_OF LPAREN IDENT ]
 ##
 ## The known suffix of the stack is as follows:
 ## AT
 ##
 
-Expected a closure id.
-Example of a code definition specifying a closure id:
-  code f @closure_id my_closure -> k * e = cont k arg1
+Expected a function slot.
+Example of a code definition specifying a function slot:
+  code f @function_slot my_closure -> k * e = cont k arg1
 
 flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT COLON KWD_VAL MINUSGREATER
 ##
@@ -190,9 +190,9 @@ flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT COLON KWD_VAL MINU
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 141, spurious reduction of production separated_nonempty_list(STAR,kind) -> kind 
-## In state 139, spurious reduction of production kinds -> separated_nonempty_list(STAR,kind) 
-## In state 140, spurious reduction of production return_arity -> COLON kinds 
+## In state 141, spurious reduction of production separated_nonempty_list(STAR,kind) -> kind
+## In state 139, spurious reduction of production kinds -> separated_nonempty_list(STAR,kind)
+## In state 140, spurious reduction of production return_arity -> COLON kinds
 ##
 
 Expected = followed by an expression.
@@ -240,7 +240,7 @@ flambda_unit: KWD_LET KWD_CODE IDENT IDENT MINUSGREATER IDENT KWD_WITH
 ##
 
 Expected * followed by a name for an exception continuation, or : followed by a
-return arity, or = followed by an expression. 
+return arity, or = followed by an expression.
 Examples of code definitions:
   code f my_closure -> k * e : () = cont k ()
   code f my_closure -> k : val * val = cont k (23 42)
@@ -331,10 +331,10 @@ flambda_unit: KWD_LET KWD_CODE IDENT KWD_WITH
 ## KWD_CODE recursive code_id
 ##
 
-Expected a closure id declaration or a newer_version_of declaration or an
+Expected a function_slot declaration or a newer_version_of declaration or an
 argument list or an identifier for a closure argument.
-Example of a closure id declaration:
-  @ closure_id
+Example of a function_slot declaration:
+  @ function_slot
 Example of a newer_version_of declaration:
   newer_version_of code_id
 Examples of argument lists:
@@ -457,11 +457,11 @@ flambda_unit: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT KWD_END
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 204, spurious reduction of production separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding 
-## In state 189, spurious reduction of production with_closure_elements_opt -> 
-## In state 201, spurious reduction of production segment_body -> separated_nonempty_list(AND,code_or_closure_binding) with_closure_elements_opt 
-## In state 224, spurious reduction of production segments -> segment_body 
-## In state 223, spurious reduction of production symbol_bindings -> segments 
+## In state 204, spurious reduction of production separated_nonempty_list(AND,code_or_closure_binding) -> code_or_closure_binding
+## In state 189, spurious reduction of production with_closure_elements_opt ->
+## In state 201, spurious reduction of production segment_body -> separated_nonempty_list(AND,code_or_closure_binding) with_closure_elements_opt
+## In state 224, spurious reduction of production segments -> segment_body
+## In state 223, spurious reduction of production symbol_bindings -> segments
 ##
 
 Expected "and", "with", or "in".
@@ -571,7 +571,7 @@ flambda_unit: PRIM_PROJECT_VAR KWD_WITH
 ##
 ## Ends in an error in state: 41.
 ##
-## unop -> PRIM_PROJECT_VAR . var_within_closure [ SYMBOL IDENT INT KWD_FLOAT ]
+## unop -> PRIM_PROJECT_VAR . value_slot [ SYMBOL IDENT INT KWD_FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_PROJECT_VAR
@@ -794,10 +794,10 @@ flambda_unit: SYMBOL KWD_WITH
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 169, spurious reduction of production named -> simple 
+## In state 169, spurious reduction of production named -> simple
 ##
 
-Expected an infix binary operator or one of: .( ; with in and 
+Expected an infix binary operator or one of: .( ; with in and
 
 flambda_unit: KWD_UNREACHABLE KWD_WITH
 ##
