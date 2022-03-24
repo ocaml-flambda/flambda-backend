@@ -1473,7 +1473,7 @@ let close_let_rec acc env ~function_declarations
           Function_slot.Map.add function_slot fun_var fun_vars_map)
         generated_closures fun_vars_map
     in
-    let value_slots =
+    let bound_vars =
       List.map
         (fun (function_slot, _) ->
           Function_slot.Map.find function_slot fun_vars_map)
@@ -1491,7 +1491,7 @@ let close_let_rec acc env ~function_declarations
     let acc, body = body acc env in
     let named = Named.create_set_of_closures set_of_closures in
     Let_with_acc.create acc
-      (Bound_pattern.set_of_closures value_slots)
+      (Bound_pattern.set_of_closures bound_vars)
       named ~body
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
