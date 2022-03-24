@@ -389,7 +389,7 @@ let mk_dflexpect f =
 ;;
 
 let mk_dslot_offsets f =
-  "-dclosure-offsets", Arg.Unit f, " Dump closure offsets (Flambda 2 only)"
+  "-dslot-offsets", Arg.Unit f, " Dump closure offsets (Flambda 2 only)"
 ;;
 
 let mk_dfreshen f =

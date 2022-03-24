@@ -246,7 +246,7 @@ let layout env function_slots value_slots =
   | (0, Function_slot _) :: _ -> { startenv; slots; empty_env }
   | _ ->
     Misc.fatal_error
-      "Sets of function slots must start with a function slot at offset 0"
+      "Sets of closures must start with a function slot at offset 0"
 
 let print_layout_slot fmt = function
   | Value_slot v -> Format.fprintf fmt "value_slot %a" Value_slot.print v
@@ -448,14 +448,16 @@ module Greedy = struct
       slot.pos <- Removed;
       match slot.desc with
       | Function_slot _ ->
+        (* CR gbury: we can actually remove function slots now, so this branch
+           could be updated accordingly. *)
         Misc.fatal_error "Function_slot cannot be removed currently"
       | Value_slot v ->
         let (info : EO.value_slot_info) = EO.Dead_value_slot in
         EO.add_value_slot_offset env v info)
     | Assigned _ ->
-      Misc.fatal_error "Cannot remove value slot which is already assigned"
+      Misc.fatal_error "Cannot remove slot which is already assigned"
 
-  (* Sets of Function_slots *)
+  (* Blocks with tag Closure_tag *)
 
   let add_set_to_state state set =
     { state with sets_of_closures = set :: state.sets_of_closures }
