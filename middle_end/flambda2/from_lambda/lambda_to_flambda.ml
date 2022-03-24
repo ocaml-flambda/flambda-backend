@@ -1529,9 +1529,9 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
               ~return ~attr ~loc ~mode ~region
           with
-          | ([(_, L.Lfunction _)] | [(_, L.Lfunction _); (_, L.Lfunction _)]) as
-            binding ->
-            binding
+          | [(id, L.Lfunction lfun)] -> [id, lfun]
+          | [(id1, L.Lfunction lfun1); (id2, L.Lfunction lfun2)] ->
+            [id1, lfun1; id2, lfun2]
           | [(_, _)] | [(_, _); (_, _)] ->
             Misc.fatal_errorf
               "Expected `Lfunction` terms from [split_default_wrapper] when \
@@ -1550,22 +1550,17 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
             Printlambda.lambda binding)
       bindings
   in
-  let bindings = List.flatten bindings_with_wrappers in
   let free_idents, directed_graph =
     let fun_ids = Ident.Set.of_list (List.map fst bindings) in
     List.fold_left
-      (fun (free_ids, graph) (fun_id, binding) ->
-        match binding with
-        | L.Lfunction { body; _ } ->
-          let free_ids_of_body = Lambda.free_variables body in
-          let free_ids = Ident.Map.add fun_id free_ids_of_body free_ids in
-          let free_fun_ids = Ident.Set.inter fun_ids free_ids_of_body in
-          let graph = Ident.Map.add fun_id free_fun_ids graph in
-          free_ids, graph
-        | _ -> assert false
-        (* checked above *))
+      (fun (free_ids, graph) (fun_id, ({ body; _ } : L.lfunction)) ->
+        let free_ids_of_body = Lambda.free_variables body in
+        let free_ids = Ident.Map.add fun_id free_ids_of_body free_ids in
+        let free_fun_ids = Ident.Set.inter fun_ids free_ids_of_body in
+        let graph = Ident.Map.add fun_id free_fun_ids graph in
+        free_ids, graph)
       (Ident.Map.empty, Ident.Map.empty)
-      bindings
+      (List.flatten bindings_with_wrappers)
   in
   let recursive_functions =
     let module SCC = Strongly_connected_components.Make (Ident) in
@@ -1587,14 +1582,14 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
   List.fold_left
     (fun bindings binding ->
       match binding with
-      | [(fun_id, L.Lfunction def)] ->
+      | [(fun_id, def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
             ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
             def
         in
         bindings @ [fundef]
-      | [(fun_id, L.Lfunction def); (inner_id, L.Lfunction inner_def)] ->
+      | [(fun_id, def); (inner_id, inner_def)] ->
         let fundef =
           cps_function env ~fid:fun_id ~stub:false ~recursive:(recursive fun_id)
             ~precomputed_free_idents:(Ident.Map.find fun_id free_idents)
