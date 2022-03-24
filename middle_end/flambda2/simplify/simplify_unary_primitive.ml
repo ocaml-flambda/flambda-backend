@@ -82,7 +82,9 @@ let simplify_project_function_slot ~move_from ~move_to ~min_name_mode dacc
     in
     Simplify_common.simplify_projection dacc ~original_term
       ~deconstructing:closure_ty
-      ~shape:(T.at_least_the_closures_with_ids ~this_closure:move_from closures)
+      ~shape:
+        (T.closure_with_at_least_these_function_slots
+           ~this_function_slot:move_from closures)
       ~result_var ~result_kind:K.value
 
 let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
@@ -122,8 +124,9 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
       Simplify_common.simplify_projection dacc ~original_term
         ~deconstructing:closure_ty
         ~shape:
-          (T.closure_with_at_least_this_value_slot ~this_closure:function_slot
-             value_slot ~value_slot_var:(Bound_var.var result_var))
+          (T.closure_with_at_least_this_value_slot
+             ~this_function_slot:function_slot value_slot
+             ~value_slot_var:(Bound_var.var result_var))
         ~result_var ~result_kind:K.value
     in
     let dacc =

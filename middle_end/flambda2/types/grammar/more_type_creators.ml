@@ -190,9 +190,9 @@ let open_variant_from_non_const_ctor_with_size_at_least ~n ~field_n_minus_one =
             (Open Unknown)))
     Unknown
 
-let exactly_this_closure function_slot ~all_function_decls_in_set:function_types
-    ~all_closures_in_set:closure_types ~all_value_slots_in_set:value_slot_types
-    alloc_mode =
+let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
+    ~all_closure_types_in_set:closure_types
+    ~all_value_slots_in_set:value_slot_types alloc_mode =
   let closure_types = TG.Product.Function_slot_indexed.create closure_types in
   let closures_entry =
     let value_slot_types =
@@ -211,7 +211,8 @@ let exactly_this_closure function_slot ~all_function_decls_in_set:function_types
   in
   TG.create_closures alloc_mode by_function_slot
 
-let at_least_the_closures_with_ids ~this_closure function_slots_and_bindings =
+let closure_with_at_least_these_function_slots ~this_function_slot
+    function_slots_and_bindings =
   let function_slot_components_by_index =
     Function_slot.Map.map
       (fun bound_to -> TG.alias_type_of K.value bound_to)
@@ -235,12 +236,12 @@ let at_least_the_closures_with_ids ~this_closure function_slots_and_bindings =
         (Function_slot.Map.keys function_slot_components_by_index)
         Value_slot.Set.empty
     in
-    TG.Row_like_for_closures.create_at_least this_closure
+    TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
   TG.create_closures Unknown by_function_slot
 
-let closure_with_at_least_these_value_slots ~this_closure value_slots =
+let closure_with_at_least_these_value_slots ~this_function_slot value_slots =
   let value_slot_types =
     let type_of_var v = TG.alias_type_of K.value (Simple.var v) in
     let value_slot_components_by_index =
@@ -257,14 +258,14 @@ let closure_with_at_least_these_value_slots ~this_closure value_slots =
       Set_of_closures_contents.create Function_slot.Set.empty
         (Value_slot.Map.keys value_slots)
     in
-    TG.Row_like_for_closures.create_at_least this_closure
+    TG.Row_like_for_closures.create_at_least this_function_slot
       set_of_closures_contents closures_entry
   in
   TG.create_closures Unknown by_function_slot
 
-let closure_with_at_least_this_value_slot ~this_closure value_slot
+let closure_with_at_least_this_value_slot ~this_function_slot value_slot
     ~value_slot_var =
-  closure_with_at_least_these_value_slots ~this_closure
+  closure_with_at_least_these_value_slots ~this_function_slot
     (Value_slot.Map.singleton value_slot value_slot_var)
 
 let type_for_const const =

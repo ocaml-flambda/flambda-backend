@@ -1284,17 +1284,17 @@ end = struct
           TG.Function_type.create code_id
             ~rec_info:(MTC.unknown Flambda_kind.rec_info)
         in
-        let all_function_decls_in_set =
+        let all_function_slots_in_set =
           Function_slot.Map.singleton function_slot
             (Or_unknown_or_bottom.Ok fun_decl)
         in
-        let all_closures_in_set =
+        let all_closure_types_in_set =
           Function_slot.Map.singleton function_slot
             (MTC.unknown Flambda_kind.value)
         in
         let all_value_slots_in_set = Value_slot.Map.empty in
-        MTC.exactly_this_closure function_slot ~all_function_decls_in_set
-          ~all_closures_in_set ~all_value_slots_in_set Or_unknown.Unknown
+        MTC.exactly_this_closure function_slot ~all_function_slots_in_set
+          ~all_closure_types_in_set ~all_value_slots_in_set Or_unknown.Unknown
     in
     let just_after_level =
       Symbol.Map.fold

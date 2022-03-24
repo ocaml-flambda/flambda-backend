@@ -474,24 +474,28 @@ val mutable_string : size:int -> t
 
 val exactly_this_closure :
   Function_slot.t ->
-  all_function_decls_in_set:
+  all_function_slots_in_set:
     Function_type.t Or_unknown_or_bottom.t Function_slot.Map.t ->
-  all_closures_in_set:t Function_slot.Map.t ->
+  all_closure_types_in_set:t Function_slot.Map.t ->
   all_value_slots_in_set:flambda_type Value_slot.Map.t ->
   Alloc_mode.t Or_unknown.t ->
   flambda_type
 
-val at_least_the_closures_with_ids :
-  this_closure:Function_slot.t -> Simple.t Function_slot.Map.t -> flambda_type
+val closure_with_at_least_these_function_slots :
+  this_function_slot:Function_slot.t ->
+  Simple.t Function_slot.Map.t ->
+  flambda_type
 
 val closure_with_at_least_this_value_slot :
-  this_closure:Function_slot.t ->
+  this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
   flambda_type
 
 val closure_with_at_least_these_value_slots :
-  this_closure:Function_slot.t -> Variable.t Value_slot.Map.t -> flambda_type
+  this_function_slot:Function_slot.t ->
+  Variable.t Value_slot.Map.t ->
+  flambda_type
 
 val array_of_length :
   element_kind:Flambda_kind.With_subkind.t Or_unknown.t ->

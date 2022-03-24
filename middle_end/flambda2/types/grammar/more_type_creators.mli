@@ -124,23 +124,25 @@ val open_variant_from_non_const_ctor_with_size_at_least :
 
 val exactly_this_closure :
   Function_slot.t ->
-  all_function_decls_in_set:
+  all_function_slots_in_set:
     Type_grammar.function_type Or_unknown_or_bottom.t Function_slot.Map.t ->
-  all_closures_in_set:Type_grammar.t Function_slot.Map.t ->
+  all_closure_types_in_set:Type_grammar.t Function_slot.Map.t ->
   all_value_slots_in_set:Type_grammar.t Value_slot.Map.t ->
   Alloc_mode.t Or_unknown.t ->
   Type_grammar.t
 
-val at_least_the_closures_with_ids :
-  this_closure:Function_slot.t -> Simple.t Function_slot.Map.t -> Type_grammar.t
+val closure_with_at_least_these_function_slots :
+  this_function_slot:Function_slot.t ->
+  Simple.t Function_slot.Map.t ->
+  Type_grammar.t
 
 val closure_with_at_least_these_value_slots :
-  this_closure:Function_slot.t ->
+  this_function_slot:Function_slot.t ->
   Reg_width_things.Variable.t Value_slot.Map.t ->
   Type_grammar.t
 
 val closure_with_at_least_this_value_slot :
-  this_closure:Function_slot.t ->
+  this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Reg_width_things.Variable.t ->
   Type_grammar.t

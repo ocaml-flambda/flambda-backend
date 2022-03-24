@@ -74,7 +74,8 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
         vars_within_closure
     in
     let shape =
-      T.closure_with_at_least_these_value_slots ~this_closure:function_slot map
+      T.closure_with_at_least_these_value_slots
+        ~this_function_slot:function_slot map
     in
     let denv = add_equation_on_var denv param_var shape in
     Value_slot.Map.fold

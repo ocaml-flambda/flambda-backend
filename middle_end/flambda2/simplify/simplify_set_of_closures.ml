@@ -178,7 +178,7 @@ end = struct
         (fun set_of_closures
              (closure_types_via_aliases, value_slot_types_inside_function) ->
           let function_decls = Set_of_closures.function_decls set_of_closures in
-          let all_function_decls_in_set =
+          let all_function_slots_in_set =
             Function_slot.Map.mapi
               (fun function_slot old_code_id ->
                 let code_or_metadata = DE.find_code_exn denv old_code_id in
@@ -213,11 +213,11 @@ end = struct
           in
           Function_slot.Map.mapi
             (fun function_slot _function_decl ->
-              T.exactly_this_closure function_slot ~all_function_decls_in_set
-                ~all_closures_in_set:closure_types_via_aliases
+              T.exactly_this_closure function_slot ~all_function_slots_in_set
+                ~all_closure_types_in_set:closure_types_via_aliases
                 ~all_value_slots_in_set:value_slot_types_inside_function
                 (Known (Set_of_closures.alloc_mode set_of_closures)))
-            all_function_decls_in_set)
+            all_function_slots_in_set)
         all_sets_of_closures
         (List.combine closure_types_via_aliases_all_sets
            value_slot_types_inside_functions_all_sets)
@@ -919,8 +919,8 @@ let simplify_set_of_closures0 context set_of_closures ~closure_bound_names
         | bound_name ->
           let closure_type =
             T.exactly_this_closure function_slot
-              ~all_function_decls_in_set:fun_types
-              ~all_closures_in_set:closure_types_via_aliases
+              ~all_function_slots_in_set:fun_types
+              ~all_closure_types_in_set:closure_types_via_aliases
               ~all_value_slots_in_set:value_slot_types
               (Known (Set_of_closures.alloc_mode set_of_closures))
           in
