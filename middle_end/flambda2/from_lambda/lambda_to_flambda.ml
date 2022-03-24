@@ -809,7 +809,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
    the return continuation rather than relying on a wrapper to be removed. *)
 
 let rec cps_non_tail acc env ccenv (lam : L.lambda)
-    (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Expr_with_acc.t)
+    (* CR pchambart: The Ident.t argument of k could probably be something
+       similar to a simple *)
+      (k : Acc.t -> Env.t -> CCenv.t -> Ident.t -> Expr_with_acc.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   match lam with
   | Lvar id ->
