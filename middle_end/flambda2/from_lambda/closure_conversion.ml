@@ -860,7 +860,8 @@ let close_exact_or_unknown_apply acc env
     | Function -> (
       ( acc,
         match (callee_approx : Env.value_approximation option) with
-        | Some (Closure_approximation (code_id, function_slot, code_or_meta)) ->
+        | Some (Closure_approximation (code_id, _function_slot, code_or_meta))
+          ->
           let return_arity, is_tupled =
             let meta = Code_or_metadata.code_metadata code_or_meta in
             Code_metadata.(result_arity meta, is_tupled meta)
@@ -871,9 +872,7 @@ let close_exact_or_unknown_apply acc env
                we would have to untuple the arguments and we lack information
                for now *)
             Call_kind.indirect_function_call_unknown_arity mode
-          else
-            Call_kind.direct_function_call code_id function_slot ~return_arity
-              mode
+          else Call_kind.direct_function_call code_id ~return_arity mode
         | None -> Call_kind.indirect_function_call_unknown_arity mode
         | _ -> assert false
         (* See [close_apply] *) ))

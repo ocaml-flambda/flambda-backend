@@ -24,9 +24,6 @@ module Function_call : sig
         { code_id : Code_id.t;
               (** The [code_id] uniquely determines the function symbol that
                   must be called. *)
-          function_slot : Function_slot.t;
-              (** The [function_slot] identifies which closure is to be passed
-                  to the function. *)
           return_arity : Flambda_arity.With_subkinds.t
               (** [return_arity] describes what the callee returns. It matches
                   up with the arity of [continuation] in the enclosing [Apply.t]
@@ -68,11 +65,7 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 val direct_function_call :
-  Code_id.t ->
-  Function_slot.t ->
-  return_arity:Flambda_arity.With_subkinds.t ->
-  Alloc_mode.t ->
-  t
+  Code_id.t -> return_arity:Flambda_arity.With_subkinds.t -> Alloc_mode.t -> t
 
 val indirect_function_call_unknown_arity : Alloc_mode.t -> t
 
