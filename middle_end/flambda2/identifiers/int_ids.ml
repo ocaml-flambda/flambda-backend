@@ -56,7 +56,7 @@ module Const_data = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf (t : t) =
+    let [@ocamlformat "disable"] print ppf (t : t) =
       match t with
       | Naked_immediate i ->
         Format.fprintf ppf "@<0>%s#%a@<0>%s"
@@ -150,17 +150,18 @@ module Variable_data = struct
 
   let flags = var_flags
 
-  let print ppf
-      { compilation_unit;
-        previous_compilation_units = _;
-        name;
-        name_stamp;
-        user_visible
-      } =
-    Format.fprintf ppf
-      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(name@ %s)@]@ \
-       @[<hov 1>(name_stamp@ %d)@]@ @[<hov 1>(user_visible@ %b)@])@]"
-      Compilation_unit.print compilation_unit name name_stamp user_visible
+  let [@ocamlformat "disable"] print ppf { compilation_unit; previous_compilation_units = _;
+                  name; name_stamp; user_visible; } =
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(compilation_unit@ %a)@]@ \
+        @[<hov 1>(name@ %s)@]@ \
+        @[<hov 1>(name_stamp@ %d)@]@ \
+        @[<hov 1>(user_visible@ %b)@]\
+        )@]"
+      Compilation_unit.print compilation_unit
+      name
+      name_stamp
+      user_visible
 
   let hash
       { compilation_unit;
@@ -220,11 +221,13 @@ module Symbol_data = struct
 
   let flags = symbol_flags
 
-  let print ppf { compilation_unit; linkage_name } =
-    Format.fprintf ppf
-      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(linkage_name@ \
-       %a)@])@]"
-      Compilation_unit.print compilation_unit Linkage_name.print linkage_name
+  let [@ocamlformat "disable"] print ppf { compilation_unit; linkage_name; } =
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(compilation_unit@ %a)@]@ \
+        @[<hov 1>(linkage_name@ %a)@]\
+        )@]"
+      Compilation_unit.print compilation_unit
+      Linkage_name.print linkage_name
 
   let hash { compilation_unit = _; linkage_name } =
     (* Linkage names are unique across a whole project, so there's no need to
@@ -251,12 +254,15 @@ module Code_id_data = struct
 
   let flags = code_id_flags
 
-  let print ppf { compilation_unit; name; linkage_name } =
-    Format.fprintf ppf
-      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(name@ %s)@]@ \
-       @[<hov 1>(linkage_name@ %a)@]@ )@]"
-      Compilation_unit.print compilation_unit name Linkage_name.print
-      linkage_name
+  let [@ocamlformat "disable"] print ppf { compilation_unit; name; linkage_name; } =
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(compilation_unit@ %a)@]@ \
+        @[<hov 1>(name@ %s)@]@ \
+        @[<hov 1>(linkage_name@ %a)@]@ \
+        )@]"
+      Compilation_unit.print compilation_unit
+      name
+      Linkage_name.print linkage_name
 
   let hash { compilation_unit = _; name = _; linkage_name } =
     (* As per comment above, just looking at the linkage name suffices (same
@@ -326,7 +332,7 @@ module Const = struct
 
     let hash = Id.hash
 
-    let print ppf t = Const_data.print ppf (descr t)
+    let [@ocamlformat "disable"] print ppf t = Const_data.print ppf (descr t)
   end
 
   include T0
@@ -583,9 +589,11 @@ module Simple_data = struct
 
   let flags = simple_flags
 
-  let print ppf { simple = _; coercion } =
-    Format.fprintf ppf "@[<hov 1>@[<hov 1>(coercion@ %a)@]@]" Coercion.print
-      coercion
+  let [@ocamlformat "disable"] print ppf { simple = _; coercion; } =
+    Format.fprintf ppf "@[<hov 1>\
+        @[<hov 1>(coercion@ %a)@]\
+        @]"
+      Coercion.print coercion
 
   let hash { simple; coercion } =
     Hashtbl.hash (Id.hash simple, Coercion.hash coercion)
