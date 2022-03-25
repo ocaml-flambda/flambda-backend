@@ -144,7 +144,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
          (DE.are_rebuilding_terms (DA.denv dacc))
     then
       Inlining_report.record_decision_at_call_site_for_known_function
-        ~pass:Inlining_report.Before_simplify ~unrolling_depth
+        ~pass:Inlining_report.Pass.Before_simplify ~unrolling_depth
         ~callee:(Code_metadata.absolute_history callee's_code_metadata)
         ~tracker:(DE.inlining_history_tracker (DA.denv dacc))
         ~are_rebuilding_terms:(DA.are_rebuilding_terms dacc)
@@ -723,7 +723,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
   if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
   then
     Inlining_report.record_decision_at_call_site_for_unknown_function
-      ~pass:Inlining_report.Before_simplify
+      ~pass:Inlining_report.Pass.Before_simplify
       ~tracker:(DE.inlining_history_tracker denv)
       ~apply ();
   let env_at_use = denv in

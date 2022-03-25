@@ -51,6 +51,8 @@ type _ pass =
   | Cfg : Cfg_with_layout.t pass
   | Cmm : Cmm.phrase list pass
 
+  | Inlining_tree : Flambda2_simplify_shared.Inlining_report.Inlining_tree.t pass
+
 (* Register a new hook for [pass]. *)
 val register : 'a pass -> ('a -> unit) -> unit
 
