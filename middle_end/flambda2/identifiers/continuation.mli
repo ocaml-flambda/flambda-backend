@@ -40,8 +40,6 @@ val rename : t -> t
 
 val name : t -> string
 
-val name_stamp : t -> int
-
 val sort : t -> Sort.t
 
 val export : t -> exported
@@ -50,12 +48,6 @@ val import : exported -> t
 
 val map_compilation_unit :
   (Compilation_unit.t -> Compilation_unit.t) -> exported -> exported
-
-module With_args : sig
-  type nonrec t = t * Variable.t list
-
-  include Container_types.S with type t := t
-end
 
 val initialise : unit -> unit
 

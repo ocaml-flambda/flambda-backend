@@ -105,7 +105,7 @@ val immutable_block_with_size_at_least :
   tag:Tag.t Or_unknown.t ->
   n:Targetint_31_63.Imm.t ->
   field_kind:Flambda_kind.t ->
-  field_n_minus_one:Reg_width_things.Variable.t ->
+  field_n_minus_one:Variable.t ->
   Type_grammar.t
 
 val variant :
@@ -118,9 +118,7 @@ val open_variant_from_const_ctors_type :
   const_ctors:Type_grammar.t -> Type_grammar.t
 
 val open_variant_from_non_const_ctor_with_size_at_least :
-  n:Targetint_31_63.Imm.t ->
-  field_n_minus_one:Reg_width_things.Variable.t ->
-  Type_grammar.t
+  n:Targetint_31_63.Imm.t -> field_n_minus_one:Variable.t -> Type_grammar.t
 
 val exactly_this_closure :
   Function_slot.t ->
@@ -138,13 +136,13 @@ val closure_with_at_least_these_function_slots :
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  Reg_width_things.Variable.t Value_slot.Map.t ->
+  Variable.t Value_slot.Map.t ->
   Type_grammar.t
 
 val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
-  value_slot_var:Reg_width_things.Variable.t ->
+  value_slot_var:Variable.t ->
   Type_grammar.t
 
 val type_for_const : Reg_width_const.t -> Type_grammar.t

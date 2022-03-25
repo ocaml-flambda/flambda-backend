@@ -23,12 +23,9 @@ include Container_types.Make (struct
 
   let hash = Hashtbl.hash
 
-  let [@ocamlformat "disable"] print ppf t = Format.pp_print_string ppf t
+  let print ppf t = Format.pp_print_string ppf t
 end)
 
 let create t = t
 
 let to_string t = t
-
-(* CR mshinwell: this is dire *)
-let rename t = t ^ "_"

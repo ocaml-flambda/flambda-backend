@@ -20,7 +20,7 @@ type 'a t =
   | Ok of 'a
   | Bottom
 
-let [@ocamlformat "disable"] print f ppf t =
+let print f ppf t =
   match t with
   | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents
   | Bottom -> Format.pp_print_string ppf "Bottom"
@@ -31,6 +31,13 @@ let both t1 t2 ~f =
   | Bottom, _ | _, Bottom -> Bottom
 
 let map t ~f = match t with Ok contents -> Ok (f contents) | Bottom -> Bottom
+
+let map_sharing t ~f =
+  match t with
+  | Ok contents ->
+    let contents' = f contents in
+    if contents == contents' then t else Ok contents'
+  | Bottom -> Bottom
 
 let value_map t ~bottom ~f =
   match t with Ok contents -> f contents | Bottom -> bottom
@@ -49,4 +56,6 @@ module Let_syntax = struct
   let ( let<* ) x f = bind x ~f
 
   let ( let<+ ) x f = map x ~f
+
+  let ( let<+$ ) x f = map_sharing x ~f
 end

@@ -14,7 +14,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Reg_width_things.Coercion
+include Int_ids.Coercion
 
 let free_names t =
   match t with

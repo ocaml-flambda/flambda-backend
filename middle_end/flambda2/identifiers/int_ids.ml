@@ -56,7 +56,7 @@ module Const_data = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let [@ocamlformat "disable"] print ppf (t : t) =
+    let print ppf (t : t) =
       match t with
       | Naked_immediate i ->
         Format.fprintf ppf "@<0>%s#%a@<0>%s"
@@ -150,18 +150,17 @@ module Variable_data = struct
 
   let flags = var_flags
 
-  let [@ocamlformat "disable"] print ppf { compilation_unit; previous_compilation_units = _;
-                  name; name_stamp; user_visible; } =
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(compilation_unit@ %a)@]@ \
-        @[<hov 1>(name@ %s)@]@ \
-        @[<hov 1>(name_stamp@ %d)@]@ \
-        @[<hov 1>(user_visible@ %b)@]\
-        )@]"
-      Compilation_unit.print compilation_unit
-      name
-      name_stamp
-      user_visible
+  let print ppf
+      { compilation_unit;
+        previous_compilation_units = _;
+        name;
+        name_stamp;
+        user_visible
+      } =
+    Format.fprintf ppf
+      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(name@ %s)@]@ \
+       @[<hov 1>(name_stamp@ %d)@]@ @[<hov 1>(user_visible@ %b)@])@]"
+      Compilation_unit.print compilation_unit name name_stamp user_visible
 
   let hash
       { compilation_unit;
@@ -221,13 +220,11 @@ module Symbol_data = struct
 
   let flags = symbol_flags
 
-  let [@ocamlformat "disable"] print ppf { compilation_unit; linkage_name; } =
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(compilation_unit@ %a)@]@ \
-        @[<hov 1>(linkage_name@ %a)@]\
-        )@]"
-      Compilation_unit.print compilation_unit
-      Linkage_name.print linkage_name
+  let print ppf { compilation_unit; linkage_name } =
+    Format.fprintf ppf
+      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(linkage_name@ \
+       %a)@])@]"
+      Compilation_unit.print compilation_unit Linkage_name.print linkage_name
 
   let hash { compilation_unit = _; linkage_name } =
     (* Linkage names are unique across a whole project, so there's no need to
@@ -254,15 +251,12 @@ module Code_id_data = struct
 
   let flags = code_id_flags
 
-  let [@ocamlformat "disable"] print ppf { compilation_unit; name; linkage_name; } =
-    Format.fprintf ppf "@[<hov 1>(\
-        @[<hov 1>(compilation_unit@ %a)@]@ \
-        @[<hov 1>(name@ %s)@]@ \
-        @[<hov 1>(linkage_name@ %a)@]@ \
-        )@]"
-      Compilation_unit.print compilation_unit
-      name
-      Linkage_name.print linkage_name
+  let print ppf { compilation_unit; name; linkage_name } =
+    Format.fprintf ppf
+      "@[<hov 1>(@[<hov 1>(compilation_unit@ %a)@]@ @[<hov 1>(name@ %s)@]@ \
+       @[<hov 1>(linkage_name@ %a)@]@ )@]"
+      Compilation_unit.print compilation_unit name Linkage_name.print
+      linkage_name
 
   let hash { compilation_unit = _; name = _; linkage_name } =
     (* As per comment above, just looking at the linkage name suffices (same
@@ -332,7 +326,7 @@ module Const = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t = Const_data.print ppf (descr t)
+    let print ppf t = Const_data.print ppf (descr t)
   end
 
   include T0
@@ -353,9 +347,6 @@ module Const = struct
         let print = print
       end)
       (Set)
-
-  (* CR mshinwell: The [Tbl]s will still print integers! *)
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -412,15 +403,12 @@ module Variable = struct
 
     let hash = Id.hash
 
-    (* CR mshinwell: colour? *)
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       let cu = compilation_unit t in
       if Compilation_unit.equal cu (Compilation_unit.get_current_exn ())
       then Format.fprintf ppf "%s/%d" (name t) (name_stamp t)
       else
-        Format.fprintf ppf "%a.%s/%d"
-          Compilation_unit.print cu
-          (name t)
+        Format.fprintf ppf "%a.%s/%d" Compilation_unit.print cu (name t)
           (name_stamp t)
   end
 
@@ -442,8 +430,6 @@ module Variable = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -500,7 +486,7 @@ module Symbol = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.symbol ());
       Compilation_unit.print ppf (compilation_unit t);
       Format.pp_print_string ppf ".";
@@ -526,8 +512,6 @@ module Symbol = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -559,7 +543,7 @@ module Name = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.name ());
       pattern_match t
         ~var:(fun var -> Variable.print ppf var)
@@ -585,8 +569,6 @@ module Name = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 end
 
 module Rec_info_expr = Rec_info_expr0.Make (Variable)
@@ -601,11 +583,9 @@ module Simple_data = struct
 
   let flags = simple_flags
 
-  let [@ocamlformat "disable"] print ppf { simple = _; coercion; } =
-    Format.fprintf ppf "@[<hov 1>\
-        @[<hov 1>(coercion@ %a)@]\
-        @]"
-      Coercion.print coercion
+  let print ppf { simple = _; coercion } =
+    Format.fprintf ppf "@[<hov 1>@[<hov 1>(coercion@ %a)@]@]" Coercion.print
+      coercion
 
   let hash { simple; coercion } =
     Hashtbl.hash (Id.hash simple, Coercion.hash coercion)
@@ -692,19 +672,18 @@ module Simple = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
-      let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
+      let print ppf t =
         pattern_match t
           ~name:(fun name ~coercion:_ -> Name.print ppf name)
           ~const:(fun cst -> Const.print ppf cst)
       in
       let coercion = coercion t in
-      if Coercion.is_id coercion then
-        print ppf t
+      if Coercion.is_id coercion
+      then print ppf t
       else
-        Format.fprintf ppf "@[<hov 1>(coerce@ %a@ %a)@]"
-          print t
-          Coercion.print coercion
+        Format.fprintf ppf "@[<hov 1>(coerce@ %a@ %a)@]" print t Coercion.print
+          coercion
   end
 
   include T0
@@ -738,8 +717,6 @@ module Simple = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -808,7 +785,7 @@ module Code_id = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s%a@<0>%s"
         (Flambda_colours.code_id ())
         Linkage_name.print (linkage_name t)
@@ -834,7 +811,6 @@ module Code_id = struct
       end)
       (Set)
 
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
   module Lmap = Lmap.Make (T)
 
   let invert_map map =
@@ -904,7 +880,6 @@ module Code_id_or_symbol = struct
       end)
       (Set)
 
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
   module Lmap = Lmap.Make (T)
 
   let set_of_code_id_set code_ids =

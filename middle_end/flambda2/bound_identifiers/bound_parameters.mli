@@ -40,7 +40,7 @@ val check_no_duplicates : t -> unit
 
 val cardinal : t -> int
 
-val simples : t -> Reg_width_things.Simple.t list
+val simples : t -> Int_ids.Simple.t list
 
 val to_set : t -> Bound_parameter.Set.t
 

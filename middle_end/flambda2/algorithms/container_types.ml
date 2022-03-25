@@ -116,32 +116,6 @@ module type Map = sig
   val map_sharing : ('a -> 'a) -> 'a t -> 'a t
 end
 
-module type Tbl = sig
-  module T : sig
-    type t
-
-    include Map.OrderedType with type t := t
-
-    include Hashtbl.HashedType with type t := t
-  end
-
-  include Hashtbl.S with type key = T.t
-
-  module Map : Map with module T := T
-
-  val to_list : 'a t -> (T.t * 'a) list
-
-  val of_list : (T.t * 'a) list -> 'a t
-
-  val to_map : 'a t -> 'a Map.t
-
-  val of_map : 'a Map.t -> 'a t
-
-  val memoize : 'a t -> (key -> 'a) -> key -> 'a
-
-  val map : 'a t -> ('a -> 'b) -> 'b t
-end
-
 module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
   type t = A.t * B.t
 
@@ -341,35 +315,6 @@ module Make_set (T : Thing_no_hash) = struct
 end
 [@@inline always]
 
-module Make_tbl (T : Thing) (Map : Map with module T := T) = struct
-  include Hashtbl.Make [@inlined hint] (T)
-  module Map = Map
-
-  let to_list t = fold (fun key datum elts -> (key, datum) :: elts) t []
-
-  let of_list elts =
-    let t = create 42 in
-    List.iter (fun (key, datum) -> add t key datum) elts;
-    t
-
-  let to_map v = fold Map.add v Map.empty
-
-  let of_map m =
-    let t = create (Map.cardinal m) in
-    Map.iter (fun k v -> add t k v) m;
-    t
-
-  let memoize t f key =
-    try find t key
-    with Not_found ->
-      let r = f key in
-      add t key r;
-      r
-
-  let map t f = of_map (Map.map f (to_map t))
-end
-[@@inline always]
-
 module type S = sig
   type t
 
@@ -380,8 +325,6 @@ module type S = sig
   module Set : Set with module T := T
 
   module Map : Map with module T := T with module Set = Set
-
-  module Tbl : Tbl with module T := T with module Map = Map
 end
 
 module Make (T : Thing) = struct
@@ -389,7 +332,6 @@ module Make (T : Thing) = struct
   include T
   module Set = Make_set (T)
   module Map = Make_map (T) (Set)
-  module Tbl = Make_tbl (T) (Map)
 end
 [@@inline always]
 

@@ -221,20 +221,6 @@ let mk_no_flambda2_expert_can_inline_recursive_functions f =
     (format_not_default Flambda2.Expert.Default.can_inline_recursive_functions)
 ;;
 
-let mk_flambda2_debug_permute_every_name f =
-  "-flambda2-debug-permute-every-name", Arg.Unit f,
-  Printf.sprintf " Permute every name to test name\n\
-      \     permutation code%s (Flambda 2 only)"
-    (format_default Flambda2.Debug.Default.permute_every_name)
-;;
-
-let mk_no_flambda2_debug_permute_every_name f =
-  "-no-flambda2-debug-permute-every-name", Arg.Unit f,
-  Printf.sprintf " Do not permute every name to test\n\
-      \     name permutation code%s (Flambda 2 only)"
-    (format_not_default Flambda2.Debug.Default.permute_every_name)
-;;
-
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -429,8 +415,6 @@ module type Flambda_backend_options = sig
   val flambda2_expert_max_unboxing_depth : int -> unit
   val flambda2_expert_can_inline_recursive_functions : unit -> unit
   val no_flambda2_expert_can_inline_recursive_functions : unit -> unit
-  val flambda2_debug_permute_every_name : unit -> unit
-  val no_flambda2_debug_permute_every_name : unit -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -514,10 +498,6 @@ struct
       F.flambda2_expert_can_inline_recursive_functions;
     mk_no_flambda2_expert_can_inline_recursive_functions
       F.no_flambda2_expert_can_inline_recursive_functions;
-    mk_flambda2_debug_permute_every_name
-      F.flambda2_debug_permute_every_name;
-    mk_no_flambda2_debug_permute_every_name
-      F.no_flambda2_debug_permute_every_name;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -617,10 +597,6 @@ module Flambda_backend_options_impl = struct
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
     Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
-  let flambda2_debug_permute_every_name =
-    set' Flambda2.Debug.permute_every_name
-  let no_flambda2_debug_permute_every_name =
-    clear' Flambda2.Debug.permute_every_name
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -819,8 +795,6 @@ module Extra_params = struct
        set Flambda2.Expert.code_id_and_symbol_scoping_checks
     | "flambda2-expert-fallback-inlining-heuristic" ->
        set Flambda2.Expert.fallback_inlining_heuristic
-    | "flambda2-debug-permute-every-name" ->
-       set' Flambda2.Debug.permute_every_name
     | "flambda2-debug-concrete-types-only-on-canonicals" ->
        set' Flambda2.Debug.concrete_types_only_on_canonicals
     | "flambda2-debug-keep-invalid-handlers" ->

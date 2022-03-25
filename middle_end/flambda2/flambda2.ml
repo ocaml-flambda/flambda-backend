@@ -32,7 +32,7 @@ module Compilation_unit = struct
       |> Flambda1_linkage_name.to_string
       |> Flambda2_identifiers.Linkage_name.create
     in
-    create ident linkage_name
+    create ~name:(Ident.name ident) linkage_name
 end
 
 module Linkage_name = Flambda2_identifiers.Linkage_name
@@ -74,11 +74,7 @@ let get_global_info comp_unit =
   if Compilation_unit.is_external_symbols comp_unit
   then None
   else
-    let id =
-      (* CR mshinwell: Unsure how to construct this properly. Also see CR in
-         Closure_conversion about the linkage names of module blocks *)
-      Compilation_unit.get_persistent_ident comp_unit
-    in
+    let id = Compilation_unit.get_persistent_ident comp_unit in
     match Compilenv.get_global_info' id with
     | None | Some (Flambda2 None) -> None
     | Some (Flambda2 (Some info)) -> Some info
@@ -183,11 +179,6 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         raw_flambda, offsets, cmx, code
       end
       else
-        let raw_flambda =
-          if Flambda_features.Debug.permute_every_name ()
-          then Flambda_unit.permute_everything raw_flambda
-          else raw_flambda
-        in
         let round = 0 in
         let { Simplify.unit = flambda; exported_offsets; cmx; all_code } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
@@ -226,7 +217,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
     then begin
       Compilenv.reset_info_tables ();
       Flambda2_identifiers.Continuation.reset ();
-      Flambda2_identifiers.Reg_width_things.reset ()
+      Flambda2_identifiers.Int_ids.reset ()
     end;
     cmm
   in

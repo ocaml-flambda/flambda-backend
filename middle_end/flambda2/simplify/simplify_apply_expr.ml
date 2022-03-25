@@ -318,7 +318,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
-    Function_slot.wrap compilation_unit (Variable.create "partial_app_closure")
+    Function_slot.create compilation_unit ~name:"partial_app_closure"
   in
   let new_closure_alloc_mode, num_trailing_local_params =
     (* If the closure has a local suffix, and we've supplied enough args to hit
@@ -374,7 +374,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
          Fortunately, the reconstituted [Apply_expr] should retain the original
          call kind, so it will remain a direct call. *)
       type applied_value =
-        | Const of Reg_width_things.Const.t
+        | Const of Reg_width_const.t
         | Symbol of Symbol.t
         | In_closure of
             { var : Variable.t;
@@ -384,9 +384,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               value_slot : Value_slot.t
             }
     end in
-    let mk_value_slot () =
-      Value_slot.wrap compilation_unit (Variable.create "arg")
-    in
+    let mk_value_slot () = Value_slot.create compilation_unit ~name:"arg" in
     let applied_value value =
       Simple.pattern_match' value
         ~const:(fun const -> Const const)

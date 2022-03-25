@@ -21,18 +21,4 @@
     offsets inside [Closure_tag] blocks, where the relevant captured value will
     be stored at runtime, by the [Slot_offsets] module. *)
 
-include Container_types.S
-
-val wrap : Compilation_unit.t -> Variable.t -> t
-
-val unwrap : t -> Variable.t
-
-val in_compilation_unit : t -> Compilation_unit.t -> bool
-
-val is_imported : t -> bool
-
-val get_compilation_unit : t -> Compilation_unit.t
-
-val to_string : t -> string
-
-val rename : t -> t
+include Slot.S

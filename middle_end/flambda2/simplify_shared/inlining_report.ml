@@ -370,10 +370,7 @@ module Uid = struct
     if Compilation_unit.equal compilation_unit cu_uid
     then Format.fprintf ppf "[[%s][here]]" t
     else
-      let external_reports =
-        Ident.name (Compilation_unit.get_persistent_ident cu_uid)
-        ^ ".0.inlining.org"
-      in
+      let external_reports = Compilation_unit.name cu_uid ^ ".0.inlining.org" in
       try
         let file = Load_path.find_uncap external_reports in
         Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file

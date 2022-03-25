@@ -151,8 +151,7 @@ let make_compilation_unit ~extension ~filename ?(tag = "") () =
      either have the simplifier use the current compilation unit or not
      duplicate the prefixing logic here. *)
   let linkage_name = Linkage_name.create ("caml" ^ name) in
-  let id = Ident.create_persistent name in
-  Compilation_unit.create id linkage_name
+  Compilation_unit.create ~name linkage_name
 
 let parse ~symbol_for_global filename =
   parse_fexpr filename

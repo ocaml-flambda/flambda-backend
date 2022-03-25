@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Reg_width_things.Const
+include Int_ids.Const
 
 let kind t =
   let module K = Flambda_kind in

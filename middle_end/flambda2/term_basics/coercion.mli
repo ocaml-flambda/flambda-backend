@@ -15,7 +15,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 include module type of struct
-  include Reg_width_things.Coercion
+  include Int_ids.Coercion
 end
 
 include Contains_names.S with type t := t

@@ -133,8 +133,7 @@ let fresh_code_id env { Fexpr.txt = name; loc = _ } =
   c, { env with code_ids = DM.add name c env.code_ids }
 
 let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
-  let v = Variable.create name in
-  let c = Function_slot.wrap (Compilation_unit.get_current_exn ()) v in
+  let c = Function_slot.create (Compilation_unit.get_current_exn ()) ~name in
   UT.add env.function_slots name c;
   c
 
@@ -144,8 +143,7 @@ let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
   | Some function_slot -> function_slot
 
 let fresh_value_slot env { Fexpr.txt = name; loc = _ } =
-  let v = Variable.create name in
-  let c = Value_slot.wrap (Compilation_unit.get_current_exn ()) v in
+  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name in
   WT.add env.vars_within_closures name c;
   c
 
@@ -174,9 +172,7 @@ let declare_symbol (env : env) ({ Fexpr.txt = cu, name; loc } as symbol) =
       | None -> Compilation_unit.get_current_exn ()
       | Some { Fexpr.ident; linkage_name } ->
         let linkage_name = linkage_name |> Option.value ~default:ident in
-        Compilation_unit.create
-          (Ident.create_persistent ident)
-          (Linkage_name.create linkage_name)
+        Compilation_unit.create ~name:ident (Linkage_name.create linkage_name)
     in
     let symbol = Symbol.unsafe_create cunit (Linkage_name.create name) in
     symbol, { env with symbols = SM.add name symbol env.symbols }
@@ -192,8 +188,7 @@ let get_symbol (env : env) sym =
   | { Fexpr.txt = Some cunit, name; loc = _ } ->
     let cunit =
       let { Fexpr.ident; linkage_name } = cunit in
-      Compilation_unit.create
-        (Ident.create_persistent ident)
+      Compilation_unit.create ~name:ident
         (Linkage_name.create (linkage_name |> Option.value ~default:ident))
     in
     Symbol.unsafe_create cunit (name |> Linkage_name.create)

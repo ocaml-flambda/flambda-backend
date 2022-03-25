@@ -25,20 +25,4 @@
     where the relevant information (code pointers, arity, etc.) will be stored
     at runtime, by the [Slot_offsets] module. *)
 
-include Container_types.S
-
-module Lmap : Lmap.S with type key = t
-
-val wrap : Compilation_unit.t -> Variable.t -> t
-
-val unwrap : t -> Variable.t
-
-val in_compilation_unit : t -> Compilation_unit.t -> bool
-
-val get_compilation_unit : t -> Compilation_unit.t
-
-val to_string : t -> string
-
-val name : t -> string
-
-val rename : t -> t
+include Slot.S

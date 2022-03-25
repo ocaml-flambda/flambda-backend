@@ -190,9 +190,7 @@ let test_meet_two_blocks () =
 
 let () =
   let comp_unit =
-    Compilation_unit.create
-      (Ident.create_persistent "Meet_test")
-      (Linkage_name.create "meet_test")
+    Compilation_unit.create ~name:"Meet_test" (Linkage_name.create "meet_test")
   in
   Compilation_unit.set_current comp_unit;
   Format.eprintf "MEET CHAINS WITH TWO VARS@\n@.";

@@ -168,9 +168,6 @@ module Inlining = struct
 end
 
 module Debug = struct
-  let permute_every_name () =
-    !Flambda_backend_flags.Flambda2.Debug.permute_every_name
-
   let concrete_types_only_on_canonicals () =
     !Flambda_backend_flags.Flambda2.Debug.concrete_types_only_on_canonicals
 
