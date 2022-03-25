@@ -525,6 +525,25 @@ module With_subkind = struct
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
 
+  let rec from_lambda (vk : Lambda.value_kind) =
+    match vk with
+    | Pgenval -> any_value
+    | Pfloatval -> boxed_float
+    | Pboxedintval Pint32 -> boxed_int32
+    | Pboxedintval Pint64 -> boxed_int64
+    | Pboxedintval Pnativeint -> boxed_nativeint
+    | Pintval -> tagged_immediate
+    | Pblock { tag; fields } ->
+      (* If we have [Obj.double_array_tag] here, this is always an all-float
+         block, not an array. *)
+      if tag = Obj.double_array_tag
+      then float_block ~num_fields:(List.length fields)
+      else block (Tag.create_exn tag) (List.map from_lambda fields)
+    | Parrayval Pfloatarray -> float_array
+    | Parrayval Pintarray -> immediate_array
+    | Parrayval Paddrarray -> value_array
+    | Parrayval Pgenarray -> generic_array
+
   include Container_types.Make (struct
     type nonrec t = t
 

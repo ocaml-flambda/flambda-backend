@@ -26,6 +26,12 @@ let raise_kind_to_int = function Regular -> 0 | Reraise -> 1 | No_trace -> 2
 let compare_raise_kind rk1 rk2 =
   Int.compare (raise_kind_to_int rk1) (raise_kind_to_int rk2)
 
+let raise_kind_from_lambda (kind : Lambda.raise_kind) =
+  match kind with
+  | Raise_regular -> Regular
+  | Raise_reraise -> Reraise
+  | Raise_notrace -> No_trace
+
 type t =
   | Push of { exn_handler : Continuation.t }
   | Pop of

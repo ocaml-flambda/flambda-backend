@@ -74,6 +74,9 @@ let print_method_kind ppf kind =
   | Public -> fprintf ppf "Public"
   | Cached -> fprintf ppf "Cached"
 
+let method_kind_from_lambda (kind : Lambda.meth_kind) =
+  match kind with Self -> Self | Public -> Public | Cached -> Cached
+
 type t =
   | Function of
       { function_call : Function_call.t;
