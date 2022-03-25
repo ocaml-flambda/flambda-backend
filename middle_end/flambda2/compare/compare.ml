@@ -285,11 +285,9 @@ let subst_field env (field : Field_of_static_block.t) =
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
-  | Function
-      { function_call = Direct { code_id; function_slot; return_arity }; _ } ->
+  | Function { function_call = Direct { code_id; return_arity }; _ } ->
     let code_id = subst_code_id env code_id in
-    let function_slot = subst_function_slot env function_slot in
-    Call_kind.direct_function_call code_id function_slot ~return_arity Heap
+    Call_kind.direct_function_call code_id ~return_arity Heap
   | _ -> call_kind
 
 let rec subst_expr env e =
@@ -889,31 +887,20 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
   match call_kind1, call_kind2 with
   | ( Function
         { function_call =
-            Direct
-              { code_id = code_id1;
-                function_slot = function_slot1;
-                return_arity = return_arity1
-              };
+            Direct { code_id = code_id1; return_arity = return_arity1 };
           _
         },
       Function
         { function_call =
-            Direct
-              { code_id = code_id2;
-                function_slot = function_slot2;
-                return_arity = return_arity2
-              };
+            Direct { code_id = code_id2; return_arity = return_arity2 };
           _
         } ) ->
-    triples ~f1:code_ids ~f2:function_slots
-      ~f3:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
-      ~subst3:(fun _ arity -> arity)
-      env
-      (code_id1, function_slot1, return_arity1)
-      (code_id2, function_slot2, return_arity2)
-    |> Comparison.map ~f:(fun (code_id, function_slot, return_arity) ->
-           Call_kind.direct_function_call code_id function_slot ~return_arity
-             Heap)
+    pairs ~f1:code_ids
+      ~f2:(Comparator.of_predicate ~f:Flambda_arity.With_subkinds.equal)
+      ~subst2:(fun _ arity -> arity)
+      env (code_id1, return_arity1) (code_id2, return_arity2)
+    |> Comparison.map ~f:(fun (code_id, return_arity) ->
+           Call_kind.direct_function_call code_id ~return_arity Heap)
   | ( Function
         { function_call =
             Indirect_known_arity

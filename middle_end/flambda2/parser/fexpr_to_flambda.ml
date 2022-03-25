@@ -855,10 +855,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let continuation = find_result_cont env continuation in
     let call_kind =
       match call_kind with
-      | Function (Direct { code_id; function_slot }) ->
-        let function_slot = function_slot |> Option.value ~default:code_id in
+      | Function (Direct { code_id; function_slot = _ }) ->
         let code_id = find_code_id env code_id in
-        let function_slot = fresh_or_existing_function_slot env function_slot in
         let return_arity =
           match arities with
           | None ->
@@ -866,7 +864,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
               [Flambda_kind.With_subkind.any_value]
           | Some { ret_arity; _ } -> arity ret_arity
         in
-        Call_kind.direct_function_call code_id function_slot ~return_arity Heap
+        Call_kind.direct_function_call code_id ~return_arity Heap
       | Function Indirect -> begin
         match arities with
         | Some { params_arity = Some params_arity; ret_arity } ->

@@ -906,16 +906,11 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
   let call_kind : Fexpr.call_kind =
     match Apply_expr.call_kind app with
     | Function
-        { function_call = Direct { code_id; function_slot; return_arity = _ };
-          alloc_mode = _
-        } ->
+        { function_call = Direct { code_id; return_arity = _ }; alloc_mode = _ }
+      ->
       let code_id = Env.find_code_id_exn env code_id in
-      let function_slot = Env.translate_function_slot env function_slot in
-      let function_slot =
-        if String.equal code_id.txt function_slot.txt
-        then None
-        else Some function_slot
-      in
+      let function_slot = None in
+      (* CR mshinwell: remove [function_slot] *)
       Function (Direct { code_id; function_slot })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity _;
