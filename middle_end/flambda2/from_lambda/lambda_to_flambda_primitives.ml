@@ -24,6 +24,9 @@ module K = Flambda_kind
 module L = Lambda
 module P = Flambda_primitive
 
+let bigarray_dim_bound b dimension =
+  H.Prim (Unary (Bigarray_length { dimension }, b))
+
 let tag_int (arg : H.expr_primitive) : H.expr_primitive =
   Unary (Box_number (Untagged_immediate, Heap), Prim arg)
 
@@ -47,10 +50,10 @@ let box_bint bi mode (arg : H.expr_primitive) : H.expr_primitive =
 let unbox_bint bi (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number (C.boxable_number_of_boxed_integer bi), arg))
 
-let tagged_immediate_as_naked_nativeint (arg : H.simple_or_prim) :
-    H.simple_or_prim =
-  arg
-(* XXX *)
+let bint_unary_prim bi mode prim arg1 =
+  box_bint bi mode
+    (Unary
+       (Int_arith (C.standard_int_of_boxed_integer bi, prim), unbox_bint bi arg1))
 
 let bint_binary_prim bi mode prim arg1 arg2 =
   box_bint bi mode
@@ -66,17 +69,26 @@ let bint_shift bi mode prim arg1 arg2 =
          unbox_bint bi arg1,
          untag_int arg2 ))
 
-(* offset to subtract from a string length depending on the size of the
-   read/write *)
-let length_offset_of_size size =
-  let offset =
-    match (size : Flambda_primitive.string_accessor_width) with
-    | Eight -> 0
-    | Sixteen -> 1
-    | Thirty_two -> 3
-    | Sixty_four -> 7
-  in
-  Targetint_31_63.int (Targetint_31_63.Imm.of_int offset)
+let check_non_negative_imm imm prim_name =
+  if not (Targetint_31_63.is_non_negative imm)
+  then
+    Misc.fatal_errorf "%s with negative index %a" prim_name
+      Targetint_31_63.print imm
+
+(* Smart constructor for checked accesses *)
+let checked_access ~dbg ~primitive ~conditions : H.expr_primitive =
+  Checked
+    { primitive;
+      validity_conditions = conditions;
+      failure = Index_out_of_bounds;
+      dbg
+    }
+
+let check_bound_tagged tagged_index bound : H.expr_primitive =
+  Binary
+    ( Int_comp (I.Naked_immediate, Unsigned, Yielding_bool Lt),
+      untag_int tagged_index,
+      bound )
 
 (* This computes the maximum of a given value [x] with zero, in an optimized
    way. It takes as named argument the size (in bytes) of an integer register on
@@ -108,14 +120,20 @@ let max_with_zero ~size_int x =
   in
   ret
 
-let array_access_validity_condition array index =
-  [ H.Binary
-      ( Int_comp (Tagged_immediate, Unsigned, Yielding_bool Lt),
-        index,
-        Prim (Unary (Array_length, array)) ) ]
-
-(* actual (strict) upper bound for an index in a string read/write *)
-let actual_max_length ~size_int ~access_size length =
+(* actual (strict) upper bound for an index in a string-like read/write *)
+let actual_max_length_for_string_like_access ~size_int ~access_size length =
+  (* offset to subtract from the length depending on the size of the
+     read/write *)
+  let length_offset_of_size size =
+    let offset =
+      match (size : Flambda_primitive.string_accessor_width) with
+      | Eight -> 0
+      | Sixteen -> 1
+      | Thirty_two -> 3
+      | Sixty_four -> 7
+    in
+    Targetint_31_63.int (Targetint_31_63.Imm.of_int offset)
+  in
   match (access_size : Flambda_primitive.string_accessor_width) with
   | Eight -> length (* micro-optimization *)
   | Sixteen | Thirty_two | Sixty_four ->
@@ -143,54 +161,89 @@ let actual_max_length ~size_int ~access_size length =
          ( Num_conv { src = Naked_nativeint; dst = Naked_immediate },
            nativeint_res ))
 
+(* String-like validity conditions *)
+let string_like_access_validity_condition ~size_int ~access_size ~length index :
+    H.expr_primitive =
+  check_bound_tagged index
+    (actual_max_length_for_string_like_access ~size_int ~access_size length)
+
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
     index : H.expr_primitive =
-  Binary
-    ( Int_comp (I.Naked_immediate, Unsigned, Yielding_bool Lt),
-      untag_int index,
-      actual_max_length ~size_int ~access_size
-        (Prim (Unary (String_length kind, str))) )
+  string_like_access_validity_condition index ~size_int ~access_size
+    ~length:(Prim (Unary (String_length kind, str)))
 
-let string_or_bytes_ref ~size_int kind arg1 arg2 dbg : H.expr_primitive =
-  Checked
-    { primitive =
-        tag_int (Binary (String_or_bigstring_load (kind, Eight), arg1, arg2));
-      validity_conditions =
-        [ string_or_bytes_access_validity_condition ~size_int arg1 String Eight
-            arg2 ];
-      failure = Index_out_of_bounds;
-      dbg
-    }
-
-let bigstring_access_validity_condition ~size_int bstr access_size index :
+let bigstring_access_validity_condition ~size_int big_str access_size index :
     H.expr_primitive =
-  Binary
-    ( Int_comp (I.Naked_immediate, Unsigned, Yielding_bool Lt),
-      untag_int index,
-      actual_max_length ~size_int ~access_size
-        (Prim (Unary (Bigarray_length { dimension = 1 }, bstr))) )
+  string_like_access_validity_condition index ~size_int ~access_size
+    ~length:(bigarray_dim_bound big_str 1)
 
-(* CR mshinwell: Same problems as previous function *)
-let bigstring_ref ~size_int access_size mode arg1 arg2 dbg : H.expr_primitive =
+let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
+    string index =
+  checked_access ~dbg ~primitive
+    ~conditions:
+      [ string_or_bytes_access_validity_condition ~size_int string kind
+          access_size index ]
+
+let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
+  checked_access ~dbg ~primitive
+    ~conditions:
+      [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
+
+(* String-like loads *)
+let string_like_load_unsafe ~access_size kind mode string index =
+  let wrap =
+    match (access_size : Flambda_primitive.string_accessor_width), mode with
+    | (Eight | Sixteen), None -> tag_int
+    | Thirty_two, Some mode -> box_bint Pint32 mode
+    | Sixty_four, Some mode -> box_bint Pint64 mode
+    | (Eight | Sixteen), Some _ | (Thirty_two | Sixty_four), None ->
+      Misc.fatal_error "Inconsistent alloc_mode for string or bytes load"
+  in
+  wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
+
+let string_like_load_safe ~dbg ~size_int ~access_size kind mode str index =
+  match (kind : P.string_like_value) with
+  | String ->
+    checked_string_or_bytes_access ~dbg ~size_int ~access_size String
+      ~primitive:(string_like_load_unsafe ~access_size String mode str index)
+      str index
+  | Bytes ->
+    checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
+      ~primitive:(string_like_load_unsafe ~access_size Bytes mode str index)
+      str index
+  | Bigstring ->
+    checked_bigstring_access ~dbg ~size_int ~access_size
+      ~primitive:(string_like_load_unsafe ~access_size Bigstring mode str index)
+      str index
+
+(* Bytes-like set *)
+let bytes_like_set_unsafe ~access_size kind bytes index new_value =
   let wrap =
     match (access_size : Flambda_primitive.string_accessor_width) with
-    | Eight | Sixteen -> tag_int
-    | Thirty_two -> box_bint Pint32 mode
-    | Sixty_four -> box_bint Pint64 mode
+    | Eight | Sixteen -> untag_int
+    | Thirty_two -> unbox_bint Pint32
+    | Sixty_four -> unbox_bint Pint64
   in
-  Checked
-    { primitive =
-        wrap
-          (Binary (String_or_bigstring_load (Bigstring, access_size), arg1, arg2));
-      validity_conditions =
-        [bigstring_access_validity_condition ~size_int arg1 access_size arg2];
-      failure = Index_out_of_bounds;
-      dbg
-    }
+  H.Ternary
+    (Bytes_or_bigstring_set (kind, access_size), bytes, index, wrap new_value)
 
+let bytes_like_set_safe ~dbg ~size_int ~access_size kind bytes index new_value =
+  match (kind : P.bytes_like_value) with
+  | Bytes ->
+    checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
+      ~primitive:
+        (bytes_like_set_unsafe ~access_size Bytes bytes index new_value)
+      bytes index
+  | Bigstring ->
+    checked_bigstring_access ~dbg ~size_int ~access_size
+      ~primitive:
+        (bytes_like_set_unsafe ~access_size Bigstring bytes index new_value)
+      bytes index
+
+(* Bigarray accesses *)
 let bigarray_box_raw_value_read kind alloc_mode =
   let error what =
-    Misc.fatal_errorf "Don't know how to unbox %s to store it in a bigarray"
+    Misc.fatal_errorf "Don't know how to box %s after reading it in a bigarray"
       what
   in
   match P.element_kind_of_bigarray_kind kind with
@@ -214,12 +267,6 @@ let bigarray_unbox_value_to_store kind =
   | Region -> error "a region expression"
   | Rec_info -> error "recursion info"
 
-let bigarray_dim_bound b dimension =
-  H.Prim (Unary (Bigarray_length { dimension }, b))
-
-let bigarray_check_bound idx bound =
-  H.Binary (Int_comp (I.Naked_immediate, Unsigned, Yielding_bool Lt), idx, bound)
-
 (* CR Gbury: this function in effect duplicates the bigarray_length access: one
    is done in the validity check, and one in the final offset computation,
    whereas cmmgen let-binds this access. It might matter for the performance,
@@ -230,14 +277,12 @@ let bigarray_indexing layout b args =
     | [] -> assert false
     | [idx] ->
       let bound = bigarray_dim_bound b dim in
-      let idxn = untag_int idx in
-      let check = bigarray_check_bound idxn bound in
+      let check = check_bound_tagged idx bound in
       [check], idx
     | idx :: r ->
       let checks, rem = aux (dim + delta_dim) delta_dim r in
       let bound = bigarray_dim_bound b dim in
-      let idxn = untag_int idx in
-      let check = bigarray_check_bound idxn bound in
+      let check = check_bound_tagged idx bound in
       (* CR gbury: because we tag bound, and the tagged multiplication untags
          it, we might be left with a needless zero-extend here. *)
       let tmp =
@@ -265,45 +310,37 @@ let bigarray_indexing layout b args =
                   H.Simple (Simple.const_int Targetint_31_63.Imm.one) )))
          args)
 
-let bigarray_ref ~dbg ~unsafe kind layout b indexes =
+let bigarray_access ~dbg ~unsafe ~access layout b indexes =
   let num_dim = List.length indexes in
   let checks, offset = bigarray_indexing layout b indexes in
-  let primitive = H.Binary (Bigarray_load (num_dim, kind, layout), b, offset) in
+  let primitive = access num_dim offset in
   if unsafe
   then primitive
-  else
-    H.Checked
-      { validity_conditions = checks;
-        failure = Index_out_of_bounds;
-        primitive;
-        dbg
-      }
+  else checked_access ~dbg ~conditions:checks ~primitive
+
+let bigarray_load ~dbg ~unsafe kind layout b indexes =
+  let access num_dim offset =
+    H.Binary (Bigarray_load (num_dim, kind, layout), b, offset)
+  in
+  bigarray_access ~dbg ~unsafe ~access layout b indexes
 
 let bigarray_set ~dbg ~unsafe kind layout b indexes value =
-  let num_dim = List.length indexes in
-  let checks, offset = bigarray_indexing layout b indexes in
-  let primitive =
+  let access num_dim offset =
     H.Ternary (Bigarray_set (num_dim, kind, layout), b, offset, value)
   in
-  if unsafe
-  then primitive
-  else
-    H.Checked
-      { validity_conditions = checks;
-        failure = Index_out_of_bounds;
-        primitive;
-        dbg
-      }
+  bigarray_access ~dbg ~unsafe ~access layout b indexes
 
-let[@inline always] match_on_array_kind ~array array_kind f : H.expr_primitive =
-  match C.convert_array_kind array_kind with
-  | Array_kind ((Immediates | Values) as array_kind) -> f array_kind
-  | Array_kind Naked_floats -> f P.Array_kind.Naked_floats
-  | Float_array_opt_dynamic ->
-    If_then_else
-      ( Unary (Is_flat_float_array, array),
-        f P.Array_kind.Naked_floats,
-        f P.Array_kind.Values )
+(* Array accesses *)
+let array_access_validity_condition array index =
+  [ H.Binary
+      ( Int_comp (Tagged_immediate, Unsigned, Yielding_bool Lt),
+        index,
+        Prim (Unary (Array_length, array)) ) ]
+
+let check_array_access ~dbg ~array ~index primitive : H.expr_primitive =
+  checked_access ~primitive
+    ~conditions:(array_access_validity_condition array index)
+    ~dbg
 
 let array_load_unsafe ~array ~index (array_kind : P.Array_kind.t) :
     H.expr_primitive =
@@ -323,14 +360,64 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t) :
     Ternary
       (Array_set (Naked_floats, Assignment), array, index, unbox_float new_value)
 
-let check_array_access ~array ~index primitive dbg : H.expr_primitive =
+let[@inline always] match_on_array_kind ~array array_kind f : H.expr_primitive =
+  match C.convert_array_kind array_kind with
+  | Array_kind ((Immediates | Values) as array_kind) -> f array_kind
+  | Array_kind Naked_floats -> f P.Array_kind.Naked_floats
+  | Float_array_opt_dynamic ->
+    (* CR keryan: we should push the ITE as low as possible to avoid duplicating
+       too much *)
+    If_then_else
+      ( Unary (Is_flat_float_array, array),
+        f P.Array_kind.Naked_floats,
+        f P.Array_kind.Values )
+
+(* Safe arith (div/mod by zero) *)
+let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2 :
+    H.expr_primitive =
+  let primitive, kind, zero, arg_wrap =
+    match bi, mode with
+    | None, None ->
+      ( H.Binary (Int_arith (I.Tagged_immediate, op), arg1, arg2),
+        K.value,
+        Reg_width_const.tagged_immediate
+          (Targetint_31_63.int Targetint_31_63.Imm.zero),
+        Fun.id )
+    | Some bi, Some mode ->
+      let kind, zero =
+        match bi with
+        | Pint32 -> K.naked_int32, Reg_width_const.naked_int32 0l
+        | Pint64 -> K.naked_int64, Reg_width_const.naked_int64 0L
+        | Pnativeint ->
+          ( K.naked_nativeint,
+            Reg_width_const.naked_nativeint Targetint_32_64.zero )
+      in
+      bint_binary_prim bi mode op arg1 arg2, kind, zero, unbox_bint bi
+    | _, _ -> Misc.fatal_error "Inconsistent allocation mode"
+  in
+  (* CR gbury: try and avoid the unboxing duplication of arg2. (the simplifier
+     might cse the duplication away, but it won't be the case for classic
+     mode). *)
   Checked
     { primitive;
-      validity_conditions = array_access_validity_condition array index;
-      failure = Index_out_of_bounds;
+      validity_conditions =
+        [ Binary
+            (Phys_equal (kind, Neq), arg_wrap arg2, Simple (Simple.const zero))
+        ];
+      failure = Division_by_zero;
       dbg
     }
 
+let bbswap bi si mode arg : H.expr_primitive =
+  let mode = C.alloc_mode mode in
+  Unary
+    ( Box_number (bi, mode),
+      Prim
+        (Unary
+           ( Int_arith (si, Swap_byte_endianness),
+             Prim (Unary (Unbox_number bi, arg)) )) )
+
+(* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     (dbg : Debuginfo.t) : H.expr_primitive =
   let args = List.map (fun arg : H.simple_or_prim -> Simple arg) args in
@@ -467,22 +554,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            unbox_float arg2 ))
   | Pfield_computed sem, [obj; field] ->
     let block_access : P.Block_access_kind.t =
-      (* Pfield_computed is only used for class access, on blocks of tag
-         [Object_tag], created in [CamlinternalOO]. *)
-      Values
-        { tag = Known Tag.Scannable.object_tag;
-          size = Unknown;
-          field_kind = Any_value
-        }
+      Values { tag = Unknown; size = Unknown; field_kind = Any_value }
     in
     Binary
       (Block_load (block_access, C.convert_field_read_semantics sem), obj, field)
   | Psetfield_computed (imm_or_pointer, init_or_assign), [obj; field; value] ->
-    (* Same note as for [Pfield_computed] above. *)
     let field_kind = C.convert_block_access_field_kind imm_or_pointer in
     let block_access : P.Block_access_kind.t =
-      Values
-        { tag = Known Tag.Scannable.object_tag; size = Unknown; field_kind }
+      Values { tag = Unknown; size = Unknown; field_kind }
     in
     Ternary
       ( Block_set (block_access, C.convert_init_or_assign init_or_assign),
@@ -497,9 +576,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let duplicate_array_kind =
       C.convert_array_kind_to_duplicate_array_kind kind
     in
-    (* CR mshinwell: Check that [Pduparray] is only applied to immutable
-       arrays *)
-    (* CR mshinwell: Check that [mutability] is the destination mutability *)
     let source_mutability = Mutability.Immutable in
     let destination_mutability = C.convert_mutable_flag mutability in
     match duplicate_array_kind with
@@ -525,208 +601,77 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
             ( Duplicate_array
                 { kind = Values; source_mutability; destination_mutability },
               arg ) ))
-  | Pstringlength, [arg] ->
-    (* CR mshinwell: Decide whether things such as String_length should return
-       tagged or untagged integers. Probably easiest to match Cmm_helpers for
-       now and change individual cases later for better codegen if required. *)
-    tag_int (Unary (String_length String, arg))
+  | Pstringlength, [arg] -> tag_int (Unary (String_length String, arg))
   | Pbyteslength, [arg] -> tag_int (Unary (String_length Bytes, arg))
-  | Pstringrefu, [arg1; arg2] ->
-    tag_int (Binary (String_or_bigstring_load (String, Eight), arg1, arg2))
-  | Pbytesrefu, [arg1; arg2] ->
-    tag_int (Binary (String_or_bigstring_load (Bytes, Eight), arg1, arg2))
-  | Pbytesrefs, [arg1; arg2] ->
-    string_or_bytes_ref ~size_int Bytes arg1 arg2 dbg
-  | Pstringrefs, [arg1; arg2] ->
-    string_or_bytes_ref ~size_int String arg1 arg2 dbg
-  | Pstring_load_16 true (* unsafe *), [arg1; arg2]
-  | Pbytes_load_16 true (* unsafe *), [arg1; arg2] ->
-    tag_int (Binary (String_or_bigstring_load (String, Sixteen), arg1, arg2))
-  | Pstring_load_32 (true (* unsafe *), mode), [arg1; arg2]
-  | Pbytes_load_32 (true (* unsafe *), mode), [arg1; arg2] ->
-    let mode = C.alloc_mode mode in
-    Unary
-      ( Box_number (Naked_int32, mode),
-        Prim
-          (Binary (String_or_bigstring_load (String, Thirty_two), arg1, arg2))
-      )
-  | Pstring_load_64 (true (* unsafe *), mode), [arg1; arg2]
-  | Pbytes_load_64 (true (* unsafe *), mode), [arg1; arg2] ->
-    let mode = C.alloc_mode mode in
-    Unary
-      ( Box_number (Naked_int64, mode),
-        Prim
-          (Binary (String_or_bigstring_load (String, Sixty_four), arg1, arg2))
-      )
-  | Pstring_load_16 false, [str; index] ->
-    Checked
-      { primitive =
-          tag_int
-            (Binary (String_or_bigstring_load (String, Sixteen), str, index));
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int str String
-              Sixteen index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pstring_load_32 (false, mode), [str; index] ->
-    let mode = C.alloc_mode mode in
-    Checked
-      { primitive =
-          Unary
-            ( Box_number (Naked_int32, mode),
-              Prim
-                (Binary
-                   (String_or_bigstring_load (String, Thirty_two), str, index))
-            );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int str String
-              Thirty_two index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pstring_load_64 (false, mode), [str; index] ->
-    let mode = C.alloc_mode mode in
-    Checked
-      { primitive =
-          Unary
-            ( Box_number (Naked_int64, mode),
-              Prim
-                (Binary
-                   (String_or_bigstring_load (String, Sixty_four), str, index))
-            );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int str String
-              Sixty_four index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  (* CR mshinwell: factor out *)
-  | Pbytes_load_16 false, [bytes; index] ->
-    Checked
-      { primitive =
-          tag_int
-            (Binary (String_or_bigstring_load (Bytes, Sixteen), bytes, index));
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Sixteen index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbytes_load_32 (false, mode), [bytes; index] ->
-    let mode = C.alloc_mode mode in
-    Checked
-      { primitive =
-          Unary
-            ( Box_number (Naked_int32, mode),
-              Prim
-                (Binary
-                   (String_or_bigstring_load (Bytes, Thirty_two), bytes, index))
-            );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Thirty_two index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbytes_load_64 (false, mode), [bytes; index] ->
-    let mode = C.alloc_mode mode in
-    Checked
-      { primitive =
-          Unary
-            ( Box_number (Naked_int64, mode),
-              Prim
-                (Binary
-                   (String_or_bigstring_load (Bytes, Sixty_four), bytes, index))
-            );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Sixty_four index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  (* CR mshinwell: Change [Lambda] to have a [Safe] / [Unsafe] variant *)
-  | Pbytes_set_16 true, [bytes; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bytes, Sixteen),
-        bytes,
-        index,
-        untag_int new_value )
-  | Pbytes_set_32 true, [bytes; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bytes, Thirty_two),
-        bytes,
-        index,
-        Prim (Unary (Unbox_number Naked_int32, new_value)) )
-  | Pbytes_set_64 true, [bytes; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bytes, Sixty_four),
-        bytes,
-        index,
-        Prim (Unary (Unbox_number Naked_int64, new_value)) )
-  | Pbytes_set_16 false, [bytes; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bytes, Sixteen),
-              bytes,
-              index,
-              untag_int new_value );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Sixteen index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbytes_set_32 false, [bytes; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bytes, Thirty_two),
-              bytes,
-              index,
-              Prim (Unary (Unbox_number Naked_int32, new_value)) );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Thirty_two index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbytes_set_64 false, [bytes; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bytes, Sixty_four),
-              bytes,
-              index,
-              Prim (Unary (Unbox_number Naked_int64, new_value)) );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Sixty_four index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  (* CR mshinwell: To do: | Pbittest, [arg1; arg2] -> *)
-  (*   Binary (Bit_test, arg1, arg2) *)
+  | Pstringrefu, [str; index] ->
+    string_like_load_unsafe ~access_size:Eight String None str index
+  | Pbytesrefu, [bytes; index] ->
+    string_like_load_unsafe ~access_size:Eight Bytes None bytes index
+  | Pstringrefs, [str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Eight String None str
+      index
+  | Pbytesrefs, [bytes; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Eight Bytes None bytes
+      index
+  | Pstring_load_16 true (* unsafe *), [str; index] ->
+    string_like_load_unsafe ~access_size:Sixteen String None str index
+  | Pbytes_load_16 true (* unsafe *), [bytes; index] ->
+    string_like_load_unsafe ~access_size:Sixteen Bytes None bytes index
+  | Pstring_load_32 (true (* unsafe *), mode), [str; index] ->
+    string_like_load_unsafe ~access_size:Thirty_two String (Some mode) str index
+  | Pbytes_load_32 (true (* unsafe *), mode), [bytes; index] ->
+    string_like_load_unsafe ~access_size:Thirty_two Bytes (Some mode) bytes
+      index
+  | Pstring_load_64 (true (* unsafe *), mode), [str; index] ->
+    string_like_load_unsafe ~access_size:Sixty_four String (Some mode) str index
+  | Pbytes_load_64 (true (* unsafe *), mode), [bytes; index] ->
+    string_like_load_unsafe ~access_size:Sixty_four Bytes (Some mode) bytes
+      index
+  | Pstring_load_16 false (* safe *), [str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixteen String None str
+      index
+  | Pstring_load_32 (false (* safe *), mode), [str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two String
+      (Some mode) str index
+  | Pstring_load_64 (false (* safe *), mode), [str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
+      (Some mode) str index
+  | Pbytes_load_16 false (* safe *), [bytes; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bytes None bytes
+      index
+  | Pbytes_load_32 (false (* safe *), mode), [bytes; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
+      (Some mode) bytes index
+  | Pbytes_load_64 (false (* safe *), mode), [bytes; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
+      (Some mode) bytes index
+  | Pbytes_set_16 true (* unsafe *), [bytes; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Sixteen Bytes bytes index new_value
+  | Pbytes_set_32 true (* unsafe *), [bytes; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Thirty_two Bytes bytes index new_value
+  | Pbytes_set_64 true (* unsafe *), [bytes; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Sixty_four Bytes bytes index new_value
+  | Pbytes_set_16 false (* safe *), [bytes; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bytes bytes index
+      new_value
+  | Pbytes_set_32 false (* safe *), [bytes; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bytes bytes index
+      new_value
+  | Pbytes_set_64 false (* safe *), [bytes; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes bytes index
+      new_value
   | Pisint, [arg] -> tag_int (Unary (Is_int, arg))
   | Pisout, [arg1; arg2] ->
     tag_int
       (Binary
-         ( Int_comp (I.Tagged_immediate, Unsigned, Yielding_bool Lt),
-           tagged_immediate_as_naked_nativeint arg1,
-           tagged_immediate_as_naked_nativeint arg2 ))
+         (Int_comp (I.Tagged_immediate, Unsigned, Yielding_bool Lt), arg1, arg2))
   | Pbintofint (bi, mode), [arg] ->
-    let mode = C.alloc_mode mode in
     let dst = C.standard_int_or_float_of_boxed_integer bi in
-    Unary
-      ( Box_number (C.boxable_number_of_boxed_integer bi, mode),
-        Prim (Unary (Num_conv { src = I_or_f.Tagged_immediate; dst }, arg)) )
+    box_bint bi mode
+      (Unary (Num_conv { src = I_or_f.Tagged_immediate; dst }, arg))
   | Pintofbint bi, [arg] ->
     let src = C.standard_int_or_float_of_boxed_integer bi in
-    Unary
-      ( Num_conv { src; dst = I_or_f.Tagged_immediate },
-        Prim (Unary (Unbox_number (C.boxable_number_of_boxed_integer bi), arg))
-      )
+    Unary (Num_conv { src; dst = I_or_f.Tagged_immediate }, unbox_bint bi arg)
   | Pcvtbint (source, destination, mode), [arg] ->
     box_bint destination mode
       (Unary
@@ -735,10 +680,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
                dst = C.standard_int_or_float_of_boxed_integer destination
              },
            unbox_bint source arg ))
-  | Pnegbint (bi, mode), [arg] ->
-    box_bint bi mode
-      (Unary
-         (Int_arith (C.standard_int_of_boxed_integer bi, Neg), unbox_bint bi arg))
+  | Pnegbint (bi, mode), [arg] -> bint_unary_prim bi mode Neg arg
   | Paddbint (bi, mode), [arg1; arg2] -> bint_binary_prim bi mode Add arg1 arg2
   | Psubbint (bi, mode), [arg1; arg2] -> bint_binary_prim bi mode Sub arg1 arg2
   | Pmulbint (bi, mode), [arg1; arg2] -> bint_binary_prim bi mode Mul arg1 arg2
@@ -757,10 +699,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Binary (Int_arith (I.Tagged_immediate, Add), arg, Simple const)
   | Pfield (index, sem), [arg] ->
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
-    if not (Targetint_31_63.is_non_negative imm)
-    then
-      Misc.fatal_errorf "Pfield with negative index %a" Targetint_31_63.print
-        imm;
+    check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = C.convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
@@ -769,6 +708,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Binary (Block_load (block_access, mutability), arg, Simple field)
   | Pfloatfield (field, sem, mode), [arg] ->
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int field) in
+    check_non_negative_imm imm "Pfloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = C.convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
@@ -780,197 +720,67 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       [block; value] ) ->
     let field_kind = C.convert_block_access_field_kind immediate_or_pointer in
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
+    check_non_negative_imm imm "Psetfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
+    let init_or_assign =
+      C.convert_init_or_assign initialization_or_assignment
+    in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
     Ternary
-      ( Block_set
-          (block_access, C.convert_init_or_assign initialization_or_assignment),
-        block,
-        Simple field,
-        value )
-  | Psetfloatfield (field, init_or_assign), [block; value] ->
+      (Block_set (block_access, init_or_assign), block, Simple field, value)
+  | Psetfloatfield (field, initialization_or_assignment), [block; value] ->
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int field) in
+    check_non_negative_imm imm "Psetfloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
+    let init_or_assign =
+      C.convert_init_or_assign initialization_or_assignment
+    in
     Ternary
-      ( Block_set (block_access, C.convert_init_or_assign init_or_assign),
+      ( Block_set (block_access, init_or_assign),
         block,
         Simple field,
         unbox_float value )
   | Pdivint Unsafe, [arg1; arg2] ->
     Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)
-  | Pdivint Safe, [arg1; arg2] ->
-    Checked
-      { primitive = Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2);
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.value, Neq),
-                arg2,
-                Simple
-                  (Simple.const
-                     (Reg_width_const.tagged_immediate
-                        (Targetint_31_63.int Targetint_31_63.Imm.zero))) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
-  | Pmodint Safe, [arg1; arg2] ->
-    Checked
-      { primitive = Binary (Int_arith (I.Tagged_immediate, Mod), arg1, arg2);
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.value, Neq),
-                arg2,
-                Simple
-                  (Simple.const
-                     (Reg_width_const.tagged_immediate
-                        (Targetint_31_63.int Targetint_31_63.Imm.zero))) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
+  | Pdivint Safe, [arg1; arg2] -> checked_arith_op ~dbg None Div None arg1 arg2
+  | Pmodint Safe, [arg1; arg2] -> checked_arith_op ~dbg None Mod None arg1 arg2
   | Pdivbint { size = Pint32; is_safe = Safe; mode }, [arg1; arg2] ->
-    (* The duplicate unboxing generated in the Pdivbint/Pmodbint cases will be
-       removed by the simplifier. *)
-    (* CR mshinwell: Factor these cases out *)
-    Checked
-      { primitive =
-          box_bint Pint32 mode
-            (Binary
-               ( Int_arith (I.Naked_int32, Div),
-                 unbox_bint Pint32 arg1,
-                 unbox_bint Pint32 arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_int32, Neq),
-                unbox_bint Pint32 arg2,
-                Simple (Simple.const (Reg_width_const.naked_int32 0l)) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pint32) Div (Some mode) arg1 arg2
   | Pmodbint { size = Pint32; is_safe = Safe; mode }, [arg1; arg2] ->
-    Checked
-      { primitive =
-          box_bint Pint32 mode
-            (Binary
-               ( Int_arith (I.Naked_int32, Mod),
-                 unbox_bint Pint32 arg1,
-                 unbox_bint Pint32 arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_int32, Neq),
-                unbox_bint Pint32 arg2,
-                Simple (Simple.const (Reg_width_const.naked_int32 0l)) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pint32) Mod (Some mode) arg1 arg2
   | Pdivbint { size = Pint64; is_safe = Safe; mode }, [arg1; arg2] ->
-    Checked
-      { primitive =
-          box_bint Pint64 mode
-            (Binary
-               ( Int_arith (I.Naked_int64, Div),
-                 unbox_bint Pint64 arg1,
-                 unbox_bint Pint64 arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_int64, Neq),
-                unbox_bint Pint64 arg2,
-                Simple (Simple.const (Reg_width_const.naked_int64 0L)) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pint64) Div (Some mode) arg1 arg2
   | Pmodbint { size = Pint64; is_safe = Safe; mode }, [arg1; arg2] ->
-    Checked
-      { primitive =
-          box_bint Pint64 mode
-            (Binary
-               ( Int_arith (I.Naked_int64, Mod),
-                 unbox_bint Pint64 arg1,
-                 unbox_bint Pint64 arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_int64, Neq),
-                unbox_bint Pint64 arg2,
-                Simple (Simple.const (Reg_width_const.naked_int64 0L)) ) ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pint64) Mod (Some mode) arg1 arg2
   | Pdivbint { size = Pnativeint; is_safe = Safe; mode }, [arg1; arg2] ->
-    Checked
-      { primitive =
-          box_bint Pnativeint mode
-            (Binary
-               ( Int_arith (I.Naked_nativeint, Div),
-                 unbox_bint Pnativeint arg1,
-                 unbox_bint Pnativeint arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_nativeint, Neq),
-                unbox_bint Pnativeint arg2,
-                Simple
-                  (Simple.const
-                     (Reg_width_const.naked_nativeint Targetint_32_64.zero)) )
-          ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pnativeint) Div (Some mode) arg1 arg2
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [arg1; arg2] ->
-    Checked
-      { primitive =
-          box_bint Pnativeint mode
-            (Binary
-               ( Int_arith (I.Naked_nativeint, Mod),
-                 unbox_bint Pnativeint arg1,
-                 unbox_bint Pnativeint arg2 ));
-        validity_conditions =
-          [ Binary
-              ( Phys_equal (K.naked_nativeint, Neq),
-                unbox_bint Pnativeint arg2,
-                Simple
-                  (Simple.const
-                     (Reg_width_const.naked_nativeint Targetint_32_64.zero)) )
-          ];
-        failure = Division_by_zero;
-        dbg
-      }
+    checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
   | Parrayrefu array_kind, [array; index] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
     match_on_array_kind ~array array_kind (array_load_unsafe ~array ~index)
   | Parrayrefs array_kind, [array; index] ->
-    match_on_array_kind ~array array_kind (fun array_kind ->
-        check_array_access ~array ~index
-          (array_load_unsafe ~array ~index array_kind)
-          dbg)
+    check_array_access ~dbg ~array ~index
+      (match_on_array_kind ~array array_kind (array_load_unsafe ~array ~index))
   | Parraysetu array_kind, [array; index; new_value] ->
     match_on_array_kind ~array array_kind
       (array_set_unsafe ~array ~index ~new_value)
   | Parraysets array_kind, [array; index; new_value] ->
-    match_on_array_kind ~array array_kind (fun array_kind ->
-        check_array_access ~array ~index
-          (array_set_unsafe ~array ~index ~new_value array_kind)
-          dbg)
-  | Pbytessetu, [bytes; index; new_value] ->
-    Ternary
-      (Bytes_or_bigstring_set (Bytes, Eight), bytes, index, untag_int new_value)
+    check_array_access ~dbg ~array ~index
+      (match_on_array_kind ~array array_kind
+         (array_set_unsafe ~array ~index ~new_value))
+  | Pbytessetu (* unsafe *), [bytes; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Eight Bytes bytes index new_value
   | Pbytessets, [bytes; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bytes, Eight),
-              bytes,
-              index,
-              untag_int new_value );
-        validity_conditions =
-          [ string_or_bytes_access_validity_condition ~size_int bytes Bytes
-              Eight index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Eight Bytes bytes index
+      new_value
   | Poffsetref n, [block] ->
     let block_access : P.Block_access_kind.t =
       Values
@@ -979,19 +789,23 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
           field_kind = Immediate
         }
     in
+    let old_ref_value =
+      H.Prim
+        (Binary
+           (Block_load (block_access, Mutable), block, Simple Simple.const_zero))
+    in
+    let new_ref_value =
+      H.Prim
+        (Binary
+           ( Int_arith (Tagged_immediate, Add),
+             Simple (Simple.const_int (Targetint_31_63.Imm.of_int n)),
+             old_ref_value ))
+    in
     Ternary
       ( Block_set (block_access, Assignment),
         block,
         Simple Simple.const_zero,
-        Prim
-          (Binary
-             ( Int_arith (Tagged_immediate, Add),
-               Simple (Simple.const_int (Targetint_31_63.Imm.of_int n)),
-               Prim
-                 (Binary
-                    ( Block_load (block_access, Mutable),
-                      block,
-                      Simple Simple.const_zero )) )) )
+        new_ref_value )
   | Pctconst const, _ -> begin
     (* CR mshinwell: This doesn't seem to be zero-arity like it should be *)
     (* CR pchambart: It's not obvious when this one should be converted.
@@ -1019,30 +833,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pbswap16, [arg] ->
     tag_int
       (Unary (Int_arith (Naked_immediate, Swap_byte_endianness), untag_int arg))
-  | Pbbswap (Pint32, mode), [arg] ->
-    let mode = C.alloc_mode mode in
-    Unary
-      ( Box_number (Naked_int32, mode),
-        Prim
-          (Unary
-             ( Int_arith (Naked_int32, Swap_byte_endianness),
-               Prim (Unary (Unbox_number Naked_int32, arg)) )) )
-  | Pbbswap (Pint64, mode), [arg] ->
-    let mode = C.alloc_mode mode in
-    Unary
-      ( Box_number (Naked_int64, mode),
-        Prim
-          (Unary
-             ( Int_arith (Naked_int64, Swap_byte_endianness),
-               Prim (Unary (Unbox_number Naked_int64, arg)) )) )
+  | Pbbswap (Pint32, mode), [arg] -> bbswap Naked_int32 Naked_int32 mode arg
+  | Pbbswap (Pint64, mode), [arg] -> bbswap Naked_int64 Naked_int64 mode arg
   | Pbbswap (Pnativeint, mode), [arg] ->
-    let mode = C.alloc_mode mode in
-    Unary
-      ( Box_number (Naked_nativeint, mode),
-        Prim
-          (Unary
-             ( Int_arith (Naked_nativeint, Swap_byte_endianness),
-               Prim (Unary (Unbox_number Naked_nativeint, arg)) )) )
+    bbswap Naked_nativeint Naked_nativeint mode arg
   | Pint_as_pointer, [arg] -> Unary (Int_as_pointer, arg)
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> begin
     match C.convert_bigarray_kind kind, C.convert_bigarray_layout layout with
@@ -1056,7 +850,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
         | [] -> Misc.fatal_errorf "Pbigarrayref is missing its arguments"
       in
       let box = bigarray_box_raw_value_read kind Heap in
-      box (bigarray_ref ~dbg ~unsafe kind layout b indexes)
+      box (bigarray_load ~dbg ~unsafe kind layout b indexes)
     | None, _ ->
       Misc.fatal_errorf
         "Lambda_to_flambda_primitives.convert_lprim: Pbigarrayref primitives \
@@ -1091,79 +885,41 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   end
   | Pbigarraydim dimension, [arg] ->
     tag_int (Unary (Bigarray_length { dimension }, arg))
-  | Pbigstring_load_16 true, [arg1; arg2] ->
-    tag_int (Binary (String_or_bigstring_load (Bigstring, Sixteen), arg1, arg2))
-  | Pbigstring_load_16 false, [arg1; arg2] ->
-    bigstring_ref ~size_int Sixteen Lambda.Alloc_heap arg1 arg2 dbg
-  | Pbigstring_load_32 (true, mode), [arg1; arg2] ->
-    box_bint Pint32 mode
-      (Binary (String_or_bigstring_load (Bigstring, Thirty_two), arg1, arg2))
-  | Pbigstring_load_32 (false, mode), [arg1; arg2] ->
-    bigstring_ref ~size_int Thirty_two mode arg1 arg2 dbg
-  | Pbigstring_load_64 (true, mode), [arg1; arg2] ->
-    box_bint Pint64 mode
-      (Binary (String_or_bigstring_load (Bigstring, Sixty_four), arg1, arg2))
-  | Pbigstring_load_64 (false, mode), [arg1; arg2] ->
-    bigstring_ref ~size_int Sixty_four mode arg1 arg2 dbg
-  | Pbigstring_set_16 true, [bigstring; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bigstring, Sixteen),
-        bigstring,
-        index,
-        untag_int new_value )
-  | Pbigstring_set_32 true, [bigstring; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bigstring, Thirty_two),
-        bigstring,
-        index,
-        Prim (Unary (Unbox_number Naked_int32, new_value)) )
-  | Pbigstring_set_64 true, [bigstring; index; new_value] ->
-    Ternary
-      ( Bytes_or_bigstring_set (Bigstring, Sixty_four),
-        bigstring,
-        index,
-        Prim (Unary (Unbox_number Naked_int64, new_value)) )
-  | Pbigstring_set_16 false, [bigstring; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bigstring, Sixteen),
-              bigstring,
-              index,
-              untag_int new_value );
-        validity_conditions =
-          [bigstring_access_validity_condition ~size_int bigstring Sixteen index];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbigstring_set_32 false, [bigstring; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bigstring, Thirty_two),
-              bigstring,
-              index,
-              Prim (Unary (Unbox_number Naked_int32, new_value)) );
-        validity_conditions =
-          [ bigstring_access_validity_condition ~size_int bigstring Thirty_two
-              index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
-  | Pbigstring_set_64 false, [bigstring; index; new_value] ->
-    Checked
-      { primitive =
-          Ternary
-            ( Bytes_or_bigstring_set (Bigstring, Sixty_four),
-              bigstring,
-              index,
-              Prim (Unary (Unbox_number Naked_int64, new_value)) );
-        validity_conditions =
-          [ bigstring_access_validity_condition ~size_int bigstring Sixty_four
-              index ];
-        failure = Index_out_of_bounds;
-        dbg
-      }
+  | Pbigstring_load_16 true (* unsafe *), [big_str; index] ->
+    string_like_load_unsafe ~access_size:Sixteen Bigstring None big_str index
+  | Pbigstring_load_32 (true (* unsafe *), mode), [big_str; index] ->
+    string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
+      big_str index
+  | Pbigstring_load_64 (true (* unsafe *), mode), [big_str; index] ->
+    string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
+      big_str index
+  | Pbigstring_load_16 false (* safe *), [big_str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bigstring None
+      big_str index
+  | Pbigstring_load_32 (false (* safe *), mode), [big_str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+      (Some mode) big_str index
+  | Pbigstring_load_64 (false (* safe *), mode), [big_str; index] ->
+    string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
+      (Some mode) big_str index
+  | Pbigstring_set_16 true (* unsafe *), [bigstring; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Sixteen Bigstring bigstring index
+      new_value
+  | Pbigstring_set_32 true (* unsafe *), [bigstring; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Thirty_two Bigstring bigstring index
+      new_value
+  | Pbigstring_set_64 true (* unsafe *), [bigstring; index; new_value] ->
+    bytes_like_set_unsafe ~access_size:Sixty_four Bigstring bigstring index
+      new_value
+  | Pbigstring_set_16 false (* safe *), [bigstring; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bigstring bigstring
+      index new_value
+  | Pbigstring_set_32 false (* safe *), [bigstring; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+      bigstring index new_value
+  | Pbigstring_set_64 false (* safe *), [bigstring; index; new_value] ->
+    bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
+      bigstring index new_value
   | Pcompare_ints, [i1; i2] ->
     tag_int
       (Binary
@@ -1254,13 +1010,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc
-module Env = Closure_conversion_aux.Env
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
-let convert_and_bind acc env ~big_endian exn_cont ~register_const_string
+let convert_and_bind acc ~big_endian exn_cont ~register_const_string
     (prim : L.primitive) ~(args : Simple.t list) (dbg : Debuginfo.t)
     (cont : Acc.t -> Flambda.Named.t option -> Acc.t * Expr_with_acc.t) :
     Acc.t * Expr_with_acc.t =
   let expr = convert_lprim ~big_endian prim args dbg in
-  H.bind_rec acc env exn_cont ~register_const_string expr dbg (fun acc named ->
+  H.bind_rec acc exn_cont ~register_const_string expr dbg (fun acc named ->
       cont acc (Some named))
