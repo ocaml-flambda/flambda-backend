@@ -1653,28 +1653,22 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t)
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =
   let block_nums, sw_blocks = List.split switch.sw_blocks in
-  let block_nums =
-    List.map
-      (fun sw_tag ->
-        begin
-          match Tag.Scannable.create sw_tag with
-          | Some tag ->
-            let tag' = Tag.Scannable.to_tag tag in
-            if Tag.is_structured_block_but_not_data_constructor tag'
-            then
-              Misc.fatal_errorf
-                "Bad tag %a in [Lswitch] (tag is that of a scannable block, \
-                 but not one treated like a variant; [Lswitch] can only be \
-                 used for variant matching)"
-                Tag.print tag'
-          | None ->
-            Misc.fatal_errorf
-              "Bad tag %d in [Lswitch] (not the tag of a GC-scannable block)"
-              sw_tag
-        end;
-        sw_tag)
-      block_nums
-  in
+  List.iter
+    (fun sw_tag ->
+      match Tag.Scannable.create sw_tag with
+      | Some tag ->
+        let tag' = Tag.Scannable.to_tag tag in
+        if Tag.is_structured_block_but_not_data_constructor tag'
+        then
+          Misc.fatal_errorf
+            "Bad tag %a in [Lswitch] (tag is that of a scannable block, but \
+             not one treated like a variant; [Lswitch] can only be used for \
+             variant matching)"
+            Tag.print tag'
+      | None ->
+        Misc.fatal_errorf
+          "Bad tag %d in [Lswitch] (not the tag of a GC-scannable block)" sw_tag)
+    block_nums;
   if switch.sw_numblocks > Obj.last_non_constant_constructor_tag + 1
   then
     Misc.fatal_errorf
