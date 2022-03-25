@@ -47,8 +47,6 @@ and simple_or_prim =
   | Simple of Simple.t
   | Prim of expr_primitive
 
-val caml_ml_array_bound_error : Symbol.t
-
 val print_expr_primitive : Format.formatter -> expr_primitive -> unit
 
 val print_simple_or_prim : Format.formatter -> simple_or_prim -> unit
@@ -60,7 +58,6 @@ open Closure_conversion_aux
 
 val bind_rec :
   Acc.t ->
-  Env.t ->
   Exn_continuation.t option ->
   register_const_string:(Acc.t -> string -> Acc.t * Symbol.t) ->
   expr_primitive ->

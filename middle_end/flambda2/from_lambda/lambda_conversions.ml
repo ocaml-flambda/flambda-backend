@@ -246,6 +246,3 @@ let convert_bigarray_layout (layout : L.bigarray_layout) :
 
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
-
-let convert_lambda_block_size (size : int) : _ Or_unknown.t =
-  Known (Targetint_31_63.Imm.of_int size)
