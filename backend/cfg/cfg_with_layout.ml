@@ -75,7 +75,11 @@ let dump ppf t ~msg =
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
-    List.iter (Cfg.dump_basic ppf) block.body;
+    List.iter
+      (fun i ->
+        Cfg.dump_basic ppf i;
+        fprintf ppf "\n")
+      block.body;
     Cfg.dump_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
@@ -84,7 +88,8 @@ let dump ppf t ~msg =
       (Cfg.successor_labels ~normal:true ~exn:false block);
     fprintf ppf "\nexn-successors:";
     Label.Set.iter (fprintf ppf " %d")
-      (Cfg.successor_labels ~normal:false ~exn:true block)
+      (Cfg.successor_labels ~normal:false ~exn:true block);
+    fprintf ppf "\n"
   in
   List.iter print_block t.layout
 
@@ -104,8 +109,11 @@ let print_dot ?(show_instr = true) ?(show_exn = true) ?annotate_block
   let print_block_dot label (block : Cfg.basic_block) index =
     let name l = Printf.sprintf "\".L%d\"" l in
     let show_index = Option.value index ~default:(-1) in
-    Format.fprintf ppf "\n%s [shape=box label=\".L%d:I%d:S%d%s%s" (name label)
-      label show_index (List.length block.body)
+    Format.fprintf ppf "\n%s [shape=box label=\".L%d:I%d:S%d%s%s%s"
+      (name label) label show_index (List.length block.body)
+      (if block.stack_offset > 0
+      then ":T" ^ string_of_int block.stack_offset
+      else "")
       (if block.is_trap_handler then ":eh" else "")
       (annotate_block label);
     if show_instr

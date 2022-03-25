@@ -574,8 +574,8 @@ let _check_layout : State.t -> Label.t list -> Label.t list -> unit =
 
 let save_cfg_as_dot : Cfg_with_layout.t -> string -> unit =
  fun cfg_with_layout msg ->
-  Cfg_with_layout.save_as_dot cfg_with_layout ~show_instr:true ~show_exn:true
-    ~annotate_block:(Printf.sprintf "label:%d")
+  Cfg_with_layout.save_as_dot cfg_with_layout ~show_instr:true
+    ~show_exn:true (* ~annotate_block:(Printf.sprintf "label:%d") *)
     ~annotate_succ:(Printf.sprintf "%d->%d") msg
 
 let check_cfg_with_layout :

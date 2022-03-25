@@ -244,54 +244,62 @@ let dump_call ppf = function
     | Direct { func_symbol : string; _ } ->
       Format.fprintf ppf "direct %s" func_symbol)
 
-let dump_basic ppf i =
+let dump_basic ppf (i : basic instruction) =
   let open Format in
+  if i.stack_offset > 0 then fprintf ppf "[T%d] " i.stack_offset;
   fprintf ppf "%d: " i.id;
-  match i.desc with
-  | Op op -> dump_op ppf op
-  | Call call ->
-    fprintf ppf "Call ";
-    dump_call ppf call
-  | Reloadretaddr -> fprintf ppf "Reloadretaddr"
-  | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
-  | Poptrap -> fprintf ppf "Poptrap"
-  | Prologue -> fprintf ppf "Prologue"
+  if Array.length i.res > 0 then
+    fprintf ppf "%a := " Printmach.regs i.res;
+  (match i.desc with
+   | Op op -> dump_op ppf op
+   | Call call ->
+      fprintf ppf "Call ";
+      dump_call ppf call
+   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
+   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
+   | Poptrap -> fprintf ppf "Poptrap"
+   | Prologue -> fprintf ppf "Prologue");
+  fprintf ppf " %a" Printmach.regs i.arg
 
-let dump_terminator ppf ?(sep = "\n") ti =
+let dump_terminator ppf ?(sep = "\n") (ti : terminator instruction) =
   let open Format in
+  if ti.stack_offset > 0 then fprintf ppf "[T%d] " ti.stack_offset;
   fprintf ppf "%d: " ti.id;
-  match ti.desc with
-  | Never -> fprintf ppf "deadend%s" sep
-  | Always l -> fprintf ppf "goto %d%s" l sep
-  | Parity_test { ifso; ifnot } ->
-    fprintf ppf "if even goto %d%sif odd goto %d%s" ifso sep ifnot sep
-  | Truth_test { ifso; ifnot } ->
-    fprintf ppf "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
-  | Float_test { lt; eq; gt; uo } ->
-    fprintf ppf "if < goto %d%s" lt sep;
-    fprintf ppf "if = goto %d%s" eq sep;
-    fprintf ppf "if > goto %d%s" gt sep;
-    fprintf ppf "if uo goto %d%s" uo sep
-  | Int_test { lt; eq; gt; is_signed; imm } ->
-    let cmp =
-      Printf.sprintf " %s%s"
-        (if is_signed then "s" else "u")
-        (match imm with None -> "" | Some i -> " " ^ Int.to_string i)
-    in
-    fprintf ppf "if <%s goto %d%s" cmp lt sep;
-    fprintf ppf "if =%s goto %d%s" cmp eq sep;
-    fprintf ppf "if >%s goto %d%s" cmp gt sep
-  | Switch labels ->
-    fprintf ppf "switch%s" sep;
-    for i = 0 to Array.length labels - 1 do
-      fprintf ppf "case %d: goto %d%s" i labels.(i) sep
-    done
-  | Call_no_return { func_symbol : string; _ } ->
-    fprintf ppf "Call_no_return %s%s" func_symbol sep
-  | Return -> fprintf ppf "Return%s" sep
-  | Raise _ -> fprintf ppf "Raise%s" sep
-  | Tailcall (Self _) -> fprintf ppf "Tailcall self%s" sep
-  | Tailcall (Func _) -> fprintf ppf "Tailcall%s" sep
+  if Array.length ti.res > 0 then
+    fprintf ppf "%a := " Printmach.regs ti.res;
+  (match ti.desc with
+   | Never -> fprintf ppf "deadend%s" sep
+   | Always l -> fprintf ppf "goto %d%s" l sep
+   | Parity_test { ifso; ifnot } ->
+      fprintf ppf "if even goto %d%sif odd goto %d%s" ifso sep ifnot sep
+   | Truth_test { ifso; ifnot } ->
+      fprintf ppf "if true goto %d%sif false goto %d%s" ifso sep ifnot sep
+   | Float_test { lt; eq; gt; uo } ->
+      fprintf ppf "if < goto %d%s" lt sep;
+      fprintf ppf "if = goto %d%s" eq sep;
+      fprintf ppf "if > goto %d%s" gt sep;
+      fprintf ppf "if uo goto %d%s" uo sep
+   | Int_test { lt; eq; gt; is_signed; imm } ->
+      let cmp =
+        Printf.sprintf " %s%s"
+          (if is_signed then "s" else "u")
+          (match imm with None -> "" | Some i -> " " ^ Int.to_string i)
+      in
+      fprintf ppf "if <%s goto %d%s" cmp lt sep;
+      fprintf ppf "if =%s goto %d%s" cmp eq sep;
+      fprintf ppf "if >%s goto %d%s" cmp gt sep
+   | Switch labels ->
+      fprintf ppf "switch%s" sep;
+      for i = 0 to Array.length labels - 1 do
+        fprintf ppf "case %d: goto %d%s" i labels.(i) sep
+      done
+   | Call_no_return { func_symbol : string; _ } ->
+      fprintf ppf "Call_no_return %s%s" func_symbol sep
+   | Return -> fprintf ppf "Return%s" sep
+   | Raise _ -> fprintf ppf "Raise%s" sep
+   | Tailcall (Self _) -> fprintf ppf "Tailcall self%s" sep
+   | Tailcall (Func _) -> fprintf ppf "Tailcall%s" sep);
+   if Array.length ti.arg > 0 then fprintf ppf " %a%s" Printmach.regs ti.arg sep
 
 let can_raise_terminator (i : terminator) =
   match i with
