@@ -49,3 +49,11 @@ let is_default t =
   match t with
   | Default_inlined -> true
   | Always_inlined | Hint_inlined | Never_inlined | Unroll _ -> false
+
+let from_lambda (attr : Lambda.inlined_attribute) =
+  match attr with
+  | Always_inlined -> Always_inlined
+  | Never_inlined -> Never_inlined
+  | Hint_inlined -> Hint_inlined
+  | Unroll i -> Unroll i
+  | Default_inlined -> Default_inlined

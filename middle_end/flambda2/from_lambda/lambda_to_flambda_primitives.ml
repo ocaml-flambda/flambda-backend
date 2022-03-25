@@ -16,13 +16,152 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module C = Lambda_conversions
 module H = Lambda_to_flambda_primitives_helpers
 module I = Flambda_kind.Standard_int
 module I_or_f = Flambda_kind.Standard_int_or_float
 module K = Flambda_kind
 module L = Lambda
 module P = Flambda_primitive
+
+let convert_block_of_values_field (value_kind : L.value_kind) :
+    P.Block_of_values_field.t =
+  match value_kind with
+  | Pgenval -> Any_value
+  | Pfloatval -> Boxed_float
+  | Pboxedintval Pint32 -> Boxed_int32
+  | Pboxedintval Pint64 -> Boxed_int64
+  | Pboxedintval Pnativeint -> Boxed_nativeint
+  | Pintval -> Immediate
+  | Pblock _ | Parrayval _ -> Any_value
+
+let convert_integer_comparison_prim (comp : L.integer_comparison) :
+    P.binary_primitive =
+  match comp with
+  | Ceq -> Phys_equal (K.value, Eq)
+  | Cne -> Phys_equal (K.value, Neq)
+  | Clt -> Int_comp (Tagged_immediate, Signed, Yielding_bool Lt)
+  | Cgt -> Int_comp (Tagged_immediate, Signed, Yielding_bool Gt)
+  | Cle -> Int_comp (Tagged_immediate, Signed, Yielding_bool Le)
+  | Cge -> Int_comp (Tagged_immediate, Signed, Yielding_bool Ge)
+
+let convert_boxed_integer_comparison_prim (kind : L.boxed_integer)
+    (comp : L.integer_comparison) : P.binary_primitive =
+  match kind, comp with
+  | Pint32, Ceq -> Phys_equal (K.naked_int32, Eq)
+  | Pint32, Cne -> Phys_equal (K.naked_int32, Neq)
+  | Pint32, Clt -> Int_comp (Naked_int32, Signed, Yielding_bool Lt)
+  | Pint32, Cgt -> Int_comp (Naked_int32, Signed, Yielding_bool Gt)
+  | Pint32, Cle -> Int_comp (Naked_int32, Signed, Yielding_bool Le)
+  | Pint32, Cge -> Int_comp (Naked_int32, Signed, Yielding_bool Ge)
+  | Pint64, Ceq -> Phys_equal (K.naked_int64, Eq)
+  | Pint64, Cne -> Phys_equal (K.naked_int64, Neq)
+  | Pint64, Clt -> Int_comp (Naked_int64, Signed, Yielding_bool Lt)
+  | Pint64, Cgt -> Int_comp (Naked_int64, Signed, Yielding_bool Gt)
+  | Pint64, Cle -> Int_comp (Naked_int64, Signed, Yielding_bool Le)
+  | Pint64, Cge -> Int_comp (Naked_int64, Signed, Yielding_bool Ge)
+  | Pnativeint, Ceq -> Phys_equal (K.naked_nativeint, Eq)
+  | Pnativeint, Cne -> Phys_equal (K.naked_nativeint, Neq)
+  | Pnativeint, Clt -> Int_comp (Naked_nativeint, Signed, Yielding_bool Lt)
+  | Pnativeint, Cgt -> Int_comp (Naked_nativeint, Signed, Yielding_bool Gt)
+  | Pnativeint, Cle -> Int_comp (Naked_nativeint, Signed, Yielding_bool Le)
+  | Pnativeint, Cge -> Int_comp (Naked_nativeint, Signed, Yielding_bool Ge)
+
+let convert_float_comparison (comp : L.float_comparison) : P.comparison =
+  match comp with
+  | CFeq -> Eq
+  | CFneq -> Neq
+  | CFlt -> Lt
+  | CFgt -> Gt
+  | CFle -> Le
+  | CFge -> Ge
+  | CFnlt | CFngt | CFnle | CFnge ->
+    Misc.fatal_error
+      "Negated floating-point comparisons should have been removed by \
+       [Lambda_to_flambda]"
+
+let boxable_number_of_boxed_integer (bint : L.boxed_integer) :
+    Flambda_kind.Boxable_number.t =
+  match bint with
+  | Pnativeint -> Naked_nativeint
+  | Pint32 -> Naked_int32
+  | Pint64 -> Naked_int64
+
+let standard_int_of_boxed_integer (bint : L.boxed_integer) :
+    Flambda_kind.Standard_int.t =
+  match bint with
+  | Pnativeint -> Naked_nativeint
+  | Pint32 -> Naked_int32
+  | Pint64 -> Naked_int64
+
+let standard_int_or_float_of_boxed_integer (bint : L.boxed_integer) :
+    Flambda_kind.Standard_int_or_float.t =
+  match bint with
+  | Pnativeint -> Naked_nativeint
+  | Pint32 -> Naked_int32
+  | Pint64 -> Naked_int64
+
+let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
+  match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
+
+let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
+    P.Init_or_assign.t =
+  match i_or_a with
+  | Assignment -> Assignment
+  | Heap_initialization -> Initialization
+  | Root_initialization ->
+    Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
+  | Local_assignment -> Local_assignment
+
+let convert_block_shape (shape : L.block_shape) ~num_fields =
+  match shape with
+  | None ->
+    List.init num_fields (fun _field : P.Block_of_values_field.t -> Any_value)
+  | Some shape ->
+    let shape_length = List.length shape in
+    if num_fields <> shape_length
+    then
+      Misc.fatal_errorf
+        "Flambda_arity.of_block_shape: num_fields is %d yet the shape has %d \
+         fields"
+        num_fields shape_length;
+    List.map convert_block_of_values_field shape
+
+let check_float_array_optimisation_enabled () =
+  if not (Flambda_features.flat_float_array ())
+  then
+    Misc.fatal_error
+      "[Pgenarray] is not expected when the float array optimisation is \
+       disabled"
+
+type converted_array_kind =
+  | Array_kind of P.Array_kind.t
+  | Float_array_opt_dynamic
+
+let convert_array_kind (kind : L.array_kind) : converted_array_kind =
+  match kind with
+  | Pgenarray ->
+    check_float_array_optimisation_enabled ();
+    Float_array_opt_dynamic
+  | Paddrarray -> Array_kind Values
+  | Pintarray -> Array_kind Immediates
+  | Pfloatarray -> Array_kind Naked_floats
+
+type converted_duplicate_array_kind =
+  | Duplicate_array_kind of P.Duplicate_array_kind.t
+  | Float_array_opt_dynamic
+
+let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
+    converted_duplicate_array_kind =
+  match kind with
+  | Pgenarray ->
+    check_float_array_optimisation_enabled ();
+    Float_array_opt_dynamic
+  | Paddrarray -> Duplicate_array_kind Values
+  | Pintarray -> Duplicate_array_kind Immediates
+  | Pfloatarray -> Duplicate_array_kind (Naked_floats { length = None })
+
+let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
+  match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
 
 let bigarray_dim_bound b dimension =
   H.Prim (Unary (Bigarray_length { dimension }, b))
@@ -36,7 +175,8 @@ let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
 let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) : H.expr_primitive
     =
   Unary
-    ( Box_number (Flambda_kind.Boxable_number.Naked_float, C.alloc_mode mode),
+    ( Box_number
+        (Flambda_kind.Boxable_number.Naked_float, Alloc_mode.from_lambda mode),
       Prim arg )
 
 let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
@@ -44,28 +184,29 @@ let unbox_float (arg : H.simple_or_prim) : H.simple_or_prim =
 
 let box_bint bi mode (arg : H.expr_primitive) : H.expr_primitive =
   Unary
-    ( Box_number (C.boxable_number_of_boxed_integer bi, C.alloc_mode mode),
+    ( Box_number
+        (boxable_number_of_boxed_integer bi, Alloc_mode.from_lambda mode),
       Prim arg )
 
 let unbox_bint bi (arg : H.simple_or_prim) : H.simple_or_prim =
-  Prim (Unary (Unbox_number (C.boxable_number_of_boxed_integer bi), arg))
+  Prim (Unary (Unbox_number (boxable_number_of_boxed_integer bi), arg))
 
 let bint_unary_prim bi mode prim arg1 =
   box_bint bi mode
     (Unary
-       (Int_arith (C.standard_int_of_boxed_integer bi, prim), unbox_bint bi arg1))
+       (Int_arith (standard_int_of_boxed_integer bi, prim), unbox_bint bi arg1))
 
 let bint_binary_prim bi mode prim arg1 arg2 =
   box_bint bi mode
     (Binary
-       ( Int_arith (C.standard_int_of_boxed_integer bi, prim),
+       ( Int_arith (standard_int_of_boxed_integer bi, prim),
          unbox_bint bi arg1,
          unbox_bint bi arg2 ))
 
 let bint_shift bi mode prim arg1 arg2 =
   box_bint bi mode
     (Binary
-       ( Int_shift (C.standard_int_of_boxed_integer bi, prim),
+       ( Int_shift (standard_int_of_boxed_integer bi, prim),
          unbox_bint bi arg1,
          untag_int arg2 ))
 
@@ -361,7 +502,7 @@ let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t) :
       (Array_set (Naked_floats, Assignment), array, index, unbox_float new_value)
 
 let[@inline always] match_on_array_kind ~array array_kind f : H.expr_primitive =
-  match C.convert_array_kind array_kind with
+  match convert_array_kind array_kind with
   | Array_kind ((Immediates | Values) as array_kind) -> f array_kind
   | Array_kind Naked_floats -> f P.Array_kind.Naked_floats
   | Float_array_opt_dynamic ->
@@ -409,7 +550,7 @@ let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2 :
     }
 
 let bbswap bi si mode arg : H.expr_primitive =
-  let mode = C.alloc_mode mode in
+  let mode = Alloc_mode.from_lambda mode in
   Unary
     ( Box_number (bi, mode),
       Prim
@@ -427,20 +568,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   in
   match prim, args with
   | Pmakeblock (tag, mutability, shape, mode), _ ->
-    let mode = C.alloc_mode mode in
+    let mode = Alloc_mode.from_lambda mode in
     let tag = Tag.Scannable.create_exn tag in
-    let shape = C.convert_block_shape shape ~num_fields:(List.length args) in
-    let mutability = C.convert_mutable_flag mutability in
+    let shape = convert_block_shape shape ~num_fields:(List.length args) in
+    let mutability = Mutability.from_lambda mutability in
     Variadic (Make_block (Values (tag, shape), mutability, mode), args)
   | Pmakefloatblock (mutability, mode), _ ->
-    let mode = C.alloc_mode mode in
-    let mutability = C.convert_mutable_flag mutability in
+    let mode = Alloc_mode.from_lambda mode in
+    let mutability = Mutability.from_lambda mutability in
     Variadic
       (Make_block (Naked_floats, mutability, mode), List.map unbox_float args)
   | Pmakearray (array_kind, mutability, mode), _ -> (
-    let mode = C.alloc_mode mode in
-    let array_kind = C.convert_array_kind array_kind in
-    let mutability = C.convert_mutable_flag mutability in
+    let mode = Alloc_mode.from_lambda mode in
+    let array_kind = convert_array_kind array_kind in
+    let mutability = Mutability.from_lambda mutability in
     match array_kind with
     | Array_kind array_kind ->
       let args =
@@ -516,12 +657,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Binary (Int_shift (I.Tagged_immediate, Asr), arg1, untag_int arg2)
   | Pnot, [arg] -> Unary (Boolean_not, arg)
   | Pintcomp comp, [arg1; arg2] ->
-    tag_int (Binary (C.convert_integer_comparison_prim comp, arg1, arg2))
+    tag_int (Binary (convert_integer_comparison_prim comp, arg1, arg2))
   | Pbintcomp (kind, comp), [arg1; arg2] ->
     let arg1 = unbox_bint kind arg1 in
     let arg2 = unbox_bint kind arg2 in
     tag_int
-      (Binary (C.convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
+      (Binary (convert_boxed_integer_comparison_prim kind comp, arg1, arg2))
   | Pintoffloat, [arg] ->
     let src = K.Standard_int_or_float.Naked_float in
     let dst = K.Standard_int_or_float.Tagged_immediate in
@@ -549,7 +690,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pfloatcomp comp, [arg1; arg2] ->
     tag_int
       (Binary
-         ( Float_comp (Yielding_bool (C.convert_float_comparison comp)),
+         ( Float_comp (Yielding_bool (convert_float_comparison comp)),
            unbox_float arg1,
            unbox_float arg2 ))
   | Pfield_computed sem, [obj; field] ->
@@ -557,14 +698,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
     in
     Binary
-      (Block_load (block_access, C.convert_field_read_semantics sem), obj, field)
+      (Block_load (block_access, convert_field_read_semantics sem), obj, field)
   | Psetfield_computed (imm_or_pointer, init_or_assign), [obj; field; value] ->
-    let field_kind = C.convert_block_access_field_kind imm_or_pointer in
+    let field_kind = convert_block_access_field_kind imm_or_pointer in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
     Ternary
-      ( Block_set (block_access, C.convert_init_or_assign init_or_assign),
+      ( Block_set (block_access, convert_init_or_assign init_or_assign),
         obj,
         field,
         value )
@@ -574,10 +715,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     Unary (Array_length, arg)
   | Pduparray (kind, mutability), [arg] -> (
     let duplicate_array_kind =
-      C.convert_array_kind_to_duplicate_array_kind kind
+      convert_array_kind_to_duplicate_array_kind kind
     in
     let source_mutability = Mutability.Immutable in
-    let destination_mutability = C.convert_mutable_flag mutability in
+    let destination_mutability = Mutability.from_lambda mutability in
     match duplicate_array_kind with
     | Duplicate_array_kind duplicate_array_kind ->
       Unary
@@ -666,18 +807,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       (Binary
          (Int_comp (I.Tagged_immediate, Unsigned, Yielding_bool Lt), arg1, arg2))
   | Pbintofint (bi, mode), [arg] ->
-    let dst = C.standard_int_or_float_of_boxed_integer bi in
+    let dst = standard_int_or_float_of_boxed_integer bi in
     box_bint bi mode
       (Unary (Num_conv { src = I_or_f.Tagged_immediate; dst }, arg))
   | Pintofbint bi, [arg] ->
-    let src = C.standard_int_or_float_of_boxed_integer bi in
+    let src = standard_int_or_float_of_boxed_integer bi in
     Unary (Num_conv { src; dst = I_or_f.Tagged_immediate }, unbox_bint bi arg)
   | Pcvtbint (source, destination, mode), [arg] ->
     box_bint destination mode
       (Unary
          ( Num_conv
-             { src = C.standard_int_or_float_of_boxed_integer source;
-               dst = C.standard_int_or_float_of_boxed_integer destination
+             { src = standard_int_or_float_of_boxed_integer source;
+               dst = standard_int_or_float_of_boxed_integer destination
              },
            unbox_bint source arg ))
   | Pnegbint (bi, mode), [arg] -> bint_unary_prim bi mode Neg arg
@@ -701,7 +842,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
     check_non_negative_imm imm "Pfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
-    let mutability = C.convert_field_read_semantics sem in
+    let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
     in
@@ -710,7 +851,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int field) in
     check_non_negative_imm imm "Pfloatfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
-    let mutability = C.convert_field_read_semantics sem in
+    let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
@@ -718,13 +859,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
       (Binary (Block_load (block_access, mutability), arg, Simple field))
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [block; value] ) ->
-    let field_kind = C.convert_block_access_field_kind immediate_or_pointer in
+    let field_kind = convert_block_access_field_kind immediate_or_pointer in
     let imm = Targetint_31_63.int (Targetint_31_63.Imm.of_int index) in
     check_non_negative_imm imm "Psetfield";
     let field = Simple.const (Reg_width_const.tagged_immediate imm) in
-    let init_or_assign =
-      C.convert_init_or_assign initialization_or_assignment
-    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
@@ -737,9 +876,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
-    let init_or_assign =
-      C.convert_init_or_assign initialization_or_assignment
-    in
+    let init_or_assign = convert_init_or_assign initialization_or_assignment in
     Ternary
       ( Block_set (block_access, init_or_assign),
         block,
@@ -839,7 +976,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
     bbswap Naked_nativeint Naked_nativeint mode arg
   | Pint_as_pointer, [arg] -> Unary (Int_as_pointer, arg)
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> begin
-    match C.convert_bigarray_kind kind, C.convert_bigarray_layout layout with
+    match
+      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+    with
     | Some kind, Some layout ->
       let b, indexes =
         match args with
@@ -861,7 +1000,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
          with an unknown layout should have been removed by Lambda_to_flambda."
   end
   | Pbigarrayset (unsafe, num_dimensions, kind, layout), args -> begin
-    match C.convert_bigarray_kind kind, C.convert_bigarray_layout layout with
+    match
+      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+    with
     | Some kind, Some layout ->
       let b, indexes, value =
         match args with
@@ -934,11 +1075,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
            Prim (Unary (Unbox_number Naked_float, f1)),
            Prim (Unary (Unbox_number Naked_float, f2)) ))
   | Pcompare_bints int_kind, [i1; i2] ->
-    let unboxing_kind = C.boxable_number_of_boxed_integer int_kind in
+    let unboxing_kind = boxable_number_of_boxed_integer int_kind in
     tag_int
       (Binary
          ( Int_comp
-             ( C.standard_int_of_boxed_integer int_kind,
+             ( standard_int_of_boxed_integer int_kind,
                Signed,
                Yielding_int_like_compare_functions ),
            Prim (Unary (Unbox_number unboxing_kind, i1)),

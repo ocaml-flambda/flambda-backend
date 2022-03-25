@@ -30,3 +30,5 @@ val print : Format.formatter -> t -> unit
 val equal : t -> t -> bool
 
 val is_default : t -> bool
+
+val from_lambda : Lambda.inlined_attribute -> t

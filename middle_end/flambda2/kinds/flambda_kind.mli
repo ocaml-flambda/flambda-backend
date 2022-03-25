@@ -247,6 +247,8 @@ module With_subkind : sig
 
   val of_naked_number_kind : Naked_number_kind.t -> t
 
+  val from_lambda : Lambda.value_kind -> t
+
   type descr = private
     | Any_value
     | Naked_number of Naked_number_kind.t

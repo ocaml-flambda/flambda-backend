@@ -84,6 +84,8 @@ val indirect_function_call_known_arity :
 
 val method_call : method_kind -> obj:Simple.t -> Alloc_mode.t -> t
 
+val method_kind_from_lambda : Lambda.meth_kind -> method_kind
+
 val c_call :
   alloc:bool ->
   param_arity:Flambda_arity.t ->

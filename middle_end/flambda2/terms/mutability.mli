@@ -37,4 +37,6 @@ val join : t -> t -> t
 
 val to_lambda : t -> Asttypes.mutable_flag
 
+val from_lambda : Lambda.mutable_flag -> t
+
 val is_mutable : t -> bool
