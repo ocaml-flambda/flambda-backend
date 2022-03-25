@@ -365,7 +365,7 @@ let close_c_call acc env ~let_bound_var
       Some (P.Box_number (Naked_nativeint, Heap))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, Heap))
     | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, Heap))
-    | _, Untagged_int -> Some (P.Box_number (Untagged_immediate, Heap))
+    | _, Untagged_int -> Some P.Tag_immediate
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -390,9 +390,10 @@ let close_c_call acc env ~let_bound_var
   in
   let param_arity =
     List.map kind_of_primitive_native_repr prim_native_repr_args
+    |> Flambda_arity.create
   in
   let return_kind = kind_of_primitive_native_repr prim_native_repr_res in
-  let return_arity = [return_kind] in
+  let return_arity = Flambda_arity.create [return_kind] in
   let call_kind =
     Call_kind.c_call ~alloc:prim_alloc ~param_arity ~return_arity
       ~is_c_builtin:prim_c_builtin
@@ -467,7 +468,7 @@ let close_c_call acc env ~let_bound_var
             Some (P.Unbox_number Naked_nativeint)
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
-          | _, Untagged_int -> Some (P.Unbox_number Untagged_immediate)
+          | _, Untagged_int -> Some P.Untag_immediate
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc
@@ -677,9 +678,7 @@ let close_named acc env ~let_bound_var (named : IR.named)
   | Get_tag var ->
     let named = find_simple_from_id env var in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
-      Unary
-        ( Box_number (Untagged_immediate, Heap),
-          Prim (Unary (Get_tag, Simple named)) )
+      Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
     Lambda_to_flambda_primitives_helpers.bind_rec acc None
       ~register_const_string:(fun acc -> register_const_string acc)
@@ -923,9 +922,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let untag =
-    Named.create_prim
-      (Unary (Unbox_number Untagged_immediate, scrutinee))
-      Debuginfo.none
+    Named.create_prim (Unary (Untag_immediate, scrutinee)) Debuginfo.none
   in
   let acc, arms =
     List.fold_left_map
@@ -1253,10 +1250,13 @@ let close_one_function acc ~external_env ~by_function_slot decl
     Code.create code_id ~params_and_body
       ~free_names_of_params_and_body:(Acc.free_names acc) ~params_arity
       ~num_trailing_local_params:(Function_decl.num_trailing_local_params decl)
-      ~result_arity:[K.With_subkind.from_lambda return]
+      ~result_arity:
+        (Flambda_arity.With_subkinds.create [K.With_subkind.from_lambda return])
       ~result_types:
         (Result_types.create_unknown ~params
-           ~result_arity:[K.With_subkind.from_lambda return])
+           ~result_arity:
+             (Flambda_arity.With_subkinds.create
+                [K.With_subkind.from_lambda return]))
       ~contains_no_escaping_local_allocs:
         (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
@@ -1524,10 +1524,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let params =
     (* CR keryan: We should use the arity to produce better kinds *)
     List.mapi
-      (fun n _ ->
+      (fun n _kind_with_subkind ->
         ( Ident.create_local ("param" ^ string_of_int (args_arity + n)),
           Lambda.Pgenval ))
-      missing_args
+      (Flambda_arity.With_subkinds.to_list missing_args)
   in
   let return_continuation = Continuation.create ~sort:Return () in
   let exn_continuation =
@@ -1561,7 +1561,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   in
   let closure_alloc_mode, num_trailing_local_params =
     let num_leading_heap_params =
-      List.length arity - num_trailing_local_params
+      Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
     in
     if args_arity <= num_leading_heap_params
     then Lambda.Alloc_heap, num_trailing_local_params
@@ -1639,7 +1639,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          result_arity
+          (Flambda_arity.With_subkinds.to_list result_arity)
       in
       let handler acc =
         let acc, call_return_continuation =
@@ -1721,6 +1721,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         contains_no_escaping_local_allocs,
         result_arity ) -> (
     let split_args =
+      let arity = Flambda_arity.With_subkinds.to_list arity in
       let split args arity =
         let rec cut n l =
           if n <= 0
@@ -1739,16 +1740,14 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
         else if args_l < arity_l
         then
           let _, missing_args = cut args_l arity in
-          Partial_app (args, missing_args)
+          Partial_app (args, Flambda_arity.With_subkinds.create missing_args)
         else
           let args, remaining_args = cut arity_l args in
           Over_app (args, remaining_args)
       in
       let arity =
         if is_tupled
-        then
-          Flambda_arity.With_subkinds.create
-            [Flambda_kind.With_subkind.block Tag.zero arity]
+        then [Flambda_kind.With_subkind.block Tag.zero arity]
         else arity
       in
       split apply.args arity

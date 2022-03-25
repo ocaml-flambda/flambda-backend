@@ -45,7 +45,10 @@ let newer_version_of { newer_version_of; _ } = newer_version_of
 let params_arity { params_arity; _ } = params_arity
 
 let num_leading_heap_params { params_arity; num_trailing_local_params; _ } =
-  let n = List.length params_arity - num_trailing_local_params in
+  let n =
+    Flambda_arity.With_subkinds.cardinal params_arity
+    - num_trailing_local_params
+  in
   assert (n >= 0);
   (* see [create] *)
   n
@@ -101,7 +104,8 @@ let create code_id ~newer_version_of ~params_arity ~num_trailing_local_params
         "Stubs may not be annotated as [Always_inline] or [Unroll]"
   end;
   if num_trailing_local_params < 0
-     || num_trailing_local_params > List.length params_arity
+     || num_trailing_local_params
+        > Flambda_arity.With_subkinds.cardinal params_arity
   then
     Misc.fatal_errorf
       "Illegal num_trailing_local_params=%d for params arity: %a"

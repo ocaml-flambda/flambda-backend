@@ -429,7 +429,7 @@ let kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   convert (Flambda_kind.With_subkind.descr k)
 
 let arity (a : Flambda_arity.With_subkinds.t) : Fexpr.arity =
-  List.map kind_with_subkind a
+  List.map kind_with_subkind (Flambda_arity.With_subkinds.to_list a)
 
 let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.descr k with
@@ -444,7 +444,9 @@ let kind_with_subkind_opt (k : Flambda_kind.With_subkind.t) :
   if is_default_kind_with_subkind k then None else Some (kind_with_subkind k)
 
 let is_default_arity (a : Flambda_arity.With_subkinds.t) =
-  match a with [k] -> is_default_kind_with_subkind k | _ -> false
+  match Flambda_arity.With_subkinds.to_list a with
+  | [k] -> is_default_kind_with_subkind k
+  | _ -> false
 
 let arity_opt (a : Flambda_arity.With_subkinds.t) : Fexpr.arity option =
   if is_default_arity a then None else Some (arity a)
@@ -466,11 +468,13 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Array_length -> Array_length
   (* CR mshinwell: support local allocs in fexpr *)
   | Box_number (bk, _alloc_mode) -> Box_number bk
+  | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
   | Is_int -> Is_int
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk
+  | Untag_immediate -> Untag_immediate
   | Project_value_slot { project_from; value_slot } ->
     let project_from = Env.translate_function_slot env project_from in
     let value_slot = Env.translate_value_slot env value_slot in

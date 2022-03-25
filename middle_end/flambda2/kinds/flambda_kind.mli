@@ -16,35 +16,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-(** Kinds of Flambda types. *)
-
-(** Empty and known-distinct types. *)
-type empty_naked_immediate = private Naked_immediate
-
-type empty_naked_float = private Naked_float
-
-type empty_naked_int32 = private Naked_int32
-
-type empty_naked_int64 = private Naked_int64
-
-type empty_naked_nativeint = private Naked_nativeint
-
-(** GADT indexes. *)
-type value = private Value
-
-type naked_immediate = empty_naked_immediate * Targetint_31_63.Set.t
-
-type naked_float = empty_naked_float * Numeric_types.Float_by_bit_pattern.Set.t
-
-type naked_int32 = empty_naked_int32 * Numeric_types.Int32.Set.t
-
-type naked_int64 = empty_naked_int64 * Numeric_types.Int64.Set.t
-
-type naked_nativeint = empty_naked_nativeint * Targetint_32_64.Set.t
-
-type region = private Region
-
-type rec_info = private Rec_info
+(** Kinds and subkinds of Flambda types. *)
 
 module Naked_number_kind : sig
   type t =
@@ -59,7 +31,7 @@ end
 
 (** The kinds themselves. *)
 type t = private
-  | Value  (** OCaml values that may exist at source level. *)
+  | Value  (** OCaml values, either immediates or pointers. *)
   | Naked_number of Naked_number_kind.t
       (** The kind of unboxed numbers and untagged immediates. *)
   | Region
@@ -84,8 +56,6 @@ val naked_int64 : t
 
 val naked_nativeint : t
 
-(* CR mshinwell: Region kinds are only used in Flambda_static now. Make a
-   separate type. *)
 val region : t
 
 val rec_info : t
@@ -94,18 +64,12 @@ val is_value : t -> bool
 
 val is_naked_float : t -> bool
 
-(** The kind of the unit value. *)
-val unit : t
-
 include Container_types.S with type t := t
 
 module Standard_int : sig
-  (** These kinds are known as the "standard integer kinds". They correspond to
-      the usual representations of tagged immediates, 32-bit, 64-bit and native
-      integers as expected by the operations in [Flambda_primitive]. (Boxing of
-      the latter three kinds of integers is handled via explicit boxing and
-      unboxing primitives; as such, the boxed versions are not known as
-      "standard". *)
+  (** "Standard" because these correspond to the usual representations of tagged
+      immediates, 32-bit, 64-bit and native integers as expected by the
+      operations in [Flambda_primitive]. *)
   type t =
     | Tagged_immediate
     | Naked_immediate
@@ -137,8 +101,6 @@ module Standard_int_or_float : sig
   include Container_types.S with type t := t
 end
 
-(* CR mshinwell: If the tagging/untagging experiment works, this and various
-   other things need renaming, to accommodate untagging. *)
 module Boxable_number : sig
   (** These kinds are those of the numbers for which a tailored boxed
       representation exists. *)
@@ -148,31 +110,14 @@ module Boxable_number : sig
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
-    | Untagged_immediate
 
-  (** The kind of the _unboxed_ representation of the given [t]. *)
-  val to_kind : t -> kind
-
-  val of_naked_number_kind : Naked_number_kind.t -> t
+  val unboxed_kind : t -> kind
 
   val print_lowercase : Format.formatter -> t -> unit
 
   val print_lowercase_short : Format.formatter -> t -> unit
 
   include Container_types.S with type t := t
-end
-
-(** Witnesses for the naked number kinds, for use when matching on the structure
-    of types, to introduce constraints. *)
-module Naked_number : sig
-  type _ t =
-    | Naked_immediate : naked_immediate t
-    | Naked_float : naked_float t
-    | Naked_int32 : naked_int32 t
-    | Naked_int64 : naked_int64 t
-    | Naked_nativeint : naked_nativeint t
-
-  val print : Format.formatter -> _ t -> unit
 end
 
 module With_subkind : sig

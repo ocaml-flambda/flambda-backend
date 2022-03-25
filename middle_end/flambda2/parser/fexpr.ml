@@ -184,7 +184,6 @@ type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
-  | Untagged_immediate
 
 type generic_array_specialisation =
   | No_specialisation
@@ -270,6 +269,8 @@ type unop =
       }
   | String_length of string_or_bytes
   | Unbox_number of box_kind
+  | Untag_immediate
+  | Tag_immediate
 
 type 'a comparison_behaviour = 'a Flambda_primitive.comparison_behaviour =
   | Yielding_bool of 'a

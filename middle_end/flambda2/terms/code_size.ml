@@ -118,7 +118,6 @@ let arith_conversion_size src dst =
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float -> 1 (* 1 load *)
-  | Untagged_immediate -> 1 (* 1 shift *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
@@ -126,7 +125,6 @@ let unbox_number kind =
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float -> alloc_size (* 1 alloc *)
-  | Untagged_immediate -> 2 (* 1 shift + add *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)
@@ -337,7 +335,9 @@ let unary_prim_size prim =
   | Boolean_not -> 1
   | Reinterpret_int64_as_float -> 0
   | Unbox_number k -> unbox_number k
+  | Untag_immediate -> 1 (* 1 shift *)
   | Box_number (k, _alloc_mode) -> box_number k
+  | Tag_immediate -> 2 (* 1 shift + add *)
   | Project_function_slot _ -> 1 (* caddv *)
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)

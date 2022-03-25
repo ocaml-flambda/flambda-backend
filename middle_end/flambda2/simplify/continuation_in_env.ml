@@ -74,7 +74,7 @@ let arity t =
         cost_metrics_of_handler = _
       } ->
     Bound_parameters.arity_with_subkinds params
-  | Non_inlinable_zero_arity _ -> []
+  | Non_inlinable_zero_arity _ -> Flambda_arity.With_subkinds.nullary
   | Non_inlinable_non_zero_arity { arity }
   | Toplevel_or_function_return_or_exn_continuation { arity }
   | Unreachable { arity } ->

@@ -84,7 +84,9 @@ let get_arg_types_by_use_id t =
           in
           Apply_cont_rewrite_id.Map.add (U.id use) arg_at_use arg_map)
         args (U.arg_types use))
-    (List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) t.arity)
+    (List.map
+       (fun _ -> Apply_cont_rewrite_id.Map.empty)
+       (Flambda_arity.to_list t.arity))
     t.uses
 
 let get_typing_env_no_more_than_one_use t =

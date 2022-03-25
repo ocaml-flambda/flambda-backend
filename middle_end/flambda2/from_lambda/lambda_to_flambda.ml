@@ -1622,7 +1622,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
           match Tag.Scannable.create sw_tag with
           | Some tag ->
             let tag' = Tag.Scannable.to_tag tag in
-            if Tag.is_structured_block_but_not_a_variant tag'
+            if Tag.is_structured_block_but_not_data_constructor tag'
             then
               Misc.fatal_errorf
                 "Bad tag %a in [Lswitch] (tag is that of a scannable block, \

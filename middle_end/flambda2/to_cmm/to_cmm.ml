@@ -479,13 +479,14 @@ let unary_primitive env res dbg f arg =
       C.extcall ~alloc:false ~returns:true ~is_c_builtin:false
         ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
         "caml_int64_float_of_bits_unboxed" typ_float [arg] )
-  | Unbox_number kind ->
-    let extra =
-      match kind with Untagged_immediate -> Some (Env.Untag arg) | _ -> None
-    in
-    extra, res, C.unbox_number ~dbg kind arg
+  | Unbox_number kind -> None, res, C.unbox_number ~dbg kind arg
+  | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
     Some Env.Box, res, C.box_number ~dbg kind alloc_mode arg
+  | Tag_immediate ->
+    (* We could have an [Env.Tag] which would be returned here, but probably
+       unnecessary at the moment. *)
+    None, res, C.tag_int arg dbg
   | Project_function_slot { move_from = c1; move_to = c2 } -> begin
     match Env.function_slot_offset env c1, Env.function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
@@ -625,7 +626,8 @@ let prim env res dbg p =
 
 (* Kinds and types *)
 
-let check_arity arity args = List.compare_lengths arity args = 0
+let check_arity arity args =
+  Flambda_arity.With_subkinds.cardinal arity = List.length args
 
 let machtype_of_kind k =
   match (k : Flambda_kind.t) with
@@ -638,10 +640,11 @@ let machtype_of_kind k =
 let machtype_of_kinded_parameter p =
   Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 
-let machtype_of_return_arity = function
+let machtype_of_return_arity arity =
   (* Functions that never return have arity 0. In that case, we use the most
      restrictive machtype to ensure that the return value of the function is not
      used. *)
+  match Flambda_arity.to_list arity with
   | [] -> typ_void
   (* Regular functions with a single return value *)
   | [k] -> machtype_of_kind k
@@ -660,8 +663,8 @@ let apply_returns (e : Apply_expr.t) =
   | Return _ -> true
   | Never_returns -> false
 
-let wrap_extcall_result (l : Flambda_kind.t list) =
-  match l with
+let wrap_extcall_result arity =
+  match Flambda_arity.to_list arity with
   (* Int32 need to be sign_extended because it's not clear whether C code that
      returns an int32 returns one that is sign extended or not *)
   | [Naked_number Naked_int32] -> C.sign_extend_32
@@ -1111,7 +1114,9 @@ and apply_call env e =
     let args, env, _ = arg_list env args in
     let ty = machtype_of_return_arity return_arity in
     let wrap = wrap_extcall_result return_arity in
-    let ty_args = List.map C.exttype_of_kind param_arity in
+    let ty_args =
+      List.map C.exttype_of_kind (Flambda_arity.to_list param_arity)
+    in
     ( wrap dbg (C.extcall ~dbg ~alloc ~is_c_builtin ~returns ~ty_args f ty args),
       env,
       effs )

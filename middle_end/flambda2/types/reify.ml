@@ -298,7 +298,8 @@ let reify ?allowed_if_free_vars_defined_in ?additional_free_var_criterion
       | Proved tags -> (
         let is =
           Tag.Set.fold
-            (fun tag is -> Targetint_31_63.Set.add (Tag.to_target_imm tag) is)
+            (fun tag is ->
+              Targetint_31_63.Set.add (Tag.to_targetint_31_63 tag) is)
             tags Targetint_31_63.Set.empty
         in
         match Targetint_31_63.Set.get_singleton is with

@@ -62,8 +62,7 @@ let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
   let tagged = Variable.create "tagged" in
   let _free_names, res =
     let_prim ~dbg v_comp (P.Binary (cmp_prim, a, b))
-    @@ let_prim ~dbg tagged
-         (P.Unary (Box_number (Untagged_immediate, Heap), Simple.var v_comp))
+    @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)
@@ -78,8 +77,7 @@ let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
     @@ let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b))
     @@ let_prim ~dbg v_comp
          (P.Binary (cmp_prim, Simple.var a_naked, Simple.var b_naked))
-    @@ let_prim ~dbg tagged
-         (P.Unary (Box_number (Untagged_immediate, Heap), Simple.var v_comp))
+    @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Poly_compare_specialized (dacc, res)
@@ -88,48 +86,34 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
     ~boxed_int_prim a b a_ty b_ty =
   let tenv = DA.typing_env dacc in
   match
-    T.prove_is_a_boxed_number tenv a_ty, T.prove_is_a_boxed_number tenv b_ty
+    ( T.prove_is_a_boxed_or_tagged_number tenv a_ty,
+      T.prove_is_a_boxed_or_tagged_number tenv b_ty )
   with
-  | Proved Untagged_immediate, Proved Untagged_immediate ->
+  | Proved Tagged_immediate, Proved Tagged_immediate ->
     simplify_comparison_of_tagged_immediates ~dbg dacc cont a b
       ~cmp_prim:tagged_prim
-  | Proved Naked_float, Proved Naked_float ->
+  | Proved (Boxed Naked_float), Proved (Boxed Naked_float) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_float
       ~cmp_prim:float_prim
-  | Proved Naked_int32, Proved Naked_int32 ->
+  | Proved (Boxed Naked_int32), Proved (Boxed Naked_int32) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int32
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int32)
-  | Proved Naked_int64, Proved Naked_int64 ->
+  | Proved (Boxed Naked_int64), Proved (Boxed Naked_int64) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b ~kind:Naked_int64
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_int64)
-  | Proved Naked_nativeint, Proved Naked_nativeint ->
+  | Proved (Boxed Naked_nativeint), Proved (Boxed Naked_nativeint) ->
     simplify_comparison_of_boxed_numbers ~dbg dacc cont a b
       ~kind:Naked_nativeint
       ~cmp_prim:(boxed_int_prim K.Standard_int.Naked_nativeint)
-  (* Kind differences *)
-  | ( Proved Untagged_immediate,
-      Proved (Naked_float | Naked_nativeint | Naked_int32 | Naked_int64) )
-  | ( Proved Naked_float,
-      Proved (Untagged_immediate | Naked_nativeint | Naked_int32 | Naked_int64)
-    )
-  | ( Proved Naked_int32,
-      Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int64)
-    )
-  | ( Proved Naked_int64,
-      Proved (Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32)
-    )
-  | ( Proved Naked_nativeint,
-      Proved (Untagged_immediate | Naked_float | Naked_int32 | Naked_int64) )
+  (* Mismatches between varieties of numbers *)
+  | Proved Tagged_immediate, Proved (Boxed _)
+  | Proved (Boxed _), Proved Tagged_immediate
+  | ( Proved (Boxed (Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint)),
+      Proved (Boxed _) )
   (* One or two of the arguments is not known *)
   | (Unknown | Invalid | Wrong_kind), (Unknown | Invalid | Wrong_kind)
-  | ( (Unknown | Invalid | Wrong_kind),
-      Proved
-        ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
-        | Naked_int64 ) )
-  | ( Proved
-        ( Untagged_immediate | Naked_float | Naked_nativeint | Naked_int32
-        | Naked_int64 ),
-      (Unknown | Invalid | Wrong_kind) ) ->
+  | (Unknown | Invalid | Wrong_kind), Proved (Tagged_immediate | Boxed _)
+  | Proved (Tagged_immediate | Boxed _), (Unknown | Invalid | Wrong_kind) ->
     Unchanged { return_types = Unknown }
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =

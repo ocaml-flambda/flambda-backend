@@ -161,8 +161,6 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     | Naked_nativeint ->
       ( T.boxed_nativeint_alias_to ~naked_nativeint:result_var Unknown,
         K.naked_nativeint )
-    | Untagged_immediate ->
-      T.tagged_immediate_alias_to ~naked_immediate:result_var, K.naked_immediate
   in
   let alloc_mode =
     T.prove_alloc_mode_of_boxed_number (DA.typing_env dacc) boxed_number_ty
@@ -178,13 +176,36 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
     match alloc_mode with
     | Unknown | Known Local -> dacc
     | Known Heap ->
-      let box_prim : P.t =
+      let boxing_prim : P.t =
         Unary
           ( Box_number (boxable_number_kind, Heap),
             Simple.var (Bound_var.var result_var) )
       in
       DA.map_denv dacc ~f:(fun denv ->
-          DE.add_cse denv (P.Eligible_for_cse.create_exn box_prim) ~bound_to:arg)
+          DE.add_cse denv
+            (P.Eligible_for_cse.create_exn boxing_prim)
+            ~bound_to:arg)
+  in
+  reachable, dacc
+
+let simplify_untag_immediate dacc ~original_term ~arg ~arg_ty:boxed_number_ty
+    ~result_var =
+  let shape, result_kind =
+    let result_var = Bound_var.var result_var in
+    T.tagged_immediate_alias_to ~naked_immediate:result_var, K.naked_immediate
+  in
+  let reachable, dacc =
+    Simplify_common.simplify_projection dacc ~original_term
+      ~deconstructing:boxed_number_ty ~shape ~result_var ~result_kind
+  in
+  let dacc =
+    let tagging_prim : P.t =
+      Unary (Tag_immediate, Simple.var (Bound_var.var result_var))
+    in
+    DA.map_denv dacc ~f:(fun denv ->
+        DE.add_cse denv
+          (P.Eligible_for_cse.create_exn tagging_prim)
+          ~bound_to:arg)
   in
   reachable, dacc
 
@@ -198,8 +219,13 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty (Known alloc_mode)
     | Naked_int64 -> T.box_int64 naked_number_ty (Known alloc_mode)
     | Naked_nativeint -> T.box_nativeint naked_number_ty (Known alloc_mode)
-    | Untagged_immediate -> T.tag_immediate naked_number_ty
   in
+  let dacc = DA.add_variable dacc result_var ty in
+  Simplified_named.reachable original_term ~try_reify:true, dacc
+
+let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
+    ~result_var =
+  let ty = T.tag_immediate naked_number_ty in
   let dacc = DA.add_variable dacc result_var ty in
   Simplified_named.reachable original_term ~try_reify:true, dacc
 
@@ -638,6 +664,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_unbox_number boxable_number_kind
     | Box_number (boxable_number_kind, alloc_mode) ->
       simplify_box_number boxable_number_kind alloc_mode
+    | Tag_immediate -> simplify_tag_immediate
+    | Untag_immediate -> simplify_untag_immediate
     | Is_int -> simplify_is_int
     | Get_tag -> simplify_get_tag
     | Array_length -> simplify_array_length

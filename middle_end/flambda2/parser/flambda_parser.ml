@@ -10805,7 +10805,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : 'tv_unop = 
 # 352 "flambda_parser.mly"
-                 ( Box_number Untagged_immediate )
+                 ( Tag_immediate )
 # 10810 "flambda_parser_in.ml"
          in
         {
@@ -10930,7 +10930,7 @@ module Tables = struct
         let _endpos = _endpos__1_ in
         let _v : 'tv_unop = 
 # 357 "flambda_parser.mly"
-                   ( Unbox_number Untagged_immediate )
+                   ( Untag_immediate )
 # 10935 "flambda_parser_in.ml"
          in
         {
