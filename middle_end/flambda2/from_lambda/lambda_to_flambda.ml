@@ -901,6 +901,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         k k_exn
   end
   | Llet (_let_kind, value_kind, id, defining_expr, body) ->
+    (* CR pchambart: see similar case in cps_tail *)
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[id, IR.User_visible, value_kind]
       ~body:(fun acc env ccenv after_defining_expr ->
@@ -1290,6 +1291,14 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       ~body:(fun acc env ccenv after_defining_expr ->
         cps_tail acc env ccenv defining_expr after_defining_expr k_exn)
       ~handler:(fun acc env ccenv -> cps_tail acc env ccenv body k k_exn)
+    (* CR pchambart: This version would avoid one let cont, but would miss the
+       value kind. It should be used when CC.close_let can propagate the
+       value_kind. The same thing applies to the cps_non_tail version *)
+    (* let k acc env ccenv value =
+     *   let body acc ccenv = cps_tail acc env ccenv body k k_exn in
+     *   CC.close_let acc ccenv id User_visible (Simple (Var value)) ~body
+     * in
+     * cps_non_tail acc env ccenv defining_expr k k_exn *)
   | Lletrec (bindings, body) -> begin
     match Dissect_letrec.dissect_letrec ~bindings ~body with
     | Unchanged ->
