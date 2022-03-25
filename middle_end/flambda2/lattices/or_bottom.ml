@@ -32,13 +32,6 @@ let both t1 t2 ~f =
 
 let map t ~f = match t with Ok contents -> Ok (f contents) | Bottom -> Bottom
 
-let map_sharing t ~f =
-  match t with
-  | Ok contents ->
-    let contents' = f contents in
-    if contents == contents' then t else Ok contents'
-  | Bottom -> Bottom
-
 let value_map t ~bottom ~f =
   match t with Ok contents -> f contents | Bottom -> bottom
 
@@ -56,6 +49,4 @@ module Let_syntax = struct
   let ( let<* ) x f = bind x ~f
 
   let ( let<+ ) x f = map x ~f
-
-  let ( let<+$ ) x f = map_sharing x ~f
 end
