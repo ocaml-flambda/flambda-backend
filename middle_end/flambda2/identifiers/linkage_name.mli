@@ -21,5 +21,3 @@ include Container_types.S
 val create : string -> t
 
 val to_string : t -> string
-
-val rename : t -> t

@@ -80,8 +80,9 @@ let print_elt ppf
      1>(used_in_handler %a)@]@ @[<hov 1>(apply_result_conts %a)@]@ @[<hov \
      1>(bindings %a)@]@ @[<hov 1>(code_ids %a)@]@ @[<hov 1>(value_slots %a)@]@ \
      @[<hov 1>(apply_cont_args %a)@])@]"
-    Continuation.print continuation Variable.print_list params
-    Name_occurrences.print used_in_handler Continuation.Set.print
+    Continuation.print continuation
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
+    params Name_occurrences.print used_in_handler Continuation.Set.print
     apply_result_conts
     (Name.Map.print Name_occurrences.print)
     bindings

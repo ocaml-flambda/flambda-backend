@@ -13,13 +13,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Simple = Reg_width_things.Simple
+module Simple = Int_ids.Simple
 
 type t = private
   { symbols : Symbol.Set.t;
     variables : Variable.Set.t;
     simples : Simple.Set.t;
-    consts : Reg_width_things.Const.Set.t;
+    consts : Reg_width_const.Set.t;
     code_ids : Code_id.Set.t;
     continuations : Continuation.Set.t
   }
@@ -30,7 +30,7 @@ val create :
   ?symbols:Symbol.Set.t ->
   ?variables:Variable.Set.t ->
   ?simples:Simple.Set.t ->
-  ?consts:Reg_width_things.Const.Set.t ->
+  ?consts:Reg_width_const.Set.t ->
   ?code_ids:Code_id.Set.t ->
   ?continuations:Continuation.Set.t ->
   unit ->
@@ -52,7 +52,7 @@ val add_symbol : t -> Symbol.t -> t
 
 val add_name : t -> Name.t -> t
 
-val add_const : t -> Reg_width_things.Const.t -> t
+val add_const : t -> Reg_width_const.t -> t
 
 val add_simple : t -> Simple.t -> t
 

@@ -17,7 +17,7 @@
 module T = struct
   include Int
 
-  let [@ocamlformat "disable"] print = Numeric_types.Int.print
+  let print = Numeric_types.Int.print
 
   let hash = Hashtbl.hash
 end
@@ -28,7 +28,6 @@ type binding_time = t
 
 module Set = Patricia_tree.Make_set (T)
 module Map = Patricia_tree.Make_map (T) (Set)
-module Tbl = Container_types.Make_tbl (T) (Map)
 
 let strictly_earlier (t : t) ~than = t < than
 
@@ -80,9 +79,9 @@ module With_name_mode = struct
     else (* Variable out of the allowed scope *)
       Name_mode.in_types
 
-  let [@ocamlformat "disable"] print ppf t =
-    Format.fprintf ppf "(bound at time %d %a)" (binding_time t)
-      Name_mode.print (name_mode t)
+  let print ppf t =
+    Format.fprintf ppf "(bound at time %d %a)" (binding_time t) Name_mode.print
+      (name_mode t)
 
   let equal t1 t2 = t1 = t2
 end

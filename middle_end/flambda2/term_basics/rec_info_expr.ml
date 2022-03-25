@@ -16,7 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Reg_width_things.Rec_info_expr
+include Int_ids.Rec_info_expr
 
 let rec apply_renaming orig perm =
   match orig with

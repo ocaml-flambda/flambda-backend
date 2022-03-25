@@ -157,8 +157,7 @@ let reset ?packname name =
   let module Compilation_unit = Flambda2_identifiers.Compilation_unit in
   let module Linkage_name = Flambda2_identifiers.Linkage_name in
   let compilation_unit =
-    Compilation_unit.create
-      (Ident.create_persistent name)
+    Compilation_unit.create ~name
       (Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None))
   in
   Compilation_unit.set_current compilation_unit

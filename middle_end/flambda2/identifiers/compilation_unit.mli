@@ -14,13 +14,13 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 include Container_types.S
 
-(* The [Ident.t] must be persistent. This function raises an exception if that
-   is not the case. *)
-val create : Ident.t -> Linkage_name.t -> t
+val create : name:string -> Linkage_name.t -> t
+
+val name : t -> string
 
 val get_persistent_ident : t -> Ident.t
 
@@ -33,8 +33,6 @@ val get_current : unit -> t option
 val get_current_exn : unit -> t
 
 val is_current : t -> bool
-
-val get_current_id_exn : unit -> Ident.t
 
 val string_for_printing : t -> string
 

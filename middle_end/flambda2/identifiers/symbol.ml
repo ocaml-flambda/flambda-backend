@@ -16,15 +16,7 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Reg_width_things.Symbol
-
-let rename t =
-  create (compilation_unit t) (Linkage_name.rename (linkage_name t))
-
-let import_for_pack _ ~pack:_ = Misc.fatal_error "Not yet implemented"
-
-let in_compilation_unit t comp_unit =
-  Compilation_unit.equal (compilation_unit t) comp_unit
+include Int_ids.Symbol
 
 let is_predefined_exception t =
   Compilation_unit.is_predefined_exception (compilation_unit t)

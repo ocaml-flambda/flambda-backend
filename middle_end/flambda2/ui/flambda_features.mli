@@ -97,8 +97,6 @@ module Inlining : sig
 end
 
 module Debug : sig
-  val permute_every_name : unit -> bool
-
   val concrete_types_only_on_canonicals : unit -> bool
 
   val keep_invalid_handlers : unit -> bool

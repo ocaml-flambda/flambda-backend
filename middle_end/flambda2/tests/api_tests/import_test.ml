@@ -12,7 +12,7 @@ let test () =
   in
   let renaming =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables
-      ~simples:Simple.Map.empty ~consts:Reg_width_things.Const.Map.empty
+      ~simples:Simple.Map.empty ~consts:Reg_width_const.Map.empty
       ~code_ids:Code_id.Map.empty ~continuations:Continuation.Map.empty
       ~used_value_slots:Value_slot.Set.empty
   in
@@ -29,7 +29,7 @@ let test () =
   let simples = Simple.Map.singleton simple1 simple1_ok in
   let renaming2 =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables ~simples
-      ~consts:Reg_width_things.Const.Map.empty ~code_ids:Code_id.Map.empty
+      ~consts:Reg_width_const.Map.empty ~code_ids:Code_id.Map.empty
       ~continuations:Continuation.Map.empty
       ~used_value_slots:Value_slot.Set.empty
   in
@@ -39,7 +39,7 @@ let test () =
   let simples_bad = Simple.Map.singleton simple1 simple1_bad in
   let renaming2_bad =
     Renaming.create_import_map ~symbols:Symbol.Map.empty ~variables
-      ~simples:simples_bad ~consts:Reg_width_things.Const.Map.empty
+      ~simples:simples_bad ~consts:Reg_width_const.Map.empty
       ~code_ids:Code_id.Map.empty ~continuations:Continuation.Map.empty
       ~used_value_slots:Value_slot.Set.empty
   in

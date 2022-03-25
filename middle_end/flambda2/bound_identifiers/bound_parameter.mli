@@ -28,7 +28,7 @@ val var : t -> Variable.t
 val name : t -> Name.t
 
 (** As for [var], but returns a [Simple.t] describing the variable. *)
-val simple : t -> Reg_width_things.Simple.t
+val simple : t -> Int_ids.Simple.t
 
 (** The kind of the given parameter. *)
 val kind : t -> Flambda_kind.With_subkind.t
