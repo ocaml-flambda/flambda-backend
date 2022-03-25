@@ -1712,10 +1712,10 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | Lstringswitch _ | Lstaticraise _ | Lstaticcatch _ | Ltrywith _
         | Lifthenelse _ | Lsequence _ | Lwhile _ | Lfor _ | Lassign _ | Lsend _
         | Levent _ | Lifused _ | Lregion _ ->
-          (* The continuations created here (and for failactions) are local and
-             their bodies will not modify mutable variables. Hence, it is safe
-             to exclude them from passing along the extra arguments for mutable
-             values. *)
+          (* The continuations created here (and for failactions) are local. The
+             bodies of the let_conts will not modify mutable variables. Hence,
+             it is safe to exclude them from passing along the extra arguments
+             for mutable values. *)
           let cont = Continuation.create () in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let consts_rev = (arm, cont, None, []) :: consts_rev in
