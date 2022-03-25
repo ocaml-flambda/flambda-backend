@@ -353,8 +353,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       |> Bound_parameters.create
     in
     let call_kind =
-      Call_kind.direct_function_call callee's_code_id callee's_function_slot
-        ~return_arity:result_arity apply_alloc_mode
+      Call_kind.direct_function_call callee's_code_id ~return_arity:result_arity
+        apply_alloc_mode
     in
     let open struct
       (* An argument or the callee, with information about its entry in the
@@ -632,8 +632,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
         EB.rebuild_invalid uacc (Closure_type_was_invalid apply) ~after_rebuild)
   | Ok callee's_code_id ->
     let call_kind =
-      Call_kind.direct_function_call callee's_code_id callee's_function_slot
-        ~return_arity:result_arity apply_alloc_mode
+      Call_kind.direct_function_call callee's_code_id ~return_arity:result_arity
+        apply_alloc_mode
     in
     let apply = Apply.with_call_kind apply call_kind in
     let callee's_code_or_metadata =
@@ -852,15 +852,7 @@ let simplify_function_call ~simplify_expr dacc apply ~callee_ty
     in
     let callee's_code_id_from_call_kind =
       match call with
-      | Direct { code_id; function_slot; _ } ->
-        if not (Function_slot.equal function_slot callee's_function_slot)
-        then
-          Misc.fatal_errorf
-            "Function slot %a in application doesn't match function slot %a \
-             discovered via typing.@ Application:@ %a"
-            Function_slot.print function_slot Function_slot.print
-            callee's_function_slot Apply.print apply;
-        Some code_id
+      | Direct { code_id; _ } -> Some code_id
       | Indirect_unknown_arity | Indirect_known_arity _ -> None
     in
     let callee's_code_id_from_type = FT.code_id func_decl_type in

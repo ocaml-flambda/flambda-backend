@@ -1047,9 +1047,7 @@ and apply_call env e =
   (* Effects from arguments are ignored since a function call will always be
      given arbitrary effects and coeffects. *)
   | Function
-      { function_call = Direct { code_id; function_slot = _; return_arity };
-        alloc_mode = _
-      } -> (
+      { function_call = Direct { code_id; return_arity }; alloc_mode = _ } -> (
     let env =
       Env.check_scope ~allow_deleted:false env
         (Code_id_or_symbol.create_code_id code_id)
