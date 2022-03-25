@@ -326,6 +326,8 @@ end = struct
 end
 
 module CCenv = Closure_conversion_aux.Env
+
+(* CR pchambart: Replace uses by CC.Acc.t *)
 module Acc = Closure_conversion_aux.Acc
 
 type primitive_transform_result =
@@ -421,6 +423,11 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       (Ident.Set.of_list region_stack_at_handler)
       (Ident.Set.of_list region_stack_now));
   let rec add_end_regions acc ~region_stack_now =
+    (* CR pchambart: this probably can't be exercised right now, no lambda
+       jumping through a region seems to be generated. *)
+    (* CR pchambart: This closes all the regions between region_stack_now and
+       region_stack_at_handler, but closing only the last one should be
+       sufficient. *)
     let add_end_region region ~region_stack_now after_everything =
       let add_remaining_end_regions acc =
         add_end_regions acc ~region_stack_now
