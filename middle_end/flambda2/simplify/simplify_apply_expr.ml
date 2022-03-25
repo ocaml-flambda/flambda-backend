@@ -762,9 +762,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
         dacc )
     | Indirect_known_arity { param_arity; return_arity } ->
       let args_arity =
-        T.arity_of_list arg_types |> Flambda_arity.to_list
-        |> List.map (fun kind -> K.With_subkind.create kind Anything)
-        |> Flambda_arity.With_subkinds.create
+        T.arity_of_list arg_types |> Flambda_arity.With_subkinds.of_arity
       in
       if not
            (Flambda_arity.With_subkinds.compatible args_arity
@@ -785,9 +783,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       call_kind, use_id, dacc
     | Direct { return_arity; _ } ->
       let param_arity =
-        T.arity_of_list arg_types |> Flambda_arity.to_list
-        |> List.map (fun kind -> K.With_subkind.create kind Anything)
-        |> Flambda_arity.With_subkinds.create
+        T.arity_of_list arg_types |> Flambda_arity.With_subkinds.of_arity
       in
       (* Some types have regressed in precision. Since this used to be a direct
          call, however, we know the function's arity even though we don't know
