@@ -6,7 +6,7 @@
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
 (*   Copyright 2013--2016 OCamlPro SAS                                    *)
-(*   Copyright 2014--2016 Jane Street Group LLC                           *)
+(*   Copyright 2014--2022 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,51 +14,28 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR-soon mshinwell: This module should be removed... maybe? *)
+module type S = sig
+  include Container_types.S
 
-(** Generic identifier type *)
-module type BaseId = sig
-  type t
+  module Lmap : Lmap.S with type key = t
 
-  val equal : t -> t -> bool
+  val create : Compilation_unit.t -> name:string -> t
 
-  val compare : t -> t -> int
+  val get_compilation_unit : t -> Compilation_unit.t
 
-  val hash : t -> int
+  val in_compilation_unit : t -> Compilation_unit.t -> bool
 
-  val name : t -> string option
+  val is_imported : t -> bool
 
   val to_string : t -> string
 
-  val print : Format.formatter -> t -> unit
+  val name : t -> string
 
   val rename : t -> t
 end
 
-module type Id = sig
-  include BaseId
-
-  val create : ?name:string -> unit -> t
-end
-
-(** Fully qualified identifiers *)
-module type UnitId = sig
-  module Compilation_unit : Container_types.Thing
-
-  include BaseId
-
-  val create : ?name:string -> Compilation_unit.t -> t
-
-  val unit : t -> Compilation_unit.t
-
-  val unique_name : t -> string
-end
-
-(** If applied generatively, i.e. [Id(struct end)], creates a new type of
-    identifiers. *)
-module Id : functor (_ : sig end) -> Id
-
-module UnitId : functor (_ : Id) (Compilation_unit : Container_types.Thing) ->
-  UnitId with module Compilation_unit := Compilation_unit
+module Make (_ : sig
+  val colour : unit -> string
+end) : S

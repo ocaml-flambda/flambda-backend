@@ -1599,9 +1599,9 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
     { exn_handler = body_exn_cont; extra_args = [] }
   in
   let function_slot =
-    Function_slot.wrap
+    Function_slot.create
       (Compilation_unit.get_current_exn ())
-      (Variable.create_with_same_name_as_ident fid)
+      ~name:(Ident.name fid)
   in
   let body acc ccenv =
     let ccenv = CCenv.use_path_to_root ccenv loc in

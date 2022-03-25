@@ -59,8 +59,7 @@ let test_bottom_detection () =
   let alias name = T.alias_type_of Flambda_kind.value (Simple.name name) in
   let const n =
     T.alias_type_of Flambda_kind.value
-      (Simple.const
-         (Reg_width_things.Const.const_int (Targetint_31_63.Imm.of_int n)))
+      (Simple.const (Reg_width_const.const_int (Targetint_31_63.Imm.of_int n)))
   in
   let ty1 =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value
@@ -89,8 +88,7 @@ let test_bottom_recursive () =
   let alias name = T.alias_type_of Flambda_kind.value (Simple.name name) in
   let const n =
     T.alias_type_of Flambda_kind.value
-      (Simple.const
-         (Reg_width_things.Const.const_int (Targetint_31_63.Imm.of_int n)))
+      (Simple.const (Reg_width_const.const_int (Targetint_31_63.Imm.of_int n)))
   in
   let ty_x =
     T.immutable_block ~is_unique:false Tag.zero ~field_kind:Flambda_kind.value

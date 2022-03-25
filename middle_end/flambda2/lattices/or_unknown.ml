@@ -20,16 +20,15 @@ type 'a t =
   | Known of 'a
   | Unknown
 
-let [@ocamlformat "disable"] print f ppf t =
+let print f ppf t =
   let colour = Flambda_colours.top_or_bottom_type () in
   match t with
   | Known contents -> Format.fprintf ppf "%a" f contents
-    (* Format.fprintf ppf "@[<hov 1>(Known@ %a)@]" f contents *)
   | Unknown ->
-    if Flambda_features.unicode () then
+    if Flambda_features.unicode ()
+    then
       Format.fprintf ppf "%s@<1>\u{22a4}%s" colour (Flambda_colours.normal ())
-    else
-      Format.fprintf ppf "%sT%s" colour (Flambda_colours.normal ())
+    else Format.fprintf ppf "%sT%s" colour (Flambda_colours.normal ())
 
 let compare compare_contents t1 t2 =
   match t1, t2 with
@@ -49,7 +48,6 @@ let bind t ~f = match t with Known contents -> f contents | Unknown -> Unknown
 let map t ~f =
   match t with Known contents -> Known (f contents) | Unknown -> Unknown
 
-(* CR mshinwell: Add to [Or_bottom] too *)
 let map_sharing t ~f =
   match t with
   | Known contents ->
@@ -78,7 +76,7 @@ module Lift (I : Container_types.S) = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let [@ocamlformat "disable"] print ppf t = print I.print ppf t
+    let print ppf t = print I.print ppf t
 
     let compare t1 t2 = compare I.compare t1 t2
 

@@ -160,51 +160,56 @@ module Env = struct
    * id at its binding site, so if it's not in the map we know straight away
    * something's wrong. *)
   type t =
-    { symbols : Symbol.t Symbol.Tbl.t;
-      code_ids : Code_id.t Code_id.Tbl.t;
-      function_slots : Function_slot.t Function_slot.Tbl.t;
-      function_slots_rev : Function_slot.t Function_slot.Tbl.t;
-      value_slots : Value_slot.t Value_slot.Tbl.t;
-      value_slots_rev : Value_slot.t Value_slot.Tbl.t
+    { mutable symbols : Symbol.t Symbol.Map.t;
+      mutable code_ids : Code_id.t Code_id.Map.t;
+      mutable function_slots : Function_slot.t Function_slot.Map.t;
+      mutable function_slots_rev : Function_slot.t Function_slot.Map.t;
+      mutable value_slots : Value_slot.t Value_slot.Map.t;
+      mutable value_slots_rev : Value_slot.t Value_slot.Map.t
     }
 
   let create () =
-    { symbols = Symbol.Tbl.create 10;
-      code_ids = Code_id.Tbl.create 10;
-      function_slots = Function_slot.Tbl.create 10;
-      function_slots_rev = Function_slot.Tbl.create 10;
-      value_slots = Value_slot.Tbl.create 10;
-      value_slots_rev = Value_slot.Tbl.create 10
+    { symbols = Symbol.Map.empty;
+      code_ids = Code_id.Map.empty;
+      function_slots = Function_slot.Map.empty;
+      function_slots_rev = Function_slot.Map.empty;
+      value_slots = Value_slot.Map.empty;
+      value_slots_rev = Value_slot.Map.empty
     }
 
-  let add_symbol t symbol1 symbol2 = Symbol.Tbl.add t.symbols symbol1 symbol2
+  let add_symbol t symbol1 symbol2 =
+    t.symbols <- Symbol.Map.add symbol1 symbol2 t.symbols
 
   let add_code_id t code_id1 code_id2 =
-    Code_id.Tbl.add t.code_ids code_id1 code_id2
+    t.code_ids <- Code_id.Map.add code_id1 code_id2 t.code_ids
 
   let add_function_slot t function_slot1 function_slot2 =
-    Function_slot.Tbl.add t.function_slots function_slot1 function_slot2;
-    Function_slot.Tbl.add t.function_slots_rev function_slot2 function_slot1
+    t.function_slots
+      <- Function_slot.Map.add function_slot1 function_slot2 t.function_slots;
+    t.function_slots
+      <- Function_slot.Map.add function_slot2 function_slot1
+           t.function_slots_rev
 
   let add_value_slot t value_slot1 value_slot2 =
-    Value_slot.Tbl.add t.value_slots value_slot1 value_slot2;
-    Value_slot.Tbl.add t.value_slots_rev value_slot2 value_slot1
+    t.value_slots <- Value_slot.Map.add value_slot1 value_slot2 t.value_slots;
+    t.value_slots
+      <- Value_slot.Map.add value_slot2 value_slot1 t.value_slots_rev
 
-  let find_symbol t sym = Symbol.Tbl.find_opt t.symbols sym
+  let find_symbol t sym = Symbol.Map.find_opt sym t.symbols
 
-  let find_code_id t code_id = Code_id.Tbl.find_opt t.code_ids code_id
+  let find_code_id t code_id = Code_id.Map.find_opt code_id t.code_ids
 
   let find_function_slot t function_slot =
-    Function_slot.Tbl.find_opt t.function_slots function_slot
+    Function_slot.Map.find_opt function_slot t.function_slots
 
   let find_function_slot_rev t function_slot =
-    Function_slot.Tbl.find_opt t.function_slots_rev function_slot
+    Function_slot.Map.find_opt function_slot t.function_slots_rev
 
   let find_value_slot t value_slot =
-    Value_slot.Tbl.find_opt t.value_slots value_slot
+    Value_slot.Map.find_opt value_slot t.value_slots
 
   let find_value_slot_rev t value_slot =
-    Value_slot.Tbl.find_opt t.value_slots_rev value_slot
+    Value_slot.Map.find_opt value_slot t.value_slots_rev
 end
 
 let subst_function_slot (env : Env.t) function_slot =

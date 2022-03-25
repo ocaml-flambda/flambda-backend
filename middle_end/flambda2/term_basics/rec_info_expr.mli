@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 include module type of struct
-  include Reg_width_things.Rec_info_expr
+  include Int_ids.Rec_info_expr
 end
 
 val print : Format.formatter -> t -> unit

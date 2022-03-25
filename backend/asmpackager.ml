@@ -216,7 +216,8 @@ let build_package_cmx members cmxfile =
                let unit_id = Compilenv.unit_id_from_name info.ui_name in
                Compilation_unit.Set.add
                  (Compilenv.unit_for_global unit_id) set)
-            Compilation_unit.Set.empty units) in
+            Compilation_unit.Set.empty units)
+  in
   let pack_units2 : Flambda2_identifiers.Compilation_unit.Set.t lazy_t =
     let unit_for_global ident : Flambda2_identifiers.Compilation_unit.t =
       let linkage_name : Flambda2_identifiers.Linkage_name.t =
@@ -224,8 +225,11 @@ let build_package_cmx members cmxfile =
         |> Compilenv.unit_for_global
         |> Compilation_unit.get_linkage_name
         |> Linkage_name.to_string
-        |> Flambda2_identifiers.Linkage_name.create in
-      Flambda2_identifiers.Compilation_unit.create ident linkage_name in
+        |> Flambda2_identifiers.Linkage_name.create
+      in
+      Flambda2_identifiers.Compilation_unit.create ~name:(Ident.name ident)
+        linkage_name
+    in
     lazy (List.fold_left
             (fun set info ->
                let unit_id : Ident.t =
@@ -233,7 +237,8 @@ let build_package_cmx members cmxfile =
                in
                Flambda2_identifiers.Compilation_unit.Set.add
                  (unit_for_global unit_id) set)
-            Flambda2_identifiers.Compilation_unit.Set.empty units) in
+            Flambda2_identifiers.Compilation_unit.Set.empty units)
+  in
   let units : Cmx_format.unit_infos list =
     if Config.flambda then
       List.map (fun info ->

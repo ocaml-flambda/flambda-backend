@@ -14,4 +14,4 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-include Reg_width_things.Code_id_or_symbol
+include Int_ids.Code_id_or_symbol

@@ -20,9 +20,9 @@ module Continuations = Permutation.Make [@inlined hint] (Continuation)
 module Variables = Permutation.Make [@inlined hint] (Variable)
 module Code_ids = Permutation.Make [@inlined hint] (Code_id)
 module Symbols = Permutation.Make [@inlined hint] (Symbol)
-module Coercion = Reg_width_things.Coercion
-module Const = Reg_width_things.Const
-module Simple = Reg_width_things.Simple
+module Coercion = Int_ids.Coercion
+module Const = Reg_width_const
+module Simple = Int_ids.Simple
 
 module Import_map : sig
   type t

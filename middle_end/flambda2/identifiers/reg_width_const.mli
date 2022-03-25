@@ -19,7 +19,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 include module type of struct
-  include Reg_width_things.Const
+  include Int_ids.Const
 end
 
 val kind : t -> Flambda_kind.t

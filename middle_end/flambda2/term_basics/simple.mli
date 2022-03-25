@@ -20,7 +20,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 include module type of struct
-  include Reg_width_things.Simple
+  include Int_ids.Simple
 end
 
 include Contains_names.S with type t := t

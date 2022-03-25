@@ -753,7 +753,7 @@ let close_let acc env id user_visible defining_expr
             let approx =
               Simple.pattern_match field
                 ~const:(fun const ->
-                  match Reg_width_things.Const.descr const with
+                  match Reg_width_const.descr const with
                   | Tagged_immediate i ->
                     let i = Targetint_31_63.(Imm.to_int (to_targetint i)) in
                     if i >= Array.length approx
@@ -1309,12 +1309,12 @@ let close_functions acc external_env function_declarations =
         if has_non_var_subst || Ident.is_predef id
         then map
         else
-          let var =
+          let name =
             match subst_var with
-            | None -> Variable.create_with_same_name_as_ident id
-            | Some var -> Variable.rename var
+            | None -> Ident.name id
+            | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.wrap compilation_unit var) map)
+          Ident.Map.add id (Value_slot.create compilation_unit ~name) map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -1515,9 +1515,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
      allow inlining and lifting *)
   let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
   let function_slot =
-    Function_slot.wrap
+    Function_slot.create
       (Compilation_unit.get_current_exn ())
-      (Variable.create_with_same_name_as_ident wrapper_id)
+      ~name:(Ident.name wrapper_id)
   in
   let args_arity = List.length args in
   let params =

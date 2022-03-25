@@ -18,13 +18,11 @@
 
 (** Contents of middle-end-specific portion of .cmx files when using Flambda. *)
 
-module Const = Reg_width_things.Const
-
 type table_data =
   { symbols : (Symbol.t * Symbol.exported) list;
     variables : (Variable.t * Variable.exported) list;
     simples : (Simple.t * Simple.exported) list;
-    consts : (Const.t * Const.exported) list;
+    consts : (Reg_width_const.t * Reg_width_const.exported) list;
     code_ids : (Code_id.t * Code_id.exported) list;
     continuations : (Continuation.t * Continuation.exported) list
   }
@@ -60,13 +58,13 @@ let create ~final_typing_env ~all_code ~exported_offsets ~used_value_slots =
       exported_ids.variables []
   in
   let simples =
-    Reg_width_things.Simple.Set.fold
+    Simple.Set.fold
       (fun simple simples -> (simple, Simple.export simple) :: simples)
       exported_ids.simples []
   in
   let consts =
-    Const.Set.fold
-      (fun const consts -> (const, Const.export const) :: consts)
+    Reg_width_const.Set.fold
+      (fun const consts -> (const, Reg_width_const.export const) :: consts)
       exported_ids.consts []
   in
   let code_ids =
@@ -134,7 +132,7 @@ end
 module Symbol_importer = Make_importer (Symbol)
 module Variable_importer = Make_importer (Variable)
 module Simple_importer = Make_importer (Simple)
-module Const_importer = Make_importer (Const)
+module Const_importer = Make_importer (Reg_width_const)
 module Code_id_importer = Make_importer (Code_id)
 module Continuation_importer = Make_importer (Continuation)
 

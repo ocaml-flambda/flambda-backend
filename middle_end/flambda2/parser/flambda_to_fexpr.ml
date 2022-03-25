@@ -98,14 +98,14 @@ end = struct
   end)
 
   type t =
-    { id_tbl : I.fexpr_id I.Tbl.t;
+    { mutable id_tbl : I.fexpr_id I.Map.t;
       names : int String_tbl.t
     }
 
-  let create () = { id_tbl = I.Tbl.create 10; names = String_tbl.create 10 }
+  let create () = { id_tbl = I.Map.empty; names = String_tbl.create 10 }
 
   let translate t id =
-    match I.Tbl.find_opt t.id_tbl id with
+    match I.Map.find_opt id t.id_tbl with
     | Some fexpr_id -> fexpr_id
     | None ->
       (* CR-soon lmaurer: Too much duplication with Name_map.bind *)
@@ -123,7 +123,7 @@ end = struct
           try_name name
       in
       let fexpr_id = try_name (I.name id) in
-      I.Tbl.add t.id_tbl id fexpr_id;
+      t.id_tbl <- I.Map.add id fexpr_id t.id_tbl;
       fexpr_id
 end
 
@@ -224,7 +224,7 @@ end = struct
 
     let desc = "var within closure"
 
-    let name v = Variable.raw_name (v |> Value_slot.unwrap)
+    let name v = Value_slot.name v
 
     let add_tag = default_add_tag
 
@@ -309,7 +309,7 @@ end = struct
     then (None, Symbol_name_map.find_exn t.symbols s) |> nowhere
     else
       let cunit =
-        let ident = Compilation_unit.get_persistent_ident cunit |> Ident.name in
+        let ident = Compilation_unit.name cunit in
         let linkage_name =
           Compilation_unit.get_linkage_name cunit |> Linkage_name.to_string
         in
@@ -343,7 +343,7 @@ let float f = f |> Numeric_types.Float_by_bit_pattern.to_float
 let targetint i = i |> Targetint_32_64.to_int64
 
 let const c : Fexpr.const =
-  match Reg_width_things.Const.descr c with
+  match Reg_width_const.descr c with
   | Naked_immediate imm ->
     Naked_immediate
       (imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_string)
@@ -885,8 +885,8 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
     Simple.pattern_match (Apply_expr.callee app)
       ~name:(fun n ~coercion:_ -> (* CR lmaurer: Add coercions *) name env n)
       ~const:(fun c ->
-        Misc.fatal_errorf "Unexpected const as callee: %a"
-          Reg_width_things.Const.print c)
+        Misc.fatal_errorf "Unexpected const as callee: %a" Reg_width_const.print
+          c)
   in
   let continuation : Fexpr.result_continuation =
     match Apply_expr.continuation app with
@@ -1005,9 +1005,107 @@ and switch_expr env switch : Fexpr.expr =
 
 and invalid_expr _env ~message : Fexpr.expr = Invalid { message }
 
+(* Iter on all sets of closures of a given program. *)
+module Iter = struct
+  let rec expr f_c f_s e =
+    match (Expr.descr e : Expr.descr) with
+    | Let e' -> let_expr f_c f_s e'
+    | Let_cont e' -> let_cont f_c f_s e'
+    | Apply e' -> apply_expr f_c f_s e'
+    | Apply_cont e' -> apply_cont f_c f_s e'
+    | Switch e' -> switch f_c f_s e'
+    | Invalid { message = _ } -> ()
+
+  and named let_expr (bound_pattern : Bound_pattern.t) f_c f_s n =
+    match (n : Named.t) with
+    | Simple _ | Prim _ | Rec_info _ -> ()
+    | Set_of_closures s ->
+      let is_phantom =
+        Name_mode.is_phantom (Bound_pattern.name_mode bound_pattern)
+      in
+      f_s ~closure_symbols:None ~is_phantom s
+    | Static_consts consts -> (
+      match bound_pattern with
+      | Static bound_static -> static_consts f_c f_s bound_static consts
+      | Singleton _ | Set_of_closures _ ->
+        Misc.fatal_errorf
+          "[Static_const] can only be bound to a [Static] pattern:@ %a"
+          Let.print let_expr)
+
+  and let_expr f_c f_s t =
+    Let.pattern_match t ~f:(fun bound_pattern ~body ->
+        let e = Let.defining_expr t in
+        named t bound_pattern f_c f_s e;
+        expr f_c f_s body)
+
+  and let_cont f_c f_s (let_cont : Flambda.Let_cont.t) =
+    match let_cont with
+    | Non_recursive { handler; _ } ->
+      Non_recursive_let_cont_handler.pattern_match handler ~f:(fun k ~body ->
+          let h = Non_recursive_let_cont_handler.handler handler in
+          let_cont_aux f_c f_s k h body)
+    | Recursive handlers ->
+      Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
+          assert (not (Continuation_handlers.contains_exn_handler conts));
+          let_cont_rec f_c f_s conts body)
+
+  and let_cont_aux f_c f_s k h body =
+    continuation_handler f_c f_s k h;
+    expr f_c f_s body
+
+  and let_cont_rec f_c f_s conts body =
+    let map = Continuation_handlers.to_map conts in
+    Continuation.Map.iter (continuation_handler f_c f_s) map;
+    expr f_c f_s body
+
+  and continuation_handler f_c f_s _ h =
+    Continuation_handler.pattern_match h ~f:(fun _ ~handler ->
+        expr f_c f_s handler)
+
+  (* Expression application, continuation application and Switches only use
+     single expressions and continuations, so no sets_of_closures can
+     syntatically appear inside. *)
+  and apply_expr _ _ _ = ()
+
+  and apply_cont _ _ _ = ()
+
+  and switch _ _ _ = ()
+
+  and static_consts f_c f_s bound_static static_consts =
+    Static_const_group.match_against_bound_static static_consts bound_static
+      ~init:()
+      ~code:(fun () code_id (code : Code.t) ->
+        f_c ~id:code_id (Some code);
+        let params_and_body = Code.params_and_body code in
+        Function_params_and_body.pattern_match params_and_body
+          ~f:(fun
+               ~return_continuation:_
+               ~exn_continuation:_
+               _
+               ~body
+               ~my_closure:_
+               ~is_my_closure_used:_
+               ~my_depth:_
+               ~free_names_of_body:_
+             -> expr f_c f_s body))
+      ~deleted_code:(fun () code_id -> f_c ~id:code_id None)
+      ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
+        f_s ~closure_symbols:(Some closure_symbols) ~is_phantom:false
+          set_of_closures)
+      ~block_like:(fun () _ _ -> ())
+end
+
+let ignore_code ~id:_ _ = ()
+
+let ignore_set_of_closures ~closure_symbols:_ ~is_phantom:_ _ = ()
+
+let iter ?(code = ignore_code) ?(set_of_closures = ignore_set_of_closures) unit
+    =
+  Iter.expr code set_of_closures (Flambda_unit.body unit)
+
 let bind_all_code_ids env unit =
   let env = ref env in
-  Flambda_unit.iter unit ~code:(fun ~id _code ->
+  iter unit ~code:(fun ~id _code ->
       let _id, new_env = Env.bind_code_id !env id in
       env := new_env);
   !env

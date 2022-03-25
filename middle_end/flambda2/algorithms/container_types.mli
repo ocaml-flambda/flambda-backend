@@ -131,35 +131,6 @@ module type Map = sig
   val map_sharing : ('a -> 'a) -> 'a t -> 'a t
 end
 
-module type Tbl = sig
-  module T : sig
-    type t
-
-    include Map.OrderedType with type t := t
-
-    include Hashtbl.HashedType with type t := t
-  end
-
-  include Hashtbl.S with type key = T.t
-
-  module Map : Map with module T := T
-
-  val to_list : 'a t -> (T.t * 'a) list
-
-  val of_list : (T.t * 'a) list -> 'a t
-
-  val to_map : 'a t -> 'a Map.t
-
-  val of_map : 'a Map.t -> 'a t
-
-  val memoize : 'a t -> (key -> 'a) -> key -> 'a
-
-  val map : 'a t -> ('a -> 'b) -> 'b t
-end
-
-module Make_tbl (T : Thing) (Map : Map with module T := T) :
-  Tbl with module T := T with module Map = Map
-
 module type S = sig
   type t
 
@@ -170,8 +141,6 @@ module type S = sig
   module Set : Set with module T := T
 
   module Map : Map with module T := T with module Set = Set
-
-  module Tbl : Tbl with module T := T with module Map = Map
 end
 
 module Make (T : Thing) : S with type t := T.t

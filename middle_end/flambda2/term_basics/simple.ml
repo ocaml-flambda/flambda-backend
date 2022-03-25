@@ -17,7 +17,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 module RWC = Reg_width_const
-include Reg_width_things.Simple
+include Int_ids.Simple
 
 let const_bool b = const (if b then RWC.const_true else RWC.const_false)
 

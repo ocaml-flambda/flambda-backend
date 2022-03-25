@@ -14,8 +14,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module Const = Reg_width_things.Const
-
 type coercion_to_canonical = Coercion.t
 
 let compose_map_values_exn map ~then_:coercion =
@@ -245,7 +243,7 @@ end
 
 module Alias_set = struct
   type t =
-    { const : Const.t option;
+    { const : Reg_width_const.t option;
       names : Coercion.t Name.Map.t
     }
 
@@ -292,14 +290,15 @@ module Alias_set = struct
            @[<hov 1>(const@ %a)@]@ \
            @[<hov 1>(names@ %a)@]\
        @]"
-       (Format.pp_print_option Const.print ~none) const
+       (Format.pp_print_option Reg_width_const.print ~none) const
        (Name.Map.print Coercion.print) names
 
   let inter { const = const1; names = names1 }
       { const = const2; names = names2 } =
     let const =
       match const1, const2 with
-      | Some const1, Some const2 when Const.equal const1 const2 -> Some const1
+      | Some const1, Some const2 when Reg_width_const.equal const1 const2 ->
+        Some const1
       | _, _ -> None
     in
     let names = Map_to_canonical.inter names1 names2 in
@@ -344,7 +343,7 @@ type t =
     (* For [elt |-> aliases] in [aliases_of_canonical_names], then [aliases]
        never includes [elt]. *)
     (* CR mshinwell: check this always holds *)
-    aliases_of_consts : Aliases_of_canonical_element.t Const.Map.t
+    aliases_of_consts : Aliases_of_canonical_element.t Reg_width_const.Map.t
   }
 
 (* Canonical elements can be seen as a collection of star graphs:
@@ -397,7 +396,7 @@ let [@ocamlformat "disable"] print ppf
     (Name.Map.print print_element_and_coercion) canonical_elements
     (Name.Map.print Aliases_of_canonical_element.print)
     aliases_of_canonical_names
-    (Const.Map.print Aliases_of_canonical_element.print)
+    (Reg_width_const.Map.print Aliases_of_canonical_element.print)
     aliases_of_consts
 
 let name_defined_earlier ~binding_time_resolver ~binding_times_and_modes alias
@@ -509,7 +508,7 @@ let invariant ~binding_time_resolver ~binding_times_and_modes t =
         t.aliases_of_canonical_names Name.Map.empty
     in
     let _all_aliases : Map_to_canonical.t =
-      Const.Map.fold
+      Reg_width_const.Map.fold
         (fun _const aliases all_aliases ->
           Aliases_of_canonical_element.invariant aliases;
           let aliases = Aliases_of_canonical_element.all aliases in
@@ -525,7 +524,7 @@ let empty =
        aliases_to_canonical_elements. *)
     canonical_elements = Name.Map.empty;
     aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Const.Map.empty
+    aliases_of_consts = Reg_width_const.Map.empty
   }
 
 type canonical =
@@ -559,7 +558,7 @@ let canonical t element : canonical =
 let get_aliases_of_canonical_element t ~canonical_element =
   assert (not (Simple.has_coercion canonical_element));
   let name name ~coercion:_ = Name.Map.find name t.aliases_of_canonical_names in
-  let const const = Const.Map.find const t.aliases_of_consts in
+  let const const = Reg_width_const.Map.find const t.aliases_of_consts in
   match Simple.pattern_match canonical_element ~name ~const with
   | exception Not_found -> Aliases_of_canonical_element.empty
   | aliases -> aliases
@@ -624,7 +623,7 @@ let add_alias_between_canonical_elements ~binding_time_resolver
       Simple.pattern_match to_be_demoted
         ~const:(fun c ->
           Misc.fatal_errorf "Can't demote const %a@ (while adding alias to@ %a)"
-            Const.print c Simple.print canonical_element)
+            Reg_width_const.print c Simple.print canonical_element)
         ~name:(fun name ~coercion:_ -> name)
     in
     let aliases_of_to_be_demoted =
@@ -692,7 +691,8 @@ let add_alias_between_canonical_elements ~binding_time_resolver
             t.aliases_of_consts ))
         ~const:(fun const ->
           ( aliases_of_canonical_names,
-            Const.Map.add (* replace *) const aliases t.aliases_of_consts ))
+            Reg_width_const.Map.add (* replace *) const aliases
+              t.aliases_of_consts ))
     in
     let res =
       { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
@@ -810,7 +810,7 @@ let add ~binding_time_resolver ~binding_times_and_modes t
           ~name:(fun _ ~coercion:_ -> ())
           ~const:(fun const2 ->
             Misc.fatal_errorf "Cannot add alias between two consts: %a, %a"
-              Const.print const1 Const.print const2))
+              Reg_width_const.print const1 Reg_width_const.print const2))
   end;
   let add_result =
     add_alias ~binding_time_resolver ~binding_times_and_modes t
@@ -994,7 +994,7 @@ let all_ids_for_export
           elt)
       aliases_of_canonical_names ids
   in
-  Const.Map.fold
+  Reg_width_const.Map.fold
     (fun const aliases_of ids ->
       Ids_for_export.add_const
         (Ids_for_export.union ids
@@ -1024,12 +1024,12 @@ let apply_renaming
       aliases_of_canonical_names Name.Map.empty
   in
   let aliases_of_consts =
-    Const.Map.fold
+    Reg_width_const.Map.fold
       (fun const aliases ->
-        Const.Map.add
+        Reg_width_const.Map.add
           (Renaming.apply_const renaming const)
           (Aliases_of_canonical_element.apply_renaming aliases renaming))
-      aliases_of_consts Const.Map.empty
+      aliases_of_consts Reg_width_const.Map.empty
   in
   { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
 
@@ -1043,9 +1043,9 @@ let merge t1 t2 =
   then
     let empty_maps =
       Name.Map.is_empty t1.aliases_of_canonical_names
-      && Const.Map.is_empty t1.aliases_of_consts
+      && Reg_width_const.Map.is_empty t1.aliases_of_consts
       && Name.Map.is_empty t2.aliases_of_canonical_names
-      && Const.Map.is_empty t2.aliases_of_consts
+      && Reg_width_const.Map.is_empty t2.aliases_of_consts
     in
     if empty_maps
     then ()
@@ -1056,7 +1056,7 @@ let merge t1 t2 =
         print t1 print t2);
   { canonical_elements;
     aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Const.Map.empty
+    aliases_of_consts = Reg_width_const.Map.empty
   }
 
 let get_canonical_ignoring_name_mode t name =
@@ -1087,5 +1087,5 @@ let clean_for_export
   in
   { canonical_elements;
     aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Const.Map.empty
+    aliases_of_consts = Reg_width_const.Map.empty
   }

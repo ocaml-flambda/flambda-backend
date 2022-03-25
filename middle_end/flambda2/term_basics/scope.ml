@@ -49,5 +49,3 @@ module Map =
       let print = print
     end)
     (Set)
-
-module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)

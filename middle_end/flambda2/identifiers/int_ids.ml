@@ -354,9 +354,6 @@ module Const = struct
       end)
       (Set)
 
-  (* CR mshinwell: The [Tbl]s will still print integers! *)
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
-
   let export t = find_data t
 
   let import (data : exported) = create data
@@ -412,15 +409,12 @@ module Variable = struct
 
     let hash = Id.hash
 
-    (* CR mshinwell: colour? *)
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       let cu = compilation_unit t in
       if Compilation_unit.equal cu (Compilation_unit.get_current_exn ())
       then Format.fprintf ppf "%s/%d" (name t) (name_stamp t)
       else
-        Format.fprintf ppf "%a.%s/%d"
-          Compilation_unit.print cu
-          (name t)
+        Format.fprintf ppf "%a.%s/%d" Compilation_unit.print cu (name t)
           (name_stamp t)
   end
 
@@ -442,8 +436,6 @@ module Variable = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -500,7 +492,7 @@ module Symbol = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.symbol ());
       Compilation_unit.print ppf (compilation_unit t);
       Format.pp_print_string ppf ".";
@@ -526,8 +518,6 @@ module Symbol = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -559,7 +549,7 @@ module Name = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s" (Flambda_colours.name ());
       pattern_match t
         ~var:(fun var -> Variable.print ppf var)
@@ -585,8 +575,6 @@ module Name = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 end
 
 module Rec_info_expr = Rec_info_expr0.Make (Variable)
@@ -692,19 +680,18 @@ module Simple = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
-      let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
+      let print ppf t =
         pattern_match t
           ~name:(fun name ~coercion:_ -> Name.print ppf name)
           ~const:(fun cst -> Const.print ppf cst)
       in
       let coercion = coercion t in
-      if Coercion.is_id coercion then
-        print ppf t
+      if Coercion.is_id coercion
+      then print ppf t
       else
-        Format.fprintf ppf "@[<hov 1>(coerce@ %a@ %a)@]"
-          print t
-          Coercion.print coercion
+        Format.fprintf ppf "@[<hov 1>(coerce@ %a@ %a)@]" print t Coercion.print
+          coercion
   end
 
   include T0
@@ -738,8 +725,6 @@ module Simple = struct
         let print = print
       end)
       (Set)
-
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
 
   let export t = find_data t
 
@@ -808,7 +793,7 @@ module Code_id = struct
 
     let hash = Id.hash
 
-    let [@ocamlformat "disable"] print ppf t =
+    let print ppf t =
       Format.fprintf ppf "@<0>%s%a@<0>%s"
         (Flambda_colours.code_id ())
         Linkage_name.print (linkage_name t)
@@ -834,7 +819,6 @@ module Code_id = struct
       end)
       (Set)
 
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
   module Lmap = Lmap.Make (T)
 
   let invert_map map =
@@ -904,7 +888,6 @@ module Code_id_or_symbol = struct
       end)
       (Set)
 
-  module Tbl = Container_types.Make_tbl (Numeric_types.Int) (Map)
   module Lmap = Lmap.Make (T)
 
   let set_of_code_id_set code_ids =

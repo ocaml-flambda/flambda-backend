@@ -13,15 +13,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Coercion = Reg_width_things.Coercion
-module Const = Reg_width_things.Const
-module Simple = Reg_width_things.Simple
+module Coercion = Int_ids.Coercion
+module Simple = Int_ids.Simple
 
 type t =
   { symbols : Symbol.Set.t;
     variables : Variable.Set.t;
     simples : Simple.Set.t;
-    consts : Const.Set.t;
+    consts : Reg_width_const.Set.t;
     code_ids : Code_id.Set.t;
     continuations : Continuation.Set.t
   }
@@ -30,13 +29,13 @@ let empty =
   { symbols = Symbol.Set.empty;
     variables = Variable.Set.empty;
     simples = Simple.Set.empty;
-    consts = Const.Set.empty;
+    consts = Reg_width_const.Set.empty;
     code_ids = Code_id.Set.empty;
     continuations = Continuation.Set.empty
   }
 
 let create ?(symbols = Symbol.Set.empty) ?(variables = Variable.Set.empty)
-    ?(simples = Simple.Set.empty) ?(consts = Const.Set.empty)
+    ?(simples = Simple.Set.empty) ?(consts = Reg_width_const.Set.empty)
     ?(code_ids = Code_id.Set.empty) ?(continuations = Continuation.Set.empty) ()
     =
   { symbols; variables; simples; consts; code_ids; continuations }
@@ -51,7 +50,8 @@ let singleton_continuation cont =
 
 let singleton_symbol symbol = create ~symbols:(Symbol.Set.singleton symbol) ()
 
-let add_const t const = { t with consts = Const.Set.add const t.consts }
+let add_const t const =
+  { t with consts = Reg_width_const.Set.add const t.consts }
 
 let add_variable t var = { t with variables = Variable.Set.add var t.variables }
 
@@ -85,7 +85,8 @@ let from_simple simple =
     else Simple.Set.singleton simple
   in
   Simple.pattern_match simple
-    ~const:(fun const -> create ~simples ~consts:(Const.Set.singleton const) ())
+    ~const:(fun const ->
+      create ~simples ~consts:(Reg_width_const.Set.singleton const) ())
     ~name:(fun name ->
       Name.pattern_match name
         ~var:(fun var ~coercion:_ ->
@@ -97,7 +98,7 @@ let union t1 t2 =
   { symbols = Symbol.Set.union t1.symbols t2.symbols;
     variables = Variable.Set.union t1.variables t2.variables;
     simples = Simple.Set.union t1.simples t2.simples;
-    consts = Const.Set.union t1.consts t2.consts;
+    consts = Reg_width_const.Set.union t1.consts t2.consts;
     code_ids = Code_id.Set.union t1.code_ids t2.code_ids;
     continuations = Continuation.Set.union t1.continuations t2.continuations
   }
