@@ -15,8 +15,8 @@
 (**************************************************************************)
 
 (** The underlying implementation for [Variable], [Symbol], [Name],
-    [Reg_width_const] and [Simple]. These values are all represented as
-    integers. *)
+    [Reg_width_const], [Simple], [Code_id] and [Code_id_or_symbol]. These values
+    are all represented as integers. *)
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
