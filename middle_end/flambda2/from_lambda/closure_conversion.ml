@@ -713,7 +713,6 @@ let close_let acc env id user_visible defining_expr
       body acc body_env
     | None -> body acc body_env
     | Some defining_expr -> (
-      (* CR pchambart: Not tail ! *)
       let body_env =
         match defining_expr with
         | Prim (Variadic (Make_block (_, Immutable, alloc_mode), fields), _) ->
@@ -778,6 +777,7 @@ let close_let acc env id user_visible defining_expr
       let bound_pattern = Bound_pattern.singleton var in
       match body_env with
       | Some body_env ->
+        (* CR pchambart: Not tail ! The body function is the recursion *)
         let acc, body = body acc body_env in
         Let_with_acc.create acc bound_pattern defining_expr ~body
       | None ->
