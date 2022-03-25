@@ -53,7 +53,7 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
     ~params_arity:param_arity ~result_arity ~apply_alloc_mode
     ~contains_no_escaping_local_allocs ~down_to_up =
   let dbg = Apply.dbg apply in
-  let n = List.length param_arity in
+  let n = Flambda_arity.With_subkinds.cardinal param_arity in
   (* Split the tuple argument from other potential over application arguments *)
   let tuple, over_application_args =
     match Apply.args apply with
@@ -70,8 +70,8 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   (* Change the application to operate on the fields of the tuple *)
   let apply =
     Apply.with_args apply
-    @@ List.map (fun (v, _) -> Simple.var v) vars_and_fields
-    @ over_application_args
+      (List.map (fun (v, _) -> Simple.var v) vars_and_fields
+      @ over_application_args)
   in
   (* Immediately simplify over_applications to avoid having direct applications
      with the wrong arity. *)
@@ -183,14 +183,16 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
       | Return apply_return_continuation ->
         Result_types.pattern_match result_types
           ~f:(fun ~params ~results env_extension ->
-            if List.length params_arity <> Bound_parameters.cardinal params
+            if Flambda_arity.With_subkinds.cardinal params_arity
+               <> Bound_parameters.cardinal params
             then
               Misc.fatal_errorf
                 "Params arity %a does not match up with params in the result \
                  types structure:@ %a@ for application:@ %a"
                 Flambda_arity.With_subkinds.print params_arity
                 Result_types.print result_types Apply.print apply;
-            if List.length result_arity <> Bound_parameters.cardinal results
+            if Flambda_arity.With_subkinds.cardinal result_arity
+               <> Bound_parameters.cardinal results
             then
               Misc.fatal_errorf
                 "Result arity %a does not match up with the result types \
@@ -212,6 +214,9 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                   DE.add_equation_on_variable denv (BP.var param)
                     (T.alias_type_of (K.With_subkind.kind (BP.kind param)) arg))
                 denv params args
+            in
+            let result_arity =
+              Flambda_arity.With_subkinds.to_list result_arity
             in
             let denv =
               List.fold_left2
@@ -296,7 +301,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
            "[@unroll] attributes may not be used on partial applications")
     | Default_inlined | Hint_inlined -> ()
   end;
-  let arity = List.length param_arity in
+  let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args_arity = List.length args in
   assert (arity > args_arity);
   let applied_args, remaining_param_arity =
@@ -307,7 +312,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           Misc.fatal_errorf "Non-[value] kind in partial application: %a"
             Apply.print apply;
         arg)
-      args param_arity
+      args
+      (Flambda_arity.With_subkinds.to_list param_arity)
   in
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
@@ -662,7 +668,7 @@ let simplify_direct_function_call ~simplify_expr dacc apply
 
          - Indirect calls adopt the calling convention consisting of a single
          tuple argument, irrespective of what [Code.params_arity] says. *)
-      let num_params = List.length params_arity in
+      let num_params = Flambda_arity.With_subkinds.cardinal params_arity in
       if provided_num_args = num_params
       then
         simplify_direct_full_application ~simplify_expr dacc apply function_decl
@@ -756,8 +762,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
         dacc )
     | Indirect_known_arity { param_arity; return_arity } ->
       let args_arity =
-        T.arity_of_list arg_types
-        |> List.map (fun kind -> K.With_subkind.create kind Anything)
+        T.arity_of_list arg_types |> Flambda_arity.With_subkinds.of_arity
       in
       if not
            (Flambda_arity.With_subkinds.compatible args_arity
@@ -778,8 +783,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
       call_kind, use_id, dacc
     | Direct { return_arity; _ } ->
       let param_arity =
-        T.arity_of_list arg_types
-        |> List.map (fun kind -> K.With_subkind.create kind Anything)
+        T.arity_of_list arg_types |> Flambda_arity.With_subkinds.of_arity
       in
       (* Some types have regressed in precision. Since this used to be a direct
          call, however, we know the function's arity even though we don't know
@@ -948,7 +952,9 @@ let simplify_method_call dacc apply ~callee_ty ~kind:_ ~obj ~arg_types
   in
   let denv = DA.denv dacc in
   DE.check_simple_is_bound denv obj;
-  let expected_arity = List.map (fun _ -> K.value) arg_types in
+  let expected_arity =
+    List.map (fun _ -> K.value) arg_types |> Flambda_arity.create
+  in
   let args_arity = T.arity_of_list arg_types in
   if not (Flambda_arity.equal expected_arity args_arity)
   then

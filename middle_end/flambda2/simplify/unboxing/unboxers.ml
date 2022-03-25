@@ -46,7 +46,7 @@ module Immediate = struct
       prove_is_a_boxed_number = T.prove_is_a_tagged_immediate
     }
 
-  let unboxing_prim simple = P.(Unary (Unbox_number Untagged_immediate, simple))
+  let unboxing_prim simple = P.(Unary (Untag_immediate, simple))
 
   let unboxer =
     { var_name = "naked_immediate";

@@ -16,12 +16,9 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR-someday xclerc: we could add annotations to external declarations (akin to
-   [@@noalloc]) in order to be able to refine the computation of
-   effects/coeffects for such functions. *)
-
 let check_arity arity =
-  match arity with [] -> Misc.fatal_error "Invalid empty arity" | _ :: _ -> ()
+  if Flambda_arity.With_subkinds.is_nullary arity
+  then Misc.fatal_error "Invalid nullary arity"
 
 let fprintf = Format.fprintf
 
@@ -60,7 +57,8 @@ module Function_call = struct
     match call with
     | Direct { return_arity; _ } | Indirect_known_arity { return_arity; _ } ->
       return_arity
-    | Indirect_unknown_arity -> [Flambda_kind.With_subkind.any_value]
+    | Indirect_unknown_arity ->
+      Flambda_arity.With_subkinds.create [Flambda_kind.With_subkind.any_value]
 end
 
 type method_kind =
@@ -143,7 +141,7 @@ let method_call kind ~obj alloc_mode = Method { kind; obj; alloc_mode }
 
 let c_call ~alloc ~param_arity ~return_arity ~is_c_builtin =
   begin
-    match return_arity with
+    match Flambda_arity.to_list return_arity with
     | [] | [_] -> ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call: %a"
@@ -154,11 +152,10 @@ let c_call ~alloc ~param_arity ~return_arity ~is_c_builtin =
 let return_arity t =
   match t with
   | Function { function_call; _ } -> Function_call.return_arity function_call
-  | Method _ -> [Flambda_kind.With_subkind.any_value]
+  | Method _ ->
+    Flambda_arity.With_subkinds.create [Flambda_kind.With_subkind.any_value]
   | C_call { return_arity; _ } ->
-    List.map
-      (fun kind -> Flambda_kind.With_subkind.create kind Anything)
-      return_arity
+    Flambda_arity.With_subkinds.of_arity return_arity
 
 let free_names t =
   match t with

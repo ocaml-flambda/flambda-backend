@@ -133,7 +133,7 @@ let project_tuple ~dbg ~size ~field tuple =
 
 let split_direct_over_application apply ~param_arity ~result_arity
     ~(apply_alloc_mode : Alloc_mode.t) ~contains_no_escaping_local_allocs =
-  let arity = List.length param_arity in
+  let arity = Flambda_arity.With_subkinds.cardinal param_arity in
   let args = Apply.args apply in
   assert (arity < List.length args);
   let first_args, remaining_args = Misc.Stdlib.List.split_at arity args in
@@ -192,7 +192,7 @@ let split_direct_over_application apply ~param_arity ~result_arity
         List.mapi
           (fun i kind ->
             BP.create (Variable.create ("result" ^ string_of_int i)) kind)
-          result_arity
+          (Flambda_arity.With_subkinds.to_list result_arity)
       in
       let call_return_continuation, call_return_continuation_free_names =
         match Apply.continuation apply with

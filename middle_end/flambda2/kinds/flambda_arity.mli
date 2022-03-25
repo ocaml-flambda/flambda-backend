@@ -14,16 +14,18 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Generalization of the concepts of "number of arguments" and "number of
-    return values". *)
+(** Arities are lists of kinds, sometimes with subkinds, used to describe things
+    such as the kinding of function and continuation parameter lists. *)
 
-[@@@ocaml.warning "+a-4-9-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-(* CR mshinwell: This should be made abstract. *)
+type t
 
-type t = Flambda_kind.t list
+type arity = t
 
 val create : Flambda_kind.t list -> t
+
+val to_list : t -> Flambda_kind.t list
 
 val nullary : t
 
@@ -38,16 +40,23 @@ val is_singleton_value : t -> bool
 include Container_types.S with type t := t
 
 module With_subkinds : sig
-  type arity = t
-
-  type t = Flambda_kind.With_subkind.t list
+  type t
 
   val create : Flambda_kind.With_subkind.t list -> t
+
+  val to_list : t -> Flambda_kind.With_subkind.t list
+
+  val nullary : t
+
+  val is_nullary : t -> bool
+
+  val cardinal : t -> int
 
   val is_singleton_value : t -> bool
 
   val to_arity : t -> arity
 
+  (** [of_arity] sets the subkind information to [Anything]. *)
   val of_arity : arity -> t
 
   val compatible : t -> when_used_at:t -> bool

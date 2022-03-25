@@ -297,7 +297,8 @@ let check_equation name ty =
 
 let arity_of_list ts = Flambda_arity.create (List.map TG.kind ts)
 
-let unknown_types_from_arity arity = List.map (fun kind -> unknown kind) arity
+let unknown_types_from_arity arity =
+  List.map (fun kind -> unknown kind) (Flambda_arity.to_list arity)
 
 let rec unknown_with_descr (descr : Flambda_kind.With_subkind.descr) =
   match descr with
@@ -341,6 +342,9 @@ let unknown_with_subkind kind =
   unknown_with_descr (Flambda_kind.With_subkind.descr kind)
 
 let unknown_types_from_arity_with_subkinds arity =
-  List.map (fun kind -> unknown_with_subkind kind) arity
+  List.map
+    (fun kind -> unknown_with_subkind kind)
+    (Flambda_arity.With_subkinds.to_list arity)
 
-let bottom_types_from_arity arity = List.map (fun kind -> bottom kind) arity
+let bottom_types_from_arity arity =
+  List.map (fun kind -> bottom kind) (Flambda_arity.to_list arity)

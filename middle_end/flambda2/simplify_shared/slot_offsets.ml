@@ -510,7 +510,7 @@ module Greedy = struct
             let module CM = Code_metadata in
             let is_tupled = CM.is_tupled code_metadata in
             let params_arity = CM.params_arity code_metadata in
-            let arity = List.length params_arity in
+            let arity = Flambda_arity.With_subkinds.cardinal params_arity in
             let size = if arity = 1 && not is_tupled then 2 else 3 in
             let s = create_slot size (Function_slot c) in
             s, add_function_slot state c s
