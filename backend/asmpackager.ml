@@ -294,12 +294,13 @@ let build_package_cmx members cmxfile =
           filter(Asmlink.extract_crc_interfaces());
       ui_imports_cmx =
           filter(Asmlink.extract_crc_implementations());
-      ui_curry_fun =
-          union(List.map (fun info -> info.ui_curry_fun) units);
-      ui_apply_fun =
-          union(List.map (fun info -> info.ui_apply_fun) units);
-      ui_send_fun =
-          union(List.map (fun info -> info.ui_send_fun) units);
+      ui_generic_fns =
+        { curry_fun =
+            union(List.map (fun info -> info.ui_generic_fns.curry_fun) units);
+          apply_fun =
+            union(List.map (fun info -> info.ui_generic_fns.apply_fun) units);
+          send_fun =
+            union(List.map (fun info -> info.ui_generic_fns.send_fun) units) };
       ui_force_link =
           List.exists (fun info -> info.ui_force_link) units;
       ui_export_info;

@@ -775,7 +775,14 @@ val cextcall :
 (** Generic Cmm fragments *)
 
 (** Generate generic functions *)
-val generic_functions : bool -> Cmx_format.unit_infos list -> Cmm.phrase list
+module Generic_fns_tbl : sig
+  type t
+  val make : unit -> t
+  val add : t -> Cmx_format.generic_fns -> unit
+  val of_fns : Cmx_format.generic_fns -> t
+  val entries : t -> Cmx_format.generic_fns
+end
+val generic_functions : bool -> Generic_fns_tbl.t -> Cmm.phrase list
 
 val placeholder_dbg : unit -> Debuginfo.t
 
@@ -807,7 +814,7 @@ val code_segment_table : string list -> phrase
 (** Generate data for a predefined exception *)
 val predef_exception : int -> string -> phrase
 
-val plugin_header : (Cmx_format.unit_infos * Digest.t) list -> phrase
+val plugin_header : Cmxs_format.dynunit list -> phrase
 
 (** Emit constant symbols *)
 
