@@ -313,6 +313,12 @@ let destroyed_at_alloc =
   else
     [| r11 |]
 
+let destroyed_at_pushtrap =
+  [| r11 |]
+
+let has_pushtrap traps =
+  List.exists (function Cmm.Push _ -> true | Pop -> false) traps
+
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _ | Iextcall { alloc = true; }) ->
     all_phys_regs
@@ -324,7 +330,9 @@ let destroyed_at_oper = function
   | Iop(Iintop(Imulh _ | Icomp _) | Iintop_imm((Icomp _), _))
         -> [| rax |]
   | Iswitch(_, _) -> [| rax; rdx |]
-  | Itrywith _ -> [| r11 |]
+  | Itrywith _ -> destroyed_at_pushtrap
+  | Iexit (_, traps) when has_pushtrap traps -> destroyed_at_pushtrap
+  | Ireturn traps when has_pushtrap traps -> assert false
   | Iop(Ispecific (Irdtsc | Irdpmc)) -> [| rax; rdx |]
   | Iop(Ispecific(Isqrtf | Isextend32 | Izextend32 | Icrc32q | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
