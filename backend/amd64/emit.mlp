@@ -645,6 +645,31 @@ let emit_call_probe_handler_wrapper i ~probe_label =
   let stack_live = Reg.Set.filter Reg.is_stack i.live in
   record_frame stack_live (Dbg_other i.dbg)
 
+(* Emit trap handler notes *)
+
+type traps = { mutable push_traps : label list;
+               mutable pop_traps : label list;
+               mutable enter_traps : Int.Set.t;
+             }
+
+let traps = { push_traps = []; pop_traps = []; enter_traps = Int.Set.empty; }
+
+let reset_traps () =
+  traps.push_traps <- [];
+  traps.pop_traps <- [];
+  traps.enter_traps <- Int.Set.empty
+
+let emit_pop_trap_label () =
+  let lbl = Cmm.new_label () in
+  def_label lbl;
+  traps.pop_traps <- lbl::traps.pop_traps
+
+let emit_push_trap_label handler =
+  let lbl = Cmm.new_label () in
+  def_label lbl;
+  traps.push_traps <- lbl::traps.push_traps;
+  traps.enter_traps <- Int.Set.add handler traps.enter_traps
+
 (* Emit an instruction *)
 let emit_instr fallthrough i =
   emit_debug_info_linear i;
@@ -1119,6 +1144,7 @@ let emit_instr fallthrough i =
       cfi_adjust_cfa_offset delta_bytes;
       stack_offset := !stack_offset + delta_bytes
   | Lpushtrap { lbl_handler; } ->
+      emit_push_trap_label lbl_handler;
       let load_label_addr s arg =
         if !Clflags.pic_code then
           I.lea (mem64_rip NONE (emit_label s)) arg
@@ -1133,6 +1159,7 @@ let emit_instr fallthrough i =
       I.mov rsp (domain_field Domainstate.Domain_exception_pointer);
       stack_offset := !stack_offset + 16;
   | Lpoptrap ->
+      emit_pop_trap_label ();
       I.pop (domain_field Domainstate.Domain_exception_pointer);
       cfi_adjust_cfa_offset (-8);
       I.add (int 8) rsp;
@@ -1248,6 +1275,7 @@ let reset_all () =
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
   reset_probes ();
+  reset_traps ();
   float_constants := [];
   all_functions := []
 
@@ -1554,6 +1582,35 @@ let emit_probe_notes () =
   | [] -> ()
   | _ -> emit_probe_notes0 ()
 
+let emit_trap_notes () =
+  (* Don't emit trap notes on windows and macos systems *)
+  let is_system_supported =
+    match system with
+    | S_macosx -> false  (* can be supported with a symbol *)
+    | S_gnu | S_solaris | S_linux_elf | S_bsd_elf
+    | S_beos | S_linux -> true
+    | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown ->
+      false
+  in
+  let emit_labels list =
+    List.iter (fun l -> D.qword (ConstLabel (emit_label l))) list;
+    D.qword (const 0)
+  in
+  let emit_desc () =
+    D.qword (ConstLabel "_.stapsdt.base");
+    emit_labels (Int.Set.elements traps.enter_traps);
+    emit_labels traps.push_traps;
+    emit_labels traps.pop_traps
+  in
+  if is_system_supported && not (Int.Set.is_empty traps.enter_traps) then begin
+    D.section [".note.ocaml_eh"] (Some "?") [ "\"note\"" ];
+    emit_elf_note ~owner:"OCaml" ~typ:1l ~emit_desc;
+    (* Reuse stapsdt base section for calcluating addresses after pre-link *)
+    emit_stapsdt_base_section ();
+    (* Switch back to Data section *)
+    D.data ()
+  end
+
 let end_assembly dwarf =
   if !float_constants <> [] then begin
     begin match system with
@@ -1619,6 +1676,7 @@ let end_assembly dwarf =
   end;
 
   emit_probe_notes ();
+  emit_trap_notes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
