@@ -339,3 +339,5 @@ let operation_supported = function
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion
     -> true
+
+let trap_size_in_bytes = 16

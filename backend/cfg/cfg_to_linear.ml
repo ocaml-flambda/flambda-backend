@@ -331,7 +331,8 @@ let adjust_trap_depth body (block : Cfg.basic_block)
   then body
   else
     let delta_traps = block_trap_depth - prev_trap_depth in
-    to_linear_instr (Ladjust_trap_depth { delta_traps }) ~next:body
+    let delta_bytes = Proc.trap_size_in_bytes delta_traps in
+    to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)

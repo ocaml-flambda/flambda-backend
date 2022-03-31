@@ -93,3 +93,6 @@ val init : unit -> unit
     Used in Cmmgen when converting [@@builtin] external calls
     to primitive operations. *)
 val operation_supported : Cmm.operation -> bool
+
+(** The number of bytes each trap occupies on the stack. *)
+val trap_size_in_bytes : int
