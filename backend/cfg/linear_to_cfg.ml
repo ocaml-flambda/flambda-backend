@@ -586,9 +586,14 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       in
       add_terminator t block i desc ~stack_offset ~traps;
       create_blocks t i.next block ~stack_offset ~traps
+    | Istackoffset bytes ->
+      let desc = to_basic mop in
+      block.body <- create_instruction t desc i ~stack_offset :: block.body;
+      let stack_offset = stack_offset + bytes in
+      create_blocks t i.next block ~stack_offset ~traps
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
     | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
     | Iload (_, _, _)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _

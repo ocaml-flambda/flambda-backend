@@ -634,6 +634,7 @@ module Trap_depth_and_exn = struct
           ~can_raise:(Cfg.can_raise_basic instr.desc),
         instr )
 
+  (* CR gyorsh: how to handle Istackoffset correctly here? *)
   let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
    fun cfg label stack ->
     let block = Cfg.get_block_exn cfg label in
