@@ -283,7 +283,7 @@
    ))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
- (libraries stdlib ocamlcommon dwarf_flags)
+ (libraries stdlib ocamlcommon dwarf_flags asm_targets)
  (modules flambda_backend_args flambda_backend_flags))
 
 (executable
@@ -638,6 +638,15 @@
   (.ocamloptcomp.objs/byte/linear_format.cmti
    as
    compiler-libs/linear_format.cmti)
+  (backend/asm_targets/.asm_targets.objs/byte/asm_targets.cmi
+   as
+   compiler-libs/asm_targets.cmi)
+  (backend/asm_targets/.asm_targets.objs/byte/asm_targets.cmo
+   as
+   compiler-libs/asm_targets.cmo)
+  (backend/asm_targets/.asm_targets.objs/byte/asm_targets.cmt
+   as
+   compiler-libs/asm_targets.cmt)
   (.ocamloptcomp.objs/byte/cfg_format.cmi as compiler-libs/cfg_format.cmi)
   (.ocamloptcomp.objs/byte/cfg_format.cmo as compiler-libs/cfg_format.cmo)
   (.ocamloptcomp.objs/byte/cfg_format.cmt as compiler-libs/cfg_format.cmt)
@@ -2445,6 +2454,9 @@
   (.ocamloptcomp.objs/native/linear_format.cmx
    as
    compiler-libs/linear_format.cmx)
+  (backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx
+   as
+   compiler-libs/asm_targets.cmx)
   (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
   (ocaml/.ocamlcommon.objs/native/extensions.cmx
    as
