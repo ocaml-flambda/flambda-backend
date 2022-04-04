@@ -223,18 +223,12 @@ module type S = sig
   (** Emit an offset into a DWARF section given a label identifying the place
       within such section. *)
   val offset_into_dwarf_section_label :
-    ?comment:string ->
-    Asm_section.dwarf_section ->
-    Asm_label.t ->
-    unit
+    ?comment:string -> Asm_section.dwarf_section -> Asm_label.t -> unit
 
   (** Emit an offset into a DWARF section given a symbol identifying the place
       within such section. The symbol may only be in a compilation unit
       different from the current one if the supplied section is [Debug_info].
       The symbol must always be in the given section. *)
   val offset_into_dwarf_section_symbol :
-    ?comment:string ->
-    Asm_section.dwarf_section ->
-    Asm_symbol.t ->
-    unit
+    ?comment:string -> Asm_section.dwarf_section -> Asm_symbol.t -> unit
 end
