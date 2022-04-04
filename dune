@@ -648,6 +648,15 @@
   (backend/asm_targets/.asm_targets.objs/byte/asm_targets.cmt
    as
    compiler-libs/asm_targets.cmt)
+  (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/dwarf_low.cmi
+   as
+   compiler-libs/dwarf_low.cmi)
+  (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/dwarf_low.cmo
+   as
+   compiler-libs/dwarf_low.cmo)
+  (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/dwarf_low.cmt
+   as
+   compiler-libs/dwarf_low.cmt)
   (.ocamloptcomp.objs/byte/cfg_format.cmi as compiler-libs/cfg_format.cmi)
   (.ocamloptcomp.objs/byte/cfg_format.cmo as compiler-libs/cfg_format.cmo)
   (.ocamloptcomp.objs/byte/cfg_format.cmt as compiler-libs/cfg_format.cmt)
@@ -1388,7 +1397,7 @@
   (.ocamloptcomp.objs/native/location_tracker_formatter.cmx
    as
    compiler-libs/location_tracker_formatter.cmx)
-  (backend/debug/dwarf/dwarf_flags/dwarf_flags.mli 
+  (backend/debug/dwarf/dwarf_flags/dwarf_flags.mli
    as compiler-libs/dwarf_flags.mli)
   (backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/native/dwarf_flags.cmx
    as compiler-libs/dwarf_flags.cmx)
@@ -2458,6 +2467,9 @@
   (backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx
    as
    compiler-libs/asm_targets.cmx)
+  (backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/dwarf_low.cmx
+   as
+   compiler-libs/dwarf_low.cmx)
   (.ocamloptcomp.objs/native/cfg_format.cmx as compiler-libs/cfg_format.cmx)
   (ocaml/.ocamlcommon.objs/native/extensions.cmx
    as
