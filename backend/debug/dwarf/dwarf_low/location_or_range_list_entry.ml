@@ -108,10 +108,12 @@ struct
            (Payload.size payload))
     | Offset_pair { start_offset_inclusive; end_offset_exclusive; payload } ->
       let start_offset_inclusive =
-        Dwarf_value.uleb128 (Targetint.nonnegative_to_uint64_exn start_offset_inclusive)
+        Dwarf_value.uleb128
+          (Targetint.nonnegative_to_uint64_exn start_offset_inclusive)
       in
       let end_offset_exclusive =
-        Dwarf_value.uleb128 (Targetint.nonnegative_to_uint64_exn end_offset_exclusive)
+        Dwarf_value.uleb128
+          (Targetint.nonnegative_to_uint64_exn end_offset_exclusive)
       in
       Dwarf_int.add
         (Dwarf_value.size start_offset_inclusive)
@@ -128,7 +130,9 @@ struct
            (Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr)
            (Payload.size payload))
     | Start_length { start_inclusive = _; length; payload } ->
-      let length = Dwarf_value.uleb128 (Targetint.nonnegative_to_uint64_exn length) in
+      let length =
+        Dwarf_value.uleb128 (Targetint.nonnegative_to_uint64_exn length)
+      in
       Dwarf_int.add
         (Dwarf_int.of_host_int_exn Dwarf_arch_sizes.size_addr)
         (Dwarf_int.add (Dwarf_value.size length) (Payload.size payload))
