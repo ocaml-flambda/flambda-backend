@@ -68,13 +68,14 @@ type extra_info =
 (** Create (and bind) a Cmm variable for the given Flambda variable, returning
     the new environment and the created variable. Will produce a fatal error if
     the given variable is already bound. *)
-val create_variable : t -> Variable.t -> t * Backend_var.With_provenance.t
+val create_bound_parameter :
+  t -> Variable.t -> t * Backend_var.With_provenance.t
 
 (** Same as {!create_variable} but for a list of variables. *)
-val create_variables :
+val create_bound_parameters :
   t -> Variable.t list -> t * Backend_var.With_provenance.t list
 
-(** Delayed let-bindings
+(** {2 Delayed let-bindings}
 
     Let-bindings are delayed in a certain way to allow for potential reordering
     and inlining of the defining expressions of bound variables that are used
@@ -120,7 +121,59 @@ val create_variables :
     Other bindings are delayed until they are explicitly flushed. Exactly which
     bindings get flushed at different points, for example prior to function
     calls or branching control flow, depends on decisions outside of this module
-    (e.g. in [To_cmm_expr]). *)
+    (e.g. in [To_cmm_expr]).
+
+    Additionally, bindings that must be inlined must be treated with special
+    care. Most notably, most of the time, we are in the case of a binding "let x
+    = prim(args)" where the primitive 'prim' is marked as `Delay`, which we
+    translate as Must_inline. In such cases, we want to inline the primitive
+    itself, but not necessarily its arguments. To correctly handle such cases,
+    we have a notion of "complex" bound argument that, in addition to a cmm
+    expression, also contains the arguments and a way to re-build the
+    expression. *)
+
+(** Some uniques and different types *)
+type simple = Simple
+
+type complex = Complex
+
+(** Inlining decision of bound expressions *)
+type _ inline =
+  | Do_not_inline : simple inline
+  | May_inline_once : simple inline
+  | Must_inline_once : complex inline
+  | Must_inline_and_duplicate : complex inline
+      (** Akin to systematic substitutions, it should not be used for
+          (co)effectful expressions *)
+
+(** The type of expression that can be bound. *)
+type _ bound_expr
+
+(** A simple cmm bound expression *)
+val simple : Cmm.expression -> simple bound_expr
+
+(** A bound expr that can be splitted if needed. This is used for primitives
+    that must be inlined, but whose arguments may not be inlinable or
+    duplicable, so that we can split the expression to be inliend from its
+    arguments if/when needed. The effects that are passed must correspond
+    respectively to each individual argument and to the primitive itself. *)
+val splittable_primitive :
+  string ->
+  (Cmm.expression * Effects_and_coeffects.t) list ->
+  Effects_and_coeffects.t ->
+  (Cmm.expression list -> Cmm.expression) ->
+  complex bound_expr
+
+(** Bind a variable, with support for splitting duplicatable primitives with
+    non-duplicatable arguments. *)
+val bind_variable_to_primitive :
+  ?extra:extra_info ->
+  t ->
+  Variable.t ->
+  inline:'a inline ->
+  defining_expr:'a bound_expr ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  t
 
 (** Bind a variable to the given Cmm expression, to allow for delaying the
     let-binding. *)
@@ -128,10 +181,9 @@ val bind_variable :
   ?extra:extra_info ->
   t ->
   Variable.t ->
-  num_normal_occurrences_of_bound_vars:
-    Num_occurrences.t Variable.Map.t Or_unknown.t ->
-  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   defining_expr:Cmm.expression ->
+  num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   t
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)

@@ -2,9 +2,13 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                        Guillaume Bury, OCamlPro                        *)
+(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*            Mark Shinwell and Xavier Clerc, Jane Street Europe          *)
 (*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
+(*     en Automatique.                                                    *)
+(*                                                                        *)
+(*   Copyright 2017--2019 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,32 +16,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Effects and coeffects *)
+(** Whether an expression can be moved around, including duplication *)
+type t =
+  | Delay
+      (** The expression should be placed as late as possible, even if it is
+          duplicated *)
+  | Strict
+      (** The expression must not be moved around (it has non-generative
+          effects, or coeffects, or doesn't benefit from being bound later *)
 
-(** A pair of an effect and a coeffect. *)
-type t = Effects.t * Coeffects.t * Placement.t
-
-(** Print *)
+(** Print function. *)
 val print : Format.formatter -> t -> unit
 
-(** Comparison. *)
+(** Comparison function. *)
 val compare : t -> t -> int
 
-(** The value stating that no effects of coeffects take place. This is exactly
-    [No_effects, No_coeffects, Strict]. *)
-val pure : t
-
-(** The value stating that no effects of coeffects take place. This is exactly
-    [No_effects, No_coeffects, Delay]. *)
-val pure_duplicatable : t
-
-(** The value stating that any effects and/or coeffects may take place. This is
-    exactly [Arbitrary_effects, Has_coeffects, Strict]. *)
-val all : t
-
-(** The value stating that a read (i.e only a coeffect) takes place. This is
-    [No_effects, Has_coeffects, Strict]. *)
-val read : t
-
-(** Join two effects and coeffects. *)
+(** Join *)
 val join : t -> t -> t

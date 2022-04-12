@@ -2,9 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                        Guillaume Bury, OCamlPro                        *)
+(*                      Vincent Laviron, OCamlPro                         *)
 (*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 2022 OCamlPro SAS                                          *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,27 +12,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Translation of Flambda primitives to Cmm. *)
+type t =
+  | Delay
+  | Strict
 
-val prim_simple :
-  To_cmm_env.t ->
-  To_cmm_result.t ->
-  Debuginfo.t ->
-  Flambda_primitive.t ->
-  To_cmm_env.simple To_cmm_env.bound_expr
-  * To_cmm_env.extra_info option
-  * To_cmm_env.t
-  * To_cmm_result.t
-  * Effects_and_coeffects.t
+let [@ocamlformat "disable"] print ppf dup =
+  match dup with
+  | Delay -> Format.fprintf ppf "duplicatable"
+  | Strict -> Format.fprintf ppf "non-duplicatable"
 
-val prim_complex :
-  effects_and_coeffects_of_prim:Flambda2_terms.Effects_and_coeffects.t ->
-  To_cmm_env.t ->
-  To_cmm_result.t ->
-  Debuginfo.t ->
-  Flambda_primitive.t ->
-  To_cmm_env.complex To_cmm_env.bound_expr
-  * To_cmm_env.extra_info option
-  * To_cmm_env.t
-  * To_cmm_result.t
-  * Effects_and_coeffects.t
+let compare dup1 dup2 =
+  match dup1, dup2 with
+  | Delay, Delay -> 0
+  | Delay, Strict -> -1
+  | Strict, Strict -> 0
+  | Strict, Delay -> 1
+
+let join dup1 dup2 =
+  match dup1, dup2 with
+  | Delay, Delay -> Delay
+  | Delay, Strict | Strict, Strict | Strict, Delay -> Strict

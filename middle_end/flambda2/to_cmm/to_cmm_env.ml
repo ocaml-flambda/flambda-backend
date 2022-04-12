@@ -33,23 +33,62 @@ type extra_info =
 
 (* Delayed let-bindings (see the .mli) *)
 
-type binding =
+(* the binding kinds *)
+type simple = Simple
+
+type complex = Complex
+
+type _ inline =
+  | Do_not_inline : simple inline
+  | May_inline_once : simple inline
+  | Must_inline_once : complex inline
+  | Must_inline_and_duplicate : complex inline
+
+(* Note on the effects of splittable bindings:
+
+   The arguments are stored with their effects. This means that if we need to
+   split the binding, we can re-bind each argument with its correct effects.
+
+   The [prim_effects] field stores the effects of the primitive itself (the part
+   of the binding that can be duplicated).
+
+   When the binding is inlined without splitting, these effects are not used;
+   instead the effects of the whole expression are used (they are stored
+   alongside the binding, as for normal bindings).
+
+   When the binding is split, [make_expr] is called on variables only, and the
+   effects of the resulting expression are assumed to be exactly
+   [prim_effects]. *)
+type _ bound_expr =
+  | Simple : { cmm_expr : Cmm.expression } -> simple bound_expr
+  | Split : { cmm_expr : Cmm.expression } -> complex bound_expr
+  | Splittable :
+      { name : string;
+        (* For debugging purposes only *)
+        args : (Cmm.expression * Ece.t) list;
+        prim_effects : Ece.t;
+        make_expr : Cmm.expression list -> Cmm.expression
+      }
+      -> complex bound_expr
+
+type 'kind binding =
   { order : int;
-    may_inline : bool;
-    (* [may_inline] means that the defining expression of the binding is safe to
-       inline, but it doesn't necessarily _have_ to be inlined. *)
     effs : Ece.t;
-    cmm_var : Backend_var.With_provenance.t;
-    cmm_expr : Cmm.expression
+    inline : 'kind inline;
+    bound_expr : 'kind bound_expr;
+    cmm_var : Backend_var.With_provenance.t
   }
 
+type any_binding = Binding : _ binding -> any_binding [@@unboxed]
+
 type stage =
-  | Effect of Variable.t * binding
-  | Coeffect_only of binding Variable.Map.t
+  | Effect of Variable.t
+  | Coeffect_only of Variable.Set.t
 
 type t =
-  { (* Global information. This is computed once and remains valid for a whole
-       compilation unit. *)
+  { (* Global information.
+
+       This is computed once and remains valid for a whole compilation unit. *)
     offsets : Exported_offsets.t;
     (* Offsets for function and value slots. *)
     functions_info : Exported_code.t;
@@ -65,11 +104,6 @@ type t =
     exn_continuation : Continuation.t;
     (* The exception continuation of the current context (used to determine
        where to insert try-with blocks). *)
-    vars : Cmm.expression Variable.Map.t;
-    (* Cmm expressions (of the form [Cvar ...]) describing all Flambda variables
-       in scope. *)
-    vars_extra : extra_info Variable.Map.t;
-    (* Extra information (see above) associated with Flambda variables. *)
     conts : cont Continuation.Map.t;
     (* Information about whether each continuation in scope should have its
        handler inlined, or else reached via a jump. *)
@@ -78,8 +112,13 @@ type t =
     exn_conts_extra_args : Backend_var.t list Continuation.Map.t;
     (* Mutable variables used for compiling the "extra arguments" to exception
        handlers. *)
-    pures : binding Variable.Map.t;
-    (* Pure let-bindings that can be inlined across _stages_ (see the .mli). *)
+    vars_extra : extra_info Variable.Map.t;
+    (* Extra information associated with Flambda variables. *)
+    vars : Cmm.expression Variable.Map.t;
+    (* Cmm expressions (of the form [Cvar ...]) for all bound variables in
+       scope. *)
+    bindings : any_binding Variable.Map.t;
+    (* All bindings currently in env. *)
     stages : stage list (* Stages of let-bindings, most recent at the head. *)
   }
 
@@ -89,9 +128,9 @@ let create offsets functions_info ~return_continuation ~exn_continuation =
     offsets;
     functions_info;
     stages = [];
-    pures = Variable.Map.empty;
-    vars = Variable.Map.empty;
+    bindings = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
+    vars = Variable.Map.empty;
     conts = Continuation.Map.empty;
     exn_handlers = Continuation.Set.singleton exn_continuation;
     exn_conts_extra_args = Continuation.Map.empty
@@ -103,6 +142,40 @@ let enter_function_body env ~return_continuation ~exn_continuation =
 let return_continuation env = env.return_continuation
 
 let exn_continuation env = env.exn_continuation
+
+let [@ocamlformat "disable"] print_inline (type a) ppf (inline : a inline) =
+  match inline with
+  | Do_not_inline -> Format.fprintf ppf "do_not_inline"
+  | May_inline_once -> Format.fprintf ppf "may_inline_once"
+  | Must_inline_once -> Format.fprintf ppf "must_inline_once"
+  | Must_inline_and_duplicate -> Format.fprintf ppf "must_inline_and_duplicate"
+
+let [@ocamlformat "disable"] print_bound_expr (type a) ppf (b : a bound_expr) =
+  match b with
+  | Simple { cmm_expr; } | Split { cmm_expr; } ->
+    Printcmm.expression ppf cmm_expr
+  | Splittable { name; args; prim_effects = _; make_expr = _; } ->
+    Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>(name@ %s)@]@ \
+      @[<hov 1>(args@ @[<hov 1>(%a)@])@]\
+    )@]"
+      name
+      (Format.pp_print_list (fun ppf (cmm, _) -> Printcmm.expression ppf cmm)) args
+
+let [@ocamlformat "disable"] print_binding ppf
+    (Binding { order; inline; effs; cmm_var; bound_expr; }) =
+  Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>(order@ %d)@]@ \
+      @[<hov 1>(inline@ %a)@]@ \
+      @[<hov 1>(effs@ %a)@]@ \
+      @[<hov 1>(var@ %a)@]@ \
+      @[<hov 1>(expr@ %a)@]\
+    )@]"
+    order
+    print_inline inline
+    Ece.print effs
+    Backend_var.With_provenance.print cmm_var
+    print_bound_expr bound_expr
 
 (* Code and closures *)
 
@@ -123,21 +196,22 @@ let gen_variable v =
   (* CR mshinwell: Fix [provenance] *)
   Backend_var.With_provenance.create ?provenance:None v
 
-let add_variable env v v' =
+let add_bound_param env v v' =
   let v'' = Backend_var.With_provenance.var v' in
   let vars = Variable.Map.add v (C.var v'') env.vars in
   { env with vars }
 
-let create_variable env v =
+let create_bound_parameter env v =
   if Variable.Map.mem v env.vars
   then
     Misc.fatal_errorf "Cannot rebind variable %a in To_cmm environment"
       Variable.print v;
   let v' = gen_variable v in
-  let env = add_variable env v v' in
+  let env = add_bound_param env v v' in
   env, v'
 
-let create_variables env vs = List.fold_left_map create_variable env vs
+let create_bound_parameters env vs =
+  List.fold_left_map create_bound_parameter env vs
 
 let extra_info env simple =
   match Simple.must_be_var simple with
@@ -208,150 +282,306 @@ let get_exn_extra_args env k =
 
 (* Variable binding (for potential inlining). Also see [To_cmm_effects]. *)
 
-let is_inlinable_box effs ~extra =
-  (* [effs] is the effects and coeffects of some primitive operation, arising
-     either from the primitive itself or its arguments. If this is a boxing
-     operation (as indicated by [extra]) then we want to inline the box. However
-     this involves moving the arguments, so they must be pure (or at most have
-     generative effects, with no coeffects). *)
-  match (effs : Ece.t), (extra : extra_info option) with
-  | ((No_effects | Only_generative_effects _), No_coeffects), Some Boxed_number
+let next_order = ref (-1)
+
+let simple cmm_expr = Simple { cmm_expr }
+
+let splittable_primitive name args prim_effects make_expr =
+  Splittable { name; args; prim_effects; make_expr }
+
+let complex_no_split name cmm_expr effs =
+  splittable_primitive name [] effs (fun _ -> cmm_expr)
+
+let is_cmm_simple cmm =
+  match[@ocaml.warning "-4"] (cmm : Cmm.expression) with
+  | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _ | Cvar _
     ->
     true
-  | ( ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
-        (No_coeffects | Has_coeffects) ),
-      (None | Some Boxed_number | Some (Untag _)) ) ->
-    false
+  | _ -> false
 
-let create_binding =
-  let next_order = ref (-1) in
-  fun ?extra env ~may_inline effs var cmm_expr ->
-    let order =
-      incr next_order;
-      !next_order
+let create_binding_aux (type a) ?extra env effs var ~(inline : a inline)
+    (bound_expr : a bound_expr) =
+  let order =
+    let incr =
+      match bound_expr with
+      | Simple _ | Split _ -> 1
+      | Splittable { args; _ } -> List.length args + 1
     in
-    let cmm_var = gen_variable var in
-    let binding = { order; may_inline; effs; cmm_var; cmm_expr } in
-    let cmm_expr = C.var (Backend_var.With_provenance.var cmm_var) in
-    let env = { env with vars = Variable.Map.add var cmm_expr env.vars } in
-    let env =
-      match extra with
-      | None -> env
-      | Some info ->
-        { env with vars_extra = Variable.Map.add var info env.vars_extra }
-    in
-    env, binding
-
-let bind_variable0 ?extra env var ~effects_and_coeffects_of_defining_expr:effs
-    ~may_inline ~defining_expr =
-  let env, binding =
-    create_binding ?extra env ~may_inline effs var defining_expr
+    next_order := !next_order + incr;
+    !next_order
   in
-  if may_inline && is_inlinable_box effs ~extra
-  then
-    (* CR-someday lmaurer: This violates our rule about not moving allocations
-       past function calls. We should either fix it (not clear how) or be rid of
-       that rule. *)
-    { env with pures = Variable.Map.add var binding env.pures }
-  else
+  let cmm_var = gen_variable var in
+  let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
+  let bindings = Variable.Map.add var binding env.bindings in
+  let cmm_expr = C.var (Backend_var.With_provenance.var cmm_var) in
+  let vars = Variable.Map.add var cmm_expr env.vars in
+  let vars_extra =
+    match extra with
+    | None -> env.vars_extra
+    | Some info -> Variable.Map.add var info env.vars_extra
+  in
+  let env = { env with bindings; vars; vars_extra } in
+  env, binding
+
+let create_binding (type a) ?extra env effs var ~(inline : a inline)
+    (bound_expr : a bound_expr) =
+  (* In order to avoid generating binding of the form: "let x = y in ...", when
+     'y' is trivial i.e. is a value that fits in a register, we mark 'x' as a
+     must_inline_and_duplicate (since it basically replaces a variable by either
+     another variable, a constant, or a symbol). *)
+  match bound_expr with
+  | Simple { cmm_expr } when is_cmm_simple cmm_expr ->
+    create_binding_aux ?extra env effs var ~inline:Must_inline_and_duplicate
+      (Split { cmm_expr })
+  | Simple _ | Split _ | Splittable _ ->
+    create_binding_aux ?extra env effs var ~inline bound_expr
+
+let bind_variable_with_decision (type a) ?extra env var ~inline
+    ~(defining_expr : a bound_expr) ~effects_and_coeffects_of_defining_expr:effs
+    =
+  let env, binding = create_binding ?extra env ~inline effs var defining_expr in
+  match (inline : a inline) with
+  | Must_inline_and_duplicate ->
+    (* check that the effects and coeffects allow the expression to be
+       duplicated without changing semantics *)
+    (match To_cmm_effects.classify_by_effects_and_coeffects effs with
+    | Pure | Generative_duplicable -> ()
+    | Coeffect_only | Effect ->
+      Misc.fatal_errorf
+        "Incorrect effects and/or coeffects for a duplicated binding: %a"
+        print_binding binding);
+    env
+  | May_inline_once | Must_inline_once | Do_not_inline -> (
     match To_cmm_effects.classify_by_effects_and_coeffects effs with
-    | Pure -> { env with pures = Variable.Map.add var binding env.pures }
-    | Effect -> { env with stages = Effect (var, binding) :: env.stages }
+    | Pure -> env
+    | Generative_duplicable -> (
+      match (inline : a inline) with
+      | Must_inline_once ->
+        (* CR: this allows to move allocations marked as `Must_inline_once` past
+           function calls (and other effectful expressions), which can break
+           some allocation-counting tests. *)
+        env
+      | May_inline_once | Do_not_inline ->
+        (* Generative expressions not marked as `must_inline` are treated as
+           having effects, since function from the `Gc` module can read counters
+           that are increased by allocations. *)
+        { env with stages = Effect var :: env.stages }
+      | Must_inline_and_duplicate -> assert false (* impossible to reach *))
+    | Effect -> { env with stages = Effect var :: env.stages }
     | Coeffect_only ->
       let stages =
         match env.stages with
-        | Coeffect_only bindings :: stages ->
+        | Coeffect_only vars :: stages ->
           (* Multiple coeffect-only bindings may be accumulated in the same
              stage. *)
-          Coeffect_only (Variable.Map.add var binding bindings) :: stages
+          Coeffect_only (Variable.Set.add var vars) :: stages
         | [] | Effect _ :: _ ->
-          Coeffect_only (Variable.Map.singleton var binding) :: env.stages
+          Coeffect_only (Variable.Set.singleton var) :: env.stages
       in
-      { env with stages }
+      { env with stages })
 
-let bind_variable ?extra env v
-    ~(num_normal_occurrences_of_bound_vars : _ Or_unknown.t)
-    ~effects_and_coeffects_of_defining_expr ~defining_expr =
-  let[@inline] bind_variable0 ~may_inline =
-    bind_variable0 env v ?extra ~effects_and_coeffects_of_defining_expr
-      ~may_inline ~defining_expr
+let bind_variable ?extra env var ~defining_expr
+    ~num_normal_occurrences_of_bound_vars
+    ~effects_and_coeffects_of_defining_expr =
+  let inline =
+    To_cmm_effects.classify_let_binding var
+      ~effects_and_coeffects_of_defining_expr
+      ~num_normal_occurrences_of_bound_vars
   in
-  match num_normal_occurrences_of_bound_vars with
-  | Unknown -> bind_variable0 ~may_inline:false
-  | Known num_normal_occurrences_of_bound_vars -> (
-    match
-      To_cmm_effects.classify_let_binding v
-        ~effects_and_coeffects_of_defining_expr
-        ~num_normal_occurrences_of_bound_vars
-    with
-    | Drop_defining_expr -> env
-    | May_inline -> bind_variable0 ~may_inline:true
-    | Regular -> bind_variable0 ~may_inline:false)
+  match inline with
+  | Drop_defining_expr -> env
+  | Regular ->
+    let defining_expr = simple defining_expr in
+    bind_variable_with_decision ?extra env var
+      ~effects_and_coeffects_of_defining_expr ~defining_expr
+      ~inline:Do_not_inline
+  | May_inline_once ->
+    let defining_expr = simple defining_expr in
+    bind_variable_with_decision ?extra env var
+      ~effects_and_coeffects_of_defining_expr ~defining_expr
+      ~inline:May_inline_once
+  | Must_inline_once ->
+    let name = Format.asprintf "%a" Printcmm.expression defining_expr in
+    let defining_expr =
+      complex_no_split name defining_expr effects_and_coeffects_of_defining_expr
+    in
+    bind_variable_with_decision ?extra env var
+      ~effects_and_coeffects_of_defining_expr ~defining_expr
+      ~inline:Must_inline_once
+  | Must_inline_and_duplicate ->
+    let name = Format.asprintf "%a" Printcmm.expression defining_expr in
+    let defining_expr =
+      complex_no_split name defining_expr effects_and_coeffects_of_defining_expr
+    in
+    bind_variable_with_decision ?extra env var
+      ~effects_and_coeffects_of_defining_expr ~defining_expr
+      ~inline:Must_inline_and_duplicate
+
+let bind_variable_to_primitive = bind_variable_with_decision
 
 (* Variable lookup (for potential inlining) *)
 
-let will_inline env binding = binding.cmm_expr, env, binding.effs
+let split_complex_binding (binding : complex binding) =
+  match binding.bound_expr with
+  | Split _ -> None
+  | Splittable { name = _; args; prim_effects; make_expr } ->
+    let (new_bindings, _), new_cmm_args =
+      List.fold_left_map
+        (fun (new_bindings, order) (cmm_arg, arg_effs) ->
+          if is_cmm_simple cmm_arg
+          then (new_bindings, order), cmm_arg
+          else
+            (* we need to rebind the argument *)
+            let new_cmm_var =
+              Backend_var.With_provenance.create ?provenance:None
+                (Backend_var.create_local
+                   (Format.asprintf "split_tmp_%d" order))
+            in
+            let binding =
+              Binding
+                { order;
+                  effs = arg_effs;
+                  inline = Do_not_inline;
+                  bound_expr = Simple { cmm_expr = cmm_arg };
+                  cmm_var = new_cmm_var
+                }
+            in
+            ( (binding :: new_bindings, order - 1),
+              C.var (Backend_var.With_provenance.var new_cmm_var) ))
+        ([], binding.order - 1)
+        args
+    in
+    let new_cmm_expr = make_expr new_cmm_args in
+    (match To_cmm_effects.classify_by_effects_and_coeffects prim_effects with
+    | Pure | Generative_duplicable -> ()
+    | Effect | Coeffect_only ->
+      Misc.fatal_errorf
+        "Once split, a 'must_inline_once' binding cannot have effects or \
+         coeffects, since it can be moved around to be inlined.");
+    let split_binding =
+      { order = binding.order;
+        effs = prim_effects;
+        inline = binding.inline;
+        bound_expr = Split { cmm_expr = new_cmm_expr };
+        cmm_var = binding.cmm_var
+      }
+    in
+    Some (new_bindings, split_binding)
 
-let will_not_inline env binding =
-  C.var (Backend_var.With_provenance.var binding.cmm_var), env, Ece.pure
+let remove_binding env var =
+  { env with bindings = Variable.Map.remove var env.bindings }
 
-let will_not_inline_var env v =
-  (* This is like [will_not_inline] but is used in the case where no delayed
-     [binding] is available. A preallocated [Cvar] expression will be used. *)
-  match Variable.Map.find v env.vars with
-  | exception Not_found ->
-    Misc.fatal_errorf "Variable %a not found in env" Variable.print v
-  | e -> e, env, Ece.pure
+let will_inline_simple env { effs; bound_expr = Simple { cmm_expr }; _ } =
+  cmm_expr, env, effs
+
+let will_inline_complex env { effs; bound_expr; _ } =
+  match bound_expr with
+  | Split { cmm_expr } -> cmm_expr, env, effs
+  | Splittable { name = _; args; prim_effects = _; make_expr } ->
+    let cmm_expr = make_expr (List.map fst args) in
+    cmm_expr, env, effs
+
+let will_not_inline_simple env { cmm_var; bound_expr = Simple _; _ } =
+  C.var (Backend_var.With_provenance.var cmm_var), env, Ece.pure_duplicatable
+
+let split_and_inline env var binding =
+  match split_complex_binding binding with
+  | None -> will_inline_complex env binding
+  | Some (new_bindings, split_binding) ->
+    let env =
+      (* for duplicated bindings, we need to replace the original splittable
+         binding with the new split binding in the bindings map of the env *)
+      match split_binding.inline with
+      | Must_inline_once -> env
+      | Must_inline_and_duplicate ->
+        { env with
+          bindings = Variable.Map.add var (Binding split_binding) env.bindings
+        }
+    in
+    let env =
+      List.fold_left
+        (fun env new_binding ->
+          let flambda_var = Variable.create "to_cmm_tmp" in
+          { env with
+            bindings = Variable.Map.add flambda_var new_binding env.bindings
+          })
+        env new_bindings
+    in
+    will_inline_complex env split_binding
+
+let pop_from_top_stage ?consider_inlining_effectful_expressions env var =
+  match env.stages with
+  | [] -> None
+  | Effect var_from_stage :: prev_stages ->
+    (* In this case [var_from_stage] corresponds to an effectful binding forming
+       the most recent stage. We also know that [var] doesn't have an available
+       pure defining expression (either because that expression isn't pure, or
+       because the corresponding binding has already been flushed). As such, we
+       can't move the defining expression for [var] past that of
+       [var_from_stage], in the case where these variables are different.
+       However if these two variables are in fact the same, we can consider
+       inlining the defining expression. *)
+    let consider_inlining_effectful_expressions =
+      match consider_inlining_effectful_expressions with
+      | Some consider -> consider
+      | None -> Flambda_features.Expert.inline_effects_in_cmm ()
+    in
+    if Variable.equal var var_from_stage
+       && consider_inlining_effectful_expressions
+    then Some { env with stages = prev_stages }
+    else None
+  | Coeffect_only vars_from_stage :: prev_stages ->
+    (* Here we see if [var] has a coeffect-only defining expression on the most
+       recent stage. If so, then we can commute it with any other expression on
+       the stage, since they all only have coeffects. The defining expression
+       for [var] may then be considered for inlining. *)
+    if Variable.Set.mem var vars_from_stage
+    then
+      let new_vars_in_stage = Variable.Set.remove var vars_from_stage in
+      let stages =
+        if Variable.Set.is_empty new_vars_in_stage
+        then prev_stages
+        else Coeffect_only new_vars_in_stage :: prev_stages
+      in
+      Some { env with stages }
+    else None
 
 let inline_variable ?consider_inlining_effectful_expressions env var =
-  match Variable.Map.find var env.pures with
-  | binding ->
-    if not binding.may_inline
-    then will_not_inline env binding
-    else
-      (* Pure bindings may be inlined at most once. *)
-      let pures = Variable.Map.remove var env.pures in
-      will_inline { env with pures } binding
+  match Variable.Map.find var env.bindings with
   | exception Not_found -> (
-    match env.stages with
-    | [] -> will_not_inline_var env var
-    | Effect (var_from_stage, binding) :: prev_stages ->
-      (* In this case [var_from_stage] corresponds to an effectful binding
-         forming the most recent stage. We also know that [var] doesn't have an
-         available pure defining expression (either because that expression
-         isn't pure, or because the corresponding binding has already been
-         flushed). As such, we can't move the defining expression for [var] past
-         that of [var_from_stage], in the case where these variables are
-         different. However if these two variables are in fact the same, we can
-         consider inlining the defining expression. *)
-      let consider_inlining_effectful_expressions =
-        match consider_inlining_effectful_expressions with
-        | Some consider -> consider
-        | None -> Flambda_features.Expert.inline_effects_in_cmm ()
-      in
-      if not (Variable.equal var var_from_stage)
-      then will_not_inline_var env var
-      else if binding.may_inline && consider_inlining_effectful_expressions
-      then will_inline { env with stages = prev_stages } binding
-      else will_not_inline env binding
-    | Coeffect_only coeffects :: prev_stages -> (
-      (* Here we see if [var] has a coeffect-only defining expression on the
-         most recent stage. If so, then we can commute it with any other
-         expression on the stage, since they all only have coeffects. The
-         defining expression for [var] may then be considered for inlining. *)
-      match Variable.Map.find var coeffects with
-      | exception Not_found -> will_not_inline_var env var
-      | binding ->
-        if not binding.may_inline
-        then will_not_inline env binding
-        else
-          let coeffects = Variable.Map.remove var coeffects in
-          let env =
-            if Variable.Map.is_empty coeffects
-            then { env with stages = prev_stages }
-            else { env with stages = Coeffect_only coeffects :: prev_stages }
-          in
-          will_inline env binding))
+    (* this happens for continuation parameters and bindings that have been
+       flushed *)
+    match Variable.Map.find var env.vars with
+    | exception Not_found ->
+      Misc.fatal_errorf "Variable %a not found in env" Variable.print var
+    | e -> e, env, Ece.pure_duplicatable)
+  | Binding binding -> (
+    match binding.inline with
+    | Do_not_inline -> will_not_inline_simple env binding
+    | Must_inline_and_duplicate -> split_and_inline env var binding
+    | Must_inline_once -> (
+      let env = remove_binding env var in
+      match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
+      | Pure | Generative_duplicable -> will_inline_complex env binding
+      | Effect | Coeffect_only -> (
+        match
+          pop_from_top_stage ?consider_inlining_effectful_expressions env var
+        with
+        | None -> split_and_inline env var binding
+        | Some env -> will_inline_complex env binding))
+    | May_inline_once -> (
+      match To_cmm_effects.classify_by_effects_and_coeffects binding.effs with
+      | Pure ->
+        let env = remove_binding env var in
+        will_inline_simple env binding
+      | Generative_duplicable | Effect | Coeffect_only -> (
+        match
+          pop_from_top_stage ?consider_inlining_effectful_expressions env var
+        with
+        | None -> will_not_inline_simple env binding
+        | Some env ->
+          let env = remove_binding env var in
+          will_inline_simple env binding)))
 
 (* Flushing delayed bindings *)
 
@@ -362,36 +592,75 @@ module M = Map.Make (struct
   let compare x y = compare y x
 end)
 
-let order_add b acc = M.add b.order b acc
-
-let order_add_map m acc =
-  Variable.Map.fold (fun _ b acc -> order_add b acc) m acc
-
 let flush_delayed_lets ?(entering_loop = false) env =
   (* Generate a wrapper function to introduce the delayed let-bindings. *)
-  let flush pures stages e =
-    let order_map = order_add_map pures M.empty in
-    let order_map =
-      List.fold_left
-        (fun acc -> function
-          | Effect (_, b) -> order_add b acc
-          | Coeffect_only m -> order_add_map m acc)
-        order_map stages
-    in
+  let wrap_flush order_map e =
     M.fold
-      (fun _ b acc ->
-        Cmm_helpers.letin b.cmm_var ~defining_expr:b.cmm_expr ~body:acc)
+      (fun _ (Binding b) acc ->
+        match b.inline, b.bound_expr with
+        (* We drop bindings that have been marked as being inlined and
+           duplicated. *)
+        | Must_inline_and_duplicate, _ | Must_inline_once, _ ->
+          Misc.fatal_errorf "'Must inline' bindings should never be flushed"
+        | May_inline_once, Simple { cmm_expr }
+        | Do_not_inline, Simple { cmm_expr } ->
+          Cmm_helpers.letin b.cmm_var ~defining_expr:cmm_expr ~body:acc)
       order_map e
   in
-  (* Unless entering a loop, only pure bindings that definitely cannot be
-     inlined are flushed now. The remainder are preserved, ensuring that the
-     corresponding expressions are sunk down as far as possible. *)
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
-     loops. *)
-  let pures_to_keep, pures_to_flush =
-    if entering_loop
-    then Variable.Map.empty, env.pures
-    else Variable.Map.partition (fun _ binding -> binding.may_inline) env.pures
+     loops. CR gbury: this is now done by creating a binding with the inline
+     status `Must_inline_and_duplicate`, so the caller of `to_cmm_env` has to
+     make that decision of whether to substitute inside loops. *)
+  let bindings_to_flush = ref M.empty in
+  let flush (Binding b as binding) =
+    if M.mem b.order !bindings_to_flush
+    then Misc.fatal_errorf "Duplicate order for bindings when flushing";
+    bindings_to_flush := M.add b.order binding !bindings_to_flush
   in
-  let flush e = flush pures_to_flush env.stages e in
-  flush, { env with stages = []; pures = pures_to_keep }
+  let bindings_to_keep =
+    Variable.Map.filter_map
+      (fun _ (Binding b as binding) ->
+        match b.inline with
+        | Do_not_inline ->
+          flush binding;
+          None
+        | Must_inline_and_duplicate -> (
+          match split_complex_binding b with
+          | None -> (* already split *) Some binding
+          | Some (arg_bindings, split_binding) ->
+            List.iter flush arg_bindings;
+            Some (Binding split_binding))
+        | Must_inline_once -> (
+          match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
+          (* when not entering a loop, and with pure/generative effects at most,
+             we can wait to split the binding, so that we can have a chance to
+             try and push the arguments down the branch (otherwise, when we
+             split, the arguments of the splittable binding would be flushed
+             before the branch in control flow). *)
+          | (Pure | Generative_duplicable) when not entering_loop ->
+            Some binding
+          | Pure | Generative_duplicable | Coeffect_only | Effect -> (
+            match split_complex_binding b with
+            | None -> (* already split *) Some binding
+            | Some (arg_bindings, split_binding) ->
+              List.iter flush arg_bindings;
+              Some (Binding split_binding)))
+        | May_inline_once -> (
+          match To_cmm_effects.classify_by_effects_and_coeffects b.effs with
+          (* Unless entering a loop, we do not flush pure bindings that can be
+             inlined, ensuring that the corresponding expressions are sunk down
+             as far as possible, including past control flow branching
+             points. *)
+          | Pure ->
+            if entering_loop
+            then (
+              flush binding;
+              None)
+            else Some binding
+          | Generative_duplicable | Coeffect_only | Effect ->
+            flush binding;
+            None))
+      env.bindings
+  in
+  let flush e = wrap_flush !bindings_to_flush e in
+  flush, { env with stages = []; bindings = bindings_to_keep }

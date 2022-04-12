@@ -19,20 +19,26 @@ type effects_and_coeffects_classification =
   | Pure
   | Effect
   | Coeffect_only
+  | Generative_duplicable
 
 let classify_by_effects_and_coeffects effs =
   (* See the comments on type [classification] in the .mli. *)
   match (effs : Effects_and_coeffects.t) with
-  | Arbitrary_effects, (Has_coeffects | No_coeffects)
-  | Only_generative_effects _, (Has_coeffects | No_coeffects) ->
+  | Only_generative_effects Immutable, No_coeffects, _ -> Generative_duplicable
+  | Arbitrary_effects, (Has_coeffects | No_coeffects), _
+  | ( Only_generative_effects (Mutable | Immutable | Immutable_unique),
+      (Has_coeffects | No_coeffects),
+      _ ) ->
     Effect
-  | No_effects, Has_coeffects -> Coeffect_only
-  | No_effects, No_coeffects -> Pure
+  | No_effects, Has_coeffects, _ -> Coeffect_only
+  | No_effects, No_coeffects, _ -> Pure
 
 type let_binding_classification =
-  | Regular
   | Drop_defining_expr
-  | May_inline
+  | Regular
+  | May_inline_once
+  | Must_inline_once
+  | Must_inline_and_duplicate
 
 let classify_let_binding var
     ~(effects_and_coeffects_of_defining_expr : Effects_and_coeffects.t)
@@ -43,13 +49,17 @@ let classify_let_binding var
     match
       classify_by_effects_and_coeffects effects_and_coeffects_of_defining_expr
     with
-    | Coeffect_only | Pure -> Drop_defining_expr
+    | Coeffect_only | Generative_duplicable | Pure -> Drop_defining_expr
     | Effect ->
       Regular
       (* Could be May_inline technically, but it doesn't matter since it can
          only be flushed by the env. *))
-  | One ->
-    (* Any defining expression used exactly once is considered for inlining at
+  | One -> (
+    (* This case represents expressions that are guaranteed to be evaluated
+       exactly once at runtime (and thus do not include expressions inside
+       loops).
+
+       Any defining expression used exactly once is considered for inlining at
        this stage. The environment is going to handle the details of preserving
        the effects and coeffects ordering (if inlining without reordering is
        impossible then the expressions will be bound at some safe place
@@ -58,8 +68,15 @@ let classify_let_binding var
        Whether inlining of _effectful_ expressions _actually occurs_ depends on
        the context. Currently this is very restricted, see comments in
        [To_cmm_primitive]. *)
-    May_inline
-  | More_than_one -> Regular
+    match effects_and_coeffects_of_defining_expr with
+    | _, _, Delay -> Must_inline_once
+    | _, _, Strict -> May_inline_once)
+  | More_than_one -> (
+    (* Note: expressions in loops are counted as having two occurrences to
+       ensure that they fall in this case *)
+    match effects_and_coeffects_of_defining_expr with
+    | _, _, Delay -> Must_inline_and_duplicate
+    | _, _, Strict -> Regular)
 
 type continuation_handler_classification =
   | Regular

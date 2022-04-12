@@ -36,10 +36,8 @@ let bind_var_to_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
   let defining_expr, env, effects_and_coeffects_of_defining_expr =
     C.simple ~dbg env s
   in
-  Env.bind_variable env v
-    ~num_normal_occurrences_of_bound_vars:
-      (Known num_normal_occurrences_of_bound_vars)
-    ~effects_and_coeffects_of_defining_expr ~defining_expr
+  Env.bind_variable env v ~effects_and_coeffects_of_defining_expr ~defining_expr
+    ~num_normal_occurrences_of_bound_vars
 
 (* Helpers for the translation of [Apply] expressions. *)
 
@@ -188,6 +186,9 @@ let translate_apply env apply =
   let extra_args = Exn_continuation.extra_args k_exn in
   if List.compare_lengths extra_args mut_vars = 0
   then
+    (* Note wrt evaluation order: this is correct for the same reason as
+       `To_cmm_shared.simple_list`, namely the first simple translated (and
+       potentially inlined/substituted) is evaluted last. *)
     let aux (call, env) (arg, _k) v =
       let arg, env, _ = C.simple ~dbg env arg in
       C.sequence (C.assign v arg) call, env
@@ -305,21 +306,50 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
     when (not (Flambda_features.stack_allocation_enabled ()))
          && Flambda_primitive.is_begin_or_end_region p ->
     expr env res body
-  | Singleton v, Prim (p, dbg) ->
+  | Singleton v, Prim (p, dbg) -> (
     let v = Bound_var.var v in
-    let defining_expr, extra, env, res, effs =
-      To_cmm_primitive.prim env res dbg p
+    let effects_and_coeffects_of_prim =
+      Flambda_primitive.effects_and_coeffects p
     in
-    let effects_and_coeffects_of_defining_expr =
-      Ece.join effs (Flambda_primitive.effects_and_coeffects p)
+    let inline =
+      To_cmm_effects.classify_let_binding v
+        ~num_normal_occurrences_of_bound_vars
+        ~effects_and_coeffects_of_defining_expr:effects_and_coeffects_of_prim
     in
-    let env =
-      Env.bind_variable ?extra env v
-        ~num_normal_occurrences_of_bound_vars:
-          (Known num_normal_occurrences_of_bound_vars)
-        ~effects_and_coeffects_of_defining_expr ~defining_expr
+    let simple_case (inline : Env.simple Env.inline) =
+      let defining_expr, extra, env, res, args_effs =
+        To_cmm_primitive.prim_simple env res dbg p
+      in
+      let effects_and_coeffects_of_defining_expr =
+        Ece.join args_effs effects_and_coeffects_of_prim
+      in
+      let env =
+        Env.bind_variable_to_primitive ?extra env v ~inline
+          ~effects_and_coeffects_of_defining_expr ~defining_expr
+      in
+      expr env res body
     in
-    expr env res body
+    let complex_case (inline : Env.complex Env.inline) =
+      let defining_expr, extra, env, res, args_effs =
+        To_cmm_primitive.prim_complex env res dbg p
+          ~effects_and_coeffects_of_prim
+      in
+      let effects_and_coeffects_of_defining_expr =
+        Ece.join args_effs effects_and_coeffects_of_prim
+      in
+      let env =
+        Env.bind_variable_to_primitive ?extra env v ~inline
+          ~effects_and_coeffects_of_defining_expr ~defining_expr
+      in
+      expr env res body
+    in
+    match inline with
+    (* It can be useful to translate a dropped expression because it allows to
+       inline (and thus remove from the env) the arguments in it. *)
+    | Drop_defining_expr | Regular -> simple_case Do_not_inline
+    | May_inline_once -> simple_case May_inline_once
+    | Must_inline_once -> complex_case Must_inline_once
+    | Must_inline_and_duplicate -> complex_case Must_inline_and_duplicate)
   | Set_of_closures bound_vars, Set_of_closures soc ->
     To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
@@ -560,33 +590,26 @@ and apply_expr env res apply =
         Continuation.print k Apply.print apply
     in
     match Env.get_continuation env k with
-    | Jump { param_types = []; cont } ->
-      (* Case 2 *)
-      let wrap, _ = Env.flush_delayed_lets env in
-      wrap (C.sequence call (C.cexit cont [] [])), res
+    | Jump { param_types = []; cont = _ } -> unsupported ()
     | Jump { param_types = [_]; cont } ->
       (* Case 2 *)
       let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.cexit cont [call] []), res
     | Inline { handler_params; handler_body = body; handler_params_occurrences }
-      ->
+      -> (
       (* Case 3 *)
       let handler_params = Bound_parameters.to_list handler_params in
-      let var, num_normal_occurrences_of_bound_vars =
-        match handler_params with
-        | [] ->
-          let var = Variable.create "*apply_res*" in
-          var, Variable.Map.singleton var Num_occurrences.Zero
-        | [param] -> Bound_parameter.var param, handler_params_occurrences
-        | _ :: _ -> unsupported ()
-      in
-      let env =
-        Env.bind_variable env var
-          ~num_normal_occurrences_of_bound_vars:
-            (Known num_normal_occurrences_of_bound_vars)
-          ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
-      in
-      expr env res body
+      match handler_params with
+      | [] -> unsupported ()
+      | [param] ->
+        let var = Bound_parameter.var param in
+        let env =
+          Env.bind_variable env var ~effects_and_coeffects_of_defining_expr:effs
+            ~defining_expr:call
+            ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
+        in
+        expr env res body
+      | _ :: _ -> unsupported ())
     | Jump _ -> unsupported ())
 
 and apply_cont env res apply_cont =

@@ -215,6 +215,12 @@ module Dynamic = Make_layout_filler (struct
 
   let int ~dbg i = C.nativeint ~dbg i
 
+  (* The reason why we can inline simple here is the same as in
+     `To_cmm_shared.simple_list`: the first simple translated (and thus in which
+     an inlining/substitution can occur), is the last simple that will be
+     evaluated, according to the right-to-left evaluation order. This is ensured
+     by the fact that we build each field of the set of closure in left-to-right
+     order, so that the first translated field is actually evaluated last. *)
   let simple ~dbg env simple =
     let term, env, eff = C.simple ~dbg env simple in
     `Data [term], env, eff
@@ -316,6 +322,7 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
           ~exn_continuation params ~body ~my_closure ~is_my_closure_used
           ~translate_expr
       with Misc.Fatal_error as e ->
+        let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
           "\n\
            %tContext is:%t translating function %a to Cmm with return cont %a, \
@@ -323,7 +330,7 @@ let params_and_body env res code_id p ~fun_dbg ~check ~translate_expr =
           Flambda_colours.error Flambda_colours.pop Code_id.print code_id
           Continuation.print return_continuation Continuation.print
           exn_continuation Expr.print body;
-        raise e)
+        Printexc.raise_with_backtrace e bt)
 
 (* Translation of sets of closures. *)
 
@@ -410,7 +417,8 @@ let let_static_set_of_closures env closure_symbols set ~prev_updates =
  *   g
 
  *)
-let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
+let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+    ~num_normal_occurrences_of_bound_vars =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let dbg = debuginfo_for_set_of_closures env set in
@@ -441,15 +449,14 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
-  (* CR-someday gbury: inline the variables (requires extending To_cmm_env to
-     inline pure variables more than once). *)
   let env =
     List.fold_left2
       (fun acc cid v ->
         let v = Bound_var.var v in
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
-        Env.bind_variable acc v ~effects_and_coeffects_of_defining_expr:Ece.pure
-          ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:sym)
+        Env.bind_variable acc v ~defining_expr:sym
+          ~num_normal_occurrences_of_bound_vars
+          ~effects_and_coeffects_of_defining_expr:Ece.pure_duplicatable)
       env cids bound_vars
   in
   translate_expr env res body
@@ -463,9 +470,10 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let dbg = debuginfo_for_set_of_closures env set in
   let effs : Ece.t =
     ( Only_generative_effects Immutable,
-      match closure_alloc_mode with
+      (match closure_alloc_mode with
       | Heap -> No_coeffects
-      | Local _ -> Has_coeffects )
+      | Local _ -> Has_coeffects),
+      Strict )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
@@ -483,9 +491,10 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
       dbg tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
+  let defining_expr = Env.simple csoc in
   let env =
-    Env.bind_variable env soc_var ~effects_and_coeffects_of_defining_expr:effs
-      ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:csoc
+    Env.bind_variable_to_primitive env soc_var ~inline:Env.Do_not_inline
+      ~defining_expr ~effects_and_coeffects_of_defining_expr:effs
   in
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
@@ -493,8 +502,8 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   assert (
     match To_cmm_effects.classify_by_effects_and_coeffects peff with
     | Pure -> true
-    | Effect | Coeffect_only -> false);
-  (* Add env bindings for all of the value slots. *)
+    | Generative_duplicable | Effect | Coeffect_only -> false);
+  (* Helper function to get the a cmm expr for a closure offset *)
   let get_closure_by_offset env set_cmm function_slot =
     match
       Exported_offsets.function_slot_offset (Env.exported_offsets env)
@@ -515,10 +524,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
         | None -> acc
         | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
           let v = Bound_var.var v in
-          Env.bind_variable acc v
-            ~num_normal_occurrences_of_bound_vars:
-              (Known num_normal_occurrences_of_bound_vars)
-            ~effects_and_coeffects_of_defining_expr ~defining_expr)
+          Env.bind_variable acc v ~defining_expr
+            ~num_normal_occurrences_of_bound_vars
+            ~effects_and_coeffects_of_defining_expr)
       env
       (Function_slot.Lmap.keys decls)
       bound_vars
@@ -529,7 +537,9 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars
     ~num_normal_occurrences_of_bound_vars set ~translate_expr =
   let layout = layout_for_set_of_closures env set in
   if layout.empty_env
-  then lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+  then
+    lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
+      ~num_normal_occurrences_of_bound_vars
   else
     let_dynamic_set_of_closures0 env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars set layout
