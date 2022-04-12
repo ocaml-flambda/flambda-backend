@@ -13,6 +13,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(** Inlining decision of bound expressions *)
+type inline =
+  | Do_not_inline
+  | Inline_once
+  | Duplicate
+      (** Akin to systematic substitutions, it should not be used for
+          (co)effectful expressions *)
+
 (** {1 Translation environment} *)
 
 (** Environment for Flambda to Cmm translation *)

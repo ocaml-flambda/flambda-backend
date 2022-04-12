@@ -424,8 +424,6 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
-  (* CR-someday gbury: inline the variables (requires extending To_cmm_env to
-     inline pure variables more than once). *)
   let env =
     List.fold_left2
       (fun acc cid v ->
