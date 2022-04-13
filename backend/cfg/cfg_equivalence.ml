@@ -510,7 +510,9 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
      && is_valid_stack_offset result.stack_offset
   then begin
     if not (Int.equal expected.stack_offset result.stack_offset)
-    then different location "trap depth";
+    then different location
+           (Printf.sprintf "stack offset: expected=%d result=%d"
+              expected.stack_offset result.stack_offset);
     let location = location ^ " (exceptional successors)" in
     match expected.exn, result.exn with
     | None, None -> ()

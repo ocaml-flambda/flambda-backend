@@ -569,114 +569,137 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
 module Trap_depth_and_exn = struct
   type handler_stack = Label.t list
 
-  (* Optional exceptional successor, starting at label with stack. *)
-  type handler_option = (Label.t * handler_stack) option
+  let compute_stack_offset ~stack_offset ~traps =
+    stack_offset + (Proc.trap_size_in_bytes * List.length traps)
 
-  let record_handler :
-      handler_stack ->
-      handler_option ->
-      can_raise:bool ->
-      handler_stack * handler_option =
-   fun stack exceptional_successor ~can_raise ->
-    if can_raise
-    then (
-      match stack with
-      | [] -> stack, exceptional_successor
-      | handler_label :: handler_stack ->
-        assert (Option.is_none exceptional_successor);
-        stack, Some (handler_label, handler_stack))
-    else stack, exceptional_successor
+  let check_and_set_stack_offset :
+      'a Cfg.instruction ->
+      stack_offset:int ->
+      traps:handler_stack ->
+      'a Cfg.instruction =
+   fun instr ~stack_offset ~traps ->
+    assert (instr.stack_offset = invalid_stack_offset);
+    Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
 
   let process_terminator :
-      handler_option ->
-      handler_stack ->
+      stack_offset:int ->
+      traps:handler_stack ->
       Cfg.terminator Cfg.instruction ->
-      (handler_stack * handler_option) * Cfg.terminator Cfg.instruction =
-   fun exceptional_successor stack term ->
-   let term = Cfg.set_stack_offset term
-                (Proc.trap_size_in_bytes * (succ (List.length stack))) in
+      int * handler_stack * Cfg.terminator Cfg.instruction =
+   fun ~stack_offset ~traps term ->
+    assert (term.stack_offset = invalid_stack_offset);
+    let term = check_and_set_stack_offset term ~stack_offset ~traps in
     match term.desc with
+    | Tailcall (Self _) when List.length traps <> 0 || stack_offset <> 0 ->
+      Misc.fatal_error
+        "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
+         tailcall"
+    | Tailcall (Self _)
     | Never | Return
     | Tailcall (Func _)
     | Call_no_return _ | Raise _ | Always _ | Parity_test _ | Truth_test _
     | Float_test _ | Int_test _ | Switch _ ->
-      ( record_handler stack exceptional_successor
-          ~can_raise:(Cfg.can_raise_terminator term.desc),
-        term )
-    | Tailcall (Self _) ->
-      if List.length stack <> 0
-      then
-        Misc.fatal_error
-          "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
-           tailcall"
-      else (stack, exceptional_successor), term
+      stack_offset, traps, term
 
-  let process_basic :
-      handler_option ->
-      handler_stack ->
-      Cfg.basic Cfg.instruction ->
-      (handler_stack * handler_option) * Cfg.basic Cfg.instruction =
-   fun exceptional_successor stack instr ->
-   let instr = Cfg.set_stack_offset instr
-                 (Proc.trap_size_in_bytes * (succ (List.length stack))) in
-    match instr.desc with
-    | Pushtrap { lbl_handler } ->
-      (lbl_handler :: stack, exceptional_successor), instr
-    | Poptrap -> begin
-      match stack with
-      | [] ->
-        Misc.fatal_error
-          "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
-      | _ :: stack -> (stack, exceptional_successor), instr
-    end
-    | Op _ | Call _ | Reloadretaddr | Prologue ->
-      ( record_handler stack exceptional_successor
-          ~can_raise:(Cfg.can_raise_basic instr.desc),
-        instr )
+  (* The only reason for this check is to avoid assert failures in the recursive
+     call *)
+  let propagate (cfg : Cfg.t) (block : Cfg.basic_block) successor_label =
+    if block.dead
+    then
+      let successor_block = Cfg.get_block_exn cfg successor_label in
+      if successor_block.dead
+      then true
+      else (* don't propagate from dead to live block *)
+        false
+    else true
 
-  (* CR gyorsh: how to handle Istackoffset correctly here? *)
-  let rec update_block : Cfg.t -> Label.t -> handler_stack -> unit =
-   fun cfg label stack ->
+  let rec update_block :
+      Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit =
+   fun cfg label ~stack_offset ~traps ->
+    let process_basic :
+        stack_offset:int ->
+        traps:handler_stack ->
+        Cfg.basic Cfg.instruction ->
+        int * handler_stack * Cfg.basic Cfg.instruction =
+     fun ~stack_offset ~traps instr ->
+      let instr = check_and_set_stack_offset instr ~stack_offset ~traps in
+      match instr.desc with
+      | Pushtrap { lbl_handler } ->
+        update_block cfg lbl_handler ~stack_offset ~traps;
+        stack_offset, lbl_handler :: traps, instr
+      | Poptrap -> begin
+        match traps with
+        | [] ->
+          Misc.fatal_error
+            "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
+        | _ :: traps -> stack_offset, traps, instr
+      end
+      | Op (Stackoffset n) -> stack_offset + n, traps, instr
+      | Op
+          ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
+          | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
+          | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
+          | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
+          | Name_for_debugger _ )
+      | Call _ | Reloadretaddr | Prologue ->
+        stack_offset, traps, instr
+    in
+
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
       if block.stack_offset = invalid_stack_offset
       then true
       else begin
-          assert (block.stack_offset =
-                    Proc.trap_size_in_bytes * succ (List.length stack));
+        assert (
+          block.stack_offset = compute_stack_offset ~stack_offset ~traps
+          && block.stack_offset >= Proc.trap_size_in_bytes * List.length traps);
         false
       end
     in
     if was_invalid
     then begin
-      block.stack_offset <- Proc.trap_size_in_bytes * succ (List.length stack);
-      let stack, exceptional_successor, body =
-        ListLabels.fold_left block.body ~init:(stack, None, [])
-          ~f:(fun (stack, exceptional_successor, body) instr ->
-            let (stack, exceptional_successor), instr =
-              process_basic exceptional_successor stack instr
+      block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
+      let stack_offset, traps, body =
+        ListLabels.fold_left block.body ~init:(stack_offset, traps, [])
+          ~f:(fun (stack_offset, traps, body) instr ->
+            let stack_offset, traps, instr =
+              process_basic ~stack_offset ~traps instr
             in
-            stack, exceptional_successor, instr :: body)
+            stack_offset, traps, instr :: body)
       in
       block.body <- List.rev body;
-      let (stack, exceptional_successor), terminator =
-        process_terminator exceptional_successor stack block.terminator
+      let stack_offset, traps, terminator =
+        process_terminator ~stack_offset ~traps block.terminator
       in
       block.terminator <- terminator;
       (* non-exceptional successors *)
       Label.Set.iter
-        (fun successor_label -> update_block cfg successor_label stack)
+        (fun successor_label ->
+          if propagate cfg block successor_label
+          then update_block cfg successor_label ~stack_offset ~traps)
         (Cfg.successor_labels ~normal:true ~exn:false block);
       (* exceptional successor *)
-      Option.iter
-        (fun (handler_label, handler_stack) ->
+      if block.can_raise
+      then begin
+        assert (Option.is_none block.exn);
+        assert (not block.can_raise_interproc);
+        match traps with
+        | [] -> block.can_raise_interproc <- true
+        | handler_label :: rest ->
           block.exn <- Some handler_label;
-          update_block cfg handler_label handler_stack)
-        exceptional_successor
+          if propagate cfg block handler_label
+          then update_block cfg handler_label ~stack_offset ~traps:rest
+      end
     end
 
   let update_cfg : Cfg.t -> unit =
-   fun cfg -> update_block cfg cfg.entry_label []
+   fun cfg ->
+    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
+    Cfg.iter_blocks cfg ~f:(fun _ block ->
+        if block.stack_offset = invalid_stack_offset then block.dead <- true);
+    Cfg.iter_blocks cfg ~f:(fun lbl block ->
+        if block.is_trap_handler && block.dead
+        then update_block cfg lbl ~stack_offset:0 ~traps:[])
 end
 
 let fundecl :
