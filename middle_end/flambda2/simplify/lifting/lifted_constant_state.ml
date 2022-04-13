@@ -159,7 +159,7 @@ let add_to_denv ?maybe_already_defined denv lifted =
         pieces_of_code denv)
 
 module CIS = Code_id_or_symbol
-module SCC_lifted_constants = Strongly_connected_components_flambda2.Make (CIS)
+module SCC_lifted_constants = Strongly_connected_components.Make (CIS)
 
 let build_dep_graph t =
   fold t ~init:(CIS.Map.empty, CIS.Map.empty)

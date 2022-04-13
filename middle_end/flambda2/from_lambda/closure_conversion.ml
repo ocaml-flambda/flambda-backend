@@ -1771,7 +1771,7 @@ let close_apply acc env (apply : IR.apply) : Acc.t * Expr_with_acc.t =
 
 module CIS = Code_id_or_symbol
 module GroupMap = Numbers.Int.Map
-module SCC = Strongly_connected_components_flambda2.Make (Numbers.Int)
+module SCC = Strongly_connected_components.Make (Numbers.Int)
 
 let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
   let fresh_group_id =
