@@ -775,6 +775,8 @@ module Switch_storer = Switch.Store (struct
     | exception Not_comparable -> None
     | key -> Some key
 
+  let join_actions_to_be_shared expr _ = expr
+
   let compare_key e1 e2 =
     (* The environment [env] maps variables bound in [e2] to the corresponding
        bound variables in [e1]. Every variable to compare in [e2] must have an

@@ -28,6 +28,7 @@ module type Stored = sig
   type t
   type key
   val compare_key : key -> key -> int
+  val join_actions_to_be_shared : t -> t -> t
   val make_key : t -> key option
 end
 
@@ -41,20 +42,27 @@ module CtxStore(A:CtxStored) = struct
   module AMap =
     Map.Make(struct type t = A.key let compare = A.compare_key end)
 
+  type act =
+    { shared : bool;
+      act : A.t;
+    }
+
+  module Int = Numbers.Int
+
   type intern =
     { mutable map : (bool * int)  AMap.t ;
       mutable next : int ;
-      mutable acts : (bool * A.t) list; }
+      acts : act Int.Tbl.t; }
 
   let mk_store () =
     let st =
       { map = AMap.empty ;
         next = 0 ;
-        acts = [] ; } in
+        acts = Int.Tbl.create 16; } in
 
     let add mustshare act =
       let i = st.next in
-      st.acts <- (mustshare,act) :: st.acts ;
+      Int.Tbl.add st.acts i { shared = mustshare; act };
       st.next <- i+1 ;
       i in
 
@@ -63,6 +71,9 @@ module CtxStore(A:CtxStored) = struct
           begin try
             let (shared,i) = AMap.find key st.map in
             if not shared then st.map <- AMap.add key (true,i) st.map ;
+            let existing_act = Int.Tbl.find st.acts i in
+            let act = A.join_actions_to_be_shared existing_act.act act in
+            Int.Tbl.replace st.acts i { existing_act with act };
             i
           with Not_found ->
             let i = add mustshare act in
@@ -72,15 +83,17 @@ module CtxStore(A:CtxStored) = struct
       | None ->
           add mustshare act
 
-    and get () = Array.of_list (List.rev_map (fun (_,act) -> act) st.acts)
+    and get () =
+      Array.init (Int.Tbl.length st.acts) (fun i ->
+        let { shared = _; act } = Int.Tbl.find st.acts i in
+        act)
 
     and get_shared () =
       let acts =
-        Array.of_list
-          (List.rev_map
-             (fun (shared,act) ->
-                if shared then Shared act else Single act)
-             st.acts) in
+        Array.init (Int.Tbl.length st.acts) (fun i ->
+          let { shared; act } = Int.Tbl.find st.acts i in
+          if shared then Shared act else Single act)
+      in
       AMap.iter
         (fun _ (shared,i) ->
            if shared then match acts.(i) with

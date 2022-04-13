@@ -1616,6 +1616,7 @@ module StoreExpForSwitch =
           | _ -> None
         in
         Some (continuation, index)
+      let join_actions_to_be_shared cmm _ = cmm
       let compare_key (cont, index) (cont', index') =
         match cont, cont' with
         | Some i, Some i' when i = i' -> 0
@@ -1631,6 +1632,7 @@ module StoreExp =
       let make_key = function
         | Cexit (i,[]) -> Some i
         | _ -> None
+      let join_actions_to_be_shared cmm _ = cmm
       let compare_key = Stdlib.compare
     end)
 

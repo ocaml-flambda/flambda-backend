@@ -516,6 +516,7 @@ module Storer =
   Switch.Store
     (struct type t = lambda type key = lambda
       let compare_key = Stdlib.compare
+      let join_actions_to_be_shared lam _ = lam
       let make_key = Lambda.make_key end)
 
 (* Compile an expression.
