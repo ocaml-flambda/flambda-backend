@@ -52,13 +52,14 @@ include Identifiable.Make (struct
 end)
 
 let create_int section label =
-  assert(label >= 0);
+  assert (label >= 0);
   { section; label = Int label }
 
 let contains_escapable_char label =
   let found_escapable_char = ref false in
-  String.iter (fun c ->
-    if Asm_symbol.should_be_escaped c then found_escapable_char := true)
+  String.iter
+    (fun c ->
+      if Asm_symbol.should_be_escaped c then found_escapable_char := true)
     label;
   !found_escapable_char
 
@@ -67,9 +68,7 @@ let create_string section label =
   { section; label = String label }
 
 let label_prefix =
-  match Target_system.assembler ()  with
-  | MacOS -> "L"
-  | MASM | GAS_like -> ".L"
+  match Target_system.assembler () with MacOS -> "L" | MASM | GAS_like -> ".L"
 
 let encode (t : t) =
   match t.label with
@@ -78,18 +77,19 @@ let encode (t : t) =
 
 let section t = t.section
 
-let new_label_ref = ref (fun _section ->
-  Misc.fatal_error "[Asm_label.initialize] has not been called")
+let new_label_ref =
+  ref (fun _section ->
+      Misc.fatal_error "[Asm_label.initialize] has not been called")
 
 let initialize ~new_label =
   new_label_ref := fun section -> create_int section (new_label ())
+
 let create (section : Asm_section.t) = !new_label_ref section
 
-(* CR-someday poechsel: With a function such as
-  `index : Asm_section.dwarf_section -> int`, we
-  could maintain an association array and get rid of
-  all these variables plus the pattern matching in
-  for_dwarf_section. *)
+(* CR-someday poechsel: With a function such as `index :
+   Asm_section.dwarf_section -> int`, we could maintain an association array and
+   get rid of all these variables plus the pattern matching in
+   for_dwarf_section. *)
 
 let debug_info_label = lazy (create (DWARF Debug_info))
 
