@@ -277,6 +277,7 @@ install: stage2
 	rm -f $(prefix)/bin/flambda_backend.main*
 	rm -rf $(prefix)/lib/ocaml-variants
 	rm -rf $(prefix)/lib/stublibs
+	mkdir $(prefix)/lib/stublibs
 	rm -f $(prefix)/lib/ocaml/META
 	rm -f $(prefix)/lib/ocaml/dune-package
 	rm -f $(prefix)/lib/ocaml/compiler-libs/*.cmo
