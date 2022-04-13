@@ -26,6 +26,8 @@
    -open
    Flambda2_term_basics
    -open
+   Flambda2_classic_mode_types
+   -open
    Flambda2_ui))
  (ocamlopt_flags
   (:standard -O3))

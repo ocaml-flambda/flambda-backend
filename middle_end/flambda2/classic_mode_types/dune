@@ -2,7 +2,7 @@
 
 (library
  (name flambda2_classic_mode_types)
- (wrapped false)
+ (wrapped true)
  (flags
   (:standard
    -principal
