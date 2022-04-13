@@ -257,7 +257,7 @@ let terminator_of_test :
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-let invalid_trap_depth = -1
+let invalid_stack_offset = -1
 
 let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
  fun state ~desc ->
@@ -265,10 +265,10 @@ let make_instruction : type a. State.t -> desc:a -> a Cfg.instruction =
   let res = [||] in
   let dbg = Debuginfo.none in
   let live = Reg.Set.empty in
-  let trap_depth = invalid_trap_depth in
+  let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; trap_depth; id; fdo }
+  { desc; arg; res; dbg; live; stack_offset; id; fdo }
 
 let copy_instruction :
     type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
@@ -284,10 +284,10 @@ let copy_instruction :
       } =
     instr
   in
-  let trap_depth = invalid_trap_depth in
+  let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; trap_depth; id; fdo }
+  { desc; arg; res; dbg; live; stack_offset; id; fdo }
 
 let copy_instruction_no_reg :
     type a. State.t -> Mach.instruction -> desc:a -> a Cfg.instruction =
@@ -305,10 +305,10 @@ let copy_instruction_no_reg :
   in
   let arg = [||] in
   let res = [||] in
-  let trap_depth = invalid_trap_depth in
+  let stack_offset = invalid_stack_offset in
   let id = State.get_next_instruction_id state in
   let fdo = Fdo_info.none in
-  { desc; arg; res; dbg; live; trap_depth; id; fdo }
+  { desc; arg; res; dbg; live; stack_offset; id; fdo }
 
 let rec get_end : Mach.instruction -> Mach.instruction =
  fun instr ->
@@ -438,7 +438,7 @@ let rec add_blocks :
           (* See [Cfg.register_predecessors_for_all_blocks] *)
           predecessors = Label.Set.empty;
           (* See [Trap_depth_and_exn.update_cfg] *)
-          trap_depth = invalid_trap_depth;
+          stack_offset = invalid_stack_offset;
           exn = None;
           can_raise;
           (* See [update_trap_handler_blocks] *)
@@ -593,7 +593,8 @@ module Trap_depth_and_exn = struct
       Cfg.terminator Cfg.instruction ->
       (handler_stack * handler_option) * Cfg.terminator Cfg.instruction =
    fun exceptional_successor stack term ->
-    let term = Cfg.set_trap_depth term (succ (List.length stack)) in
+   let term = Cfg.set_stack_offset term
+                (Proc.trap_size_in_bytes * (succ (List.length stack))) in
     match term.desc with
     | Never | Return
     | Tailcall (Func _)
@@ -616,7 +617,8 @@ module Trap_depth_and_exn = struct
       Cfg.basic Cfg.instruction ->
       (handler_stack * handler_option) * Cfg.basic Cfg.instruction =
    fun exceptional_successor stack instr ->
-    let instr = Cfg.set_trap_depth instr (succ (List.length stack)) in
+   let instr = Cfg.set_stack_offset instr
+                 (Proc.trap_size_in_bytes * (succ (List.length stack))) in
     match instr.desc with
     | Pushtrap { lbl_handler } ->
       (lbl_handler :: stack, exceptional_successor), instr
@@ -636,16 +638,17 @@ module Trap_depth_and_exn = struct
    fun cfg label stack ->
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
-      if block.trap_depth = invalid_trap_depth
+      if block.stack_offset = invalid_stack_offset
       then true
       else begin
-        assert (block.trap_depth = succ (List.length stack));
+          assert (block.stack_offset =
+                    Proc.trap_size_in_bytes * succ (List.length stack));
         false
       end
     in
     if was_invalid
     then begin
-      block.trap_depth <- succ (List.length stack);
+      block.stack_offset <- Proc.trap_size_in_bytes * succ (List.length stack);
       let stack, exceptional_successor, body =
         ListLabels.fold_left block.body ~init:(stack, None, [])
           ~f:(fun (stack, exceptional_successor, body) instr ->
@@ -725,7 +728,7 @@ let fundecl :
             ~desc:(Cfg.Always tailrec_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
-        trap_depth = invalid_trap_depth;
+        stack_offset = invalid_stack_offset;
         exn = None;
         can_raise = false;
         is_trap_handler = false;
@@ -739,7 +742,7 @@ let fundecl :
           copy_instruction_no_reg state fun_body ~desc:(Cfg.Always start_label);
         (* See [Cfg.register_predecessors_for_all_blocks] *)
         predecessors = Label.Set.empty;
-        trap_depth = invalid_trap_depth;
+        stack_offset = invalid_stack_offset;
         exn = None;
         can_raise = false;
         is_trap_handler = false;

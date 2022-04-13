@@ -37,10 +37,9 @@ type basic_block =
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
         (** All predecessors, both normal and exceptional paths. *)
-    mutable trap_depth : int;
-        (** Trap depth of the start of the block. Used for cross checking the
-            construction of [exns], and for emitting adjust trap on edges from
-            one block to the next. *)
+    mutable stack_offset : int;
+        (** Stack offset of the start of the block.
+            Used for emitting adjust trap on edges from one block to the next. *)
     mutable exn : Label.t option;
         (** All possible handlers of a raise that (1) can be triggered either by
             an explicit raise, or instructions such as calls and allocations,
@@ -58,14 +57,12 @@ type basic_block =
             during dead block elimination for checking. *)
         (* CR-someday gyorsh: The current implementation allows multiple
            pushtraps in each block means that different trap stacks are
-           associated with the block at different points, and a raise from this
-           block can go to different handlers, depending on which one is on the
-           top of the stack. After we split the blocks based on
+           associated with the block at different points. At most one instruction
+           in each block can raise, and always the last one.
+           After we split the blocks based on
            Pushtrap/Poptrap, each block will have a unique trap stack associated
            with it. [exns] will not be needed, as the exn-successor will be
-           uniquely determined by can_raise + top of trap stack. [trap_depth]
-           will not needed, as it can be derived with the length of the trap
-           stack. *)
+           uniquely determined by can_raise + top of trap stack. *)
   }
 
 (** Control Flow Graph of a function. *)
@@ -159,6 +156,6 @@ val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
-val set_trap_depth : 'a instruction -> int -> 'a instruction
+val set_stack_offset : 'a instruction -> int -> 'a instruction
 
 val set_live : 'a instruction -> Reg.Set.t -> 'a instruction
