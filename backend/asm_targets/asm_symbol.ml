@@ -25,8 +25,8 @@
  **********************************************************************************)
 
 let should_be_escaped = function
-| ('A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_') -> false
-| c -> true
+  | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' -> false
+  | c -> true
 
 module Thing = struct
   type t = string
@@ -57,13 +57,12 @@ let escape name =
   else
     (* Each escaped character is replaced by 3 characters (a $, and 2 for its
        hexadecimal representation)*)
-    let b = Buffer.create (String.length name + 2 * !escaped_nb) in
+    let b = Buffer.create (String.length name + (2 * !escaped_nb)) in
     String.iter
       (fun c ->
-        if should_be_escaped c then
-          Printf.bprintf b "$%02x" (Char.code c)
-        else
-            Buffer.add_char b c)
+        if should_be_escaped c
+        then Printf.bprintf b "$%02x" (Char.code c)
+        else Buffer.add_char b c)
       name;
     Buffer.contents b
 

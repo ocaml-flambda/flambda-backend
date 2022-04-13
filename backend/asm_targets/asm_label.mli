@@ -30,8 +30,8 @@
     prefix (such as "L", ".L", etc).
 
     Label's numeric or textual names are unique within the assembly stream for a
-    single compilation unit, even across sections. [Asm_label] keeps track of 
-    the section a label belongs to, and doesn't check uniqueness.  
+    single compilation unit, even across sections. [Asm_label] keeps track of
+    the section a label belongs to, and doesn't check uniqueness.
 
     Note: Labels are not symbols in the usual sense---they are a construct in
     the assembler's metalanguage and not accessible in the object
@@ -58,8 +58,8 @@ val create_string : Asm_section.t -> string -> t
 val encode : t -> string
 
 (** To be called by the emitter at the very start of code generation.
-    [new_label] should always be [Cmm.new_label].
-    Needed to avoid a circular dependency. *)
+    [new_label] should always be [Cmm.new_label]. Needed to avoid a circular
+    dependency. *)
 val initialize : new_label:(unit -> int) -> unit
 
 (** Which section a label is in. *)

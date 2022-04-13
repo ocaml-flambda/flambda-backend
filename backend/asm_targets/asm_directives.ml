@@ -113,10 +113,10 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         Asm_label.print label Asm_section.print lbl_section Asm_section.print
         this_section;
     (* CR-someday bkhajwal: Be aware of MASM label type annotation *)
-    (* CR poechsel: This assumes that no [D.text] or [D.section] were
-    emitted since the last call to [switch_to_section].
-    If we emit dwarf separately from other assembly everything will be fine,
-    otherwise this might break. *)
+    (* CR poechsel: This assumes that no [D.text] or [D.section] were emitted
+       since the last call to [switch_to_section]. If we emit dwarf separately
+       from other assembly everything will be fine, otherwise this might
+       break. *)
     D.label (Asm_label.encode label)
 
   let switch_to_section section =
@@ -146,12 +146,10 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     sections_seen := [];
     temp_var_counter := 0;
     current_dwarf_section_ref := None;
-    (* Forward label references are illegal in GAS.
-       To avoid it, emit the beginning of all dwarf sections in advance. *)
-    begin
-      if is_gas () then
-        List.iter switch_to_section (Asm_section.dwarf_sections_in_order ())
-    end;
+    (* Forward label references are illegal in GAS. To avoid it, emit the
+       beginning of all dwarf sections in advance. *)
+    if is_gas ()
+    then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
     (* Stop dsymutil complaining about empty __debug_line sections (produces
        bogus error "line table parameters mismatch") by making sure such
        sections are never empty. *)
@@ -199,8 +197,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let string =
     with_comment (fun str ->
-      assert_string_has_no_null_bytes str;
-      D.bytes str)
+        assert_string_has_no_null_bytes str;
+        D.bytes str)
 
   let cache_string ?comment section str =
     assert_string_has_no_null_bytes str;
@@ -278,7 +276,7 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
 
   let between_symbol_in_current_unit_and_label_offset ?comment:_ ~upper:_
       ~lower:_ ~offset_upper:_ () =
-      (* CR poechsel: use the arguments *)
+    (* CR poechsel: use the arguments *)
     A.emit_line "between_symbol_in_current_unit_and_label_offset"
 
   let new_temp_var () =
