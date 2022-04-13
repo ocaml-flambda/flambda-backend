@@ -218,7 +218,8 @@ let check_traps t label (block : C.basic_block) =
       T.print trap_stack_at_start);
     match T.to_list_exn trap_stack_at_start with
     | trap_labels ->
-      if (List.length trap_labels - 1) * Proc.trap_size_in_bytes > block.stack_offset
+      if (List.length trap_labels - 1) * Proc.trap_size_in_bytes
+         > block.stack_offset
       then
         Misc.fatal_errorf
           "Malformed linear IR: mismatch stack_offset=%d, but \
@@ -311,8 +312,8 @@ let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
   | Llabel label -> { label; insn }
   | Lend -> Misc.fatal_error "Unexpected end of function instead of label"
   | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _ | Lcondbranch _
-  | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_stack_offset _ | Lpushtrap _
-  | Lpoptrap | Lraise _ ->
+  | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_stack_offset _
+  | Lpushtrap _ | Lpoptrap | Lraise _ ->
     let label = Cmm.new_label () in
     t.new_labels <- Label.Set.add label t.new_labels;
     let insn = Linear.instr_cons (Llabel label) [||] [||] insn in
@@ -418,15 +419,16 @@ let rec adjust_traps (i : L.instruction) ~stack_offset ~traps =
      stack pointer in the emitter. We do not have a corresponding insn in [Cfg]
      because the required adjustment can change when blocks are reordered.
      Instead we regenerate the instructions when converting back to linear. We
-     use [delta_bytes] only to compute [stack_offsets]s of other instructions. *)
+     use [delta_bytes] only to compute [stack_offsets]s of other
+     instructions. *)
   match i.desc with
   | Ladjust_stack_offset { delta_bytes } ->
     let stack_offset = stack_offset + delta_bytes in
     if stack_offset < 0
     then
       Misc.fatal_errorf
-        "Ladjust_stack_offset %d moves the trap depth below zero: %d" delta_bytes
-        stack_offset;
+        "Ladjust_stack_offset %d moves the trap depth below zero: %d"
+        delta_bytes stack_offset;
     let traps = T.unknown () in
     adjust_traps i.next ~stack_offset ~traps
   | Llabel _ ->
@@ -439,9 +441,9 @@ let rec adjust_traps (i : L.instruction) ~stack_offset ~traps =
   | Lswitch _ | Lpushtrap _ | Lraise _ ->
     stack_offset, traps, i
 
-(** [traps] represents the trap stack, with head being the top.
-    [stack_offset] is the offset from the start of the frame
-    due to trap handler Lpushtrap or outgoing arguments Istackoffset. *)
+(** [traps] represents the trap stack, with head being the top. [stack_offset]
+    is the offset from the start of the frame due to trap handler Lpushtrap or
+    outgoing arguments Istackoffset. *)
 let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     ~stack_offset ~traps =
   (* [traps] is constructed incrementally, because Ladjust_trap does not give
@@ -632,7 +634,9 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
      functions. *)
   let traps = T.push (T.empty ()) t.interproc_handler in
   let stack_offset = 0 in
-  let entry_block = create_empty_block t t.cfg.entry_label ~stack_offset ~traps in
+  let entry_block =
+    create_empty_block t t.cfg.entry_label ~stack_offset ~traps
+  in
   create_blocks t f.fun_body entry_block ~stack_offset ~traps;
   (* Register predecessors now rather than during cfg construction, because of
      forward jumps: the blocks do not exist when the jump that reference them is

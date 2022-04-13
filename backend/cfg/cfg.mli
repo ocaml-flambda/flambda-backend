@@ -38,8 +38,8 @@ type basic_block =
     mutable predecessors : Label.Set.t;
         (** All predecessors, both normal and exceptional paths. *)
     mutable stack_offset : int;
-        (** Stack offset of the start of the block.
-            Used for emitting adjust trap on edges from one block to the next. *)
+        (** Stack offset of the start of the block. Used for emitting adjust
+            trap on edges from one block to the next. *)
     mutable exn : Label.t option;
         (** All possible handlers of a raise that (1) can be triggered either by
             an explicit raise, or instructions such as calls and allocations,
@@ -57,12 +57,12 @@ type basic_block =
             during dead block elimination for checking. *)
         (* CR-someday gyorsh: The current implementation allows multiple
            pushtraps in each block means that different trap stacks are
-           associated with the block at different points. At most one instruction
-           in each block can raise, and always the last one.
-           After we split the blocks based on
-           Pushtrap/Poptrap, each block will have a unique trap stack associated
-           with it. [exns] will not be needed, as the exn-successor will be
-           uniquely determined by can_raise + top of trap stack. *)
+           associated with the block at different points. At most one
+           instruction in each block can raise, and always the last one. After
+           we split the blocks based on Pushtrap/Poptrap, each block will have a
+           unique trap stack associated with it. [exns] will not be needed, as
+           the exn-successor will be uniquely determined by can_raise + top of
+           trap stack. *)
   }
 
 (** Control Flow Graph of a function. *)

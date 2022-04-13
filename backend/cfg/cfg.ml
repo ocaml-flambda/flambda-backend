@@ -407,7 +407,9 @@ let is_noop_move instr =
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
-  if instr.stack_offset = stack_offset then instr else { instr with stack_offset }
+  if instr.stack_offset = stack_offset
+  then instr
+  else { instr with stack_offset }
 
 let set_live (instr : _ instruction) live =
   if Reg.Set.equal instr.live live then instr else { instr with live }
