@@ -26,6 +26,8 @@
    -open
    Flambda2_term_basics
    -open
+   Flambda2_classic_mode_types
+   -open
    Flambda2_terms
    -open
    Flambda2_ui
@@ -45,6 +47,7 @@
   flambda2_nominal
   flambda2_numbers
   flambda2_term_basics
+  flambda2_classic_mode_types
   flambda2_terms
   flambda2_ui
   flambda2_simplify_shared))
