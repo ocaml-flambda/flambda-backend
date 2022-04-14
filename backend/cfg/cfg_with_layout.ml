@@ -198,12 +198,12 @@ module Permute = struct
   let list ?(random_state = default_random_state) list =
     match list with
     (* special cases to speed things up in trivial cases *)
-    | [] | [ _ ] -> list
-    | [ x; y ] -> if Random.State.bool random_state then [ y; x ] else list
+    | [] | [_] -> list
+    | [x; y] -> if Random.State.bool random_state then [y; x] else list
     | _ ->
-       let arr = Array.of_list list in
-       array ~random_state arr;
-       Array.to_list arr
+      let arr = Array.of_list list in
+      array ~random_state arr;
+      Array.to_list arr
 end
 
 let reorder_blocks_random ?random_state t =
