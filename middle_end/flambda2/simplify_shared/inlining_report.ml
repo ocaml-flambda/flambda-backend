@@ -68,16 +68,19 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-type pass =
-  | After_closure_conversion
-  | Before_simplify
-  | After_simplify
+module Pass = struct
+  type t =
+    | After_closure_conversion
+    | Before_simplify
+    | After_simplify
 
-let print_pass ppf pass =
-  match pass with
-  | After_closure_conversion -> Format.fprintf ppf "afte@r closure@ conversion"
-  | Before_simplify -> Format.fprintf ppf "before@ simplify"
-  | After_simplify -> Format.fprintf ppf "after@ simplify"
+  let print ppf pass =
+    match pass with
+    | After_closure_conversion ->
+      Format.fprintf ppf "afte@r closure@ conversion"
+    | Before_simplify -> Format.fprintf ppf "before@ simplify"
+    | After_simplify -> Format.fprintf ppf "after@ simplify"
+end
 
 module Table : sig
   (* Pretty print a table of values.
@@ -155,7 +158,7 @@ module Context = struct
       depth : int option;
       unrolling_depth : int option option;
       are_rebuilding_terms : Are_rebuilding_terms.t;
-      pass : pass
+      pass : Pass.t
     }
 
   let create ?depth ?unrolling_depth ?cost_metrics ~are_rebuilding_terms ~args
@@ -277,7 +280,7 @@ module Decision_with_context = struct
     | Fundecl c -> Function_decl_inlining_decision_type.report ppf c
 
   let print ppf { context; decision } =
-    Format.fprintf ppf "@[<v>@[<h>Decision@ taken@ *%a*@]@," print_pass
+    Format.fprintf ppf "@[<v>@[<h>Decision@ taken@ *%a*@]@," Pass.print
       context.pass;
     Format.fprintf ppf "@[<v 2>@,";
     Format.fprintf ppf "%a@,@[<h>%a@]@," Context.print context print_decision
@@ -384,12 +387,12 @@ end
 
 module Inlining_tree = struct
   module Key = struct
-    type scope_type =
+    type scope =
       | Module
       | Class
       | Unknown
 
-    let compare_scope_type a b =
+    let compare_scope a b =
       match a, b with
       | Module, Module | Class, Class | Unknown, Unknown -> 0
       | Module, (Class | Unknown) | Class, Unknown -> 1
@@ -397,20 +400,20 @@ module Inlining_tree = struct
 
     type element =
       | Fundecl of string
-      | Scope of scope_type * string
+      | Scope of scope * string
       | Call of Inlining_history.Absolute.t
-
-    type t = Debuginfo.t * element
 
     let compare_element a b =
       match a, b with
       | Fundecl s1, Fundecl s2 -> String.compare s1 s2
       | Call s1, Call s2 -> Inlining_history.Absolute.compare s1 s2
       | Scope (t1, s1), Scope (t2, s2) ->
-        let c = compare_scope_type t1 t2 in
+        let c = compare_scope t1 t2 in
         if c <> 0 then c else String.compare s1 s2
       | Fundecl _, (Call _ | Scope _) | Call _, Scope _ -> 1
       | (Call _ | Scope _), Fundecl _ | Scope _, Call _ -> -1
+
+    type t = Debuginfo.t * element
 
     let compare (dbg1, e1) (dbg2, e2) =
       let c = Debuginfo.compare dbg1 dbg2 in
@@ -659,4 +662,5 @@ let output_then_forget_decisions ~output_prefix =
         let report : report = `Flambda2_1_0_0 (metadata, Lazy.force tree) in
         Marshal.to_channel ch report [];
         close_out ch
-      end)
+      end;
+      Lazy.force tree)

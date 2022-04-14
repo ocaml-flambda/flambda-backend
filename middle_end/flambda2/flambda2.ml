@@ -175,7 +175,10 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = prefixname ^ ".cps_conv" in
-          Inlining_report.output_then_forget_decisions ~output_prefix);
+          let inlining_tree =
+            Inlining_report.output_then_forget_decisions ~output_prefix
+          in
+          Compiler_hooks.execute Inlining_tree inlining_tree);
         raw_flambda, offsets, cmx, code
       end
       else
@@ -187,7 +190,10 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename ~module_ident
         (if Flambda_features.inlining_report ()
         then
           let output_prefix = Printf.sprintf "%s.%d" prefixname round in
-          Inlining_report.output_then_forget_decisions ~output_prefix);
+          let inlining_tree =
+            Inlining_report.output_then_forget_decisions ~output_prefix
+          in
+          Compiler_hooks.execute Inlining_tree inlining_tree);
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         output_flexpect ~ml_filename:filename ~raw_flambda flambda;
