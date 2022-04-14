@@ -601,18 +601,6 @@ module Trap_depth_and_exn = struct
     | Float_test _ | Int_test _ | Switch _ ->
       stack_offset, traps, term
 
-  (* The only reason for this check is to avoid assert failures in the recursive
-     call *)
-  let propagate (cfg : Cfg.t) (block : Cfg.basic_block) successor_label =
-    if block.dead
-    then
-      let successor_block = Cfg.get_block_exn cfg successor_label in
-      if successor_block.dead
-      then true
-      else (* don't propagate from dead to live block *)
-        false
-    else true
-
   let rec update_block :
       Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit =
    fun cfg label ~stack_offset ~traps ->
@@ -674,21 +662,17 @@ module Trap_depth_and_exn = struct
       block.terminator <- terminator;
       (* non-exceptional successors *)
       Label.Set.iter
-        (fun successor_label ->
-          if propagate cfg block successor_label
-          then update_block cfg successor_label ~stack_offset ~traps)
+        (update_block cfg ~stack_offset ~traps)
         (Cfg.successor_labels ~normal:true ~exn:false block);
       (* exceptional successor *)
       if block.can_raise
       then begin
         assert (Option.is_none block.exn);
-        assert (not block.can_raise_interproc);
         match traps with
-        | [] -> block.can_raise_interproc <- true
+        | [] -> ()
         | handler_label :: rest ->
           block.exn <- Some handler_label;
-          if propagate cfg block handler_label
-          then update_block cfg handler_label ~stack_offset ~traps:rest
+          update_block cfg handler_label ~stack_offset ~traps:rest
       end
     end
 
@@ -697,9 +681,8 @@ module Trap_depth_and_exn = struct
     update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
     Cfg.iter_blocks cfg ~f:(fun _ block ->
         if block.stack_offset = invalid_stack_offset then block.dead <- true);
-    Cfg.iter_blocks cfg ~f:(fun lbl block ->
-        if block.is_trap_handler && block.dead
-        then update_block cfg lbl ~stack_offset:0 ~traps:[])
+    Cfg.iter_blocks cfg ~f:(fun _ block ->
+        assert (not (block.is_trap_handler && block.dead)))
 end
 
 let fundecl :
