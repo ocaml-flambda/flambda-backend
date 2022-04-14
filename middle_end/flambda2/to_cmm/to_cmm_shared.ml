@@ -65,7 +65,7 @@ let name0 ?consider_inlining_effectful_expressions env name =
       To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
-      symbol ~dbg:Debuginfo.none s, env, Ece.pure)
+      symbol ~dbg:Debuginfo.none s, env, Ece.pure_duplicatable)
 
 let name env name = name0 env name
 
@@ -83,7 +83,7 @@ let simple ?consider_inlining_effectful_expressions ~dbg env s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ ->
       name0 ?consider_inlining_effectful_expressions env n)
-    ~const:(fun c -> const ~dbg c, env, Ece.pure)
+    ~const:(fun c -> const ~dbg c, env, Ece.pure_duplicatable)
 
 let name_static name =
   Name.pattern_match name
@@ -117,7 +117,7 @@ let simple_list ?consider_inlining_effectful_expressions ~dbg env l =
     in
     y :: list, env, Ece.join eff effs
   in
-  let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
+  let args, env, effs = List.fold_left aux ([], env, Ece.pure_duplicatable) l in
   List.rev args, env, effs
 
 let bound_parameters env l =

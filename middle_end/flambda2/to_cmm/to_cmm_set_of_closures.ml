@@ -444,9 +444,10 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let dbg = debuginfo_for_set_of_closures env set in
   let effs : Ece.t =
     ( Only_generative_effects Immutable,
-      match closure_alloc_mode with
+      (match closure_alloc_mode with
       | Heap -> No_coeffects
-      | Local -> Has_coeffects )
+      | Local -> Has_coeffects),
+      Duplicatable )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list

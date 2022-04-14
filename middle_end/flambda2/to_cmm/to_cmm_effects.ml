@@ -23,11 +23,11 @@ type effects_and_coeffects_classification =
 let classify_by_effects_and_coeffects effs =
   (* See the comments on type [classification] in the .mli. *)
   match (effs : Effects_and_coeffects.t) with
-  | Arbitrary_effects, (Has_coeffects | No_coeffects)
-  | Only_generative_effects _, (Has_coeffects | No_coeffects) ->
+  | Arbitrary_effects, (Has_coeffects | No_coeffects), _
+  | Only_generative_effects _, (Has_coeffects | No_coeffects), _ ->
     Effect
-  | No_effects, Has_coeffects -> Coeffect_only
-  | No_effects, No_coeffects -> Pure
+  | No_effects, Has_coeffects, _ -> Coeffect_only
+  | No_effects, No_coeffects, _ -> Pure
 
 type let_binding_classification =
   | Regular
@@ -62,9 +62,8 @@ let classify_let_binding var
     May_inline
   | More_than_one -> begin
     match effects_and_coeffects_of_defining_expr with
-    | No_effects, No_coeffects -> Duplicate (* TODO: fix *)
-    | (No_effects | Only_generative_effects _
-    | Arbitrary_effects), (Has_coeffects | No_coeffects) -> Regular
+    | _, _, Duplicatable -> Duplicate (* TODO: fix *)
+    | _, _, Not_duplicatable -> Regular
   end
 
 type continuation_handler_classification =

@@ -220,11 +220,11 @@ let is_inlinable_box effs ~extra =
      this involves moving the arguments, so they must be pure (or at most have
      generative effects, with no coeffects). *)
   match (effs : Ece.t), (extra : extra_info option) with
-  | ((No_effects | Only_generative_effects _), No_coeffects), Some Boxed_number
+  | ((No_effects | Only_generative_effects _), No_coeffects, _), Some Boxed_number
     ->
     true
   | ( ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
-        (No_coeffects | Has_coeffects) ),
+        (No_coeffects | Has_coeffects), _ ),
       (None | Some Boxed_number | Some (Untag _)) ) ->
     false
 
@@ -299,7 +299,7 @@ let bind_variable ?extra env v
 let will_inline env binding = binding.cmm_expr, env, binding.effs
 
 let will_not_inline env binding =
-  C.var (Backend_var.With_provenance.var binding.cmm_var), env, Ece.pure
+  C.var (Backend_var.With_provenance.var binding.cmm_var), env, Ece.pure_duplicatable
 
 let will_not_inline_var env v =
   (* This is like [will_not_inline] but is used in the case where no delayed
@@ -307,7 +307,7 @@ let will_not_inline_var env v =
   match Variable.Map.find v env.vars with
   | exception Not_found ->
     Misc.fatal_errorf "Variable %a not found in env" Variable.print v
-  | e -> e, env, Ece.pure
+  | e -> e, env, Ece.pure_duplicatable
 
 let inline_variable ?consider_inlining_effectful_expressions env var =
   match Variable.Map.find var env.pures with
