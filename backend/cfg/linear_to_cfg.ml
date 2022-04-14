@@ -388,7 +388,7 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Iprobe { name; handler_code_sym } -> Op (Probe { name; handler_code_sym })
   | Iprobe_is_enabled { name } -> Op (Probe_is_enabled { name })
   | Istackoffset i -> Op (Stackoffset i)
-  | Iload (c, a) -> Op (Load (c, a))
+  | Iload (c, a, m) -> Op (Load (c, a, m))
   | Istore (c, a, b) -> Op (Store (c, a, b))
   | Imove -> Op Move
   | Ispill -> Op Spill
@@ -596,7 +596,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
     | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
     | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
-    | Iload (_, _)
+    | Iload (_, _, _)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _
     | Iintop_imm (_, _)
