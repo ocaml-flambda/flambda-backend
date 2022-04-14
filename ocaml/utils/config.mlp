@@ -135,6 +135,7 @@ let system = "%%SYSTEM%%"
 let asm = "%%ASM%%"
 let asm_cfi_supported = %%ASM_CFI_SUPPORTED%%
 let with_frame_pointers = %%WITH_FRAME_POINTERS%%
+let with_cpp_mangling = %%WITH_CPP_MANGLING%%
 let profinfo = %%WITH_PROFINFO%%
 let profinfo_width = %%PROFINFO_WIDTH%%
 
@@ -190,6 +191,7 @@ let configuration_variables =
   p "asm" asm;
   p_bool "asm_cfi_supported" asm_cfi_supported;
   p_bool "with_frame_pointers" with_frame_pointers;
+  p_bool "with_cpp_mangling" with_cpp_mangling;
   p "ext_exe" ext_exe;
   p "ext_obj" ext_obj;
   p "ext_asm" ext_asm;

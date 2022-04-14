@@ -710,6 +710,7 @@ cmm_invariants
 flambda_invariants
 flambda2
 flambda
+cpp_mangling
 frame_pointers
 profinfo_width
 profinfo
@@ -2844,6 +2845,7 @@ VERSION=4.12.0
 
 
  # TODO: rename this variable
+
 
 
 
@@ -16815,6 +16817,16 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: not using frame pointers" >&5
 $as_echo "$as_me: not using frame pointers" >&6;}
   frame_pointers=false
+fi
+
+## CPP mangling
+
+if test x"$enable_cpp_mangling" = "xyes"; then :
+  cpp_mangling=true
+    $as_echo "#define WITH_CPP_MANGLING 1" >>confdefs.h
+
+else
+  cpp_mangling=false
 fi
 
 ## No naked pointers

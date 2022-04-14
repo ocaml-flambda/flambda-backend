@@ -27,9 +27,6 @@ let mk_dcfg f =
   "-dcfg", Arg.Unit f, " (undocumented)"
 ;;
 
-let mk_use_cpp_mangling f =
-  "-gcpp-mangling", Arg.Unit f, " Use C++ mangling for function symbols"
-
 let mk_heap_reduction_threshold f =
   "-heap-reduction-threshold",
   Arg.Int f,
@@ -388,8 +385,6 @@ module type Flambda_backend_options = sig
   val dump_inlining_paths : unit -> unit
   val dcfg : unit -> unit
 
-  val use_cpp_mangling : unit -> unit
-
   val heap_reduction_threshold : int -> unit
 
   val flambda2_join_points : unit -> unit
@@ -452,8 +447,6 @@ struct
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
-
-    mk_use_cpp_mangling F.use_cpp_mangling;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
 
@@ -549,8 +542,6 @@ module Flambda_backend_options_impl = struct
   let dcfg = set' Flambda_backend_flags.dump_cfg
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
-
-  let use_cpp_mangling = set' Flambda_backend_flags.use_cpp_mangling
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -709,7 +700,6 @@ module Extra_params = struct
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
-    | "gcpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
