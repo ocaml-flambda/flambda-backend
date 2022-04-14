@@ -63,7 +63,7 @@ let from_basic (basic : Cfg.basic) : L.instruction_desc =
       | Const_float n -> Iconst_float n
       | Const_symbol n -> Iconst_symbol n
       | Stackoffset n -> Istackoffset n
-      | Load (c, m) -> Iload (c, m)
+      | Load (c, m, i) -> Iload (c, m, i)
       | Store (c, m, b) -> Istore (c, m, b)
       | Intop op -> Iintop op
       | Intop_imm (op, i) -> Iintop_imm (op, i)

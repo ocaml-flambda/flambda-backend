@@ -29,6 +29,8 @@ val env_find : Backend_var.t -> environment -> Reg.t array
 
 val size_expr : environment -> Cmm.expression -> int
 
+val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
+
 module Effect : sig
   type t =
     | None

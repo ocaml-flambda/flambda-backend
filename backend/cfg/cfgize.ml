@@ -156,7 +156,7 @@ let basic_or_terminator_of_operation :
     then Basic (Call (P (External external_call)))
     else Terminator (Call_no_return external_call)
   | Istackoffset ofs -> Basic (Op (Stackoffset ofs))
-  | Iload (mem, mode) -> Basic (Op (Load (mem, mode)))
+  | Iload (mem, mode, mut) -> Basic (Op (Load (mem, mode, mut)))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
   | Ialloc { bytes; dbginfo; mode } ->
     Basic (Call (P (Alloc { bytes; dbginfo; mode })))

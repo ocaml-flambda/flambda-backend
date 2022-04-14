@@ -155,7 +155,7 @@ let pseudoregs_for_operation op arg res =
               |Ioffset_loc (_, _)|Ifloatsqrtf _|Irdtsc|Iprefetch _)
   | Imove|Ispill|Ireload|Ifloatofint|Iintoffloat|Iconst_int _|Iconst_float _
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
-  | Iextcall _|Istackoffset _|Iload (_, _)|Istore (_, _, _)|Ialloc _
+  | Iextcall _|Istackoffset _|Iload (_, _, _) | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
     -> raise Use_default
@@ -286,18 +286,18 @@ method! select_operation op args dbg =
   | Cextcall { func = "caml_int64_bits_of_float_unboxed"; alloc = false;
                ty = [|Int|]; ty_args = [XFloat] } ->
       (match args with
-      | [Cop(Cload (Double, _), [loc], _dbg)] ->
+      | [Cop(Cload (Double, mut), [loc], _dbg)] ->
         let c = Word_int in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr), [arg]
+        Iload(c, addr, Selectgen.select_mutable_flag mut), [arg]
       | _ -> Imove, args)
   | Cextcall { func = "caml_int64_float_of_bits_unboxed"; alloc = false;
                ty = [|Float|]; ty_args = [XInt64] } ->
       (match args with
-      | [Cop(Cload (Word_int, _), [loc], _dbg)] ->
+      | [Cop(Cload (Word_int, mut), [loc], _dbg)] ->
         let c = Double in
         let (addr, arg) = self#select_addressing c loc in
-        Iload(c, addr), [arg]
+        Iload(c, addr, Selectgen.select_mutable_flag mut), [arg]
       | _ -> Imove, args)
   | Cextcall { func; builtin = true; ty = ret; ty_args = _; } ->
       begin match func, ret with

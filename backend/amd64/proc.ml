@@ -353,7 +353,7 @@ let destroyed_at_oper = function
        | Icompf _
        | Ifloatofint | Iintoffloat
        | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _)
+       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload (_, _, _)
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
@@ -380,7 +380,7 @@ let safe_register_pressure = function
   | Icompf _
   | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _) | Istore (_, _, _)
+  | Istackoffset _ | Iload (_, _, _) | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Ispecific _ | Iname_for_debugger _
   | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion
@@ -415,7 +415,7 @@ let max_register_pressure =
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Istackoffset _ | Iload (_, _)
+  | Istackoffset _ | Iload (_, _, _)
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
              | Ifloat_round _
@@ -449,7 +449,7 @@ let op_is_pure = function
   | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
   | Icompf _
   | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Iload (_, _) | Iname_for_debugger _
+  | Iload (_, _, _) | Iname_for_debugger _
     -> true
 
 (* Layout of the stack frame *)
