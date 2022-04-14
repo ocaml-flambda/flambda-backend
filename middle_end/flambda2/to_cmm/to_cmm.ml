@@ -43,6 +43,7 @@ let flush_cmm_helpers_state () =
       C.cdata (C.define_symbol ~global:true name @ l) :: acc
     | Const_closure _ ->
 
+
       Misc.fatal_errorf
         "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
          Cmm translation"

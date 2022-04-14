@@ -33,6 +33,7 @@ type let_binding_classification =
   | Regular
   | Drop_defining_expr
   | May_inline
+  | Duplicate
 
 let classify_let_binding var
     ~(effects_and_coeffects_of_defining_expr : Effects_and_coeffects.t)
@@ -59,7 +60,12 @@ let classify_let_binding var
        the context. Currently this is very restricted, see comments in
        [To_cmm_primitive]. *)
     May_inline
-  | More_than_one -> Regular
+  | More_than_one -> begin
+    match effects_and_coeffects_of_defining_expr with
+    | No_effects, No_coeffects -> Duplicate (* TODO: fix *)
+    | (No_effects | Only_generative_effects _
+    | Arbitrary_effects), (Has_coeffects | No_coeffects) -> Regular
+  end
 
 type continuation_handler_classification =
   | Regular

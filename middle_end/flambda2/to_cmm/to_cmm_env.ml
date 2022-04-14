@@ -291,7 +291,8 @@ let bind_variable ?extra env v
     with
     | Drop_defining_expr -> env
     | May_inline -> bind_variable0 ~may_inline:Inline_once
-    | Regular -> bind_variable0 ~may_inline:Do_not_inline)
+    | Regular -> bind_variable0 ~may_inline:Do_not_inline
+    | Duplicate -> bind_variable0 ~may_inline:Duplicate)
 
 (* Variable lookup (for potential inlining) *)
 
