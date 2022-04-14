@@ -25,6 +25,8 @@ module type Flambda_backend_options = sig
   val dump_inlining_paths : unit -> unit
   val dcfg : unit -> unit
 
+  val reorder_blocks_random : int -> unit
+
   val heap_reduction_threshold : int -> unit
 
   val flambda2_join_points : unit -> unit

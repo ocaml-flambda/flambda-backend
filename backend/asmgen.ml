@@ -247,6 +247,14 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
       f.Mach.fun_name;
   end
 
+let reorder_blocks_random ppf_dump cl =
+  match !Flambda_backend_flags.reorder_blocks_random with
+  | None -> cl
+  | Some random_state ->
+     Cfg_with_layout.reorder_blocks_random ~random_state cl;
+     pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+       "After reorder_blocks_random" cl
+
 let compile_fundecl ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -292,6 +300,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
       ++ save_cfg
+      ++ reorder_blocks_random ppf_dump
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else
