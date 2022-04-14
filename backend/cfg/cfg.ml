@@ -147,7 +147,7 @@ let get_block_exn t label =
     Misc.fatal_errorf "Cfg.get_block_exn: block %d not found" label
   | block -> block
 
-let can_raise_interproc block = block.can_raise && block.trap_depth = 1
+let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let fun_name t = t.fun_name
 
