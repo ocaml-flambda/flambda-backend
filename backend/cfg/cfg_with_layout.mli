@@ -68,3 +68,9 @@ val print_dot :
   unit
 
 val dump : Format.formatter -> t -> msg:string -> unit
+
+(** Change layout: randomly reorder the blocks, keeping the entry block first.
+
+   Side-effects [random_state] by repeated calls to [Random.State.int] and
+   [Random.State.bool]. *)
+val reorder_blocks_random : ?random_state:Random.State.t -> t -> unit

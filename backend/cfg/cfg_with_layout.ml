@@ -173,3 +173,44 @@ let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
       print_dot ?show_instr ?show_exn ?annotate_block ?annotate_succ ppf t)
     ~always:(fun () -> close_out oc)
     ~exceptionally:(fun _exn -> Misc.remove_file filename)
+
+module Permute = struct
+  (* Implementation of this module is copied from Base *)
+  external unsafe_set : 'a array -> int -> 'a -> unit = "%array_unsafe_set"
+
+  let swap t i j =
+    let elt_i = t.(i) in
+    let elt_j = t.(j) in
+    unsafe_set t i elt_j;
+    unsafe_set t j elt_i
+
+  let default_random_state = Random.State.make_self_init ()
+
+  let array ?(random_state = default_random_state) t =
+    let len = Array.length t in
+    let num_swaps = len - 1 in
+    for i = num_swaps downto 1 do
+      (* [random_i] is drawn from [0,i] *)
+      let random_i = Random.State.int random_state (i + 1) in
+      swap t i random_i
+    done
+
+  let list ?(random_state = default_random_state) list =
+    match list with
+    (* special cases to speed things up in trivial cases *)
+    | [] | [ _ ] -> list
+    | [ x; y ] -> if Random.State.bool random_state then [ y; x ] else list
+    | _ ->
+       let arr = Array.of_list list in
+       array ~random_state arr;
+       Array.to_list arr
+end
+
+let reorder_blocks_random ?random_state t =
+  (* Ensure entry exit invariants *)
+  let original_layout = layout t in
+  let new_layout =
+    List.hd original_layout
+    :: Permute.list ?random_state (List.tl original_layout)
+  in
+  set_layout t new_layout
