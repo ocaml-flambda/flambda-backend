@@ -15,6 +15,11 @@
 
 (* Common functions for emitting assembly code *)
 
+type error =
+  | Stack_frame_too_large of int
+
+exception Error of error
+
 let output_channel = ref stdout
 
 let emit_string s = output_string !output_channel s
@@ -178,6 +183,12 @@ let emit_frames a =
       Label_table.add debuginfos key lbl;
       lbl
   in
+  let efa_16_checked n =
+    assert (n >= 0);
+    if n < 0x1_0000
+    then a.efa_16 n
+    else raise (Error(Stack_frame_too_large n))
+  in
   let emit_frame fd =
     assert (fd.fd_frame_size land 3 = 0);
     let flags =
@@ -191,9 +202,9 @@ let emit_frames a =
         then 3 else 2
     in
     a.efa_code_label fd.fd_lbl;
-    a.efa_16 (fd.fd_frame_size + flags);
-    a.efa_16 (List.length fd.fd_live_offset);
-    List.iter a.efa_16 fd.fd_live_offset;
+    efa_16_checked (fd.fd_frame_size + flags);
+    efa_16_checked (List.length fd.fd_live_offset);
+    List.iter efa_16_checked fd.fd_live_offset;
     begin match fd.fd_debuginfo with
     | _ when flags = 0 ->
       ()
@@ -378,7 +389,7 @@ let create_asm_file = ref true
 
 let reduce_heap_size ~reset =
   let _minor, _promoted, major_words = Gc.counters () in
-  (* Uses [major_words] because it doesn't require a heap traversal to compute and 
+  (* Uses [major_words] because it doesn't require a heap traversal to compute and
      for this workload a majority of major words are live at this point. *)
   let heap_reduction_threshold =
     if !Flambda_backend_flags.heap_reduction_threshold >= 0 then
@@ -391,3 +402,8 @@ let reduce_heap_size ~reset =
       reset ();
       Gc.compact ())
   end
+
+let report_error ppf = function
+  | Stack_frame_too_large n ->
+      Format.fprintf ppf "stack frame too large (%d bytes)" n
+
