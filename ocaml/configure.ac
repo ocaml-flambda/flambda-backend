@@ -279,6 +279,10 @@ AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
 
+AC_ARG_ENABLE([cpp-mangling],
+  [AS_HELP_STRING([--enable-cpp-mangling],
+    [use cpp mangling for exported symbols])])
+
 AC_ARG_ENABLE([naked-pointers],
   [AS_HELP_STRING([--disable-naked-pointers],
     [do not allow naked pointers])])

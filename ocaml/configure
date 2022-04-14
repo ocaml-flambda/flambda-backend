@@ -840,6 +840,7 @@ enable_bigarray_lib
 enable_ocamldoc
 enable_ocamltest
 enable_frame_pointers
+enable_cpp_mangling
 enable_naked_pointers
 enable_naked_pointers_checker
 enable_spacetime
@@ -1512,6 +1513,7 @@ Optional Features:
   --disable-ocamldoc      do not build the ocamldoc documentation system
   --disable-ocamltest     do not build the ocamltest driver
   --enable-frame-pointers use frame pointers in runtime and generated code
+  --enable-cpp-mangling   use cpp mangling for exported symbols
   --disable-naked-pointers
                           do not allow naked pointers
   --enable-naked-pointers-checker
@@ -3128,6 +3130,12 @@ fi
 # Check whether --enable-frame-pointers was given.
 if test "${enable_frame_pointers+set}" = set; then :
   enableval=$enable_frame_pointers;
+fi
+
+
+# Check whether --enable-cpp-mangling was given.
+if test "${enable_cpp_mangling+set}" = set; then :
+  enableval=$enable_cpp_mangling;
 fi
 
 
