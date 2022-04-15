@@ -378,7 +378,7 @@ let check_instruction :
   if is_valid_stack_offset expected.stack_offset
      && is_valid_stack_offset result.stack_offset
      && not (Int.equal expected.stack_offset result.stack_offset)
-  then different location "trap depth";
+  then different location "stack offset";
   (* note: not comparing `id` fields on purpose *)
   ()
 

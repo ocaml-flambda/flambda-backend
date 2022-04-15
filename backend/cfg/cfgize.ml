@@ -437,7 +437,7 @@ let rec add_blocks :
           terminator;
           (* See [Cfg.register_predecessors_for_all_blocks] *)
           predecessors = Label.Set.empty;
-          (* See [Trap_depth_and_exn.update_cfg] *)
+          (* See [Stack_offset_and_exn.update_cfg] *)
           stack_offset = invalid_stack_offset;
           exn = None;
           can_raise;
@@ -566,7 +566,11 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
       | Some block -> block.is_trap_handler <- true)
     (State.get_exception_handlers state)
 
-module Trap_depth_and_exn = struct
+module Stack_offset_and_exn = struct
+  (* This module relies on the field `can_raise` of basic blocks but does not
+     rely on this field of individual Cfg instructions. This may need to be
+     revisited when we remove dead trap handlers and the associated
+     pushtrap/poptrap operations. *)
   type handler_stack = Label.t list
 
   let compute_stack_offset ~stack_offset ~traps =
@@ -592,8 +596,8 @@ module Trap_depth_and_exn = struct
     match term.desc with
     | Tailcall (Self _) when List.length traps <> 0 || stack_offset <> 0 ->
       Misc.fatal_error
-        "Cfgize.Trap_depth_and_exn.terminator: unexpected handler on self \
-         tailcall"
+        "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
+         self tailcall"
     | Tailcall (Self _)
     | Never | Return
     | Tailcall (Func _)
@@ -601,38 +605,44 @@ module Trap_depth_and_exn = struct
     | Float_test _ | Int_test _ | Switch _ ->
       stack_offset, traps, term
 
-  let rec update_block :
+  let rec process_basic :
+      Cfg.t ->
+      stack_offset:int ->
+      traps:handler_stack ->
+      Cfg.basic Cfg.instruction ->
+      int * handler_stack * Cfg.basic Cfg.instruction =
+   fun cfg ~stack_offset ~traps instr ->
+    let instr = check_and_set_stack_offset instr ~stack_offset ~traps in
+    match instr.desc with
+    | Pushtrap { lbl_handler } ->
+      update_block cfg lbl_handler ~stack_offset ~traps;
+      stack_offset, lbl_handler :: traps, instr
+    | Poptrap -> begin
+      match traps with
+      | [] ->
+        Misc.fatal_error
+          "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
+           empty stack"
+      | _ :: traps -> stack_offset, traps, instr
+    end
+    | Op (Stackoffset n) -> stack_offset + n, traps, instr
+    | Op
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
+        | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
+        | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
+        | Name_for_debugger _ )
+    | Call _ | Reloadretaddr | Prologue ->
+      stack_offset, traps, instr
+
+  (* The argument [stack_offset] has a different meaning from the field
+     [stack_offset] of Cfg's basic_blocks and instructions. The argument
+     [stack_offset] refers to the offset derived from Istackoffset operations
+     only, whereas the field also includes the trap stack depth in bytes. Both
+     are non-negative. See [compute_stack_offset]. *)
+  and update_block :
       Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit =
    fun cfg label ~stack_offset ~traps ->
-    let process_basic :
-        stack_offset:int ->
-        traps:handler_stack ->
-        Cfg.basic Cfg.instruction ->
-        int * handler_stack * Cfg.basic Cfg.instruction =
-     fun ~stack_offset ~traps instr ->
-      let instr = check_and_set_stack_offset instr ~stack_offset ~traps in
-      match instr.desc with
-      | Pushtrap { lbl_handler } ->
-        update_block cfg lbl_handler ~stack_offset ~traps;
-        stack_offset, lbl_handler :: traps, instr
-      | Poptrap -> begin
-        match traps with
-        | [] ->
-          Misc.fatal_error
-            "Cfgize.Trap_depth_and_exn.basic: trying to pop from an empty stack"
-        | _ :: traps -> stack_offset, traps, instr
-      end
-      | Op (Stackoffset n) -> stack_offset + n, traps, instr
-      | Op
-          ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_symbol _
-          | Load _ | Store _ | Intop _ | Intop_imm _ | Negf | Absf | Addf | Subf
-          | Mulf | Divf | Compf _ | Floatofint | Intoffloat | Probe _
-          | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-          | Name_for_debugger _ )
-      | Call _ | Reloadretaddr | Prologue ->
-        stack_offset, traps, instr
-    in
-
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
       if block.stack_offset = invalid_stack_offset
@@ -651,7 +661,7 @@ module Trap_depth_and_exn = struct
         ListLabels.fold_left block.body ~init:(stack_offset, traps, [])
           ~f:(fun (stack_offset, traps, body) instr ->
             let stack_offset, traps, instr =
-              process_basic ~stack_offset ~traps instr
+              process_basic cfg ~stack_offset ~traps instr
             in
             stack_offset, traps, instr :: body)
       in
@@ -758,10 +768,10 @@ let fundecl :
   add_blocks fun_body state ~starts_with_pushtrap:None ~start:start_label
     ~next:fallthrough_label;
   update_trap_handler_blocks state cfg;
-  (* note: `Trap_depth_and_exn.update_cfg` may add edges to the graph, and
+  (* note: `Stack_offset_and_exn.update_cfg` may add edges to the graph, and
      should hence be executed before
      `Cfg.register_predecessors_for_all_blocks`. *)
-  Trap_depth_and_exn.update_cfg cfg;
+  Stack_offset_and_exn.update_cfg cfg;
   Cfg.register_predecessors_for_all_blocks cfg;
   let cfg_with_layout =
     Cfg_with_layout.create cfg ~layout:(State.get_layout state)
