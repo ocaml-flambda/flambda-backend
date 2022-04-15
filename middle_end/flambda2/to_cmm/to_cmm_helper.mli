@@ -43,6 +43,15 @@ val symbol_address : string -> Cmm.data_item
 (** Definition for a statis symbol. *)
 val define_symbol : global:bool -> string -> Cmm.data_item list
 
+(** {2 Kinds and types} *)
+
+val check_arity : Flambda_arity.With_subkinds.t -> _ list -> bool
+
+val machtype_of_kind : Flambda_kind.t -> Cmm.machtype_component array
+
+val machtype_of_kinded_parameter :
+  Bound_parameter.t -> Cmm.machtype_component array
+
 (** {2 Cmm values} *)
 
 (** The void (i.e. empty tuple) cmm value. Not to be confused with [() : unit]. *)
@@ -268,6 +277,11 @@ val arg_list :
   To_cmm_env.t ->
   Simple.t list ->
   Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t
+
+val param_list :
+  To_cmm_env.t ->
+  Bound_parameters.t ->
+  To_cmm_env.t * (Backend_var.With_provenance.t * Cmm.machtype) list
 
 (** {2 Expression combinators} *)
 

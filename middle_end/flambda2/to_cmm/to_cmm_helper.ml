@@ -62,6 +62,23 @@ let define_symbol ~global s =
   then [Cmm.Cglobal_symbol s; Cmm.Cdefine_symbol s]
   else [Cmm.Cdefine_symbol s]
 
+(* Kinds and types *)
+
+let check_arity arity args =
+  Flambda_arity.With_subkinds.cardinal arity = List.length args
+
+let machtype_of_kind k =
+  match (k : Flambda_kind.t) with
+  | Value -> Cmm.typ_val
+  | Naked_number Naked_float -> Cmm.typ_float
+  | Naked_number Naked_int64 -> typ_int64
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) ->
+    Cmm.typ_int
+  | Region | Rec_info -> assert false
+
+let machtype_of_kinded_parameter p =
+  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
+
 (* Constructors for constants *)
 
 let var v = Cmm.Cvar v
@@ -143,6 +160,17 @@ let arg_list env l =
   in
   let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
   List.rev args, env, effs
+
+let param_list env l =
+  let flambda_vars = Bound_parameters.vars l in
+  let env, cmm_vars = To_cmm_env.create_variables env flambda_vars in
+  let vars =
+    List.map2
+      (fun v v' -> v, machtype_of_kinded_parameter v')
+      cmm_vars
+      (Bound_parameters.to_list l)
+  in
+  env, vars
 
 (* Infix field address. Contrary to regular field addresse, these addresse are
    valid ocaml values, and can be live at gc points. *)

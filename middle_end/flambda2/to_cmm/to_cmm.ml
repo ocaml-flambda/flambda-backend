@@ -36,15 +36,10 @@ module C = struct
 end
 
 (* Shortcuts for useful cmm machtypes *)
-let typ_int = Cmm.typ_int
 
 let typ_val = Cmm.typ_val
 
 let typ_void = Cmm.typ_void
-
-let typ_float = Cmm.typ_float
-
-let typ_int64 = C.typ_int64
 
 (* CR gbury: {Targetint_32_64.to_int} should raise an error when converting an
    out-of-range integer. *)
@@ -82,22 +77,6 @@ let function_name simple =
           Symbol.linkage_name sym |> Linkage_name.to_string))
     ~const:(fun _ -> fail simple)
 
-(* Kinds and types *)
-
-let check_arity arity args =
-  Flambda_arity.With_subkinds.cardinal arity = List.length args
-
-let machtype_of_kind k =
-  match (k : Flambda_kind.t) with
-  | Value -> typ_val
-  | Naked_number Naked_float -> typ_float
-  | Naked_number Naked_int64 -> typ_int64
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_nativeint) -> typ_int
-  | Region | Rec_info -> assert false
-
-let machtype_of_kinded_parameter p =
-  Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
-
 let machtype_of_return_arity arity =
   (* Functions that never return have arity 0. In that case, we use the most
      restrictive machtype to ensure that the return value of the function is not
@@ -105,7 +84,7 @@ let machtype_of_return_arity arity =
   match Flambda_arity.to_list arity with
   | [] -> typ_void
   (* Regular functions with a single return value *)
-  | [k] -> machtype_of_kind k
+  | [k] -> C.machtype_of_kind k
   | _ ->
     (* TODO: update when unboxed tuples are used *)
     Misc.fatal_errorf "Functions are currently limited to a single return value"
@@ -136,18 +115,7 @@ let wrap_extcall_result arity =
     Misc.fatal_errorf
       "C functions are currently limited to a single return value"
 
-(* Function calls and continuations *)
-
-let param_list env l =
-  let flambda_vars = Bound_parameters.vars l in
-  let env, cmm_vars = Env.create_variables env flambda_vars in
-  let vars =
-    List.map2
-      (fun v v' -> v, machtype_of_kinded_parameter v')
-      cmm_vars
-      (Bound_parameters.to_list l)
-  in
-  env, vars
+(* Helpers for exception continuations *)
 
 let split_exn_cont_args k = function
   | (v, _) :: rest -> v, rest
@@ -222,25 +190,6 @@ let decide_inline_let effs
   end
   | More_than_one -> Regular
 
-(* Helpers for translating functions *)
-
-let function_params params my_closure ~(is_my_closure_used : _ Or_unknown.t) =
-  let is_my_closure_used =
-    match is_my_closure_used with
-    | Unknown -> true
-    | Known is_my_closure_used -> is_my_closure_used
-  in
-  if is_my_closure_used
-  then
-    let my_closure_param =
-      Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
-    in
-    Bound_parameters.append params (Bound_parameters.create [my_closure_param])
-  else params
-
-let function_flags () =
-  if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
-
 (* Expressions *)
 
 let rec expr env res e =
@@ -264,8 +213,9 @@ and let_expr env res let_expr =
           let_expr_prim body env res v ~num_normal_occurrences_of_bound_vars p
             dbg
         | Set_of_closures bound_vars, Set_of_closures soc ->
-          let_set_of_closures env res body bound_vars
-            ~num_normal_occurrences_of_bound_vars soc
+          To_cmm_set_of_closures.let_set_of_closures env res ~body ~bound_vars
+            ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
+            ~let_expr_bind
         | Static bound_static, Static_consts consts ->
           let_static env res bound_static consts body
         | Singleton _, Rec_info _ -> expr env res body
@@ -288,7 +238,10 @@ and let_static env res bound_static consts body =
     Env.add_to_scope env (Bound_static.everything_being_defined bound_static)
   in
   let env, res, update_opt =
-    To_cmm_static.static_consts env res ~params_and_body bound_static consts
+    To_cmm_static.static_consts env res
+      ~params_and_body:
+        (To_cmm_set_of_closures.params_and_body ~translate_expr:expr)
+      bound_static consts
   in
   match update_opt with
   | None ->
@@ -297,16 +250,6 @@ and let_static env res bound_static consts body =
     let wrap, env = Env.flush_delayed_lets env in
     let body, res = expr env res body in
     wrap (C.sequence update body), res
-
-and let_set_of_closures env res body value_slots
-    ~num_normal_occurrences_of_bound_vars s =
-  let layout = Env.layout env s in
-  if layout.empty_env
-  then let_static_set_of_closures env res body value_slots s layout
-  else
-    let_dynamic_set_of_closures env res body value_slots
-      ~num_normal_occurrences_of_bound_vars s layout
-      ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
 
 and let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
     effs =
@@ -415,7 +358,7 @@ and wrap_let_cont_exn_body handler extra_vars =
   List.fold_left
     (fun expr (v, k) ->
       let v = Backend_var.With_provenance.create v in
-      C.letin_mut v (machtype_of_kind k) (default_of_kind k) expr)
+      C.letin_mut v (C.machtype_of_kind k) (default_of_kind k) expr)
     handler extra_vars
 
 and let_cont_rec env res conts body =
@@ -458,12 +401,12 @@ and continuation_handler_split h =
 
 and continuation_arg_tys h =
   let params, _, _ = continuation_handler_split h in
-  List.map machtype_of_kinded_parameter (Bound_parameters.to_list params)
+  List.map C.machtype_of_kinded_parameter (Bound_parameters.to_list params)
 
 and continuation_handler env res h =
   let args, _, handler = continuation_handler_split h in
   let arity = Bound_parameters.arity args in
-  let env, vars = param_list env args in
+  let env, vars = C.param_list env args in
   let e, res = expr env res handler in
   vars, arity, e, res
 
@@ -504,7 +447,7 @@ and apply_call env e =
     in
     let info = Env.get_function_info env code_id in
     let params_arity = Code_metadata.params_arity info in
-    if not (check_arity params_arity args)
+    if not (C.check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let ty =
       return_arity |> Flambda_arity.With_subkinds.to_arity
@@ -544,7 +487,7 @@ and apply_call env e =
         alloc_mode
       } ->
     fail_if_probe e;
-    if not (check_arity param_arity args)
+    if not (C.check_arity param_arity args)
     then
       Misc.fatal_errorf
         "To_cmm expects indirect_known_arity calls to be full applications in \
@@ -895,192 +838,6 @@ and make_switch ~tag_discriminant env res e arms =
     ( wrap (C.transl_switch_clambda Debuginfo.none (Vval Pgenval) e index cases),
       res )
 
-(* Sets of closures with no environment can be turned into statically allocated
-   symbols, rather than have to allocate them each time *)
-and let_static_set_of_closures env res body value_slots s layout =
-  (* Generate symbols for the set of closures, and each of the closures *)
-  let comp_unit = Compilation_unit.get_current_exn () in
-  let cids =
-    Function_declarations.funs_in_order (Set_of_closures.function_decls s)
-    |> Function_slot.Lmap.keys
-  in
-  let closure_symbols =
-    List.map2
-      (fun cid v ->
-        let v = Bound_var.var v in
-        (* rename v just to have a different name for the symbol and the
-           variable *)
-        let name = Variable.unique_name (Variable.rename v) in
-        cid, Symbol.create comp_unit (Linkage_name.create name))
-      cids value_slots
-    |> Function_slot.Map.of_list
-  in
-  (* Statically allocate the set of closures *)
-  let env, static_data, updates =
-    To_cmm_static.static_set_of_closures env closure_symbols s layout None
-  in
-  (* As there is no env vars for the set of closures, there must be no
-     updates *)
-  begin
-    match updates with
-    | None -> ()
-    | Some _ ->
-      Misc.fatal_errorf "non-empty updates when lifting set of closures"
-  end;
-  (* update the result with the new static data *)
-  let res = R.archive_data (R.set_data res static_data) in
-  (* Bind the variables to the symbols for function slots. *)
-  (* CR gbury: inline the variables (requires extending To_cmm_env to inline
-     pure variables more than once). *)
-  let env =
-    List.fold_left2
-      (fun acc cid v ->
-        let v = Bound_var.var v in
-        let sym = C.symbol (Function_slot.Map.find cid closure_symbols) in
-        Env.bind_variable acc v Ece.pure false sym)
-      env cids value_slots
-  in
-  (* go on in the body *)
-  expr env res body
-
-(* Sets of closures with a non-empty environment are allocated *)
-and let_dynamic_set_of_closures env res body value_slots s
-    (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
-    ~(closure_alloc_mode : Alloc_mode.t) =
-  (* unwrap the set of closures a bit *)
-  let fun_decls = Set_of_closures.function_decls s in
-  let decls = Function_declarations.funs_in_order fun_decls in
-  let elts = Set_of_closures.value_slots s in
-  (* Allocating the closure has at least generative effects. It is also deemed
-     to have coeffects if it is a local closure allocation. *)
-  let effs =
-    ( Effects.Only_generative_effects Immutable,
-      match closure_alloc_mode with
-      | Heap -> Coeffects.No_coeffects
-      | Local -> Coeffects.Has_coeffects )
-  in
-  let decl_map =
-    decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
-  in
-  let l, env, effs =
-    fill_layout decl_map layout.startenv elts env effs [] 0 layout.slots
-  in
-  let csoc = C.make_closure_block closure_alloc_mode l in
-  (* Create a variable to hold the set of closure *)
-  let soc_var = Variable.create "*set_of_closures*" in
-  let env = Env.bind_variable env soc_var effs false csoc in
-  (* Get from the env the cmm variable that was created and bound to the
-     compiled set of closures. *)
-  let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
-  assert (Env.classify peff = Env.Pure);
-  (* Add env bindings for all the value slots. *)
-  let env =
-    List.fold_left2
-      (fun acc cid v ->
-        match get_closure_by_offset env soc_cmm_var cid with
-        | None -> acc
-        | Some (e, effs) ->
-          let v = Bound_var.var v in
-          let_expr_bind acc v ~num_normal_occurrences_of_bound_vars e effs)
-      env
-      (Function_slot.Lmap.keys decls)
-      value_slots
-  in
-  (* The set of closures, as well as the individual closures variables are
-     correctly set in the env, go on translating the body. *)
-  expr env res body
-
-and get_closure_by_offset env set_cmm cid =
-  match Env.function_slot_offset env cid with
-  | Live_function_slot { offset; _ } ->
-    Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
-  | Dead_function_slot -> None
-
-and fill_layout decls startenv elts env effs acc i = function
-  | [] -> List.rev acc, env, effs
-  | (j, slot) :: r ->
-    let acc = fill_up_to j acc i in
-    let acc, offset, env, eff = fill_slot decls startenv elts env acc j slot in
-    let effs = Ece.join eff effs in
-    fill_layout decls startenv elts env effs acc offset r
-
-and fill_slot decls startenv elts env acc offset slot =
-  match (slot : Slot_offsets.layout_slot) with
-  | Infix_header ->
-    let field = C.alloc_infix_header (offset + 1) Debuginfo.none in
-    field :: acc, offset + 1, env, Ece.pure
-  | Value_slot v ->
-    let field, env, eff = C.simple env (Value_slot.Map.find v elts) in
-    field :: acc, offset + 1, env, eff
-  | Function_slot (c : Function_slot.t) -> (
-    let code_id = Function_slot.Map.find c decls in
-    (* CR-someday mshinwell: We should probably use the code's [dbg], but it
-       would be tricky to get hold of, and this is very unlikely to make any
-       difference in practice. mshinwell: this can now be got from
-       Code_metadata. *)
-    let dbg = Debuginfo.none in
-    let code_linkage_name = Code_id.linkage_name code_id in
-    let arity, closure_code_pointers =
-      Env.get_func_decl_params_arity env code_id
-    in
-    let closure_info = C.closure_info ~arity ~startenv:(startenv - offset) in
-    (* We build here the **reverse** list of fields for the closure *)
-    match closure_code_pointers with
-    | Full_application_only ->
-      let acc =
-        C.nativeint ~dbg closure_info
-        :: C.symbol_from_linkage_name ~dbg code_linkage_name
-        :: acc
-      in
-      acc, offset + 2, env, Ece.pure
-    | Full_and_partial_application ->
-      let acc =
-        C.symbol_from_linkage_name ~dbg code_linkage_name
-        :: C.nativeint ~dbg closure_info
-        :: C.symbol_from_linkage_name ~dbg
-             (Linkage_name.create (C.curry_function_sym arity))
-        :: acc
-      in
-      acc, offset + 3, env, Ece.pure)
-
-and fill_up_to j acc i =
-  if i > j then Misc.fatal_errorf "Problem while filling up a closure in to_cmm";
-  if i = j then acc else fill_up_to j (C.int 1 :: acc) (i + 1)
-
-(* Translate a function declaration. *)
-
-and params_and_body env res fun_name p ~fun_dbg =
-  Function_params_and_body.pattern_match p
-    ~f:(fun
-         ~return_continuation:k
-         ~exn_continuation:k_exn
-         params
-         ~body
-         ~my_closure
-         ~is_my_closure_used
-         ~my_depth:_
-         ~free_names_of_body:_
-       ->
-      try
-        let params = function_params params my_closure ~is_my_closure_used in
-        (* Init the env and create a jump id for the ret closure in case a trap
-           action is attached to one of tis call *)
-        let env = Env.enter_function_def env k k_exn in
-        (* translate the arg list and body *)
-        let env, fun_args = param_list env params in
-        let fun_body, res = expr env res body in
-        let fun_flags = function_flags () in
-        C.fundecl fun_name fun_args fun_body fun_flags fun_dbg, res
-      with Misc.Fatal_error as e ->
-        Format.eprintf
-          "\n\
-           %sContext is:%s translating function %s to Cmm with return cont %a, \
-           exn cont %a and body:@ %a\n"
-          (Flambda_colours.error ())
-          (Flambda_colours.normal ())
-          fun_name Continuation.print k Continuation.print k_exn Expr.print body;
-        raise e)
-
 (* CR gbury: for the future, try and rearrange the generated cmm code to move
    assignments closer to the variable definitions Or better: add traps to the
    env to insert assignemnts after the variable definitions. *)
@@ -1104,7 +861,7 @@ let unit ~offsets ~make_symbol flambda_unit ~all_code =
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation
        (which just returns unit) doesn't use any of the parameters. *)
-    param_list env
+    C.param_list env
       (Bound_parameters.create
          [ Bound_parameter.create (Variable.create "*ret*")
              Flambda_kind.With_subkind.any_value ])

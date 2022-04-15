@@ -222,8 +222,7 @@ let update_env_for_code env (code : Code.t) =
       (Code_id_or_symbol.create_code_id code_id)
 
 let add_function env r ~params_and_body code_id p ~fun_dbg =
-  let fun_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
-  let fundecl, r = params_and_body env r fun_name p ~fun_dbg in
+  let fundecl, r = params_and_body env r code_id p ~fun_dbg in
   R.add_function r fundecl
 
 let add_functions env ~params_and_body r (code : Code.t) =
