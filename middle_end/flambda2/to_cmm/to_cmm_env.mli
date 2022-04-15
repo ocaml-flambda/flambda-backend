@@ -43,10 +43,10 @@ val classify : Effects_and_coeffects.t -> kind
 (** Environment for flambda to cmm translation *)
 type t
 
-(** [mk offsets k k_exn] creates a local environment for translating a flambda
-    expression, with return continuation [k], exception continuation [k_exn],
-    and which uses the given closures variables. *)
-val mk :
+(** [create offsets k k_exn] creates a local environment for translating a
+    flambda expression, with return continuation [k], exception continuation
+    [k_exn], and which uses the given closures variables. *)
+val create :
   Exported_offsets.t ->
   Exported_code.t ->
   Continuation.t ->

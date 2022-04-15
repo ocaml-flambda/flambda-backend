@@ -140,7 +140,7 @@ type t =
     stages : stage list (* archived stages, in reverse chronological order. *)
   }
 
-let mk offsets functions_info k_return ~exn_continuation:k_exn =
+let create offsets functions_info k_return ~exn_continuation:k_exn =
   { k_return;
     k_exn;
     offsets;

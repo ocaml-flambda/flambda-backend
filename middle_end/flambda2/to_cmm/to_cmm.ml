@@ -786,7 +786,7 @@ let function_flags () =
 (* Expressions *)
 
 let rec expr env res e =
-  match (Expr.descr e : Expr.descr) with
+  match Expr.descr e with
   | Let e' -> let_expr env res e'
   | Let_cont e' -> let_cont env res e'
   | Apply e' -> apply_expr env res e'
@@ -794,19 +794,12 @@ let rec expr env res e =
   | Switch e' -> switch env res e'
   | Invalid { message } -> invalid env res ~message
 
-and let_expr env res t =
-  Let.pattern_match' t
+and let_expr env res let_expr =
+  Let.pattern_match' let_expr
     ~f:(fun bound_pattern ~num_normal_occurrences_of_bound_vars ~body ->
-      let mode = Bound_pattern.name_mode bound_pattern in
-      match mode with
-      | In_types ->
-        Misc.fatal_errorf
-          "Binding a variable of mode In_types in terms is forbidden"
-      | Phantom -> expr env res body
+      match Bound_pattern.name_mode bound_pattern with
       | Normal -> (
-        let e = Let.defining_expr t in
-        match bound_pattern, e with
-        (* Correct cases *)
+        match bound_pattern, Let.defining_expr let_expr with
         | Singleton v, Simple s ->
           let_expr_simple body env res v ~num_normal_occurrences_of_bound_vars s
         | Singleton v, Prim (p, dbg) ->
@@ -817,22 +810,17 @@ and let_expr env res t =
             ~num_normal_occurrences_of_bound_vars soc
         | Static bound_static, Static_consts consts ->
           let_static env res bound_static consts body
-        | Singleton _, Rec_info _ ->
-          (* Erase *)
-          expr env res body
-        (* Error cases *)
-        | Singleton _, (Set_of_closures _ | Static_consts _) ->
-          Misc.fatal_errorf
-            "Singleton binding neither a simple expression nor a primitive \
-             application:@ %a"
-            Let.print t
+        | Singleton _, Rec_info _ -> expr env res body
+        | Singleton _, (Set_of_closures _ | Static_consts _)
         | Set_of_closures _, (Simple _ | Prim _ | Static_consts _ | Rec_info _)
-          ->
-          Misc.fatal_errorf "Set_of_closures binding a non-Set_of_closures:@ %a"
-            Let.print t
         | Static _, (Simple _ | Prim _ | Set_of_closures _ | Rec_info _) ->
-          Misc.fatal_errorf "Symbols binding a non-Static const:@ %a" Let.print
-            t))
+          Misc.fatal_errorf
+            "Mismatch between pattern and defining expression:@ %a" Let.print
+            let_expr)
+      | In_types ->
+        Misc.fatal_errorf "Cannot bind In_types variables in terms:@ %a"
+          Let.print let_expr
+      | Phantom -> expr env res body)
 
 and let_static env res bound_static consts body =
   let env =
@@ -1472,9 +1460,9 @@ and let_static_set_of_closures env res body value_slots s layout =
   end;
   (* update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
-  (* Bind the variables to the symbols for function slots. CR gbury: inline the
-     variables (require to extend to_cmm_enc to inline pure variables more than
-     once). *)
+  (* Bind the variables to the symbols for function slots. *)
+  (* CR gbury: inline the variables (requires extending To_cmm_env to inline
+     pure variables more than once). *)
   let env =
     List.fold_left2
       (fun acc cid v ->
@@ -1633,48 +1621,51 @@ and params_and_body env res fun_name p ~fun_dbg =
 
 (* Compilation units *)
 
-let unit ~offsets ~make_symbol unit ~all_code =
+let unit ~offsets ~make_symbol flambda_unit ~all_code =
+  let dummy_k = Continuation.create () in
+  (* The dummy continuation is passed here since we're going to manually arrange
+     that the return continuation turns into "return unit". (Module initialisers
+     return the unit value). *)
+  let env =
+    Env.create offsets all_code dummy_k
+      ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
+  in
+  let _env, return_cont_params =
+    (* The environment is dropped because the handler for the dummy continuation
+       (which just returns unit) doesn't use any of the parameters. *)
+    param_list env
+      (Bound_parameters.create
+         [ Bound_parameter.create (Variable.create "*ret*")
+             Flambda_kind.With_subkind.any_value ])
+  in
+  let return_cont, env =
+    Env.add_jump_cont env
+      (List.map snd return_cont_params)
+      (Flambda_unit.return_continuation flambda_unit)
+  in
+  let r = R.empty ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
+  let body, res = expr env r (Flambda_unit.body flambda_unit) in
+  let body =
+    let unit_value = C.targetint Targetint_32_64.one in
+    C.ccatch ~rec_flag:false ~body
+      ~handlers:[C.handler return_cont return_cont_params unit_value]
+  in
+  let entry =
+    let dbg = Debuginfo.none in
+    let fun_name = Compilenv.make_symbol (Some "entry") in
+    let fun_codegen =
+      let fun_codegen = [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc] in
+      if Flambda_features.backend_cse_at_toplevel ()
+      then fun_codegen
+      else Cmm.No_CSE :: fun_codegen
+    in
+    C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
+  in
+  let data, gc_roots, functions = R.to_cmm res in
+  let cmmgen_data = C.flush_cmmgen_state () in
+  let gc_root_data = C.gc_root_table ~make_symbol (List.map symbol gc_roots) in
+  (gc_root_data :: data) @ cmmgen_data @ functions @ [entry]
+
+let unit ~offsets ~make_symbol flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      let dummy_k = Continuation.create () in
-      (* The dummy continuation is passed here since we're going to manually
-         arrange that the return continuation turns into "return unit". (Module
-         initialisers return the unit value). *)
-      let env =
-        Env.mk offsets all_code dummy_k
-          ~exn_continuation:(Flambda_unit.exn_continuation unit)
-      in
-      let _env, return_cont_params =
-        (* Note: the environment would be used if we needed to compile the
-           handler, but since it's constant we don't need it *)
-        param_list env
-          (Bound_parameters.create
-             [ Bound_parameter.create (Variable.create "*ret*")
-                 Flambda_kind.With_subkind.any_value ])
-      in
-      let return_cont, env =
-        Env.add_jump_cont env
-          (List.map snd return_cont_params)
-          (Flambda_unit.return_continuation unit)
-      in
-      let r = R.empty ~module_symbol:(Flambda_unit.module_symbol unit) in
-      let body, res = expr env r (Flambda_unit.body unit) in
-      let body =
-        let unit_value = C.targetint Targetint_32_64.one in
-        C.ccatch ~rec_flag:false ~body
-          ~handlers:[C.handler return_cont return_cont_params unit_value]
-      in
-      let entry =
-        let dbg = Debuginfo.none in
-        let fun_name = Compilenv.make_symbol (Some "entry") in
-        let fun_codegen =
-          if Flambda_features.backend_cse_at_toplevel ()
-          then [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc]
-          else [Cmm.Reduce_code_size; Cmm.Use_linscan_regalloc; Cmm.No_CSE]
-        in
-        C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
-      in
-      let data, gc_roots, functions = R.to_cmm res in
-      let cmm_data = C.flush_cmmgen_state () in
-      let roots = List.map symbol gc_roots in
-      (C.gc_root_table ~make_symbol roots :: data)
-      @ cmm_data @ functions @ [entry])
+      unit ~offsets ~make_symbol flambda_unit ~all_code)
