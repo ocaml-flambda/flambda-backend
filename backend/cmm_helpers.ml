@@ -39,6 +39,16 @@ let bind_nonvar name arg fn =
     let id = V.create_local name in
     Clet (VP.create id, arg, fn (Cvar id))
 
+let letin v ~defining_expr ~body =
+  match body with
+  | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
+    defining_expr
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
+  | Cregion _ | Ctail _ ->
+    Cmm.Clet (v, defining_expr, body)
+
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8

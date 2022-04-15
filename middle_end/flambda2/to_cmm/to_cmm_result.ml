@@ -14,10 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module C = struct
-  include Cmm_helpers
-  include To_cmm_helper
-end
+module C = Cmm_helpers
 
 type t =
   { gc_roots : Symbol.t list;
@@ -60,7 +57,7 @@ let add_to_data_list x l =
         "data list does not define any symbol, its elements will be unusable: \
          %a"
         Printcmm.data x;
-    C.cdata x :: l
+    Cmm.Cdata x :: l
 
 let archive_data r =
   { r with

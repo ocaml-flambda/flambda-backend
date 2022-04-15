@@ -54,9 +54,6 @@ val unit : dbg:Debuginfo.t -> Cmm.expression
 (** Create an expression from a variable. *)
 val var : Backend_var.t -> Cmm.expression
 
-(** Create an expression from a symbol. *)
-val symbol : ?dbg:Debuginfo.t -> string -> Cmm.expression
-
 (** Create a constant float expression. *)
 val float : ?dbg:Debuginfo.t -> float -> Cmm.expression
 
@@ -240,6 +237,38 @@ val bigarray_store :
   Cmm.expression ->
   Cmm.expression
 
+(** {2 Numeric conversions} *)
+
+val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
+
+val targetint_of_imm : Targetint_31_63.t -> Targetint_32_64.t
+
+val nativeint_of_targetint : Targetint_32_64.t -> Nativeint.t
+
+(** {2 [Simple]s, constants, etc.} *)
+
+val symbol_from_linkage_name :
+  ?dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
+
+val symbol : ?dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
+
+val name :
+  To_cmm_env.t ->
+  Name.t ->
+  Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
+
+val const : To_cmm_env.t -> Reg_width_const.t -> Cmm.expression
+
+val simple :
+  To_cmm_env.t ->
+  Simple.t ->
+  Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
+
+val arg_list :
+  To_cmm_env.t ->
+  Simple.t list ->
+  Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t
+
 (** {2 Expression combinators} *)
 
 (** Cassign *)
@@ -248,15 +277,8 @@ val assign : Backend_var.t -> Cmm.expression -> Cmm.expression
 (** Create a sequence of expressions. Will erase void expressions as needed. *)
 val sequence : Cmm.expression -> Cmm.expression -> Cmm.expression
 
-(** [letin v e body] binds [v] to [e] in [body]. *)
-val letin :
-  Backend_var.With_provenance.t ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
 (** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
-    in [body]. *)
+    in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
 val letin_mut :
   Backend_var.With_provenance.t ->
   Cmm.machtype ->
@@ -304,6 +326,9 @@ val trywith :
 
 (** Translate the raise kind found on Pop trap actions into a Cmm raise kind *)
 val raise_kind : Trap_action.raise_kind option -> Lambda.raise_kind
+
+val invalid :
+  To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
 (** {2 Static jumps} *)
 

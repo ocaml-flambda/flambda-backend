@@ -485,6 +485,8 @@ module Symbol = struct
 
   let linkage_name t = (find_data t).linkage_name
 
+  let linkage_name_as_string t = Linkage_name.to_string (linkage_name t)
+
   module T0 = struct
     let compare = Id.compare
 

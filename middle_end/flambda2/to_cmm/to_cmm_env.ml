@@ -222,7 +222,7 @@ let gen_variable v =
 
 let add_variable env v v' =
   let v'' = Backend_var.With_provenance.var v' in
-  let vars = Variable.Map.add v (To_cmm_helper.var v'') env.vars in
+  let vars = Variable.Map.add v (Cmm.Cvar v'') env.vars in
   { env with vars }
 
 let create_variable env v =
@@ -379,7 +379,7 @@ let mk_binding ?extra env inline effs var cmm_expr =
   let cmm_var = gen_variable var in
   let b = { order; inline; effs; cmm_var; cmm_expr } in
   let v = Backend_var.With_provenance.var cmm_var in
-  let e = To_cmm_helper.var v in
+  let e = Cmm.Cvar v in
   let env = { env with vars = Variable.Map.add var e env.vars } in
   let env =
     match extra with
@@ -423,7 +423,7 @@ let inline_res env b = b.cmm_expr, env, b.effs
 
 let inline_not env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
-  To_cmm_helper.var v', env, Effects_and_coeffects.pure
+  Cmm.Cvar v', env, Effects_and_coeffects.pure
 
 let inline_not_found env v =
   match Variable.Map.find v env.vars with
@@ -499,7 +499,8 @@ let flush_delayed_lets ?(entering_loop = false) env =
         order_map stages
     in
     M.fold
-      (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
+      (fun _ b acc ->
+        Cmm_helpers.letin b.cmm_var ~defining_expr:b.cmm_expr ~body:acc)
       order_map e
   in
   (* Unless entering a loop, only pure bindings that are not to be inlined are

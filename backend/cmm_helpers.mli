@@ -26,6 +26,14 @@ val bind_load : string -> expression -> (expression -> expression) -> expression
 val bind_nonvar :
   string -> expression -> (expression -> expression) -> expression
 
+(** Create a [Clet], except if the body just returns the bound variable, in
+    which case the [Clet] is elided. *)
+val letin :
+  Backend_var.With_provenance.t ->
+  defining_expr:expression ->
+  body:expression ->
+  expression
+
 (** Headers *)
 
 (** A null header with GC bits set to black *)

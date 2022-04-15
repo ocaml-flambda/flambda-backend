@@ -126,6 +126,8 @@ module Symbol : sig
 
   val linkage_name : t -> Linkage_name.t
 
+  val linkage_name_as_string : t -> string
+
   val export : t -> exported
 
   val import : exported -> t

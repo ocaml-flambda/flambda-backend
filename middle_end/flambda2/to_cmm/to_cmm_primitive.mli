@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                        Guillaume Bury, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2013--2020 OCamlPro SAS                                    *)
-(*   Copyright 2014--2020 Jane Street Group LLC                           *)
+(*   Copyright 2019--2019 OCamlPro SAS                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -16,13 +14,15 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** A symbol identifies a piece of statically-allocated data. The linkage name
-    must be unique across the whole program. *)
+(** Translation of Flambda primitives to Cmm. *)
 
-include module type of struct
-  include Int_ids.Symbol
-end
-
-val is_predefined_exception : t -> bool
-
-val linkage_name_as_string : t -> string
+val prim :
+  To_cmm_env.t ->
+  To_cmm_result.t ->
+  Debuginfo.t ->
+  Flambda_primitive.t ->
+  Cmm.expression
+  * To_cmm_env.extra_info option
+  * To_cmm_env.t
+  * To_cmm_result.t
+  * Effects_and_coeffects.t

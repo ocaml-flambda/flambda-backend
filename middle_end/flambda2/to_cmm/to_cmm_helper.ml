@@ -15,6 +15,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open Cmm_helpers
+module Ece = Effects_and_coeffects
 module P = Flambda_primitive
 
 let unsupported_32_bits () =
@@ -65,7 +66,25 @@ let define_symbol ~global s =
 
 let var v = Cmm.Cvar v
 
-let symbol ?(dbg = Debuginfo.none) s = Cmm.Cconst_symbol (s, dbg)
+let symbol_from_string ?(dbg = Debuginfo.none) sym = Cmm.Cconst_symbol (sym, dbg)
+
+let symbol_from_linkage_name ?dbg ln =
+  symbol_from_string ?dbg (Linkage_name.to_string ln)
+
+let symbol ?dbg sym = symbol_from_linkage_name ?dbg (Symbol.linkage_name sym)
+
+let name env name =
+  Name.pattern_match name
+    ~var:(fun v -> To_cmm_env.inline_variable env v)
+    ~symbol:(fun s ->
+      let env =
+        To_cmm_env.check_scope ~allow_deleted:false env
+          (Code_id_or_symbol.create_symbol s)
+      in
+      ( Cmm.Cconst_symbol
+          (Linkage_name.to_string (Symbol.linkage_name s), Debuginfo.none),
+        env,
+        Ece.pure ))
 
 let float ?(dbg = Debuginfo.none) f = Cmm.Cconst_float (f, dbg)
 
@@ -88,6 +107,42 @@ let targetint ?(dbg = Debuginfo.none) t =
   match Targetint_32_64.repr t with
   | Int32 i -> int32 ~dbg i
   | Int64 i -> int64 ~dbg i
+
+(* CR mshinwell: The following functions should be in [Targetint], etc. *)
+
+let tag_targetint t = Targetint_32_64.(add (shift_left t 1) one)
+
+let targetint_of_imm i =
+  Targetint_31_63.Imm.to_targetint i.Targetint_31_63.value
+
+let nativeint_of_targetint t =
+  match Targetint_32_64.repr t with
+  | Int32 i -> Nativeint.of_int32 i
+  | Int64 i -> Int64.to_nativeint i
+
+let const _env cst =
+  match Reg_width_const.descr cst with
+  | Naked_immediate i -> targetint (targetint_of_imm i)
+  | Tagged_immediate i -> targetint (tag_targetint (targetint_of_imm i))
+  | Naked_float f -> float (Numeric_types.Float_by_bit_pattern.to_float f)
+  | Naked_int32 i -> int32 i
+  | Naked_int64 i -> int64 i
+  | Naked_nativeint t -> targetint t
+
+(* [Simple]s and lists thereof *)
+
+let simple env s =
+  Simple.pattern_match s
+    ~name:(fun n ~coercion:_ -> name env n)
+    ~const:(fun c -> const env c, env, Ece.pure)
+
+let arg_list env l =
+  let aux (list, env, effs) x =
+    let y, env, eff = simple env x in
+    y :: list, env, Ece.join eff effs
+  in
+  let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
+  List.rev args, env, effs
 
 (* Infix field address. Contrary to regular field addresse, these addresse are
    valid ocaml values, and can be live at gc points. *)
@@ -255,15 +310,6 @@ let float_ge = binary Cmm.(Ccmpf CFge)
 let int_of_float = unary Cmm.Cintoffloat
 
 let float_of_int = unary Cmm.Cfloatofint
-
-let letin v e (body : Cmm.expression) =
-  match body with
-  | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' -> e
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
-    Cmm.Clet (v, e, body)
 
 let letin_mut v ty e body = Cmm.Clet_mut (v, ty, e, body)
 
@@ -577,15 +623,19 @@ let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
     let v' = Backend_var.With_provenance.create v in
     (* We always use [Apply_nontail] since the [Lambda_to_flambda] pass has
        already taken care of the placement of region begin/end primitives. *)
-    letin v' f
-    @@ Cmm.Cop
-         ( Cmm.Capply (ty, Rc_normal),
-           [load Cmm.Word_int Asttypes.Mutable (var v); arg; var v],
-           dbg )
+    letin v' ~defining_expr:f
+      ~body:
+        (Cmm.Cop
+           ( Cmm.Capply (ty, Rc_normal),
+             [load Cmm.Word_int Asttypes.Mutable (var v); arg; var v],
+             dbg ))
   | args ->
     let arity = List.length args in
     let alloc_mode = convert_alloc_mode alloc_mode in
-    let l = (symbol (apply_function_sym arity alloc_mode) :: args) @ [f] in
+    let l =
+      (Cmm.Cconst_symbol (apply_function_sym arity alloc_mode, dbg) :: args)
+      @ [f]
+    in
     Cmm.Cop (Cmm.Capply (ty, Rc_normal), l, dbg)
 
 let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
@@ -599,8 +649,29 @@ let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
     let fun_ptr =
       load Cmm.Word_int Asttypes.Mutable @@ field_address (var v) 2 dbg
     in
-    letin v' f
-    @@ Cmm.Cop (Cmm.Capply (ty, Rc_normal), (fun_ptr :: args) @ [var v], dbg)
+    letin v' ~defining_expr:f
+      ~body:
+        (Cmm.Cop (Cmm.Capply (ty, Rc_normal), (fun_ptr :: args) @ [var v], dbg))
+
+(* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
+   simply generating code that segfaults *)
+let invalid res ~message =
+  let message_sym =
+    Symbol.create
+      (Compilation_unit.get_current_exn ())
+      (Linkage_name.create (Variable.unique_name (Variable.create "invalid")))
+  in
+  let data_items =
+    Cmm_helpers.emit_string_constant
+      (Symbol.linkage_name_as_string message_sym, Cmmgen_state.Global)
+      message []
+    |> To_cmm_result.add_data_items res
+  in
+  let call_expr =
+    extcall ~dbg:Debuginfo.none ~alloc:false ~is_c_builtin:false ~returns:false
+      ~ty_args:[XInt] "caml_flambda2_invalid" Cmm.typ_void [symbol message_sym]
+  in
+  call_expr, data_items
 
 (* Cmm phrases *)
 
