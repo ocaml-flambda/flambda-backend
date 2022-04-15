@@ -17,6 +17,8 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 
+val reorder_blocks_random : int option ref
+
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 
