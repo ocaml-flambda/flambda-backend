@@ -108,13 +108,15 @@ let set_name t name = t.name <- Some name
 
 type fold_arg =
   | DIE of
-      Dwarf_tag.t
-      * Child_determination.t
-      * AV.t ASS.Map.t
-      * Asm_label.t
-      * Asm_symbol.t option
-      (* optional name *)
-      * Dwarf_4_location_list.t option
+      { tag : Dwarf_tag.t;
+        has_children : Child_determination.t;
+        attribute_values : AV.t ASS.Map.t;
+        label : Asm_label.t;
+        name : Asm_symbol.t option;
+        location_list_in_debug_loc_table :
+          (* optional name *)
+          Dwarf_4_location_list.t option
+      }
   | End_of_siblings
 
 let rec depth_first_fold t ~init ~f =
@@ -124,12 +126,13 @@ let rec depth_first_fold t ~init ~f =
   let acc =
     f init
       (DIE
-         ( t.tag,
-           has_children,
-           t.attribute_values,
-           t.label,
-           t.name,
-           t.location_list_in_debug_loc_table ))
+         { tag = t.tag;
+           has_children;
+           attribute_values = t.attribute_values;
+           label = t.label;
+           name = t.name;
+           location_list_in_debug_loc_table = t.location_list_in_debug_loc_table
+         })
   in
   if Int.Map.is_empty t.children_by_sort_priority
   then acc

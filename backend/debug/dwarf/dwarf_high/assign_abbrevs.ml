@@ -48,12 +48,13 @@ let run ~proto_die_root =
               compilation_unit_die,
               location_lists_rev )
           | DIE
-              ( tag,
-                has_children,
-                attribute_values,
-                label,
-                name,
-                location_list_in_debug_loc_table ) ->
+              { tag;
+                has_children;
+                attribute_values;
+                label;
+                name;
+                location_list_in_debug_loc_table
+              } ->
             let attribute_specs = ASS.Map.keys attribute_values in
             let abbrev_table, abbreviation_code =
               match

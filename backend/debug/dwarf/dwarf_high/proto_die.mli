@@ -70,14 +70,17 @@ val reference : t -> Asm_label.t
 
 type fold_arg = private
   | DIE of
-      Dwarf_tag.t
-      * Child_determination.t
-      * Dwarf_attribute_values.Attribute_value.t
-        Dwarf_attributes.Attribute_specification.Sealed.Map.t
-      * Asm_label.t
-      * Asm_symbol.t option
-      (* optional name *)
-      * Dwarf_4_location_list.t option
+      { tag : Dwarf_tag.t;
+        has_children : Child_determination.t;
+        attribute_values :
+          Dwarf_attribute_values.Attribute_value.t
+          Dwarf_attributes.Attribute_specification.Sealed.Map.t;
+        label : Asm_label.t;
+        name : Asm_symbol.t option;
+        location_list_in_debug_loc_table :
+          (* optional name *)
+          Dwarf_4_location_list.t option
+      }
   | End_of_siblings
 
 (* [depth_first_fold] traverses a proto-DIE tree in a depth-first order
