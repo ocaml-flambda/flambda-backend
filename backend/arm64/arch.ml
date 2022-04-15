@@ -340,4 +340,5 @@ let operation_can_raise = function
   | Isqrtf
   | Imove32
   | Ishiftarith (_, _)
+  | Isignext _
   | Ibswap _ -> false
