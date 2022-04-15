@@ -426,32 +426,6 @@ let max_register_pressure =
   | Ibeginregion | Iendregion
     -> consumes ~int:0 ~float:0
 
-(* Pure operations (without any side effect besides updating their result
-   registers). *)
-
-let op_is_pure = function
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
-  | Ibeginregion | Iendregion -> false
-  | Ispecific(Ipause)
-  | Ispecific(Iprefetch _) -> false
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Ifloat_iround | Ifloat_round _
-             | Ifloat_min | Ifloat_max) -> true
-  | Ispecific(Irdtsc | Irdpmc | Icrc32q | Istore_int (_, _, _)
-             | Ioffset_loc (_, _) | Ifloatarithmem (_, _)
-             | Ibswap _ | Ifloatsqrtf _ | Isqrtf)-> false
-  | Iprobe _ | Iprobe_is_enabled _-> false
-  | Iintop(Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _)
-  | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _|Ictz _|Icomp _), _)
-  | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf _
-  | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Iconst_symbol _
-  | Iload (_, _, _) | Iname_for_debugger _
-    -> true
-
 (* Layout of the stack frame *)
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =

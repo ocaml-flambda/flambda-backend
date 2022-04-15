@@ -301,7 +301,9 @@ let logical_imm_length x =
 let is_logical_immediate x =
   x <> 0n && x <> -1n && run_automata (logical_imm_length x) 0 x
 
-let is_pure_specific : specific_operation -> bool = function
+(* Specific operations that are pure *)
+
+let operation_is_pure : specific_operation -> bool = function
   | Ifar_alloc _ -> false
   | Ifar_intop_checkbound -> false
   | Ifar_intop_imm_checkbound _ -> false
@@ -319,3 +321,24 @@ let is_pure_specific : specific_operation -> bool = function
   | Ibswap _ -> true
   | Imove32 -> true
   | Isignext _ -> true
+
+(* Specific operations that can raise *)
+
+let operation_can_raise = function
+  | Ifar_alloc _
+  | Ifar_intop_checkbound
+  | Ifar_intop_imm_checkbound _
+  | Ishiftcheckbound _
+  | Ifar_shiftcheckbound _ -> true
+  | Imuladd
+  | Imulsub
+  | Inegmulf
+  | Imuladdf
+  | Inegmuladdf
+  | Imulsubf
+  | Inegmulsubf
+  | Isqrtf
+  | Imove32
+  | Ishiftarith (_, _)
+  | Isignext _
+  | Ibswap _ -> false

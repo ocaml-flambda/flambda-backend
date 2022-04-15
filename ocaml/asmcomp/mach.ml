@@ -160,10 +160,21 @@ let rec instr_iter f i =
       | _ ->
           instr_iter f i.next
 
+let operation_is_pure = function
+  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
+  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) | Iopaque -> false
+  | Ibeginregion | Iendregion -> false
+  | Iprobe _ -> false
+  | Iprobe_is_enabled _-> true
+  | Ispecific sop -> Arch.operation_is_pure sop
+  | _ -> true
+
 let operation_can_raise op =
   match op with
   | Icall_ind | Icall_imm _ | Iextcall _
   | Iintop (Icheckbound) | Iintop_imm (Icheckbound, _)
   | Iprobe _
   | Ialloc _ -> true
+  | Ispecific sop -> Arch.operation_can_raise sop
   | _ -> false

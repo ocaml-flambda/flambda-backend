@@ -323,8 +323,8 @@ let can_raise_operation : operation -> bool = function
   | Floatofint -> false
   | Intoffloat -> false
   | Probe _ -> true
-  | Probe_is_enabled _ -> false (* CR xclerc for xclerc: double check *)
-  | Specific _ -> false (* CR xclerc for xclerc: double check *)
+  | Probe_is_enabled _ -> true
+  | Specific op -> Arch.operation_can_raise op
   | Opaque -> false
   | Name_for_debugger _ -> false
   | Begin_region -> false
@@ -375,7 +375,7 @@ let is_pure_operation : operation -> bool = function
   | Opaque -> false
   | Begin_region -> false
   | End_region -> false
-  | Specific s -> Arch.is_pure_specific s
+  | Specific s -> Arch.operation_is_pure s
   | Name_for_debugger _ -> true
 
 let is_pure_basic : basic -> bool = function

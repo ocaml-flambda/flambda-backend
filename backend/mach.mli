@@ -130,7 +130,14 @@ val instr_cons_debug:
         instruction -> instruction
 val instr_iter: (instruction -> unit) -> instruction -> unit
 
+val operation_is_pure : operation -> bool
+  (** Returns [true] if the given operation only produces a result
+      in its destination registers, but has no side effects whatsoever:
+      it doesn't raise exceptions, it doesn't modify already-allocated
+      blocks, it doesn't adjust the stack frame, etc. *)
+
 val operation_can_raise : operation -> bool
+  (** Returns [true] if the given operation can raise an exception. *)
 
 val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
 val equal_trap_stack : trap_stack -> trap_stack -> bool
