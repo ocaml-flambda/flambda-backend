@@ -17,8 +17,6 @@
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 
-val use_cpp_mangling : bool ref
-
 val default_heap_reduction_threshold : int
 val heap_reduction_threshold : int ref
 

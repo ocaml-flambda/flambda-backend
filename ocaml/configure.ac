@@ -152,6 +152,7 @@ AC_SUBST([install_source_artifacts])
 AC_SUBST([profinfo])
 AC_SUBST([profinfo_width])
 AC_SUBST([frame_pointers])
+AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
 AC_SUBST([flambda2])
 AC_SUBST([flambda_invariants])
@@ -277,6 +278,10 @@ AC_ARG_ENABLE([ocamltest],
 AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
+
+AC_ARG_ENABLE([cpp-mangling],
+  [AS_HELP_STRING([--enable-cpp-mangling],
+    [use cpp mangling for exported symbols])])
 
 AC_ARG_ENABLE([naked-pointers],
   [AS_HELP_STRING([--disable-naked-pointers],
@@ -1737,6 +1742,13 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   )],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
+
+## CPP mangling
+
+AS_IF([test x"$enable_cpp_mangling" = "xyes"],
+  [cpp_mangling=true
+    AC_DEFINE([WITH_CPP_MANGLING])],
+  [cpp_mangling=false])
 
 ## No naked pointers
 

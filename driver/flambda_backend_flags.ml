@@ -16,8 +16,6 @@
 let use_ocamlcfg = ref false            (* -ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 
-let use_cpp_mangling = ref false        (* -use-cpp-mangling *)
-
 let default_heap_reduction_threshold = 500_000_000 / (Sys.word_size / 8)
 let heap_reduction_threshold = ref default_heap_reduction_threshold (* -heap-reduction-threshold *)
 
