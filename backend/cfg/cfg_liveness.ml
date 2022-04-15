@@ -57,7 +57,7 @@ struct
       else
         let across = Reg.diff_set_array before instr.res in
         let across =
-          if Cfg.can_raise_basic instr.desc && instr.trap_depth > 1
+          if Cfg.can_raise_basic instr.desc && instr.stack_offset > 0
           then Reg.Set.union across exn.before
           else across
         in

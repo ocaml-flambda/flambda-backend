@@ -38,7 +38,7 @@ and instruction_desc =
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
-  | Ladjust_trap_depth of { delta_traps : int; }
+  | Ladjust_stack_offset of { delta_bytes : int; }
   | Lpushtrap of { lbl_handler : label; }
   | Lpoptrap
   | Lraise of Lambda.raise_kind
@@ -60,3 +60,5 @@ type fundecl =
     fun_frame_required: bool;
     fun_prologue_required: bool;
   }
+
+val traps_to_bytes : int -> int

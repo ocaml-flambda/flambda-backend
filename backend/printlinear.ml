@@ -61,8 +61,8 @@ let instr ppf i =
       fprintf ppf "@,endswitch"
   | Lentertrap ->
       fprintf ppf "enter trap"
-  | Ladjust_trap_depth { delta_traps } ->
-      fprintf ppf "adjust trap depth by %d traps" delta_traps
+  | Ladjust_stack_offset { delta_bytes } ->
+      fprintf ppf "adjust pseudo stack offset by %d bytes" delta_bytes
   | Lpushtrap { lbl_handler; } ->
       fprintf ppf "push trap %a" label lbl_handler
   | Lpoptrap ->

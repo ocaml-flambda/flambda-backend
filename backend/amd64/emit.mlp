@@ -1115,11 +1115,9 @@ let emit_instr fallthrough i =
       emit_named_text_section !function_name
   | Lentertrap ->
       ()
-  | Ladjust_trap_depth { delta_traps; } ->
-      (* each trap occupies 16 bytes on the stack *)
-      let delta = 16 * delta_traps in
-      cfi_adjust_cfa_offset delta;
-      stack_offset := !stack_offset + delta
+  | Ladjust_stack_offset { delta_bytes; } ->
+      cfi_adjust_cfa_offset delta_bytes;
+      stack_offset := !stack_offset + delta_bytes
   | Lpushtrap { lbl_handler; } ->
       let load_label_addr s arg =
         if !Clflags.pic_code then

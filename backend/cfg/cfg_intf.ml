@@ -131,7 +131,7 @@ module S = struct
       dbg : Debuginfo.t;
       fdo : Fdo_info.t;
       live : Reg.Set.t;
-      trap_depth : int;
+      stack_offset : int;
       id : int
     }
 

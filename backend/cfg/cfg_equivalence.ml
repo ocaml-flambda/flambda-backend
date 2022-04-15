@@ -175,7 +175,7 @@ let equal_raise_kind : Lambda.raise_kind -> Lambda.raise_kind -> bool =
 let array_equal eq left right =
   Array.length left = Array.length right && Array.for_all2 eq left right
 
-let is_valid_trap_depth : int -> bool = fun trap_depth -> trap_depth >= 0
+let is_valid_stack_offset : int -> bool = fun stack_offset -> stack_offset >= 0
 
 let check_external_call_operation :
     location ->
@@ -373,10 +373,10 @@ let check_instruction :
   then different location "FDO info";
   if check_live && not (Reg.Set.equal expected.live result.live)
   then different location "live register set";
-  if is_valid_trap_depth expected.trap_depth
-     && is_valid_trap_depth result.trap_depth
-     && not (Int.equal expected.trap_depth result.trap_depth)
-  then different location "trap depth";
+  if is_valid_stack_offset expected.stack_offset
+     && is_valid_stack_offset result.stack_offset
+     && not (Int.equal expected.stack_offset result.stack_offset)
+  then different location "stack offset";
   (* note: not comparing `id` fields on purpose *)
   ()
 
@@ -504,11 +504,14 @@ let check_basic_block : State.t -> Cfg.basic_block -> Cfg.basic_block -> unit =
     result.terminator;
   (* State.add_label_sets_to_check state (location ^ " (predecessors)")
      expected.predecessors result.predecessors; *)
-  if is_valid_trap_depth expected.trap_depth
-     && is_valid_trap_depth result.trap_depth
+  if is_valid_stack_offset expected.stack_offset
+     && is_valid_stack_offset result.stack_offset
   then begin
-    if not (Int.equal expected.trap_depth result.trap_depth)
-    then different location "trap depth";
+    if not (Int.equal expected.stack_offset result.stack_offset)
+    then
+      different location
+        (Printf.sprintf "stack offset: expected=%d result=%d"
+           expected.stack_offset result.stack_offset);
     let location = location ^ " (exceptional successors)" in
     match expected.exn, result.exn with
     | None, None -> ()

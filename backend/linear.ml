@@ -38,7 +38,7 @@ and instruction_desc =
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
-  | Ladjust_trap_depth of { delta_traps : int; }
+  | Ladjust_stack_offset of { delta_bytes : int; }
   | Lpushtrap of { lbl_handler : label; }
   | Lpoptrap
   | Lraise of Lambda.raise_kind
@@ -91,3 +91,5 @@ let rec end_instr =
 let instr_cons d a r n =
   { desc = d; next = n; arg = a; res = r;
     dbg = Debuginfo.none; fdo = Fdo_info.none; live = Reg.Set.empty }
+
+let traps_to_bytes traps = Proc.trap_size_in_bytes * traps

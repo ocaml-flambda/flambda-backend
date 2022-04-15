@@ -323,15 +323,15 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
         && not (Label.Set.mem block.start new_labels)
       | Return | Raise _ | Tailcall _ | Call_no_return _ -> assert false)
 
-let adjust_trap_depth body (block : Cfg.basic_block)
+let adjust_stack_offset body (block : Cfg.basic_block)
     ~(prev_block : Cfg.basic_block) =
-  let block_trap_depth = block.trap_depth in
-  let prev_trap_depth = prev_block.terminator.trap_depth in
-  if block_trap_depth = prev_trap_depth
+  let block_stack_offset = block.stack_offset in
+  let prev_stack_offset = prev_block.terminator.stack_offset in
+  if block_stack_offset = prev_stack_offset
   then body
   else
-    let delta_traps = block_trap_depth - prev_trap_depth in
-    to_linear_instr (Ladjust_trap_depth { delta_traps }) ~next:body
+    let delta_bytes = block_stack_offset - prev_stack_offset in
+    to_linear_instr (Ladjust_stack_offset { delta_bytes }) ~next:body
 
 (* CR-someday gyorsh: handle duplicate labels in new layout: print the same
    block more than once. *)
@@ -375,7 +375,7 @@ let run cfg_with_layout =
           then body
           else to_linear_instr (Llabel block.start) ~next:body
         in
-        adjust_trap_depth body block ~prev_block
+        adjust_stack_offset body block ~prev_block
     in
     next := { Linear_utils.label; insn }
   done;

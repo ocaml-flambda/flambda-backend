@@ -49,20 +49,23 @@ let check_label n = match n.desc with
   | _ -> -1
 
 
-(* Add pseudo-instruction Ladjust_trap_depth in front of a continuation
+(* Add pseudo-instruction Ladjust_stack_offset in front of a continuation
    to notify assembler generation about updates to the stack as a result
-   of differences in exception trap depths.
-   The argument delta is the number of trap frames (not bytes). *)
+   of differences in exception trap depths
+   and stack allocated outgoing arguments. *)
 
-let rec adjust_trap_depth delta_traps next =
-  (* Simplify by merging and eliminating Ladjust_trap_depth instructions
+let rec adjust_stack_offset delta_bytes next =
+  (* Simplify by merging and eliminating Ladjust_stack_offset instructions
      whenever possible. *)
   match next.desc with
-  | Ladjust_trap_depth { delta_traps = k } ->
-    adjust_trap_depth (delta_traps + k) next.next
+  | Ladjust_stack_offset { delta_bytes = k } ->
+    adjust_stack_offset (delta_bytes + k) next.next
   | _ ->
-    if delta_traps = 0 then next
-    else cons_instr (Ladjust_trap_depth { delta_traps }) next
+    if delta_bytes = 0 then next
+    else cons_instr (Ladjust_stack_offset { delta_bytes }) next
+
+let rec adjust_trap_depth delta_traps next =
+  adjust_stack_offset (Linear.traps_to_bytes delta_traps) next
 
 let delta_traps stack_before stack_after =
   let rec stack_depth acc stack =
@@ -77,27 +80,24 @@ let delta_traps stack_before stack_after =
    instruction. *)
 
 let rec discard_dead_code n =
-  let adjust trap_depth =
-    adjust_trap_depth trap_depth (discard_dead_code n.next)
+  let adjust ~delta_bytes =
+    adjust_stack_offset delta_bytes (discard_dead_code n.next)
+  in
+  let adjust_traps ~delta_traps =
+    adjust ~delta_bytes:(Linear.traps_to_bytes delta_traps)
   in
   match n.desc with
     Lend -> n
   | Llabel _ -> n
-    (* Do not discard Lpoptrap/Lpushtrap/Ladjust_trap_depth
+    (* Do not discard Lpoptrap/Lpushtrap/Ladjust_stack_offset
        or Istackoffset instructions, as this may cause a stack imbalance
        later during assembler generation. Replace them
-       with pseudo-instruction Ladjust_trap_depth with the corresponding
+       with pseudo-instruction Ladjust_stack_offset with the corresponding
        stack offset and eliminate dead instructions after them. *)
-  | Lpoptrap -> adjust (-1)
-  | Lpushtrap _ -> adjust (+1)
-  | Ladjust_trap_depth { delta_traps } -> adjust delta_traps
-  | Lop(Istackoffset _) ->
-    (* This dead instruction cannot be replaced by Ladjust_trap_depth,
-       because the units don't match: the argument of Istackoffset is in bytes,
-       whereas the argument of Ladjust_trap_depth is in trap frames,
-       and the size of trap frames is machine-dependant and therefore not
-       available here.  *)
-    { n with next = discard_dead_code n.next; }
+  | Lpoptrap -> adjust_traps ~delta_traps:(-1)
+  | Lpushtrap _ -> adjust_traps ~delta_traps:(+1)
+  | Ladjust_stack_offset { delta_bytes } -> adjust ~delta_bytes
+  | Lop(Istackoffset delta_bytes) -> adjust ~delta_bytes
   | _ -> discard_dead_code n.next
 
 (*
