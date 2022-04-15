@@ -120,7 +120,7 @@ let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
   | Some id -> concat_symbol prefix id
 
 let make_fun_symbol ?(unitname = current_unit.ui_symbol) loc id =
-  if !Flambda_backend_flags.use_cpp_mangling then
+  if Config.with_cpp_mangling then
     Mangling.fun_symbol ~unitname ~loc ~id
   else
     make_symbol ~unitname (Some id)
@@ -484,13 +484,13 @@ let cpp_closure_symbol closure_id =
   Symbol.of_global_linkage compilation_unit (Linkage_name.create linkage_name)
 
 let function_label closure_id =
-  if !Flambda_backend_flags.use_cpp_mangling then
+  if Config.with_cpp_mangling then
     cpp_function_label closure_id
   else
     legacy_function_label closure_id
 
 let closure_symbol closure_id =
-  if !Flambda_backend_flags.use_cpp_mangling then
+  if Config.with_cpp_mangling then
     cpp_closure_symbol closure_id
   else
     legacy_closure_symbol closure_id

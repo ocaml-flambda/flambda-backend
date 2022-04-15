@@ -33,8 +33,6 @@ let mk_heap_reduction_threshold f =
   Printf.sprintf " Threshold (in major words, defaulting to %d) to trigger a heap reduction before code emission"
     Flambda_backend_flags.default_heap_reduction_threshold
 ;;
-let mk_use_cpp_mangling f =
-  "-gcpp-mangling", Arg.Unit f, " Use C++ mangling for function symbols"
 
 let mk_dump_inlining_paths f =
   "-dump-inlining-paths", Arg.Unit f, " Dump inlining paths when dumping flambda2 terms"
@@ -402,7 +400,6 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
 
   val heap_reduction_threshold : int -> unit
-  val use_cpp_mangling : unit -> unit
 
   val flambda2_join_points : unit -> unit
   val no_flambda2_join_points : unit -> unit
@@ -468,7 +465,6 @@ struct
     mk_dcfg F.dcfg;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
-    mk_use_cpp_mangling F.use_cpp_mangling;
 
     mk_flambda2_join_points F.flambda2_join_points;
     mk_no_flambda2_join_points F.no_flambda2_join_points;
@@ -568,8 +564,6 @@ module Flambda_backend_options_impl = struct
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
-
-  let use_cpp_mangling = set' Flambda_backend_flags.use_cpp_mangling
 
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
@@ -729,7 +723,6 @@ module Extra_params = struct
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
-    | "gcpp-mangling" -> set' Flambda_backend_flags.use_cpp_mangling
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->

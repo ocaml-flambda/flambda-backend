@@ -710,6 +710,7 @@ cmm_invariants
 flambda_invariants
 flambda2
 flambda
+cpp_mangling
 frame_pointers
 profinfo_width
 profinfo
@@ -839,6 +840,7 @@ enable_bigarray_lib
 enable_ocamldoc
 enable_ocamltest
 enable_frame_pointers
+enable_cpp_mangling
 enable_naked_pointers
 enable_naked_pointers_checker
 enable_spacetime
@@ -1511,6 +1513,7 @@ Optional Features:
   --disable-ocamldoc      do not build the ocamldoc documentation system
   --disable-ocamltest     do not build the ocamltest driver
   --enable-frame-pointers use frame pointers in runtime and generated code
+  --enable-cpp-mangling   use cpp mangling for exported symbols
   --disable-naked-pointers
                           do not allow naked pointers
   --enable-naked-pointers-checker
@@ -2884,6 +2887,7 @@ VERSION=4.12.0
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.build_config"
@@ -3126,6 +3130,12 @@ fi
 # Check whether --enable-frame-pointers was given.
 if test "${enable_frame_pointers+set}" = set; then :
   enableval=$enable_frame_pointers;
+fi
+
+
+# Check whether --enable-cpp-mangling was given.
+if test "${enable_cpp_mangling+set}" = set; then :
+  enableval=$enable_cpp_mangling;
 fi
 
 
@@ -16815,6 +16825,16 @@ else
   { $as_echo "$as_me:${as_lineno-$LINENO}: not using frame pointers" >&5
 $as_echo "$as_me: not using frame pointers" >&6;}
   frame_pointers=false
+fi
+
+## CPP mangling
+
+if test x"$enable_cpp_mangling" = "xyes"; then :
+  cpp_mangling=true
+    $as_echo "#define WITH_CPP_MANGLING 1" >>confdefs.h
+
+else
+  cpp_mangling=false
 fi
 
 ## No naked pointers
