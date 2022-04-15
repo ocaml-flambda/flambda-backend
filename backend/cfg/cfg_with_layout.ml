@@ -179,6 +179,7 @@ module Permute = struct
   external unsafe_set : 'a array -> int -> 'a -> unit = "%array_unsafe_set"
 
   let swap t i j =
+    (* CR-someday: use unsafe gets. *)
     let elt_i = t.(i) in
     let elt_j = t.(j) in
     unsafe_set t i elt_j;
@@ -207,7 +208,7 @@ module Permute = struct
 end
 
 let reorder_blocks_random ?random_state t =
-  (* Ensure entry exit invariants *)
+  (* Ensure entry block remains first *)
   let original_layout = layout t in
   let new_layout =
     List.hd original_layout
