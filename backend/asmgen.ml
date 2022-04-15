@@ -241,6 +241,21 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
       f.Mach.fun_name;
   end
 
+let reorder_blocks_random ppf_dump cl =
+  match !Flambda_backend_flags.reorder_blocks_random with
+  | None -> cl
+  | Some seed ->
+     (* Initialize random state based on user-provided seed and function name.
+        Per-function random state (instead of per call to ocamlopt)
+        is good for debugging: it gives us deterministic builds
+        for each user-provided seed, regardless
+        of the order of files on the command line. *)
+     let fun_name = (Cfg_with_layout.cfg cl).fun_name in
+     let random_state = Random.State.make [| seed; Hashtbl.hash fun_name |] in
+     Cfg_with_layout.reorder_blocks_random ~random_state cl;
+     pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+       "After reorder_blocks_random" cl
+
 let compile_fundecl ~ppf_dump fd_cmm =
   Proc.init ();
   Reg.reset();
@@ -286,6 +301,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
       ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg
       ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After linear_to_cfg"
       ++ save_cfg
+      ++ reorder_blocks_random ppf_dump
       ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
       ++ pass_dump_linear_if ppf_dump dump_linear "After cfg_to_linear"
     end else

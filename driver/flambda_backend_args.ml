@@ -27,6 +27,12 @@ let mk_dcfg f =
   "-dcfg", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_reorder_blocks_random f =
+  "-reorder-blocks-random",
+  Arg.Int f,
+  Printf.sprintf "<seed> Randomly reorder basic blocks in every function, \
+                  using the provided seed (intended for testing, off by default)."
+
 let mk_heap_reduction_threshold f =
   "-heap-reduction-threshold",
   Arg.Int f,
@@ -399,6 +405,8 @@ module type Flambda_backend_options = sig
   val dump_inlining_paths : unit -> unit
   val dcfg : unit -> unit
 
+  val reorder_blocks_random : int -> unit
+
   val heap_reduction_threshold : int -> unit
 
   val flambda2_join_points : unit -> unit
@@ -463,6 +471,8 @@ struct
     mk_ocamlcfg F.ocamlcfg;
     mk_no_ocamlcfg F.no_ocamlcfg;
     mk_dcfg F.dcfg;
+
+    mk_reorder_blocks_random F.reorder_blocks_random;
 
     mk_heap_reduction_threshold F.heap_reduction_threshold;
 
@@ -560,6 +570,9 @@ module Flambda_backend_options_impl = struct
   let ocamlcfg = set' Flambda_backend_flags.use_ocamlcfg
   let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
   let dcfg = set' Flambda_backend_flags.dump_cfg
+
+  let reorder_blocks_random seed =
+    Flambda_backend_flags.reorder_blocks_random := Some seed
 
   let heap_reduction_threshold x =
     Flambda_backend_flags.heap_reduction_threshold := x
@@ -720,9 +733,18 @@ module Extra_params = struct
     let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
+    let set_int_option' option =
+      begin match Compenv.check_int ppf name v with
+       | Some seed -> option := Some seed
+       | None -> ()
+      end;
+      true
+    in
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
+    | "reorder-blocks-random" ->
+       set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
