@@ -44,7 +44,7 @@ let rec live i finally =
       Reg.set_of_array i.arg
   | Iop op ->
       let after = live i.next finally in
-      if Proc.op_is_pure op                    (* no side effects *)
+      if operation_is_pure op                  (* no side effects *)
       && Reg.disjoint_set_array after i.res    (* results are not used after *)
       && not (Proc.regs_are_volatile i.arg)    (* no stack-like hard reg *)
       && not (Proc.regs_are_volatile i.res)    (*            is involved *)
@@ -55,19 +55,14 @@ let rec live i finally =
       end else begin
         let across_after = Reg.diff_set_array after i.res in
         let across =
-          match op with
-          | Icall_ind | Icall_imm _ | Iextcall _ | Ialloc _
-          | Iprobe _
-          | Iintop (Icheckbound) | Iintop_imm(Icheckbound, _) ->
-              (* The function call may raise an exception, branching to the
-                 nearest enclosing try ... with. Similarly for bounds checks,
-                 probes and allocation (for the latter: finalizers may throw
-                 exceptions, as may signal handlers).
-                 Hence, everything that must be live at the beginning of
-                 the exception handler must also be live across this instr. *)
-               Reg.Set.union across_after !live_at_raise
-           | _ ->
-               across_after in
+          (* Operations that can raise an exception (function calls,
+             bounds checks, allocations) can branch to the
+             nearest enclosing try ... with.
+             Hence, everything that must be live at the beginning of
+             the exception handler must also be live across this instr. *)
+          if operation_can_raise op
+          then Reg.Set.union across_after !live_at_raise
+          else across_after in
         i.live <- across;
         Reg.add_set_array across i.arg
       end
