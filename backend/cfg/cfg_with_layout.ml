@@ -177,6 +177,7 @@ let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
 module Permute = struct
   (* Implementation of this module is copied from Base *)
   external unsafe_set : 'a array -> int -> 'a -> unit = "%array_unsafe_set"
+
   external unsafe_get : 'a array -> int -> 'a = "%array_unsafe_get"
 
   let default_random_state = Random.State.make_self_init ()

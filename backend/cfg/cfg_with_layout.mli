@@ -70,8 +70,8 @@ val print_dot :
 val dump : Format.formatter -> t -> msg:string -> unit
 
 (** Change layout: randomly reorder the blocks, keeping the entry block first.
-    This function is intended for testing and enabled by
-    compiler flag "-reorder-blocks-random".
+    This function is intended for testing and enabled by compiler flag
+    "-reorder-blocks-random".
 
     Side-effects [random_state] by repeated calls to [Random.State.int] and
     [Random.State.bool]. *)
