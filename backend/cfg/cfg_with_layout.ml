@@ -177,19 +177,18 @@ let save_as_dot t ?show_instr ?show_exn ?annotate_block ?annotate_succ msg =
 module Permute = struct
   (* Implementation of this module is copied from Base *)
   external unsafe_set : 'a array -> int -> 'a -> unit = "%array_unsafe_set"
-
-  let swap t i j =
-    (* CR-someday: use unsafe gets. *)
-    let elt_i = t.(i) in
-    let elt_j = t.(j) in
-    unsafe_set t i elt_j;
-    unsafe_set t j elt_i
+  external unsafe_get : 'a array -> int -> 'a = "%array_unsafe_get"
 
   let default_random_state = Random.State.make_self_init ()
 
   let array ?(random_state = default_random_state) t =
-    let len = Array.length t in
-    let num_swaps = len - 1 in
+    let swap t i j =
+      let elt_i = unsafe_get t i in
+      let elt_j = unsafe_get t j in
+      unsafe_set t i elt_j;
+      unsafe_set t j elt_i
+    in
+    let num_swaps = Array.length t - 1 in
     for i = num_swaps downto 1 do
       (* [random_i] is drawn from [0,i] *)
       let random_i = Random.State.int random_state (i + 1) in
