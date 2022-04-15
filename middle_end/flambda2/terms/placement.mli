@@ -16,11 +16,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Whether a primitive should be considered for duplication *)
+(** Whether an expression can be moved around, including duplication *)
 type t =
-  | Duplicatable  (** It's acceptable to duplicate the primitive at its uses *)
-  | Not_duplicatable
-      (** The primitive has effects or coeffects, or is too expensive *)
+  | Delay
+      (** The expression should be placed as late as possible, even if it is
+          duplicated *)
+  | Strict
+      (** The expression must not be moved around (it has non-generative
+          effects, or coeffects, or doesn't benefit from being bound later *)
 
 (** Print function. *)
 val print : Format.formatter -> t -> unit

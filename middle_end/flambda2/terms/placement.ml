@@ -13,25 +13,22 @@
 (**************************************************************************)
 
 type t =
-  | Duplicatable
-  | Not_duplicatable
+  | Delay
+  | Strict
 
 let [@ocamlformat "disable"] print ppf dup =
   match dup with
-  | Duplicatable -> Format.fprintf ppf "duplicatable"
-  | Not_duplicatable -> Format.fprintf ppf "non-duplicatable"
+  | Delay -> Format.fprintf ppf "duplicatable"
+  | Strict -> Format.fprintf ppf "non-duplicatable"
 
 let compare dup1 dup2 =
   match dup1, dup2 with
-  | Duplicatable, Duplicatable -> 0
-  | Duplicatable, Not_duplicatable -> -1
-  | Not_duplicatable, Not_duplicatable -> 0
-  | Not_duplicatable, Duplicatable -> 1
+  | Delay, Delay -> 0
+  | Delay, Strict -> -1
+  | Strict, Strict -> 0
+  | Strict, Delay -> 1
 
 let join dup1 dup2 =
   match dup1, dup2 with
-  | Duplicatable, Duplicatable -> Duplicatable
-  | Duplicatable, Not_duplicatable
-  | Not_duplicatable, Not_duplicatable
-  | Not_duplicatable, Duplicatable ->
-    Not_duplicatable
+  | Delay, Delay -> Delay
+  | Delay, Strict | Strict, Strict | Strict, Delay -> Strict

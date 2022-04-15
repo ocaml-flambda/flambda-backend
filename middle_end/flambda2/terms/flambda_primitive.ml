@@ -262,7 +262,7 @@ let reading_from_a_block mutable_or_immutable =
     | Immutable | Immutable_unique -> Coeffects.No_coeffects
     | Mutable -> Coeffects.Has_coeffects
   in
-  effects, coeffects, Duplicatable.Not_duplicatable
+  effects, coeffects, Placement.Strict
 
 let reading_from_an_array (array_kind : Array_kind.t)
     (mutable_or_immutable : Mutability.t) =
@@ -274,14 +274,14 @@ let reading_from_an_array (array_kind : Array_kind.t)
     | Immutable | Immutable_unique -> Coeffects.No_coeffects
     | Mutable -> Coeffects.Has_coeffects
   in
-  effects, coeffects, Duplicatable.Not_duplicatable
+  effects, coeffects, Placement.Strict
 
 let reading_from_a_string_or_bigstring mutable_or_immutable =
   reading_from_a_block mutable_or_immutable
 
 let writing_to_a_block =
   let effects = effects_of_operation Writing in
-  effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+  effects, Coeffects.No_coeffects, Placement.Strict
 
 let writing_to_an_array = writing_to_a_block
 
@@ -452,10 +452,10 @@ let reading_from_a_bigarray kind =
   | Complex32 | Complex64 ->
     ( Effects.Only_generative_effects Immutable,
       Coeffects.Has_coeffects,
-      Duplicatable.Not_duplicatable )
+      Placement.Strict )
   | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
   | Int_width_int | Targetint_width_int ->
-    Effects.No_effects, Coeffects.Has_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 (* The bound checks are taken care of outside the array primitive (using an
    explicit test and switch in the flambda code, see
@@ -468,9 +468,7 @@ let writing_to_a_bigarray kind =
     (* Technically, the write of a complex generates read of fields from the
        given complex, but since those reads are immutable, there is no
        observable coeffect. *) ->
-    ( Effects.Arbitrary_effects,
-      Coeffects.No_coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Arbitrary_effects, Coeffects.No_coeffects, Placement.Strict
 
 let bigarray_index_kind = K.value
 
@@ -590,18 +588,14 @@ let result_kind_of_nullary_primitive p : result_kind =
 let effects_and_coeffects_of_nullary_primitive p =
   match p with
   | Optimised_out _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Probe_is_enabled _ ->
     (* This doesn't really have effects, but we want to make sure it never gets
        moved around. *)
-    ( Effects.Arbitrary_effects,
-      Coeffects.Has_coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Arbitrary_effects, Coeffects.Has_coeffects, Placement.Strict
   | Begin_region ->
     (* Ensure these don't get moved or deleted. *)
-    ( Effects.Arbitrary_effects,
-      Coeffects.Has_coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Arbitrary_effects, Coeffects.Has_coeffects, Placement.Strict
 
 let nullary_classify_for_printing p =
   match p with Optimised_out _ | Probe_is_enabled _ | Begin_region -> Neither
@@ -871,7 +865,7 @@ let effects_and_coeffects_of_unary_primitive p =
       (* [Obj.truncate] has now been removed. *)
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.No_coeffects,
-        Duplicatable.Not_duplicatable )
+        Placement.Strict )
     | Immutable_unique ->
       (* CR vlaviron: this should never occur, but it's hard to express it
          without duplicating the mutability type
@@ -881,31 +875,29 @@ let effects_and_coeffects_of_unary_primitive p =
          [Mutability]. *)
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.No_coeffects,
-        Duplicatable.Not_duplicatable )
+        Placement.Strict )
     | Mutable ->
       ( Effects.Only_generative_effects destination_mutability,
         Coeffects.Has_coeffects,
-        Duplicatable.Not_duplicatable ))
+        Placement.Strict ))
   | Duplicate_block { kind = _ } ->
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
-    Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects, Duplicatable.Not_duplicatable
+    Effects.Only_generative_effects Mutable, Coeffects.Has_coeffects, Placement.Strict
   | Is_int _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | String_length _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Int_as_pointer ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Opaque_identity ->
-    ( Effects.Arbitrary_effects,
-      Coeffects.Has_coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Arbitrary_effects, Coeffects.Has_coeffects, Placement.Strict
   | Int_arith (_, (Neg | Swap_byte_endianness))
   | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Float_arith (Abs | Neg) ->
     (* Float operations are not really pure since they actually access the
        globally mutable rounding mode, which can be changed (but only from C
@@ -918,14 +910,11 @@ let effects_and_coeffects_of_unary_primitive p =
        (e.g. a call to a c stub that changes the rounding mode). See also the
        comment in binary_primitive_eligible_for_cse. *)
     if Flambda_features.float_const_prop ()
-    then
-      Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
-    else
-      Effects.No_effects, Coeffects.Has_coeffects, Duplicatable.Not_duplicatable
+    then Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
+    else Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
   (* Since Obj.truncate has been deprecated, array_length should have no
      observable effect *)
-  | Array_length ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+  | Array_length -> Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Bigarray_length { dimension = _ } ->
     (* This is pretty much a direct access to a field of the bigarray, different
        from reading one of the values actually stored inside the array, hence
@@ -933,28 +922,24 @@ let effects_and_coeffects_of_unary_primitive p =
        Block_load). *)
     reading_from_a_block Mutable
   | Unbox_number _ | Untag_immediate ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Tag_immediate ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Box_number (_, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
       | Heap -> Coeffects.No_coeffects
       | Local -> Coeffects.Has_coeffects
     in
-    ( Effects.Only_generative_effects Immutable,
-      coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Only_generative_effects Immutable, coeffects, Placement.Strict
   | Project_function_slot _ | Project_value_slot _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Delay
   | Is_boxed_float | Is_flat_float_array ->
     (* Tags on heap blocks are immutable. *)
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | End_region ->
     (* Ensure these don't get moved or deleted. *)
-    ( Effects.Arbitrary_effects,
-      Coeffects.Has_coeffects,
-      Duplicatable.Not_duplicatable )
+    Effects.Arbitrary_effects, Coeffects.Has_coeffects, Placement.Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1172,28 +1157,21 @@ let effects_and_coeffects_of_binary_primitive p =
     reading_from_a_string_or_bigstring Immutable
   | String_or_bigstring_load ((Bytes | Bigstring), _) ->
     reading_from_a_string_or_bigstring Mutable
-  | Phys_equal _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+  | Phys_equal _ -> Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Int_arith (_kind, (Add | Sub | Mul | Div | Mod | And | Or | Xor)) ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
-  | Int_shift _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
-  | Int_comp _ ->
-    Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
+    Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
+  | Int_shift _ -> Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
+  | Int_comp _ -> Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
   | Float_arith (Add | Sub | Mul | Div) ->
     (* See comments for Unary Float_arith *)
     if Flambda_features.float_const_prop ()
-    then
-      Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
-    else
-      Effects.No_effects, Coeffects.Has_coeffects, Duplicatable.Not_duplicatable
+    then Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
+    else Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
   | Float_comp _ ->
     (* See comments for Unary Float_arith *)
     if Flambda_features.float_const_prop ()
-    then
-      Effects.No_effects, Coeffects.No_coeffects, Duplicatable.Not_duplicatable
-    else
-      Effects.No_effects, Coeffects.Has_coeffects, Duplicatable.Not_duplicatable
+    then Effects.No_effects, Coeffects.No_coeffects, Placement.Strict
+    else Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 let binary_classify_for_printing p =
   match p with
@@ -1372,17 +1350,12 @@ let effects_and_coeffects_of_variadic_primitive p ~args =
       | Local -> Coeffects.Has_coeffects
     in
     if List.length args >= 1
-    then
-      ( Effects.Only_generative_effects mut,
-        coeffects,
-        Duplicatable.Not_duplicatable )
+    then Effects.Only_generative_effects mut, coeffects, Placement.Strict
     else
       (* Zero-sized blocks and arrays are immutable and statically allocated,
          However, we currently only lift primitives that have *exactly*
          generative effects. *)
-      ( Effects.Only_generative_effects Immutable,
-        coeffects,
-        Duplicatable.Not_duplicatable )
+      Effects.Only_generative_effects Immutable, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
   match p with Make_block _ | Make_array _ -> Constructive

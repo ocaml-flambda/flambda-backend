@@ -15,7 +15,7 @@
 (* Effects and coeffects *)
 
 (** A pair of an effect and a coeffect. *)
-type t = Effects.t * Coeffects.t * Duplicatable.t
+type t = Effects.t * Coeffects.t * Placement.t
 
 (** Print *)
 val print : Format.formatter -> t -> unit
@@ -24,19 +24,19 @@ val print : Format.formatter -> t -> unit
 val compare : t -> t -> int
 
 (** The value stating that no effects of coeffects take place. This is exactly
-    [No_effects, No_coeffects, Not_duplicatable]. *)
+    [No_effects, No_coeffects, Strict]. *)
 val pure : t
 
 (** The value stating that no effects of coeffects take place. This is exactly
-    [No_effects, No_coeffects, Duplicatable]. *)
+    [No_effects, No_coeffects, Delay]. *)
 val pure_duplicatable : t
 
 (** The value stating that any effects and/or coeffects may take place. This is
-    exactly [Arbitrary_effects, Has_coeffects, Not_duplicatable]. *)
+    exactly [Arbitrary_effects, Has_coeffects, Strict]. *)
 val all : t
 
 (** The value stating that a read (i.e only a coeffect) takes place. This is
-    [No_effects, Has_coeffects, Not_duplicatable]. *)
+    [No_effects, Has_coeffects, Strict]. *)
 val read : t
 
 (** Join two effects and coeffects. *)

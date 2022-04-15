@@ -62,8 +62,8 @@ let classify_let_binding var
     May_inline
   | More_than_one -> begin
     match effects_and_coeffects_of_defining_expr with
-    | _, _, Duplicatable -> Duplicate (* TODO: fix *)
-    | _, _, Not_duplicatable -> Regular
+    | _, _, Delay -> Duplicate
+    | _, _, Strict -> Regular
   end
 
 type continuation_handler_classification =
