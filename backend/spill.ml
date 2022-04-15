@@ -494,17 +494,13 @@ let rec spill :
       let before1 = Reg.diff_set_array after i.res in
       k (instr_cons i.desc i.arg i.res new_next)
         (Reg.add_set_array before1 i.res))
-  | Iop _ ->
+  | Iop op ->
     spill env i.next finally (fun new_next after ->
       let before1 = Reg.diff_set_array after i.res in
       let before =
-        match i.desc with
-          Iop Icall_ind | Iop(Icall_imm _) | Iop(Iextcall _) | Iop(Ialloc _)
-        | Iop(Iintop Icheckbound) | Iop(Iintop_imm(Icheckbound, _))
-        | Iop (Iprobe _) ->
-            Reg.Set.union before1 env.at_raise
-        | _ ->
-            before1 in
+        if operation_can_raise op
+        then Reg.Set.union before1 env.at_raise
+        else before1 in
       k (instr_cons_debug i.desc i.arg i.res i.dbg
                   (add_spills env (Reg.inter_set_array after i.res) new_next))
         before)

@@ -230,10 +230,31 @@ let print_specific_operation printreg op ppf arg =
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
 
+(* Are we using the Windows 64-bit ABI? *)
 let win64 =
   match Config.system with
   | "win64" | "mingw64" | "cygwin" -> true
   | _                   -> false
+
+(* Specific operations that are pure *)
+
+let operation_is_pure = function
+  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32 -> true
+  | Ifloatarithmem _ | Ifloatsqrtf _ -> true
+  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max -> true
+  | Icrc32q -> true
+  | Irdtsc | Irdpmc | Ipause | Istore_int (_, _, _) | Ioffset_loc (_, _)
+  | Iprefetch _ -> false
+
+(* Specific operations that can raise *)
+
+let operation_can_raise = function
+  | Ilea _ | Ibswap _ | Isqrtf | Isextend32 | Izextend32
+  | Ifloatarithmem _ | Ifloatsqrtf _
+  | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max
+  | Icrc32q | Irdtsc | Irdpmc | Ipause
+  | Istore_int (_, _, _) | Ioffset_loc (_, _)
+  | Iprefetch _ -> false
 
 open X86_ast
 
@@ -334,23 +355,3 @@ let equal_specific_operation left right =
     | Ifloat_iround | Ifloat_round _ | Ifloat_min | Ifloat_max | Ipause
     | Icrc32q | Iprefetch _), _ ->
     false
-
-let is_pure_specific : specific_operation -> bool = function
-  | Ilea _ -> true
-  | Istore_int _ -> false
-  | Ioffset_loc _ -> false
-  | Ifloatarithmem _ -> false
-  | Ibswap _ -> true
-  | Isqrtf -> true
-  | Ifloatsqrtf _ -> false
-  | Ifloat_iround -> true
-  | Ifloat_round _ -> true
-  | Ifloat_min -> true
-  | Ifloat_max -> true
-  | Isextend32 -> true
-  | Izextend32 -> true
-  | Irdtsc -> false
-  | Irdpmc -> false
-  | Icrc32q -> true
-  | Ipause -> false
-  | Iprefetch _ -> false
