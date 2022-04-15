@@ -34,7 +34,7 @@ type basic_block =
     mutable body : basic instruction list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
-    mutable trap_depth : int;
+    mutable stack_offset : int;
     mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
@@ -147,7 +147,7 @@ let get_block_exn t label =
     Misc.fatal_errorf "Cfg.get_block_exn: block %d not found" label
   | block -> block
 
-let can_raise_interproc block = block.can_raise && block.trap_depth = 1
+let can_raise_interproc block = block.can_raise && Option.is_none block.exn
 
 let fun_name t = t.fun_name
 
@@ -406,8 +406,10 @@ let is_noop_move instr =
   | Call _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
     false
 
-let set_trap_depth (instr : _ instruction) trap_depth =
-  if instr.trap_depth = trap_depth then instr else { instr with trap_depth }
+let set_stack_offset (instr : _ instruction) stack_offset =
+  if instr.stack_offset = stack_offset
+  then instr
+  else { instr with stack_offset }
 
 let set_live (instr : _ instruction) live =
   if Reg.Set.equal instr.live live then instr else { instr with live }

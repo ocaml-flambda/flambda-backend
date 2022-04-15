@@ -42,9 +42,7 @@ type t =
             back to Linear (and restore [Lentertrap]). *)
     trap_stacks : T.t Label.Tbl.t;
         (** Maps labels of blocks to trap handler stacks at the beginning of the
-            block. [cfg.block.trap_depth] can be derived from the corresponding
-            trap_stack, except when the block is dead and the trap stack is not
-            known, represented by None. *)
+            block. *)
     (* CR-someday gyorsh: The need for this is because we need to record
        trap_stack for a block that hasn't been created yet. If we change
        create_empty_block to get_or_create, then we don't need this hashtbl and
@@ -104,7 +102,7 @@ let get_new_linear_id t =
   t.next_linear_id <- id + 1;
   id
 
-let create_instruction t desc ~trap_depth (i : Linear.instruction) :
+let create_instruction t desc ~stack_offset (i : Linear.instruction) :
     _ C.instruction =
   { desc;
     arg = i.arg;
@@ -112,7 +110,7 @@ let create_instruction t desc ~trap_depth (i : Linear.instruction) :
     dbg = i.dbg;
     fdo = i.fdo;
     live = i.live;
-    trap_depth;
+    stack_offset;
     id = get_new_linear_id t
   }
 
@@ -154,7 +152,7 @@ let record_exn t (block : C.basic_block) traps =
   | Some _ ->
     Misc.fatal_errorf "Cannot record another exception for %d" block.start
 
-let create_empty_block t start ~trap_depth ~traps =
+let create_empty_block t start ~stack_offset ~traps =
   let terminator : C.terminator C.instruction =
     { desc = C.Never (* placeholder for terminator, to be replaced *);
       arg = [||];
@@ -162,7 +160,7 @@ let create_empty_block t start ~trap_depth ~traps =
       dbg = Debuginfo.none;
       fdo = Fdo_info.none;
       live = Reg.Set.empty;
-      trap_depth;
+      stack_offset;
       id = get_new_linear_id t
     }
   in
@@ -172,7 +170,7 @@ let create_empty_block t start ~trap_depth ~traps =
       terminator;
       exn = None;
       predecessors = Label.Set.empty;
-      trap_depth;
+      stack_offset;
       is_trap_handler = false;
       can_raise = false;
       dead = false
@@ -220,12 +218,13 @@ let check_traps t label (block : C.basic_block) =
       T.print trap_stack_at_start);
     match T.to_list_exn trap_stack_at_start with
     | trap_labels ->
-      if List.compare_length_with trap_labels block.trap_depth <> 0
+      if (List.length trap_labels - 1) * Proc.trap_size_in_bytes
+         > block.stack_offset
       then
         Misc.fatal_errorf
-          "Malformed linear IR: mismatch trap_depth=%d, but \
+          "Malformed linear IR: mismatch stack_offset=%d, but \
            trap_stack_at_start length=%d"
-          block.trap_depth (List.length trap_labels)
+          block.stack_offset (List.length trap_labels)
     | exception T.Unresolved ->
       (* At the end of the cfg construction, some blocks may have unresolved
          trap stacks. All these blocks must be dead, i.e., unreachable from
@@ -313,8 +312,8 @@ let get_or_make_label t (insn : Linear.instruction) : Linear_utils.labelled_insn
   | Llabel label -> { label; insn }
   | Lend -> Misc.fatal_error "Unexpected end of function instead of label"
   | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Lbranch _ | Lcondbranch _
-  | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_trap_depth _ | Lpushtrap _
-  | Lpoptrap | Lraise _ ->
+  | Lcondbranch3 _ | Lswitch _ | Lentertrap | Ladjust_stack_offset _
+  | Lpushtrap _ | Lpoptrap | Lraise _ ->
     let label = Cmm.new_label () in
     t.new_labels <- Label.Set.add label t.new_labels;
     let insn = Linear.instr_cons (Llabel label) [||] [||] insn in
@@ -352,7 +351,7 @@ let block_is_registered t (block : C.basic_block) =
   Label.Tbl.mem t.cfg.blocks block.start
 
 let add_terminator t (block : C.basic_block) (i : L.instruction)
-    (desc : C.terminator) ~trap_depth ~traps =
+    (desc : C.terminator) ~stack_offset ~traps =
   (* All terminators are followed by a label, except branches we created for
      fallthroughs in Linear. *)
   (match desc with
@@ -364,7 +363,7 @@ let add_terminator t (block : C.basic_block) (i : L.instruction)
       Misc.fatal_errorf "Linear instruction not followed by label:@ %a"
         Printlinear.instr
         { i with Linear.next = Linear.end_instr });
-  block.terminator <- create_instruction t desc ~trap_depth i;
+  block.terminator <- create_instruction t desc ~stack_offset i;
   if Cfg.can_raise_terminator desc then record_exn t block traps;
   register_block t block traps
 
@@ -415,42 +414,44 @@ let to_basic (mop : Mach.operation) : C.basic =
   | Itailcall_ind | Itailcall_imm _ | Iextcall { returns = false; _ } ->
     assert false
 
-let rec adjust_traps (i : L.instruction) ~trap_depth ~traps =
+let rec adjust_traps (i : L.instruction) ~stack_offset ~traps =
   (* We do not emit any executable code for this insn; it only moves the virtual
      stack pointer in the emitter. We do not have a corresponding insn in [Cfg]
      because the required adjustment can change when blocks are reordered.
      Instead we regenerate the instructions when converting back to linear. We
-     use [delta_traps] only to compute [trap_depth]s of other instructions. *)
+     use [delta_bytes] only to compute [stack_offsets]s of other
+     instructions. *)
   match i.desc with
-  | Ladjust_trap_depth { delta_traps } ->
-    let trap_depth = trap_depth + delta_traps in
-    if trap_depth < 0
+  | Ladjust_stack_offset { delta_bytes } ->
+    let stack_offset = stack_offset + delta_bytes in
+    if stack_offset < 0
     then
       Misc.fatal_errorf
-        "Ladjust_trap_depth %d moves the trap depth below zero: %d" delta_traps
-        trap_depth;
+        "Ladjust_stack_offset %d moves the trap depth below zero: %d"
+        delta_bytes stack_offset;
     let traps = T.unknown () in
-    adjust_traps i.next ~trap_depth ~traps
+    adjust_traps i.next ~stack_offset ~traps
   | Llabel _ ->
-    let trap_depth, traps, next = adjust_traps i.next ~trap_depth ~traps in
-    trap_depth, traps, { i with next }
+    let stack_offset, traps, next = adjust_traps i.next ~stack_offset ~traps in
+    stack_offset, traps, { i with next }
   | Lend | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
   | Lbranch _
   | Lcondbranch (_, _)
   | Lcondbranch3 (_, _, _)
   | Lswitch _ | Lpushtrap _ | Lraise _ ->
-    trap_depth, traps, i
+    stack_offset, traps, i
 
-(** [traps] represents the trap stack, with head being the top. [trap_depths] is
-    the depth of the trap stack. *)
+(** [traps] represents the trap stack, with head being the top. [stack_offset]
+    is the offset from the start of the frame due to trap handler Lpushtrap or
+    outgoing arguments Istackoffset. *)
 let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
-    ~trap_depth ~traps =
+    ~stack_offset ~traps =
   (* [traps] is constructed incrementally, because Ladjust_trap does not give
-     enough information to compute it upfront, but trap_depth is directly
+     enough information to compute it upfront, but stack_offset is directly
      computed. *)
-  let trap_depth, traps, i = adjust_traps i ~trap_depth ~traps in
+  let stack_offset, traps, i = adjust_traps i ~stack_offset ~traps in
   match i.desc with
-  | Ladjust_trap_depth _ -> assert false
+  | Ladjust_stack_offset _ -> assert false
   | Lend ->
     if not (block_is_registered t block)
     then
@@ -473,36 +474,25 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     if not (block_is_registered t block)
     then (
       let fallthrough : C.terminator = Always start in
-      block.terminator <- create_instruction t fallthrough i ~trap_depth;
+      block.terminator <- create_instruction t fallthrough i ~stack_offset;
       register_block t block traps);
     (* CR-someday gyorsh: check for multiple consecutive labels *)
-    let new_block = create_empty_block t start ~trap_depth ~traps in
-    create_blocks t i.next new_block ~trap_depth ~traps
+    let new_block = create_empty_block t start ~stack_offset ~traps in
+    create_blocks t i.next new_block ~stack_offset ~traps
   | Lreturn ->
-    if trap_depth <> 1
+    if stack_offset <> 0
     then
-      Misc.fatal_errorf "Trap depth is %d, but it must be 1 at Lreturn"
-        trap_depth;
-    add_terminator t block i Return ~trap_depth ~traps;
-    create_blocks t i.next block ~trap_depth ~traps
+      Misc.fatal_errorf "Stack offset is %d, but it must be 0 at Lreturn"
+        stack_offset;
+    add_terminator t block i Return ~stack_offset ~traps;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lraise kind ->
-    (* CR-someday gyorsh: Why does the compiler not generate adjust after raise?
-       raise pops the trap handler stack and then the next block may have a
-       different try depth. Also, why do we not need to update trap_depths and
-       traps here like for pop?
-
-       mshinwell: I don't think there's anything special about a raise for
-       Linearize; it may still add a trap adjustment. Think about this some
-       more...
-
-       gyorsh: it is now handled in register_block called from
-       add_terminator. *)
-    add_terminator t block i (Raise kind) ~trap_depth ~traps;
-    create_blocks t i.next block ~trap_depth ~traps
+    add_terminator t block i (Raise kind) ~stack_offset ~traps;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lbranch lbl ->
     if !C.verbose then Printf.printf "Lbranch %d\n" lbl;
-    add_terminator t block i (Always lbl) ~trap_depth ~traps;
-    create_blocks t i.next block ~trap_depth ~traps
+    add_terminator t block i (Always lbl) ~stack_offset ~traps;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lcondbranch (cond, lbl) ->
     (* This representation does not preserve the order of successors. *)
     let fallthrough = get_or_make_label t i.next in
@@ -518,8 +508,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
       | Iinttest_imm (cmp, n) ->
         Int_test (mk_int_test cmp ~lbl ~inv ~imm:(Some n))
     in
-    add_terminator t block i desc ~trap_depth ~traps;
-    create_blocks t fallthrough.insn block ~trap_depth ~traps
+    add_terminator t block i desc ~stack_offset ~traps;
+    create_blocks t fallthrough.insn block ~stack_offset ~traps
   | Lcondbranch3 (lbl0, lbl1, lbl2) ->
     let fallthrough = get_or_make_label t i.next in
     let get_dest lbl = Option.value lbl ~default:fallthrough.label in
@@ -531,27 +521,27 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
         gt = get_dest lbl2
       }
     in
-    add_terminator t block i (Int_test it) ~trap_depth ~traps;
-    create_blocks t fallthrough.insn block ~trap_depth ~traps
+    add_terminator t block i (Int_test it) ~stack_offset ~traps;
+    create_blocks t fallthrough.insn block ~stack_offset ~traps
   | Lswitch labels ->
     (* CR-someday gyorsh: get rid of switches entirely and re-generate them
        based on optimization and perf data? *)
-    add_terminator t block i (Switch labels) ~trap_depth ~traps;
-    create_blocks t i.next block ~trap_depth ~traps
+    add_terminator t block i (Switch labels) ~stack_offset ~traps;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lpushtrap { lbl_handler } ->
     t.trap_handlers <- Label.Set.add lbl_handler t.trap_handlers;
     record_traps t lbl_handler traps;
     let desc = C.Pushtrap { lbl_handler } in
-    block.body <- create_instruction t desc ~trap_depth i :: block.body;
-    let trap_depth = trap_depth + 1 in
+    block.body <- create_instruction t desc ~stack_offset i :: block.body;
+    let stack_offset = stack_offset + Proc.trap_size_in_bytes in
     let traps = T.push traps lbl_handler in
-    create_blocks t i.next block ~trap_depth ~traps
+    create_blocks t i.next block ~stack_offset ~traps
   | Lpoptrap ->
     let desc = C.Poptrap in
-    block.body <- create_instruction t desc ~trap_depth i :: block.body;
-    let trap_depth = trap_depth - 1 in
-    if trap_depth < 0
-    then Misc.fatal_error "Lpoptrap moves the trap depth below zero";
+    block.body <- create_instruction t desc ~stack_offset i :: block.body;
+    let stack_offset = stack_offset - Proc.trap_size_in_bytes in
+    if stack_offset < 0
+    then Misc.fatal_error "Lpoptrap moves the stack offset below zero";
     if !C.verbose
     then (
       Printf.printf "before pop: ";
@@ -561,26 +551,26 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     then (
       Printf.printf "after pop: ";
       T.print traps);
-    create_blocks t i.next block ~trap_depth ~traps
+    create_blocks t i.next block ~stack_offset ~traps
   | Lentertrap ->
     (* Must be the first instruction in the block. *)
     assert (List.compare_length_with block.body 0 = 0);
     block.is_trap_handler <- true;
-    create_blocks t i.next block ~trap_depth ~traps
+    create_blocks t i.next block ~stack_offset ~traps
   | Lprologue ->
     let desc = C.Prologue in
-    block.body <- create_instruction t desc i ~trap_depth :: block.body;
-    create_blocks t i.next block ~trap_depth ~traps
+    block.body <- create_instruction t desc i ~stack_offset :: block.body;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lreloadretaddr ->
     let desc = C.Reloadretaddr in
-    block.body <- create_instruction t desc i ~trap_depth :: block.body;
-    create_blocks t i.next block ~trap_depth ~traps
+    block.body <- create_instruction t desc i ~stack_offset :: block.body;
+    create_blocks t i.next block ~stack_offset ~traps
   | Lop mop -> (
     match mop with
     | Itailcall_ind ->
       let desc = C.Tailcall (Func Indirect) in
-      add_terminator t block i desc ~trap_depth ~traps;
-      create_blocks t i.next block ~trap_depth ~traps
+      add_terminator t block i desc ~stack_offset ~traps;
+      create_blocks t i.next block ~stack_offset ~traps
     | Itailcall_imm { func = func_symbol } ->
       let desc =
         if String.equal func_symbol (C.fun_name t.cfg)
@@ -590,17 +580,22 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
           | Some destination -> C.Tailcall (Self { destination })
         else C.Tailcall (Func (Direct { func_symbol }))
       in
-      add_terminator t block i desc ~trap_depth ~traps;
-      create_blocks t i.next block ~trap_depth ~traps
+      add_terminator t block i desc ~stack_offset ~traps;
+      create_blocks t i.next block ~stack_offset ~traps
     | Iextcall { func; alloc; ty_args; ty_res; returns = false } ->
       let desc =
         C.Call_no_return { func_symbol = func; alloc; ty_args; ty_res }
       in
-      add_terminator t block i desc ~trap_depth ~traps;
-      create_blocks t i.next block ~trap_depth ~traps
+      add_terminator t block i desc ~stack_offset ~traps;
+      create_blocks t i.next block ~stack_offset ~traps
+    | Istackoffset bytes ->
+      let desc = to_basic mop in
+      block.body <- create_instruction t desc i ~stack_offset :: block.body;
+      let stack_offset = stack_offset + bytes in
+      create_blocks t i.next block ~stack_offset ~traps
     | Imove | Ispill | Ireload | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
     | Ifloatofint | Iintoffloat | Iconst_int _ | Iconst_float _ | Icompf _
-    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+    | Iconst_symbol _ | Icall_ind | Icall_imm _ | Iextcall _
     | Iload (_, _, _)
     | Istore (_, _, _)
     | Ialloc _ | Iintop _
@@ -608,7 +603,7 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
     | Iopaque | Iprobe _ | Iprobe_is_enabled _ | Ispecific _ | Ibeginregion
     | Iendregion | Iname_for_debugger _ ->
       let desc = to_basic mop in
-      block.body <- create_instruction t desc i ~trap_depth :: block.body;
+      block.body <- create_instruction t desc i ~stack_offset :: block.body;
       if Mach.operation_can_raise mop
       then begin
         (* Instruction that can raise is always at the end of a block. *)
@@ -616,10 +611,10 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
         let fallthrough = get_or_make_label t i.next in
         let desc : Cfg.terminator = Always fallthrough.label in
         let i_no_reg = { i with arg = [||]; res = [||]; fdo = Fdo_info.none } in
-        add_terminator t block i_no_reg desc ~trap_depth ~traps;
-        create_blocks t fallthrough.insn block ~trap_depth ~traps
+        add_terminator t block i_no_reg desc ~stack_offset ~traps;
+        create_blocks t fallthrough.insn block ~stack_offset ~traps
       end
-      else create_blocks t i.next block ~trap_depth ~traps)
+      else create_blocks t i.next block ~stack_offset ~traps)
 
 let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =
@@ -638,9 +633,11 @@ let run (f : Linear.fundecl) ~preserve_orig_labels =
      hashtable can be made with the appropriate hashing and equality
      functions. *)
   let traps = T.push (T.empty ()) t.interproc_handler in
-  let trap_depth = 1 in
-  let entry_block = create_empty_block t t.cfg.entry_label ~trap_depth ~traps in
-  create_blocks t f.fun_body entry_block ~trap_depth ~traps;
+  let stack_offset = 0 in
+  let entry_block =
+    create_empty_block t t.cfg.entry_label ~stack_offset ~traps
+  in
+  create_blocks t f.fun_body entry_block ~stack_offset ~traps;
   (* Register predecessors now rather than during cfg construction, because of
      forward jumps: the blocks do not exist when the jump that reference them is
      processed. *)

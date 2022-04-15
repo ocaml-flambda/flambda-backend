@@ -39,7 +39,7 @@ let add cl =
    *          Lreloadretaddr
    *          Llabel
    *          Lentertrap
-   *          Ladjust_trap_depth
+   *          Ladjust_stack_offset
    *    There is nothing wrong with emitting .loc directives for them,
    *    but its redundant.
    *    Only Lreloadretaddr has a corresponding Cfg instruction.
