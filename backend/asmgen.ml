@@ -250,7 +250,15 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
 let reorder_blocks_random ppf_dump cl =
   match !Flambda_backend_flags.reorder_blocks_random with
   | None -> cl
-  | Some random_state ->
+  | Some seed ->
+     (* Initialize random state based on user-provided seed and function name.
+        Per-function random state (instead of per-compilation unit or
+        per call to ocamlopt) is good for debugging: it gives us
+        deterministic builds for each user-provided seed, regardless
+        of the order of functions in the file or
+        the order of files on the command line. *)
+     let fun_name = (Cfg_with_layout.cfg cl).fun_name in
+     let random_state = Random.State.make [| seed; Hashtbl.hash fun_name |] in
      Cfg_with_layout.reorder_blocks_random ~random_state cl;
      pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
        "After reorder_blocks_random" cl

@@ -540,32 +540,6 @@ struct
   ]
 end
 
-
-(* Build systems call 'ocamlopt' on a single file. When -seed is used for
-   random block layout, the same permutation will be applied to layout of all
-   functions that appear in the same source order (first function, second
-   function, etc) in different compilation units, because the random state
-   will be reinitialized from the beginning on each call to 'ocamlopt'.
-   To circumvent it while still having deterministic builds for a given
-   -seed, regardless of the order the build system calls it, we can use hash of
-   the file names as an additional seed, but here we don't have access to these
-   filenames. *)
-let make_random_state ?(files=[]) seed =
-  let random_state =
-    match files with
-    | [] -> Random.State.make [| seed |]
-    | _ ->
-       let hashes =
-         (* sort to make the initialization deterministic, regardless of
-               the order in which the files are passed on command line, in
-               the case there is more than one file. *)
-         List.sort String.compare files
-         |> List.map Hashtbl.hash
-       in
-       Random.State.make (Array.of_list (seed :: hashes))
-  in
-  Flambda_backend_flags.reorder_blocks_random := Some random_state
-
 module Flambda_backend_options_impl = struct
   let set r () = r := Flambda_backend_flags.Set true
   let clear r () = r := Flambda_backend_flags.Set false
@@ -577,7 +551,8 @@ module Flambda_backend_options_impl = struct
   let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
   let dcfg = set' Flambda_backend_flags.dump_cfg
 
-  let reorder_blocks_random seed = make_random_state seed
+  let reorder_blocks_random seed =
+    Flambda_backend_flags.reorder_blocks_random := Some seed
 
   let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
 
@@ -735,15 +710,18 @@ module Extra_params = struct
     let set_int' option =
       Compenv.int_setter ppf name option v; true
     in
+    let set_int_option' option =
+      begin match Compenv.check_int ppf name v with
+       | Some seed -> option := Some seed
+       | None -> ()
+      end;
+      true
+    in
     match name with
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "reorder-blocks-random" ->
-       begin match Compenv.check_int ppf name v with
-       | Some seed -> make_random_state seed
-       | None -> ()
-       end;
-       true
+       set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
