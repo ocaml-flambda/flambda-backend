@@ -225,9 +225,9 @@ let let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
   | Inline -> Env.bind_variable env v ?extra effs true cmm_expr
   | Regular -> Env.bind_variable env v ?extra effs false cmm_expr
 
-let bind_simple (env, res) v ~num_normal_occurrences_of_bound_vars s =
+let bind_simple env v ~num_normal_occurrences_of_bound_vars s =
   let cmm_expr, env, effs = C.simple env s in
-  let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr effs, res
+  let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr effs
 
 (* Helpers for the translation of [Apply] expressions. *)
 
@@ -336,9 +336,11 @@ let apply_call env e =
     let alloc_mode = C.convert_alloc_mode alloc_mode in
     C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
 
-(* function calls that have an exn continuation with extra arguments must be
+(* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
    arguments. *)
+(* CR mshinwell: Add first-class support in Cmm for the concept of an exception
+   handler with extra arguments. *)
 let wrap_call_exn env e call k_exn =
   let h_exn = Exn_continuation.exn_handler k_exn in
   let mut_vars = Env.get_exn_extra_args env h_exn in
@@ -364,7 +366,7 @@ let wrap_call_exn env e call k_exn =
    to be an exception). Additionally, they may have extra arguments that are
    passed to the handler via mutables variables (which are expected to be
    spilled on the stack). *)
-let apply_cont_exn env res e k = function
+let apply_cont_exn env e k = function
   | exn :: extra ->
     let raise_kind =
       match Apply_cont_expr.trap_action e with
@@ -378,13 +380,13 @@ let apply_cont_exn env res e k = function
     let extra, env, _ = C.arg_list env extra in
     let mut_vars = Env.get_exn_extra_args env k in
     let wrap, _ = Env.flush_delayed_lets env in
-    let expr = C.raise_prim raise_kind exn (Apply_cont_expr.debuginfo e) in
-    let expr =
+    let cmm = C.raise_prim raise_kind exn (Apply_cont_expr.debuginfo e) in
+    let cmm =
       List.fold_left2
         (fun expr arg v -> C.sequence (C.assign v arg) expr)
-        expr extra mut_vars
+        cmm extra mut_vars
     in
-    wrap expr, res
+    wrap cmm
   | [] ->
     Misc.fatal_errorf "Exception continuation %a has no arguments in@\n%a"
       Continuation.print k Apply_cont.print e
@@ -412,13 +414,13 @@ let apply_cont_jump env res e types cont args =
 
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
-let apply_cont_ret env res e k = function
+let apply_cont_ret env e k = function
   | [ret] -> (
     let ret, env, _ = C.simple env ret in
     let wrap, _ = Env.flush_delayed_lets env in
     match Apply_cont_expr.trap_action e with
-    | None -> wrap ret, res
-    | Some (Pop _) -> wrap (C.trap_return ret [Cmm.Pop]), res
+    | None -> wrap ret
+    | Some (Pop _) -> wrap (C.trap_return ret [Cmm.Pop])
     | Some (Push _) ->
       Misc.fatal_errorf
         "Continuation %a (return cont) should not be applied with a push trap \
@@ -452,9 +454,7 @@ and let_expr env res let_expr =
         match bound_pattern, Let.defining_expr let_expr with
         | Singleton v, Simple s ->
           let v = Bound_var.var v in
-          let env, res =
-            bind_simple (env, res) v ~num_normal_occurrences_of_bound_vars s
-          in
+          let env = bind_simple env v ~num_normal_occurrences_of_bound_vars s in
           expr env res body
         | Singleton v, Prim (p, dbg) ->
           let v = Bound_var.var v in
@@ -576,14 +576,14 @@ and let_cont_exn env res k body vars handle id arity =
   in
   (* define and initialize the mutable cmm variables used by an exn extra
      args *)
-  let expr =
+  let cmm =
     List.fold_left
-      (fun expr (v, k) ->
+      (fun cmm (v, k) ->
         let v = Backend_var.With_provenance.create v in
-        C.letin_mut v (C.machtype_of_kind k) (default_of_kind k) expr)
+        C.letin_mut v (C.machtype_of_kind k) (default_of_kind k) cmm)
       trywith extra_vars
   in
-  expr, res
+  cmm, res
 
 and let_cont_rec env res conts body =
   (* Flush the env before anything to avoid inlining something inside of a
@@ -693,9 +693,9 @@ and apply_cont env res e =
   let k = Apply_cont_expr.continuation e in
   let args = Apply_cont_expr.args e in
   if Env.is_exn_handler env k
-  then apply_cont_exn env res e k args
+  then apply_cont_exn env e k args, res
   else if Continuation.equal (Env.return_cont env) k
-  then apply_cont_ret env res e k args
+  then apply_cont_ret env e k args, res
   else
     match Env.get_k env k with
     | Jump { types; cont } -> apply_cont_jump env res e types cont args
@@ -711,13 +711,13 @@ and apply_cont env res e =
       let handler_params = Bound_parameters.to_list handler_params in
       if List.compare_lengths args handler_params = 0
       then
-        let env, res =
+        let env =
           List.fold_left2
-            (fun env_and_res param ->
-              bind_simple env_and_res
+            (fun env param ->
+              bind_simple env
                 (Bound_parameter.var param)
                 ~num_normal_occurrences_of_bound_vars:handler_params_occurrences)
-            (env, res) handler_params args
+            env handler_params args
         in
         expr env res handler_body
       else
