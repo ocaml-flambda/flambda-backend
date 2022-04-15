@@ -17,5 +17,6 @@
    flambda
    flambda2
    no_flat_float_array
+   perf_demangled_symbols
    ))
  )
