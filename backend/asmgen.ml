@@ -71,14 +71,29 @@ let linear_unit_info =
     for_pack = None;
   }
 
-let cfg_unit_info =
+let new_cfg_unit_info () =
   { Cfg_format.unit_name = "";
     items = [];
     for_pack = None;
   }
 
+let cfg_unit_info = new_cfg_unit_info ()
+
+module Map = Map.Make(Compiler_pass)
+
+let (pass_to_cfg : Cfg_format.cfg_unit_info Map.t) =
+  Map.empty
+  |> Map.add Compiler_pass.Selection (new_cfg_unit_info ())
+
 let reset () =
   start_from_emit := false;
+  Map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
+    if should_save_ir_after pass then begin
+      cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
+      cfg_unit_info.items <- [];
+      cfg_unit_info.for_pack <- !Clflags.for_package;
+    end)
+    pass_to_cfg;
   if should_save_before_emit () then begin
     linear_unit_info.unit_name <- Compilenv.current_unit_name ();
     linear_unit_info.items <- [];
@@ -91,6 +106,11 @@ let reset () =
   end
 
 let save_data dl =
+  Map.iter (fun pass (cfg_unit_info: Cfg_format.cfg_unit_info) ->
+    if should_save_ir_after pass && (not !start_from_emit) then begin
+      cfg_unit_info.items <- Cfg_format.(Data dl) :: cfg_unit_info.items
+    end)
+    pass_to_cfg;
   if should_save_before_emit () then begin
     linear_unit_info.items <- Linear_format.(Data dl) :: linear_unit_info.items
   end;
@@ -111,7 +131,23 @@ let save_cfg f =
   end;
   f
 
+let save_mach_as_cfg pass f =
+  if should_save_ir_after pass && (not !start_from_emit) then begin
+    let cfg =
+      Cfgize.fundecl f ~preserve_orig_labels:false ~simplify_terminators:true
+    in
+    let cfg_unit_info = Map.find pass pass_to_cfg in
+    cfg_unit_info.items <- Cfg_format.(Cfg cfg) :: cfg_unit_info.items
+  end;
+  f
+
 let write_ir prefix =
+  Map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info)  ->
+    if should_save_ir_after pass && (not !start_from_emit) then begin
+      let filename = Compiler_pass.(to_output_filename pass ~prefix) in
+      cfg_unit_info.items <- List.rev cfg_unit_info.items;
+      Cfg_format.save filename cfg_unit_info end)
+    pass_to_cfg;
   if should_save_before_emit () then begin
     let filename = Compiler_pass.(to_output_filename Scheduling ~prefix) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
@@ -270,6 +306,7 @@ let compile_fundecl ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "selection" Selection.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
   ++ pass_dump_if ppf_dump dump_selection "After instruction selection"
+  ++ save_mach_as_cfg Compiler_pass.Selection
   ++ Profile.record ~accumulate:true "comballoc" Comballoc.fundecl
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_combine
   ++ pass_dump_if ppf_dump dump_combine "After allocation combining"
