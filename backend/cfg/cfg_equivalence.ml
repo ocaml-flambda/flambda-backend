@@ -579,8 +579,11 @@ let save_cfg_as_dot : Cfg_with_layout.t -> string -> unit =
     ~annotate_succ:(Printf.sprintf "%d->%d") msg
 
 let check_cfg_with_layout :
-      ?mach:Mach.fundecl -> ?linear:Linear.fundecl ->
-      Cfg_with_layout.t -> Cfg_with_layout.t -> unit =
+    ?mach:Mach.fundecl ->
+    ?linear:Linear.fundecl ->
+    Cfg_with_layout.t ->
+    Cfg_with_layout.t ->
+    unit =
  fun ?mach ?linear expected result ->
   try
     let state = State.make () in

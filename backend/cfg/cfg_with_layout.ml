@@ -109,8 +109,8 @@ let print_dot ?(show_instr = true) ?(show_exn = true) ?annotate_block
   let print_block_dot label (block : Cfg.basic_block) index =
     let name l = Printf.sprintf "\".L%d\"" l in
     let show_index = Option.value index ~default:(-1) in
-    Format.fprintf ppf "\n%s [shape=box label=\".L%d:I%d:S%d%s%s%s"
-      (name label) label show_index (List.length block.body)
+    Format.fprintf ppf "\n%s [shape=box label=\".L%d:I%d:S%d%s%s%s" (name label)
+      label show_index (List.length block.body)
       (if block.stack_offset > 0
       then ":T" ^ string_of_int block.stack_offset
       else "")

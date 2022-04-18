@@ -1,6 +1,9 @@
 val check_cfg_with_layout :
-  ?mach:Mach.fundecl -> ?linear:Linear.fundecl
-  -> Cfg_with_layout.t -> Cfg_with_layout.t -> unit
+  ?mach:Mach.fundecl ->
+  ?linear:Linear.fundecl ->
+  Cfg_with_layout.t ->
+  Cfg_with_layout.t ->
+  unit
 (* [check_cfg_with_layout f expected result] checks whether [expected] and
  * [result] are equivalent, failing (through [Misc.fatal_errorf]) if they
  *  are not.
