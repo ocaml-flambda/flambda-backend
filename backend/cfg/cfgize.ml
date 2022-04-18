@@ -648,9 +648,7 @@ module Stack_offset_and_exn = struct
       if block.stack_offset = invalid_stack_offset
       then true
       else begin
-        assert (
-          block.stack_offset = compute_stack_offset ~stack_offset ~traps
-          && block.stack_offset >= Proc.trap_size_in_bytes * List.length traps);
+        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
         false
       end
     in
@@ -680,9 +678,7 @@ module Stack_offset_and_exn = struct
         assert (Option.is_none block.exn);
         match traps with
         | [] -> ()
-        | handler_label :: rest ->
-          block.exn <- Some handler_label;
-          update_block cfg handler_label ~stack_offset ~traps:rest
+        | handler_label :: _ -> block.exn <- Some handler_label
       end
     end
 
