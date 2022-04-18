@@ -44,6 +44,7 @@ type basic_block =
 type t =
   { blocks : basic_block Label.Tbl.t;
     fun_name : string;
+    fun_args : Reg.t array;
     fun_dbg : Debuginfo.t;
     entry_label : Label.t;
     fun_fast : bool;
@@ -52,9 +53,10 @@ type t =
     fun_num_stack_slots : int array
   }
 
-let create ~fun_name ~fun_dbg ~fun_fast ~fun_contains_calls ~fun_num_stack_slots
-    =
+let create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
+    ~fun_num_stack_slots =
   { fun_name;
+    fun_args;
     fun_dbg;
     entry_label = 1;
     blocks = Label.Tbl.create 31;

@@ -702,7 +702,7 @@ let fundecl :
     Cfg_with_layout.t =
  fun fundecl ~preserve_orig_labels ~simplify_terminators ->
   let { Mach.fun_name;
-        fun_args = _;
+        fun_args;
         fun_body;
         fun_codegen_options;
         fun_dbg;
@@ -718,7 +718,7 @@ let fundecl :
     Proc.prologue_required ~fun_contains_calls ~fun_num_stack_slots
   in
   let cfg =
-    Cfg.create ~fun_name ~fun_dbg ~fun_fast ~fun_contains_calls
+    Cfg.create ~fun_name ~fun_args ~fun_dbg ~fun_fast ~fun_contains_calls
       ~fun_num_stack_slots
   in
   let state =
