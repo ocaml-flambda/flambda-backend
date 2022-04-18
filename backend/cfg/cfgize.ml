@@ -678,8 +678,7 @@ module Stack_offset_and_exn = struct
         assert (Option.is_none block.exn);
         match traps with
         | [] -> ()
-        | handler_label :: _ ->
-          block.exn <- Some handler_label;
+        | handler_label :: _ -> block.exn <- Some handler_label
       end
     end
 
