@@ -546,11 +546,12 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/manual/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
+    | Selection -> "selection"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
@@ -558,6 +559,7 @@ module Compiler_pass = struct
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
+    | "selection" -> Some Selection
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
@@ -566,6 +568,7 @@ module Compiler_pass = struct
   let rank = function
     | Parsing -> 0
     | Typing -> 1
+    | Selection -> 20
     | Simplify_cfg -> 49
     | Scheduling -> 50
     | Emit -> 60
@@ -573,6 +576,7 @@ module Compiler_pass = struct
   let passes = [
     Parsing;
     Typing;
+    Selection;
     Scheduling;
     Emit;
     Simplify_cfg;
@@ -582,12 +586,14 @@ module Compiler_pass = struct
     | Scheduling -> true
     | Emit -> true
     | Simplify_cfg -> true
+    | Selection -> true
     | Parsing | Typing -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
     | Scheduling -> true
     | Simplify_cfg -> true
+    | Selection -> true
     | _ -> false
 
   let available_pass_names ~filter ~native =
@@ -603,6 +609,7 @@ module Compiler_pass = struct
     match t with
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
+    | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
     | Emit | Parsing | Typing -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
