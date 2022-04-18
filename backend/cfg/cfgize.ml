@@ -648,9 +648,7 @@ module Stack_offset_and_exn = struct
       if block.stack_offset = invalid_stack_offset
       then true
       else begin
-        assert (
-          block.stack_offset = compute_stack_offset ~stack_offset ~traps
-          && block.stack_offset >= Proc.trap_size_in_bytes * List.length traps);
+        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
         false
       end
     in
