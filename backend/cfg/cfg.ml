@@ -408,6 +408,10 @@ let is_noop_move instr =
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
+  if stack_offset < 0
+  then
+    Misc.fatal_errorf "Cfg.set_stack_offset: expected non-negative got %d"
+      stack_offset;
   if instr.stack_offset = stack_offset
   then instr
   else { instr with stack_offset }
