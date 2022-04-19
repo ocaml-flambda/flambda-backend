@@ -285,42 +285,6 @@ val param_list :
 
 (** {2 Expression combinators} *)
 
-(** Cassign *)
-val assign : Backend_var.t -> Cmm.expression -> Cmm.expression
-
-(** Create a sequence of expressions. Will erase void expressions as needed. *)
-val sequence : Cmm.expression -> Cmm.expression -> Cmm.expression
-
-(** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
-    in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
-val letin_mut :
-  Backend_var.With_provenance.t ->
-  Cmm.machtype ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Creates a conditional branching on the given condition. *)
-val ite :
-  ?dbg:Debuginfo.t ->
-  ?then_dbg:Debuginfo.t ->
-  then_:Cmm.expression ->
-  ?else_dbg:Debuginfo.t ->
-  else_:Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Create a try_with structure. The [exn_var] is the variable bound to the
-    catched exception in the handler. *)
-val trywith :
-  ?dbg:Debuginfo.t ->
-  kind:Cmm.trywith_kind ->
-  body:Cmm.expression ->
-  exn_var:Backend_var.With_provenance.t ->
-  handler:Cmm.expression ->
-  unit ->
-  Cmm.expression
-
 (** Translate the raise kind found on Pop trap actions into a Cmm raise kind *)
 val raise_kind : Trap_action.raise_kind option -> Lambda.raise_kind
 
@@ -381,18 +345,6 @@ val int_of_float : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
 (** Conversions functions between integers and floats. *)
 val float_of_int : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
 
-(** Create a C function call. *)
-val extcall :
-  ?dbg:Debuginfo.t ->
-  returns:bool ->
-  alloc:bool ->
-  is_c_builtin:bool ->
-  ty_args:Cmm.exttype list ->
-  string ->
-  Cmm.machtype ->
-  Cmm.expression list ->
-  Cmm.expression
-
 (** {2 Static structure helpers} *)
 
 (** [fundecl name args body codegen_options dbg] creates a cmm function
@@ -408,7 +360,7 @@ val fundecl :
 (** Create a cmm phrase for a function declaration. *)
 val cfunction : Cmm.fundecl -> Cmm.phrase
 
-(** Create a cmm phrase for a satic data item. *)
+(** Create a cmm phrase for a static data item. *)
 val cdata : Cmm.data_item list -> Cmm.phrase
 
 (** Create the gc root table from a list of root symbols. *)

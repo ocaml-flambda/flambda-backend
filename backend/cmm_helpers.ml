@@ -39,16 +39,6 @@ let bind_nonvar name arg fn =
     let id = V.create_local name in
     Clet (VP.create id, arg, fn (Cvar id))
 
-let letin v ~defining_expr ~body =
-  match body with
-  | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
-    defining_expr
-  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
-  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
-  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
-  | Cregion _ | Ctail _ ->
-    Cmm.Clet (v, defining_expr, body)
-
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
 
 let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
@@ -3780,6 +3770,42 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 (* Helper functions used by Flambda 2. *)
 
+let letin v ~defining_expr ~body =
+  match body with
+  | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
+    defining_expr
+  | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float _ | Cconst_symbol _
+  | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
+  | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
+  | Cregion _ | Ctail _ ->
+    Cmm.Clet (v, defining_expr, body)
+
+let letin_mut v ty e body = Cmm.Clet_mut (v, ty, e, body)
+
+let assign x e = Cmm.Cassign (x, e)
+
+let sequence x y =
+  match x, y with
+  | Cmm.Ctuple [], _ -> y
+  | _, Cmm.Ctuple [] -> x
+  | _, _ -> Cmm.Csequence (x, y)
+
+let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
+    ?(else_dbg = Debuginfo.none) ~else_ cond =
+  Cmm.Cifthenelse
+    ( cond,
+      then_dbg,
+      then_,
+      else_dbg,
+      else_,
+      dbg,
+      (* CR-someday poechsel: Put a correct value kind here *)
+      Vval Pgenval )
+
+let trywith ?(dbg = Debuginfo.none) ~kind ~body ~exn_var ~handler () =
+  (* CR-someday poechsel: Put a correct value kind here *)
+  Cmm.Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
+
 let unary op ?(dbg = Debuginfo.none) x = Cop (op, [x], dbg)
 
 let binary op ?(dbg = Debuginfo.none) x y = Cop (op, [x; y], dbg)
@@ -3926,3 +3952,20 @@ let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
     in
     letin v' ~defining_expr:f
       ~body:(Cop (Capply (ty, Rc_normal), (fun_ptr :: args) @ [Cvar v], dbg))
+
+let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
+    typ_res args =
+  if not returns then assert (typ_res = Cmm.typ_void);
+  Cmm.Cop
+    ( Cextcall
+        { func = name;
+          ty = typ_res;
+          alloc;
+          ty_args;
+          returns;
+          builtin = is_c_builtin;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects
+        },
+      args,
+      dbg )

@@ -180,16 +180,6 @@ let infix_field_address ~dbg ptr n =
   then ptr
   else Cmm.Cop (Cmm.Caddv, [ptr; int ~dbg (n * Arch.size_addr)], dbg)
 
-let assign x e = Cmm.Cassign (x, e)
-
-(* Sequence *)
-
-let sequence x y =
-  match x, y with
-  | Cmm.Ctuple [], _ -> y
-  | _, Cmm.Ctuple [] -> x
-  | _, _ -> Cmm.Csequence (x, y)
-
 (* Allocation modes *)
 
 let convert_alloc_mode (alloc_mode : Alloc_mode.t) : Lambda.alloc_mode =
@@ -239,37 +229,6 @@ let binary op ?(dbg = Debuginfo.none) x y = Cmm.Cop (op, [x; y], dbg)
 let int_of_float = unary Cmm.Cintoffloat
 
 let float_of_int = unary Cmm.Cfloatofint
-
-let letin_mut v ty e body = Cmm.Clet_mut (v, ty, e, body)
-
-let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
-    ?(else_dbg = Debuginfo.none) ~else_ cond =
-  Cmm.Cifthenelse
-    ( cond,
-      then_dbg,
-      then_,
-      else_dbg,
-      else_,
-      dbg,
-      (* CR-someday poechsel: Put a correct value kind here *)
-      Vval Pgenval )
-
-let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
-    typ_res args =
-  if not returns then assert (typ_res = Cmm.typ_void);
-  Cmm.Cop
-    ( Cextcall
-        { func = name;
-          ty = typ_res;
-          alloc;
-          ty_args;
-          returns;
-          builtin = is_c_builtin;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects
-        },
-      args,
-      dbg )
 
 (* Arithmetic helpers *)
 
@@ -504,10 +463,6 @@ let bigarray_store ?(dbg = Debuginfo.none) _dims kind _layout ba offset v =
   | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value:v)
 
 (* try-with blocks *)
-
-let trywith ?(dbg = Debuginfo.none) ~kind ~body ~exn_var ~handler () =
-  (* CR-someday poechsel: Put a correct value kind here *)
-  Cmm.Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
 
 let raise_kind (kind : Trap_action.raise_kind option) : Lambda.raise_kind =
   match kind with

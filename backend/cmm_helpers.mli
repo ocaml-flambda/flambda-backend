@@ -26,14 +26,6 @@ val bind_load : string -> expression -> (expression -> expression) -> expression
 val bind_nonvar :
   string -> expression -> (expression -> expression) -> expression
 
-(** Create a [Clet], except if the body just returns the bound variable, in
-    which case the [Clet] is elided. *)
-val letin :
-  Backend_var.With_provenance.t ->
-  defining_expr:expression ->
-  body:expression ->
-  expression
-
 (** Headers *)
 
 (** A null header with GC bits set to black *)
@@ -870,6 +862,49 @@ val emit_preallocated_blocks :
 
 (** {1} Helper functions used by Flambda 2. *)
 
+(** Create a [Clet], except if the body just returns the bound variable, in
+    which case the [Clet] is elided. *)
+val letin :
+  Backend_var.With_provenance.t ->
+  defining_expr:Cmm.expression ->
+  body:Cmm.expression ->
+  Cmm.expression
+
+(** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
+    in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
+val letin_mut :
+  Backend_var.With_provenance.t ->
+  Cmm.machtype ->
+  Cmm.expression ->
+  Cmm.expression ->
+  Cmm.expression
+
+val assign : Backend_var.t -> Cmm.expression -> Cmm.expression
+
+(** Create a sequence of expressions. Will erase void expressions as needed. *)
+val sequence : Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Creates a conditional branching on the given condition. *)
+val ite :
+  ?dbg:Debuginfo.t ->
+  ?then_dbg:Debuginfo.t ->
+  then_:Cmm.expression ->
+  ?else_dbg:Debuginfo.t ->
+  else_:Cmm.expression ->
+  Cmm.expression ->
+  Cmm.expression
+
+(** Create a try-with structure. The [exn_var] is the variable bound to the
+    caught exception in the handler. *)
+val trywith :
+  ?dbg:Debuginfo.t ->
+  kind:Cmm.trywith_kind ->
+  body:Cmm.expression ->
+  exn_var:Backend_var.With_provenance.t ->
+  handler:Cmm.expression ->
+  unit ->
+  Cmm.expression
+
 val eq : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
 
 (** Integer arithmetic (dis)equality of cmm expressions. Returns an untagged
@@ -979,5 +1014,17 @@ val indirect_full_call :
   Cmm.machtype ->
   Lambda.alloc_mode ->
   Cmm.expression ->
+  Cmm.expression list ->
+  Cmm.expression
+
+(** Create a C function call. *)
+val extcall :
+  ?dbg:Debuginfo.t ->
+  returns:bool ->
+  alloc:bool ->
+  is_c_builtin:bool ->
+  ty_args:Cmm.exttype list ->
+  string ->
+  Cmm.machtype ->
   Cmm.expression list ->
   Cmm.expression
