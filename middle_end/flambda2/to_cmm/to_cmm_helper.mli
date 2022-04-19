@@ -536,3 +536,18 @@ val gc_root_table :
 (** Prepend constants that were populated in cmmgen_state (mostly by indirect
     use through functions from Cmm_helpers). *)
 val flush_cmmgen_state : unit -> Cmm.phrase list
+
+(** Make an update to a statically-allocated block. *)
+val make_update :
+  To_cmm_env.t ->
+  Cmm.memory_chunk ->
+  symbol:Cmm.expression ->
+  Variable.t ->
+  index:int ->
+  prev_updates:Cmm.expression option ->
+  To_cmm_env.t * Cmm.expression option
+
+val simple_static :
+  To_cmm_env.t ->
+  Simple.t ->
+  To_cmm_env.t * [`Data of Cmm.data_item list | `Var of Variable.t]

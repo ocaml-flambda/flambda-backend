@@ -744,3 +744,39 @@ let flush_cmmgen_state () =
     Misc.fatal_errorf
       "There shouldn't be any data item in cmmgen_state during flambda to cmm \
        translation"
+
+let make_update env kind ~symbol var ~index ~prev_updates =
+  let e, env, _ece = To_cmm_env.inline_variable env var in
+  let address = field_address symbol index Debuginfo.none in
+  let update = store kind Lambda.Root_initialization address e in
+  match prev_updates with
+  | None -> env, Some update
+  | Some prev_updates -> env, Some (sequence prev_updates update)
+
+let name_static env name =
+  Name.pattern_match name
+    ~var:(fun v -> env, `Var v)
+    ~symbol:(fun s ->
+      ( To_cmm_env.check_scope ~allow_deleted:false env
+          (Code_id_or_symbol.create_symbol s),
+        `Data [symbol_address (Symbol.linkage_name_as_string s)] ))
+
+let const_static cst =
+  match Reg_width_const.descr cst with
+  | Naked_immediate i -> [cint (nativeint_of_targetint (targetint_of_imm i))]
+  | Tagged_immediate i ->
+    [cint (nativeint_of_targetint (tag_targetint (targetint_of_imm i)))]
+  | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
+  | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
+  | Naked_int64 i ->
+    if arch32
+    then
+      Misc.fatal_error "Not implemented for 32-bit platforms"
+      (* split int64 on 32-bit archs *)
+    else [cint (Int64.to_nativeint i)]
+  | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
+
+let simple_static env s =
+  Simple.pattern_match s
+    ~name:(fun n ~coercion:_ -> name_static env n)
+    ~const:(fun c -> env, `Data (const_static c))

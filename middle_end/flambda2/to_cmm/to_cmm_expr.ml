@@ -470,9 +470,9 @@ and let_expr env res let_expr =
           in
           expr env res body
         | Set_of_closures bound_vars, Set_of_closures soc ->
-          To_cmm_set_of_closures.let_set_of_closures env res ~body ~bound_vars
-            ~num_normal_occurrences_of_bound_vars soc ~translate_expr:expr
-            ~let_expr_bind
+          To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body
+            ~bound_vars ~num_normal_occurrences_of_bound_vars soc
+            ~translate_expr:expr ~let_expr_bind
         | Static bound_static, Static_consts consts -> (
           let env =
             (* All bound symbols are allowed to appear in each other's

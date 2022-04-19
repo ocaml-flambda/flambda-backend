@@ -27,6 +27,8 @@ end
 type translate_expr =
   To_cmm_env.t -> To_cmm_result.t -> Expr.t -> Cmm.expression * To_cmm_result.t
 
+(* Filling of dynamically-allocated closure blocks *)
+
 let get_closure_by_offset env set_cmm cid =
   match Env.function_slot_offset env cid with
   | Live_function_slot { offset; _ } ->
@@ -72,6 +74,72 @@ let fill_slot decls startenv elts env acc offset slot =
       in
       acc, offset + 3, env, Ece.pure)
 
+(* Filling of statically-allocated closure blocks *)
+
+let get_whole_closure_symbol =
+  let whole_closure_symb_count = ref 0 in
+  fun r ->
+    match !r with
+    | Some s -> s
+    | None ->
+      incr whole_closure_symb_count;
+      let comp_unit = Compilation_unit.get_current_exn () in
+      let linkage_name =
+        Linkage_name.create
+        @@ Printf.sprintf ".clos_%d" !whole_closure_symb_count
+      in
+      let s = Symbol.create comp_unit linkage_name in
+      r := Some s;
+      s
+
+let fill_static_slot s symbs decls startenv elts env acc offset updates slot =
+  match (slot : Slot_offsets.layout_slot) with
+  | Infix_header ->
+    let field = C.cint (C.infix_header (offset + 1)) in
+    env, field :: acc, offset + 1, updates
+  | Value_slot v ->
+    let env, contents = C.simple_static env (Value_slot.Map.find v elts) in
+    let env, fields, updates =
+      match contents with
+      | `Data fields -> env, fields, updates
+      | `Var v ->
+        let s = get_whole_closure_symbol s in
+        let env, updates =
+          C.make_update env Cmm.Word_val ~symbol:(C.symbol s) v ~index:offset
+            ~prev_updates:updates
+        in
+        env, [C.cint 1n], updates
+    in
+    env, List.rev fields @ acc, offset + 1, updates
+  | Function_slot c -> (
+    let code_id = Function_slot.Map.find c decls in
+    let symb = Function_slot.Map.find c symbs in
+    let code_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
+    let acc =
+      List.rev
+        (C.define_symbol ~global:true (Symbol.linkage_name_as_string symb))
+      @ acc
+    in
+    let arity, closure_code_pointers =
+      Env.get_func_decl_params_arity env code_id
+    in
+    let closure_info = C.closure_info ~arity ~startenv:(startenv - offset) in
+    (* We build here the **reverse** list of fields for the closure *)
+    match closure_code_pointers with
+    | Full_application_only ->
+      let acc = C.cint closure_info :: C.symbol_address code_name :: acc in
+      env, acc, offset + 2, updates
+    | Full_and_partial_application ->
+      let acc =
+        C.symbol_address code_name :: C.cint closure_info
+        :: C.symbol_address (C.curry_function_sym arity)
+        :: acc
+      in
+      env, acc, offset + 3, updates)
+
+let rec fill_static_up_to j acc i =
+  if i = j then acc else fill_static_up_to j (C.cint 1n :: acc) (i + 1)
+
 let rec fill_up_to j acc i =
   if i > j then Misc.fatal_errorf "Problem while filling up a closure in to_cmm";
   if i = j then acc else fill_up_to j (C.int 1 :: acc) (i + 1)
@@ -83,6 +151,16 @@ let rec fill_layout decls startenv elts env effs acc i = function
     let acc, offset, env, eff = fill_slot decls startenv elts env acc j slot in
     let effs = Ece.join eff effs in
     fill_layout decls startenv elts env effs acc offset r
+
+let rec fill_static_layout s symbs decls startenv elts env acc updates i =
+  function
+  | [] -> env, List.rev acc, updates, i
+  | (j, slot) :: r ->
+    let acc = fill_static_up_to j acc i in
+    let env, acc, offset, updates =
+      fill_static_slot s symbs decls startenv elts env acc j updates slot
+    in
+    fill_static_layout s symbs decls startenv elts env acc updates offset r
 
 (* Helpers for translating functions *)
 
@@ -141,10 +219,37 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
           Expr.print body;
         raise e)
 
+let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
+    ~prev_updates =
+  let clos_symb = ref None in
+  let fun_decls = Set_of_closures.function_decls set in
+  let decls = Function_declarations.funs fun_decls in
+  let elts = Set_of_closures.value_slots set in
+  let env, l, updates, length =
+    fill_static_layout clos_symb symbs decls layout.startenv elts env []
+      prev_updates 0 layout.slots
+  in
+  let block =
+    match l with
+    (* Closures can be deleted by flambda but still appear in let_symbols, hence
+       we may end up with empty sets of closures. *)
+    | [] -> []
+    (* Regular case. *)
+    | _ ->
+      let header = C.cint (C.black_closure_header length) in
+      let sdef =
+        match !clos_symb with
+        | None -> []
+        | Some s ->
+          C.define_symbol ~global:false (Symbol.linkage_name_as_string s)
+      in
+      (header :: sdef) @ l
+  in
+  env, block, updates
+
 (* Sets of closures with no environment can be turned into statically allocated
    symbols, rather than have to allocate them each time *)
-let let_static_set_of_closures env res ~body ~bound_vars s layout
-    ~translate_expr =
+let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let cids =
@@ -164,7 +269,7 @@ let let_static_set_of_closures env res ~body ~bound_vars s layout
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
-    To_cmm_static.static_set_of_closures env closure_symbols s layout None
+    let_static_set_of_closures env closure_symbols s layout ~prev_updates:None
   in
   (* As there is no env vars for the set of closures, there must be no
      updates *)
@@ -238,13 +343,11 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars s
      correctly set in the env, go on translating the body. *)
   translate_expr env res body
 
-let let_set_of_closures env res ~body ~bound_vars
+let let_dynamic_set_of_closures env res ~body ~bound_vars
     ~num_normal_occurrences_of_bound_vars s ~translate_expr ~let_expr_bind =
   let layout = Env.layout env s in
   if layout.empty_env
-  then
-    let_static_set_of_closures env res ~body ~bound_vars s layout
-      ~translate_expr
+  then lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr
   else
     let_dynamic_set_of_closures env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars s layout

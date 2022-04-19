@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda.Import
 
@@ -24,35 +24,6 @@ end
 module Env = To_cmm_env
 module SC = Static_const
 module R = To_cmm_result
-
-let name_static env name =
-  Name.pattern_match name
-    ~var:(fun v -> env, `Var v)
-    ~symbol:(fun s ->
-      ( Env.check_scope ~allow_deleted:false env
-          (Code_id_or_symbol.create_symbol s),
-        `Data [C.symbol_address (Symbol.linkage_name_as_string s)] ))
-
-let const_static _env cst =
-  match Reg_width_const.descr cst with
-  | Naked_immediate i ->
-    [C.cint (C.nativeint_of_targetint (C.targetint_of_imm i))]
-  | Tagged_immediate i ->
-    [C.cint (C.nativeint_of_targetint (C.tag_targetint (C.targetint_of_imm i)))]
-  | Naked_float f -> [C.cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
-  | Naked_int32 i -> [C.cint (Nativeint.of_int32 i)]
-  | Naked_int64 i ->
-    if C.arch32
-    then
-      Misc.fatal_error "Not implemented for 32-bit platforms"
-      (* split int64 on 32-bit archs *)
-    else [C.cint (Int64.to_nativeint i)]
-  | Naked_nativeint t -> [C.cint (C.nativeint_of_targetint t)]
-
-let simple_static env s =
-  Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name_static env n)
-    ~const:(fun c -> env, `Data (const_static env c))
 
 let static_value env v =
   match (v : Field_of_static_block.t) with
@@ -71,14 +42,6 @@ let or_variable f default v cont =
   | Const c -> f c cont
   | Var _ -> f default cont
 
-let make_update env kind symb var i prev_update =
-  let e, env, _ece = Env.inline_variable env var in
-  let address = C.field_address symb i Debuginfo.none in
-  let update = C.store kind Lambda.Root_initialization address e in
-  match prev_update with
-  | None -> env, Some update
-  | Some prev_update -> env, Some (C.sequence prev_update update)
-
 let rec static_block_updates symb env acc i = function
   | [] -> env, acc
   | sv :: r -> begin
@@ -86,7 +49,10 @@ let rec static_block_updates symb env acc i = function
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env acc (i + 1) r
     | Dynamically_computed var ->
-      let env, acc = make_update env Cmm.Word_val symb var i acc in
+      let env, acc =
+        C.make_update env Cmm.Word_val ~symbol:symb var ~index:i
+          ~prev_updates:acc
+      in
       static_block_updates symb env acc (i + 1) r
   end
 
@@ -96,7 +62,9 @@ let rec static_float_array_updates symb env acc i = function
     match (sv : _ Or_variable.t) with
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
     | Var var ->
-      let env, acc = make_update env Cmm.Double symb var i acc in
+      let env, acc =
+        C.make_update env Cmm.Double ~symbol:symb var ~index:i ~prev_updates:acc
+      in
       static_float_array_updates symb env acc (i + 1) r
   end
 
@@ -109,109 +77,11 @@ let static_boxed_number kind env symbol default emit transl v r updates =
   let updates =
     match (v : _ Or_variable.t) with
     | Const _ -> env, None
-    | Var v -> make_update env kind (C.symbol symbol) v 0 updates
+    | Var v ->
+      C.make_update env kind ~symbol:(C.symbol symbol) v ~index:0
+        ~prev_updates:updates
   in
   R.update_data r (or_variable aux default v), updates
-
-let get_whole_closure_symbol =
-  let whole_closure_symb_count = ref 0 in
-  fun r ->
-    match !r with
-    | Some s -> s
-    | None ->
-      incr whole_closure_symb_count;
-      let comp_unit = Compilation_unit.get_current_exn () in
-      let linkage_name =
-        Linkage_name.create
-        @@ Printf.sprintf ".clos_%d" !whole_closure_symb_count
-      in
-      let s = Symbol.create comp_unit linkage_name in
-      r := Some s;
-      s
-
-let rec static_set_of_closures env symbs set (layout : Slot_offsets.layout)
-    prev_update =
-  let clos_symb = ref None in
-  let fun_decls = Set_of_closures.function_decls set in
-  let decls = Function_declarations.funs fun_decls in
-  let elts = Set_of_closures.value_slots set in
-  let env, l, updates, length =
-    fill_static_layout clos_symb symbs decls layout.startenv elts env []
-      prev_update 0 layout.slots
-  in
-  let block =
-    match l with
-    (* Closures can be deleted by flambda but still appear in let_symbols, hence
-       we may end up with empty sets of closures. *)
-    | [] -> []
-    (* Regular case. *)
-    | _ ->
-      let header = C.cint (C.black_closure_header length) in
-      let sdef =
-        match !clos_symb with
-        | None -> []
-        | Some s ->
-          C.define_symbol ~global:false (Symbol.linkage_name_as_string s)
-      in
-      (header :: sdef) @ l
-  in
-  env, block, updates
-
-and fill_static_layout s symbs decls startenv elts env acc updates i = function
-  | [] -> env, List.rev acc, updates, i
-  | (j, slot) :: r ->
-    let acc = fill_static_up_to j acc i in
-    let env, acc, offset, updates =
-      fill_static_slot s symbs decls startenv elts env acc j updates slot
-    in
-    fill_static_layout s symbs decls startenv elts env acc updates offset r
-
-and fill_static_slot s symbs decls startenv elts env acc offset updates slot =
-  match (slot : Slot_offsets.layout_slot) with
-  | Infix_header ->
-    let field = C.cint (C.infix_header (offset + 1)) in
-    env, field :: acc, offset + 1, updates
-  | Value_slot v ->
-    let env, contents = simple_static env (Value_slot.Map.find v elts) in
-    let env, fields, updates =
-      match contents with
-      | `Data fields -> env, fields, updates
-      | `Var v ->
-        let s = get_whole_closure_symbol s in
-        let env, updates =
-          make_update env Cmm.Word_val (C.symbol s) v offset updates
-        in
-        env, [C.cint 1n], updates
-    in
-    env, List.rev fields @ acc, offset + 1, updates
-  | Function_slot c -> (
-    let code_id = Function_slot.Map.find c decls in
-    let symb = Function_slot.Map.find c symbs in
-    let code_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
-    let acc =
-      List.rev
-        (C.define_symbol ~global:true (Symbol.linkage_name_as_string symb))
-      @ acc
-    in
-    let arity, closure_code_pointers =
-      Env.get_func_decl_params_arity env code_id
-    in
-    let closure_info = C.closure_info ~arity ~startenv:(startenv - offset) in
-    (* We build here the **reverse** list of fields for the closure *)
-    match closure_code_pointers with
-    | Full_application_only ->
-      let acc = C.cint closure_info :: C.symbol_address code_name :: acc in
-      env, acc, offset + 2, updates
-    | Full_and_partial_application ->
-      let acc =
-        C.symbol_address code_name :: C.cint closure_info
-        :: C.symbol_address (C.curry_function_sym arity)
-        :: acc
-      in
-      env, acc, offset + 3, updates)
-
-and fill_static_up_to j acc i =
-  if i = j then acc else fill_static_up_to j (C.cint 1n :: acc) (i + 1)
 
 let update_env_for_code env (code : Code.t) =
   (* Check scope of the newer-version-of code ID *)
@@ -238,7 +108,8 @@ let preallocate_set_of_closures (r, updates, env) ~closure_symbols
       |> Function_slot.Map.of_list
     in
     let layout = Env.layout env set_of_closures in
-    static_set_of_closures env closure_symbols set_of_closures layout updates
+    To_cmm_set_of_closures.let_static_set_of_closures env closure_symbols
+      set_of_closures layout ~prev_updates:updates
   in
   let r = R.set_data r data in
   r, updates, env
