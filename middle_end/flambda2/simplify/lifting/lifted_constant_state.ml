@@ -224,10 +224,13 @@ let sort0 t =
     build_dep_graph t
   in
   let lifted_constants_dep_graph =
-    (* Leaves in the graph that correspond to pre-existing definitions will not
-       appear as keys in the map, which [SCC_lifted_constants] will complain
-       about. But we're not concerned with them anyway, so we can just get rid
-       of them. *)
+    (* This graph has vertices for all code ids and symbols that appear free in
+       the definitions, including pre-existing ones. However, any such "external
+       vertex" is a leaf, and in fact it won't even appear as a key in the map
+       representation of the graph. However, [SCC_lifted_constants] assumes that
+       all vertices appear as keys. Fortunately, we're only concerned with the
+       interdependencies between code ids and symbols being defined here, so we
+       can just filter out external dependencies from the graph. *)
     remove_values_not_in_domain lifted_constants_dep_graph
   in
   let innermost_first =
