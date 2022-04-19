@@ -870,6 +870,73 @@ val emit_preallocated_blocks :
 
 (** {1} Helper functions used by Flambda 2. *)
 
+val eq : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Integer arithmetic (dis)equality of cmm expressions. Returns an untagged
+    integer (either 0 or 1) to represent the result of the comparison. *)
+val neq : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val lt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val le : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val gt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Integer arithmetic signed comparisons on cmm expressions. Returns an
+    untagged integer (either 0 or 1) to represent the result of the comparison. *)
+val ge : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val ult : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val ule : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val ugt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Integer arithmetic unsigned comparisons on cmm expressions. Returns an
+    untagged integer (either 0 or 1) to represent the result of the comparison. *)
+val uge : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Asbolute value on floats. *)
+val float_abs : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
+
+(** Arithmetic negation on floats. *)
+val float_neg : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
+
+val float_add :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_sub :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_mul :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Float arithmetic operations. *)
+val float_div :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_eq :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
+    integer (either 0 or 1) to represent the result of the comparison. *)
+val float_neq :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_lt :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_le :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+val float_gt :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
+(** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
+    (either 0 or 1) to represent the result of the comparison. *)
+val float_ge :
+  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+
 val load :
   ?dbg:Debuginfo.t ->
   Cmm.memory_chunk ->
