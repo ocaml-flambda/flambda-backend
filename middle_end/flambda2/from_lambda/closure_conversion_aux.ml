@@ -345,7 +345,7 @@ module Env = struct
     | Value_unknown -> t
     | approx -> add_value_approximation t alias approx
 
-  let use_path_to_root t path_to_root =
+  let set_path_to_root t path_to_root =
     if path_to_root = Debuginfo.Scoped_location.Loc_unknown
     then t
     else { t with path_to_root }
@@ -358,8 +358,9 @@ module Env = struct
   let inlining_history_tracker { inlining_history_tracker; _ } =
     inlining_history_tracker
 
-  let relative_history { inlining_history_tracker; _ } =
-    Inlining_history.Tracker.relative inlining_history_tracker
+  let relative_history_from_scoped ~loc { path_to_root; _ } =
+    Inlining_history.Relative.between_scoped_locations ~parent:path_to_root
+      ~child:loc
 end
 
 module Acc = struct
