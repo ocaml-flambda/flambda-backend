@@ -344,7 +344,7 @@ let unary_primitive env res dbg f arg =
     ( None,
       res,
       C.load ~dbg Cmm.Word_int Asttypes.Mutable
-        (C.field_address arg (4 + dimension) dbg) )
+        ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
   | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
   | Opaque_identity -> None, res, C.opaque arg dbg

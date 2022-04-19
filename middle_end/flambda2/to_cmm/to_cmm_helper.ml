@@ -353,12 +353,6 @@ let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
       (* CR-someday poechsel: Put a correct value kind here *)
       Vval Pgenval )
 
-let load ?(dbg = Debuginfo.none) kind mut addr =
-  Cmm.Cop (Cmm.Cload (kind, mut), [addr], dbg)
-
-let store ?(dbg = Debuginfo.none) kind init addr value =
-  Cmm.Cop (Cmm.Cstore (kind, init), [addr; value], dbg)
-
 let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
     typ_res args =
   if not returns then assert (typ_res = Cmm.typ_void);
@@ -501,7 +495,7 @@ let string_like_load_aux ~dbg _kind width _block ptr idx =
   match (width : Flambda_primitive.string_accessor_width) with
   | Eight ->
     let idx = untag_int idx dbg in
-    load ~dbg Cmm.Byte_unsigned Asttypes.Mutable (add_int ptr idx dbg)
+    load ~dbg Cmm.Byte_unsigned Asttypes.Mutable ~addr:(add_int ptr idx dbg)
   | Sixteen ->
     let idx = untag_int idx dbg in
     unaligned_load_16 ptr idx dbg
@@ -520,7 +514,7 @@ let string_like_load ?(dbg = Debuginfo.none) kind width block index =
   | String | Bytes -> string_like_load_aux ~dbg kind width block block index
   | Bigstring ->
     let ba_data_addr = field_address block 1 dbg in
-    let ba_data = load ~dbg Cmm.Word_int Asttypes.Mutable ba_data_addr in
+    let ba_data = load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr in
     bind "ba_data" ba_data (fun ptr ->
         string_like_load_aux ~dbg kind width block ptr index)
 
@@ -529,7 +523,8 @@ let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
   match (width : Flambda_primitive.string_accessor_width) with
   | Eight ->
     let idx = untag_int idx dbg in
-    store ~dbg Cmm.Byte_unsigned Lambda.Assignment (add_int ptr idx dbg) value
+    store ~dbg Cmm.Byte_unsigned Lambda.Assignment ~addr:(add_int ptr idx dbg)
+      ~new_value:value
   | Sixteen ->
     let idx = untag_int idx dbg in
     unaligned_set_16 ptr idx value dbg
@@ -549,7 +544,7 @@ let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
     return_unit dbg (bytes_like_set_aux ~dbg kind width block block index value)
   | Bigstring ->
     let ba_data_addr = field_address block 1 dbg in
-    let ba_data = load ~dbg Cmm.Word_int Asttypes.Mutable ba_data_addr in
+    let ba_data = load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr in
     return_unit dbg
       (bind "ba_data" ba_data (fun ptr ->
            bytes_like_set_aux ~dbg kind width block ptr index value))
@@ -576,7 +571,7 @@ let bigarray_load ?(dbg = Debuginfo.none) _dims kind _layout ba offset =
   let elt_size = bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = bigarray_word_kind elt_kind in
   let ba_data_f = field_address ba 1 dbg in
-  let ba_data_p = load ~dbg Word_int Mutable ba_data_f in
+  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
     array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
   in
@@ -584,16 +579,16 @@ let bigarray_load ?(dbg = Debuginfo.none) _dims kind _layout ba offset =
   | Pbigarray_complex32 | Pbigarray_complex64 ->
     let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
     box_complex dbg
-      (load ~dbg elt_chunk Mutable addr)
-      (load ~dbg elt_chunk Mutable addr')
-  | _ -> load ~dbg elt_chunk Mutable addr
+      (load ~dbg elt_chunk Mutable ~addr)
+      (load ~dbg elt_chunk Mutable ~addr:addr')
+  | _ -> load ~dbg elt_chunk Mutable ~addr
 
 let bigarray_store ?(dbg = Debuginfo.none) _dims kind _layout ba offset v =
   let elt_kind = lambda_ba_kind kind in
   let elt_size = bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = bigarray_word_kind elt_kind in
   let ba_data_f = field_address ba 1 dbg in
-  let ba_data_p = load ~dbg Word_int Mutable ba_data_f in
+  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
     array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
   in
@@ -602,9 +597,10 @@ let bigarray_store ?(dbg = Debuginfo.none) _dims kind _layout ba offset v =
     let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
     return_unit dbg
       (sequence
-         (store ~dbg elt_chunk Assignment addr (complex_re v dbg))
-         (store ~dbg elt_chunk Assignment addr' (complex_im v dbg)))
-  | _ -> return_unit dbg (store ~dbg elt_chunk Assignment addr v)
+         (store ~dbg elt_chunk Assignment ~addr ~new_value:(complex_re v dbg))
+         (store ~dbg elt_chunk Assignment ~addr:addr'
+            ~new_value:(complex_im v dbg)))
+  | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value:v)
 
 (* try-with blocks *)
 
@@ -638,48 +634,6 @@ let trap_return arg trap_actions =
 let ccatch ~rec_flag ~handlers ~body =
   let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
   Cmm.Ccatch (rec_flag, handlers, body, Vval Pgenval)
-
-(* Function calls *)
-
-let direct_call ?(dbg = Debuginfo.none) ty f_code_sym args =
-  Cmm.Cop (Cmm.Capply (ty, Rc_normal), f_code_sym :: args, dbg)
-
-let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
-  | [arg] ->
-    (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
-    let v = Backend_var.create_local "*closure*" in
-    let v' = Backend_var.With_provenance.create v in
-    (* We always use [Apply_nontail] since the [Lambda_to_flambda] pass has
-       already taken care of the placement of region begin/end primitives. *)
-    letin v' ~defining_expr:f
-      ~body:
-        (Cmm.Cop
-           ( Cmm.Capply (ty, Rc_normal),
-             [load Cmm.Word_int Asttypes.Mutable (var v); arg; var v],
-             dbg ))
-  | args ->
-    let arity = List.length args in
-    let alloc_mode = convert_alloc_mode alloc_mode in
-    let l =
-      (Cmm.Cconst_symbol (apply_function_sym arity alloc_mode, dbg) :: args)
-      @ [f]
-    in
-    Cmm.Cop (Cmm.Capply (ty, Rc_normal), l, dbg)
-
-let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
-  (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty alloc_mode f args
-  | args ->
-    (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
-    let v = Backend_var.create_local "*closure*" in
-    let v' = Backend_var.With_provenance.create v in
-    (* get the function's code pointer *)
-    let fun_ptr =
-      load Cmm.Word_int Asttypes.Mutable @@ field_address (var v) 2 dbg
-    in
-    letin v' ~defining_expr:f
-      ~body:
-        (Cmm.Cop (Cmm.Capply (ty, Rc_normal), (fun_ptr :: args) @ [var v], dbg))
 
 (* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
    simply generating code that segfaults *)
@@ -747,8 +701,8 @@ let flush_cmmgen_state () =
 
 let make_update env kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in
-  let address = field_address symbol index Debuginfo.none in
-  let update = store kind Lambda.Root_initialization address e in
+  let addr = field_address symbol index Debuginfo.none in
+  let update = store kind Lambda.Root_initialization ~addr ~new_value:e in
   match prev_updates with
   | None -> env, Some update
   | Some prev_updates -> env, Some (sequence prev_updates update)

@@ -867,3 +867,50 @@ val emit_constant_closure :
 
 val emit_preallocated_blocks :
   Clambda.preallocated_block list -> phrase list -> phrase list
+
+(** {1} Helper functions used by Flambda 2. *)
+
+val load :
+  ?dbg:Debuginfo.t ->
+  Cmm.memory_chunk ->
+  Asttypes.mutable_flag ->
+  addr:Cmm.expression ->
+  Cmm.expression
+
+val store :
+  ?dbg:Debuginfo.t ->
+  Cmm.memory_chunk ->
+  Lambda.initialization_or_assignment ->
+  addr:Cmm.expression ->
+  new_value:Cmm.expression ->
+  Cmm.expression
+
+(** [direct_call ty f_code args] creates a direct call to the function code
+    [f_code] with arguments [args], with a return value of type [ty].
+
+    If a closure needs to be passed, it must be included in [args]. *)
+val direct_call :
+  ?dbg:Debuginfo.t ->
+  Cmm.machtype ->
+  Cmm.expression ->
+  Cmm.expression list ->
+  Cmm.expression
+
+(** Same as {!direct_call} but for an indirect call. *)
+val indirect_call :
+  ?dbg:Debuginfo.t ->
+  Cmm.machtype ->
+  Lambda.alloc_mode ->
+  Cmm.expression ->
+  Cmm.expression list ->
+  Cmm.expression
+
+(** Same as {!direct_call} but for an indirect call that is know to be a full
+    application (since this enables a few optimisations). *)
+val indirect_full_call :
+  ?dbg:Debuginfo.t ->
+  Cmm.machtype ->
+  Lambda.alloc_mode ->
+  Cmm.expression ->
+  Cmm.expression list ->
+  Cmm.expression

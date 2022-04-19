@@ -310,23 +310,6 @@ val ite :
   Cmm.expression ->
   Cmm.expression
 
-(** Create a load expression. *)
-val load :
-  ?dbg:Debuginfo.t ->
-  Cmm.memory_chunk ->
-  Asttypes.mutable_flag ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Create a store expression. *)
-val store :
-  ?dbg:Debuginfo.t ->
-  Cmm.memory_chunk ->
-  Lambda.initialization_or_assignment ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
 (** Create a try_with structure. The [exn_var] is the variable bound to the
     catched exception in the handler. *)
 val trywith :
@@ -464,38 +447,6 @@ val int_of_float : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
 
 (** Conversions functions between integers and floats. *)
 val float_of_int : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
-
-(** {2 Function calls} *)
-
-(** [direct_call ty f_code args] creates a direct call to the function code
-    [f_code] with arguments [args], with a return value of type [ty].
-
-    If a closure needs to be passed, it must be included in [args]. *)
-val direct_call :
-  ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
-
-(** Same as {!direct_call} but for an indirect call. *)
-val indirect_call :
-  ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
-  Alloc_mode.t ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
-
-(** Same as {!direct_call} but for an indirect call that is know to be a full
-    application (since this enables a few optimisations). *)
-val indirect_full_call :
-  ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
-  Alloc_mode.t ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
 
 (** Create a C function call. *)
 val extcall :

@@ -290,7 +290,9 @@ let apply_call env e =
     fail_if_probe e;
     let f, env, _ = C.simple env f in
     let args, env, _ = C.arg_list env args in
-    C.indirect_call ~dbg typ_val alloc_mode f args, env, effs
+    ( C.indirect_call ~dbg typ_val (C.convert_alloc_mode alloc_mode) f args,
+      env,
+      effs )
   | Function
       { function_call = Indirect_known_arity { return_arity; param_arity };
         alloc_mode
@@ -308,7 +310,9 @@ let apply_call env e =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
       in
-      C.indirect_full_call ~dbg ty alloc_mode f args, env, effs
+      ( C.indirect_full_call ~dbg ty (C.convert_alloc_mode alloc_mode) f args,
+        env,
+        effs )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
     fail_if_probe e;
     let f = function_name f in
