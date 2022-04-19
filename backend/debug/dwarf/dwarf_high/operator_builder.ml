@@ -152,8 +152,8 @@ let jump_offset_of_int jump_offset =
 let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero () =
   (* Generates the following stack machine code:
    * DW_OP_BRA size_of_if_zero # Jumps [size_of_if_zero] bytes if the popped value is 0
-   *                           # If the operand is non zero the next executed instructions
-   *                           # will [if_nonzero]
+   *                           # Therefore if the operand is non zero the next executed
+   *                           # instructions will be [if_nonzero]
    * ... if_zero ...
    * DW_op_skip size_of_nonzero_branch # Jumps [size_of_nonzero_branch] bytes
    *                                   # Skips over the non zero branch
