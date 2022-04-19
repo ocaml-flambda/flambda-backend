@@ -133,17 +133,15 @@ let implicit_pointer ~offset_in_bytes ~die_label dwarf_version : O.t =
 let call ~die_label ~compilation_unit_header_label : O.t =
   DW_op_call4 { label = die_label; compilation_unit_header_label }
 
-[@@@ocamlformat "wrap-comments=false"]
-
 let jump_offset_of_int jump_offset =
   (* According to the dwarf spec (DWARF5 2.5.1.5):
-     > If the value popped is not the constant 0, the 2-byte constant operand is
-     > the number of bytes of the DWARF expression to skip forward or backward
-     > from the current operation, beginning after the 2-byte constant
-
-     In other words the jump offset must fit in a signed 16 bit number.
-     [Numbers.Int16.of_int64_exn] will raise if it's not the case.
-  *)
+   * > If the value popped is not the constant 0, the 2-byte constant operand is
+   * > the number of bytes of the DWARF expression to skip forward or backward
+   * > from the current operation, beginning after the 2-byte constant
+   *
+   * In other words the jump offset must fit in a signed 16 bit number.
+   * [Numbers.Int16.of_int64_exn] will raise if it's not the case.
+   *)
   try Numbers.Int16.of_int64_exn (Dwarf_int.to_int64 jump_offset)
   with Misc.Fatal_error ->
     Misc.fatal_error "Dwarf_operator.conditional: nonzero branch too long"
@@ -152,16 +150,16 @@ let jump_offset_of_int jump_offset =
    optimised, care must be taken with the [DW_op_skip] constructions used by the
    following function---their distance arguments may need updating! *)
 let conditional ?(at_join = [O.DW_op_nop]) ~if_zero ~if_nonzero () =
-  (* Generates the following stack machine:
-     DW_OP_BRA size_of_if_zero # Jumps [size_of_if_zero] bytes if the poped value is 0
-                               # If the operand is non zero the next executed instructions
-                               # will be non zero
-     ... if_zero ...
-     DW_op_skip size_of_nonzero_branch # Jumps [size_of_nonzero_branch] bytes
-                                       # Skips over the non zero branch
-     ... if non zero ...
-     (optional at_join)
-  *)
+  (* Generates the following stack machine code:
+   * DW_OP_BRA size_of_if_zero # Jumps [size_of_if_zero] bytes if the popped value is 0
+   *                           # If the operand is non zero the next executed instructions
+   *                           # will [if_nonzero]
+   * ... if_zero ...
+   * DW_op_skip size_of_nonzero_branch # Jumps [size_of_nonzero_branch] bytes
+   *                                   # Skips over the non zero branch
+   * ... if_nonzero ...
+   * (optional at_join)
+   *)
   let nonzero_branch_size =
     List.fold_left
       (fun nonzero_branch_size op ->
