@@ -1,3 +1,17 @@
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*                  Mark Shinwell, Jane Street Europe                     *)
+(*                                                                        *)
+(*   Copyright 2013--2019 Jane Street Group LLC                           *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
+
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open Asm_targets
@@ -10,7 +24,7 @@ type fundecl =
 
 module DAH = Dwarf_attribute_helpers
 
-let end_symbol_name start_symbol = start_symbol ^ "__end"
+let end_symbol_name ~start_symbol = start_symbol ^ "__end"
 
 let for_fundecl ~get_file_id state fundecl =
   let parent = Dwarf_state.compilation_unit_proto_die state in
@@ -19,11 +33,10 @@ let for_fundecl ~get_file_id state fundecl =
     match fundecl.fun_dbg with
     | [item] -> Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes
     (* Not sure what to do in the cases below *)
-    | [] -> fun_name
-    | _ -> Misc.fatal_errorf "multiple debug entries"
+    | [] | _ :: _ -> fun_name
   in
   let start_sym = Asm_symbol.create fun_name in
-  let end_sym = Asm_symbol.create (end_symbol_name fun_name) in
+  let end_sym = Asm_symbol.create (end_symbol_name ~start_symbol:fun_name) in
   let file_num, line, startchar =
     let loc = Debuginfo.to_location fundecl.fun_dbg in
     if Location.is_none loc
