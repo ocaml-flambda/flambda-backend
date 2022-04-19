@@ -207,6 +207,14 @@ let build_dep_graph t =
             being_defined
             (dep_graph, code_id_or_symbol_to_const)))
 
+let remove_values_not_in_domain (m : CIS.Set.t CIS.Map.t) =
+  CIS.Map.map
+    (fun values ->
+      (* CR lmaurer: This should use a map/set intersection function, which
+         should be easy to define with the Patricia tree refactor *)
+      CIS.Set.filter (fun value -> CIS.Map.mem value m) values)
+    m
+
 let sort0 t =
   (* The various lifted constants may exhibit recursion between themselves
      (specifically between closures and/or code). We use SCC to obtain a
@@ -214,6 +222,13 @@ let sort0 t =
      code-and-set-of-closures definitions. *)
   let lifted_constants_dep_graph, code_id_or_symbol_to_const =
     build_dep_graph t
+  in
+  let lifted_constants_dep_graph =
+    (* Leaves in the graph that correspond to pre-existing definitions will not
+       appear as keys in the map, which [SCC_lifted_constants] will complain
+       about. But we're not concerned with them anyway, so we can just get rid
+       of them. *)
+    remove_values_not_in_domain lifted_constants_dep_graph
   in
   let innermost_first =
     lifted_constants_dep_graph
