@@ -80,11 +80,18 @@ module Inlining_tree : sig
 
   module Map : Map.S with type key = Key.t
 
+  type decision_or_reference =
+    | Decision of Decision_with_context.t
+    | Reference of Inlining_history.Absolute.t
+
   type item =
-    | Construct of
+    | Call of
+        { decision : decision_or_reference;
+          tree : t
+        }
+    | Fundecl of
         { decisions : decisions;
-          tree : t;
-          uid : Uid.t
+          body : t
         }
     | Scope of t
 

@@ -68,6 +68,8 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
+module IHA = Inlining_history.Absolute
+
 module Pass = struct
   type t =
     | After_closure_conversion
@@ -289,7 +291,7 @@ module Decision_with_context = struct
 end
 
 type raw_decision =
-  { path : Inlining_history.Absolute.t;
+  { path : IHA.t;
     dbg : Debuginfo.t;
     decision_with_context : Decision_with_context.t option
   }
@@ -364,7 +366,7 @@ module Uid = struct
     }
 
   let create ~compilation_unit path =
-    { compilation_unit; t = Inlining_history.Absolute.uid_path path }
+    { compilation_unit; t = IHA.uid_path path }
 
   let print_anchor ppf { compilation_unit = _; t } =
     Format.fprintf ppf " <<%s>>" t
@@ -401,12 +403,12 @@ module Inlining_tree = struct
     type element =
       | Fundecl of string
       | Scope of scope * string
-      | Call of Inlining_history.Absolute.t
+      | Call of IHA.t
 
     let compare_element a b =
       match a, b with
       | Fundecl s1, Fundecl s2 -> String.compare s1 s2
-      | Call s1, Call s2 -> Inlining_history.Absolute.compare s1 s2
+      | Call s1, Call s2 -> IHA.compare s1 s2
       | Scope (t1, s1), Scope (t2, s2) ->
         let c = compare_scope t1 t2 in
         if c <> 0 then c else String.compare s1 s2
@@ -422,11 +424,18 @@ module Inlining_tree = struct
 
   module Map = Map.Make (Key)
 
+  type decision_or_reference =
+    | Decision of Decision_with_context.t
+    | Reference of IHA.t
+
   type item =
-    | Construct of
+    | Call of
+        { decision : decision_or_reference;
+          tree : t
+        }
+    | Fundecl of
         { decisions : decisions;
-          tree : t;
-          uid : Uid.t
+          body : t
         }
     | Scope of t
 
@@ -442,48 +451,58 @@ module Inlining_tree = struct
       if not (Map.mem key t)
       then Map.empty
       else
-        match Map.find key t with Scope m -> m | Construct _ -> assert false
+        match Map.find key t with
+        | Scope m -> m
+        | Call _ | Fundecl _ -> assert false
     in
     Map.add key (Scope (apply_to_child m)) t
 
-  let insert_or_update_child_generic ?decision_with_context ~compilation_unit
-      ~path ~key ~(apply_to_child : t -> t) t =
+  let insert_or_update_call ?decision_with_context ~dbg ~callee
+      ~(apply_to_child : t -> t) t =
+    let key = dbg, Key.Call callee in
     Map.update key
       (function
         | None ->
           Some
-            (Construct
-               { tree = apply_to_child Map.empty;
-                 decisions = Option.to_list decision_with_context;
-                 uid = Uid.create ~compilation_unit path
+            (Call
+               { tree = apply_to_child Map.empty; decision = Reference callee })
+        | Some (Call t) -> begin
+          match decision_with_context with
+          | Some decision ->
+            Some
+              (Call
+                 { tree = apply_to_child t.tree; decision = Decision decision })
+          | None -> Some (Call t)
+        end
+        | Some (Scope _ | Fundecl _) ->
+          Misc.fatal_errorf
+            "A key of type call or fundeclhould be associated with an item of \
+             type Call")
+      t
+
+  let insert_or_update_fundecl ?decision_with_context ~dbg ~name
+      ~(apply_to_child : t -> t) t =
+    let key = dbg, Key.Fundecl name in
+    Map.update key
+      (function
+        | None ->
+          Some
+            (Fundecl
+               { body = apply_to_child Map.empty;
+                 decisions = Option.to_list decision_with_context
                })
-        | Some (Construct t) ->
+        | Some (Fundecl t) ->
           let decisions =
             match decision_with_context with
             | Some decision -> decision :: t.decisions
             | None -> t.decisions
           in
-          Some
-            (Construct { tree = apply_to_child t.tree; decisions; uid = t.uid })
-        | Some (Scope _) ->
+          Some (Fundecl { body = apply_to_child t.body; decisions })
+        | Some (Scope _ | Call _) ->
           Misc.fatal_errorf
-            "A key of type call or fundecl should be associated with an item \
-             of type construct")
+            "A key of type fundecl should be associated with an item of type \
+             Fundecl")
       t
-
-  let insert_or_update_call ?decision_with_context ~dbg ~callee
-      ~(apply_to_child : t -> t) t =
-    let key = dbg, Key.Call callee in
-    insert_or_update_child_generic ?decision_with_context ~key
-      ~compilation_unit:(Inlining_history.Absolute.compilation_unit callee)
-      ~path:(Inlining_history.Absolute.path callee)
-      ~apply_to_child t
-
-  let insert_or_update_fundecl ?decision_with_context ~compilation_unit ~dbg
-      ~name ~path ~(apply_to_child : t -> t) t =
-    let key = dbg, Key.Fundecl name in
-    insert_or_update_child_generic ?decision_with_context ~compilation_unit
-      ~path ~key ~apply_to_child t
 
   (* Insert a decision into an inlining tree [t].
 
@@ -503,7 +522,7 @@ module Inlining_tree = struct
        will replay the traversal in reversed order and build the inlining tree
        [t] where nodes corresponding to [decision] are present. *)
     let rec insert_or_update_descendant ~apply_to_child path =
-      match (path : Inlining_history.Absolute.path) with
+      match (path : IHA.path) with
       | Empty -> apply_to_child t
       | Unknown { prev } ->
         insert_or_update_descendant prev ~apply_to_child:(fun m ->
@@ -517,8 +536,7 @@ module Inlining_tree = struct
             insert_or_update_scope ~scope_type:Class ~name ~apply_to_child m)
       | Function { dbg; name; prev } ->
         insert_or_update_descendant prev ~apply_to_child:(fun m ->
-            insert_or_update_fundecl ~path ~dbg ~name ~compilation_unit
-              ~apply_to_child m)
+            insert_or_update_fundecl ~dbg ~name ~apply_to_child m)
       | Call { dbg; callee; prev } ->
         insert_or_update_descendant prev ~apply_to_child:(fun m ->
             insert_or_update_call ~dbg ~callee ~apply_to_child m)
@@ -526,10 +544,9 @@ module Inlining_tree = struct
     in
 
     let { path; dbg; decision_with_context } = decision in
-    if Compilation_unit.equal compilation_unit
-         (Inlining_history.Absolute.compilation_unit path)
+    if Compilation_unit.equal compilation_unit (IHA.compilation_unit path)
     then
-      let path = Inlining_history.Absolute.path path in
+      let path = IHA.path path in
       match path with
       | Unknown _ -> t
       | Call { callee; prev; _ } ->
@@ -542,8 +559,8 @@ module Inlining_tree = struct
       | Function { name; prev; _ } ->
         insert_or_update_descendant
           ~apply_to_child:
-            (insert_or_update_fundecl ?decision_with_context ~dbg
-               ~compilation_unit ~path ~name ~apply_to_child:(fun x -> x))
+            (insert_or_update_fundecl ?decision_with_context ~dbg ~name
+               ~apply_to_child:(fun x -> x))
           prev
       | Module _ | Class _ | Inline _ | Empty ->
         Misc.fatal_errorf
@@ -564,67 +581,93 @@ module Inlining_tree = struct
     Format.fprintf ppf "@[<h>%a@ %s@ %a%a%a@]@,@," stars depth label f w
       print_dbg dbg print_uid uid
 
-  let print_decisions ?callee ~compilation_unit ppf decisions =
+  let print_decision_with_context ppf decision_with_context =
+    Format.fprintf ppf "@[%a@]@," Decision_with_context.print
+      decision_with_context
+
+  let print_decisions ppf decisions =
     match decisions with
-    | [] -> begin
-      match callee with
-      | None -> Format.fprintf ppf "Unknown"
-      | Some def ->
-        let defined_in = Inlining_history.Absolute.compilation_unit def in
-        if Compilation_unit.equal defined_in compilation_unit
-        then Format.fprintf ppf "Unknown"
-        else
-          Format.fprintf ppf
-            "@[<hov>This@ decision@ was@ taken@ while@ compiling@ %s.@]"
-            (Compilation_unit.string_for_printing defined_in)
-    end
+    | [] -> assert false
     | decisions ->
       let decisions = List.rev decisions in
-      Format.fprintf ppf "@[<v>@]";
-      List.iter
-        (fun decision_with_context ->
-          Format.fprintf ppf "@[%a@]@," Decision_with_context.print
-            decision_with_context)
-        decisions;
+      Format.fprintf ppf "@[<v>";
+      List.iter (print_decision_with_context ppf) decisions;
       Format.fprintf ppf "@]"
 
-  let rec print ~compilation_unit ~depth ppf t =
+  let rebuild_path ~path ~dbg (key : Key.element) =
+    match key with
+    | Scope (Unknown, _) -> IHA.Unknown { prev = path }
+    | Scope (Module, name) -> IHA.Module { name; prev = path }
+    | Scope (Class, name) -> IHA.Class { name; prev = path }
+    | Call callee -> IHA.Call { callee; dbg; prev = path }
+    | Fundecl fundecl -> IHA.Function { name = fundecl; dbg; prev = path }
+
+  let print_reference ~compilation_unit ppf to_ =
+    let cu ppf () =
+      let defined_in = IHA.compilation_unit to_ in
+      if Compilation_unit.equal defined_in compilation_unit
+      then Format.fprintf ppf "this compilation unit"
+      else
+        Format.fprintf ppf
+          "@[<hov>This@ decision@ was@ taken@ while@ compiling@ %s.@]"
+          (Compilation_unit.string_for_printing defined_in)
+    in
+    Format.fprintf ppf
+      "@[<v>The decision to inline this call was taken in %a at %a.@]" cu ()
+      IHA.print to_
+
+  let rec print ~compilation_unit ~depth ~path ppf t =
     Map.iter
       (fun (dbg, key) (v : item) ->
+        let path = rebuild_path ~path ~dbg key in
+        let uid = Uid.create ~compilation_unit path in
         match key, v with
         | Scope (Unknown, _), _ ->
-          print_title ~depth ~label:"Unknown" ~f:Format.pp_print_text ppf ""
+          print_title ~uid ~depth ~label:"Unknown" ~f:Format.pp_print_text ppf
+            ""
         | Scope (Module, name), Scope t ->
-          print_title ~depth ~label:"Module" ~f:Format.pp_print_text ppf name;
-          print ~compilation_unit ppf ~depth:(depth + 1) t
+          print_title ~uid ~depth ~label:"Module" ~f:Format.pp_print_text ppf
+            name;
+          print ~compilation_unit ppf ~depth:(depth + 1) ~path t
         | Scope (Class, name), Scope t ->
-          print_title ~depth ~label:"Class" ~f:Format.pp_print_text ppf name;
-          print ~compilation_unit ppf ~depth:(depth + 1) t
-        | Call callee, Construct { decisions; tree; uid } ->
+          print_title ~uid ~depth ~label:"Class" ~f:Format.pp_print_text ppf
+            name;
+          print ~compilation_unit ppf ~depth:(depth + 1) ~path t
+        | Call callee, Call { decision; tree } ->
           print_title ppf ?uid:None ~dbg ~depth ~label:"Application of"
-            ~f:Inlining_history.Absolute.print
-            (Inlining_history.Absolute.shorten_to_definition callee);
+            ~f:IHA.print callee;
           Format.fprintf ppf "@[<v>";
           Format.fprintf ppf "@[<hov>Defined@ %a@]@,@,"
             (Uid.print_link_hum ~compilation_unit)
-            uid;
-          Format.fprintf ppf "@[<v>%a@]@,@,"
-            (print_decisions ~callee ~compilation_unit)
-            decisions;
+            (Uid.create ~compilation_unit (IHA.path callee));
+
+          begin
+            match decision with
+            | Decision decision_with_context ->
+              Format.fprintf ppf "@[<v>%a@]" print_decision_with_context
+                decision_with_context
+            | Reference path -> print_reference ~compilation_unit ppf path
+          end;
+
           Format.fprintf ppf "@]@,@,";
-          print ppf ~compilation_unit ~depth:(depth + 1) tree
-        | Fundecl fundecl, Construct { decisions; tree; uid } ->
+          print ppf ~compilation_unit ~depth:(depth + 1)
+            ~path:(IHA.Inline { prev = path })
+            tree
+        | Fundecl fundecl, Fundecl { decisions; body } ->
           print_title ppf ~uid ~dbg ~depth ~label:"Definition of"
             ~f:Format.pp_print_text fundecl;
-          Format.fprintf ppf "@[<v>%a@]@,@,"
-            (print_decisions ?callee:None ~compilation_unit)
-            decisions;
-          print ppf ~compilation_unit ~depth:(depth + 1) tree
-        | Scope _, Construct _ | Call _, Scope _ | Fundecl _, Scope _ ->
+          Format.fprintf ppf "@[<v>%a@]@,@," print_decisions decisions;
+          print ppf ~compilation_unit ~depth:(depth + 1) ~path body
+        | Scope _, (Call _ | Fundecl _)
+        | Call _, Scope _
+        | Fundecl _, Scope _
+        | Fundecl _, Call _
+        | Call _, Fundecl _ ->
           assert false)
       t
 
-  let print ~compilation_unit ppf t = print ~compilation_unit ~depth:0 ppf t
+  let print ~compilation_unit ppf t =
+    print ~compilation_unit ~depth:0 ~path:IHA.Empty ppf t
 end
 
 type metadata = { compilation_unit : Compilation_unit.t }

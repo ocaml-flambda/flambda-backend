@@ -53,7 +53,7 @@
 module Absolute : sig
   type t
 
-  and path = private
+  and path =
     | Empty
     | Unknown of { prev : path }
     | Function of
