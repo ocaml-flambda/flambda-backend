@@ -43,22 +43,6 @@ val targetint : ?dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
 
 (** {2 Block creation} *)
 
-(** Create an array using the given fields. *)
-val make_array :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Array_kind.t ->
-  Alloc_mode.t ->
-  Cmm.expression list ->
-  Cmm.expression
-
-(** Create a block using the given fields. *)
-val make_block :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Block_kind.t ->
-  Alloc_mode.t ->
-  Cmm.expression list ->
-  Cmm.expression
-
 (** Create a closure block. *)
 val make_closure_block :
   ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression

@@ -132,48 +132,6 @@ let param_list env l =
 
 (* Block creation *)
 
-(* Blocks of size 0 (i.e. with an empty list of fields) must be statically
-   allocated, else the GC will bug (cf `make_alloc_generic` in cmm_helpers.ml).
-   More precisely, blocks of size 0 must have a black header, which means they
-   must either be statically allocated, or be pointers to one of the cell of the
-   atom_table (see `startup_aux.c`).
-
-   Both `make_alloc` and `make_float_alloc` from `cmm_helpers.ml` already check
-   for that, but with an assertion, which do not produce helpful error
-   messages. *)
-let check_alloc_fields = function
-  | [] ->
-    Misc.fatal_error
-      "Blocks dynamically allocated cannot have size 0 (empty arrays have to \
-       be lifted so they can be statically allocated)"
-  | _ -> ()
-
-let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
-  check_alloc_fields args;
-  match (kind : Flambda_primitive.Array_kind.t) with
-  | Immediates | Values ->
-    make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
-  | Naked_floats ->
-    make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
-
-let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
-  check_alloc_fields args;
-  match (kind : Flambda_primitive.Block_kind.t) with
-  | Values (tag, _) ->
-    make_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg (Tag.Scannable.to_int tag) args
-  | Naked_floats ->
-    make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
-
 let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
   assert (List.compare_length_with l 0 > 0);
   let tag = Tag.(to_int closure_tag) in

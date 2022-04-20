@@ -48,7 +48,38 @@ let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
-(* Block access. For these functions, [index] is a tagged integer. *)
+(* Block creation and access. For these functions, [index] is a tagged
+   integer. *)
+
+(* Blocks of size 0 (i.e. with an empty list of fields) must be statically
+   allocated, else the GC will bug (cf `make_alloc_generic` in cmm_helpers.ml).
+   More precisely, blocks of size 0 must have a black header, which means they
+   must either be statically allocated, or be pointers to one of the cell of the
+   atom_table (see `startup_aux.c`).
+
+   Both `make_alloc` and `make_float_alloc` from `cmm_helpers.ml` already check
+   for that, but with an assertion, which do not produce helpful error
+   messages. *)
+let check_alloc_fields = function
+  | [] ->
+    Misc.fatal_error
+      "Blocks dynamically allocated cannot have size 0 (empty arrays have to \
+       be lifted so they can be statically allocated)"
+  | _ -> ()
+
+let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
+  check_alloc_fields args;
+  match (kind : Flambda_primitive.Block_kind.t) with
+  | Values (tag, _) ->
+    C.make_alloc
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
+      dbg (Tag.Scannable.to_int tag) args
+  | Naked_floats ->
+    C.make_float_alloc
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
+      dbg
+      (Tag.to_int Tag.double_array_tag)
+      args
 
 let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
     (mutability : Mutability.t) block index =
@@ -73,7 +104,19 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
   | Naked_floats _ ->
     C.float_array_set block index new_value dbg |> C.return_unit dbg
 
-(* Array access *)
+(* Array creation and access. *)
+
+let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
+  check_alloc_fields args;
+  match (kind : Flambda_primitive.Array_kind.t) with
+  | Immediates | Values ->
+    C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
+  | Naked_floats ->
+    C.make_float_alloc
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
+      dbg
+      (Tag.to_int Tag.double_array_tag)
+      args
 
 let array_length ?(dbg = Debuginfo.none) arr =
   (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
@@ -632,10 +675,8 @@ let ternary_primitive _env dbg f x y z =
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with
-  | Make_block (kind, _mut, alloc_mode) ->
-    C.make_block ~dbg kind alloc_mode args
-  | Make_array (kind, _mut, alloc_mode) ->
-    C.make_array ~dbg kind alloc_mode args
+  | Make_block (kind, _mut, alloc_mode) -> make_block ~dbg kind alloc_mode args
+  | Make_array (kind, _mut, alloc_mode) -> make_array ~dbg kind alloc_mode args
 
 (* CR Gbury: check the order in which the primitive arguments are given to
    [Env.inline_variable]. *)
