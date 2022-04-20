@@ -34,8 +34,9 @@ let static_value env v =
   | Dynamically_computed _ -> env, C.cint 1n
   | Tagged_immediate i ->
     ( env,
-      C.cint (C.nativeint_of_targetint (C.tag_targetint (C.targetint_of_imm i)))
-    )
+      C.cint
+        (C.nativeint_of_targetint
+           (C.tag_targetint (Targetint_31_63.to_targetint' i))) )
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with

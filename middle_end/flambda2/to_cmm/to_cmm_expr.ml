@@ -40,6 +40,9 @@ let typ_val = Cmm.typ_val
 
 let typ_void = Cmm.typ_void
 
+let check_arity arity args =
+  Flambda_arity.With_subkinds.cardinal arity = List.length args
+
 (* CR gbury: {Targetint_32_64.to_int} should raise an error when converting an
    out-of-range integer. *)
 let int_of_targetint t =
@@ -55,7 +58,8 @@ let default_of_kind (k : Flambda_kind.t) =
   | Naked_number Naked_immediate -> C.int 0
   | Naked_number Naked_float -> C.float 0.
   | Naked_number Naked_int32 -> C.int 0
-  | Naked_number Naked_int64 when C.arch32 -> C.unsupported_32_bits ()
+  | Naked_number Naked_int64 when Target_system.is_32_bit ->
+    C.unsupported_32_bit ()
   | Naked_number Naked_int64 -> C.int 0
   | Naked_number Naked_nativeint -> C.int 0
   | Region -> Misc.fatal_error "Region_kind have no default value"
@@ -256,7 +260,7 @@ let apply_call env e =
     in
     let info = Env.get_function_info env code_id in
     let params_arity = Code_metadata.params_arity info in
-    if not (C.check_arity params_arity args)
+    if not (check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";
     let ty =
       return_arity |> Flambda_arity.With_subkinds.to_arity
@@ -298,7 +302,7 @@ let apply_call env e =
         alloc_mode
       } ->
     fail_if_probe e;
-    if not (C.check_arity param_arity args)
+    if not (check_arity param_arity args)
     then
       Misc.fatal_errorf
         "To_cmm expects indirect_known_arity calls to be full applications in \

@@ -9,6 +9,10 @@ type architecture =
 
 val architecture : unit -> architecture
 
+val is_64_bit : bool
+
+val is_32_bit : bool
+
 type derived_system =
   | Linux
   | MinGW_32

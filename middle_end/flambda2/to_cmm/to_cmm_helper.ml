@@ -17,15 +17,9 @@
 open! Cmm_helpers
 module Ece = Effects_and_coeffects
 
-let unsupported_32_bits () =
-  Misc.fatal_errorf "32 bits is currently unsupported in Flambda."
-
-(* Are we compiling on/for a 32-bit architecture ? *)
-let arch32 = Arch.size_int = 4
-
-let arch64 = Arch.size_int = 8
-
-let () = assert (arch32 || arch64)
+let unsupported_32_bit () =
+  Misc.fatal_errorf
+    "Flambda 2 does not currently support compilation to 32-bit architectures"
 
 let exttype_of_kind k =
   match (k : Flambda_kind.t) with
@@ -42,9 +36,6 @@ let exttype_of_kind k =
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
 (* Kinds and types *)
-
-let check_arity arity args =
-  Flambda_arity.With_subkinds.cardinal arity = List.length args
 
 let machtype_of_kind k =
   match (k : Flambda_kind.t) with
@@ -83,12 +74,7 @@ let targetint ?(dbg = Debuginfo.none) t =
   | Int32 i -> int32 ~dbg i
   | Int64 i -> int64 ~dbg i
 
-(* CR mshinwell: The following functions should be in [Targetint], etc. *)
-
 let tag_targetint t = Targetint_32_64.(add (shift_left t 1) one)
-
-let targetint_of_imm i =
-  Targetint_31_63.Imm.to_targetint i.Targetint_31_63.value
 
 let nativeint_of_targetint t =
   match Targetint_32_64.repr t with
@@ -97,8 +83,9 @@ let nativeint_of_targetint t =
 
 let const _env cst =
   match Reg_width_const.descr cst with
-  | Naked_immediate i -> targetint (targetint_of_imm i)
-  | Tagged_immediate i -> targetint (tag_targetint (targetint_of_imm i))
+  | Naked_immediate i -> targetint (Targetint_31_63.to_targetint' i)
+  | Tagged_immediate i ->
+    targetint (tag_targetint (Targetint_31_63.to_targetint' i))
   | Naked_float f -> float (Numeric_types.Float_by_bit_pattern.to_float f)
   | Naked_int32 i -> int32 i
   | Naked_int64 i -> int64 i
@@ -168,13 +155,16 @@ let name_static env name =
 
 let const_static cst =
   match Reg_width_const.descr cst with
-  | Naked_immediate i -> [cint (nativeint_of_targetint (targetint_of_imm i))]
+  | Naked_immediate i ->
+    [cint (nativeint_of_targetint (Targetint_31_63.to_targetint' i))]
   | Tagged_immediate i ->
-    [cint (nativeint_of_targetint (tag_targetint (targetint_of_imm i)))]
+    [ cint
+        (nativeint_of_targetint
+           (tag_targetint (Targetint_31_63.to_targetint' i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
   | Naked_int64 i ->
-    if arch32
+    if Target_system.is_32_bit
     then
       Misc.fatal_error "Not implemented for 32-bit platforms"
       (* split int64 on 32-bit archs *)
