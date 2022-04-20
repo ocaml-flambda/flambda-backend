@@ -703,6 +703,6 @@ let prim env res dbg p =
     let expr = ternary_primitive env dbg f x y z in
     expr, None, env, res, effs
   | Variadic (f, l) ->
-    let args, env, effs = C.arg_list env l in
+    let args, env, effs = C.simple_list env l in
     let expr = variadic_primitive env dbg f args in
     expr, None, env, res, effs

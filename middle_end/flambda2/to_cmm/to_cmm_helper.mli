@@ -41,12 +41,6 @@ val machtype_of_kinded_parameter :
 (** Create a constant int expression from a targetint. *)
 val targetint : ?dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
 
-(** {2 Block creation} *)
-
-(** Create a closure block. *)
-val make_closure_block :
-  ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression
-
 (** {2 Numeric conversions} *)
 
 val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
@@ -74,12 +68,12 @@ val simple :
   Simple.t ->
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
 
-val arg_list :
+val simple_list :
   To_cmm_env.t ->
   Simple.t list ->
   Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t
 
-val param_list :
+val bound_parameters :
   To_cmm_env.t ->
   Bound_parameters.t ->
   To_cmm_env.t * (Backend_var.With_provenance.t * Cmm.machtype) list

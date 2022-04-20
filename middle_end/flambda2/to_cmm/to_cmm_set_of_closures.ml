@@ -201,7 +201,7 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
            action is attached to one of tis call *)
         let env = Env.enter_function_def env k k_exn in
         (* translate the arg list and body *)
-        let env, fun_args = C.param_list env params in
+        let env, fun_args = C.bound_parameters env params in
         let fun_body, res = translate_expr env res body in
         let fun_flags = function_flags () in
         let linkage_name =
@@ -295,6 +295,11 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
   (* go on in the body *)
   translate_expr env res body
 
+let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
+  assert (List.compare_length_with l 0 > 0);
+  let tag = Tag.(to_int closure_tag) in
+  C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg tag l
+
 (* Sets of closures with a non-empty environment are allocated *)
 let let_dynamic_set_of_closures env res ~body ~bound_vars s
     (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
@@ -317,7 +322,7 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars s
   let l, env, effs =
     fill_layout decl_map layout.startenv elts env effs [] 0 layout.slots
   in
-  let csoc = C.make_closure_block closure_alloc_mode l in
+  let csoc = make_closure_block closure_alloc_mode l in
   (* Create a variable to hold the set of closure *)
   let soc_var = Variable.create "*set_of_closures*" in
   let env = Env.bind_variable env soc_var effs false csoc in

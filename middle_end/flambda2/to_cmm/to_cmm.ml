@@ -74,7 +74,7 @@ let unit ~offsets ~make_symbol flambda_unit ~all_code =
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation
        (which just returns unit) doesn't use any of the parameters. *)
-    C.param_list env
+    C.bound_parameters env
       (Bound_parameters.create
          [ Bound_parameter.create (Variable.create "*ret*")
              Flambda_kind.With_subkind.any_value ])

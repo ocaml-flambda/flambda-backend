@@ -104,14 +104,14 @@ let const _env cst =
   | Naked_int64 i -> int64 i
   | Naked_nativeint t -> targetint t
 
-(* [Simple]s and lists thereof *)
+(* [Simple]s, lists of [Simple]s and parameter lists. *)
 
 let simple env s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ -> name env n)
     ~const:(fun c -> const env c, env, Ece.pure)
 
-let arg_list env l =
+let simple_list env l =
   let aux (list, env, effs) x =
     let y, env, eff = simple env x in
     y :: list, env, Ece.join eff effs
@@ -119,7 +119,7 @@ let arg_list env l =
   let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
   List.rev args, env, effs
 
-let param_list env l =
+let bound_parameters env l =
   let flambda_vars = Bound_parameters.vars l in
   let env, cmm_vars = To_cmm_env.create_variables env flambda_vars in
   let vars =
@@ -129,13 +129,6 @@ let param_list env l =
       (Bound_parameters.to_list l)
   in
   env, vars
-
-(* Block creation *)
-
-let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
-  assert (List.compare_length_with l 0 > 0);
-  let tag = Tag.(to_int closure_tag) in
-  make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg tag l
 
 (* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
    simply generating code that segfaults *)

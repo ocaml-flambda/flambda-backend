@@ -262,7 +262,7 @@ let apply_call env e =
       return_arity |> Flambda_arity.With_subkinds.to_arity
       |> machtype_of_return_arity
     in
-    let args, env, _ = C.arg_list env args in
+    let args, env, _ = C.simple_list env args in
     let args, env =
       if Code_metadata.is_my_closure_used info
       then
@@ -289,7 +289,7 @@ let apply_call env e =
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
     fail_if_probe e;
     let f, env, _ = C.simple env f in
-    let args, env, _ = C.arg_list env args in
+    let args, env, _ = C.simple_list env args in
     ( C.indirect_call ~dbg typ_val (Alloc_mode.to_lambda alloc_mode) f args,
       env,
       effs )
@@ -305,7 +305,7 @@ let apply_call env e =
          order to translate it"
     else
       let f, env, _ = C.simple env f in
-      let args, env, _ = C.arg_list env args in
+      let args, env, _ = C.simple_list env args in
       let ty =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
@@ -322,7 +322,7 @@ let apply_call env e =
     assert (String.sub f 0 9 = ".extern__");
     let f = String.sub f 9 (len - 9) in
     let returns = apply_returns e in
-    let args, env, _ = C.arg_list env args in
+    let args, env, _ = C.simple_list env args in
     let ty = machtype_of_return_arity return_arity in
     let wrap = wrap_extcall_result return_arity in
     let ty_args =
@@ -336,7 +336,7 @@ let apply_call env e =
     let obj, env, _ = C.simple env obj in
     let meth, env, _ = C.simple env f in
     let kind = meth_kind kind in
-    let args, env, _ = C.arg_list env args in
+    let args, env, _ = C.simple_list env args in
     let alloc_mode = Alloc_mode.to_lambda alloc_mode in
     C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
 
@@ -382,7 +382,7 @@ let apply_cont_exn env e k = function
           Apply_cont.print e
     in
     let exn, env, _ = C.simple env exn in
-    let extra, env, _ = C.arg_list env extra in
+    let extra, env, _ = C.simple_list env extra in
     let mut_vars = Env.get_exn_extra_args env k in
     let wrap, _ = Env.flush_delayed_lets env in
     let cmm = C.raise_prim raise_kind exn (Apply_cont_expr.debuginfo e) in
@@ -409,7 +409,7 @@ let apply_cont_jump env res e types cont args =
   if List.compare_lengths types args = 0
   then
     let trap_actions = apply_cont_trap_actions env e in
-    let args, env, _ = C.arg_list env args in
+    let args, env, _ = C.simple_list env args in
     let wrap, _ = Env.flush_delayed_lets env in
     wrap (C.cexit cont args trap_actions), res
   else
@@ -636,7 +636,7 @@ and continuation_handler env res h =
   Continuation_handler.pattern_match' h
     ~f:(fun params ~num_normal_occurrences_of_params:_ ~handler ->
       let arity = Bound_parameters.arity params in
-      let env, vars = C.param_list env params in
+      let env, vars = C.bound_parameters env params in
       let e, res = expr env res handler in
       vars, arity, e, res)
 
