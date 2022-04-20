@@ -21,7 +21,7 @@ module R = To_cmm_result
 
 module C = struct
   include Cmm_helpers
-  include To_cmm_helper
+  include To_cmm_shared
 end
 
 type translate_expr =

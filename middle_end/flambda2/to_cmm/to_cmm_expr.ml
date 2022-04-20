@@ -31,7 +31,7 @@ module Ece = Effects_and_coeffects
 (* Cmm helpers *)
 module C = struct
   include Cmm_helpers
-  include To_cmm_helper
+  include To_cmm_shared
 end
 
 (* Shortcuts for useful cmm machtypes *)

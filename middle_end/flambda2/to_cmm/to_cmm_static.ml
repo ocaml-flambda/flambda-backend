@@ -18,7 +18,7 @@ open! Flambda.Import
 
 module C = struct
   include Cmm_helpers
-  include To_cmm_helper
+  include To_cmm_shared
 end
 
 module Env = To_cmm_env

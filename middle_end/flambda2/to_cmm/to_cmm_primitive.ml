@@ -21,7 +21,7 @@ module P = Flambda_primitive
 (* Cmm helpers *)
 module C = struct
   include Cmm_helpers
-  include To_cmm_helper
+  include To_cmm_shared
 end
 
 (* Boxed numbers *)
