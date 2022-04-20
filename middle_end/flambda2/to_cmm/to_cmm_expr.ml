@@ -138,7 +138,7 @@ let rec cmm_arith_size e =
         | Clsl | Clsr | Casr ),
         l,
         _ ) ->
-    List.fold_left ( + ) 1 @@ List.map cmm_arith_size l
+    List.fold_left ( + ) 1 (List.map cmm_arith_size l)
   | _ -> 0
 
 let cont_is_known_to_have_exactly_one_occurrence k (num : _ Or_unknown.t) =
