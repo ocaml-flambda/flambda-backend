@@ -860,9 +860,25 @@ val emit_constant_closure :
 val emit_preallocated_blocks :
   Clambda.preallocated_block list -> phrase list -> phrase list
 
-(** {1} Helper functions used by Flambda 2. *)
+(** {1} Helper functions and values used by Flambda 2. *)
+
+(** An adequate Cmm machtype for an int64 (including on a 32-bit target). *)
+val typ_int64 : Cmm.machtype
 
 (* CR mshinwell: [dbg] should not be optional. *)
+
+(** The void (i.e. empty tuple) cmm value. Not to be confused with [() : unit]. *)
+val void : Cmm.expression
+
+(** Create the single unit value. *)
+val unit : dbg:Debuginfo.t -> Cmm.expression
+
+(** Create an expression from a variable. *)
+val var : Backend_var.t -> Cmm.expression
+
+(** Create an expression that gives the value of an object file symbol, such
+    symbol's name being given by a string. *)
+val symbol_from_string : ?dbg:Debuginfo.t -> string -> Cmm.expression
 
 (** Create a constant float expression. *)
 val float : ?dbg:Debuginfo.t -> float -> expression
@@ -1096,6 +1112,12 @@ val bigarray_store :
   offset:expression ->
   new_value:expression ->
   expression
+
+(** [infix_field_address ptr n dbg] returns an expression for the address of the
+    [n]-th field of the set of closures block pointed to by [ptr]. This function
+    assumes that the [n-1]-th field of the block is an infix header, so that the
+    returned address is in fact a correct ocaml value. *)
+val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 
 (** {2 Data items} *)
 

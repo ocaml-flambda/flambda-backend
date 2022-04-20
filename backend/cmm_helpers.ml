@@ -3768,7 +3768,21 @@ let emit_preallocated_blocks preallocated_blocks cont =
   let c1 = emit_gc_roots_table ~symbols cont in
   List.fold_left preallocate_block c1 preallocated_blocks
 
-(* Helper functions used by Flambda 2. *)
+(* Helper functions and values used by Flambda 2. *)
+
+let typ_int64 =
+  match Arch.size_int with
+  | 4 -> [| Cmm.Int; Cmm.Int |]
+  | 8 -> [| Cmm.Int |]
+  | _ -> Misc.fatal_errorf "Unsupported Arch.size_int = %d" Arch.size_int
+
+let void = Ctuple []
+
+let unit ~dbg = Cconst_int (1, dbg)
+
+let var v = Cvar v
+
+let symbol_from_string ?(dbg = Debuginfo.none) sym = Cconst_symbol (sym, dbg)
 
 let float ?(dbg = Debuginfo.none) f = Cconst_float (f, dbg)
 
@@ -3971,8 +3985,8 @@ let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f args =
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
-    (* We always use [Apply_nontail] since the [Lambda_to_flambda] pass has
-       already taken care of the placement of region begin/end primitives. *)
+    (* We always use [Rc_normal] since the [Lambda_to_flambda] pass has already
+       taken care of the placement of region begin/end primitives. *)
     letin v' ~defining_expr:f
       ~body:
         (Cop
@@ -4048,6 +4062,14 @@ let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
          (store ~dbg elt_chunk Assignment ~addr:addr'
             ~new_value:(complex_im new_value dbg)))
   | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)
+
+(* Infix field address. Contrary to regular field addresses, these addresses are
+   valid ocaml values, and can be live at gc points. *)
+
+let infix_field_address ~dbg ptr n =
+  if n = 0
+  then ptr
+  else Cmm.Cop (Cmm.Caddv, [ptr; int ~dbg (n * Arch.size_addr)], dbg)
 
 (* Data items *)
 

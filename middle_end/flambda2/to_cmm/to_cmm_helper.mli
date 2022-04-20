@@ -25,9 +25,6 @@ val arch32 : bool
 (** [arch64] is [true] iff we are compiling for a 64-bit target. *)
 val arch64 : bool
 
-(** An adequate Cmm machtype for an int64 (including on a 32-bit target). *)
-val typ_int64 : Cmm.machtype
-
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
 
 (** {2 Kinds and types} *)
@@ -40,15 +37,6 @@ val machtype_of_kinded_parameter :
   Bound_parameter.t -> Cmm.machtype_component array
 
 (** {2 Cmm values} *)
-
-(** The void (i.e. empty tuple) cmm value. Not to be confused with [() : unit]. *)
-val void : Cmm.expression
-
-(** Create the single unit value. *)
-val unit : dbg:Debuginfo.t -> Cmm.expression
-
-(** Create an expression from a variable. *)
-val var : Backend_var.t -> Cmm.expression
 
 (** Create a constant int expression from a targetint. *)
 val targetint : ?dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
@@ -100,13 +88,6 @@ val unbox_number :
 
 val convert_alloc_mode : Alloc_mode.t -> Lambda.alloc_mode
 
-(** [infix_field_address ptr n dbg] returns an expression for the address of the
-    [n]-th field of the set of closures block pointed to by [ptr]. This function
-    assumes that the [n-1]-th field of the block is an infix header, so that the
-    returned address is in fact a correct ocaml value. *)
-val infix_field_address :
-  dbg:Debuginfo.t -> Cmm.expression -> int -> Cmm.expression
-
 (** Return an expression that computes the length of the given block. *)
 val block_length : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
 
@@ -132,31 +113,6 @@ val block_set :
   Cmm.expression
 (* CR mshinwell: These functions should have labelled arguments so we don't need
    comments *)
-
-(** {2 Array access} *)
-
-(** Return an expression that computes the length of the given array. *)
-val array_length : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
-
-(** Load a field from an array. Cmm argument order: * - array * - field number
-    as a tagged integer *)
-val array_load :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Array_kind.t ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Set a field in an array. Cmm argument order: * - array * - field number as a
-    tagged integer * - new value for the field. *)
-val array_set :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Array_kind.t ->
-  Flambda_primitive.Init_or_assign.t ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
 
 (** {2 String and Bytes access} *)
 

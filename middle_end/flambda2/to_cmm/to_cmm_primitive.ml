@@ -16,12 +16,43 @@
 
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module P = Flambda_primitive
 
 (* Cmm helpers *)
 module C = struct
   include Cmm_helpers
   include To_cmm_helper
 end
+
+(* Array access *)
+
+let array_length ?(dbg = Debuginfo.none) arr =
+  (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
+     width of floats is equal to the machine word width (see flambda2.ml). This
+     means that [arraylength] will not use the kind information. *)
+  assert (C.wordsize_shift = C.numfloat_shift);
+  C.arraylength Paddrarray arr dbg
+
+let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
+  match kind with
+  | Immediates -> C.int_array_ref arr index dbg
+  | Values -> C.addr_array_ref arr index dbg
+  | Naked_floats -> C.unboxed_float_array_ref arr index dbg
+
+let addr_array_store init arr index value dbg =
+  match (init : P.Init_or_assign.t) with
+  | Assignment -> C.addr_array_set arr index value dbg
+  | Initialization -> C.addr_array_initialize arr index value dbg
+  | Local_assignment -> C.addr_array_set_local arr index value dbg
+
+let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
+    (init : P.Init_or_assign.t) arr index value =
+  match kind with
+  | Immediates -> C.return_unit dbg (C.int_array_set arr index value dbg)
+  | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
+  | Naked_floats -> C.return_unit dbg (C.float_array_set arr index value dbg)
+
+(* Handling of dead function and value slots *)
 
 let dead_slots_msg dbg function_slots value_slots =
   let aux s pp fmt = function
@@ -48,10 +79,7 @@ let primitive_boxed_int_of_standard_int x =
   | Naked_immediate -> assert false
 
 let unary_int_arith_primitive _env dbg kind op arg =
-  match
-    ( (kind : Flambda_kind.Standard_int.t),
-      (op : Flambda_primitive.unary_int_arith_op) )
-  with
+  match (kind : Flambda_kind.Standard_int.t), (op : P.unary_int_arith_op) with
   | Tagged_immediate, Neg -> C.negint arg dbg
   | Tagged_immediate, Swap_byte_endianness ->
     (* CR mshinwell for gbury: This could maybe cause a fatal error now? *)
@@ -72,7 +100,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
     C.bbswap primitive_kind arg dbg
 
 let unary_float_arith_primitive _env dbg op arg =
-  match (op : Flambda_primitive.unary_float_arith_op) with
+  match (op : P.unary_float_arith_op) with
   | Abs -> C.float_abs ~dbg arg
   | Neg -> C.float_neg ~dbg arg
 
@@ -125,9 +153,7 @@ let arithmetic_conversion dbg src dst arg =
     None, C.sign_extend_32 dbg (C.int_of_float ~dbg arg)
 
 let binary_phys_comparison _env dbg kind op x y =
-  match
-    (kind : Flambda_kind.t), (op : Flambda_primitive.equality_comparison)
-  with
+  match (kind : Flambda_kind.t), (op : P.equality_comparison) with
   (* int64 special case *)
   | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq) when C.arch32
     ->
@@ -137,10 +163,7 @@ let binary_phys_comparison _env dbg kind op x y =
   | _, Neq -> C.neq ~dbg x y
 
 let binary_int_arith_primitive _env dbg kind op x y =
-  match
-    ( (kind : Flambda_kind.Standard_int.t),
-      (op : Flambda_primitive.binary_int_arith_op) )
-  with
+  match (kind : Flambda_kind.Standard_int.t), (op : P.binary_int_arith_op) with
   (* Int64 bits ints on 32-bit archs *)
   | Naked_int64, Add
   | Naked_int64, Sub
@@ -197,9 +220,7 @@ let binary_int_arith_primitive _env dbg kind op x y =
     C.sign_extend_32 dbg (C.safe_mod_bi Lambda.Unsafe x y bi dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
-  match
-    (kind : Flambda_kind.Standard_int.t), (op : Flambda_primitive.int_shift_op)
-  with
+  match (kind : Flambda_kind.Standard_int.t), (op : P.int_shift_op) with
   (* Int64 special case *)
   | Naked_int64, Lsl when C.arch32 ->
     C.unsupported_32_bits ()
@@ -228,8 +249,8 @@ let binary_int_shift_primitive _env dbg kind op x y =
 let binary_int_comp_primitive _env dbg kind signed cmp x y =
   match
     ( (kind : Flambda_kind.Standard_int.t),
-      (signed : Flambda_primitive.signed_or_unsigned),
-      (cmp : Flambda_primitive.ordered_comparison) )
+      (signed : P.signed_or_unsigned),
+      (cmp : P.ordered_comparison) )
   with
   (* XXX arch32 cases need [untag_int] now. *)
   | Naked_int64, Signed, Lt
@@ -290,7 +311,7 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
     C.uge ~dbg x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
-    (signed : Flambda_primitive.signed_or_unsigned) x y =
+    (signed : P.signed_or_unsigned) x y =
   match signed with
   | Signed -> C.mk_compare_ints_untagged dbg x y
   | Unsigned ->
@@ -299,14 +320,14 @@ let binary_int_comp_primitive_yielding_int _env dbg _kind
        mode is not yet implemented"
 
 let binary_float_arith_primitive _env dbg op x y =
-  match (op : Flambda_primitive.binary_float_arith_op) with
+  match (op : P.binary_float_arith_op) with
   | Add -> C.float_add ~dbg x y
   | Sub -> C.float_sub ~dbg x y
   | Mul -> C.float_mul ~dbg x y
   | Div -> C.float_div ~dbg x y
 
 let binary_float_comp_primitive _env dbg op x y =
-  match (op : Flambda_primitive.comparison) with
+  match (op : P.comparison) with
   | Eq -> C.float_eq ~dbg x y
   | Neq -> C.float_neq ~dbg x y
   | Lt -> C.float_lt ~dbg x y
@@ -320,13 +341,13 @@ let binary_float_comp_primitive_yielding_int _env dbg x y =
 (* Primitives *)
 
 let nullary_primitive _env dbg prim : _ * Cmm.expression =
-  match (prim : Flambda_primitive.nullary_primitive) with
+  match (prim : P.nullary_primitive) with
   | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
   | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
   | Begin_region -> None, Cop (Cbeginregion, [], dbg)
 
 let unary_primitive env res dbg f arg =
-  match (f : Flambda_primitive.unary_primitive) with
+  match (f : P.unary_primitive) with
   | Duplicate_array _ ->
     ( None,
       res,
@@ -339,7 +360,7 @@ let unary_primitive env res dbg f arg =
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
-  | Array_length -> None, res, C.array_length ~dbg arg
+  | Array_length -> None, res, array_length ~dbg arg
   | Bigarray_length { dimension } ->
     ( None,
       res,
@@ -436,9 +457,9 @@ let unary_primitive env res dbg f arg =
     None, res, C.return_unit dbg (Cmm.Cop (Cendregion, [arg], dbg))
 
 let binary_primitive env dbg f x y =
-  match (f : Flambda_primitive.binary_primitive) with
+  match (f : P.binary_primitive) with
   | Block_load (kind, mut) -> C.block_load ~dbg kind mut x y
-  | Array_load (kind, _mut) -> C.array_load ~dbg kind x y
+  | Array_load (kind, _mut) -> array_load ~dbg kind x y
   | String_or_bigstring_load (kind, width) ->
     C.string_like_load ~dbg kind width x y
   | Bigarray_load (_dimensions, kind, _layout) ->
@@ -457,16 +478,16 @@ let binary_primitive env dbg f x y =
     binary_float_comp_primitive_yielding_int env dbg x y
 
 let ternary_primitive _env dbg f x y z =
-  match (f : Flambda_primitive.ternary_primitive) with
+  match (f : P.ternary_primitive) with
   | Block_set (block_access, init) -> C.block_set ~dbg block_access init x y z
-  | Array_set (array_kind, init) -> C.array_set ~dbg array_kind init x y z
+  | Array_set (array_kind, init) -> array_set ~dbg array_kind init x y z
   | Bytes_or_bigstring_set (kind, width) ->
     C.bytes_like_set ~dbg kind width x y z
   | Bigarray_set (_dimensions, kind, _layout) ->
     C.bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
-  match (f : Flambda_primitive.variadic_primitive) with
+  match (f : P.variadic_primitive) with
   | Make_block (kind, _mut, alloc_mode) ->
     C.make_block ~dbg kind alloc_mode args
   | Make_array (kind, _mut, alloc_mode) ->
@@ -475,7 +496,7 @@ let variadic_primitive _env dbg f args =
 (* CR Gbury: check the order in which the primitive arguments are given to
    [Env.inline_variable]. *)
 let prim env res dbg p =
-  match (p : Flambda_primitive.t) with
+  match (p : P.t) with
   | Nullary prim ->
     let extra, expr = nullary_primitive env dbg prim in
     expr, extra, env, res, Ece.pure

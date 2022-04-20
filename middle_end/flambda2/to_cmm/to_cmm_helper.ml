@@ -26,8 +26,7 @@ let arch32 = Arch.size_int = 4
 
 let arch64 = Arch.size_int = 8
 
-(* Useful shortcut *)
-let typ_int64 = if arch32 then [| Cmm.Int; Cmm.Int |] else [| Cmm.Int |]
+let () = assert (arch32 || arch64)
 
 let exttype_of_kind k =
   match (k : Flambda_kind.t) with
@@ -42,12 +41,6 @@ let exttype_of_kind k =
   end
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
-
-(* Void *)
-
-let void = Cmm.Ctuple []
-
-let unit ~dbg = Cmm.Cconst_int (1, dbg)
 
 (* Kinds and types *)
 
@@ -67,10 +60,6 @@ let machtype_of_kinded_parameter p =
   Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 
 (* Constructors for constants *)
-
-let var v = Cmm.Cvar v
-
-let symbol_from_string ?(dbg = Debuginfo.none) sym = Cmm.Cconst_symbol (sym, dbg)
 
 let symbol_from_linkage_name ?dbg ln =
   symbol_from_string ?dbg (Linkage_name.to_string ln)
@@ -141,14 +130,6 @@ let param_list env l =
       (Bound_parameters.to_list l)
   in
   env, vars
-
-(* Infix field address. Contrary to regular field addresse, these addresse are
-   valid ocaml values, and can be live at gc points. *)
-
-let infix_field_address ~dbg ptr n =
-  if n = 0
-  then ptr
-  else Cmm.Cop (Cmm.Caddv, [ptr; int ~dbg (n * Arch.size_addr)], dbg)
 
 (* Allocation modes *)
 
@@ -265,34 +246,6 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
     |> return_unit dbg
   | Naked_floats _ ->
     float_array_set block index new_value dbg |> return_unit dbg
-
-(* Array access *)
-
-let array_length ?(dbg = Debuginfo.none) arr =
-  (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
-     width of floats is equal to the machine word width (see flambda2.ml). This
-     means that [arraylength] will not use the kind information. *)
-  assert (wordsize_shift = numfloat_shift);
-  arraylength Paddrarray arr dbg
-
-let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
-  match kind with
-  | Immediates -> int_array_ref arr index dbg
-  | Values -> addr_array_ref arr index dbg
-  | Naked_floats -> unboxed_float_array_ref arr index dbg
-
-let addr_array_store init arr index value dbg =
-  match (init : P.Init_or_assign.t) with
-  | Assignment -> addr_array_set arr index value dbg
-  | Initialization -> addr_array_initialize arr index value dbg
-  | Local_assignment -> addr_array_set_local arr index value dbg
-
-let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
-    (init : P.Init_or_assign.t) arr index value =
-  match kind with
-  | Immediates -> return_unit dbg (int_array_set arr index value dbg)
-  | Values -> return_unit dbg (addr_array_store init arr index value dbg)
-  | Naked_floats -> return_unit dbg (float_array_set arr index value dbg)
 
 (* String and bytes access *)
 
@@ -416,6 +369,7 @@ let invalid res ~message =
       ~ty_args:[XInt] "caml_flambda2_invalid" Cmm.typ_void [symbol message_sym]
   in
   call_expr, data_items
+
 (* Get constant tables from cmmgen_state
 
    The To_cmm translation uses functions from cmm_helpers which populate some
