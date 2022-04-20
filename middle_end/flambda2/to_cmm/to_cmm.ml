@@ -63,7 +63,7 @@ let unit ~offsets ~make_symbol flambda_unit ~all_code =
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in
   let body =
     let unit_value = C.targetint Targetint_32_64.one in
-    C.ccatch ~rec_flag:false ~body
+    C.create_ccatch ~rec_flag:false ~body
       ~handlers:[C.handler return_cont return_cont_params unit_value]
   in
   let entry =

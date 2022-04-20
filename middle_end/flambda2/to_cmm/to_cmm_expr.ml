@@ -555,7 +555,9 @@ and let_cont_jump env res k h body =
     wrap body, res
   else
     let body, res = expr env res body in
-    ( wrap (C.ccatch ~rec_flag:false ~body ~handlers:[C.handler id vars handle]),
+    ( wrap
+        (C.create_ccatch ~rec_flag:false ~body
+           ~handlers:[C.handler id vars handle]),
       res )
 
 (* Exception continuations, translated using delayed trywith blocks.
@@ -627,7 +629,7 @@ and let_cont_rec env res conts body =
       map []
   in
   let body, res = expr env res body in
-  wrap (C.ccatch ~rec_flag:true ~body ~handlers), res
+  wrap (C.create_ccatch ~rec_flag:true ~body ~handlers), res
 
 and continuation_handler env res h =
   Continuation_handler.pattern_match' h

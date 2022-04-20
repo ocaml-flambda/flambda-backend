@@ -49,19 +49,6 @@ let void = Cmm.Ctuple []
 
 let unit ~dbg = Cmm.Cconst_int (1, dbg)
 
-(* Data items *)
-
-let cint i = Cmm.Cint i
-
-let cfloat f = Cmm.Cdouble f
-
-let symbol_address s = Cmm.Csymbol_address s
-
-let define_symbol ~global s =
-  if global
-  then [Cmm.Cglobal_symbol s; Cmm.Cdefine_symbol s]
-  else [Cmm.Cdefine_symbol s]
-
 (* Kinds and types *)
 
 let check_arity arity args =
@@ -410,26 +397,6 @@ let raise_kind (kind : Trap_action.raise_kind option) : Lambda.raise_kind =
   | Some No_trace -> Raise_notrace
   | None -> Raise_notrace
 
-(* Static jumps *)
-
-type static_handler =
-  int
-  * (Backend_var.With_provenance.t * Cmm.machtype) list
-  * Cmm.expression
-  * Debuginfo.t
-(* Alias for static handler *)
-
-let handler ?(dbg = Debuginfo.none) id vars body = id, vars, body, dbg
-
-let cexit id args trap_actions = Cmm.Cexit (Cmm.Lbl id, args, trap_actions)
-
-let trap_return arg trap_actions =
-  Cmm.Cexit (Cmm.Return_lbl, [arg], trap_actions)
-
-let ccatch ~rec_flag ~handlers ~body =
-  let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
-  Cmm.Ccatch (rec_flag, handlers, body, Vval Pgenval)
-
 (* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
    simply generating code that segfaults *)
 let invalid res ~message =
@@ -449,25 +416,6 @@ let invalid res ~message =
       ~ty_args:[XInt] "caml_flambda2_invalid" Cmm.typ_void [symbol message_sym]
   in
   call_expr, data_items
-
-(* Cmm phrases *)
-
-let cfunction decl = Cmm.Cfunction decl
-
-let cdata d = Cmm.Cdata d
-
-let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg =
-  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg }
-
-(* Gc root table *)
-
-let gc_root_table ~make_symbol syms =
-  let table_symbol = make_symbol ?unitname:None (Some "gc_roots") in
-  cdata
-    (define_symbol ~global:true table_symbol
-    @ List.map symbol_address syms
-    @ [cint 0n])
-
 (* Get constant tables from cmmgen_state
 
    The To_cmm translation uses functions from cmm_helpers which populate some

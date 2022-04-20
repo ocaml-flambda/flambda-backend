@@ -12,7 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Cmm helpers for flambda to cmm translation. *)
+(** Helper functions for Flambda 2 to Cmm translation. These functions, unlike
+    the ones in [Cmm_helpers], depend on Flambda 2 data types. *)
 
 (** {2 Useful misc values} *)
 
@@ -28,20 +29,6 @@ val arch64 : bool
 val typ_int64 : Cmm.machtype
 
 val exttype_of_kind : Flambda_kind.t -> Cmm.exttype
-
-(** {2 Data items} *)
-
-(** Static integer. *)
-val cint : nativeint -> Cmm.data_item
-
-(** Static float. *)
-val cfloat : float -> Cmm.data_item
-
-(** Static symbol. *)
-val symbol_address : string -> Cmm.data_item
-
-(** Definition for a statis symbol. *)
-val define_symbol : global:bool -> string -> Cmm.data_item list
 
 (** {2 Kinds and types} *)
 
@@ -271,66 +258,13 @@ val raise_kind : Trap_action.raise_kind option -> Lambda.raise_kind
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
-(** {2 Static jumps} *)
-
-(** Opaque type for static handlers. *)
-type static_handler
-
-(** [handler id vars body] creates a static handler for exit number [id],
-    binding variables [vars] in [body]. *)
-val handler :
-  ?dbg:Debuginfo.t ->
-  int ->
-  (Backend_var.With_provenance.t * Cmm.machtype) list ->
-  Cmm.expression ->
-  static_handler
-
-(** [cexit id args] creates the cmm expression for static to a static handler
-    with exit number [id], with arguments [args]. *)
-val cexit : int -> Cmm.expression list -> Cmm.trap_action list -> Cmm.expression
-
-(** [trap_return res traps] creates the cmm expression for returning [res] after
-    applying the trap actions in [traps]. *)
-val trap_return : Cmm.expression -> Cmm.trap_action list -> Cmm.expression
-
-(** Enclose a body with some static handlers. *)
-val ccatch :
-  rec_flag:bool ->
-  handlers:static_handler list ->
-  body:Cmm.expression ->
-  Cmm.expression
-
 (** {2 Arithmetic/Logic helpers} *)
 
 (** Conversion function. *)
 val primitive_boxed_int_of_standard_int :
   Flambda_kind.Standard_int.t -> Primitive.boxed_integer
 
-(** {2 Static structure helpers} *)
-
-(** [fundecl name args body codegen_options dbg] creates a cmm function
-    declaration for a function [name] with binding [args] over [body]. *)
-val fundecl :
-  string ->
-  (Backend_var.With_provenance.t * Cmm.machtype) list ->
-  Cmm.expression ->
-  Cmm.codegen_option list ->
-  Debuginfo.t ->
-  Cmm.fundecl
-
-(** Create a cmm phrase for a function declaration. *)
-val cfunction : Cmm.fundecl -> Cmm.phrase
-
-(** Create a cmm phrase for a static data item. *)
-val cdata : Cmm.data_item list -> Cmm.phrase
-
-(** Create the gc root table from a list of root symbols. *)
-val gc_root_table :
-  make_symbol:(?unitname:string -> string option -> string) ->
-  string list ->
-  Cmm.phrase
-
-(** Prepend constants that were populated in cmmgen_state (mostly by indirect
+(** Prepend constants that were populated in Cmmgen_state (mostly by indirect
     use through functions from Cmm_helpers). *)
 val flush_cmmgen_state : unit -> Cmm.phrase list
 

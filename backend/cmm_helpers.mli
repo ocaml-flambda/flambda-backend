@@ -922,6 +922,35 @@ val trywith :
   unit ->
   expression
 
+(** {2 Static jumps} *)
+
+(** Opaque type for static handlers. *)
+type static_handler
+
+(** [handler id vars body] creates a static handler for exit number [id],
+    binding variables [vars] in [body]. *)
+val handler :
+  ?dbg:Debuginfo.t ->
+  int ->
+  (Backend_var.With_provenance.t * Cmm.machtype) list ->
+  Cmm.expression ->
+  static_handler
+
+(** [cexit id args] creates the cmm expression for static to a static handler
+    with exit number [id], with arguments [args]. *)
+val cexit : int -> Cmm.expression list -> Cmm.trap_action list -> Cmm.expression
+
+(** [trap_return res traps] creates the cmm expression for returning [res] after
+    applying the trap actions in [traps]. *)
+val trap_return : Cmm.expression -> Cmm.trap_action list -> Cmm.expression
+
+(** Enclose a body with some static handlers. *)
+val create_ccatch :
+  rec_flag:bool ->
+  handlers:static_handler list ->
+  body:Cmm.expression ->
+  Cmm.expression
+
 val lsl_int_caml_raw :
   ?dbg:Debuginfo.t -> expression -> expression -> expression
 
@@ -1067,3 +1096,41 @@ val bigarray_store :
   offset:expression ->
   new_value:expression ->
   expression
+
+(** {2 Data items} *)
+
+(** Static integer. *)
+val cint : nativeint -> data_item
+
+(** Static float. *)
+val cfloat : float -> data_item
+
+(** Static symbol. *)
+val symbol_address : string -> data_item
+
+(** Definition for a static symbol. *)
+val define_symbol : global:bool -> string -> data_item list
+
+(** {2 Static structure helpers} *)
+
+(** [fundecl name args body codegen_options dbg] creates a cmm function
+    declaration for a function [name] with binding [args] over [body]. *)
+val fundecl :
+  string ->
+  (Backend_var.With_provenance.t * machtype) list ->
+  expression ->
+  codegen_option list ->
+  Debuginfo.t ->
+  fundecl
+
+(** Create a cmm phrase for a function declaration. *)
+val cfunction : fundecl -> phrase
+
+(** Create a cmm phrase for a static data item. *)
+val cdata : data_item list -> phrase
+
+(** Create the gc root table from a list of root symbols. *)
+val gc_root_table :
+  make_symbol:(?unitname:string -> string option -> string) ->
+  string list ->
+  phrase
