@@ -203,25 +203,6 @@ let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
 let box_int64 ?dbg alloc_mode arg =
   box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 alloc_mode arg
 
-(* Constructors for operations *)
-
-let unary op ?(dbg = Debuginfo.none) x = Cmm.Cop (op, [x], dbg)
-
-let int_of_float = unary Cmm.Cintoffloat
-
-let float_of_int = unary Cmm.Cfloatofint
-
-(* Arithmetic helpers *)
-
-let lsl_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
-  incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
-
-let lsr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
-  Cmm.Cop (Cmm.Cor, [lsr_int arg1 arg2 dbg; Cmm.Cconst_int (1, dbg)], dbg)
-
-let asr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
-  Cmm.Cop (Cmm.Cor, [asr_int arg1 arg2 dbg; Cmm.Cconst_int (1, dbg)], dbg)
-
 (* Block creation *)
 
 (* Blocks of size 0 (i.e. with an empty list of fields) must be statically

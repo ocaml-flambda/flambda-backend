@@ -865,174 +865,177 @@ val emit_preallocated_blocks :
 (* CR mshinwell: [dbg] should not be optional. *)
 
 (** Create a constant float expression. *)
-val float : ?dbg:Debuginfo.t -> float -> Cmm.expression
+val float : ?dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
-val int : ?dbg:Debuginfo.t -> int -> Cmm.expression
+val int : ?dbg:Debuginfo.t -> int -> expression
 
 (** Create a constant int expression from an int32. *)
-val int32 : ?dbg:Debuginfo.t -> int32 -> Cmm.expression
+val int32 : ?dbg:Debuginfo.t -> int32 -> expression
 
 (** Create a constant int expression from an int64. *)
-val int64 : ?dbg:Debuginfo.t -> int64 -> Cmm.expression
+val int64 : ?dbg:Debuginfo.t -> int64 -> expression
 
 (** Create a constant int expression from a nativeint. *)
-val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> Cmm.expression
+val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> expression
 
 (** Create a [Clet], except if the body just returns the bound variable, in
     which case the [Clet] is elided. *)
 val letin :
   Backend_var.With_provenance.t ->
-  defining_expr:Cmm.expression ->
-  body:Cmm.expression ->
-  Cmm.expression
+  defining_expr:expression ->
+  body:expression ->
+  expression
 
 (** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
     in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
 val letin_mut :
   Backend_var.With_provenance.t ->
-  Cmm.machtype ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
+  machtype ->
+  expression ->
+  expression ->
+  expression
 
-val assign : Backend_var.t -> Cmm.expression -> Cmm.expression
+val assign : Backend_var.t -> expression -> expression
 
 (** Create a sequence of expressions. Will erase void expressions as needed. *)
-val sequence : Cmm.expression -> Cmm.expression -> Cmm.expression
+val sequence : expression -> expression -> expression
 
 (** Creates a conditional branching on the given condition. *)
 val ite :
   ?dbg:Debuginfo.t ->
   ?then_dbg:Debuginfo.t ->
-  then_:Cmm.expression ->
+  then_:expression ->
   ?else_dbg:Debuginfo.t ->
-  else_:Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
+  else_:expression ->
+  expression ->
+  expression
 
 (** Create a try-with structure. The [exn_var] is the variable bound to the
     caught exception in the handler. *)
 val trywith :
   ?dbg:Debuginfo.t ->
-  kind:Cmm.trywith_kind ->
-  body:Cmm.expression ->
+  kind:trywith_kind ->
+  body:expression ->
   exn_var:Backend_var.With_provenance.t ->
-  handler:Cmm.expression ->
+  handler:expression ->
   unit ->
-  Cmm.expression
+  expression
 
-val eq : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val lsl_int_caml_raw :
+  ?dbg:Debuginfo.t -> expression -> expression -> expression
+
+val lsr_int_caml_raw :
+  ?dbg:Debuginfo.t -> expression -> expression -> expression
+
+(** Shift operations. take as first argument a tagged caml integer, and as
+    second argument an untagged machine intger which is the amount to shift the
+    first argument by. *)
+val asr_int_caml_raw :
+  ?dbg:Debuginfo.t -> expression -> expression -> expression
+
+val int_of_float : ?dbg:Debuginfo.t -> expression -> expression
+
+(** Conversions functions between integers and floats. *)
+val float_of_int : ?dbg:Debuginfo.t -> expression -> expression
+
+val eq : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
-val neq : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val neq : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val lt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val lt : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val le : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val le : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val gt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val gt : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic signed comparisons on cmm expressions. Returns an
     untagged integer (either 0 or 1) to represent the result of the comparison. *)
-val ge : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val ge : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ult : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val ult : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ule : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val ule : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ugt : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val ugt : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic unsigned comparisons on cmm expressions. Returns an
     untagged integer (either 0 or 1) to represent the result of the comparison. *)
-val uge : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val uge : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Asbolute value on floats. *)
-val float_abs : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
+val float_abs : ?dbg:Debuginfo.t -> expression -> expression
 
 (** Arithmetic negation on floats. *)
-val float_neg : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
+val float_neg : ?dbg:Debuginfo.t -> expression -> expression
 
-val float_add :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_add : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_sub :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_sub : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_mul :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_mul : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic operations. *)
-val float_div :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_div : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_eq :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_eq : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
-val float_neq :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_neq : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_lt :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_lt : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_le :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_le : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_gt :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_gt : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
     (either 0 or 1) to represent the result of the comparison. *)
-val float_ge :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
+val float_ge : ?dbg:Debuginfo.t -> expression -> expression -> expression
 
 val load :
   ?dbg:Debuginfo.t ->
-  Cmm.memory_chunk ->
+  memory_chunk ->
   Asttypes.mutable_flag ->
-  addr:Cmm.expression ->
-  Cmm.expression
+  addr:expression ->
+  expression
 
 val store :
   ?dbg:Debuginfo.t ->
-  Cmm.memory_chunk ->
+  memory_chunk ->
   Lambda.initialization_or_assignment ->
-  addr:Cmm.expression ->
-  new_value:Cmm.expression ->
-  Cmm.expression
+  addr:expression ->
+  new_value:expression ->
+  expression
 
 (** [direct_call ty f_code args] creates a direct call to the function code
     [f_code] with arguments [args], with a return value of type [ty].
 
     If a closure needs to be passed, it must be included in [args]. *)
 val direct_call :
-  ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
+  ?dbg:Debuginfo.t -> machtype -> expression -> expression list -> expression
 
 (** Same as {!direct_call} but for an indirect call. *)
 val indirect_call :
   ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
+  machtype ->
   Lambda.alloc_mode ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
+  expression ->
+  expression list ->
+  expression
 
 (** Same as {!direct_call} but for an indirect call that is know to be a full
     application (since this enables a few optimisations). *)
 val indirect_full_call :
   ?dbg:Debuginfo.t ->
-  Cmm.machtype ->
+  machtype ->
   Lambda.alloc_mode ->
-  Cmm.expression ->
-  Cmm.expression list ->
-  Cmm.expression
+  expression ->
+  expression list ->
+  expression
 
 (** Create a C function call. *)
 val extcall :
@@ -1040,27 +1043,27 @@ val extcall :
   returns:bool ->
   alloc:bool ->
   is_c_builtin:bool ->
-  ty_args:Cmm.exttype list ->
+  ty_args:exttype list ->
   string ->
-  Cmm.machtype ->
-  Cmm.expression list ->
-  Cmm.expression
+  machtype ->
+  expression list ->
+  expression
 
 val bigarray_load :
   dbg:Debuginfo.t ->
   elt_kind:Lambda.bigarray_kind ->
   elt_size:int ->
-  elt_chunk:Cmm.memory_chunk ->
-  bigarray:Cmm.expression ->
-  offset:Cmm.expression ->
-  Cmm.expression
+  elt_chunk:memory_chunk ->
+  bigarray:expression ->
+  offset:expression ->
+  expression
 
 val bigarray_store :
   dbg:Debuginfo.t ->
   elt_kind:Lambda.bigarray_kind ->
   elt_size:int ->
-  elt_chunk:Cmm.memory_chunk ->
-  bigarray:Cmm.expression ->
-  offset:Cmm.expression ->
-  new_value:Cmm.expression ->
-  Cmm.expression
+  elt_chunk:memory_chunk ->
+  bigarray:expression ->
+  offset:expression ->
+  new_value:expression ->
+  expression

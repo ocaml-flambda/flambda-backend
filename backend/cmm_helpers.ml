@@ -3770,7 +3770,7 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 (* Helper functions used by Flambda 2. *)
 
-let float ?(dbg = Debuginfo.none) f = Cmm.Cconst_float (f, dbg)
+let float ?(dbg = Debuginfo.none) f = Cconst_float (f, dbg)
 
 (* CR Gbury: this conversion int -> nativeint is potentially unsafe when
    cross-compiling for 64-bit on a 32-bit host *)
@@ -3795,21 +3795,21 @@ let letin v ~defining_expr ~body =
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Cop _
   | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _
   | Cregion _ | Ctail _ ->
-    Cmm.Clet (v, defining_expr, body)
+    Clet (v, defining_expr, body)
 
-let letin_mut v ty e body = Cmm.Clet_mut (v, ty, e, body)
+let letin_mut v ty e body = Clet_mut (v, ty, e, body)
 
-let assign x e = Cmm.Cassign (x, e)
+let assign x e = Cassign (x, e)
 
 let sequence x y =
   match x, y with
-  | Cmm.Ctuple [], _ -> y
-  | _, Cmm.Ctuple [] -> x
-  | _, _ -> Cmm.Csequence (x, y)
+  | Ctuple [], _ -> y
+  | _, Ctuple [] -> x
+  | _, _ -> Csequence (x, y)
 
 let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
     ?(else_dbg = Debuginfo.none) ~else_ cond =
-  Cmm.Cifthenelse
+  Cifthenelse
     ( cond,
       then_dbg,
       then_,
@@ -3821,11 +3821,24 @@ let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
 
 let trywith ?(dbg = Debuginfo.none) ~kind ~body ~exn_var ~handler () =
   (* CR-someday poechsel: Put a correct value kind here *)
-  Cmm.Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
+  Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
 
 let unary op ?(dbg = Debuginfo.none) x = Cop (op, [x], dbg)
 
 let binary op ?(dbg = Debuginfo.none) x y = Cop (op, [x; y], dbg)
+
+let int_of_float = unary Cintoffloat
+
+let float_of_int = unary Cfloatofint
+
+let lsl_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+  incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
+
+let lsr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+  Cop (Cor, [lsr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
+
+let asr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+  Cop (Cor, [asr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
 
 let eq ?(dbg = Debuginfo.none) x y =
   match x, y with
@@ -3972,8 +3985,8 @@ let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
 
 let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
     typ_res args =
-  if not returns then assert (typ_res = Cmm.typ_void);
-  Cmm.Cop
+  if not returns then assert (typ_res = typ_void);
+  Cop
     ( Cextcall
         { func = name;
           ty = typ_res;

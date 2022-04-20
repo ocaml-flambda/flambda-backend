@@ -306,25 +306,6 @@ val ccatch :
 val primitive_boxed_int_of_standard_int :
   Flambda_kind.Standard_int.t -> Primitive.boxed_integer
 
-(** {2 Arithmetic/Logic operations} *)
-
-val lsl_int_caml_raw :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
-val lsr_int_caml_raw :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
-val asr_int_caml_raw :
-  ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression -> Cmm.expression
-
-val int_of_float : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
-
-(** Conversions functions between integers and floats. *)
-val float_of_int : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
-
 (** {2 Static structure helpers} *)
 
 (** [fundecl name args body codegen_options dbg] creates a cmm function
