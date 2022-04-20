@@ -3770,6 +3770,23 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 (* Helper functions used by Flambda 2. *)
 
+let float ?(dbg = Debuginfo.none) f = Cmm.Cconst_float (f, dbg)
+
+(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
+   cross-compiling for 64-bit on a 32-bit host *)
+let int ?(dbg = Debuginfo.none) i =
+  natint_const_untagged dbg (Nativeint.of_int i)
+
+let int32 ?(dbg = Debuginfo.none) i =
+  natint_const_untagged dbg (Nativeint.of_int32 i)
+
+(* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
+   cross-compiling for 64-bit on a 32-bit host *)
+let int64 ?(dbg = Debuginfo.none) i =
+  natint_const_untagged dbg (Int64.to_nativeint i)
+
+let nativeint ?(dbg = Debuginfo.none) i = natint_const_untagged dbg i
+
 let letin v ~defining_expr ~body =
   match body with
   | Cvar v' when Backend_var.same (Backend_var.With_provenance.var v) v' ->
@@ -3969,3 +3986,35 @@ let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
         },
       args,
       dbg )
+
+let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset =
+  let ba_data_f = field_address bigarray 1 dbg in
+  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
+  let addr =
+    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
+  in
+  match (elt_kind : Lambda.bigarray_kind) with
+  | Pbigarray_complex32 | Pbigarray_complex64 ->
+    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
+    box_complex dbg
+      (load ~dbg elt_chunk Mutable ~addr)
+      (load ~dbg elt_chunk Mutable ~addr:addr')
+  | _ -> load ~dbg elt_chunk Mutable ~addr
+
+let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
+    ~bigarray ~offset ~new_value =
+  let ba_data_f = field_address bigarray 1 dbg in
+  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
+  let addr =
+    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
+  in
+  match elt_kind with
+  | Pbigarray_complex32 | Pbigarray_complex64 ->
+    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
+    return_unit dbg
+      (sequence
+         (store ~dbg elt_chunk Assignment ~addr
+            ~new_value:(complex_re new_value dbg))
+         (store ~dbg elt_chunk Assignment ~addr:addr'
+            ~new_value:(complex_im new_value dbg)))
+  | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)

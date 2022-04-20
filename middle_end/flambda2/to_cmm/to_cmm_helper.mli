@@ -63,23 +63,8 @@ val unit : dbg:Debuginfo.t -> Cmm.expression
 (** Create an expression from a variable. *)
 val var : Backend_var.t -> Cmm.expression
 
-(** Create a constant float expression. *)
-val float : ?dbg:Debuginfo.t -> float -> Cmm.expression
-
-(** Create a constant int expression. *)
-val int : ?dbg:Debuginfo.t -> int -> Cmm.expression
-
-(** Create a constant int expression from an int32. *)
-val int32 : ?dbg:Debuginfo.t -> int32 -> Cmm.expression
-
-(** Create a constant int expression from an int64. *)
-val int64 : ?dbg:Debuginfo.t -> int64 -> Cmm.expression
-
 (** Create a constant int expression from a targetint. *)
 val targetint : ?dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
-
-(** Create a constant int expression from a nativeint. *)
-val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> Cmm.expression
 
 (** {2 Block creation} *)
 
@@ -213,37 +198,32 @@ val bytes_like_set :
 
 (** {2 Bigarrays} *)
 
-(** [bigarray_load dimensions kind layout ba offset] loads the element of the
-    bigarray at the given offset. The translation from multi-dimension
-    addressing to linear addressing is supposed to already have been done
-    (typically during conversion from lambda to flambda). This returns the raw
-    value contained in the array (e.g. a single byte), *except* for bigarrays
-    containing complex numbers, in which case it returns a boxed complex (i.e. a
-    caml value). *)
+(** [bigarray_load kind ~bigarray ~offset] loads the element of the bigarray at
+    the given offset. The translation from multi-dimension addressing to linear
+    addressing is supposed to already have been done (typically during
+    conversion from lambda to flambda). This returns the raw value contained in
+    the array (e.g. a single byte), *except* for bigarrays containing complex
+    numbers, in which case it returns a boxed complex (i.e. a caml value). *)
 val bigarray_load :
   ?dbg:Debuginfo.t ->
-  int ->
   Flambda_primitive.bigarray_kind ->
-  Flambda_primitive.bigarray_layout ->
-  Cmm.expression ->
-  Cmm.expression ->
+  bigarray:Cmm.expression ->
+  offset:Cmm.expression ->
   Cmm.expression
 
-(** [bigarray_store dimensions kind layout ba offset newval] stores the given
-    value at the given offset in the given bigarray. The translation from
-    multi-dimension addressing to linear addressing is supposed to already have
-    been done (typically during conversion from lambda to flambda). This takes
-    as argument the raw value to be stored (e.g. a single byte), *except* in the
-    case of complex numbers, in which case it takes a boxed complex (i.e. a caml
+(** [bigarray_store kind ~bigarray ~offset ~new_value] stores the given value at
+    the given offset in the given bigarray. The translation from multi-dimension
+    addressing to linear addressing is supposed to already have been done
+    (typically during conversion from lambda to flambda). This takes as argument
+    the raw value to be stored (e.g. a single byte), *except* in the case of
+    complex numbers, in which case it takes a boxed complex (i.e. a caml
     value). *)
 val bigarray_store :
   ?dbg:Debuginfo.t ->
-  int ->
   Flambda_primitive.bigarray_kind ->
-  Flambda_primitive.bigarray_layout ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression ->
+  bigarray:Cmm.expression ->
+  offset:Cmm.expression ->
+  new_value:Cmm.expression ->
   Cmm.expression
 
 (** {2 Numeric conversions} *)

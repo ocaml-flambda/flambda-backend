@@ -14,7 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Cmm_helpers
+open! Cmm_helpers
 module Ece = Effects_and_coeffects
 module P = Flambda_primitive
 
@@ -102,23 +102,6 @@ let name env name =
           (Linkage_name.to_string (Symbol.linkage_name s), Debuginfo.none),
         env,
         Ece.pure ))
-
-let float ?(dbg = Debuginfo.none) f = Cmm.Cconst_float (f, dbg)
-
-(* CR Gbury: this conversion int -> nativeint is potentially unsafe when
-   cross-compiling for 64-bit on a 32-bit host *)
-let int ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Nativeint.of_int i)
-
-let int32 ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Nativeint.of_int32 i)
-
-(* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
-   cross-compiling for 64-bit on a 32-bit host *)
-let int64 ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Int64.to_nativeint i)
-
-let nativeint ?(dbg = Debuginfo.none) i = natint_const_untagged dbg i
 
 let targetint ?(dbg = Debuginfo.none) t =
   match Targetint_32_64.repr t with
@@ -223,8 +206,6 @@ let box_int64 ?dbg alloc_mode arg =
 (* Constructors for operations *)
 
 let unary op ?(dbg = Debuginfo.none) x = Cmm.Cop (op, [x], dbg)
-
-let binary op ?(dbg = Debuginfo.none) x y = Cmm.Cop (op, [x; y], dbg)
 
 let int_of_float = unary Cmm.Cintoffloat
 
@@ -426,41 +407,18 @@ let lambda_ba_kind k : Lambda.bigarray_kind =
   | Complex32 -> Pbigarray_complex32
   | Complex64 -> Pbigarray_complex64
 
-let bigarray_load ?(dbg = Debuginfo.none) _dims kind _layout ba offset =
+let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
   let elt_kind = lambda_ba_kind kind in
   let elt_size = bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = bigarray_word_kind elt_kind in
-  let ba_data_f = field_address ba 1 dbg in
-  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
-  let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
-  in
-  match (elt_kind : Lambda.bigarray_kind) with
-  | Pbigarray_complex32 | Pbigarray_complex64 ->
-    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
-    box_complex dbg
-      (load ~dbg elt_chunk Mutable ~addr)
-      (load ~dbg elt_chunk Mutable ~addr:addr')
-  | _ -> load ~dbg elt_chunk Mutable ~addr
+  bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
 
-let bigarray_store ?(dbg = Debuginfo.none) _dims kind _layout ba offset v =
+let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
   let elt_kind = lambda_ba_kind kind in
   let elt_size = bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = bigarray_word_kind elt_kind in
-  let ba_data_f = field_address ba 1 dbg in
-  let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
-  let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p offset dbg
-  in
-  match elt_kind with
-  | Pbigarray_complex32 | Pbigarray_complex64 ->
-    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
-    return_unit dbg
-      (sequence
-         (store ~dbg elt_chunk Assignment ~addr ~new_value:(complex_re v dbg))
-         (store ~dbg elt_chunk Assignment ~addr:addr'
-            ~new_value:(complex_im v dbg)))
-  | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value:v)
+  bigarray_store ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
+    ~new_value
 
 (* try-with blocks *)
 

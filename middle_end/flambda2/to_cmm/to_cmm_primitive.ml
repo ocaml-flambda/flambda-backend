@@ -441,8 +441,8 @@ let binary_primitive env dbg f x y =
   | Array_load (kind, _mut) -> C.array_load ~dbg kind x y
   | String_or_bigstring_load (kind, width) ->
     C.string_like_load ~dbg kind width x y
-  | Bigarray_load (dimensions, kind, layout) ->
-    C.bigarray_load ~dbg dimensions kind layout x y
+  | Bigarray_load (_dimensions, kind, _layout) ->
+    C.bigarray_load ~dbg kind ~bigarray:x ~offset:y
   | Phys_equal (kind, op) -> binary_phys_comparison env dbg kind op x y
   | Int_arith (kind, op) -> binary_int_arith_primitive env dbg kind op x y
   | Int_shift (kind, op) -> binary_int_shift_primitive env dbg kind op x y
@@ -462,8 +462,8 @@ let ternary_primitive _env dbg f x y z =
   | Array_set (array_kind, init) -> C.array_set ~dbg array_kind init x y z
   | Bytes_or_bigstring_set (kind, width) ->
     C.bytes_like_set ~dbg kind width x y z
-  | Bigarray_set (dimensions, kind, layout) ->
-    C.bigarray_store ~dbg dimensions kind layout x y z
+  | Bigarray_set (_dimensions, kind, _layout) ->
+    C.bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : Flambda_primitive.variadic_primitive) with

@@ -862,6 +862,23 @@ val emit_preallocated_blocks :
 
 (** {1} Helper functions used by Flambda 2. *)
 
+(* CR mshinwell: [dbg] should not be optional. *)
+
+(** Create a constant float expression. *)
+val float : ?dbg:Debuginfo.t -> float -> Cmm.expression
+
+(** Create a constant int expression. *)
+val int : ?dbg:Debuginfo.t -> int -> Cmm.expression
+
+(** Create a constant int expression from an int32. *)
+val int32 : ?dbg:Debuginfo.t -> int32 -> Cmm.expression
+
+(** Create a constant int expression from an int64. *)
+val int64 : ?dbg:Debuginfo.t -> int64 -> Cmm.expression
+
+(** Create a constant int expression from a nativeint. *)
+val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> Cmm.expression
+
 (** Create a [Clet], except if the body just returns the bound variable, in
     which case the [Clet] is elided. *)
 val letin :
@@ -1027,4 +1044,23 @@ val extcall :
   string ->
   Cmm.machtype ->
   Cmm.expression list ->
+  Cmm.expression
+
+val bigarray_load :
+  dbg:Debuginfo.t ->
+  elt_kind:Lambda.bigarray_kind ->
+  elt_size:int ->
+  elt_chunk:Cmm.memory_chunk ->
+  bigarray:Cmm.expression ->
+  offset:Cmm.expression ->
+  Cmm.expression
+
+val bigarray_store :
+  dbg:Debuginfo.t ->
+  elt_kind:Lambda.bigarray_kind ->
+  elt_size:int ->
+  elt_chunk:Cmm.memory_chunk ->
+  bigarray:Cmm.expression ->
+  offset:Cmm.expression ->
+  new_value:Cmm.expression ->
   Cmm.expression
