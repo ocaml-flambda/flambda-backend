@@ -146,6 +146,8 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
 
 (* Bigarrays *)
 
+(* CR mshinwell: Add [Flambda_primitive.Bigarray_kind] and move this function
+   there *)
 let lambda_ba_kind k : Lambda.bigarray_kind =
   match (k : Flambda_primitive.bigarray_kind) with
   | Float32 -> Pbigarray_float32
