@@ -52,6 +52,102 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
   | Values -> C.return_unit dbg (addr_array_store init arr index value dbg)
   | Naked_floats -> C.return_unit dbg (C.float_array_set arr index value dbg)
 
+(* Bigarrays *)
+
+let lambda_ba_kind k : Lambda.bigarray_kind =
+  match (k : Flambda_primitive.bigarray_kind) with
+  | Float32 -> Pbigarray_float32
+  | Float64 -> Pbigarray_float64
+  | Sint8 -> Pbigarray_sint8
+  | Uint8 -> Pbigarray_uint8
+  | Sint16 -> Pbigarray_sint16
+  | Uint16 -> Pbigarray_uint16
+  | Int32 -> Pbigarray_int32
+  | Int64 -> Pbigarray_int64
+  | Int_width_int -> Pbigarray_caml_int
+  | Targetint_width_int -> Pbigarray_native_int
+  | Complex32 -> Pbigarray_complex32
+  | Complex64 -> Pbigarray_complex64
+
+(* CR mshinwell: Document [offset] including tagging *)
+let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
+  let elt_kind = lambda_ba_kind kind in
+  let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
+  let elt_chunk = C.bigarray_word_kind elt_kind in
+  C.bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
+
+let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
+  let elt_kind = lambda_ba_kind kind in
+  let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
+  let elt_chunk = C.bigarray_word_kind elt_kind in
+  C.bigarray_store ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
+    ~new_value
+
+(* String and bytes access. For these functions, [index] is a tagged integer. *)
+
+let string_like_load_aux ~dbg width ptr index =
+  match (width : Flambda_primitive.string_accessor_width) with
+  | Eight ->
+    let index = C.untag_int index dbg in
+    C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int ptr index dbg)
+  | Sixteen ->
+    let index = C.untag_int index dbg in
+    C.unaligned_load_16 ptr index dbg
+  | Thirty_two ->
+    let index = C.untag_int index dbg in
+    C.sign_extend_32 dbg (C.unaligned_load_32 ptr index dbg)
+  | Sixty_four ->
+    if C.arch32
+    then C.unsupported_32_bits ()
+    else
+      let index = C.untag_int index dbg in
+      C.unaligned_load_64 ptr index dbg
+
+let string_like_load ?(dbg = Debuginfo.none) kind width block index =
+  match (kind : Flambda_primitive.string_like_value) with
+  | String | Bytes -> string_like_load_aux ~dbg width block index
+  | Bigstring ->
+    let ba_data_addr = C.field_address block 1 dbg in
+    let ba_data =
+      C.load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr
+    in
+    C.bind "ba_data" ba_data (fun ptr ->
+        string_like_load_aux ~dbg width ptr index)
+
+(* same as {string_like_load_aux} *)
+let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
+  match (width : Flambda_primitive.string_accessor_width) with
+  | Eight ->
+    let idx = C.untag_int idx dbg in
+    C.store ~dbg Cmm.Byte_unsigned Lambda.Assignment
+      ~addr:(C.add_int ptr idx dbg) ~new_value:value
+  | Sixteen ->
+    let idx = C.untag_int idx dbg in
+    C.unaligned_set_16 ptr idx value dbg
+  | Thirty_two ->
+    let idx = C.untag_int idx dbg in
+    C.unaligned_set_32 ptr idx value dbg
+  | Sixty_four ->
+    if C.arch32
+    then C.unsupported_32_bits ()
+    else
+      let idx = C.untag_int idx dbg in
+      C.unaligned_set_64 ptr idx value dbg
+
+let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
+  match (kind : Flambda_primitive.bytes_like_value) with
+  | Bytes ->
+    C.return_unit dbg
+      (bytes_like_set_aux ~dbg kind width block block index value)
+  | Bigstring ->
+    let ba_data_addr = C.field_address block 1 dbg in
+    let ba_data =
+      C.load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr
+    in
+    C.return_unit dbg
+      (C.bind "ba_data" ba_data (fun ptr ->
+           bytes_like_set_aux ~dbg kind width block ptr index value))
+
 (* Handling of dead function and value slots *)
 
 let dead_slots_msg dbg function_slots value_slots =
@@ -461,9 +557,9 @@ let binary_primitive env dbg f x y =
   | Block_load (kind, mut) -> C.block_load ~dbg kind mut x y
   | Array_load (kind, _mut) -> array_load ~dbg kind x y
   | String_or_bigstring_load (kind, width) ->
-    C.string_like_load ~dbg kind width x y
+    string_like_load ~dbg kind width x y
   | Bigarray_load (_dimensions, kind, _layout) ->
-    C.bigarray_load ~dbg kind ~bigarray:x ~offset:y
+    bigarray_load ~dbg kind ~bigarray:x ~offset:y
   | Phys_equal (kind, op) -> binary_phys_comparison env dbg kind op x y
   | Int_arith (kind, op) -> binary_int_arith_primitive env dbg kind op x y
   | Int_shift (kind, op) -> binary_int_shift_primitive env dbg kind op x y
@@ -481,10 +577,9 @@ let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
   | Block_set (block_access, init) -> C.block_set ~dbg block_access init x y z
   | Array_set (array_kind, init) -> array_set ~dbg array_kind init x y z
-  | Bytes_or_bigstring_set (kind, width) ->
-    C.bytes_like_set ~dbg kind width x y z
+  | Bytes_or_bigstring_set (kind, width) -> bytes_like_set ~dbg kind width x y z
   | Bigarray_set (_dimensions, kind, _layout) ->
-    C.bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
+    bigarray_store ~dbg kind ~bigarray:x ~offset:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

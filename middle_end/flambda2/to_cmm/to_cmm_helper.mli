@@ -114,61 +114,6 @@ val block_set :
 (* CR mshinwell: These functions should have labelled arguments so we don't need
    comments *)
 
-(** {2 String and Bytes access} *)
-
-(** Load the given number of bits from a string-like value (string, bytes, *
-    bigstring). Cmm arguments order: * - string-like value * - index within the
-    string as a tagged integer *)
-val string_like_load :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.string_like_value ->
-  Flambda_primitive.string_accessor_width ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Set the given number of bits in a bytes-like value (bytes, bigstring). * Cmm
-    arguments order: * - string-like value * - index within the string as a
-    tagged integer * - new value for the bits set *)
-val bytes_like_set :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.bytes_like_value ->
-  Flambda_primitive.string_accessor_width ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** {2 Bigarrays} *)
-
-(** [bigarray_load kind ~bigarray ~offset] loads the element of the bigarray at
-    the given offset. The translation from multi-dimension addressing to linear
-    addressing is supposed to already have been done (typically during
-    conversion from lambda to flambda). This returns the raw value contained in
-    the array (e.g. a single byte), *except* for bigarrays containing complex
-    numbers, in which case it returns a boxed complex (i.e. a caml value). *)
-val bigarray_load :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.bigarray_kind ->
-  bigarray:Cmm.expression ->
-  offset:Cmm.expression ->
-  Cmm.expression
-
-(** [bigarray_store kind ~bigarray ~offset ~new_value] stores the given value at
-    the given offset in the given bigarray. The translation from multi-dimension
-    addressing to linear addressing is supposed to already have been done
-    (typically during conversion from lambda to flambda). This takes as argument
-    the raw value to be stored (e.g. a single byte), *except* in the case of
-    complex numbers, in which case it takes a boxed complex (i.e. a caml
-    value). *)
-val bigarray_store :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.bigarray_kind ->
-  bigarray:Cmm.expression ->
-  offset:Cmm.expression ->
-  new_value:Cmm.expression ->
-  Cmm.expression
-
 (** {2 Numeric conversions} *)
 
 val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
