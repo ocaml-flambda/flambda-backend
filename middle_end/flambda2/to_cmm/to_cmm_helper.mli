@@ -63,35 +63,7 @@ val make_block :
 val make_closure_block :
   ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression
 
-(** {2 Block access} *)
-
 val convert_alloc_mode : Alloc_mode.t -> Lambda.alloc_mode
-
-(** Return an expression that computes the length of the given block. *)
-val block_length : ?dbg:Debuginfo.t -> Cmm.expression -> Cmm.expression
-
-(** Load a field from a block. Cmm argument order: - block - field number as a
-    tagged integer *)
-val block_load :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Block_access_kind.t ->
-  Mutability.t ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Set a field in a block. Cmm argument order: * - block * - field number as a
-    tagged integer * - new value for the field. *)
-val block_set :
-  ?dbg:Debuginfo.t ->
-  Flambda_primitive.Block_access_kind.t ->
-  Flambda_primitive.Init_or_assign.t ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression ->
-  Cmm.expression
-(* CR mshinwell: These functions should have labelled arguments so we don't need
-   comments *)
 
 (** {2 Numeric conversions} *)
 
@@ -137,12 +109,6 @@ val raise_kind : Trap_action.raise_kind option -> Lambda.raise_kind
 
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
-
-(** {2 Arithmetic/Logic helpers} *)
-
-(** Prepend constants that were populated in Cmmgen_state (mostly by indirect
-    use through functions from Cmm_helpers). *)
-val flush_cmmgen_state : unit -> Cmm.phrase list
 
 (** Make an update to a statically-allocated block. *)
 val make_update :

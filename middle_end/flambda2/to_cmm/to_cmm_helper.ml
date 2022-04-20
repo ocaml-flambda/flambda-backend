@@ -16,7 +16,6 @@
 
 open! Cmm_helpers
 module Ece = Effects_and_coeffects
-module P = Flambda_primitive
 
 let unsupported_32_bits () =
   Misc.fatal_errorf "32 bits is currently unsupported in Flambda."
@@ -184,33 +183,6 @@ let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
   let tag = Tag.(to_int closure_tag) in
   make_alloc ~mode:(convert_alloc_mode alloc_mode) dbg tag l
 
-(* Block access *)
-
-let block_length ?(dbg = Debuginfo.none) block = get_size block dbg
-
-let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (mutability : Mutability.t) block index =
-  let mutability = Mutability.to_lambda mutability in
-  match kind with
-  | Values { field_kind = Any_value; _ } ->
-    get_field_computed Pointer mutability ~block ~index dbg
-  | Values { field_kind = Immediate; _ } ->
-    get_field_computed Immediate mutability ~block ~index dbg
-  | Naked_floats _ -> unboxed_float_array_ref block index dbg
-
-let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
-    (init : P.Init_or_assign.t) block index new_value =
-  let init_or_assign = P.Init_or_assign.to_lambda init in
-  match kind with
-  | Values { field_kind = Any_value; _ } ->
-    setfield_computed Pointer init_or_assign block index new_value dbg
-    |> return_unit dbg
-  | Values { field_kind = Immediate; _ } ->
-    setfield_computed Immediate init_or_assign block index new_value dbg
-    |> return_unit dbg
-  | Naked_floats _ ->
-    float_array_set block index new_value dbg |> return_unit dbg
-
 (* try-with blocks *)
 
 let raise_kind (kind : Trap_action.raise_kind option) : Lambda.raise_kind =
@@ -239,32 +211,6 @@ let invalid res ~message =
       ~ty_args:[XInt] "caml_flambda2_invalid" Cmm.typ_void [symbol message_sym]
   in
   call_expr, data_items
-
-(* Get constant tables from cmmgen_state
-
-   The To_cmm translation uses functions from cmm_helpers which populate some
-   mutable state in cmmgen_state, so we have to get the created constants. *)
-
-let flush_cmmgen_state () =
-  let aux name cst acc =
-    match (cst : Cmmgen_state.constant) with
-    | Const_table (Local, l) ->
-      cdata (define_symbol ~global:false name @ l) :: acc
-    | Const_table (Global, l) ->
-      cdata (define_symbol ~global:true name @ l) :: acc
-    | Const_closure _ ->
-      Misc.fatal_errorf
-        "There shouldn't be any closure in cmmgen_state during flambda to cmm \
-         translation"
-  in
-  match Cmmgen_state.get_and_clear_data_items () with
-  | [] ->
-    let cst_map = Cmmgen_state.get_and_clear_constants () in
-    Misc.Stdlib.String.Map.fold aux cst_map []
-  | _ ->
-    Misc.fatal_errorf
-      "There shouldn't be any data item in cmmgen_state during flambda to cmm \
-       translation"
 
 let make_update env kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in

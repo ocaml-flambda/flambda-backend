@@ -26,14 +26,6 @@ end
 
 (* Boxed numbers *)
 
-let _primitive_boxed_int_of_standard_int b =
-  match (b : Flambda_kind.Standard_int.t) with
-  | Naked_int32 -> Primitive.Pint32
-  | Naked_int64 -> Primitive.Pint64
-  | Naked_nativeint -> Primitive.Pnativeint
-  | Naked_immediate | Tagged_immediate ->
-    Misc.fatal_errorf "No corresponding primitive boxed int type."
-
 let primitive_boxed_int_of_boxable_number b =
   match (b : Flambda_kind.Boxable_number.t) with
   | Naked_float -> assert false
@@ -56,8 +48,30 @@ let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
     let primitive_kind = primitive_boxed_int_of_boxable_number kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
-let _box_int64 ?dbg alloc_mode arg =
-  box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 alloc_mode arg
+(* Block access. For these functions, [index] is a tagged integer. *)
+
+let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
+    (mutability : Mutability.t) block index =
+  let mutability = Mutability.to_lambda mutability in
+  match kind with
+  | Values { field_kind = Any_value; _ } ->
+    C.get_field_computed Pointer mutability ~block ~index dbg
+  | Values { field_kind = Immediate; _ } ->
+    C.get_field_computed Immediate mutability ~block ~index dbg
+  | Naked_floats _ -> C.unboxed_float_array_ref block index dbg
+
+let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
+    (init : P.Init_or_assign.t) block index new_value =
+  let init_or_assign = P.Init_or_assign.to_lambda init in
+  match kind with
+  | Values { field_kind = Any_value; _ } ->
+    C.setfield_computed Pointer init_or_assign block index new_value dbg
+    |> C.return_unit dbg
+  | Values { field_kind = Immediate; _ } ->
+    C.setfield_computed Immediate init_or_assign block index new_value dbg
+    |> C.return_unit dbg
+  | Naked_floats _ ->
+    C.float_array_set block index new_value dbg |> C.return_unit dbg
 
 (* Array access *)
 
@@ -589,7 +603,7 @@ let unary_primitive env res dbg f arg =
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
-  | Block_load (kind, mut) -> C.block_load ~dbg kind mut x y
+  | Block_load (kind, mut) -> block_load ~dbg kind mut x y
   | Array_load (kind, _mut) -> array_load ~dbg kind x y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width x y
@@ -610,7 +624,7 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Block_set (block_access, init) -> C.block_set ~dbg block_access init x y z
+  | Block_set (block_access, init) -> block_set ~dbg block_access init x y z
   | Array_set (array_kind, init) -> array_set ~dbg array_kind init x y z
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set ~dbg kind width x y z
   | Bigarray_set (_dimensions, kind, _layout) ->

@@ -32,6 +32,31 @@ module C = struct
   include To_cmm_helper
 end
 
+(* Get constant definitions from Cmmgen_state. (The To_cmm translation uses
+   functions from Cmm_helpers which populate some mutable state in
+   Cmmgen_state.) *)
+
+let flush_cmm_helpers_state () =
+  let aux name cst acc =
+    match (cst : Cmmgen_state.constant) with
+    | Const_table (Local, l) ->
+      C.cdata (C.define_symbol ~global:false name @ l) :: acc
+    | Const_table (Global, l) ->
+      C.cdata (C.define_symbol ~global:true name @ l) :: acc
+    | Const_closure _ ->
+      Misc.fatal_errorf
+        "There shouldn't be any closure in cmmgen_state during flambda to cmm \
+         translation"
+  in
+  match Cmmgen_state.get_and_clear_data_items () with
+  | [] ->
+    let cst_map = Cmmgen_state.get_and_clear_constants () in
+    Misc.Stdlib.String.Map.fold aux cst_map []
+  | _ ->
+    Misc.fatal_errorf
+      "There shouldn't be any data item in cmmgen_state during flambda to cmm \
+       translation"
+
 (* Note about the root symbol: it does not need any particular treatment.
    Concerning gc_roots, it's like any other statically allocated symbol: if it
    has an associated computation, then it will already be included in the list
@@ -78,14 +103,14 @@ let unit ~offsets ~make_symbol flambda_unit ~all_code =
     C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
   in
   let data, gc_roots, functions = R.to_cmm res in
-  let cmmgen_data = C.flush_cmmgen_state () in
+  let cmm_helpers_data = flush_cmm_helpers_state () in
   let gc_root_data =
     C.gc_root_table ~make_symbol
       (List.map
          (fun sym -> Linkage_name.to_string (Symbol.linkage_name sym))
          gc_roots)
   in
-  (gc_root_data :: data) @ cmmgen_data @ functions @ [entry]
+  (gc_root_data :: data) @ cmm_helpers_data @ functions @ [entry]
 
 let unit ~offsets ~make_symbol flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
