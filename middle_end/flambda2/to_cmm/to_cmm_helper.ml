@@ -21,22 +21,22 @@ let unsupported_32_bit () =
   Misc.fatal_errorf
     "Flambda 2 does not currently support compilation to 32-bit architectures"
 
-let exttype_of_kind k =
-  match (k : Flambda_kind.t) with
-  | Value -> Cmm.XInt
-  | Naked_number Naked_float -> Cmm.XFloat
-  | Naked_number Naked_int64 -> Cmm.XInt64
-  | Naked_number Naked_int32 -> Cmm.XInt32
+let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
+  match k with
+  | Value -> XInt
+  | Naked_number Naked_float -> XFloat
+  | Naked_number Naked_int64 -> XInt64
+  | Naked_number Naked_int32 -> XInt32
   | Naked_number (Naked_immediate | Naked_nativeint) -> begin
     match Targetint_32_64.num_bits with
-    | Thirty_two -> Cmm.XInt32
-    | Sixty_four -> Cmm.XInt64
+    | Thirty_two -> XInt32
+    | Sixty_four -> XInt64
   end
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
-let machtype_of_kind k =
-  match (k : Flambda_kind.t) with
+let machtype_of_kind (k : Flambda_kind.t) =
+  match k with
   | Value -> Cmm.typ_val
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_int64 -> typ_int64

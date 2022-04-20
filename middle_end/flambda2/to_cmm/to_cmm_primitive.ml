@@ -202,9 +202,7 @@ let string_like_load ?(dbg = Debuginfo.none) kind width block index =
   | String | Bytes -> string_like_load_aux ~dbg width block index
   | Bigstring ->
     let ba_data_addr = C.field_address block 1 dbg in
-    let ba_data =
-      C.load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr
-    in
+    let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
     C.bind "ba_data" ba_data (fun ptr ->
         string_like_load_aux ~dbg width ptr index)
 
@@ -213,8 +211,8 @@ let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
   match (width : Flambda_primitive.string_accessor_width) with
   | Eight ->
     let idx = C.untag_int idx dbg in
-    C.store ~dbg Cmm.Byte_unsigned Lambda.Assignment
-      ~addr:(C.add_int ptr idx dbg) ~new_value:value
+    C.store ~dbg Byte_unsigned Assignment ~addr:(C.add_int ptr idx dbg)
+      ~new_value:value
   | Sixteen ->
     let idx = C.untag_int idx dbg in
     C.unaligned_set_16 ptr idx value dbg
@@ -235,9 +233,7 @@ let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
       (bytes_like_set_aux ~dbg kind width block block index value)
   | Bigstring ->
     let ba_data_addr = C.field_address block 1 dbg in
-    let ba_data =
-      C.load ~dbg Cmm.Word_int Asttypes.Mutable ~addr:ba_data_addr
-    in
+    let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
     C.return_unit dbg
       (C.bind "ba_data" ba_data (fun ptr ->
            bytes_like_set_aux ~dbg kind width block ptr index value))
@@ -260,13 +256,12 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let primitive_boxed_int_of_standard_int x =
+let primitive_boxed_int_of_standard_int x : Primitive.boxed_integer =
   match (x : Flambda_kind.Standard_int.t) with
-  | Naked_int32 -> Primitive.Pint32
-  | Naked_int64 -> Primitive.Pint64
-  | Naked_nativeint -> Primitive.Pnativeint
-  | Tagged_immediate -> assert false
-  | Naked_immediate -> assert false
+  | Naked_int32 -> Pint32
+  | Naked_int64 -> Pint64
+  | Naked_nativeint -> Pnativeint
+  | Tagged_immediate | Naked_immediate -> assert false
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (kind : Flambda_kind.Standard_int.t), (op : P.unary_int_arith_op) with
@@ -369,8 +364,8 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | Tagged_immediate, Add -> C.add_int_caml x y dbg
   | Tagged_immediate, Sub -> C.sub_int_caml x y dbg
   | Tagged_immediate, Mul -> C.mul_int_caml x y dbg
-  | Tagged_immediate, Div -> C.div_int_caml Lambda.Unsafe x y dbg
-  | Tagged_immediate, Mod -> C.mod_int_caml Lambda.Unsafe x y dbg
+  | Tagged_immediate, Div -> C.div_int_caml Unsafe x y dbg
+  | Tagged_immediate, Mod -> C.mod_int_caml Unsafe x y dbg
   | Tagged_immediate, And -> C.and_int_caml x y dbg
   | Tagged_immediate, Or -> C.or_int_caml x y dbg
   | Tagged_immediate, Xor -> C.xor_int_caml x y dbg
@@ -398,16 +393,16 @@ let binary_int_arith_primitive _env dbg kind op x y =
   (* Division and modulo need some extra care *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
     let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_div_bi Lambda.Unsafe x y bi dbg
+    C.safe_div_bi Unsafe x y bi dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Mod ->
     let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_mod_bi Lambda.Unsafe x y bi dbg
+    C.safe_mod_bi Unsafe x y bi dbg
   | Naked_int32, Div ->
     let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_div_bi Lambda.Unsafe x y bi dbg)
+    C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
   | Naked_int32, Mod ->
     let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_mod_bi Lambda.Unsafe x y bi dbg)
+    C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : Flambda_kind.Standard_int.t), (op : P.int_shift_op) with
@@ -554,7 +549,7 @@ let unary_primitive env res dbg f arg =
   | Bigarray_length { dimension } ->
     ( None,
       res,
-      C.load ~dbg Cmm.Word_int Asttypes.Mutable
+      C.load ~dbg Word_int Mutable
         ~addr:(C.field_address arg (4 + dimension) dbg) )
   | String_length _ -> None, res, C.string_length arg dbg
   | Int_as_pointer -> None, res, C.int_as_pointer arg dbg
