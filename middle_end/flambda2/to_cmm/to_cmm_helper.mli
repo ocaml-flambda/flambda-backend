@@ -63,27 +63,6 @@ val make_block :
 val make_closure_block :
   ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression
 
-(** {2 Boxed numbers} *)
-
-(** Box an unboxed number *)
-val box_number :
-  ?dbg:Debuginfo.t ->
-  Flambda_kind.Boxable_number.t ->
-  Alloc_mode.t ->
-  Cmm.expression ->
-  Cmm.expression
-
-(** Shortcut for [box_number Flambda_kind.Boxable_number.Naked_int64] *)
-val box_int64 :
-  ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression -> Cmm.expression
-
-(** Unbox a boxed number. *)
-val unbox_number :
-  ?dbg:Debuginfo.t ->
-  Flambda_kind.Boxable_number.t ->
-  Cmm.expression ->
-  Cmm.expression
-
 (** {2 Block access} *)
 
 val convert_alloc_mode : Alloc_mode.t -> Lambda.alloc_mode
@@ -160,10 +139,6 @@ val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
 (** {2 Arithmetic/Logic helpers} *)
-
-(** Conversion function. *)
-val primitive_boxed_int_of_standard_int :
-  Flambda_kind.Standard_int.t -> Primitive.boxed_integer
 
 (** Prepend constants that were populated in Cmmgen_state (mostly by indirect
     use through functions from Cmm_helpers). *)

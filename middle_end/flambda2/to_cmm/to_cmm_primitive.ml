@@ -24,6 +24,41 @@ module C = struct
   include To_cmm_helper
 end
 
+(* Boxed numbers *)
+
+let _primitive_boxed_int_of_standard_int b =
+  match (b : Flambda_kind.Standard_int.t) with
+  | Naked_int32 -> Primitive.Pint32
+  | Naked_int64 -> Primitive.Pint64
+  | Naked_nativeint -> Primitive.Pnativeint
+  | Naked_immediate | Tagged_immediate ->
+    Misc.fatal_errorf "No corresponding primitive boxed int type."
+
+let primitive_boxed_int_of_boxable_number b =
+  match (b : Flambda_kind.Boxable_number.t) with
+  | Naked_float -> assert false
+  | Naked_int32 -> Primitive.Pint32
+  | Naked_int64 -> Primitive.Pint64
+  | Naked_nativeint -> Primitive.Pnativeint
+
+let unbox_number ?(dbg = Debuginfo.none) kind arg =
+  match (kind : Flambda_kind.Boxable_number.t) with
+  | Naked_float -> C.unbox_float dbg arg
+  | _ ->
+    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    C.unbox_int dbg primitive_kind arg
+
+let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
+  let alloc_mode = C.convert_alloc_mode alloc_mode in
+  match (kind : Flambda_kind.Boxable_number.t) with
+  | Naked_float -> C.box_float dbg alloc_mode arg
+  | _ ->
+    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    C.box_int_gen dbg primitive_kind alloc_mode arg
+
+let _box_int64 ?dbg alloc_mode arg =
+  box_number ?dbg Flambda_kind.Boxable_number.Naked_int64 alloc_mode arg
+
 (* Array access *)
 
 let array_length ?(dbg = Debuginfo.none) arr =
@@ -303,16 +338,16 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Xor -> C.xor_int x y dbg
   (* Division and modulo need some extra care *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
-    let bi = C.primitive_boxed_int_of_standard_int kind in
+    let bi = primitive_boxed_int_of_standard_int kind in
     C.safe_div_bi Lambda.Unsafe x y bi dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Mod ->
-    let bi = C.primitive_boxed_int_of_standard_int kind in
+    let bi = primitive_boxed_int_of_standard_int kind in
     C.safe_mod_bi Lambda.Unsafe x y bi dbg
   | Naked_int32, Div ->
-    let bi = C.primitive_boxed_int_of_standard_int kind in
+    let bi = primitive_boxed_int_of_standard_int kind in
     C.sign_extend_32 dbg (C.safe_div_bi Lambda.Unsafe x y bi dbg)
   | Naked_int32, Mod ->
-    let bi = C.primitive_boxed_int_of_standard_int kind in
+    let bi = primitive_boxed_int_of_standard_int kind in
     C.sign_extend_32 dbg (C.safe_mod_bi Lambda.Unsafe x y bi dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
@@ -481,10 +516,10 @@ let unary_primitive env res dbg f arg =
       C.extcall ~alloc:false ~returns:true ~is_c_builtin:false
         ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
-  | Unbox_number kind -> None, res, C.unbox_number ~dbg kind arg
+  | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    Some Env.Box, res, C.box_number ~dbg kind alloc_mode arg
+    Some Env.Box, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
     (* We could have an [Env.Tag] which would be returned here, but probably
        unnecessary at the moment. *)
