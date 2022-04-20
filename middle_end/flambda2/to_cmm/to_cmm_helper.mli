@@ -102,9 +102,6 @@ val param_list :
 
 (** {2 Expression combinators} *)
 
-(** Translate the raise kind found on Pop trap actions into a Cmm raise kind *)
-val raise_kind : Trap_action.raise_kind option -> Lambda.raise_kind
-
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 

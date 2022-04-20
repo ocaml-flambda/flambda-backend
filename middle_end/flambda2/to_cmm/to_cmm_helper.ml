@@ -179,15 +179,6 @@ let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
   let tag = Tag.(to_int closure_tag) in
   make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg tag l
 
-(* try-with blocks *)
-
-let raise_kind (kind : Trap_action.raise_kind option) : Lambda.raise_kind =
-  match kind with
-  | Some Regular -> Raise_regular
-  | Some Reraise -> Raise_reraise
-  | Some No_trace -> Raise_notrace
-  | None -> Raise_notrace
-
 (* Call into `caml_flambda2_invalid` for invalid/unreachable code, instead of
    simply generating code that segfaults *)
 let invalid res ~message =

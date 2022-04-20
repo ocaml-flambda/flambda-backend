@@ -374,7 +374,8 @@ let apply_cont_exn env e k = function
   | exn :: extra ->
     let raise_kind =
       match Apply_cont_expr.trap_action e with
-      | Some (Pop { raise_kind; _ }) -> C.raise_kind raise_kind
+      | Some (Pop { raise_kind; _ }) ->
+        Trap_action.Raise_kind.option_to_lambda raise_kind
       | _ ->
         Misc.fatal_errorf
           "Apply cont %a calls an exception cont without a Pop trap action"

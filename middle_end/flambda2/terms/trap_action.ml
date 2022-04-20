@@ -16,27 +16,41 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type raise_kind =
-  | Regular
-  | Reraise
-  | No_trace
+module Raise_kind = struct
+  type t =
+    | Regular
+    | Reraise
+    | No_trace
 
-let raise_kind_to_int = function Regular -> 0 | Reraise -> 1 | No_trace -> 2
+  let to_int = function Regular -> 0 | Reraise -> 1 | No_trace -> 2
 
-let compare_raise_kind rk1 rk2 =
-  Int.compare (raise_kind_to_int rk1) (raise_kind_to_int rk2)
+  let option_to_string = function
+    | None -> ""
+    | Some Regular -> " (raise-regular)"
+    | Some Reraise -> " (reraise)"
+    | Some No_trace -> " (notrace)"
 
-let raise_kind_from_lambda (kind : Lambda.raise_kind) =
-  match kind with
-  | Raise_regular -> Regular
-  | Raise_reraise -> Reraise
-  | Raise_notrace -> No_trace
+  let compare rk1 rk2 = Int.compare (to_int rk1) (to_int rk2)
+
+  let from_lambda (kind : Lambda.raise_kind) =
+    match kind with
+    | Raise_regular -> Regular
+    | Raise_reraise -> Reraise
+    | Raise_notrace -> No_trace
+
+  let option_to_lambda t_opt : Lambda.raise_kind =
+    match t_opt with
+    | None -> Raise_notrace
+    | Some Regular -> Raise_regular
+    | Some Reraise -> Raise_reraise
+    | Some No_trace -> Raise_notrace
+end
 
 type t =
   | Push of { exn_handler : Continuation.t }
   | Pop of
       { exn_handler : Continuation.t;
-        raise_kind : raise_kind option
+        raise_kind : Raise_kind.t option
       }
 
 let compare t1 t2 =
@@ -48,15 +62,9 @@ let compare t1 t2 =
     let c = Continuation.compare exn_handler1 exn_handler2 in
     if c <> 0
     then c
-    else Option.compare compare_raise_kind raise_kind1 raise_kind2
+    else Option.compare Raise_kind.compare raise_kind1 raise_kind2
   | Push _, Pop _ -> -1
   | Pop _, Push _ -> 1
-
-let raise_kind_option_to_string = function
-  | None -> ""
-  | Some Regular -> " (raise-regular)"
-  | Some Reraise -> " (reraise)"
-  | Some No_trace -> " (notrace)"
 
 let [@ocamlformat "disable"] print ppf t =
   let fprintf = Format.fprintf in
@@ -72,7 +80,7 @@ let [@ocamlformat "disable"] print ppf t =
     fprintf ppf "%spop_trap%s%s %a %sthen%s "
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())
-      (raise_kind_option_to_string raise_kind)
+      (Raise_kind.option_to_string raise_kind)
       Continuation.print exn_handler
       (Flambda_colours.expr_keyword ())
       (Flambda_colours.normal ())

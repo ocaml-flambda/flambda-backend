@@ -595,7 +595,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       in
       args @ extra_args
     in
-    let raise_kind = Some (Trap_action.raise_kind_from_lambda raise_kind) in
+    let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
