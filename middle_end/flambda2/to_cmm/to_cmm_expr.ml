@@ -290,7 +290,7 @@ let apply_call env e =
     fail_if_probe e;
     let f, env, _ = C.simple env f in
     let args, env, _ = C.arg_list env args in
-    ( C.indirect_call ~dbg typ_val (C.convert_alloc_mode alloc_mode) f args,
+    ( C.indirect_call ~dbg typ_val (Alloc_mode.to_lambda alloc_mode) f args,
       env,
       effs )
   | Function
@@ -310,7 +310,7 @@ let apply_call env e =
         return_arity |> Flambda_arity.With_subkinds.to_arity
         |> machtype_of_return_arity
       in
-      ( C.indirect_full_call ~dbg ty (C.convert_alloc_mode alloc_mode) f args,
+      ( C.indirect_full_call ~dbg ty (Alloc_mode.to_lambda alloc_mode) f args,
         env,
         effs )
   | Call_kind.C_call { alloc; return_arity; param_arity; is_c_builtin } ->
@@ -337,7 +337,7 @@ let apply_call env e =
     let meth, env, _ = C.simple env f in
     let kind = meth_kind kind in
     let args, env, _ = C.arg_list env args in
-    let alloc_mode = C.convert_alloc_mode alloc_mode in
+    let alloc_mode = Alloc_mode.to_lambda alloc_mode in
     C.send kind meth obj args (Rc_normal, alloc_mode) dbg, env, effs
 
 (* Function calls that have an exn continuation with extra arguments must be

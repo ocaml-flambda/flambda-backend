@@ -130,10 +130,6 @@ let param_list env l =
   in
   env, vars
 
-(* Allocation modes *)
-
-let convert_alloc_mode (alloc_mode : Alloc_mode.t) : Lambda.alloc_mode =
-  match alloc_mode with Heap -> Alloc_heap | Local -> Alloc_local
 (* Block creation *)
 
 (* Blocks of size 0 (i.e. with an empty list of fields) must be statically
@@ -156,10 +152,10 @@ let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
   match (kind : Flambda_primitive.Array_kind.t) with
   | Immediates | Values ->
-    make_alloc ~mode:(convert_alloc_mode alloc_mode) dbg 0 args
+    make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
   | Naked_floats ->
     make_float_alloc
-      ~mode:(convert_alloc_mode alloc_mode)
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
       dbg
       (Tag.to_int Tag.double_array_tag)
       args
@@ -169,11 +165,11 @@ let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
   match (kind : Flambda_primitive.Block_kind.t) with
   | Values (tag, _) ->
     make_alloc
-      ~mode:(convert_alloc_mode alloc_mode)
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
       dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
     make_float_alloc
-      ~mode:(convert_alloc_mode alloc_mode)
+      ~mode:(Alloc_mode.to_lambda alloc_mode)
       dbg
       (Tag.to_int Tag.double_array_tag)
       args
@@ -181,7 +177,7 @@ let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
 let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
   assert (List.compare_length_with l 0 > 0);
   let tag = Tag.(to_int closure_tag) in
-  make_alloc ~mode:(convert_alloc_mode alloc_mode) dbg tag l
+  make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg tag l
 
 (* try-with blocks *)
 

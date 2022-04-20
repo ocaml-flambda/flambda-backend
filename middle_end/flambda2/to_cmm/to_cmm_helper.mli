@@ -63,8 +63,6 @@ val make_block :
 val make_closure_block :
   ?dbg:Debuginfo.t -> Alloc_mode.t -> Cmm.expression list -> Cmm.expression
 
-val convert_alloc_mode : Alloc_mode.t -> Lambda.alloc_mode
-
 (** {2 Numeric conversions} *)
 
 val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t

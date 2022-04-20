@@ -41,7 +41,7 @@ let unbox_number ?(dbg = Debuginfo.none) kind arg =
     C.unbox_int dbg primitive_kind arg
 
 let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
-  let alloc_mode = C.convert_alloc_mode alloc_mode in
+  let alloc_mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
   | _ ->
