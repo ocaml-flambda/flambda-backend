@@ -123,9 +123,7 @@ end = struct
         | None -> acc
         | Some symbs ->
           let function_symbol = Function_slot.Map.find c symbs in
-          List.rev
-            (P.define_global_symbol
-               (Symbol.linkage_name_as_string function_symbol))
+          P.define_global_symbol (Symbol.linkage_name_as_string function_symbol)
           @ acc
       in
       (* We build here the **reverse** list of fields for the closure *)
@@ -156,8 +154,10 @@ end = struct
         if starting_offset > slot_offset
         then
           Misc.fatal_errorf "Starting offset %d is past slot offset %d"
-            starting_offset slot_offset;
-        List.init (slot_offset - starting_offset) (fun _ -> P.int 1n)
+            starting_offset slot_offset
+        else if starting_offset = slot_offset
+        then acc
+        else acc @ List.init (slot_offset - starting_offset) (fun _ -> P.int 1n)
       in
       let acc, next_offset, env, eff, updates =
         fill_slot ~set_of_closures_symbol_ref symbs decls ~startenv elts env acc
@@ -288,6 +288,7 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
         match !set_of_closures_symbol_ref with
         | None -> []
         | Some s ->
+          (* CR mshinwell: Is [global:false] correct? *)
           C.define_symbol ~global:false (Symbol.linkage_name_as_string s)
       in
       (header :: sdef) @ l
