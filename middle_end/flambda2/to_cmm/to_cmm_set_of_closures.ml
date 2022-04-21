@@ -184,7 +184,7 @@ module Dynamic = Make_layout_filler (struct
   let symbol_from_linkage_name ~dbg linkage_name =
     C.symbol_from_linkage_name ~dbg linkage_name
 
-  let define_global_symbol _ = []
+  let define_global_symbol _ = assert false
 end)
 
 (* Filling-up of statically-allocated sets of closures. *)
@@ -301,7 +301,6 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
         match !set_of_closures_symbol_ref with
         | None -> []
         | Some s ->
-          (* CR mshinwell: Is [global:false] correct? *)
           C.define_symbol ~global:false (Symbol.linkage_name_as_string s)
       in
       (header :: sdef) @ l
@@ -365,7 +364,7 @@ let lift_set_of_closures env res ~body ~bound_vars set layout ~translate_expr =
   in
   translate_expr env res body
 
-let let_dynamic_set_of_closures env res ~body ~bound_vars set
+let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr ~let_expr_bind =
   let fun_decls = Set_of_closures.function_decls set in
@@ -427,7 +426,7 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars
   if layout.empty_env
   then lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr
   else
-    let_dynamic_set_of_closures env res ~body ~bound_vars
+    let_dynamic_set_of_closures0 env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars s layout
       ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
       ~translate_expr ~let_expr_bind

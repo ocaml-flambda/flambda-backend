@@ -846,7 +846,3 @@ and switch env res s =
         (C.transl_switch_clambda Debuginfo.none (Vval Pgenval) scrutinee index
            cases),
       res )
-
-(* CR gbury: for the future, try and rearrange the generated cmm code to move
-   assignments closer to the variable definitions Or better: add traps to the
-   env to insert assignemnts after the variable definitions. *)

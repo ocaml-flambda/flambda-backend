@@ -62,7 +62,7 @@ let flush_cmm_helpers_state () =
    has an associated computation, then it will already be included in the list
    of gc_roots; otherwise it does not *have* to be a root. *)
 
-let unit ~offsets ~make_symbol flambda_unit ~all_code =
+let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   let dummy_k = Continuation.create () in
   (* The dummy continuation is passed here since we're going to manually arrange
      that the return continuation turns into "return unit". (Module initialisers
@@ -115,4 +115,4 @@ let unit ~offsets ~make_symbol flambda_unit ~all_code =
 
 let unit ~offsets ~make_symbol flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      unit ~offsets ~make_symbol flambda_unit ~all_code)
+      unit0 ~offsets ~make_symbol flambda_unit ~all_code)
