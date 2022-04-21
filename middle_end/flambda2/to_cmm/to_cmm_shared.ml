@@ -74,10 +74,8 @@ let name env name =
         To_cmm_env.check_scope ~allow_deleted:false env
           (Code_id_or_symbol.create_symbol s)
       in
-      ( Cmm.Cconst_symbol
-          (Linkage_name.to_string (Symbol.linkage_name s), Debuginfo.none),
-        env,
-        Ece.pure ))
+      (* CR mshinwell: fix debuginfo? *)
+      symbol ~dbg:Debuginfo.none s, env, Ece.pure)
 
 let const ~dbg cst =
   match Reg_width_const.descr cst with

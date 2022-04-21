@@ -57,7 +57,7 @@ let add_to_data_list x l =
         "data list does not define any symbol, its elements will be unusable: \
          %a"
         Printcmm.data x;
-    Cmm.Cdata x :: l
+    C.cdata x :: l
 
 let archive_data r =
   { r with
@@ -102,8 +102,6 @@ let to_cmm r =
         Debuginfo.compare f1.fun_dbg f2.fun_dbg)
       r.functions
   in
-  let functions_phrases =
-    List.map (fun f -> Cmm.Cfunction f) sorted_functions
-  in
+  let functions_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
   (* Return the data list, gc roots and function declarations *)
   r.data_list, r.gc_roots, functions_phrases

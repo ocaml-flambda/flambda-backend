@@ -51,8 +51,8 @@ let rec static_block_updates symb env acc i = function
       static_block_updates symb env acc (i + 1) r
     | Dynamically_computed (var, dbg) ->
       let env, acc =
-        C.make_update env dbg Cmm.Word_val ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
+        C.make_update env dbg Word_val ~symbol:(C.symbol ~dbg symb) var ~index:i
+          ~prev_updates:acc
       in
       static_block_updates symb env acc (i + 1) r
   end
@@ -64,8 +64,8 @@ let rec static_float_array_updates symb env acc i = function
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
     | Var (var, dbg) ->
       let env, acc =
-        C.make_update env dbg Cmm.Double ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
+        C.make_update env dbg Double ~symbol:(C.symbol ~dbg symb) var ~index:i
+          ~prev_updates:acc
       in
       static_float_array_updates symb env acc (i + 1) r
   end
@@ -144,19 +144,19 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
     let default = Numeric_types.Float_by_bit_pattern.zero in
     let transl = Numeric_types.Float_by_bit_pattern.to_float in
     let r, (env, updates) =
-      static_boxed_number Cmm.Double env s default C.emit_float_constant transl
-        v r updates
+      static_boxed_number Double env s default C.emit_float_constant transl v r
+        updates
     in
     env, r, updates
   | Block_like s, Boxed_int32 v ->
     let r, (env, updates) =
-      static_boxed_number Cmm.Word_int env s 0l C.emit_int32_constant Fun.id v r
+      static_boxed_number Word_int env s 0l C.emit_int32_constant Fun.id v r
         updates
     in
     env, r, updates
   | Block_like s, Boxed_int64 v ->
     let r, (env, updates) =
-      static_boxed_number Cmm.Word_int env s 0L C.emit_int64_constant Fun.id v r
+      static_boxed_number Word_int env s 0L C.emit_int64_constant Fun.id v r
         updates
     in
     env, r, updates
@@ -164,7 +164,7 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
     let default = Targetint_32_64.zero in
     let transl = C.nativeint_of_targetint in
     let r, (env, updates) =
-      static_boxed_number Cmm.Word_int env s default C.emit_nativeint_constant
+      static_boxed_number Word_int env s default C.emit_nativeint_constant
         transl v r updates
     in
     env, r, updates

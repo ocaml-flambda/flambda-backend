@@ -281,13 +281,9 @@ let apply_call env e =
         env,
         effs )
     | Some name ->
-      ( Cmm.Cop
-          ( Cprobe
-              { name;
-                handler_code_sym = Linkage_name.to_string code_linkage_name
-              },
-            args,
-            dbg ),
+      ( C.probe ~dbg ~name
+          ~handler_code_linkage_name:(Linkage_name.to_string code_linkage_name)
+          ~args,
         env,
         effs ))
   | Function { function_call = Indirect_unknown_arity; alloc_mode } ->

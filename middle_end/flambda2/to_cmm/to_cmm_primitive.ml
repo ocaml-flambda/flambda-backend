@@ -529,7 +529,7 @@ let nullary_primitive _env dbg prim : _ * Cmm.expression =
   match (prim : P.nullary_primitive) with
   | Optimised_out _ -> Misc.fatal_errorf "TODO: phantom let-bindings in to_cmm"
   | Probe_is_enabled { name } -> None, Cop (Cprobe_is_enabled { name }, [], dbg)
-  | Begin_region -> None, Cop (Cbeginregion, [], dbg)
+  | Begin_region -> None, C.beginregion ~dbg
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
@@ -635,11 +635,8 @@ let unary_primitive env res dbg f arg =
         ~else_:(C.eq (C.get_tag arg dbg) (C.int Obj.double_tag ~dbg) ~dbg)
         ~else_dbg:dbg )
   | Is_flat_float_array ->
-    ( None,
-      res,
-      Cmm.Cop (Ccmpi Ceq, [C.get_tag arg dbg; C.floatarray_tag dbg], dbg) )
-  | End_region ->
-    None, res, C.return_unit dbg (Cmm.Cop (Cendregion, [arg], dbg))
+    None, res, C.eq ~dbg (C.get_tag arg dbg) (C.floatarray_tag dbg)
+  | End_region -> None, res, C.return_unit dbg (C.endregion ~dbg arg)
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with

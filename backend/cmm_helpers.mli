@@ -1038,6 +1038,17 @@ val float_gt : dbg:Debuginfo.t -> expression -> expression -> expression
     (either 0 or 1) to represent the result of the comparison. *)
 val float_ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
+val beginregion : dbg:Debuginfo.t -> expression
+
+val endregion : dbg:Debuginfo.t -> expression -> expression
+
+val probe :
+  dbg:Debuginfo.t ->
+  name:string ->
+  handler_code_linkage_name:string ->
+  args:expression list ->
+  expression
+
 val load :
   dbg:Debuginfo.t ->
   memory_chunk ->

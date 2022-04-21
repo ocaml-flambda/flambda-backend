@@ -3966,6 +3966,13 @@ let float_gt = binary (Ccmpf CFgt)
 
 let float_ge = binary (Ccmpf CFge)
 
+let beginregion ~dbg = Cop (Cbeginregion, [], dbg)
+
+let endregion ~dbg region = Cop (Cendregion, [region], dbg)
+
+let probe ~dbg ~name ~handler_code_linkage_name ~args =
+  Cop (Cprobe { name; handler_code_sym = handler_code_linkage_name }, args, dbg)
+
 let load ~dbg kind mut ~addr = Cop (Cload (kind, mut), [addr], dbg)
 
 let store ~dbg kind init ~addr ~new_value =
