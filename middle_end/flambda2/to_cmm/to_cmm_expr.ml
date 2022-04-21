@@ -258,7 +258,7 @@ let apply_call env e =
       Env.check_scope ~allow_deleted:false env
         (Code_id_or_symbol.create_code_id code_id)
     in
-    let info = Env.get_function_info env code_id in
+    let info = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity info in
     if not (check_arity params_arity args)
     then Misc.fatal_errorf "Wrong arity for direct call";

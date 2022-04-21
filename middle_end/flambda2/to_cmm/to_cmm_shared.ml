@@ -161,9 +161,9 @@ let invalid res ~message =
   in
   call_expr, data_items
 
-let make_update env kind ~symbol var ~index ~prev_updates =
+let make_update env dbg kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in
-  let addr = field_address symbol index Debuginfo.none in
+  let addr = field_address symbol index dbg in
   let update = store kind Root_initialization ~addr ~new_value:e in
   match prev_updates with
   | None -> env, Some update

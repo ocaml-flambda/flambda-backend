@@ -183,11 +183,11 @@ let exn_cont env = env.k_exn
 
 (* Function info *)
 
-let get_function_info env code_id =
+let get_code_metadata env code_id =
   match Exported_code.find_exn env.functions_info code_id with
   | code_or_metadata -> Code_or_metadata.code_metadata code_or_metadata
   | exception Not_found ->
-    Misc.fatal_errorf "To_cmm_env.get_function_info: code ID %a not bound"
+    Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
       Code_id.print code_id
 
 type closure_code_pointers =
@@ -195,7 +195,7 @@ type closure_code_pointers =
   | Full_and_partial_application
 
 let get_func_decl_params_arity t code_id =
-  let info = get_function_info t code_id in
+  let info = get_code_metadata t code_id in
   let num_params =
     Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
   in
@@ -210,7 +210,7 @@ let get_func_decl_params_arity t code_id =
     | Curried _, (0 | 1) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
-  (kind, num_params), closure_code_pointers
+  (kind, num_params), closure_code_pointers, Code_metadata.dbg info
 
 (* Variables *)
 

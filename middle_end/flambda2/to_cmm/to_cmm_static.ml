@@ -51,7 +51,8 @@ let rec static_block_updates symb env acc i = function
       static_block_updates symb env acc (i + 1) r
     | Dynamically_computed var ->
       let env, acc =
-        C.make_update env Cmm.Word_val ~symbol:symb var ~index:i
+        (* CR mshinwell: fix debuginfo here and below *)
+        C.make_update env Debuginfo.none Cmm.Word_val ~symbol:symb var ~index:i
           ~prev_updates:acc
       in
       static_block_updates symb env acc (i + 1) r
@@ -64,7 +65,8 @@ let rec static_float_array_updates symb env acc i = function
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
     | Var var ->
       let env, acc =
-        C.make_update env Cmm.Double ~symbol:symb var ~index:i ~prev_updates:acc
+        C.make_update env Debuginfo.none Cmm.Double ~symbol:symb var ~index:i
+          ~prev_updates:acc
       in
       static_float_array_updates symb env acc (i + 1) r
   end
@@ -79,7 +81,7 @@ let static_boxed_number kind env symbol default emit transl v r updates =
     match (v : _ Or_variable.t) with
     | Const _ -> env, None
     | Var v ->
-      C.make_update env kind ~symbol:(C.symbol symbol) v ~index:0
+      C.make_update env Debuginfo.none kind ~symbol:(C.symbol symbol) v ~index:0
         ~prev_updates:updates
   in
   R.update_data r (or_variable aux default v), updates

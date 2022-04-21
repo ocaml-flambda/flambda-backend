@@ -4,7 +4,8 @@
 (*                                                                        *)
 (*                        Guillaume Bury, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 2019--2022 OCamlPro SAS                                    *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Flambda.Import
 module Env = To_cmm_env
@@ -48,16 +49,16 @@ let get_whole_closure_symbol =
 module Make_layout_filler (P : sig
   type cmm_term
 
-  val int : ?dbg:Debuginfo.t -> nativeint -> cmm_term
+  val int : dbg:Debuginfo.t -> nativeint -> cmm_term
 
   val simple :
     To_cmm_env.t ->
     Simple.t ->
     [`Data of cmm_term list | `Var of Variable.t] * To_cmm_env.t * Ece.t
 
-  val infix_header : first_value_slot_offset:int -> Debuginfo.t -> cmm_term
+  val infix_header : dbg:Debuginfo.t -> first_value_slot_offset:int -> cmm_term
 
-  val symbol_from_linkage_name : ?dbg:Debuginfo.t -> Linkage_name.t -> cmm_term
+  val symbol_from_linkage_name : dbg:Debuginfo.t -> Linkage_name.t -> cmm_term
 
   val define_global_symbol : string -> cmm_term list
 end) : sig
@@ -65,6 +66,7 @@ end) : sig
     set_of_closures_symbol_ref:Symbol.t option ref ->
     Symbol.t Function_slot.Map.t option ->
     Code_id.t Function_slot.Map.t ->
+    Debuginfo.t ->
     startenv:int ->
     Simple.t Value_slot.Map.t ->
     Env.t ->
@@ -76,16 +78,16 @@ end) : sig
     P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
 end = struct
   (* The [offset]s here are measured in units of words. *)
-  let fill_slot ~set_of_closures_symbol_ref symbs decls ~startenv elts env acc
-      ~slot_offset updates slot =
+  let fill_slot ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+      value_slots env acc ~slot_offset updates slot =
     match (slot : Slot_offsets.layout_slot) with
     | Infix_header ->
       let field =
-        P.infix_header ~first_value_slot_offset:(slot_offset + 1) Debuginfo.none
+        P.infix_header ~first_value_slot_offset:(slot_offset + 1) ~dbg
       in
       field :: acc, slot_offset + 1, env, Ece.pure, updates
     | Value_slot v ->
-      let simple = Value_slot.Map.find v elts in
+      let simple = Value_slot.Map.find v value_slots in
       let contents, env, eff = P.simple env simple in
       let env, fields, updates =
         match contents with
@@ -97,22 +99,17 @@ end = struct
             get_whole_closure_symbol ~set_of_closures_symbol_ref
           in
           let env, updates =
-            C.make_update env Word_val
+            C.make_update env dbg Word_val
               ~symbol:(C.symbol set_of_closures_symbol)
               v ~index:slot_offset ~prev_updates:updates
           in
-          env, [P.int 1n], updates
+          env, [P.int ~dbg 1n], updates
       in
       List.rev fields @ acc, slot_offset + 1, env, eff, updates
     | Function_slot c -> (
       let code_id = Function_slot.Map.find c decls in
-      (* CR-someday mshinwell: We should probably use the code's [dbg], but it
-         would be tricky to get hold of, and this is very unlikely to make any
-         difference in practice. mshinwell: this can now be got from
-         Code_metadata. *)
-      let dbg = Debuginfo.none in
       let code_linkage_name = Code_id.linkage_name code_id in
-      let arity, closure_code_pointers =
+      let arity, closure_code_pointers, dbg =
         Env.get_func_decl_params_arity env code_id
       in
       let closure_info =
@@ -126,7 +123,7 @@ end = struct
           P.define_global_symbol (Symbol.linkage_name_as_string function_symbol)
           @ acc
       in
-      (* We build here the **reverse** list of fields for the closure *)
+      (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
       | Full_application_only ->
         let acc =
@@ -145,8 +142,8 @@ end = struct
         in
         acc, slot_offset + 3, env, Ece.pure, updates)
 
-  let rec fill_layout ~set_of_closures_symbol_ref symbs decls ~startenv elts env
-      effs acc updates ~starting_offset slots =
+  let rec fill_layout ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+      value_slots env effs acc updates ~starting_offset slots =
     match slots with
     | [] -> List.rev acc, starting_offset, env, effs, updates
     | (slot_offset, slot) :: slots ->
@@ -157,31 +154,34 @@ end = struct
             starting_offset slot_offset
         else if starting_offset = slot_offset
         then acc
-        else acc @ List.init (slot_offset - starting_offset) (fun _ -> P.int 1n)
+        else
+          acc
+          @ List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
       in
       let acc, next_offset, env, eff, updates =
-        fill_slot ~set_of_closures_symbol_ref symbs decls ~startenv elts env acc
-          ~slot_offset updates slot
+        fill_slot ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+          value_slots env acc ~slot_offset updates slot
       in
       let effs = Ece.join eff effs in
-      fill_layout ~set_of_closures_symbol_ref symbs decls ~startenv elts env
-        effs acc updates ~starting_offset:next_offset slots
+      fill_layout ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+        value_slots env effs acc updates ~starting_offset:next_offset slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
 module Dynamic = Make_layout_filler (struct
   type cmm_term = Cmm.expression
 
-  let int = C.nativeint
+  let int ~dbg i = C.nativeint ~dbg i
 
   let simple env simple =
     let term, env, eff = C.simple env simple in
     `Data [term], env, eff
 
-  let infix_header ~first_value_slot_offset dbg =
+  let infix_header ~dbg ~first_value_slot_offset =
     C.alloc_infix_header first_value_slot_offset dbg
 
-  let symbol_from_linkage_name = C.symbol_from_linkage_name
+  let symbol_from_linkage_name ~dbg linkage_name =
+    C.symbol_from_linkage_name ~dbg linkage_name
 
   let define_global_symbol _ = []
 end)
@@ -190,50 +190,58 @@ end)
 module Static = Make_layout_filler (struct
   type cmm_term = Cmm.data_item
 
-  let int ?dbg i =
-    ignore dbg;
-    C.cint i
+  let int ~dbg:_ i = C.cint i
 
   let simple env simple =
     let env, contents = C.simple_static env simple in
     contents, env, Ece.pure
 
-  let infix_header ~first_value_slot_offset _dbg =
+  let infix_header ~dbg:_ ~first_value_slot_offset =
     C.cint (C.infix_header first_value_slot_offset)
 
-  let symbol_from_linkage_name ?dbg linkage_name =
-    ignore dbg;
+  let symbol_from_linkage_name ~dbg:_ linkage_name =
     C.symbol_address (Linkage_name.to_string linkage_name)
 
   let define_global_symbol sym = List.rev (C.define_symbol ~global:true sym)
 end)
 
-(* Helpers for translating functions *)
+(* Translation of the bodies of functions. *)
 
-let function_params params my_closure ~(is_my_closure_used : _ Or_unknown.t) =
-  let is_my_closure_used =
-    match is_my_closure_used with
-    | Unknown -> true
-    | Known is_my_closure_used -> is_my_closure_used
-  in
-  if is_my_closure_used
-  then
-    let my_closure_param =
-      Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
+let params_and_body0 env res code_id ~fun_dbg ~return_continuation
+    ~exn_continuation params ~body ~my_closure
+    ~(is_my_closure_used : _ Or_unknown.t) ~translate_expr =
+  let params =
+    let is_my_closure_used =
+      match is_my_closure_used with
+      | Unknown -> true
+      | Known is_my_closure_used -> is_my_closure_used
     in
-    Bound_parameters.append params (Bound_parameters.create [my_closure_param])
-  else params
-
-let function_flags () =
-  if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
-
-(* Translate a function declaration. *)
+    if not is_my_closure_used
+    then params
+    else
+      let my_closure_param =
+        Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
+      in
+      Bound_parameters.append params
+        (Bound_parameters.create [my_closure_param])
+  in
+  (* Init the env and create a jump id for the return continuation in case a
+     trap action is attached to one of its calls *)
+  let env = Env.enter_function_def env return_continuation exn_continuation in
+  (* Translate the arg list and body *)
+  let env, fun_args = C.bound_parameters env params in
+  let fun_body, res = translate_expr env res body in
+  let fun_flags =
+    if Flambda_features.optimize_for_speed () then [] else [Cmm.Reduce_code_size]
+  in
+  let linkage_name = Linkage_name.to_string (Code_id.linkage_name code_id) in
+  C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg, res
 
 let params_and_body env res code_id p ~fun_dbg ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
-         ~return_continuation:k
-         ~exn_continuation:k_exn
+         ~return_continuation
+         ~exn_continuation
          params
          ~body
          ~my_closure
@@ -242,18 +250,9 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
          ~free_names_of_body:_
        ->
       try
-        let params = function_params params my_closure ~is_my_closure_used in
-        (* Init the env and create a jump id for the ret closure in case a trap
-           action is attached to one of tis call *)
-        let env = Env.enter_function_def env k k_exn in
-        (* translate the arg list and body *)
-        let env, fun_args = C.bound_parameters env params in
-        let fun_body, res = translate_expr env res body in
-        let fun_flags = function_flags () in
-        let linkage_name =
-          Linkage_name.to_string (Code_id.linkage_name code_id)
-        in
-        C.fundecl linkage_name fun_args fun_body fun_flags fun_dbg, res
+        params_and_body0 env res code_id ~fun_dbg ~return_continuation
+          ~exn_continuation params ~body ~my_closure ~is_my_closure_used
+          ~translate_expr
       with Misc.Fatal_error as e ->
         Format.eprintf
           "\n\
@@ -261,28 +260,41 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
            exn cont %a and body:@ %a\n"
           (Flambda_colours.error ())
           (Flambda_colours.normal ())
-          Code_id.print code_id Continuation.print k Continuation.print k_exn
-          Expr.print body;
+          Code_id.print code_id Continuation.print return_continuation
+          Continuation.print exn_continuation Expr.print body;
         raise e)
+
+(* Translation of sets of closures. *)
+
+let debuginfo_for_set_of_closures env set =
+  let code_ids_in_set =
+    Set_of_closures.function_decls set
+    |> Function_declarations.funs |> Function_slot.Map.data
+  in
+  let dbg =
+    List.map
+      (fun code_id -> Env.get_code_metadata env code_id |> Code_metadata.dbg)
+      code_ids_in_set
+    |> List.sort Debuginfo.compare
+  in
+  (* Choose the debuginfo with the earliest source location. *)
+  match dbg with [] -> Debuginfo.none | dbg :: _ -> dbg
 
 let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
     ~prev_updates =
   let set_of_closures_symbol_ref = ref None in
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs fun_decls in
-  let elts = Set_of_closures.value_slots set in
+  let value_slots = Set_of_closures.value_slots set in
+  let dbg = debuginfo_for_set_of_closures env set in
   let l, length, env, _effs, updates =
-    Static.fill_layout ~set_of_closures_symbol_ref (Some symbs) decls
-      ~startenv:layout.startenv elts env Ece.pure [] prev_updates
+    Static.fill_layout ~set_of_closures_symbol_ref (Some symbs) decls dbg
+      ~startenv:layout.startenv value_slots env Ece.pure [] prev_updates
       ~starting_offset:0 layout.slots
   in
   let block =
     match l with
-    (* Closures can be deleted by flambda but still appear in let_symbols, hence
-       we may end up with empty sets of closures. *)
-    | [] -> []
-    (* Regular case. *)
-    | _ ->
+    | _ :: _ ->
       let header = C.cint (C.black_closure_header length) in
       let sdef =
         match !set_of_closures_symbol_ref with
@@ -292,11 +304,24 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
           C.define_symbol ~global:false (Symbol.linkage_name_as_string s)
       in
       (header :: sdef) @ l
+    | [] ->
+      Misc.fatal_error "Cannot statically allocate an empty set of closures"
   in
   env, block, updates
 
-(* Sets of closures with no environment can be turned into statically allocated
-   symbols, rather than have to allocate them each time *)
+(* Sets of closures with no value slots can be statically allocated. This
+   usually happens earlier (in Simplify, or Closure_conversion for classic mode)
+   but the extra information that To_cmm has about unused closure variables
+   enables certain extra cases to be caught. For example the following closure
+   [g] is not lifted by Simplify, but can be in To_cmm:
+
+ * let f () =
+ *   let x = Sys.opaque_identity 0 in
+ *   let y = true in
+ *   let g () = if y then 1 else x in
+ *   g
+
+ *)
 let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
@@ -308,8 +333,7 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
     List.map2
       (fun cid v ->
         let v = Bound_var.var v in
-        (* rename v just to have a different name for the symbol and the
-           variable *)
+        (* Rename v to have different names for the symbol and variable *)
         let name = Variable.unique_name (Variable.rename v) in
         cid, Symbol.create comp_unit (Linkage_name.create name))
       cids bound_vars
@@ -319,19 +343,16 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
   let env, static_data, updates =
     let_static_set_of_closures env closure_symbols s layout ~prev_updates:None
   in
-  (* As there is no env vars for the set of closures, there must be no
-     updates *)
-  begin
-    match updates with
-    | None -> ()
-    | Some _ ->
-      Misc.fatal_errorf "non-empty updates when lifting set of closures"
-  end;
-  (* update the result with the new static data *)
+  (* There should be no updates as there are no value slots *)
+  if Option.is_some updates
+  then
+    Misc.fatal_errorf "non-empty [updates] when lifting set of closures: %a"
+      Set_of_closures.print s;
+  (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
-  (* CR gbury: inline the variables (requires extending To_cmm_env to inline
-     pure variables more than once). *)
+  (* CR-someday gbury: inline the variables (requires extending To_cmm_env to
+     inline pure variables more than once). *)
   let env =
     List.fold_left2
       (fun acc cid v ->
@@ -340,54 +361,49 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
         Env.bind_variable acc v Ece.pure false sym)
       env cids bound_vars
   in
-  (* go on in the body *)
   translate_expr env res body
 
-let make_closure_block ?(dbg = Debuginfo.none) alloc_mode l =
-  assert (List.compare_length_with l 0 > 0);
-  let tag = Tag.(to_int closure_tag) in
-  C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg tag l
-
-(* Sets of closures with a non-empty environment are allocated *)
-let let_dynamic_set_of_closures env res ~body ~bound_vars s
+let let_dynamic_set_of_closures env res ~body ~bound_vars set
     (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr ~let_expr_bind =
-  (* unwrap the set of closures a bit *)
-  let fun_decls = Set_of_closures.function_decls s in
+  let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in
-  let elts = Set_of_closures.value_slots s in
-  (* Allocating the closure has at least generative effects. It is also deemed
-     to have coeffects if it is a local closure allocation. *)
-  let effs =
-    ( Effects.Only_generative_effects Immutable,
+  let value_slots = Set_of_closures.value_slots set in
+  let dbg = debuginfo_for_set_of_closures env set in
+  let effs : Ece.t =
+    ( Only_generative_effects Immutable,
       match closure_alloc_mode with
-      | Heap -> Coeffects.No_coeffects
-      | Local -> Coeffects.Has_coeffects )
+      | Heap -> No_coeffects
+      | Local -> Has_coeffects )
   in
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
   let l, _offset, env, effs, updates =
-    Dynamic.fill_layout ~set_of_closures_symbol_ref:(ref None) None decl_map
-      ~startenv:layout.startenv elts env effs [] None ~starting_offset:0
+    Dynamic.fill_layout ~set_of_closures_symbol_ref:(ref None) None decl_map dbg
+      ~startenv:layout.startenv value_slots env effs [] None ~starting_offset:0
       layout.slots
   in
   assert (Option.is_none updates);
-  let csoc = make_closure_block closure_alloc_mode l in
-  (* Create a variable to hold the set of closure *)
+  let csoc =
+    assert (List.compare_length_with l 0 > 0);
+    let tag = Tag.(to_int closure_tag) in
+    C.make_alloc ~mode:(Alloc_mode.to_lambda closure_alloc_mode) dbg tag l
+  in
   let soc_var = Variable.create "*set_of_closures*" in
   let env = Env.bind_variable env soc_var effs false csoc in
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
   let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
   assert (Env.classify peff = Env.Pure);
-  (* Add env bindings for all the value slots. *)
+  (* Add env bindings for all of the value slots. *)
   let get_closure_by_offset env set_cmm cid =
     match Env.function_slot_offset env cid with
     | Live_function_slot { offset; _ } ->
       Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
     | Dead_function_slot -> None
   in
+  (* Add env bindings for all of the function slots. *)
   let env =
     List.fold_left2
       (fun acc cid v ->
@@ -401,8 +417,6 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars s
       (Function_slot.Lmap.keys decls)
       bound_vars
   in
-  (* The set of closures, as well as the individual closure variables are
-     correctly set in the env, go on translating the body. *)
   translate_expr env res body
 
 let let_dynamic_set_of_closures env res ~body ~bound_vars

@@ -70,6 +70,7 @@ val invalid :
 (** Make an update to a statically-allocated block. *)
 val make_update :
   To_cmm_env.t ->
+  Debuginfo.t ->
   Cmm.memory_chunk ->
   symbol:Cmm.expression ->
   Variable.t ->
