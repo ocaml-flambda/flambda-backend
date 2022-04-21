@@ -155,8 +155,8 @@ end = struct
         else if starting_offset = slot_offset
         then acc
         else
-          acc
-          @ List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
+          List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
+          @ acc
       in
       let acc, next_offset, env, eff, updates =
         fill_slot ~set_of_closures_symbol_ref symbs decls dbg ~startenv
