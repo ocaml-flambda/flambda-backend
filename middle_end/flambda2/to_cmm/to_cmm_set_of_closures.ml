@@ -57,7 +57,7 @@ module Make_layout_filler (P : sig
     Simple.t ->
     [`Data of cmm_term list | `Var of Variable.t] * To_cmm_env.t * Ece.t
 
-  val infix_header : dbg:Debuginfo.t -> first_value_slot_offset:int -> cmm_term
+  val infix_header : dbg:Debuginfo.t -> function_slot_offset:int -> cmm_term
 
   val symbol_from_linkage_name : dbg:Debuginfo.t -> Linkage_name.t -> cmm_term
 
@@ -81,9 +81,7 @@ end = struct
       value_slots env acc ~slot_offset updates slot =
     match (slot : Slot_offsets.layout_slot) with
     | Infix_header ->
-      let field =
-        P.infix_header ~first_value_slot_offset:(slot_offset + 1) ~dbg
-      in
+      let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       field :: acc, slot_offset + 1, env, Ece.pure, updates
     | Value_slot v ->
       let simple = Value_slot.Map.find v value_slots in
@@ -183,8 +181,8 @@ module Dynamic = Make_layout_filler (struct
     let term, env, eff = C.simple ~dbg env simple in
     `Data [term], env, eff
 
-  let infix_header ~dbg ~first_value_slot_offset =
-    C.alloc_infix_header first_value_slot_offset dbg
+  let infix_header ~dbg ~function_slot_offset =
+    C.alloc_infix_header function_slot_offset dbg
 
   let symbol_from_linkage_name ~dbg linkage_name =
     C.symbol_from_linkage_name ~dbg linkage_name
@@ -202,8 +200,8 @@ module Static = Make_layout_filler (struct
     let env, contents = C.simple_static env simple in
     contents, env, Ece.pure
 
-  let infix_header ~dbg:_ ~first_value_slot_offset =
-    C.cint (C.infix_header first_value_slot_offset)
+  let infix_header ~dbg:_ ~function_slot_offset =
+    C.cint (C.infix_header function_slot_offset)
 
   let symbol_from_linkage_name ~dbg:_ linkage_name =
     C.symbol_address (Linkage_name.to_string linkage_name)
