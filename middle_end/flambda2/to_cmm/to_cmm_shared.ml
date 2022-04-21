@@ -47,7 +47,7 @@ let machtype_of_kind (k : Flambda_kind.t) =
 let machtype_of_kinded_parameter p =
   Bound_parameter.kind p |> Flambda_kind.With_subkind.kind |> machtype_of_kind
 
-let targetint ?(dbg = Debuginfo.none) t =
+let targetint ~dbg t =
   match Targetint_32_64.repr t with
   | Int32 i -> int32 ~dbg i
   | Int64 i -> int64 ~dbg i
@@ -61,10 +61,10 @@ let nativeint_of_targetint t =
   | Int32 i -> Nativeint.of_int32 i
   | Int64 i -> Int64.to_nativeint i
 
-let symbol_from_linkage_name ?dbg ln =
-  symbol_from_string ?dbg (Linkage_name.to_string ln)
+let symbol_from_linkage_name ~dbg ln =
+  symbol_from_string ~dbg (Linkage_name.to_string ln)
 
-let symbol ?dbg sym = symbol_from_linkage_name ?dbg (Symbol.linkage_name sym)
+let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
 
 let name env name =
   Name.pattern_match name
@@ -79,20 +79,20 @@ let name env name =
         env,
         Ece.pure ))
 
-let const _env cst =
+let const ~dbg cst =
   match Reg_width_const.descr cst with
-  | Naked_immediate i -> targetint (Targetint_31_63.to_targetint' i)
+  | Naked_immediate i -> targetint ~dbg (Targetint_31_63.to_targetint' i)
   | Tagged_immediate i ->
-    targetint (tag_targetint (Targetint_31_63.to_targetint' i))
-  | Naked_float f -> float (Numeric_types.Float_by_bit_pattern.to_float f)
-  | Naked_int32 i -> int32 i
-  | Naked_int64 i -> int64 i
-  | Naked_nativeint t -> targetint t
+    targetint ~dbg (tag_targetint (Targetint_31_63.to_targetint' i))
+  | Naked_float f -> float ~dbg (Numeric_types.Float_by_bit_pattern.to_float f)
+  | Naked_int32 i -> int32 ~dbg i
+  | Naked_int64 i -> int64 ~dbg i
+  | Naked_nativeint t -> targetint ~dbg t
 
-let simple env s =
+let simple ~dbg env s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ -> name env n)
-    ~const:(fun c -> const env c, env, Ece.pure)
+    ~const:(fun c -> const ~dbg c, env, Ece.pure)
 
 let name_static env name =
   Name.pattern_match name
@@ -124,9 +124,9 @@ let simple_static env s =
     ~name:(fun n ~coercion:_ -> name_static env n)
     ~const:(fun c -> env, `Data (const_static c))
 
-let simple_list env l =
+let simple_list ~dbg env l =
   let aux (list, env, effs) x =
-    let y, env, eff = simple env x in
+    let y, env, eff = simple ~dbg env x in
     y :: list, env, Ece.join eff effs
   in
   let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in
@@ -144,6 +144,7 @@ let bound_parameters env l =
   env, vars
 
 let invalid res ~message =
+  let dbg = Debuginfo.none in
   let message_sym =
     Symbol.create
       (Compilation_unit.get_current_exn ())
@@ -156,15 +157,15 @@ let invalid res ~message =
     |> To_cmm_result.add_data_items res
   in
   let call_expr =
-    extcall ~dbg:Debuginfo.none ~alloc:false ~is_c_builtin:false ~returns:false
-      ~ty_args:[XInt] "caml_flambda2_invalid" Cmm.typ_void [symbol message_sym]
+    extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]
+      "caml_flambda2_invalid" Cmm.typ_void [symbol ~dbg message_sym]
   in
   call_expr, data_items
 
 let make_update env dbg kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in
   let addr = field_address symbol index dbg in
-  let update = store kind Root_initialization ~addr ~new_value:e in
+  let update = store ~dbg kind Root_initialization ~addr ~new_value:e in
   match prev_updates with
   | None -> env, Some update
   | Some prev_updates -> env, Some (sequence prev_updates update)

@@ -26,25 +26,26 @@ val machtype_of_kinded_parameter :
   Bound_parameter.t -> Cmm.machtype_component array
 
 (** Create a constant int expression from a targetint. *)
-val targetint : ?dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
+val targetint : dbg:Debuginfo.t -> Targetint_32_64.t -> Cmm.expression
 
 val tag_targetint : Targetint_32_64.t -> Targetint_32_64.t
 
 val nativeint_of_targetint : Targetint_32_64.t -> Nativeint.t
 
 val symbol_from_linkage_name :
-  ?dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
+  dbg:Debuginfo.t -> Linkage_name.t -> Cmm.expression
 
-val symbol : ?dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
+val symbol : dbg:Debuginfo.t -> Symbol.t -> Cmm.expression
 
 val name :
   To_cmm_env.t ->
   Name.t ->
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
 
-val const : To_cmm_env.t -> Reg_width_const.t -> Cmm.expression
+val const : dbg:Debuginfo.t -> Reg_width_const.t -> Cmm.expression
 
 val simple :
+  dbg:Debuginfo.t ->
   To_cmm_env.t ->
   Simple.t ->
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
@@ -55,6 +56,7 @@ val simple_static :
   To_cmm_env.t * [`Data of Cmm.data_item list | `Var of Variable.t]
 
 val simple_list :
+  dbg:Debuginfo.t ->
   To_cmm_env.t ->
   Simple.t list ->
   Cmm.expression list * To_cmm_env.t * Effects_and_coeffects.t

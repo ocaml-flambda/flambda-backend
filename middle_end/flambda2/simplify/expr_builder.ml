@@ -578,7 +578,7 @@ let place_lifted_constants uacc ~lifted_constants_from_defining_expr
   let body, uacc = put_bindings_around_body uacc ~body in
   place_constants uacc ~around:body lifted_constants_from_defining_expr
 
-let create_switch uacc ~scrutinee ~arms =
+let create_switch uacc ~condition_dbg ~scrutinee ~arms =
   if Targetint_31_63.Map.cardinal arms < 1
   then
     ( RE.create_invalid Zero_switch_arms,
@@ -603,7 +603,7 @@ let create_switch uacc ~scrutinee ~arms =
       match Apply_cont_expr.Set.get_singleton actions with
       | Some action -> change_to_apply_cont action
       | None ->
-        let switch = Switch.create ~scrutinee ~arms in
+        let switch = Switch.create ~condition_dbg ~scrutinee ~arms in
         let uacc =
           UA.add_free_names uacc (Switch.free_names switch)
           |> UA.notify_added ~code_size:(Code_size.switch switch)

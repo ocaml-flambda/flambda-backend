@@ -101,7 +101,7 @@ let [@ocamlformat "disable"] print ppf
       (Flambda_colours.prim_constructive ())
       (Flambda_colours.normal ())
       Alloc_mode.print alloc_mode
-      (Function_declarations.print) function_decls
+      Function_declarations.print function_decls
       (Value_slot.Map.print Simple.print) value_slots
 
 let free_names { function_decls; value_slots; alloc_mode = _ } =

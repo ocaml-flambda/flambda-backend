@@ -76,6 +76,7 @@ val place_lifted_constants :
     [Invalid], and one-arm switches to [Apply_cont]. *)
 val create_switch :
   Upwards_acc.t ->
+  condition_dbg:Debuginfo.t ->
   scrutinee:Simple.t ->
   arms:Apply_cont.t Targetint_31_63.Map.t ->
   Rebuilt_expr.t * Upwards_acc.t

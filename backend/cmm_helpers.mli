@@ -878,22 +878,22 @@ val var : Backend_var.t -> Cmm.expression
 
 (** Create an expression that gives the value of an object file symbol, such
     symbol's name being given by a string. *)
-val symbol_from_string : ?dbg:Debuginfo.t -> string -> Cmm.expression
+val symbol_from_string : dbg:Debuginfo.t -> string -> Cmm.expression
 
 (** Create a constant float expression. *)
-val float : ?dbg:Debuginfo.t -> float -> expression
+val float : dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
-val int : ?dbg:Debuginfo.t -> int -> expression
+val int : dbg:Debuginfo.t -> int -> expression
 
 (** Create a constant int expression from an int32. *)
-val int32 : ?dbg:Debuginfo.t -> int32 -> expression
+val int32 : dbg:Debuginfo.t -> int32 -> expression
 
 (** Create a constant int expression from an int64. *)
-val int64 : ?dbg:Debuginfo.t -> int64 -> expression
+val int64 : dbg:Debuginfo.t -> int64 -> expression
 
 (** Create a constant int expression from a nativeint. *)
-val nativeint : ?dbg:Debuginfo.t -> Nativeint.t -> expression
+val nativeint : dbg:Debuginfo.t -> Nativeint.t -> expression
 
 (** Create a [Clet], except if the body just returns the bound variable, in
     which case the [Clet] is elided. *)
@@ -919,10 +919,10 @@ val sequence : expression -> expression -> expression
 
 (** Creates a conditional branching on the given condition. *)
 val ite :
-  ?dbg:Debuginfo.t ->
-  ?then_dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
+  then_dbg:Debuginfo.t ->
   then_:expression ->
-  ?else_dbg:Debuginfo.t ->
+  else_dbg:Debuginfo.t ->
   else_:expression ->
   expression ->
   expression
@@ -930,7 +930,7 @@ val ite :
 (** Create a try-with structure. The [exn_var] is the variable bound to the
     caught exception in the handler. *)
 val trywith :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   kind:trywith_kind ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
@@ -946,7 +946,7 @@ type static_handler
 (** [handler id vars body] creates a static handler for exit number [id],
     binding variables [vars] in [body]. *)
 val handler :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   int ->
   (Backend_var.With_provenance.t * Cmm.machtype) list ->
   Cmm.expression ->
@@ -967,89 +967,86 @@ val create_ccatch :
   body:Cmm.expression ->
   Cmm.expression
 
-val lsl_int_caml_raw :
-  ?dbg:Debuginfo.t -> expression -> expression -> expression
+val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val lsr_int_caml_raw :
-  ?dbg:Debuginfo.t -> expression -> expression -> expression
+val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Shift operations. take as first argument a tagged caml integer, and as
     second argument an untagged machine intger which is the amount to shift the
     first argument by. *)
-val asr_int_caml_raw :
-  ?dbg:Debuginfo.t -> expression -> expression -> expression
+val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val int_of_float : ?dbg:Debuginfo.t -> expression -> expression
+val int_of_float : dbg:Debuginfo.t -> expression -> expression
 
 (** Conversions functions between integers and floats. *)
-val float_of_int : ?dbg:Debuginfo.t -> expression -> expression
+val float_of_int : dbg:Debuginfo.t -> expression -> expression
 
-val eq : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
-val neq : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val neq : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val lt : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val lt : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val le : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val le : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val gt : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val gt : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic signed comparisons on cmm expressions. Returns an
     untagged integer (either 0 or 1) to represent the result of the comparison. *)
-val ge : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ult : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val ult : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ule : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val ule : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val ugt : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val ugt : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Integer arithmetic unsigned comparisons on cmm expressions. Returns an
     untagged integer (either 0 or 1) to represent the result of the comparison. *)
-val uge : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val uge : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Asbolute value on floats. *)
-val float_abs : ?dbg:Debuginfo.t -> expression -> expression
+val float_abs : dbg:Debuginfo.t -> expression -> expression
 
 (** Arithmetic negation on floats. *)
-val float_neg : ?dbg:Debuginfo.t -> expression -> expression
+val float_neg : dbg:Debuginfo.t -> expression -> expression
 
-val float_add : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_add : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_sub : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_sub : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_mul : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_mul : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic operations. *)
-val float_div : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_div : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_eq : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_eq : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic (dis)equality of cmm expressions. Returns an untagged
     integer (either 0 or 1) to represent the result of the comparison. *)
-val float_neq : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_neq : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_lt : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_lt : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_le : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_le : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val float_gt : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_gt : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Float arithmetic comparisons on cmm expressions. Returns an untagged integer
     (either 0 or 1) to represent the result of the comparison. *)
-val float_ge : ?dbg:Debuginfo.t -> expression -> expression -> expression
+val float_ge : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val load :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   memory_chunk ->
   Asttypes.mutable_flag ->
   addr:expression ->
   expression
 
 val store :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   memory_chunk ->
   Lambda.initialization_or_assignment ->
   addr:expression ->
@@ -1061,11 +1058,11 @@ val store :
 
     If a closure needs to be passed, it must be included in [args]. *)
 val direct_call :
-  ?dbg:Debuginfo.t -> machtype -> expression -> expression list -> expression
+  dbg:Debuginfo.t -> machtype -> expression -> expression list -> expression
 
 (** Same as {!direct_call} but for an indirect call. *)
 val indirect_call :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   machtype ->
   Lambda.alloc_mode ->
   expression ->
@@ -1075,7 +1072,7 @@ val indirect_call :
 (** Same as {!direct_call} but for an indirect call that is know to be a full
     application (since this enables a few optimisations). *)
 val indirect_full_call :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   machtype ->
   Lambda.alloc_mode ->
   expression ->
@@ -1084,7 +1081,7 @@ val indirect_full_call :
 
 (** Create a C function call. *)
 val extcall :
-  ?dbg:Debuginfo.t ->
+  dbg:Debuginfo.t ->
   returns:bool ->
   alloc:bool ->
   is_c_builtin:bool ->

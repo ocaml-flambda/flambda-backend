@@ -20,7 +20,9 @@
 type t =
   | Symbol of Symbol.t  (** The address of the given symbol. *)
   | Tagged_immediate of Targetint_31_63.t  (** The given tagged immediate. *)
-  | Dynamically_computed of Variable.t  (** The value of the given variable. *)
+  | Dynamically_computed of Variable.t * Debuginfo.t
+      (** The value of the given variable. This has [Debuginfo.t] for the same
+          reason as the [Or_variable.Var] constructor does. *)
 
 include Container_types.S with type t := t
 

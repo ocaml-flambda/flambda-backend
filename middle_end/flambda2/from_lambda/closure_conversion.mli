@@ -56,13 +56,19 @@ val close_apply : Acc.t -> Env.t -> IR.apply -> Acc.t * Expr_with_acc.t
 val close_apply_cont :
   Acc.t ->
   Env.t ->
+  dbg:Debuginfo.t ->
   Continuation.t ->
   IR.trap_action option ->
   IR.simple list ->
   Acc.t * Expr_with_acc.t
 
 val close_switch :
-  Acc.t -> Env.t -> Ident.t -> IR.switch -> Acc.t * Expr_with_acc.t
+  Acc.t ->
+  Env.t ->
+  condition_dbg:Debuginfo.t ->
+  Ident.t ->
+  IR.switch ->
+  Acc.t * Expr_with_acc.t
 
 val close_program :
   symbol_for_global:(?comp_unit:Compilation_unit.t -> Ident.t -> Symbol.t) ->

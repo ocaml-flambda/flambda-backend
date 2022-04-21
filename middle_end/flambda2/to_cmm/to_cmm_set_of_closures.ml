@@ -52,6 +52,7 @@ module Make_layout_filler (P : sig
   val int : dbg:Debuginfo.t -> nativeint -> cmm_term
 
   val simple :
+    dbg:Debuginfo.t ->
     To_cmm_env.t ->
     Simple.t ->
     [`Data of cmm_term list | `Var of Variable.t] * To_cmm_env.t * Ece.t
@@ -88,7 +89,7 @@ end = struct
       field :: acc, slot_offset + 1, env, Ece.pure, updates
     | Value_slot v ->
       let simple = Value_slot.Map.find v value_slots in
-      let contents, env, eff = P.simple env simple in
+      let contents, env, eff = P.simple ~dbg env simple in
       let env, fields, updates =
         match contents with
         | `Data fields -> env, fields, updates
@@ -100,7 +101,7 @@ end = struct
           in
           let env, updates =
             C.make_update env dbg Word_val
-              ~symbol:(C.symbol set_of_closures_symbol)
+              ~symbol:(C.symbol ~dbg set_of_closures_symbol)
               v ~index:slot_offset ~prev_updates:updates
           in
           env, [P.int ~dbg 1n], updates
@@ -173,8 +174,8 @@ module Dynamic = Make_layout_filler (struct
 
   let int ~dbg i = C.nativeint ~dbg i
 
-  let simple env simple =
-    let term, env, eff = C.simple env simple in
+  let simple ~dbg env simple =
+    let term, env, eff = C.simple ~dbg env simple in
     `Data [term], env, eff
 
   let infix_header ~dbg ~first_value_slot_offset =
@@ -192,7 +193,7 @@ module Static = Make_layout_filler (struct
 
   let int ~dbg:_ i = C.cint i
 
-  let simple env simple =
+  let simple ~dbg:_ env simple =
     let env, contents = C.simple_static env simple in
     contents, env, Ece.pure
 
@@ -322,11 +323,12 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
  *   g
 
  *)
-let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
+let lift_set_of_closures env res ~body ~bound_vars set layout ~translate_expr =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
+  let dbg = debuginfo_for_set_of_closures env set in
   let cids =
-    Function_declarations.funs_in_order (Set_of_closures.function_decls s)
+    Function_declarations.funs_in_order (Set_of_closures.function_decls set)
     |> Function_slot.Lmap.keys
   in
   let closure_symbols =
@@ -341,13 +343,13 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
-    let_static_set_of_closures env closure_symbols s layout ~prev_updates:None
+    let_static_set_of_closures env closure_symbols set layout ~prev_updates:None
   in
   (* There should be no updates as there are no value slots *)
   if Option.is_some updates
   then
     Misc.fatal_errorf "non-empty [updates] when lifting set of closures: %a"
-      Set_of_closures.print s;
+      Set_of_closures.print set;
   (* Update the result with the new static data *)
   let res = R.archive_data (R.set_data res static_data) in
   (* Bind the variables to the symbols for function slots. *)
@@ -357,7 +359,7 @@ let lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr =
     List.fold_left2
       (fun acc cid v ->
         let v = Bound_var.var v in
-        let sym = C.symbol (Function_slot.Map.find cid closure_symbols) in
+        let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
         Env.bind_variable acc v Ece.pure false sym)
       env cids bound_vars
   in

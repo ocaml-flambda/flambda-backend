@@ -3782,24 +3782,21 @@ let unit ~dbg = Cconst_int (1, dbg)
 
 let var v = Cvar v
 
-let symbol_from_string ?(dbg = Debuginfo.none) sym = Cconst_symbol (sym, dbg)
+let symbol_from_string ~dbg sym = Cconst_symbol (sym, dbg)
 
-let float ?(dbg = Debuginfo.none) f = Cconst_float (f, dbg)
+let float ~dbg f = Cconst_float (f, dbg)
 
 (* CR Gbury: this conversion int -> nativeint is potentially unsafe when
    cross-compiling for 64-bit on a 32-bit host *)
-let int ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Nativeint.of_int i)
+let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
 
-let int32 ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Nativeint.of_int32 i)
+let int32 ~dbg i = natint_const_untagged dbg (Nativeint.of_int32 i)
 
 (* CR Gbury: this conversion int64 -> nativeint is potentially unsafe when
    cross-compiling for 64-bit on a 32-bit host *)
-let int64 ?(dbg = Debuginfo.none) i =
-  natint_const_untagged dbg (Int64.to_nativeint i)
+let int64 ~dbg i = natint_const_untagged dbg (Int64.to_nativeint i)
 
-let nativeint ?(dbg = Debuginfo.none) i = natint_const_untagged dbg i
+let nativeint ~dbg i = natint_const_untagged dbg i
 
 let letin v ~defining_expr ~body =
   match body with
@@ -3821,8 +3818,7 @@ let sequence x y =
   | _, Ctuple [] -> x
   | _, _ -> Csequence (x, y)
 
-let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
-    ?(else_dbg = Debuginfo.none) ~else_ cond =
+let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
   Cifthenelse
     ( cond,
       then_dbg,
@@ -3833,7 +3829,7 @@ let ite ?(dbg = Debuginfo.none) ?(then_dbg = Debuginfo.none) ~then_
       (* CR-someday poechsel: Put a correct value kind here *)
       Vval Pgenval )
 
-let trywith ?(dbg = Debuginfo.none) ~kind ~body ~exn_var ~handler () =
+let trywith ~dbg ~kind ~body ~exn_var ~handler () =
   (* CR-someday poechsel: Put a correct value kind here *)
   Ctrywith (body, kind, exn_var, handler, dbg, Vval Pgenval)
 
@@ -3843,7 +3839,7 @@ type static_handler =
   * Cmm.expression
   * Debuginfo.t
 
-let handler ?(dbg = Debuginfo.none) id vars body = id, vars, body, dbg
+let handler ~dbg id vars body = id, vars, body, dbg
 
 let cexit id args trap_actions = Cmm.Cexit (Cmm.Lbl id, args, trap_actions)
 
@@ -3854,24 +3850,24 @@ let create_ccatch ~rec_flag ~handlers ~body =
   let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
   Cmm.Ccatch (rec_flag, handlers, body, Vval Pgenval)
 
-let unary op ?(dbg = Debuginfo.none) x = Cop (op, [x], dbg)
+let unary op ~dbg x = Cop (op, [x], dbg)
 
-let binary op ?(dbg = Debuginfo.none) x y = Cop (op, [x; y], dbg)
+let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
 let int_of_float = unary Cintoffloat
 
 let float_of_int = unary Cfloatofint
 
-let lsl_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+let lsl_int_caml_raw ~dbg arg1 arg2 =
   incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
 
-let lsr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+let lsr_int_caml_raw ~dbg arg1 arg2 =
   Cop (Cor, [lsr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
 
-let asr_int_caml_raw ?(dbg = Debuginfo.none) arg1 arg2 =
+let asr_int_caml_raw ~dbg arg1 arg2 =
   Cop (Cor, [asr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
 
-let eq ?(dbg = Debuginfo.none) x y =
+let eq ~dbg x y =
   match x, y with
   | Cconst_int (n, _), Cop (Csubi, [Cconst_int (m, _); c], _)
   | Cop (Csubi, [Cconst_int (m, _); c], _), Cconst_int (n, _)
@@ -3970,16 +3966,15 @@ let float_gt = binary (Ccmpf CFgt)
 
 let float_ge = binary (Ccmpf CFge)
 
-let load ?(dbg = Debuginfo.none) kind mut ~addr =
-  Cop (Cload (kind, mut), [addr], dbg)
+let load ~dbg kind mut ~addr = Cop (Cload (kind, mut), [addr], dbg)
 
-let store ?(dbg = Debuginfo.none) kind init ~addr ~new_value =
+let store ~dbg kind init ~addr ~new_value =
   Cop (Cstore (kind, init), [addr; new_value], dbg)
 
-let direct_call ?(dbg = Debuginfo.none) ty f_code_sym args =
+let direct_call ~dbg ty f_code_sym args =
   Cop (Capply (ty, Rc_normal), f_code_sym :: args, dbg)
 
-let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f args =
+let indirect_call ~dbg ty alloc_mode f args =
   match args with
   | [arg] ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
@@ -3991,7 +3986,7 @@ let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f args =
       ~body:
         (Cop
            ( Capply (ty, Rc_normal),
-             [load Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
+             [load ~dbg Word_int Asttypes.Mutable ~addr:(Cvar v); arg; Cvar v],
              dbg ))
   | args ->
     let arity = List.length args in
@@ -4000,7 +3995,7 @@ let indirect_call ?(dbg = Debuginfo.none) ty alloc_mode f args =
     in
     Cop (Capply (ty, Rc_normal), l, dbg)
 
-let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
+let indirect_full_call ~dbg ty alloc_mode f = function
   (* the single-argument case is already optimized by indirect_call *)
   | [_] as args -> indirect_call ~dbg ty alloc_mode f args
   | args ->
@@ -4009,13 +4004,12 @@ let indirect_full_call ?(dbg = Debuginfo.none) ty alloc_mode f = function
     let v' = Backend_var.With_provenance.create v in
     (* get the function's code pointer *)
     let fun_ptr =
-      load Word_int Asttypes.Mutable ~addr:(field_address (Cvar v) 2 dbg)
+      load ~dbg Word_int Asttypes.Mutable ~addr:(field_address (Cvar v) 2 dbg)
     in
     letin v' ~defining_expr:f
       ~body:(Cop (Capply (ty, Rc_normal), (fun_ptr :: args) @ [Cvar v], dbg))
 
-let extcall ?(dbg = Debuginfo.none) ~returns ~alloc ~is_c_builtin ~ty_args name
-    typ_res args =
+let extcall ~dbg ~returns ~alloc ~is_c_builtin ~ty_args name typ_res args =
   if not returns then assert (typ_res = typ_void);
   Cop
     ( Cextcall
@@ -4039,7 +4033,7 @@ let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset =
   in
   match (elt_kind : Lambda.bigarray_kind) with
   | Pbigarray_complex32 | Pbigarray_complex64 ->
-    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
+    let addr' = binary Cadda ~dbg addr (int ~dbg (elt_size / 2)) in
     box_complex dbg
       (load ~dbg elt_chunk Mutable ~addr)
       (load ~dbg elt_chunk Mutable ~addr:addr')
@@ -4054,7 +4048,7 @@ let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
   in
   match elt_kind with
   | Pbigarray_complex32 | Pbigarray_complex64 ->
-    let addr' = binary Cadda ~dbg addr (int (elt_size / 2)) in
+    let addr' = binary Cadda ~dbg addr (int ~dbg (elt_size / 2)) in
     return_unit dbg
       (sequence
          (store ~dbg elt_chunk Assignment ~addr

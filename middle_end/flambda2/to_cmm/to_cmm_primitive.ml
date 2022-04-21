@@ -275,7 +275,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
-  | _, Neg -> C.sub_int (C.int 0) arg dbg
+  | _, Neg -> C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
     let primitive_kind = primitive_boxed_int_of_standard_int kind in
@@ -536,12 +536,12 @@ let unary_primitive env res dbg f arg =
   | Duplicate_array _ ->
     ( None,
       res,
-      C.extcall ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
+      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Duplicate_block _ ->
     ( None,
       res,
-      C.extcall ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
+      C.extcall ~dbg ~alloc:true ~returns:true ~is_c_builtin:false ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
@@ -567,7 +567,7 @@ let unary_primitive env res dbg f arg =
        different register kinds (e.g. integer to XMM registers on x86-64). *)
     ( None,
       res,
-      C.extcall ~alloc:false ~returns:true ~is_c_builtin:false
+      C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
         ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
@@ -683,23 +683,23 @@ let prim env res dbg p =
     let extra, expr = nullary_primitive env dbg prim in
     expr, extra, env, res, Ece.pure
   | Unary (f, x) ->
-    let x, env, eff = C.simple env x in
+    let x, env, eff = C.simple ~dbg env x in
     let extra, res, expr = unary_primitive env res dbg f x in
     expr, extra, env, res, eff
   | Binary (f, x, y) ->
-    let x, env, effx = C.simple env x in
-    let y, env, effy = C.simple env y in
+    let x, env, effx = C.simple ~dbg env x in
+    let y, env, effy = C.simple ~dbg env y in
     let effs = Ece.join effx effy in
     let expr = binary_primitive env dbg f x y in
     expr, None, env, res, effs
   | Ternary (f, x, y, z) ->
-    let x, env, effx = C.simple env x in
-    let y, env, effy = C.simple env y in
-    let z, env, effz = C.simple env z in
+    let x, env, effx = C.simple ~dbg env x in
+    let y, env, effy = C.simple ~dbg env y in
+    let z, env, effz = C.simple ~dbg env z in
     let effs = Ece.join (Ece.join effx effy) effz in
     let expr = ternary_primitive env dbg f x y z in
     expr, None, env, res, effs
   | Variadic (f, l) ->
-    let args, env, effs = C.simple_list env l in
+    let args, env, effs = C.simple_list ~dbg env l in
     let expr = variadic_primitive env dbg f args in
     expr, None, env, res, effs

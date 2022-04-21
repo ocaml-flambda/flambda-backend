@@ -49,11 +49,10 @@ let rec static_block_updates symb env acc i = function
     match (sv : Field_of_static_block.t) with
     | Symbol _ | Tagged_immediate _ ->
       static_block_updates symb env acc (i + 1) r
-    | Dynamically_computed var ->
+    | Dynamically_computed (var, dbg) ->
       let env, acc =
-        (* CR mshinwell: fix debuginfo here and below *)
-        C.make_update env Debuginfo.none Cmm.Word_val ~symbol:symb var ~index:i
-          ~prev_updates:acc
+        C.make_update env dbg Cmm.Word_val ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
       static_block_updates symb env acc (i + 1) r
   end
@@ -63,10 +62,10 @@ let rec static_float_array_updates symb env acc i = function
   | sv :: r -> begin
     match (sv : _ Or_variable.t) with
     | Const _ -> static_float_array_updates symb env acc (i + 1) r
-    | Var var ->
+    | Var (var, dbg) ->
       let env, acc =
-        C.make_update env Debuginfo.none Cmm.Double ~symbol:symb var ~index:i
-          ~prev_updates:acc
+        C.make_update env dbg Cmm.Double ~symbol:(C.symbol ~dbg symb) var
+          ~index:i ~prev_updates:acc
       in
       static_float_array_updates symb env acc (i + 1) r
   end
@@ -80,8 +79,8 @@ let static_boxed_number kind env symbol default emit transl v r updates =
   let updates =
     match (v : _ Or_variable.t) with
     | Const _ -> env, None
-    | Var v ->
-      C.make_update env Debuginfo.none kind ~symbol:(C.symbol symbol) v ~index:0
+    | Var (v, dbg) ->
+      C.make_update env dbg kind ~symbol:(C.symbol ~dbg symbol) v ~index:0
         ~prev_updates:updates
   in
   R.update_data r (or_variable aux default v), updates
@@ -133,7 +132,7 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         fields (env, [])
     in
     let block = C.emit_block block_name header static_fields in
-    let env, updates = static_block_updates (C.symbol s) env updates 0 fields in
+    let env, updates = static_block_updates s env updates 0 fields in
     env, R.set_data r block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let r, updates, env =
@@ -181,7 +180,7 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
         (Symbol.linkage_name_as_string s, Cmmgen_state.Global)
         static_fields
     in
-    let env, e = static_float_array_updates (C.symbol s) env updates 0 fields in
+    let env, e = static_float_array_updates s env updates 0 fields in
     env, R.update_data r float_array, e
   | Block_like s, Empty_array ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
