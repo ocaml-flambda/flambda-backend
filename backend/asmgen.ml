@@ -132,7 +132,7 @@ let if_emit_do f x = if should_emit () then f x else ()
 let emit_begin_assembly = if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf)
 let emit_end_assembly = if_emit_do Emit.end_assembly
 let emit_data = if_emit_do Emit.data
-let emit_fundecl ?dwarf =
+let emit_fundecl ~dwarf =
   if_emit_do
     (fun (fundecl : Linear.fundecl) ->
       try
@@ -326,7 +326,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
   ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ save_linear
-  ++ emit_fundecl ?dwarf
+  ++ emit_fundecl ~dwarf
 
 let compile_data dl =
   dl
@@ -433,7 +433,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     end)
   )
 
-let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
+let emit_begin_assembly_with_dwarf ~sourcefile () =
   let asm_directives =
     if !Clflags.debug then
       Some (build_asm_directives ())
@@ -447,14 +447,16 @@ let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
         Asm_directives.initialize ())
       asm_directives
   );
-  let dwarf =
-    Option.map
-      (fun asm_directives -> build_dwarf ~asm_directives sourcefile)
-      asm_directives
-  in
+  Option.map
+    (fun asm_directives -> build_dwarf ~asm_directives sourcefile)
+    asm_directives
+
+let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
+  let dwarf = emit_begin_assembly_with_dwarf ~sourcefile () in
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
-  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump));
+  ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump))
+  ++ (fun () -> ());
   (match toplevel with None -> () | Some f -> compile_genfuns ~ppf_dump f);
   (* We add explicit references to external primitive symbols.  This
      is to ensure that the object files that define these symbols,
@@ -522,14 +524,14 @@ let linear_gen_implementation filename =
    | None, None -> ()
    | Some expected, Some saved when String.equal expected saved -> ()
    | _, saved -> raise(Error(Mismatched_for_pack saved)));
-  let emit_item = function
+  let emit_item ~dwarf = function
     | Data dl -> emit_data dl
-    | Func f -> emit_fundecl f
+    | Func f -> emit_fundecl ~dwarf f
   in
   start_from_emit := true;
-  emit_begin_assembly (fun () -> ());
-  Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
-  emit_end_assembly None
+  let dwarf = emit_begin_assembly_with_dwarf ~sourcefile:filename () in
+  Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
+  emit_end_assembly dwarf
 
 let compile_implementation_linear output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix
