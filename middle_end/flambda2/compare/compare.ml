@@ -449,7 +449,8 @@ and subst_switch env switch =
     Targetint_31_63.Map.map_sharing (subst_apply_cont env)
       (Switch_expr.arms switch)
   in
-  Expr.create_switch (Switch_expr.create ~scrutinee ~arms)
+  Expr.create_switch
+    (Switch_expr.create ~condition_dbg:Debuginfo.none ~scrutinee ~arms)
 
 module Comparator = struct
   type 'a t = Env.t -> 'a -> 'a -> 'a Comparison.t
@@ -1039,7 +1040,8 @@ let switch_exprs env switch1 switch2 : Expr.t Comparison.t =
     (Switch.arms switch1, Switch.scrutinee switch1)
     (Switch.arms switch2, Switch.scrutinee switch2)
   |> Comparison.map ~f:(fun (arms, scrutinee) ->
-         Expr.create_switch (Switch.create ~scrutinee ~arms))
+         Expr.create_switch
+           (Switch.create ~condition_dbg:Debuginfo.none ~scrutinee ~arms))
 
 let rec exprs env e1 e2 : Expr.t Comparison.t =
   log Expr.print e1 e2 (fun () ->
