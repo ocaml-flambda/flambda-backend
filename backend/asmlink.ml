@@ -239,24 +239,12 @@ let make_globals_map units_list =
 let make_startup_file ~ppf_dump ~filename units_list =
   Location.input_name := "caml_startup"; (* set name of "current" input *)
   Compilenv.reset "_startup"; (* set the name of the "current" compunit *)
-  let asm_directives =
-    if !Clflags.debug && Target_system.architecture () = Target_system.X86_64 then
-      Some (Asmgen.build_asm_directives ())
-    else
-      None
+  let dwarf =
+    Asmgen.emit_begin_assembly_with_dwarf
+      ~emit_begin_assembly:Emit.begin_assembly
+      ~sourcefile:filename
+      ()
   in
-  let dwarf = ref None in
-  Emit.begin_assembly ~init_dwarf:(fun () ->
-    Option.iter
-      (fun asm_directives ->
-        let (module Asm_directives : Asm_targets.Asm_directives_intf.S) = asm_directives in
-        Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
-        Asm_directives.initialize ();
-        dwarf := Some (Asmgen.build_dwarf ~asm_directives filename)
-      )
-      asm_directives
-  );
-  let dwarf = !dwarf in
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump ?dwarf p in
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in

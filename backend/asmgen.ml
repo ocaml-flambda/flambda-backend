@@ -129,7 +129,8 @@ let should_emit () =
   not (should_stop_after Compiler_pass.Scheduling)
 
 let if_emit_do f x = if should_emit () then f x else ()
-let emit_begin_assembly = if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf)
+let emit_begin_assembly ~init_dwarf:init_dwarf =
+  if_emit_do (fun init_dwarf -> Emit.begin_assembly ~init_dwarf) init_dwarf
 let emit_end_assembly = if_emit_do Emit.end_assembly
 let emit_data = if_emit_do Emit.data
 let emit_fundecl ~dwarf =
@@ -433,26 +434,28 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) = (
     end)
   )
 
-let emit_begin_assembly_with_dwarf ~sourcefile () =
-  let asm_directives =
-    if !Clflags.debug then
-      Some (build_asm_directives ())
-    else
-      None
+let emit_begin_assembly_with_dwarf  ~emit_begin_assembly ~sourcefile () =
+  let no_dwarf () =
+    emit_begin_assembly ~init_dwarf:(fun () -> ());
+    None
   in
-  emit_begin_assembly (fun () ->
-    Option.iter
-      (fun (module Asm_directives : Asm_targets.Asm_directives_intf.S) ->
+  match !Clflags.debug,  Target_system.architecture (), Target_system.derived_system () with
+  | true, _, MacOS_like -> no_dwarf ()
+  | true, X86_64, _ ->
+    let asm_directives = build_asm_directives () in
+    let (module Asm_directives : Asm_targets.Asm_directives_intf.S) = asm_directives in
+    let dwarf = ref None in
+    emit_begin_assembly ~init_dwarf:(fun () ->
         Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
-        Asm_directives.initialize ())
-      asm_directives
-  );
-  Option.map
-    (fun asm_directives -> build_dwarf ~asm_directives sourcefile)
-    asm_directives
+        Asm_directives.initialize ();
+        dwarf := Some (build_dwarf ~asm_directives sourcefile)
+    );
+    !dwarf
+  | true, _, _ -> no_dwarf ()
+  | false, _, _ -> no_dwarf ()
 
 let end_gen_implementation0 ?toplevel ~ppf_dump ~sourcefile make_cmm =
-  let dwarf = emit_begin_assembly_with_dwarf ~sourcefile () in
+  let dwarf = emit_begin_assembly_with_dwarf ~emit_begin_assembly ~sourcefile () in
   make_cmm ()
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cmm
   ++ Profile.record "compile_phrases" (List.iter (compile_phrase ?dwarf ~ppf_dump))
@@ -529,7 +532,7 @@ let linear_gen_implementation filename =
     | Func f -> emit_fundecl ~dwarf f
   in
   start_from_emit := true;
-  let dwarf = emit_begin_assembly_with_dwarf ~sourcefile:filename () in
+  let dwarf = emit_begin_assembly_with_dwarf ~emit_begin_assembly ~sourcefile:filename () in
   Profile.record "Emit" (List.iter (emit_item ~dwarf)) linear_unit_info.items;
   emit_end_assembly dwarf
 
