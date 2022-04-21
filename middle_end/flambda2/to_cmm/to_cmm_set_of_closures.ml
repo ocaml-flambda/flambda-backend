@@ -121,7 +121,9 @@ end = struct
         | None -> acc
         | Some symbs ->
           let function_symbol = Function_slot.Map.find c symbs in
-          P.define_global_symbol (Symbol.linkage_name_as_string function_symbol)
+          List.rev
+            (P.define_global_symbol
+               (Symbol.linkage_name_as_string function_symbol))
           @ acc
       in
       (* We build here the **reverse** list of fields for the function slot *)
@@ -203,7 +205,7 @@ module Static = Make_layout_filler (struct
   let symbol_from_linkage_name ~dbg:_ linkage_name =
     C.symbol_address (Linkage_name.to_string linkage_name)
 
-  let define_global_symbol sym = List.rev (C.define_symbol ~global:true sym)
+  let define_global_symbol sym = C.define_symbol ~global:true sym
 end)
 
 (* Translation of the bodies of functions. *)
