@@ -106,7 +106,7 @@ end = struct
           in
           env, [P.int ~dbg 1n], updates
       in
-      List.rev fields @ acc, slot_offset + 1, env, eff, updates
+      List.rev_append fields acc, slot_offset + 1, env, eff, updates
     | Function_slot c -> (
       let code_id = Function_slot.Map.find c decls in
       let code_linkage_name = Code_id.linkage_name code_id in
@@ -121,10 +121,10 @@ end = struct
         | None -> acc
         | Some symbs ->
           let function_symbol = Function_slot.Map.find c symbs in
-          List.rev
+          List.rev_append
             (P.define_global_symbol
                (Symbol.linkage_name_as_string function_symbol))
-          @ acc
+            acc
       in
       (* We build here the **reverse** list of fields for the function slot *)
       match closure_code_pointers with
