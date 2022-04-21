@@ -72,9 +72,7 @@ end) : sig
     Simple.t Value_slot.Map.t ->
     Env.t ->
     Ece.t ->
-    P.cmm_term list ->
-    Cmm.expression option ->
-    starting_offset:int ->
+    prev_updates:Cmm.expression option ->
     (int * Slot_offsets.layout_slot) list ->
     P.cmm_term list * int * Env.t * Ece.t * Cmm.expression option
 end = struct
@@ -145,7 +143,7 @@ end = struct
         in
         acc, slot_offset + 3, env, Ece.pure, updates)
 
-  let rec fill_layout ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+  let rec fill_layout0 ~set_of_closures_symbol_ref symbs decls dbg ~startenv
       value_slots env effs acc updates ~starting_offset slots =
     match slots with
     | [] -> List.rev acc, starting_offset, env, effs, updates
@@ -166,8 +164,13 @@ end = struct
           value_slots env acc ~slot_offset updates slot
       in
       let effs = Ece.join eff effs in
-      fill_layout ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+      fill_layout0 ~set_of_closures_symbol_ref symbs decls dbg ~startenv
         value_slots env effs acc updates ~starting_offset:next_offset slots
+
+  let fill_layout ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+      value_slots env effs ~prev_updates slots =
+    fill_layout0 ~set_of_closures_symbol_ref symbs decls dbg ~startenv
+      value_slots env effs [] prev_updates ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -292,8 +295,8 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
   let dbg = debuginfo_for_set_of_closures env set in
   let l, length, env, _effs, updates =
     Static.fill_layout ~set_of_closures_symbol_ref (Some symbs) decls dbg
-      ~startenv:layout.startenv value_slots env Ece.pure [] prev_updates
-      ~starting_offset:0 layout.slots
+      ~startenv:layout.startenv value_slots env Ece.pure ~prev_updates
+      layout.slots
   in
   let block =
     match l with
@@ -384,7 +387,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   in
   let l, _offset, env, effs, updates =
     Dynamic.fill_layout ~set_of_closures_symbol_ref:(ref None) None decl_map dbg
-      ~startenv:layout.startenv value_slots env effs [] None ~starting_offset:0
+      ~startenv:layout.startenv value_slots env effs ~prev_updates:None
       layout.slots
   in
   assert (Option.is_none updates);
