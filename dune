@@ -346,6 +346,7 @@
    %{dep:tools/merge_dot_a_files.sh}
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.a}
+   %{dep:backend/asm_targets/asm_targets.a}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.a}
    %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.a}
@@ -378,7 +379,9 @@
    %{dep:tools/merge_archives.exe}
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cma}
+   %{dep:backend/asm_targets/asm_targets.cma}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cma}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cma}
    %{dep:flambda_backend_common.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
@@ -409,7 +412,9 @@
    %{dep:tools/merge_archives.exe}
    %{targets}
    %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cmxa}
+   %{dep:backend/asm_targets/asm_targets.cmxa}
    %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cmxa}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
    %{dep:backend/debug/dwarf/dwarf_ocaml/dwarf_ocaml.cmxa}
    %{dep:flambda_backend_common.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
@@ -443,7 +448,6 @@
 
 (install
  (files
-  (backend/debug/dwarf/dwarf_flags/dwarf_flags.cma as compiler-libs/dwarf_flags.cma)
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
   (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
