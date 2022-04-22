@@ -300,7 +300,12 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
          Symbol sym (* not really a symbol, but OK. *) *)
       Misc.fatal_error "not implemented"
 
-  let offset_into_dwarf_section_label ?comment section upper =
+  let const ~width constant =
+    match width with
+    | Dwarf_flags.Thirty_two -> D.long constant
+    | Dwarf_flags.Sixty_four -> D.qword constant
+
+  let offset_into_dwarf_section_label ?comment ~width section upper =
     let upper_section = Asm_label.section upper in
     let expected_section : Asm_section.t = DWARF section in
     if not (Asm_section.equal upper_section expected_section)
@@ -329,9 +334,9 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
              (D.const_label (Asm_label.encode lower)))
       else D.const_label (Asm_label.encode upper)
     in
-    D.qword expr
+    const ~width expr
 
-  let offset_into_dwarf_section_symbol ?comment:_ _section _symbol =
+  let offset_into_dwarf_section_symbol ?comment:_ ~width:_ _section _symbol =
     (* CR poechsel: use the arguments *)
     A.emit_line "offset_into_dwarf_section_symbol"
 end
