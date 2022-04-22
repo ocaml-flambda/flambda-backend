@@ -385,6 +385,11 @@ let mk_dfreshen f =
   "-dfreshen", Arg.Unit f, " Freshen bound names when printing (Flambda 2 only)"
 ;;
 
+module Debugging = Dwarf_flags
+
+let mk_restrict_to_upstream_dwarf f =
+  "-gupstream-dwarf", Arg.Unit f, " Only emit the same DWARF information as the upstream compiler"
+
 module type Flambda_backend_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
@@ -685,6 +690,21 @@ module Flambda_backend_options_impl = struct
   let dfreshen = set' Flambda2.Dump.freshen
 end
 
+module type Debugging_options = sig
+  val _restrict_to_upstream_dwarf : unit -> unit
+end
+
+module Make_debugging_options (F : Debugging_options) = struct
+  let list3 = [
+    mk_restrict_to_upstream_dwarf F._restrict_to_upstream_dwarf
+   ]
+end
+
+module Debugging_options_impl = struct
+  let _restrict_to_upstream_dwarf () =
+    Debugging.restrict_to_upstream_dwarf := true
+end
+
 module Extra_params = struct
   let read_param ppf _position name v =
     let set option =
@@ -817,15 +837,18 @@ end
 module type Optcomp_options = sig
   include Main_args.Optcomp_options
   include Flambda_backend_options
+  include Debugging_options
 end
 
 module type Opttop_options = sig
   include Main_args.Opttop_options
   include Flambda_backend_options
+  include Debugging_options
 end
 
 module Make_optcomp_options (F : Optcomp_options) =
 struct
+  include Make_debugging_options(F)  (* provides [list3]  *)
   include Make_flambda_backend_options(F)  (* provides [list2]  *)
   include Main_args.Make_optcomp_options(F)  (* provides [list] *)
   (* Overwrite [list] with the combination of the above options.
@@ -833,22 +856,25 @@ struct
      the flambda-backend implementation will take precedence,
      but this should be avoided. To override an option from Main_args,
      redefine it in the implementation of this functor's argument. *)
-  let list = list2 @ list
+  let list = list3 @ list2 @ list
 end
 
 module Make_opttop_options (F : Opttop_options) = struct
+  include Make_debugging_options(F)
   include Make_flambda_backend_options(F)
   include Main_args.Make_opttop_options(F)
-  let list = list2 @ list
+  let list = list3 @ list2 @ list
 end
 
 module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
     include Flambda_backend_options_impl
+    include Debugging_options_impl
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
     include Flambda_backend_options_impl
+    include Debugging_options_impl
   end
 end

@@ -439,7 +439,8 @@ let emit_begin_assembly_with_dwarf  ~emit_begin_assembly ~sourcefile () =
     emit_begin_assembly ~init_dwarf:(fun () -> ());
     None
   in
-  match !Clflags.debug,  Target_system.architecture (), Target_system.derived_system () with
+  let can_emit = !Clflags.debug && not(!Dwarf_flags.restrict_to_upstream_dwarf) in
+  match can_emit, Target_system.architecture (), Target_system.derived_system () with
   | true, _, MacOS_like -> no_dwarf ()
   | true, X86_64, _ ->
     let asm_directives = build_asm_directives () in
