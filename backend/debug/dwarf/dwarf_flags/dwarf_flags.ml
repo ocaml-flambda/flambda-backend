@@ -72,6 +72,8 @@ let use_g () =
   then use_g1 ()
   else current_debug_settings := bytecode_g
 
+let restrict_to_upstream_dwarf = ref false
+
 let debug_thing thing = List.mem thing !current_debug_settings
 
 let set_debug_thing thing =

@@ -33,6 +33,8 @@ val use_g2 : unit -> unit
 
 val use_g3 : unit -> unit
 
+val restrict_to_upstream_dwarf : bool ref
+
 type dwarf_version =
   | Four
   | Five

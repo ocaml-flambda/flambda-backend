@@ -82,16 +82,23 @@ module type Flambda_backend_options = sig
   val dfreshen : unit -> unit
 end
 
+(** Command line arguments required for ocamlopt.*)
+module type Debugging_options = sig
+  val _restrict_to_upstream_dwarf : unit -> unit
+end
+
 (** Command line arguments required for ocamlopt. *)
 module type Optcomp_options = sig
   include Main_args.Optcomp_options
   include Flambda_backend_options
+  include Debugging_options
 end
 
 (** Command line arguments required for ocamlnat. *)
 module type Opttop_options = sig
   include Main_args.Opttop_options
   include Flambda_backend_options
+  include Debugging_options
 end
 
 (** Transform required command-line arguments into actual arguments.

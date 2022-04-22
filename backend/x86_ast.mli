@@ -233,9 +233,12 @@ type asm_line =
   | Weak of string
   | Long of constant
   | NewLabel of string * data_type
+  | NewLine
   | Quad of constant
   | Section of string list * string option * string list
+  | Sleb128 of constant
   | Space of int
+  | Uleb128 of constant
   | Word of constant
 
   (* masm only (the gas emitter will fail on them) *)
@@ -255,5 +258,8 @@ type asm_line =
   | Size of string * constant
   | Type of string * string
   | Reloc of reloc
+
+  (* MacOS only *)
+  | Direct_assignment of string * constant
 
 type asm_program = asm_line list
