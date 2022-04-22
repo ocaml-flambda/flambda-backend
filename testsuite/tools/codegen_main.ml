@@ -22,7 +22,7 @@ let compile_file filename =
     Emitaux.output_channel := open_out out_name
   end; (* otherwise, stdout *)
   Compilenv.reset "test";
-  Emit.begin_assembly();
+  Emit.begin_assembly ~init_dwarf:(fun () -> ());
   let ic = open_in filename in
   let lb = Lexing.from_channel ic in
   lb.Lexing.lex_curr_p <- Lexing.{ lb.lex_curr_p with pos_fname = filename };
@@ -33,7 +33,7 @@ let compile_file filename =
     done
   with
       End_of_file ->
-        close_in ic; Emit.end_assembly();
+        close_in ic; Emit.end_assembly None;
         if !write_asm_file then close_out !Emitaux.output_channel
     | Lexcmm.Error msg ->
         close_in ic; Lexcmm.report_error lb msg
