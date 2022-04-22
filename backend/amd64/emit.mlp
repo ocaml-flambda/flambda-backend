@@ -584,6 +584,8 @@ let probes = ref []
 
 let probe_semaphores = ref String.Map.empty
 
+let stapsdt_base_emitted = ref false
+
 let reset_probes () =
   probes := [];
   probe_semaphores := String.Map.empty
@@ -1275,6 +1277,7 @@ let reset_all () =
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
   reset_probes ();
+  stapsdt_base_emitted := false;
   reset_traps ();
   float_constants := [];
   all_functions := []
@@ -1483,13 +1486,16 @@ let emit_probe_handler_wrapper p =
   emit_function_type_and_size wrap_label
 
 let emit_stapsdt_base_section () =
-  D.section [".stapsdt.base"] (Some "aG")
-    ["\"progbits\""; ".stapsdt.base"; "comdat"];
-  D.weak "_.stapsdt.base";
-  D.hidden "_.stapsdt.base";
-  D.label "_.stapsdt.base";
-  D.space 1;
-  D.size "_.stapsdt.base" (const 1)
+  if not !stapsdt_base_emitted then begin
+    stapsdt_base_emitted := true;
+    D.section [".stapsdt.base"] (Some "aG")
+      ["\"progbits\""; ".stapsdt.base"; "comdat"];
+    D.weak "_.stapsdt.base";
+    D.hidden "_.stapsdt.base";
+    D.label "_.stapsdt.base";
+    D.space 1;
+    D.size "_.stapsdt.base" (const 1)
+  end
 
 let emit_elf_note ~owner ~typ ~emit_desc =
   D.align 4;
