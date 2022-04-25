@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+module C = Cmm_helpers
+
 (* Continuation use. A continuation can be translated one of two ways:
 
    - by a static jump (Cmm jump, using a unique integer)
@@ -72,11 +74,6 @@ type extra_info =
    only linear bindings are supposed to be inlined), and if the current stage
    becomes empty, the last archived stage is "un-archived". *)
 
-type kind =
-  | Pure
-  | Effect
-  | Coeffect
-
 type binding =
   { order : int;
     inline : bool;
@@ -86,8 +83,8 @@ type binding =
   }
 
 type stage =
-  | Eff of Variable.t * binding
-  | Coeff of binding Variable.Map.t
+  | Effect of Variable.t * binding
+  | Coeffect_only of binding Variable.Map.t
 
 (* Translation environment *)
 
@@ -140,7 +137,7 @@ type t =
     stages : stage list (* archived stages, in reverse chronological order. *)
   }
 
-let mk offsets functions_info k_return ~exn_continuation:k_exn =
+let create offsets functions_info k_return ~exn_continuation:k_exn =
   { k_return;
     k_exn;
     offsets;
@@ -183,11 +180,11 @@ let exn_cont env = env.k_exn
 
 (* Function info *)
 
-let get_function_info env code_id =
+let get_code_metadata env code_id =
   match Exported_code.find_exn env.functions_info code_id with
   | code_or_metadata -> Code_or_metadata.code_metadata code_or_metadata
   | exception Not_found ->
-    Misc.fatal_errorf "To_cmm_env.get_function_info: code ID %a not bound"
+    Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
       Code_id.print code_id
 
 type closure_code_pointers =
@@ -195,7 +192,7 @@ type closure_code_pointers =
   | Full_and_partial_application
 
 let get_func_decl_params_arity t code_id =
-  let info = get_function_info t code_id in
+  let info = get_code_metadata t code_id in
   let num_params =
     Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
   in
@@ -210,7 +207,7 @@ let get_func_decl_params_arity t code_id =
     | Curried _, (0 | 1) -> Full_application_only
     | (Curried _ | Tupled), _ -> Full_and_partial_application
   in
-  (kind, num_params), closure_code_pointers
+  (kind, num_params), closure_code_pointers, Code_metadata.dbg info
 
 (* Variables *)
 
@@ -222,7 +219,7 @@ let gen_variable v =
 
 let add_variable env v v' =
   let v'' = Backend_var.With_provenance.var v' in
-  let vars = Variable.Map.add v (To_cmm_helper.var v'') env.vars in
+  let vars = Variable.Map.add v (C.var v'') env.vars in
   { env with vars }
 
 let create_variable env v =
@@ -347,23 +344,6 @@ let next_order =
     incr r;
     !r
 
-let classify effs =
-  match (effs : Effects_and_coeffects.t) with
-  (* For the purpose of to_cmm, generative effects, i.e. allocations, will be
-     considered to have effects because the mutable state of the gc that
-     allocations actually effect can be observed by coeffects performed by
-     function calls (particularly coming from the Gc module). *)
-  | Arbitrary_effects, (Has_coeffects | No_coeffects)
-  | Only_generative_effects _, (Has_coeffects | No_coeffects) ->
-    Effect
-  (* Coeffects without any effect. These expression can commute with other
-     coeffectful expressions (and pure expressions), but cannot commut with an
-     effectful expression. *)
-  | No_effects, Has_coeffects -> Coeffect
-  (* Pure expressions: these can be commuted with *everything*, including
-     effectful expressions such as function calls. *)
-  | No_effects, No_coeffects -> Pure
-
 let is_inlinable_box effs ~extra =
   (* [effs] is the effects and coeffects of some primitive operation, arising
      either from the primitive itself or its arguments. If this is a boxing
@@ -379,7 +359,7 @@ let mk_binding ?extra env inline effs var cmm_expr =
   let cmm_var = gen_variable var in
   let b = { order; inline; effs; cmm_var; cmm_expr } in
   let v = Backend_var.With_provenance.var cmm_var in
-  let e = To_cmm_helper.var v in
+  let e = C.var v in
   let env = { env with vars = Variable.Map.add var e env.vars } in
   let env =
     match extra with
@@ -397,33 +377,34 @@ let bind_inlined_box env var b =
      rule. *)
   bind_pure env var b
 
-let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
+let bind_eff env var b = { env with stages = Effect (var, b) :: env.stages }
 
 let bind_coeff env var b =
   match env.stages with
-  | Coeff m :: r ->
+  | Coeffect_only m :: r ->
     let m' = Variable.Map.add var b m in
-    { env with stages = Coeff m' :: r }
-  | ([] as r) | (Eff _ :: _ as r) ->
+    { env with stages = Coeffect_only m' :: r }
+  | ([] as r) | (Effect _ :: _ as r) ->
     let m = Variable.Map.singleton var b in
-    { env with stages = Coeff m :: r }
+    { env with stages = Coeffect_only m :: r }
 
 let bind_variable env var ?extra effs inline cmm_expr =
   let env, b = mk_binding ?extra env inline effs var cmm_expr in
   if inline && is_inlinable_box effs ~extra
   then bind_inlined_box env var b
   else
-    match classify effs with
+    match To_cmm_effects.classify_by_effects_and_coeffects effs with
     | Pure -> bind_pure env var b
     | Effect -> bind_eff env var b
-    | Coeffect -> bind_coeff env var b
+    | Coeffect_only -> bind_coeff env var b
+
 (* Variable lookup (for potential inlining) *)
 
 let inline_res env b = b.cmm_expr, env, b.effs
 
 let inline_not env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
-  To_cmm_helper.var v', env, Effects_and_coeffects.pure
+  C.var v', env, Effects_and_coeffects.pure
 
 let inline_not_found env v =
   match Variable.Map.find v env.vars with
@@ -458,7 +439,7 @@ let inline_found_coeff env var m r =
       let env =
         if Variable.Map.is_empty m'
         then { env with stages = r }
-        else { env with stages = Coeff m' :: r }
+        else { env with stages = Coeffect_only m' :: r }
       in
       inline_res env b
     else inline_not env b
@@ -469,8 +450,8 @@ let inline_variable env var =
   | exception Not_found -> begin
     match env.stages with
     | [] -> inline_not_found env var
-    | Eff (v, b) :: r -> inline_found_eff env var v b r
-    | Coeff m :: r -> inline_found_coeff env var m r
+    | Effect (v, b) :: r -> inline_found_eff env var v b r
+    | Coeffect_only m :: r -> inline_found_coeff env var m r
   end
 
 (* Flushing delayed bindings *)
@@ -494,12 +475,13 @@ let flush_delayed_lets ?(entering_loop = false) env =
     let order_map =
       List.fold_left
         (fun acc -> function
-          | Eff (_, b) -> order_add b acc
-          | Coeff m -> order_add_map m acc)
+          | Effect (_, b) -> order_add b acc
+          | Coeffect_only m -> order_add_map m acc)
         order_map stages
     in
     M.fold
-      (fun _ b acc -> To_cmm_helper.letin b.cmm_var b.cmm_expr acc)
+      (fun _ b acc ->
+        Cmm_helpers.letin b.cmm_var ~defining_expr:b.cmm_expr ~body:acc)
       order_map e
   in
   (* Unless entering a loop, only pure bindings that are not to be inlined are

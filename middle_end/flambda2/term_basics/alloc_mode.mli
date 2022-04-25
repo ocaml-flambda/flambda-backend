@@ -21,3 +21,5 @@ val print : Format.formatter -> t -> unit
 val compare : t -> t -> int
 
 val from_lambda : Lambda.alloc_mode -> t
+
+val to_lambda : t -> Lambda.alloc_mode

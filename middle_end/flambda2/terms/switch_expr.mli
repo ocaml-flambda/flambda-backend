@@ -28,10 +28,14 @@ include Expr_std.S with type t := t
 include Contains_ids.S with type t := t
 
 val create :
-  scrutinee:Simple.t -> arms:Apply_cont_expr.t Targetint_31_63.Map.t -> t
+  condition_dbg:Debuginfo.t ->
+  scrutinee:Simple.t ->
+  arms:Apply_cont_expr.t Targetint_31_63.Map.t ->
+  t
 
 (** Create a [Switch] corresponding to a traditional if-then-else. *)
 val if_then_else :
+  condition_dbg:Debuginfo.t ->
   scrutinee:Simple.t ->
   if_true:Apply_cont_expr.t ->
   if_false:Apply_cont_expr.t ->
@@ -39,6 +43,9 @@ val if_then_else :
 
 (** The scrutinee of the switch. *)
 val scrutinee : t -> Simple.t
+
+(** The debuginfo to be used for the condition. *)
+val condition_dbg : t -> Debuginfo.t
 
 (** Call the given function [f] on each (discriminant, action) pair in the
     switch. *)

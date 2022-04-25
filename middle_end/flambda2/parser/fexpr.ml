@@ -132,7 +132,7 @@ type static_data_binding =
     defining_expr : static_data
   }
 
-type raise_kind = Trap_action.raise_kind =
+type raise_kind = Trap_action.Raise_kind.t =
   | Regular
   | Reraise
   | No_trace

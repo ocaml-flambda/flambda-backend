@@ -595,7 +595,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
       in
       args @ extra_args
     in
-    let raise_kind = Some (Trap_action.raise_kind_from_lambda raise_kind) in
+    let raise_kind = Some (Trap_action.Raise_kind.from_lambda raise_kind) in
     let trap_action = Trap_action.Pop { exn_handler; raise_kind } in
     let acc, apply_cont =
       Apply_cont_with_acc.create acc ~trap_action exn_handler ~args ~dbg
@@ -906,22 +906,23 @@ let close_exact_or_unknown_apply acc env
       Inlining.inline acc ~apply ~apply_depth:(Env.current_depth env) ~func_desc
   else Expr_with_acc.create_apply acc apply
 
-let close_apply_cont acc env cont trap_action args : Acc.t * Expr_with_acc.t =
+let close_apply_cont acc env ~dbg cont trap_action args :
+    Acc.t * Expr_with_acc.t =
   let acc, args = find_simples acc env args in
   let trap_action = close_trap_action_opt trap_action in
   let args_approx = List.map (Env.find_value_approximation env) args in
   let acc, apply_cont =
-    Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args
-      ~dbg:Debuginfo.none
+    Apply_cont_with_acc.create acc ?trap_action ~args_approx cont ~args ~dbg
   in
   Expr_with_acc.create_apply_cont acc apply_cont
 
-let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
+let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
+    Acc.t * Expr_with_acc.t =
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
   let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
   let untag =
-    Named.create_prim (Unary (Untag_immediate, scrutinee)) Debuginfo.none
+    Named.create_prim (Unary (Untag_immediate, scrutinee)) condition_dbg
   in
   let acc, arms =
     List.fold_left_map
@@ -930,7 +931,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
         let acc, args = find_simples acc env args in
         let acc, action =
           Apply_cont_with_acc.create acc ?trap_action cont ~args
-            ~dbg:Debuginfo.none
+            ~dbg:condition_dbg
         in
         acc, (Targetint_31_63.int (Targetint_31_63.Imm.of_int case), action))
       acc sw.consts
@@ -948,7 +949,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
            ( Phys_equal (Flambda_kind.naked_immediate, Eq),
              Simple.var untagged_scrutinee,
              Simple.const (Reg_width_const.naked_immediate case) ))
-        Debuginfo.none
+        condition_dbg
     in
     let comparison_result = Variable.create "eq" in
     let comparison_result' = VB.create comparison_result Name_mode.normal in
@@ -956,12 +957,13 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
       Apply_cont_with_acc.create acc ?trap_action default_action ~args
-        ~dbg:Debuginfo.none
+        ~dbg:condition_dbg
     in
     let acc, switch =
       let scrutinee = Simple.var comparison_result in
       Expr_with_acc.create_switch acc
-        (Switch.if_then_else ~scrutinee ~if_true:action ~if_false:default_action)
+        (Switch.if_then_else ~condition_dbg ~scrutinee ~if_true:action
+           ~if_false:default_action)
     in
     let acc, body =
       Let_with_acc.create acc
@@ -986,7 +988,7 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
               let trap_action = close_trap_action_opt trap_action in
               let acc, default =
                 Apply_cont_with_acc.create acc ?trap_action default ~args
-                  ~dbg:Debuginfo.none
+                  ~dbg:condition_dbg
               in
               acc, Targetint_31_63.Map.add case default cases)
           (Numeric_types.Int.zero_to_n (sw.numconsts - 1))
@@ -1001,7 +1003,8 @@ let close_switch acc env scrutinee (sw : IR.switch) : Acc.t * Expr_with_acc.t =
         | Some (_discriminant, action) ->
           Expr_with_acc.create_apply_cont acc action
         | None ->
-          Expr_with_acc.create_switch acc (Switch.create ~scrutinee ~arms)
+          Expr_with_acc.create_switch acc
+            (Switch.create ~condition_dbg ~scrutinee ~arms)
       in
       Let_with_acc.create acc
         (Bound_pattern.singleton untagged_scrutinee')
@@ -1883,7 +1886,8 @@ let close_program ~symbol_for_global ~big_endian ~cmx_loader ~module_ident
       let static_const : Static_const.t =
         let field_vars =
           List.map
-            (fun (_, var) : Field_of_static_block.t -> Dynamically_computed var)
+            (fun (_, var) : Field_of_static_block.t ->
+              Dynamically_computed (var, Debuginfo.none))
             field_vars
         in
         Block (module_block_tag, Immutable, field_vars)

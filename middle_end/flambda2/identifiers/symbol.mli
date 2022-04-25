@@ -24,3 +24,5 @@ include module type of struct
 end
 
 val is_predefined_exception : t -> bool
+
+val linkage_name_as_string : t -> string

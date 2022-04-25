@@ -12,41 +12,15 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Environment for flambda to cmm translation *)
-
-(** {1 Effects and coeffects interpretation} *)
-
-(** The classification of expression used by to_cmm. *)
-type kind =
-  | Pure
-      (** Pure expressions can be commuted with any other expression, including
-          effectful expressions such as function calls *)
-  | Effect
-      (** Effectful expressions do not commute with coeffectful or effectful
-          expressions.
-
-          Currently, because it is tecnically possible to inspect the Gc state
-          in ocaml programs using the Gc module, allocations are considered as
-          effectful in order to not be commuted with function calls (or
-          potential future coeffectful-only expressions that may read the gc
-          state in some way). *)
-  | Coeffect
-      (** Coeffectful expression can commute with other coeffectful expressions
-          (and pure expressions), but not with effectful expressions. *)
-
-(** Return the to_cmm classification of an expression with the given effects and
-    coeffects. *)
-val classify : Effects_and_coeffects.t -> kind
-
 (** {1 Translation environment} *)
 
 (** Environment for flambda to cmm translation *)
 type t
 
-(** [mk offsets k k_exn] creates a local environment for translating a flambda
-    expression, with return continuation [k], exception continuation [k_exn],
-    and which uses the given closures variables. *)
-val mk :
+(** [create offsets k k_exn] creates a local environment for translating a
+    flambda expression, with return continuation [k], exception continuation
+    [k_exn], and which uses the given closures variables. *)
+val create :
   Exported_offsets.t ->
   Exported_code.t ->
   Continuation.t ->
@@ -69,7 +43,7 @@ val exn_cont : t -> Continuation.t
 (** {2 Function info *)
 
 (** Retrieve known information on the given function *)
-val get_function_info : t -> Code_id.t -> Code_metadata.t
+val get_code_metadata : t -> Code_id.t -> Code_metadata.t
 
 type closure_code_pointers =
   | Full_application_only
@@ -79,7 +53,7 @@ type closure_code_pointers =
     account both the function's own arity and the [is_tupled] flag) together
     with the code pointer layout for the closure. *)
 val get_func_decl_params_arity :
-  t -> Code_id.t -> Clambda.arity * closure_code_pointers
+  t -> Code_id.t -> Clambda.arity * closure_code_pointers * Debuginfo.t
 
 (** {2 Variable bindings} *)
 
