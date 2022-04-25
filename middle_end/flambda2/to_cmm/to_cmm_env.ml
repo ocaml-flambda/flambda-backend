@@ -16,12 +16,6 @@
 
 module C = Cmm_helpers
 
-(* Continuation use. A continuation can be translated one of two ways:
-
-   - by a static jump (Cmm jump, using a unique integer)
-
-   - by inlining the continuation's body at the call site. *)
-
 type cont =
   | Jump of
       { types : Cmm.machtype list;
@@ -89,7 +83,8 @@ type stage =
 (* Translation environment *)
 
 type t =
-  { (* Global information. Those are computed once and valid for a whole unit.*)
+  { (* Global information. These are computed once and valid for a whole
+       unit. *)
     offsets : Exported_offsets.t;
     (* Offsets for function_slots and value_slots. *)
     functions_info : Exported_code.t;
@@ -178,7 +173,7 @@ let return_cont env = env.k_return
 
 let exn_cont env = env.k_exn
 
-(* Function info *)
+(* Code metadata *)
 
 let get_code_metadata env code_id =
   match Exported_code.find_exn env.functions_info code_id with
@@ -186,28 +181,6 @@ let get_code_metadata env code_id =
   | exception Not_found ->
     Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
       Code_id.print code_id
-
-type closure_code_pointers =
-  | Full_application_only
-  | Full_and_partial_application
-
-let get_func_decl_params_arity t code_id =
-  let info = get_code_metadata t code_id in
-  let num_params =
-    Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
-  in
-  let kind : Lambda.function_kind =
-    if Code_metadata.is_tupled info
-    then Lambda.Tupled
-    else
-      Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
-  in
-  let closure_code_pointers =
-    match kind, num_params with
-    | Curried _, (0 | 1) -> Full_application_only
-    | (Curried _ | Tupled), _ -> Full_and_partial_application
-  in
-  (kind, num_params), closure_code_pointers, Code_metadata.dbg info
 
 (* Variables *)
 

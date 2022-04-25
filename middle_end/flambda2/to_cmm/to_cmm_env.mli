@@ -40,20 +40,11 @@ val return_cont : t -> Continuation.t
 (** Returns the exception continuation of the environment. *)
 val exn_cont : t -> Continuation.t
 
-(** {2 Function info *)
+(** {2 Code metadata} *)
 
-(** Retrieve known information on the given function *)
+(** Retrieve known information on the given code ID. This function produces a
+    fatal error if the code ID is not known by the environment. *)
 val get_code_metadata : t -> Code_id.t -> Code_metadata.t
-
-type closure_code_pointers =
-  | Full_application_only
-  | Full_and_partial_application
-
-(** Retrieve the parameter arity of the function declaration (taking into
-    account both the function's own arity and the [is_tupled] flag) together
-    with the code pointer layout for the closure. *)
-val get_func_decl_params_arity :
-  t -> Code_id.t -> Clambda.arity * closure_code_pointers * Debuginfo.t
 
 (** {2 Variable bindings} *)
 
@@ -110,7 +101,7 @@ val extra_info : t -> Variable.t -> extra_info option
 
 (** Translation information for continuations. A continuation may either be
     translated as a static jump, or inlined at its call site. *)
-type cont =
+type cont = private
   | Jump of
       { types : Cmm.machtype list;
         cont : int

@@ -46,6 +46,29 @@ let get_whole_closure_symbol =
       set_of_closures_symbol_ref := Some set_of_closures_symbol;
       set_of_closures_symbol
 
+type closure_code_pointers =
+  | Full_application_only
+  | Full_and_partial_application
+
+let get_func_decl_params_arity t code_id =
+  let info = Env.get_code_metadata t code_id in
+  let num_params =
+    Flambda_arity.With_subkinds.cardinal (Code_metadata.params_arity info)
+  in
+  let kind : Lambda.function_kind =
+    if Code_metadata.is_tupled info
+    then Lambda.Tupled
+    else
+      Lambda.Curried { nlocal = Code_metadata.num_trailing_local_params info }
+  in
+  let closure_code_pointers =
+    match kind, num_params with
+    | Curried _, (0 | 1) -> Full_application_only
+    | (Curried _ | Tupled), _ -> Full_and_partial_application
+  in
+  let arity = kind, num_params in
+  arity, closure_code_pointers, Code_metadata.dbg info
+
 module Make_layout_filler (P : sig
   type cmm_term
 
@@ -107,7 +130,7 @@ end = struct
       let code_id = Function_slot.Map.find c decls in
       let code_linkage_name = Code_id.linkage_name code_id in
       let arity, closure_code_pointers, dbg =
-        Env.get_func_decl_params_arity env code_id
+        get_func_decl_params_arity env code_id
       in
       let closure_info =
         C.closure_info ~arity ~startenv:(startenv - slot_offset)
