@@ -135,7 +135,6 @@ let create offsets functions_info k_return ~exn_continuation:k_exn =
 let enter_function_def env k_return k_exn =
   { (* global info *)
     offsets = env.offsets;
-    (* semi-global info *)
     functions_info = env.functions_info;
     (* local info *)
     k_return;
@@ -279,12 +278,6 @@ let layout env set_of_closures =
 
 (* Variable binding (for potential inlining) *)
 
-let next_order =
-  let r = ref 0 in
-  fun () ->
-    incr r;
-    !r
-
 let is_inlinable_box effs ~extra =
   (* [effs] is the effects and coeffects of some primitive operation, arising
      either from the primitive itself or its arguments. If this is a boxing
@@ -295,55 +288,54 @@ let is_inlinable_box effs ~extra =
   | ((No_effects | Only_generative_effects _), No_coeffects), Some Box -> true
   | _, _ -> false
 
-let mk_binding ?extra env inline effs var cmm_expr =
-  let order = next_order () in
-  let cmm_var = gen_variable var in
-  let b = { order; inline; effs; cmm_var; cmm_expr } in
-  let v = Backend_var.With_provenance.var cmm_var in
-  let e = C.var v in
-  let env = { env with vars = Variable.Map.add var e env.vars } in
-  let env =
-    match extra with
-    | None -> env
-    | Some info ->
-      { env with vars_extra = Variable.Map.add var info env.vars_extra }
-  in
-  env, b
-
-let bind_pure env var b = { env with pures = Variable.Map.add var b env.pures }
-
-let bind_inlined_box env var b =
-  (* CR lmaurer: This violates our rule about not moving allocations past
-     function calls. We should either fix it (not clear how) or be rid of that
-     rule. *)
-  bind_pure env var b
-
-let bind_eff env var b = { env with stages = Effect (var, b) :: env.stages }
-
-let bind_coeff env var b =
-  match env.stages with
-  | Coeffect_only m :: r ->
-    let m' = Variable.Map.add var b m in
-    { env with stages = Coeffect_only m' :: r }
-  | ([] as r) | (Effect _ :: _ as r) ->
-    let m = Variable.Map.singleton var b in
-    { env with stages = Coeffect_only m :: r }
+let create_binding =
+  let next_order = ref (-1) in
+  fun ?extra env inline effs var cmm_expr ->
+    let order =
+      incr next_order;
+      !next_order
+    in
+    let cmm_var = gen_variable var in
+    let binding = { order; inline; effs; cmm_var; cmm_expr } in
+    let cmm_expr = C.var (Backend_var.With_provenance.var cmm_var) in
+    let env = { env with vars = Variable.Map.add var cmm_expr env.vars } in
+    let env =
+      match extra with
+      | None -> env
+      | Some info ->
+        { env with vars_extra = Variable.Map.add var info env.vars_extra }
+    in
+    env, binding
 
 let bind_variable env var ?extra effs inline cmm_expr =
-  let env, b = mk_binding ?extra env inline effs var cmm_expr in
+  let env, binding = create_binding ?extra env inline effs var cmm_expr in
   if inline && is_inlinable_box effs ~extra
-  then bind_inlined_box env var b
+  then
+    (* CR-someday lmaurer: This violates our rule about not moving allocations
+       past function calls. We should either fix it (not clear how) or be rid of
+       that rule. *)
+    { env with pures = Variable.Map.add var binding env.pures }
   else
     match To_cmm_effects.classify_by_effects_and_coeffects effs with
-    | Pure -> bind_pure env var b
-    | Effect -> bind_eff env var b
-    | Coeffect_only -> bind_coeff env var b
+    | Pure -> { env with pures = Variable.Map.add var binding env.pures }
+    | Effect -> { env with stages = Effect (var, binding) :: env.stages }
+    | Coeffect_only ->
+      let stages =
+        match env.stages with
+        | Coeffect_only bindings :: stages ->
+          (* Multiple coeffect-only bindings may be accumulated in the same
+             stage. *)
+          Coeffect_only (Variable.Map.add var binding bindings) :: stages
+        | [] | Effect _ :: _ ->
+          Coeffect_only (Variable.Map.singleton var binding) :: env.stages
+      in
+      { env with stages }
 
 (* Variable lookup (for potential inlining) *)
 
 let inline_res env b = b.cmm_expr, env, b.effs
 
-let inline_not env b =
+let non_inlined_var env b =
   let v' = Backend_var.With_provenance.var b.cmm_var in
   C.var v', env, Effects_and_coeffects.pure
 
@@ -359,18 +351,18 @@ let inline_found_pure env var b =
     let pures = Variable.Map.remove var env.pures in
     let env = { env with pures } in
     inline_res env b
-  else inline_not env b
+  else non_inlined_var env b
 
-let inline_found_eff env var v b r =
+let inline_found_effect env var v b r =
   if not (Variable.equal var v)
   then inline_not_found env var
   else if b.inline
   then
     let env = { env with stages = r } in
     inline_res env b
-  else inline_not env b
+  else non_inlined_var env b
 
-let inline_found_coeff env var m r =
+let inline_found_coeffect_only env var m r =
   match Variable.Map.find var m with
   | exception Not_found -> inline_not_found env var
   | b ->
@@ -383,7 +375,7 @@ let inline_found_coeff env var m r =
         else { env with stages = Coeffect_only m' :: r }
       in
       inline_res env b
-    else inline_not env b
+    else non_inlined_var env b
 
 let inline_variable env var =
   match Variable.Map.find var env.pures with
@@ -391,8 +383,8 @@ let inline_variable env var =
   | exception Not_found -> begin
     match env.stages with
     | [] -> inline_not_found env var
-    | Effect (v, b) :: r -> inline_found_eff env var v b r
-    | Coeffect_only m :: r -> inline_found_coeff env var m r
+    | Effect (v, b) :: r -> inline_found_effect env var v b r
+    | Coeffect_only m :: r -> inline_found_coeffect_only env var m r
   end
 
 (* Flushing delayed bindings *)
