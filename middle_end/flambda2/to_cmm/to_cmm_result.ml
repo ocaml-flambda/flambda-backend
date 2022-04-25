@@ -14,10 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-module C = struct
-  include Cmm_helpers
-  include To_cmm_helper
-end
+module C = Cmm_helpers
 
 type t =
   { gc_roots : Symbol.t list;
@@ -105,8 +102,6 @@ let to_cmm r =
         Debuginfo.compare f1.fun_dbg f2.fun_dbg)
       r.functions
   in
-  let functions_phrases =
-    List.map (fun f -> Cmm.Cfunction f) sorted_functions
-  in
+  let functions_phrases = List.map (fun f -> C.cfunction f) sorted_functions in
   (* Return the data list, gc roots and function declarations *)
   r.data_list, r.gc_roots, functions_phrases

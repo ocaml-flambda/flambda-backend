@@ -343,10 +343,12 @@ let field_of_block env (v : Fexpr.field_of_block) : Field_of_static_block.t =
     Tagged_immediate (Targetint_31_63.int (Targetint_31_63.Imm.of_targetint i))
   | Dynamically_computed var ->
     let var = find_var env var in
-    Dynamically_computed var
+    Dynamically_computed (var, Debuginfo.none)
 
 let or_variable f env (ov : _ Fexpr.or_variable) : _ Or_variable.t =
-  match ov with Const c -> Const (f c) | Var v -> Var (find_var env v)
+  match ov with
+  | Const c -> Const (f c)
+  | Var v -> Var (find_var env v, Debuginfo.none)
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
@@ -603,7 +605,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       |> Targetint_31_63.Map.of_list
     in
     Flambda.Expr.create_switch
-      (Flambda.Switch.create ~scrutinee:(simple env scrutinee) ~arms)
+      (Flambda.Switch.create ~condition_dbg:Debuginfo.none
+         ~scrutinee:(simple env scrutinee) ~arms)
   | Let_symbol { bindings; value_slots; body } ->
     (* Desugar the abbreviated form for a single set of closures *)
     let found_explicit_set = ref false in

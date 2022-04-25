@@ -17,7 +17,8 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type t =
-  { scrutinee : Simple.t;
+  { condition_dbg : Debuginfo.t;
+    scrutinee : Simple.t;
     arms : Apply_cont_expr.t Targetint_31_63.Map.t
   }
 
@@ -64,32 +65,32 @@ let print_arms ppf arms =
         Apply_cont_expr.print action)
     arms
 
-let [@ocamlformat "disable"] print ppf { scrutinee; arms; } =
-  fprintf ppf
-    "@[<v 0>(@<0>%sswitch@<0>%s %a@ @[<v 0>%a@])@]"
+let print ppf { condition_dbg = _; scrutinee; arms } =
+  fprintf ppf "@[<v 0>(@<0>%sswitch@<0>%s %a@ @[<v 0>%a@])@]"
     (Flambda_colours.expr_keyword ())
     (Flambda_colours.normal ())
-    Simple.print scrutinee
-    print_arms arms
+    Simple.print scrutinee print_arms arms
 
-let create ~scrutinee ~arms = { scrutinee; arms }
+let create ~condition_dbg ~scrutinee ~arms = { condition_dbg; scrutinee; arms }
 
-let if_then_else ~scrutinee ~if_true ~if_false =
+let if_then_else ~condition_dbg ~scrutinee ~if_true ~if_false =
   let arms =
     Targetint_31_63.Map.of_list
       [Targetint_31_63.bool_true, if_true; Targetint_31_63.bool_false, if_false]
   in
-  create ~scrutinee ~arms
+  create ~condition_dbg ~scrutinee ~arms
 
 let iter t ~f = Targetint_31_63.Map.iter f t.arms
 
 let num_arms t = Targetint_31_63.Map.cardinal t.arms
 
+let condition_dbg t = t.condition_dbg
+
 let scrutinee t = t.scrutinee
 
 let arms t = t.arms
 
-let free_names { scrutinee; arms } =
+let free_names { condition_dbg = _; scrutinee; arms } =
   let free_names_in_arms =
     Targetint_31_63.Map.fold
       (fun _discr action free_names ->
@@ -98,7 +99,7 @@ let free_names { scrutinee; arms } =
   in
   Name_occurrences.union (Simple.free_names scrutinee) free_names_in_arms
 
-let apply_renaming ({ scrutinee; arms } as t) perm =
+let apply_renaming ({ condition_dbg; scrutinee; arms } as t) perm =
   let scrutinee' = Simple.apply_renaming scrutinee perm in
   let arms' =
     Targetint_31_63.Map.map_sharing
@@ -107,9 +108,9 @@ let apply_renaming ({ scrutinee; arms } as t) perm =
   in
   if scrutinee == scrutinee' && arms == arms'
   then t
-  else { scrutinee = scrutinee'; arms = arms' }
+  else { condition_dbg; scrutinee = scrutinee'; arms = arms' }
 
-let all_ids_for_export { scrutinee; arms } =
+let all_ids_for_export { condition_dbg = _; scrutinee; arms } =
   let scrutinee_ids = Ids_for_export.from_simple scrutinee in
   Targetint_31_63.Map.fold
     (fun _discr action ids ->

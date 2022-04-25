@@ -18,7 +18,8 @@
 
 open! Simplify_import
 
-let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
+let create_static_const dacc dbg (to_lift : T.to_lift) : Rebuilt_static_const.t
+    =
   match to_lift with
   | Immutable_block { tag; is_unique; fields } ->
     let fields =
@@ -29,7 +30,7 @@ let create_static_const dacc (to_lift : T.to_lift) : Rebuilt_static_const.t =
              Field_of_static_block.t
            ->
           match field with
-          | Var var -> Dynamically_computed var
+          | Var var -> Dynamically_computed (var, dbg)
           | Symbol sym -> Symbol sym
           | Tagged_immediate imm -> Tagged_immediate imm)
     in
@@ -119,8 +120,8 @@ let lift dacc ty ~bound_to static_const =
   in
   Simplified_named.reachable term ~try_reify:false, dacc
 
-let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
-    ~allow_lifting =
+let try_to_reify dacc dbg (term : Simplified_named.t) ~bound_to
+    ~kind_of_bound_to ~allow_lifting =
   let occ_kind = Bound_var.name_mode bound_to in
   let bound_to = Bound_var.var bound_to in
   let denv = DA.denv dacc in
@@ -145,7 +146,7 @@ let try_to_reify dacc (term : Simplified_named.t) ~bound_to ~kind_of_bound_to
     | Lift to_lift ->
       if Name_mode.is_normal occ_kind && allow_lifting
       then
-        let static_const = create_static_const dacc to_lift in
+        let static_const = create_static_const dacc dbg to_lift in
         lift dacc ty ~bound_to static_const
       else term, dacc
     | Simple simple ->

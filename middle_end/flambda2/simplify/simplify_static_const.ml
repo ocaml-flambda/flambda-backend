@@ -25,7 +25,7 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
   match field with
   | Symbol sym -> field, T.alias_type_of K.value (Simple.symbol sym)
   | Tagged_immediate i -> field, T.this_tagged_immediate i
-  | Dynamically_computed var ->
+  | Dynamically_computed (var, dbg) ->
     let min_name_mode = Name_mode.normal in
     let ty = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
     let simple = T.get_alias_exn ty in
@@ -36,7 +36,8 @@ let simplify_field_of_block dacc (field : Field_of_static_block.t) =
            obvious to me why this would be the case. *)
         assert (Coercion.is_id coercion);
         Name.pattern_match name
-          ~var:(fun var -> Field_of_static_block.Dynamically_computed var, ty)
+          ~var:(fun var ->
+            Field_of_static_block.Dynamically_computed (var, dbg), ty)
           ~symbol:(fun sym -> Field_of_static_block.Symbol sym, ty))
       ~const:(fun const ->
         match Reg_width_const.descr const with
@@ -51,7 +52,7 @@ let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
   let denv = DA.denv dacc in
   match or_variable with
   | Const const -> or_variable, type_for_const const
-  | Var var ->
+  | Var (var, _dbg) ->
     (* CR mshinwell: This needs to check the type of the variable according to
        the various cases below. *)
     (* CR mshinwell: This should be calling [simplify_simple] *)

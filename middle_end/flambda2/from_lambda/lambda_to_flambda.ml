@@ -350,6 +350,10 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
     Acc.t * Expr_with_acc.t =
   let try_stack_at_handler = Env.get_try_stack_at_handler env continuation in
   let try_stack_now = Env.get_try_stack env in
+  let dbg =
+    Debuginfo.none
+    (* CR mshinwell: should probably be fixed in Lambda (on Lstaticraise) *)
+  in
   if List.length try_stack_at_handler > List.length try_stack_now
   then
     Misc.fatal_errorf
@@ -367,7 +371,7 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
       let trap_action : IR.trap_action = Pop { exn_handler = cont } in
       let handler = mk_remaining_traps acc after_pop in
       let body acc ccenv =
-        CC.close_apply_cont acc ccenv wrapper_cont (Some trap_action) []
+        CC.close_apply_cont acc ccenv ~dbg wrapper_cont (Some trap_action) []
       in
       fun acc env ->
         CC.close_let_cont acc env ~name:wrapper_cont ~is_exn_handler:false
@@ -423,7 +427,8 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
   add_pop_traps acc ~try_stack_now
     (fun acc ccenv ->
       add_end_regions acc ~region_stack_now
-        (fun acc ccenv -> CC.close_apply_cont acc ccenv continuation None args)
+        (fun acc ccenv ->
+          CC.close_apply_cont acc ccenv ~dbg continuation None args)
         acc ccenv)
     acc ccenv
 
@@ -668,7 +673,7 @@ let restore_continuation_context acc env ccenv cont ~close_early body =
       let region_closure_cont = Env.region_closure_continuation env region in
       body acc ccenv region_closure_cont
 
-let apply_cont_with_extra_args acc env ccenv cont traps args =
+let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
   let extra_args =
     List.map
       (fun var : IR.simple -> Var var)
@@ -676,7 +681,7 @@ let apply_cont_with_extra_args acc env ccenv cont traps args =
   in
   restore_continuation_context acc env ccenv cont ~close_early:false
     (fun acc ccenv cont ->
-      CC.close_apply_cont acc ccenv cont traps (args @ extra_args))
+      CC.close_apply_cont acc ~dbg ccenv cont traps (args @ extra_args))
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   let extra_args = Env.extra_args_for_continuation env apply.continuation in
@@ -689,8 +694,9 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
       let args =
         List.map (fun var : IR.simple -> Var var) (return_value :: extra_args)
       in
+      let dbg = Debuginfo.none in
       let handler acc ccenv =
-        CC.close_apply_cont acc ccenv continuation None args
+        CC.close_apply_cont acc ccenv ~dbg continuation None args
       in
       let body acc ccenv =
         CC.close_apply acc ccenv { apply with continuation = wrapper_cont }
@@ -928,12 +934,14 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
         k_exn
     | Transformed lam -> cps_non_tail acc env ccenv lam k k_exn
   end
-  | Lswitch (scrutinee, switch, _loc, kind) ->
+  | Lswitch (scrutinee, switch, loc, kind) ->
     let result_var = Ident.create_local "switch_result" in
     let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler:false
       ~params:[result_var, IR.Not_user_visible, kind]
       ~body:(fun acc env ccenv after_switch ->
-        cps_switch acc env ccenv switch ~scrutinee after_switch k_exn)
+        cps_switch acc env ccenv switch
+          ~condition_dbg:(Debuginfo.from_location loc)
+          ~scrutinee after_switch k_exn)
       ~handler:(fun acc env ccenv -> k acc env ccenv result_var)
   | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps_non_tail acc env ccenv
@@ -1015,6 +1023,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
           k_exn)
       k_exn
   | Ltrywith (body, id, handler, kind) ->
+    let dbg = Debuginfo.none (* CR mshinwell: fix [Lambda] *) in
     let body_result = Ident.create_local "body_result" in
     let result_var = Ident.create_local "try_with_result" in
     let region = Ident.create_local "try_region" in
@@ -1042,7 +1051,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                     let_cont_nonrecursive_with_extra_params acc env ccenv
                       ~is_exn_handler:false ~params:[]
                       ~body:(fun acc env ccenv body_continuation ->
-                        apply_cont_with_extra_args acc env ccenv
+                        apply_cont_with_extra_args acc env ccenv ~dbg
                           body_continuation
                           (Some (IR.Push { exn_handler = handler_continuation }))
                           [])
@@ -1050,7 +1059,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
                         cps_tail acc env ccenv body poptrap_continuation
                           handler_continuation))
                   ~handler:(fun acc env ccenv ->
-                    apply_cont_with_extra_args acc env ccenv after_continuation
+                    apply_cont_with_extra_args acc env ccenv ~dbg
+                      after_continuation
                       (Some (IR.Pop { exn_handler = handler_continuation }))
                       [IR.Var body_result]))
               ~handler:(fun acc env ccenv ->
@@ -1096,6 +1106,7 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion body ->
     let region = Ident.create_local "region" in
+    let dbg = Debuginfo.none in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let return = Ident.create_local "body_return" in
@@ -1115,8 +1126,8 @@ let rec cps_non_tail acc env ccenv (lam : L.lambda)
               ~handler:(fun acc env ccenv ->
                 CC.close_let acc ccenv (Ident.create_local "unit")
                   Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                    apply_cont_with_extra_args acc env ccenv return_continuation
-                      None [IR.Var wrap_return])))
+                    apply_cont_with_extra_args acc env ccenv ~dbg
+                      return_continuation None [IR.Var wrap_return])))
           ~handler:(fun acc env ccenv -> k acc env ccenv return))
 
 and cps_non_tail_simple acc env ccenv (lam : L.lambda)
@@ -1138,14 +1149,17 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
   match lam with
   | Lvar id ->
+    let dbg = Debuginfo.none in
     if Env.is_mutable env id
     then
-      name_then_cps_tail acc env ccenv "mutable_read"
+      name_then_cps_tail acc env ccenv ~dbg "mutable_read"
         (IR.Simple (Var (Env.get_mutable_variable env id)))
         k k_exn
-    else apply_cont_with_extra_args acc env ccenv k None [IR.Var id]
+    else apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
   | Lconst const ->
-    name_then_cps_tail acc env ccenv "const" (IR.Simple (Const const)) k k_exn
+    let dbg = Debuginfo.none in
+    name_then_cps_tail acc env ccenv ~dbg "const" (IR.Simple (Const const)) k
+      k_exn
   | Lapply
       { ap_func;
         ap_args;
@@ -1184,13 +1198,14 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       k_exn
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
+    let dbg = Debuginfo.from_location func.loc in
     let func =
       cps_function env ~fid:id ~stub:false
         ~recursive:(Non_recursive : Recursive.t)
         func
     in
     let body acc ccenv =
-      apply_cont_with_extra_args acc env ccenv k None [IR.Var id]
+      apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
     in
     CC.close_let_rec acc ccenv ~function_declarations:[func] ~body
   | Llet (Variable, value_kind, id, defining_expr, body) ->
@@ -1291,10 +1306,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
             }
         else None
       in
+      let dbg = Debuginfo.from_location loc in
       cps_non_tail_list acc env ccenv args
         (fun acc env ccenv args ->
           let body acc ccenv =
-            apply_cont_with_extra_args acc env ccenv k None [IR.Var result_var]
+            apply_cont_with_extra_args acc env ccenv ~dbg k None
+              [IR.Var result_var]
           in
           CC.close_let acc ccenv result_var Not_user_visible
             (Prim { prim; args; loc; exn_continuation })
@@ -1302,9 +1319,11 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
         k_exn
     | Transformed lam -> cps_tail acc env ccenv lam k k_exn
   end
-  | Lswitch (scrutinee, switch, _loc, _kind) ->
+  | Lswitch (scrutinee, switch, loc, _kind) ->
     (* CR-someday poechsel: Use [kind] *)
-    cps_switch acc env ccenv switch ~scrutinee k k_exn
+    cps_switch acc env ccenv switch
+      ~condition_dbg:(Debuginfo.from_location loc)
+      ~scrutinee k k_exn
   | Lstringswitch (scrutinee, cases, default, loc, kind) ->
     cps_tail acc env ccenv
       (Matching.expand_stringswitch loc kind scrutinee cases default)
@@ -1374,11 +1393,12 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
     then
       Misc.fatal_errorf "Lassign on non-mutable variable %a" Ident.print
         being_assigned;
+    let dbg = Debuginfo.none in
     cps_non_tail_simple acc env ccenv new_value
       (fun acc env ccenv new_value ->
         let env, new_id = Env.update_mutable_variable env being_assigned in
         let body acc ccenv =
-          name_then_cps_tail acc env ccenv "assign"
+          name_then_cps_tail acc env ccenv ~dbg "assign"
             (IR.Simple (Const L.const_unit)) k k_exn
         in
         CC.close_let acc ccenv new_id User_visible (Simple new_value) ~body)
@@ -1386,6 +1406,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
   | Ltrywith (body, id, handler, kind) ->
     let body_result = Ident.create_local "body_result" in
     let region = Ident.create_local "try_region" in
+    let dbg = Debuginfo.none (* CR mshinwell: Fix [Lambda] *) in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let_cont_nonrecursive_with_extra_params acc env ccenv
@@ -1399,14 +1420,15 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
                 let_cont_nonrecursive_with_extra_params acc env ccenv
                   ~is_exn_handler:false ~params:[]
                   ~body:(fun acc env ccenv body_continuation ->
-                    apply_cont_with_extra_args acc env ccenv body_continuation
+                    apply_cont_with_extra_args acc env ccenv ~dbg
+                      body_continuation
                       (Some (IR.Push { exn_handler = handler_continuation }))
                       [])
                   ~handler:(fun acc env ccenv ->
                     cps_tail acc env ccenv body poptrap_continuation
                       handler_continuation))
               ~handler:(fun acc env ccenv ->
-                apply_cont_with_extra_args acc env ccenv k
+                apply_cont_with_extra_args acc env ccenv ~dbg k
                   (Some (IR.Pop { exn_handler = handler_continuation }))
                   [IR.Var body_result]))
           ~handler:(fun acc env ccenv ->
@@ -1435,6 +1457,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
       "[Lifused] should have been removed by [Simplif.simplify_lets]"
   | Lregion body ->
     let region = Ident.create_local "region" in
+    let dbg = Debuginfo.none in
     CC.close_let acc ccenv region Not_user_visible Begin_region
       ~body:(fun acc ccenv ->
         let wrap_return = Ident.create_local "region_return" in
@@ -1447,7 +1470,7 @@ and cps_tail acc env ccenv (lam : L.lambda) (k : Continuation.t)
           ~handler:(fun acc env ccenv ->
             CC.close_let acc ccenv (Ident.create_local "unit")
               Not_user_visible (End_region region) ~body:(fun acc ccenv ->
-                apply_cont_with_extra_args acc env ccenv k None
+                apply_cont_with_extra_args acc env ccenv ~dbg k None
                   [IR.Var wrap_return])))
 
 and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
@@ -1456,11 +1479,11 @@ and name_then_cps_non_tail acc env ccenv name defining_expr k _k_exn :
   let body acc ccenv = k acc env ccenv id in
   CC.close_let acc ccenv id Not_user_visible defining_expr ~body
 
-and name_then_cps_tail acc env ccenv name defining_expr k _k_exn :
+and name_then_cps_tail acc env ccenv ~dbg name defining_expr k _k_exn :
     Acc.t * Expr_with_acc.t =
   let id = Ident.create_local name in
   let body acc ccenv =
-    apply_cont_with_extra_args acc env ccenv k None [IR.Var id]
+    apply_cont_with_extra_args acc env ccenv ~dbg k None [IR.Var id]
   in
   CC.close_let acc ccenv id Not_user_visible defining_expr ~body
 
@@ -1612,8 +1635,9 @@ and cps_function env ~fid ~stub ~(recursive : Recursive.t) ?free_idents
     ~free_idents_of_body ~stub recursive ~closure_alloc_mode:mode
     ~num_trailing_local_params ~contains_no_escaping_local_allocs:region
 
-and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
-    (k : Continuation.t) (k_exn : Continuation.t) : Acc.t * Expr_with_acc.t =
+and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
+    ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) :
+    Acc.t * Expr_with_acc.t =
   let block_nums, sw_blocks = List.split switch.sw_blocks in
   let block_nums =
     List.map
@@ -1709,12 +1733,12 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
       in
       let build_switch scrutinee wrappers =
         let const_switch acc ccenv =
-          CC.close_switch acc ccenv scrutinee const_switch
+          CC.close_switch acc ccenv ~condition_dbg scrutinee const_switch
         in
         let scrutinee_tag = Ident.create_local "scrutinee_tag" in
         let block_switch acc ccenv =
           let body acc ccenv =
-            CC.close_switch acc ccenv scrutinee_tag block_switch
+            CC.close_switch acc ccenv ~condition_dbg scrutinee_tag block_switch
           in
           CC.close_let acc ccenv scrutinee_tag Not_user_visible
             (Get_tag scrutinee) ~body
@@ -1735,7 +1759,8 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~scrutinee
           let is_scrutinee_int = Ident.create_local "is_scrutinee_int" in
           let isint_switch acc ccenv =
             let body acc ccenv =
-              CC.close_switch acc ccenv is_scrutinee_int isint_switch
+              CC.close_switch acc ccenv ~condition_dbg is_scrutinee_int
+                isint_switch
             in
             CC.close_let acc ccenv is_scrutinee_int Not_user_visible
               (Prim

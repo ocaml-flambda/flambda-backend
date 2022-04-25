@@ -269,7 +269,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
                 in
                 let acc, failure = Apply_cont_with_acc.goto acc failure_cont in
                 Expr_with_acc.create_switch acc
-                  (Switch.create ~scrutinee:prim_result
+                  (Switch.create ~condition_dbg:dbg ~scrutinee:prim_result
                      ~arms:
                        (Targetint_31_63.Map.of_list
                           [ Targetint_31_63.bool_true, condition_passed;
@@ -308,7 +308,7 @@ let rec bind_rec acc exn_cont ~register_const_string (prim : expr_primitive)
       let acc, ifnot_cont = Apply_cont_with_acc.goto acc ifnot_cont in
       let acc, switch =
         Expr_with_acc.create_switch acc
-          (Switch.create ~scrutinee:(Simple.var cond_result)
+          (Switch.create ~condition_dbg:dbg ~scrutinee:(Simple.var cond_result)
              ~arms:
                (Targetint_31_63.Map.of_list
                   [ Targetint_31_63.bool_true, ifso_cont;

@@ -114,8 +114,8 @@ let rebuild_arm uacc arm (action, use_id, arity)
     let arms = Targetint_31_63.Map.add arm action arms in
     new_let_conts, arms, identity_arms, not_arms
 
-let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
-    ~after_rebuild =
+let rebuild_switch ~simplify_let dacc ~arms ~condition_dbg ~scrutinee
+    ~scrutinee_ty uacc ~after_rebuild =
   let new_let_conts, arms, identity_arms, not_arms =
     Targetint_31_63.Map.fold (rebuild_arm uacc) arms
       ( [],
@@ -232,7 +232,9 @@ let rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty uacc
           (* In that case, even though some branches were removed by simplify we
              should not count them in the number of removed operations: these
              branches wouldn't have been taken during execution anyway. *)
-          let expr, uacc = EB.create_switch uacc ~scrutinee ~arms in
+          let expr, uacc =
+            EB.create_switch uacc ~condition_dbg ~scrutinee ~arms
+          in
           if Flambda_features.check_invariants ()
              && Simple.is_const scrutinee
              && Targetint_31_63.Map.cardinal arms > 1
@@ -418,4 +420,7 @@ let simplify_switch ~simplify_let dacc switch ~down_to_up =
         ~f:(Data_flow.add_used_in_current_handler (Simple.free_names scrutinee))
   in
   down_to_up dacc
-    ~rebuild:(rebuild_switch ~simplify_let dacc ~arms ~scrutinee ~scrutinee_ty)
+    ~rebuild:
+      (rebuild_switch ~simplify_let dacc ~arms
+         ~condition_dbg:(Switch.condition_dbg switch)
+         ~scrutinee ~scrutinee_ty)

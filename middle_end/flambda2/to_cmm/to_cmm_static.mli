@@ -18,22 +18,14 @@
 
 open! Flambda.Import
 
-val static_set_of_closures :
-  To_cmm_env.t ->
-  Symbol.t Function_slot.Map.t ->
-  Set_of_closures.t ->
-  Slot_offsets.layout ->
-  Cmm.expression option ->
-  To_cmm_env.t * Cmm.data_item list * Cmm.expression option
-
 val static_consts :
   To_cmm_env.t ->
   To_cmm_result.t ->
   params_and_body:
     (To_cmm_env.t ->
     To_cmm_result.t ->
-    string ->
-    Flambda.Function_params_and_body.t ->
+    Code_id.t ->
+    Function_params_and_body.t ->
     fun_dbg:Debuginfo.t ->
     Cmm.fundecl * To_cmm_result.t) ->
   Bound_static.t ->

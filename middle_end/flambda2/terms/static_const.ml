@@ -187,7 +187,7 @@ let free_names t =
     List.fold_left
       (fun fns (field : _ Or_variable.t) ->
         match field with
-        | Var v -> Name_occurrences.add_variable fns v Name_mode.normal
+        | Var (v, _dbg) -> Name_occurrences.add_variable fns v Name_mode.normal
         | Const _ -> fns)
       Name_occurrences.empty fields
 
@@ -230,7 +230,7 @@ let apply_renaming t renaming =
           (fun (field : _ Or_variable.t) ->
             let field' : _ Or_variable.t =
               match field with
-              | Var v -> Var (Renaming.apply_variable renaming v)
+              | Var (v, dbg) -> Var (Renaming.apply_variable renaming v, dbg)
               | Const _ -> field
             in
             if not (field == field') then changed := true;
@@ -245,7 +245,7 @@ let apply_renaming t renaming =
           (fun (field : _ Or_variable.t) ->
             let field' : _ Or_variable.t =
               match field with
-              | Var v -> Var (Renaming.apply_variable renaming v)
+              | Var (v, dbg) -> Var (Renaming.apply_variable renaming v, dbg)
               | Const _ -> field
             in
             if not (field == field') then changed := true;
@@ -264,10 +264,10 @@ let all_ids_for_export t =
         Ids_for_export.union ids
           (Field_of_static_block.all_ids_for_export field))
       Ids_for_export.empty fields
-  | Boxed_float (Var var)
-  | Boxed_int32 (Var var)
-  | Boxed_int64 (Var var)
-  | Boxed_nativeint (Var var) ->
+  | Boxed_float (Var (var, _dbg))
+  | Boxed_int32 (Var (var, _dbg))
+  | Boxed_int64 (Var (var, _dbg))
+  | Boxed_nativeint (Var (var, _dbg)) ->
     Ids_for_export.add_variable Ids_for_export.empty var
   | Boxed_float (Const _)
   | Boxed_int32 (Const _)
@@ -280,14 +280,14 @@ let all_ids_for_export t =
     List.fold_left
       (fun ids (field : _ Or_variable.t) ->
         match field with
-        | Var v -> Ids_for_export.add_variable ids v
+        | Var (var, _dbg) -> Ids_for_export.add_variable ids var
         | Const _ -> ids)
       Ids_for_export.empty fields
   | Immutable_float_array fields ->
     List.fold_left
       (fun ids (field : _ Or_variable.t) ->
         match field with
-        | Var v -> Ids_for_export.add_variable ids v
+        | Var (var, _dbg) -> Ids_for_export.add_variable ids var
         | Const _ -> ids)
       Ids_for_export.empty fields
   | Empty_array -> Ids_for_export.empty

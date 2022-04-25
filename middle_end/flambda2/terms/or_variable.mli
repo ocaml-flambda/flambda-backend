@@ -20,7 +20,11 @@
 
 type 'a t =
   | Const of 'a
-  | Var of Variable.t
+  | Var of Variable.t * Debuginfo.t
+      (** The [Debuginfo.t] will be used to give correct debugging information
+          at the point in the code where the corresponding statically-allocated
+          block is patched. It would typically identify the place where the
+          original allocation occurred in the source code. *)
 
 val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 

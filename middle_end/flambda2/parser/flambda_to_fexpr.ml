@@ -597,10 +597,13 @@ let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
   | Tagged_immediate imm ->
     Tagged_immediate
       (imm |> Targetint_31_63.to_targetint' |> Targetint_32_64.to_string)
-  | Dynamically_computed var -> Dynamically_computed (Env.find_var_exn env var)
+  | Dynamically_computed (var, _dbg) ->
+    Dynamically_computed (Env.find_var_exn env var)
 
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
-  match ov with Const c -> Const (f c) | Var v -> Var (Env.find_var_exn env v)
+  match ov with
+  | Const c -> Const (f c)
+  | Var (v, _dbg) -> Var (Env.find_var_exn env v)
 
 let static_const env (sc : Static_const.t) : Fexpr.static_data =
   match sc with

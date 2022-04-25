@@ -24,12 +24,17 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-type raise_kind =
-  | Regular
-  | Reraise
-  | No_trace
+module Raise_kind : sig
+  type t =
+    | Regular
+    | Reraise
+    | No_trace
 
-val raise_kind_from_lambda : Lambda.raise_kind -> raise_kind
+  val from_lambda : Lambda.raise_kind -> t
+
+  (** Providing [None] is the same as providing [Some No_trace]. *)
+  val option_to_lambda : t option -> Lambda.raise_kind
+end
 
 type t =
   | Push of { exn_handler : Continuation.t }
@@ -39,7 +44,7 @@ type t =
                 target continuation in the enclosing [Apply_cont_expr]. One
                 example is when a value is being returned from the end of the
                 non-exceptional block of a try...with. *)
-        raise_kind : raise_kind option
+        raise_kind : Raise_kind.t option
       }
 
 include Expr_std.S with type t := t
