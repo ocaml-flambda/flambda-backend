@@ -191,11 +191,6 @@ let create_variables env l =
   in
   env, List.rev l'
 
-let get_variable env v =
-  try Variable.Map.find v env.vars
-  with Not_found ->
-    Misc.fatal_errorf "Variable %a not found in env" Variable.print v
-
 let extra_info env v =
   try Some (Variable.Map.find v env.vars_extra) with Not_found -> None
 

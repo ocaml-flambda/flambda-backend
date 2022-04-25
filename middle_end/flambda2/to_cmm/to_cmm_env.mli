@@ -76,15 +76,6 @@ val bind_variable :
   Cmm.expression ->
   t
 
-(** Get the cmm variable bound to a flambda variable.
-
-    Will fail (i.e. assertion failure) if the variable is not bound.
-
-    Be careful: in general you do *NOT* want to use this function but instead
-    the {inline_variable} function, as it will correctly perform the inlining of
-    used exactly once variables. *)
-val get_variable : t -> Variable.t -> Cmm.expression
-
 (** Try and inline an flambda variable using the delayed let-bindings. *)
 val inline_variable :
   t -> Variable.t -> Cmm.expression * t * Effects_and_coeffects.t
