@@ -25,18 +25,14 @@ module Env = To_cmm_env
 module SC = Static_const
 module R = To_cmm_result
 
-let static_value env v =
+let static_value v =
   match (v : Field_of_static_block.t) with
-  | Symbol s ->
-    ( Env.check_scope ~allow_deleted:false env
-        (Code_id_or_symbol.create_symbol s),
-      C.symbol_address (Symbol.linkage_name_as_string s) )
-  | Dynamically_computed _ -> env, C.cint 1n
+  | Symbol s -> C.symbol_address (Symbol.linkage_name_as_string s)
+  | Dynamically_computed _ -> C.cint 1n
   | Tagged_immediate i ->
-    ( env,
-      C.cint
-        (C.nativeint_of_targetint
-           (C.tag_targetint (Targetint_31_63.to_targetint' i))) )
+    C.cint
+      (C.nativeint_of_targetint
+         (C.tag_targetint (Targetint_31_63.to_targetint' i)))
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with
@@ -85,14 +81,6 @@ let static_boxed_number kind env symbol default emit transl v r updates =
   in
   R.update_data r (or_variable aux default v), updates
 
-let update_env_for_code env (code : Code.t) =
-  (* Check scope of the newer-version-of code ID *)
-  match Code.newer_version_of code with
-  | None -> env
-  | Some code_id ->
-    Env.check_scope ~allow_deleted:true env
-      (Code_id_or_symbol.create_code_id code_id)
-
 let add_function env r ~params_and_body code_id p ~fun_dbg =
   let fundecl, r = params_and_body env r code_id p ~fun_dbg in
   R.add_function r fundecl
@@ -127,7 +115,7 @@ let static_const0 env r ~updates (bound_static : Bound_static.Pattern.t)
     let env, static_fields =
       List.fold_right
         (fun v (env, static_fields) ->
-          let env, static_field = static_value env v in
+          let static_field = static_value v in
           env, static_field :: static_fields)
         fields (env, [])
     in
@@ -223,9 +211,7 @@ let static_const_or_code env r ~updates (bound_static : Bound_static.Pattern.t)
       (* Nothing needs doing here as we've already added the code to the
          environment. *)
       env, r, updates
-    | Code code_id, Deleted_code ->
-      let env = Env.mark_code_id_as_deleted env code_id in
-      env, r, updates
+    | Code _, Deleted_code -> env, r, updates
     | Code _, Static_const static_const ->
       Misc.fatal_errorf "Only code can be bound by [Code] bindings:@ %a@ =@ %a"
         Bound_static.Pattern.print bound_static SC.print static_const
@@ -253,12 +239,6 @@ let static_consts0 env r ~params_and_body bound_static static_consts =
     Misc.fatal_errorf
       "Mismatch between [Bound_static] and [Static_const]s:@ %a@ =@ %a"
       Bound_static.print bound_static Static_const_group.print static_consts;
-  let env =
-    ListLabels.fold_left static_consts' ~init:env ~f:(fun env static_const ->
-        match Static_const_or_code.to_code static_const with
-        | None -> env
-        | Some code -> update_env_for_code env code)
-  in
   let r =
     ListLabels.fold_left static_consts' ~init:r ~f:(fun r static_const ->
         match Static_const_or_code.to_code static_const with

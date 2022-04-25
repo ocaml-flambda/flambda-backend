@@ -89,20 +89,6 @@ type t =
     (* Offsets for function_slots and value_slots. *)
     functions_info : Exported_code.t;
     (* Information about known functions *)
-    (* Semi-global information.
-
-       Those are relative to the unit being translated, and are dependant on the
-       scope inside the unit being translated. *)
-    names_in_scope : Code_id_or_symbol.Set.t;
-    (* Code ids and symbols bound in this scope, for invariant checking *)
-    deleted : Code_id.Set.t;
-    used_code_ids : Code_id.Set.t;
-    (* Code ids marked as deleted are only allowed in the newer_version_of field
-       of code definitions.
-
-       Due to the order in which the checks are made, it is possible that a code
-       id is checked before we know whether it is deleted or not, so the
-       used_code_ids records all code ids that were checked.*)
     (* Local information.
 
        These are relative to the flambda expression being currently translated,
@@ -143,20 +129,14 @@ let create offsets functions_info k_return ~exn_continuation:k_exn =
     vars_extra = Variable.Map.empty;
     conts = Continuation.Map.empty;
     exn_handlers = Continuation.Set.singleton k_exn;
-    exn_conts_extra_args = Continuation.Map.empty;
-    names_in_scope = Code_id_or_symbol.Set.empty;
-    deleted = Code_id.Set.empty;
-    used_code_ids = Code_id.Set.empty
+    exn_conts_extra_args = Continuation.Map.empty
   }
 
 let enter_function_def env k_return k_exn =
   { (* global info *)
     offsets = env.offsets;
     (* semi-global info *)
-    names_in_scope = env.names_in_scope;
     functions_info = env.functions_info;
-    deleted = env.deleted;
-    used_code_ids = env.used_code_ids;
     (* local info *)
     k_return;
     k_exn;
@@ -469,44 +449,3 @@ let flush_delayed_lets ?(entering_loop = false) env =
   in
   let wrap e = wrap_aux pures_to_flush env.stages e in
   wrap, { env with stages = []; pures = pures_to_keep }
-
-(* Use and Scoping checks *)
-
-let add_to_scope env names =
-  { env with
-    names_in_scope = Code_id_or_symbol.Set.union env.names_in_scope names
-  }
-
-let mark_code_id_as_deleted env code_id =
-  if Code_id.Set.mem code_id env.used_code_ids
-  then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
-  else { env with deleted = Code_id.Set.add code_id env.deleted }
-
-let check_scope ~allow_deleted env code_id_or_symbol =
-  let in_scope =
-    Code_id_or_symbol.Set.mem code_id_or_symbol env.names_in_scope
-  in
-  let in_another_unit =
-    not
-      (Compilation_unit.equal
-         (Code_id_or_symbol.compilation_unit code_id_or_symbol)
-         (Compilation_unit.get_current_exn ()))
-  in
-  let updated_env =
-    Code_id_or_symbol.pattern_match code_id_or_symbol
-      ~code_id:(fun code_id ->
-        if allow_deleted
-        then env
-        else if Code_id.Set.mem code_id env.deleted
-        then Misc.fatal_errorf "Use of deleted code id %a" Code_id.print code_id
-        else
-          { env with used_code_ids = Code_id.Set.add code_id env.used_code_ids })
-      ~symbol:(fun _ -> env)
-  in
-  if in_scope || in_another_unit
-     || not (Flambda_features.Expert.code_id_and_symbol_scoping_checks ())
-  then updated_env
-  else
-    Misc.fatal_errorf "Use out of scope of %a@.Known names:@.%a@."
-      Code_id_or_symbol.print code_id_or_symbol Code_id_or_symbol.Set.print
-      env.names_in_scope

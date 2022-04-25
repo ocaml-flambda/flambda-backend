@@ -220,7 +220,7 @@ module Static = Make_layout_filler (struct
   let int ~dbg:_ i = C.cint i
 
   let simple ~dbg:_ env simple =
-    let env, contents = C.simple_static env simple in
+    let contents = C.simple_static simple in
     contents, env, Ece.pure
 
   let infix_header ~dbg:_ ~function_slot_offset =

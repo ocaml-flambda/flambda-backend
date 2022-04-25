@@ -189,10 +189,6 @@ let apply_call env e =
      given arbitrary effects and coeffects. *)
   | Function
       { function_call = Direct { code_id; return_arity }; alloc_mode = _ } -> (
-    let env =
-      Env.check_scope ~allow_deleted:false env
-        (Code_id_or_symbol.create_code_id code_id)
-    in
     let info = Env.get_code_metadata env code_id in
     let params_arity = Code_metadata.params_arity info in
     if not (check_arity params_arity args)
@@ -424,14 +420,6 @@ and let_expr env res let_expr =
             ~bound_vars ~num_normal_occurrences_of_bound_vars soc
             ~translate_expr:expr ~let_expr_bind
         | Static bound_static, Static_consts consts -> (
-          let env =
-            (* All bound symbols are allowed to appear in each other's
-               definition, so they're added to the environment first *)
-            (* CR mshinwell: This isn't quite right now, but can be fixed
-               later *)
-            Env.add_to_scope env
-              (Bound_static.everything_being_defined bound_static)
-          in
           let env, res, update_opt =
             To_cmm_static.static_consts env res
               ~params_and_body:
