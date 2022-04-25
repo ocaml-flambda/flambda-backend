@@ -254,7 +254,9 @@ let params_and_body0 env res code_id ~fun_dbg ~return_continuation
   in
   (* Init the env and create a jump id for the return continuation in case a
      trap action is attached to one of its calls *)
-  let env = Env.enter_function_def env return_continuation exn_continuation in
+  let env =
+    Env.enter_function_body env ~return_continuation ~exn_continuation
+  in
   (* Translate the arg list and body *)
   let env, fun_args = C.bound_parameters env params in
   let fun_body, res = translate_expr env res body in

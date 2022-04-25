@@ -17,28 +17,30 @@
 (** Environment for flambda to cmm translation *)
 type t
 
-(** [create offsets k k_exn] creates a local environment for translating a
-    flambda expression, with return continuation [k], exception continuation
-    [k_exn], and which uses the given closures variables. *)
+(** Create an environment for translating a toplevel expression. *)
 val create :
   Exported_offsets.t ->
   Exported_code.t ->
-  Continuation.t ->
+  return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t
 
-(** [enter_function_def env k k_exn] creates a local environment for translating
-    a flambda expression, with return continuation [k], exception continuation
-    [k_exn], preserving the global info from [env]. *)
-val enter_function_def : t -> Continuation.t -> Continuation.t -> t
+(** Given an existing environment providing the "global" information (such as
+    the exported code structure), create an environment for translating the body
+    of a function. *)
+val enter_function_body :
+  t ->
+  return_continuation:Continuation.t ->
+  exn_continuation:Continuation.t ->
+  t
 
 (** {2 Continuations} *)
 
 (** Returns the return continuation of the environment. *)
-val return_cont : t -> Continuation.t
+val return_continuation : t -> Continuation.t
 
 (** Returns the exception continuation of the environment. *)
-val exn_cont : t -> Continuation.t
+val exn_continuation : t -> Continuation.t
 
 (** {2 Code metadata} *)
 

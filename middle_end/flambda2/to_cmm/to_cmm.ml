@@ -68,7 +68,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
      that the return continuation turns into "return unit". (Module initialisers
      return the unit value). *)
   let env =
-    Env.create offsets all_code dummy_k
+    Env.create offsets all_code ~return_continuation:dummy_k
       ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
   in
   let _env, return_cont_params =

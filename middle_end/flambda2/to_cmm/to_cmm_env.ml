@@ -95,10 +95,10 @@ type t =
        i.e. either the unit initialization code, or the body of a function.
 
        Thus they are reset when entering a new function. *)
-    k_return : Continuation.t;
+    return_continuation : Continuation.t;
     (* The continuation of the current context (used to determine which calls
        are tail-calls) *)
-    k_exn : Continuation.t;
+    exn_continuation : Continuation.t;
     (* The exception continuation of the current context (used to determine
        where to insert try-with blocks) *)
     vars : Cmm.expression Variable.Map.t;
@@ -118,9 +118,9 @@ type t =
     stages : stage list (* archived stages, in reverse chronological order. *)
   }
 
-let create offsets functions_info k_return ~exn_continuation:k_exn =
-  { k_return;
-    k_exn;
+let create offsets functions_info ~return_continuation ~exn_continuation =
+  { return_continuation;
+    exn_continuation;
     offsets;
     functions_info;
     stages = [];
@@ -128,29 +128,16 @@ let create offsets functions_info k_return ~exn_continuation:k_exn =
     vars = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
     conts = Continuation.Map.empty;
-    exn_handlers = Continuation.Set.singleton k_exn;
+    exn_handlers = Continuation.Set.singleton exn_continuation;
     exn_conts_extra_args = Continuation.Map.empty
   }
 
-let enter_function_def env k_return k_exn =
-  { (* global info *)
-    offsets = env.offsets;
-    functions_info = env.functions_info;
-    (* local info *)
-    k_return;
-    k_exn;
-    exn_handlers = Continuation.Set.singleton k_exn;
-    stages = [];
-    pures = Variable.Map.empty;
-    vars = Variable.Map.empty;
-    vars_extra = Variable.Map.empty;
-    conts = Continuation.Map.empty;
-    exn_conts_extra_args = Continuation.Map.empty
-  }
+let enter_function_body env ~return_continuation ~exn_continuation =
+  create env.offsets env.functions_info ~return_continuation ~exn_continuation
 
-let return_cont env = env.k_return
+let return_continuation env = env.return_continuation
 
-let exn_cont env = env.k_exn
+let exn_continuation env = env.exn_continuation
 
 (* Code metadata *)
 

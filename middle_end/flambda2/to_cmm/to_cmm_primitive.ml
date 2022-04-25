@@ -600,7 +600,7 @@ let unary_primitive env res dbg f arg =
        unnecessary at the moment. *)
     None, res, C.tag_int arg dbg
   | Project_function_slot { move_from = c1; move_to = c2 } -> begin
-    match Env.function_slot_offset env c1, Env.function_slot_offset env c2 with
+    match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
       let diff = c2_offset - c1_offset in
@@ -622,8 +622,7 @@ let unary_primitive env res dbg f arg =
   end
   | Project_value_slot { project_from; value_slot } -> begin
     match
-      ( Env.value_slot_offset env value_slot,
-        Env.function_slot_offset env project_from )
+      value_slot_offset env value_slot, function_slot_offset env project_from
     with
     (* Normal case: we have offsets for everything *)
     | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->

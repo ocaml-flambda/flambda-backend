@@ -591,7 +591,7 @@ and apply_expr env res e =
   | Never_returns ->
     let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
-  | Return k when Continuation.equal (Env.return_cont env) k ->
+  | Return k when Continuation.equal (Env.return_continuation env) k ->
     let wrap, _ = Env.flush_delayed_lets env in
     wrap call, res
   | Return k -> (
@@ -640,7 +640,7 @@ and apply_cont env res e =
   let args = Apply_cont.args e in
   if Env.is_exn_handler env k
   then apply_cont_exn env e k args, res
-  else if Continuation.equal (Env.return_cont env) k
+  else if Continuation.equal (Env.return_continuation env) k
   then apply_cont_ret env e k args, res
   else
     match Env.get_k env k with
