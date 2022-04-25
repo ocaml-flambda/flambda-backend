@@ -252,30 +252,6 @@ let get_exn_extra_args env k =
   | Some l -> l
   | None -> []
 
-(* Offsets *)
-
-let function_slot_offset env function_slot =
-  match Exported_offsets.function_slot_offset env.offsets function_slot with
-  | Some res -> res
-  | None ->
-    Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
-      function_slot
-
-let value_slot_offset env value_slot =
-  match Exported_offsets.value_slot_offset env.offsets value_slot with
-  | Some res -> res
-  | None ->
-    Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
-      value_slot
-
-let layout env set_of_closures =
-  let fun_decls = Set_of_closures.function_decls set_of_closures in
-  let decls = Function_declarations.funs_in_order fun_decls in
-  let elts = Set_of_closures.value_slots set_of_closures in
-  let closures = List.map fst (Function_slot.Lmap.bindings decls) in
-  let value_slots = List.map fst (Value_slot.Map.bindings elts) in
-  Slot_offsets.layout env.offsets closures value_slots
-
 (* Variable binding (for potential inlining) *)
 
 let is_inlinable_box effs ~extra =
@@ -429,3 +405,7 @@ let flush_delayed_lets ?(entering_loop = false) env =
   in
   let wrap e = wrap_aux pures_to_flush env.stages e in
   wrap, { env with stages = []; pures = pures_to_keep }
+
+(* Closure offsets *)
+
+let exported_offsets t = t.offsets

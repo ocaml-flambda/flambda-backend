@@ -148,14 +148,6 @@ val get_k : t -> Continuation.t -> cont
     if the continuation is not bound. *)
 val get_jump_id : t -> Continuation.t -> int
 
-(** {2 Sets of closures and slot offsets} *)
+(** {2 Closure offsets} *)
 
-(** Wrapper around {!Slot_offsets.function_slot_offset}. *)
-val function_slot_offset :
-  t -> Function_slot.t -> Exported_offsets.function_slot_info
-
-(** Wrapper around {!Slot_offsets.value_slot_offset}. *)
-val value_slot_offset : t -> Value_slot.t -> Exported_offsets.value_slot_info
-
-(** Wrapper around {!Slot_offsets.layout}. *)
-val layout : t -> Set_of_closures.t -> Slot_offsets.layout
+val exported_offsets : t -> Exported_offsets.t

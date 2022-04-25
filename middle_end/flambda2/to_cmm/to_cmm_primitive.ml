@@ -24,6 +24,27 @@ module C = struct
   include To_cmm_shared
 end
 
+(* Closure offsets *)
+
+let function_slot_offset env function_slot =
+  match
+    Exported_offsets.function_slot_offset (Env.exported_offsets env)
+      function_slot
+  with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
+      function_slot
+
+let value_slot_offset env value_slot =
+  match
+    Exported_offsets.value_slot_offset (Env.exported_offsets env) value_slot
+  with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
+      value_slot
+
 (* Boxed numbers *)
 
 let primitive_boxed_int_of_boxable_number b =

@@ -144,8 +144,8 @@ type layout =
   }
 
 let order_function_slots env l acc =
-  List.fold_left
-    (fun acc function_slot ->
+  Function_slot.Lmap.fold
+    (fun function_slot _ acc ->
       match EO.function_slot_offset env function_slot with
       | Some Dead_function_slot -> acc
       | Some (Live_function_slot { size = _; offset }) ->
@@ -153,11 +153,11 @@ let order_function_slots env l acc =
       | None ->
         Misc.fatal_errorf "No function_slot offset for %a" Function_slot.print
           function_slot)
-    acc l
+    l acc
 
 let order_value_slots env l acc =
-  List.fold_left
-    (fun acc value_slot ->
+  Value_slot.Map.fold
+    (fun value_slot _ acc ->
       match EO.value_slot_offset env value_slot with
       | Some Dead_value_slot -> acc
       | Some (Live_value_slot { offset }) ->
@@ -165,7 +165,7 @@ let order_value_slots env l acc =
       | None ->
         Misc.fatal_errorf "No value slot offset for %a" Value_slot.print
           value_slot)
-    acc l
+    l acc
 
 let layout_aux j slot (startenv, acc_slots) =
   match slot with

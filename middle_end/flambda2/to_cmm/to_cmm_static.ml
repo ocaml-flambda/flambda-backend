@@ -21,7 +21,6 @@ module C = struct
   include To_cmm_shared
 end
 
-module Env = To_cmm_env
 module SC = Static_const
 module R = To_cmm_result
 
@@ -97,9 +96,8 @@ let preallocate_set_of_closures (r, updates, env) ~closure_symbols
       closure_symbols |> Function_slot.Lmap.bindings
       |> Function_slot.Map.of_list
     in
-    let layout = Env.layout env set_of_closures in
     To_cmm_set_of_closures.let_static_set_of_closures env closure_symbols
-      set_of_closures layout ~prev_updates:updates
+      set_of_closures ~prev_updates:updates
   in
   let r = R.set_data r data in
   r, updates, env

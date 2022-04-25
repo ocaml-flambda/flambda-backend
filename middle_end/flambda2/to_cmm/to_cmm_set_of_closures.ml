@@ -293,6 +293,11 @@ let params_and_body env res code_id p ~fun_dbg ~translate_expr =
 
 (* Translation of sets of closures. *)
 
+let layout_for_set_of_closures env set =
+  Slot_offsets.layout (Env.exported_offsets env)
+    (Set_of_closures.function_decls set |> Function_declarations.funs_in_order)
+    (Set_of_closures.value_slots set)
+
 let debuginfo_for_set_of_closures env set =
   let code_ids_in_set =
     Set_of_closures.function_decls set
@@ -307,7 +312,7 @@ let debuginfo_for_set_of_closures env set =
   (* Choose the debuginfo with the earliest source location. *)
   match dbg with [] -> Debuginfo.none | dbg :: _ -> dbg
 
-let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
+let let_static_set_of_closures0 env symbs (layout : Slot_offsets.layout) set
     ~prev_updates =
   let set_of_closures_symbol_ref = ref None in
   let fun_decls = Set_of_closures.function_decls set in
@@ -335,6 +340,10 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
   in
   env, block, updates
 
+let let_static_set_of_closures env symbs set ~prev_updates =
+  let layout = layout_for_set_of_closures env set in
+  let_static_set_of_closures0 env symbs layout set ~prev_updates
+
 (* Sets of closures with no value slots can be statically allocated. This
    usually happens earlier (in Simplify, or Closure_conversion for classic mode)
    but the extra information that To_cmm has about unused closure variables
@@ -348,7 +357,7 @@ let let_static_set_of_closures env symbs set (layout : Slot_offsets.layout)
  *   g
 
  *)
-let lift_set_of_closures env res ~body ~bound_vars set layout ~translate_expr =
+let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
   (* Generate symbols for the set of closures, and each of the closures *)
   let comp_unit = Compilation_unit.get_current_exn () in
   let dbg = debuginfo_for_set_of_closures env set in
@@ -368,7 +377,8 @@ let lift_set_of_closures env res ~body ~bound_vars set layout ~translate_expr =
   in
   (* Statically allocate the set of closures *)
   let env, static_data, updates =
-    let_static_set_of_closures env closure_symbols set layout ~prev_updates:None
+    let_static_set_of_closures0 env closure_symbols layout set
+      ~prev_updates:None
   in
   (* There should be no updates as there are no value slots *)
   if Option.is_some updates
@@ -427,11 +437,17 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     | Pure -> true
     | Effect | Coeffect_only -> false);
   (* Add env bindings for all of the value slots. *)
-  let get_closure_by_offset env set_cmm cid =
-    match Env.function_slot_offset env cid with
-    | Live_function_slot { offset; _ } ->
+  let get_closure_by_offset env set_cmm function_slot =
+    match
+      Exported_offsets.function_slot_offset (Env.exported_offsets env)
+        function_slot
+    with
+    | Some (Live_function_slot { offset; _ }) ->
       Some (C.infix_field_address ~dbg:Debuginfo.none set_cmm offset, Ece.pure)
-    | Dead_function_slot -> None
+    | Some Dead_function_slot -> None
+    | None ->
+      Misc.fatal_errorf "Missing offset for function slot %a"
+        Function_slot.print function_slot
   in
   (* Add env bindings for all of the function slots. *)
   let env =
@@ -450,12 +466,12 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   translate_expr env res body
 
 let let_dynamic_set_of_closures env res ~body ~bound_vars
-    ~num_normal_occurrences_of_bound_vars s ~translate_expr ~let_expr_bind =
-  let layout = Env.layout env s in
+    ~num_normal_occurrences_of_bound_vars set ~translate_expr ~let_expr_bind =
+  let layout = layout_for_set_of_closures env set in
   if layout.empty_env
-  then lift_set_of_closures env res ~body ~bound_vars s layout ~translate_expr
+  then lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
   else
     let_dynamic_set_of_closures0 env res ~body ~bound_vars
-      ~num_normal_occurrences_of_bound_vars s layout
-      ~closure_alloc_mode:(Set_of_closures.alloc_mode s)
+      ~num_normal_occurrences_of_bound_vars set layout
+      ~closure_alloc_mode:(Set_of_closures.alloc_mode set)
       ~translate_expr ~let_expr_bind
