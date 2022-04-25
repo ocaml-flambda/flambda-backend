@@ -192,7 +192,9 @@ let create_variables env l =
   env, List.rev l'
 
 let extra_info env v =
-  try Some (Variable.Map.find v env.vars_extra) with Not_found -> None
+  match Variable.Map.find v env.vars_extra with
+  | extra_info -> Some extra_info
+  | exception Not_found -> None
 
 (* Continuations *)
 
