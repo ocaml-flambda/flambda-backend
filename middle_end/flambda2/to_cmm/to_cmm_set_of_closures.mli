@@ -43,7 +43,7 @@ val let_dynamic_set_of_closures :
     Variable.t ->
     num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
     Cmm.expression ->
-    Effects_and_coeffects.t ->
+    effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
     To_cmm_env.t) ->
   Cmm.expression * To_cmm_result.t
 

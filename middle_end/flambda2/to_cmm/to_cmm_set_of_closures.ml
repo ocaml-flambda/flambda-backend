@@ -399,7 +399,10 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
   let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
-  assert (Env.classify peff = Env.Pure);
+  assert (
+    match To_cmm_effects.classify_by_effects_and_coeffects peff with
+    | Pure -> true
+    | Effect | Coeffect_only -> false);
   (* Add env bindings for all of the value slots. *)
   let get_closure_by_offset env set_cmm cid =
     match Env.function_slot_offset env cid with
@@ -416,7 +419,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
         | Some (e, effs) ->
           let v = Bound_var.var v in
           let_expr_bind ?extra:None acc v ~num_normal_occurrences_of_bound_vars
-            e effs)
+            e ~effects_and_coeffects_of_defining_expr:effs)
       env
       (Function_slot.Lmap.keys decls)
       bound_vars

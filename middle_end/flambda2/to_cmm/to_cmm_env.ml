@@ -74,11 +74,6 @@ type extra_info =
    only linear bindings are supposed to be inlined), and if the current stage
    becomes empty, the last archived stage is "un-archived". *)
 
-type kind =
-  | Pure
-  | Effect
-  | Coeffect
-
 type binding =
   { order : int;
     inline : bool;
@@ -88,8 +83,8 @@ type binding =
   }
 
 type stage =
-  | Eff of Variable.t * binding
-  | Coeff of binding Variable.Map.t
+  | Effect of Variable.t * binding
+  | Coeffect_only of binding Variable.Map.t
 
 (* Translation environment *)
 
@@ -349,23 +344,6 @@ let next_order =
     incr r;
     !r
 
-let classify effs =
-  match (effs : Effects_and_coeffects.t) with
-  (* For the purpose of to_cmm, generative effects, i.e. allocations, will be
-     considered to have effects because the mutable state of the gc that
-     allocations actually effect can be observed by coeffects performed by
-     function calls (particularly coming from the Gc module). *)
-  | Arbitrary_effects, (Has_coeffects | No_coeffects)
-  | Only_generative_effects _, (Has_coeffects | No_coeffects) ->
-    Effect
-  (* Coeffects without any effect. These expression can commute with other
-     coeffectful expressions (and pure expressions), but cannot commut with an
-     effectful expression. *)
-  | No_effects, Has_coeffects -> Coeffect
-  (* Pure expressions: these can be commuted with *everything*, including
-     effectful expressions such as function calls. *)
-  | No_effects, No_coeffects -> Pure
-
 let is_inlinable_box effs ~extra =
   (* [effs] is the effects and coeffects of some primitive operation, arising
      either from the primitive itself or its arguments. If this is a boxing
@@ -399,26 +377,26 @@ let bind_inlined_box env var b =
      rule. *)
   bind_pure env var b
 
-let bind_eff env var b = { env with stages = Eff (var, b) :: env.stages }
+let bind_eff env var b = { env with stages = Effect (var, b) :: env.stages }
 
 let bind_coeff env var b =
   match env.stages with
-  | Coeff m :: r ->
+  | Coeffect_only m :: r ->
     let m' = Variable.Map.add var b m in
-    { env with stages = Coeff m' :: r }
-  | ([] as r) | (Eff _ :: _ as r) ->
+    { env with stages = Coeffect_only m' :: r }
+  | ([] as r) | (Effect _ :: _ as r) ->
     let m = Variable.Map.singleton var b in
-    { env with stages = Coeff m :: r }
+    { env with stages = Coeffect_only m :: r }
 
 let bind_variable env var ?extra effs inline cmm_expr =
   let env, b = mk_binding ?extra env inline effs var cmm_expr in
   if inline && is_inlinable_box effs ~extra
   then bind_inlined_box env var b
   else
-    match classify effs with
+    match To_cmm_effects.classify_by_effects_and_coeffects effs with
     | Pure -> bind_pure env var b
     | Effect -> bind_eff env var b
-    | Coeffect -> bind_coeff env var b
+    | Coeffect_only -> bind_coeff env var b
 
 (* Variable lookup (for potential inlining) *)
 
@@ -461,7 +439,7 @@ let inline_found_coeff env var m r =
       let env =
         if Variable.Map.is_empty m'
         then { env with stages = r }
-        else { env with stages = Coeff m' :: r }
+        else { env with stages = Coeffect_only m' :: r }
       in
       inline_res env b
     else inline_not env b
@@ -472,8 +450,8 @@ let inline_variable env var =
   | exception Not_found -> begin
     match env.stages with
     | [] -> inline_not_found env var
-    | Eff (v, b) :: r -> inline_found_eff env var v b r
-    | Coeff m :: r -> inline_found_coeff env var m r
+    | Effect (v, b) :: r -> inline_found_eff env var v b r
+    | Coeffect_only m :: r -> inline_found_coeff env var m r
   end
 
 (* Flushing delayed bindings *)
@@ -497,8 +475,8 @@ let flush_delayed_lets ?(entering_loop = false) env =
     let order_map =
       List.fold_left
         (fun acc -> function
-          | Eff (_, b) -> order_add b acc
-          | Coeff m -> order_add_map m acc)
+          | Effect (_, b) -> order_add b acc
+          | Coeffect_only m -> order_add_map m acc)
         order_map stages
     in
     M.fold

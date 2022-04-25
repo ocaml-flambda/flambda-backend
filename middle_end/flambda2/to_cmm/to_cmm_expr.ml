@@ -139,18 +139,6 @@ let rec cmm_arith_size e =
     List.fold_left ( + ) 1 (List.map cmm_arith_size l)
   | _ -> 0
 
-let cont_is_known_to_have_exactly_one_occurrence k (num : _ Or_unknown.t) =
-  match num with
-  | Unknown -> false
-  | Known num -> (
-    match (num : Num_occurrences.t) with
-    | One -> true
-    | More_than_one -> false
-    | Zero ->
-      Misc.fatal_errorf
-        "Found unused let-bound continuation %a, this should not happen"
-        Continuation.print k)
-
 let match_var_with_extra_info env simple : Env.extra_info option =
   Simple.pattern_match simple
     ~const:(fun _ -> None)
@@ -159,77 +147,26 @@ let match_var_with_extra_info env simple : Env.extra_info option =
         ~symbol:(fun _ -> None)
         ~var:(fun var -> Env.extra_info env var))
 
-(* Making of inlining decisions for [Let]-expressions and continuations. *)
-
-type inlining_decision =
-  | Skip (* no use, the bound variable can be skipped/ignored *)
-  | Inline (* the variable is used once, we can try and inline its use *)
-  | Regular
-(* the variable is used multiple times, do not inline. *)
-
-let decide_inline_let effs
-    ~(num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t)
-    var =
-  match Variable.Map.find var num_normal_occurrences_of_bound_vars with
-  | exception Not_found -> Regular
-  | Zero -> begin
-    match Env.classify effs with
-    | Coeffect | Pure -> Skip
-    | Effect ->
-      Regular
-      (* Could be Inline technically, but it doesn't matter since it can only be
-         flushed by the env. *)
-  end
-  | One -> begin
-    match (effs : Effects_and_coeffects.t) with
-    (* The decision here is whether to consider the binding for inlining or not.
-       It is always correct to consider an effectful expression for inlining, as
-       the environment is going to handle the details of preserving the effects
-       and coeffects ordering (if inlining without reordering is impossible then
-       the expressions will be bound at some safe place instead).
-
-       So the decision here is about readability of the generated Cmm code
-       (effectful expressions as arguments to other primitives make it hard to
-       follow the order of evaluation) and locality (for deeply nested
-       expressions, binding the sub-expressions outside can keep them alive for
-       longer than strictly necessary).
-
-       The current choice of always inlining pure expressions and expressions
-       with only generative effects is guided by the relatively common case of
-       initialisation of huge static structures (including arrays). Without
-       inlining, all intermediate results would be live for long periods of time
-       and the default register allocator would have trouble dealing with that
-       (it's quadratic in the number of registers live at the same time).
-
-       Deep expressions involving arbitrary effects are less common, so inlining
-       for these expressions is controlled by the global [inline_effects_in_cmm]
-       setting. *)
-    | Only_generative_effects _, _ -> Inline
-    | Arbitrary_effects, _ ->
-      if Flambda_features.Expert.inline_effects_in_cmm ()
-      then Inline
-      else Regular
-    | No_effects, _ -> Inline
-  end
-  | More_than_one -> Regular
-
-let decide_inline_cont h k ~num_free_occurrences ~is_applied_with_traps =
-  (not (Continuation_handler.is_exn_handler h))
-  && (not is_applied_with_traps)
-  && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
-
 (* Helpers for the translation of [Let] expressions *)
 
 let let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
-    effs =
-  match decide_inline_let effs ~num_normal_occurrences_of_bound_vars v with
-  | Skip -> env
-  | Inline -> Env.bind_variable env v ?extra effs true cmm_expr
-  | Regular -> Env.bind_variable env v ?extra effs false cmm_expr
+    ~effects_and_coeffects_of_defining_expr =
+  match
+    To_cmm_effects.classify_let_expr v ~effects_and_coeffects_of_defining_expr
+      ~num_normal_occurrences_of_bound_vars
+  with
+  | Drop_defining_expr -> env
+  | Inline ->
+    Env.bind_variable env v ?extra effects_and_coeffects_of_defining_expr true
+      cmm_expr
+  | Regular ->
+    Env.bind_variable env v ?extra effects_and_coeffects_of_defining_expr false
+      cmm_expr
 
 let bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
   let cmm_expr, env, effs = C.simple ~dbg env s in
-  let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr effs
+  let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr
+    ~effects_and_coeffects_of_defining_expr:effs
 
 (* Helpers for the translation of [Apply] expressions. *)
 
@@ -474,12 +411,12 @@ and let_expr env res let_expr =
           let cmm_expr, extra, env, res, effs =
             To_cmm_primitive.prim env res dbg p
           in
-          let effs =
+          let effects_and_coeffects_of_defining_expr =
             Ece.join effs (Flambda_primitive.effects_and_coeffects p)
           in
           let env =
             let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars
-              cmm_expr effs
+              cmm_expr ~effects_and_coeffects_of_defining_expr
           in
           expr env res body
         | Set_of_closures bound_vars, Set_of_closures soc ->
@@ -525,10 +462,13 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
   match let_cont with
   | Non_recursive { handler; num_free_occurrences; is_applied_with_traps } ->
     Non_recursive_let_cont_handler.pattern_match handler ~f:(fun k ~body ->
-        let h = Non_recursive_let_cont_handler.handler handler in
-        if decide_inline_cont h k ~num_free_occurrences ~is_applied_with_traps
-        then let_cont_inline env res k h body
-        else let_cont_jump env res k h body)
+        let handler = Non_recursive_let_cont_handler.handler handler in
+        match
+          To_cmm_effects.classify_continuation_handler k handler
+            ~num_free_occurrences ~is_applied_with_traps
+        with
+        | Inline -> let_cont_inline env res k handler body
+        | Regular -> let_cont_jump env res k handler body)
   | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
         assert (not (Continuation_handlers.contains_exn_handler conts));
@@ -692,7 +632,8 @@ and apply_expr env res e =
           Variable.Map.singleton var Num_occurrences.Zero
         in
         let env =
-          let_expr_bind env var ~num_normal_occurrences_of_bound_vars call effs
+          let_expr_bind env var ~num_normal_occurrences_of_bound_vars call
+            ~effects_and_coeffects_of_defining_expr:effs
         in
         expr env res body
       | [param] ->
@@ -700,7 +641,7 @@ and apply_expr env res e =
         let env =
           let_expr_bind env var
             ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
-            call effs
+            call ~effects_and_coeffects_of_defining_expr:effs
         in
         expr env res body
       | _ :: _ -> unsupported ())

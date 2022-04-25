@@ -12,32 +12,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Environment for flambda to cmm translation *)
-
-(** {1 Effects and coeffects interpretation} *)
-
-(** The classification of expression used by to_cmm. *)
-type kind =
-  | Pure
-      (** Pure expressions can be commuted with any other expression, including
-          effectful expressions such as function calls *)
-  | Effect
-      (** Effectful expressions do not commute with coeffectful or effectful
-          expressions.
-
-          Currently, because it is tecnically possible to inspect the Gc state
-          in ocaml programs using the Gc module, allocations are considered as
-          effectful in order to not be commuted with function calls (or
-          potential future coeffectful-only expressions that may read the gc
-          state in some way). *)
-  | Coeffect
-      (** Coeffectful expression can commute with other coeffectful expressions
-          (and pure expressions), but not with effectful expressions. *)
-
-(** Return the to_cmm classification of an expression with the given effects and
-    coeffects. *)
-val classify : Effects_and_coeffects.t -> kind
-
 (** {1 Translation environment} *)
 
 (** Environment for flambda to cmm translation *)
