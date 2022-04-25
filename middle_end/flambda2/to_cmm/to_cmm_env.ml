@@ -280,15 +280,6 @@ let layout env set_of_closures =
   let value_slots = List.map fst (Value_slot.Map.bindings elts) in
   Slot_offsets.layout env.offsets closures value_slots
 
-(* Printing
-
-   let print_binding fmt b = Format.fprintf fmt "@[<hv>[%a : %a ->@ %a@
-   (%a)@,]@]" Variable.print b.var Backend_var.With_provenance.print b.cmm_var
-   Printcmm.expression b.cmm_expr Effects_and_coeffects.print b.effs
-
-   let print_binding_list fmt l = Format.fprintf fmt "@[<v>"; List.iter (fun b
-   -> Format.fprintf fmt "%a@," print_binding b ) l; Format.fprintf fmt "@]" *)
-
 (* Variable binding (for potential inlining) *)
 
 let next_order =
