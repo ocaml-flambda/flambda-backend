@@ -619,8 +619,8 @@ let rec create_blocks (t : t) (i : L.instruction) (block : C.basic_block)
 let run (f : Linear.fundecl) ~preserve_orig_labels =
   let t =
     let cfg =
-      Cfg.create ~fun_name:f.fun_name ~fun_dbg:f.fun_dbg ~fun_fast:f.fun_fast
-        ~fun_contains_calls:f.fun_contains_calls
+      Cfg.create ~fun_name:f.fun_name ~fun_args:[||] ~fun_dbg:f.fun_dbg
+        ~fun_fast:f.fun_fast ~fun_contains_calls:f.fun_contains_calls
         ~fun_num_stack_slots:f.fun_num_stack_slots
     in
     create cfg ~tailrec_label:f.fun_tailrec_entry_point_label

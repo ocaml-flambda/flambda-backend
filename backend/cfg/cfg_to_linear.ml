@@ -404,7 +404,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
   let layout = List.map (fun (b : Cfg.basic_block) -> b.start) blocks in
   let fun_name = "_fun_start_" in
   let cfg =
-    Cfg.create ~fun_name ~fun_dbg:Debuginfo.none ~fun_fast:false
+    Cfg.create ~fun_name ~fun_args:[||] ~fun_dbg:Debuginfo.none ~fun_fast:false
       ~fun_contains_calls:true ~fun_num_stack_slots:[||]
   in
   List.iter
