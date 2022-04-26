@@ -7,11 +7,11 @@ type lfn' = local_ string -> int
 [%%expect{|
 type fn = string -> int
 type lfn = (string [@ocaml.local]) -> int
-Line 3, characters 12-25:
+Line 3, characters 19-25:
 3 | type lfn' = local_ string -> int
-                ^^^^^^^^^^^^^
-Error: The type constructor string expects 0 argument(s),
-       but is here applied to 1 argument(s)
+                       ^^^^^^
+Error: The local extension is disabled
+       To enable it, pass the '-extension local' flag
 |}]
 
 let cast (x : fn) = (x : lfn)
