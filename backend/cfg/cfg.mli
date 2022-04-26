@@ -69,7 +69,10 @@ type basic_block =
 type t = private
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
     fun_name : string;  (** Function name, used for printing messages *)
-    fun_args : Reg.t array;  (** Function arguments *)
+    fun_args : Reg.t array;
+        (** Function arguments. When Cfg is constructed from Linear, this
+            information is not needed (Linear.fundecl does not have fun_args
+            field) and [fun_args] is an empty array as a dummy value. *)
     fun_dbg : Debuginfo.t;  (** Dwarf debug info for function entry. *)
     entry_label : Label.t;
         (** This label must be the first in all layouts of this cfg. *)
