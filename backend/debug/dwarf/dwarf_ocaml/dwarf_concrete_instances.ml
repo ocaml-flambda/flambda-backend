@@ -37,31 +37,37 @@ let for_fundecl ~get_file_id state fundecl =
   in
   let start_sym = Asm_symbol.create fun_name in
   let end_sym = Asm_symbol.create (end_symbol_name ~start_symbol:fun_name) in
-  let file_num, line, startchar =
+  let location_attributes =
     let loc = Debuginfo.to_location fundecl.fun_dbg in
     if Location.is_none loc
-    then 0, 0, 0
+    then [DAH.create_artificial ()]
     else
       let file, line, startchar = Location.get_pos_info loc.loc_start in
-      get_file_id file, line, startchar
+      let attributes = [DAH.create_decl_file (get_file_id file)] in
+      let attributes =
+        if line > 0 then
+          (DAH.create_decl_line line) :: attributes
+        else attributes
+      in
+      if startchar > 0 then
+        (DAH.create_decl_column startchar) :: attributes
+      else attributes
   in
-  if line >= 0 && startchar >= 0 then begin
-    let concrete_instance_proto_die =
-      Proto_die.create ~parent:(Some parent) ~tag:Subprogram
-        ~attribute_values:
-          [ DAH.create_name fun_name;
-            DAH.create_linkage_name ~linkage_name;
-            DAH.create_low_pc_from_symbol start_sym;
-            DAH.create_high_pc_from_symbol ~low_pc:start_sym end_sym;
-            DAH.create_entry_pc_from_symbol start_sym;
-            DAH.create_decl_file file_num;
-            DAH.create_decl_line line;
-            DAH.create_decl_column startchar;
-            DAH.create_stmt_list
-              ~debug_line_label:
-                (Asm_label.for_dwarf_section Asm_section.Debug_line) ]
-        ()
-    in
-    let name = Printf.sprintf "__concrete_instance_%s" fun_name in
-    Proto_die.set_name concrete_instance_proto_die (Asm_symbol.create name)
-  end
+  let attribute_values =
+    location_attributes @
+    [ DAH.create_name fun_name;
+      DAH.create_linkage_name ~linkage_name;
+      DAH.create_low_pc_from_symbol start_sym;
+      DAH.create_high_pc_from_symbol ~low_pc:start_sym end_sym;
+      DAH.create_entry_pc_from_symbol start_sym;
+      DAH.create_stmt_list
+        ~debug_line_label:
+          (Asm_label.for_dwarf_section Asm_section.Debug_line) ]
+  in
+  let concrete_instance_proto_die =
+    Proto_die.create ~parent:(Some parent) ~tag:Subprogram
+      ~attribute_values
+      ()
+  in
+  let name = Printf.sprintf "__concrete_instance_%s" fun_name in
+  Proto_die.set_name concrete_instance_proto_die (Asm_symbol.create name)
