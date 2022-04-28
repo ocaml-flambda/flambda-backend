@@ -45,21 +45,23 @@ let for_fundecl ~get_file_id state fundecl =
       let file, line, startchar = Location.get_pos_info loc.loc_start in
       get_file_id file, line, startchar
   in
-  let concrete_instance_proto_die =
-    Proto_die.create ~parent:(Some parent) ~tag:Subprogram
-      ~attribute_values:
-        [ DAH.create_name fun_name;
-          DAH.create_linkage_name ~linkage_name;
-          DAH.create_low_pc_from_symbol start_sym;
-          DAH.create_high_pc_from_symbol ~low_pc:start_sym end_sym;
-          DAH.create_entry_pc_from_symbol start_sym;
-          DAH.create_decl_file file_num;
-          DAH.create_decl_line line;
-          DAH.create_decl_column startchar;
-          DAH.create_stmt_list
-            ~debug_line_label:
-              (Asm_label.for_dwarf_section Asm_section.Debug_line) ]
-      ()
-  in
-  let name = Printf.sprintf "__concrete_instance_%s" fun_name in
-  Proto_die.set_name concrete_instance_proto_die (Asm_symbol.create name)
+  if line >= 0 && startchar >= 0 then begin
+    let concrete_instance_proto_die =
+      Proto_die.create ~parent:(Some parent) ~tag:Subprogram
+        ~attribute_values:
+          [ DAH.create_name fun_name;
+            DAH.create_linkage_name ~linkage_name;
+            DAH.create_low_pc_from_symbol start_sym;
+            DAH.create_high_pc_from_symbol ~low_pc:start_sym end_sym;
+            DAH.create_entry_pc_from_symbol start_sym;
+            DAH.create_decl_file file_num;
+            DAH.create_decl_line line;
+            DAH.create_decl_column startchar;
+            DAH.create_stmt_list
+              ~debug_line_label:
+                (Asm_label.for_dwarf_section Asm_section.Debug_line) ]
+        ()
+    in
+    let name = Printf.sprintf "__concrete_instance_%s" fun_name in
+    Proto_die.set_name concrete_instance_proto_die (Asm_symbol.create name)
+  end
