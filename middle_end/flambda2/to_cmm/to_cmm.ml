@@ -45,8 +45,8 @@ let flush_cmm_helpers_state () =
       C.cdata (C.define_symbol ~global:true name @ l) :: acc
     | Const_closure _ ->
       Misc.fatal_errorf
-        "There shouldn't be any closure in cmmgen_state during flambda to cmm \
-         translation"
+        "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
+         Cmm translation"
   in
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
@@ -54,13 +54,14 @@ let flush_cmm_helpers_state () =
     Misc.Stdlib.String.Map.fold aux cst_map []
   | _ ->
     Misc.fatal_errorf
-      "There shouldn't be any data item in cmmgen_state during flambda to cmm \
-       translation"
+      "There shouldn't be any data items in Cmmgen_state during Flambda 2 to \
+       Cmm translation"
 
-(* Note about the root symbol: it does not need any particular treatment.
-   Concerning gc_roots, it's like any other statically allocated symbol: if it
-   has an associated computation, then it will already be included in the list
-   of gc_roots; otherwise it does not *have* to be a root. *)
+(* Note about the root (module block) symbol: it does not need any particular
+   treatment. Specifically concerning its treatment as a GC root, it's like any
+   other statically allocated symbol: if it has an associated computation, then
+   it will already be included in the list of GC roots; otherwise it does not
+   *have* to be a root. *)
 
 let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   let dummy_k = Continuation.create () in
@@ -93,6 +94,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
       ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value]
   in
   let entry =
+    (* CR mshinwell: This should at least be given a source file location. *)
     let dbg = Debuginfo.none in
     let fun_name = Compilenv.make_symbol (Some "entry") in
     let fun_codegen =
