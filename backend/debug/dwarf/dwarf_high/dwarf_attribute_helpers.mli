@@ -55,6 +55,8 @@ val create_stmt_list :
 val create_external :
   is_visible_externally:bool -> Dwarf_attribute_values.Attribute_value.t
 
+val create_artificial : unit -> Dwarf_attribute_values.Attribute_value.t
+
 val create_decl_file : int -> Dwarf_attribute_values.Attribute_value.t
 
 val create_decl_line : int -> Dwarf_attribute_values.Attribute_value.t

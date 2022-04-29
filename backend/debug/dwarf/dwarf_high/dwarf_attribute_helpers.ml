@@ -112,6 +112,10 @@ let create_external ~is_visible_externally =
     let spec = AS.create External Flag in
     AV.create spec (V.bool ~comment:"not visible externally" false)
 
+let create_artificial () =
+  let spec = AS.create Artificial Flag_present in
+  AV.create spec (V.flag_true ~comment:"artificial" ())
+
 let create_decl_file file =
   let spec = AS.create Decl_file Udata in
   let file = Uint64.of_nonnegative_int_exn file in
