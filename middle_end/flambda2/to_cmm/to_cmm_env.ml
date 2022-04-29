@@ -4,7 +4,8 @@
 (*                                                                        *)
 (*                        Guillaume Bury, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 2019--2022 OCamlPro SAS                                    *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,61 +13,24 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 module C = Cmm_helpers
 
 type cont =
   | Jump of
-      { types : Cmm.machtype list;
-        cont : int
+      { cont : Cmm.label;
+        param_types : Cmm.machtype list
       }
   | Inline of
       { handler_params : Bound_parameters.t;
-        handler_body : Flambda.Expr.t;
-        handler_params_occurrences : Num_occurrences.t Variable.Map.t
+        handler_params_occurrences : Num_occurrences.t Variable.Map.t;
+        handler_body : Flambda.Expr.t
       }
-
-(* Extra information about bound variables. These extra information help keep
-   track of some extra semantics that are useful to implement some optimization
-   in the translation to cmm. *)
 
 type extra_info =
   | Untag of Cmm.expression
-  | Box
-
-(* Delayed let-bindings. Let bindings are delayed in stages in order to allow
-   for potential reordering and inlining of variables that are bound and used
-   exactly once, (without changing semantics), in order to optimize the
-   generated cmm code. There are two main optimizations that are targeted :
-   arithmetic optimization of nested expressions (mainly tagging/untagging), and
-   potential optimizations performed later on function applications which work
-   better when arguments are not let-bound. Non-linear let bindings are also
-   delayed to allow linear let-bound vars to be permuted with non-linear
-   let-bound vars.
-
-   Let-bound variables can be one of three kinds: pure, coeffect and effect
-   (effectful variables can also have coeffects). Each binding is given an
-   id/order which are strictly increasing, in order to be able to get back the
-   chronological defintion order of bindings.
-
-   Pure variables are put in a map, given that they can commute with everything.
-   Effectful and coeffectful variables, are organised into stages. A stage is a
-   set of (non-pure) bindings that can all commute with each other.
-
-   Concretely, a stage is either:
-
-   - a series of consecutive bindings with only coeffects
-
-   - a single effectful binding
-
-   Whenever a new binding that doesn't match the current stage is added, the
-   current stage is archived, and replaced by a new stage.
-
-   Only bindings in the current stage, or in the map of pure bindings are
-   candidates to inlining. When inlined, a binding is removed from its stage (as
-   only linear bindings are supposed to be inlined), and if the current stage
-   becomes empty, the last archived stage is "un-archived". *)
+  | Boxed_number
 
 type binding =
   { order : int;
@@ -79,8 +43,6 @@ type binding =
 type stage =
   | Effect of Variable.t * binding
   | Coeffect_only of binding Variable.Map.t
-
-(* Translation environment *)
 
 type t =
   { (* Global information. These are computed once and valid for a whole
@@ -139,7 +101,7 @@ let return_continuation env = env.return_continuation
 
 let exn_continuation env = env.exn_continuation
 
-(* Code metadata *)
+(* Code and closures *)
 
 let get_code_metadata env code_id =
   match Exported_code.find_exn env.functions_info code_id with
@@ -147,6 +109,8 @@ let get_code_metadata env code_id =
   | exception Not_found ->
     Misc.fatal_errorf "To_cmm_env.get_code_metadata: code ID %a not bound"
       Code_id.print code_id
+
+let exported_offsets t = t.offsets
 
 (* Variables *)
 
@@ -184,30 +148,33 @@ let extra_info env v =
 
 (* Continuations *)
 
-let get_jump_id env k =
+let get_cmm_continuation env k =
   match Continuation.Map.find k env.conts with
   | Jump { cont; _ } -> cont
-  | Inline _ | (exception Not_found) ->
+  | Inline _ ->
+    Misc.fatal_errorf "Continuation %a is registered for inlining, not a jump"
+      Continuation.print k
+  | exception Not_found ->
     Misc.fatal_errorf "Continuation %a not found in env" Continuation.print k
 
-let get_k env k =
+let get_continuation env k =
   match Continuation.Map.find k env.conts with
   | exception Not_found ->
     Misc.fatal_errorf "Could not find continuation %a in env during to_cmm"
       Continuation.print k
   | res -> res
 
-let new_jump_id = Lambda.next_raise_count
+let new_cmm_continuation = Lambda.next_raise_count
 
-let add_jump_cont env types k =
-  let cont = new_jump_id () in
-  let conts = Continuation.Map.add k (Jump { types; cont }) env.conts in
+let add_jump_cont env k ~param_types =
+  let cont = new_cmm_continuation () in
+  let conts = Continuation.Map.add k (Jump { param_types; cont }) env.conts in
   cont, { env with conts }
 
-let add_inline_cont env k vars ~handler_params_occurrences e =
+let add_inline_cont env k ~handler_params ~handler_params_occurrences
+    ~handler_body =
   let info =
-    Inline
-      { handler_params = vars; handler_body = e; handler_params_occurrences }
+    Inline { handler_params; handler_body; handler_params_occurrences }
   in
   let conts = Continuation.Map.add k info env.conts in
   { env with conts }
@@ -248,8 +215,13 @@ let is_inlinable_box effs ~extra =
      this involves moving the arguments, so they must be pure (or at most
      generative). *)
   match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
-  | ((No_effects | Only_generative_effects _), No_coeffects), Some Box -> true
-  | _, _ -> false
+  | ((No_effects | Only_generative_effects _), No_coeffects), Some Boxed_number
+    ->
+    true
+  | ( ( (No_effects | Only_generative_effects _ | Arbitrary_effects),
+        (No_coeffects | Has_coeffects) ),
+      (None | Some Boxed_number | Some (Untag _)) ) ->
+    false
 
 let create_binding =
   let next_order = ref (-1) in
@@ -392,7 +364,3 @@ let flush_delayed_lets ?(entering_loop = false) env =
   in
   let wrap e = wrap_aux pures_to_flush env.stages e in
   wrap, { env with stages = []; pures = pures_to_keep }
-
-(* Closure offsets *)
-
-let exported_offsets t = t.offsets

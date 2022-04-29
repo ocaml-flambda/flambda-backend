@@ -81,8 +81,8 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   in
   let return_cont, env =
     Env.add_jump_cont env
-      (List.map snd return_cont_params)
       (Flambda_unit.return_continuation flambda_unit)
+      ~param_types:(List.map snd return_cont_params)
   in
   let r = R.empty ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in

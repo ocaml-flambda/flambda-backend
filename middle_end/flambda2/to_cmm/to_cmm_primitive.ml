@@ -594,7 +594,7 @@ let unary_primitive env res dbg f arg =
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    Some Env.Box, res, box_number ~dbg kind alloc_mode arg
+    Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
     (* We could have an [Env.Tag] which would be returned here, but probably
        unnecessary at the moment. *)

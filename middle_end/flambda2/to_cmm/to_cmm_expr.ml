@@ -335,7 +335,7 @@ let apply_cont_trap_actions env e =
   | None -> []
   | Some (Pop _) -> [Cmm.Pop]
   | Some (Push { exn_handler }) ->
-    let cont = Env.get_jump_id env exn_handler in
+    let cont = Env.get_cmm_continuation env exn_handler in
     [Cmm.Push cont]
 
 (* Continuation calls need to also translate the associated trap actions. *)
@@ -465,10 +465,11 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
 (* The bound continuation [k] will be inlined. *)
 and let_cont_inline env res k h body =
   Continuation_handler.pattern_match' h
-    ~f:(fun params ~num_normal_occurrences_of_params ~handler ->
+    ~f:(fun handler_params ~num_normal_occurrences_of_params ~handler ->
       let env =
-        Env.add_inline_cont env k params
-          ~handler_params_occurrences:num_normal_occurrences_of_params handler
+        Env.add_inline_cont env k ~handler_params
+          ~handler_params_occurrences:num_normal_occurrences_of_params
+          ~handler_body:handler
       in
       expr env res body)
 
@@ -485,7 +486,7 @@ and let_cont_inline env res k h body =
 and let_cont_jump env res k h body =
   let wrap, env = Env.flush_delayed_lets env in
   let vars, arity, handle, res = continuation_handler env res h in
-  let id, env = Env.add_jump_cont env (List.map snd vars) k in
+  let id, env = Env.add_jump_cont env k ~param_types:(List.map snd vars) in
   if Continuation_handler.is_exn_handler h
   then
     let body, res = let_cont_exn env res k body vars handle id arity in
@@ -545,7 +546,7 @@ and let_cont_rec env res conts body =
               List.map C.machtype_of_kinded_parameter
                 (Bound_parameters.to_list params))
         in
-        snd (Env.add_jump_cont acc continuation_arg_tys k))
+        snd (Env.add_jump_cont acc k ~param_types:continuation_arg_tys))
       map env
   in
   (* Translate each continuation handler *)
@@ -562,7 +563,7 @@ and let_cont_rec env res conts body =
   let handlers =
     Continuation.Map.fold
       (fun k (vars, handle) acc ->
-        let id = Env.get_jump_id env k in
+        let id = Env.get_cmm_continuation env k in
         C.handler ~dbg id vars handle :: acc)
       map []
   in
@@ -603,11 +604,11 @@ and apply_expr env res e =
         "Multi-arguments continuation across function calls are not yet \
          supported"
     in
-    match Env.get_k env k with
-    | Jump { types = []; cont } ->
+    match Env.get_continuation env k with
+    | Jump { param_types = []; cont } ->
       let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.sequence call (C.cexit cont [] [])), res
-    | Jump { types = [_]; cont } ->
+    | Jump { param_types = [_]; cont } ->
       let wrap, _ = Env.flush_delayed_lets env in
       wrap (C.cexit cont [call] []), res
     | Inline { handler_params; handler_body = body; handler_params_occurrences }
@@ -643,8 +644,9 @@ and apply_cont env res e =
   else if Continuation.equal (Env.return_continuation env) k
   then apply_cont_ret env e k args, res
   else
-    match Env.get_k env k with
-    | Jump { types; cont } -> apply_cont_jump env res e types cont args
+    match Env.get_continuation env k with
+    | Jump { param_types; cont } ->
+      apply_cont_jump env res e param_types cont args
     | Inline { handler_params; handler_body; handler_params_occurrences } ->
       (* CR mshinwell: We should fix this. See comment in apply_cont_expr.ml *)
       if not (Apply_cont.trap_action e = None)
@@ -697,7 +699,7 @@ and switch env res s =
     match Targetint_31_63.Map.cardinal arms with
     | 2 -> begin
       match match_var_with_extra_info env scrutinee with
-      | None | Some Box -> e, false
+      | None | Some Boxed_number -> e, false
       | Some (Untag e') ->
         let size_e = cmm_arith_size e in
         let size_e' = cmm_arith_size e' in
