@@ -145,7 +145,7 @@ let invalid res ~message =
     Cmm_helpers.emit_string_constant
       (Symbol.linkage_name_as_string message_sym, Global)
       message []
-    |> To_cmm_result.add_data_items res
+    |> To_cmm_result.add_archive_data_items res
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]

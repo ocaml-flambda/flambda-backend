@@ -12,46 +12,52 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Result accumulator structure used during Flambda to Cmm translation. *)
+(** Result structure used during Flambda to Cmm translation. *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-(** An accumulator for the cmm phrases that result from translating
-    pre-allocated static blocks, functions, and gc roots.
+(** An accumulator for the Cmm phrases and GC roots that result from translating
+    statically-allocated blocks and function bodies.
 
-    In addition to storing already translated static data, these accumulators
-    also allow working on the elaboration of a Cmm.data_item list (named the
-    current_data). *)
+    Values of type [t] contain both older, "archived" data and "current" data
+    which is still being worked on. The [archive_data] function transfers
+    current data into the archived part, clearing the current data area for
+    subsequent use. *)
 type t
 
-(** The empty result. *)
-val empty : module_symbol:Symbol.t -> t
+(** Create a result structure. *)
+val create : module_symbol:Symbol.t -> t
 
-(** Archive the current data into the list of already translated data. *)
+(** Archive the current data into the list of already-translated data. *)
 val archive_data : t -> t
 
-(** Update the current data of the accumulator. *)
+(** Add already-translated Cmm data items into the archived part of the result
+    structure. *)
+val add_archive_data_items : t -> Cmm.data_item list -> t
+
+(** Update the current data part of the result structure. *)
 val update_data : t -> (Cmm.data_item list -> Cmm.data_item list) -> t
 
-(** Set the current data to the given list. @raise Assertion_failure if the
-    current data is not empty. *)
+(** Set the current data to the given list. Raises a fatal error if the current
+    data is not empty, to avoid inadvertently losing data. *)
 val set_data : t -> Cmm.data_item list -> t
 
-(** Add a gc root to the accumulator. *)
+(** Register one or more symbols as required GC roots. *)
 val add_gc_roots : t -> Symbol.t list -> t
 
-(** Add a function translation. *)
+(** Register a function that has been translated to Cmm. *)
 val add_function : t -> Cmm.fundecl -> t
 
-(** Add already-translated Cmm data items. *)
-val add_data_items : t -> Cmm.data_item list -> t
-
-(** Record the symbol as having been defined. This is used to keep track of
-    whether the symbol for the current unit has been defined. *)
+(** Record the given symbol as having been defined. This is used to keep track
+    of whether the module block symbol for the current unit has been defined. *)
 val check_for_module_symbol : t -> Symbol.t -> t
 
-(* CR mshinwell: Use a "private" record for the return type of this. *)
+type result = private
+  { data_items : Cmm.phrase list;
+    gc_roots : Symbol.t list;
+    functions : Cmm.phrase list
+  }
 
-(** Return the translated data present in the accumulator, as a triple:
-    [data_item_list * gc_roots * functions]. *)
-val to_cmm : t -> Cmm.phrase list * Symbol.t list * Cmm.phrase list
+(** Archive the current data and then return the translated data present in the
+    given result structure. *)
+val to_cmm : t -> result
