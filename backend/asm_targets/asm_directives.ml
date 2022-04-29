@@ -146,9 +146,9 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     sections_seen := [];
     temp_var_counter := 0;
     current_dwarf_section_ref := None;
-    (* Forward label references are illegal in GAS. To avoid it, emit the
-       beginning of all dwarf sections in advance. *)
-    if is_gas ()
+    (* Forward label references are illegal on some assemblers/platforms.
+       To avoid errors, emit the beginning of all dwarf sections in advance. *)
+    if is_gas () || is_macos ()
     then List.iter switch_to_section (Asm_section.dwarf_sections_in_order ());
     (* Stop dsymutil complaining about empty __debug_line sections (produces
        bogus error "line table parameters mismatch") by making sure such
@@ -253,14 +253,32 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "symbol_plus_offset"
 
+  let new_temp_var () =
+    let id = !temp_var_counter in
+    incr temp_var_counter;
+    Printf.sprintf "temp%d" id
+
+  let force_assembly_time_constant expr =
+    if not (is_macos ())
+    then expr
+    else
+      (* This ensures the correct result is obtained on macOS. (Apparently just
+         writing expressions such as "L100 - L101" inline can cause unexpected
+         results when one of the labels is on a section boundary, for
+         example.) *)
+      let temp = new_temp_var () in
+      D.direct_assignment temp expr;
+      D.const_label temp
+
   let between_symbols_in_current_unit ~upper ~lower =
     (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
        check_symbol_in_current_unit upper; check_symbol_in_current_unit lower;
        check_symbols_in_same_section upper lower; *)
     let upper = D.const_label (Asm_symbol.encode upper) in
     let lower = D.const_label (Asm_symbol.encode lower) in
-    (* CR-someday bkhajwal: Add `force_assembly_time_constant` *)
-    const_machine_width (D.const_sub upper lower)
+    let expr = D.const_sub upper lower in
+    if is_macos () then const_machine_width (force_assembly_time_constant expr)
+    else const_machine_width expr
 
   let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
     (* CR poechsel: use the arguments *)
@@ -278,27 +296,6 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       ~lower:_ ~offset_upper:_ () =
     (* CR poechsel: use the arguments *)
     A.emit_line "between_symbol_in_current_unit_and_label_offset"
-
-  let new_temp_var () =
-    let id = !temp_var_counter in
-    incr temp_var_counter;
-    Printf.sprintf "Ltemp%d" id
-
-  let force_assembly_time_constant _section expr =
-    if not (is_macos ())
-    then expr
-    else
-      (* This ensures the correct result is obtained on macOS. (Apparently just
-         writing expressions such as "L100 - L101" inline can cause unexpected
-         results when one of the labels is on a section boundary, for
-         example.) *)
-      let temp = new_temp_var () in
-      D.direct_assignment temp expr;
-      (* TODO: Insert logic let compilation_unit =
-         Compilation_unit.get_current_exn () in let sym =
-         Asm_symbol.of_external_name_no_prefix section compilation_unit temp in
-         Symbol sym (* not really a symbol, but OK. *) *)
-      Misc.fatal_error "not implemented"
 
   let const ~width constant =
     match width with
@@ -328,10 +325,13 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       if is_macos ()
       then
         let lower = Asm_label.for_dwarf_section section in
-        force_assembly_time_constant expected_section
-          (D.const_sub
-             (D.const_label (Asm_label.encode upper))
-             (D.const_label (Asm_label.encode lower)))
+        if Asm_label.equal lower upper then
+          D.const_int64 0L
+        else
+          force_assembly_time_constant
+            (D.const_sub
+              (D.const_label (Asm_label.encode upper))
+              (D.const_label (Asm_label.encode lower)))
       else D.const_label (Asm_label.encode upper)
     in
     const ~width expr
