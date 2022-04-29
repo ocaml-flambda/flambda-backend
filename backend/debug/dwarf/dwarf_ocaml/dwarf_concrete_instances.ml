@@ -44,14 +44,11 @@ let for_fundecl ~get_file_id state fundecl =
     else
       let file, line, startchar = Location.get_pos_info loc.loc_start in
       let attributes = [DAH.create_decl_file (get_file_id file)] in
-      let attributes =
-        if line > 0 then
-          (DAH.create_decl_line line) :: attributes
-        else attributes
-      in
-      if startchar > 0 then
-        (DAH.create_decl_column startchar) :: attributes
-      else attributes
+      if line < 0 then attributes
+      else if startchar < 0 then (DAH.create_decl_line line) :: attributes
+      else (* Both line and startchar are >= 0*)
+        (DAH.create_decl_line line) :: (DAH.create_decl_column startchar)
+        :: attributes
   in
   let attribute_values =
     location_attributes @
