@@ -159,7 +159,7 @@ let add_to_denv ?maybe_already_defined denv lifted =
         pieces_of_code denv)
 
 module CIS = Code_id_or_symbol
-module SCC_lifted_constants = Strongly_connected_components_flambda2.Make (CIS)
+module SCC_lifted_constants = Strongly_connected_components.Make (CIS)
 
 let build_dep_graph t =
   fold t ~init:(CIS.Map.empty, CIS.Map.empty)
@@ -207,6 +207,14 @@ let build_dep_graph t =
             being_defined
             (dep_graph, code_id_or_symbol_to_const)))
 
+let remove_values_not_in_domain (m : CIS.Set.t CIS.Map.t) =
+  CIS.Map.map
+    (fun values ->
+      (* CR lmaurer: This should use a map/set intersection function, which
+         should be easy to define with the Patricia tree refactor *)
+      CIS.Set.filter (fun value -> CIS.Map.mem value m) values)
+    m
+
 let sort0 t =
   (* The various lifted constants may exhibit recursion between themselves
      (specifically between closures and/or code). We use SCC to obtain a
@@ -214,6 +222,16 @@ let sort0 t =
      code-and-set-of-closures definitions. *)
   let lifted_constants_dep_graph, code_id_or_symbol_to_const =
     build_dep_graph t
+  in
+  let lifted_constants_dep_graph =
+    (* This graph has vertices for all code ids and symbols that appear free in
+       the definitions, including pre-existing ones. However, any such "external
+       vertex" is a leaf, and in fact it won't even appear as a key in the map
+       representation of the graph. However, [SCC_lifted_constants] assumes that
+       all vertices appear as keys. Fortunately, we're only concerned with the
+       interdependencies between code ids and symbols being defined here, so we
+       can just filter out external dependencies from the graph. *)
+    remove_values_not_in_domain lifted_constants_dep_graph
   in
   let innermost_first =
     lifted_constants_dep_graph

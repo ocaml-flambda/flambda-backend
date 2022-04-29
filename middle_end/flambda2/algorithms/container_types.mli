@@ -52,10 +52,6 @@ module type Set = sig
 
   val map : (elt -> elt) -> t -> t
 
-  (** [fixpoint f t] repeatedly applies [f] to every element of the set and adds
-      the results to [t], until no new elements are found *)
-  val fixpoint : (elt -> t) -> t -> t
-
   val union_list : t list -> t
 
   val intersection_is_empty : t -> t -> bool
@@ -87,15 +83,6 @@ module type Map = sig
     'a t ->
     'a t
 
-  (** [union_right m1 m2] contains all bindings from [m1] and [m2]. If some
-      binding is present in both, the one from [m2] is taken *)
-  val union_right : 'a t -> 'a t -> 'a t
-
-  (** [union_left m1 m2 = union_right m2 m1] *)
-  val union_left : 'a t -> 'a t -> 'a t
-
-  val union_merge : ('a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
-
   val rename : key t -> key -> key
 
   val map_keys : (key -> key) -> 'a t -> 'a t
@@ -106,25 +93,16 @@ module type Map = sig
 
   val of_set : (key -> 'a) -> Set.t -> 'a t
 
-  val transpose_keys_and_data : key t -> key t
-
-  val transpose_keys_and_data_set : key t -> Set.t t
-
   val print :
     (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
   val diff_domains : 'a t -> 'a t -> 'a t
-
-  val fold2_stop_on_key_mismatch :
-    (key -> 'a -> 'a -> 'b -> 'b) -> 'a t -> 'a t -> 'b -> 'b option
 
   val inter : (key -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
 
   val inter_domain_is_non_empty : 'a t -> 'a t -> bool
 
   val get_singleton : 'a t -> (key * 'a) option
-
-  val get_singleton_exn : 'a t -> key * 'a
 
   val replace : key -> ('a -> 'a) -> 'a t -> 'a t
 

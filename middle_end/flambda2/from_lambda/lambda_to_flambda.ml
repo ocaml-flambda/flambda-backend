@@ -1558,7 +1558,7 @@ and cps_function_bindings env (bindings : (Ident.t * L.lambda) list) =
       bindings
   in
   let recursive_functions =
-    let module SCC = Strongly_connected_components_flambda2.Make (Ident) in
+    let module SCC = Strongly_connected_components.Make (Ident) in
     let connected_components =
       SCC.connected_components_sorted_from_roots_to_leaf directed_graph
     in

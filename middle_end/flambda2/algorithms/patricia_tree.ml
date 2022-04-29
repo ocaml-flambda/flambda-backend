@@ -391,8 +391,6 @@ struct
 
   let of_seq _ = Misc.fatal_error "of_seq not yet implemented"
 
-  let fixpoint _ _ = Misc.fatal_error "fixpoint not yet implemented"
-
   (* CR mshinwell: copied from [Container_types] *)
 
   let [@ocamlformat "disable"] print ppf s =
@@ -955,9 +953,6 @@ struct
     | Empty | Branch _ -> None
     | Leaf (key, datum) -> Some (key, datum)
 
-  let get_singleton_exn _ =
-    Misc.fatal_error "get_singleton_exn not yet implemented"
-
   let rec map f t =
     match t with
     | Empty -> empty
@@ -1032,12 +1027,6 @@ struct
         t1 t2
     end
 
-  let union_left _ _ = Misc.fatal_error "union_left not yet implemented"
-
-  let union_right _ _ = Misc.fatal_error "union_right not yet implemented"
-
-  let union_merge _ _ _ = Misc.fatal_error "union_merge not yet implemented"
-
   let rename _ _ = Misc.fatal_error "rename not yet implemented"
 
   let map_keys _ _ = Misc.fatal_error "map_keys not yet implemented"
@@ -1059,16 +1048,7 @@ struct
 
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
 
-  let transpose_keys_and_data _ =
-    Misc.fatal_error "transpose_keys_and_data not yet implemented"
-
-  let transpose_keys_and_data_set _ =
-    Misc.fatal_error "transpose_keys_and_data_set not yet implemented"
-
   let diff_domains = diff
-
-  let fold2_stop_on_key_mismatch _ _ _ _ =
-    Misc.fatal_error "fold2_stop_on_key_mismatch not yet implemented"
 
   let () =
     ignore subset;
