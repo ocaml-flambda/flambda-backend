@@ -45,18 +45,17 @@ type stage =
   | Coeffect_only of binding Variable.Map.t
 
 type t =
-  { (* Global information. These are computed once and valid for a whole
-       unit. *)
+  { (* Global information. This is computed once and remains valid for a whole
+       compilation unit. *)
     offsets : Exported_offsets.t;
-    (* Offsets for function_slots and value_slots. *)
+    (* Offsets for function and value slots. *)
     functions_info : Exported_code.t;
-    (* Information about known functions *)
+    (* Code and metadata of functions. *)
     (* Local information.
 
-       These are relative to the flambda expression being currently translated,
-       i.e. either the unit initialization code, or the body of a function.
-
-       Thus they are reset when entering a new function. *)
+       This is relative to the flambda expression being currently translated,
+       i.e. either the unit initialization code, or the body of a function. This
+       information is reset when entering a new function. *)
     return_continuation : Continuation.t;
     (* The continuation of the current context (used to determine which calls
        are tail-calls) *)
