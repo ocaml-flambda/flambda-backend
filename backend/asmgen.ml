@@ -253,7 +253,7 @@ let test_cfgize (f : Mach.fundecl) (res : Linear.fundecl) : unit =
   Eliminate_dead_code.run_dead_block expected;
   Simplify_terminator.run (Cfg_with_layout.cfg expected);
   let result = recompute_liveness_on_cfg result in
-  Cfg_equivalence.check_cfg_with_layout f expected result;
+  Cfg_equivalence.check_cfg_with_layout ~mach:f expected result;
   if ocamlcfg_verbose then begin
     Format.eprintf "the CFG on both code paths are equivalent for function %s.\n%!"
       f.Mach.fun_name;
