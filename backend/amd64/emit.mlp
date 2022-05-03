@@ -584,6 +584,8 @@ let probes = ref []
 
 let probe_semaphores = ref String.Map.empty
 
+let stapsdt_base_emitted = ref false
+
 let reset_probes () =
   probes := [];
   probe_semaphores := String.Map.empty
@@ -644,6 +646,31 @@ let emit_call_probe_handler_wrapper i ~probe_label =
      so they are not recorded as gc roots at the probe site. *)
   let stack_live = Reg.Set.filter Reg.is_stack i.live in
   record_frame stack_live (Dbg_other i.dbg)
+
+(* Emit trap handler notes *)
+
+type traps = { mutable push_traps : label list;
+               mutable pop_traps : label list;
+               mutable enter_traps : Int.Set.t;
+             }
+
+let traps = { push_traps = []; pop_traps = []; enter_traps = Int.Set.empty; }
+
+let reset_traps () =
+  traps.push_traps <- [];
+  traps.pop_traps <- [];
+  traps.enter_traps <- Int.Set.empty
+
+let emit_pop_trap_label () =
+  let lbl = Cmm.new_label () in
+  def_label lbl;
+  traps.pop_traps <- lbl::traps.pop_traps
+
+let emit_push_trap_label handler =
+  let lbl = Cmm.new_label () in
+  def_label lbl;
+  traps.push_traps <- lbl::traps.push_traps;
+  traps.enter_traps <- Int.Set.add handler traps.enter_traps
 
 (* Emit an instruction *)
 let emit_instr fallthrough i =
@@ -1119,6 +1146,7 @@ let emit_instr fallthrough i =
       cfi_adjust_cfa_offset delta_bytes;
       stack_offset := !stack_offset + delta_bytes
   | Lpushtrap { lbl_handler; } ->
+      emit_push_trap_label lbl_handler;
       let load_label_addr s arg =
         if !Clflags.pic_code then
           I.lea (mem64_rip NONE (emit_label s)) arg
@@ -1133,6 +1161,7 @@ let emit_instr fallthrough i =
       I.mov rsp (domain_field Domainstate.Domain_exception_pointer);
       stack_offset := !stack_offset + 16;
   | Lpoptrap ->
+      emit_pop_trap_label ();
       I.pop (domain_field Domainstate.Domain_exception_pointer);
       cfi_adjust_cfa_offset (-8);
       I.add (int 8) rsp;
@@ -1248,6 +1277,8 @@ let reset_all () =
   reset_debug_info();                   (* PR#5603 *)
   reset_imp_table();
   reset_probes ();
+  stapsdt_base_emitted := false;
+  reset_traps ();
   float_constants := [];
   all_functions := []
 
@@ -1454,6 +1485,38 @@ let emit_probe_handler_wrapper p =
   cfi_endproc ();
   emit_function_type_and_size wrap_label
 
+let emit_stapsdt_base_section () =
+  if not !stapsdt_base_emitted then begin
+    stapsdt_base_emitted := true;
+    D.section [".stapsdt.base"] (Some "aG")
+      ["\"progbits\""; ".stapsdt.base"; "comdat"];
+    D.weak "_.stapsdt.base";
+    D.hidden "_.stapsdt.base";
+    D.label "_.stapsdt.base";
+    D.space 1;
+    D.size "_.stapsdt.base" (const 1)
+  end
+
+let emit_elf_note ~owner ~typ ~emit_desc =
+  D.align 4;
+  let a = new_label() in
+  let b = new_label() in
+  let c = new_label() in
+  let d = new_label() in
+  D.long (ConstSub (ConstLabel (emit_label b),
+                    ConstLabel(emit_label a)));
+  D.long (ConstSub (ConstLabel (emit_label d),
+                    ConstLabel (emit_label c)));
+  D.long (const_32 typ);
+  def_label a;
+  D.bytes (owner^"\000");
+  def_label b;
+  D.align 4;
+  def_label c;
+  emit_desc ();
+  def_label d;
+  D.align 4
+
 let emit_probe_notes0 () =
   let is_macosx_system =
     match system with
@@ -1491,42 +1554,22 @@ let emit_probe_notes0 () =
       |> String.concat " "
     in
     let semaphore_label = emit_symbol (find_or_add_semaphore probe_name) in
-    D.align 4;
-    let a = new_label() in
-    let b = new_label() in
-    let c = new_label() in
-    let d = new_label() in
-    D.long (ConstSub (ConstLabel (emit_label b),
-      ConstLabel(emit_label a)));
-    D.long (ConstSub (ConstLabel (emit_label d),
-      ConstLabel (emit_label c)));
-    D.long (const_32 3l);
-    def_label a;
-    D.bytes "stapsdt\000";
-    def_label b;
-    D.align 4;
-    def_label c;
-    D.qword (ConstLabel (emit_label p.probe_label));
-    (match is_macosx_system with
-     | false -> D.qword (ConstLabel "_.stapsdt.base")
-     | true -> D.qword (const 0));
-    D.qword (ConstLabel semaphore_label);
-    D.bytes "ocaml.1\000";
-    D.bytes (probe_name ^ "\000");
-    D.bytes (args ^ "\000");
-    def_label d;
-    D.align 4;
+    let emit_desc () =
+      D.qword (ConstLabel (emit_label p.probe_label));
+      (match is_macosx_system with
+       | false -> D.qword (ConstLabel "_.stapsdt.base")
+       | true -> D.qword (const 0));
+      D.qword (ConstLabel semaphore_label);
+      D.bytes "ocaml.1\000";
+      D.bytes (probe_name ^ "\000");
+      D.bytes (args ^ "\000")
+    in
+    emit_elf_note ~owner:"stapsdt" ~typ:3l ~emit_desc;
   in
   List.iter describe_one_probe !probes;
   (match is_macosx_system with
    | false ->
-     D.section [".stapsdt.base"] (Some "aG")
-       ["\"progbits\""; ".stapsdt.base"; "comdat"];
-     D.weak "_.stapsdt.base";
-     D.hidden "_.stapsdt.base";
-     D.label "_.stapsdt.base";
-     D.space 1;
-     D.size "_.stapsdt.base" (const 1);
+     emit_stapsdt_base_section ();
      D.section [".probes"] (Some "wa") ["\"progbits\""]
    | true ->
      D.section ["__TEXT";"__probes"] None ["regular"]);
@@ -1544,6 +1587,35 @@ let emit_probe_notes () =
   match !probes with
   | [] -> ()
   | _ -> emit_probe_notes0 ()
+
+let emit_trap_notes () =
+  (* Don't emit trap notes on windows and macos systems *)
+  let is_system_supported =
+    match system with
+    | S_macosx -> false  (* can be supported with a symbol *)
+    | S_gnu | S_solaris | S_linux_elf | S_bsd_elf
+    | S_beos | S_linux -> true
+    | S_cygwin | S_mingw | S_mingw64 | S_win64 | S_win32 | S_unknown ->
+      false
+  in
+  let emit_labels list =
+    List.iter (fun l -> D.qword (ConstLabel (emit_label l))) list;
+    D.qword (const 0)
+  in
+  let emit_desc () =
+    D.qword (ConstLabel "_.stapsdt.base");
+    emit_labels (Int.Set.elements traps.enter_traps);
+    emit_labels traps.push_traps;
+    emit_labels traps.pop_traps
+  in
+  if is_system_supported && not (Int.Set.is_empty traps.enter_traps) then begin
+    D.section [".note.ocaml_eh"] (Some "?") [ "\"note\"" ];
+    emit_elf_note ~owner:"OCaml" ~typ:1l ~emit_desc;
+    (* Reuse stapsdt base section for calcluating addresses after pre-link *)
+    emit_stapsdt_base_section ();
+    (* Switch back to Data section *)
+    D.data ()
+  end
 
 let end_assembly dwarf =
   if !float_constants <> [] then begin
@@ -1610,6 +1682,7 @@ let end_assembly dwarf =
   end;
 
   emit_probe_notes ();
+  emit_trap_notes ();
 
   if system = S_linux then
     (* Mark stack as non-executable, PR#4564 *)
