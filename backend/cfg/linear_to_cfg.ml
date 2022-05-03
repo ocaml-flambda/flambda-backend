@@ -264,7 +264,7 @@ let register_exns t label (block : C.basic_block) =
           label);
     if !C.verbose
     then
-      Printf.printf "%s: %d exn %s: " t.cfg.fun_name label
+      Printf.printf "%s: %d exn %s: \n" t.cfg.fun_name label
         (match block.exn with None -> "none" | Some l -> Int.to_string l)
 
 let check_and_register_traps t =

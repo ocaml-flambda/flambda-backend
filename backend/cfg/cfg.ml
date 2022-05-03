@@ -246,23 +246,27 @@ let dump_call ppf = function
     | Direct { func_symbol : string; _ } ->
       Format.fprintf ppf "direct %s" func_symbol)
 
-let dump_basic ppf i =
+let dump_instr ~sep ~(f : Format.formatter -> 'a -> unit) ppf (i : 'a instruction) =
   let open Format in
+  if i.stack_offset > 0 then fprintf ppf "[T%d] " i.stack_offset;
   fprintf ppf "%d: " i.id;
-  match i.desc with
+  if Array.length i.res > 0 then fprintf ppf "%a := " Printmach.regs i.res;
+  f ppf i.desc;
+  if Array.length i.arg > 0 then fprintf ppf " %a%s" Printmach.regs i.arg sep
+
+let dump_basic ppf (basic : basic) =
+  let open Format in
+  match basic with
   | Op op -> dump_op ppf op
-  | Call call ->
-    fprintf ppf "Call ";
-    dump_call ppf call
+  | Call call -> fprintf ppf "Call %a" dump_call call;
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
 
-let dump_terminator ppf ?(sep = "\n") ti =
+let dump_terminator ?(sep = "\n") ppf (terminator : terminator) =
   let open Format in
-  fprintf ppf "%d: " ti.id;
-  match ti.desc with
+  match terminator with
   | Never -> fprintf ppf "deadend%s" sep
   | Always l -> fprintf ppf "goto %d%s" l sep
   | Parity_test { ifso; ifnot } ->
@@ -294,6 +298,12 @@ let dump_terminator ppf ?(sep = "\n") ti =
   | Raise _ -> fprintf ppf "Raise%s" sep
   | Tailcall (Self _) -> fprintf ppf "Tailcall self%s" sep
   | Tailcall (Func _) -> fprintf ppf "Tailcall%s" sep
+
+let print_basic ppf (i : basic instruction) =
+  dump_instr ~sep:"" ~f:dump_basic ppf i
+
+let print_terminator ?(sep = "\n") ppf (ti : terminator instruction) =
+  dump_instr ~sep ~f:(dump_terminator ~sep) ppf ti
 
 let can_raise_terminator (i : terminator) =
   match i with
@@ -387,11 +397,6 @@ let is_pure_basic : basic -> bool = function
   | Pushtrap _ -> true
   | Poptrap -> true
   | Prologue -> true
-
-let print_basic ppf i = Format.fprintf ppf "%a" dump_basic i
-
-let print_terminator ?sep ppf ti =
-  Format.fprintf ppf "%a" (dump_terminator ?sep) ti
 
 let is_noop_move instr =
   match instr.desc with
