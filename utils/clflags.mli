@@ -254,7 +254,7 @@ module Compiler_ir : sig
 end
 
 module Compiler_pass : sig
-  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg
+  type t = Parsing | Typing | Scheduling | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool
