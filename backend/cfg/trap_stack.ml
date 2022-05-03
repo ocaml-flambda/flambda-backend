@@ -192,20 +192,23 @@ module Make (D : D) = struct
 
   let link ~(src : t) ~(dst : t) =
     assert (!src = Unknown);
-    (* check that there is no path from dst to src. it guarantees that the link
-       from src to dst that we install is not going to close a cycle, which will
-       cause non-termination of other operations on the stack. *)
-    let rec loop cur =
-      if cur == src then Misc.fatal_error "Trap_stack.unify created a cycle.";
-      match !cur with
-      | Unknown -> ()
-      | Empty -> ()
-      | Link t -> loop t
-      | Push { h = _; t } -> loop t
-    in
-    loop dst;
-    (* create a link from src to dst. *)
-    src := Link dst
+    if src == dst
+    then ()
+    else
+      (* check that there is no path from dst to src. it guarantees that the
+         link from src to dst that we install is not going to close a cycle,
+         which will cause non-termination of other operations on the stack. *)
+      let rec loop cur =
+        if cur == src then Misc.fatal_error "Trap_stack.unify created a cycle.";
+        match !cur with
+        | Unknown -> ()
+        | Empty -> ()
+        | Link t -> loop t
+        | Push { h = _; t } -> loop t
+      in
+      loop dst;
+      (* create a link from src to dst. *)
+      src := Link dst
 
   (* Given acyclic [s1] and [s2], [unify s1 s2] terminates because every step
      removes one unknown or reduces the length of one of the argument stacks by
