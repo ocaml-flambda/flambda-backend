@@ -99,6 +99,9 @@ val create_variables :
 
     The second category of bindings is organised into an ordered list of
     _stages_. A stage is a set of bindings that can all commute with each other.
+    Bindings inside stages cannot commute across stages; and stages cannot
+    commute.
+
     One stage consists of either:
 
     - an ordered list of bindings all of which have only coeffects; or

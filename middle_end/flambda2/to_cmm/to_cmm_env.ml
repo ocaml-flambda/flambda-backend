@@ -32,6 +32,8 @@ type extra_info =
   | Untag of Cmm.expression
   | Boxed_number
 
+(* Delayed let-bindings (see the .mli) *)
+
 type binding =
   { order : int;
     inline : bool;
