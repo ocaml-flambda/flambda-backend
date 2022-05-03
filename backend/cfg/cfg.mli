@@ -118,11 +118,6 @@ val register_predecessors_for_all_blocks : t -> unit
 
 (** Printing *)
 
-val dump_terminator :
-  Format.formatter -> ?sep:string -> terminator instruction -> unit
-
-val dump_basic : Format.formatter -> basic instruction -> unit
-
 val print_terminator :
   ?sep:string -> Format.formatter -> terminator instruction -> unit
 

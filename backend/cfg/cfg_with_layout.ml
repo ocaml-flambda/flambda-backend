@@ -76,11 +76,9 @@ let dump ppf t ~msg =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%d:\n" label;
     List.iter
-      (fun i ->
-        Cfg.dump_basic ppf i;
-        fprintf ppf "\n")
+      (fprintf ppf "%a\n" Cfg.print_basic)
       block.body;
-    Cfg.dump_terminator ppf block.terminator;
+    Cfg.print_terminator ppf block.terminator;
     fprintf ppf "\npredecessors:";
     Label.Set.iter (fprintf ppf " %d") block.predecessors;
     fprintf ppf "\nsuccessors:";
@@ -126,11 +124,9 @@ let print_dot ?(show_instr = true) ?(show_exn = true) ?annotate_block
       Format.fprintf ppf "\\l";
       List.iter
         (fun i ->
-          Cfg.print_basic ppf i;
-          Format.fprintf ppf "\\l")
+          Format.fprintf ppf "%a\\l" Cfg.print_basic i)
         block.body;
-      Cfg.print_terminator ppf ~sep:"\\l" block.terminator;
-      Format.fprintf ppf "\\l");
+      Format.fprintf ppf "%a\\l" (Cfg.print_terminator ~sep:"\\l") block.terminator);
     Format.fprintf ppf "\"]\n";
     Label.Set.iter
       (fun l ->
