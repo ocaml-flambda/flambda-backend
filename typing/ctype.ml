@@ -4147,6 +4147,17 @@ let find_cltype_for_path env p =
 let has_constr_row' env t =
   has_constr_row (expand_abbrev env t)
 
+let build_submode posi m =
+  if posi then begin
+    let m', changed = Btype.Alloc_mode.newvar_below m in
+    let c = if changed then Changed else Unchanged in
+    m', c
+  end else begin
+    let m', changed = Btype.Alloc_mode.newvar_above m in
+    let c = if changed then Changed else Unchanged in
+    m', c
+  end
+
 let rec build_subtype env visited loops posi level t =
   let t = repr t in
   match t.desc with
@@ -4160,14 +4171,19 @@ let rec build_subtype env visited loops posi level t =
           (t, Unchanged)
       else
         (t, Unchanged)
-  | Tarrow(l, t1, t2, _) ->
+  | Tarrow((l,a,r) , t1, t2, _) ->
       if memq_warn t visited then (t, Unchanged) else
       let visited = t :: visited in
       let (t1', c1) = build_subtype env visited loops (not posi) level t1 in
       let (t2', c2) = build_subtype env visited loops posi level t2 in
-      let c = max c1 c2 in
-      (* FIXME update arrow modes *)
-      if c > Unchanged then (newty (Tarrow(l, t1', t2', Cok)), c)
+      let (a', c3) =
+        if level > 2 then build_submode (not posi) a else a, Unchanged
+      in
+      let (r', c4) =
+        if level > 2 then build_submode posi r else r, Unchanged
+      in
+      let c = max c1 (max c2 (max c3 c4)) in
+      if c > Unchanged then (newty (Tarrow((l,a',r'), t1', t2', Cok)), c)
       else (t, Unchanged)
   | Ttuple tlist ->
       if memq_warn t visited then (t, Unchanged) else
@@ -4336,6 +4352,11 @@ let subtypes = TypePairs.create 17
 let subtype_error env trace =
   raise (Subtype (expand_trace env (List.rev trace), []))
 
+let subtype_alloc_mode env trace a1 a2 =
+  match Btype.Alloc_mode.submode a1 a2 with
+  | Ok () -> ()
+  | Error () -> subtype_error env trace
+
 let rec subtype_rec env trace t1 t2 cstrs =
   let t1 = repr t1 in
   let t2 = repr t2 in
@@ -4353,8 +4374,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
          (l1 = l2
           || !Clflags.classic && not (is_optional l1 || is_optional l2)) ->
         let cstrs = subtype_rec env (Trace.diff t2 t1::trace) t2 t1 cstrs in
-        unify_alloc_mode a1 a2; (* FIXME *)
-        unify_alloc_mode r1 r2;
+        subtype_alloc_mode env trace a2 a1;
+        subtype_alloc_mode env trace r1 r2;
         subtype_rec env (Trace.diff u1 u2::trace) u1 u2 cstrs;
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_list env trace tl1 tl2 cstrs

@@ -5287,7 +5287,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
 and type_apply_arg env ~funct ~index ~position ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg; mode_arg }) ->
-      let mode = Alloc_mode.newvar_below mode_arg in
+      let mode, _ = Alloc_mode.newvar_below mode_arg in
       let expected_mode =
         mode_argument ~funct ~index ~position ~partial_app mode in
       let arg = type_expect env expected_mode sarg (mk_expected ty_arg) in
@@ -5295,7 +5295,7 @@ and type_apply_arg env ~funct ~index ~position ~partial_app (lbl, arg) =
         unify_exp env arg (type_option(newvar()));
       (lbl, Arg arg)
   | Arg (Known_arg { sarg; ty_arg; ty_arg0; mode_arg; wrapped_in_some }) ->
-      let mode = Alloc_mode.newvar_below mode_arg in
+      let mode, _ = Alloc_mode.newvar_below mode_arg in
       let expected_mode =
         mode_argument ~funct ~index ~position ~partial_app mode in
       let arg =
