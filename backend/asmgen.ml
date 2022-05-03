@@ -79,15 +79,15 @@ let new_cfg_unit_info () =
 
 let cfg_unit_info = new_cfg_unit_info ()
 
-module Map = Map.Make(Compiler_pass)
+module Compiler_pass_map = Map.Make(Compiler_pass)
 
-let (pass_to_cfg : Cfg_format.cfg_unit_info Map.t) =
-  Map.empty
-  |> Map.add Compiler_pass.Selection (new_cfg_unit_info ())
+let (pass_to_cfg : Cfg_format.cfg_unit_info Compiler_pass_map.t) =
+  Compiler_pass_map.empty
+  |> Compiler_pass_map.add Compiler_pass.Selection (new_cfg_unit_info ())
 
 let reset () =
   start_from_emit := false;
-  Map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
+  Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass then begin
       cfg_unit_info.unit_name <- Compilenv.current_unit_name ();
       cfg_unit_info.items <- [];
@@ -106,7 +106,7 @@ let reset () =
   end
 
 let save_data dl =
-  Map.iter (fun pass (cfg_unit_info: Cfg_format.cfg_unit_info) ->
+  Compiler_pass_map.iter (fun pass (cfg_unit_info: Cfg_format.cfg_unit_info) ->
     if should_save_ir_after pass && (not !start_from_emit) then begin
       cfg_unit_info.items <- Cfg_format.(Data dl) :: cfg_unit_info.items
     end)
@@ -136,13 +136,13 @@ let save_mach_as_cfg pass f =
     let cfg =
       Cfgize.fundecl f ~preserve_orig_labels:false ~simplify_terminators:true
     in
-    let cfg_unit_info = Map.find pass pass_to_cfg in
+    let cfg_unit_info = Compiler_pass_map.find pass pass_to_cfg in
     cfg_unit_info.items <- Cfg_format.(Cfg cfg) :: cfg_unit_info.items
   end;
   f
 
 let write_ir prefix =
-  Map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info)  ->
+  Compiler_pass_map.iter (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info)  ->
     if should_save_ir_after pass && (not !start_from_emit) then begin
       let filename = Compiler_pass.(to_output_filename pass ~prefix) in
       cfg_unit_info.items <- List.rev cfg_unit_info.items;

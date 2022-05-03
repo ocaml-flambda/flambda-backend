@@ -551,18 +551,18 @@ module Compiler_pass = struct
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
-    | Selection -> "selection"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
+    | Selection -> "selection"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
-    | "selection" -> Some Selection
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
+    | "selection" -> Some Selection
     | _ -> None
 
   let rank = function
@@ -576,10 +576,10 @@ module Compiler_pass = struct
   let passes = [
     Parsing;
     Typing;
-    Selection;
     Scheduling;
     Emit;
     Simplify_cfg;
+    Selection;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
@@ -594,7 +594,7 @@ module Compiler_pass = struct
     | Scheduling -> true
     | Simplify_cfg -> true
     | Selection -> true
-    | _ -> false
+    | Parsing | Typing | Emit -> false
 
   let available_pass_names ~filter ~native =
     passes
