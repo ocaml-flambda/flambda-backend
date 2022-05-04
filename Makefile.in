@@ -465,6 +465,9 @@ runtest-upstream:
 	done > _runtest/flambda2-test-list
 	(export OCAMLSRCDIR=$$(pwd)/_runtest; \
 	 export CAML_LD_LIBRARY_PATH=$$(pwd)/_runtest/lib/ocaml/stublibs; \
+	 if $$(which gfortran > /dev/null 2>&1); then \
+	   export LIBRARY_PATH=$$(dirname $$(gfortran -print-file-name=libgfortran.a)); \
+	 fi; \
 	 cd _runtest/testsuite \
 	  && if $$(which parallel > /dev/null 2>&1); \
              then \
