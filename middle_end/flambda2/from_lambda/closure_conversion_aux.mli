@@ -168,7 +168,7 @@ module Env : sig
 
   val inlining_history_tracker : t -> Inlining_history.Tracker.t
 
-  (* Relative paths are build directly from scoped locations.
+  (* Relative paths are built directly from scoped locations.
 
      This is fine because when we convert a function call we know that it was
      never inlined beforehand and thus should inherit a path corresponding to
