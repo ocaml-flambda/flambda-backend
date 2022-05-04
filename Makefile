@@ -7,6 +7,14 @@ ws_boot   = --root=. --workspace=duneconf/boot.ws
 ws_runstd = --root=. --workspace=duneconf/runtime_stdlib.ws
 ws_main   = --root=. --workspace=duneconf/main.ws
 
+ifeq ($(coverage),yes)
+  coverage_dune_flags=--instrument-with bisect_ppx
+	ocaml_subdirs_to_ignore=otherlibs
+else
+  coverage_dune_flags=
+	ocaml_subdirs_to_ignore=
+endif
+
 define dune_boot_context
 (lang dune 2.8)
 ; We need to call the boot context "default" so that dune selects it for merlin
@@ -42,14 +50,17 @@ endef
 
 
 .DEFAULT_GOAL := compiler
-.PHONY: boot-compiler runtime-stdlib compiler runtest
+.PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
 
 boot-compiler: _build/_bootinstall
-	$(dune) build $(ws_boot) \
+	$(dune) build $(ws_boot) $(coverage_dune_flags) \
 	  boot_ocamlopt.exe \
 	  ocaml/main_native.exe \
 	  ocaml/tools/ocamlmklib_native.exe \
 	  ocaml/tools/ocamldep_native.exe
+
+boot-runtest: boot-compiler
+	$(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
 	$(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
@@ -71,7 +82,19 @@ duneconf/main.ws: export contents = $(dune_main_context)
 duneconf/%.ws:
 	echo "$$contents" > $@
 
-_build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_stdlib.ws duneconf/main.ws
+# We need to disable ocaml/otherlibs when compiling with coverage, because we
+# need to compile against the user's opam instead. Unfortunately, Dune gives us
+# no nicer way of declaring data_only_dirs differently in different workspaces,
+# so we have to output a file to be included in ocaml/dune.
+#
+# Also, Dune only allows one (data_only_dirs) declaration per file, so here we
+# have to account for the declaration that would already have been in
+# ocaml/dune.
+ocaml/dirs-to-ignore.inc:
+	echo "(data_only_dirs yacc $(ocaml_subdirs_to_ignore))" > $@
+
+_build/_bootinstall: ocaml/Makefile.config duneconf/boot.ws duneconf/runtime_stdlib.ws duneconf/main.ws \
+	ocaml/dirs-to-ignore.inc
 
 # natdynlinkops2:
 # We need to augment dune's substitutions so this part isn't so
@@ -267,7 +290,17 @@ runtest-upstream: _install
              fi)
 
 .PHONY: ci
-ci: runtest runtest-upstream
+ifeq ($(coverage),yes)
+ci: ci-coverage
+else
+ci: ci-no-coverage
+endif
+
+.PHONY: ci-no-coverage
+ci-no-coverage: runtest runtest-upstream
+
+.PHONY: ci-coverage
+ci-coverage: boot-runtest coverage
 
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
@@ -396,3 +429,12 @@ build_upstream: _build_upstream/config.status
 install_upstream: build_upstream
 	(cd _build_upstream && $(MAKE) install)
 	cp ocaml/VERSION $(prefix)/lib/ocaml/
+
+.PHONY: coverage
+coverage: boot-runtest
+	rm -rf _coverage
+	bisect-ppx-report html --tree -o _coverage \
+	  --coverage-path=_build/default \
+		--source-path=. \
+	  --source-path=_build/default
+	@echo Coverage report generated in _coverage/index.html

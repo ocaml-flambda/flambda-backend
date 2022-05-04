@@ -3,6 +3,7 @@
 (library
  (name flambda2_algorithms)
  (wrapped true)
+ (instrumentation (backend bisect_ppx))
  (flags
   (:standard -principal))
  (ocamlopt_flags

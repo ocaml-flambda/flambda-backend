@@ -1,6 +1,7 @@
 (tests
  (names meet_test)
  (modes native)
+ (instrumentation (backend bisect_ppx))
  (flags (:standard -principal))
  (libraries
   ocamloptcomp ocamlcommon
