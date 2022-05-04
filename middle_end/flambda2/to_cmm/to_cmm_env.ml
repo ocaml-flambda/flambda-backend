@@ -339,7 +339,7 @@ let order_add_map m acc =
 
 let flush_delayed_lets ?(entering_loop = false) env =
   (* generate a wrapper function to introduce the delayed let-bindings. *)
-  let wrap_aux pures stages e =
+  let flush pures stages e =
     let order_map = order_add_map pures M.empty in
     let order_map =
       List.fold_left
@@ -363,5 +363,5 @@ let flush_delayed_lets ?(entering_loop = false) env =
     then Variable.Map.empty, env.pures
     else Variable.Map.partition (fun _ binding -> binding.inline) env.pures
   in
-  let wrap e = wrap_aux pures_to_flush env.stages e in
-  wrap, { env with stages = []; pures = pures_to_keep }
+  let flush e = flush pures_to_flush env.stages e in
+  flush, { env with stages = []; pures = pures_to_keep }
