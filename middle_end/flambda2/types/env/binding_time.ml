@@ -26,8 +26,9 @@ include T
 
 type binding_time = t
 
-module Set = Patricia_tree.Make_set (T)
-module Map = Patricia_tree.Make_map (T) (Set)
+module Tree = Patricia_tree.Make (T)
+module Set = Tree.Set
+module Map = Tree.Map
 
 let strictly_earlier (t : t) ~than = t < than
 

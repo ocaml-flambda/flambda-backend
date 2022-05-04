@@ -39,13 +39,9 @@ let to_int t = t
 
 let max t1 t2 = max t1 t2
 
-module Set = Patricia_tree.Make_set (struct
+module Tree = Patricia_tree.Make (struct
   let print = print
 end)
 
-module Map =
-  Patricia_tree.Make_map
-    (struct
-      let print = print
-    end)
-    (Set)
+module Set = Tree.Set
+module Map = Tree.Map
