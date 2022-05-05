@@ -463,7 +463,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
         | None -> acc
         | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
           let v = Bound_var.var v in
-          Env.bind_variable ?extra:None acc v
+          Env.bind_variable acc v
             ~num_normal_occurrences_of_bound_vars:
               (Known num_normal_occurrences_of_bound_vars)
             ~effects_and_coeffects_of_defining_expr ~defining_expr)
