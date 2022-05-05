@@ -386,7 +386,7 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
     Misc.fatal_errorf "Don't know how to box %s after reading it in a bigarray"
       what
   in
-  match P.element_kind_of_bigarray_kind kind with
+  match P.Bigarray_kind.element_kind kind with
   | Value -> Fun.id
   | Naked_number Naked_immediate -> fun arg -> H.Unary (Tag_immediate, Prim arg)
   | Naked_number Naked_float ->
@@ -405,7 +405,7 @@ let bigarray_unbox_or_untag_value_to_store kind =
     Misc.fatal_errorf "Don't know how to unbox %s to store it in a bigarray"
       what
   in
-  match P.element_kind_of_bigarray_kind kind with
+  match P.Bigarray_kind.element_kind kind with
   | Value -> Fun.id
   | Naked_number Naked_immediate ->
     fun arg -> H.Prim (Unary (Untag_immediate, arg))
@@ -450,7 +450,7 @@ let bigarray_indexing layout b args =
       in
       check :: checks, offset
   in
-  match (layout : P.bigarray_layout) with
+  match (layout : P.Bigarray_layout.t) with
   | C -> aux num_dim (-1) (List.rev args)
   | Fortran ->
     aux 1 1
@@ -992,7 +992,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   | Pint_as_pointer, [arg] -> Unary (Int_as_pointer, arg)
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> begin
     match
-      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
     | Some kind, Some layout ->
       let b, indexes =
@@ -1016,7 +1016,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
   end
   | Pbigarrayset (unsafe, num_dimensions, kind, layout), args -> begin
     match
-      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
     | Some kind, Some layout ->
       let b, indexes, value =
