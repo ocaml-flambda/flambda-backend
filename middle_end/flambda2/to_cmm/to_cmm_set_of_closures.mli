@@ -36,14 +36,6 @@ val let_dynamic_set_of_closures :
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
   Set_of_closures.t ->
   translate_expr:translate_expr ->
-  let_expr_bind:
-    (?extra:To_cmm_env.extra_info ->
-    To_cmm_env.t ->
-    Variable.t ->
-    num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
-    Cmm.expression ->
-    effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
-    To_cmm_env.t) ->
   Cmm.expression * To_cmm_result.t
 
 val params_and_body :

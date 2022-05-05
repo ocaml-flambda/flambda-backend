@@ -147,26 +147,16 @@ let match_var_with_extra_info env simple : Env.extra_info option =
         ~symbol:(fun _ -> None)
         ~var:(fun var -> Env.extra_info env var))
 
-(* Helpers for the translation of [Let] expressions *)
-
-let let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars cmm_expr
-    ~effects_and_coeffects_of_defining_expr =
-  match
-    To_cmm_effects.classify_let_expr v ~effects_and_coeffects_of_defining_expr
-      ~num_normal_occurrences_of_bound_vars
-  with
-  | Drop_defining_expr -> env
-  | Inline ->
-    Env.bind_variable env v ?extra effects_and_coeffects_of_defining_expr true
-      cmm_expr
-  | Regular ->
-    Env.bind_variable env v ?extra effects_and_coeffects_of_defining_expr false
-      cmm_expr
+(* Helper for the translation of [Simple]s. *)
 
 let bind_simple ~dbg env v ~num_normal_occurrences_of_bound_vars s =
-  let cmm_expr, env, effs = C.simple ~dbg env s in
-  let_expr_bind env v ~num_normal_occurrences_of_bound_vars cmm_expr
-    ~effects_and_coeffects_of_defining_expr:effs
+  let defining_expr, env, effects_and_coeffects_of_defining_expr =
+    C.simple ~dbg env s
+  in
+  Env.bind_variable env v
+    ~num_normal_occurrences_of_bound_vars:
+      (Known num_normal_occurrences_of_bound_vars)
+    ~effects_and_coeffects_of_defining_expr ~defining_expr
 
 (* Helpers for the translation of [Apply] expressions. *)
 
@@ -404,21 +394,23 @@ and let_expr env res let_expr =
           expr env res body
         | Singleton v, Prim (p, dbg) ->
           let v = Bound_var.var v in
-          let cmm_expr, extra, env, res, effs =
+          let defining_expr, extra, env, res, effs =
             To_cmm_primitive.prim env res dbg p
           in
           let effects_and_coeffects_of_defining_expr =
             Ece.join effs (Flambda_primitive.effects_and_coeffects p)
           in
           let env =
-            let_expr_bind ?extra env v ~num_normal_occurrences_of_bound_vars
-              cmm_expr ~effects_and_coeffects_of_defining_expr
+            Env.bind_variable ?extra env v
+              ~num_normal_occurrences_of_bound_vars:
+                (Known num_normal_occurrences_of_bound_vars)
+              ~effects_and_coeffects_of_defining_expr ~defining_expr
           in
           expr env res body
         | Set_of_closures bound_vars, Set_of_closures soc ->
           To_cmm_set_of_closures.let_dynamic_set_of_closures env res ~body
             ~bound_vars ~num_normal_occurrences_of_bound_vars soc
-            ~translate_expr:expr ~let_expr_bind
+            ~translate_expr:expr
         | Static bound_static, Static_consts consts -> (
           let env, res, update_opt =
             To_cmm_static.static_consts env res
@@ -455,7 +447,7 @@ and let_cont env res (let_cont : Flambda.Let_cont.t) =
           To_cmm_effects.classify_continuation_handler k handler
             ~num_free_occurrences ~is_applied_with_traps
         with
-        | Inline -> let_cont_inline env res k handler body
+        | May_inline -> let_cont_inline env res k handler body
         | Regular -> let_cont_jump env res k handler body)
   | Recursive handlers ->
     Recursive_let_cont_handlers.pattern_match handlers ~f:(fun ~body conts ->
@@ -523,7 +515,8 @@ and let_cont_exn env res k body vars handle id arity =
   let cmm =
     List.fold_left
       (fun cmm (v, k) ->
-        let v = Backend_var.With_provenance.create v in
+        (* CR mshinwell: Fix [provenance] *)
+        let v = Backend_var.With_provenance.create ?provenance:None v in
         C.letin_mut v (C.machtype_of_kind k) (default_of_kind ~dbg k) cmm)
       trywith extra_vars
   in
@@ -621,16 +614,19 @@ and apply_expr env res e =
           Variable.Map.singleton var Num_occurrences.Zero
         in
         let env =
-          let_expr_bind env var ~num_normal_occurrences_of_bound_vars call
-            ~effects_and_coeffects_of_defining_expr:effs
+          Env.bind_variable env var
+            ~num_normal_occurrences_of_bound_vars:
+              (Known num_normal_occurrences_of_bound_vars)
+            ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
         in
         expr env res body
       | [param] ->
         let var = Bound_parameter.var param in
         let env =
-          let_expr_bind env var
-            ~num_normal_occurrences_of_bound_vars:handler_params_occurrences
-            call ~effects_and_coeffects_of_defining_expr:effs
+          Env.bind_variable env var
+            ~num_normal_occurrences_of_bound_vars:
+              (Known handler_params_occurrences)
+            ~effects_and_coeffects_of_defining_expr:effs ~defining_expr:call
         in
         expr env res body
       | _ :: _ -> unsupported ())

@@ -123,14 +123,19 @@ val create_variables :
     (e.g. in [To_cmm_expr]). *)
 
 (** Bind a variable to the given Cmm expression, to allow for delaying the
-    let-binding. *)
+    let-binding. The [allow_inlining] parameter should be set to [true] iff the
+    variable is used exactly once and the caller is happy for the defining
+    expression may be substituted for the unique use. The caller may set
+    [allow_inlining] irrespective of the effects and coeffects of the defining
+    expression; this module will do the right thing. *)
 val bind_variable :
+  ?extra:extra_info ->
   t ->
   Variable.t ->
-  ?extra:extra_info ->
-  Effects_and_coeffects.t ->
-  bool ->
-  Cmm.expression ->
+  num_normal_occurrences_of_bound_vars:
+    Num_occurrences.t Variable.Map.t Or_unknown.t ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  defining_expr:Cmm.expression ->
   t
 
 (** Try and inline an Flambda variable using the delayed let-bindings. *)

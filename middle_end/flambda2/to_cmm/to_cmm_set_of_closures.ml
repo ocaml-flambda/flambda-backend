@@ -397,14 +397,15 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr =
       (fun acc cid v ->
         let v = Bound_var.var v in
         let sym = C.symbol ~dbg (Function_slot.Map.find cid closure_symbols) in
-        Env.bind_variable acc v Ece.pure false sym)
+        Env.bind_variable acc v ~effects_and_coeffects_of_defining_expr:Ece.pure
+          ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:sym)
       env cids bound_vars
   in
   translate_expr env res body
 
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     (layout : Slot_offsets.layout) ~num_normal_occurrences_of_bound_vars
-    ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr ~let_expr_bind =
+    ~(closure_alloc_mode : Alloc_mode.t) ~translate_expr =
   let fun_decls = Set_of_closures.function_decls set in
   let decls = Function_declarations.funs_in_order fun_decls in
   let value_slots = Set_of_closures.value_slots set in
@@ -430,7 +431,10 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     C.make_alloc ~mode:(Alloc_mode.to_lambda closure_alloc_mode) dbg tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
-  let env = Env.bind_variable env soc_var effs false csoc in
+  let env =
+    Env.bind_variable env soc_var ~effects_and_coeffects_of_defining_expr:effs
+      ~num_normal_occurrences_of_bound_vars:Unknown ~defining_expr:csoc
+  in
   (* Get from the env the cmm variable that was created and bound to the
      compiled set of closures. *)
   let soc_cmm_var, env, peff = Env.inline_variable env soc_var in
@@ -457,10 +461,12 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
       (fun acc cid v ->
         match get_closure_by_offset env soc_cmm_var cid with
         | None -> acc
-        | Some (e, effs) ->
+        | Some (defining_expr, effects_and_coeffects_of_defining_expr) ->
           let v = Bound_var.var v in
-          let_expr_bind ?extra:None acc v ~num_normal_occurrences_of_bound_vars
-            e ~effects_and_coeffects_of_defining_expr:effs)
+          Env.bind_variable ?extra:None acc v
+            ~num_normal_occurrences_of_bound_vars:
+              (Known num_normal_occurrences_of_bound_vars)
+            ~effects_and_coeffects_of_defining_expr ~defining_expr)
       env
       (Function_slot.Lmap.keys decls)
       bound_vars
@@ -468,7 +474,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   translate_expr env res body
 
 let let_dynamic_set_of_closures env res ~body ~bound_vars
-    ~num_normal_occurrences_of_bound_vars set ~translate_expr ~let_expr_bind =
+    ~num_normal_occurrences_of_bound_vars set ~translate_expr =
   let layout = layout_for_set_of_closures env set in
   if layout.empty_env
   then lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
@@ -476,4 +482,4 @@ let let_dynamic_set_of_closures env res ~body ~bound_vars
     let_dynamic_set_of_closures0 env res ~body ~bound_vars
       ~num_normal_occurrences_of_bound_vars set layout
       ~closure_alloc_mode:(Set_of_closures.alloc_mode set)
-      ~translate_expr ~let_expr_bind
+      ~translate_expr

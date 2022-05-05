@@ -36,7 +36,9 @@ type extra_info =
 
 type binding =
   { order : int;
-    inline : bool;
+    may_inline : bool;
+    (* [may_inline] means that the defining expression of the binding is safe to
+       inline, but it doesn't necessarily _have_ to be inlined. *)
     effs : Effects_and_coeffects.t;
     cmm_var : Backend_var.With_provenance.t;
     cmm_expr : Cmm.expression
@@ -59,26 +61,27 @@ type t =
        i.e. either the unit initialization code, or the body of a function. This
        information is reset when entering a new function. *)
     return_continuation : Continuation.t;
-    (* The continuation of the current context (used to determine which calls
-       are tail-calls) *)
+    (* The (non-exceptional) return continuation of the current context (used to
+       determine which calls are tail-calls). *)
     exn_continuation : Continuation.t;
     (* The exception continuation of the current context (used to determine
-       where to insert try-with blocks) *)
+       where to insert try-with blocks). *)
     vars : Cmm.expression Variable.Map.t;
-    (* Map from flambda variables to cmm expressions *)
+    (* Cmm expressions (of the form [Cvar ...]) describing all Flambda variables
+       in scope. *)
     vars_extra : extra_info Variable.Map.t;
-    (* Map from flambda variables to extra info *)
+    (* Extra information (see above) associated with Flambda variables. *)
     conts : cont Continuation.Map.t;
-    (* Map from continuations to handlers (i.e variables bound by the
-       continuation and expression of the continuation handler). *)
+    (* Information about whether each continuation in scope should have its
+       handler inlined, or else reached via a jump. *)
     exn_handlers : Continuation.Set.t;
     (* All continuations that act as exception handlers. *)
     exn_conts_extra_args : Backend_var.t list Continuation.Map.t;
-    (* Mutable variables used for compiling extra arguments to exception
-       handlers *)
+    (* Mutable variables used for compiling the "extra arguments" to exception
+       handlers. *)
     pures : binding Variable.Map.t;
-    (* pure bindings that can be inlined across stages. *)
-    stages : stage list (* archived stages, in reverse chronological order. *)
+    (* Pure let-bindings that can be inlined across _stages_ (see the .mli). *)
+    stages : stage list (* Stages of let-bindings, most recent at the head. *)
   }
 
 let create offsets functions_info ~return_continuation ~exn_continuation =
@@ -118,8 +121,8 @@ let exported_offsets t = t.offsets
 let gen_variable v =
   let name = Variable.unique_name v in
   let v = Backend_var.create_local name in
-  let v = Backend_var.With_provenance.create v in
-  v
+  (* CR mshinwell: Fix [provenance] *)
+  Backend_var.With_provenance.create ?provenance:None v
 
 let add_variable env v v' =
   let v'' = Backend_var.With_provenance.var v' in
@@ -127,20 +130,17 @@ let add_variable env v v' =
   { env with vars }
 
 let create_variable env v =
-  assert (not (Variable.Map.mem v env.vars));
+  if Variable.Map.mem v env.vars
+  then
+    Misc.fatal_errorf "Cannot rebind variable %a in To_cmm environment"
+      Variable.print v;
   let v' = gen_variable v in
   let env = add_variable env v v' in
   env, v'
 
-let create_variables env l =
-  let env, l' =
-    List.fold_left
-      (fun (env, l) v ->
-        let env', v' = create_variable env v in
-        env', v' :: l)
-      (env, []) l
-  in
-  env, List.rev l'
+let create_variables env vs =
+  let env, vs = List.fold_left_map create_variable env vs in
+  env, List.rev vs
 
 let extra_info env v =
   match Variable.Map.find v env.vars_extra with
@@ -185,7 +185,7 @@ let add_exn_handler env k arity =
     { env with exn_handlers = Continuation.Set.add k env.exn_handlers }
   in
   match Flambda_arity.to_list arity with
-  | [] -> Misc.fatal_error "Exception handler with no arguments"
+  | [] -> Misc.fatal_error "Exception handlers must have at least one parameter"
   | [_] -> env, []
   | _ :: extra_args ->
     let mut_vars =
@@ -203,18 +203,18 @@ let add_exn_handler env k arity =
 let is_exn_handler t cont = Continuation.Set.mem cont t.exn_handlers
 
 let get_exn_extra_args env k =
-  match Continuation.Map.find_opt k env.exn_conts_extra_args with
-  | Some l -> l
-  | None -> []
+  match Continuation.Map.find k env.exn_conts_extra_args with
+  | exception Not_found -> []
+  | extra_args -> extra_args
 
-(* Variable binding (for potential inlining) *)
+(* Variable binding (for potential inlining). Also see [To_cmm_effects]. *)
 
 let is_inlinable_box effs ~extra =
   (* [effs] is the effects and coeffects of some primitive operation, arising
      either from the primitive itself or its arguments. If this is a boxing
-     operation (as indicated by [extra]), then we want to inline the box, but
-     this involves moving the arguments, so they must be pure (or at most
-     generative). *)
+     operation (as indicated by [extra]) then we want to inline the box. However
+     this involves moving the arguments, so they must be pure (or at most have
+     generative effects, with no coeffects). *)
   match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
   | ((No_effects | Only_generative_effects _), No_coeffects), Some Boxed_number
     ->
@@ -226,13 +226,13 @@ let is_inlinable_box effs ~extra =
 
 let create_binding =
   let next_order = ref (-1) in
-  fun ?extra env inline effs var cmm_expr ->
+  fun ?extra env ~may_inline effs var cmm_expr ->
     let order =
       incr next_order;
       !next_order
     in
     let cmm_var = gen_variable var in
-    let binding = { order; inline; effs; cmm_var; cmm_expr } in
+    let binding = { order; may_inline; effs; cmm_var; cmm_expr } in
     let cmm_expr = C.var (Backend_var.With_provenance.var cmm_var) in
     let env = { env with vars = Variable.Map.add var cmm_expr env.vars } in
     let env =
@@ -243,9 +243,12 @@ let create_binding =
     in
     env, binding
 
-let bind_variable env var ?extra effs inline cmm_expr =
-  let env, binding = create_binding ?extra env inline effs var cmm_expr in
-  if inline && is_inlinable_box effs ~extra
+let bind_variable0 ?extra env var ~effects_and_coeffects_of_defining_expr:effs
+    ~may_inline ~defining_expr =
+  let env, binding =
+    create_binding ?extra env ~may_inline effs var defining_expr
+  in
+  if may_inline && is_inlinable_box effs ~extra
   then
     (* CR-someday lmaurer: This violates our rule about not moving allocations
        past function calls. We should either fix it (not clear how) or be rid of
@@ -267,6 +270,25 @@ let bind_variable env var ?extra effs inline cmm_expr =
       in
       { env with stages }
 
+let bind_variable ?extra env v
+    ~(num_normal_occurrences_of_bound_vars : _ Or_unknown.t)
+    ~effects_and_coeffects_of_defining_expr ~defining_expr =
+  let[@inline] bind_variable0 ~may_inline =
+    bind_variable0 env v ?extra ~effects_and_coeffects_of_defining_expr
+      ~may_inline ~defining_expr
+  in
+  match num_normal_occurrences_of_bound_vars with
+  | Unknown -> bind_variable0 ~may_inline:false
+  | Known num_normal_occurrences_of_bound_vars -> (
+    match
+      To_cmm_effects.classify_let_binding v
+        ~effects_and_coeffects_of_defining_expr
+        ~num_normal_occurrences_of_bound_vars
+    with
+    | Drop_defining_expr -> env
+    | May_inline -> bind_variable0 ~may_inline:true
+    | Regular -> bind_variable0 ~may_inline:false)
+
 (* Variable lookup (for potential inlining) *)
 
 let inline_res env b = b.cmm_expr, env, b.effs
@@ -282,7 +304,7 @@ let inline_not_found env v =
   | e -> e, env, Effects_and_coeffects.pure
 
 let inline_found_pure env var b =
-  if b.inline
+  if b.may_inline
   then
     let pures = Variable.Map.remove var env.pures in
     let env = { env with pures } in
@@ -292,7 +314,7 @@ let inline_found_pure env var b =
 let inline_found_effect env var v b r =
   if not (Variable.equal var v)
   then inline_not_found env var
-  else if b.inline
+  else if b.may_inline
   then
     let env = { env with stages = r } in
     inline_res env b
@@ -302,7 +324,7 @@ let inline_found_coeffect_only env var m r =
   match Variable.Map.find var m with
   | exception Not_found -> inline_not_found env var
   | b ->
-    if b.inline
+    if b.may_inline
     then
       let m' = Variable.Map.remove var m in
       let env =
@@ -338,7 +360,7 @@ let order_add_map m acc =
   Variable.Map.fold (fun _ b acc -> order_add b acc) m acc
 
 let flush_delayed_lets ?(entering_loop = false) env =
-  (* generate a wrapper function to introduce the delayed let-bindings. *)
+  (* Generate a wrapper function to introduce the delayed let-bindings. *)
   let flush pures stages e =
     let order_map = order_add_map pures M.empty in
     let order_map =
@@ -356,12 +378,13 @@ let flush_delayed_lets ?(entering_loop = false) env =
   (* Unless entering a loop, only pure bindings that are not to be inlined are
      flushed now. The remainder are preserved, ensuring that the corresponding
      expressions are sunk down as far as possible. *)
+  (* XXX [may_inline] isn't a final inlining decision tho *)
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
      loops. *)
   let pures_to_keep, pures_to_flush =
     if entering_loop
     then Variable.Map.empty, env.pures
-    else Variable.Map.partition (fun _ binding -> binding.inline) env.pures
+    else Variable.Map.partition (fun _ binding -> binding.may_inline) env.pures
   in
   let flush e = flush pures_to_flush env.stages e in
   flush, { env with stages = []; pures = pures_to_keep }
