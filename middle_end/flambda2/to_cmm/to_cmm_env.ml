@@ -375,10 +375,9 @@ let flush_delayed_lets ?(entering_loop = false) env =
         Cmm_helpers.letin b.cmm_var ~defining_expr:b.cmm_expr ~body:acc)
       order_map e
   in
-  (* Unless entering a loop, only pure bindings that are not to be inlined are
-     flushed now. The remainder are preserved, ensuring that the corresponding
-     expressions are sunk down as far as possible. *)
-  (* XXX [may_inline] isn't a final inlining decision tho *)
+  (* Unless entering a loop, only pure bindings that definitely cannot be
+     inlined are flushed now. The remainder are preserved, ensuring that the
+     corresponding expressions are sunk down as far as possible. *)
   (* CR-someday mshinwell: work out a criterion for allowing substitutions into
      loops. *)
   let pures_to_keep, pures_to_flush =
