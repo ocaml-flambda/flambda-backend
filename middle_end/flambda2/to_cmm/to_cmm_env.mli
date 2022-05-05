@@ -123,11 +123,7 @@ val create_variables :
     (e.g. in [To_cmm_expr]). *)
 
 (** Bind a variable to the given Cmm expression, to allow for delaying the
-    let-binding. The [allow_inlining] parameter should be set to [true] iff the
-    variable is used exactly once and the caller is happy for the defining
-    expression may be substituted for the unique use. The caller may set
-    [allow_inlining] irrespective of the effects and coeffects of the defining
-    expression; this module will do the right thing. *)
+    let-binding. *)
 val bind_variable :
   ?extra:extra_info ->
   t ->
