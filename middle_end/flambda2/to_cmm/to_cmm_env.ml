@@ -139,9 +139,7 @@ let create_variable env v =
   let env = add_variable env v v' in
   env, v'
 
-let create_variables env vs =
-  let env, vs = List.fold_left_map create_variable env vs in
-  env, List.rev vs
+let create_variables env vs = List.fold_left_map create_variable env vs
 
 let extra_info env v =
   match Variable.Map.find v env.vars_extra with
