@@ -293,55 +293,61 @@ let bind_variable ?extra env v
 
 let will_inline env binding = binding.cmm_expr, env, binding.effs
 
-let non_inlined_var env binding =
+let will_not_inline env binding =
   C.var (Backend_var.With_provenance.var binding.cmm_var), env, Ece.pure
 
-let inline_not_found env v =
+let will_not_inline_var env v =
+  (* This is like [will_not_inline] but is used in the case where no delayed
+     [binding] is available. A preallocated [Cvar] expression will be used. *)
   match Variable.Map.find v env.vars with
   | exception Not_found ->
     Misc.fatal_errorf "Variable %a not found in env" Variable.print v
   | e -> e, env, Ece.pure
 
-let inline_found_pure env var binding =
-  if binding.may_inline
-  then
-    let pures = Variable.Map.remove var env.pures in
-    let env = { env with pures } in
-    will_inline env binding
-  else non_inlined_var env binding
-
-let inline_found_effect env var ~var_from_stage binding ~remaining_stages =
-  if not (Variable.equal var var_from_stage)
-  then inline_not_found env var
-  else if binding.may_inline
-  then will_inline { env with stages = remaining_stages } binding
-  else non_inlined_var env binding
-
-let inline_found_coeffect_only env var ~coeffects ~remaining_stages =
-  match Variable.Map.find var coeffects with
-  | exception Not_found -> inline_not_found env var
-  | binding ->
-    if binding.may_inline
-    then
-      let coeffects = Variable.Map.remove var coeffects in
-      let env =
-        if Variable.Map.is_empty coeffects
-        then { env with stages = remaining_stages }
-        else { env with stages = Coeffect_only coeffects :: remaining_stages }
-      in
-      will_inline env binding
-    else non_inlined_var env binding
-
 let inline_variable env var =
   match Variable.Map.find var env.pures with
-  | binding -> inline_found_pure env var binding
+  | binding ->
+    if not binding.may_inline
+    then will_not_inline env binding
+    else
+      (* Pure bindings may be inlined at most once. *)
+      let pures = Variable.Map.remove var env.pures in
+      will_inline { env with pures } binding
   | exception Not_found -> (
     match env.stages with
-    | [] -> inline_not_found env var
-    | Effect (var_from_stage, binding) :: remaining_stages ->
-      inline_found_effect env var ~var_from_stage binding ~remaining_stages
-    | Coeffect_only coeffects :: remaining_stages ->
-      inline_found_coeffect_only env var ~coeffects ~remaining_stages)
+    | [] -> will_not_inline_var env var
+    | Effect (var_from_stage, binding) :: prev_stages ->
+      (* In this case [var_from_stage] corresponds to an effectful binding
+         forming the most recent stage. We also know that [var] doesn't have an
+         available pure defining expression (either because that expression
+         isn't pure, or because the corresponding binding has already been
+         flushed). As such, we can't move the defining expression for [var] past
+         that of [var_from_stage], in the case where these variables are
+         different. However if these two variables are in fact the same, we can
+         consider inlining the defining expression. *)
+      if not (Variable.equal var var_from_stage)
+      then will_not_inline_var env var
+      else if binding.may_inline
+      then will_inline { env with stages = prev_stages } binding
+      else will_not_inline env binding
+    | Coeffect_only coeffects :: prev_stages -> (
+      (* Here we see if [var] has a coeffect-only defining expression on the
+         most recent stage. If so, then we can commute it with any other
+         expression on the stage, since they all only have coeffects. The
+         defining expression for [var] may then be considered for inlining. *)
+      match Variable.Map.find var coeffects with
+      | exception Not_found -> will_not_inline_var env var
+      | binding ->
+        if not binding.may_inline
+        then will_not_inline env binding
+        else
+          let coeffects = Variable.Map.remove var coeffects in
+          let env =
+            if Variable.Map.is_empty coeffects
+            then { env with stages = prev_stages }
+            else { env with stages = Coeffect_only coeffects :: prev_stages }
+          in
+          will_inline env binding))
 
 (* Flushing delayed bindings *)
 
