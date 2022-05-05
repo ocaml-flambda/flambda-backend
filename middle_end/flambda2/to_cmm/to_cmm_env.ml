@@ -16,6 +16,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module C = Cmm_helpers
+module Ece = Effects_and_coeffects
 
 type cont =
   | Jump of
@@ -39,7 +40,7 @@ type binding =
     may_inline : bool;
     (* [may_inline] means that the defining expression of the binding is safe to
        inline, but it doesn't necessarily _have_ to be inlined. *)
-    effs : Effects_and_coeffects.t;
+    effs : Ece.t;
     cmm_var : Backend_var.With_provenance.t;
     cmm_expr : Cmm.expression
   }
@@ -194,11 +195,10 @@ let add_exn_handler env k arity =
         extra_args
     in
     let vars_only = List.map fst mut_vars in
-    ( { env with
-        exn_conts_extra_args =
-          Continuation.Map.add k vars_only env.exn_conts_extra_args
-      },
-      mut_vars )
+    let exn_conts_extra_args =
+      Continuation.Map.add k vars_only env.exn_conts_extra_args
+    in
+    { env with exn_conts_extra_args }, mut_vars
 
 let is_exn_handler t cont = Continuation.Set.mem cont t.exn_handlers
 
@@ -215,7 +215,7 @@ let is_inlinable_box effs ~extra =
      operation (as indicated by [extra]) then we want to inline the box. However
      this involves moving the arguments, so they must be pure (or at most have
      generative effects, with no coeffects). *)
-  match (effs : Effects_and_coeffects.t), (extra : extra_info option) with
+  match (effs : Ece.t), (extra : extra_info option) with
   | ((No_effects | Only_generative_effects _), No_coeffects), Some Boxed_number
     ->
     true
@@ -291,59 +291,57 @@ let bind_variable ?extra env v
 
 (* Variable lookup (for potential inlining) *)
 
-let inline_res env b = b.cmm_expr, env, b.effs
+let will_inline env binding = binding.cmm_expr, env, binding.effs
 
-let non_inlined_var env b =
-  let v' = Backend_var.With_provenance.var b.cmm_var in
-  C.var v', env, Effects_and_coeffects.pure
+let non_inlined_var env binding =
+  C.var (Backend_var.With_provenance.var binding.cmm_var), env, Ece.pure
 
 let inline_not_found env v =
   match Variable.Map.find v env.vars with
   | exception Not_found ->
     Misc.fatal_errorf "Variable %a not found in env" Variable.print v
-  | e -> e, env, Effects_and_coeffects.pure
+  | e -> e, env, Ece.pure
 
-let inline_found_pure env var b =
-  if b.may_inline
+let inline_found_pure env var binding =
+  if binding.may_inline
   then
     let pures = Variable.Map.remove var env.pures in
     let env = { env with pures } in
-    inline_res env b
-  else non_inlined_var env b
+    will_inline env binding
+  else non_inlined_var env binding
 
-let inline_found_effect env var v b r =
-  if not (Variable.equal var v)
+let inline_found_effect env var ~var_from_stage binding ~remaining_stages =
+  if not (Variable.equal var var_from_stage)
   then inline_not_found env var
-  else if b.may_inline
-  then
-    let env = { env with stages = r } in
-    inline_res env b
-  else non_inlined_var env b
+  else if binding.may_inline
+  then will_inline { env with stages = remaining_stages } binding
+  else non_inlined_var env binding
 
-let inline_found_coeffect_only env var m r =
-  match Variable.Map.find var m with
+let inline_found_coeffect_only env var ~coeffects ~remaining_stages =
+  match Variable.Map.find var coeffects with
   | exception Not_found -> inline_not_found env var
-  | b ->
-    if b.may_inline
+  | binding ->
+    if binding.may_inline
     then
-      let m' = Variable.Map.remove var m in
+      let coeffects = Variable.Map.remove var coeffects in
       let env =
-        if Variable.Map.is_empty m'
-        then { env with stages = r }
-        else { env with stages = Coeffect_only m' :: r }
+        if Variable.Map.is_empty coeffects
+        then { env with stages = remaining_stages }
+        else { env with stages = Coeffect_only coeffects :: remaining_stages }
       in
-      inline_res env b
-    else non_inlined_var env b
+      will_inline env binding
+    else non_inlined_var env binding
 
 let inline_variable env var =
   match Variable.Map.find var env.pures with
-  | b -> inline_found_pure env var b
-  | exception Not_found -> begin
+  | binding -> inline_found_pure env var binding
+  | exception Not_found -> (
     match env.stages with
     | [] -> inline_not_found env var
-    | Effect (v, b) :: r -> inline_found_effect env var v b r
-    | Coeffect_only m :: r -> inline_found_coeffect_only env var m r
-  end
+    | Effect (var_from_stage, binding) :: remaining_stages ->
+      inline_found_effect env var ~var_from_stage binding ~remaining_stages
+    | Coeffect_only coeffects :: remaining_stages ->
+      inline_found_coeffect_only env var ~coeffects ~remaining_stages)
 
 (* Flushing delayed bindings *)
 
