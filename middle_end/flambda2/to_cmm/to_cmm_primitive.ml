@@ -88,7 +88,7 @@ let check_alloc_fields = function
 
 let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
-  match (kind : Flambda_primitive.Block_kind.t) with
+  match (kind : P.Block_kind.t) with
   | Values (tag, _) ->
     C.make_alloc
       ~mode:(Alloc_mode.to_lambda alloc_mode)
@@ -127,7 +127,7 @@ let block_set ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
 
 let make_array ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
-  match (kind : Flambda_primitive.Array_kind.t) with
+  match (kind : P.Array_kind.t) with
   | Immediates | Values ->
     C.make_alloc ~mode:(Alloc_mode.to_lambda alloc_mode) dbg 0 args
   | Naked_floats ->
@@ -165,32 +165,15 @@ let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
 
 (* Bigarrays *)
 
-(* CR mshinwell: Add [Flambda_primitive.Bigarray_kind] and move this function
-   there *)
-let lambda_ba_kind k : Lambda.bigarray_kind =
-  match (k : Flambda_primitive.bigarray_kind) with
-  | Float32 -> Pbigarray_float32
-  | Float64 -> Pbigarray_float64
-  | Sint8 -> Pbigarray_sint8
-  | Uint8 -> Pbigarray_uint8
-  | Sint16 -> Pbigarray_sint16
-  | Uint16 -> Pbigarray_uint16
-  | Int32 -> Pbigarray_int32
-  | Int64 -> Pbigarray_int64
-  | Int_width_int -> Pbigarray_caml_int
-  | Targetint_width_int -> Pbigarray_native_int
-  | Complex32 -> Pbigarray_complex32
-  | Complex64 -> Pbigarray_complex64
-
 (* CR mshinwell: Document [offset] including tagging *)
 let bigarray_load ?(dbg = Debuginfo.none) kind ~bigarray ~offset =
-  let elt_kind = lambda_ba_kind kind in
+  let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
   C.bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
 
 let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
-  let elt_kind = lambda_ba_kind kind in
+  let elt_kind = P.Bigarray_kind.to_lambda kind in
   let elt_size = C.bigarray_elt_size_in_bytes elt_kind in
   let elt_chunk = C.bigarray_word_kind elt_kind in
   C.bigarray_store ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~offset
@@ -199,7 +182,7 @@ let bigarray_store ?(dbg = Debuginfo.none) kind ~bigarray ~offset ~new_value =
 (* String and bytes access. For these functions, [index] is a tagged integer. *)
 
 let string_like_load_aux ~dbg width ptr index =
-  match (width : Flambda_primitive.string_accessor_width) with
+  match (width : P.string_accessor_width) with
   | Eight ->
     let index = C.untag_int index dbg in
     C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int ptr index dbg)
@@ -217,7 +200,7 @@ let string_like_load_aux ~dbg width ptr index =
       C.unaligned_load_64 ptr index dbg
 
 let string_like_load ?(dbg = Debuginfo.none) kind width block index =
-  match (kind : Flambda_primitive.string_like_value) with
+  match (kind : P.string_like_value) with
   | String | Bytes -> string_like_load_aux ~dbg width block index
   | Bigstring ->
     let ba_data_addr = C.field_address block 1 dbg in
@@ -227,7 +210,7 @@ let string_like_load ?(dbg = Debuginfo.none) kind width block index =
 
 (* same as {string_like_load_aux} *)
 let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
-  match (width : Flambda_primitive.string_accessor_width) with
+  match (width : P.string_accessor_width) with
   | Eight ->
     let idx = C.untag_int idx dbg in
     C.store ~dbg Byte_unsigned Assignment ~addr:(C.add_int ptr idx dbg)
@@ -246,7 +229,7 @@ let bytes_like_set_aux ~dbg _kind width _block ptr idx value =
       C.unaligned_set_64 ptr idx value dbg
 
 let bytes_like_set ?(dbg = Debuginfo.none) kind width block index value =
-  match (kind : Flambda_primitive.bytes_like_value) with
+  match (kind : P.bytes_like_value) with
   | Bytes ->
     C.return_unit dbg
       (bytes_like_set_aux ~dbg kind width block block index value)

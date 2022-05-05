@@ -555,7 +555,7 @@ let transform_primitive env (prim : L.primitive) args loc =
     Primitive (L.Pnot, [L.Lprim (Pfloatcomp CFge, args, loc)], loc)
   | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
     match
-      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
     | Some _, Some _ -> Primitive (prim, args, loc)
     | None, None | None, Some _ | Some _, None ->
@@ -572,7 +572,7 @@ let transform_primitive env (prim : L.primitive) args loc =
            (see translprim).")
   | Pbigarrayset (_unsafe, num_dimensions, kind, layout), args -> (
     match
-      P.bigarray_kind_from_lambda kind, P.bigarray_layout_from_lambda layout
+      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
     with
     | Some _, Some _ -> Primitive (prim, args, loc)
     | None, None | None, Some _ | Some _, None ->
