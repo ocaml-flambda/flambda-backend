@@ -476,8 +476,8 @@ module Inlining_tree = struct
         end
         | Some (Scope _ | Fundecl _) ->
           Misc.fatal_errorf
-            "A key of type call or fundeclhould be associated with an item of \
-             type Call")
+            "A key of type call or fundecl should be associated with an item \
+             of type Call")
       t
 
   let insert_or_update_fundecl ?decision_with_context ~dbg ~name
@@ -613,8 +613,9 @@ module Inlining_tree = struct
           (Compilation_unit.string_for_printing defined_in)
     in
     Format.fprintf ppf
-      "@[<v>The decision to inline this call was taken in %a at %a.@]" cu ()
-      IHA.print to_
+      "@[<hov>The@ decision@ to@ inline@ this@ call@ was@ taken@ in@ %a@ at@ \
+       %a.@]"
+      cu () IHA.print to_
 
   let rec print ~compilation_unit ~depth ~path ppf t =
     Map.iter
