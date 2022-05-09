@@ -480,7 +480,10 @@ let simplify_function0 context ~used_value_slots ~shareable_constants
     DE.inlining_history_tracker denv_prior_to_sets
     |> Inlining_history.Tracker.fundecl ~dbg:(Code.dbg code)
          ~function_relative_history:(Code.relative_history code)
-         ~name:(Code_id.name code_id)
+         ~name:
+           (match function_slot_opt with
+           | Some function_slot -> Function_slot.name function_slot
+           | None -> Code_id.name code_id)
   in
   (* Compute the set of inlining_arguments used to define this function by
      taking the "least powerful" set between the one set in the environment and
