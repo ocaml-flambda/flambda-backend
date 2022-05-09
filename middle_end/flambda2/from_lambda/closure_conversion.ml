@@ -337,7 +337,7 @@ module Inlining = struct
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end
 
-let close_c_call acc env ~let_bound_var
+let close_c_call acc env ~loc ~let_bound_var
     ({ prim_name;
        prim_arity;
        prim_alloc;
@@ -452,7 +452,8 @@ let close_c_call acc env ~let_bound_var
         Apply.create ~callee ~continuation:(Return return_continuation)
           exn_continuation ~args ~call_kind dbg ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe_name:None ~relative_history:(Env.relative_history env)
+          ~probe_name:None
+          ~relative_history:(Env.relative_history_from_scoped ~loc env)
       in
       Expr_with_acc.create_apply acc apply
   in
@@ -567,7 +568,7 @@ let close_primitive acc env ~let_bound_var named (prim : Lambda.primitive) ~args
           IR.print_named named
       | Some exn_continuation -> exn_continuation
     in
-    close_c_call acc env ~let_bound_var prim ~args exn_continuation dbg k
+    close_c_call acc env ~loc ~let_bound_var prim ~args exn_continuation dbg k
   | Pgetglobal id, [] ->
     let is_predef_exn = Ident.is_predef id in
     if not (is_predef_exn || not (Ident.same id (Env.current_unit_id env)))
@@ -896,7 +897,8 @@ let close_exact_or_unknown_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe_name ~relative_history:(Env.relative_history env)
+      ~probe_name
+      ~relative_history:(Env.relative_history_from_scoped ~loc env)
   in
   if Flambda_features.classic_mode ()
   then
@@ -1632,7 +1634,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) over_args
       Apply.create ~callee:(Simple.var returned_func) ~continuation
         apply_exn_continuation ~args ~call_kind apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe_name ~relative_history:(Env.relative_history env)
+        ~probe_name
+        ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
     in
     match needs_region with
     | None -> Expr_with_acc.create_apply acc over_application
