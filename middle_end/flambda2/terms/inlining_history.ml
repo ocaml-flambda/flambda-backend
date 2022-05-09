@@ -161,6 +161,43 @@ module Relative = struct
   let inline prev = Absolute.Inline { prev }
 
   let unknown prev = Absolute.Unknown { prev }
+
+  let between_scoped_locations ~(parent : Debuginfo.Scoped_location.t)
+      ~(child : Debuginfo.Scoped_location.t) =
+    let scopes_are_equal (a : Debuginfo.Scoped_location.scopes)
+        (b : Debuginfo.Scoped_location.scopes) =
+      match a, b with
+      | Cons a, Cons b ->
+        a.item = b.item && a.str = b.str && a.str_fun = b.str_fun
+        && a.name = b.name
+      | Empty, _ | _, Empty -> false
+    in
+    let rec aux ~parent ~child =
+      if scopes_are_equal parent child
+      then Absolute.Empty
+      else
+        match child with
+        | Debuginfo.Scoped_location.Empty -> Absolute.Empty
+        | Debuginfo.Scoped_location.Cons { item; name; prev; _ } -> (
+          let prev = aux ~parent ~child:prev in
+          match item with
+          | Sc_module_definition -> Absolute.Module { name; prev }
+          | Sc_class_definition -> Absolute.Class { name; prev }
+          | Sc_anonymous_function | Sc_method_definition | Sc_value_definition
+          | Sc_lazy | Sc_partial_or_eta_wrapper ->
+            prev)
+    in
+    let parent =
+      match parent with
+      | Loc_unknown -> Debuginfo.Scoped_location.empty_scopes
+      | Loc_known { scopes; _ } -> scopes
+    in
+    let child =
+      match child with
+      | Loc_unknown -> parent
+      | Loc_known { scopes; _ } -> scopes
+    in
+    aux ~parent ~child
 end
 
 let extend_absolute (compilation_unit, absolute) relative =
@@ -223,41 +260,14 @@ module Tracker = struct
 
   let fundecl_of_scoped_location ~name
       ~(path_to_root : Debuginfo.Scoped_location.t)
-      (scoped_location : Debuginfo.Scoped_location.t) ({ relative; _ } as t) =
-    let scopes_are_equal (a : Debuginfo.Scoped_location.scopes)
-        (b : Debuginfo.Scoped_location.scopes) =
-      match a, b with
-      | Cons a, Cons b ->
-        a.item = b.item && a.str = b.str && a.str_fun = b.str_fun
-        && a.name = b.name
-      | Empty, _ | _, Empty -> false
-    in
-    let rec aux ?root ~relative (scopes : Debuginfo.Scoped_location.scopes) =
-      if Option.map (scopes_are_equal scopes) root
-         |> Option.value ~default:false
-      then relative
-      else
-        match scopes with
-        | Empty -> relative
-        | Cons { item; name; prev; _ } -> (
-          let prev = aux ?root ~relative prev in
-          match item with
-          | Sc_module_definition -> Absolute.Module { name; prev }
-          | Sc_class_definition -> Absolute.Class { name; prev }
-          | Sc_anonymous_function | Sc_method_definition | Sc_value_definition
-          | Sc_lazy | Sc_partial_or_eta_wrapper ->
-            prev)
-    in
-    let root =
-      match path_to_root with
-      | Loc_unknown -> None
-      | Loc_known { scopes; _ } -> Some scopes
-    in
-    match scoped_location with
+      (loc : Debuginfo.Scoped_location.t) t =
+    match loc with
     | Loc_unknown -> unknown t
-    | Loc_known { scopes; _ } ->
-      fundecl ~function_relative_history:Relative.empty
-        ~dbg:(Debuginfo.from_location scoped_location)
-        ~name
-        { t with relative = aux ?root ~relative scopes }
+    | Loc_known _ ->
+      let relative =
+        Relative.between_scoped_locations ~parent:path_to_root ~child:loc
+      in
+      fundecl ~function_relative_history:relative
+        ~dbg:(Debuginfo.from_location loc)
+        ~name t
 end

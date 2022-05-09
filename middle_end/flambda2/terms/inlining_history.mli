@@ -107,6 +107,12 @@ module Relative : sig
   val compare : t -> t -> int
 
   val print : Format.formatter -> t -> unit
+
+  (* [between_scoped_location ~parent ~child] returns the relative path between
+     [Absolute.of_scoped_location parent] and [Absolute.of_scope_location
+     child] *)
+  val between_scoped_locations :
+    parent:Debuginfo.Scoped_location.t -> child:Debuginfo.Scoped_location.t -> t
 end
 
 module Tracker : sig

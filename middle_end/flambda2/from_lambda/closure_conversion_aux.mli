@@ -158,15 +158,23 @@ module Env : sig
 
   val big_endian : t -> bool
 
-  val use_path_to_root : t -> Debuginfo.Scoped_location.t -> t
+  val set_path_to_root : t -> Debuginfo.Scoped_location.t -> t
 
   val path_to_root : t -> Debuginfo.Scoped_location.t
 
+  (* The inlining tracker is used to ensure that absolute histories are shared
+     between functions defined under the same scope. *)
   val use_inlining_history_tracker : t -> Inlining_history.Tracker.t -> t
 
   val inlining_history_tracker : t -> Inlining_history.Tracker.t
 
-  val relative_history : t -> Inlining_history.Relative.t
+  (* Relative paths are built directly from scoped locations.
+
+     This is fine because when we convert a function call we know that it was
+     never inlined beforehand and thus should inherit a path corresponding to
+     its true location in the source file. *)
+  val relative_history_from_scoped :
+    loc:Debuginfo.Scoped_location.t -> t -> Inlining_history.Relative.t
 end
 
 (** Used to pipe some data through closure conversion *)
