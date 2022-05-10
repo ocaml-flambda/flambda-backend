@@ -270,16 +270,6 @@ module Tree_operations (Tree : Tree) : sig
 
   val find_opt : key -> 'a t -> 'a option
 
-  (* CR lmaurer: The [find_*] functions could be wrapped more efficiently, but
-     currently they're all unimplemented anyway *)
-  val find_first : (key -> 'a -> bool) -> 'a t -> 'a Binding.t
-
-  val find_first_opt : (key -> 'a -> bool) -> 'a t -> 'a Binding.t option
-
-  val find_last : (key -> 'a -> bool) -> 'a t -> 'a Binding.t
-
-  val find_last_opt : (key -> 'a -> bool) -> 'a t -> 'a Binding.t option
-
   val get_singleton : 'a t -> 'a Binding.t option
 
   val map : 'b is_value -> ('a -> 'b) -> 'a t -> 'b t
@@ -290,14 +280,6 @@ module Tree_operations (Tree : Tree) : sig
 
   val to_seq : 'a t -> 'a Binding.t Seq.t
 
-  val to_rev_seq : 'a t -> 'a Binding.t Seq.t
-
-  val to_seq_from : key -> 'a t -> 'a Binding.t Seq.t
-
-  val add_seq : 'a Binding.t Seq.t -> 'a t -> 'a t
-
-  val of_seq : 'a is_value -> 'a Binding.t Seq.t -> 'a t
-
   val of_list : 'a is_value -> 'a Binding.t list -> 'a t
 
   val disjoint_union :
@@ -306,8 +288,6 @@ module Tree_operations (Tree : Tree) : sig
     'a t ->
     'a t ->
     'a t
-
-  val rename : key t -> key -> key
 
   val map_keys : (key -> key) -> 'a t -> 'a t
 end = struct
@@ -816,14 +796,6 @@ end = struct
   let find_opt t key =
     match find t key with exception Not_found -> None | datum -> Some datum
 
-  let find_first _ _ = Misc.fatal_error "find_first not yet implemented"
-
-  let find_first_opt _ _ = Misc.fatal_error "find_first_opt not yet implemented"
-
-  let find_last _ _ = Misc.fatal_error "find_last not yet implemented"
-
-  let find_last_opt _ _ = Misc.fatal_error "find_last_opt not yet implemented"
-
   let get_singleton t =
     match descr t with
     | Empty | Branch _ -> None
@@ -868,14 +840,6 @@ end = struct
     in
     aux [t]
 
-  let to_rev_seq _ = Misc.fatal_error "to_rev_seq not yet implemented"
-
-  let to_seq_from _ _ = Misc.fatal_error "to_seq_from not yet implemented"
-
-  let add_seq _ _ = Misc.fatal_error "add_seq not yet implemented"
-
-  let of_seq _ = Misc.fatal_error "of_seq not yet implemented"
-
   (* CR mshinwell: copied from [Container_types] *)
 
   let[@inline always] of_list iv l =
@@ -901,8 +865,6 @@ end = struct
           | Some eq -> if eq datum1 datum2 then Some datum1 else fail key)
         t1 t2
 
-  let rename _ _ = Misc.fatal_error "rename not yet implemented"
-
   let map_keys f t =
     let iv = is_value_of t in
     fold (Callback.of_func iv (fun i d acc -> add (f i) d acc)) t (empty iv)
@@ -921,7 +883,6 @@ module Set = struct
 
   module Ops = Tree_operations (Set0)
   include Ops
-  module Binding = Set0.Binding
 
   let empty = Empty
 
@@ -932,7 +893,7 @@ module Set = struct
   (* CR lmaurer: This is slow, but [Ops.union] is hard to specialize *)
   let union t0 t1 = Ops.union (fun _ () () -> Some ()) t0 t1
 
-  let intersection_is_empty t0 t1 = not (Ops.inter_domain_is_non_empty t0 t1)
+  let disjoint t0 t1 = not (Ops.inter_domain_is_non_empty t0 t1)
 
   (* CR lmaurer: Also should probably be specialized *)
   let inter t0 t1 = Ops.inter Unit (fun _ () () -> ()) t0 t1
@@ -964,28 +925,11 @@ module Set = struct
 
   let split i t = Ops.split ~found:(fun () -> true) ~not_found:false i t
 
-  let find_opt _ _ = Misc.fatal_error "find_opt not yet implemented"
-
-  let find_first f t = find_first (fun key () -> f key) t |> Binding.key
-
-  let find_first_opt f t =
-    find_first_opt (fun key () -> f key) t |> Option.map Binding.key
-
-  let find_last f t = find_last (fun key () -> f key) t |> Binding.key
-
-  let find_last_opt f t =
-    find_last_opt (fun key () -> f key) t |> Option.map Binding.key
-
   let find elt t = if mem elt t then elt else raise Not_found
-
-  let of_seq seq = Ops.of_seq Unit seq
 
   let of_list l = Ops.of_list Unit l
 
   let map f t = Ops.map_keys f t
-
-  (* CR lmaurer: Obviously this is just [intersection_is_empty], no? *)
-  let disjoint _ _ = Misc.fatal_error "disjoint not yet implemented"
 end
 
 module Map = struct
@@ -1006,19 +950,9 @@ module Map = struct
       (fun (id1, _) (id2, _) -> Int.compare id1 id2)
       (Ops.to_list_unordered s)
 
-  let find_first f t = Ops.find_first (fun key _ -> f key) t
-
-  let find_first_opt f t = Ops.find_first_opt (fun key _ -> f key) t
-
-  let find_last f t = Ops.find_first (fun key _ -> f key) t
-
-  let find_last_opt f t = Ops.find_first_opt (fun key _ -> f key) t
-
   let map f t = Ops.map Any f t
 
   let mapi f t = Ops.mapi Any f t
-
-  let of_seq seq = Ops.of_seq Any seq
 
   let filter_map f t =
     fold

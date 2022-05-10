@@ -17,8 +17,7 @@
 module Make (_ : sig
   val print : Format.formatter -> int -> unit
 end) : sig
-  module Set : Container_types.Set with module T := Numbers.Int
+  module Set : Container_types.Set with type elt = int
 
-  module Map :
-    Container_types.Map with module T := Numbers.Int with module Set = Set
+  module Map : Container_types.Map with type key = int with module Set = Set
 end

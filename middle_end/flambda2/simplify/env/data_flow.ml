@@ -308,7 +308,8 @@ module Dependency_graph = struct
     }
 
   module Reachable = struct
-    module Edge (Src_map : Map.S) (Dst_set : Set.S) = struct
+    module Edge (Src_map : Container_types.Map) (Dst_set : Container_types.Set) =
+    struct
       type src = Src_map.key
 
       type dst = Dst_set.elt
