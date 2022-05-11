@@ -3308,9 +3308,14 @@ and type_expect_
       unify_exp env (re exp) (instance ty_expected));
     exp
   in
+  let ruem ~mode ~expected_mode exp =
+    let exp = rue exp in
+    submode ~env ~loc:exp.exp_loc mode expected_mode;
+    exp
+  in
   match sexp.pexp_desc with
   | Pexp_ident lid ->
-      let path, desc, kind = type_ident env expected_mode ~recarg lid in
+      let path, mode, desc, kind = type_ident env ~recarg lid in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -3330,7 +3335,7 @@ and type_expect_
         | _ ->
             Texp_ident(path, lid, desc, kind)
       in
-      rue {
+      ruem ~mode ~expected_mode {
         exp_desc; exp_loc = loc; exp_extra = [];
         exp_type = desc.val_type;
         exp_mode = expected_mode.mode;
@@ -4680,9 +4685,8 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
 
-and type_ident env expected_mode ?(recarg=Rejected) lid =
+and type_ident env ?(recarg=Rejected) lid =
   let (path, desc, mode) = Env.lookup_value ~loc:lid.loc lid.txt env in
-  submode ~env ~loc:lid.loc mode expected_mode;
   let is_recarg =
     match (repr desc.val_type).desc with
     | Tconstr(p, _, _) -> Path.is_constructor_typath p
@@ -4708,12 +4712,13 @@ and type_ident env expected_mode ?(recarg=Rejected) lid =
        ty, Id_prim mode
     | _ ->
        instance desc.val_type, Id_value in
-  path, { desc with val_type }, kind
+  path, mode, { desc with val_type }, kind
 
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, desc, kind = type_ident env mode_global lid in
+  let path, mode, desc, kind = type_ident env lid in
+  submode ~env ~loc:lid.loc mode mode_global;
   let path =
     match desc.val_kind with
     | Val_ivar _ ->

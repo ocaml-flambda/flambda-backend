@@ -77,6 +77,18 @@ Error: This local value escapes its region
   Hint: Cannot return local value without an explicit "local_" annotation
 |}]
 
+(* If both type and mode are wrong, complain about type *)
+let f () =
+  let local_ r = ref 42 in
+  print_endline r
+[%%expect{|
+Line 3, characters 16-17:
+3 |   print_endline r
+                    ^
+Error: This expression has type int ref
+       but an expression was expected of type string
+|}]
+
 (*
  * Type equalities of function types
  *)
