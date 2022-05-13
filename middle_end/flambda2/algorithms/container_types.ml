@@ -16,88 +16,7 @@
 
 [@@@ocaml.warning "-55"]
 
-module type Thing_no_hash = sig
-  type t
-
-  include Map.OrderedType with type t := t
-
-  val print : Format.formatter -> t -> unit
-end
-
-module type Thing = sig
-  type t
-
-  include Hashtbl.HashedType with type t := t
-
-  include Map.OrderedType with type t := t
-
-  val print : Format.formatter -> t -> unit
-end
-
-module type Set = sig
-  module T : Set.OrderedType
-
-  include Set.S with type elt = T.t
-
-  val print : Format.formatter -> t -> unit
-
-  val to_string : t -> string
-
-  val of_list : elt list -> t
-
-  val map : (elt -> elt) -> t -> t
-
-  val union_list : t list -> t
-
-  val intersection_is_empty : t -> t -> bool
-
-  val get_singleton : t -> elt option
-end
-
-module type Map = sig
-  module T : Map.OrderedType
-
-  include Map.S with type key = T.t
-
-  module Set : Set with module T := T
-
-  val print_debug :
-    (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
-
-  val of_list : (key * 'a) list -> 'a t
-
-  val disjoint_union :
-    ?eq:('a -> 'a -> bool) ->
-    ?print:(Format.formatter -> 'a -> unit) ->
-    'a t ->
-    'a t ->
-    'a t
-
-  val rename : key t -> key -> key
-
-  val map_keys : (key -> key) -> 'a t -> 'a t
-
-  val keys : 'a t -> Set.t
-
-  val data : 'a t -> 'a list
-
-  val of_set : (key -> 'a) -> Set.t -> 'a t
-
-  val print :
-    (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
-
-  val diff_domains : 'a t -> 'a t -> 'a t
-
-  val inter : (key -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
-
-  val inter_domain_is_non_empty : 'a t -> 'a t -> bool
-
-  val get_singleton : 'a t -> (key * 'a) option
-
-  val replace : key -> ('a -> 'a) -> 'a t -> 'a t
-
-  val map_sharing : ('a -> 'a) -> 'a t -> 'a t
-end
+include Container_types_intf
 
 module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
   type t = A.t * B.t
@@ -113,7 +32,7 @@ module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
   let [@ocamlformat "disable"] print ppf (a, b) = Format.fprintf ppf " (%a, @ %a)" A.print a B.print b
 end
 
-module Make_map (T : Thing) (Set : Set with module T := T) = struct
+module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
   include Map.Make [@inlined hint] (T)
   module Set = Set
 
@@ -297,18 +216,6 @@ module Make_set (T : Thing_no_hash) = struct
       with More_than_one_element -> None
 end
 [@@inline always]
-
-module type S = sig
-  type t
-
-  module T : Thing with type t = t
-
-  include Thing with type t := T.t
-
-  module Set : Set with module T := T
-
-  module Map : Map with module T := T with module Set = Set
-end
 
 module Make (T : Thing) = struct
   module T = T

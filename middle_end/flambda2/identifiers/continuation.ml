@@ -184,16 +184,12 @@ include Container_types.Make (struct
     Format.fprintf ppf "@<0>%s" (Flambda_colours.normal ())
 end)
 
-module Set = Patricia_tree.Make_set (struct
+module Tree = Patricia_tree.Make (struct
   let print = print
 end)
 
-module Map =
-  Patricia_tree.Make_map
-    (struct
-      let print = print
-    end)
-    (Set)
+module Set = Tree.Set
+module Map = Tree.Map
 
 let export t = find_data t
 

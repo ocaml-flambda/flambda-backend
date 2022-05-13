@@ -343,16 +343,12 @@ module Const = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
+  module Set = Tree.Set
+  module Map = Tree.Map
 
   let export t = find_data t
 
@@ -426,16 +422,12 @@ module Variable = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
+  module Set = Tree.Set
+  module Map = Tree.Map
 
   let export t = find_data t
 
@@ -510,16 +502,12 @@ module Symbol = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
+  module Set = Tree.Set
+  module Map = Tree.Map
 
   let export t = find_data t
 
@@ -567,16 +555,12 @@ module Name = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
+  module Set = Tree.Set
+  module Map = Tree.Map
 end
 
 module Rec_info_expr = Rec_info_expr0.Make (Variable)
@@ -717,16 +701,12 @@ module Simple = struct
          [Coercion]"
         print t
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
+  module Set = Tree.Set
+  module Map = Tree.Map
 
   let export t = find_data t
 
@@ -810,17 +790,12 @@ module Code_id = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
-
+  module Set = Tree.Set
+  module Map = Tree.Map
   module Lmap = Lmap.Make (T)
 
   let invert_map map =
@@ -879,17 +854,12 @@ module Code_id_or_symbol = struct
     include T0
   end
 
-  module Set = Patricia_tree.Make_set (struct
+  module Tree = Patricia_tree.Make (struct
     let print = print
   end)
 
-  module Map =
-    Patricia_tree.Make_map
-      (struct
-        let print = print
-      end)
-      (Set)
-
+  module Set = Tree.Set
+  module Map = Tree.Map
   module Lmap = Lmap.Make (T)
 
   let set_of_code_id_set code_ids =
