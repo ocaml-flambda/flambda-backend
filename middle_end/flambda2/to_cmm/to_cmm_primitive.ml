@@ -16,6 +16,8 @@
 
 module Env = To_cmm_env
 module Ece = Effects_and_coeffects
+module EO = Exported_offsets
+module K = Flambda_kind
 module P = Flambda_primitive
 
 (* Cmm helpers *)
@@ -27,19 +29,14 @@ end
 (* Closure offsets *)
 
 let function_slot_offset env function_slot =
-  match
-    Exported_offsets.function_slot_offset (Env.exported_offsets env)
-      function_slot
-  with
+  match EO.function_slot_offset (Env.exported_offsets env) function_slot with
   | Some res -> res
   | None ->
     Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
       function_slot
 
 let value_slot_offset env value_slot =
-  match
-    Exported_offsets.value_slot_offset (Env.exported_offsets env) value_slot
-  with
+  match EO.value_slot_offset (Env.exported_offsets env) value_slot with
   | Some res -> res
   | None ->
     Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
@@ -47,26 +44,19 @@ let value_slot_offset env value_slot =
 
 (* Boxed numbers *)
 
-let primitive_boxed_int_of_boxable_number b =
-  match (b : Flambda_kind.Boxable_number.t) with
-  | Naked_float -> assert false
-  | Naked_int32 -> Primitive.Pint32
-  | Naked_int64 -> Primitive.Pint64
-  | Naked_nativeint -> Primitive.Pnativeint
-
 let unbox_number ?(dbg = Debuginfo.none) kind arg =
-  match (kind : Flambda_kind.Boxable_number.t) with
+  match (kind : K.Boxable_number.t) with
   | Naked_float -> C.unbox_float dbg arg
   | _ ->
-    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
 
 let box_number ?(dbg = Debuginfo.none) kind alloc_mode arg =
   let alloc_mode = Alloc_mode.to_lambda alloc_mode in
-  match (kind : Flambda_kind.Boxable_number.t) with
+  match (kind : K.Boxable_number.t) with
   | Naked_float -> C.box_float dbg alloc_mode arg
   | _ ->
-    let primitive_kind = primitive_boxed_int_of_boxable_number kind in
+    let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
 (* Block creation and access. For these functions, [index] is a tagged
@@ -90,17 +80,11 @@ let check_alloc_fields = function
 
 let make_block ?(dbg = Debuginfo.none) kind alloc_mode args =
   check_alloc_fields args;
+  let mode = Alloc_mode.to_lambda alloc_mode in
   match (kind : P.Block_kind.t) with
-  | Values (tag, _) ->
-    C.make_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg (Tag.Scannable.to_int tag) args
+  | Values (tag, _) -> C.make_alloc ~mode dbg (Tag.Scannable.to_int tag) args
   | Naked_floats ->
-    C.make_float_alloc
-      ~mode:(Alloc_mode.to_lambda alloc_mode)
-      dbg
-      (Tag.to_int Tag.double_array_tag)
-      args
+    C.make_float_alloc ~mode dbg (Tag.to_int Tag.double_array_tag) args
 
 let block_load ?(dbg = Debuginfo.none) (kind : P.Block_access_kind.t)
     (mutability : Mutability.t) block index =
@@ -261,14 +245,14 @@ let dead_slots_msg dbg function_slots value_slots =
 (* Arithmetic primitives *)
 
 let primitive_boxed_int_of_standard_int x : Primitive.boxed_integer =
-  match (x : Flambda_kind.Standard_int.t) with
+  match (x : K.Standard_int.t) with
   | Naked_int32 -> Pint32
   | Naked_int64 -> Pint64
   | Naked_nativeint -> Pnativeint
   | Tagged_immediate | Naked_immediate -> assert false
 
 let unary_int_arith_primitive _env dbg kind op arg =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.unary_int_arith_op) with
+  match (kind : K.Standard_int.t), (op : P.unary_int_arith_op) with
   | Tagged_immediate, Neg -> C.negint arg dbg
   | Tagged_immediate, Swap_byte_endianness ->
     (* CR mshinwell for gbury: This could maybe cause a fatal error now? *)
@@ -294,7 +278,7 @@ let unary_float_arith_primitive _env dbg op arg =
   | Neg -> C.float_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
-  let open Flambda_kind.Standard_int_or_float in
+  let open K.Standard_int_or_float in
   match src, dst with
   (* 64-bit on 32-bit host specific cases *)
   | Naked_int64, Tagged_immediate
@@ -342,7 +326,7 @@ let arithmetic_conversion dbg src dst arg =
     None, C.sign_extend_32 dbg (C.int_of_float ~dbg arg)
 
 let binary_phys_comparison _env dbg kind op x y =
-  match (kind : Flambda_kind.t), (op : P.equality_comparison) with
+  match (kind : K.t), (op : P.equality_comparison) with
   (* int64 special case *)
   | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq)
     when Target_system.is_32_bit ->
@@ -352,7 +336,7 @@ let binary_phys_comparison _env dbg kind op x y =
   | _, Neq -> C.neq ~dbg x y
 
 let binary_int_arith_primitive _env dbg kind op x y =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.binary_int_arith_op) with
+  match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
   (* Int64 bits ints on 32-bit archs *)
   | Naked_int64, Add
   | Naked_int64, Sub
@@ -409,7 +393,7 @@ let binary_int_arith_primitive _env dbg kind op x y =
     C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
-  match (kind : Flambda_kind.Standard_int.t), (op : P.int_shift_op) with
+  match (kind : K.Standard_int.t), (op : P.int_shift_op) with
   (* Int64 special case *)
   | Naked_int64, Lsl when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
@@ -437,7 +421,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
 
 let binary_int_comp_primitive _env dbg kind signed cmp x y =
   match
-    ( (kind : Flambda_kind.Standard_int.t),
+    ( (kind : K.Standard_int.t),
       (signed : P.signed_or_unsigned),
       (cmp : P.ordered_comparison) )
   with
@@ -572,7 +556,7 @@ let unary_primitive env res dbg f arg =
     ( None,
       res,
       C.extcall ~dbg ~alloc:false ~returns:true ~is_c_builtin:false
-        ~ty_args:[C.exttype_of_kind Flambda_kind.naked_int64]
+        ~ty_args:[C.exttype_of_kind K.naked_int64]
         "caml_int64_float_of_bits_unboxed" Cmm.typ_float [arg] )
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
