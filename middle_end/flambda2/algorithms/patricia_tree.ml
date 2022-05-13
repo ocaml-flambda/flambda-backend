@@ -216,8 +216,6 @@ module Tree_operations (Tree : Tree) : sig
 
   val subset : 'a t -> 'a t -> bool
 
-  val inter_domains : 'a t -> 'a t -> 'a t
-
   val find : key -> 'a t -> 'a
 
   val inter : 'c is_value -> (key -> 'a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
@@ -458,28 +456,6 @@ end = struct
       else if includes_prefix prefix1 bit1 prefix0 bit0
       then if zero_bit prefix0 bit1 then subset t0 t10 else subset t0 t11
       else false
-
-  let rec inter_domains t0 t1 =
-    let iv = is_value_of t0 in
-    match descr t0, descr t1 with
-    | Empty, _ -> empty iv
-    | _, Empty -> empty iv
-    | Leaf (i, _), _ -> if mem i t1 then t0 else empty iv
-    | _, Leaf (i, _) -> if mem i t0 then t1 else empty iv
-    | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
-      if equal_prefix prefix0 bit0 prefix1 bit1
-      then branch prefix0 bit0 (inter_domains t00 t10) (inter_domains t01 t11)
-      else if includes_prefix prefix0 bit0 prefix1 bit1
-      then
-        if zero_bit prefix1 bit0
-        then inter_domains t00 t1
-        else inter_domains t01 t1
-      else if includes_prefix prefix1 bit1 prefix0 bit0
-      then
-        if zero_bit prefix0 bit1
-        then inter_domains t0 t10
-        else inter_domains t0 t11
-      else empty iv
 
   let rec find i t =
     match descr t with
@@ -840,8 +816,6 @@ end = struct
     in
     aux [t]
 
-  (* CR mshinwell: copied from [Container_types] *)
-
   let[@inline always] of_list iv l =
     List.fold_left
       (fun map b -> add (Binding.key b) (Binding.value iv b) map)
@@ -974,8 +948,6 @@ module Map = struct
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
 
   let diff_domains = diff
-
-  let () = ignore Ops.inter_domains
 end
 
 module Make (X : sig
