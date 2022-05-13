@@ -82,7 +82,6 @@ module Flambda2 : sig
 
   module Expert : sig
     module Default : sig
-      val code_id_and_symbol_scoping_checks : bool
       val fallback_inlining_heuristic : bool
       val inline_effects_in_cmm : bool
       val phantom_lets : bool
@@ -92,7 +91,6 @@ module Flambda2 : sig
     end
 
     type flags = {
-      code_id_and_symbol_scoping_checks : bool;
       fallback_inlining_heuristic : bool;
       inline_effects_in_cmm : bool;
       phantom_lets : bool;
@@ -103,7 +101,6 @@ module Flambda2 : sig
 
     val default_for_opt_level : opt_level or_default -> flags
 
-    val code_id_and_symbol_scoping_checks : bool or_default ref
     val fallback_inlining_heuristic : bool or_default ref
     val inline_effects_in_cmm : bool or_default ref
     val phantom_lets : bool or_default ref

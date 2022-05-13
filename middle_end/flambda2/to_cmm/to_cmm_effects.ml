@@ -31,12 +31,12 @@ let classify_by_effects_and_coeffects effs =
   | No_effects, Has_coeffects -> Coeffect_only
   | No_effects, No_coeffects -> Pure
 
-type let_expr_classification =
+type let_binding_classification =
   | Regular
   | Drop_defining_expr
-  | Inline
+  | May_inline
 
-let classify_let_expr var
+let classify_let_binding var
     ~(effects_and_coeffects_of_defining_expr : Effects_and_coeffects.t)
     ~(num_normal_occurrences_of_bound_vars : Num_occurrences.t Variable.Map.t) =
   match Variable.Map.find var num_normal_occurrences_of_bound_vars with
@@ -48,8 +48,8 @@ let classify_let_expr var
     | Coeffect_only | Pure -> Drop_defining_expr
     | Effect ->
       Regular
-      (* Could be Inline technically, but it doesn't matter since it can only be
-         flushed by the env. *)
+      (* Could be May_inline technically, but it doesn't matter since it can
+         only be flushed by the env. *)
   end
   | One -> begin
     match effects_and_coeffects_of_defining_expr with
@@ -75,18 +75,18 @@ let classify_let_expr var
        Deep expressions involving arbitrary effects are less common, so inlining
        for these expressions is controlled by the global [inline_effects_in_cmm]
        setting. *)
-    | Only_generative_effects _, _ -> Inline
+    | Only_generative_effects _, _ -> May_inline
     | Arbitrary_effects, _ ->
       if Flambda_features.Expert.inline_effects_in_cmm ()
-      then Inline
+      then May_inline
       else Regular
-    | No_effects, _ -> Inline
+    | No_effects, _ -> May_inline
   end
   | More_than_one -> Regular
 
 type continuation_handler_classification =
   | Regular
-  | Inline
+  | May_inline
 
 let cont_is_known_to_have_exactly_one_occurrence k (num : _ Or_unknown.t) =
   match num with
@@ -105,5 +105,5 @@ let classify_continuation_handler k handler ~num_free_occurrences
   if (not (Continuation_handler.is_exn_handler handler))
      && (not is_applied_with_traps)
      && cont_is_known_to_have_exactly_one_occurrence k num_free_occurrences
-  then Inline
+  then May_inline
   else Regular

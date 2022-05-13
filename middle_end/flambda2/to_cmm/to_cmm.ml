@@ -45,8 +45,8 @@ let flush_cmm_helpers_state () =
       C.cdata (C.define_symbol ~global:true name @ l) :: acc
     | Const_closure _ ->
       Misc.fatal_errorf
-        "There shouldn't be any closure in cmmgen_state during flambda to cmm \
-         translation"
+        "There shouldn't be any closures in Cmmgen_state during Flambda 2 to \
+         Cmm translation"
   in
   match Cmmgen_state.get_and_clear_data_items () with
   | [] ->
@@ -54,13 +54,14 @@ let flush_cmm_helpers_state () =
     Misc.Stdlib.String.Map.fold aux cst_map []
   | _ ->
     Misc.fatal_errorf
-      "There shouldn't be any data item in cmmgen_state during flambda to cmm \
-       translation"
+      "There shouldn't be any data items in Cmmgen_state during Flambda 2 to \
+       Cmm translation"
 
-(* Note about the root symbol: it does not need any particular treatment.
-   Concerning gc_roots, it's like any other statically allocated symbol: if it
-   has an associated computation, then it will already be included in the list
-   of gc_roots; otherwise it does not *have* to be a root. *)
+(* Note about the root (module block) symbol: it does not need any particular
+   treatment. Specifically concerning its treatment as a GC root, it's like any
+   other statically allocated symbol: if it has an associated computation, then
+   it will already be included in the list of GC roots; otherwise it does not
+   *have* to be a root. *)
 
 let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   let dummy_k = Continuation.create () in
@@ -68,7 +69,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
      that the return continuation turns into "return unit". (Module initialisers
      return the unit value). *)
   let env =
-    Env.create offsets all_code dummy_k
+    Env.create offsets all_code ~return_continuation:dummy_k
       ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
   in
   let _env, return_cont_params =
@@ -81,10 +82,10 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
   in
   let return_cont, env =
     Env.add_jump_cont env
-      (List.map snd return_cont_params)
       (Flambda_unit.return_continuation flambda_unit)
+      ~param_types:(List.map snd return_cont_params)
   in
-  let r = R.empty ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
+  let r = R.create ~module_symbol:(Flambda_unit.module_symbol flambda_unit) in
   let body, res = To_cmm_expr.expr env r (Flambda_unit.body flambda_unit) in
   let body =
     let dbg = Debuginfo.none in
@@ -93,6 +94,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
       ~handlers:[C.handler ~dbg return_cont return_cont_params unit_value]
   in
   let entry =
+    (* CR mshinwell: This should at least be given a source file location. *)
     let dbg = Debuginfo.none in
     let fun_name = Compilenv.make_symbol (Some "entry") in
     let fun_codegen =
@@ -103,7 +105,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
     in
     C.cfunction (C.fundecl fun_name [] body fun_codegen dbg)
   in
-  let data, gc_roots, functions = R.to_cmm res in
+  let { R.data_items; gc_roots; functions } = R.to_cmm res in
   let cmm_helpers_data = flush_cmm_helpers_state () in
   let gc_root_data =
     C.gc_root_table ~make_symbol
@@ -111,7 +113,7 @@ let unit0 ~offsets ~make_symbol flambda_unit ~all_code =
          (fun sym -> Linkage_name.to_string (Symbol.linkage_name sym))
          gc_roots)
   in
-  (gc_root_data :: data) @ cmm_helpers_data @ functions @ [entry]
+  (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
 
 let unit ~offsets ~make_symbol flambda_unit ~all_code =
   Profile.record_call "flambda_to_cmm" (fun () ->

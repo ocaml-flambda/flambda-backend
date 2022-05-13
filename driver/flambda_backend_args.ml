@@ -133,23 +133,6 @@ let mk_flambda2_join_depth f =
     Flambda2.Default.join_depth
 ;;
 
-let mk_flambda2_expert_code_id_and_symbol_scoping_checks f =
-  "-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
-  Printf.sprintf " Perform checks on static\n\
-      \     scopes of code IDs and symbols during To_cmm%s\n\
-      \     (Flambda 2 only)"
-    (format_default Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
-;;
-
-let mk_no_flambda2_expert_code_id_and_symbol_scoping_checks f =
-  "-no-flambda2-expert-code-id-and-symbol-scoping-checks", Arg.Unit f,
-  Printf.sprintf " Do not perform checks\n\
-      \     on static scopes of code IDs and symbols during To_cmm%s\n\
-      \     (Flambda 2 only)"
-    (format_not_default
-      Flambda2.Expert.Default.code_id_and_symbol_scoping_checks)
-;;
-
 let mk_flambda2_expert_fallback_inlining_heuristic f =
   "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Prevent inlining of functions\n\
@@ -411,8 +394,6 @@ module type Flambda_backend_options = sig
   val no_flambda2_backend_cse_at_toplevel : unit -> unit
   val flambda2_cse_depth : int -> unit
   val flambda2_join_depth : int -> unit
-  val flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
-  val no_flambda2_expert_code_id_and_symbol_scoping_checks : unit -> unit
   val flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val flambda2_expert_inline_effects_in_cmm : unit -> unit
@@ -482,10 +463,6 @@ struct
       F.no_flambda2_backend_cse_at_toplevel;
     mk_flambda2_cse_depth F.flambda2_cse_depth;
     mk_flambda2_join_depth F.flambda2_join_depth;
-    mk_flambda2_expert_code_id_and_symbol_scoping_checks
-      F.flambda2_expert_code_id_and_symbol_scoping_checks;
-    mk_no_flambda2_expert_code_id_and_symbol_scoping_checks
-      F.no_flambda2_expert_code_id_and_symbol_scoping_checks;
     mk_flambda2_expert_fallback_inlining_heuristic
       F.flambda2_expert_fallback_inlining_heuristic;
     mk_no_flambda2_expert_fallback_inlining_heuristic
@@ -581,10 +558,6 @@ module Flambda_backend_options_impl = struct
     clear Flambda2.backend_cse_at_toplevel
   let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
   let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
-  let flambda2_expert_code_id_and_symbol_scoping_checks =
-    set Flambda2.Expert.code_id_and_symbol_scoping_checks
-  let no_flambda2_expert_code_id_and_symbol_scoping_checks =
-    clear Flambda2.Expert.code_id_and_symbol_scoping_checks
   let flambda2_expert_fallback_inlining_heuristic =
     set Flambda2.Expert.fallback_inlining_heuristic
   let no_flambda2_expert_fallback_inlining_heuristic =
@@ -822,8 +795,6 @@ module Extra_params = struct
        set' Flambda2.Inlining.speculative_inlining_only_if_arguments_useful
     | "flambda2-inlining-report-bin" ->
        set' Flambda2.Inlining.report_bin
-    | "flambda2-expert-code-id-and-symbol-scoping-checks" ->
-       set Flambda2.Expert.code_id_and_symbol_scoping_checks
     | "flambda2-expert-fallback-inlining-heuristic" ->
        set Flambda2.Expert.fallback_inlining_heuristic
     | "flambda2-debug-concrete-types-only-on-canonicals" ->

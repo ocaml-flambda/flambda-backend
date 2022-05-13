@@ -41,22 +41,22 @@ val classify_by_effects_and_coeffects :
 
 (** Classification of [Let]-expressions, identifying what may be done with the
     defining expression. *)
-type let_expr_classification = private
+type let_binding_classification = private
   | Regular  (** Proceed as normal, do not inline the defining expression. *)
   | Drop_defining_expr  (** The defining expression may be deleted. *)
-  | Inline  (** The defining expression may be inlined at the use site. *)
+  | May_inline  (** The defining expression may be inlined at the use site. *)
 
-val classify_let_expr :
+val classify_let_binding :
   Variable.t ->
   effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
   num_normal_occurrences_of_bound_vars:Num_occurrences.t Variable.Map.t ->
-  let_expr_classification
+  let_binding_classification
 
 (** Classification of continuations, indicating what may be done with the
     handler expression. *)
 type continuation_handler_classification = private
   | Regular
-  | Inline
+  | May_inline
 
 val classify_continuation_handler :
   Continuation.t ->
