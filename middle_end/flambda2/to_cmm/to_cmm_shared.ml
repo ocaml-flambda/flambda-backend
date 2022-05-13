@@ -66,12 +66,15 @@ let symbol_from_linkage_name ~dbg ln =
 
 let symbol ~dbg sym = symbol_from_linkage_name ~dbg (Symbol.linkage_name sym)
 
-let name env name =
+let name0 ?consider_inlining_effectful_expressions env name =
   Name.pattern_match name
-    ~var:(fun v -> To_cmm_env.inline_variable env v)
+    ~var:(fun v ->
+      To_cmm_env.inline_variable ?consider_inlining_effectful_expressions env v)
     ~symbol:(fun s ->
       (* CR mshinwell: fix debuginfo? *)
       symbol ~dbg:Debuginfo.none s, env, Ece.pure)
+
+let name env name = name0 env name
 
 let const ~dbg cst =
   match Reg_width_const.descr cst with
@@ -83,9 +86,10 @@ let const ~dbg cst =
   | Naked_int64 i -> int64 ~dbg i
   | Naked_nativeint t -> targetint ~dbg t
 
-let simple ~dbg env s =
+let simple ?consider_inlining_effectful_expressions ~dbg env s =
   Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name env n)
+    ~name:(fun n ~coercion:_ ->
+      name0 ?consider_inlining_effectful_expressions env n)
     ~const:(fun c -> const ~dbg c, env, Ece.pure)
 
 let name_static name =
@@ -115,9 +119,13 @@ let simple_static s =
     ~name:(fun n ~coercion:_ -> name_static n)
     ~const:(fun c -> `Data (const_static c))
 
-let simple_list ~dbg env l =
+let simple_list ?consider_inlining_effectful_expressions ~dbg env l =
+  (* Note that [To_cmm_primitive] relies on this function translating the
+     [Simple] at the head of the list first. *)
   let aux (list, env, effs) x =
-    let y, env, eff = simple ~dbg env x in
+    let y, env, eff =
+      simple ?consider_inlining_effectful_expressions ~dbg env x
+    in
     y :: list, env, Ece.join eff effs
   in
   let args, env, effs = List.fold_left aux ([], env, Ece.pure) l in

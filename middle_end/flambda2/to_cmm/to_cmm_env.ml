@@ -302,7 +302,7 @@ let will_not_inline_var env v =
     Misc.fatal_errorf "Variable %a not found in env" Variable.print v
   | e -> e, env, Ece.pure
 
-let inline_variable env var =
+let inline_variable ?consider_inlining_effectful_expressions env var =
   match Variable.Map.find var env.pures with
   | binding ->
     if not binding.may_inline
@@ -326,6 +326,10 @@ let inline_variable env var =
       if not (Variable.equal var var_from_stage)
       then will_not_inline_var env var
       else if binding.may_inline
+              &&
+              match consider_inlining_effectful_expressions with
+              | Some consider -> consider
+              | None -> Flambda_features.Expert.inline_effects_in_cmm ()
       then will_inline { env with stages = prev_stages } binding
       else will_not_inline env binding
     | Coeffect_only coeffects :: prev_stages -> (
