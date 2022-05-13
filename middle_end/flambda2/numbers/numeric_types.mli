@@ -20,7 +20,7 @@
     {{!Compiler_libs}compiler-libs}. *)
 
 module Int : sig
-  include Container_types.S with type t = int
+  include Container_types.S_plus_stdlib with type t = int
 
   (** [zero_to_n n] is the set of numbers \{0, ..., n\} (inclusive). *)
   val zero_to_n : int -> Set.t

@@ -25,13 +25,13 @@ let keep_lifted_constant_only_if_used uacc acc lifted_constant =
     | Unknown -> Bound_static.binds_code bound
     | Known { live_code_ids = _; ancestors_of_live_code_ids } ->
       not
-        (Code_id.Set.intersection_is_empty
+        (Code_id.Set.disjoint
            (Bound_static.code_being_defined bound)
            ancestors_of_live_code_ids)
   in
   let symbols_live =
     not
-      (Name.Set.intersection_is_empty
+      (Name.Set.disjoint
          (Name.set_of_symbol_set (Bound_static.symbols_being_defined bound))
          (UA.required_names uacc))
   in

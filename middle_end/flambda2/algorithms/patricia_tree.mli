@@ -14,15 +14,10 @@
 
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-module Make_set (_ : sig
+module Make (_ : sig
   val print : Format.formatter -> int -> unit
 end) : sig
-  include Container_types.Set with module T := Numbers.Int
-end
+  module Set : Container_types.Set with type elt = int
 
-module Make_map (_ : sig
-  val print : Format.formatter -> int -> unit
-end)
-(Set : Container_types.Set with module T := Numbers.Int) : sig
-  include Container_types.Map with module T := Numbers.Int with module Set = Set
+  module Map : Container_types.Map with type key = int with module Set = Set
 end
