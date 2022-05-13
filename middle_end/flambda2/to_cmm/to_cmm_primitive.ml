@@ -24,6 +24,27 @@ module C = struct
   include To_cmm_shared
 end
 
+(* Closure offsets *)
+
+let function_slot_offset env function_slot =
+  match
+    Exported_offsets.function_slot_offset (Env.exported_offsets env)
+      function_slot
+  with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for function slot %a" Function_slot.print
+      function_slot
+
+let value_slot_offset env value_slot =
+  match
+    Exported_offsets.value_slot_offset (Env.exported_offsets env) value_slot
+  with
+  | Some res -> res
+  | None ->
+    Misc.fatal_errorf "Missing offset for value slot %a" Value_slot.print
+      value_slot
+
 (* Boxed numbers *)
 
 let primitive_boxed_int_of_boxable_number b =
@@ -573,13 +594,13 @@ let unary_primitive env res dbg f arg =
   | Unbox_number kind -> None, res, unbox_number ~dbg kind arg
   | Untag_immediate -> Some (Env.Untag arg), res, C.untag_int arg dbg
   | Box_number (kind, alloc_mode) ->
-    Some Env.Box, res, box_number ~dbg kind alloc_mode arg
+    Some Env.Boxed_number, res, box_number ~dbg kind alloc_mode arg
   | Tag_immediate ->
     (* We could have an [Env.Tag] which would be returned here, but probably
        unnecessary at the moment. *)
     None, res, C.tag_int arg dbg
   | Project_function_slot { move_from = c1; move_to = c2 } -> begin
-    match Env.function_slot_offset env c1, Env.function_slot_offset env c2 with
+    match function_slot_offset env c1, function_slot_offset env c2 with
     | ( Live_function_slot { offset = c1_offset; _ },
         Live_function_slot { offset = c2_offset; _ } ) ->
       let diff = c2_offset - c1_offset in
@@ -601,8 +622,7 @@ let unary_primitive env res dbg f arg =
   end
   | Project_value_slot { project_from; value_slot } -> begin
     match
-      ( Env.value_slot_offset env value_slot,
-        Env.function_slot_offset env project_from )
+      value_slot_offset env value_slot, function_slot_offset env project_from
     with
     (* Normal case: we have offsets for everything *)
     | Live_value_slot { offset }, Live_function_slot { offset = base; _ } ->

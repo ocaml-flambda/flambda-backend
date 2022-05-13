@@ -4,7 +4,8 @@
 (*                                                                        *)
 (*                        Guillaume Bury, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2019--2019 OCamlPro SAS                                    *)
+(*   Copyright 2019--2022 OCamlPro SAS                                    *)
+(*   Copyright 2022 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,137 +15,169 @@
 
 (** {1 Translation environment} *)
 
-(** Environment for flambda to cmm translation *)
+(** Environment for Flambda to Cmm translation *)
 type t
 
-(** [create offsets k k_exn] creates a local environment for translating a
-    flambda expression, with return continuation [k], exception continuation
-    [k_exn], and which uses the given closures variables. *)
+(** Create an environment for translating a toplevel expression. *)
 val create :
   Exported_offsets.t ->
   Exported_code.t ->
-  Continuation.t ->
+  return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   t
 
-(** [enter_function_def env k k_exn] creates a local environment for translating
-    a flambda expression, with return continuation [k], exception continuation
-    [k_exn], preserving the global info from [env]. *)
-val enter_function_def : t -> Continuation.t -> Continuation.t -> t
+(** Given an existing environment providing the "global" information (such as
+    the exported code structure), create an environment for translating the body
+    of a function. *)
+val enter_function_body :
+  t ->
+  return_continuation:Continuation.t ->
+  exn_continuation:Continuation.t ->
+  t
 
 (** {2 Continuations} *)
 
 (** Returns the return continuation of the environment. *)
-val return_cont : t -> Continuation.t
+val return_continuation : t -> Continuation.t
 
 (** Returns the exception continuation of the environment. *)
-val exn_cont : t -> Continuation.t
+val exn_continuation : t -> Continuation.t
 
-(** {2 Function info *)
+(** {2 Code and closures} *)
 
-(** Retrieve known information on the given function *)
+(** Retrieve the code metadata for a given code ID. This function will produce
+    fatal error if the code ID was not in the [Exported_code.t] passed to
+    [create]. *)
 val get_code_metadata : t -> Code_id.t -> Code_metadata.t
 
-type closure_code_pointers =
-  | Full_application_only
-  | Full_and_partial_application
-
-(** Retrieve the parameter arity of the function declaration (taking into
-    account both the function's own arity and the [is_tupled] flag) together
-    with the code pointer layout for the closure. *)
-val get_func_decl_params_arity :
-  t -> Code_id.t -> Clambda.arity * closure_code_pointers * Debuginfo.t
+(** Retrieve the closure offset information as passed to [create]. This can be
+    used for things such as the compilation of function and value slot
+    projections. *)
+val exported_offsets : t -> Exported_offsets.t
 
 (** {2 Variable bindings} *)
 
-(** Extra information about bound variables. These are not necessary for the
-    translation, but useful to enable certain optimization. *)
+(** Extra information about bound variables, used for optimisation. *)
 type extra_info =
   | Untag of Cmm.expression
-      (** The variable is bound to the result of untagging the cmm expression.
-          This allows to have access to the cmm expression before untagging. *)
-  | Box  (** The variable is bound to a number being boxed. *)
+      (** The variable is bound to the result of untagging the given Cmm
+          expression. This allows to obtain the Cmm expression as it was before
+          untagging. *)
+  | Boxed_number  (** The variable is bound to a boxed number. *)
 
-(** Create (and bind) a cmm variable for the given flambda variable, and return
-    the new environment, and the created variable. Will fail (i.e. assertion
-    failure) if the given variable is already bound. *)
+(** Create (and bind) a Cmm variable for the given Flambda variable, returning
+    the new environment and the created variable. Will produce a fatal error if
+    the given variable is already bound. *)
 val create_variable : t -> Variable.t -> t * Backend_var.With_provenance.t
 
 (** Same as {!create_variable} but for a list of variables. *)
 val create_variables :
   t -> Variable.t list -> t * Backend_var.With_provenance.t list
 
-(** Bind a variable to the given cmm expression, to allow for delaying the
+(** Delayed let-bindings
+
+    Let-bindings are delayed in a certain way to allow for potential reordering
+    and inlining of the defining expressions of bound variables that are used
+    exactly once. This behaviour (which are a more powerful version of the
+    [Un_anf] pass from Flambda 1) does not change semantics. However they allow
+    the Cmm code to adopt the forms expected by the Cmm optimisation functions
+    (in [Cmm_helpers], for example the arithmetic optimisations) and the
+    instruction selection pass (for example where matches may be done on
+    function applications and their arguments). Without this, many pattern
+    matches on the Cmm terms would fail, leading to poor code generation.
+
+    The delaying process works by partitioning let-bindings into two categories
+    according to the effects and coeffects of their defining expressions:
+
+    - bindings whose defining expressions are _pure_, that is to say have
+    neither effects nor coeffects;
+
+    - bindings that have effects and/or coeffects.
+
+    Bindings in the first category, by virtue of the absence of effects and
+    coeffects, will be allowed to commute with any other bindings.
+
+    The second category of bindings is organised into an ordered list of
+    _stages_. A stage is a set of bindings that can all commute with each other.
+    Bindings inside stages cannot commute across stages; and stages cannot
+    commute.
+
+    One stage consists of either:
+
+    - an ordered list of bindings all of which have only coeffects; or
+
+    - a single effectful binding.
+
+    When a binding is considered for addition to the most recent stage, it may
+    either be appended to that stage, or else the stage is "archived" and a new
+    stage started containing the new binding.
+
+    The defining expression of a binding used exactly once may be inlined only
+    if the binding occurs in the current stage or is pure. Inlining of a binding
+    causes it to be removed from its stage (empty stages are then removed from
+    the head of the list of stages).
+
+    Other bindings are delayed until they are explicitly flushed. Exactly which
+    bindings get flushed at different points, for example prior to function
+    calls or branching control flow, depends on decisions outside of this module
+    (e.g. in [To_cmm_expr]). *)
+
+(** Bind a variable to the given Cmm expression, to allow for delaying the
     let-binding. *)
 val bind_variable :
+  ?extra:extra_info ->
   t ->
   Variable.t ->
-  ?extra:extra_info ->
-  Effects_and_coeffects.t ->
-  bool ->
-  Cmm.expression ->
+  num_normal_occurrences_of_bound_vars:
+    Num_occurrences.t Variable.Map.t Or_unknown.t ->
+  effects_and_coeffects_of_defining_expr:Effects_and_coeffects.t ->
+  defining_expr:Cmm.expression ->
   t
 
-(** Get the cmm variable bound to a flambda variable.
-
-    Will fail (i.e. assertion failure) if the variable is not bound.
-
-    Be careful: in general you do *NOT* want to use this function but instead
-    the {inline_variable} function, as it will correctly perform the inlining of
-    used exactly once variables. *)
-val get_variable : t -> Variable.t -> Cmm.expression
-
-(** Try and inline an flambda variable using the delayed let-bindings. *)
+(** Try and inline an Flambda variable using the delayed let-bindings. *)
 val inline_variable :
   t -> Variable.t -> Cmm.expression * t * Effects_and_coeffects.t
 
-(** Wrap the given cmm expression with all the delayed let bindings accumulated
+(** Wrap the given Cmm expression with all the delayed let bindings accumulated
     in the environment. *)
 val flush_delayed_lets :
   ?entering_loop:bool -> t -> (Cmm.expression -> Cmm.expression) * t
 
-(** Fetch the extra info for a flambda variable (if any). *)
+(** Fetch the extra info for a Flambda variable (if any). *)
 val extra_info : t -> Variable.t -> extra_info option
 
 (** {2 Continuation bindings} *)
 
 (** Translation information for continuations. A continuation may either be
-    translated as a static jump, or inlined at its call site. *)
-type cont =
+    translated as a static jump to a Cmm continuation (represented as a Cmm
+    label), or inlined at any unique use site. *)
+type cont = private
   | Jump of
-      { types : Cmm.machtype list;
-        cont : int
+      { cont : Cmm.label;
+        param_types : Cmm.machtype list
       }
-      (** Static jump, with the given cmm continuation.
-
-          The list of machtypes represent the types of arguments expected by the
-          catch handler. *)
   | Inline of
       { handler_params : Bound_parameters.t;
-        handler_body : Flambda.Expr.t;
-        handler_params_occurrences : Num_occurrences.t Variable.Map.t
+        handler_params_occurrences : Num_occurrences.t Variable.Map.t;
+        handler_body : Flambda.Expr.t
       }
-      (** Inline the continuation. When inlining is not possible, generate a
-          jump *)
 
-(** Bind the given continuation to a jump, creating a fresh jump id for it. *)
-val add_jump_cont : t -> Cmm.machtype list -> Continuation.t -> int * t
+(** Record that the given continuation should be compiled to a jump, creating a
+    fresh Cmm continuation identifier for it. *)
+val add_jump_cont :
+  t -> Continuation.t -> param_types:Cmm.machtype list -> Cmm.label * t
 
-(** Bind the given continuation as an inline continuation, bound over the given
-    variables.
-
-    Returns the Cmm continuation id, a reference that will be set to true if a
-    catch handler is needed, and the environment. *)
+(** Record that the given continuation should be inlined. *)
 val add_inline_cont :
   t ->
   Continuation.t ->
-  Bound_parameters.t ->
+  handler_params:Bound_parameters.t ->
   handler_params_occurrences:Num_occurrences.t Variable.Map.t ->
-  Flambda.Expr.t ->
+  handler_body:Flambda.Expr.t ->
   t
 
 (** Register the given continuation as an exception handler and set up the extra
-    mutable variables needed if the handler has extra arguments *)
+    Cmm mutable variables needed for any extra arguments. *)
 val add_exn_handler :
   t ->
   Continuation.t ->
@@ -155,36 +188,16 @@ val add_exn_handler :
     handler. *)
 val is_exn_handler : t -> Continuation.t -> bool
 
-(** Recover the mutable variables associated with the given continuation *)
+(** Return the Cmm mutable variables associated with the given exception
+    handler. *)
 val get_exn_extra_args : t -> Continuation.t -> Backend_var.t list
 
-(** Return the binding for a given continuation. Will fail (i.e. assertion
-    failure) if given an unbound continuation. *)
-val get_k : t -> Continuation.t -> cont
+(** Return the binding for a given continuation, describing whether it is to be
+    compiled as a jump or inlined, etc. Produces a fatal error if given an
+    unbound continuation. *)
+val get_continuation : t -> Continuation.t -> cont
 
-(** Returns the jump id bound to a continuation. Will fail (assertion failure),
-    if the continuation is not bound. *)
-val get_jump_id : t -> Continuation.t -> int
-
-(** {2 Sets of closures and slot offsets} *)
-
-(** Wrapper around {!Slot_offsets.function_slot_offset}. *)
-val function_slot_offset :
-  t -> Function_slot.t -> Exported_offsets.function_slot_info
-
-(** Wrapper around {!Slot_offsets.value_slot_offset}. *)
-val value_slot_offset : t -> Value_slot.t -> Exported_offsets.value_slot_info
-
-(** Wrapper around {!Slot_offsets.layout}. *)
-val layout : t -> Set_of_closures.t -> Slot_offsets.layout
-
-(** Add the given names to the current scope *)
-val add_to_scope : t -> Code_id_or_symbol.Set.t -> t
-
-(** Mark the given code id as deleted, so that [check_scope] will report an
-    error if it is used. *)
-val mark_code_id_as_deleted : t -> Code_id.t -> t
-
-(** Check that the given name is in scope. If [allow_deleted] is [false], check
-    that it is not declared as deleted. *)
-val check_scope : allow_deleted:bool -> t -> Code_id_or_symbol.t -> t
+(** Returns the Cmm continuation identifier bound to a continuation. Produces a
+    fatal error if given an unbound continuation, or a continuation that was
+    registered (using [add_inline_cont]) to be inlined. *)
+val get_cmm_continuation : t -> Continuation.t -> Cmm.label

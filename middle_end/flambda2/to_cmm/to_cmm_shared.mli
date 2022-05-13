@@ -51,9 +51,7 @@ val simple :
   Cmm.expression * To_cmm_env.t * Effects_and_coeffects.t
 
 val simple_static :
-  To_cmm_env.t ->
-  Simple.t ->
-  To_cmm_env.t * [`Data of Cmm.data_item list | `Var of Variable.t]
+  Simple.t -> [`Data of Cmm.data_item list | `Var of Variable.t]
 
 val simple_list :
   dbg:Debuginfo.t ->

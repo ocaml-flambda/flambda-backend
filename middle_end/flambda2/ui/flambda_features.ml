@@ -185,10 +185,6 @@ module Expert = struct
         (Flambda_backend_flags.Flambda2.Expert.default_for_opt_level
            !Flambda_backend_flags.opt_level)
 
-  let code_id_and_symbol_scoping_checks () =
-    !Flambda_backend_flags.Flambda2.Expert.code_id_and_symbol_scoping_checks
-    |> with_default ~f:(fun d -> d.code_id_and_symbol_scoping_checks)
-
   let fallback_inlining_heuristic () =
     !Flambda_backend_flags.Flambda2.Expert.fallback_inlining_heuristic
     |> with_default ~f:(fun d -> d.fallback_inlining_heuristic)

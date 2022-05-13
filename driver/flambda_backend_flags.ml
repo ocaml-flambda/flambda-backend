@@ -111,7 +111,6 @@ module Flambda2 = struct
 
   module Expert = struct
     module Default = struct
-      let code_id_and_symbol_scoping_checks = false
       let fallback_inlining_heuristic = false
       let inline_effects_in_cmm = false
       let phantom_lets = false
@@ -121,7 +120,6 @@ module Flambda2 = struct
     end
 
     type flags = {
-      code_id_and_symbol_scoping_checks : bool;
       fallback_inlining_heuristic : bool;
       inline_effects_in_cmm : bool;
       phantom_lets : bool;
@@ -131,7 +129,6 @@ module Flambda2 = struct
     }
 
     let default = {
-      code_id_and_symbol_scoping_checks = Default.code_id_and_symbol_scoping_checks;
       fallback_inlining_heuristic = Default.fallback_inlining_heuristic;
       inline_effects_in_cmm = Default.inline_effects_in_cmm;
       phantom_lets = Default.phantom_lets;
@@ -155,7 +152,6 @@ module Flambda2 = struct
     let default_for_opt_level opt_level =
       flags_by_opt_level ~opt_level ~default ~oclassic ~o2 ~o3
 
-    let code_id_and_symbol_scoping_checks = ref Default
     let fallback_inlining_heuristic = ref Default
     let inline_effects_in_cmm = ref Default
     let phantom_lets = ref Default

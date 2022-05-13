@@ -70,10 +70,6 @@ let name env name =
   Name.pattern_match name
     ~var:(fun v -> To_cmm_env.inline_variable env v)
     ~symbol:(fun s ->
-      let env =
-        To_cmm_env.check_scope ~allow_deleted:false env
-          (Code_id_or_symbol.create_symbol s)
-      in
       (* CR mshinwell: fix debuginfo? *)
       symbol ~dbg:Debuginfo.none s, env, Ece.pure)
 
@@ -92,13 +88,10 @@ let simple ~dbg env s =
     ~name:(fun n ~coercion:_ -> name env n)
     ~const:(fun c -> const ~dbg c, env, Ece.pure)
 
-let name_static env name =
+let name_static name =
   Name.pattern_match name
-    ~var:(fun v -> env, `Var v)
-    ~symbol:(fun s ->
-      ( To_cmm_env.check_scope ~allow_deleted:false env
-          (Code_id_or_symbol.create_symbol s),
-        `Data [symbol_address (Symbol.linkage_name_as_string s)] ))
+    ~var:(fun v -> `Var v)
+    ~symbol:(fun s -> `Data [symbol_address (Symbol.linkage_name_as_string s)])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -117,10 +110,10 @@ let const_static cst =
     else [cint (Int64.to_nativeint i)]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
-let simple_static env s =
+let simple_static s =
   Simple.pattern_match s
-    ~name:(fun n ~coercion:_ -> name_static env n)
-    ~const:(fun c -> env, `Data (const_static c))
+    ~name:(fun n ~coercion:_ -> name_static n)
+    ~const:(fun c -> `Data (const_static c))
 
 let simple_list ~dbg env l =
   let aux (list, env, effs) x =
@@ -152,7 +145,7 @@ let invalid res ~message =
     Cmm_helpers.emit_string_constant
       (Symbol.linkage_name_as_string message_sym, Global)
       message []
-    |> To_cmm_result.add_data_items res
+    |> To_cmm_result.add_archive_data_items res
   in
   let call_expr =
     extcall ~dbg ~alloc:false ~is_c_builtin:false ~returns:false ~ty_args:[XInt]

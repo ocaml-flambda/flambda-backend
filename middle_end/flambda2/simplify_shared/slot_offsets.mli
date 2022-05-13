@@ -100,7 +100,7 @@ type layout = private
     together with their respective offset. Note that there may be holes between
     the offsets. *)
 val layout :
-  Exported_offsets.t -> Function_slot.t list -> Value_slot.t list -> layout
+  Exported_offsets.t -> _ Function_slot.Lmap.t -> _ Value_slot.Map.t -> layout
 
 (** Printing function for layouts. *)
 val print_layout : Format.formatter -> layout -> unit
