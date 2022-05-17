@@ -56,7 +56,7 @@ let command_line_options =
     "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
       " Do not use PREFETCHWT1 instructions (default)";
     "-ftrap-notes", Arg.Set trap_notes,
-      " Emit .note.ocaml_eh section with trap handling information";
+      " Emit .note.ocaml_eh section with trap handling information (default)";
     "-fno-trap-notes", Arg.Clear trap_notes,
       " Do not emit .note.ocaml_eh section with trap handling information";
   ]
