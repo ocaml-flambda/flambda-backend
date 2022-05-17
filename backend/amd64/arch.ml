@@ -28,6 +28,9 @@ let prefetchw_support = ref true
 (* PREFETCHWT1 is Intel Xeon Phi only. *)
 let prefetchwt1_support = ref false
 
+(* Emit elf notes with trap handling information. *)
+let trap_notes = ref true
+
 (* Machine-specific command-line options *)
 
 let command_line_options =
@@ -52,6 +55,10 @@ let command_line_options =
       " Use PREFETCHWT1 instructions (Intel Xeon Phi only)";
     "-fno-prefetchwt1", Arg.Clear prefetchwt1_support,
       " Do not use PREFETCHWT1 instructions (default)";
+    "-ftrap-notes", Arg.Set trap_notes,
+      " Emit .note.ocaml_eh section with trap handling information (default)";
+    "-fno-trap-notes", Arg.Clear trap_notes,
+      " Do not emit .note.ocaml_eh section with trap handling information";
   ]
 
 (* Specific operations for the AMD64 processor *)
