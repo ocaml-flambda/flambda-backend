@@ -1608,7 +1608,8 @@ let emit_trap_notes () =
     emit_labels traps.push_traps;
     emit_labels traps.pop_traps
   in
-  if is_system_supported && not (Int.Set.is_empty traps.enter_traps) then begin
+  if is_system_supported && !Arch.trap_notes &&
+     not (Int.Set.is_empty traps.enter_traps) then begin
     D.section [".note.ocaml_eh"] (Some "?") [ "\"note\"" ];
     emit_elf_note ~owner:"OCaml" ~typ:1l ~emit_desc;
     (* Reuse stapsdt base section for calcluating addresses after pre-link *)
