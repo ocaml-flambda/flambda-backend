@@ -343,73 +343,87 @@ let binary_phys_comparison _env dbg kind op x y =
   | (Region | Rec_info), _ ->
     Misc.fatal_errorf "Invalid kind %a for binary_phys_comparison" K.print kind
 
+let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
+    (op : P.binary_int_arith_op) x y =
+  match kind with
+  | Tagged_immediate -> (
+    match op with
+    | Add -> C.add_int_caml x y dbg
+    | Sub -> C.sub_int_caml x y dbg
+    | Mul -> C.mul_int_caml x y dbg
+    | Div -> C.div_int_caml Unsafe x y dbg
+    | Mod -> C.mod_int_caml Unsafe x y dbg
+    | And -> C.and_int_caml x y dbg
+    | Or -> C.or_int_caml x y dbg
+    | Xor -> C.xor_int_caml x y dbg)
+  | Naked_int32 -> (
+    (* Operations on 32-bit integer arguments must return something in the range
+       of 32-bit integers, hence the sign_extensions here. The [C.low_32]
+       operations (see above in [sign_extend_32_can_delay_overflow]) are used to
+       avoid unnecessary sign extensions, e.g. when chaining additions together.
+       Also see comment below about [C.low_32] in the [Div] and [Mod] cases. *)
+    let sign_extend_32_can_delay_overflow f =
+      C.sign_extend_32 dbg (f (C.low_32 dbg x) (C.low_32 dbg y) dbg)
+    in
+    match op with
+    | Add -> sign_extend_32_can_delay_overflow C.add_int
+    | Sub -> sign_extend_32_can_delay_overflow C.sub_int
+    | Mul -> sign_extend_32_can_delay_overflow C.mul_int
+    | Xor -> sign_extend_32_can_delay_overflow C.xor_int
+    | And -> sign_extend_32_can_delay_overflow C.and_int
+    | Or -> sign_extend_32_can_delay_overflow C.or_int
+    | Div ->
+      (* Note that it would be wrong to apply [C.low_32] to [x] and/or [y] here
+         -- likewise in the next [Mod] case. [C.safe_div_bi] and [C.safe_mod_bi]
+         require sign-extended input for both the numerator and denominator.
+
+         Some background: The problem arises in cases like: (num1 * num2) /
+         num3. If an overflow occurs in the multiplication, then we must deal
+         with it by sign-extending before the division. Whereas (num1 * num2) *
+         num3 can delay the sign-extension until the very end, even in the case
+         of overflow in the middle. So in a way, div and mod are regular
+         functions, while all the others are special as they can delay overflow
+         handling.
+
+         We don't have 32-bit registers in Cmm, so sign extension really means
+         modulo 2^31. (If we had 32-bit virtual registers, we could use them in
+         Cmm without sign extension and let the backend insert sign extensions
+         if it doesn't support operations on 32-bit physical registers. There
+         was a prototype developed of this but it was quite complicated and
+         didn't get merged.) *)
+      let bi = primitive_boxed_int_of_standard_int kind in
+      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
+    | Mod ->
+      let bi = primitive_boxed_int_of_standard_int kind in
+      C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg))
+  | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+    (* Machine-width integers, no sign extension required. *)
+    match op with
+    | Add -> C.add_int x y dbg
+    | Sub -> C.sub_int x y dbg
+    | Mul -> C.mul_int x y dbg
+    | And -> C.and_int x y dbg
+    | Or -> C.or_int x y dbg
+    | Xor -> C.xor_int x y dbg
+    | Div ->
+      let bi = primitive_boxed_int_of_standard_int kind in
+      C.safe_div_bi Unsafe x y bi dbg
+    | Mod ->
+      let bi = primitive_boxed_int_of_standard_int kind in
+      C.safe_mod_bi Unsafe x y bi dbg)
+
+(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
+   refactoring of the above function *)
 let binary_int_arith_primitive _env dbg kind op x y =
-  let sign_extend_32_can_delay_overflow f =
-    (* See comments below. *)
-    C.sign_extend_32 dbg (f (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  in
   match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
   (* 64-bit ints on 32-bit archs *)
   | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
-  (* Tagged integers *)
-  | Tagged_immediate, Add -> C.add_int_caml x y dbg
-  | Tagged_immediate, Sub -> C.sub_int_caml x y dbg
-  | Tagged_immediate, Mul -> C.mul_int_caml x y dbg
-  | Tagged_immediate, Div -> C.div_int_caml Unsafe x y dbg
-  | Tagged_immediate, Mod -> C.mod_int_caml Unsafe x y dbg
-  | Tagged_immediate, And -> C.and_int_caml x y dbg
-  | Tagged_immediate, Or -> C.or_int_caml x y dbg
-  | Tagged_immediate, Xor -> C.xor_int_caml x y dbg
-  (* Operations on 32-bit integer arguments must return something in the range
-     of 32-bit integers, hence the sign_extensions here. The [C.low_32]
-     operations (see above in [sign_extend_32_can_delay_overflow]) are used to
-     avoid unnecessary sign extensions, e.g. when chaining additions together.
-     Also see comment below about [C.low_32] in the [Div] and [Mod] cases. *)
-  | Naked_int32, Add -> sign_extend_32_can_delay_overflow C.add_int
-  | Naked_int32, Sub -> sign_extend_32_can_delay_overflow C.sub_int
-  | Naked_int32, Mul -> sign_extend_32_can_delay_overflow C.mul_int
-  | Naked_int32, Xor -> sign_extend_32_can_delay_overflow C.xor_int
-  | Naked_int32, And -> sign_extend_32_can_delay_overflow C.and_int
-  | Naked_int32, Or -> sign_extend_32_can_delay_overflow C.or_int
-  (* Naked ints not requiring sign extension *)
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Add -> C.add_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Sub -> C.sub_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Mul -> C.mul_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), And -> C.and_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Or -> C.or_int x y dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Xor -> C.xor_int x y dbg
-  (* Division and modulo need some extra care *)
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_div_bi Unsafe x y bi dbg
-  | (Naked_int64 | Naked_nativeint | Naked_immediate), Mod ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.safe_mod_bi Unsafe x y bi dbg
-  | Naked_int32, Div ->
-    (* Note that it would be wrong to apply [C.low_32] to [x] and/or [y] here --
-       likewise in the next [Mod] case. [C.safe_div_bi] and [C.safe_mod_bi]
-       require sign-extended input for both the numerator and denominator.
-
-       Some background: The problem arises in cases like: (num1 * num2) / num3.
-       If an overflow occurs in the multiplication, then we must deal with it by
-       sign-extending before the division. Whereas (num1 * num2) * num3 can
-       delay the sign-extension until the very end, even in the case of overflow
-       in the middle. So in a way, div and mod are regular functions, while all
-       the others are special as they can delay overflow handling.
-
-       We don't have 32-bit registers in Cmm, so sign extension really means
-       modulo 2^31. (If we had 32-bit virtual registers, we could use them in
-       Cmm without sign extension and let the backend insert sign extensions if
-       it doesn't support operations on 32-bit physical registers. There was a
-       prototype developed of this but it was quite complicated and didn't get
-       merged.) *)
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
-  | Naked_int32, Mod ->
-    let bi = primitive_boxed_int_of_standard_int kind in
-    C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg)
+  | ( ( Tagged_immediate | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      (Add | Sub | Mul | Div | Mod | And | Or | Xor) ) ->
+    binary_int_arith_primitive0 _env dbg kind op x y
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with
