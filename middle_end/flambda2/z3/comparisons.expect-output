@@ -1,0 +1,32 @@
+comparing OCaml values or their tagged representation is the same
+unsat
+
+comparing OCaml values or their shifted representation is the same
+unsat
+
+xc < yc  iff  x < (y & ~0x1)
+unsat
+
+Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
+unsat
+
+Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
+unsat
+
+Signed, Gt -> C.gt ~dbg (C.ignore_low_bit_int x) y
+unsat
+
+Signed, Ge -> C.ge ~dbg x (C.ignore_low_bit_int y)
+unsat
+
+Unsigned, Lt -> C.ult ~dbg x (C.ignore_low_bit_int y)
+unsat
+
+Unsigned, Le -> C.ule ~dbg (C.ignore_low_bit_int x) y
+unsat
+
+Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
+unsat
+
+Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
+unsat
