@@ -261,12 +261,13 @@ let unary_int_arith_primitive _env dbg kind op arg =
   (* Special case for manipulating int64 on 32-bit hosts *)
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
-  | _, Neg -> C.sub_int (C.int ~dbg 0) arg dbg
+  | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
+    C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
     let primitive_kind = primitive_boxed_int_of_standard_int kind in
     C.sign_extend_32 dbg (C.bbswap primitive_kind arg dbg)
-  | _, Swap_byte_endianness ->
+  | (Naked_int32 | Naked_int64 | Naked_nativeint), Swap_byte_endianness ->
     let primitive_kind = primitive_boxed_int_of_standard_int kind in
     C.bbswap primitive_kind arg dbg
   [@@ocaml.warning "-fragile-match"]
@@ -331,9 +332,15 @@ let binary_phys_comparison _env dbg kind op x y =
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
   (* General case *)
-  | _, Eq -> C.eq ~dbg x y
-  | _, Neq -> C.neq ~dbg x y
-  [@@ocaml.warning "-fragile-match"]
+  | ( ( Value
+      | Naked_number
+          ( Naked_float | Naked_int32 | Naked_int64 | Naked_nativeint
+          | Naked_immediate ) ),
+      Eq ) ->
+    C.eq ~dbg x y
+  | (Value | Naked_number _), Neq -> C.neq ~dbg x y
+  | (Region | Rec_info), _ ->
+    Misc.fatal_errorf "Invalid kind %a for binary_phys_comparison" K.print kind
 
 let binary_int_arith_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
