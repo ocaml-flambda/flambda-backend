@@ -425,8 +425,8 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | Tagged_immediate, Lsl -> C.lsl_int_caml_raw ~dbg x y
   | Tagged_immediate, Lsr -> C.lsr_int_caml_raw ~dbg x y
   | Tagged_immediate, Asr -> C.asr_int_caml_raw ~dbg x y
-  (* Operations on 32-bits integers need to ensure their result are within the
-     32-bit range, hence the sign_extension. *)
+  (* See comments on [binary_int_arity_primitive], above, about sign extension
+     and use of [C.low_32]. *)
   | Naked_int32, Lsl -> C.sign_extend_32 dbg (C.lsl_int (C.low_32 dbg x) y dbg)
   | Naked_int32, Lsr ->
     let arg = if Target_system.is_64_bit then C.zero_extend_32 dbg x else x in
@@ -437,6 +437,42 @@ let binary_int_shift_primitive _env dbg kind op x y =
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsr -> C.lsr_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Asr -> C.asr_int x y dbg
 
+let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
+    (signed : P.signed_or_unsigned) (cmp : P.ordered_comparison) x y =
+  match kind with
+  | Tagged_immediate -> (
+    match signed, cmp with
+    (* [x] and [y] are expressions yielding well-formed tagged immediates, that
+       is to say, their least significant bit (LSB) is 1. However when comparing
+       tagged immediates, there always exists one argument (i.e. either [x] or
+       [y]) for which the setting of that LSB makes no difference to the result.
+       This means that we can optimise in the case where the argument in
+       question contains a tagging operation (or logical OR operation setting
+       the last bit) by removing such operation.
+
+       See middle_end/flambda2/z3/comparisons.smt2 for a Z3 script to prove
+       this. *)
+    | Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
+    | Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
+    | Signed, Gt -> C.gt ~dbg (C.ignore_low_bit_int x) y
+    | Signed, Ge -> C.ge ~dbg x (C.ignore_low_bit_int y)
+    | Unsigned, Lt -> C.ult ~dbg x (C.ignore_low_bit_int y)
+    | Unsigned, Le -> C.ule ~dbg (C.ignore_low_bit_int x) y
+    | Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
+    | Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
+  | Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+    match signed, cmp with
+    | Signed, Lt -> C.lt ~dbg x y
+    | Signed, Le -> C.le ~dbg x y
+    | Signed, Gt -> C.gt ~dbg x y
+    | Signed, Ge -> C.ge ~dbg x y
+    | Unsigned, Lt -> C.ult ~dbg x y
+    | Unsigned, Le -> C.ule ~dbg x y
+    | Unsigned, Gt -> C.ugt ~dbg x y
+    | Unsigned, Ge -> C.uge ~dbg x y)
+
+(* Temporary wrapper until the PR for removing 32-bit support is done, to permit
+   refactoring of the above function *)
 let binary_int_comp_primitive _env dbg kind signed cmp x y =
   match
     ( (kind : K.Standard_int.t),
@@ -452,54 +488,11 @@ let binary_int_comp_primitive _env dbg kind signed cmp x y =
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
   (* There are no runtime C functions to do that afaict *)
-  (* Tagged integers *)
-  (* When comparing tagged integers, there is always one number for which the
-     last bit is irrelevant.
-
-     For x < y, ignoring the last bit of y will not change the result, as if x
-     and y are different (as OCaml integers) then the comparison doesn't need to
-     see the last bit, and if they are equal then if the last bit of x is one
-     (as it is supposed to be) the result will be false for both values of the
-     last bit of y, as expected.
-
-     The same reasoning applies to the other comparisons. *)
-  | Tagged_immediate, Signed, Lt -> C.lt ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Signed, Le -> C.le ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Signed, Gt -> C.gt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Signed, Ge -> C.ge ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Unsigned, Lt -> C.ult ~dbg x (C.ignore_low_bit_int y)
-  | Tagged_immediate, Unsigned, Le -> C.ule ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
-  | Tagged_immediate, Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y)
-  (* Naked integers. *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Lt
-    ->
-    C.lt ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Le
-    ->
-    C.le ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Gt
-    ->
-    C.gt ~dbg x y
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Signed, Ge
-    ->
-    C.ge ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Lt ) ->
-    C.ult ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Le ) ->
-    C.ule ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Gt ) ->
-    C.ugt ~dbg x y
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
-      Unsigned,
-      Ge ) ->
-    C.uge ~dbg x y
+  | ( ( Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate
+      | Tagged_immediate ),
+      (Signed | Unsigned),
+      (Lt | Le | Gt | Ge) ) ->
+    binary_int_comp_primitive0 _env dbg kind signed cmp x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
