@@ -164,6 +164,9 @@ val asm_cfi_supported: bool
 val with_frame_pointers : bool
 (** Whether assembler should maintain frame pointers *)
 
+val with_cpp_mangling : bool
+(** Whether symbol names should be following the cpp mangling convention *)
+
 val ext_obj: string
 (** Extension for object files, e.g. [.o] under Unix. *)
 
