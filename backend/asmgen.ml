@@ -342,7 +342,7 @@ let compile_fundecl ?dwarf ~ppf_dump fd_cmm =
   ++ Profile.record ~accumulate:true "linearize" (fun (f : Mach.fundecl) ->
       let res = Linearize.fundecl f in
       (* CR xclerc for xclerc: temporary, for testing. *)
-      if !Flambda_backend_flags.use_ocamlcfg then begin
+      if !Flambda_backend_flags.cfg_equivalence_check then begin
         test_cfgize f res;
       end;
       res)
