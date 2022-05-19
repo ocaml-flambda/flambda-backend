@@ -328,7 +328,7 @@ let arithmetic_conversion dbg src dst arg =
 
 let binary_phys_comparison _env dbg kind op x y =
   match (kind : K.t), (op : P.equality_comparison) with
-  (* int64 special case *)
+  (* int64 special case on 32-bit platforms *)
   | (Naked_number Naked_int64, Eq | Naked_number Naked_int64, Neq)
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
@@ -344,16 +344,13 @@ let binary_phys_comparison _env dbg kind op x y =
     Misc.fatal_errorf "Invalid kind %a for binary_phys_comparison" K.print kind
 
 let binary_int_arith_primitive _env dbg kind op x y =
+  let sign_extend_32_can_delay_overflow f =
+    (* See comments below. *)
+    C.sign_extend_32 dbg (f (C.low_32 dbg x) (C.low_32 dbg y) dbg)
+  in
   match (kind : K.Standard_int.t), (op : P.binary_int_arith_op) with
-  (* Int64 bits ints on 32-bit archs *)
-  | Naked_int64, Add
-  | Naked_int64, Sub
-  | Naked_int64, Mul
-  | Naked_int64, Div
-  | Naked_int64, Mod
-  | Naked_int64, And
-  | Naked_int64, Or
-  | Naked_int64, Xor
+  (* 64-bit ints on 32-bit archs *)
+  | Naked_int64, (Add | Sub | Mul | Div | Mod | And | Or | Xor)
     when Target_system.is_32_bit ->
     C.unsupported_32_bit ()
   (* Tagged integers *)
@@ -365,21 +362,18 @@ let binary_int_arith_primitive _env dbg kind op x y =
   | Tagged_immediate, And -> C.and_int_caml x y dbg
   | Tagged_immediate, Or -> C.or_int_caml x y dbg
   | Tagged_immediate, Xor -> C.xor_int_caml x y dbg
-  (* Operations on 32-bits integers arguments must return something in the range
-     of 32-bits integers, hence the sign_extensions here *)
-  | Naked_int32, Add ->
-    C.sign_extend_32 dbg (C.add_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Sub ->
-    C.sign_extend_32 dbg (C.sub_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Mul ->
-    C.sign_extend_32 dbg (C.mul_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Xor ->
-    C.sign_extend_32 dbg (C.xor_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, And ->
-    C.sign_extend_32 dbg (C.and_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  | Naked_int32, Or ->
-    C.sign_extend_32 dbg (C.or_int (C.low_32 dbg x) (C.low_32 dbg y) dbg)
-  (* Naked ints *)
+  (* Operations on 32-bit integer arguments must return something in the range
+     of 32-bit integers, hence the sign_extensions here. The [C.low_32]
+     operations (see above in [sign_extend_32_can_delay_overflow]) are used to
+     avoid unnecessary sign extensions, e.g. when chaining additions together.
+     Also see comment below about [C.low_32] in the [Div] and [Mod] cases. *)
+  | Naked_int32, Add -> sign_extend_32_can_delay_overflow C.add_int
+  | Naked_int32, Sub -> sign_extend_32_can_delay_overflow C.sub_int
+  | Naked_int32, Mul -> sign_extend_32_can_delay_overflow C.mul_int
+  | Naked_int32, Xor -> sign_extend_32_can_delay_overflow C.xor_int
+  | Naked_int32, And -> sign_extend_32_can_delay_overflow C.and_int
+  | Naked_int32, Or -> sign_extend_32_can_delay_overflow C.or_int
+  (* Naked ints not requiring sign extension *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Add -> C.add_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Sub -> C.sub_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Mul -> C.mul_int x y dbg
@@ -394,6 +388,23 @@ let binary_int_arith_primitive _env dbg kind op x y =
     let bi = primitive_boxed_int_of_standard_int kind in
     C.safe_mod_bi Unsafe x y bi dbg
   | Naked_int32, Div ->
+    (* Note that it would be wrong to apply [C.low_32] to [x] and/or [y] here --
+       likewise in the next [Mod] case. [C.safe_div_bi] and [C.safe_mod_bi]
+       require sign-extended input for both the numerator and denominator.
+
+       Some background: The problem arises in cases like: (num1 * num2) / num3.
+       If an overflow occurs in the multiplication, then we must deal with it by
+       sign-extending before the division. Whereas (num1 * num2) * num3 can
+       delay the sign-extension until the very end, even in the case of overflow
+       in the middle. So in a way, div and mod are regular functions, while all
+       the others are special as they can delay overflow handling.
+
+       We don't have 32-bit registers in Cmm, so sign extension really means
+       modulo 2^31. (If we had 32-bit virtual registers, we could use them in
+       Cmm without sign extension and let the backend insert sign extensions if
+       it doesn't support operations on 32-bit physical registers. There was a
+       prototype developed of this but it was quite complicated and didn't get
+       merged.) *)
     let bi = primitive_boxed_int_of_standard_int kind in
     C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y bi dbg)
   | Naked_int32, Mod ->
