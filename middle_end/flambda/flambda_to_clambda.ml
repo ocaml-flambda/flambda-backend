@@ -96,8 +96,7 @@ let check_closure t ulam named : Clambda.ulambda =
 let clambda_arity (func : Flambda.function_declaration) : Clambda.arity =
   let nlocal =
     func.params
-    |> List.filter (fun p ->
-           Lambda.eq_mode Alloc_local (Parameter.alloc_mode p))
+    |> List.filter (fun p -> Lambda.is_local_mode (Parameter.alloc_mode p))
     |> List.length
   in
   Curried {nlocal}, Flambda_utils.function_arity func
@@ -623,7 +622,7 @@ and to_clambda_closed_set_of_closures t env symbol
       body;
       dbg = function_decl.dbg;
       env = None;
-      mode = Alloc_heap;
+      mode = Lambda.alloc_heap;
     }
   in
   let ufunct = List.map to_clambda_function functions in

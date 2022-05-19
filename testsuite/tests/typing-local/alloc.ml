@@ -1,5 +1,13 @@
 (* TEST
-   flags += "-extension local" *)
+   * bytecode
+     reference = "${test_source_directory}/alloc.heap.reference"
+   * stack-allocation
+   ** native
+      reference = "${test_source_directory}/alloc.stack.reference"
+   * no-stack-allocation
+   ** native
+      reference = "${test_source_directory}/alloc.heap.reference"
+ *)
 
 type t = int
 
@@ -414,9 +422,8 @@ let run name f x =
   in
   let msg =
     match delta with
-    | 0 -> "OK"
-    | _ when Sys.backend_type <> Sys.Native -> "OK"
-    | n -> Printf.sprintf "%d words allocated" n
+    | 0 -> "No Allocation"
+    | n -> "Allocation"
   in
   Printf.printf "%15s: %s\n" name msg;
   r

@@ -370,11 +370,9 @@ let register_allocation (expected_mode : expected_mode) =
   register_allocation_value_mode expected_mode.mode
 
 let optimise_allocations () =
-  if Clflags.Extension.is_enabled Local then begin
-    List.iter
-      (fun mode -> ignore (Alloc_mode.constrain_upper mode))
-      !allocations
-  end;
+  List.iter
+    (fun mode -> ignore (Alloc_mode.constrain_upper mode))
+    !allocations;
   reset_allocations ()
 
 (* Typing of constants *)
@@ -3471,6 +3469,15 @@ and type_expect_
        [Nolabel, sbody]) ->
       if not (Clflags.Extension.is_enabled Local) then
         raise (Typetexp.Error (loc, Env.empty, Local_not_enabled));
+      submode ~loc ~env Value_mode.local expected_mode;
+      let exp =
+        type_expect ?in_function ~recarg env mode_local sbody
+          ty_expected_explained
+      in
+      { exp with exp_loc = loc }
+  | Pexp_apply
+      ({ pexp_desc = Pexp_extension({txt = ("ocaml.local" | "local")}, PStr []) },
+       [Nolabel, sbody]) ->
       submode ~loc ~env Value_mode.local expected_mode;
       let exp =
         type_expect ?in_function ~recarg env mode_local sbody

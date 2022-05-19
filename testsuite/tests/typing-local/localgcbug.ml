@@ -1,5 +1,4 @@
 (* TEST
-   flags += "-extension local"
    * native *)
 
 type n = Z | S of n

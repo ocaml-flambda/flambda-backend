@@ -606,7 +606,8 @@ let unbox_float dbg =
 (* Complex *)
 
 let box_complex dbg c_re c_im =
-  Cop(Calloc Alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+  Cop(Calloc Lambda.alloc_heap,
+      [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
 
 let complex_re c dbg = Cop(Cload (Double, Immutable), [c], dbg)
 let complex_im c dbg = Cop(Cload (Double, Immutable),
@@ -760,16 +761,16 @@ let unboxed_float_array_ref arr ofs dbg =
   Cop(Cload (Double, Mutable),
     [array_indexing log2_size_float arr ofs dbg], dbg)
 let float_array_ref arr ofs dbg =
-  box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg Lambda.alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
 let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
-  Cop(Cstore (Word_int, Lambda.Assignment),
+  Cop(Cstore (Word_int, Lambda.Assignment Lambda.alloc_heap),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
-  Cop(Cstore (Double, Lambda.Assignment),
+  Cop(Cstore (Double, Lambda.Assignment Lambda.alloc_heap),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 let addr_array_set_local arr ofs newval dbg =
@@ -828,7 +829,7 @@ let call_cached_method obj tag cache pos args (apos,mode) dbg =
 (* Allocation *)
 
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
-  if mode = Lambda.Alloc_local || wordsize <= Config.max_young_wosize then
+  if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize then
     let hdr =
       match mode with
       | Lambda.Alloc_local -> local_block_header tag wordsize
@@ -1003,13 +1004,14 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
         bind "addr" (bigarray_indexing unsafe elt_kind layout b args dbg)
           (fun addr ->
           Csequence(
-            Cop(Cstore (kind, Assignment), [addr; complex_re newv dbg], dbg),
-            Cop(Cstore (kind, Assignment),
+            Cop(Cstore (kind, Assignment Lambda.alloc_heap),
+                [addr; complex_re newv dbg], dbg),
+            Cop(Cstore (kind, Assignment Lambda.alloc_heap),
                 [Cop(Cadda, [addr; Cconst_int (sz, dbg)], dbg);
                  complex_im newv dbg],
                 dbg))))
     | _ ->
-        Cop(Cstore (bigarray_word_kind elt_kind, Assignment),
+        Cop(Cstore (bigarray_word_kind elt_kind, Assignment Lambda.alloc_heap),
             [bigarray_indexing unsafe elt_kind layout b args dbg; newval],
             dbg))
 
@@ -1162,7 +1164,7 @@ let unaligned_load_16 ptr idx dbg =
 let unaligned_set_16 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
-    Cop(Cstore (Sixteen_unsigned, Assignment),
+    Cop(Cstore (Sixteen_unsigned, Assignment Lambda.alloc_heap),
       [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
@@ -1173,8 +1175,8 @@ let unaligned_set_16 ptr idx newval dbg =
     let v2 = Cop(Cand, [newval; cconst_int 0xFF], dbg) in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Csequence(
-        Cop(Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
-        Cop(Cstore (Byte_unsigned, Assignment),
+        Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; b1], dbg),
+        Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
             [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2], dbg))
 
 let unaligned_load_32 ptr idx dbg =
@@ -1205,7 +1207,7 @@ let unaligned_load_32 ptr idx dbg =
 let unaligned_set_32 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
-    Cop(Cstore (Thirtytwo_unsigned, Assignment), [add_int ptr idx dbg; newval],
+    Cop(Cstore (Thirtytwo_unsigned, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; newval],
       dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
@@ -1225,16 +1227,16 @@ let unaligned_set_32 ptr idx newval dbg =
       else v4, v3, v2, v1 in
     Csequence(
         Csequence(
-            Cop(Cstore (Byte_unsigned, Assignment),
+            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                 [add_int ptr idx dbg; b1], dbg),
-            Cop(Cstore (Byte_unsigned, Assignment),
+            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                 [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
                 dbg)),
         Csequence(
-            Cop(Cstore (Byte_unsigned, Assignment),
+            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                 [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
                 dbg),
-            Cop(Cstore (Byte_unsigned, Assignment),
+            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                 [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
                 dbg)))
 
@@ -1280,7 +1282,7 @@ let unaligned_load_64 ptr idx dbg =
 let unaligned_set_64 ptr idx newval dbg =
   assert(size_int = 8);
   if Arch.allow_unaligned_access
-  then Cop(Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
+  then Cop(Cstore (Word_int, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -1319,32 +1321,32 @@ let unaligned_set_64 ptr idx newval dbg =
     Csequence(
         Csequence(
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int ptr idx dbg; b1],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
                     dbg)),
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
                     dbg))),
         Csequence(
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 4) dbg; b5],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 5) dbg; b6],
                     dbg)),
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 6) dbg; b7],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment),
+                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                     [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
                     dbg))))
 
@@ -1824,7 +1826,7 @@ let cache_public_method meths tag cache dbg =
     VP.create tagged,
       Cop(Caddi, [lsl_const (Cvar li) log2_size_addr dbg;
         cconst_int(1 - 3 * size_addr)], dbg),
-    Csequence(Cop (Cstore (Word_int, Assignment), [cache; Cvar tagged], dbg),
+    Csequence(Cop (Cstore (Word_int, Assignment Lambda.alloc_heap), [cache; Cvar tagged], dbg),
               Cvar tagged)))))
 
 let has_local_allocs e =
@@ -1896,9 +1898,12 @@ let apply_function_body (arity, (mode : Lambda.alloc_mode)) =
   (* In the slowpath, a region is necessary in case
      the initial applications do local allocations *)
   let region =
-    match mode with
-    | Alloc_heap -> Some (V.create_local "region")
-    | Alloc_local -> None
+    if not Config.stack_allocation then None
+    else begin
+      match mode with
+      | Alloc_heap -> Some (V.create_local "region")
+      | Alloc_local -> None
+    end
   in
   let rec app_fun clos n =
     if n = arity-1 then begin
@@ -2130,8 +2135,9 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
     let name2 = if num = 0 then name1 else name1 ^ "_" ^ Int.to_string num in
     let arg = V.create_local "arg" and clos = V.create_local "clos" in
     let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-    let mode : Lambda.alloc_mode =
-      if num >= arity - nlocal then Alloc_local else Alloc_heap in
+    let mode =
+      if num >= arity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
+    in
     let curried n : Clambda.arity = (Curried {nlocal=min nlocal n}, n) in
     Cfunction
      {fun_name = name2;
@@ -2214,7 +2220,7 @@ module ApplyFnSet =
 module AritySet =
   Set.Make (struct type t = Clambda.arity let compare = compare end)
 
-let default_apply = ApplyFnSet.of_list [2,Alloc_heap; 3,Alloc_heap]
+let default_apply = ApplyFnSet.of_list [2,Lambda.alloc_heap; 3,Lambda.alloc_heap]
   (* These apply funs are always present in the main program because
      the run-time system needs them (cf. runtime/<arch>.S) . *)
 
@@ -2260,7 +2266,7 @@ let negint arg dbg =
 let offsetref n arg dbg =
   return_unit dbg
     (bind "ref" arg (fun arg ->
-         Cop(Cstore (Word_int, Assignment),
+         Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
              [arg;
               add_const (Cop(Cload (Word_int, Mutable), [arg], dbg))
                 (n lsl 1) dbg],
@@ -2318,11 +2324,13 @@ let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
     (init: Lambda.initialization_or_assignment) =
   match init, ptr with
-  | Assignment, Pointer -> Caml_modify
-  | Local_assignment, Pointer -> Caml_modify_local
+  | Assignment Alloc_heap, Pointer -> Caml_modify
+  | Assignment Alloc_local, Pointer ->
+    assert Config.stack_allocation;
+    Caml_modify_local
   | Heap_initialization, _ ->
      Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
-  | (Assignment | Local_assignment), Immediate
+  | (Assignment _), Immediate
   | Root_initialization, (Immediate | Pointer) -> Simple
 
 let setfield n ptr init arg1 arg2 dbg =
@@ -2505,7 +2513,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                   (get_header_without_profinfo arr dbg) dbg; idx],
               int_array_ref arr idx dbg)))
       | Pfloatarray ->
-          box_float dbg Alloc_heap (
+          box_float dbg Lambda.alloc_heap (
             bind "index" arg2 (fun idx ->
             bind "arr" arg1 (fun arr ->
               Csequence(
@@ -2528,7 +2536,7 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
-      return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment),
+      return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
                       [add_int arg1 (untag_int arg2 dbg) dbg;
                        ignore_high_bit_int (untag_int arg3 dbg)], dbg))
 
@@ -2539,7 +2547,7 @@ let bytesset_safe arg1 arg2 arg3 dbg =
        bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
-          Cop(Cstore (Byte_unsigned, Assignment),
+          Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
               [add_int str idx dbg;
                ignore_high_bit_int newval],
               dbg))))))
@@ -2716,7 +2724,7 @@ let entry_point namelist =
   let cconst_int i = Cconst_int (i, dbg ()) in
   let cconst_symbol sym = Cconst_symbol (sym, dbg ()) in
   let incr_global_inited () =
-    Cop(Cstore (Word_int, Assignment),
+    Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
         [cconst_symbol "caml_globals_inited";
          Cop(Caddi, [Cop(Cload (Word_int, Mutable),
                        [cconst_symbol "caml_globals_inited"], dbg ());

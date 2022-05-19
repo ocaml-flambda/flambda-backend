@@ -1,5 +1,4 @@
 (* TEST
-   flags += "-extension local"
    * expect *)
 
 let leak n =

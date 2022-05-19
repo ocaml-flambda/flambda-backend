@@ -771,7 +771,7 @@ void caml_local_realloc()
 
 CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
 {
-#ifdef NATIVE_CODE
+#if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
   intnat sp = Caml_state->local_sp;
   header_t* hp;
   sp -= Bhsize_wosize(wosize);

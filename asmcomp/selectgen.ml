@@ -487,7 +487,7 @@ method select_operation op args _dbg =
         match init with
         | Lambda.Root_initialization -> false
         | Lambda.Heap_initialization -> false
-        | Lambda.Assignment | Lambda.Local_assignment -> true
+        | Lambda.Assignment _ -> true
       in
       if chunk = Word_int || chunk = Word_val then begin
         let (op, newarg2) = self#select_store is_assign addr arg2 in
@@ -889,6 +889,7 @@ method emit_expr (env:environment) exp =
         [||] [||];
       r
   | Cregion e ->
+     assert (Config.stack_allocation);
      let reg = self#regs_for typ_int in
      self#insert env (Iop Ibeginregion) [| |] reg;
      let env = { env with regions = reg::env.regions; region_tail = true } in
@@ -1239,6 +1240,7 @@ method emit_tail (env:environment) exp =
         [||] [||];
       self#insert_return env opt_r1
   | Cregion e ->
+      assert (Config.stack_allocation);
       if env.region_tail then
         self#emit_return env exp
       else begin
