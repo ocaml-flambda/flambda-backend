@@ -664,7 +664,8 @@ let unbox_float dbg =
 (* Complex *)
 
 let box_complex dbg c_re c_im =
-  Cop (Calloc Alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+  Cop (Calloc Lambda.alloc_heap,
+       [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
 
 let complex_re c dbg = Cop (Cload (Double, Immutable), [c], dbg)
 
@@ -838,7 +839,7 @@ let unboxed_float_array_ref arr ofs dbg =
     (Cload (Double, Mutable), [array_indexing log2_size_float arr ofs dbg], dbg)
 
 let float_array_ref arr ofs dbg =
-  box_float dbg Alloc_heap (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg Lambda.alloc_heap (unboxed_float_array_ref arr ofs dbg)
 
 let addr_array_set arr ofs newval dbg =
   Cop
@@ -887,13 +888,13 @@ let addr_array_initialize arr ofs newval dbg =
 
 let int_array_set arr ofs newval dbg =
   Cop
-    ( Cstore (Word_int, Lambda.Assignment),
+    ( Cstore (Word_int, Assignment),
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
 let float_array_set arr ofs newval dbg =
   Cop
-    ( Cstore (Double, Lambda.Assignment),
+    ( Cstore (Double, Assignment),
       [array_indexing log2_size_float arr ofs dbg; newval],
       dbg )
 
@@ -979,7 +980,7 @@ let call_cached_method obj tag cache pos args (apos, mode) dbg =
 let make_alloc_generic ~mode set_fn dbg tag wordsize args =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
-  if mode = Lambda.Alloc_local || wordsize <= Config.max_young_wosize
+  if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
       match mode with
@@ -1377,7 +1378,8 @@ let unaligned_set_16 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
     Cop
-      (Cstore (Sixteen_unsigned, Assignment), [add_int ptr idx dbg; newval], dbg)
+      (Cstore (Sixteen_unsigned, Assignment),
+       [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -1386,7 +1388,8 @@ let unaligned_set_16 ptr idx newval dbg =
     let v2 = Cop (Cand, [newval; cconst_int 0xFF], dbg) in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Csequence
-      ( Cop (Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
+      ( Cop (Cstore (Byte_unsigned, Assignment),
+             [add_int ptr idx dbg; b1], dbg),
         Cop
           ( Cstore (Byte_unsigned, Assignment),
             [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
@@ -1555,7 +1558,8 @@ let unaligned_load_64 ptr idx dbg =
 let unaligned_set_64 ptr idx newval dbg =
   assert (size_int = 8);
   if Arch.allow_unaligned_access
-  then Cop (Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
+  then Cop (Cstore (Word_int, Assignment),
+            [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -2494,7 +2498,7 @@ let rec intermediate_curry_functions ~nlocal ~arity num =
     let arg = V.create_local "arg" and clos = V.create_local "clos" in
     let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
     let mode : Lambda.alloc_mode =
-      if num >= arity - nlocal then Alloc_local else Alloc_heap
+      if num >= arity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
     in
     let curried n : Clambda.arity = Curried { nlocal = min nlocal n }, n in
     Cfunction
@@ -2597,7 +2601,8 @@ module AritySet = Set.Make (struct
   let compare = compare
 end)
 
-let default_apply = ApplyFnSet.of_list [2, Alloc_heap; 3, Alloc_heap]
+let default_apply =
+  ApplyFnSet.of_list [2, Lambda.alloc_heap; 3, Lambda.alloc_heap]
 (* These apply funs are always present in the main program because the run-time
    system needs them (cf. runtime/<arch>.S) . *)
 
@@ -2783,18 +2788,17 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 type assignment_kind =
   | Caml_modify
   | Caml_modify_local
-  | Simple
+  | Simple of initialization_or_assignment
 
 let assignment_kind (ptr : Lambda.immediate_or_pointer)
     (init : Lambda.initialization_or_assignment) =
   match init, ptr with
-  | Assignment, Pointer -> Caml_modify
-  | Local_assignment, Pointer -> Caml_modify_local
+  | Assignment Alloc_heap, Pointer -> Caml_modify
+  | Assignment Alloc_local, Pointer -> Caml_modify_local
   | Heap_initialization, _ ->
     Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
-  | (Assignment | Local_assignment), Immediate
-  | Root_initialization, (Immediate | Pointer) ->
-    Simple
+  | Assignment _, Immediate -> Simple Assignment
+  | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
@@ -2828,9 +2832,15 @@ let setfield n ptr init arg1 arg2 dbg =
              },
            [arg1; Cconst_int (n, dbg); arg2],
            dbg ))
-  | Simple -> return_unit dbg (set_field arg1 n arg2 init dbg)
+  | Simple init ->
+    return_unit dbg (set_field arg1 n arg2 init dbg)
 
 let setfloatfield n init arg1 arg2 dbg =
+  let init =
+    match init with
+    | Lambda.Assignment _ -> Assignment
+    | Lambda.Heap_initialization | Lambda.Root_initialization -> Initialization
+  in
   return_unit dbg
     (Cop
        ( Cstore (Double, init),
@@ -3006,7 +3016,7 @@ let arrayref_safe kind arg1 arg2 dbg =
                     idx ],
                 int_array_ref arr idx dbg )))
   | Pfloatarray ->
-    box_float dbg Alloc_heap
+    box_float dbg Lambda.alloc_heap
       (bind "index" arg2 (fun idx ->
            bind "arr" arg1 (fun arr ->
                Csequence
@@ -3025,7 +3035,7 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
   | Caml_modify -> return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
     return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
-  | Simple -> return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
+  | Simple _ -> return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
   return_unit dbg
@@ -3186,7 +3196,9 @@ let ext_pointer_load chunk name args dbg =
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
   let p = int_as_pointer arg1 dbg in
-  Some (return_unit dbg (Cop (Cstore (chunk, Assignment), [p; arg2], dbg)))
+  Some (return_unit dbg
+          (Cop (Cstore (chunk, Assignment),
+                [p; arg2], dbg)))
 
 let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality } in
@@ -3315,28 +3327,37 @@ let transl_builtin name args dbg =
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_immediate"
   | "caml_native_pointer_store_unboxed_nativeint" ->
-    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
+    Some (return_unit dbg
+            (Cop (Cstore (Word_int, Assignment),
+                  args, dbg)))
   | "caml_native_pointer_load_unboxed_int64" when size_int = 8 ->
     Some (Cop (Cload (Word_int, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_int64" when size_int = 8 ->
-    Some (return_unit dbg (Cop (Cstore (Word_int, Assignment), args, dbg)))
+    Some (return_unit dbg
+            (Cop (Cstore (Word_int, Assignment),
+                  args, dbg)))
   | "caml_native_pointer_load_signed_int32"
   | "caml_native_pointer_load_unboxed_int32" ->
     Some (Cop (Cload (Thirtytwo_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_signed_int32"
   | "caml_native_pointer_store_unboxed_int32" ->
     Some
-      (return_unit dbg (Cop (Cstore (Thirtytwo_signed, Assignment), args, dbg)))
+      (return_unit dbg
+         (Cop (Cstore (Thirtytwo_signed, Assignment),
+               args, dbg)))
   | "caml_native_pointer_load_unsigned_int32" ->
     Some (Cop (Cload (Thirtytwo_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int32" ->
     Some
       (return_unit dbg
-         (Cop (Cstore (Thirtytwo_unsigned, Assignment), args, dbg)))
+         (Cop (Cstore (Thirtytwo_unsigned, Assignment),
+               args, dbg)))
   | "caml_native_pointer_load_unboxed_float" ->
     Some (Cop (Cload (Double, Mutable), args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
-    Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
+    Some (return_unit dbg
+            (Cop (Cstore (Double, Assignment),
+                  args, dbg)))
   | "caml_native_pointer_load_unsigned_int8" ->
     Some (Cop (Cload (Byte_unsigned, Mutable), args, dbg))
   | "caml_native_pointer_load_signed_int8" ->
@@ -3346,15 +3367,23 @@ let transl_builtin name args dbg =
   | "caml_native_pointer_load_signed_int16" ->
     Some (Cop (Cload (Sixteen_signed, Mutable), args, dbg))
   | "caml_native_pointer_store_unsigned_int8" ->
-    Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
+    Some (return_unit dbg
+            (Cop (Cstore (Byte_unsigned, Assignment),
+                  args, dbg)))
   | "caml_native_pointer_store_signed_int8" ->
-    Some (return_unit dbg (Cop (Cstore (Byte_signed, Assignment), args, dbg)))
+    Some (return_unit dbg
+            (Cop (Cstore (Byte_signed, Assignment),
+                  args, dbg)))
   | "caml_native_pointer_store_unsigned_int16" ->
     Some
-      (return_unit dbg (Cop (Cstore (Sixteen_unsigned, Assignment), args, dbg)))
+      (return_unit dbg
+         (Cop (Cstore (Sixteen_unsigned, Assignment),
+               args, dbg)))
   | "caml_native_pointer_store_signed_int16" ->
     Some
-      (return_unit dbg (Cop (Cstore (Sixteen_signed, Assignment), args, dbg)))
+      (return_unit dbg
+         (Cop (Cstore (Sixteen_signed, Assignment),
+               args, dbg)))
   (* Ext_pointer: handled as tagged int *)
   | "caml_ext_pointer_load_immediate"
   | "caml_ext_pointer_load_unboxed_nativeint" ->

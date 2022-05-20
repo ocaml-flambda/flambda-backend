@@ -414,7 +414,7 @@ convertible_type:
 
 init_or_assign:
   | EQUAL { Initialization }
-  | LESSMINUS { Assignment }
+  | LESSMINUS { Assignment Heap }
 
 signed_or_unsigned:
   | { Signed }

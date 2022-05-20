@@ -229,7 +229,7 @@ expr:
                               coeffects=Has_coeffects;
                               ty_args=[];},
                      List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.Alloc_heap, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Lambda.alloc_heap, List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }
@@ -341,7 +341,7 @@ unaryop:
   | ABSF                        { Cabsf }
 ;
 binaryop:
-    STORE chunk                 { Cstore ($2, Lambda.Assignment) }
+    STORE chunk                 { Cstore ($2, Assignment) }
   | ADDI                        { Caddi }
   | SUBI                        { Csubi }
   | STAR                        { Cmuli }

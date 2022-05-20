@@ -1568,10 +1568,10 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
       Flambda_arity.With_subkinds.cardinal arity - num_trailing_local_params
     in
     if args_arity <= num_leading_heap_params
-    then Lambda.Alloc_heap, num_trailing_local_params
+    then Lambda.alloc_heap, num_trailing_local_params
     else
       let num_supplied_local_args = args_arity - num_leading_heap_params in
-      Lambda.Alloc_local, num_trailing_local_params - num_supplied_local_args
+      Lambda.alloc_local, num_trailing_local_params - num_supplied_local_args
   in
   let function_declarations =
     (* CR keryan: Same as above, better kind for return type *)

@@ -106,11 +106,10 @@ let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
 let convert_init_or_assign (i_or_a : L.initialization_or_assignment) :
     P.Init_or_assign.t =
   match i_or_a with
-  | Assignment -> Assignment
+  | Assignment mode -> Assignment (Alloc_mode.from_lambda mode)
   | Heap_initialization -> Initialization
   | Root_initialization ->
     Misc.fatal_error "[Root_initialization] should not appear in Flambda input"
-  | Local_assignment -> Local_assignment
 
 let convert_block_shape (shape : L.block_shape) ~num_fields =
   match shape with
@@ -502,17 +501,20 @@ let array_load_unsafe ~array ~index (array_kind : P.Array_kind.t) :
   | Immediates | Values ->
     Binary (Array_load (array_kind, Mutable), array, index)
   | Naked_floats ->
-    box_float Alloc_heap
+    box_float L.alloc_heap
       (Binary (Array_load (Naked_floats, Mutable), array, index))
 
 let array_set_unsafe ~array ~index ~new_value (array_kind : P.Array_kind.t) :
     H.expr_primitive =
   match array_kind with
   | Immediates | Values ->
-    Ternary (Array_set (array_kind, Assignment), array, index, new_value)
+    Ternary (Array_set (array_kind, Assignment Heap), array, index, new_value)
   | Naked_floats ->
     Ternary
-      (Array_set (Naked_floats, Assignment), array, index, unbox_float new_value)
+      ( Array_set (Naked_floats, Assignment Local),
+        array,
+        index,
+        unbox_float new_value )
 
 let[@inline always] match_on_array_kind ~array array_kind f : H.expr_primitive =
   match convert_array_kind array_kind with
@@ -952,7 +954,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list)
              old_ref_value ))
     in
     Ternary
-      ( Block_set (block_access, Assignment),
+      ( Block_set (block_access, Assignment Local),
         block,
         Simple Simple.const_zero,
         new_ref_value )

@@ -235,7 +235,7 @@ val set_field :
   expression ->
   int ->
   expression ->
-  Lambda.initialization_or_assignment ->
+  initialization_or_assignment ->
   Debuginfo.t ->
   expression
 
@@ -1059,7 +1059,7 @@ val load :
 val store :
   dbg:Debuginfo.t ->
   memory_chunk ->
-  Lambda.initialization_or_assignment ->
+  initialization_or_assignment ->
   addr:expression ->
   new_value:expression ->
   expression

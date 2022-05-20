@@ -37,7 +37,7 @@ let rec combine i allocstate =
       | Pending_alloc {reg; dbginfos; totalsz; mode = prev_mode}
           when (mode = prev_mode) &&
               ((totalsz + sz <= (Config.max_young_wosize + 1) * Arch.size_addr)
-               || mode = Lambda.Alloc_local) ->
+               || Lambda.is_local_mode mode) ->
           let (next, state) =
            combine i.next
              (Pending_alloc { reg = i.res.(0);

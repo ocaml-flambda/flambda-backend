@@ -95,7 +95,7 @@ let make_stub unused var (fun_decl : Flambda.function_declaration)
       kind;
       dbg = fun_decl.dbg;
       reg_close = Rc_normal;
-      mode = if fun_decl.region then Alloc_heap else Alloc_local;
+      mode = if fun_decl.region then Lambda.alloc_heap else Lambda.alloc_local;
       inlined = Default_inlined;
       specialise = Default_specialise;
       probe = None;
