@@ -16,6 +16,8 @@
 (** Flambda-backend specific command line flags *)
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
+val cfg_invariants : bool ref
+val cfg_equivalence_check : bool ref
 
 val reorder_blocks_random : int option ref
 
