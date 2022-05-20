@@ -74,8 +74,10 @@ let extract_symbol_approx env symbol find_code =
       | Ok
           ( Naked_immediate _ | Naked_float _ | Naked_int32 _ | Naked_int64 _
           | Naked_nativeint _ | Rec_info _ | Region _ ) ->
-        Misc.fatal_error
-          "Typing_env.Serializable.to_closure_conversion_approx: Wrong kind"
+        (* CR mshinwell: Temporary fix to avoid problems with all-float blocks.
+           We should make a proper fix in the [Variant] case below in due course
+           and return to having a fatal error here. *)
+        Value_unknown
       | Ok (Value ty) -> begin
         match ty with
         | Array _ | String _ | Boxed_float _ | Boxed_int32 _ | Boxed_int64 _
