@@ -264,6 +264,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
   | Naked_int64, Neg when Target_system.is_32_bit -> C.unsupported_32_bit ()
   (* General case *)
   | (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint), Neg ->
+    (* XXX is this right for Naked_immediate? Same above *)
     C.sub_int (C.int ~dbg 0) arg dbg
   (* Byte swap of 32-bits ints on 64-bit arch need a sign-extension *)
   | Naked_int32, Swap_byte_endianness when Target_system.is_64_bit ->
@@ -279,6 +280,7 @@ let unary_float_arith_primitive _env dbg op arg =
   | Neg -> C.float_neg ~dbg arg
 
 let arithmetic_conversion dbg src dst arg =
+  (* XXX make sure there are no problems here with Naked_immediate *)
   let open K.Standard_int_or_float in
   match src, dst with
   (* 64-bit on 32-bit host specific cases *)
@@ -398,6 +400,7 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
       C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y bi dbg))
   | Naked_int64 | Naked_nativeint | Naked_immediate -> (
     (* Machine-width integers, no sign extension required. *)
+    (* XXX this is wrong for Naked_immediate *)
     match op with
     | Add -> C.add_int x y dbg
     | Sub -> C.sub_int x y dbg
@@ -411,6 +414,9 @@ let binary_int_arith_primitive0 _env dbg (kind : K.Standard_int.t)
     | Mod ->
       let bi = primitive_boxed_int_of_standard_int kind in
       C.safe_mod_bi Unsafe x y bi dbg)
+
+(* Add comment on flambda2 Swap_byte_endianness Naked_immediate case is bswap16,
+   not sign extended, unlike Naked_int64 *)
 
 (* Temporary wrapper until the PR for removing 32-bit support is done, to permit
    refactoring of the above function *)
@@ -448,6 +454,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
     C.sign_extend_32 dbg (C.lsr_int arg y dbg)
   | Naked_int32, Asr -> C.sign_extend_32 dbg (C.asr_int x y dbg)
   (* Naked ints *)
+  (* XXX wrong for Naked_immediate *)
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsl -> C.lsl_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Lsr -> C.lsr_int x y dbg
   | (Naked_int64 | Naked_nativeint | Naked_immediate), Asr -> C.asr_int x y dbg
@@ -476,6 +483,7 @@ let binary_int_comp_primitive0 _env dbg (kind : K.Standard_int.t)
     | Unsigned, Gt -> C.ugt ~dbg (C.ignore_low_bit_int x) y
     | Unsigned, Ge -> C.uge ~dbg x (C.ignore_low_bit_int y))
   | Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate -> (
+    (* XXX check if this is right *)
     match signed, cmp with
     | Signed, Lt -> C.lt ~dbg x y
     | Signed, Le -> C.le ~dbg x y
