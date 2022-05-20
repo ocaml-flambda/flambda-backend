@@ -88,7 +88,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
         kind = Direct (Closure_id.wrap unboxed_version);
         dbg = Debuginfo.none;
         reg_close = Rc_normal;
-        mode = if region then Alloc_heap else Alloc_local;
+        mode = if region then Lambda.alloc_heap else Lambda.alloc_local;
         inlined = Default_inlined;
         specialise = Default_specialise;
         probe = None;
@@ -103,7 +103,7 @@ let tupled_function_call_stub original_params unboxed_version ~closure_bound_var
       (0, call) params
   in
   (* Tupled functions are always Alloc_heap. See translcore.ml *)
-  let alloc_mode = Lambda.Alloc_heap in
+  let alloc_mode = Lambda.alloc_heap in
   let tuple_param = Parameter.wrap tuple_param_var alloc_mode in
   Flambda.create_function_declaration ~params:[tuple_param] ~alloc_mode ~region
     ~body ~stub:true ~dbg:Debuginfo.none ~inline:Default_inline
@@ -430,7 +430,7 @@ let rec close t env (lam : Lambda.lambda) : Flambda.t =
       { ap_func = funct;
         ap_args = [arg];
         ap_region_close = pos;
-        ap_mode = Alloc_heap;
+        ap_mode = Lambda.alloc_heap;
         ap_loc = loc;
         (* CR-someday lwhite: it would be nice to be able to give
            application attributes to functions applied with the application
@@ -621,8 +621,8 @@ and close_functions t external_env function_declarations : Flambda.named =
          Misc.fatal_error "Closure_conversion: Tupled Alloc_local function found"
     in
     let params = List.mapi (fun i v ->
-      let alloc_mode : Lambda.alloc_mode =
-        if i < nheap then Alloc_heap else Alloc_local in
+      let alloc_mode =
+        if i < nheap then Lambda.alloc_heap else Lambda.alloc_local in
       Parameter.wrap v alloc_mode) param_vars
     in
     let closure_bound_var = Function_decl.closure_bound_var decl in

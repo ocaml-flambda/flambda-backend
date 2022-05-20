@@ -110,8 +110,8 @@ let prim_sys_argv =
   Primitive.simple ~name:"caml_sys_argv" ~arity:1 ~alloc:true
 
 let to_alloc_mode ~poly = function
-  | Prim_global, _ -> Alloc_heap
-  | Prim_local, _ -> Alloc_local
+  | Prim_global, _ -> alloc_heap
+  | Prim_local, _ -> alloc_local
   | Prim_poly, _ -> poly
 
 let lookup_primitive loc poly pos p =
@@ -137,8 +137,7 @@ let lookup_primitive loc poly pos p =
     | "%setfield0" ->
        let mode =
          match arg_modes with
-         | Alloc_heap :: _ -> Assignment
-         | Alloc_local :: _ -> Local_assignment
+         | mode :: _ -> Assignment mode
          | [] -> assert false
        in
        Primitive ((Psetfield(0, Pointer, mode)), 2)
@@ -700,13 +699,13 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       lambda_of_loc kind loc
   | Loc kind, [arg] ->
       let lam = lambda_of_loc kind loc in
-      Lprim(Pmakeblock(0, Immutable, None, Alloc_heap), [lam; arg], loc)
+      Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [lam; arg], loc)
   | Send pos, [obj; meth] ->
-      Lsend(Public, meth, obj, [], pos, Alloc_heap, loc)
+      Lsend(Public, meth, obj, [], pos, alloc_heap, loc)
   | Send_self pos, [obj; meth] ->
-      Lsend(Self, meth, obj, [], pos, Alloc_heap, loc)
+      Lsend(Self, meth, obj, [], pos, alloc_heap, loc)
   | Send_cache apos, [obj; meth; cache; pos] ->
-      Lsend(Cached, meth, obj, [cache; pos], apos, Alloc_heap, loc)
+      Lsend(Cached, meth, obj, [cache; pos], apos, alloc_heap, loc)
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _), _ ->
@@ -715,8 +714,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
 let check_primitive_arity loc p =
   let mode =
     match p.prim_native_repr_res with
-    | Prim_global, _ | Prim_poly, _ -> Alloc_heap
-    | Prim_local, _ -> Alloc_local
+    | Prim_global, _ | Prim_poly, _ -> alloc_heap
+    | Prim_local, _ -> alloc_local
   in
   let prim = lookup_primitive loc mode Rc_normal p in
   let ok =
@@ -753,15 +752,15 @@ let transl_primitive loc p env ty ~poly_mode path =
   in
   let params = make_params p.prim_arity in
   let args = List.map (fun (id, _) -> Lvar id) params in
-  let loc =
-    Debuginfo.Scoped_location.map_scopes (fun ~scopes ->
-        Debuginfo.Scoped_location.enter_partial_or_eta_wrapper ~scopes)
-      loc
-  in
-  let body = lambda_of_prim p.prim_name prim loc args None in
   match params with
-  | [] -> body
+  | [] -> lambda_of_prim p.prim_name prim loc args None
   | _ ->
+     let loc =
+       Debuginfo.Scoped_location.map_scopes (fun ~scopes ->
+         Debuginfo.Scoped_location.enter_partial_or_eta_wrapper ~scopes)
+         loc
+     in
+     let body = lambda_of_prim p.prim_name prim loc args None in
      let to_alloc_mode m = to_alloc_mode ~poly:poly_mode m in
      let arg_modes = List.map to_alloc_mode p.prim_native_repr_args in
      let region =
@@ -783,7 +782,7 @@ let transl_primitive loc p env ty ~poly_mode path =
          attr = default_stub_attribute;
          loc;
          body;
-         mode = Alloc_heap;
+         mode = alloc_heap;
          region }
      in
      Lambda.check_lfunction lfunc;

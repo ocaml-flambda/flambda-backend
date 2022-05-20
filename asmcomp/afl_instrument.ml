@@ -46,12 +46,12 @@ let rec with_afl_logging b dbg =
       Clet(VP.create cur_pos, op Cxor [op (Cload (Word_int, Asttypes.Mutable))
         [afl_prev_loc dbg]; Cconst_int (cur_location, dbg)],
       Csequence(
-        op (Cstore(Byte_unsigned, Assignment))
+        op (Cstore(Byte_unsigned, Assignment alloc_heap))
           [op Cadda [Cvar afl_area; Cvar cur_pos];
             op Cadda [op (Cload (Byte_unsigned, Asttypes.Mutable))
                         [op Cadda [Cvar afl_area; Cvar cur_pos]];
                       Cconst_int (1, dbg)]],
-        op (Cstore(Word_int, Assignment))
+        op (Cstore(Word_int, Assignment alloc_heap))
           [afl_prev_loc dbg; Cconst_int (cur_location lsr 1, dbg)]))) in
   Csequence(instrumentation, instrument b)
 

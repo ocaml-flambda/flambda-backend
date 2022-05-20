@@ -944,6 +944,8 @@ module type Common_options = sig
   val _no_alias_deps : unit -> unit
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
+  val _disable_all_extensions : unit -> unit
+  val _extension : string -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -987,7 +989,6 @@ module type Core_options = sig
   val _dtypedtree : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
-  val _extension : string -> unit
 
 end
 
@@ -1039,7 +1040,6 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dprofile : unit -> unit
-  val _disable_all_extensions : unit -> unit
   val _dump_into_file : unit -> unit
 
   val _args: string -> string array
@@ -1203,9 +1203,11 @@ struct
     mk_config F._config;
     mk_config_var F._config_var;
     mk_custom F._custom;
+    mk_disable_all_extensions F._disable_all_extensions;
     mk_dllib F._dllib;
     mk_dllpath F._dllpath;
     mk_dtypes F._annot;
+    mk_extension F._extension;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_stop_after ~native:false F._stop_after;
@@ -1291,9 +1293,7 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
-    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
-    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1312,6 +1312,8 @@ struct
     mk_no_alias_deps F._no_alias_deps;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_disable_all_extensions F._disable_all_extensions;
+    mk_extension F._extension;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1357,7 +1359,6 @@ struct
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
     mk_dinstr F._dinstr;
-    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1387,6 +1388,8 @@ struct
     mk_config F._config;
     mk_config_var F._config_var;
     mk_dtypes F._annot;
+    mk_disable_all_extensions F._disable_all_extensions;
+    mk_extension F._extension;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_function_sections F._function_sections;
@@ -1518,10 +1521,8 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dprofile F._dprofile;
-    mk_disable_all_extensions F._disable_all_extensions;
     mk_dump_into_file F._dump_into_file;
     mk_dump_pass F._dump_pass;
-    mk_extension F._extension;
 
     mk_args F._args;
     mk_args0 F._args0;
@@ -1554,6 +1555,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_linscan F._linscan;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_disable_all_extensions F._disable_all_extensions;
+    mk_extension F._extension;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1627,7 +1630,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
-    mk_extension F._extension;
   ]
 end;;
 
@@ -1647,6 +1649,8 @@ struct
     mk_no_alias_deps F._no_alias_deps;
     mk_app_funct F._app_funct;
     mk_no_app_funct F._no_app_funct;
+    mk_disable_all_extensions F._disable_all_extensions;
+    mk_extension F._extension;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1741,6 +1745,8 @@ module Default = struct
     let _no_strict_formats = clear strict_formats
     let _no_strict_sequence = clear strict_sequence
     let _no_unboxed_types = clear unboxed_types
+    let _disable_all_extensions = Extension.disable_all
+    let _extension s = Extension.enable s
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -1779,7 +1785,6 @@ module Default = struct
     let _unsafe = set unsafe
     let _warn_error s = Warnings.parse_options true s
     let _warn_help = Warnings.help_warnings
-    let _extension s = Extension.enable s
   end
 
   module Native = struct
@@ -1894,7 +1899,6 @@ module Default = struct
     let _config_var = Misc.show_config_variable_and_exit
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
-    let _disable_all_extensions = Extension.disable_all
     let _dump_into_file = set dump_into_file
     let _for_pack s = for_package := (Some s)
     let _g = set debug

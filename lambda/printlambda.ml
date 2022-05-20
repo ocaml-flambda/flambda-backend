@@ -88,7 +88,7 @@ and value_kind' ppf = function
 let return_kind ppf (mode, kind) =
   let smode = alloc_mode mode in
   match kind with
-  | Pgenval when mode = Alloc_heap -> ()
+  | Pgenval when is_heap_mode mode -> ()
   | Pgenval -> fprintf ppf ": %s@ " smode
   | Pintval -> fprintf ppf ": int@ "
   | Pfloatval -> fprintf ppf ": %sfloat@ " smode
@@ -238,8 +238,8 @@ let primitive ppf = function
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfield_%s%s %i" instr init n
   | Psetfield_computed (ptr, init) ->
@@ -252,8 +252,8 @@ let primitive ppf = function
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfield_%s%s_computed" instr init
   | Pfloatfield (n, sem, mode) ->
@@ -264,8 +264,8 @@ let primitive ppf = function
         match init with
         | Heap_initialization -> "(heap-init)"
         | Root_initialization -> "(root-init)"
-        | Assignment -> ""
-        | Local_assignment -> "(local)"
+        | Assignment Alloc_heap -> ""
+        | Assignment Alloc_local -> "(local)"
       in
       fprintf ppf "setfloatfield%s %i" init n
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
@@ -341,7 +341,7 @@ let primitive ppf = function
   | Pisint -> fprintf ppf "isint"
   | Pisout -> fprintf ppf "isout"
   | Pbintofint (bi,m) -> print_boxed_integer "of_int" ppf bi m
-  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi Alloc_heap
+  | Pintofbint bi -> print_boxed_integer "to_int" ppf bi alloc_heap
   | Pcvtbint (bi1, bi2, m) -> print_boxed_integer_conversion ppf bi1 bi2 m
   | Pnegbint (bi,m) -> print_boxed_integer "neg" ppf bi m
   | Paddbint (bi,m) -> print_boxed_integer "add" ppf bi m
@@ -361,12 +361,12 @@ let primitive ppf = function
   | Plslbint (bi,m) -> print_boxed_integer "lsl" ppf bi m
   | Plsrbint (bi,m) -> print_boxed_integer "lsr" ppf bi m
   | Pasrbint (bi,m) -> print_boxed_integer "asr" ppf bi m
-  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi Alloc_heap
-  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi Alloc_heap
-  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi Alloc_heap
+  | Pbintcomp(bi, Ceq) -> print_boxed_integer "==" ppf bi alloc_heap
+  | Pbintcomp(bi, Cne) -> print_boxed_integer "!=" ppf bi alloc_heap
+  | Pbintcomp(bi, Clt) -> print_boxed_integer "<" ppf bi alloc_heap
+  | Pbintcomp(bi, Cgt) -> print_boxed_integer ">" ppf bi alloc_heap
+  | Pbintcomp(bi, Cle) -> print_boxed_integer "<=" ppf bi alloc_heap
+  | Pbintcomp(bi, Cge) -> print_boxed_integer ">=" ppf bi alloc_heap
   | Pbigarrayref(unsafe, _n, kind, layout) ->
       print_bigarray "get" unsafe kind ppf layout
   | Pbigarrayset(unsafe, _n, kind, layout) ->
@@ -603,11 +603,9 @@ let rec lam ppf = function
   | Lfunction{kind; params; return; body; attr; mode; region} ->
       let pr_params ppf params =
         match kind with
-        | Curried {nlocal} ->
-            let first_local = List.length params - nlocal in
-            List.iteri (fun i (param, k) ->
-                fprintf ppf "@ %a%a%s" Ident.print param value_kind k
-                  (if first_local <= i then "[->L]" else "")) params
+        | Curried _ ->
+            List.iter (fun (param, k) ->
+                fprintf ppf "@ %a%a" Ident.print param value_kind k) params
         | Tupled ->
             fprintf ppf " (";
             let first = ref true in
@@ -618,7 +616,7 @@ let rec lam ppf = function
                 value_kind ppf k)
               params;
             fprintf ppf ")" in
-      let rmode = if region then Alloc_heap else Alloc_local in
+      let rmode = if region then alloc_heap else alloc_local in
       fprintf ppf "@[<2>(function%s%a@ %a%a%a)@]"
         (alloc_kind mode) pr_params params
         function_attribute attr return_kind (rmode, return) lam body

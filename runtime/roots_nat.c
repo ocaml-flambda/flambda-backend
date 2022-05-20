@@ -522,7 +522,7 @@ static void do_local_allocations(caml_local_arenas* loc,
       if (marked_local) {
         int ix = get_local_ix(loc, *p);
         struct caml_local_arena a = loc->arenas[ix];
-        intnat newsp = (char*)p - (a.base + a.length);
+        intnat newsp = (char*)*p - (a.base + a.length);
         if (sp <= newsp) {
           /* forwards pointer, common case */
           CAMLassert(ix <= arena_ix);

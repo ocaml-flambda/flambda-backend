@@ -1,5 +1,5 @@
 (* TEST
-   flags += " -g -extension local" *)
+   flags += " -g" *)
 
 let f1 ~a ~b ~c ~d ~e = a + b + c + d + e
 let f2 ~b ~c ~e = f1 ~b ~c ~e

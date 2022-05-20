@@ -293,6 +293,7 @@ ocamltest_config.ml: ocamltest_config.ml.in Makefile ../Makefile.config
 	    $(call SUBST,FUNCTION_SECTIONS) \
 	    $(call SUBST,NAKED_POINTERS) \
 	    $(call SUBST,PROBES) \
+	    $(call SUBST,STACK_ALLOCATION) \
 	    $< > $@
 
 # Manual
