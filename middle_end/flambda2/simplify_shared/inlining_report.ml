@@ -427,6 +427,18 @@ module Inlining_tree = struct
   type decision_or_reference =
     | Decision of Decision_with_context.t
     | Reference of IHA.t
+    | Unavailable
+
+  let merge_decision_or_reference old new_ =
+    match old, new_ with
+    | Reference _, ((Decision _ | Unavailable) as d)
+    | ((Decision _ | Unavailable) as d), Reference _ ->
+      d
+    | Unavailable, (Decision _ as d) | (Decision _ as d), Unavailable -> d
+    | Reference _, Reference _
+    | Decision _, Decision _
+    | Unavailable, Unavailable ->
+      new_
 
   type item =
     | Call of
@@ -457,23 +469,15 @@ module Inlining_tree = struct
     in
     Map.add key (Scope (apply_to_child m)) t
 
-  let insert_or_update_call ?decision_with_context ~dbg ~callee
-      ~(apply_to_child : t -> t) t =
+  let insert_or_update_call ~decision ~dbg ~callee ~(apply_to_child : t -> t) t
+      =
     let key = dbg, Key.Call callee in
     Map.update key
       (function
-        | None ->
-          Some
-            (Call
-               { tree = apply_to_child Map.empty; decision = Reference callee })
-        | Some (Call t) -> begin
-          match decision_with_context with
-          | Some decision ->
-            Some
-              (Call
-                 { tree = apply_to_child t.tree; decision = Decision decision })
-          | None -> Some (Call t)
-        end
+        | None -> Some (Call { tree = apply_to_child Map.empty; decision })
+        | Some (Call t) ->
+          let decision = merge_decision_or_reference t.decision decision in
+          Some (Call { tree = apply_to_child t.tree; decision })
         | Some (Scope _ | Fundecl _) ->
           Misc.fatal_errorf
             "A key of type call or fundecl should be associated with an item \
@@ -539,11 +543,13 @@ module Inlining_tree = struct
             insert_or_update_fundecl ~dbg ~name ~apply_to_child m)
       | Call { dbg; callee; prev } ->
         insert_or_update_descendant prev ~apply_to_child:(fun m ->
-            insert_or_update_call ~dbg ~callee ~apply_to_child m)
+            insert_or_update_call ~decision:(Reference callee) ~dbg ~callee
+              ~apply_to_child m)
       | Inline { prev } -> insert_or_update_descendant prev ~apply_to_child
     in
 
     let { path; dbg; decision_with_context } = decision in
+
     if Compilation_unit.equal compilation_unit (IHA.compilation_unit path)
     then
       let path = IHA.path path in
@@ -552,7 +558,12 @@ module Inlining_tree = struct
       | Call { callee; prev; _ } ->
         insert_or_update_descendant
           ~apply_to_child:(fun m ->
-            insert_or_update_call ?decision_with_context ~dbg ~callee
+            let decision =
+              match decision_with_context with
+              | Some decision -> Decision decision
+              | None -> Unavailable
+            in
+            insert_or_update_call ~decision ~dbg ~callee
               ~apply_to_child:(fun x -> x)
               m)
           prev
@@ -608,14 +619,18 @@ module Inlining_tree = struct
       if Compilation_unit.equal defined_in compilation_unit
       then Format.fprintf ppf "this compilation unit"
       else
-        Format.fprintf ppf
-          "@[<hov>This@ decision@ was@ taken@ while@ compiling@ %s.@]"
+        Format.fprintf ppf "%s"
           (Compilation_unit.string_for_printing defined_in)
     in
     Format.fprintf ppf
       "@[<hov>The@ decision@ to@ inline@ this@ call@ was@ taken@ in@ %a@ at@ \
        %a.@]"
       cu () IHA.print to_
+
+  let print_unavailable ppf () =
+    Format.fprintf ppf
+      "@[<hov>Flambda2@ was@ unavailable@ to@ do@ a@ direct@ call@ to@ this@ \
+       function.@]"
 
   let rec print ~compilation_unit ~depth ~path ppf t =
     Map.iter
@@ -648,6 +663,7 @@ module Inlining_tree = struct
               Format.fprintf ppf "@[<v>%a@]" print_decision_with_context
                 decision_with_context
             | Reference path -> print_reference ~compilation_unit ppf path
+            | Unavailable -> print_unavailable ppf ()
           end;
 
           Format.fprintf ppf "@]@,@,";
