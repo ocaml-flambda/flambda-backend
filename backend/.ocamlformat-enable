@@ -4,5 +4,5 @@ cfg/*.ml
 cfg/*.mli
 asm_targets/*.ml
 asm_targets/*.mli
-debug/dwarf/*.ml
-debug/dwarf/*.mli
+debug/dwarf/*/*.ml
+debug/dwarf/*/*.mli
