@@ -670,7 +670,7 @@ end = struct
     then true
     else
       match descr t0, descr t1 with
-      | Empty, Empty -> true
+      | Empty, Empty -> assert false (* already covered *)
       | Leaf (i, d0), Leaf (j, d1) -> i = j && f d0 d1
       | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
         if equal_prefix prefix0 bit0 prefix1 bit1
