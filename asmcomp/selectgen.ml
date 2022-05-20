@@ -485,9 +485,8 @@ method select_operation op args _dbg =
       let (addr, eloc) = self#select_addressing chunk arg1 in
       let is_assign =
         match init with
-        | Lambda.Root_initialization -> false
-        | Lambda.Heap_initialization -> false
-        | Lambda.Assignment _ -> true
+        | Initialization -> false
+        | Assignment -> true
       in
       if chunk = Word_int || chunk = Word_val then begin
         let (op, newarg2) = self#select_store is_assign addr arg2 in

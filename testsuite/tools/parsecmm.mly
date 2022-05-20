@@ -270,16 +270,13 @@ expr:
         Cop(Cload (Double, Mutable), [access_array $3 $4 Arch.size_float],
           Debuginfo.none) }
   | LPAREN ADDRASET expr expr expr RPAREN
-      { let open Lambda in
-        Cop(Cstore (Word_val, Assignment Lambda.alloc_heap),
+      { Cop(Cstore (Word_val, Assignment),
             [access_array $3 $4 Arch.size_addr; $5], Debuginfo.none) }
   | LPAREN INTASET expr expr expr RPAREN
-      { let open Lambda in
-        Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
+      { Cop(Cstore (Word_int, Assignment),
             [access_array $3 $4 Arch.size_int; $5], Debuginfo.none) }
   | LPAREN FLOATASET expr expr expr RPAREN
-      { let open Lambda in
-        Cop(Cstore (Double, Assignment Lambda.alloc_heap),
+      { Cop(Cstore (Double, Assignment),
             [access_array $3 $4 Arch.size_float; $5], Debuginfo.none) }
 ;
 exprlist:
@@ -330,7 +327,7 @@ unaryop:
   | ABSF                        { Cabsf }
 ;
 binaryop:
-    STORE chunk                 { Cstore ($2, Lambda.Assignment Lambda.alloc_heap) }
+    STORE chunk                 { Cstore ($2, Assignment) }
   | ADDI                        { Caddi }
   | SUBI                        { Csubi }
   | STAR                        { Cmuli }
