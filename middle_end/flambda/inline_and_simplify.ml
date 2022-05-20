@@ -890,8 +890,9 @@ and simplify_over_application env r ~args ~args_approxs ~function_decls
   let full_app_approxs, _ =
     Misc.Stdlib.List.split_at arity args_approxs
   in
-  let mode' : Lambda.alloc_mode =
-    if function_decl.A.region then Alloc_heap else Alloc_local in
+  let mode' =
+    if function_decl.A.region then Lambda.alloc_heap else Lambda.alloc_local
+  in
   let expr, r =
     simplify_full_application env r ~function_decls ~lhs_of_application
       ~closure_id_being_applied ~function_decl ~value_set_of_closures

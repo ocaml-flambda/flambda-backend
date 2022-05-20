@@ -142,9 +142,8 @@ let block_set (kind : Flambda_primitive.Block_access_kind.t)
     (init : Flambda_primitive.Init_or_assign.t) =
   (* XXX these need checking for [Local_assignment] *)
   match kind, init with
-  | Values _, (Assignment | Local_assignment | Initialization) ->
-    1 (* cadda + store *)
-  | Naked_floats _, (Assignment | Local_assignment | Initialization) -> 1
+  | Values _, (Assignment _ | Initialization) -> 1 (* cadda + store *)
+  | Naked_floats _, (Assignment _ | Initialization) -> 1
 
 let array_set (kind : Flambda_primitive.Array_kind.t)
     (_init : Flambda_primitive.Init_or_assign.t) =

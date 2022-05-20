@@ -491,7 +491,7 @@ let transform_primitive env (prim : L.primitive) args loc =
       { ap_func = funct;
         ap_args = [arg];
         ap_region_close = pos;
-        ap_mode = Alloc_heap;
+        ap_mode = Lambda.alloc_heap;
         ap_loc = loc;
         ap_tailcall = Default_tailcall;
         (* CR-someday lwhite: it would be nice to be able to give inlined

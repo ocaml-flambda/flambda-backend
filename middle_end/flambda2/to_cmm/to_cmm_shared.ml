@@ -156,7 +156,7 @@ let invalid res ~message =
 let make_update env dbg kind ~symbol var ~index ~prev_updates =
   let e, env, _ece = To_cmm_env.inline_variable env var in
   let addr = field_address symbol index dbg in
-  let update = store ~dbg kind Root_initialization ~addr ~new_value:e in
+  let update = store ~dbg kind Initialization ~addr ~new_value:e in
   match prev_updates with
   | None -> env, Some update
   | Some prev_updates -> env, Some (sequence prev_updates update)

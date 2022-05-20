@@ -253,23 +253,20 @@ type string_or_bytes =
 module Init_or_assign = struct
   type t =
     | Initialization
-    | Assignment
-    | Local_assignment
+    | Assignment of Alloc_mode.t
 
   let [@ocamlformat "disable"] print ppf t =
     let fprintf = Format.fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
-    | Assignment -> fprintf ppf "Assign"
-    | Local_assignment -> fprintf ppf "Local_assign"
+    | Assignment mode -> fprintf ppf "Assign %a" Alloc_mode.print mode
 
   let compare = Stdlib.compare
 
   let to_lambda t : Lambda.initialization_or_assignment =
     match t with
     | Initialization -> Heap_initialization
-    | Assignment -> Assignment
-    | Local_assignment -> Local_assignment
+    | Assignment mode -> Assignment (Alloc_mode.to_lambda mode)
 end
 
 type array_like_operation =

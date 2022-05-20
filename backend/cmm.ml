@@ -156,6 +156,10 @@ type trywith_kind =
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+type initialization_or_assignment =
+  | Initialization
+  | Assignment
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -182,7 +186,7 @@ and operation =
       }
   | Cload of memory_chunk * Asttypes.mutable_flag
   | Calloc of Lambda.alloc_mode
-  | Cstore of memory_chunk * Lambda.initialization_or_assignment
+  | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
   | Cbswap of { bitwidth: bswap_bitwidth; }

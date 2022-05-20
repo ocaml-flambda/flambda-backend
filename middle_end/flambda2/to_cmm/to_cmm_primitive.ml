@@ -154,9 +154,9 @@ let array_load ?(dbg = Debuginfo.none) (kind : P.Array_kind.t) arr index =
 
 let addr_array_store init arr index value dbg =
   match (init : P.Init_or_assign.t) with
-  | Assignment -> C.addr_array_set arr index value dbg
+  | Assignment Heap -> C.addr_array_set arr index value dbg
+  | Assignment Local -> C.addr_array_set_local arr index value dbg
   | Initialization -> C.addr_array_initialize arr index value dbg
-  | Local_assignment -> C.addr_array_set_local arr index value dbg
 
 let array_set ?(dbg = Debuginfo.none) (kind : P.Array_kind.t)
     (init : P.Init_or_assign.t) arr index value =

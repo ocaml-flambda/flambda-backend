@@ -767,10 +767,10 @@ let addr_array_set arr ofs newval dbg =
   Cop(Cextcall("caml_modify", typ_void, [], false),
       [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let int_array_set arr ofs newval dbg =
-  Cop(Cstore (Word_int, Lambda.Assignment Lambda.alloc_heap),
+  Cop(Cstore (Word_int, Assignment),
     [array_indexing log2_size_addr arr ofs dbg; newval], dbg)
 let float_array_set arr ofs newval dbg =
-  Cop(Cstore (Double, Lambda.Assignment Lambda.alloc_heap),
+  Cop(Cstore (Double, Assignment),
     [array_indexing log2_size_float arr ofs dbg; newval], dbg)
 
 let addr_array_set_local arr ofs newval dbg =
@@ -1004,14 +1004,14 @@ let bigarray_set unsafe elt_kind layout b args newval dbg =
         bind "addr" (bigarray_indexing unsafe elt_kind layout b args dbg)
           (fun addr ->
           Csequence(
-            Cop(Cstore (kind, Assignment Lambda.alloc_heap),
+            Cop(Cstore (kind, Assignment),
                 [addr; complex_re newv dbg], dbg),
-            Cop(Cstore (kind, Assignment Lambda.alloc_heap),
+            Cop(Cstore (kind, Assignment),
                 [Cop(Cadda, [addr; Cconst_int (sz, dbg)], dbg);
                  complex_im newv dbg],
                 dbg))))
     | _ ->
-        Cop(Cstore (bigarray_word_kind elt_kind, Assignment Lambda.alloc_heap),
+        Cop(Cstore (bigarray_word_kind elt_kind, Assignment),
             [bigarray_indexing unsafe elt_kind layout b args dbg; newval],
             dbg))
 
@@ -1164,7 +1164,7 @@ let unaligned_load_16 ptr idx dbg =
 let unaligned_set_16 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
-    Cop(Cstore (Sixteen_unsigned, Assignment Lambda.alloc_heap),
+    Cop(Cstore (Sixteen_unsigned, Assignment),
       [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
@@ -1175,8 +1175,8 @@ let unaligned_set_16 ptr idx newval dbg =
     let v2 = Cop(Cand, [newval; cconst_int 0xFF], dbg) in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Csequence(
-        Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; b1], dbg),
-        Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+        Cop(Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
+        Cop(Cstore (Byte_unsigned, Assignment),
             [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2], dbg))
 
 let unaligned_load_32 ptr idx dbg =
@@ -1207,7 +1207,7 @@ let unaligned_load_32 ptr idx dbg =
 let unaligned_set_32 ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
-    Cop(Cstore (Thirtytwo_unsigned, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; newval],
+    Cop(Cstore (Thirtytwo_unsigned, Assignment), [add_int ptr idx dbg; newval],
       dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
@@ -1227,16 +1227,16 @@ let unaligned_set_32 ptr idx newval dbg =
       else v4, v3, v2, v1 in
     Csequence(
         Csequence(
-            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+            Cop(Cstore (Byte_unsigned, Assignment),
                 [add_int ptr idx dbg; b1], dbg),
-            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+            Cop(Cstore (Byte_unsigned, Assignment),
                 [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
                 dbg)),
         Csequence(
-            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+            Cop(Cstore (Byte_unsigned, Assignment),
                 [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
                 dbg),
-            Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+            Cop(Cstore (Byte_unsigned, Assignment),
                 [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
                 dbg)))
 
@@ -1282,7 +1282,7 @@ let unaligned_load_64 ptr idx dbg =
 let unaligned_set_64 ptr idx newval dbg =
   assert(size_int = 8);
   if Arch.allow_unaligned_access
-  then Cop(Cstore (Word_int, Assignment Lambda.alloc_heap), [add_int ptr idx dbg; newval], dbg)
+  then Cop(Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -1321,32 +1321,32 @@ let unaligned_set_64 ptr idx newval dbg =
     Csequence(
         Csequence(
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int ptr idx dbg; b1],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
                     dbg)),
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
                     dbg))),
         Csequence(
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 4) dbg; b5],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 5) dbg; b6],
                     dbg)),
             Csequence(
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 6) dbg; b7],
                     dbg),
-                Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+                Cop(Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
                     dbg))))
 
@@ -1826,7 +1826,7 @@ let cache_public_method meths tag cache dbg =
     VP.create tagged,
       Cop(Caddi, [lsl_const (Cvar li) log2_size_addr dbg;
         cconst_int(1 - 3 * size_addr)], dbg),
-    Csequence(Cop (Cstore (Word_int, Assignment Lambda.alloc_heap), [cache; Cvar tagged], dbg),
+    Csequence(Cop (Cstore (Word_int, Assignment), [cache; Cvar tagged], dbg),
               Cvar tagged)))))
 
 let has_local_allocs e =
@@ -2266,7 +2266,7 @@ let negint arg dbg =
 let offsetref n arg dbg =
   return_unit dbg
     (bind "ref" arg (fun arg ->
-         Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
+         Cop(Cstore (Word_int, Assignment),
              [arg;
               add_const (Cop(Cload (Word_int, Mutable), [arg], dbg))
                 (n lsl 1) dbg],
@@ -2318,7 +2318,10 @@ type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 
 (* Helper for compilation of initialization and assignment operations *)
 
-type assignment_kind = Caml_modify | Caml_modify_local | Simple
+type assignment_kind =
+    | Caml_modify
+    | Caml_modify_local
+    | Simple of initialization_or_assignment
 
 let assignment_kind
     (ptr: Lambda.immediate_or_pointer)
@@ -2330,8 +2333,8 @@ let assignment_kind
     Caml_modify_local
   | Heap_initialization, _ ->
      Misc.fatal_error "Cmm_helpers: Lambda.Heap_initialization unsupported"
-  | (Assignment _), Immediate
-  | Root_initialization, (Immediate | Pointer) -> Simple
+  | (Assignment _), Immediate -> Simple Assignment
+  | Root_initialization, (Immediate | Pointer) -> Simple Initialization
 
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
@@ -2345,10 +2348,15 @@ let setfield n ptr init arg1 arg2 dbg =
         (Cop(Cextcall("caml_modify_local", typ_void, [], false),
              [arg1; Cconst_int (n,dbg); arg2],
              dbg))
-  | Simple ->
+  | Simple init ->
       return_unit dbg (set_field arg1 n arg2 init dbg)
 
 let setfloatfield n init arg1 arg2 dbg =
+  let init =
+    match init with
+    | Lambda.Assignment _ -> Assignment
+    | Lambda.Heap_initialization | Lambda.Root_initialization -> Initialization
+  in
   return_unit dbg (
     Cop(Cstore (Double, init),
         [if n = 0 then arg1
@@ -2532,11 +2540,11 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
       return_unit dbg (addr_array_set arg1 arg2 arg3 dbg)
   | Caml_modify_local ->
       return_unit dbg (addr_array_set_local arg1 arg2 arg3 dbg)
-  | Simple ->
+  | Simple _ ->
       return_unit dbg (int_array_set arg1 arg2 arg3 dbg)
 
 let bytesset_unsafe arg1 arg2 arg3 dbg =
-      return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+      return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment),
                       [add_int arg1 (untag_int arg2 dbg) dbg;
                        ignore_high_bit_int (untag_int arg3 dbg)], dbg))
 
@@ -2547,7 +2555,7 @@ let bytesset_safe arg1 arg2 arg3 dbg =
        bind "str" arg1 (fun str ->
         Csequence(
           make_checkbound dbg [string_length str dbg; idx],
-          Cop(Cstore (Byte_unsigned, Assignment Lambda.alloc_heap),
+          Cop(Cstore (Byte_unsigned, Assignment),
               [add_int str idx dbg;
                ignore_high_bit_int newval],
               dbg))))))
@@ -2724,7 +2732,7 @@ let entry_point namelist =
   let cconst_int i = Cconst_int (i, dbg ()) in
   let cconst_symbol sym = Cconst_symbol (sym, dbg ()) in
   let incr_global_inited () =
-    Cop(Cstore (Word_int, Assignment Lambda.alloc_heap),
+    Cop(Cstore (Word_int, Assignment),
         [cconst_symbol "caml_globals_inited";
          Cop(Caddi, [Cop(Cload (Word_int, Mutable),
                        [cconst_symbol "caml_globals_inited"], dbg ());

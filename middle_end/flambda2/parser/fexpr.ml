@@ -224,8 +224,7 @@ type string_or_bytes = Flambda_primitive.string_or_bytes =
 
 type init_or_assign = Flambda_primitive.Init_or_assign.t =
   | Initialization
-  | Assignment
-  | Local_assignment
+  | Assignment of Alloc_mode.t
 
 type comparison = Flambda_primitive.comparison =
   | Eq
