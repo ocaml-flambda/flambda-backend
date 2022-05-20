@@ -83,6 +83,7 @@ module Inlining_tree : sig
   type decision_or_reference =
     | Decision of Decision_with_context.t
     | Reference of Inlining_history.Absolute.t
+    | Unavailable
 
   type item =
     | Call of
