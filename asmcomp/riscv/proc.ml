@@ -274,16 +274,6 @@ let max_register_pressure = function
   | Iextcall _ -> [| 9; 12 |]
   | _ -> [| 23; 30 |]
 
-(* Pure operations (without any side effect besides updating their result
-   registers). *)
-
-let op_is_pure = function
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _
-  | Iintop(Icheckbound) | Iintop_imm(Icheckbound, _) -> false
-  | Ispecific(Imultaddf _ | Imultsubf _) -> true
-  | _ -> true
-
 (* Layout of the stack *)
 
 let frame_required fd =
